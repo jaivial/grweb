@@ -4,8 +4,9 @@ import {
   HeroSection, 
   TestSection,
   AthletesSection,
-  WeightCategoriesSection,
   PricesAllMovementsSection,
+  OrganizationEquipmentSection,
+  WeightCategoriesSection,
   RulesSection, 
   HowToEnterSection, 
   WinnersSection,
@@ -38,6 +39,9 @@ export function Home(): JSX.Element {
 
       {/* Prices All Movements Section - Best in each movement */}
       <PricesAllMovementsSection />
+
+      {/* Organization & Equipment Section - Competition organization and high quality equipment */}
+      <OrganizationEquipmentSection />
 
       {/* Weight Categories Section - Competition categories */}
       <WeightCategoriesSection />
