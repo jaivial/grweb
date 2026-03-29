@@ -1,0 +1,21 @@
+using GrCup.Api.Models.Enums;
+
+namespace GrCup.Api.Models;
+
+public class Athlete
+{
+    public int Id { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string Surname { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public Sex Sex { get; set; }
+    public string WeightCategory { get; set; } = string.Empty;
+    public string? Club { get; set; }
+    public decimal? TotalWeight { get; set; }
+    public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
+    public string? Coach { get; set; }
+    public AthleteStatus Status { get; set; } = AthleteStatus.PendingPayment;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}

@@ -1,0 +1,10 @@
+// Home page components barrel export
+export { HeroSection } from './HeroSection';
+export { TestSection } from './TestSection';
+export { AthletesSection } from './AthletesSection';
+export { WeightCategoriesSection } from './WeightCategoriesSection';
+export { PricesAllMovementsSection } from './PricesAllMovementsSection';
+export { RulesSection } from './RulesSection';
+export { HowToEnterSection } from './HowToEnterSection';
+export { WinnersSection } from './WinnersSection';
+export { Footer } from './Footer';

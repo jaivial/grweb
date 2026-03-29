@@ -1,0 +1,130 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using Serilog;
+using GrCup.Api.Data;
+using GrCup.Api.Hubs;
+using GrCup.Api.Services;
+using GrCup.Api.Endpoints;
+using DotNetEnv;
+
+// Load .env file from application directory
+var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
+if (File.Exists(envPath))
+{
+    Env.Load(envPath);
+}
+else
+{
+    Env.Load();
+}
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ─── Serilog ───
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateLogger();
+builder.Host.UseSerilog();
+
+// ─── CORS ───
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowFrontend", policy => {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials()
+              .SetIsOriginAllowed(_ => true);
+    });
+});
+
+// ─── MySQL via Pomelo ───
+var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
+    ?? builder.Configuration.GetConnectionString("Default")
+    ?? "Server=localhost;Port=3306;Database=grcup;User=root;Password=myth;";
+var serverVersion = new MySqlServerVersion(new Version(8, 0, 0));
+builder.Services.AddDbContext<GrCupDbContext>(options =>
+    options.UseMySql(connectionString, serverVersion, mysqlOptions => {
+        mysqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(10), null);
+    }));
+
+// ─── JWT Authentication ───
+var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET")
+    ?? Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+    ?? "SuperSecretKeyThatIsAtLeast32CharactersLong!";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "GrCupApi";
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options => {
+        options.TokenValidationParameters = new TokenValidationParameters {
+            ValidateIssuer = true, ValidateAudience = true,
+            ValidateLifetime = true, ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer, ValidAudience = "GrCup",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+        // Allow JWT from query string for SignalR WebSocket connections
+        options.Events = new JwtBearerEvents {
+            OnMessageReceived = context => {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization();
+
+// ─── SignalR ───
+builder.Services.AddSignalR();
+
+// ─── DI Services ───
+builder.Services.AddScoped<ParticipantService>();
+builder.Services.AddScoped<StripeService>();
+builder.Services.AddScoped<DrawService>();
+builder.Services.AddScoped<AthleteService>();
+builder.Services.AddScoped<ScheduleService>();
+builder.Services.AddSingleton<JwtService>();
+
+// ─── Swagger ───
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c => {
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "GR Cup API", Version = "v1" });
+});
+
+// ─── Application ───
+var app = builder.Build();
+
+// ─── Auto-apply migrations ───
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<GrCupDbContext>();
+    db.Database.Migrate();
+}
+
+// ─── Middleware ───
+app.UseSerilogRequestLogging();
+app.UseCors("AllowFrontend");
+
+if (app.Environment.IsDevelopment()) {
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// ─── Authentication & Authorization ───
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ─── Map SignalR Hub ───
+app.MapHub<ParticipantsHub>("/hubs/participants");
+
+// ─── Map API Endpoints ───
+app.MapPublicEndpoints();
+app.MapWebhookEndpoints();
+app.MapAdminEndpoints();
+app.MapAthleteEndpoints();
+app.MapScheduleEndpoints();
+
+app.Run();
