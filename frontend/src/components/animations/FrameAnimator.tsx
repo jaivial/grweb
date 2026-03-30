@@ -1,10 +1,6 @@
 import { FC, useEffect, useRef, useMemo, useState } from 'react';
 
-const LAST_FRAME_SRC = '/trophy/frame_000001.png';
-const STATIC_FRAME_PAUSE = 0.05; // Reduced static pause duration (5% of scroll)
-const ANIMATION_START = 0.04; // Frame animation starts at 4% progress
-
-const ANIMATION_END = 0.80; // Frame animation ends at 80% progress
+const ANIMATION_START = 0.04;
 
 export interface FrameAnimatorProps {
   frames: HTMLImageElement[];
@@ -24,41 +20,19 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentFrameRef = useRef(0);
   const [staticFrameLoaded, setStaticFrameLoaded] = useState(false);
-  const animationStart = ANIMATION_START;
-  const animationEnd = staticPauseStart;
-  // First frame is the static final frame
-  const firstFrame = useMemo(() => {
-    return frames.length > 0 ? frames[0] : null;
-  }, [frames]);
 
   const frameIndex = useMemo(() => {
-    // If not animating, return first frame
-    if (!isAnimating) {
-      return 0;
-    }
-    
-    // Animation starts at 0.04 (FRAME_ANIMATION phase start) and ends at 0.80
-    const animationStart = 0.04;
+    const animationStart = ANIMATION_START;
     const animationEnd = staticPauseStart;
-    
-    // If before animation starts, show first frame
-    if (progress < animationStart) {
-      return 0;
-    }
-    
-    // If after animation ends, show last frame
-    if (progress >= animationEnd) {
-      return frames.length - 1;
-    }
-    
-    // Normalize progress within animation range (0 to 1)
+
+    if (progress < animationStart) return 0;
+    if (progress >= animationEnd) return 0;
+
     const animationProgress = (progress - animationStart) / (animationEnd - animationStart);
-    
-    // Map to frame index (0 to frames.length - 1)
     const index = Math.floor(animationProgress * (frames.length - 1));
-    
+
     return Math.max(0, Math.min(frames.length - 1, index));
-  }, [progress, frames.length, isAnimating, staticPauseStart]);
+  }, [progress, frames.length, staticPauseStart]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -159,24 +133,13 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [frameIndex, frames, isAnimating]);
 
-  const showStaticFrame = !isAnimating || progress < animationStart || progress >= staticPauseStart;
-  const showCanvas = isAnimating && progress >= animationStart && progress < staticPauseStart && frames.length > 0;
+  const showCanvas = frames.length > 0;
   const showLoading = frames.length === 0 && !staticFrameLoaded;
 
   const containerClassName = 'absolute inset-0 ' + className;
 
   return (
     <div className={containerClassName} data-component="FrameAnimator">
-      {showStaticFrame && (
-        <img
-          src={firstFrame ? firstFrame.src : LAST_FRAME_SRC}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          data-component="FrameBackground"
-          onLoad={() => setStaticFrameLoaded(true)}
-        />
-      )}
-
       <canvas
         ref={canvasRef}
         className="w-full h-full"
