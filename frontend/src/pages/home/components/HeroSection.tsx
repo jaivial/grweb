@@ -14,8 +14,12 @@ export const HeroSection: FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
-    framesPath: '/trophy',
-    totalFrames: 1565,
+    frameSource: {
+      source: 'cdn',
+      startFrame: 1565,
+      endFrame: 1,
+      order: 'desc',
+    },
     batchSize: 20,
     batchDelay: 50,
   });
@@ -38,7 +42,7 @@ export const HeroSection: FC = () => {
   }, [isLoading]);
 
   const { progress: scrollProgress } = useScrollProgress({
-    totalVh: 1200,
+    totalVh: 500,
     smooth: true,
     smoothFactor: 0.15,
   });
@@ -83,7 +87,7 @@ export const HeroSection: FC = () => {
     <div
       id="hero-container"
       className={containerClassName}
-      style={{ height: '1200vh' }}
+      style={{ height: '600vh' }}
       data-section="hero"
       data-component="HeroSection"
     >
@@ -96,7 +100,7 @@ export const HeroSection: FC = () => {
           frames={frames}
           progress={animationState.frameProgress}
           isAnimating={animationState.frameAnimationActive}
-          staticPauseStart={0.80}
+          staticPauseStart={1}
           className="absolute inset-0 z-0"
         />
 
@@ -108,6 +112,15 @@ export const HeroSection: FC = () => {
         <CloudsEnter
           progress={animationState.cloudsEnterProgress}
           className="z-15"
+        />
+
+        {/* Fade cover at bottom-right */}
+        <div
+          className="absolute bottom-0 right-0 w-full h-32 pointer-events-none z-30"
+          style={{
+            background: 'linear-gradient(to top, rgba(10,10,10,1) 0%, rgba(10,10,10,0.8) 40%, transparent 100%)',
+          }}
+          data-component="BottomRightFadeCover"
         />
 
         <HeroTextSequence
