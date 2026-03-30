@@ -1,0 +1,78 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - heading "GR Cup" [level=1] [ref=e7]
+        - paragraph [ref=e8]: Panel de Administración
+      - navigation [ref=e9]:
+        - link "Inicio" [ref=e10] [cursor=pointer]:
+          - /url: /backoffice
+          - img [ref=e11]
+          - text: Inicio
+        - link "Inscripciones" [ref=e13] [cursor=pointer]:
+          - /url: /backoffice/inscripciones
+          - img [ref=e14]
+          - text: Inscripciones
+        - link "Sorteo" [ref=e16] [cursor=pointer]:
+          - /url: /backoffice/sorteo
+          - img [ref=e17]
+          - text: Sorteo
+        - link "Horarios" [ref=e19] [cursor=pointer]:
+          - /url: /backoffice/horarios
+          - img [ref=e20]
+          - text: Horarios
+      - button "Cerrar Sesión" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+        - text: Cerrar Sesión
+  - main [ref=e26]:
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - heading "Panel de Administración" [level=1] [ref=e29]
+        - paragraph [ref=e30]: Gestiona las inscripciones, sorteos y horarios del GR Cup
+      - generic [ref=e31]:
+        - link "Inscripciones Gestiona los atletas registrados, añade nuevas inscripciones y filtra por categoría" [ref=e32] [cursor=pointer]:
+          - /url: /backoffice/inscripciones
+          - generic [ref=e33]:
+            - img [ref=e35]
+            - generic [ref=e37]:
+              - heading "Inscripciones" [level=3] [ref=e38]
+              - paragraph [ref=e39]: Gestiona los atletas registrados, añade nuevas inscripciones y filtra por categoría
+            - img [ref=e41]
+        - link "Sorteo Realiza el sorteo de ganadores entre los participantes registrados" [ref=e43] [cursor=pointer]:
+          - /url: /backoffice/sorteo
+          - generic [ref=e44]:
+            - img [ref=e46]
+            - generic [ref=e48]:
+              - heading "Sorteo" [level=3] [ref=e49]
+              - paragraph [ref=e50]: Realiza el sorteo de ganadores entre los participantes registrados
+            - img [ref=e52]
+        - link "Horarios Configura los horarios de las categorías por día de competición" [ref=e54] [cursor=pointer]:
+          - /url: /backoffice/horarios
+          - generic [ref=e55]:
+            - img [ref=e57]
+            - generic [ref=e59]:
+              - heading "Horarios" [level=3] [ref=e60]
+              - paragraph [ref=e61]: Configura los horarios de las categorías por día de competición
+            - img [ref=e63]
+      - generic [ref=e65]:
+        - heading "Información Rápida" [level=2] [ref=e66]
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - img [ref=e70]
+            - generic [ref=e72]:
+              - paragraph [ref=e73]: Fecha del Evento
+              - paragraph [ref=e74]: Por definir
+          - generic [ref=e75]:
+            - img [ref=e77]
+            - generic [ref=e80]:
+              - paragraph [ref=e81]: Ubicación
+              - paragraph [ref=e82]: Por definir
+          - generic [ref=e83]:
+            - img [ref=e85]
+            - generic [ref=e87]:
+              - paragraph [ref=e88]: Estado
+              - paragraph [ref=e89]: Preparando
+```
