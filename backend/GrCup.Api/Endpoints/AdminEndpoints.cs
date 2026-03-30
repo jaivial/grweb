@@ -13,10 +13,10 @@ public static class AdminEndpoints
         // ─── Authentication ───
         
         // POST /api/admin/login
-        app.MapPost("/api/admin/login", async (
+        app.MapPost("/api/admin/login", (
             [FromBody] LoginRequest request,
             JwtService jwtService,
-            IConfiguration config,
+            HttpContext context,
             ILogger<Program> logger) =>
         {
             // Hardcoded admin credentials
@@ -27,11 +27,29 @@ public static class AdminEndpoints
             {
                 var token = jwtService.GenerateToken(request.Username);
                 logger.LogInformation("Admin login successful for {Username}", request.Username);
-                return Results.Ok(new { token });
+
+                // Set HttpOnly cookie
+                context.Response.Cookies.Append("gr_cup_token", token, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Path = "/",
+                    MaxAge = TimeSpan.FromDays(1)
+                });
+
+                return Results.Ok(new { success = true });
             }
 
             logger.LogWarning("Failed admin login attempt for {Username}", request.Username);
             return Results.Unauthorized();
+        });
+
+        // POST /api/admin/logout
+        app.MapPost("/api/admin/logout", (HttpContext context) =>
+        {
+            context.Response.Cookies.Delete("gr_cup_token");
+            return Results.Ok(new { success = true });
         });
 
         // GET /api/admin/verify

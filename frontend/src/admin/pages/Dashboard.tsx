@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { api } from '../../utils/api';
-import { token } from '../../stores/auth';
 import { useSignalR } from '../../hooks/useSignalR';
 import { participantCount } from '../../stores/participants';
 
@@ -25,11 +24,10 @@ export default function Dashboard() {
   }, []);
 
   async function fetchStatistics() {
-    if (!token.value) return;
-
     try {
       setLoading(true);
-      const data = await api.getStatistics(token.value);
+      // Use cookie-based auth via credentials: 'include'
+      const data = await api.getStatistics();
       setStats(data);
       setError(null);
     } catch (err) {
@@ -176,12 +174,10 @@ export default function Dashboard() {
 
             <button
               onClick={async () => {
-                if (token.value) {
-                  try {
-                    await api.exportCsv(token.value);
-                  } catch (err) {
-                    console.error('Export failed:', err);
-                  }
+                try {
+                  await api.exportCsv();
+                } catch (err) {
+                  console.error('Export failed:', err);
                 }
               }}
               className="bg-dark-surface rounded-xl p-6 border border-dark-lighter hover:border-green-500 transition-all hover:scale-105 text-left group"

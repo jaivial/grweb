@@ -79,6 +79,7 @@ export default function Login() {
                 </div>
                 <input
                   id="username"
+                  name="username"
                   type="text"
                   value={username}
                   onInput={(e) => setUsername((e.target as HTMLInputElement).value)}
@@ -103,6 +104,7 @@ export default function Login() {
                 </div>
                 <input
                   id="password"
+                  name="password"
                   type="password"
                   value={password}
                   onInput={(e) => setPassword((e.target as HTMLInputElement).value)}

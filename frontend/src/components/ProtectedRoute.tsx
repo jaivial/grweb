@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { isAuthenticated, verifyAuth, isLoading } from '@stores/auth';
+import { verifyAuth } from '@stores/auth';
 
 interface ProtectedRouteProps {
   children: any;
@@ -8,27 +8,23 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [location, setLocation] = useLocation();
+  const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    verifyAuth();
+    verifyAuth().then(valid => {
+      setIsVerifying(false);
+      if (!valid) {
+        setLocation('/admin/login');
+      }
+    });
   }, []);
 
-  useEffect(() => {
-    if (!isLoading.value && !isAuthenticated.value) {
-      setLocation('/admin/login');
-    }
-  }, [isAuthenticated.value, isLoading.value]);
-
-  if (isLoading.value) {
+  if (isVerifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-base">
         <div className="text-red-accent text-xl">Loading...</div>
       </div>
     );
-  }
-
-  if (!isAuthenticated.value) {
-    return null;
   }
 
   return children;

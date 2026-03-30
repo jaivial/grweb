@@ -78,34 +78,34 @@ class ApiClient {
     return this.request<{ username: string; valid: boolean }>('/api/admin/verify', { token });
   }
 
-  async getStatistics(token: string) {
+  async getStatistics() {
     return this.request<{
       totalParticipants: number;
       totalTickets: number;
       totalRevenue: number;
-    }>('/api/admin/statistics', { token });
+    }>('/api/admin/statistics');
   }
 
-  async getParticipants(token: string, page: number = 1, search?: string) {
+  async getParticipants(page: number = 1, search?: string) {
     const params = new URLSearchParams({ page: page.toString() });
     if (search) params.append('search', search);
-    
+
     return this.request<{
       participants: any[];
       totalCount: number;
       page: number;
       pageSize: number;
       totalPages: number;
-    }>(`/api/admin/participants?${params}`, { token });
+    }>(`/api/admin/participants?${params}`);
   }
 
-  async exportCsv(token: string) {
+  async exportCsv() {
     const response = await fetch(`${this.baseUrl}/api/admin/export/csv`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     });
-    
+
     if (!response.ok) throw new Error('Export failed');
-    
+
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -115,28 +115,27 @@ class ApiClient {
     window.URL.revokeObjectURL(url);
   }
 
-  async drawWinner(token: string) {
-    return this.request<any>('/api/admin/draw', { method: 'POST', token });
+  async drawWinner() {
+    return this.request<any>('/api/admin/draw', { method: 'POST' });
   }
 
-  async confirmWinner(token: string, drawId: number) {
-    return this.request<any>(`/api/admin/draw/${drawId}/confirm`, { method: 'POST', token });
+  async confirmWinner(drawId: number) {
+    return this.request<any>(`/api/admin/draw/${drawId}/confirm`, { method: 'POST' });
   }
 
-  async getDraws(token: string) {
-    return this.request<any[]>('/api/admin/draws', { token });
+  async getDraws() {
+    return this.request<any[]>('/api/admin/draws');
   }
 
-  async voidDraw(token: string, drawId: number) {
+  async voidDraw(drawId: number) {
     return this.request<{ message: string }>(`/api/admin/draw/${drawId}`, {
       method: 'DELETE',
-      token,
     });
   }
 
   // ─── Athletes (Inscripciones) ───
 
-  async getAthletes(token: string, params: {
+  async getAthletes(params: {
     page?: number;
     pageSize?: number;
     search?: string;
@@ -167,67 +166,61 @@ class ApiClient {
         disqualified: number;
         missingDocumentation: number;
       };
-    }>(`/api/admin/athletes?${searchParams}`, { token });
+    }>(`/api/admin/athletes?${searchParams}`);
   }
 
-  async getAthlete(token: string, id: number) {
-    return this.request<any>(`/api/admin/athletes/${id}`, { token });
+  async getAthlete(id: number) {
+    return this.request<any>(`/api/admin/athletes/${id}`);
   }
 
-  async createAthlete(token: string, data: any) {
+  async createAthlete(data: any) {
     return this.request<any>('/api/admin/athletes', {
       method: 'POST',
       body: data,
-      token,
     });
   }
 
-  async updateAthlete(token: string, id: number, data: any) {
+  async updateAthlete(id: number, data: any) {
     return this.request<any>(`/api/admin/athletes/${id}`, {
       method: 'PUT',
       body: data,
-      token,
     });
   }
 
-  async deleteAthlete(token: string, id: number) {
+  async deleteAthlete(id: number) {
     return this.request<{ message?: string }>(`/api/admin/athletes/${id}`, {
       method: 'DELETE',
-      token,
     });
   }
 
   // ─── Schedules (Horarios) ───
 
-  async getSchedules(token: string, sexCategory?: string) {
+  async getSchedules(sexCategory?: string) {
     const params = sexCategory ? `?sexCategory=${sexCategory}` : '';
-    return this.request<any[]>(`/api/admin/schedules${params}`, { token });
+    return this.request<any[]>(`/api/admin/schedules${params}`);
   }
 
-  async getSchedule(token: string, id: number) {
-    return this.request<any>(`/api/admin/schedules/${id}`, { token });
+  async getSchedule(id: number) {
+    return this.request<any>(`/api/admin/schedules/${id}`);
   }
 
-  async createSchedule(token: string, data: any) {
+  async createSchedule(data: any) {
     return this.request<any>('/api/admin/schedules', {
       method: 'POST',
       body: data,
-      token,
     });
   }
 
-  async updateSchedule(token: string, id: number, data: any) {
+  async updateSchedule(id: number, data: any) {
     return this.request<any>(`/api/admin/schedules/${id}`, {
       method: 'PUT',
       body: data,
-      token,
     });
   }
 
-  async deleteSchedule(token: string, id: number) {
+  async deleteSchedule(id: number) {
     return this.request<{ message?: string }>(`/api/admin/schedules/${id}`, {
       method: 'DELETE',
-      token,
     });
   }
 }

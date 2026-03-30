@@ -4,7 +4,7 @@
  * Defines all application routes and route guards.
  */
 
-import { lazy, Suspense, ComponentType, FC, useEffect } from 'react';
+import { lazy, Suspense, ComponentType, FC, useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import { Router, Route } from 'wouter';
 import { useLocation } from 'wouter';
@@ -30,17 +30,29 @@ const Horarios: FC = lazy(() => import('./pages/backoffice/horarios/Horarios')) 
 const Sorteo: FC = lazy(() => import('./pages/backoffice/sorteo/Sorteo')) as any;
 
 // Protected Route Component
-import { token } from './stores/auth';
+import { token, verifyAuth } from './stores/auth';
 
 function ProtectedRoute({ children }: { children: () => JSX.Element }): JSX.Element {
   const [location, setLocation] = useLocation();
+  const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    // Check for token
-    if (!token.value) {
-      setLocation('/admin/login');
-    }
-  }, [token.value]);
+    // Check for token and verify with backend
+    verifyAuth().then(valid => {
+      if (!valid) {
+        setLocation('/admin/login');
+      }
+      setIsVerifying(false);
+    });
+  }, []);
+
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-dark-base">
+        <div className="animate-spin w-8 h-8 border-4 border-red-accent border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   if (!token.value) {
     return (

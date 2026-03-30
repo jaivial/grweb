@@ -50,8 +50,8 @@ export function useLogin() {
   /**
    * Logout handler
    */
-  const logout = useCallback(() => {
-    localStorage.removeItem('gr_cup_admin_token');
+  const logout = useCallback(async () => {
+    await import('../lib/api').then(m => m.logout());
     setIsAuthenticated(false);
     setError(null);
   }, []);
