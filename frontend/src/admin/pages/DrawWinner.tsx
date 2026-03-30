@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
-import { token } from '../../stores/auth';
 
 interface Draw {
   id: number;
@@ -26,11 +25,9 @@ export default function DrawWinner() {
   }, []);
 
   async function fetchDraws() {
-    if (!token.value) return;
-
     try {
       setLoading(true);
-      const data = await api.getDraws(token.value);
+      const data = await api.getDraws();
       setDraws(data);
       setError(null);
     } catch (err) {
@@ -41,16 +38,14 @@ export default function DrawWinner() {
   }
 
   async function handleDraw() {
-    if (!token.value) return;
-
     try {
       setDrawInProgress(true);
       setError(null);
-      
-      const winner = await api.drawWinner(token.value);
+
+      const winner = await api.drawWinner();
       setCurrentWinner(winner);
       setShowConfirmModal(true);
-      
+
       // Refresh draw history
       await fetchDraws();
     } catch (err) {
@@ -61,10 +56,8 @@ export default function DrawWinner() {
   }
 
   async function handleConfirm(drawId: number) {
-    if (!token.value) return;
-
     try {
-      await api.confirmWinner(token.value, drawId);
+      await api.confirmWinner(drawId);
       setShowConfirmModal(false);
       setCurrentWinner(null);
       await fetchDraws();
@@ -74,14 +67,12 @@ export default function DrawWinner() {
   }
 
   async function handleVoid(drawId: number) {
-    if (!token.value) return;
-
     if (!confirm('Are you sure you want to void this draw? This action cannot be undone.')) {
       return;
     }
 
     try {
-      await api.voidDraw(token.value, drawId);
+      await api.voidDraw(drawId);
       setShowConfirmModal(false);
       setCurrentWinner(null);
       await fetchDraws();

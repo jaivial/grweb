@@ -65,10 +65,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
         // Allow JWT from query string for SignalR WebSocket connections
+        // Also read from cookie for browser-based auth
         options.Events = new JwtBearerEvents {
             OnMessageReceived = context => {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
+
+                // Check for token in cookie if not in Authorization header
+                if (string.IsNullOrEmpty(context.Request.Headers.Authorization) && path.StartsWithSegments("/api"))
+                {
+                    var cookieToken = context.Request.Cookies["gr_cup_token"];
+                    if (!string.IsNullOrEmpty(cookieToken))
+                    {
+                        context.Token = cookieToken;
+                        return Task.CompletedTask;
+                    }
+                }
+
+                // WebSocket token via query string
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                     context.Token = accessToken;
                 return Task.CompletedTask;

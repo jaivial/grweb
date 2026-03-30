@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
-import { token } from '../../stores/auth';
 
 interface Participant {
   id: number;
@@ -45,12 +44,9 @@ export default function Participants() {
   }, [currentPage, debouncedSearch]);
 
   async function fetchParticipants() {
-    if (!token.value) return;
-
     try {
       setLoading(true);
       const response = await api.getParticipants(
-        token.value,
         currentPage,
         debouncedSearch || undefined
       );
@@ -64,10 +60,8 @@ export default function Participants() {
   }
 
   async function handleExport() {
-    if (!token.value) return;
-
     try {
-      await api.exportCsv(token.value);
+      await api.exportCsv();
     } catch (err) {
       console.error('Export failed:', err);
       alert('Failed to export CSV');
