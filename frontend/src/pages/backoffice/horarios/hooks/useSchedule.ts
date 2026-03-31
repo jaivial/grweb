@@ -39,7 +39,7 @@ export function useSchedule(): UseScheduleReturn {
     setSchedulesError(null);
 
     try {
-      const response = await api.getSchedules(token.value);
+      const response = await api.getSchedules();
       setSchedules(response);
     } catch (err) {
       setSchedulesError(err instanceof Error ? err.message : 'Error al cargar horarios');
@@ -51,7 +51,7 @@ export function useSchedule(): UseScheduleReturn {
   const createSchedule = useCallback(async (data: ScheduleFormData): Promise<Schedule> => {
     if (!token.value) throw new Error('No autenticado');
     
-    const schedule = await api.createSchedule(token.value, data);
+    const schedule = await api.createSchedule(data);
     addSchedule(schedule);
     return schedule;
   }, []);
@@ -59,7 +59,7 @@ export function useSchedule(): UseScheduleReturn {
   const updateSchedule = useCallback(async (id: number, data: ScheduleFormData): Promise<Schedule> => {
     if (!token.value) throw new Error('No autenticado');
     
-    const schedule = await api.updateSchedule(token.value, id, data);
+    const schedule = await api.updateSchedule(id, data);
     updateScheduleInStore(schedule);
     return schedule;
   }, []);
@@ -67,7 +67,7 @@ export function useSchedule(): UseScheduleReturn {
   const deleteSchedule = useCallback(async (id: number): Promise<void> => {
     if (!token.value) throw new Error('No autenticado');
     
-    await api.deleteSchedule(token.value, id);
+    await api.deleteSchedule(id);
     removeSchedule(id);
   }, []);
 

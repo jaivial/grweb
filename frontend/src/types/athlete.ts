@@ -73,10 +73,10 @@ export const ATHLETE_STATUS_LABELS: Record<AthleteStatus, string> = {
   MissingDocumentation: 'Falta documentación',
 };
 
-// Status color mapping
+// Status color mapping - glassmorphism style
 export const ATHLETE_STATUS_COLORS: Record<AthleteStatus, string> = {
-  Paid: 'bg-green-500/20 text-green-400 border-green-500/30',
-  PendingPayment: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  Disqualified: 'bg-red-500/20 text-red-400 border-red-500/30',
-  MissingDocumentation: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  Paid: 'bg-green-500/15 text-green-400',
+  PendingPayment: 'bg-yellow-500/15 text-yellow-400',
+  Disqualified: 'bg-red-500/15 text-red-400',
+  MissingDocumentation: 'bg-orange-500/15 text-orange-400',
 };

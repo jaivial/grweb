@@ -57,9 +57,7 @@ export const HeroSection: FC = () => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsVisible(entry.intersectionRatio > 0.02);
-        if (entry.intersectionRatio > 0.02) {
-          setHasBeenVisible(true);
-        }
+        setHasBeenVisible(entry.intersectionRatio > 0.02);
       },
       {
         threshold: Array.from({ length: 100 }, (_, i) => i / 100),
@@ -93,7 +91,7 @@ export const HeroSection: FC = () => {
     >
       <div
         className={viewportClassName}
-        style={{ opacity: hasBeenVisible ? 1 : 0 }}
+        style={{ opacity: hasBeenVisible ? 1 : 0, display: hasBeenVisible ? 'block' : 'none' }}
         data-component="HeroViewport"
       >
         <FrameAnimator

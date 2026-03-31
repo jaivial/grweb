@@ -11,7 +11,7 @@ const variantColors: Record<ButtonVariant, { bg: string; border: string; text: s
       border: 'hover:border-red-accent',
       text: 'hover:text-white',
     },
-    glow: 'shadow-red-accent',
+    glow: 'shadow-lg shadow-red-accent/20 hover:shadow-red-accent/40',
   },
   secondary: {
     bg: 'bg-dark-red',
@@ -22,25 +22,25 @@ const variantColors: Record<ButtonVariant, { bg: string; border: string; text: s
       border: 'hover:border-dark-red',
       text: 'hover:text-white',
     },
-    glow: 'shadow-dark-red',
+    glow: '',
   },
   outline: {
     bg: 'bg-transparent',
-    border: 'border-red-accent',
-    text: 'text-red-accent',
+    border: 'border-white/20',
+    text: 'text-white',
     hover: {
-      bg: 'hover:bg-red-accent/10',
-      border: 'hover:border-red-accent',
-      text: 'hover:text-red-accent',
+      bg: 'hover:bg-white/10',
+      border: 'hover:border-white/30',
+      text: 'hover:text-white',
     },
-    glow: 'shadow-red-accent/50',
+    glow: '',
   },
   ghost: {
     bg: 'bg-transparent',
     border: 'border-transparent',
-    text: 'text-gray-300',
+    text: 'text-white/60',
     hover: {
-      bg: 'hover:bg-white/5',
+      bg: 'hover:bg-white/10',
       border: 'hover:border-transparent',
       text: 'hover:text-white',
     },
@@ -55,7 +55,7 @@ const variantColors: Record<ButtonVariant, { bg: string; border: string; text: s
       border: 'hover:border-red-700',
       text: 'hover:text-white',
     },
-    glow: 'shadow-red-500/50',
+    glow: '',
   },
 };
 
@@ -145,8 +145,6 @@ export function getButtonClasses(
   // Hover scale effect (except when disabled)
   if (!isDisabled && !isLoading) {
     baseClasses.push(
-      'hover:scale-105',
-      'active:scale-95',
       colors.glow
     );
   }
@@ -181,11 +179,11 @@ export function getSpinnerSize(size: ButtonSize): 'sm' | 'md' | 'lg' {
 export const buttonStyles: ButtonStyles = {
   base: 'inline-flex items-center justify-center font-bold uppercase tracking-wider transition-all duration-300 ease-out transform',
   variants: {
-    primary: 'bg-red-accent border-red-accent text-white hover:bg-red-accent/90 hover:scale-105 active:scale-95 shadow-red-accent',
-    secondary: 'bg-dark-red border-dark-red text-white hover:bg-dark-red/90 hover:scale-105 active:scale-95 shadow-dark-red',
-    outline: 'bg-transparent border-red-accent text-red-accent hover:bg-red-accent/10 hover:scale-105 active:scale-95',
-    ghost: 'bg-transparent border-transparent text-gray-300 hover:bg-white/5 hover:text-white',
-    danger: 'bg-red-600 border-red-600 text-white hover:bg-red-700 hover:scale-105 active:scale-95 shadow-red-500/50',
+    primary: 'bg-red-accent text-white hover:bg-red-accent/90 shadow-lg shadow-red-accent/20',
+    secondary: 'bg-dark-red text-white hover:bg-dark-red/90',
+    outline: 'bg-transparent border-white/20 text-white hover:bg-white/10',
+    ghost: 'bg-transparent border-transparent text-white/60 hover:bg-white/10 hover:text-white',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
   },
   sizes: {
     sm: 'px-3 py-1.5 text-sm gap-1.5 rounded-lg',

@@ -37,19 +37,16 @@ export function CustomSelector<T extends string | number>({
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter options based on search
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
     const term = searchTerm.toLowerCase();
     return options.filter(opt => opt.label.toLowerCase().includes(term));
   }, [options, searchTerm, searchable]);
 
-  // Selected option
   const selectedOption = useMemo(() => {
     return options.find(opt => opt.value === value);
   }, [options, value]);
 
-  // Close on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -61,7 +58,6 @@ export function CustomSelector<T extends string | number>({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Focus search input when opened
   useEffect(() => {
     if (isOpen && searchable && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -100,37 +96,37 @@ export function CustomSelector<T extends string | number>({
   return (
     <div ref={containerRef} className={`relative ${className}`} data-ui="custom-selector">
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-1.5" data-ui="selector-label">
+        <label className="block text-sm font-medium text-white/80 mb-1.5" data-ui="selector-label">
           {label}
         </label>
       )}
-      
+
       <button
         type="button"
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         className={`
-          w-full px-3 py-2.5 text-left bg-dark-surface border rounded-lg
-          flex items-center justify-between gap-2 transition-colors
-          focus:outline-none focus:ring-2 focus:ring-red-accent/50
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-gray-600'}
-          ${error ? 'border-red-500' : 'border-dark-border'}
-          ${isOpen ? 'ring-2 ring-red-accent/50 border-red-accent' : ''}
+          w-full px-4 py-3 min-h-[48px] text-left bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl
+          flex items-center justify-between gap-3 transition-all duration-300
+          focus:outline-none focus:ring-2 focus:ring-red-accent/30 focus:ring-offset-0
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/10 hover:border-white/20'}
+          ${error ? 'border-red-500/50' : ''}
+          ${isOpen ? 'bg-white/10 border-red-accent/50 ring-2 ring-red-accent/30' : ''}
         `}
         data-ui="selector-trigger"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <span className={selectedOption ? 'text-white' : 'text-gray-500'} data-ui="selector-value">
+        <span className={selectedOption ? 'text-white' : 'text-white/40'} data-ui="selector-value">
           {selectedOption?.label || placeholder}
         </span>
-        
-        <div className="flex items-center gap-1" data-ui="selector-actions">
+
+        <div className="flex items-center gap-2" data-ui="selector-actions">
           {allowClear && value && (
             <span
               onClick={handleClear}
-              className="text-gray-400 hover:text-white p-1 -mr-1"
+              className="text-white/40 hover:text-white p-1 -mr-1 rounded-lg hover:bg-white/10 transition-colors"
               data-ui="selector-clear"
               role="button"
               tabIndex={-1}
@@ -141,7 +137,7 @@ export function CustomSelector<T extends string | number>({
             </span>
           )}
           <svg
-            className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 text-white/50 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -153,29 +149,29 @@ export function CustomSelector<T extends string | number>({
 
       {isOpen && (
         <div
-          className="absolute z-50 w-full mt-1 bg-dark-surface border border-dark-border rounded-lg shadow-xl overflow-hidden"
+          className="absolute z-50 w-full bottom-[calc(100%+8px)] bg-dark-card border border-white/10 rounded-xl shadow-2xl overflow-hidden"
           data-ui="selector-dropdown"
         >
           {searchable && (
-            <div className="p-2 border-b border-dark-border" data-ui="selector-search">
+            <div className="p-2 border-b border-white/10" data-ui="selector-search">
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar..."
-                className="w-full px-3 py-2 bg-dark-base border border-dark-border rounded text-white placeholder-gray-500 focus:outline-none focus:border-red-accent"
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50"
               />
             </div>
           )}
-          
+
           <ul
-            className="max-h-60 overflow-y-auto"
+            className="max-h-48 sm:max-h-60 overflow-y-auto"
             role="listbox"
             data-ui="selector-options"
           >
             {filteredOptions.length === 0 ? (
-              <li className="px-3 py-2 text-gray-500 text-sm" data-ui="selector-no-results">
+              <li className="px-4 py-4 min-h-[48px] text-white/50 text-sm flex items-center" data-ui="selector-no-results">
                 Sin resultados
               </li>
             ) : (
@@ -184,9 +180,9 @@ export function CustomSelector<T extends string | number>({
                   key={String(option.value)}
                   onClick={() => handleSelect(option)}
                   className={`
-                    px-3 py-2 cursor-pointer transition-colors
-                    ${option.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-dark-hover'}
-                    ${option.value === value ? 'bg-red-accent/10 text-red-accent' : 'text-white'}
+                    px-4 py-3 min-h-[48px] cursor-pointer transition-all duration-200 flex items-center
+                    ${option.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'}
+                    ${option.value === value ? 'bg-red-accent/20 text-red-accent' : 'text-white'}
                   `}
                   role="option"
                   aria-selected={option.value === value}
@@ -202,7 +198,7 @@ export function CustomSelector<T extends string | number>({
       )}
 
       {error && (
-        <p className="mt-1 text-sm text-red-500" data-ui="selector-error">
+        <p className="mt-1 text-sm text-red-400" data-ui="selector-error">
           {error}
         </p>
       )}

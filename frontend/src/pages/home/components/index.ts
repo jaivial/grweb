@@ -5,6 +5,8 @@ export { AthletesSection } from './AthletesSection';
 export { PricesAllMovementsSection } from './PricesAllMovementsSection';
 export { OrganizationEquipmentSection } from './OrganizationEquipmentSection';
 export { WeightCategoriesSection } from './WeightCategoriesSection';
+export { SchedulesSection } from './SchedulesSection';
+export { LocalizacionSection } from './LocalizacionSection';
 export { RulesSection } from './RulesSection';
 export { HowToEnterSection } from './HowToEnterSection';
 export { WinnersSection } from './WinnersSection';

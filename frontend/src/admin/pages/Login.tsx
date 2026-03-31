@@ -32,7 +32,7 @@ export default function Login() {
     const success = await login(username.trim(), password);
     
     if (success) {
-      navigate('/admin/dashboard');
+      navigate('/backoffice');
     }
   }
 

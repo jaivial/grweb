@@ -1,7 +1,9 @@
+using GrCup.Api.Data;
 using GrCup.Api.Services;
 using GrCup.Api.Hubs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrCup.Api.Endpoints;
 
@@ -66,8 +68,27 @@ public static class PublicEndpoints
         // GET /api/config/stripe - Get Stripe publishable key
         app.MapGet("/api/config/stripe", (StripeService stripeService) =>
         {
-            return Results.Ok(new { 
-                publishableKey = stripeService.GetPublishableKey() 
+            return Results.Ok(new {
+                publishableKey = stripeService.GetPublishableKey()
+            });
+        });
+
+        // GET /api/inscripcion-config - Get public inscripcion config (active, url)
+        app.MapGet("/api/inscripcion-config", async (GrCupDbContext db) =>
+        {
+            var config = await db.InscripcionConfig.FirstOrDefaultAsync();
+            return Results.Ok(new {
+                active = config?.Active ?? true,
+                url = config?.Url ?? null
+            });
+        });
+
+        // GET /api/inscripcion-preparada - Get public inscripcion prepared status
+        app.MapGet("/api/inscripcion-preparada", async (GrCupDbContext db) =>
+        {
+            var config = await db.InscripcionesPreparadas.FirstOrDefaultAsync();
+            return Results.Ok(new {
+                preparadas = config?.Preparadas ?? false
             });
         });
     }

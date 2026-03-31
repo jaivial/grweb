@@ -23,7 +23,7 @@ export function SectionCard({
   const content = (
     <div
       className={`
-        group relative p-6 bg-dark-surface border border-dark-border rounded-2xl
+        group relative p-4 xs:p-5 sm2:p-6 bg-dark-surface border border-dark-border rounded-xl xs:rounded-2xl
         transition-all duration-200 cursor-pointer
         hover:border-red-accent/50 hover:shadow-lg hover:shadow-red-accent/5
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
@@ -33,26 +33,26 @@ export function SectionCard({
     >
       {/* Icon */}
       {icon && (
-        <div className="mb-4 w-12 h-12 rounded-xl bg-red-accent/10 flex items-center justify-center text-red-accent" data-ui="section-card-icon">
+        <div className="mb-3 xs:mb-4 w-10 h-10 xs:w-12 xs:h-12 rounded-lg xs:rounded-xl bg-red-accent/10 flex items-center justify-center text-red-accent" data-ui="section-card-icon">
           {icon}
         </div>
       )}
 
       {/* Content */}
       <div data-ui="section-card-content">
-        <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-red-accent transition-colors" data-ui="section-card-title">
+        <h3 className="text-base xs:text-lg font-semibold text-white mb-1.5 xs:mb-2 group-hover:text-red-accent transition-colors" data-ui="section-card-title">
           {title}
         </h3>
         {description && (
-          <p className="text-sm text-gray-400" data-ui="section-card-description">
+          <p className="text-xs xs:text-sm text-gray-400" data-ui="section-card-description">
             {description}
           </p>
         )}
       </div>
 
       {/* Arrow indicator */}
-      <div className="absolute top-6 right-6 text-gray-600 group-hover:text-red-accent transition-colors" data-ui="section-card-arrow">
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="absolute top-4 xs:top-5 sm2:top-6 right-4 xs:right-5 sm2:right-6 text-gray-600 group-hover:text-red-accent transition-colors" data-ui="section-card-arrow">
+        <svg className="w-4 h-4 xs:w-5 xs:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </div>

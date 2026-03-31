@@ -16,6 +16,7 @@ public static class AdminEndpoints
         app.MapPost("/api/admin/login", (
             [FromBody] LoginRequest request,
             JwtService jwtService,
+            IWebHostEnvironment env,
             HttpContext context,
             ILogger<Program> logger) =>
         {
@@ -28,12 +29,12 @@ public static class AdminEndpoints
                 var token = jwtService.GenerateToken(request.Username);
                 logger.LogInformation("Admin login successful for {Username}", request.Username);
 
-                // Set HttpOnly cookie
+                // Set HttpOnly cookie - Secure only in production (HTTPS)
                 context.Response.Cookies.Append("gr_cup_token", token, new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
+                    Secure = !env.IsDevelopment(),
+                    SameSite = env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
                     Path = "/",
                     MaxAge = TimeSpan.FromDays(1)
                 });

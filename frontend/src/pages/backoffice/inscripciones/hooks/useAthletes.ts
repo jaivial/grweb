@@ -69,7 +69,7 @@ export function useAthletes(): UseAthletesReturn {
         club: athletesClubFilter.value || undefined,
       };
 
-      const response = await api.getAthletes(token.value, params);
+      const response = await api.getAthletes(params);
       
       setAthletes({
         athletes: response.athletes,
@@ -86,7 +86,7 @@ export function useAthletes(): UseAthletesReturn {
   const createAthlete = useCallback(async (data: AthleteFormData): Promise<Athlete> => {
     if (!token.value) throw new Error('No autenticado');
     
-    const athlete = await api.createAthlete(token.value, {
+    const athlete = await api.createAthlete({
       ...data,
       registrationDate: data.registrationDate || new Date().toISOString().split('T')[0],
     });
@@ -98,7 +98,7 @@ export function useAthletes(): UseAthletesReturn {
   const updateAthlete = useCallback(async (id: number, data: AthleteFormData): Promise<Athlete> => {
     if (!token.value) throw new Error('No autenticado');
     
-    const athlete = await api.updateAthlete(token.value, id, data);
+    const athlete = await api.updateAthlete(id, data);
     updateAthleteInStore(athlete);
     return athlete;
   }, []);
@@ -106,7 +106,7 @@ export function useAthletes(): UseAthletesReturn {
   const deleteAthlete = useCallback(async (id: number): Promise<void> => {
     if (!token.value) throw new Error('No autenticado');
     
-    await api.deleteAthlete(token.value, id);
+    await api.deleteAthlete(id);
     removeAthlete(id);
   }, []);
 

@@ -1,7 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: any;
   token?: string;
 }
@@ -64,6 +64,10 @@ class ApiClient {
 
   async getStripeConfig() {
     return this.request<{ publishableKey: string }>('/api/config/stripe');
+  }
+
+  async getPublicInscripcionConfig() {
+    return this.request<{ active: boolean; url: string | null }>('/api/inscripcion-config');
   }
 
   // Admin endpoints
@@ -222,6 +226,36 @@ class ApiClient {
     return this.request<{ message?: string }>(`/api/admin/schedules/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // ─── Inscripcion Config ───
+
+  async getInscripcionConfig() {
+    return this.request<{ active: boolean; url: string | null }>('/api/admin/inscripcion-config');
+  }
+
+  async updateInscripcionConfig(data: { active: boolean; url: string | null }) {
+    return this.request<{ active: boolean; url: string | null }>('/api/admin/inscripcion-config', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  // ─── Inscripcion Preparada ───
+
+  async getInscripcionPreparada() {
+    return this.request<{ dateTime: string | null; preparadas: boolean }>('/api/admin/inscripcion-preparada');
+  }
+
+  async updateInscripcionPreparada(data: { dateTime: string | null; preparadas: boolean }) {
+    return this.request<{ dateTime: string | null; preparadas: boolean }>('/api/admin/inscripcion-preparada', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async getPublicInscripcionPreparada() {
+    return this.request<{ preparadas: boolean }>('/api/inscripcion-preparada');
   }
 }
 

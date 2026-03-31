@@ -4,16 +4,15 @@ import { Home } from './pages/home/Home';
 import Checkout from './pages/Checkout';
 import Success from './pages/Success';
 import Login from './admin/pages/Login';
-import Dashboard from './admin/pages/Dashboard';
-import Participants from './admin/pages/Participants';
-import DrawWinner from './admin/pages/DrawWinner';
 import ProtectedRoute from './components/ProtectedRoute';
+import { Inscripcion } from './pages/home/Inscripcion';
 
-// Backoffice pages
 import { BackofficeHome } from './pages/backoffice/Home';
 import Inscripciones from './pages/backoffice/inscripciones/Inscripciones';
-import Horarios from './pages/backoffice/horarios/Horarios';
+import Participantes from './pages/backoffice/participantes/Participantes';
 import { Sorteo } from './pages/backoffice/sorteo/Sorteo';
+import Horarios from './pages/backoffice/horarios/Horarios';
+import InscripcionConfigPage from './pages/backoffice/InscripcionConfig';
 
 export function App() {
   return (
@@ -22,68 +21,59 @@ export function App() {
       <Route path="/" component={() => <Layout><Home /></Layout>} />
       <Route path="/checkout" component={() => <Layout><Checkout /></Layout>} />
       <Route path="/success" component={() => <Layout><Success /></Layout>} />
-      
-      {/* Admin Login (Public) */}
-      <Route path="/admin/login" component={Login} />
-      
-      {/* Protected Admin Routes */}
-      <Route 
-        path="/admin/dashboard" 
-        component={() => (
-          <ProtectedRoute>
-            <Layout><Dashboard /></Layout>
-          </ProtectedRoute>
-        )} 
-      />
-      <Route 
-        path="/admin/participants" 
-        component={() => (
-          <ProtectedRoute>
-            <Layout><Participants /></Layout>
-          </ProtectedRoute>
-        )} 
-      />
-      <Route 
-        path="/admin/draw" 
-        component={() => (
-          <ProtectedRoute>
-            <Layout><DrawWinner /></Layout>
-          </ProtectedRoute>
-        )} 
-      />
+      <Route path="/inscripcion" component={() => <Layout><Inscripcion /></Layout>} />
 
-      {/* Backoffice Routes */}
-      <Route 
-        path="/backoffice" 
+      {/* Backoffice Login (Public) */}
+      <Route path="/backoffice/login" component={Login} />
+
+      {/* Protected Backoffice Routes */}
+      <Route
+        path="/backoffice"
         component={() => (
           <ProtectedRoute>
             <BackofficeHome />
           </ProtectedRoute>
-        )} 
+        )}
       />
-      <Route 
-        path="/backoffice/inscripciones" 
+      <Route
+        path="/backoffice/inscripciones"
         component={() => (
           <ProtectedRoute>
             <Inscripciones />
           </ProtectedRoute>
-        )} 
+        )}
       />
-      <Route 
-        path="/backoffice/horarios" 
+      <Route
+        path="/backoffice/participantes"
         component={() => (
           <ProtectedRoute>
-            <Horarios />
+            <Participantes />
           </ProtectedRoute>
-        )} 
+        )}
       />
-      <Route 
-        path="/backoffice/sorteo" 
+      <Route
+        path="/backoffice/sorteo"
         component={() => (
           <ProtectedRoute>
             <Sorteo />
           </ProtectedRoute>
-        )} 
+        )}
+      />
+      <Route
+        path="/backoffice/horarios"
+        component={() => (
+          <ProtectedRoute>
+            <Horarios />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/inscripcion-config"
+        component={() => (
+          <ProtectedRoute>
+            <InscripcionConfigPage />
+          </ProtectedRoute>
+        )}
       />
     </Router>
   );

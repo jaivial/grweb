@@ -100,38 +100,43 @@ export function Horarios(): JSX.Element {
 
   return (
     <BackofficeLayout>
-      <div className="p-4 lg:p-8" data-ui="horarios-page">
+      <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="horarios-page">
         {/* Header */}
-        <div className="mb-6" data-ui="page-header">
-          <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">Horarios</h1>
-          <p className="text-gray-400">Configura los horarios de las categorías por día de competición</p>
+        <div className="mb-4 xs:mb-6" data-ui="page-header">
+          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">Horarios</h1>
+          <p className="text-sm xs:text-base text-white/50">Configura los horarios de las categorías por día de competición</p>
         </div>
 
         {/* Sex Tabs */}
-        <Tabs
-          tabs={SEX_TABS}
-          activeTab={activeSexTab}
-          onChange={handleSexTabChange}
-          className="mb-4"
-        />
+        <div className="overflow-x-auto -mx-3 xs:-mx-4 px-3 xs:px-4 mb-4">
+          <Tabs
+            tabs={SEX_TABS}
+            activeTab={activeSexTab}
+            onChange={handleSexTabChange}
+            className="mb-0"
+          />
+        </div>
 
         {/* Content Tabs */}
-        <Tabs
-          tabs={CONTENT_TABS}
-          activeTab={activeContentTab}
-          onChange={setActiveContentTab}
-          className="mb-6"
-        />
+        <div className="overflow-x-auto -mx-3 xs:-mx-4 px-3 xs:px-4 mb-4 xs:mb-6">
+          <Tabs
+            tabs={CONTENT_TABS}
+            activeTab={activeContentTab}
+            onChange={setActiveContentTab}
+            className="mb-0"
+          />
+        </div>
 
         {/* Manage Tab */}
         {activeContentTab === 'manage' && (
-          <div className="space-y-4" data-ui="manage-tab">
+          <div className="space-y-3 xs:space-y-4" data-ui="manage-tab">
             <div className="flex justify-end">
-              <Button onClick={() => setIsAddModalOpen(true)}>
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <Button onClick={() => setIsAddModalOpen(true)} className="min-h-[44px] bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20">
+                <svg className="w-4 h-4 mr-1.5 xs:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Añadir horario
+                <span className="hidden xs:inline">Añadir horario</span>
+                <span className="xs:hidden">Añadir</span>
               </Button>
             </div>
 
@@ -141,44 +146,44 @@ export function Horarios(): JSX.Element {
               return (
                 <div
                   key={category}
-                  className="bg-dark-surface border border-dark-border rounded-xl overflow-hidden"
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden"
                   data-ui="category-schedule"
                   data-category={category}
                 >
-                  <div className="px-4 py-3 bg-dark-hover border-b border-dark-border" data-ui="category-header">
-                    <h3 className="font-semibold text-white">{category} kg</h3>
-                    <p className="text-sm text-gray-500">
+                  <div className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white/5 border-b border-white/10" data-ui="category-header">
+                    <h3 className="font-semibold text-white text-sm xs:text-base">{category} kg</h3>
+                    <p className="text-xs xs:text-sm text-white/50">
                       {categorySchedules.length} horario{categorySchedules.length !== 1 ? 's' : ''}
                     </p>
                   </div>
-                  
+
                   {categorySchedules.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500" data-ui="no-schedules">
+                    <div className="p-4 text-center text-white/40 text-sm" data-ui="no-schedules">
                       Sin horarios configurados
                     </div>
                   ) : (
-                    <div className="divide-y divide-dark-border" data-ui="schedule-list">
+                    <div className="divide-y divide-white/5" data-ui="schedule-list">
                       {categorySchedules.map(schedule => (
-                        <div key={schedule.id} className="p-4 flex items-center justify-between" data-ui="schedule-item">
-                          <div className="flex items-center gap-4" data-ui="schedule-info">
-                            <div className="text-center px-3 py-1 bg-dark-hover rounded-lg">
-                              <div className="text-xs text-gray-500 uppercase">
+                        <div key={schedule.id} className="p-3 xs:p-4 flex flex-col xs:flex-row xs:items-center justify-between gap-3" data-ui="schedule-item">
+                          <div className="flex items-center gap-3 xs:gap-4" data-ui="schedule-info">
+                            <div className="text-center px-2.5 xs:px-3 py-1.5 xs:py-1 bg-white/5 rounded-xl min-w-[50px] xs:min-w-[60px]">
+                              <div className="text-xs text-white/50 uppercase">
                                 {new Date(schedule.date).toLocaleDateString('es-ES', { weekday: 'short' })}
                               </div>
-                              <div className="text-lg font-bold text-white">
+                              <div className="text-base xs:text-lg font-bold text-white">
                                 {new Date(schedule.date).getDate()}
                               </div>
                             </div>
                             <div>
-                              <div className="font-mono text-white">{schedule.startTime} - {schedule.endTime}</div>
-                              <div className="text-sm text-gray-500">
+                              <div className="font-mono text-white text-sm xs:text-base">{schedule.startTime} - {schedule.endTime}</div>
+                              <div className="text-xs xs:text-sm text-white/50">
                                 {new Date(schedule.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long' })}
                               </div>
                             </div>
                           </div>
-                          <div className="flex gap-2" data-ui="schedule-actions">
-                            <Button size="sm" variant="ghost" onClick={() => setEditingSchedule(schedule)}>Editar</Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(schedule.id)} className="text-red-400 hover:text-red-300">Eliminar</Button>
+                          <div className="flex gap-2 xs:flex-none" data-ui="schedule-actions">
+                            <Button size="sm" variant="ghost" onClick={() => setEditingSchedule(schedule)} className="min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 text-white/60 hover:text-white hover:bg-white/10">Editar</Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(schedule.id)} className="text-red-400/80 hover:text-red-300 min-h-[36px] xs:min-h-[40px] px-2 xs:px-3">Eliminar</Button>
                           </div>
                         </div>
                       ))}
@@ -192,9 +197,9 @@ export function Horarios(): JSX.Element {
 
         {/* Preview Tab */}
         {activeContentTab === 'preview' && (
-          <div className="space-y-6" data-ui="preview-tab">
+          <div className="space-y-4 xs:space-y-6" data-ui="preview-tab">
             {Object.keys(schedulesByDate).length === 0 ? (
-              <div className="text-center py-12 text-gray-500" data-ui="no-schedules">
+              <div className="text-center py-8 xs:py-12 text-white/40 text-sm xs:text-base" data-ui="no-schedules">
                 No hay horarios configurados para esta categoría
               </div>
             ) : (
@@ -203,33 +208,33 @@ export function Horarios(): JSX.Element {
                 .map(([date, dateSchedules]) => (
                   <div
                     key={date}
-                    className="bg-dark-surface border border-dark-border rounded-xl overflow-hidden"
+                    className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden"
                     data-ui="preview-day"
                   >
-                    <div className="px-4 py-3 bg-dark-hover border-b border-dark-border" data-ui="preview-day-header">
-                      <h3 className="font-semibold text-white">
+                    <div className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white/5 border-b border-white/10" data-ui="preview-day-header">
+                      <h3 className="font-semibold text-white text-sm xs:text-base">
                         {new Date(date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </h3>
                     </div>
-                    <div className="p-4">
-                      <div className="space-y-3" data-ui="preview-schedule-list">
+                    <div className="p-3 xs:p-4">
+                      <div className="space-y-2 xs:space-y-3" data-ui="preview-schedule-list">
                         {dateSchedules
                           .sort((a, b) => a.startTime.localeCompare(b.startTime))
                           .map(schedule => (
                             <div
                               key={schedule.id}
-                              className="flex items-center gap-4 p-3 bg-dark-base rounded-lg border border-dark-border"
+                              className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4 p-2.5 xs:p-3 bg-white/5 rounded-xl"
                               data-ui="preview-schedule-item"
                             >
-                              <div className="font-mono text-red-accent font-bold min-w-[100px]">
+                              <div className="font-mono text-red-accent font-bold text-sm xs:text-base">
                                 {schedule.startTime} - {schedule.endTime}
                               </div>
-                              <div className="flex-1">
-                                <span className="text-white font-medium">{schedule.weightCategory} kg</span>
+                              <div className="flex-1 xs:text-left">
+                                <span className="text-white font-medium text-sm xs:text-base">{schedule.weightCategory} kg</span>
                               </div>
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                schedule.sexCategory === 'Female' 
-                                  ? 'bg-pink-500/20 text-pink-400' 
+                              <span className={`text-xs px-2.5 py-1 rounded-xl self-start xs:self-auto ${
+                                schedule.sexCategory === 'Female'
+                                  ? 'bg-pink-500/20 text-pink-400'
                                   : 'bg-blue-500/20 text-blue-400'
                               }`}>
                                 {schedule.sexCategory === 'Female' ? 'Mujer' : 'Hombre'}
@@ -323,7 +328,7 @@ function ScheduleFormModal({
       title={initialData ? 'Editar horario' : 'Añadir horario'}
       size="md"
     >
-      <form onSubmit={handleSubmit} className="space-y-4" data-ui="schedule-form">
+      <form onSubmit={handleSubmit} className="space-y-5" data-ui="schedule-form">
         <CustomSelector
           label="Categoría de peso *"
           options={categoryOptions}
@@ -352,11 +357,11 @@ function ScheduleFormModal({
           />
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-dark-border">
-          <Button type="button" variant="ghost" onClick={onClose}>
+        <div className="flex flex-col xs:flex-row justify-end gap-3 pt-4 border-t border-white/10">
+          <Button type="button" variant="ghost" onClick={onClose} className="min-h-[44px] text-white/60 hover:text-white hover:bg-white/10">
             Cancelar
           </Button>
-          <Button type="submit" isLoading={isLoading}>
+          <Button type="submit" isLoading={isLoading} className="min-h-[44px] bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20">
             {initialData ? 'Guardar' : 'Crear'}
           </Button>
         </div>

@@ -11,6 +11,8 @@ public class GrCupDbContext : DbContext
     public DbSet<Draw> Draws => Set<Draw>();
     public DbSet<Athlete> Athletes => Set<Athlete>();
     public DbSet<Schedule> Schedules => Set<Schedule>();
+    public DbSet<InscripcionConfig> InscripcionConfig => Set<InscripcionConfig>();
+    public DbSet<InscripcionPreparada> InscripcionesPreparadas => Set<InscripcionPreparada>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

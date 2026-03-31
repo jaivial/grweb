@@ -249,7 +249,7 @@ export const WeightCategoriesSection: FC<WeightCategoriesSectionProps> = ({ clas
       style={{
         minHeight: '80vh',
         background: '#0a0a0a',
-        paddingTop: '100px',
+        paddingTop: '40px',
         paddingBottom: '120px',
       }}
       data-section="weight-categories"
@@ -325,7 +325,7 @@ export const WeightCategoriesSection: FC<WeightCategoriesSectionProps> = ({ clas
 
         {/* Categories Grid */}
         <div
-          className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 lg:gap-24"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 xl:gap-24"
           data-ui="categories-grid"
         >
           {/* Men Categories */}
@@ -354,42 +354,33 @@ export const WeightCategoriesSection: FC<WeightCategoriesSectionProps> = ({ clas
               }}
             />
 
-            {/* Categories list - 5 columns */}
-            <div className="grid grid-cols-5 gap-2 md:gap-3" data-ui="men-list">
-              {MEN_CATEGORIES.map((col, colIndex) => (
-                <div key={`men-col-${colIndex}`} className="flex flex-col" data-ui={`men-column-${colIndex}`}>
-                  {col.map((category, rowIndex) => (
-                    <div
-                      key={`men-${category}`}
-                      className="relative py-2 pl-3 text-left"
-                      data-ui={`men-item-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
-                      style={{
-                        borderBottom: rowIndex < col.length - 1 
-                          ? '1px solid rgba(255, 255, 255, 0.06)' 
-                          : 'none',
-                      }}
-                    >
-                      {/* Subtle dot accent - on the left side */}
-                      <div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
-                        data-ui={`men-dot-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
-                        style={{
-                          background: 'rgba(220, 20, 60, 0.6)',
-                          boxShadow: '0 0 10px rgba(220, 20, 60, 0.5)',
-                        }}
-                        aria-hidden
-                      />
-                      
-                      {/* Category text */}
-                      <span
-                        className="text-base md:text-lg lg:text-xl pl-1"
-                        data-ui={`men-text-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
-                        style={categoryStyle}
-                      >
-                        {category}
-                      </span>
-                    </div>
-                  ))}
+            {/* Categories list - responsive columns */}
+            <div className="grid grid-cols-4 md:grid-cols-3 gap-x-4 gap-y-2 md:gap-y-3" data-ui="men-list">
+              {MEN_CATEGORIES.flat().map((category) => (
+                <div
+                  key={`men-${category}`}
+                  className="relative py-1.5 sm:py-2 pl-3 text-left"
+                  data-ui={`men-item-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
+                >
+                  {/* Subtle dot accent - on the left side */}
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                    data-ui={`men-dot-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
+                    style={{
+                      background: 'rgba(220, 20, 60, 0.6)',
+                      boxShadow: '0 0 10px rgba(220, 20, 60, 0.5)',
+                    }}
+                    aria-hidden
+                  />
+
+                  {/* Category text */}
+                  <span
+                    className="text-sm sm:text-base md:text-lg lg:text-xl"
+                    data-ui={`men-text-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
+                    style={categoryStyle}
+                  >
+                    {category}
+                  </span>
                 </div>
               ))}
             </div>
@@ -430,42 +421,33 @@ export const WeightCategoriesSection: FC<WeightCategoriesSectionProps> = ({ clas
               }}
             />
 
-            {/* Categories list - 5 columns */}
-            <div className="grid grid-cols-5 gap-2 md:gap-3" data-ui="women-list">
-              {WOMEN_CATEGORIES.map((col, colIndex) => (
-                <div key={`women-col-${colIndex}`} className="flex flex-col" data-ui={`women-column-${colIndex}`}>
-                  {col.map((category, rowIndex) => (
-                    <div
-                      key={`women-${category}`}
-                      className="relative py-2 pl-3 text-left"
-                      data-ui={`women-item-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
-                      style={{
-                        borderBottom: rowIndex < col.length - 1 
-                          ? '1px solid rgba(255, 255, 255, 0.06)' 
-                          : 'none',
-                      }}
-                    >
-                      {/* Subtle dot accent - on the left side */}
-                      <div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
-                        data-ui={`women-dot-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
-                        style={{
-                          background: 'rgba(220, 20, 60, 0.6)',
-                          boxShadow: '0 0 10px rgba(220, 20, 60, 0.5)',
-                        }}
-                        aria-hidden
-                      />
-                      
-                      {/* Category text */}
-                      <span
-                        className="text-base md:text-lg lg:text-xl pl-1"
-                        data-ui={`women-text-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
-                        style={categoryStyle}
-                      >
-                        {category}
-                      </span>
-                    </div>
-                  ))}
+            {/* Categories list - responsive columns */}
+            <div className="grid grid-cols-4 md:grid-cols-3 gap-x-4 gap-y-2 md:gap-y-3" data-ui="women-list">
+              {WOMEN_CATEGORIES.flat().map((category) => (
+                <div
+                  key={`women-${category}`}
+                  className="relative py-1.5 sm:py-2 pl-3 text-left"
+                  data-ui={`women-item-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
+                >
+                  {/* Subtle dot accent - on the left side */}
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                    data-ui={`women-dot-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
+                    style={{
+                      background: 'rgba(220, 20, 60, 0.6)',
+                      boxShadow: '0 0 10px rgba(220, 20, 60, 0.5)',
+                    }}
+                    aria-hidden
+                  />
+
+                  {/* Category text */}
+                  <span
+                    className="text-sm sm:text-base md:text-lg lg:text-xl"
+                    data-ui={`women-text-${category.replace(/[^a-zA-Z0-9]/g, '')}`}
+                    style={categoryStyle}
+                  >
+                    {category}
+                  </span>
                 </div>
               ))}
             </div>
