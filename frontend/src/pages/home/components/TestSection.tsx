@@ -1,5 +1,6 @@
 import { FC } from 'react';
 import InfiniteSlider from '@components/InfiniteSlider';
+import { InscripcionesSection } from './InscripcionesSection';
 
 export interface TestSectionProps {
   className?: string;
@@ -16,11 +17,15 @@ export interface TestSectionProps {
  * - Social media logo loop
  */
 export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
-  // Social media logo images for the slider
+  // Sponsor logo images from Bunny CDN
   const socialLogos = [
-    { src: '/belt', alt: 'Belt sponsor logo' },
-    { src: '/trophy', alt: 'Trophy sponsor logo' },
-    { src: '/grcuplogo.png', alt: 'GR Cup logo' },
+    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
+    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
+    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
+    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
+    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
+    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
+    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
   ];
 
   // Text styling matching HeroSection (Contrail One font)
@@ -145,16 +150,19 @@ export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
         >
           <InfiniteSlider
             images={socialLogos}
-            speed={40}
+            speed={160}
             direction="left"
-            height={48}
-            gap={64}
-            fadeSize={80}
+            height={64}
+            gap={80}
+            fadeSize={100}
             fadeColor="#0a0a0a"
-            pauseOnHover={true}
+            pauseOnHover={false}
             ariaLabel="Sponsor logos"
           />
         </div>
+
+        {/* Inscripciones Section */}
+        <InscripcionesSection className="mt-16" />
 
       </div>
 

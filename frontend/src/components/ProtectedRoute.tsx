@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     verifyAuth().then(valid => {
       setIsVerifying(false);
       if (!valid) {
-        setLocation('/admin/login');
+        setLocation('/backoffice/login');
       }
     });
   }, []);

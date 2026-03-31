@@ -42,45 +42,13 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [imageCount, setImageCount] = useState(0);
+  const [setWidth, setSetWidth] = useState(0);
+  const [animationKey, setAnimationKey] = useState(0);
 
-  // Wait for images to load
-  useEffect(() => {
-    if (!trackRef.current) return;
-    
-    const imgs = trackRef.current.querySelectorAll('img');
-    if (imgs.length === 0) {
-      setLoaded(true);
-      setImageCount(images.length);
-      return;
-    }
-
-    let remaining = imgs.length;
-    const handleLoad = () => {
-      remaining--;
-      if (remaining === 0) {
-        setLoaded(true);
-        setImageCount(images.length);
-      }
-    };
-
-    imgs.forEach((img) => {
-      if ((img as HTMLImageElement).complete) {
-        handleLoad();
-      } else {
-        img.addEventListener('load', handleLoad, { once: true });
-        img.addEventListener('error', handleLoad, { once: true });
-      }
-    });
-
-    return () => {
-      imgs.forEach((img) => {
-        img.removeEventListener('load', handleLoad);
-        img.removeEventListener('error', handleLoad);
-      });
-    };
-  }, [images]);
+  // Restart animation after 10 iterations complete
+  const handleAnimationEnd = useCallback(() => {
+    setAnimationKey(k => k + 1);
+  }, []);
 
   // Check for reduced motion preference
   const prefersReducedMotion = useMemo(() => {
@@ -88,14 +56,28 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Calculate animation duration based on speed
+  // Calculate the width of one set of images for the animation
+  useEffect(() => {
+    const measureSet = () => {
+      if (!trackRef.current) return;
+      const setEl = trackRef.current.querySelector('[data-ui="slider-set-1"]') as HTMLElement;
+      if (setEl) {
+        setSetWidth(setEl.offsetWidth);
+      }
+    };
+
+    measureSet();
+    // Re-measure on window resize
+    window.addEventListener('resize', measureSet);
+    return () => window.removeEventListener('resize', measureSet);
+  }, [images, gap, height]);
+
+  // Calculate animation duration based on set width and speed
   const duration = useMemo(() => {
-    if (imageCount === 0) return '20s';
-    // Speed is pixels per second, calculate time to scroll one set
-    const totalWidth = imageCount * (height + gap);
-    const timeInSeconds = totalWidth / speed;
-    return `${Math.max(10, timeInSeconds)}s`;
-  }, [speed, height, gap, imageCount]);
+    if (setWidth === 0) return '20s';
+    const timeInSeconds = setWidth / speed;
+    return `${Math.max(5, timeInSeconds)}s`;
+  }, [setWidth, speed]);
 
   const handleMouseEnter = useCallback(() => {
     if (pauseOnHover) setIsPaused(true);
@@ -108,15 +90,9 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
   const animationStyle = useMemo(() => ({
     '--slider-duration': duration,
     '--slider-direction': direction === 'left' ? 'normal' : 'reverse',
-    '--slider-gap': `${gap}px`,
-    '--slider-height': `${height}px`,
     '--slider-fade-size': `${fadeSize}px`,
     '--slider-fade-color': fadeColor,
-  } as React.CSSProperties), [duration, direction, gap, height, fadeSize, fadeColor]);
-
-  const trackStyle = useMemo(() => ({
-    gap: `${gap}px`,
-  } as React.CSSProperties), [gap]);
+  } as React.CSSProperties), [duration, direction, fadeSize, fadeColor]);
 
   // Render a single image item
   const renderImage = useCallback((img: SliderImage, index: number) => {
@@ -125,8 +101,8 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         src={img.src}
         alt={img.alt || ''}
         title={img.title}
-        className="h-full w-auto object-contain select-none pointer-events-none"
-        style={{ height: `${height}px` }}
+        className="h-full w-auto object-contain select-none pointer-events-none flex-shrink-0"
+        style={{ height: `${height}px`, marginRight: `${gap}px` }}
         loading="lazy"
         decoding="async"
         draggable={false}
@@ -157,9 +133,12 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         {content}
       </div>
     );
-  }, [height]);
+  }, [height, gap]);
 
   if (images.length === 0) return null;
+
+  // Build a single array with all images (2 sets for seamless loop)
+  const allImages = [...images, ...images];
 
   return (
     <div
@@ -179,7 +158,7 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         data-ui="slider-fade-left"
         aria-hidden
       />
-      
+
       {/* Right fade */}
       <div
         className="absolute right-0 top-0 bottom-0 w-full pointer-events-none z-10"
@@ -195,26 +174,16 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
       <div
         ref={trackRef}
         className="flex items-center"
-        style={trackStyle}
         data-ui="slider-track"
       >
-        {/* First set of images */}
+        {/* Single sliding set with all images doubled */}
         <div
-          className={`flex items-center ${loaded ? 'slider-animate' : ''} ${isPaused || prefersReducedMotion ? 'slider-paused' : ''}`}
-          style={trackStyle}
+          key={animationKey}
+          className={`flex items-center slider-animate ${isPaused || prefersReducedMotion ? 'slider-paused' : ''}`}
           data-ui="slider-set-1"
+          onAnimationEnd={handleAnimationEnd}
         >
-          {images.map((img, i) => renderImage(img, i))}
-        </div>
-
-        {/* Duplicate set for seamless loop */}
-        <div
-          className={`flex items-center ${loaded ? 'slider-animate' : ''} ${isPaused || prefersReducedMotion ? 'slider-paused' : ''}`}
-          style={trackStyle}
-          aria-hidden
-          data-ui="slider-set-2"
-        >
-          {images.map((img, i) => renderImage(img, i + images.length))}
+          {allImages.map((img, i) => renderImage(img, i))}
         </div>
       </div>
 
@@ -225,20 +194,20 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
             transform: translateX(0);
           }
           100% {
-            transform: translateX(calc(-50% - (var(--slider-gap) / 2)));
+            transform: translateX(-50%);
           }
         }
-        
+
         .slider-animate {
-          animation: sliderScroll var(--slider-duration) linear infinite;
+          animation: sliderScroll var(--slider-duration) linear 10;
           animation-direction: var(--slider-direction);
           will-change: transform;
         }
-        
+
         .slider-paused {
           animation-play-state: paused;
         }
-        
+
         @media (prefers-reduced-motion: reduce) {
           .slider-animate {
             animation: none;

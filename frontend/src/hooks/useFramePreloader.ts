@@ -1,21 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { FrameConfig, generateFrameUrls } from '@utils/frameSources';
 
 export interface UseFramePreloaderOptions {
   /**
-   * Path to frames directory (relative to public folder)
-   * Default: '/trophy'
+   * Frame source configuration (local or CDN)
    */
-  framesPath?: string;
-  /**
-   * Total number of frames to load
-   * Default: 1565 (based on trophy frames)
-   */
-  totalFrames?: number;
-  /**
-   * File extension for frames
-   * Default: 'png'
-   */
-  fileExtension?: string;
+  frameSource: FrameConfig;
   /**
    * Number of frames to load in parallel
    * Default: 10
@@ -38,23 +28,39 @@ export interface FramePreloaderResult {
 }
 
 /**
+ * Creates a stable key from frameSource config for dependency comparison
+ */
+function getFrameSourceKey(config: FrameConfig): string {
+  if (config.source === 'cdn') {
+    return `cdn:${config.baseUrl}:${config.startFrame}:${config.endFrame}:${config.order}`;
+  }
+  return `local:${config.path}:${config.startFrame}:${config.endFrame}`;
+}
+
+/**
  * Custom hook to preload image frames for animation
  * Loads frames progressively and tracks loading progress
+ * Supports both local and CDN sources
  * 
- * @param options - Configuration options
+ * @param options - Configuration options including frameSource
  * @returns Object containing frames array and loading state
  */
 export function useFramePreloader(
-  options: UseFramePreloaderOptions = {}
+  options: UseFramePreloaderOptions
 ): FramePreloaderResult {
   const {
-    framesPath = '/trophy',
-    totalFrames = 1565,
-    fileExtension = 'png',
+    frameSource,
     batchSize = 10,
     batchDelay = 100,
   } = options;
 
+  // Create stable key for frameSource to prevent infinite loops
+  const frameSourceKey = getFrameSourceKey(frameSource);
+  
+  // Memoize URLs based on stable key
+  const frameUrls = useMemo(() => generateFrameUrls(frameSource), [frameSourceKey]);
+  const totalFrames = frameUrls.length;
+  
   const [frames, setFrames] = useState<HTMLImageElement[]>([]);
   const [loadedCount, setLoadedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,28 +77,28 @@ export function useFramePreloader(
     setIsLoading(true);
     setError(null);
 
-    const loadFrame = (index: number): Promise<HTMLImageElement> => {
+    const urls = frameUrls;
+    const total = urls.length;
+
+    const loadFrame = (url: string): Promise<HTMLImageElement> => {
       return new Promise((resolve, reject) => {
         const img = new Image();
-        const frameNumber = String(index + 1).padStart(6, '0');
-        const src = `${framesPath}/frame_${frameNumber}.${fileExtension}`;
-
         img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Failed to load frame ${frameNumber}`));
-        img.src = src;
+        img.onerror = () => reject(new Error(`Failed to load frame: ${url}`));
+        img.src = url;
       });
     };
 
     const loadFramesInBatches = async () => {
       try {
-        for (let i = 0; i < totalFrames; i += batchSize) {
+        for (let i = 0; i < total; i += batchSize) {
           if (isCancelledRef.current) return;
 
           const batchPromises: Promise<HTMLImageElement>[] = [];
-          const endIndex = Math.min(i + batchSize, totalFrames);
+          const endIndex = Math.min(i + batchSize, total);
 
           for (let j = i; j < endIndex; j++) {
-            batchPromises.push(loadFrame(j));
+            batchPromises.push(loadFrame(urls[j]));
           }
 
           const batchFrames = await Promise.all(batchPromises);
@@ -103,7 +109,7 @@ export function useFramePreloader(
           setLoadedCount(framesRef.current.length);
 
           // Small delay between batches to prevent overwhelming the browser
-          if (i + batchSize < totalFrames && batchDelay > 0) {
+          if (i + batchSize < total && batchDelay > 0) {
             await new Promise(resolve => setTimeout(resolve, batchDelay));
           }
         }
@@ -125,7 +131,7 @@ export function useFramePreloader(
     return () => {
       isCancelledRef.current = true;
     };
-  }, [framesPath, totalFrames, fileExtension, batchSize, batchDelay]);
+  }, [frameSourceKey, frameUrls, batchSize, batchDelay]);
 
   const loadProgress = totalFrames > 0 ? loadedCount / totalFrames : 0;
 

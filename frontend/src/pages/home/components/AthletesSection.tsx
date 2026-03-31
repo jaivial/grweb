@@ -227,7 +227,7 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
         `}</style>
         
         {/* Layout with diagonal positioning */}
-        <div className="relative" style={{ minHeight: '1190px' }} data-ui="diagonal-layout">
+        <div className="relative" style={{ minHeight: '1110px' }} data-ui="diagonal-layout">
           
           {/* First Text - Top Left diagonal */}
           <AnimatedItem direction="up" delay={0} dataUi="animated-text-competition">
@@ -236,8 +236,9 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
               style={accentStyle}
               data-ui="text-competition-wrapper"
             >
-              <h2 
-                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl max-xl:text-6xl leading-tight"
+              <h2
+                className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl max-xl:text-6xl leading-tight"
+                style={{ fontSize: '3rem', lineHeight: '3.5rem' }}
                 data-ui="heading-competition"
               >
                 Una competición<br />
@@ -250,10 +251,10 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
           {/* First Athlete Image - Right side, angled, larger with masked edges */}
           <AnimatedItem direction="right" delay={150} dataUi="animated-image-1">
             <div
-              className="absolute top-20 sm:top-24 md:top-28 lg:top-32 right-2 sm:right-4 md:right-6 lg:right-12 transform rotate-3 hover:rotate-0 transition-transform duration-500"
+              className="absolute top-10 lg:top-12 right-2 sm:right-4 md:right-6 lg:right-12 transform rotate-3 hover:rotate-0 transition-transform duration-500"
               data-ui="athlete-image-wrapper-1"
             >
-              <div className="relative w-32 xs:w-40 sm:w-48 md:w-64 lg:w-80 xl:w-[500px] max-xl-w-500" data-ui="image-container-1">
+              <div className="relative w-auto xl:w-[340px] max-w-[340px]" data-ui="image-container-1">
                 {/* Image container with 4-sided fade mask */}
                 <div
                   className="relative overflow-hidden rounded-lg shadow-2xl"
@@ -303,8 +304,9 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
             style={textStyle}
             data-ui="text-effort-wrapper"
           >
-            <h2 
-              className="text-lg xs:text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl max-xl:text-4xl leading-tight text-center"
+            <h2
+              className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl max-xl:text-6xl leading-tight text-center"
+              style={{ fontSize: '3rem', lineHeight: '3.5rem' }}
               data-ui="heading-effort"
             >
               El dia en el que<br />
@@ -319,7 +321,7 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
               className="absolute bottom-12 md:bottom-16 left-2 sm:left-4 md:left-6 transform -rotate-2 hover:rotate-0 transition-transform duration-500"
               data-ui="athlete-image-wrapper-2"
             >
-              <div className="relative w-32 xs:w-40 sm:w-48 md:w-64 lg:w-80 xl:w-[500px] max-xl-w-500" data-ui="image-container-2">
+              <div className="relative w-auto xl:w-[340px] max-w-[340px]" data-ui="image-container-2">
                 {/* Image container with 4-sided fade mask */}
                 <div
                   className="relative overflow-hidden rounded-lg shadow-2xl"

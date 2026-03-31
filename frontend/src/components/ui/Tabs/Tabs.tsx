@@ -29,9 +29,9 @@ export function Tabs({
   }, [tabs, onChange]);
 
   return (
-    <div className={`border-b border-dark-border ${className}`} data-ui="tabs">
+    <div className={`bg-white/5 backdrop-blur-xl rounded-xl p-1 mx-auto w-fit ${className}`} data-ui="tabs">
       <div
-        className="flex overflow-x-auto scrollbar-hide -mb-px"
+        className="flex overflow-x-auto scrollbar-hide"
         role="tablist"
         data-ui="tabs-list"
       >
@@ -43,13 +43,13 @@ export function Tabs({
             onClick={() => handleTabClick(tab.id)}
             disabled={tab.disabled}
             className={`
-              flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap
-              border-b-2 transition-colors
+              flex items-center gap-2 px-4 py-2.5 min-h-[40px] text-sm font-medium whitespace-nowrap rounded-lg
+              transition-all duration-300
               ${tab.disabled
-                ? 'opacity-50 cursor-not-allowed text-gray-500 border-transparent'
+                ? 'opacity-40 cursor-not-allowed text-white/40'
                 : tab.id === activeTab
-                  ? 'text-red-accent border-red-accent'
-                  : 'text-gray-400 border-transparent hover:text-white hover:border-gray-600'
+                  ? 'bg-red-accent text-white shadow-lg'
+                  : 'text-white/60 hover:text-white hover:bg-white/10'
               }
             `}
             data-ui="tab"

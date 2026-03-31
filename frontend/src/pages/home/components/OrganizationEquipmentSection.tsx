@@ -1,5 +1,4 @@
 import { FC, useRef, useEffect, useState, useMemo } from 'react';
-import { AutoRotatingImageSlider, SliderImage } from '../../../components/AutoRotatingImageSlider';
 
 export interface OrganizationEquipmentSectionProps {
   className?: string;
@@ -80,7 +79,8 @@ const AnimatedItem: FC<{
   delay?: number;
   className?: string;
   dataUi?: string;
-}> = ({ children, direction, delay = 0, className = '', dataUi = 'animated-item' }) => {
+  style?: React.CSSProperties;
+}> = ({ children, direction, delay = 0, className = '', dataUi = 'animated-item', style }) => {
   const { ref, animationStyle } = useScrollVisibility({
     direction,
     distance: 50,
@@ -94,6 +94,7 @@ const AnimatedItem: FC<{
       style={{
         ...animationStyle,
         transitionDelay: `${delay}ms`,
+        ...style,
       }}
       data-ui={dataUi}
     >
@@ -102,41 +103,113 @@ const AnimatedItem: FC<{
   );
 };
 
-// Image data for Organization slider
-const organizationImages: SliderImage[] = [
+// Image data for Organization
+const organizationImages = [
   {
     src: 'https://jaimedigitalstudio.b-cdn.net/grcup/organization/ChatGPT%20Image%2023%20mar%202026%2C%2000_48_30.png',
     alt: 'AEP jueces y cargadores expertos con material profesional de powerlifting',
-    caption: 'AEP jueces y cargadores expertos, con material profesional de powerlifting y acceso para el público',
+    caption: 'Jueces y cargadores certificados AEP con equipamiento profesional de élite',
   },
   {
     src: 'https://jaimedigitalstudio.b-cdn.net/grcup/organization/ChatGPT%20Image%2023%20mar%202026%2C%2000_51_23.png',
     alt: 'Equipamiento profesional de powerlifting',
-    caption: 'AEP jueces y cargadores expertos, con material profesional de powerlifting y acceso para el público',
+    caption: 'Plataforma y rack de competición con acceso para todo el público',
   },
 ];
 
-// Image data for Trainers & Athletes slider
-const trainersAthletesImages: SliderImage[] = [
+// Image data for Trainers & Athletes
+const trainersAthletesImages = [
   {
     src: 'https://jaimedigitalstudio.b-cdn.net/grcup/organization/ChatGPT%20Image%2022%20mar%202026%2C%2023_48_28.png',
     alt: 'Organización hecha para favorecer el trabajo de los entrenadores y sus atletas',
-    caption: 'Organización hecha para favorecer el trabajo de los entrenadores y sus atletas',
+    caption: 'Estructura pensada para que cada entrenador pueda seguir de cerca a sus atletas',
   },
   {
     src: 'https://jaimedigitalstudio.b-cdn.net/grcup/organization/Screenshot%20From%202026-03-29%2021-42-28.png',
     alt: 'Relación entre entrenadores y atletas',
-    caption: 'Organización hecha para favorecer el trabajo de los entrenadores y sus atletas',
+    caption: 'Sesiones de carga donde la relación entrenador-atleta es fundamental',
   },
 ];
 
+// Individual animated image component
+const AnimatedImage: FC<{
+  src: string;
+  alt: string;
+  caption?: string;
+  direction: 'left' | 'right';
+  delay?: number;
+  dataUi: string;
+  className?: string;
+}> = ({ src, alt, caption, direction, delay = 0, dataUi, className = '' }) => {
+  const { ref, animationStyle } = useScrollVisibility({
+    direction,
+    distance: 50,
+    enterDuration: 700,
+  });
+
+  return (
+    <figure
+      ref={ref}
+      className={`w-full max-w-[410px] mx-auto ${className}`}
+      style={{ ...animationStyle, transitionDelay: `${delay}ms` }}
+      data-ui={dataUi}
+    >
+      <div className="relative overflow-hidden rounded-lg" data-ui={`image-container-${dataUi}`}>
+        <div
+          className="relative overflow-hidden rounded-lg"
+          data-ui={`image-mask-${dataUi}`}
+          style={{
+            maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)',
+            maskSize: '100% 100%',
+            maskRepeat: 'no-repeat',
+            maskPosition: 'center',
+          }}
+        >
+          <img
+            src={src}
+            alt={alt}
+            className="w-full h-auto block"
+            loading="lazy"
+          />
+          {/* Edge fade overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            data-ui={`image-edge-fade-${dataUi}`}
+            style={{
+              background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)',
+            }}
+            aria-hidden
+          />
+        </div>
+      </div>
+      {caption && (
+        <figcaption
+          className="mt-3 text-sm sm:text-base md:text-lg text-center px-2"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            letterSpacing: '0.02em',
+            color: 'rgba(255, 255, 255, 0.75)',
+            textTransform: 'uppercase',
+          }}
+          data-ui={`${dataUi}-caption`}
+        >
+          {caption}
+        </figcaption>
+      )}
+    </figure>
+  );
+};
+
 /**
  * OrganizationEquipmentSection Component
- * 
+ *
  * Features:
  * - Dark theme with black background and dark red accents
- * - Two automatic rotating image sliders
- * - Scroll-triggered animations
+ * - Images displayed with native aspect ratios
+ * - Side-by-side layout on desktop (>640px)
+ * - Interleaved text/image column on mobile (<=640px)
+ * - Independent scroll-triggered animations per element
  * - Fade edge overlays matching existing sections
  * - Contrail One font for headings
  * - Decorative accent elements
@@ -242,7 +315,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
 
       {/* Content Container */}
       <div className="relative z-20 max-w-6xl mx-auto px-6 lg:px-12" data-ui="section-content">
-        
+
         {/* Section Title */}
         <AnimatedItem direction="up" delay={0} dataUi="animated-title">
           <div className="text-center mb-12" data-ui="title-container">
@@ -264,74 +337,96 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
           </div>
         </AnimatedItem>
 
-        {/* Sliders Container */}
+        {/* Desktop: Side-by-side image pairs | Mobile: Interleaved text/image */}
         <div
-          className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16"
-          data-ui="sliders-grid"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-16"
+          data-ui="images-grid"
         >
-          {/* Organization Slider */}
-          <AnimatedItem direction="left" delay={100} dataUi="animated-slider-organization">
-            <div
-              className="flex flex-col items-center"
-              data-ui="slider-organization-wrapper"
-            >
-              <div className="w-full max-w-md sm:max-w-lg" data-ui="slider-organization-container">
-                <AutoRotatingImageSlider
-                  images={organizationImages}
-                  autoRotateInterval={4000}
-                  pauseOnHover={true}
-                  showDots={true}
-                  showCaptions={true}
-                  height={320}
-                  dataUi="slider-organization"
-                />
-              </div>
+          {/* Organization Column */}
+          <div
+            className="flex flex-col"
+            data-ui="organization-column"
+          >
+            {/* First organization image */}
+            <AnimatedImage
+              src={organizationImages[0].src}
+              alt={organizationImages[0].alt}
+              caption={organizationImages[0].caption}
+              direction="right"
+              delay={0}
+              dataUi="org-image-0"
+              className="mb-8 sm:mb-0"
+            />
+
+            {/* Second organization image */}
+            <AnimatedImage
+              src={organizationImages[1].src}
+              alt={organizationImages[1].alt}
+              caption={organizationImages[1].caption}
+              direction="right"
+              delay={150}
+              dataUi="org-image-1"
+            />
+
+            {/* Organization label */}
+            <AnimatedItem direction="up" delay={100} dataUi="animated-label-organization">
               <h3
-                className="mt-6 text-lg sm:text-xl md:text-2xl text-center"
-                data-ui="slider-organization-label"
+                className="mt-8 text-lg sm:text-xl md:text-2xl text-center lg:text-left"
+                data-ui="label-organization"
                 style={subtitleStyle}
               >
                 Profesionalidad AEP
               </h3>
-            </div>
-          </AnimatedItem>
+            </AnimatedItem>
+          </div>
 
-          {/* Trainers & Athletes Slider */}
-          <AnimatedItem direction="right" delay={200} dataUi="animated-slider-trainers">
-            <div
-              className="flex flex-col items-center"
-              data-ui="slider-trainers-wrapper"
-            >
-              <div className="w-full max-w-md sm:max-w-lg" data-ui="slider-trainers-container">
-                <AutoRotatingImageSlider
-                  images={trainersAthletesImages}
-                  autoRotateInterval={4000}
-                  pauseOnHover={true}
-                  showDots={true}
-                  showCaptions={true}
-                  height={320}
-                  dataUi="slider-trainers"
-                />
-              </div>
+          {/* Trainers & Athletes Column */}
+          <div
+            className="flex flex-col"
+            data-ui="trainers-column"
+          >
+            {/* First trainers image */}
+            <AnimatedImage
+              src={trainersAthletesImages[0].src}
+              alt={trainersAthletesImages[0].alt}
+              caption={trainersAthletesImages[0].caption}
+              direction="left"
+              delay={0}
+              dataUi="trainers-image-0"
+              className="mb-8 sm:mb-0"
+            />
+
+            {/* Second trainers image */}
+            <AnimatedImage
+              src={trainersAthletesImages[1].src}
+              alt={trainersAthletesImages[1].alt}
+              caption={trainersAthletesImages[1].caption}
+              direction="left"
+              delay={150}
+              dataUi="trainers-image-1"
+            />
+
+            {/* Trainers label */}
+            <AnimatedItem direction="up" delay={100} dataUi="animated-label-trainers">
               <h3
-                className="mt-6 text-lg sm:text-xl md:text-2xl text-center"
-                data-ui="slider-trainers-label"
+                className="mt-8 text-lg sm:text-xl md:text-2xl text-center lg:text-left"
+                data-ui="label-trainers"
                 style={subtitleStyle}
               >
                 Entrenadores y Atletas
               </h3>
-            </div>
-          </AnimatedItem>
+            </AnimatedItem>
+          </div>
         </div>
 
         {/* Additional description text */}
-        <AnimatedItem direction="up" delay={300} dataUi="animated-description">
+        <AnimatedItem direction="up" delay={300} dataUi="animated-description" style={{ paddingBottom: '1rem' }}>
           <div
             className="text-center mt-12 max-w-3xl mx-auto"
             data-ui="description-container"
           >
             <p
-              className="text-base sm:text-lg md:text-xl leading-relaxed"
+              className="text-base sm:text-lg md:text-xl leading-relaxed mb-6"
               data-ui="description-text"
               style={{
                 fontFamily: '"Contrail One", sans-serif',

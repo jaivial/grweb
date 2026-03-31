@@ -1,1 +1,0 @@
-export { useParticipants } from './useParticipants';

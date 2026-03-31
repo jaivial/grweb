@@ -26,7 +26,7 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     const animationEnd = staticPauseStart;
 
     if (progress < animationStart) return 0;
-    if (progress >= animationEnd) return 0;
+    if (progress >= animationEnd) return frames.length - 1;
 
     const animationProgress = (progress - animationStart) / (animationEnd - animationStart);
     const index = Math.floor(animationProgress * (frames.length - 1));

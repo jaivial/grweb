@@ -1,16 +1,18 @@
 import type { JSX } from 'react';
 import { useEffect } from 'react';
-import { 
-  HeroSection, 
+import {
+  HeroSection,
   TestSection,
   AthletesSection,
   PricesAllMovementsSection,
   OrganizationEquipmentSection,
   WeightCategoriesSection,
-  RulesSection, 
-  HowToEnterSection, 
+  SchedulesSection,
+  LocalizacionSection,
+  RulesSection,
+  HowToEnterSection,
   WinnersSection,
-  Footer 
+  Footer
 } from './components';
 import { fetchParticipantCount } from './lib/api';
 import { participantCount } from './atoms/state';
@@ -45,6 +47,12 @@ export function Home(): JSX.Element {
 
       {/* Weight Categories Section - Competition categories */}
       <WeightCategoriesSection />
+
+      {/* Schedules Section - Competition schedule by date */}
+      <SchedulesSection />
+
+      {/* Localización Section - Venue information */}
+      <LocalizacionSection />
 
       {/* Rules Section */}
       <RulesSection />

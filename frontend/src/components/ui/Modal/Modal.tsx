@@ -4,20 +4,7 @@ import type { ModalProps } from './types';
 import { modalSizes } from './types';
 
 /**
- * Modal Component
- * 
- * A dialog overlay component with multiple configurations.
- * 
- * @example
- * // Basic modal
- * <Modal isOpen={isOpen} onClose={handleClose}>
- *   <ModalHeader title="Confirm Action" />
- *   <ModalBody>Are you sure?</ModalBody>
- *   <ModalFooter>
- *     <Button onClick={handleClose}>Cancel</Button>
- *     <Button variant="primary">Confirm</Button>
- *   </ModalFooter>
- * </Modal>
+ * Modal Component - Glassmorphism style
  */
 export function Modal({
   isOpen,
@@ -31,14 +18,12 @@ export function Modal({
   className = '',
   children,
 }: ModalProps): ReactNode | null {
-  // Handle escape key
   const handleKeyDown = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (closeOnEscape && e.key === 'Escape' && closable) {
       onClose();
     }
   }, [closeOnEscape, closable, onClose]);
 
-  // Handle global escape key
   useEffect(() => {
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
       if (closeOnEscape && e.key === 'Escape' && closable) {
@@ -57,54 +42,50 @@ export function Modal({
     };
   }, [isOpen, closeOnEscape, closable, onClose]);
 
-  // Don't render if not open
   if (!isOpen) {
     return null;
   }
 
-  // Handle overlay click
   const handleOverlayClick = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (closeOnOverlayClick && e.target === e.currentTarget && closable) {
       onClose();
     }
   };
 
-  // Modal classes
   const modalClasses = [
     'relative',
     'w-full',
-    'bg-dark-surface',
+    'bg-white/5',
+    'backdrop-blur-2xl',
     'rounded-2xl',
     'shadow-2xl',
-    'border',
-    'border-dark-border',
     modalSizes[size],
     className,
   ].filter(Boolean).join(' ');
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 bg-black/60 backdrop-blur-md"
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
     >
-      <div className={modalClasses}>
+      <div className={`${modalClasses} max-h-[90vh] overflow-y-auto`}>
         {/* Header with title */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-dark-border">
-            <h2 id="modal-title" className="text-lg font-semibold text-white">
+          <div className="flex items-center justify-between px-4 xs:px-6 py-3 xs:py-4 border-b border-white/10">
+            <h2 id="modal-title" className="text-base xs:text-lg font-semibold text-white">
               {title}
             </h2>
           </div>
         )}
-        
+
         {/* Close button */}
         {showCloseButton && closable && (
           <button
             onClick={onClose}
-            className={title ? "absolute top-4 right-4 text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10" : "absolute top-4 right-4 text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"}
+            className={title ? "absolute top-3 xs:top-4 right-3 xs:right-4 text-white/60 hover:text-white hover:bg-white/10 transition-colors p-1.5 rounded-xl" : "absolute top-3 xs:top-4 right-3 xs:right-4 text-white/60 hover:text-white hover:bg-white/10 transition-colors p-1.5 rounded-xl"}
             aria-label="Close modal"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,7 +95,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className={title ? "p-6" : "p-6"}>
+        <div className="p-4 xs:p-6">
           {children}
         </div>
       </div>

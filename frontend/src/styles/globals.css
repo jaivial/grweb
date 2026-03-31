@@ -281,6 +281,14 @@ img {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.glass-subtle {
+  background: rgba(20, 20, 20, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 /* Hide scrollbar during hero animation (optional) */
 .hide-scrollbar {
   -ms-overflow-style: none;

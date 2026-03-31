@@ -32,10 +32,8 @@
   },
   "include": ["src"],
   "exclude": [
-    "src/admin/pages/**/*.tsx",
     "src/pages/Checkout.tsx",
     "src/pages/checkout/components/CheckoutForm.tsx",
-    "src/pages/checkout/components/TicketQuantitySelector.tsx",
-    "src/pages/admin/login/components/LoginForm.tsx"
+    "src/pages/checkout/components/TicketQuantitySelector.tsx"
   ]
 }

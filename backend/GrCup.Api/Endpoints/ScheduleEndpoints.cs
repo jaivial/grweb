@@ -10,6 +10,16 @@ public static class ScheduleEndpoints
 {
     public static void MapScheduleEndpoints(this IEndpointRouteBuilder app)
     {
+        // GET /api/schedules - Public endpoint (no auth)
+        // Returns all schedules grouped by date, optionally filtered by sex
+        app.MapGet("/api/schedules", async (
+            ScheduleService scheduleService,
+            [FromQuery] Sex? sexCategory = null) =>
+        {
+            var schedules = await scheduleService.GetGroupedByDateAsync(sexCategory);
+            return Results.Ok(schedules);
+        });
+
         // GET /api/admin/schedules - List all schedules
         app.MapGet("/api/admin/schedules", [Authorize] async (
             ScheduleService scheduleService,

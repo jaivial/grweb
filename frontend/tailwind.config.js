@@ -4,6 +4,16 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      screens: {
+        'xs': '280px',
+        'sm2': '320px',
+        'sm': '480px',
+        'md': '540px',
+        'lg': '640px',
+        'xl': '768px',
+        '2xl': '992px',
+        '3xl': '1024px',
+      },
       colors: {
         'red-accent': { DEFAULT: '#DC143C', 400: '#DC143C' },
         'dark-red': { DEFAULT: '#8B0000', 400: '#8B0000' },

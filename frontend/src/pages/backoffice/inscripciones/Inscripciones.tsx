@@ -8,6 +8,13 @@ import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { Pagination } from './components/Pagination';
 import { ATHLETE_STATUS_LABELS, ATHLETE_STATUS_COLORS, type Athlete } from '../../../types/athlete';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
+import { api } from '../../../utils/api';
+import { Lock, Unlock } from 'lucide-react';
+
+interface InscripcionPreparadaData {
+  dateTime: string | null;
+  preparadas: boolean;
+}
 
 const TABS = [
   { id: 'todas', label: 'Todas las inscripciones' },
@@ -30,7 +37,10 @@ export function Inscripciones(): JSX.Element {
   const [activeTab, setActiveTab] = useState('todas');
   const [editAthlete, setEditAthlete] = useState<Athlete | null>(null);
   const [athleteToDelete, setAthleteToDelete] = useState<Athlete | null>(null);
-  
+  const [preparadas, setPreparadas] = useState<InscripcionPreparadaData | null>(null);
+  const [loadingPreparadas, setLoadingPreparadas] = useState(true);
+  const [savingPreparadas, setSavingPreparadas] = useState(false);
+
   const {
     athletes,
     stats,
@@ -55,6 +65,38 @@ export function Inscripciones(): JSX.Element {
       fetchAthletes();
     }
   }, []);
+
+  // Fetch inscripciones preparadas status on mount
+  useEffect(() => {
+    const fetchPreparadas = async () => {
+      try {
+        const data = await api.getInscripcionPreparada();
+        setPreparadas(data);
+      } catch (error) {
+        console.error('Error fetching inscripciones preparadas:', error);
+        setPreparadas({ dateTime: null, preparadas: false });
+      } finally {
+        setLoadingPreparadas(false);
+      }
+    };
+    fetchPreparadas();
+  }, []);
+
+  const handleTogglePreparadas = useCallback(async () => {
+    if (!preparadas) return;
+    try {
+      setSavingPreparadas(true);
+      await api.updateInscripcionPreparada({
+        dateTime: preparadas.dateTime,
+        preparadas: !preparadas.preparadas,
+      });
+      setPreparadas(prev => prev ? { ...prev, preparadas: !prev.preparadas } : null);
+    } catch (error) {
+      console.error('Error updating inscripciones preparadas:', error);
+    } finally {
+      setSavingPreparadas(false);
+    }
+  }, [preparadas]);
 
   const handleTabChange = useCallback((tabId: string) => {
     setActiveTab(tabId);
@@ -83,67 +125,129 @@ export function Inscripciones(): JSX.Element {
 
   const tableColumns = useMemo(() => [
     { key: 'name', header: 'Nombre', sticky: true, render: (a: Athlete) => (
-      <div>
-        <div className="font-medium">{a.firstName} {a.surname}</div>
-        <div className="text-xs text-gray-500">{a.email}</div>
+      <div className="truncate">
+        <div className="font-medium truncate text-white">{a.firstName} {a.surname}</div>
+        <div className="text-xs text-white/50 truncate">{a.email}</div>
       </div>
     )},
-    { key: 'phone', header: 'Teléfono', render: (a: Athlete) => a.phone || '-' },
+    { key: 'phone', header: 'Telf.', render: (a: Athlete) => a.phone || '-', className: 'hidden 2xl:table-cell' },
     { key: 'sex', header: 'Sexo', render: (a: Athlete) => (
-      <span className="text-xs px-2 py-1 rounded bg-dark-hover">{a.sex === 'Male' ? 'H' : 'M'}</span>
-    )},
-    { key: 'weightCategory', header: 'Categoría', render: (a: Athlete) => `${a.weightCategory} kg` },
-    { key: 'club', header: 'Club', render: (a: Athlete) => a.club || '-' },
-    { key: 'totalWeight', header: 'Marca Total', render: (a: Athlete) => a.totalWeight ? `${a.totalWeight} kg` : '-' },
-    { key: 'registrationDate', header: 'Fecha', render: (a: Athlete) => new Date(a.registrationDate).toLocaleDateString('es-ES') },
-    { key: 'coach', header: 'Entrenador', render: (a: Athlete) => a.coach || '-' },
+      <span className="text-xs px-2 py-1 rounded-xl bg-white/10 text-white/70">{a.sex === 'Male' ? 'H' : 'M'}</span>
+    ), className: 'hidden lg:table-cell' },
+    { key: 'weightCategory', header: 'Cat.', render: (a: Athlete) => `${a.weightCategory}`, className: 'hidden md:table-cell' },
+    { key: 'club', header: 'Club', render: (a: Athlete) => a.club || '-', className: 'hidden xl:table-cell' },
+    { key: 'totalWeight', header: 'Marca', render: (a: Athlete) => a.totalWeight ? `${a.totalWeight}` : '-', className: 'hidden 2xl:table-cell' },
+    { key: 'registrationDate', header: 'Fecha', render: (a: Athlete) => new Date(a.registrationDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }), className: 'hidden sm:table-cell' },
+    { key: 'coach', header: 'Entrenador', render: (a: Athlete) => a.coach || '-', className: 'hidden 2xl:table-cell' },
     { key: 'status', header: 'Estado', render: (a: Athlete) => (
-      <span className={`text-xs px-2 py-1 rounded border ${ATHLETE_STATUS_COLORS[a.status]}`}>
+      <span className={`text-xs px-2 py-1 rounded-xl ${ATHLETE_STATUS_COLORS[a.status]}`}>
         {ATHLETE_STATUS_LABELS[a.status]}
       </span>
     )},
-    { key: 'actions', header: 'Acciones', className: 'text-right', render: (a: Athlete) => (
-      <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={() => setEditAthlete(a)}>Editar</Button>
-        <Button size="sm" variant="ghost" onClick={() => setAthleteToDelete(a)} className="text-red-400 hover:text-red-300">Eliminar</Button>
+    { key: 'actions', header: '', className: 'text-right', render: (a: Athlete) => (
+      <div className="flex gap-1 xs:gap-2 justify-end">
+        <Button size="sm" variant="ghost" onClick={() => setEditAthlete(a)} className="px-1.5 xs:px-2 text-white/50 hover:text-white hover:bg-white/10">Edit</Button>
+        <Button size="sm" variant="ghost" onClick={() => setAthleteToDelete(a)} className="text-red-400/80 hover:text-red-300 px-1.5 xs:px-2">Del</Button>
       </div>
     )},
   ], []);
 
   return (
     <BackofficeLayout>
-      <div className="p-4 lg:p-8" data-ui="inscripciones-page">
+      <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="inscripciones-page">
         {/* Header */}
-        <div className="mb-6" data-ui="page-header">
-          <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">Inscripciones</h1>
-          <p className="text-gray-400">Gestiona los atletas registrados en la competición</p>
+        <div className="mb-4 xs:mb-6" data-ui="page-header">
+          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">Inscripciones</h1>
+          <p className="text-sm xs:text-base text-white/50">Gestiona los atletas registrados en la competición</p>
         </div>
 
-        {/* Tabs */}
-        <Tabs
-          tabs={TABS}
-          activeTab={activeTab}
-          onChange={handleTabChange}
-          className="mb-6"
-        />
+        {/* Prepared Toggle */}
+        {!loadingPreparadas && (
+          <div className="mb-4 p-4 bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl" data-ui="prepared-toggle-card">
+            <div className="flex items-center justify-between" data-ui="prepared-toggle-row">
+              <div className="flex items-center gap-3">
+                {preparadas?.preparadas ? (
+                  <Unlock className="w-6 h-6 text-green-400" />
+                ) : (
+                  <Lock className="w-6 h-6 text-gray-500" />
+                )}
+                <div>
+                  <h2 className="text-base font-semibold text-white">
+                    Inscripciones preparadas
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    {preparadas?.preparadas
+                      ? 'Las inscripciones están activas y visibles para los usuarios'
+                      : 'Las inscripciones no están listas todavía'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleTogglePreparadas}
+                disabled={savingPreparadas}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 ${
+                  preparadas?.preparadas ? 'bg-green-500' : 'bg-gray-600'
+                } ${savingPreparadas ? 'opacity-50 cursor-not-allowed' : ''}`}
+                data-ui="prepared-toggle-button"
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-200 ${
+                    preparadas?.preparadas ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback when not prepared */}
+        {!loadingPreparadas && !preparadas?.preparadas && (
+          <div className="flex flex-col items-center justify-center py-16 text-center bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl mb-6" data-ui="inscripciones-not-ready">
+            <Lock className="w-16 h-16 text-gray-500 mb-4" />
+            <p className="text-gray-400 max-w-md text-center px-4">
+              Las inscripciones no están listas todavía. Abre o desbloquea las inscripciones con el interruptor de arriba. Esto permitirá activar el periodo de inscripciones en la web de los clientes.
+            </p>
+          </div>
+        )}
+
+        {/* Tabs - wrapper with overflow for horizontal scroll */}
+        <div className="mb-4 xs:mb-6 -mx-3 xs:-mx-4 px-3 xs:px-4 overflow-x-auto scrollbar-hide">
+          <Tabs
+            tabs={TABS}
+            activeTab={activeTab}
+            onChange={handleTabChange}
+          />
+        </div>
 
         {/* Tab Content */}
         {activeTab === 'todas' ? (
-          <div className="space-y-6" data-ui="todas-tab">
-            {/* KPI Section */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4" data-ui="kpi-section">
-              <KpiCard label="Total" value={stats.total} />
-              <KpiCard label="Pagados" value={stats.paid} color="success" />
-              <KpiCard label="Pendientes" value={stats.pending} color="warning" />
-              <KpiCard label="Descalificados" value={stats.disqualified} color="danger" />
-              <KpiCard label="Falta Doc" value={stats.missingDocumentation} color="warning" />
+          <div className="space-y-4 xs:space-y-6" data-ui="todas-tab">
+            {/* KPI Section - horizontally scrollable on very small screens */}
+            <div className="flex gap-2 xs:gap-3 sm2:gap-4 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" data-ui="kpi-section">
+              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
+                <KpiCard label="Total" value={stats.total} />
+              </div>
+              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
+                <KpiCard label="Pagados" value={stats.paid} color="success" />
+              </div>
+              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
+                <KpiCard label="Pendientes" value={stats.pending} color="warning" />
+              </div>
+              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
+                <KpiCard label="Descalif." value={stats.disqualified} color="danger" />
+              </div>
+              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
+                <KpiCard label="Falta Doc" value={stats.missingDocumentation} color="warning" />
+              </div>
             </div>
 
             {/* Filters */}
-            <FiltersAccordion onApply={fetchAthletes} />
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
+              <FiltersAccordion onApply={fetchAthletes} />
+            </div>
 
             {/* Table */}
-            <div className="bg-dark-surface rounded-xl border border-dark-border overflow-hidden" data-ui="table-container">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-x-auto" data-ui="table-container">
               <ResponsiveTable
                 columns={tableColumns}
                 data={athletes}
@@ -151,7 +255,7 @@ export function Inscripciones(): JSX.Element {
                 isLoading={isLoading}
                 emptyMessage="No hay atletas registrados"
               />
-              
+
               {/* Pagination */}
               {totalPages > 1 && (
                 <Pagination
@@ -168,8 +272,8 @@ export function Inscripciones(): JSX.Element {
             </div>
           </div>
         ) : (
-          <div className="bg-dark-surface rounded-xl border border-dark-border p-6" data-ui="anadir-tab">
-            <h2 className="text-lg font-semibold text-white mb-6">Nueva Inscripción</h2>
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 xs:p-6" data-ui="anadir-tab">
+            <h2 className="text-base xs:text-lg font-semibold text-white mb-4 xs:mb-6">Nueva Inscripción</h2>
             <AthleteForm onSubmit={handleCreateAthlete} isLoading={isLoading} />
           </div>
         )}
@@ -182,6 +286,7 @@ export function Inscripciones(): JSX.Element {
           onClose={() => setEditAthlete(null)}
           title="Editar Atleta"
           size="xl"
+          className="max-h-[90vh] overflow-y-auto"
         >
           <AthleteForm
             initialData={editAthlete}
@@ -245,18 +350,18 @@ function FiltersAccordion({ onApply }: { onApply: () => void }) {
 
   return (
     <Accordion title="Filtros" defaultOpen={false}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-ui="filters-grid">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-ui="filters-grid">
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Buscar</label>
+          <label className="block text-sm text-white/60 mb-1.5">Buscar</label>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Nombre o email..."
-            className="w-full px-3 py-2 bg-dark-base border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-accent"
+            className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
           />
         </div>
-        
+
         <CustomSelector
           label="Sexo"
           options={SEX_OPTIONS}
@@ -265,7 +370,7 @@ function FiltersAccordion({ onApply }: { onApply: () => void }) {
           placeholder="Todos"
           allowClear
         />
-        
+
         <CustomSelector
           label="Categoría"
           options={categoryOptions}
@@ -275,7 +380,7 @@ function FiltersAccordion({ onApply }: { onApply: () => void }) {
           allowClear
           disabled={!sex}
         />
-        
+
         <CustomSelector
           label="Estado"
           options={STATUS_OPTIONS}
@@ -284,21 +389,21 @@ function FiltersAccordion({ onApply }: { onApply: () => void }) {
           placeholder="Todos"
           allowClear
         />
-        
+
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Club</label>
+          <label className="block text-sm text-white/60 mb-1.5">Club</label>
           <input
             type="text"
             value={club}
             onChange={(e) => setClub(e.target.value)}
             placeholder="Nombre del club..."
-            className="w-full px-3 py-2 bg-dark-base border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-accent"
+            className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
           />
         </div>
-        
-        <div className="flex items-end gap-2">
-          <Button onClick={handleApply}>Aplicar</Button>
-          <Button variant="ghost" onClick={handleClear}>Limpiar</Button>
+
+        <div className="flex items-end gap-3">
+          <Button onClick={handleApply} className="min-h-[48px] flex-1 sm:flex-none bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20">Aplicar</Button>
+          <Button variant="ghost" onClick={handleClear} className="min-h-[48px] text-white/60 hover:text-white hover:bg-white/10">Limpiar</Button>
         </div>
       </div>
     </Accordion>
