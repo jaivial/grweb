@@ -179,19 +179,6 @@ export const Raffle: FC = () => {
                   isAnimating={true}
                   staticPauseStart={1}
                 />
-                {/* Radial gradient mask on canvas */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  data-ui="canvas-radial-mask"
-                  style={{
-                    maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-                    WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-                    maskSize: '100% 100%',
-                    maskRepeat: 'no-repeat',
-                    maskPosition: 'center',
-                  }}
-                  aria-hidden
-                />
                 {/* Additional edge fade overlay for 4-sided margin fade effect */}
                 <div
                   className="absolute inset-0 pointer-events-none"

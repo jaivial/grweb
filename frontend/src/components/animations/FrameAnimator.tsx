@@ -92,11 +92,16 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
       className={`${className}`}
       data-component="FrameAnimator"
     >
-      {/* Canvas only - mask is applied by parent component */}
+      {/* Canvas with mask applied directly */}
       <canvas
         ref={canvasRef}
         style={{
           display: showCanvas ? 'block' : 'none',
+          maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+          maskSize: '100% 100%',
+          maskRepeat: 'no-repeat',
+          maskPosition: 'center',
         }}
       />
     </div>
