@@ -89,18 +89,16 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
 
   return (
     <div
-      className={`relative ${className}`}
+      className={`${className}`}
       data-component="FrameAnimator"
     >
-      {/* Canvas container - no built-in mask */}
-      <div className="relative w-screen h-auto">
-        <canvas
-          ref={canvasRef}
-          style={{
-            display: showCanvas ? 'block' : 'none',
-          }}
-        />
-      </div>
+      {/* Canvas only - mask is applied by parent component */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: showCanvas ? 'block' : 'none',
+        }}
+      />
     </div>
   );
 };
