@@ -21,7 +21,7 @@ export interface CdnFrameConfig extends FrameSourceConfig {
 
 export type FrameConfig = LocalFrameConfig | CdnFrameConfig;
 
-const CDN_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy';
+const CDN_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp';
 const LOCAL_PATH = '/trophy';
 
 function padFrame(n: number): string {
@@ -32,29 +32,29 @@ export function generateFrameUrls(config: FrameConfig): string[] {
   if (config.source === 'cdn') {
     const {
       baseUrl = CDN_BASE,
-      startFrame = 1565,
-      endFrame = 829,
+      startFrame = 783,
+      endFrame = 1,
       order = 'desc',
     } = config;
 
     const urls: string[] = [];
     if (order === 'desc') {
       for (let i = startFrame; i >= endFrame; i--) {
-        urls.push(`${baseUrl}/frame_${padFrame(i)}.png`);
+        urls.push(`${baseUrl}/frame_${padFrame(i)}.webp`);
       }
     } else {
       for (let i = endFrame; i <= startFrame; i++) {
-        urls.push(`${baseUrl}/frame_${padFrame(i)}.png`);
+        urls.push(`${baseUrl}/frame_${padFrame(i)}.webp`);
       }
     }
     return urls;
   }
 
   // Local
-  const { path = LOCAL_PATH, startFrame = 1, endFrame = 1565 } = config;
+  const { path = LOCAL_PATH, startFrame = 1, endFrame = 783 } = config;
   const urls: string[] = [];
   for (let i = startFrame; i <= endFrame; i++) {
-    urls.push(`${path}/frame_${padFrame(i)}.png`);
+    urls.push(`${path}/frame_${padFrame(i)}.webp`);
   }
   return urls;
 }
@@ -64,8 +64,8 @@ export function getFrameSourceInfo(config: FrameConfig): {
   label: string;
 } {
   if (config.source === 'cdn') {
-    const start = config.startFrame ?? 1565;
-    const end = config.endFrame ?? 829;
+    const start = config.startFrame ?? 783;
+    const end = config.endFrame ?? 1;
     return {
       totalFrames: Math.abs(start - end) + 1,
       label: `CDN (${start}-${end})`,
@@ -73,7 +73,7 @@ export function getFrameSourceInfo(config: FrameConfig): {
   }
 
   const start = config.startFrame ?? 1;
-  const end = config.endFrame ?? 1565;
+  const end = config.endFrame ?? 783;
   return {
     totalFrames: end - start + 1,
     label: `Local (${start}-${end})`,

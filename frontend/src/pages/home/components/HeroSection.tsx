@@ -16,7 +16,7 @@ export const HeroSection: FC = () => {
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: {
       source: 'cdn',
-      startFrame: 1565,
+      startFrame: 783,
       endFrame: 1,
       order: 'desc',
     },
