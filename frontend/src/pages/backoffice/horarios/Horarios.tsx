@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import type { JSX } from 'react';
+import type { JSX, FC } from 'react';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
-import { Tabs, Button, CustomSelector, DatePicker, TimePicker, Modal, ResponsiveTable } from '../../../components/ui';
+import { Tabs, Button, CustomSelector, DatePicker, TimePicker, Modal } from '../../../components/ui';
 import { useSchedule } from './hooks/useSchedule';
-import type { Schedule, ScheduleFormData } from '../../../types/schedule';
+import type { Schedule, ScheduleFormData, ScheduleGroupedByDate } from '../../../types/schedule';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
+import { api } from '../../../utils/api';
 
 const SEX_TABS = [
   { id: 'Female', label: 'Mujeres' },
@@ -16,11 +17,342 @@ const CONTENT_TABS = [
   { id: 'preview', label: 'Vista previa' },
 ];
 
+// Helper functions for preview (same as SchedulesSection)
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('es-ES', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+};
+
+const formatTime = (timeStr: string): string => {
+  return timeStr.substring(0, 5);
+};
+
+// Schedule row component for preview
+interface ScheduleRowProps {
+  sexCategory: 'Male' | 'Female';
+  weightCategories: string[];
+  startTime: string;
+  endTime: string;
+  isLast?: boolean;
+}
+
+const ScheduleRow: FC<ScheduleRowProps> = ({
+  sexCategory,
+  weightCategories,
+  startTime,
+  endTime,
+  isLast = false,
+}) => {
+  const sexLabel = sexCategory === 'Male' ? 'Masculino' : 'Femenino';
+  const weightDisplay = weightCategories.length > 0 ? weightCategories.map(w => w + ' KG').join(', ') : '-';
+
+  return (
+    <div
+      className="grid grid-cols-3 gap-4 py-3 px-4"
+      data-ui="preview-schedule-row"
+      style={{
+        borderBottom: isLast ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
+      }}
+    >
+      {/* Sex Category */}
+      <div className="flex items-center gap-2" data-ui="row-sex">
+        <div
+          className="w-1.5 h-1.5 rounded-full"
+          data-ui="row-sex-dot"
+          style={{
+            background: 'rgba(220, 20, 60, 0.6)',
+            boxShadow: '0 0 10px rgba(220, 20, 60, 0.5)',
+          }}
+          aria-hidden
+        />
+        <span
+          className="text-sm md:text-base lg:text-lg"
+          data-ui="row-sex-text"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            fontWeight: 400,
+            letterSpacing: '0.02em',
+            color: sexCategory === 'Male' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(220, 20, 60, 0.7)',
+            textTransform: 'uppercase',
+          }}
+        >
+          {sexLabel}
+        </span>
+      </div>
+
+      {/* Weight Categories */}
+      <div className="flex items-center" data-ui="row-weight">
+        <span
+          className="text-sm md:text-base lg:text-lg"
+          data-ui="row-weight-text"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            fontWeight: 400,
+            letterSpacing: '0.02em',
+            color: 'rgba(255, 255, 255, 0.85)',
+            textTransform: 'uppercase',
+          }}
+        >
+          {weightDisplay}
+        </span>
+      </div>
+
+      {/* Time Range */}
+      <div className="flex items-center" data-ui="row-time">
+        <span
+          className="text-sm md:text-base lg:text-lg"
+          data-ui="row-time-text"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            fontWeight: 400,
+            letterSpacing: '0.02em',
+            color: 'rgba(255, 255, 255, 0.9)',
+          }}
+        >
+          {formatTime(startTime)} - {formatTime(endTime)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Date block component for preview
+interface DateBlockProps {
+  date: string;
+  schedules: Schedule[];
+}
+
+const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
+  // Group schedules by sex and time slot to consolidate rows
+  const consolidatedRows = useMemo(() => {
+    const rows: Array<{
+      sexCategory: 'Male' | 'Female';
+      weightCategories: string[];
+      startTime: string;
+      endTime: string;
+    }> = [];
+
+    // Sort schedules by sex, then start time
+    const sorted = [...schedules].sort((a, b) => {
+      if (a.sexCategory !== b.sexCategory) {
+        return a.sexCategory === 'Male' ? -1 : 1;
+      }
+      return a.startTime.localeCompare(b.startTime);
+    });
+
+    // Group consecutive same-sex, same-time entries
+    for (const schedule of sorted) {
+      const lastRow = rows[rows.length - 1];
+      if (
+        lastRow &&
+        lastRow.sexCategory === schedule.sexCategory &&
+        lastRow.startTime === schedule.startTime &&
+        lastRow.endTime === schedule.endTime
+      ) {
+        // Consolidate into same row
+        if (!lastRow.weightCategories.includes(schedule.weightCategory)) {
+          lastRow.weightCategories.push(schedule.weightCategory);
+          lastRow.weightCategories.sort();
+        }
+      } else {
+        rows.push({
+          sexCategory: schedule.sexCategory,
+          weightCategories: [schedule.weightCategory],
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+        });
+      }
+    }
+
+    return rows;
+  }, [schedules]);
+
+  return (
+    <div
+      className="mb-8 last:mb-0"
+      data-ui="preview-date-block"
+      data-date={date}
+    >
+      {/* Date Header */}
+      <div className="mb-4" data-ui="preview-date-header">
+        <h3
+          className="text-xl md:text-2xl lg:text-3xl"
+          data-ui="preview-date-title"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            fontWeight: 400,
+            letterSpacing: '0.05em',
+            color: '#ffffff',
+            textTransform: 'uppercase',
+            textShadow: '0 0 20px rgba(0, 0, 0, 0.8)',
+          }}
+        >
+          {formatDate(date)}
+        </h3>
+        <div
+          className="mt-2 h-px"
+          data-ui="preview-date-underline"
+          style={{
+            background: 'linear-gradient(90deg, transparent 0%, rgba(220, 20, 60, 0.3) 20%, rgba(220, 20, 60, 0.5) 50%, rgba(220, 20, 60, 0.3) 80%, transparent 100%)',
+          }}
+        />
+      </div>
+
+      {/* Table Header */}
+      <div
+        className="grid grid-cols-3 gap-4 py-2 px-4 mb-2"
+        data-ui="preview-table-header"
+      >
+        <span
+          className="text-xs md:text-sm uppercase"
+          data-ui="preview-header-sex"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            color: 'rgba(220, 20, 60, 0.7)',
+            letterSpacing: '0.1em',
+          }}
+        >
+          Categoría
+        </span>
+        <span
+          className="text-xs md:text-sm uppercase"
+          data-ui="preview-header-weight"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            color: 'rgba(220, 20, 60, 0.7)',
+            letterSpacing: '0.1em',
+          }}
+        >
+          Peso
+        </span>
+        <span
+          className="text-xs md:text-sm uppercase"
+          data-ui="preview-header-time"
+          style={{
+            fontFamily: '"Contrail One", sans-serif',
+            color: 'rgba(220, 20, 60, 0.7)',
+            letterSpacing: '0.1em',
+          }}
+        >
+          Horario
+        </span>
+      </div>
+
+      {/* Table Body */}
+      <div
+        className="rounded-lg overflow-hidden"
+        data-ui="preview-table-body"
+        style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+        }}
+      >
+        {consolidatedRows.map((row, index) => (
+          <ScheduleRow
+            key={`${row.sexCategory}-${row.startTime}-${index}`}
+            sexCategory={row.sexCategory}
+            weightCategories={row.weightCategories}
+            startTime={row.startTime}
+            endTime={row.endTime}
+            isLast={index === consolidatedRows.length - 1}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Loading skeleton for preview
+const PreviewLoadingSkeleton: FC = () => {
+  return (
+    <div className="space-y-8" data-ui="preview-loading-skeleton">
+      {[1, 2, 3].map((i) => (
+        <div key={`preview-skeleton-${i}`} className="space-y-4" data-ui={`preview-skeleton-date-${i}`}>
+          <div
+            className="h-8 w-48 rounded shimmer-line"
+            data-ui={`preview-skeleton-date-header-${i}`}
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+            }}
+          />
+          <div className="space-y-2">
+            {[1, 2, 3].map((j) => (
+              <div
+                key={`preview-skeleton-row-${i}-${j}`}
+                className="h-12 rounded-lg shimmer-line"
+                data-ui={`preview-skeleton-row-${i}-${j}`}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Empty state for preview
+const PreviewEmptyState: FC = () => {
+  return (
+    <div
+      className="flex flex-col items-center justify-center py-16"
+      data-ui="preview-empty-state"
+    >
+      <svg
+        className="w-16 h-16 mb-6"
+        data-ui="preview-empty-icon"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        style={{
+          color: 'rgba(220, 20, 60, 1)',
+          strokeWidth: 1.5,
+        }}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <div
+        className="text-2xl md:text-3xl mb-4"
+        data-ui="preview-empty-title"
+        style={{
+          fontFamily: '"Contrail One", sans-serif',
+          color: 'rgba(255, 255, 255, 0.6)',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Próximamente
+      </div>
+      <div
+        className="text-sm md:text-base text-center"
+        data-ui="preview-empty-subtitle"
+        style={{
+          fontFamily: '"Contrail One", sans-serif',
+          color: 'rgba(255, 255, 255, 0.4)',
+          letterSpacing: '0.05em',
+        }}
+      >
+        Los horarios de la competición se publicarán pronto
+      </div>
+    </div>
+  );
+};
+
 export function Horarios(): JSX.Element {
   const [activeSexTab, setActiveSexTab] = useState<'Male' | 'Female'>('Female');
   const [activeContentTab, setActiveContentTab] = useState('manage');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+  
+  // Preview state for public schedules view
+  const [previewSchedules, setPreviewSchedules] = useState<ScheduleGroupedByDate[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(true);
   
   const {
     schedules,
@@ -37,6 +369,25 @@ export function Horarios(): JSX.Element {
   useEffect(() => {
     fetchSchedules();
   }, []);
+
+  // Fetch public schedules for preview
+  useEffect(() => {
+    const fetchPreviewSchedules = async () => {
+      setPreviewLoading(true);
+      try {
+        const data = await api.getPublicSchedules();
+        setPreviewSchedules(data);
+      } catch {
+        setPreviewSchedules([]);
+      } finally {
+        setPreviewLoading(false);
+      }
+    };
+
+    if (activeContentTab === 'preview') {
+      fetchPreviewSchedules();
+    }
+  }, [activeContentTab]);
 
   const handleSexTabChange = useCallback((tabId: string) => {
     setActiveSexTab(tabId as 'Male' | 'Female');
@@ -66,37 +417,6 @@ export function Horarios(): JSX.Element {
   const filteredSchedules = useMemo(() => {
     return schedules.filter(s => s.sexCategory === activeSexTab);
   }, [schedules, activeSexTab]);
-
-  // Group by date for preview
-  const schedulesByDate = useMemo(() => {
-    const grouped: Record<string, Schedule[]> = {};
-    filteredSchedules.forEach(schedule => {
-      if (!grouped[schedule.date]) {
-        grouped[schedule.date] = [];
-      }
-      grouped[schedule.date].push(schedule);
-    });
-    // Sort each group by start time
-    Object.keys(grouped).forEach(date => {
-      grouped[date].sort((a, b) => a.startTime.localeCompare(b.startTime));
-    });
-    return grouped;
-  }, [filteredSchedules]);
-
-  const previewColumns = useMemo(() => [
-    { key: 'time', header: 'Hora', render: (s: Schedule) => (
-      <span className="font-mono">{s.startTime} - {s.endTime}</span>
-    )},
-    { key: 'category', header: 'Categoría', render: (s: Schedule) => (
-      <span className="font-medium">{s.weightCategory} kg</span>
-    )},
-    { key: 'actions', header: 'Acciones', className: 'text-right', render: (s: Schedule) => (
-      <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={() => setEditingSchedule(s)}>Editar</Button>
-        <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(s.id)} className="text-red-400 hover:text-red-300">Eliminar</Button>
-      </div>
-    )},
-  ], [handleDeleteSchedule]);
 
   return (
     <BackofficeLayout>
@@ -197,55 +517,61 @@ export function Horarios(): JSX.Element {
 
         {/* Preview Tab */}
         {activeContentTab === 'preview' && (
-          <div className="space-y-4 xs:space-y-6" data-ui="preview-tab">
-            {Object.keys(schedulesByDate).length === 0 ? (
-              <div className="text-center py-8 xs:py-12 text-white/40 text-sm xs:text-base" data-ui="no-schedules">
-                No hay horarios configurados para esta categoría
-              </div>
+          <div className="bg-dark-darker/50 rounded-2xl border border-white/10 p-4 xs:p-6 lg:p-8" data-ui="preview-container">
+            {/* Section Header */}
+            <div className="text-center mb-8" data-ui="preview-section-header">
+              <h2
+                className="text-2xl md:text-3xl lg:text-4xl"
+                data-ui="preview-section-title"
+                style={{
+                  fontFamily: '"Contrail One", sans-serif',
+                  fontWeight: 400,
+                  letterSpacing: '0.05em',
+                  color: '#ffffff',
+                  textTransform: 'uppercase',
+                  textShadow: '0 0 20px rgba(0, 0, 0, 0.8)',
+                }}
+              >
+                Horarios
+              </h2>
+              {/* Subtle underline */}
+              <div
+                className="mt-4 mx-auto w-24 h-px"
+                data-ui="preview-section-underline"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, rgba(220, 20, 60, 0.6), transparent)',
+                }}
+              />
+            </div>
+
+            {/* Content */}
+            {previewLoading ? (
+              <PreviewLoadingSkeleton />
+            ) : previewSchedules.length === 0 ? (
+              <PreviewEmptyState />
             ) : (
-              Object.entries(schedulesByDate)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([date, dateSchedules]) => (
-                  <div
-                    key={date}
-                    className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden"
-                    data-ui="preview-day"
-                  >
-                    <div className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white/5 border-b border-white/10" data-ui="preview-day-header">
-                      <h3 className="font-semibold text-white text-sm xs:text-base">
-                        {new Date(date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                      </h3>
-                    </div>
-                    <div className="p-3 xs:p-4">
-                      <div className="space-y-2 xs:space-y-3" data-ui="preview-schedule-list">
-                        {dateSchedules
-                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                          .map(schedule => (
-                            <div
-                              key={schedule.id}
-                              className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4 p-2.5 xs:p-3 bg-white/5 rounded-xl"
-                              data-ui="preview-schedule-item"
-                            >
-                              <div className="font-mono text-red-accent font-bold text-sm xs:text-base">
-                                {schedule.startTime} - {schedule.endTime}
-                              </div>
-                              <div className="flex-1 xs:text-left">
-                                <span className="text-white font-medium text-sm xs:text-base">{schedule.weightCategory} kg</span>
-                              </div>
-                              <span className={`text-xs px-2.5 py-1 rounded-xl self-start xs:self-auto ${
-                                schedule.sexCategory === 'Female'
-                                  ? 'bg-pink-500/20 text-pink-400'
-                                  : 'bg-blue-500/20 text-blue-400'
-                              }`}>
-                                {schedule.sexCategory === 'Female' ? 'Mujer' : 'Hombre'}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                ))
+              <div data-ui="preview-schedules-list">
+                {previewSchedules.map((group) => (
+                  <DateBlock
+                    key={group.date}
+                    date={group.date}
+                    schedules={group.schedules}
+                  />
+                ))}
+              </div>
             )}
+
+            {/* Background glow effects */}
+            <div
+              className="absolute top-1/3 left-1/4 w-96 h-96 bg-red-accent/3 rounded-full blur-3xl pointer-events-none -z-10"
+              data-ui="preview-bg-glow-left"
+              aria-hidden
+            />
+            <div
+              className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-dark-red/4 rounded-full blur-3xl pointer-events-none -z-10"
+              data-ui="preview-bg-glow-right"
+              aria-hidden
+            />
           </div>
         )}
       </div>

@@ -69,7 +69,8 @@ export type IconName =
   | 'home'
   | 'dashboard'
   | 'credit-card'
-  | 'credit-card-outline';
+  | 'credit-card-outline'
+  | 'file-text';
 
 // Icon size types
 export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';

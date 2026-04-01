@@ -43,9 +43,7 @@ export function Navbar() {
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-8">
           <a href="/#hero" className="text-sm text-zinc-400 hover:text-white transition-colors">Home</a>
-          <a href="/#rules" className="text-sm text-zinc-400 hover:text-white transition-colors">Rules</a>
-          <a href="/#how-to-enter" className="text-sm text-zinc-400 hover:text-white transition-colors">How to Enter</a>
-          <a href="/#winners" className="text-sm text-zinc-400 hover:text-white transition-colors">Winners</a>
+          <a href="/raffle" className="text-sm text-zinc-400 hover:text-white transition-colors">Sorteo</a>
           <a href="/checkout" className="px-6 py-2 bg-gradient-to-r from-red-accent to-dark-red text-white font-bold rounded-lg hover:scale-105 transition-transform text-sm">
             Enter Now
           </a>
@@ -67,9 +65,7 @@ export function Navbar() {
       } bg-dark-surface border-t border-gray-800`}>
         <div className="px-4 py-4 space-y-4">
           <a href="/#hero" onClick={() => setMenuOpen(false)} className="block text-gray-300 hover:text-red-accent">Home</a>
-          <a href="/#rules" onClick={() => setMenuOpen(false)} className="block text-gray-300 hover:text-red-accent">Rules</a>
-          <a href="/#how-to-enter" onClick={() => setMenuOpen(false)} className="block text-gray-300 hover:text-red-accent">How to Enter</a>
-          <a href="/#winners" onClick={() => setMenuOpen(false)} className="block text-gray-300 hover:text-red-accent">Winners</a>
+          <a href="/raffle" onClick={() => setMenuOpen(false)} className="block text-gray-300 hover:text-red-accent">Sorteo</a>
           <a
             href="/checkout"
             onClick={() => setMenuOpen(false)}

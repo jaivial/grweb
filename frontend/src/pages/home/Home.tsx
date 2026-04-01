@@ -9,9 +9,7 @@ import {
   WeightCategoriesSection,
   SchedulesSection,
   LocalizacionSection,
-  RulesSection,
-  HowToEnterSection,
-  WinnersSection,
+  RaffleSection,
   Footer
 } from './components';
 import { fetchParticipantCount } from './lib/api';
@@ -45,6 +43,9 @@ export function Home(): JSX.Element {
       {/* Organization & Equipment Section - Competition organization and high quality equipment */}
       <OrganizationEquipmentSection />
 
+      {/* Raffle Section - Sorteo belt animation */}
+      <RaffleSection />
+
       {/* Weight Categories Section - Competition categories */}
       <WeightCategoriesSection />
 
@@ -53,15 +54,6 @@ export function Home(): JSX.Element {
 
       {/* Localización Section - Venue information */}
       <LocalizacionSection />
-
-      {/* Rules Section */}
-      <RulesSection />
-
-      {/* How to Enter Section */}
-      <HowToEnterSection />
-
-      {/* Winners Section */}
-      <WinnersSection />
 
       {/* Footer */}
       <Footer />

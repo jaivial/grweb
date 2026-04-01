@@ -49,6 +49,7 @@ export const FacebookIcon = createIconComponent('facebook');
 export const ShareIcon = createIconComponent('share');
 
 // File icons
+export const FileTextIcon = createIconComponent('file-text');
 export const DownloadIcon = createIconComponent('download');
 export const UploadIcon = createIconComponent('upload');
 export const CopyIcon = createIconComponent('copy');

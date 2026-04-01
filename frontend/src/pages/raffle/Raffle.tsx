@@ -1,11 +1,15 @@
-import { FC, useMemo, useEffect, useState } from 'react';
+import { FC, useState, useMemo, useCallback } from 'react';
+import { Trophy } from 'lucide-react';
+import { BiLogoInstagram } from 'react-icons/bi';
 import Layout from '../../layouts/Layout';
 import { Icon } from '../../components/ui/Icon';
 import { Button } from '../../components/ui/Button';
-import { useScrollProgress } from '../../hooks/useScrollProgress';
-import { useFramePreloader } from '../../hooks/useFramePreloader';
-import { BELT_FRAMES_CONFIG } from '../../utils/frameSources';
-import { FrameAnimator } from '../../components/animations/FrameAnimator';
+import { Input } from '../../components/ui/Input';
+import { CustomSelector } from '../../components/ui/CustomSelector/CustomSelector';
+import { RaffleFrames } from './RaffleFrames';
+import { Footer } from '../home/components/Footer';
+import { countryCodeOptions } from '../../utils/countryCodes';
+import { api } from '../../utils/api';
 
 // Spanish rules data
 const rules = [
@@ -76,62 +80,125 @@ const steps = [
 ];
 
 export const Raffle: FC = () => {
-  const [hasBeenVisible, setHasBeenVisible] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  const TICKET_PRICE = 0.5;
+  const MAX_TICKETS = 50;
 
-  const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
-    frameSource: BELT_FRAMES_CONFIG,
-    batchSize: 20,
-    batchDelay: 50,
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    countryCode: '+34',
+    phone: '',
+    followsInstagram: false,
+    dataConsent: false,
+    contestPolicy: false,
   });
 
-  // Sync loading state
-  useEffect(() => {
-    setIsLoading(framesLoading);
-  }, [framesLoading]);
+  const [ticketCount, setTicketCount] = useState(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Prevent scrolling while loading
-  useEffect(() => {
-    if (isLoading) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isLoading]);
+  const totalPrice = useMemo(() => {
+    return `€${(ticketCount * TICKET_PRICE).toFixed(2)}`;
+  }, [ticketCount]);
 
-  // Intersection observer for visibility
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsVisible(entry.intersectionRatio > 0.02);
-        setHasBeenVisible(entry.intersectionRatio > 0.02);
-      },
-      {
-        threshold: Array.from({ length: 100 }, (_, i) => i / 100),
-      }
+  const isFormFilled = useMemo(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return (
+      formData.name.trim().length >= 2 &&
+      emailRegex.test(formData.email) &&
+      formData.countryCode &&
+      formData.phone.trim().length >= 6 &&
+      formData.followsInstagram &&
+      formData.dataConsent &&
+      formData.contestPolicy
     );
+  }, [formData]);
 
-    const element = document.getElementById('raffle-page-container');
-    if (element) {
-      observer.observe(element);
+  const updateFormData = useCallback((field: string, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
     }
+  }, [errors]);
 
-    return () => observer.disconnect();
+  const incrementTickets = useCallback(() => {
+    setTicketCount(prev => Math.min(prev + 1, MAX_TICKETS));
   }, []);
 
-  const { progress: scrollProgress } = useScrollProgress({
-    totalVh: 200,
-    smooth: true,
-    smoothFactor: 0.15,
-    sectionSelector: '#raffle-page-container',
-  });
+  const decrementTickets = useCallback(() => {
+    setTicketCount(prev => Math.max(prev - 1, 1));
+  }, []);
 
-  // Calculate frame progress (0 to 1 mapped across the 200vh section)
-  const frameProgress = scrollProgress;
+  const validateForm = useCallback(() => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      newErrors.name = 'El nombre debe tener al menos 2 caracteres';
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim() || !emailRegex.test(formData.email)) {
+      newErrors.email = 'Introduce un correo electrónico válido';
+    }
+
+    if (!formData.countryCode) {
+      newErrors.countryCode = 'Selecciona un código de país';
+    }
+
+    if (!formData.phone.trim() || formData.phone.trim().length < 6) {
+      newErrors.phone = 'Introduce un número de teléfono válido';
+    }
+
+    if (!formData.followsInstagram) {
+      newErrors.followsInstagram = 'Debes seguirnos en Instagram para participar';
+    }
+
+    if (!formData.dataConsent) {
+      newErrors.dataConsent = 'Debes aceptar el tratamiento de tus datos';
+    }
+
+    if (!formData.contestPolicy) {
+      newErrors.contestPolicy = 'Debes aceptar la política del concurso';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
+  const handleEnrollSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const nameParts = formData.name.trim().split(' ');
+      const firstName = nameParts[0];
+      const surname = nameParts.slice(1).join(' ') || '';
+
+      await api.buyTickets({
+        firstName,
+        surname,
+        email: formData.email.trim(),
+        instagram: formData.followsInstagram ? '@grstrength' : '',
+        ticketCount,
+      });
+
+      window.location.href = '/checkout';
+    } catch (error) {
+      console.error('Enrollment error:', error);
+      setErrors({ submit: 'Error al procesar tu inscripción. Inténtalo de nuevo.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData, ticketCount, validateForm]);
 
   return (
     <Layout>
@@ -144,8 +211,7 @@ export const Raffle: FC = () => {
           data-component="RaffleHeroContainer"
         >
           <div
-            className="sticky top-0 h-screen overflow-hidden transition-opacity duration-500"
-            style={{ opacity: hasBeenVisible ? 1 : 0 }}
+            className="sticky top-0 h-screen overflow-hidden"
             data-component="RaffleHeroViewport"
           >
             {/* Title with separator */}
@@ -171,14 +237,7 @@ export const Raffle: FC = () => {
             </div>
 
             {/* Frame Animation with independent mask */}
-            <div className="absolute inset-0 flex items-center justify-center z-0 pb-32" data-component="FrameWrapper">
-              <FrameAnimator
-                frames={frames}
-                progress={frameProgress}
-                isAnimating={true}
-                staticPauseStart={1}
-              />
-            </div>
+            <RaffleFrames containerId="raffle-page-container" />
 
             {/* Text Overlay Container - Static text, no scroll animations */}
             <div
@@ -212,25 +271,6 @@ export const Raffle: FC = () => {
               </div>
             </div>
 
-            {/* Loading Overlay */}
-            {isLoading && (
-              <div
-                className="absolute inset-0 z-30 flex items-center justify-center bg-black"
-                data-component="LoadingOverlay"
-              >
-                <div className="text-center">
-                  <div className="w-64 h-2 bg-gray-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-red-accent to-dark-red"
-                      style={{ width: (loadProgress * 100) + '%', transition: 'width 0.3s ease-out' }}
-                    />
-                  </div>
-                  <p className="text-gray-400 text-sm mt-2">
-                    {Math.round(loadProgress * 100)}%
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -297,7 +337,7 @@ export const Raffle: FC = () => {
             </div>
 
             <div className="relative" data-slot="steps-timeline">
-              <div className="absolute left-8 sm:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-accent via-dark-red to-red-accent transform sm:-translate-x-1/2" />
+              <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-accent via-dark-red to-red-accent" />
 
               <div className="space-y-12" data-slot="steps-list">
                 {steps.map((step, index) => (
@@ -311,12 +351,14 @@ export const Raffle: FC = () => {
                   >
                     <div className={`flex-1 ${index % 2 === 1 ? 'lg:text-right' : ''}`} data-slot={`step-content-${index + 1}`}>
                       <div className="p-8 rounded-2xl bg-gray-900 border border-gray-800 hover:border-red-accent/50 transition-all duration-300" data-ui={`step-card-${index + 1}`}>
-                        <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-accent text-white font-bold text-lg mb-4" data-ui={`step-number-${index + 1}`}>
-                          {step.number}
+                        <div className="flex flex-row sm:flex-col items-center sm:items-center gap-2 mb-4">
+                          <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-accent text-white font-bold text-lg flex-shrink-0" data-ui={`step-number-${index + 1}`}>
+                            {step.number}
+                          </div>
+                          <h3 className="text-2xl font-bold text-white" data-ui={`step-title-${index + 1}`}>
+                            {step.title}
+                          </h3>
                         </div>
-                        <h3 className="text-2xl font-bold text-white mb-3" data-ui={`step-title-${index + 1}`}>
-                          {step.title}
-                        </h3>
                         <p className="text-gray-400" data-ui={`step-description-${index + 1}`}>
                           {step.description}
                         </p>
@@ -344,7 +386,7 @@ export const Raffle: FC = () => {
               </h2>
               <div className="flex justify-center mt-6" data-ui="resultados-icon">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-accent to-dark-red flex items-center justify-center">
-                  <Icon name="trophy" size="xl" color="white" />
+                  <Trophy size={32} color="white" />
                 </div>
               </div>
             </div>
@@ -388,6 +430,248 @@ export const Raffle: FC = () => {
             </div>
           </div>
         </section>
+
+        {/* Enrollment Section */}
+        <section id="enroll" className="min-h-screen py-24 px-4 bg-dark-base" data-section="enroll">
+          <div className="max-w-2xl mx-auto" data-slot="enroll-container">
+            <div className="text-center mb-12" data-slot="enroll-header">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="enroll-title">
+                Inscríbete ahora
+              </h2>
+              <p className="text-xl text-gray-400 max-w-2xl mx-auto" data-ui="enroll-subtitle">
+                Completa el formulario para participar en el sorteo del GR Cup 2026
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleEnrollSubmit}
+              className="space-y-6 bg-dark-surface rounded-2xl p-8 border border-gray-800"
+              data-slot="enroll-form"
+            >
+              {/* Name Input */}
+              <div data-ui="enroll-field-name">
+                <Input
+                  label="Nombre completo"
+                  type="text"
+                  name="name"
+                  placeholder="Tu nombre y apellidos"
+                  value={formData.name}
+                  onChange={(e) => updateFormData('name', e.target.value)}
+                  error={errors.name}
+                  fullWidth
+                  className="!px-6 !py-4 !text-[16px]"
+                />
+              </div>
+
+              {/* Email Input */}
+              <div data-ui="enroll-field-email">
+                <Input
+                  label="Correo electrónico"
+                  type="email"
+                  name="email"
+                  placeholder="tu@email.com"
+                  value={formData.email}
+                  onChange={(e) => updateFormData('email', e.target.value)}
+                  error={errors.email}
+                  fullWidth
+                  className="!px-6 !py-4 !text-[16px]"
+                />
+              </div>
+
+              {/* Phone with Country Code */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-ui="enroll-field-phone">
+                <div className="sm:col-span-1">
+                  <CustomSelector
+                    label="Código"
+                    options={countryCodeOptions}
+                    value={formData.countryCode}
+                    onChange={(value) => updateFormData('countryCode', value as string)}
+                    placeholder="+34"
+                    searchable
+                    allowClear={false}
+                    error={errors.countryCode}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Teléfono"
+                    type="tel"
+                    name="phone"
+                    placeholder="123 456 789"
+                    value={formData.phone}
+                    onChange={(e) => updateFormData('phone', e.target.value)}
+                    error={errors.phone}
+                    fullWidth
+                    className="!px-6 !py-4 !text-[16px]"
+                  />
+                </div>
+              </div>
+
+              {/* Instagram Checkbox */}
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/10" data-ui="enroll-field-instagram">
+                <input
+                  type="checkbox"
+                  id="instagram-follow"
+                  checked={formData.followsInstagram}
+                  onChange={(e) => updateFormData('followsInstagram', e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-gray-600 bg-dark-card text-red-accent focus:ring-red-accent focus:ring-offset-0 cursor-pointer"
+                />
+                <label htmlFor="instagram-follow" className="flex items-center gap-2 cursor-pointer flex-1">
+                  <BiLogoInstagram size="24" className="text-pink-500" />
+                  <span className="text-gray-300">Os sigo en instagram <span className="text-red-accent font-semibold">@grstrength</span></span>
+                </label>
+                {errors.followsInstagram && (
+                  <span className="text-red-400 text-sm">{errors.followsInstagram}</span>
+                )}
+              </div>
+
+              {/* Ticket Counter */}
+              <div className="py-6 border-t border-b border-gray-700" data-ui="enroll-field-tickets">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-gray-300 font-medium">Número de boletos</span>
+                  <span className="text-gray-500 text-sm">0,50 € por boleto</span>
+                </div>
+
+                <div className="flex items-center justify-center gap-6">
+                  {/* Minus Button */}
+                  <button
+                    type="button"
+                    onClick={decrementTickets}
+                    disabled={ticketCount <= 1}
+                    className="w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                    aria-label="Reducir tickets"
+                    data-ui="ticket-minus-btn"
+                  >
+                    <Icon name="minus" size="lg" className="text-white" />
+                  </button>
+
+                  {/* Ticket Count */}
+                  <div className="text-5xl font-bold text-white min-w-[80px] text-center" data-ui="ticket-count">
+                    {ticketCount}
+                  </div>
+
+                  {/* Plus Button */}
+                  <button
+                    type="button"
+                    onClick={incrementTickets}
+                    disabled={ticketCount >= 50}
+                    className="w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                    aria-label="Aumentar tickets"
+                    data-ui="ticket-plus-btn"
+                  >
+                    <Icon name="plus" size="lg" className="text-white" />
+                  </button>
+                </div>
+
+                {/* Quick Select */}
+                <div className="flex justify-center gap-2 mt-4">
+                  {[1, 5, 10, 20].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setTicketCount(num)}
+                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        ticketCount === num
+                          ? 'bg-red-accent text-black font-medium'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      }`}
+                      data-ui={`ticket-quick-${num}`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="flex items-center justify-between py-4" data-ui="enroll-summary">
+                <span className="text-xl text-gray-300">
+                  {ticketCount} boleto{ticketCount !== 1 ? 's' : ''} × 0,50 €
+                </span>
+                <span className="text-3xl font-bold text-white">
+                  {totalPrice}
+                </span>
+              </div>
+
+              {/* Legal Checkboxes */}
+              <div className="space-y-4 pt-4 border-t border-gray-700" data-ui="enroll-legal">
+                {/* Data Consent */}
+                <div className="flex items-start gap-3" data-ui="enroll-field-data-consent">
+                  <input
+                    type="checkbox"
+                    id="data-consent"
+                    checked={formData.dataConsent}
+                    onChange={(e) => updateFormData('dataConsent', e.target.checked)}
+                    className="mt-1 w-5 h-5 rounded border-gray-600 bg-dark-card text-red-accent focus:ring-red-accent focus:ring-offset-0 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="data-consent" className="text-gray-300 cursor-pointer">
+                      He leído y acepto la{' '}
+                      <a
+                        href="/consentimiento-datos"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-accent hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        política de tratamiento de mis datos
+                      </a>
+                    </label>
+                    {errors.dataConsent && (
+                      <p className="text-red-400 text-sm mt-1">{errors.dataConsent}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contest Policy */}
+                <div className="flex items-start gap-3" data-ui="enroll-field-contest-policy">
+                  <input
+                    type="checkbox"
+                    id="contest-policy"
+                    checked={formData.contestPolicy}
+                    onChange={(e) => updateFormData('contestPolicy', e.target.checked)}
+                    className="mt-1 w-5 h-5 rounded border-gray-600 bg-dark-card text-red-accent focus:ring-red-accent focus:ring-offset-0 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="contest-policy" className="text-gray-300 cursor-pointer">
+                      He leído y estoy de acuerdo con la{' '}
+                      <a
+                        href="/politica-concurso"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-accent hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        política del concurso
+                      </a>
+                    </label>
+                    {errors.contestPolicy && (
+                      <p className="text-red-400 text-sm mt-1">{errors.contestPolicy}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-4" data-ui="enroll-submit">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="xl"
+                  fullWidth
+                  isLoading={isSubmitting}
+                  disabled={isSubmitting || !isFormFilled}
+                  className="shadow-lg shadow-red-accent/30"
+                  data-ui="enroll-submit-btn"
+                >
+                  Inscribirme
+                </Button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <Footer />
       </main>
     </Layout>
   );

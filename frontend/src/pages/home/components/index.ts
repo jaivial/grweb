@@ -11,3 +11,4 @@ export { RulesSection } from './RulesSection';
 export { HowToEnterSection } from './HowToEnterSection';
 export { WinnersSection } from './WinnersSection';
 export { Footer } from './Footer';
+export { RaffleSection } from './RaffleSection';
