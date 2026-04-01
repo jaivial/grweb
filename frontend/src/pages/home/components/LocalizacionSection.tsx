@@ -103,7 +103,7 @@ const AnimatedItem: FC<{
 
 const venueImages = [
   {
-    src: 'https://lh3.googleusercontent.com/gps-cs-s/AHVAweq2LHmiyHFQ-5KOGCxaM19FVNzn4-v7R3g7st6e6CjfIoyOFWgPwLc41wefGfzRC_JaEjuClYwUBBvpZlm8oJglHqlnqyiYLbbDbTYO3hItAVV1hdFBAUKIEHq9gq1y0uOj_y6Bow=s1360-w1360-h1020-rw',
+    src: 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp',
     alt: 'Pabellón Municipal de Almusafes - Vista exterior',
   },
   {
