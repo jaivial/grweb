@@ -92,8 +92,8 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
       className={`relative overflow-hidden ${className}`}
       data-component="FrameAnimator"
       style={{
-        maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-        WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+        maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)',
         maskSize: '100% 100%',
         maskRepeat: 'no-repeat',
         maskPosition: 'center',
@@ -111,7 +111,7 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
         className="absolute inset-0 pointer-events-none"
         data-ui="canvas-edge-fade"
         style={{
-          background: 'linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%), linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%)',
+          background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)',
         }}
         aria-hidden
       />
