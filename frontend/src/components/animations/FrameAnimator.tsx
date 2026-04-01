@@ -89,19 +89,22 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
 
   return (
     <div
-      className={`${className}`}
+      className={`relative overflow-hidden ${className}`}
       data-component="FrameAnimator"
+      data-ui="canvas-mask-wrapper"
+      style={{
+        maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+        maskSize: '100% 100%',
+        maskRepeat: 'no-repeat',
+        maskPosition: 'center',
+      }}
     >
-      {/* Canvas with mask applied directly */}
+      {/* Canvas without mask - mask is on wrapper */}
       <canvas
         ref={canvasRef}
         style={{
           display: showCanvas ? 'block' : 'none',
-          maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-          maskSize: '100% 100%',
-          maskRepeat: 'no-repeat',
-          maskPosition: 'center',
         }}
       />
     </div>
