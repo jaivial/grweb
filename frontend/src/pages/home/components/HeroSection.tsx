@@ -96,23 +96,12 @@ export const HeroSection: FC = () => {
         data-component="HeroViewport"
       >
         <div className="relative z-0" data-component="FrameWrapper">
-          <div className="relative w-screen h-auto overflow-hidden">
-            <FrameAnimator
-              frames={frames}
-              progress={animationState.frameProgress}
-              isAnimating={animationState.frameAnimationActive}
-              staticPauseStart={1}
-            />
-            {/* Additional edge fade overlay for 4-sided margin fade effect */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              data-ui="canvas-edge-fade"
-              style={{
-                background: 'linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%), linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%)',
-              }}
-              aria-hidden
-            />
-          </div>
+          <FrameAnimator
+            frames={frames}
+            progress={animationState.frameProgress}
+            isAnimating={animationState.frameAnimationActive}
+            staticPauseStart={1}
+          />
         </div>
 
         <SmokeOverlay
