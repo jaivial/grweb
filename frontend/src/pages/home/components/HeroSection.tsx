@@ -45,6 +45,7 @@ export const HeroSection: FC = () => {
     totalVh: 500,
     smooth: true,
     smoothFactor: 0.15,
+    sectionSelector: '#hero-container',
   });
 
   const animationState = useMemo(() => {
@@ -94,13 +95,36 @@ export const HeroSection: FC = () => {
         style={{ opacity: hasBeenVisible ? 1 : 0, display: hasBeenVisible ? 'block' : 'none' }}
         data-component="HeroViewport"
       >
-        <FrameAnimator
-          frames={frames}
-          progress={animationState.frameProgress}
-          isAnimating={animationState.frameAnimationActive}
-          staticPauseStart={1}
-          className="absolute inset-0 z-0"
-        />
+        <div className="relative z-0" data-component="FrameWrapper">
+          <FrameAnimator
+            frames={frames}
+            progress={animationState.frameProgress}
+            isAnimating={animationState.frameAnimationActive}
+            staticPauseStart={1}
+          />
+          {/* Radial gradient mask on canvas */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            data-ui="canvas-radial-mask"
+            style={{
+              maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+              maskSize: '100% 100%',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+            }}
+            aria-hidden
+          />
+          {/* Additional edge fade overlay for 4-sided margin fade effect */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            data-ui="canvas-edge-fade"
+            style={{
+              background: 'linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%), linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%)',
+            }}
+            aria-hidden
+          />
+        </div>
 
         <SmokeOverlay
           smokeStateRef={smokeStateRef}
