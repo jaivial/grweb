@@ -92,27 +92,13 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
       className={`relative ${className}`}
       data-component="FrameAnimator"
     >
-      {/* Masked canvas container */}
-      <div className="relative w-screen h-auto overflow-hidden">
+      {/* Canvas container - no built-in mask */}
+      <div className="relative w-screen h-auto">
         <canvas
           ref={canvasRef}
           style={{
             display: showCanvas ? 'block' : 'none',
-            maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-            maskSize: '100% 100%',
-            maskRepeat: 'no-repeat',
-            maskPosition: 'center',
           }}
-        />
-        {/* Additional edge fade overlay for 4-sided margin fade effect */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          data-ui="canvas-edge-fade"
-          style={{
-            background: 'linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%), linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%)',
-          }}
-          aria-hidden
         />
       </div>
     </div>
