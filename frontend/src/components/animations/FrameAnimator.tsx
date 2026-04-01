@@ -1,6 +1,6 @@
-import { FC, useEffect, useRef, useMemo, useState } from 'react';
+import { FC, useEffect, useRef, useMemo, useState, useCallback } from 'react';
 
-const ANIMATION_START = 0.04;
+const ANIMATION_START = 0.0;
 
 export interface FrameAnimatorProps {
   frames: HTMLImageElement[];
@@ -18,36 +18,37 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
   className = '',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const currentFrameRef = useRef(0);
+  const currentFrameRef = useRef(-1);
   const [staticFrameLoaded, setStaticFrameLoaded] = useState(false);
 
+  // Calculate frame index based on progress
   const frameIndex = useMemo(() => {
-    const animationStart = ANIMATION_START;
     const animationEnd = staticPauseStart;
 
-    if (progress < animationStart) return 0;
+    if (progress <= 0) return 0;
     if (progress >= animationEnd) return frames.length - 1;
 
-    const animationProgress = (progress - animationStart) / (animationEnd - animationStart);
+    const animationProgress = progress / animationEnd;
     const index = Math.floor(animationProgress * (frames.length - 1));
 
     return Math.max(0, Math.min(frames.length - 1, index));
   }, [progress, frames.length, staticPauseStart]);
 
-  useEffect(() => {
+  // Draw the current frame
+  const drawFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
     if (!canvas || frames.length === 0) return;
-    if (!isAnimating) return;
+
+    const frame = frames[index];
+    if (!frame) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const frame = frames[frameIndex];
-    if (!frame) return;
-
     const dpr = window.devicePixelRatio || 1;
     const width = window.innerWidth;
-    const height = window.innerHeight;
+    const imageAspect = frame.width / frame.height;
+    const height = width / imageAspect;
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -56,107 +57,64 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
 
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(frame, 0, 0, width, height);
+  }, [frames]);
 
-    const imageAspect = frame.width / frame.height;
-    const canvasAspect = width / height;
-
-    let drawWidth = 0;
-    let drawHeight = 0;
-    let drawX = 0;
-    let drawY = 0;
-
-    if (imageAspect > canvasAspect) {
-      drawHeight = height;
-      drawWidth = height * imageAspect;
-      drawX = (width - drawWidth) / 2;
-      drawY = 0;
-    } else {
-      drawWidth = width;
-      drawHeight = width / imageAspect;
-      drawX = 0;
-      drawY = (height - drawHeight) / 2;
+  // Effect to draw frame when index changes
+  useEffect(() => {
+    if (frames.length === 0) return;
+    if (!isAnimating) return;
+    
+    if (frameIndex !== currentFrameRef.current) {
+      currentFrameRef.current = frameIndex;
+      drawFrame(frameIndex);
     }
+  }, [frameIndex, frames, isAnimating, drawFrame]);
 
-    ctx.drawImage(frame, drawX, drawY, drawWidth, drawHeight);
-    currentFrameRef.current = frameIndex;
-  }, [frameIndex, frames, isAnimating]);
-
+  // Effect for resize
   useEffect(() => {
     if (!isAnimating) return;
 
     const handleResize = () => {
-      const canvas = canvasRef.current;
-      if (canvas && frames.length > 0) {
-        const frame = frames[frameIndex];
-        if (frame) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            const dpr = window.devicePixelRatio || 1;
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-
-            ctx.scale(dpr, dpr);
-            ctx.clearRect(0, 0, width, height);
-
-            const imageAspect = frame.width / frame.height;
-            const canvasAspect = width / height;
-
-            let drawWidth = 0;
-            let drawHeight = 0;
-            let drawX = 0;
-            let drawY = 0;
-
-            if (imageAspect > canvasAspect) {
-              drawHeight = height;
-              drawWidth = height * imageAspect;
-              drawX = (width - drawWidth) / 2;
-              drawY = 0;
-            } else {
-              drawWidth = width;
-              drawHeight = width / imageAspect;
-              drawX = 0;
-              drawY = (height - drawHeight) / 2;
-            }
-
-            ctx.drawImage(frame, drawX, drawY, drawWidth, drawHeight);
-          }
-        }
+      if (frames.length > 0 && frameIndex >= 0) {
+        drawFrame(frameIndex);
       }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [frameIndex, frames, isAnimating]);
+  }, [frameIndex, frames, isAnimating, drawFrame]);
 
   const showCanvas = frames.length > 0;
-  const showLoading = frames.length === 0 && !staticFrameLoaded;
-
-  const containerClassName = 'absolute inset-0 ' + className;
 
   return (
-    <div className={containerClassName} data-component="FrameAnimator">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full"
-        style={{
-          display: showCanvas ? 'block' : 'none',
-          objectFit: 'cover',
-        }}
-      />
-
-      {showLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-dark-base" data-component="FrameLoading">
-          <div className="text-center">
-            <div className="inline-block w-12 h-12 border-4 border-red-accent border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-gray-400 text-sm">Loading frames...</p>
-          </div>
-        </div>
-      )}
+    <div
+      className={`relative ${className}`}
+      data-component="FrameAnimator"
+    >
+      {/* Masked canvas container */}
+      <div className="relative w-screen h-auto overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          style={{
+            display: showCanvas ? 'block' : 'none',
+            maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+            maskSize: '100% 100%',
+            maskRepeat: 'no-repeat',
+            maskPosition: 'center',
+          }}
+        />
+        {/* Additional edge fade overlay for 4-sided margin fade effect */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          data-ui="canvas-edge-fade"
+          style={{
+            background: 'linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%), linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%)',
+          }}
+          aria-hidden
+        />
+      </div>
     </div>
   );
 };
