@@ -25,7 +25,7 @@ export const Navbar: FC<NavbarProps> = ({ className = '' }) => {
   const [location] = useLocation();
 
   // Pages where navbar should always be visible
-  const isNonHeroPage = location === '/inscripcion';
+  const isNonHeroPage = location === '/inscripcion' || location === '/raffle';
 
   useEffect(() => {
     if (isNonHeroPage) {
@@ -62,17 +62,24 @@ export const Navbar: FC<NavbarProps> = ({ className = '' }) => {
     };
   }, [mobileMenuOpen]);
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => {
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    // For absolute paths (starting with / but not #), navigate directly
+    if (href.startsWith('/') && !href.startsWith('#')) {
+      e.preventDefault();
+      window.location.href = href;
+      setMobileMenuOpen(false);
+      return;
+    }
+
     e.preventDefault();
-    // If already on home page, just scroll
+    // Hash links - scroll or navigate
     if (location === '/') {
-      const element = document.getElementById(hash.replace('#', ''));
+      const element = document.getElementById(href.replace('#', ''));
       if (element) {
         element.scrollIntoView({ behavior: 'smooth' });
       }
     } else {
-      // Navigate to home with hash
-      window.location.href = `/${hash}`;
+      window.location.href = `/${href}`;
     }
     setMobileMenuOpen(false);
   };
@@ -83,9 +90,7 @@ export const Navbar: FC<NavbarProps> = ({ className = '' }) => {
   };
 
   const menuItems = [
-    { label: 'Rules', href: '#rules' },
-    { label: 'How to Enter', href: '#how-to-enter' },
-    { label: 'Winners', href: '#winners' },
+    { label: 'Sorteo', href: '/raffle' },
     { label: 'Horarios', href: '#schedules' },
     { label: 'Cómo llegar', href: '#localizacion' },
   ];
@@ -192,7 +197,7 @@ export const Navbar: FC<NavbarProps> = ({ className = '' }) => {
 
       {/* Mobile Menu Overlay */}
       <div
-        className={`fixed inset-0 z-40 transition-all duration-300 ${
+        className={`fixed inset-0 z-[60] transition-all duration-300 ${
           mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         data-ui="mobile-menu-overlay"
@@ -216,11 +221,18 @@ export const Navbar: FC<NavbarProps> = ({ className = '' }) => {
           }}
           data-ui="mobile-sidenav"
         >
-          {/* Close button area */}
-          <div className="flex justify-end p-4">
+          {/* Header with Logo and Close button */}
+          <div className="relative flex items-center justify-center p-4">
+            <a href="/" className="flex items-center gap-3" data-ui="mobile-sidenav-logo">
+              <img
+                src="/grcuplogo.png"
+                alt="GR Cup Logo"
+                className="w-auto h-8 object-contain"
+              />
+            </a>
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="w-10 h-10 flex items-center justify-center text-white hover:text-red-accent transition-colors"
+              className="absolute right-4 w-10 h-10 flex items-center justify-center text-white hover:text-red-accent transition-colors"
               data-ui="mobile-menu-close"
               aria-label="Close menu"
             >

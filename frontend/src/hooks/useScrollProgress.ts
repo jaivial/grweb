@@ -16,6 +16,16 @@ export interface UseScrollProgressOptions {
    * Default: 0.1
    */
   smoothFactor?: number;
+  /**
+   * CSS selector or element ref for the section to track
+   * If not provided, uses totalVh to calculate based on scroll position
+   */
+  sectionSelector?: string;
+  /**
+   * Section ID for identifying this scroll section
+   * Used when multiple sections need independent tracking
+   */
+  sectionId?: string;
 }
 
 export interface ScrollProgressResult {
@@ -24,6 +34,7 @@ export interface ScrollProgressResult {
   direction: 'up' | 'down' | null;
   sectionTop: number;
   sectionBottom: number;
+  sectionHeight: number;
 }
 
 /**
@@ -40,6 +51,7 @@ export function useScrollProgress(
     totalVh = 400,
     smooth = true,
     smoothFactor = 0.1,
+    sectionSelector,
   } = options;
 
   const [progress, setProgress] = useState(0);
@@ -47,29 +59,57 @@ export function useScrollProgress(
   const [direction, setDirection] = useState<'up' | 'down' | null>(null);
   const [sectionTop, setSectionTop] = useState(0);
   const [sectionBottom, setSectionBottom] = useState(0);
+  const [sectionHeight, setSectionHeight] = useState(0);
 
   const lastScrollYRef = useRef(0);
   const targetProgressRef = useRef(0);
   const currentProgressRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
+  const sectionBoundsRef = useRef({ sectionTopPosition: 0, sectionHeight: 0 });
 
-  // Calculate section boundaries
-  const calculateBoundaries = useCallback(() => {
-    const vh = window.innerHeight;
-    const sectionHeight = vh * (totalVh / 100);
-    const sectionTopPosition = 0; // Assuming section starts at top
-    const sectionBottomPosition = sectionHeight;
+  // Calculate section boundaries - stores in ref for immediate access
+  const updateSectionBounds = useCallback(() => {
+    let sectionTopPosition = 0;
+    let sectionHeightValue: number;
 
-    setSectionTop(sectionTopPosition);
-    setSectionBottom(sectionBottomPosition);
+    if (sectionSelector) {
+      // Find the section element and use its actual position
+      const sectionEl = document.querySelector(sectionSelector) as HTMLElement | null;
+      if (sectionEl) {
+        sectionTopPosition = sectionEl.offsetTop;
+        sectionHeightValue = sectionEl.offsetHeight;
+        
+        // Store in ref for immediate access during scroll
+        sectionBoundsRef.current = { sectionTopPosition, sectionHeight: sectionHeightValue };
+        
+        // Update state for UI purposes
+        setSectionTop(sectionTopPosition);
+        setSectionBottom(sectionTopPosition + sectionHeightValue);
+        setSectionHeight(sectionHeightValue);
+        
+        return { sectionTopPosition, sectionHeight: sectionHeightValue };
+      } else {
+        // Fallback to calculated height
+        const vh = window.innerHeight;
+        sectionHeightValue = vh * (totalVh / 100);
+        sectionBoundsRef.current = { sectionTopPosition: 0, sectionHeight: sectionHeightValue };
+        return sectionBoundsRef.current;
+      }
+    } else {
+      // Original behavior: assume section starts at page top
+      const vh = window.innerHeight;
+      sectionHeightValue = vh * (totalVh / 100);
+      sectionBoundsRef.current = { sectionTopPosition: 0, sectionHeight: sectionHeightValue };
+      return sectionBoundsRef.current;
+    }
+  }, [totalVh, sectionSelector]);
 
-    return { sectionTopPosition, sectionBottomPosition, sectionHeight };
-  }, [totalVh]);
-
-  // Update progress based on scroll position
+  // Update progress based on scroll position - uses ref for immediate values
   const updateProgress = useCallback(() => {
     const currentScrollY = window.scrollY;
-    const { sectionTopPosition, sectionHeight } = calculateBoundaries();
+    
+    // Use ref values for immediate access (no stale closures)
+    const { sectionTopPosition, sectionHeight } = sectionBoundsRef.current;
 
     // Determine scroll direction
     if (currentScrollY > lastScrollYRef.current) {
@@ -81,6 +121,11 @@ export function useScrollProgress(
     lastScrollYRef.current = currentScrollY;
     setScrollY(currentScrollY);
 
+    // Handle edge case where sectionHeight is 0
+    if (sectionHeight <= 0) {
+      return;
+    }
+
     // Calculate progress (0 to 1) within the section
     const scrollWithinSection = currentScrollY - sectionTopPosition;
     let normalizedProgress = scrollWithinSection / sectionHeight;
@@ -88,21 +133,22 @@ export function useScrollProgress(
     // Clamp progress between 0 and 1
     normalizedProgress = Math.max(0, Math.min(1, normalizedProgress));
 
-    if (smooth) {
-      targetProgressRef.current = normalizedProgress;
-    } else {
+    // Store target and update current
+    targetProgressRef.current = normalizedProgress;
+    
+    if (!smooth) {
       currentProgressRef.current = normalizedProgress;
       setProgress(normalizedProgress);
     }
-  }, [calculateBoundaries, smooth]);
+  }, [smooth]);
 
-  // Smooth animation loop
+  // Smooth animation loop - uses refs for immediate values
   const animateSmoothProgress = useCallback(() => {
     const target = targetProgressRef.current;
     const current = currentProgressRef.current;
     const diff = target - current;
 
-    if (Math.abs(diff) > 0.001) {
+    if (Math.abs(diff) > 0.0001) {
       currentProgressRef.current += diff * smoothFactor;
       setProgress(currentProgressRef.current);
       rafIdRef.current = requestAnimationFrame(animateSmoothProgress);
@@ -113,7 +159,7 @@ export function useScrollProgress(
     }
   }, [smoothFactor]);
 
-  // Scroll event handler with RAF optimization
+  // Scroll event handler
   const handleScroll = useCallback(() => {
     updateProgress();
 
@@ -124,20 +170,26 @@ export function useScrollProgress(
 
   // Setup scroll listener
   useEffect(() => {
-    calculateBoundaries();
+    // Initialize bounds
+    updateSectionBounds();
+
+    // Initial progress calculation
     updateProgress();
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', calculateBoundaries);
+    window.addEventListener('resize', () => {
+      updateSectionBounds();
+      updateProgress();
+    }, { passive: true });
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', calculateBoundaries);
+      window.removeEventListener('resize', updateSectionBounds);
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [handleScroll, calculateBoundaries, updateProgress]);
+  }, [handleScroll, updateSectionBounds, updateProgress]);
 
   return {
     progress,
@@ -145,5 +197,6 @@ export function useScrollProgress(
     direction,
     sectionTop,
     sectionBottom,
+    sectionHeight,
   };
 }

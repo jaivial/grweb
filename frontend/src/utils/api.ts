@@ -257,6 +257,12 @@ class ApiClient {
   async getPublicInscripcionPreparada() {
     return this.request<{ preparadas: boolean }>('/api/inscripcion-preparada');
   }
+
+  // ─── Public Schedules ───
+
+  async getPublicSchedules() {
+    return this.request<any[]>('/api/schedules');
+  }
 }
 
 export const api = new ApiClient(API_URL);

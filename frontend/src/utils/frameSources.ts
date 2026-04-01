@@ -23,6 +23,16 @@ export type FrameConfig = LocalFrameConfig | CdnFrameConfig;
 
 const CDN_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp';
 const LOCAL_PATH = '/trophy';
+const BELT_PATH = '/compressedbeltimages';
+
+// Belt frames configuration - 845 frames in ascending order
+export const BELT_FRAMES_CONFIG: LocalFrameConfig = {
+  source: 'local',
+  path: BELT_PATH,
+  startFrame: 1,
+  endFrame: 845,
+  order: 'asc',
+};
 
 function padFrame(n: number): string {
   return String(n).padStart(6, '0');
