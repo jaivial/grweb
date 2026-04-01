@@ -150,23 +150,12 @@ export const RaffleSection: FC = () => {
 
         {/* Frame Animation - with bottom padding and mask */}
         <div className="absolute inset-0 flex items-center justify-center z-0 pb-32" data-component="FrameWrapper">
-          <div className="relative w-screen h-auto overflow-hidden">
-            <FrameAnimator
-              frames={frames}
-              progress={frameProgress}
-              isAnimating={true}
-              staticPauseStart={1}
-            />
-            {/* Additional edge fade overlay for 4-sided margin fade effect */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              data-ui="canvas-edge-fade"
-              style={{
-                background: 'linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%), linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%)',
-              }}
-              aria-hidden
-            />
-          </div>
+          <FrameAnimator
+            frames={frames}
+            progress={frameProgress}
+            isAnimating={true}
+            staticPauseStart={1}
+          />
         </div>
 
         {/* Text Overlay Container - Bottom section, button moved lower */}

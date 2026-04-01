@@ -91,7 +91,6 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     <div
       className={`relative overflow-hidden ${className}`}
       data-component="FrameAnimator"
-      data-ui="canvas-mask-wrapper"
       style={{
         maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
         WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
@@ -100,12 +99,21 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
         maskPosition: 'center',
       }}
     >
-      {/* Canvas without mask - mask is on wrapper */}
+      {/* Canvas */}
       <canvas
         ref={canvasRef}
         style={{
           display: showCanvas ? 'block' : 'none',
         }}
+      />
+      {/* Edge fade overlay - INSIDE the same container with mask */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        data-ui="canvas-edge-fade"
+        style={{
+          background: 'linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%), linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.9) 100%)',
+        }}
+        aria-hidden
       />
     </div>
   );
