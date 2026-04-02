@@ -1,4 +1,4 @@
-import { FC, useState, useMemo, useCallback } from 'react';
+import { FC, useState, useMemo, useCallback, useEffect } from 'react';
 import { Trophy } from 'lucide-react';
 import { BiLogoInstagram } from 'react-icons/bi';
 import Layout from '../../layouts/Layout';
@@ -10,6 +10,7 @@ import { RaffleFrames } from './RaffleFrames';
 import { Footer } from '../home/components/Footer';
 import { countryCodeOptions } from '../../utils/countryCodes';
 import { api } from '../../utils/api';
+import { latestConfirmedWinner, fetchConfirmedWinner } from '../../stores/participants';
 
 // Spanish rules data
 const rules = [
@@ -97,6 +98,14 @@ export const Raffle: FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isLoadingWinner, setIsLoadingWinner] = useState(true);
+
+  useEffect(() => {
+    fetchConfirmedWinner().finally(() => {
+      setIsLoadingWinner(false);
+    });
+  }, []);
+
   const totalPrice = useMemo(() => {
     return `€${(ticketCount * TICKET_PRICE).toFixed(2)}`;
   }, [ticketCount]);
@@ -183,15 +192,16 @@ export const Raffle: FC = () => {
       const firstName = nameParts[0];
       const surname = nameParts.slice(1).join(' ') || '';
 
-      await api.buyTickets({
+      const response = await api.buyTickets({
         firstName,
         surname,
         email: formData.email.trim(),
         instagram: formData.followsInstagram ? '@grstrength' : '',
         ticketCount,
+        phone: `${formData.countryCode}${formData.phone}`,
       });
 
-      window.location.href = '/checkout';
+      window.location.href = response.url;
     } catch (error) {
       console.error('Enrollment error:', error);
       setErrors({ submit: 'Error al procesar tu inscripción. Inténtalo de nuevo.' });
@@ -391,25 +401,56 @@ export const Raffle: FC = () => {
               </div>
             </div>
 
-            <div className="max-w-3xl mx-auto space-y-6" data-slot="resultados-content">
-              <div className="p-8 rounded-2xl bg-gray-900 border border-gray-800" data-ui="resultado-item-1">
-                <p className="text-xl text-gray-300 leading-relaxed">
-                  El ganador sera anunciado el ultimo dia de la competicion tras la entrega de premios de la ultima categoria.
-                </p>
+            {isLoadingWinner ? (
+              <div className="flex justify-center items-center py-16" data-ui="resultados-loading">
+                <div className="w-12 h-12 border-4 border-red-accent/30 border-t-red-accent rounded-full animate-spin" data-ui="resultados-spinner" />
               </div>
+            ) : latestConfirmedWinner.value ? (
+              <div className="max-w-lg mx-auto" data-slot="resultados-winner">
+                <div className="p-8 rounded-2xl bg-gradient-to-r from-red-accent/10 to-dark-red/10 border border-red-accent/30 text-center" data-ui="resultado-winner-card">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-red-accent to-dark-red flex items-center justify-center mx-auto mb-6" data-ui="resultado-winner-trophy">
+                    <Icon name="trophy" size="xl" color="white" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-white mb-2" data-ui="resultado-winner-name">
+                    {latestConfirmedWinner.value.winnerName}
+                  </h3>
+                  {latestConfirmedWinner.value.winnerInstagram && (
+                    <a
+                      href={`https://instagram.com/${latestConfirmedWinner.value.winnerInstagram.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-red-accent hover:text-dark-red transition-colors inline-block mb-4"
+                      data-ui="resultado-winner-instagram"
+                    >
+                      {latestConfirmedWinner.value.winnerInstagram}
+                    </a>
+                  )}
+                  <p className="text-gray-400" data-ui="resultado-winner-tickets">
+                    {latestConfirmedWinner.value.winnerTicketCount} boleto{latestConfirmedWinner.value.winnerTicketCount !== 1 ? 's' : ''} en el sorteo
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-3xl mx-auto space-y-6" data-slot="resultados-content">
+                <div className="p-8 rounded-2xl bg-gray-900 border border-gray-800" data-ui="resultado-item-1">
+                  <p className="text-xl text-gray-300 leading-relaxed">
+                    El ganador sera anunciado el ultimo dia de la competicion tras la entrega de premios de la ultima categoria.
+                  </p>
+                </div>
 
-              <div className="p-8 rounded-2xl bg-gray-900 border border-gray-800" data-ui="resultado-item-2">
-                <p className="text-xl text-gray-300 leading-relaxed">
-                  Tambien se anunciara el ganador por redes sociales y se publicara en vivo un video de como se elije al ganador.
-                </p>
-              </div>
+                <div className="p-8 rounded-2xl bg-gray-900 border border-gray-800" data-ui="resultado-item-2">
+                  <p className="text-xl text-gray-300 leading-relaxed">
+                    Tambien se anunciara el ganador por redes sociales y se publicara en vivo un video de como se elije al ganador.
+                  </p>
+                </div>
 
-              <div className="p-8 rounded-2xl bg-gradient-to-r from-red-accent/10 to-dark-red/10 border border-red-accent/30" data-ui="resultado-item-3">
-                <p className="text-2xl text-white font-bold text-center leading-relaxed">
-                  Cuantas mas boletos compres mas oportunidades tienes de ganar.
-                </p>
+                <div className="p-8 rounded-2xl bg-gradient-to-r from-red-accent/10 to-dark-red/10 border border-red-accent/30" data-ui="resultado-item-3">
+                  <p className="text-2xl text-white font-bold text-center leading-relaxed">
+                    Cuantas mas boletos compres mas oportunidades tienes de ganar.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="mt-16 text-center" data-slot="resultados-cta">
               <p className="text-gray-400 mb-6" data-ui="resultados-cta-text">

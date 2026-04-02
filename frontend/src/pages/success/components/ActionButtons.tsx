@@ -20,18 +20,6 @@ export function ActionButtons(): JSX.Element {
       >
         Return Home
       </Button>
-      
-      {/* Buy More */}
-      <Button
-        variant="primary"
-        size="lg"
-        onClick={() => {
-          window.location.href = '/checkout';
-        }}
-        leftIcon={<Icon name="ticket" size="sm" />}
-      >
-        Buy More Tickets
-      </Button>
     </div>
   );
 }

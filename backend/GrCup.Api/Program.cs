@@ -157,5 +157,6 @@ app.MapAthleteEndpoints();
 app.MapScheduleEndpoints();
 app.MapInscripcionConfigEndpoints();
 app.MapInscripcionPreparadaEndpoints();
+app.MapResponsableUrlInscripcionEndpoints();
 
 app.Run();

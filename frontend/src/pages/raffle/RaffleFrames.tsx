@@ -24,18 +24,6 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
     setIsLoading(framesLoading);
   }, [framesLoading]);
 
-  // Prevent scrolling while loading
-  useEffect(() => {
-    if (isLoading) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isLoading]);
-
   // Intersection observer for visibility
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -165,8 +153,8 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
             width: 'min(90vw, 900px)',
             height: 'auto',
             aspectRatio: '16/9',
-            maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+            maskImage: 'radial-gradient(45% 52%, black 42%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(45% 52%, black 42%, transparent 100%)',
             maskSize: '100% 100%',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
@@ -185,7 +173,6 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
               display: showCanvas ? 'block' : 'none',
               width: '100%',
               height: '100%',
-              objectFit: 'contain',
             }}
           />
           {/* Edge fade overlay - dark borders on all 4 sides */}
@@ -193,7 +180,7 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
             className="absolute inset-0 pointer-events-none z-20 rounded-lg"
             data-ui="canvas-edge-fade"
             style={{
-              background: 'linear-gradient(to right, #0a0a0a 0%, transparent 12%, transparent 88%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 12%, transparent 88%, #0a0a0a 100%)',
+              background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)',
             }}
             aria-hidden
           />

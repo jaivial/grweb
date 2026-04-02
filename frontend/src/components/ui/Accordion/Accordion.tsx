@@ -25,7 +25,7 @@ export function Accordion({
   }, [disabled]);
 
   return (
-    <div className={`border border-white/10 rounded-xl overflow-hidden backdrop-blur-xl ${className}`} data-ui="accordion">
+    <div className={`border border-white/10 rounded-xl overflow-visible backdrop-blur-xl ${className}`} data-ui="accordion">
       <button
         type="button"
         onClick={handleToggle}

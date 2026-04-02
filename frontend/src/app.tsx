@@ -14,7 +14,6 @@ import { ContestPolicy } from './pages/legal/ContestPolicy';
 
 import { BackofficeHome } from './pages/backoffice/Home';
 import Inscripciones from './pages/backoffice/inscripciones/Inscripciones';
-import Participantes from './pages/backoffice/participantes/Participantes';
 import { Sorteo } from './pages/backoffice/sorteo/Sorteo';
 import Horarios from './pages/backoffice/horarios/Horarios';
 import InscripcionConfigPage from './pages/backoffice/InscripcionConfig';
@@ -50,14 +49,6 @@ export function App() {
         component={() => (
           <ProtectedRoute>
             <Inscripciones />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="/backoffice/participantes"
-        component={() => (
-          <ProtectedRoute>
-            <Participantes />
           </ProtectedRoute>
         )}
       />

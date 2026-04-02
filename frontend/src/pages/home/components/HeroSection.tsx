@@ -101,6 +101,13 @@ export const HeroSection: FC = () => {
             progress={animationState.frameProgress}
             isAnimating={animationState.frameAnimationActive}
             staticPauseStart={1}
+            maxWidth={540}
+            aspectRatio={9 / 16}
+            edgeFadeOverlay={{
+              background: 'linear-gradient(to right, #0a0a0a 0%, transparent 55%, transparent 65%, #0a0a0a 100%)',
+              maxWidth: '540px',
+              margin: '0 auto',
+            }}
           />
         </div>
 

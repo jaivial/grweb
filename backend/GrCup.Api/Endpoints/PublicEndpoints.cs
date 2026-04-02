@@ -40,7 +40,8 @@ public static class PublicEndpoints
                     request.Instagram,
                     request.TicketCount,
                     successUrl,
-                    cancelUrl
+                    cancelUrl,
+                    request.Phone
                 );
 
                 logger.LogInformation("Created Stripe session {SessionId} for {Email}", session.Id, request.Email);
@@ -87,9 +88,20 @@ public static class PublicEndpoints
         app.MapGet("/api/inscripcion-preparada", async (GrCupDbContext db) =>
         {
             var config = await db.InscripcionesPreparadas.FirstOrDefaultAsync();
+            var responsable = await db.ResponsableInscripcion.FirstOrDefaultAsync();
+            var urlInscripcion = await db.UrlInscripcion.FirstOrDefaultAsync();
             return Results.Ok(new {
-                preparadas = config?.Preparadas ?? false
+                prepared = config?.Preparadas ?? false,
+                responsable = responsable?.Value ?? true,
+                aepUrl = urlInscripcion?.Url ?? null
             });
+        });
+
+        // GET /api/winner - Get latest confirmed winner
+        app.MapGet("/api/winner", async (DrawService drawService) =>
+        {
+            var winner = await drawService.GetLatestConfirmedWinnerAsync();
+            return Results.Ok(new { success = true, data = winner });
         });
     }
 }
@@ -100,5 +112,6 @@ public record TicketPurchaseRequest(
     string Email,
     string Instagram,
     int TicketCount,
-    string FrontendUrl
+    string FrontendUrl,
+    string? Phone
 );

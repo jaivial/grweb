@@ -51,6 +51,7 @@ class ApiClient {
     email: string;
     instagram: string;
     ticketCount: number;
+    phone?: string;
   }) {
     return this.request<{ sessionId: string; url: string }>('/api/tickets/buy', {
       method: 'POST',
@@ -131,6 +132,45 @@ class ApiClient {
     return this.request<any[]>('/api/admin/draws');
   }
 
+  async createManualParticipant(data: {
+    firstName: string;
+    surname: string;
+    email: string;
+    instagram: string;
+    ticketCount: number;
+    price: number;
+    paymentMethod: 'cash' | 'bank' | 'stripe';
+    phone: string;
+  }) {
+    return this.request<any>('/api/admin/participants/manual', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateParticipant(id: number, data: {
+    firstName: string;
+    surname: string;
+    email: string;
+    instagram: string;
+    ticketCount: number;
+    price?: number;
+    isPaid: boolean;
+    paymentMethod?: string;
+    phone?: string;
+  }) {
+    return this.request<any>(`/api/admin/participants/${id}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteParticipant(id: number) {
+    return this.request<{ message: string }>(`/api/admin/participants/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   async voidDraw(drawId: number) {
     return this.request<{ message: string }>(`/api/admin/draw/${drawId}`, {
       method: 'DELETE',
@@ -197,6 +237,10 @@ class ApiClient {
     });
   }
 
+  async getClubs() {
+    return this.request<string[]>('/api/admin/athletes/clubs');
+  }
+
   // ─── Schedules (Horarios) ───
 
   async getSchedules(sexCategory?: string) {
@@ -255,13 +299,30 @@ class ApiClient {
   }
 
   async getPublicInscripcionPreparada() {
-    return this.request<{ preparadas: boolean }>('/api/inscripcion-preparada');
+    return this.request<{ prepared: boolean; responsable: boolean; aepUrl: string | null }>('/api/inscripcion-preparada');
+  }
+
+  // ─── Responsable URL Inscripciones ───
+
+  async getResponsableUrlInscripciones() {
+    return this.request<{ value: boolean; url: string | null; dateModified: string | null }>('/api/admin/responsable-url-inscripciones');
+  }
+
+  async updateResponsableUrlInscripciones(data: { value: boolean; url: string | null }) {
+    return this.request<{ value: boolean; url: string | null; dateModified: string }>('/api/admin/responsable-url-inscripciones', {
+      method: 'PUT',
+      body: data,
+    });
   }
 
   // ─── Public Schedules ───
 
   async getPublicSchedules() {
     return this.request<any[]>('/api/schedules');
+  }
+
+  async getConfirmedWinner() {
+    return this.request<{ success: boolean; data: any | null }>('/api/winner');
   }
 }
 

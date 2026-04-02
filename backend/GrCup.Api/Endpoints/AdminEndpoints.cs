@@ -1,8 +1,10 @@
 using System.Text;
 using GrCup.Api.Services;
 using GrCup.Api.Models;
+using GrCup.Api.Hubs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 
 namespace GrCup.Api.Endpoints;
 
@@ -115,7 +117,7 @@ public static class AdminEndpoints
             ParticipantService participantService) =>
         {
             var participants = await participantService.GetAllForExportAsync();
-            
+
             var csv = new StringBuilder();
             csv.AppendLine("Name,Surname,Email,Instagram,Tickets,Total Paid (€),Date");
 
@@ -126,6 +128,103 @@ public static class AdminEndpoints
 
             var bytes = Encoding.UTF8.GetBytes(csv.ToString());
             return Results.File(bytes, "text/csv", $"gr-cup-participants-{DateTime.UtcNow:yyyyMMdd}.csv");
+        });
+
+        // POST /api/admin/participants/manual - Create manual participant (cash/bank/stripe without payment)
+        app.MapPost("/api/admin/participants/manual", [Authorize] async (
+            [FromBody] ManualParticipantRequest request,
+            ParticipantService participantService,
+            IHubContext<ParticipantsHub> hubContext,
+            ILogger<Program> logger) =>
+        {
+            // Validate request
+            if (string.IsNullOrWhiteSpace(request.FirstName))
+                return Results.BadRequest(new { error = "First name is required" });
+
+            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains("@"))
+                return Results.BadRequest(new { error = "Valid email is required" });
+
+            if (request.TicketCount < 1)
+                return Results.BadRequest(new { error = "Minimum 1 ticket required" });
+
+            var validPaymentMethods = new[] { "cash", "bank", "stripe" };
+            if (string.IsNullOrWhiteSpace(request.PaymentMethod) || !validPaymentMethods.Contains(request.PaymentMethod.ToLower()))
+                return Results.BadRequest(new { error = "Invalid payment method. Must be: cash, bank, or stripe" });
+
+            var totalPaid = request.TicketCount * request.Price;
+            var isPaid = request.PaymentMethod.ToLower() != "cash";
+
+            var participant = await participantService.CreateManualAsync(
+                request.FirstName,
+                request.Surname ?? "",
+                request.Email,
+                request.Instagram ?? "",
+                request.TicketCount,
+                totalPaid,
+                request.Phone,
+                request.Price,
+                isPaid,
+                request.PaymentMethod.ToLower()
+            );
+
+            // Broadcast updated count
+            var count = await participantService.GetCountAsync();
+            await hubContext.BroadcastParticipantCountAsync(count);
+
+            logger.LogInformation(
+                "Manual participant created: {Email}, {TicketCount} tickets, {PaymentMethod}",
+                request.Email, request.TicketCount, request.PaymentMethod
+            );
+
+            return Results.Ok(participant);
+        });
+
+        // PUT /api/admin/participants/{id}
+        app.MapPut("/api/admin/participants/{id}", [Authorize] async (
+            int id,
+            [FromBody] UpdateParticipantRequest request,
+            ParticipantService participantService,
+            ILogger<Program> logger) =>
+        {
+            var participant = await participantService.UpdateFullAsync(
+                id,
+                request.FirstName,
+                request.Surname ?? "",
+                request.Email,
+                request.Instagram ?? "",
+                request.TicketCount,
+                request.TicketCount * (request.Price ?? 0.5m),
+                request.Phone,
+                request.Price,
+                request.IsPaid,
+                request.PaymentMethod
+            );
+
+            if (participant == null)
+                return Results.NotFound();
+
+            logger.LogInformation("Participant updated: {Id}", id);
+            return Results.Ok(participant);
+        });
+
+        // DELETE /api/admin/participants/{id}
+        app.MapDelete("/api/admin/participants/{id}", [Authorize] async (
+            int id,
+            ParticipantService participantService,
+            IHubContext<ParticipantsHub> hubContext,
+            ILogger<Program> logger) =>
+        {
+            var success = await participantService.DeleteAsync(id);
+
+            if (!success)
+                return Results.NotFound();
+
+            // Broadcast updated count
+            var count = await participantService.GetCountAsync();
+            await hubContext.BroadcastParticipantCountAsync(count);
+
+            logger.LogInformation("Participant deleted: {Id}", id);
+            return Results.Ok(new { message = "Participant deleted successfully" });
         });
 
         // ─── Winner Draw ───
@@ -148,6 +247,7 @@ public static class AdminEndpoints
         app.MapPost("/api/admin/draw/{id}/confirm", [Authorize] async (
             int id,
             DrawService drawService,
+            IHubContext<ParticipantsHub> hubContext,
             ILogger<Program> logger) =>
         {
             var draw = await drawService.ConfirmWinnerAsync(id);
@@ -155,7 +255,16 @@ public static class AdminEndpoints
             if (draw == null)
                 return Results.NotFound();
 
-            logger.LogInformation("Winner confirmed: {Email}", draw.WinnerEmail);
+            await hubContext.BroadcastWinnerAsync(new
+            {
+                draw.Id,
+                draw.WinnerName,
+                draw.WinnerInstagram,
+                draw.WinnerTicketCount,
+                draw.DrawDate
+            });
+
+            logger.LogInformation("Winner confirmed and broadcast: {Email}", draw.WinnerEmail);
             return Results.Ok(draw);
         });
 
@@ -185,3 +294,26 @@ public static class AdminEndpoints
 }
 
 public record LoginRequest(string Username, string Password);
+
+public record ManualParticipantRequest(
+    string FirstName,
+    string? Surname,
+    string Email,
+    string? Instagram,
+    int TicketCount,
+    decimal Price,
+    string PaymentMethod,
+    string? Phone
+);
+
+public record UpdateParticipantRequest(
+    string FirstName,
+    string? Surname,
+    string Email,
+    string? Instagram,
+    int TicketCount,
+    decimal? Price,
+    bool IsPaid,
+    string? PaymentMethod,
+    string? Phone
+);

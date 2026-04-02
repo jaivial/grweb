@@ -13,11 +13,14 @@ public class GrCupDbContext : DbContext
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<InscripcionConfig> InscripcionConfig => Set<InscripcionConfig>();
     public DbSet<InscripcionPreparada> InscripcionesPreparadas => Set<InscripcionPreparada>();
+    public DbSet<ResponsableInscripcion> ResponsableInscripcion => Set<ResponsableInscripcion>();
+    public DbSet<UrlInscripcion> UrlInscripcion => Set<UrlInscripcion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Participant>(entity => {
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.StripeSessionId);
             entity.Property(e => e.TotalPaid).HasPrecision(10, 2);
         });
 
@@ -32,6 +35,13 @@ public class GrCupDbContext : DbContext
         modelBuilder.Entity<Schedule>(entity => {
             entity.HasIndex(e => e.Date);
             entity.HasIndex(e => new { e.SexCategory, e.WeightCategory });
+        });
+
+        modelBuilder.Entity<Draw>(entity => {
+            entity.HasOne(d => d.Participant)
+                .WithMany()
+                .HasForeignKey(d => d.ParticipantId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

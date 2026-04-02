@@ -164,6 +164,16 @@ public class AthleteService
             MissingDocumentation = missingDocs
         };
     }
+
+    public async Task<List<string>> GetAllClubsAsync()
+    {
+        return await _context.Athletes
+            .Where(a => a.Club != null && a.Club != "")
+            .Select(a => a.Club!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync();
+    }
 }
 
 public class AthleteStats

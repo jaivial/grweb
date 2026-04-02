@@ -32,18 +32,27 @@ public static class WebhookEndpoints
                 if (stripeEvent.Type == "checkout.session.completed")
                 {
                     var session = stripeEvent.Data.Object as Stripe.Checkout.Session;
-                    
+
                     if (session == null)
                     {
                         logger.LogWarning("Session is null in webhook");
                         return Results.BadRequest();
                     }
 
+                    // Idempotency: skip if this session was already processed
+                    if (!string.IsNullOrEmpty(session.Id) &&
+                        await participantService.IsSessionProcessedAsync(session.Id))
+                    {
+                        logger.LogInformation("Session {SessionId} already processed, skipping", session.Id);
+                        return Results.Ok();
+                    }
+
                     // Extract participant data from metadata
-                    var (firstName, surname, email, instagram, ticketCount) = 
+                    var (firstName, surname, email, instagram, ticketCount, phone) =
                         stripeService.ExtractMetadata(session);
-                    
+
                     var totalPaid = stripeService.CalculateTotalPaid(session);
+                    var price = totalPaid / ticketCount; // Price per ticket
 
                     // Create or update participant
                     var participant = await participantService.CreateOrUpdateAsync(
@@ -52,7 +61,12 @@ public static class WebhookEndpoints
                         email,
                         instagram,
                         ticketCount,
-                        totalPaid
+                        totalPaid,
+                        phone,
+                        price,
+                        true,
+                        "stripe",
+                        session.Id
                     );
 
                     logger.LogInformation(

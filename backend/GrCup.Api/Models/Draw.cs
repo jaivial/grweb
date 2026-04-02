@@ -10,4 +10,7 @@ public class Draw
     public DateTime DrawDate { get; set; } = DateTime.UtcNow;
     public string? Notes { get; set; }
     public bool IsConfirmed { get; set; }
+
+    public int? ParticipantId { get; set; }
+    public Participant? Participant { get; set; }
 }

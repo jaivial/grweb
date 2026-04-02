@@ -16,6 +16,12 @@ interface InscripcionPreparadaData {
   preparadas: boolean;
 }
 
+interface ResponsableUrlData {
+  value: boolean;
+  url: string | null;
+  dateModified: string | null;
+}
+
 const TABS = [
   { id: 'todas', label: 'Todas las inscripciones' },
   { id: 'anadir', label: 'Añadir inscripción' },
@@ -40,6 +46,12 @@ export function Inscripciones(): JSX.Element {
   const [preparadas, setPreparadas] = useState<InscripcionPreparadaData | null>(null);
   const [loadingPreparadas, setLoadingPreparadas] = useState(true);
   const [savingPreparadas, setSavingPreparadas] = useState(false);
+  const [responsableUrl, setResponsableUrl] = useState<ResponsableUrlData | null>(null);
+  const [loadingResponsableUrl, setLoadingResponsableUrl] = useState(true);
+  const [savingResponsableUrl, setSavingResponsableUrl] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [clubs, setClubs] = useState<string[]>([]);
+  const [loadingClubs, setLoadingClubs] = useState(true);
 
   const {
     athletes,
@@ -66,20 +78,49 @@ export function Inscripciones(): JSX.Element {
     }
   }, []);
 
-  // Fetch inscripciones preparadas status on mount
+  // Fetch inscripciones preparadas and responsable/URL status on mount
   useEffect(() => {
-    const fetchPreparadas = async () => {
+    const startTime = Date.now();
+    const fetchData = async () => {
       try {
-        const data = await api.getInscripcionPreparada();
-        setPreparadas(data);
+        const [preparadasData, responsableUrlData] = await Promise.all([
+          api.getInscripcionPreparada(),
+          api.getResponsableUrlInscripciones(),
+        ]);
+        setPreparadas(preparadasData);
+        setResponsableUrl(responsableUrlData);
+        setUrlInput(responsableUrlData.url || '');
       } catch (error) {
-        console.error('Error fetching inscripciones preparadas:', error);
+        console.error('Error fetching data:', error);
         setPreparadas({ dateTime: null, preparadas: false });
+        setResponsableUrl({ value: true, url: null, dateModified: null });
+        setUrlInput('');
       } finally {
-        setLoadingPreparadas(false);
+        // Ensure minimum 1 second loading for better UX
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, 1000 - elapsed);
+        setTimeout(() => {
+          setLoadingPreparadas(false);
+          setLoadingResponsableUrl(false);
+        }, remaining);
       }
     };
-    fetchPreparadas();
+    fetchData();
+  }, []);
+
+  // Fetch clubs for filter
+  useEffect(() => {
+    const fetchClubs = async () => {
+      try {
+        const data = await api.getClubs();
+        setClubs(data);
+      } catch (error) {
+        console.error('Error fetching clubs:', error);
+      } finally {
+        setLoadingClubs(false);
+      }
+    };
+    fetchClubs();
   }, []);
 
   const handleTogglePreparadas = useCallback(async () => {
@@ -97,6 +138,38 @@ export function Inscripciones(): JSX.Element {
       setSavingPreparadas(false);
     }
   }, [preparadas]);
+
+  const handleToggleResponsable = useCallback(async () => {
+    if (!responsableUrl) return;
+    try {
+      setSavingResponsableUrl(true);
+      await api.updateResponsableUrlInscripciones({
+        value: !responsableUrl.value,
+        url: responsableUrl.url,
+      });
+      setResponsableUrl(prev => prev ? { ...prev, value: !prev.value } : null);
+    } catch (error) {
+      console.error('Error updating responsable:', error);
+    } finally {
+      setSavingResponsableUrl(false);
+    }
+  }, [responsableUrl]);
+
+  const handleSaveUrl = useCallback(async (url: string) => {
+    if (!responsableUrl) return;
+    try {
+      setSavingResponsableUrl(true);
+      await api.updateResponsableUrlInscripciones({
+        value: responsableUrl.value,
+        url: url,
+      });
+      setResponsableUrl(prev => prev ? { ...prev, url } : null);
+    } catch (error) {
+      console.error('Error updating URL:', error);
+    } finally {
+      setSavingResponsableUrl(false);
+    }
+  }, [responsableUrl]);
 
   const handleTabChange = useCallback((tabId: string) => {
     setActiveTab(tabId);
@@ -162,7 +235,13 @@ export function Inscripciones(): JSX.Element {
         </div>
 
         {/* Prepared Toggle */}
-        {!loadingPreparadas && (
+        {(loadingPreparadas || loadingResponsableUrl) && (
+          <div className="flex items-center justify-center py-8 mb-4" data-ui="loading-spinner">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {!loadingPreparadas && !loadingResponsableUrl && (
           <div className="mb-4 p-4 bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl" data-ui="prepared-toggle-card">
             <div className="flex items-center justify-between" data-ui="prepared-toggle-row">
               <div className="flex items-center gap-3">
@@ -200,12 +279,80 @@ export function Inscripciones(): JSX.Element {
           </div>
         )}
 
-        {/* Fallback when not prepared */}
-        {!loadingPreparadas && !preparadas?.preparadas && (
+        {/* Responsable Toggle - only show when inscripciones are prepared */}
+        {!loadingResponsableUrl && !loadingPreparadas && preparadas?.preparadas && (
+          <div className="mb-4 p-4 bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl" data-ui="responsable-toggle-card">
+            <div className="flex items-center justify-between" data-ui="responsable-toggle-row">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 flex items-center justify-center">
+                  {responsableUrl?.value ? (
+                    <span className="text-green-400 font-bold text-sm">GR</span>
+                  ) : (
+                    <span className="text-blue-400 font-bold text-sm">AEP</span>
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-white">
+                    Gerencia de inscripciones
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    {responsableUrl?.value
+                      ? 'GRStrength gestiona las inscripciones'
+                      : 'AEP gestiona las inscripciones'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleToggleResponsable}
+                disabled={savingResponsableUrl}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 ${
+                  responsableUrl?.value ? 'bg-green-500' : 'bg-blue-500'
+                } ${savingResponsableUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
+                data-ui="responsable-toggle-button"
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-200 ${
+                    responsableUrl?.value ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* AEP URL Input - shown when responsable is false */}
+            {!responsableUrl?.value && (
+              <div className="mt-4 pt-4 border-t border-white/10" data-ui="aep-url-section">
+                <label className="block text-sm text-white/60 mb-2">
+                  URL para inscripciones de la AEP
+                </label>
+                <div className="flex gap-3">
+                  <input
+                    type="url"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
+                  />
+                  <Button
+                    onClick={() => handleSaveUrl(urlInput)}
+                    disabled={savingResponsableUrl || !urlInput}
+                    className="min-h-[48px] bg-red-accent/90 hover:bg-red-accent text-white border-0"
+                  >
+                    Guardar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fallback when not prepared OR not GRStrength responsable */}
+        {!loadingPreparadas && !loadingResponsableUrl && (!preparadas?.preparadas || !responsableUrl?.value) && (
           <div className="flex flex-col items-center justify-center py-16 text-center bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl mb-6" data-ui="inscripciones-not-ready">
             <Lock className="w-16 h-16 text-gray-500 mb-4" />
             <p className="text-gray-400 max-w-md text-center px-4">
-              Las inscripciones no están listas todavía. Abre o desbloquea las inscripciones con el interruptor de arriba. Esto permitirá activar el periodo de inscripciones en la web de los clientes.
+              {!responsableUrl?.value
+                ? 'Las inscripciones están siendo gestionadas por la AEP. Configura la URL de la AEP arriba.'
+                : 'Las inscripciones no están listas todavía. Abre o desbloquea las inscripciones con el interruptor de arriba. Esto permitirá activar el periodo de inscripciones en la web de los clientes.'}
             </p>
           </div>
         )}
@@ -242,8 +389,8 @@ export function Inscripciones(): JSX.Element {
             </div>
 
             {/* Filters */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-              <FiltersAccordion onApply={fetchAthletes} />
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-visible">
+              <FiltersAccordion onApply={fetchAthletes} clubs={clubs} />
             </div>
 
             {/* Table */}
@@ -311,12 +458,12 @@ export function Inscripciones(): JSX.Element {
   );
 }
 
-function FiltersAccordion({ onApply }: { onApply: () => void }) {
+function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: string[] }) {
   const [search, setSearch] = useState('');
   const [sex, setSex] = useState<string | null>(null);
   const [weightCategory, setWeightCategory] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [club, setClub] = useState('');
+  const [club, setClub] = useState<string | null>(null);
 
   const categoryOptions = useMemo(() => {
     if (sex === 'Female') {
@@ -343,7 +490,7 @@ function FiltersAccordion({ onApply }: { onApply: () => void }) {
     setSex(null);
     setWeightCategory(null);
     setStatus(null);
-    setClub('');
+    setClub(null);
     clearAthletesFilters();
     onApply();
   }, [onApply]);
@@ -390,16 +537,14 @@ function FiltersAccordion({ onApply }: { onApply: () => void }) {
           allowClear
         />
 
-        <div>
-          <label className="block text-sm text-white/60 mb-1.5">Club</label>
-          <input
-            type="text"
-            value={club}
-            onChange={(e) => setClub(e.target.value)}
-            placeholder="Nombre del club..."
-            className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
-          />
-        </div>
+        <CustomSelector
+          label="Club"
+          options={clubs.map(c => ({ value: c, label: c }))}
+          value={club}
+          onChange={setClub}
+          placeholder="Todos"
+          allowClear
+        />
 
         <div className="flex items-end gap-3">
           <Button onClick={handleApply} className="min-h-[48px] flex-1 sm:flex-none bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20">Aplicar</Button>

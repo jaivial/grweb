@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
-import { participantCount } from '../stores/participants';
+import { participantCount, latestConfirmedWinner } from '../stores/participants';
+import type { ConfirmedWinner } from '../stores/participants';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -17,9 +18,8 @@ export function useSignalR() {
       participantCount.value = count;
     });
 
-    connection.on('WinnerAnnounced', (winner: any) => {
-      console.log('Winner announced:', winner);
-      // You could add a toast notification here
+    connection.on('WinnerAnnounced', (winner: ConfirmedWinner) => {
+      latestConfirmedWinner.value = winner;
     });
 
     connection.start()
