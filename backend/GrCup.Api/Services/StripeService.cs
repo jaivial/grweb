@@ -48,9 +48,8 @@ public class StripeService
                         UnitAmount = 50, // 0.50€ in cents
                         ProductData = new SessionLineItemPriceDataProductDataOptions
                         {
-                            Name = "GR Cup Raffle Ticket",
-                            Description = $"{ticketCount} ticket(s) for GR Cup 2026 Powerlifting Championship Raffle",
-                            Images = new List<string>()
+                            Name = "Sorteo GRStrength Cup",
+                            Description = $"{ticketCount} ticket(s) para el sorteo de la GRStrength Cup 2026"
                         }
                     },
                     Quantity = ticketCount

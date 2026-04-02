@@ -147,7 +147,7 @@ export function Inscripcion(): JSX.Element {
             <p className="text-center text-lg text-gray-300 mb-6 max-w-xl px-4">
               Las inscripciones para la GRStrength CUP se gestionan a través de la página oficial de la Asociación Española de Powerlifting (AEP). Haz clic en el botón para acceder al formulario de inscripción en su web.
             </p>
-            {aepUrl && (
+            {aepUrl ? (
             <div className="group/scale relative">
               <a
                 href={aepUrl}
@@ -164,6 +164,10 @@ export function Inscripcion(): JSX.Element {
               </a>
               <div className="absolute inset-0 rounded-lg transition-shadow duration-200 group-hover/scale:shadow-lg group-hover/scale:shadow-red-500/30 pointer-events-none -z-10" />
             </div>
+            ) : (
+            <p className="text-center text-sm text-gray-400 italic mt-4" data-ui="aep-url-pending">
+              Todavía no se han publicado la URL de las inscripciones de la AEP
+            </p>
             )}
           </div>
         </main>

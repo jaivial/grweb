@@ -22,10 +22,10 @@ export interface NavbarProps {
 export const Navbar: FC<NavbarProps> = ({ className = '' }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
 
   // Pages where navbar should always be visible
-  const isNonHeroPage = location === '/inscripcion' || location === '/raffle';
+  const isNonHeroPage = location === '/inscripcion' || location === '/raffle' || location === '/horarios' || location === '/como-llegar';
 
   useEffect(() => {
     if (isNonHeroPage) {
@@ -63,36 +63,32 @@ export const Navbar: FC<NavbarProps> = ({ className = '' }) => {
   }, [mobileMenuOpen]);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    // For absolute paths (starting with / but not #), navigate directly
-    if (href.startsWith('/') && !href.startsWith('#')) {
-      e.preventDefault();
-      window.location.href = href;
-      setMobileMenuOpen(false);
-      return;
-    }
-
     e.preventDefault();
-    // Hash links - scroll or navigate
-    if (location === '/') {
-      const element = document.getElementById(href.replace('#', ''));
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
+    // Hash links - scroll on home page
+    if (href.startsWith('#')) {
+      if (location === '/') {
+        const element = document.getElementById(href.replace('#', ''));
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      } else {
+        navigate(`/${href}`);
       }
     } else {
-      window.location.href = `/${href}`;
+      navigate(href);
     }
     setMobileMenuOpen(false);
   };
 
   const handleInscribirseClick = () => {
     setMobileMenuOpen(false);
-    window.location.href = '/inscripcion';
+    navigate('/inscripcion');
   };
 
   const menuItems = [
     { label: 'Sorteo', href: '/raffle' },
-    { label: 'Horarios', href: '#schedules' },
-    { label: 'Cómo llegar', href: '#localizacion' },
+    { label: 'Horarios', href: '/horarios' },
+    { label: 'Cómo llegar', href: '/como-llegar' },
   ];
 
   return (
