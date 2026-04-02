@@ -11,6 +11,8 @@ import { PrivacyPolicy } from './pages/legal/PrivacyPolicy';
 import { TermsOfService } from './pages/legal/TermsOfService';
 import { DataConsent } from './pages/legal/DataConsent';
 import { ContestPolicy } from './pages/legal/ContestPolicy';
+import { Schedules } from './pages/Schedules';
+import { LocationPage } from './pages/Location';
 
 import { BackofficeHome } from './pages/backoffice/Home';
 import Inscripciones from './pages/backoffice/inscripciones/Inscripciones';
@@ -31,6 +33,8 @@ export function App() {
       <Route path="/terms" component={() => <Layout><TermsOfService /></Layout>} />
       <Route path="/consentimiento-datos" component={() => <Layout><DataConsent /></Layout>} />
       <Route path="/politica-concurso" component={() => <Layout><ContestPolicy /></Layout>} />
+      <Route path="/horarios" component={() => <Layout><Schedules /></Layout>} />
+      <Route path="/como-llegar" component={() => <Layout><LocationPage /></Layout>} />
 
       {/* Backoffice Login (Public) */}
       <Route path="/backoffice/login" component={Login} />

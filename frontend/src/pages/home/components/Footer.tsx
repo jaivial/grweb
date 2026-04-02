@@ -54,12 +54,12 @@ export function Footer(): JSX.Element {
                 </a>
               </li>
               <li>
-                <a href="#schedules" className="text-gray-400 hover:text-red-accent transition-colors">
+                <a href="/horarios" className="text-gray-400 hover:text-red-accent transition-colors">
                   Horarios
                 </a>
               </li>
               <li>
-                <a href="#localizacion" className="text-gray-400 hover:text-red-accent transition-colors">
+                <a href="/como-llegar" className="text-gray-400 hover:text-red-accent transition-colors">
                   Cómo llegar
                 </a>
               </li>

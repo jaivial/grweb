@@ -4,7 +4,7 @@ import { logout } from '../stores/auth';
 
 // Returns true if navbar should always show at full opacity
 function isFullOpacityPage(pathname: string): boolean {
-  return pathname === '/inscripcion';
+  return pathname === '/inscripcion' || pathname === '/horarios' || pathname === '/como-llegar';
 }
 
 export function Navbar() {
