@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import type { JSX } from 'react';
 
 export interface SelectOption<T = string> {
@@ -34,7 +35,9 @@ export function CustomSelector<T extends string | number>({
 }: CustomSelectorProps<T>): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredOptions = useMemo(() => {
@@ -66,6 +69,10 @@ export function CustomSelector<T extends string | number>({
 
   const handleToggle = useCallback(() => {
     if (!disabled) {
+      if (!isOpen && triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setDropdownPos({ top: rect.top, left: rect.left, width: rect.width });
+      }
       setIsOpen(!isOpen);
       if (!isOpen) setSearchTerm('');
     }
@@ -102,6 +109,7 @@ export function CustomSelector<T extends string | number>({
       )}
 
       <button
+        ref={triggerRef}
         type="button"
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
@@ -147,10 +155,16 @@ export function CustomSelector<T extends string | number>({
         </div>
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div
-          className="absolute z-50 w-full bottom-[calc(100%+8px)] bg-dark-card border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+          className="fixed z-[9999] bg-dark-card border border-white/10 rounded-xl shadow-2xl overflow-hidden"
           data-ui="selector-dropdown"
+          style={{
+            top: dropdownPos.top + window.scrollY,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            transform: 'translateY(calc(-100% - 8px))',
+          }}
         >
           {searchable && (
             <div className="p-2 border-b border-white/10" data-ui="selector-search">
@@ -194,7 +208,8 @@ export function CustomSelector<T extends string | number>({
               ))
             )}
           </ul>
-        </div>
+        </div>,
+        document.body
       )}
 
       {error && (

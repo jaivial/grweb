@@ -40,27 +40,27 @@ export function Footer(): JSX.Element {
           {/* Quick Links */}
           <div>
             <h4 className="text-lg font-semibold text-white mb-4">
-              Quick Links
+              Enlaces
             </h4>
             <ul className="space-y-2">
               <li>
-                <a href="#rules" className="text-gray-400 hover:text-red-accent transition-colors">
-                  Rules
+                <a href="/inscripcion" className="text-gray-400 hover:text-red-accent transition-colors">
+                  Inscribirse
                 </a>
               </li>
               <li>
-                <a href="#how-to-enter" className="text-gray-400 hover:text-red-accent transition-colors">
-                  How to Enter
+                <a href="/raffle" className="text-gray-400 hover:text-red-accent transition-colors">
+                  Sorteo
                 </a>
               </li>
               <li>
-                <a href="#winners" className="text-gray-400 hover:text-red-accent transition-colors">
-                  Past Winners
+                <a href="#schedules" className="text-gray-400 hover:text-red-accent transition-colors">
+                  Horarios
                 </a>
               </li>
               <li>
-                <a href="/checkout" className="text-gray-400 hover:text-red-accent transition-colors">
-                  Buy Tickets
+                <a href="#localizacion" className="text-gray-400 hover:text-red-accent transition-colors">
+                  Cómo llegar
                 </a>
               </li>
             </ul>

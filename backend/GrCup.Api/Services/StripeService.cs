@@ -26,13 +26,14 @@ public class StripeService
     /// Creates a Stripe Checkout session for ticket purchase
     /// </summary>
     public async Task<Session> CreateCheckoutSessionAsync(
-        string firstName, 
-        string surname, 
-        string email, 
-        string instagram, 
+        string firstName,
+        string surname,
+        string email,
+        string instagram,
         int ticketCount,
         string successUrl,
-        string cancelUrl)
+        string cancelUrl,
+        string? phone = null)
     {
         var options = new SessionCreateOptions
         {
@@ -64,7 +65,8 @@ public class StripeService
                 { "surname", surname },
                 { "email", email.ToLowerInvariant() },
                 { "instagram", instagram },
-                { "ticketCount", ticketCount.ToString() }
+                { "ticketCount", ticketCount.ToString() },
+                { "phone", phone ?? "" }
             }
         };
 
@@ -100,15 +102,17 @@ public class StripeService
     /// <summary>
     /// Extracts participant data from Stripe session metadata
     /// </summary>
-    public (string FirstName, string Surname, string Email, string Instagram, int TicketCount) ExtractMetadata(Session session)
+    public (string FirstName, string Surname, string Email, string Instagram, int TicketCount, string? Phone) ExtractMetadata(Session session)
     {
         var metadata = session.Metadata;
+        var phone = metadata.TryGetValue("phone", out var p) && !string.IsNullOrEmpty(p) ? p : null;
         return (
             metadata["firstName"],
             metadata["surname"],
             metadata["email"],
             metadata["instagram"],
-            int.Parse(metadata["ticketCount"])
+            int.Parse(metadata["ticketCount"]),
+            phone
         );
     }
 

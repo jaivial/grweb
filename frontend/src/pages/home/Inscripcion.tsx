@@ -32,11 +32,21 @@ export function Inscripcion(): JSX.Element {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [buttonHovered, setButtonHovered] = useState(false);
   const [preparada, setPreparada] = useState<boolean | null>(null);
+  const [responsable, setResponsable] = useState<boolean | null>(null);
+  const [aepUrl, setAepUrl] = useState<string | null>(null);
 
   useEffect(() => {
     api.getPublicInscripcionPreparada()
-      .then((data) => setPreparada(data?.preparadas ?? false))
-      .catch(() => setPreparada(false));
+      .then((data) => {
+        setPreparada(data?.prepared ?? false);
+        setResponsable(data?.responsable ?? true);
+        setAepUrl(data?.aepUrl ?? null);
+      })
+      .catch(() => {
+        setPreparada(false);
+        setResponsable(true);
+        setAepUrl(null);
+      });
   }, []);
 
   const categoryOptions = useMemo(() => {
@@ -125,6 +135,42 @@ export function Inscripcion(): JSX.Element {
     );
   }
 
+  // Show AEP delegation info if inscripciones are prepared but AEP manages them
+  if (preparada && responsable === false) {
+    return (
+      <Layout>
+        <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
+          <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[400px]" data-ui="aep-delegation">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+              Inscripciones AEP
+            </h2>
+            <p className="text-center text-lg text-gray-300 mb-6 max-w-xl px-4">
+              Las inscripciones para la GRStrength CUP se gestionan a través de la página oficial de la Asociación Española de Powerlifting (AEP). Haz clic en el botón para acceder al formulario de inscripción en su web.
+            </p>
+            {aepUrl && (
+            <div className="group/scale relative">
+              <a
+                href={aepUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:border-white/30 transition-all cursor-pointer"
+                data-ui="aep-inscripcion-button"
+              >
+                <span className="absolute inset-0 rounded-lg -z-10" style={{ background: 'linear-gradient(to right, #9333ea, #ec4899, #f97316)' }} />
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Ir a la inscripción oficial AEP
+              </a>
+              <div className="absolute inset-0 rounded-lg transition-shadow duration-200 group-hover/scale:shadow-lg group-hover/scale:shadow-red-500/30 pointer-events-none -z-10" />
+            </div>
+            )}
+          </div>
+        </main>
+      </Layout>
+    );
+  }
+
   // Show fallback when inscripciones are not prepared
   if (!preparada) {
     return (
@@ -145,7 +191,7 @@ export function Inscripcion(): JSX.Element {
                 href="https://www.instagram.com/grstrengthclub/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white rounded-lg transition-transform duration-200 group-hover/scale:scale-105"
+                className="relative inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:border-white/30 transition-all cursor-pointer"
                 data-ui="instagram-fallback-button"
               >
                 <span className="absolute inset-0 rounded-lg -z-10" style={{ background: 'linear-gradient(to right, #9333ea, #ec4899, #f97316)' }} />

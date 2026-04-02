@@ -2,12 +2,27 @@ import { FC, useEffect, useRef, useMemo, useState, useCallback } from 'react';
 
 const ANIMATION_START = 0.0;
 
+export interface EdgeFadeOverlay {
+  background?: string;
+  maxWidth?: string;
+  margin?: string;
+  left?: string;
+  right?: string;
+  top?: string;
+  bottom?: string;
+  width?: string;
+  height?: string;
+}
+
 export interface FrameAnimatorProps {
   frames: HTMLImageElement[];
   progress: number;
   isAnimating: boolean;
   staticPauseStart: number;
   className?: string;
+  maxWidth?: number;
+  aspectRatio?: number;
+  edgeFadeOverlay?: EdgeFadeOverlay | null;
 }
 
 export const FrameAnimator: FC<FrameAnimatorProps> = ({
@@ -16,10 +31,23 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
   isAnimating,
   staticPauseStart,
   className = '',
+  maxWidth = Infinity,
+  aspectRatio,
+  edgeFadeOverlay,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentFrameRef = useRef(-1);
   const [staticFrameLoaded, setStaticFrameLoaded] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 9999
+  );
+
+  // Track window width for responsive side fades
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Calculate frame index based on progress
   const frameIndex = useMemo(() => {
@@ -46,9 +74,8 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const width = window.innerWidth;
-    const imageAspect = frame.width / frame.height;
-    const height = width / imageAspect;
+    const width = Math.min(windowWidth, maxWidth);
+    const height = aspectRatio ? width / aspectRatio : width / (frame.width / frame.height);
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -58,14 +85,18 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(frame, 0, 0, width, height);
-  }, [frames]);
+  }, [frames, maxWidth, aspectRatio, windowWidth]);
 
   // Effect to draw frame when index changes
   useEffect(() => {
     if (frames.length === 0) return;
     if (!isAnimating) return;
-    
-    if (frameIndex !== currentFrameRef.current) {
+
+    if (currentFrameRef.current === -1) {
+      // Initial draw when animating starts
+      currentFrameRef.current = frameIndex;
+      drawFrame(frameIndex);
+    } else if (frameIndex !== currentFrameRef.current) {
       currentFrameRef.current = frameIndex;
       drawFrame(frameIndex);
     }
@@ -83,38 +114,44 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [frameIndex, frames, isAnimating, drawFrame]);
+  }, [frameIndex, frames, isAnimating, drawFrame, windowWidth]);
 
   const showCanvas = frames.length > 0;
+  const canvasWidth = Math.min(windowWidth, maxWidth);
+  const canvasHeight = aspectRatio ? canvasWidth / aspectRatio : canvasWidth;
 
   return (
     <div
-      className={`relative overflow-hidden ${className}`}
+      className={`relative overflow-hidden flex items-center justify-center ${className}`}
       data-component="FrameAnimator"
       style={{
-        maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)',
-        WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)',
+        maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
         maskSize: '100% 100%',
         maskRepeat: 'no-repeat',
         maskPosition: 'center',
       }}
     >
-      {/* Canvas */}
       <canvas
         ref={canvasRef}
         style={{
           display: showCanvas ? 'block' : 'none',
+          width: canvasWidth + 'px',
+          height: canvasHeight + 'px',
         }}
       />
-      {/* Edge fade overlay - INSIDE the same container with mask */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        data-ui="canvas-edge-fade"
-        style={{
-          background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)',
-        }}
-        aria-hidden
-      />
+      {/* Edge fade overlay */}
+      {edgeFadeOverlay && (
+        <div
+          className="absolute pointer-events-none"
+          data-ui="canvas-edge-fade"
+          style={{
+            inset: '0',
+            ...edgeFadeOverlay,
+          }}
+          aria-hidden
+        />
+      )}
     </div>
   );
 };

@@ -86,5 +86,13 @@ public static class AthleteEndpoints
             var stats = await athleteService.GetStatsAsync(search, sex, weightCategory, status, club);
             return Results.Ok(stats);
         });
+
+        // GET /api/admin/athletes/clubs
+        app.MapGet("/api/admin/athletes/clubs", [Authorize] async (
+            AthleteService athleteService) =>
+        {
+            var clubs = await athleteService.GetAllClubsAsync();
+            return Results.Ok(clubs);
+        });
     }
 }

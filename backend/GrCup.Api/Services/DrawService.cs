@@ -32,7 +32,8 @@ public class DrawService
             WinnerInstagram = winner.Instagram,
             WinnerTicketCount = winner.TicketCount,
             DrawDate = DateTime.UtcNow,
-            IsConfirmed = false
+            IsConfirmed = false,
+            ParticipantId = winner.Id
         };
 
         _context.Draws.Add(draw);

@@ -127,7 +127,7 @@ export const RaffleSection: FC = () => {
         data-component="RaffleViewport"
       >
         {/* Title with separator */}
-        <div className="absolute top-[9rem] left-0 right-0 z-30" data-component="RaffleTitle">
+        <div className="absolute top-[9rem] left-0 right-0 z-30 max-w-[640px] mx-auto" data-component="RaffleTitle">
           <h1
             className="text-center text-5xl md:text-6xl lg:text-7xl font-bold uppercase tracking-wider"
             style={{
@@ -155,6 +155,13 @@ export const RaffleSection: FC = () => {
             progress={frameProgress}
             isAnimating={true}
             staticPauseStart={1}
+            maxWidth={540}
+            aspectRatio={16 / 9}
+            edgeFadeOverlay={{
+              background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)',
+              maxWidth: '540px',
+              margin: '0 auto',
+            }}
           />
         </div>
 
@@ -165,15 +172,15 @@ export const RaffleSection: FC = () => {
         >
           {/* Text 1: "Entra en el sorteo de un cinturon SBD" */}
           <div
-            className="w-full flex justify-center"
+            className="w-full flex justify-center translate-y-[20px] lg:translate-y-[100px] max-w-[320px] lg:max-w-[540px] mx-auto text-center"
             style={{ opacity: text1Opacity, pointerEvents: text1Opacity > 0.5 ? 'auto' : 'none' }}
           >
             <h2
-              className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white text-center px-4 max-w-4xl transition-transform transition-opacity duration-300 ease-out"
+              className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white text-center px-4 max-w-4xl transition-transform transition-opacity duration-300 ease-out !leading-[1.6]"
               style={{
                 fontFamily: '"Contrail One", sans-serif',
                 textTransform: 'uppercase',
-                transform: `translateY(${(1 - text1Opacity) * 30}px)`,
+                transform: `translateY(${(1 - text1Opacity) * 50}px)`,
               }}
             >
               Entra en el sorteo de un cinturon SBD
@@ -186,7 +193,7 @@ export const RaffleSection: FC = () => {
             style={{ opacity: text2Opacity, pointerEvents: text2Opacity > 0.5 ? 'auto' : 'none' }}
           >
             <h2
-              className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white text-center px-4 max-w-4xl transition-transform transition-opacity duration-300 ease-out"
+              className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white text-center  max-w-[420px] lg:max-w-[540px] px-4 transition-transform transition-opacity duration-300 ease-out"
               style={{
                 fontFamily: '"Contrail One", sans-serif',
                 textTransform: 'uppercase',

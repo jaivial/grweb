@@ -43,12 +43,6 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
   const trackRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [setWidth, setSetWidth] = useState(0);
-  const [animationKey, setAnimationKey] = useState(0);
-
-  // Restart animation after 10 iterations complete
-  const handleAnimationEnd = useCallback(() => {
-    setAnimationKey(k => k + 1);
-  }, []);
 
   // Check for reduced motion preference
   const prefersReducedMotion = useMemo(() => {
@@ -176,12 +170,10 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         className="flex items-center"
         data-ui="slider-track"
       >
-        {/* Single sliding set with all images doubled */}
+        {/* Single sliding set with all images */}
         <div
-          key={animationKey}
           className={`flex items-center slider-animate ${isPaused || prefersReducedMotion ? 'slider-paused' : ''}`}
           data-ui="slider-set-1"
-          onAnimationEnd={handleAnimationEnd}
         >
           {allImages.map((img, i) => renderImage(img, i))}
         </div>
@@ -199,7 +191,7 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         }
 
         .slider-animate {
-          animation: sliderScroll var(--slider-duration) linear 10;
+          animation: sliderScroll var(--slider-duration) linear infinite;
           animation-direction: var(--slider-direction);
           will-change: transform;
         }

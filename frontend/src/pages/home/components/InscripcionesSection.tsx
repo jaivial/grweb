@@ -11,7 +11,9 @@ interface InscripcionConfig {
 }
 
 interface InscripcionPreparada {
-  preparadas: boolean;
+  prepared: boolean;
+  responsable: boolean;
+  aepUrl: string | null;
 }
 
 /**
@@ -35,12 +37,16 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
         api.getPublicInscripcionPreparada(),
       ]);
       setConfig(configData);
-      setPreparada(preparadaData);
+      setPreparada({
+        prepared: preparadaData.prepared,
+        responsable: preparadaData.responsable,
+        aepUrl: preparadaData.aepUrl,
+      });
     } catch (error) {
       console.error('Error fetching configs:', error);
-      // Default to active=true and prepared=true if fetch fails
+      // Default to active=true, prepared=true, and GRStrength responsable if fetch fails
       setConfig({ active: true, url: null });
-      setPreparada({ preparadas: true });
+      setPreparada({ prepared: true, responsable: true, aepUrl: null });
     } finally {
       setLoading(false);
     }
@@ -55,12 +61,12 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
   }
 
   // If not prepared OR not active, show Instagram fallback
-  const showInstagramFallback = !preparada?.preparadas || !config?.active;
+  const showInstagramFallback = !preparada?.prepared || !config?.active;
 
   if (showInstagramFallback) {
     return (
       <div
-        className={`w-full flex flex-col items-center mt-16 ${className}`}
+        className={`w-full flex flex-col items-center mt-48 mb-32 ${className}`}
         data-ui="inscripciones-section"
       >
         <h2
@@ -79,7 +85,7 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
           href="https://www.instagram.com/grstrengthclub/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 hover:opacity-90 rounded-lg transition-all"
+          className="inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:border-white/30 transition-all cursor-pointer"
           data-ui="instagram-fallback-button"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -132,7 +138,7 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
       )}
 
       {/* CTA Button */}
-      {config?.active === true ? (
+      {preparada?.responsable === true ? (
         <a
           href="/inscripcion"
           className="inline-flex items-center gap-3 px-8 py-4 min-h-[52px] text-lg font-semibold text-white bg-red-accent hover:bg-red-accent/90 rounded-lg transition-all duration-200 shadow-lg shadow-red-accent/30"
@@ -145,7 +151,7 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
         </a>
       ) : (
         <a
-          href={config?.url || '#'}
+          href={preparada?.aepUrl || '#'}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-3 px-8 py-4 min-h-[52px] text-lg font-semibold text-white bg-red-accent hover:bg-red-accent/90 rounded-lg transition-all duration-200 shadow-lg shadow-red-accent/30"

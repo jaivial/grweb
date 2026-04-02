@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using GrCup.Api.Data;
 using GrCup.Api.Models;
@@ -16,7 +17,18 @@ public class ParticipantService
     /// <summary>
     /// Creates a new participant or throws exception if email already exists
     /// </summary>
-    public async Task<Participant> CreateAsync(string firstName, string surname, string email, string instagram, int ticketCount, decimal totalPaid)
+    public async Task<Participant> CreateAsync(
+        string firstName,
+        string surname,
+        string email,
+        string instagram,
+        int ticketCount,
+        decimal totalPaid,
+        string? phone = null,
+        decimal? price = null,
+        bool isPaid = true,
+        string? paymentMethod = null,
+        string? stripeSessionId = null)
     {
         var participant = new Participant
         {
@@ -26,7 +38,13 @@ public class ParticipantService
             Instagram = instagram,
             TicketCount = ticketCount,
             TotalPaid = totalPaid,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Phone = phone,
+            Price = price,
+            IsPaid = isPaid,
+            PaymentMethod = paymentMethod,
+            DateModified = DateTime.UtcNow,
+            StripeSessionId = stripeSessionId
         };
 
         _context.Participants.Add(participant);
@@ -48,6 +66,15 @@ public class ParticipantService
 
         await _context.SaveChangesAsync();
         return participant;
+    }
+
+    /// <summary>
+    /// Checks if a Stripe session has already been processed
+    /// </summary>
+    public async Task<bool> IsSessionProcessedAsync(string sessionId)
+    {
+        return await _context.Participants
+            .AnyAsync(p => p.StripeSessionId == sessionId);
     }
 
     /// <summary>
@@ -124,19 +151,66 @@ public class ParticipantService
     }
 
     /// <summary>
+    /// Creates a new manual participant with full field support (cash/bank/stripe payments)
+    /// </summary>
+    public async Task<Participant> CreateManualAsync(
+        string firstName,
+        string surname,
+        string email,
+        string instagram,
+        int ticketCount,
+        decimal totalPaid,
+        string? phone,
+        decimal price,
+        bool isPaid,
+        string paymentMethod)
+    {
+        var participant = new Participant
+        {
+            FirstName = firstName,
+            Surname = surname,
+            Email = email.ToLowerInvariant(),
+            Instagram = instagram,
+            TicketCount = ticketCount,
+            TotalPaid = totalPaid,
+            CreatedAt = DateTime.UtcNow,
+            Phone = phone,
+            Price = price,
+            IsPaid = isPaid,
+            PaymentMethod = paymentMethod.ToLowerInvariant(),
+            DateModified = DateTime.UtcNow
+        };
+
+        _context.Participants.Add(participant);
+        await _context.SaveChangesAsync();
+        return participant;
+    }
+
+    /// <summary>
     /// Increments ticket count for an existing participant or creates new one
     /// </summary>
-    public async Task<Participant> CreateOrUpdateAsync(string firstName, string surname, string email, string instagram, int ticketCount, decimal totalPaid)
+    public async Task<Participant> CreateOrUpdateAsync(
+        string firstName,
+        string surname,
+        string email,
+        string instagram,
+        int ticketCount,
+        decimal totalPaid,
+        string? phone = null,
+        decimal? price = null,
+        bool isPaid = true,
+        string? paymentMethod = null,
+        string? stripeSessionId = null)
     {
         var existing = await GetByEmailAsync(email);
-        
+
         if (existing != null)
         {
             return await UpdateAsync(existing.Id, ticketCount, totalPaid);
         }
         else
         {
-            return await CreateAsync(firstName, surname, email, instagram, ticketCount, totalPaid);
+            return await CreateAsync(firstName, surname, email, instagram, ticketCount, totalPaid, phone, price, isPaid, paymentMethod, stripeSessionId);
         }
     }
 
@@ -155,25 +229,77 @@ public class ParticipantService
     /// </summary>
     public async Task<Participant?> GetRandomParticipantAsync()
     {
-        // Get all participants with their ticket counts
         var participants = await _context.Participants.ToListAsync();
-        
+
         if (!participants.Any())
             return null;
 
-        // Create weighted list where each ticket is an entry
-        var weightedList = new List<Participant>();
-        foreach (var participant in participants)
+        var totalTickets = participants.Sum(p => p.TicketCount);
+        if (totalTickets == 0)
+            return null;
+
+        var bytes = new byte[4];
+        RandomNumberGenerator.Fill(bytes);
+        var randomValue = (Math.Abs(BitConverter.ToInt32(bytes)) % totalTickets) + 1;
+
+        var cumulative = 0;
+        foreach (var p in participants)
         {
-            for (int i = 0; i < participant.TicketCount; i++)
-            {
-                weightedList.Add(participant);
-            }
+            cumulative += p.TicketCount;
+            if (randomValue <= cumulative)
+                return p;
         }
 
-        // Select random winner
-        var random = new Random();
-        var winnerIndex = random.Next(weightedList.Count);
-        return weightedList[winnerIndex];
+        return participants.LastOrDefault();
+    }
+
+    /// <summary>
+    /// Updates all fields of an existing participant
+    /// </summary>
+    public async Task<Participant?> UpdateFullAsync(
+        int id,
+        string firstName,
+        string surname,
+        string email,
+        string instagram,
+        int ticketCount,
+        decimal totalPaid,
+        string? phone,
+        decimal? price,
+        bool isPaid,
+        string? paymentMethod)
+    {
+        var participant = await _context.Participants.FindAsync(id);
+        if (participant == null)
+            return null;
+
+        participant.FirstName = firstName;
+        participant.Surname = surname;
+        participant.Email = email.ToLowerInvariant();
+        participant.Instagram = instagram;
+        participant.TicketCount = ticketCount;
+        participant.TotalPaid = totalPaid;
+        participant.Phone = phone;
+        participant.Price = price;
+        participant.IsPaid = isPaid;
+        participant.PaymentMethod = paymentMethod;
+        participant.DateModified = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return participant;
+    }
+
+    /// <summary>
+    /// Deletes a participant by ID
+    /// </summary>
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var participant = await _context.Participants.FindAsync(id);
+        if (participant == null)
+            return false;
+
+        _context.Participants.Remove(participant);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }
