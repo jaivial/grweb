@@ -85,7 +85,7 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
           href="https://www.instagram.com/grstrengthclub/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:border-white/30 transition-all cursor-pointer"
+          className="inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl hover:bg-red-accent/80 hover:border-red-accent/50 hover:scale-[1.2] transition-all duration-300 cursor-pointer"
           data-ui="instagram-fallback-button"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -109,7 +109,7 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
 
   return (
     <div
-      className={`w-full flex flex-col items-center mt-16 ${className}`}
+      className={`w-full flex flex-col items-center mt-16 pb-16 ${className}`}
       data-ui="inscripciones-section"
     >
       {/* Title */}
@@ -141,7 +141,7 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
       {preparada?.responsable === true ? (
         <a
           href="/inscripcion"
-          className="inline-flex items-center gap-3 px-8 py-4 min-h-[52px] text-lg font-semibold text-white bg-red-accent hover:bg-red-accent/90 rounded-lg transition-all duration-200 shadow-lg shadow-red-accent/30"
+          className="inline-flex items-center gap-3 mb-20 px-8 py-4 min-h-[52px] text-lg font-semibold text-white bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl hover:bg-red-accent/80 hover:border-red-accent/50 hover:scale-[1.2] transition-all duration-300 shadow-lg shadow-red-accent/30 hover:shadow-red-accent/50"
           data-ui="inscripciones-button"
         >
           Inscríbete
@@ -154,7 +154,7 @@ export const InscripcionesSection: FC<InscripcionesSectionProps> = ({ className 
           href={preparada?.aepUrl || '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-3 px-8 py-4 min-h-[52px] text-lg font-semibold text-white bg-red-accent hover:bg-red-accent/90 rounded-lg transition-all duration-200 shadow-lg shadow-red-accent/30"
+          className="inline-flex items-center gap-3 px-8 py-4 min-h-[52px] text-lg font-semibold text-white bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl hover:bg-red-accent/80 hover:border-red-accent/50 hover:scale-[1.2] transition-all duration-300 shadow-lg shadow-red-accent/30 hover:shadow-red-accent/50"
           data-ui="inscripciones-button-aep"
         >
           Inscríbete

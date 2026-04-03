@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { JSX, FC } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { Tabs, Button, CustomSelector, DatePicker, TimePicker, Modal } from '../../../components/ui';
 import { useSchedule } from './hooks/useSchedule';
@@ -52,7 +53,7 @@ const ScheduleRow: FC<ScheduleRowProps> = ({
 
   return (
     <div
-      className="grid grid-cols-3 gap-4 py-3 px-4"
+      className="grid grid-cols-[minmax(0,1fr)_max-content] sm:grid-cols-3 gap-x-4 gap-y-2 sm:gap-y-0 py-3 px-4"
       data-ui="preview-schedule-row"
       style={{
         borderBottom: isLast ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
@@ -204,7 +205,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
 
       {/* Table Header */}
       <div
-        className="grid grid-cols-3 gap-4 py-2 px-4 mb-2"
+        className="grid grid-cols-[minmax(0,1fr)_max-content] sm:grid-cols-3 gap-x-4 gap-y-2 sm:gap-y-0 py-2 px-4 mb-2"
         data-ui="preview-table-header"
       >
         <span
@@ -219,7 +220,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
           Categoría
         </span>
         <span
-          className="text-xs md:text-sm uppercase"
+          className="hidden sm:flex text-xs md:text-sm uppercase"
           data-ui="preview-header-weight"
           style={{
             fontFamily: '"Contrail One", sans-serif',
@@ -230,7 +231,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
           Peso
         </span>
         <span
-          className="text-xs md:text-sm uppercase"
+          className="text-xs md:text-sm uppercase sm:justify-self-end"
           data-ui="preview-header-time"
           style={{
             fontFamily: '"Contrail One", sans-serif',
@@ -349,7 +350,13 @@ export function Horarios(): JSX.Element {
   const [activeContentTab, setActiveContentTab] = useState('manage');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-  
+
+  // Schedules published toggle
+  const [schedulesPublished, setSchedulesPublished] = useState(true);
+  const [schedulesPublishedLoading, setSchedulesPublishedLoading] = useState(true);
+  const [schedulesPublishedSaving, setSchedulesPublishedSaving] = useState(false);
+  const [toggleSuccess, setToggleSuccess] = useState(false);
+
   // Preview state for public schedules view
   const [previewSchedules, setPreviewSchedules] = useState<ScheduleGroupedByDate[]>([]);
   const [previewLoading, setPreviewLoading] = useState(true);
@@ -368,6 +375,17 @@ export function Horarios(): JSX.Element {
 
   useEffect(() => {
     fetchSchedules();
+    const fetchPublishedConfig = async () => {
+      try {
+        const config = await api.getSchedulesPublishedConfig();
+        setSchedulesPublished(config.value);
+      } catch {
+        // default to true
+      } finally {
+        setSchedulesPublishedLoading(false);
+      }
+    };
+    fetchPublishedConfig();
   }, []);
 
   // Fetch public schedules for preview
@@ -410,6 +428,20 @@ export function Horarios(): JSX.Element {
     await deleteSchedule(id);
   }, [deleteSchedule]);
 
+  const handleTogglePublished = useCallback(async () => {
+    try {
+      setSchedulesPublishedSaving(true);
+      await api.updateSchedulesPublishedConfig({ value: !schedulesPublished });
+      setSchedulesPublished(prev => !prev);
+      setToggleSuccess(true);
+      setTimeout(() => setToggleSuccess(false), 3000);
+    } catch {
+      // revert state silently
+    } finally {
+      setSchedulesPublishedSaving(false);
+    }
+  }, [schedulesPublished]);
+
   // Get categories for current sex
   const categories = activeSexTab === 'Female' ? WOMEN_CATEGORIES : MEN_CATEGORIES;
 
@@ -425,6 +457,39 @@ export function Horarios(): JSX.Element {
         <div className="mb-4 xs:mb-6" data-ui="page-header">
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">Horarios</h1>
           <p className="text-sm xs:text-base text-white/50">Configura los horarios de las categorías por día de competición</p>
+        </div>
+
+        {/* Publish Toggle Card */}
+        <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-4 xs:p-6 mb-4" data-ui="publish-toggle-card">
+          <div className="flex items-center justify-between" data-ui="publish-toggle-row">
+            <div data-ui="publish-toggle-info">
+              <h2 className="text-base xs:text-lg font-semibold text-white mb-0.5">
+                Horarios publicados
+              </h2>
+              <p className="text-xs xs:text-sm text-gray-400">
+                Activa la publicación de los horarios en la página web
+              </p>
+            </div>
+            <button
+              onClick={handleTogglePublished}
+              disabled={schedulesPublishedSaving}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 ${
+                schedulesPublished ? 'bg-red-accent' : 'bg-gray-600'
+              } ${schedulesPublishedSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+              data-ui="publish-toggle-button"
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-200 ${
+                  schedulesPublished ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+          {toggleSuccess && (
+            <div className="mt-3 text-xs text-green-400" data-ui="publish-toggle-success">
+              Estado guardado correctamente
+            </div>
+          )}
         </div>
 
         {/* Sex Tabs */}
@@ -451,10 +516,15 @@ export function Horarios(): JSX.Element {
         {activeContentTab === 'manage' && (
           <div className="space-y-3 xs:space-y-4" data-ui="manage-tab">
             <div className="flex justify-end">
-              <Button onClick={() => setIsAddModalOpen(true)} className="min-h-[44px] bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20">
-                <svg className="w-4 h-4 mr-1.5 xs:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+              <Button
+                leftIcon={
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                }
+                onClick={() => setIsAddModalOpen(true)}
+                className="min-h-[44px] bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20"
+              >
                 <span className="hidden xs:inline">Añadir horario</span>
                 <span className="xs:hidden">Añadir</span>
               </Button>
@@ -495,15 +565,15 @@ export function Horarios(): JSX.Element {
                               </div>
                             </div>
                             <div>
-                              <div className="font-mono text-white text-sm xs:text-base">{schedule.startTime} - {schedule.endTime}</div>
+                              <div className="font-mono text-white text-sm xs:text-base">{formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}</div>
                               <div className="text-xs xs:text-sm text-white/50">
                                 {new Date(schedule.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long' })}
                               </div>
                             </div>
                           </div>
                           <div className="flex gap-2 xs:flex-none" data-ui="schedule-actions">
-                            <Button size="sm" variant="ghost" onClick={() => setEditingSchedule(schedule)} className="min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 text-white/60 hover:text-white hover:bg-white/10">Editar</Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(schedule.id)} className="text-red-400/80 hover:text-red-300 min-h-[36px] xs:min-h-[40px] px-2 xs:px-3">Eliminar</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingSchedule(schedule)} className="min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 text-white/60 hover:text-white hover:bg-white/10 gap-1"><Pencil className="w-4 h-4" /> Editar</Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(schedule.id)} className="text-red-400/80 hover:text-red-300 min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 gap-1"><Trash2 className="w-4 h-4" /> Eliminar</Button>
                           </div>
                         </div>
                       ))}

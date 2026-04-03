@@ -49,9 +49,26 @@ public static class AthleteEndpoints
         // POST /api/admin/athletes
         app.MapPost("/api/admin/athletes", [Authorize] async (
             [FromBody] Athlete athlete,
-            AthleteService athleteService) =>
+            AthleteService athleteService,
+            EmailService emailService,
+            ILogger<Program> logger) =>
         {
             var created = await athleteService.CreateAsync(athlete);
+
+            // Send confirmation email (non-blocking for registration success)
+            try
+            {
+                await emailService.SendInscriptionConfirmationAsync(
+                    created.Email,
+                    created.FirstName,
+                    created.Surname,
+                    created.WeightCategory);
+            }
+            catch (Exception emailEx)
+            {
+                logger.LogError(emailEx, "Failed to send confirmation email to {Email}", created.Email);
+            }
+
             return Results.Created($"/api/admin/athletes/{created.Id}", created);
         });
 

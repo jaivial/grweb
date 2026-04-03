@@ -86,7 +86,7 @@ export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
             style={titleStyle}
           >
             <span className="mb-1">CAMPEONATO DE POWERLIFTING</span>
-            <span>AEP3 REGIONAL DE VALENCIA, MURCIA Y BALEARES</span>
+            <span>AEP2 REGIONAL DE VALENCIA, MURCIA Y BALEARES</span>
           </h1>
         </div>
 

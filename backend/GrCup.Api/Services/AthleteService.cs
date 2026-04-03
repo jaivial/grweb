@@ -150,6 +150,7 @@ public class AthleteService
         }
 
         var total = await query.CountAsync();
+        var inscritos = await query.CountAsync(a => a.Status == AthleteStatus.Inscrito);
         var paid = await query.CountAsync(a => a.Status == AthleteStatus.Paid);
         var pending = await query.CountAsync(a => a.Status == AthleteStatus.PendingPayment);
         var disqualified = await query.CountAsync(a => a.Status == AthleteStatus.Disqualified);
@@ -158,6 +159,7 @@ public class AthleteService
         return new AthleteStats
         {
             Total = total,
+            Inscritos = inscritos,
             Paid = paid,
             Pending = pending,
             Disqualified = disqualified,
@@ -179,6 +181,7 @@ public class AthleteService
 public class AthleteStats
 {
     public int Total { get; set; }
+    public int Inscritos { get; set; }
     public int Paid { get; set; }
     public int Pending { get; set; }
     public int Disqualified { get; set; }

@@ -131,9 +131,7 @@ a {
   transition: color var(--transition-fast) ease-in-out;
 }
 
-a:hover {
-  color: var(--color-neon-orange);
-}
+/* a hover color is handled by individual components */
 
 /* Button Reset */
 button {

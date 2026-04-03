@@ -23,7 +23,7 @@ export function Inscripcion(): JSX.Element {
     totalWeight: undefined,
     registrationDate: new Date().toISOString().split('T')[0],
     coach: '',
-    status: 'PendingPayment',
+    status: 'Inscrito',
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof AthleteFormData, string>>>({});
@@ -110,7 +110,7 @@ export function Inscripcion(): JSX.Element {
         totalWeight: undefined,
         registrationDate: new Date().toISOString().split('T')[0],
         coach: '',
-        status: 'PendingPayment',
+        status: 'Inscrito',
       });
     } catch (error) {
       setSubmitError('Error al enviar la inscripción. Por favor, inténtalo de nuevo.');
@@ -148,21 +148,20 @@ export function Inscripcion(): JSX.Element {
               Las inscripciones para la GRStrength CUP se gestionan a través de la página oficial de la Asociación Española de Powerlifting (AEP). Haz clic en el botón para acceder al formulario de inscripción en su web.
             </p>
             {aepUrl ? (
-            <div className="group/scale relative">
+            <div className="group/glass relative">
               <a
                 href={aepUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:border-white/30 transition-all cursor-pointer"
+                className="relative inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl hover:bg-white/15 hover:border-white/30 transition-all duration-300 cursor-pointer hover:!text-white"
                 data-ui="aep-inscripcion-button"
               >
-                <span className="absolute inset-0 rounded-lg -z-10" style={{ background: 'linear-gradient(to right, #9333ea, #ec4899, #f97316)' }} />
                 <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
                 Ir a la inscripción oficial AEP
               </a>
-              <div className="absolute inset-0 rounded-lg transition-shadow duration-200 group-hover/scale:shadow-lg group-hover/scale:shadow-red-500/30 pointer-events-none -z-10" />
+              <div className="absolute inset-0 rounded-xl transition-shadow duration-300 group-hover/glass:shadow-lg group-hover/glass:shadow-red-500/20 pointer-events-none -z-10" />
             </div>
             ) : (
             <p className="text-center text-sm text-gray-400 italic mt-4" data-ui="aep-url-pending">

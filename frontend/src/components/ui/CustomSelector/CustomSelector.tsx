@@ -52,7 +52,11 @@ export function CustomSelector<T extends string | number>({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const isInsideContainer = containerRef.current && containerRef.current.contains(target);
+      const isInsideDropdown = target instanceof Element && target.closest('[data-ui="selector-dropdown"]');
+
+      if (!isInsideContainer && !isInsideDropdown) {
         setIsOpen(false);
         setSearchTerm('');
       }

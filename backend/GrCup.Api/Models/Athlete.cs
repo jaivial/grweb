@@ -15,7 +15,7 @@ public class Athlete
     public decimal? TotalWeight { get; set; }
     public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
     public string? Coach { get; set; }
-    public AthleteStatus Status { get; set; } = AthleteStatus.PendingPayment;
+    public AthleteStatus Status { get; set; } = AthleteStatus.Inscrito;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

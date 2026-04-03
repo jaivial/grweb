@@ -15,6 +15,7 @@ public class GrCupDbContext : DbContext
     public DbSet<InscripcionPreparada> InscripcionesPreparadas => Set<InscripcionPreparada>();
     public DbSet<ResponsableInscripcion> ResponsableInscripcion => Set<ResponsableInscripcion>();
     public DbSet<UrlInscripcion> UrlInscripcion => Set<UrlInscripcion>();
+    public DbSet<SchedulePublishedConfig> SchedulePublishedConfig => Set<SchedulePublishedConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

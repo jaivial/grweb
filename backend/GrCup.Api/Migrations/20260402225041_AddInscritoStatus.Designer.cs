@@ -4,6 +4,7 @@ using GrCup.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrCup.Api.Migrations
 {
     [DbContext(typeof(GrCupDbContext))]
-    partial class GrCupDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260402225041_AddInscritoStatus")]
+    partial class AddInscritoStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -290,25 +293,6 @@ namespace GrCup.Api.Migrations
                     b.HasIndex("SexCategory", "WeightCategory");
 
                     b.ToTable("Schedules");
-                });
-
-            modelBuilder.Entity("GrCup.Api.Models.SchedulePublishedConfig", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("DateModified")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("Value")
-                        .HasColumnType("tinyint(1)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SchedulePublishedConfig");
                 });
 
             modelBuilder.Entity("GrCup.Api.Models.UrlInscripcion", b =>

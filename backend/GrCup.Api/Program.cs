@@ -116,6 +116,7 @@ builder.Services.AddScoped<DrawService>();
 builder.Services.AddScoped<AthleteService>();
 builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddSingleton<JwtService>();
+builder.Services.AddScoped<EmailService>();
 
 // ─── Swagger ───
 builder.Services.AddEndpointsApiExplorer();
@@ -158,5 +159,6 @@ app.MapScheduleEndpoints();
 app.MapInscripcionConfigEndpoints();
 app.MapInscripcionPreparadaEndpoints();
 app.MapResponsableUrlInscripcionEndpoints();
+app.MapSchedulePublishedConfigEndpoints();
 
 app.Run();

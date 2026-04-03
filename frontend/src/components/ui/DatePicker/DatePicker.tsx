@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { JSX } from 'react';
 
 export interface DatePickerProps {
@@ -31,6 +32,9 @@ export function DatePicker({
   className = '',
 }: DatePickerProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [viewDate, setViewDate] = useState(() => {
     if (value) {
       const [year, month, day] = value.split('-').map(Number);
@@ -117,6 +121,30 @@ export function DatePicker({
     onChange(null);
   }, [onChange]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isInsideContainer = containerRef.current && containerRef.current.contains(target);
+      const isInsideDropdown = target instanceof Element && target.closest('[data-ui="datepicker-calendar"]');
+
+      if (!isInsideContainer && !isInsideDropdown) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleOpenToggle = useCallback((e: React.MouseEvent) => {
+    if (!disabled) {
+      if (!isOpen && triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setDropdownPos({ top: rect.top + window.scrollY, left: rect.left, width: rect.width });
+      }
+      setIsOpen(!isOpen);
+    }
+  }, [disabled, isOpen]);
+
   const formatDisplayDate = useCallback((dateStr: string | null): string => {
     if (!dateStr) return '';
     const [year, month, day] = dateStr.split('-');
@@ -125,7 +153,7 @@ export function DatePicker({
   }, []);
 
   return (
-    <div className={`relative ${className}`} data-ui="date-picker">
+    <div ref={containerRef} className={`relative ${className}`} data-ui="date-picker">
       {label && (
         <label className="block text-sm font-medium text-white/80 mb-1.5" data-ui="datepicker-label">
           {label}
@@ -133,8 +161,9 @@ export function DatePicker({
       )}
 
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={handleOpenToggle}
         disabled={disabled}
         className={`
           w-full px-4 py-3 min-h-[48px] text-left bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl
@@ -170,10 +199,16 @@ export function DatePicker({
         </div>
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div
-          className="absolute z-50 w-72 mt-2 bottom-[calc(100%+8px)] bg-dark-card border border-white/10 rounded-2xl shadow-2xl p-4"
+          className="fixed z-[9999] bg-dark-card border border-white/10 rounded-2xl shadow-2xl p-4"
           data-ui="datepicker-calendar"
+          style={{
+            top: dropdownPos.top - 8,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            transform: 'translateY(-100%)',
+          }}
         >
           {/* Month/Year Navigation */}
           <div className="flex items-center justify-between mb-4" data-ui="datepicker-nav">
@@ -239,6 +274,8 @@ export function DatePicker({
             ))}
           </div>
         </div>
+      ,
+        document.body
       )}
 
       {error && (
