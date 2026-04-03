@@ -9,7 +9,8 @@ import { Pagination } from './components/Pagination';
 import { ATHLETE_STATUS_LABELS, ATHLETE_STATUS_COLORS, type Athlete } from '../../../types/athlete';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
 import { api } from '../../../utils/api';
-import { Lock, Unlock } from 'lucide-react';
+import { IoMaleSharp, IoFemaleSharp } from "react-icons/io5";
+import { Lock, Unlock, Pencil, Trash2 } from 'lucide-react';
 
 interface InscripcionPreparadaData {
   dateTime: string | null;
@@ -203,24 +204,44 @@ export function Inscripciones(): JSX.Element {
         <div className="text-xs text-white/50 truncate">{a.email}</div>
       </div>
     )},
-    { key: 'phone', header: 'Telf.', render: (a: Athlete) => a.phone || '-', className: 'hidden 2xl:table-cell' },
+    { key: 'phone', header: 'Telf.', render: (a: Athlete) => a.phone || '-' },
     { key: 'sex', header: 'Sexo', render: (a: Athlete) => (
-      <span className="text-xs px-2 py-1 rounded-xl bg-white/10 text-white/70">{a.sex === 'Male' ? 'H' : 'M'}</span>
-    ), className: 'hidden lg:table-cell' },
-    { key: 'weightCategory', header: 'Cat.', render: (a: Athlete) => `${a.weightCategory}`, className: 'hidden md:table-cell' },
-    { key: 'club', header: 'Club', render: (a: Athlete) => a.club || '-', className: 'hidden xl:table-cell' },
-    { key: 'totalWeight', header: 'Marca', render: (a: Athlete) => a.totalWeight ? `${a.totalWeight}` : '-', className: 'hidden 2xl:table-cell' },
-    { key: 'registrationDate', header: 'Fecha', render: (a: Athlete) => new Date(a.registrationDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }), className: 'hidden sm:table-cell' },
-    { key: 'coach', header: 'Entrenador', render: (a: Athlete) => a.coach || '-', className: 'hidden 2xl:table-cell' },
+      <span className="text-xs px-2 py-1.5 rounded-xl bg-white/10 text-white/70 inline-flex items-center gap-1">
+        {a.sex === 'Male' ? (
+          <><IoMaleSharp className="w-4 h-4 text-blue-600" />H</>
+        ) : (
+          <><IoFemaleSharp className="w-4 h-4 text-pink-300" />M</>
+        )}
+      </span>
+    )},
+    { key: 'weightCategory', header: 'Cat.', render: (a: Athlete) => `${a.weightCategory}` },
+    { key: 'club', header: 'Club', render: (a: Athlete) => a.club || '-' },
+    { key: 'totalWeight', header: 'Marca', render: (a: Athlete) => a.totalWeight ? `${a.totalWeight}` : '-' },
+    { key: 'registrationDate', header: 'Fecha', render: (a: Athlete) => new Date(a.registrationDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) },
+    { key: 'coach', header: 'Entrenador', render: (a: Athlete) => a.coach || '-' },
     { key: 'status', header: 'Estado', render: (a: Athlete) => (
       <span className={`text-xs px-2 py-1 rounded-xl ${ATHLETE_STATUS_COLORS[a.status]}`}>
         {ATHLETE_STATUS_LABELS[a.status]}
       </span>
     )},
-    { key: 'actions', header: '', className: 'text-right', render: (a: Athlete) => (
-      <div className="flex gap-1 xs:gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={() => setEditAthlete(a)} className="px-1.5 xs:px-2 text-white/50 hover:text-white hover:bg-white/10">Edit</Button>
-        <Button size="sm" variant="ghost" onClick={() => setAthleteToDelete(a)} className="text-red-400/80 hover:text-red-300 px-1.5 xs:px-2">Del</Button>
+    { key: 'actions', header: '', className: 'text-right w-[80px]', render: (a: Athlete) => (
+      <div className="flex gap-1 justify-end">
+        <button
+          onClick={() => setEditAthlete(a)}
+          className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+          data-ui="edit-action"
+          aria-label="Editar atleta"
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setAthleteToDelete(a)}
+          className="p-1.5 rounded-lg text-red-400/80 hover:text-red-300 hover:bg-white/10 transition-colors"
+          data-ui="delete-action"
+          aria-label="Eliminar atleta"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     )},
   ], []);
@@ -243,14 +264,14 @@ export function Inscripciones(): JSX.Element {
 
         {!loadingPreparadas && !loadingResponsableUrl && (
           <div className="mb-4 p-4 bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl" data-ui="prepared-toggle-card">
-            <div className="flex items-center justify-between" data-ui="prepared-toggle-row">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3" data-ui="prepared-toggle-row">
+              <div className="flex items-center gap-3 min-w-0">
                 {preparadas?.preparadas ? (
-                  <Unlock className="w-6 h-6 text-green-400" />
+                  <Unlock className="w-6 h-6 shrink-0 text-green-400" />
                 ) : (
-                  <Lock className="w-6 h-6 text-gray-500" />
+                  <Lock className="w-6 h-6 shrink-0 text-gray-500" />
                 )}
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-base font-semibold text-white">
                     Inscripciones preparadas
                   </h2>
@@ -264,7 +285,7 @@ export function Inscripciones(): JSX.Element {
               <button
                 onClick={handleTogglePreparadas}
                 disabled={savingPreparadas}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 ${
+                className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors duration-200 ${
                   preparadas?.preparadas ? 'bg-green-500' : 'bg-gray-600'
                 } ${savingPreparadas ? 'opacity-50 cursor-not-allowed' : ''}`}
                 data-ui="prepared-toggle-button"
@@ -282,16 +303,16 @@ export function Inscripciones(): JSX.Element {
         {/* Responsable Toggle - only show when inscripciones are prepared */}
         {!loadingResponsableUrl && !loadingPreparadas && preparadas?.preparadas && (
           <div className="mb-4 p-4 bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl" data-ui="responsable-toggle-card">
-            <div className="flex items-center justify-between" data-ui="responsable-toggle-row">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 flex items-center justify-center">
+            <div className="flex items-center justify-between gap-3" data-ui="responsable-toggle-row">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-6 h-6 shrink-0 flex items-center justify-center">
                   {responsableUrl?.value ? (
                     <span className="text-green-400 font-bold text-sm">GR</span>
                   ) : (
                     <span className="text-blue-400 font-bold text-sm">AEP</span>
                   )}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-base font-semibold text-white">
                     Gerencia de inscripciones
                   </h2>
@@ -305,7 +326,7 @@ export function Inscripciones(): JSX.Element {
               <button
                 onClick={handleToggleResponsable}
                 disabled={savingResponsableUrl}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 ${
+                className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors duration-200 ${
                   responsableUrl?.value ? 'bg-green-500' : 'bg-blue-500'
                 } ${savingResponsableUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
                 data-ui="responsable-toggle-button"
@@ -324,7 +345,7 @@ export function Inscripciones(): JSX.Element {
                 <label className="block text-sm text-white/60 mb-2">
                   URL para inscripciones de la AEP
                 </label>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="url"
                     value={urlInput}
@@ -369,23 +390,13 @@ export function Inscripciones(): JSX.Element {
         {/* Tab Content */}
         {activeTab === 'todas' ? (
           <div className="space-y-4 xs:space-y-6" data-ui="todas-tab">
-            {/* KPI Section - horizontally scrollable on very small screens */}
-            <div className="flex gap-2 xs:gap-3 sm2:gap-4 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" data-ui="kpi-section">
-              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
-                <KpiCard label="Total" value={stats.total} />
-              </div>
-              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
-                <KpiCard label="Pagados" value={stats.paid} color="success" />
-              </div>
-              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
-                <KpiCard label="Pendientes" value={stats.pending} color="warning" />
-              </div>
-              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
-                <KpiCard label="Descalif." value={stats.disqualified} color="danger" />
-              </div>
-              <div className="flex-shrink-0 w-[calc(50%-4px)] xs:w-[calc(50%-6px)] sm2:w-[calc(33.333%-8px)]">
-                <KpiCard label="Falta Doc" value={stats.missingDocumentation} color="warning" />
-              </div>
+            {/* KPI Section */}
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5" data-ui="kpi-section">
+              <KpiCard label="Total" value={stats.total} className="kpi-compact" />
+              <KpiCard label="Pagados" value={stats.paid} color="success" className="kpi-compact" />
+              <KpiCard label="Pendientes" value={stats.pending} color="warning" className="kpi-compact" />
+              <KpiCard label="Descalif." value={stats.disqualified} color="danger" className="kpi-compact" />
+              <KpiCard label="Falta Doc" value={stats.missingDocumentation} color="warning" className="kpi-compact" />
             </div>
 
             {/* Filters */}
@@ -394,7 +405,7 @@ export function Inscripciones(): JSX.Element {
             </div>
 
             {/* Table */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-x-auto" data-ui="table-container">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-x-auto max-w-[93vw]" data-ui="table-container">
               <ResponsiveTable
                 columns={tableColumns}
                 data={athletes}

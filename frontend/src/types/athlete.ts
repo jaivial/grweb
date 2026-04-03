@@ -2,7 +2,7 @@
 export type Sex = 'Male' | 'Female';
 
 // Athlete status enum
-export type AthleteStatus = 'Paid' | 'PendingPayment' | 'Disqualified' | 'MissingDocumentation';
+export type AthleteStatus = 'Inscrito' | 'Paid' | 'PendingPayment' | 'Disqualified' | 'MissingDocumentation';
 
 // Athlete interface
 export interface Athlete {
@@ -49,6 +49,7 @@ export interface AthleteFilters {
 // Athlete stats for KPIs
 export interface AthleteStats {
   total: number;
+  inscritos: number;
   paid: number;
   pending: number;
   disqualified: number;
@@ -67,6 +68,7 @@ export interface AthletesResponse {
 
 // Status label mapping
 export const ATHLETE_STATUS_LABELS: Record<AthleteStatus, string> = {
+  Inscrito: 'Inscrito',
   Paid: 'Pagado',
   PendingPayment: 'Pendiente pago',
   Disqualified: 'Descalificado',
@@ -75,6 +77,7 @@ export const ATHLETE_STATUS_LABELS: Record<AthleteStatus, string> = {
 
 // Status color mapping - glassmorphism style
 export const ATHLETE_STATUS_COLORS: Record<AthleteStatus, string> = {
+  Inscrito: 'bg-blue-500/15 text-blue-400',
   Paid: 'bg-green-500/15 text-green-400',
   PendingPayment: 'bg-yellow-500/15 text-yellow-400',
   Disqualified: 'bg-red-500/15 text-red-400',

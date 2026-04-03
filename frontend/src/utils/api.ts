@@ -218,7 +218,7 @@ class ApiClient {
   }
 
   async createAthlete(data: any) {
-    return this.request<any>('/api/admin/athletes', {
+    return this.request<any>('/api/athletes', {
       method: 'POST',
       body: data,
     });
@@ -319,6 +319,21 @@ class ApiClient {
 
   async getPublicSchedules() {
     return this.request<any[]>('/api/schedules');
+  }
+
+  async isSchedulesPublished() {
+    return this.request<{ published: boolean }>('/api/schedules/published');
+  }
+
+  async getSchedulesPublishedConfig() {
+    return this.request<{ value: boolean; dateModified: string | null }>('/api/admin/schedules/published-config');
+  }
+
+  async updateSchedulesPublishedConfig(data: { value: boolean }) {
+    return this.request<{ value: boolean; dateModified: string }>('/api/admin/schedules/published-config', {
+      method: 'PUT',
+      body: data,
+    });
   }
 
   async getConfirmedWinner() {

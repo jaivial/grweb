@@ -30,9 +30,9 @@ export function ResponsiveTable<T extends Record<string, any>>({
 }: ResponsiveTableProps<T>): JSX.Element {
   if (isLoading) {
     return (
-      <div className="w-full min-w-0 overflow-x-auto" data-ui="responsive-table">
+      <div className="w-full overflow-x-auto" data-ui="responsive-table">
         <table className={`w-full ${className}`}>
-          <thead className="bg-white/5 border-b border-white/10" data-ui="table-header">
+          <thead className="bg-zinc-800 border-b border-white/10" data-ui="table-header">
             <tr>
               {columns.map(col => (
                 <th
@@ -64,7 +64,7 @@ export function ResponsiveTable<T extends Record<string, any>>({
 
   if (data.length === 0) {
     return (
-      <div className="w-full min-w-0 overflow-x-auto" data-ui="responsive-table">
+      <div className="w-full overflow-x-auto" data-ui="responsive-table">
         <table className={`w-full ${className}`}>
           <thead className="bg-white/5 border-b border-white/10" data-ui="table-header">
             <tr>
@@ -89,15 +89,15 @@ export function ResponsiveTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className="w-full min-w-0 overflow-x-auto" data-ui="responsive-table">
+    <div className="w-full overflow-x-auto" data-ui="responsive-table">
       {/* Desktop Table */}
-      <table className={`w-full ${className}`}>
+      <table className={`w-max ${className}`}>
         <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10" data-ui="table-header">
           <tr>
             {columns.map(col => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-left text-xs font-medium text-white/50 uppercase tracking-wider whitespace-nowrap ${col.className || ''} ${col.sticky ? 'sticky left-0 bg-white/5 z-20 backdrop-blur-sm' : ''}`}
+                className={`px-4 py-3 text-left text-xs font-medium text-white/50 uppercase tracking-wider whitespace-nowrap ${col.className || ''} ${col.sticky ? 'sticky left-0 bg-zinc-800 z-20 backdrop-blur-sm' : ''}`}
                 data-ui="table-header-cell"
                 data-column={col.key}
               >
@@ -118,7 +118,7 @@ export function ResponsiveTable<T extends Record<string, any>>({
               {columns.map(col => (
                 <td
                   key={col.key}
-                  className={`px-4 py-3 text-xs text-white whitespace-nowrap truncate max-w-[200px] ${col.className || ''} ${col.sticky ? 'sticky left-0 bg-dark-base/50 z-10 backdrop-blur-sm' : ''}`}
+                  className={`px-4 py-3 text-xs text-white whitespace-nowrap ${col.className || ''} ${col.sticky ? 'sticky left-0 bg-dark-base z-10 backdrop-blur-sm' : ''}`}
                   data-ui="table-cell"
                   data-column={col.key}
                 >

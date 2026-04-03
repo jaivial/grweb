@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { JSX } from 'react';
 
 export interface TimePickerProps {
@@ -26,9 +27,12 @@ export function TimePicker({
   className = '',
 }: TimePickerProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const [activeColumn, setActiveColumn] = useState<'hours' | 'minutes'>('hours');
   const hoursRef = useRef<HTMLDivElement>(null);
   const minutesRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const parsedValue = useMemo(() => {
     if (!value) return { hours: null, minutes: null };
@@ -78,6 +82,30 @@ export function TimePicker({
     onChange(null);
   }, [onChange]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isInsideContainer = containerRef.current && containerRef.current.contains(target);
+      const isInsideDropdown = target instanceof Element && target.closest('[data-ui="timepicker-picker"]');
+
+      if (!isInsideContainer && !isInsideDropdown) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleOpenToggle = useCallback((e: React.MouseEvent) => {
+    if (!disabled) {
+      if (!isOpen && triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setDropdownPos({ top: rect.top + window.scrollY, left: rect.left });
+      }
+      setIsOpen(!isOpen);
+    }
+  }, [disabled, isOpen]);
+
   const formatDisplayTime = useCallback((timeStr: string | null): string => {
     if (!timeStr) return '';
     const [h, m] = timeStr.split(':');
@@ -107,7 +135,7 @@ export function TimePicker({
   }, []);
 
   return (
-    <div className={`relative ${className}`} data-ui="time-picker">
+    <div ref={containerRef} className={`relative ${className}`} data-ui="time-picker">
       {label && (
         <label className="block text-sm font-medium text-white/80 mb-1.5" data-ui="timepicker-label">
           {label}
@@ -115,8 +143,9 @@ export function TimePicker({
       )}
 
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={handleOpenToggle}
         disabled={disabled}
         className={`
           w-full px-4 py-3 min-h-[48px] text-left bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl
@@ -152,10 +181,15 @@ export function TimePicker({
         </div>
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div
-          className="absolute z-50 w-64 bottom-[calc(100%+8px)] bg-dark-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+          className="fixed z-[9999] w-64 bg-dark-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
           data-ui="timepicker-picker"
+          style={{
+            top: dropdownPos.top - 8,
+            left: dropdownPos.left,
+            transform: 'translateY(-100%)',
+          }}
         >
           {/* iOS-style wheel picker */}
           <div className="flex h-52">
@@ -235,6 +269,8 @@ export function TimePicker({
             </button>
           </div>
         </div>
+      ,
+        document.body
       )}
 
       {error && (

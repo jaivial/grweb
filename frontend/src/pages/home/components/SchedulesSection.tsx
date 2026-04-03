@@ -199,53 +199,58 @@ const ScheduleRow: FC<ScheduleRowProps> = ({
 
   return (
     <div
-      className="grid grid-cols-3 gap-4 py-3 px-4"
+      className="grid grid-cols-[minmax(0,1fr)_max-content] min-[640px]:grid-cols-[max-content_2fr_auto] gap-x-4 gap-y-2 min-[640px]:gap-y-0 py-3 px-4"
       data-ui="schedule-row"
       style={{
         borderBottom: isLast ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
       }}
     >
-      {/* Sex Category */}
-      <div className="flex items-center gap-2" data-ui="row-sex">
-        <div
-          className="w-1.5 h-1.5 rounded-full"
-          data-ui="row-sex-dot"
-          style={{
-            background: 'rgba(220, 20, 60, 0.6)',
-            boxShadow: '0 0 10px rgba(220, 20, 60, 0.5)',
-          }}
-          aria-hidden
-        />
-        <span
-          className="text-sm md:text-base lg:text-lg"
-          data-ui="row-sex-text"
-          style={{
-            fontFamily: '"Contrail One", sans-serif',
-            fontWeight: 400,
-            letterSpacing: '0.02em',
-            color: sexCategory === 'Male' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(220, 20, 60, 0.7)',
-            textTransform: 'uppercase',
-          }}
-        >
-          {sexLabel}
-        </span>
-      </div>
+      {/* Sex + Weight stacked on mobile, side-by-side on sm+ */}
+      <div className="flex flex-col min-[640px]:contents" data-ui="row-category">
+        {/* Sex Category */}
+        <div className="flex items-center gap-2" data-ui="row-sex">
+          <div
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            data-ui="row-sex-dot"
+            style={{
+              background: 'rgba(220, 20, 60, 0.6)',
+              boxShadow: '0 0 10px rgba(220, 20, 60, 0.5)',
+            }}
+            aria-hidden
+          />
+          <span
+            className="text-sm md:text-base lg:text-lg"
+            data-ui="row-sex-text"
+            style={{
+              fontFamily: '"Contrail One", sans-serif',
+              fontWeight: 400,
+              letterSpacing: '0.02em',
+              color: sexCategory === 'Male' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(220, 20, 60, 0.7)',
+              textTransform: 'uppercase',
+              lineHeight: '1.2',
+            }}
+          >
+            {sexLabel}
+          </span>
+        </div>
 
-      {/* Weight Categories */}
-      <div className="flex items-center" data-ui="row-weight">
-        <span
-          className="text-sm md:text-base lg:text-lg"
-          data-ui="row-weight-text"
-          style={{
-            fontFamily: '"Contrail One", sans-serif',
-            fontWeight: 400,
-            letterSpacing: '0.02em',
-            color: 'rgba(255, 255, 255, 0.85)',
-            textTransform: 'uppercase',
-          }}
-        >
-          {weightDisplay}
-        </span>
+        {/* Weight Categories */}
+        <div className="flex items-center" data-ui="row-weight">
+          <span
+            className="text-sm md:text-base lg:text-lg"
+            data-ui="row-weight-text"
+            style={{
+              fontFamily: '"Contrail One", sans-serif',
+              fontWeight: 400,
+              letterSpacing: '0.02em',
+              color: 'rgba(255, 255, 255, 0.85)',
+              textTransform: 'uppercase',
+              lineHeight: '1.2',
+            }}
+          >
+            {weightDisplay}
+          </span>
+        </div>
       </div>
 
       {/* Time Range */}
@@ -356,7 +361,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
 
       {/* Table Header */}
       <div
-        className="grid grid-cols-3 gap-4 py-2 px-4 mb-2"
+        className="grid grid-cols-[minmax(0,1fr)_max-content] min-[640px]:grid-cols-3 gap-x-4 gap-y-2 min-[640px]:gap-y-0 py-2 px-4 mb-2"
         data-ui="table-header"
       >
         <span
@@ -371,7 +376,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
           Categoría
         </span>
         <span
-          className="text-xs md:text-sm uppercase"
+          className="hidden min-[640px]:flex text-xs md:text-sm uppercase"
           data-ui="header-weight"
           style={{
             fontFamily: '"Contrail One", sans-serif',
@@ -382,7 +387,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
           Peso
         </span>
         <span
-          className="text-xs md:text-sm uppercase"
+          className="text-xs md:text-sm uppercase sm:justify-self-end"
           data-ui="header-time"
           style={{
             fontFamily: '"Contrail One", sans-serif',
@@ -424,10 +429,22 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
 export const SchedulesSection: FC<SchedulesSectionProps> = ({ className = '' }) => {
   const [schedules, setSchedules] = useState<ScheduleGroupedByDate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPublished, setIsPublished] = useState(true);
 
   useEffect(() => {
     const fetchSchedules = async () => {
       try {
+        // Check if schedules are published
+        const pubResp = await fetch(`${API_URL}/api/schedules/published`);
+        if (pubResp.ok) {
+          const pubData = await pubResp.json();
+          setIsPublished(pubData.published);
+          if (!pubData.published) {
+            setIsLoading(false);
+            return;
+          }
+        }
+
         const response = await fetch(`${API_URL}/api/schedules`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -538,7 +555,7 @@ export const SchedulesSection: FC<SchedulesSectionProps> = ({ className = '' }) 
         {/* Content */}
         {isLoading ? (
           <LoadingSkeleton />
-        ) : schedules.length === 0 ? (
+        ) : !isPublished || schedules.length === 0 ? (
           <EmptyState />
         ) : (
           <div data-ui="schedules-list">

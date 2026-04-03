@@ -1,6 +1,7 @@
 using GrCup.Api.Data;
 using GrCup.Api.Services;
 using GrCup.Api.Hubs;
+using GrCup.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -95,6 +96,60 @@ public static class PublicEndpoints
                 responsable = responsable?.Value ?? true,
                 aepUrl = urlInscripcion?.Url ?? null
             });
+        });
+
+        // GET /api/schedules/published - Check if schedules are published
+        app.MapGet("/api/schedules/published", async (GrCupDbContext db) =>
+        {
+            var config = await db.SchedulePublishedConfig.FirstOrDefaultAsync();
+            return Results.Ok(new { published = config?.Value ?? true });
+        });
+
+        // POST /api/athletes - Public athlete registration with confirmation email
+        app.MapPost("/api/athletes", async (
+            [FromBody] Athlete athlete,
+            AthleteService athleteService,
+            EmailService emailService,
+            ILogger<Program> logger) =>
+        {
+            if (string.IsNullOrWhiteSpace(athlete.FirstName) ||
+                string.IsNullOrWhiteSpace(athlete.Surname) ||
+                string.IsNullOrWhiteSpace(athlete.Email) ||
+                string.IsNullOrWhiteSpace(athlete.WeightCategory))
+            {
+                return Results.BadRequest(new { error = "Nombre, apellidos, email y categoría son obligatorios." });
+            }
+
+            if (!athlete.Email.Contains("@"))
+            {
+                return Results.BadRequest(new { error = "Email inválido." });
+            }
+
+            try
+            {
+                var created = await athleteService.CreateAsync(athlete);
+
+                // Send confirmation email (non-blocking for registration success)
+                try
+                {
+                    await emailService.SendInscriptionConfirmationAsync(
+                        created.Email,
+                        created.FirstName,
+                        created.Surname,
+                        created.WeightCategory);
+                }
+                catch (Exception emailEx)
+                {
+                    logger.LogError(emailEx, "Failed to send confirmation email to {Email}", created.Email);
+                }
+
+                return Results.Created($"/api/athletes/{created.Id}", created);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error creating athlete");
+                return Results.StatusCode(500);
+            }
         });
 
         // GET /api/winner - Get latest confirmed winner

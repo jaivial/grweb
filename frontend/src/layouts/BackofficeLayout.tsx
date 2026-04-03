@@ -167,7 +167,7 @@ export function BackofficeLayout({ children }: BackofficeLayoutProps): JSX.Eleme
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-h-screen pt-14 xl:pt-0" data-ui="main-content">
+      <main className="flex-1 min-h-screen pt-20 xl:pt-0" data-ui="main-content">
         {children}
       </main>
     </div>
