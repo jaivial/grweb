@@ -180,6 +180,7 @@ export function TermsOfService(): JSX.Element {
           </a>
         </div>
       </div>
+      </div>
     </>
   );
 }

@@ -14,7 +14,13 @@ import {
   updateSchedule as updateScheduleInStore,
   removeSchedule,
 } from '../../../../stores/schedulesStore';
-import type { Schedule, ScheduleFormData } from '../../../../types/schedule';
+import type { Schedule, ScheduleFormData, ScheduleGroupedByDate } from '../../../../types/schedule';
+
+function flattenGroupedData(grouped: ScheduleGroupedByDate[]): Schedule[] {
+  return grouped.flatMap(group => group.schedules);
+}
+
+import type { Signal } from '@preact/signals';
 
 interface UseScheduleReturn {
   schedules: Schedule[];
@@ -27,6 +33,10 @@ interface UseScheduleReturn {
   deleteSchedule: (id: number) => Promise<void>;
   setTab: (tab: 'Male' | 'Female') => void;
   refresh: () => Promise<void>;
+  // Expose signals for reactive subscription in the component
+  schedulesSignal: Signal<Schedule[]>;
+  isLoadingSignal: Signal<boolean>;
+  errorSignal: Signal<string | null>;
 }
 
 export function useSchedule(): UseScheduleReturn {
@@ -40,7 +50,11 @@ export function useSchedule(): UseScheduleReturn {
 
     try {
       const response = await api.getSchedules();
-      setSchedules(response);
+      // Backend returns ScheduleGroupedByDate[], flatten to Schedule[] for the store
+      const flat = Array.isArray(response) && response.length > 0 && 'schedules' in response[0]
+        ? flattenGroupedData(response as ScheduleGroupedByDate[])
+        : (response as Schedule[]);
+      setSchedules(flat);
     } catch (err) {
       setSchedulesError(err instanceof Error ? err.message : 'Error al cargar horarios');
     } finally {
@@ -91,5 +105,8 @@ export function useSchedule(): UseScheduleReturn {
     deleteSchedule,
     setTab,
     refresh,
+    schedulesSignal: schedules,
+    isLoadingSignal: schedulesLoading,
+    errorSignal: schedulesError,
   };
 }

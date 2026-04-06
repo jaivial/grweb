@@ -339,6 +339,52 @@ class ApiClient {
   async getConfirmedWinner() {
     return this.request<{ success: boolean; data: any | null }>('/api/winner');
   }
+
+  // ─── Email Config ───
+
+  async getEmailConfig() {
+    return this.request<{
+      mainProvider: number;
+      gmailAddress: string | null;
+      gmailAppPassword: string | null;
+      smtpUsername: string | null;
+      smtpPassword: string | null;
+      smtpEmailAddress: string | null;
+      smtpHost: string | null;
+      smtpPort: number;
+    }>('/api/admin/email-config');
+  }
+
+  async updateEmailConfig(data: {
+    mainProvider: number;
+    gmailAddress: string | null;
+    gmailAppPassword: string | null;
+    smtpUsername: string | null;
+    smtpPassword: string | null;
+    smtpEmailAddress: string | null;
+    smtpHost: string | null;
+    smtpPort: number;
+  }) {
+    return this.request<{
+      mainProvider: number;
+      gmailAddress: string | null;
+      gmailAppPassword: string | null;
+      smtpUsername: string | null;
+      smtpPassword: string | null;
+      smtpEmailAddress: string | null;
+      smtpHost: string | null;
+      smtpPort: number;
+    }>('/api/admin/email-config', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteEmailConfig() {
+    return this.request<{ message: string }>('/api/admin/email-config', {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiClient(API_URL);

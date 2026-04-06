@@ -134,6 +134,7 @@ public static class AdminEndpoints
         app.MapPost("/api/admin/participants/manual", [Authorize] async (
             [FromBody] ManualParticipantRequest request,
             ParticipantService participantService,
+            EmailService emailService,
             IHubContext<ParticipantsHub> hubContext,
             ILogger<Program> logger) =>
         {
@@ -175,6 +176,22 @@ public static class AdminEndpoints
                 "Manual participant created: {Email}, {TicketCount} tickets, {PaymentMethod}",
                 request.Email, request.TicketCount, request.PaymentMethod
             );
+
+            // Send raffle confirmation email (non-blocking)
+            try
+            {
+                await emailService.SendRaffleConfirmationAsync(
+                    request.Email,
+                    request.FirstName,
+                    request.Surname ?? "",
+                    request.TicketCount,
+                    totalPaid,
+                    request.Instagram);
+            }
+            catch (Exception emailEx)
+            {
+                logger.LogError(emailEx, "Failed to send raffle confirmation email to {Email}", request.Email);
+            }
 
             return Results.Ok(participant);
         });

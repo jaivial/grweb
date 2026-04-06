@@ -464,6 +464,13 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
               data-ui="organizers-grid"
             >
               <div data-ui="organizer-aep">
+                <img
+                  src="https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp"
+                  alt="AEP - Asociación Española de Powerlifting"
+                  className="w-56 h-auto mx-auto mb-4 object-cover rounded-xl"
+                  loading="lazy"
+                  data-ui="organizer-aep-image"
+                />
                 <h4
                   className="text-base sm:text-lg md:text-xl mb-2"
                   data-ui="organizer-aep-name"
@@ -481,17 +488,24 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
                     textTransform: 'uppercase',
                   }}
                 >
-                  La competición está afiliada a la Asociación Española de Powerlifting (AEP), la federación de referencia en España para laslifters y competidores de todas las categorías. Los jueces de AEP garantizan la aplicación correcta de las reglas oficiales en cada intento de squat, bench press y deadlift.
+                  Afiliada a la Asociación Española de Powerlifting. Jueces oficiales garantizan el cumplimiento de las reglas en cada intento.
                 </p>
               </div>
 
               <div data-ui="organizer-nicogr">
+                <img
+                  src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/f7efa2c624614a66b35f6ab01980e09e.webp"
+                  alt="Nico GR - Organizador"
+                  className="w-56 h-auto mx-auto mb-4 object-cover rounded-xl"
+                  loading="lazy"
+                  data-ui="organizer-nicogr-image"
+                />
                 <h4
                   className="text-base sm:text-lg md:text-xl mb-2"
                   data-ui="organizer-nicogr-name"
                   style={subtitleStyle}
                 >
-                  Nico GR
+                  GRStrength
                 </h4>
                 <p
                   className="text-sm sm:text-base md:text-lg leading-relaxed"
@@ -503,7 +517,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
                     textTransform: 'uppercase',
                   }}
                 >
-                  Organizado por Nico GR, la competición busca reunir a la mejor comunidad de powerlifting en España, creando un evento donde entrenadores, atletas y aficionados puedan disfrutar del mejor nivel competitivo en squat, press de banca y peso muerto.
+                  Organizado por el club GRStrength, reúne a la comunidad de powerlifting en un evento de alto nivel competitivo.
                 </p>
               </div>
             </div>
@@ -535,7 +549,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
                 textTransform: 'uppercase',
               }}
             >
-              El GR Cup cuenta con equipamiento profesional de las marcas líderes en powerlifting. SBD es la marca de referencia mondiale para cinturones, vendas, monos y rodillas de competición, reconocida por su calidad y durabilidad. A7 proporciona material complementario de alto rendimiento utilizado por atletas de élite en competiciones internacionales. Ambas marcas garantizan que todos los participantes compitan con equipamiento homologado y de primera calidad.
+              Equipamiento profesional de SBD y A7, marcas líderes en powerlifting con homologación internacional.
             </p>
 
             <div

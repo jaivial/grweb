@@ -10,7 +10,7 @@ export function LocationPage(): JSX.Element {
       <Head {...pageMetaConfig['/como-llegar']} />
       <main className="min-h-screen bg-dark-base" style={{ paddingTop: '190px' }} data-page="location">
       <LocalizacionSection />
-        <Footer />
+      <Footer />
       </main>
     </>
   );

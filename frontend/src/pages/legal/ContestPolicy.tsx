@@ -290,6 +290,7 @@ export function ContestPolicy(): JSX.Element {
           </a>
         </div>
       </div>
+      </div>
     </>
   );
 }

@@ -86,7 +86,7 @@ export const HeroSection: FC = () => {
     <div
       id="hero-container"
       className={containerClassName}
-      style={{ height: '600vh' }}
+      style={{ height: '400vh' }}
       data-section="hero"
       data-component="HeroSection"
     >

@@ -169,6 +169,7 @@ export function PrivacyPolicy(): JSX.Element {
           </a>
         </div>
       </div>
+      </div>
     </>
   );
 }

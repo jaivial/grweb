@@ -1,0 +1,20 @@
+{
+  "title": "Hide Sex Tabs and Publish Toggle in Vista previa tab",
+  "description": "When the 'Vista previa' tab is active, the Sex Tabs and Publish Toggle Card should fade out and not be displayed",
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Add fade-out transition to Publish Toggle Card",
+      "description": "Wrap the Publish Toggle Card (line 470-501) in a conditional div that checks if activeContentTab !== 'preview', with a fade transition class",
+      "status": "pending",
+      "file": "frontend/src/pages/backoffice/horarios/Horarios.tsx"
+    },
+    {
+      "id": "2",
+      "title": "Add fade-out transition to Sex Tabs",
+      "description": "Wrap the Sex Tabs section (line 503-511) in a conditional div that checks if activeContentTab !== 'preview', with a fade transition class",
+      "status": "pending",
+      "file": "frontend/src/pages/backoffice/horarios/Horarios.tsx"
+    }
+  ]
+}

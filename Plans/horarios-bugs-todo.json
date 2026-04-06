@@ -1,0 +1,19 @@
+{
+  "title": "Fix Horarios data + PDF bugs",
+  "description": "Fix the Gestionar horarios cards not showing data (endpoint returns grouped by date, but store expects flat array) and PDF showing undefined values",
+  "tasks": [
+    {
+      "id": 1,
+      "status": "completed",
+      "title": "Fix useSchedule hook to flatten grouped data",
+      "description": "The backend /api/admin/schedules returns ScheduleGroupedByDate[]. The hook must flatten it to Schedule[] before storing in the signal, so the component and PDF export work correctly."
+    },
+    {
+      "id": 2,
+      "status": "completed",
+      "title": "Verify build passes",
+      "description": "Run build to confirm no TypeScript errors after the fix."
+    }
+  ],
+  "status": "completed"
+}

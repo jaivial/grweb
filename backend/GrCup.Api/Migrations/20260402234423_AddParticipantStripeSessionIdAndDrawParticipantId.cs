@@ -8,14 +8,56 @@ namespace GrCup.Api.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(
-                "ALTER TABLE `Participants` ADD COLUMN IF NOT EXISTS `StripeSessionId` varchar(255) NULL;");
+            migrationBuilder.Sql(@"
+                SELECT COUNT(*) INTO @col_exists
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'Participants'
+                  AND COLUMN_NAME = 'StripeSessionId';
 
-            migrationBuilder.Sql(
-                "ALTER TABLE `Draws` ADD COLUMN IF NOT EXISTS `ParticipantId` int NULL;");
+                SET @sql = IF(@col_exists = 0,
+                    'ALTER TABLE `Participants` ADD COLUMN `StripeSessionId` varchar(255) NULL',
+                    'SELECT 1'
+                );
 
-            migrationBuilder.Sql(
-                "ALTER TABLE `Draws` ADD INDEX IF NOT EXISTS `IX_Draws_ParticipantId` (`ParticipantId`);");
+                PREPARE stmt FROM @sql;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            ");
+
+            migrationBuilder.Sql(@"
+                SELECT COUNT(*) INTO @col_exists
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'Draws'
+                  AND COLUMN_NAME = 'ParticipantId';
+
+                SET @sql = IF(@col_exists = 0,
+                    'ALTER TABLE `Draws` ADD COLUMN `ParticipantId` int NULL',
+                    'SELECT 1'
+                );
+
+                PREPARE stmt FROM @sql;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            ");
+
+            migrationBuilder.Sql(@"
+                SELECT COUNT(*) INTO @idx_exists
+                FROM information_schema.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'Draws'
+                  AND INDEX_NAME = 'IX_Draws_ParticipantId';
+
+                SET @sql = IF(@idx_exists = 0,
+                    'ALTER TABLE `Draws` ADD INDEX `IX_Draws_ParticipantId` (`ParticipantId`)',
+                    'SELECT 1'
+                );
+
+                PREPARE stmt FROM @sql;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            ");
 
             migrationBuilder.Sql(@"
                 SELECT COUNT(*) INTO @fk_exists
@@ -54,14 +96,56 @@ namespace GrCup.Api.Migrations
                 DEALLOCATE PREPARE stmt;
             ");
 
-            migrationBuilder.Sql(
-                "ALTER TABLE `Draws` DROP INDEX IF EXISTS `IX_Draws_ParticipantId`;");
+            migrationBuilder.Sql(@"
+                SELECT COUNT(*) INTO @idx_exists
+                FROM information_schema.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'Draws'
+                  AND INDEX_NAME = 'IX_Draws_ParticipantId';
 
-            migrationBuilder.Sql(
-                "ALTER TABLE `Draws` DROP COLUMN IF EXISTS `ParticipantId`;");
+                SET @sql = IF(@idx_exists > 0,
+                    'ALTER TABLE `Draws` DROP INDEX `IX_Draws_ParticipantId`',
+                    'SELECT 1'
+                );
 
-            migrationBuilder.Sql(
-                "ALTER TABLE `Participants` DROP COLUMN IF EXISTS `StripeSessionId`;");
+                PREPARE stmt FROM @sql;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            ");
+
+            migrationBuilder.Sql(@"
+                SELECT COUNT(*) INTO @col_exists
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'Draws'
+                  AND COLUMN_NAME = 'ParticipantId';
+
+                SET @sql = IF(@col_exists > 0,
+                    'ALTER TABLE `Draws` DROP COLUMN `ParticipantId`',
+                    'SELECT 1'
+                );
+
+                PREPARE stmt FROM @sql;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            ");
+
+            migrationBuilder.Sql(@"
+                SELECT COUNT(*) INTO @col_exists
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'Participants'
+                  AND COLUMN_NAME = 'StripeSessionId';
+
+                SET @sql = IF(@col_exists > 0,
+                    'ALTER TABLE `Participants` DROP COLUMN `StripeSessionId`',
+                    'SELECT 1'
+                );
+
+                PREPARE stmt FROM @sql;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            ");
         }
     }
 }

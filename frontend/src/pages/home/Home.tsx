@@ -10,7 +10,6 @@ import {
   SchedulesSection,
   LocalizacionSection,
   RaffleSection,
-  Footer
 } from './components';
 import { fetchParticipantCount } from './lib/api';
 import { participantCount } from './atoms/state';
@@ -125,9 +124,6 @@ export function Home(): JSX.Element {
 
       {/* Localización Section - Venue information */}
       <LocalizacionSection />
-
-        {/* Footer */}
-        <Footer />
       </main>
     </>
   );

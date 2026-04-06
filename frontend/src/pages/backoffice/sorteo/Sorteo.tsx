@@ -9,6 +9,7 @@ import { Icon } from '../../../components/ui/Icon';
 import { CustomSelector } from '../../../components/ui/CustomSelector/CustomSelector';
 import { Tabs } from '../../../components/ui/Tabs/Tabs';
 import { countryCodeOptions } from '../../../utils/countryCodes';
+import { exportPdf } from '../../../utils/pdfExport';
 
 interface Draw {
   id: number;
@@ -122,6 +123,17 @@ export function Sorteo(): JSX.Element {
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualSuccess, setManualSuccess] = useState(false);
 
+  // Toast state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -220,6 +232,32 @@ export function Sorteo(): JSX.Element {
     }
   }
 
+  function handleExportPdf() {
+    if (!participantsData) return;
+    const columns = [
+      { header: 'Nombre', dataKey: 'name' },
+      { header: 'Email', dataKey: 'email' },
+      { header: 'Instagram', dataKey: 'instagram' },
+      { header: 'Tickets', dataKey: 'tickets' },
+      { header: 'Pagado', dataKey: 'paid' },
+      { header: 'Método', dataKey: 'method' },
+    ];
+    const rows = participantsData.participants.map(p => ({
+      name: `${p.firstName} ${p.surname}`,
+      email: p.email,
+      instagram: `@${p.instagram.replace('@', '')}`,
+      tickets: p.ticketCount,
+      paid: p.isPaid ? 'Sí' : 'No',
+      method: p.paymentMethod === 'cash' ? 'Efectivo' : p.paymentMethod === 'bank' ? 'Transferencia' : 'Stripe',
+    }));
+    exportPdf({
+      title: 'Participantes del Sorteo',
+      columns,
+      rows,
+      filename: 'participantes-sorteo',
+    });
+  }
+
   useEffect(() => {
     fetchDraws();
   }, []);
@@ -245,8 +283,14 @@ export function Sorteo(): JSX.Element {
       setCurrentWinner(winner);
       setShowConfirmModal(true);
       await fetchDraws();
-    } catch {
-      setError('Error al realizar el sorteo');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('No participants available for draw')) {
+        setToastType('warning');
+        setToastMessage('No hay participantes para el sorteo');
+      } else {
+        setError('Error al realizar el sorteo');
+      }
     } finally {
       setDrawInProgress(false);
     }
@@ -412,6 +456,37 @@ export function Sorteo(): JSX.Element {
           </div>
         )}
 
+        {/* Toast */}
+        {toastMessage && (
+          <div
+            className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-right ${
+              toastType === 'success' ? 'bg-green-500/90 text-white' :
+              toastType === 'warning' ? 'bg-yellow-500/90 text-black' :
+              'bg-red-500/90 text-white'
+            }`}
+            data-ui="toast-notification"
+          >
+            {toastType === 'warning' ? (
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            <p className="text-sm font-medium">{toastMessage}</p>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="ml-2 hover:opacity-70 transition-opacity"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {activeTab === 'sorteo' && (
           <>
             {/* Draw Section */}
@@ -559,13 +634,22 @@ export function Sorteo(): JSX.Element {
                 <p className="text-gray-500 text-sm">{participantsData?.totalCount || 0} participantes en total</p>
               </div>
               <button
+                onClick={handleExportPdf}
+                className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                PDF
+              </button>
+              <button
                 onClick={handleExport}
                 className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Exportar CSV
+                CSV
               </button>
             </div>
 
@@ -582,7 +666,7 @@ export function Sorteo(): JSX.Element {
                     value={searchTerm}
                     onInput={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
                     placeholder="Buscar por nombre, email o Instagram..."
-                    className="w-full bg-dark-surface border border-white/10 rounded-xl py-2.5 xs:py-3 pl-10 xs:pl-12 pr-4 text-sm xs:text-base text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-accent/50 transition-colors min-h-[44px]"
+                    className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20 transition-colors"
                   />
                   {searchTerm && (
                     <button
@@ -641,7 +725,7 @@ export function Sorteo(): JSX.Element {
                           min="1"
                           value={editFormData.ticketCount}
                           onChange={(e) => setEditFormData(prev => ({ ...prev, ticketCount: parseInt(e.target.value) || 1 }))}
-                          className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 text-white"
+                          className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
                         />
                       </div>
                       <div className="flex items-center gap-3">
@@ -817,7 +901,6 @@ export function Sorteo(): JSX.Element {
                   onChange={(e) => updateManualFormData('name', e.target.value)}
                   error={manualErrors.name}
                   fullWidth
-                  className="!px-6 !py-4 !text-[16px]"
                 />
 
                 {/* Email */}
@@ -830,7 +913,6 @@ export function Sorteo(): JSX.Element {
                   onChange={(e) => updateManualFormData('email', e.target.value)}
                   error={manualErrors.email}
                   fullWidth
-                  className="!px-6 !py-4 !text-[16px]"
                 />
 
                 {/* Phone */}
@@ -857,7 +939,6 @@ export function Sorteo(): JSX.Element {
                       onChange={(e) => updateManualFormData('phone', e.target.value)}
                       error={manualErrors.phone}
                       fullWidth
-                      className="!px-6 !py-4 !text-[16px]"
                     />
                   </div>
                 </div>
@@ -871,7 +952,6 @@ export function Sorteo(): JSX.Element {
                   value={manualFormData.instagram}
                   onChange={(e) => updateManualFormData('instagram', e.target.value)}
                   fullWidth
-                  className="!px-6 !py-4 !text-[16px]"
                 />
 
                 {/* Payment Method */}

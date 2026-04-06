@@ -12,6 +12,7 @@ interface AthleteFormProps {
 }
 
 const STATUS_OPTIONS = [
+  { value: 'Inscrito', label: 'Inscrito' },
   { value: 'Paid', label: 'Pagado' },
   { value: 'PendingPayment', label: 'Pendiente pago' },
   { value: 'Disqualified', label: 'Descalificado' },
@@ -40,7 +41,7 @@ export function AthleteForm({
     totalWeight: initialData?.totalWeight || undefined,
     registrationDate: initialData?.registrationDate?.split('T')[0] || new Date().toISOString().split('T')[0],
     coach: initialData?.coach || '',
-    status: initialData?.status || 'PendingPayment',
+    status: initialData?.status || 'Inscrito',
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof AthleteFormData, string>>>({});

@@ -1,0 +1,90 @@
+{
+  "title": "General Settings - Email Configuration",
+  "description": "Create backoffice route for general settings with email configuration tab. SMTP/Gmail provider selector, CRUD endpoints, DB table, and EmailService integration.",
+  "steps": [
+    {
+      "id": 1,
+      "title": "DB: Create EmailConfig model and migration",
+      "description": "Create EmailConfig model with fields: Id, MainProvider (SMTP|Gmail), GmailAddress, GmailAppPassword, SmtpUsername, SmtpPassword, SmtpEmailAddress, SmtpHost, SmtpPort, CreatedAt, UpdatedAt. Run EF Core migration.",
+      "files": [
+        "backend/GrCup.Api/Models/EmailConfig.cs",
+        "backend/GrCup.Api/Data/GrCupDbContext.cs (add DbSet)",
+        "backend/GrCup.Api/Migrations/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "title": "Backend: Create EmailConfigService",
+      "description": "Create EmailConfigService with CRUD methods: GetConfigAsync, UpsertConfigAsync, DeleteConfigAsync. Follow existing service patterns from AthleteService.",
+      "files": ["backend/GrCup.Api/Services/EmailConfigService.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "title": "Backend: Create EmailConfigEndpoints",
+      "description": "Create EmailConfigEndpoints with: GET /api/admin/email-config, POST /api/admin/email-config, PUT /api/admin/email-config, DELETE /api/admin/email-config. Follow InscripcionConfigEndpoints pattern.",
+      "files": ["backend/GrCup.Api/Endpoints/EmailConfigEndpoints.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "title": "Backend: Register EmailConfigService in DI and map endpoints",
+      "description": "Add EmailConfigService to DI in Program.cs and call MapEmailConfigEndpoints().",
+      "files": ["backend/GrCup.Api/Program.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "title": "Backend: Update EmailService to use stored config",
+      "description": "Refactor EmailService to read from DB via EmailConfigService instead of env vars. Support both Gmail and SMTP providers based on MainProvider column. Add graceful fallback when no config exists.",
+      "files": ["backend/GrCup.Api/Services/EmailService.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "title": "Frontend: Add API client methods for email config",
+      "description": "Add getEmailConfig, createEmailConfig, updateEmailConfig, deleteEmailConfig methods to api.ts class. Follow existing InscripcionConfig pattern.",
+      "files": ["frontend/src/utils/api.ts"],
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "title": "Frontend: Create useEmailConfig hook",
+      "description": "Create useEmailConfig hook following useAthletes pattern. Expose: config, isLoading, error, fetchConfig, saveConfig, deleteConfig.",
+      "files": ["frontend/src/pages/backoffice/configuracion/hooks/useEmailConfig.ts"],
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "title": "Frontend: Create EmailSettingsForm component",
+      "description": "Create EmailSettingsForm component with provider selector (SMTP|Gmail), conditional field rendering, validation. Use Input and CustomSelector components. Follow AthleteForm pattern.",
+      "files": ["frontend/src/pages/backoffice/configuracion/components/EmailSettingsForm.tsx"],
+      "status": "pending"
+    },
+    {
+      "id": 9,
+      "title": "Frontend: Create Configuracion page with tabs",
+      "description": "Create Configuracion.tsx page with Tabs component (Email Settings tab). Import Settings icon from lucide-react. Use BackofficeLayout. Render EmailSettingsForm in the tab.",
+      "files": [
+        "frontend/src/pages/backoffice/configuracion/Configuracion.tsx",
+        "frontend/src/app.tsx (add route)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 10,
+      "title": "Frontend: Add settings nav item to BackofficeLayout",
+      "description": "Add settings nav item to BackofficeLayout sidebar with Settings icon from lucide-react. Point to /backoffice/configuracion.",
+      "files": ["frontend/src/layouts/BackofficeLayout.tsx"],
+      "status": "pending"
+    },
+    {
+      "id": 11,
+      "title": "Frontend: Add General Settings section card to Home",
+      "description": "Add General Settings section card to BackofficeHome with Settings icon, linking to /backoffice/configuracion.",
+      "files": ["frontend/src/pages/backoffice/Home.tsx"],
+      "status": "pending"
+    }
+  ]
+}
