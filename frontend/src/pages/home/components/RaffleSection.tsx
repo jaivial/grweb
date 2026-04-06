@@ -1,42 +1,16 @@
-import { FC, useMemo, useEffect, useState, useRef } from 'react';
+import { FC, useMemo, useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useScrollProgress } from '@hooks/useScrollProgress';
-import { useFramePreloader } from '@hooks/useFramePreloader';
-import { BELT_FRAMES_CONFIG } from '@utils/frameSources';
-import { FrameAnimator } from '@components/animations/FrameAnimator';
+import { VideoFrameAnimator } from '@components/animations/VideoFrameAnimator';
 
 export const RaffleSection: FC = () => {
   const [, navigate] = useLocation();
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
-    frameSource: BELT_FRAMES_CONFIG,
-    batchSize: 20,
-    batchDelay: 50,
-  });
-
-  // Sync loading state
-  useEffect(() => {
-    setIsLoading(framesLoading);
-  }, [framesLoading]);
-
-  // Prevent scrolling while loading
-  useEffect(() => {
-    if (isLoading) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isLoading]);
 
   const { progress: scrollProgress } = useScrollProgress({
     totalVh: 600,
-    smooth: true,
+    smooth: false,
     smoothFactor: 0.15,
     sectionSelector: '#raffle-container',
   });
@@ -110,8 +84,8 @@ export const RaffleSection: FC = () => {
     return 1;
   }, [scrollProgress]);
 
-  // Calculate frame progress (0 to 1 mapped across the 600vh section)
-  const frameProgress = scrollProgress;
+  // Belt video URL
+  const beltVideoUrl = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/belt/belt_hero_60fps_hq.mp4';
 
   return (
     <div
@@ -150,11 +124,10 @@ export const RaffleSection: FC = () => {
 
         {/* Frame Animation - with bottom padding and mask */}
         <div className="absolute inset-0 flex items-center justify-center z-0 pb-32" data-component="FrameWrapper">
-          <FrameAnimator
-            frames={frames}
-            progress={frameProgress}
+          <VideoFrameAnimator
+            src={beltVideoUrl}
+            progress={scrollProgress}
             isAnimating={true}
-            staticPauseStart={1}
             maxWidth={540}
             aspectRatio={16 / 9}
             edgeFadeOverlay={{
@@ -227,26 +200,6 @@ export const RaffleSection: FC = () => {
           </div>
         </div>
 
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div
-            className="absolute inset-0 z-30 flex items-center justify-center bg-dark-base"
-            data-component="LoadingOverlay"
-          >
-            <div className="text-center">
-              <div className="w-64 h-2 bg-dark-surface rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-red-accent to-dark-red"
-                  style={{ width: (loadProgress * 100) + '%', transition: 'width 0.3s ease-out' }}
-                />
-              </div>
-              <p className="text-gray-400 text-sm mt-2">
-                {Math.round(loadProgress * 100)}%
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Debug Panel */}
         {import.meta.env.DEV && (
           <div
@@ -257,8 +210,7 @@ export const RaffleSection: FC = () => {
             <div>Text1 Opacity: {text1Opacity.toFixed(2)}</div>
             <div>Text2 Opacity: {text2Opacity.toFixed(2)}</div>
             <div>Button Opacity: {buttonOpacity.toFixed(2)}</div>
-            <div>Frames Loaded: {frames.length}</div>
-            <div>Frame: {Math.floor(scrollProgress * (frames.length - 1)) + 1}/{frames.length}</div>
+            <div>Animation: video (belt_hero_60fps_hq.mp4)</div>
           </div>
         )}
       </div>
