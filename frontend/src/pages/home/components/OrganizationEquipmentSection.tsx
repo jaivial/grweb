@@ -307,6 +307,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
       <div
         className="absolute bottom-12 left-0 right-0 h-px"
         style={{
+            transform: 'translateY(-25%)',
           background: 'linear-gradient(90deg, transparent 0%, rgba(139, 0, 0, 0.4) 30%, rgba(220, 20, 60, 0.6) 50%, rgba(139, 0, 0, 0.4) 70%, transparent 100%)',
         }}
         data-ui="accent-line-bottom"
@@ -527,7 +528,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
         {/* Equipamiento — Marcas SBD y A7 */}
         <AnimatedItem direction="up" delay={150} dataUi="animated-equipment">
           <div
-            className="mt-12 max-w-4xl mx-auto"
+            className="mt-12 max-w-4xl mx-auto pb-20"
             data-ui="equipment-container"
           >
             <h3
@@ -552,7 +553,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
               Equipamiento profesional de SBD y A7, marcas líderes en powerlifting con homologación internacional.
             </p>
 
-            <div
+            {/* <div
               className="flex justify-center gap-12 flex-wrap"
               data-ui="equipment-brands"
             >
@@ -574,7 +575,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
                   A7
                 </h4>
               </div>
-            </div>
+            </div> */}
           </div>
         </AnimatedItem>
 
