@@ -13,21 +13,57 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentFrameRef = useRef(-1);
 
-  // DNS prefetch for BunnyCDN storage to reduce latency
+  // DNS prefetch + preconnect for BunnyCDN storage to reduce latency
   useEffect(() => {
+    // Preconnect for early TCP/TLS handshake
+    const preconnect = document.createElement('link');
+    preconnect.rel = 'preconnect';
+    preconnect.href = 'https://storage.bunnycdn.com';
+    preconnect.crossOrigin = 'anonymous';
+    document.head.appendChild(preconnect);
+
+    const preconnectCdn = document.createElement('link');
+    preconnectCdn.rel = 'preconnect';
+    preconnectCdn.href = 'https://jaimedigitalstudio.b-cdn.net';
+    preconnectCdn.crossOrigin = 'anonymous';
+    document.head.appendChild(preconnectCdn);
+
+    // DNS prefetch for additional DNS resolution speed
     const prefetch = document.createElement('link');
     prefetch.rel = 'dns-prefetch';
     prefetch.href = 'https://storage.bunnycdn.com';
     document.head.appendChild(prefetch);
+
     return () => {
+      document.head.removeChild(preconnect);
+      document.head.removeChild(preconnectCdn);
       document.head.removeChild(prefetch);
     };
   }, []);
 
+  // Preload first few critical frames for immediate display
+  useEffect(() => {
+    const preloadFrames = [
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000001.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000002.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000003.webp',
+    ];
+
+    preloadFrames.forEach((url) => {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = url;
+      link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+    });
+  }, []);
+
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: BELT_FRAMES_CONFIG,
-    batchSize: 20,
-    batchDelay: 50,
+    batchSize: 32,
+    batchDelay: 30,
+    priorityBatchSize: 5,
   });
 
   // Sync loading state
