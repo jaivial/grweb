@@ -224,6 +224,7 @@ export function DataConsent(): JSX.Element {
           </a>
         </div>
       </div>
+      </div>
     </>
   );
 }

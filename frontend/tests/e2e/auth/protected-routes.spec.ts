@@ -10,6 +10,7 @@ test.describe('Protected Routes', () => {
     '/backoffice/inscripciones',
     '/backoffice/horarios',
     '/backoffice/sorteo',
+    '/backoffice/configuracion',
   ];
 
   test('redirects to login when unauthenticated', async ({ page }) => {

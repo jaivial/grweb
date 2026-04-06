@@ -62,6 +62,21 @@ public class ScheduleService
             .ToListAsync();
     }
 
+    public async Task<List<Schedule>> GetBySexAndWeightAsync(Sex sexCategory, string weightCategory)
+    {
+        return await _context.Schedules
+            .Where(s => s.SexCategory == sexCategory && s.WeightCategory == weightCategory)
+            .OrderBy(s => s.Date)
+            .ThenBy(s => s.StartTime)
+            .ToListAsync();
+    }
+
+    public async Task<bool> IsPublishedAsync()
+    {
+        var config = await _context.SchedulePublishedConfig.FirstOrDefaultAsync();
+        return config?.Value ?? false;
+    }
+
     public async Task<List<ScheduleGroupedByDate>> GetGroupedByDateAsync(Sex? sexCategory = null)
     {
         var query = _context.Schedules.AsQueryable();

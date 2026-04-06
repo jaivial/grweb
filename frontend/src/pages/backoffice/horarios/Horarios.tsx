@@ -1,12 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { JSX, FC } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
+import { token } from '../../../stores/auth';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { Tabs, Button, CustomSelector, DatePicker, TimePicker, Modal } from '../../../components/ui';
-import { useSchedule } from './hooks/useSchedule';
-import type { Schedule, ScheduleFormData, ScheduleGroupedByDate } from '../../../types/schedule';
+import type { Schedule, ScheduleFormData } from '../../../types/schedule';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
 import { api } from '../../../utils/api';
+import { exportPdf } from '../../../utils/pdfExport';
+import { deduplicateSchedules } from '../../../hooks';
 
 const SEX_TABS = [
   { id: 'Female', label: 'Mujeres' },
@@ -22,7 +24,6 @@ const CONTENT_TABS = [
 const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('es-ES', {
-    weekday: 'long',
     day: 'numeric',
     month: 'long',
   });
@@ -53,7 +54,7 @@ const ScheduleRow: FC<ScheduleRowProps> = ({
 
   return (
     <div
-      className="grid grid-cols-[minmax(0,1fr)_max-content] sm:grid-cols-3 gap-x-4 gap-y-2 sm:gap-y-0 py-3 px-4"
+      className="grid grid-cols-1 sm:grid-cols-3 gap-y-2 sm:gap-y-0 py-3 px-4"
       data-ui="preview-schedule-row"
       style={{
         borderBottom: isLast ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
@@ -205,7 +206,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
 
       {/* Table Header */}
       <div
-        className="grid grid-cols-[minmax(0,1fr)_max-content] sm:grid-cols-3 gap-x-4 gap-y-2 sm:gap-y-0 py-2 px-4 mb-2"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-y-2 sm:gap-y-0 py-2 px-4 mb-2"
         data-ui="preview-table-header"
       >
         <span
@@ -220,7 +221,7 @@ const DateBlock: FC<DateBlockProps> = ({ date, schedules }) => {
           Categoría
         </span>
         <span
-          className="hidden sm:flex text-xs md:text-sm uppercase"
+          className="text-xs md:text-sm uppercase"
           data-ui="preview-header-weight"
           style={{
             fontFamily: '"Contrail One", sans-serif',
@@ -360,21 +361,31 @@ export function Horarios(): JSX.Element {
   // Preview state for public schedules view
   const [previewSchedules, setPreviewSchedules] = useState<ScheduleGroupedByDate[]>([]);
   const [previewLoading, setPreviewLoading] = useState(true);
-  
-  const {
-    schedules,
-    isLoading,
-    error,
-    fetchSchedules,
-    createSchedule,
-    updateSchedule,
-    deleteSchedule,
-    setTab,
-    refresh,
-  } = useSchedule();
+
+  // Local schedules state for reactive updates
+  const [schedules, setSchedulesLocal] = useState<Schedule[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch schedules from API
+  const fetchSchedulesFromApi = useCallback(async () => {
+    if (!token.value) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await api.getSchedules();
+      // Flatten grouped data and deduplicate in one step
+      const deduplicated = deduplicateSchedules(response as Parameters<typeof deduplicateSchedules>[0]);
+      setSchedulesLocal(deduplicated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar horarios');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchSchedules();
+    fetchSchedulesFromApi();
     const fetchPublishedConfig = async () => {
       try {
         const config = await api.getSchedulesPublishedConfig();
@@ -386,7 +397,7 @@ export function Horarios(): JSX.Element {
       }
     };
     fetchPublishedConfig();
-  }, []);
+  }, [fetchSchedulesFromApi]);
 
   // Fetch public schedules for preview
   useEffect(() => {
@@ -409,24 +420,53 @@ export function Horarios(): JSX.Element {
 
   const handleSexTabChange = useCallback((tabId: string) => {
     setActiveSexTab(tabId as 'Male' | 'Female');
-    setTab(tabId as 'Male' | 'Female');
-  }, [setTab]);
+  }, []);
 
   const handleAddSchedule = useCallback(async (data: ScheduleFormData) => {
-    await createSchedule(data);
+    const created = await api.createSchedule(data);
+    setSchedulesLocal(prev => [...prev, created].sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.startTime.localeCompare(b.startTime);
+    }));
     setIsAddModalOpen(false);
-  }, [createSchedule]);
+  }, []);
 
   const handleUpdateSchedule = useCallback(async (data: ScheduleFormData) => {
     if (editingSchedule) {
-      await updateSchedule(editingSchedule.id, data);
+      const updated = await api.updateSchedule(editingSchedule.id, data);
+      setSchedulesLocal(prev => prev.map(s => s.id === updated.id ? updated : s));
       setEditingSchedule(null);
     }
-  }, [editingSchedule, updateSchedule]);
+  }, [editingSchedule]);
 
   const handleDeleteSchedule = useCallback(async (id: number) => {
-    await deleteSchedule(id);
-  }, [deleteSchedule]);
+    await api.deleteSchedule(id);
+    setSchedulesLocal(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const handleExportPdf = useCallback(() => {
+    const columns = [
+      { header: 'Categoría', dataKey: 'sex' },
+      { header: 'Peso (KG)', dataKey: 'weight' },
+      { header: 'Fecha', dataKey: 'date' },
+      { header: 'Hora Inicio', dataKey: 'startTime' },
+      { header: 'Hora Fin', dataKey: 'endTime' },
+    ];
+    const rows = schedules.map(s => ({
+      sex: s.sexCategory === 'Male' ? 'Hombre' : 'Mujer',
+      weight: `${s.weightCategory} KG`,
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    }));
+    exportPdf({
+      title: 'Horarios de Competición',
+      columns,
+      rows,
+      filename: 'horarios',
+    });
+  }, [schedules]);
 
   const handleTogglePublished = useCallback(async () => {
     try {
@@ -458,9 +498,19 @@ export function Horarios(): JSX.Element {
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">Horarios</h1>
           <p className="text-sm xs:text-base text-white/50">Configura los horarios de las categorías por día de competición</p>
         </div>
-
-        {/* Publish Toggle Card */}
-        <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-4 xs:p-6 mb-4" data-ui="publish-toggle-card">
+  {/* Content Tabs */}
+        <div className="overflow-x-auto -mx-3 xs:-mx-4 px-3 xs:px-4 mb-4 xs:mb-6">
+          <Tabs
+            tabs={CONTENT_TABS}
+            activeTab={activeContentTab}
+            onChange={setActiveContentTab}
+            className="mb-0"
+          />
+        </div>
+        {activeContentTab !== 'preview' && (
+          <>
+            {/* Publish Toggle Card */}
+            <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-4 xs:p-6 mb-4 transition-opacity duration-300 ease-in-out opacity-100" data-ui="publish-toggle-card">
           <div className="flex items-center justify-between" data-ui="publish-toggle-row">
             <div data-ui="publish-toggle-info">
               <h2 className="text-base xs:text-lg font-semibold text-white mb-0.5">
@@ -501,21 +551,27 @@ export function Horarios(): JSX.Element {
             className="mb-0"
           />
         </div>
+          </>
+        )}
 
-        {/* Content Tabs */}
-        <div className="overflow-x-auto -mx-3 xs:-mx-4 px-3 xs:px-4 mb-4 xs:mb-6">
-          <Tabs
-            tabs={CONTENT_TABS}
-            activeTab={activeContentTab}
-            onChange={setActiveContentTab}
-            className="mb-0"
-          />
-        </div>
+      
 
         {/* Manage Tab */}
         {activeContentTab === 'manage' && (
           <div className="space-y-3 xs:space-y-4" data-ui="manage-tab">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button
+                leftIcon={
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                }
+                onClick={handleExportPdf}
+                className="min-h-[44px] bg-white/10 hover:bg-white/15 text-white border border-white/20 shadow-lg"
+              >
+                <span className="hidden xs:inline">Exportar PDF</span>
+                <span className="xs:hidden">PDF</span>
+              </Button>
               <Button
                 leftIcon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -567,13 +623,13 @@ export function Horarios(): JSX.Element {
                             <div>
                               <div className="font-mono text-white text-sm xs:text-base">{formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}</div>
                               <div className="text-xs xs:text-sm text-white/50">
-                                {new Date(schedule.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long' })}
+                                {new Date(schedule.date).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' })}
                               </div>
                             </div>
                           </div>
                           <div className="flex gap-2 xs:flex-none" data-ui="schedule-actions">
-                            <Button size="sm" variant="ghost" onClick={() => setEditingSchedule(schedule)} className="min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 text-white/60 hover:text-white hover:bg-white/10 gap-1"><Pencil className="w-4 h-4" /> Editar</Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(schedule.id)} className="text-red-400/80 hover:text-red-300 min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 gap-1"><Trash2 className="w-4 h-4" /> Eliminar</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingSchedule(schedule)} className="min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 text-white/60 hover:text-white hover:bg-white/10 gap-1" aria-label="Editar"><Pencil className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(schedule.id)} className="text-red-400/80 hover:text-red-300 min-h-[36px] xs:min-h-[40px] px-2 xs:px-3 gap-1" aria-label="Eliminar"><Trash2 className="w-4 h-4" /></Button>
                           </div>
                         </div>
                       ))}
@@ -654,6 +710,8 @@ export function Horarios(): JSX.Element {
           onSubmit={handleAddSchedule}
           sexCategory={activeSexTab}
           isLoading={isLoading}
+          schedules={schedules}
+          mode="add"
         />
       )}
 
@@ -666,6 +724,7 @@ export function Horarios(): JSX.Element {
           initialData={editingSchedule}
           sexCategory={activeSexTab}
           isLoading={isLoading}
+          mode="edit"
         />
       )}
     </BackofficeLayout>
@@ -679,6 +738,8 @@ interface ScheduleFormModalProps {
   initialData?: Schedule;
   sexCategory: 'Male' | 'Female';
   isLoading?: boolean;
+  schedules?: Schedule[];
+  mode: 'add' | 'edit';
 }
 
 function ScheduleFormModal({
@@ -688,6 +749,8 @@ function ScheduleFormModal({
   initialData,
   sexCategory,
   isLoading = false,
+  schedules = [],
+  mode,
 }: ScheduleFormModalProps): JSX.Element {
   const [formData, setFormData] = useState<ScheduleFormData>({
     sexCategory: initialData?.sexCategory || sexCategory,
@@ -709,13 +772,32 @@ function ScheduleFormModal({
 
   const categoryOptions = useMemo(() => {
     const categories = sexCategory === 'Female' ? WOMEN_CATEGORIES : MEN_CATEGORIES;
-    return categories.map(c => ({ value: c, label: `${c} kg` }));
-  }, [sexCategory]);
+    return categories.map(c => {
+      // In add mode, disable categories that already have a schedule for this sex
+      const isExisting = mode === 'add' && schedules.some(
+        s => s.sexCategory === sexCategory && s.weightCategory === c
+      );
+      return {
+        value: c,
+        label: isExisting ? `${c} kg — Ya existe` : `${c} kg`,
+        disabled: isExisting,
+      };
+    });
+  }, [sexCategory, schedules, mode]);
+
+  // In add mode, prevent submitting if the combination already exists
+  const isDuplicate = useMemo(() => {
+    if (mode !== 'add' || !formData.weightCategory) return false;
+    return schedules.some(
+      s => s.sexCategory === sexCategory && s.weightCategory === formData.weightCategory
+    );
+  }, [mode, formData.weightCategory, schedules, sexCategory]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDuplicate) return;
     await onSubmit(formData);
-  }, [formData, onSubmit]);
+  }, [formData, onSubmit, isDuplicate]);
 
   return (
     <Modal
@@ -757,7 +839,7 @@ function ScheduleFormModal({
           <Button type="button" variant="ghost" onClick={onClose} className="min-h-[44px] text-white/60 hover:text-white hover:bg-white/10">
             Cancelar
           </Button>
-          <Button type="submit" isLoading={isLoading} className="min-h-[44px] bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20">
+          <Button type="submit" isLoading={isLoading} disabled={isDuplicate} className="min-h-[44px] bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20 disabled:opacity-50 disabled:cursor-not-allowed">
             {initialData ? 'Guardar' : 'Crear'}
           </Button>
         </div>

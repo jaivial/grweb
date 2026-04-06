@@ -5,18 +5,20 @@ import type { InputProps, InputWrapperProps } from '../types';
  */
 export const baseInputStyles = `
   w-full
-  bg-dark-surface
-  border-2
-  border-dark-border
+  bg-white/5
+  backdrop-blur-xl
+  border
+  border-white/10
   rounded-xl
   text-white
-  placeholder-gray-500
+  placeholder-white/40
   transition-all
   duration-200
   ease-in-out
   focus:outline-none
+  focus:border-red-accent/50
   focus:ring-2
-  focus:ring-red-accent/50
+  focus:ring-red-accent/20
   disabled:opacity-50
   disabled:cursor-not-allowed
 `;
@@ -84,9 +86,9 @@ export function getInputClasses(
     sizeStyles.rounded,
     paddingLeft,
     paddingRight,
-    isInvalid 
-      ? 'border-red-500 focus:border-red-500' 
-      : 'border-dark-border focus:border-red-accent',
+    isInvalid
+      ? 'border-red-500 focus:border-red-500'
+      : 'border-white/10 focus:border-red-accent/50',
     isDisabled ? 'opacity-50 cursor-not-allowed' : '',
     hasLeftIcon ? 'pl-10' : '',
     hasRightIcon ? 'pr-10' : '',

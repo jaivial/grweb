@@ -62,11 +62,33 @@ public static class AthleteEndpoints
                     created.Email,
                     created.FirstName,
                     created.Surname,
-                    created.WeightCategory);
+                    created.WeightCategory,
+                    created.Sex.ToString(),
+                    created.Club,
+                    created.Coach);
             }
             catch (Exception emailEx)
             {
                 logger.LogError(emailEx, "Failed to send confirmation email to {Email}", created.Email);
+            }
+
+            // Send admin notification email (non-blocking)
+            try
+            {
+                await emailService.SendAdminNotificationAsync(
+                    created.Email,
+                    created.FirstName,
+                    created.Surname,
+                    created.Phone,
+                    created.Sex.ToString(),
+                    created.WeightCategory,
+                    created.Club,
+                    created.Coach,
+                    created.TotalWeight);
+            }
+            catch (Exception emailEx)
+            {
+                logger.LogError(emailEx, "Failed to send admin notification for {Email}", created.Email);
             }
 
             return Results.Created($"/api/admin/athletes/{created.Id}", created);

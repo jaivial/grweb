@@ -170,10 +170,6 @@ export default function Login() {
           </button>
         </div>
 
-        {/* Security Notice */}
-        <div className="text-center mt-6 text-text-muted text-xs">
-          <p>Protected by JWT authentication</p>
-        </div>
       </div>
     </div>
   );

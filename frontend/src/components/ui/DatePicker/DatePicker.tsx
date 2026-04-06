@@ -139,7 +139,7 @@ export function DatePicker({
     if (!disabled) {
       if (!isOpen && triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
-        setDropdownPos({ top: rect.top + window.scrollY, left: rect.left, width: rect.width });
+        setDropdownPos({ top: rect.bottom - 530, left: rect.left, width: rect.width });
       }
       setIsOpen(!isOpen);
     }
@@ -204,10 +204,9 @@ export function DatePicker({
           className="fixed z-[9999] bg-dark-card border border-white/10 rounded-2xl shadow-2xl p-4"
           data-ui="datepicker-calendar"
           style={{
-            top: dropdownPos.top - 8,
+            top: dropdownPos.top,
             left: dropdownPos.left,
             width: dropdownPos.width,
-            transform: 'translateY(-100%)',
           }}
         >
           {/* Month/Year Navigation */}

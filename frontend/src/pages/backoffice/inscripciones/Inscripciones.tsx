@@ -9,8 +9,9 @@ import { Pagination } from './components/Pagination';
 import { ATHLETE_STATUS_LABELS, ATHLETE_STATUS_COLORS, type Athlete } from '../../../types/athlete';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
 import { api } from '../../../utils/api';
+import { exportPdf } from '../../../utils/pdfExport';
 import { IoMaleSharp, IoFemaleSharp } from "react-icons/io5";
-import { Lock, Unlock, Pencil, Trash2 } from 'lucide-react';
+import { Lock, Unlock, Pencil, Trash2, Check } from 'lucide-react';
 
 interface InscripcionPreparadaData {
   dateTime: string | null;
@@ -29,6 +30,7 @@ const TABS = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: 'Inscrito', label: 'Inscrito' },
   { value: 'Paid', label: 'Pagado' },
   { value: 'PendingPayment', label: 'Pendiente pago' },
   { value: 'Disqualified', label: 'Descalificado' },
@@ -53,6 +55,7 @@ export function Inscripciones(): JSX.Element {
   const [urlInput, setUrlInput] = useState('');
   const [clubs, setClubs] = useState<string[]>([]);
   const [loadingClubs, setLoadingClubs] = useState(true);
+  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'loading' | 'success'>('idle');
 
   const {
     athletes,
@@ -177,16 +180,30 @@ export function Inscripciones(): JSX.Element {
   }, []);
 
   const handleCreateAthlete = useCallback(async (data: any) => {
-    await createAthlete(data);
-    setActiveTab('todas');
-    await refresh();
+    setSubmissionStatus('loading');
+    try {
+      await createAthlete(data);
+      setSubmissionStatus('success');
+      setActiveTab('todas');
+      await refresh();
+      setTimeout(() => setSubmissionStatus('idle'), 2000);
+    } catch {
+      setSubmissionStatus('idle');
+    }
   }, [createAthlete, refresh]);
 
   const handleUpdateAthlete = useCallback(async (data: any) => {
     if (editAthlete) {
-      await updateAthlete(editAthlete.id, data);
-      setEditAthlete(null);
-      await refresh();
+      setSubmissionStatus('loading');
+      try {
+        await updateAthlete(editAthlete.id, data);
+        setSubmissionStatus('success');
+        setEditAthlete(null);
+        await refresh();
+        setTimeout(() => setSubmissionStatus('idle'), 2000);
+      } catch {
+        setSubmissionStatus('idle');
+      }
     }
   }, [editAthlete, updateAthlete, refresh]);
 
@@ -196,6 +213,37 @@ export function Inscripciones(): JSX.Element {
       setAthleteToDelete(null);
     }
   }, [athleteToDelete, deleteAthlete]);
+
+  const handleExportPdf = useCallback(() => {
+    const columns = [
+      { header: 'Nombre', dataKey: 'name' },
+      { header: 'Email', dataKey: 'email' },
+      { header: 'Telf', dataKey: 'phone' },
+      { header: 'Sexo', dataKey: 'sex' },
+      { header: 'Categoría', dataKey: 'category' },
+      { header: 'Club', dataKey: 'club' },
+      { header: 'Marca', dataKey: 'weight' },
+      { header: 'Fecha', dataKey: 'date' },
+      { header: 'Estado', dataKey: 'status' },
+    ];
+    const rows = athletes.map(a => ({
+      name: `${a.firstName} ${a.surname}`,
+      email: a.email,
+      phone: a.phone || '-',
+      sex: a.sex === 'Male' ? 'Hombre' : 'Mujer',
+      category: `${a.weightCategory} KG`,
+      club: a.club || '-',
+      weight: a.totalWeight ? `${a.totalWeight}` : '-',
+      date: a.registrationDate,
+      status: ATHLETE_STATUS_LABELS[a.status],
+    }));
+    exportPdf({
+      title: 'Inscripciones',
+      columns,
+      rows,
+      filename: 'inscripciones',
+    });
+  }, [athletes]);
 
   const tableColumns = useMemo(() => [
     { key: 'name', header: 'Nombre', sticky: true, render: (a: Athlete) => (
@@ -405,6 +453,17 @@ export function Inscripciones(): JSX.Element {
             </div>
 
             {/* Table */}
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={handleExportPdf}
+                className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar PDF
+              </button>
+            </div>
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-x-auto max-w-[93vw]" data-ui="table-container">
               <ResponsiveTable
                 columns={tableColumns}
@@ -464,6 +523,33 @@ export function Inscripciones(): JSX.Element {
           athleteName={`${athleteToDelete.firstName} ${athleteToDelete.surname}`}
           isLoading={isLoading}
         />
+      )}
+
+      {/* Submission Loading Overlay */}
+      {submissionStatus !== 'idle' && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 backdrop-blur-md bg-black/60 transition-opacity duration-200"
+          data-ui="submission-overlay"
+        >
+          <div className="flex flex-col items-center gap-4">
+            {submissionStatus === 'loading' ? (
+              <div
+                className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin"
+                data-ui="submission-spinner"
+              />
+            ) : (
+              <div
+                className="w-16 h-16 flex items-center justify-center rounded-full bg-green-500/20"
+                data-ui="submission-success-icon"
+              >
+                <Check className="w-8 h-8 text-green-400" />
+              </div>
+            )}
+            <p className="text-white text-lg font-medium">
+              {submissionStatus === 'loading' ? 'Guardando inscripción...' : 'Inscripción completada'}
+            </p>
+          </div>
+        </div>
       )}
     </BackofficeLayout>
   );

@@ -1,0 +1,41 @@
+{
+  "title": "Fix email UTF-8 escapes and add admin notification",
+  "description": "Fix UTF-8 literal escapes in email templates (raw string literals don't interpret \\u escapes) and add admin notification email on athlete inscription.",
+  "steps": [
+    {
+      "id": 1,
+      "title": "Fix UTF-8 escapes in EmailService email templates",
+      "description": "The raw string literals ('''/\"\"\") in C# do NOT interpret \\uXXXX escape sequences — they appear literally in emails. Replace all \\u00XX sequences with actual Unicode characters (á, é, í, ó, ú, ¡, ¿, Ñ, etc.) in both HTML and text body templates.",
+      "files": ["backend/GrCup.Api/Services/EmailService.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "title": "Add SendAdminNotificationAsync method to EmailService",
+      "description": "Add a new method SendAdminNotificationAsync that sends a notification email to the admin email address (SmtpEmailAddress for SMTP, GmailAddress for Gmail). Include athlete data: name, email, phone, sex, category, club, weight. Use a separate HTML template.",
+      "files": ["backend/GrCup.Api/Services/EmailService.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "title": "Update PublicEndpoints.cs to send admin notification",
+      "description": "In POST /api/athletes, after creating the athlete and sending confirmation email, also send admin notification email. Non-blocking (catch and log errors).",
+      "files": ["backend/GrCup.Api/Endpoints/PublicEndpoints.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "title": "Update AthleteEndpoints.cs to send admin notification",
+      "description": "In POST /api/admin/athletes, after creating the athlete and sending confirmation email, also send admin notification email. Non-blocking (catch and log errors).",
+      "files": ["backend/GrCup.Api/Endpoints/AthleteEndpoints.cs"],
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "title": "Build and verify backend compiles",
+      "description": "Run dotnet build to ensure no compilation errors.",
+      "files": [],
+      "status": "pending"
+    }
+  ]
+}

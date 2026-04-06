@@ -24,8 +24,8 @@ const PHASE_THRESHOLDS = {
   [AnimationPhase.TEXT_FADE_IN]: { start: 0.03, end: 0.12 },
   [AnimationPhase.TEXT_FADE_OUT]: { start: 0.12, end: 0.21 },
   [AnimationPhase.SMOKE_REVEAL]: { start: 0.01, end: 0.12 },
-  [AnimationPhase.FRAME_ANIMATION]: { start: 0.04, end: 1 },
-  [AnimationPhase.CLOUDS_ENTER]: { start: 0.85, end: 1.0 },
+  [AnimationPhase.FRAME_ANIMATION]: { start: 0.04, end: 0.667 },
+  [AnimationPhase.CLOUDS_ENTER]: { start: 0.567, end: 0.667 },
 };
 
 export function calculateAnimationState(scrollProgress: number): AnimationState {

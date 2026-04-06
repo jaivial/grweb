@@ -18,6 +18,7 @@ test.describe('Backoffice Home', () => {
     await expect(page.locator('text=Inscripciones')).toBeVisible();
     await expect(page.locator('text=Sorteo')).toBeVisible();
     await expect(page.locator('text=Horarios')).toBeVisible();
+    await expect(page.locator('text=Configuración General')).toBeVisible();
   });
 
   test('navigation links work', async ({ page }) => {
@@ -35,6 +36,12 @@ test.describe('Backoffice Home', () => {
     await page.waitForTimeout(500);
     await page.click('a[href="/backoffice/sorteo"]');
     await expect(page).toHaveURL(/\/backoffice\/sorteo/, { timeout: 10000 });
+
+    await page.goto('/backoffice');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    await page.click('a[href="/backoffice/configuracion"]');
+    await expect(page).toHaveURL(/\/backoffice\/configuracion/, { timeout: 10000 });
   });
 
   test('no console errors', async ({ page }) => {

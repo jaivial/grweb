@@ -3,10 +3,12 @@ import { TEST_CREDENTIALS } from './api.helpers';
 
 const TOKEN_KEY = 'gr_cup_token';
 let cachedToken: string | null = null;
+let cachedTokenData: string | null = null;
 
 /**
- * Performs login via API using cookie-based auth.
+ * Performs login via API using cookie + localStorage token.
  * Cookie is set automatically by the browser when backend responds with Set-Cookie.
+ * Token is stored in localStorage for API calls made via page.evaluate.
  */
 export async function loginViaApi(page: Page): Promise<string> {
   if (!cachedToken) {
@@ -29,6 +31,12 @@ export async function loginViaApi(page: Page): Promise<string> {
         throw new Error(`Login failed: ${response.status}`);
       }
 
+      const data = await response.json();
+      // Store token in localStorage for API calls via page.evaluate
+      if (data.token) {
+        localStorage.setItem('gr_cup_token', data.token);
+      }
+
       return { success: true };
     }, TEST_CREDENTIALS);
 
@@ -47,13 +55,17 @@ export async function loginViaApi(page: Page): Promise<string> {
 }
 
 /**
- * Clears auth state by clearing cookies
+ * Clears auth state by clearing cookies and localStorage
  */
 export async function logout(page: Page): Promise<void> {
   cachedToken = null;
+  cachedTokenData = null;
 
   // Clear cookies in browser context
   await page.context().clearCookies();
+
+  // Clear localStorage token
+  await page.evaluate(() => localStorage.removeItem('gr_cup_token'));
 
   // Navigate to login page
   await page.goto('/admin/login');

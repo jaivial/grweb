@@ -1,4 +1,5 @@
-import { Router, Route } from 'wouter';
+import { Router, Route, useLocation } from 'wouter';
+import { useEffect } from 'react';
 import Layout from './layouts/Layout';
 import { Home } from './pages/home/Home';
 import Checkout from './pages/Checkout';
@@ -19,10 +20,21 @@ import Inscripciones from './pages/backoffice/inscripciones/Inscripciones';
 import { Sorteo } from './pages/backoffice/sorteo/Sorteo';
 import Horarios from './pages/backoffice/horarios/Horarios';
 import InscripcionConfigPage from './pages/backoffice/InscripcionConfig';
+import { Configuracion } from './pages/backoffice/configuracion/Configuracion';
+
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location]);
+  return null;
+}
 
 export function App() {
   return (
-    <Router>
+    <>
+      <ScrollToTop />
+      <Router>
       {/* Public Routes */}
       <Route path="/" component={() => <Layout><Home /></Layout>} />
       <Route path="/checkout" component={() => <Layout><Checkout /></Layout>} />
@@ -80,6 +92,15 @@ export function App() {
           </ProtectedRoute>
         )}
       />
-    </Router>
+      <Route
+        path="/backoffice/configuracion"
+        component={() => (
+          <ProtectedRoute>
+            <Configuracion />
+          </ProtectedRoute>
+        )}
+      />
+      </Router>
+    </>
   );
 }

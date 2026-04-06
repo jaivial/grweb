@@ -1,0 +1,41 @@
+{
+  "title": "Email inscription details and Inscrito status",
+  "description": "Improve confirmation email with more participant data, add 'Inscrito' status to inscription dropdowns, and update event location.",
+  "steps": [
+    {
+      "id": 1,
+      "title": "Update confirmation email template with Categoria, Club, and Entrenador",
+      "description": "In BuildConfirmationHtml in EmailService.cs, add rows for: (1) Categoria — use sex to display 'Masculina' or 'Femenina', (2) Club — display registered club name (or 'Sin club registrado' if empty), (3) Entrenador — display coach name (or 'Sin entrenador registrado' if empty). Apply same changes to the text body.",
+      "files": ["backend/GrCup.Api/Services/EmailService.cs"],
+      "status": "completed"
+    },
+    {
+      "id": 2,
+      "title": "Update SendInscriptionConfirmationAsync signature to accept sex, club, coach",
+      "description": "The confirmation email now needs sex, club, and coach data. Updated the SendInscriptionConfirmationAsync method signature to accept these parameters, and updated both call sites in PublicEndpoints.cs and AthleteEndpoints.cs to pass them.",
+      "files": ["backend/GrCup.Api/Services/EmailService.cs", "backend/GrCup.Api/Endpoints/PublicEndpoints.cs", "backend/GrCup.Api/Endpoints/AthleteEndpoints.cs"],
+      "status": "completed"
+    },
+    {
+      "id": 3,
+      "title": "Update event location to Pabellon Municipal de Almussafes",
+      "description": "In BuildConfirmationHtml, updated the 'Lugar' section to show 'Pabellón Municipal de Almussafes. Avda Laura Méndez, s/n, 46440 Almussafes, Valencia'. Applied to both HTML and text body. Also updated the admin notification email location.",
+      "files": ["backend/GrCup.Api/Services/EmailService.cs"],
+      "status": "completed"
+    },
+    {
+      "id": 4,
+      "title": "Add 'Inscrito' status to Inscripciones page status dropdowns",
+      "description": "Added 'Inscrito' to STATUS_OPTIONS in Inscripciones.tsx (filter dropdown) and AthleteForm.tsx (status selector). Default status in AthleteForm changed from 'PendingPayment' to 'Inscrito'.",
+      "files": ["frontend/src/pages/backoffice/inscripciones/Inscripciones.tsx", "frontend/src/pages/backoffice/inscripciones/components/AthleteForm.tsx"],
+      "status": "completed"
+    },
+    {
+      "id": 5,
+      "title": "Build and verify backend compiles",
+      "description": "Run dotnet build to ensure no compilation errors after the EmailService changes.",
+      "files": [],
+      "status": "completed"
+    }
+  ]
+}

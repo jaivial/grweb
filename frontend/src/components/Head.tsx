@@ -1,11 +1,11 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, type ReactNode } from 'react';
 
 interface HeadProps {
   title?: string;
   description?: string;
   ogImage?: string;
   canonicalUrl?: string;
-  children?: preact.ComponentChildren;
+  children?: ReactNode;
 }
 
 const DEFAULT_TITLE = 'GR Cup 2026 — Copa de Powerlifting en España';

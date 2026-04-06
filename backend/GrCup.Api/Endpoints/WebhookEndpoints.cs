@@ -14,6 +14,7 @@ public static class WebhookEndpoints
             HttpRequest request,
             StripeService stripeService,
             ParticipantService participantService,
+            EmailService emailService,
             IHubContext<ParticipantsHub> hubContext,
             ILogger<Program> logger) =>
         {
@@ -73,6 +74,22 @@ public static class WebhookEndpoints
                         "Processed payment for {Email}: {TicketCount} tickets, {TotalPaid}€",
                         email, ticketCount, totalPaid
                     );
+
+                    // Send raffle confirmation email (non-blocking)
+                    try
+                    {
+                        await emailService.SendRaffleConfirmationAsync(
+                            email,
+                            firstName,
+                            surname,
+                            ticketCount,
+                            totalPaid,
+                            instagram);
+                    }
+                    catch (Exception emailEx)
+                    {
+                        logger.LogError(emailEx, "Failed to send raffle confirmation email to {Email}", email);
+                    }
 
                     // Broadcast updated count to all connected clients
                     var count = await participantService.GetCountAsync();

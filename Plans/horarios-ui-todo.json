@@ -1,0 +1,24 @@
+{
+  "title": "Fix Horarios UI bugs",
+  "tasks": [
+    {
+      "id": 1,
+      "status": "completed",
+      "title": "Remove weekday from formatDate and schedule item subtitle",
+      "description": "Remove weekday: 'long' from formatDate helper and from the schedule item subtitle"
+    },
+    {
+      "id": 2,
+      "status": "completed",
+      "title": "Remove text labels from Editar/Eliminar buttons",
+      "description": "Remove 'Editar' and 'Eliminar' text, keep only icons with aria-labels"
+    },
+    {
+      "id": 3,
+      "status": "completed",
+      "title": "Fix data not showing on page reload",
+      "description": "The hook was destructuring signal .value as static snapshots. Fixed by exposing signal objects from the hook and accessing .value in the component render body, so Preact subscriptions trigger re-renders on signal changes."
+    }
+  ],
+  "status": "completed"
+}

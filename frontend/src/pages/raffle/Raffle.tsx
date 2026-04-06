@@ -7,7 +7,6 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { CustomSelector } from '../../components/ui/CustomSelector/CustomSelector';
 import { RaffleFrames } from './RaffleFrames';
-import { Footer } from '../home/components/Footer';
 import { countryCodeOptions } from '../../utils/countryCodes';
 import { api } from '../../utils/api';
 import { latestConfirmedWinner, fetchConfirmedWinner } from '../../stores/participants';
@@ -715,7 +714,6 @@ export const Raffle: FC = () => {
           </div>
         </section>
 
-        <Footer />
       </main>
     </Layout>
   );

@@ -1,0 +1,24 @@
+{
+  "title": "Fix Horarios backend route + duplicates + validation",
+  "tasks": [
+    {
+      "id": 1,
+      "status": "completed",
+      "title": "Fix route conflict in ScheduleEndpoints.cs",
+      "description": "Moved /published-config GET+PUT endpoints INTO ScheduleEndpoints.cs before the /{id} routes, and removed the separate SchedulePublishedConfigEndpoints.cs file. Also removed MapSchedulePublishedConfigEndpoints() call from Program.cs."
+    },
+    {
+      "id": 2,
+      "status": "completed",
+      "title": "Deduplicate data for PDF export",
+      "description": "Added deduplication using a Set keyed on sex+weight+date+startTime+endTime. Only unique combinations appear in the PDF."
+    },
+    {
+      "id": 3,
+      "status": "completed",
+      "title": "Prevent duplicate schedule combinations in Add form",
+      "description": "In add mode, weight category options that already exist for the current sex are marked disabled with '— Ya existe' label. Submit button is also disabled for duplicate combinations."
+    }
+  ],
+  "status": "completed"
+}

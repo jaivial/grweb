@@ -75,7 +75,7 @@ export function CustomSelector<T extends string | number>({
     if (!disabled) {
       if (!isOpen && triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
-        setDropdownPos({ top: rect.top, left: rect.left, width: rect.width });
+        setDropdownPos({ top: rect.top + rect.height, left: rect.left, width: rect.width });
       }
       setIsOpen(!isOpen);
       if (!isOpen) setSearchTerm('');
@@ -164,10 +164,9 @@ export function CustomSelector<T extends string | number>({
           className="fixed z-[9999] bg-dark-card border border-white/10 rounded-xl shadow-2xl overflow-hidden"
           data-ui="selector-dropdown"
           style={{
-            top: dropdownPos.top + window.scrollY,
+            top: dropdownPos.top,
             left: dropdownPos.left,
             width: dropdownPos.width,
-            transform: 'translateY(calc(-100% - 8px))',
           }}
         >
           {searchable && (

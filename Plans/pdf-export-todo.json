@@ -1,0 +1,79 @@
+{
+  "title": "PDF Export para Backoffice",
+  "description": "Añadir botón de exportar a PDF en Horarios, Sorteo (participantes) e Inscripciones con tablas limpias en disposición horizontal que no corten filas entre páginas",
+  "tasks": [
+    {
+      "id": 1,
+      "status": "completed",
+      "title": "Install PDF library (jsPDF + jspdf-autotable)",
+      "description": "Install jspdf and jspdf-autotable packages for PDF generation with table support that handles row pagination correctly"
+    },
+    {
+      "id": 2,
+      "status": "completed",
+      "title": "Create PDF export utility",
+      "description": "Create frontend/src/utils/pdfExport.ts with reusable functions for generating clean horizontal PDFs with styled tables"
+    },
+    {
+      "id": 3,
+      "status": "completed",
+      "title": "Add Export PDF button to Horarios.tsx",
+      "description": "Add 'Exportar PDF' button in the manage tab that exports schedules grouped by date and weight category. Columns: Categoría, Peso (KG), Fecha, Hora Inicio, Hora Fin"
+    },
+    {
+      "id": 4,
+      "status": "completed",
+      "title": "Add Export PDF button to Sorteo.tsx (participantes tab)",
+      "description": "Add 'Exportar PDF' button above the participants table. Columns: Nombre, Email, Instagram, Tickets, Pagado (Sí/No), Método de pago"
+    },
+    {
+      "id": 5,
+      "status": "completed",
+      "title": "Add Export PDF button to Inscripciones.tsx",
+      "description": "Add 'Exportar PDF' button in the 'todas' tab above the table. Columns: Nombre, Email, Telf, Sexo, Categoría, Club, Marca, Fecha, Estado"
+    }
+  ],
+  "status": "completed",
+    {
+      "id": 1,
+      "status": "pending",
+      "title": "Install PDF library (jsPDF + jspdf-autotable)",
+      "description": "Install jspdf and jspdf-autotable packages for PDF generation with table support that handles row pagination correctly"
+    },
+    {
+      "id": 2,
+      "status": "pending",
+      "title": "Create PDF export utility",
+      "description": "Create frontend/src/utils/pdfExport.ts with reusable functions for generating clean horizontal PDFs with styled tables"
+    },
+    {
+      "id": 3,
+      "status": "pending",
+      "title": "Add Export PDF button to Horarios.tsx",
+      "description": "Add 'Exportar PDF' button in the manage tab that exports schedules grouped by date and weight category. Columns: Categoría, Peso (KG), Fecha, Hora Inicio, Hora Fin"
+    },
+    {
+      "id": 4,
+      "status": "pending",
+      "title": "Add Export PDF button to Sorteo.tsx (participantes tab)",
+      "description": "Add 'Exportar PDF' button above the participants table. Columns: Nombre, Email, Instagram, Tickets, Pagado (Sí/No), Método de pago"
+    },
+    {
+      "id": 5,
+      "status": "pending",
+      "title": "Add Export PDF button to Inscripciones.tsx",
+      "description": "Add 'Exportar PDF' button in the 'todas' tab above the table. Columns: Nombre, Email, Telf, Sexo, Categoría, Club, Marca, Fecha, Estado"
+    }
+  ],
+  "pdfRequirements": {
+    "layout": "horizontal (landscape)",
+    "style": "minimal clean look",
+    "pagination": "never split a row across pages (use didDrawPage for row continuity)",
+    "header": "title + generation date per page",
+    "columns": {
+      "horarios": ["Categoría", "Peso (KG)", "Fecha", "Hora Inicio", "Hora Fin"],
+      "sorteo": ["Nombre", "Email", "Instagram", "Tickets", "Pagado", "Método"],
+      "inscripciones": ["Nombre", "Email", "Telf", "Sexo", "Categoría", "Club", "Marca", "Fecha", "Estado"]
+    }
+  }
+}
