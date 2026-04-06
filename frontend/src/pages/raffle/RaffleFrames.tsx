@@ -61,9 +61,9 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
 
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: BELT_FRAMES_CONFIG,
-    batchSize: 32,
-    batchDelay: 30,
     priorityBatchSize: 5,
+    backgroundBatchSize: 32,
+    backgroundBatchDelay: 0,
   });
 
   // Sync loading state
