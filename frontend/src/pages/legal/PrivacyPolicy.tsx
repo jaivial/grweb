@@ -1,10 +1,14 @@
 import type { JSX } from 'react';
 import { Icon } from '@components/ui/Icon';
 import { ShieldIcon } from '@components/ui/Icon/icons';
+import { Head } from '../../components/Head';
+import { pageMetaConfig } from '../../metaConfig';
 
 export function PrivacyPolicy(): JSX.Element {
   return (
-    <div className="min-h-screen bg-dark-base py-16 px-4" data-page="privacy-policy">
+    <>
+      <Head {...pageMetaConfig['/privacy']} />
+      <div className="min-h-screen bg-dark-base py-16 px-4" data-page="privacy-policy">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -161,11 +165,11 @@ export function PrivacyPolicy(): JSX.Element {
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           >
             <Icon name="arrow-left" size="sm" />
-            Volver al inicio
+              Volver al inicio
           </a>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

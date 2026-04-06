@@ -11,6 +11,8 @@ import { Footer } from '../home/components/Footer';
 import { countryCodeOptions } from '../../utils/countryCodes';
 import { api } from '../../utils/api';
 import { latestConfirmedWinner, fetchConfirmedWinner } from '../../stores/participants';
+import { Head } from '../../components/Head';
+import { pageMetaConfig } from '../../metaConfig';
 
 // Spanish rules data
 const rules = [
@@ -212,6 +214,7 @@ export const Raffle: FC = () => {
 
   return (
     <Layout>
+      <Head {...pageMetaConfig['/raffle']} />
       <main className="min-h-screen bg-black" data-section="raffle-page">
         {/* 200vh Hero Animation Section */}
         <div

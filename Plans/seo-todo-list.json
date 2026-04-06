@@ -1,0 +1,109 @@
+{
+  "plan": "SEO & Page Indexing Strategy for GR Cup",
+  "targetKeywords": [
+    "powerlifting",
+    "GR Cup",
+    "GRcup",
+    "Gr Cup",
+    "AEP",
+    "powerhispania",
+    "sbd",
+    "a7",
+    "nico gr",
+    "asociacion española de powerlifting"
+  ],
+  "tasks": [
+    {
+      "id": "seo-01",
+      "category": "index",
+      "title": "Fix index.html — language, meta tags, Open Graph, Twitter Card",
+      "file": "frontend/index.html",
+      "priority": 1,
+      "description": "Update the HTML document: change lang to 'es', add comprehensive meta description, add og:title/description/type/url, add twitter:card, add robots meta, improve page title to include keywords. Also add Schema.org JSON-LD (SportsEvent + Organization + WebSite). Read the current file first.",
+      "blocking": []
+    },
+    {
+      "id": "seo-02",
+      "category": "index",
+      "title": "Create robots.txt",
+      "file": "frontend/public/robots.txt",
+      "priority": 2,
+      "description": "Create robots.txt that allows all crawlers, blocks /backoffice/*, and points to sitemap.xml at the root URL. Language: Spanish/English comments.",
+      "blocking": []
+    },
+    {
+      "id": "seo-03",
+      "category": "index",
+      "title": "Create sitemap.xml",
+      "file": "frontend/public/sitemap.xml",
+      "priority": 2,
+      "description": "Create static sitemap.xml with all public routes: /, /inscripcion, /horarios, /como-llegar, /raffle, /privacy, /terms, /consentimiento-datos, /politica-concurso. Use proper XML format with <loc>, <lastmod>, <changefreq>, <priority> tags. Priority: 1.0 for /, 0.8 for /inscripcion and /horarios, 0.6 for others.",
+      "blocking": []
+    },
+    {
+      "id": "seo-04",
+      "category": "frontend",
+      "title": "Create dynamic Head/meta management system",
+      "file": "frontend/src/components/Head.tsx",
+      "priority": 3,
+      "description": "Create a Head component (using Preact) that manages document title and meta tags dynamically per route. The component should accept: title, description, ogImage, canonicalUrl props. Add a default export. Use useEffect to update document.title and inject/update meta tags in <head>. Also create a metaConfig.ts file with per-page configurations for all public routes: Home (/), Inscripcion (/inscripcion), Horarios (/horarios), Location (/como-llegar), Raffle (/raffle), legal pages.",
+      "blocking": []
+    },
+    {
+      "id": "seo-05",
+      "category": "frontend",
+      "title": "Integrate Head component into all public routes",
+      "files": [
+        "frontend/src/app.tsx",
+        "frontend/src/pages/home/Home.tsx",
+        "frontend/src/pages/Inscripcion.tsx",
+        "frontend/src/pages/Schedules.tsx",
+        "frontend/src/pages/Location.tsx",
+        "frontend/src/pages/Raffle.tsx",
+        "frontend/src/pages/PrivacyPolicy.tsx",
+        "frontend/src/pages/TermsOfService.tsx",
+        "frontend/src/pages/DataConsent.tsx",
+        "frontend/src/pages/ContestPolicy.tsx"
+      ],
+      "priority": 3,
+      "description": "Add the Head component to all public route pages. Read each file and add <Head> with appropriate title and description from the metaConfig. Ensure each page has unique, keyword-rich titles and descriptions. Read the metaConfig.ts to get the configuration values.",
+      "blocking": ["seo-04"]
+    },
+    {
+      "id": "seo-06",
+      "category": "frontend",
+      "title": "Add Organizers & Sponsors content section to Home",
+      "file": "frontend/src/pages/home/components/OrganizationEquipmentSection.tsx",
+      "priority": 4,
+      "description": "Enhance the OrganizationEquipmentSection to include an organized/organizadores section that naturally mentions: AEP (Asociación Española de Powerlifting), PowerHispania, and equipment brands SBD, A7. Also add Nico GR if applicable. Include proper semantic HTML (h2/h3 tags, lists). This creates natural keyword anchor text. Read the file first.",
+      "blocking": []
+    },
+    {
+      "id": "seo-07",
+      "category": "frontend",
+      "title": "Update site.webmanifest with full SEO metadata",
+      "file": "frontend/public/site.webmanifest",
+      "priority": 4,
+      "description": "Update site.webmanifest to include: proper description mentioning 'powerlifting competition Spain', correct theme_color matching the brand, add categories array ['sports', 'events'], add related_applications if applicable, ensure icons are properly configured.",
+      "blocking": []
+    },
+    {
+      "id": "seo-08",
+      "category": "backend",
+      "title": "Create backend sitemap endpoint with dynamic lastmod",
+      "file": "backend/GrCup.Api/Endpoints/SitemapEndpoints.cs",
+      "priority": 3,
+      "description": "Create a new minimal API endpoint GET /api/sitemap that returns the sitemap XML dynamically. The sitemap should include all public pages with lastmod dates sourced from database (if available) or current date. Endpoint should return content-type text/xml. This allows the sitemap to stay updated automatically. Register the endpoint in Program.cs. Read Program.cs first to understand endpoint registration pattern.",
+      "blocking": []
+    },
+    {
+      "id": "seo-09",
+      "category": "frontend",
+      "title": "Add JSON-LD structured data per page",
+      "file": "frontend/src/pages/home/Home.tsx",
+      "priority": 4,
+      "description": "Add dynamic JSON-LD structured data to the Home page: SportsEvent schema with name 'GR Cup 2026', location, startDate, description with powerlifting keywords, offers (ticket info), and organizer info. Also add WebSite schema with potentialAction (SearchAction). Inject via a <script type='application/ld+json'> tag in the component. Use useMemo for the schema object. Read the file first.",
+      "blocking": []
+    }
+  ]
+}

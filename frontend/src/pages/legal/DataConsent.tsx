@@ -1,9 +1,13 @@
 import type { JSX } from 'react';
 import { FileText, ArrowLeft } from 'lucide-react';
+import { Head } from '../../components/Head';
+import { pageMetaConfig } from '../../metaConfig';
 
 export function DataConsent(): JSX.Element {
   return (
-    <div className="min-h-screen bg-dark-base py-16 px-4" data-page="data-consent">
+    <>
+      <Head {...pageMetaConfig['/consentimiento-datos']} />
+      <div className="min-h-screen bg-dark-base py-16 px-4" data-page="data-consent">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -216,11 +220,11 @@ export function DataConsent(): JSX.Element {
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
-            Volver al sorteo
+              Volver al sorteo
           </a>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

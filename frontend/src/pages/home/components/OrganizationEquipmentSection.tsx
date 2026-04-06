@@ -444,6 +444,126 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
           </div>
         </AnimatedItem>
 
+        {/* Organizadores y Afiliaciones */}
+        <AnimatedItem direction="up" delay={0} dataUi="animated-organizers">
+          <div
+            className="mt-16 max-w-4xl mx-auto"
+            data-ui="organizers-container"
+          >
+            <h3
+              className="text-xl sm:text-2xl md:text-3xl text-center mb-8"
+              data-ui="organizers-title"
+              style={titleStyle}
+            >
+              <span style={accentStyle} data-ui="organizers-title-accent">Organizadores</span>{' '}
+              <span data-ui="organizers-title-text">y Afiliaciones</span>
+            </h3>
+
+            <div
+              className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center"
+              data-ui="organizers-grid"
+            >
+              <div data-ui="organizer-aep">
+                <h4
+                  className="text-base sm:text-lg md:text-xl mb-2"
+                  data-ui="organizer-aep-name"
+                  style={subtitleStyle}
+                >
+                  AEP
+                </h4>
+                <p
+                  className="text-sm sm:text-base md:text-lg leading-relaxed"
+                  data-ui="organizer-aep-desc"
+                  style={{
+                    fontFamily: '"Contrail One", sans-serif',
+                    letterSpacing: '0.02em',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  La competición está afiliada a la Asociación Española de Powerlifting (AEP), la federación de referencia en España para laslifters y competidores de todas las categorías. Los jueces de AEP garantizan la aplicación correcta de las reglas oficiales en cada intento de squat, bench press y deadlift.
+                </p>
+              </div>
+
+              <div data-ui="organizer-nicogr">
+                <h4
+                  className="text-base sm:text-lg md:text-xl mb-2"
+                  data-ui="organizer-nicogr-name"
+                  style={subtitleStyle}
+                >
+                  Nico GR
+                </h4>
+                <p
+                  className="text-sm sm:text-base md:text-lg leading-relaxed"
+                  data-ui="organizer-nicogr-desc"
+                  style={{
+                    fontFamily: '"Contrail One", sans-serif',
+                    letterSpacing: '0.02em',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Organizado por Nico GR, la competición busca reunir a la mejor comunidad de powerlifting en España, creando un evento donde entrenadores, atletas y aficionados puedan disfrutar del mejor nivel competitivo en squat, press de banca y peso muerto.
+                </p>
+              </div>
+            </div>
+          </div>
+        </AnimatedItem>
+
+        {/* Equipamiento — Marcas SBD y A7 */}
+        <AnimatedItem direction="up" delay={150} dataUi="animated-equipment">
+          <div
+            className="mt-12 max-w-4xl mx-auto"
+            data-ui="equipment-container"
+          >
+            <h3
+              className="text-xl sm:text-2xl md:text-3xl text-center mb-8"
+              data-ui="equipment-title"
+              style={titleStyle}
+            >
+              <span style={accentStyle} data-ui="equipment-title-accent">Equipamiento</span>{' '}
+              <span data-ui="equipment-title-text">de Competición</span>
+            </h3>
+
+            <p
+              className="text-center text-sm sm:text-base md:text-lg leading-relaxed mb-6"
+              data-ui="equipment-description"
+              style={{
+                fontFamily: '"Contrail One", sans-serif',
+                letterSpacing: '0.02em',
+                color: 'rgba(255, 255, 255, 0.7)',
+                textTransform: 'uppercase',
+              }}
+            >
+              El GR Cup cuenta con equipamiento profesional de las marcas líderes en powerlifting. SBD es la marca de referencia mondiale para cinturones, vendas, monos y rodillas de competición, reconocida por su calidad y durabilidad. A7 proporciona material complementario de alto rendimiento utilizado por atletas de élite en competiciones internacionales. Ambas marcas garantizan que todos los participantes compitan con equipamiento homologado y de primera calidad.
+            </p>
+
+            <div
+              className="flex justify-center gap-12 flex-wrap"
+              data-ui="equipment-brands"
+            >
+              <div data-ui="brand-sbd">
+                <h4
+                  className="text-base sm:text-lg text-center"
+                  data-ui="brand-sbd-name"
+                  style={subtitleStyle}
+                >
+                  SBD
+                </h4>
+              </div>
+              <div data-ui="brand-a7">
+                <h4
+                  className="text-base sm:text-lg text-center"
+                  data-ui="brand-a7-name"
+                  style={subtitleStyle}
+                >
+                  A7
+                </h4>
+              </div>
+            </div>
+          </div>
+        </AnimatedItem>
+
         {/* Decorative corner accents */}
         <div
           className="absolute top-0 left-0 w-16 h-16 border-l-2 border-t-2 border-dark-red/30 rounded-tl-lg"
