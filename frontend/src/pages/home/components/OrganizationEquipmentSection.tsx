@@ -319,7 +319,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
 
         {/* Section Title */}
         <AnimatedItem direction="up" delay={0} dataUi="animated-title">
-          <div className="text-center mb-12" data-ui="title-container">
+          <div className="text-center mb-12 pt-12" data-ui="title-container">
             <h2
               className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
               data-ui="section-title"
@@ -461,14 +461,14 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
             </h3>
 
             <div
-              className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center"
+              className="flex flex-col items-baseline lg:flex-row gap-8 text-center lg:pt-8 lg:pb-12"
               data-ui="organizers-grid"
             >
               <div data-ui="organizer-aep">
                 <img
                   src="https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp"
                   alt="AEP - Asociación Española de Powerlifting"
-                  className="w-56 h-auto mx-auto mb-4 object-cover rounded-xl"
+                  className="w-64 md:w-72 lg:w-[22rem] h-auto mx-auto mb-4 object-cover rounded-xl"
                   loading="lazy"
                   data-ui="organizer-aep-image"
                 />
@@ -497,7 +497,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
                 <img
                   src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/f7efa2c624614a66b35f6ab01980e09e.webp"
                   alt="Nico GR - Organizador"
-                  className="w-56 h-auto mx-auto mb-4 object-cover rounded-xl"
+                  className="w-64 md:w-72 lg:w-[22rem] h-auto mx-auto mb-4 object-cover rounded-xl"
                   loading="lazy"
                   data-ui="organizer-nicogr-image"
                 />
