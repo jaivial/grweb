@@ -1,7 +1,7 @@
-import { FC, useMemo, useEffect, useState, useRef } from 'react';
+import { FC, useEffect, useRef, useState, useCallback } from 'react';
 import { useScrollProgress } from '../../hooks/useScrollProgress';
-import { useFramePreloader } from '../../hooks/useFramePreloader';
-import { BELT_FRAMES_CONFIG } from '../../utils/frameSources';
+
+const VIDEO_SRC = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/belt/belt_hero_60fps_hq.mp4';
 
 interface RaffleFramesProps {
   containerId: string;
@@ -9,67 +9,21 @@ interface RaffleFramesProps {
 
 export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const currentFrameRef = useRef(-1);
+  const videoDurationRef = useRef(0);
+  const lastTimeRef = useRef(-1);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 9999
+  );
 
-  // DNS prefetch + preconnect for BunnyCDN storage to reduce latency
+  // Track window width
   useEffect(() => {
-    // Preconnect for early TCP/TLS handshake
-    const preconnect = document.createElement('link');
-    preconnect.rel = 'preconnect';
-    preconnect.href = 'https://storage.bunnycdn.com';
-    preconnect.crossOrigin = 'anonymous';
-    document.head.appendChild(preconnect);
-
-    const preconnectCdn = document.createElement('link');
-    preconnectCdn.rel = 'preconnect';
-    preconnectCdn.href = 'https://jaimedigitalstudio.b-cdn.net';
-    preconnectCdn.crossOrigin = 'anonymous';
-    document.head.appendChild(preconnectCdn);
-
-    // DNS prefetch for additional DNS resolution speed
-    const prefetch = document.createElement('link');
-    prefetch.rel = 'dns-prefetch';
-    prefetch.href = 'https://storage.bunnycdn.com';
-    document.head.appendChild(prefetch);
-
-    return () => {
-      document.head.removeChild(preconnect);
-      document.head.removeChild(preconnectCdn);
-      document.head.removeChild(prefetch);
-    };
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Preload first few critical frames for immediate display
-  useEffect(() => {
-    const preloadFrames = [
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000001.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000002.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000003.webp',
-    ];
-
-    preloadFrames.forEach((url) => {
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = url;
-      link.crossOrigin = 'anonymous';
-      document.head.appendChild(link);
-    });
-  }, []);
-
-  const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
-    frameSource: BELT_FRAMES_CONFIG,
-    priorityBatchSize: 5,
-    backgroundBatchSize: 32,
-    backgroundBatchDelay: 0,
-  });
-
-  // Sync loading state
-  useEffect(() => {
-    setIsLoading(framesLoading);
-  }, [framesLoading]);
 
   // Intersection observer for visibility
   useEffect(() => {
@@ -92,37 +46,21 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
 
   const { progress: scrollProgress } = useScrollProgress({
     totalVh: 200,
-    smooth: true,
+    smooth: false,
     smoothFactor: 0.15,
     sectionSelector: `#${containerId}`,
   });
 
-  // Calculate frame index based on progress
-  const frameIndex = useMemo(() => {
-    const staticPauseStart = 1;
-
-    if (scrollProgress <= 0) return 0;
-    if (scrollProgress >= staticPauseStart) return frames.length - 1;
-
-    const animationProgress = scrollProgress / staticPauseStart;
-    const index = Math.floor(animationProgress * (frames.length - 1));
-
-    return Math.max(0, Math.min(frames.length - 1, index));
-  }, [scrollProgress, frames.length]);
-
-  // Draw the current frame - fits within the constrained container
-  const drawFrame = (index: number) => {
+  // Draw current video frame to canvas
+  const drawFrame = useCallback(() => {
+    const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!canvas || frames.length === 0) return;
-
-    const frame = frames[index];
-    if (!frame) return;
+    if (!video || !canvas || !isVideoLoaded) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Calculate size based on same formula as container: min(90vw, 900px) with 16:9 aspect
-    const maxWidth = Math.min(window.innerWidth * 0.9, 900);
+    const maxWidth = Math.min(windowWidth * 0.9, 900);
     const width = maxWidth;
     const height = width * (9 / 16);
 
@@ -134,55 +72,74 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
 
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
-    ctx.drawImage(frame, 0, 0, width, height);
-  };
+    ctx.drawImage(video, 0, 0, width, height);
+  }, [isVideoLoaded, windowWidth]);
 
-  // Effect to draw frame when index changes
+  // Sync video currentTime with scroll progress — seek directly on scroll
   useEffect(() => {
-    if (frames.length === 0) return;
+    const video = videoRef.current;
+    if (!video || !isVideoLoaded) return;
 
-    if (frameIndex !== currentFrameRef.current) {
-      currentFrameRef.current = frameIndex;
-      drawFrame(frameIndex);
-    }
-  }, [frameIndex, frames]);
+    const duration = videoDurationRef.current;
+    if (duration <= 0) return;
 
-  // Effect for resize
+    const targetTime = scrollProgress * duration;
+    video.currentTime = targetTime;
+    lastTimeRef.current = targetTime;
+    drawFrame();
+  }, [scrollProgress, isVideoLoaded, drawFrame]);
+
+  // Redraw on seeked (fallback after decode)
   useEffect(() => {
-    if (frames.length > 0 && frameIndex >= 0) {
-      drawFrame(frameIndex);
-    }
+    const video = videoRef.current;
+    if (!video) return;
 
-    const handleResize = () => {
-      if (frames.length > 0 && frameIndex >= 0) {
-        drawFrame(frameIndex);
-      }
+    const handleSeeked = () => drawFrame();
+    video.addEventListener('seeked', handleSeeked);
+    return () => video.removeEventListener('seeked', handleSeeked);
+  }, [drawFrame]);
+
+  // Draw on resize
+  useEffect(() => {
+    if (isVideoLoaded) drawFrame();
+  }, [windowWidth, isVideoLoaded, drawFrame]);
+
+  // Initial draw when video loads
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      videoDurationRef.current = video.duration;
+      setIsVideoLoaded(true);
+      video.currentTime = 0;
+      lastTimeRef.current = 0;
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [frameIndex, frames]);
+    const handleCanPlayThrough = () => {
+      setIsVideoLoaded(true);
+      drawFrame();
+    };
 
-  const showCanvas = frames.length > 0;
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('canplaythrough', handleCanPlayThrough);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('canplaythrough', handleCanPlayThrough);
+    };
+  }, [drawFrame]);
 
   return (
     <>
       {/* Loading Overlay */}
-      {isLoading && (
+      {!isVideoLoaded && (
         <div
           className="absolute inset-0 z-30 flex items-center justify-center bg-black"
           data-component="LoadingOverlay"
         >
           <div className="text-center">
-            <div className="w-64 h-2 bg-gray-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-red-accent to-dark-red"
-                style={{ width: (loadProgress * 100) + '%', transition: 'width 0.3s ease-out' }}
-              />
-            </div>
-            <p className="text-gray-400 text-sm mt-2">
-              {Math.round(loadProgress * 100)}%
-            </p>
+            <div className="w-12 h-12 border-4 border-red-accent/30 border-t-red-accent rounded-full animate-spin" />
           </div>
         </div>
       )}
@@ -213,15 +170,29 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
             data-ui="frame-glow"
             aria-hidden
           />
+
+          {/* Hidden video element — canvas draws the visible output */}
+          <video
+            ref={videoRef}
+            src={VIDEO_SRC}
+            preload="auto"
+            muted
+            playsInline
+            loop={false}
+            style={{ display: 'none' }}
+            aria-hidden
+          />
+
           <canvas
             ref={canvasRef}
             className="relative z-10"
             style={{
-              display: showCanvas ? 'block' : 'none',
+              display: isVideoLoaded ? 'block' : 'none',
               width: '100%',
               height: '100%',
             }}
           />
+
           {/* Edge fade overlay - dark borders on all 4 sides */}
           <div
             className="absolute inset-0 pointer-events-none z-20 rounded-lg"
