@@ -1,9 +1,13 @@
 import type { JSX } from 'react';
 import { Scale, ArrowLeft } from 'lucide-react';
+import { Head } from '../../components/Head';
+import { pageMetaConfig } from '../../metaConfig';
 
 export function ContestPolicy(): JSX.Element {
   return (
-    <div className="min-h-screen bg-dark-base py-16 px-4" data-page="contest-policy">
+    <>
+      <Head {...pageMetaConfig['/politica-concurso']} />
+      <div className="min-h-screen bg-dark-base py-16 px-4" data-page="contest-policy">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -282,11 +286,11 @@ export function ContestPolicy(): JSX.Element {
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
-            Volver al sorteo
+              Volver al sorteo
           </a>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

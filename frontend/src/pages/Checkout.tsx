@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { api } from '../utils/api';
+import { Head } from '../components/Head';
+import { pageMetaConfig } from '../metaConfig';
 
 export default function Checkout() {
   const [quantity, setQuantity] = useState(1);
@@ -91,8 +93,10 @@ export default function Checkout() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-base py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto">
+    <>
+      <Head {...pageMetaConfig['/checkout']} />
+      <div className="min-h-screen bg-dark-base py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Get Your Tickets</h1>
           <p className="text-zinc-400">Join the GR Cup 2026 Raffle</p>
@@ -283,7 +287,8 @@ export default function Checkout() {
             🔒 Secure payment powered by Stripe. Your payment information is encrypted.
           </p>
         </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,10 +1,79 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Browser tab & Google search -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <!-- Apple / iOS -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Android Chrome PWA -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <!-- Open Graph / social sharing -->
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="description" content="GR Cup 2026: la mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7. Información sobre categorías, horarios y cómo inscribirse." />
+    <meta name="keywords" content="powerlifting, GR Cup, GRcup, Gr Cup, AEP, powerhispania, sbd, a7, nico gr, asociacion española de powerlifting, copa powerlifting españa" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="GR Cup" />
+    <meta property="og:title" content="GR Cup 2026 — Copa de Powerlifting en España" />
+    <meta property="og:description" content="La mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://grcup.com/" />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GR Cup 2026 — Copa de Powerlifting en España" />
+    <meta name="twitter:description" content="La mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7." />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>GR Cup 2026 — Copa de Powerlifting en España</title>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      "name": "GR Cup 2026",
+      "description": "Copa de powerlifting en España. Competición de squat, bench press y deadlift con sorteos de material SBD y A7.",
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-03",
+      "eventStatus": "https://schema.org/EventScheduled",
+      "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+      "location": {
+        "@type": "Place",
+        "name": "Madrid, España",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Madrid",
+          "addressCountry": "ES"
+        }
+      },
+      "organizer": {
+        "@type": "Organization",
+        "name": "GR Cup",
+        "url": "https://grcup.com"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://grcup.com/inscripcion",
+        "priceCurrency": "EUR"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "GR Cup",
+      "url": "https://grcup.com",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://grcup.com/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="app"></div>

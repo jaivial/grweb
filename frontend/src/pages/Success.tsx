@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { api } from '../utils/api';
+import { Head } from '../components/Head';
+import { pageMetaConfig } from '../metaConfig';
 
 interface SessionData {
   firstName: string;
@@ -81,17 +83,23 @@ export default function Success() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-base">
+      <>
+        <Head {...pageMetaConfig['/success']} />
+        <div className="min-h-screen flex items-center justify-center bg-dark-base">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-red-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-400 text-lg">Confirming your entry...</p>
+          <p className="text-gray-400 text-lg">Confirming your entry...</p>
         </div>
       </div>
-    );
-  }
+    </>
+  );
+}
 
-  if (error) {
-    return (
+if (error) {
+  return (
+    <>
+      <Head {...pageMetaConfig['/success']} />
       <div className="min-h-screen flex items-center justify-center bg-dark-base px-4">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-6">⚠️</div>
@@ -101,14 +109,17 @@ export default function Success() {
             onClick={() => navigate('/')}
             className="px-8 py-3 bg-red-accent text-white font-bold rounded-lg hover:scale-105 transition-transform"
           >
-            Return Home
+              Return Home
           </button>
         </div>
       </div>
-    );
-  }
+    </>
+  );
+}
 
-  return (
+return (
+  <>
+    <Head {...pageMetaConfig['/success']} />
     <div className="min-h-screen bg-dark-base py-12 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Success Animation */}
@@ -251,8 +262,11 @@ export default function Success() {
         {/* Footer Note */}
         <div className="text-center mt-12 text-gray-500 text-sm">
           <p>Questions? Contact us at <span className="text-red-accent">support@grstrength.com</span></p>
+          <p className="text-gray-500 text-sm">
+            Questions? Contact us at <span className="text-red-accent">support@grstrength.com</span>
+          </p>
         </div>
       </div>
-    </div>
+    </>
   );
 }
