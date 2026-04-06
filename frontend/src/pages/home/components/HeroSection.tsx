@@ -1,17 +1,74 @@
-import { FC, useMemo, useEffect, useState, useRef } from 'react';
+import { FC, useMemo, useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { useScrollProgress } from '@hooks/useScrollProgress';
 import { useFramePreloader } from '@hooks/useFramePreloader';
 import { calculateAnimationState } from '@utils/heroAnimationState';
 import { FrameAnimator } from '@components/animations/FrameAnimator';
-import { SmokeOverlay, SmokeState } from '@components/effects/SmokeOverlay';
-import { CloudsEnter } from '@components/effects/CloudsEnter';
+import type { SmokeState } from '@components/effects/SmokeOverlay';
 import { HeroTextSequence } from '@components/animations/HeroTextSequence';
+
+// Lazy load Three.js effects — they are heavy and delay initial render
+const SmokeOverlay = lazy(() => import('@components/effects/SmokeOverlay').then(m => ({ default: m.SmokeOverlay as FC<{ smokeStateRef: React.RefObject<SmokeState>; className?: string }> })));
+const CloudsEnter = lazy(() => import('@components/effects/CloudsEnter').then(m => ({ default: m.CloudsEnter as FC<{ progress: number; className?: string }> })));
 
 export const HeroSection: FC = () => {
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const smokeStateRef = useRef<SmokeState>({ opacity: 1, offset: 0 });
   const [isLoading, setIsLoading] = useState(true);
+
+  // DNS prefetch + preconnect for BunnyCDN to reduce cold start latency
+  useEffect(() => {
+    // Preconnect for early TCP/TLS handshake
+    const preconnect = document.createElement('link');
+    preconnect.rel = 'preconnect';
+    preconnect.href = 'https://storage.bunnycdn.com';
+    preconnect.crossOrigin = 'anonymous';
+    document.head.appendChild(preconnect);
+
+    // Also preconnect to the CDN domain
+    const preconnectCdn = document.createElement('link');
+    preconnectCdn.rel = 'preconnect';
+    preconnectCdn.href = 'https://jaimedigitalstudio.b-cdn.net';
+    preconnectCdn.crossOrigin = 'anonymous';
+    document.head.appendChild(preconnectCdn);
+
+    // DNS prefetch for additional DNS resolution speed
+    const dnsPrefetch = document.createElement('link');
+    dnsPrefetch.rel = 'dns-prefetch';
+    dnsPrefetch.href = 'https://storage.bunnycdn.com';
+    document.head.appendChild(dnsPrefetch);
+
+    const dnsPrefetchCdn = document.createElement('link');
+    dnsPrefetchCdn.rel = 'dns-prefetch';
+    dnsPrefetchCdn.href = 'https://jaimedigitalstudio.b-cdn.net';
+    document.head.appendChild(dnsPrefetchCdn);
+
+    return () => {
+      document.head.removeChild(preconnect);
+      document.head.removeChild(preconnectCdn);
+      document.head.removeChild(dnsPrefetch);
+      document.head.removeChild(dnsPrefetchCdn);
+    };
+  }, []);
+
+  // Preload first few critical frames for immediate display
+  useEffect(() => {
+    // Use public CDN URL (pull zone), not storage URL (requires auth)
+    const criticalFrames = [
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000783.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000782.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000781.webp',
+    ];
+
+    criticalFrames.forEach((url) => {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = url;
+      link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+    });
+  }, []);
 
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: {
