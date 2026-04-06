@@ -7,20 +7,20 @@ export interface UseFramePreloaderOptions {
    */
   frameSource: FrameConfig;
   /**
-   * Number of frames to load in parallel
-   * Default: 20
-   */
-  batchSize?: number;
-  /**
-   * Delay between batches in ms (0 = no delay, load as fast as possible)
-   * Default: 50
-   */
-  batchDelay?: number;
-  /**
-   * Number of frames to load immediately (no delay) before background loading
+   * Number of frames to load in parallel for priority batch
    * Default: 10
    */
   priorityBatchSize?: number;
+  /**
+   * Number of frames to load in parallel for background batch
+   * Default: 32
+   */
+  backgroundBatchSize?: number;
+  /**
+   * Delay between background batches in ms (0 = no delay)
+   * Default: 0
+   */
+  backgroundBatchDelay?: number;
 }
 
 export interface FramePreloaderResult {
@@ -43,10 +43,14 @@ function getFrameSourceKey(config: FrameConfig): string {
 }
 
 /**
- * Custom hook to preload image frames for animation
- * Loads frames progressively and tracks loading progress
- * Supports both local and CDN sources
- * 
+ * Custom hook to preload image frames for animation.
+ *
+ * Strategy:
+ * 1. Priority batch: load via Image() elements — these display immediately but
+ *    DON'T block the browser load event (only ~10 elements = negligible impact).
+ * 2. Background batch: load via fetch() + blob URLs — completely non-blocking,
+ *    never fires resource load events, page load event fires as soon as JS runs.
+ *
  * @param options - Configuration options including frameSource
  * @returns Object containing frames array and loading state
  */
@@ -55,18 +59,18 @@ export function useFramePreloader(
 ): FramePreloaderResult {
   const {
     frameSource,
-    batchSize = 20,
-    batchDelay = 50,
     priorityBatchSize = 10,
+    backgroundBatchSize = 32,
+    backgroundBatchDelay = 0,
   } = options;
 
   // Create stable key for frameSource to prevent infinite loops
   const frameSourceKey = getFrameSourceKey(frameSource);
-  
+
   // Memoize URLs based on stable key
   const frameUrls = useMemo(() => generateFrameUrls(frameSource), [frameSourceKey]);
   const totalFrames = frameUrls.length;
-  
+
   const [frames, setFrames] = useState<HTMLImageElement[]>([]);
   const [loadedCount, setLoadedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,25 +90,45 @@ export function useFramePreloader(
     const urls = frameUrls;
     const total = urls.length;
 
-    const loadFrame = (url: string): Promise<HTMLImageElement> => {
+    // Load a single frame as an Image element (displays immediately)
+    const loadImageElement = (url: string): Promise<HTMLImageElement> => {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
         img.onerror = () => reject(new Error(`Failed to load frame: ${url}`));
-        // CORS settings for BunnyCDN
         img.crossOrigin = 'anonymous';
         img.src = url;
       });
     };
 
-    const loadFramesInBatches = async () => {
+    // Load a single frame as a blob URL via fetch (non-blocking, never blocks load event)
+    const loadFetchBlob = async (url: string): Promise<HTMLImageElement> => {
+      const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      return new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          // Revoke blob URL after decode to free memory
+          URL.revokeObjectURL(blobUrl);
+          resolve(img);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(blobUrl);
+          reject(new Error(`Failed to decode frame: ${url}`));
+        };
+        img.src = blobUrl;
+      });
+    };
+
+    const loadFrames = async () => {
       try {
         const priorityCount = Math.min(priorityBatchSize, total);
 
-        // 1. Load priority frames immediately — no delay, full parallel
+        // 1. Load priority frames via Image() — they display immediately
         const priorityPromises: Promise<HTMLImageElement>[] = [];
         for (let i = 0; i < priorityCount; i++) {
-          priorityPromises.push(loadFrame(urls[i]));
+          priorityPromises.push(loadImageElement(urls[i]));
         }
         const priorityFrames = await Promise.all(priorityPromises);
 
@@ -120,20 +144,20 @@ export function useFramePreloader(
           return;
         }
 
-        // 2. Background load the remaining frames with zero blocking delay
-        // Use setTimeout(0) to yield to the browser between batches
-        // This lets the browser manage HTTP/2 multiplexing without blocking
+        // 2. Background load remaining frames via fetch() — completely non-blocking
+        // fetch() doesn't register as a resource load, so page load event fires
+        // as soon as JS finishes executing, not after all images download.
         const remainingUrls = urls.slice(priorityCount);
 
         const loadBackground = async () => {
-          for (let i = 0; i < remainingUrls.length; i += batchSize) {
+          for (let i = 0; i < remainingUrls.length; i += backgroundBatchSize) {
             if (isCancelledRef.current) return;
 
             const batchPromises: Promise<HTMLImageElement>[] = [];
-            const endIndex = Math.min(i + batchSize, remainingUrls.length);
+            const endIndex = Math.min(i + backgroundBatchSize, remainingUrls.length);
 
             for (let j = i; j < endIndex; j++) {
-              batchPromises.push(loadFrame(remainingUrls[j]));
+              batchPromises.push(loadFetchBlob(remainingUrls[j]));
             }
 
             const batchFrames = await Promise.all(batchPromises);
@@ -144,9 +168,8 @@ export function useFramePreloader(
             setLoadedCount(framesRef.current.length);
             setFrames([...framesRef.current]);
 
-            // Yield to browser between batches (0ms timeout batches the work)
-            if (endIndex < remainingUrls.length && batchDelay > 0) {
-              await new Promise(resolve => setTimeout(resolve, batchDelay));
+            if (endIndex < remainingUrls.length && backgroundBatchDelay > 0) {
+              await new Promise(resolve => setTimeout(resolve, backgroundBatchDelay));
             }
           }
 
@@ -155,8 +178,8 @@ export function useFramePreloader(
           }
         };
 
-        // Start background loading after a brief paint
-        requestIdleCallback ? requestIdleCallback(() => loadBackground()) : setTimeout(() => loadBackground(), 50);
+        // Start background loading on next paint — non-blocking
+        requestAnimationFrame(() => loadBackground());
       } catch (err) {
         if (!isCancelledRef.current) {
           setError(err instanceof Error ? err : new Error('Unknown error loading frames'));
@@ -165,12 +188,12 @@ export function useFramePreloader(
       }
     };
 
-    loadFramesInBatches();
+    loadFrames();
 
     return () => {
       isCancelledRef.current = true;
     };
-  }, [frameSourceKey, frameUrls, batchSize, batchDelay, priorityBatchSize]);
+  }, [frameSourceKey, frameUrls, priorityBatchSize, backgroundBatchSize, backgroundBatchDelay]);
 
   const loadProgress = totalFrames > 0 ? loadedCount / totalFrames : 0;
 

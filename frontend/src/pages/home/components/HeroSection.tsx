@@ -79,9 +79,9 @@ export const HeroSection: FC = () => {
       endFrame: 1,
       order: 'desc',
     },
-    batchSize: 32,
-    batchDelay: 30,
     priorityBatchSize: 5,
+    backgroundBatchSize: 32,
+    backgroundBatchDelay: 0,
   });
 
   // Sync loading state
