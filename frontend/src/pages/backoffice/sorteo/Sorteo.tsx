@@ -9,7 +9,9 @@ import { Icon } from '../../../components/ui/Icon';
 import { CustomSelector } from '../../../components/ui/CustomSelector/CustomSelector';
 import { Tabs } from '../../../components/ui/Tabs/Tabs';
 import { countryCodeOptions } from '../../../utils/countryCodes';
-import { exportPdf } from '../../../utils/pdfExport';
+
+// Dynamic import for pdfExport to reduce initial bundle size
+const getExportPdf = () => import('../../../utils/pdfExport').then(m => m.exportPdf);
 
 interface Draw {
   id: number;
@@ -232,7 +234,7 @@ export function Sorteo(): JSX.Element {
     }
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     if (!participantsData) return;
     const columns = [
       { header: 'Nombre', dataKey: 'name' },
@@ -250,6 +252,7 @@ export function Sorteo(): JSX.Element {
       paid: p.isPaid ? 'Sí' : 'No',
       method: p.paymentMethod === 'cash' ? 'Efectivo' : p.paymentMethod === 'bank' ? 'Transferencia' : 'Stripe',
     }));
+    const exportPdf = await getExportPdf();
     exportPdf({
       title: 'Participantes del Sorteo',
       columns,

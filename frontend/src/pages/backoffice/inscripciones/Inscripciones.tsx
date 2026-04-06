@@ -9,9 +9,11 @@ import { Pagination } from './components/Pagination';
 import { ATHLETE_STATUS_LABELS, ATHLETE_STATUS_COLORS, type Athlete } from '../../../types/athlete';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
 import { api } from '../../../utils/api';
-import { exportPdf } from '../../../utils/pdfExport';
 import { IoMaleSharp, IoFemaleSharp } from "react-icons/io5";
 import { Lock, Unlock, Pencil, Trash2, Check } from 'lucide-react';
+
+// Dynamic import for pdfExport to reduce initial bundle size
+const getExportPdf = () => import('../../../utils/pdfExport').then(m => m.exportPdf);
 
 interface InscripcionPreparadaData {
   dateTime: string | null;
@@ -214,7 +216,7 @@ export function Inscripciones(): JSX.Element {
     }
   }, [athleteToDelete, deleteAthlete]);
 
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
     const columns = [
       { header: 'Nombre', dataKey: 'name' },
       { header: 'Email', dataKey: 'email' },
@@ -237,6 +239,7 @@ export function Inscripciones(): JSX.Element {
       date: a.registrationDate,
       status: ATHLETE_STATUS_LABELS[a.status],
     }));
+    const exportPdf = await getExportPdf();
     exportPdf({
       title: 'Inscripciones',
       columns,
