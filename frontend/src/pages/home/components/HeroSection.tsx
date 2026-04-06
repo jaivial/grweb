@@ -58,6 +58,8 @@ export const HeroSection: FC = () => {
       'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000783.webp',
       'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000782.webp',
       'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000781.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000780.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000779.webp',
     ];
 
     criticalFrames.forEach((url) => {
@@ -77,8 +79,9 @@ export const HeroSection: FC = () => {
       endFrame: 1,
       order: 'desc',
     },
-    batchSize: 20,
-    batchDelay: 50,
+    batchSize: 32,
+    batchDelay: 30,
+    priorityBatchSize: 5,
   });
 
   // Sync loading state
