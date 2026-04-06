@@ -105,7 +105,7 @@ class ApiClient {
   }
 
   async exportCsv() {
-    const response = await fetch(`${this.baseUrl}/api/admin/export/csv`, {
+    const response = await fetch(`${this.baseUrl}/admin/export/csv`, {
       credentials: 'include',
     });
 

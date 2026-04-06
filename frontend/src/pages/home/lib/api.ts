@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || '';
  */
 export async function fetchParticipantCount(): Promise<number> {
   try {
-    const response = await fetch(`${API_URL}/api/participants/count`);
+    const response = await fetch(`${API_URL}/participants/count`);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -65,7 +65,7 @@ export function createParticipantCountPoller(
  */
 export async function checkApiHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL}/api/participants/count`, {
+    const response = await fetch(`${API_URL}/participants/count`, {
       method: 'GET',
     });
     return response.ok;
