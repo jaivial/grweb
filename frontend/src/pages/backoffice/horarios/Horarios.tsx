@@ -7,8 +7,10 @@ import { Tabs, Button, CustomSelector, DatePicker, TimePicker, Modal } from '../
 import type { Schedule, ScheduleFormData } from '../../../types/schedule';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
 import { api } from '../../../utils/api';
-import { exportPdf } from '../../../utils/pdfExport';
 import { deduplicateSchedules } from '../../../hooks';
+
+// Dynamic import for pdfExport to reduce initial bundle size
+const getExportPdf = () => import('../../../utils/pdfExport').then(m => m.exportPdf);
 
 const SEX_TABS = [
   { id: 'Female', label: 'Mujeres' },
@@ -445,7 +447,7 @@ export function Horarios(): JSX.Element {
     setSchedulesLocal(prev => prev.filter(s => s.id !== id));
   }, []);
 
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
     const columns = [
       { header: 'Categoría', dataKey: 'sex' },
       { header: 'Peso (KG)', dataKey: 'weight' },
@@ -460,6 +462,7 @@ export function Horarios(): JSX.Element {
       startTime: s.startTime,
       endTime: s.endTime,
     }));
+    const exportPdf = await getExportPdf();
     exportPdf({
       title: 'Horarios de Competición',
       columns,

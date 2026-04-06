@@ -1,26 +1,39 @@
 import { Router, Route, useLocation } from 'wouter';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import Layout from './layouts/Layout';
 import { Home } from './pages/home/Home';
-import Checkout from './pages/Checkout';
-import Success from './pages/Success';
 import Login from './admin/pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
-import { Inscripcion } from './pages/home/Inscripcion';
-import { Raffle } from './pages/raffle/Raffle';
-import { PrivacyPolicy } from './pages/legal/PrivacyPolicy';
-import { TermsOfService } from './pages/legal/TermsOfService';
-import { DataConsent } from './pages/legal/DataConsent';
-import { ContestPolicy } from './pages/legal/ContestPolicy';
-import { Schedules } from './pages/Schedules';
-import { LocationPage } from './pages/Location';
 
-import { BackofficeHome } from './pages/backoffice/Home';
-import Inscripciones from './pages/backoffice/inscripciones/Inscripciones';
-import { Sorteo } from './pages/backoffice/sorteo/Sorteo';
-import Horarios from './pages/backoffice/horarios/Horarios';
-import InscripcionConfigPage from './pages/backoffice/InscripcionConfig';
-import { Configuracion } from './pages/backoffice/configuracion/Configuracion';
+// Lazy load all page components to reduce initial bundle size
+const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.default })));
+const Success = lazy(() => import('./pages/Success').then(m => ({ default: m.default })));
+const Inscripcion = lazy(() => import('./pages/home/Inscripcion').then(m => ({ default: m.Inscripcion })));
+const Raffle = lazy(() => import('./pages/raffle/Raffle').then(m => ({ default: m.Raffle })));
+const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
+const TermsOfService = lazy(() => import('./pages/legal/TermsOfService').then(m => ({ default: m.TermsOfService })));
+const DataConsent = lazy(() => import('./pages/legal/DataConsent').then(m => ({ default: m.DataConsent })));
+const ContestPolicy = lazy(() => import('./pages/legal/ContestPolicy').then(m => ({ default: m.ContestPolicy })));
+const Schedules = lazy(() => import('./pages/Schedules').then(m => ({ default: m.Schedules })));
+const LocationPage = lazy(() => import('./pages/Location').then(m => ({ default: m.LocationPage })));
+
+// Lazy load backoffice pages (these are heavy and rarely accessed)
+const BackofficeHome = lazy(() => import('./pages/backoffice/Home').then(m => ({ default: m.BackofficeHome })));
+const Inscripciones = lazy(() => import('./pages/backoffice/inscripciones/Inscripciones').then(m => ({ default: m.default })));
+const Sorteo = lazy(() => import('./pages/backoffice/sorteo/Sorteo').then(m => ({ default: m.Sorteo })));
+const Horarios = lazy(() => import('./pages/backoffice/horarios/Horarios').then(m => ({ default: m.default })));
+const InscripcionConfigPage = lazy(() => import('./pages/backoffice/InscripcionConfig').then(m => ({ default: m.default })));
+const Configuracion = lazy(() => import('./pages/backoffice/configuracion/Configuracion').then(m => ({ default: m.Configuracion })));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen bg-dark-base flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-16 h-16 border-4 border-red-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-gray-400">Cargando...</p>
+    </div>
+  </div>
+);
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -30,6 +43,13 @@ function ScrollToTop() {
   return null;
 }
 
+// Helper to wrap lazy components with Layout and Suspense
+const LazyPage = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<PageLoader />}>
+    <Layout>{children}</Layout>
+  </Suspense>
+);
+
 export function App() {
   return (
     <>
@@ -37,16 +57,16 @@ export function App() {
       <Router>
       {/* Public Routes */}
       <Route path="/" component={() => <Layout><Home /></Layout>} />
-      <Route path="/checkout" component={() => <Layout><Checkout /></Layout>} />
-      <Route path="/success" component={() => <Layout><Success /></Layout>} />
-      <Route path="/inscripcion" component={() => <Layout><Inscripcion /></Layout>} />
-      <Route path="/raffle" component={() => <Layout><Raffle /></Layout>} />
-      <Route path="/privacy" component={() => <Layout><PrivacyPolicy /></Layout>} />
-      <Route path="/terms" component={() => <Layout><TermsOfService /></Layout>} />
-      <Route path="/consentimiento-datos" component={() => <Layout><DataConsent /></Layout>} />
-      <Route path="/politica-concurso" component={() => <Layout><ContestPolicy /></Layout>} />
-      <Route path="/horarios" component={() => <Layout><Schedules /></Layout>} />
-      <Route path="/como-llegar" component={() => <Layout><LocationPage /></Layout>} />
+      <Route path="/checkout" component={() => <LazyPage><Checkout /></LazyPage>} />
+      <Route path="/success" component={() => <LazyPage><Success /></LazyPage>} />
+      <Route path="/inscripcion" component={() => <LazyPage><Inscripcion /></LazyPage>} />
+      <Route path="/raffle" component={() => <LazyPage><Raffle /></LazyPage>} />
+      <Route path="/privacy" component={() => <LazyPage><PrivacyPolicy /></LazyPage>} />
+      <Route path="/terms" component={() => <LazyPage><TermsOfService /></LazyPage>} />
+      <Route path="/consentimiento-datos" component={() => <LazyPage><DataConsent /></LazyPage>} />
+      <Route path="/politica-concurso" component={() => <LazyPage><ContestPolicy /></LazyPage>} />
+      <Route path="/horarios" component={() => <LazyPage><Schedules /></LazyPage>} />
+      <Route path="/como-llegar" component={() => <LazyPage><LocationPage /></LazyPage>} />
 
       {/* Backoffice Login (Public) */}
       <Route path="/backoffice/login" component={Login} />
@@ -56,7 +76,7 @@ export function App() {
         path="/backoffice"
         component={() => (
           <ProtectedRoute>
-            <BackofficeHome />
+            <Suspense fallback={<PageLoader />}><BackofficeHome /></Suspense>
           </ProtectedRoute>
         )}
       />
@@ -64,7 +84,7 @@ export function App() {
         path="/backoffice/inscripciones"
         component={() => (
           <ProtectedRoute>
-            <Inscripciones />
+            <Suspense fallback={<PageLoader />}><Inscripciones /></Suspense>
           </ProtectedRoute>
         )}
       />
@@ -72,7 +92,7 @@ export function App() {
         path="/backoffice/sorteo"
         component={() => (
           <ProtectedRoute>
-            <Sorteo />
+            <Suspense fallback={<PageLoader />}><Sorteo /></Suspense>
           </ProtectedRoute>
         )}
       />
@@ -80,7 +100,7 @@ export function App() {
         path="/backoffice/horarios"
         component={() => (
           <ProtectedRoute>
-            <Horarios />
+            <Suspense fallback={<PageLoader />}><Horarios /></Suspense>
           </ProtectedRoute>
         )}
       />
@@ -88,7 +108,7 @@ export function App() {
         path="/backoffice/inscripcion-config"
         component={() => (
           <ProtectedRoute>
-            <InscripcionConfigPage />
+            <Suspense fallback={<PageLoader />}><InscripcionConfigPage /></Suspense>
           </ProtectedRoute>
         )}
       />
@@ -96,7 +116,7 @@ export function App() {
         path="/backoffice/configuracion"
         component={() => (
           <ProtectedRoute>
-            <Configuracion />
+            <Suspense fallback={<PageLoader />}><Configuracion /></Suspense>
           </ProtectedRoute>
         )}
       />
