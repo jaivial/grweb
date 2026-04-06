@@ -14,6 +14,18 @@ export default defineConfig({
       '@hooks': path.resolve(__dirname, './src/hooks'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('html2canvas')) return 'html2canvas';
+            if (id.includes('preact') || id.includes('wouter') || id.includes('@preact/signals')) return 'vendor';
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {
