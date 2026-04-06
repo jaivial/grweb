@@ -25,10 +25,12 @@ const CDN_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frame
 const LOCAL_PATH = '/trophy';
 const BELT_PATH = '/compressedbeltimages';
 
+export const BUNNYCDN_BELT_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages';
+
 // Belt frames configuration - 845 frames in ascending order
-export const BELT_FRAMES_CONFIG: LocalFrameConfig = {
-  source: 'local',
-  path: BELT_PATH,
+export const BELT_FRAMES_CONFIG: CdnFrameConfig = {
+  source: 'cdn',
+  baseUrl: BUNNYCDN_BELT_BASE,
   startFrame: 1,
   endFrame: 845,
   order: 'asc',
@@ -42,18 +44,21 @@ export function generateFrameUrls(config: FrameConfig): string[] {
   if (config.source === 'cdn') {
     const {
       baseUrl = CDN_BASE,
-      startFrame = 783,
-      endFrame = 1,
-      order = 'desc',
+      startFrame = 1,
+      endFrame = 783,
+      order = 'asc',
     } = config;
 
     const urls: string[] = [];
+    const minFrame = Math.min(startFrame, endFrame);
+    const maxFrame = Math.max(startFrame, endFrame);
+
     if (order === 'desc') {
-      for (let i = startFrame; i >= endFrame; i--) {
+      for (let i = maxFrame; i >= minFrame; i--) {
         urls.push(`${baseUrl}/frame_${padFrame(i)}.webp`);
       }
     } else {
-      for (let i = endFrame; i <= startFrame; i++) {
+      for (let i = minFrame; i <= maxFrame; i++) {
         urls.push(`${baseUrl}/frame_${padFrame(i)}.webp`);
       }
     }

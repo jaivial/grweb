@@ -13,6 +13,17 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentFrameRef = useRef(-1);
 
+  // DNS prefetch for BunnyCDN storage to reduce latency
+  useEffect(() => {
+    const prefetch = document.createElement('link');
+    prefetch.rel = 'dns-prefetch';
+    prefetch.href = 'https://storage.bunnycdn.com';
+    document.head.appendChild(prefetch);
+    return () => {
+      document.head.removeChild(prefetch);
+    };
+  }, []);
+
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: BELT_FRAMES_CONFIG,
     batchSize: 20,
