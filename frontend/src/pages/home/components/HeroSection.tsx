@@ -1,8 +1,7 @@
-import { FC, useMemo, useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { FC, useMemo, useEffect, useState, useRef, lazy } from 'react';
 import { useScrollProgress } from '@hooks/useScrollProgress';
-import { useFramePreloader } from '@hooks/useFramePreloader';
 import { calculateAnimationState } from '@utils/heroAnimationState';
-import { FrameAnimator } from '@components/animations/FrameAnimator';
+import { VideoFrameAnimator } from '@components/animations/VideoFrameAnimator';
 import type { SmokeState } from '@components/effects/SmokeOverlay';
 import { HeroTextSequence } from '@components/animations/HeroTextSequence';
 
@@ -14,96 +13,10 @@ export const HeroSection: FC = () => {
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const smokeStateRef = useRef<SmokeState>({ opacity: 1, offset: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-
-  // DNS prefetch + preconnect for BunnyCDN to reduce cold start latency
-  useEffect(() => {
-    // Preconnect for early TCP/TLS handshake
-    const preconnect = document.createElement('link');
-    preconnect.rel = 'preconnect';
-    preconnect.href = 'https://storage.bunnycdn.com';
-    preconnect.crossOrigin = 'anonymous';
-    document.head.appendChild(preconnect);
-
-    // Also preconnect to the CDN domain
-    const preconnectCdn = document.createElement('link');
-    preconnectCdn.rel = 'preconnect';
-    preconnectCdn.href = 'https://jaimedigitalstudio.b-cdn.net';
-    preconnectCdn.crossOrigin = 'anonymous';
-    document.head.appendChild(preconnectCdn);
-
-    // DNS prefetch for additional DNS resolution speed
-    const dnsPrefetch = document.createElement('link');
-    dnsPrefetch.rel = 'dns-prefetch';
-    dnsPrefetch.href = 'https://storage.bunnycdn.com';
-    document.head.appendChild(dnsPrefetch);
-
-    const dnsPrefetchCdn = document.createElement('link');
-    dnsPrefetchCdn.rel = 'dns-prefetch';
-    dnsPrefetchCdn.href = 'https://jaimedigitalstudio.b-cdn.net';
-    document.head.appendChild(dnsPrefetchCdn);
-
-    return () => {
-      document.head.removeChild(preconnect);
-      document.head.removeChild(preconnectCdn);
-      document.head.removeChild(dnsPrefetch);
-      document.head.removeChild(dnsPrefetchCdn);
-    };
-  }, []);
-
-  // Preload first few critical frames for immediate display
-  useEffect(() => {
-    // Use public CDN URL (pull zone), not storage URL (requires auth)
-    const criticalFrames = [
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000783.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000782.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000781.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000780.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000779.webp',
-    ];
-
-    criticalFrames.forEach((url) => {
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = url;
-      link.crossOrigin = 'anonymous';
-      document.head.appendChild(link);
-    });
-  }, []);
-
-  const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
-    frameSource: {
-      source: 'cdn',
-      startFrame: 783,
-      endFrame: 1,
-      order: 'desc',
-    },
-    priorityBatchSize: 5,
-    backgroundBatchSize: 32,
-    backgroundBatchDelay: 0,
-  });
-
-  // Sync loading state
-  useEffect(() => {
-    setIsLoading(framesLoading);
-  }, [framesLoading]);
-
-  // Prevent scrolling while loading
-  useEffect(() => {
-    if (isLoading) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isLoading]);
 
   const { progress: scrollProgress } = useScrollProgress({
     totalVh: 500,
-    smooth: true,
+    smooth: false,
     smoothFactor: 0.15,
     sectionSelector: '#hero-container',
   });
@@ -156,11 +69,9 @@ export const HeroSection: FC = () => {
         data-component="HeroViewport"
       >
         <div className="relative z-0" data-component="FrameWrapper">
-          <FrameAnimator
-            frames={frames}
+          <VideoFrameAnimator
             progress={animationState.frameProgress}
             isAnimating={animationState.frameAnimationActive}
-            staticPauseStart={1}
             maxWidth={540}
             aspectRatio={9 / 16}
             edgeFadeOverlay={{
@@ -205,32 +116,6 @@ export const HeroSection: FC = () => {
           data-component="HeroFadeOut"
         />
 
-        {isLoading && (
-          <div
-            className="absolute inset-0 z-30 flex items-center justify-center bg-dark-base"
-            data-component="LoadingOverlay"
-          >
-            <div className="text-center">
-              <div className="relative w-20 h-20 mx-auto mb-6">
-                <img
-                  src="/trophyicon.png"
-                  alt="Loading"
-                  className="w-full h-full object-contain animate-pulse"
-                />
-              </div>
-              <div className="w-64 h-2 bg-dark-surface rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-black to-red-800 transition-all duration-300"
-                  style={{ width: (loadProgress * 100) + '%' }}
-                />
-              </div>
-              <p className="text-gray-400 text-sm mt-2">
-                {Math.round(loadProgress * 100)}%
-              </p>
-            </div>
-          </div>
-        )}
-
         {import.meta.env.DEV && (
           <div
             className="absolute bottom-4 left-4 z-50 bg-black/80 text-white p-4 rounded-lg text-xs font-mono"
@@ -244,7 +129,7 @@ export const HeroSection: FC = () => {
             <div>Frame Active: {animationState.frameAnimationActive.toString()}</div>
             <div>Frame Progress: {(animationState.frameProgress * 100).toFixed(1)}%</div>
             <div>Clouds Enter: {(animationState.cloudsEnterProgress * 100).toFixed(1)}%</div>
-            <div>Frames Loaded: {frames.length}</div>
+            <div>Animation: video (trophy_hero.mp4)</div>
           </div>
         )}
       </div>

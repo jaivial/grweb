@@ -40,7 +40,7 @@ export interface ScrollProgressResult {
 /**
  * Custom hook to track scroll progress within a section
  * Returns normalized progress (0-1) as user scrolls through the section
- * 
+ *
  * @param options - Configuration options
  * @returns Object containing scroll progress and related state
  */
@@ -66,6 +66,7 @@ export function useScrollProgress(
   const currentProgressRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
   const sectionBoundsRef = useRef({ sectionTopPosition: 0, sectionHeight: 0 });
+  const isMountedRef = useRef(true);
 
   // Calculate section boundaries - stores in ref for immediate access
   const updateSectionBounds = useCallback(() => {
@@ -78,15 +79,15 @@ export function useScrollProgress(
       if (sectionEl) {
         sectionTopPosition = sectionEl.offsetTop;
         sectionHeightValue = sectionEl.offsetHeight;
-        
+
         // Store in ref for immediate access during scroll
         sectionBoundsRef.current = { sectionTopPosition, sectionHeight: sectionHeightValue };
-        
+
         // Update state for UI purposes
         setSectionTop(sectionTopPosition);
         setSectionBottom(sectionTopPosition + sectionHeightValue);
         setSectionHeight(sectionHeightValue);
-        
+
         return { sectionTopPosition, sectionHeight: sectionHeightValue };
       } else {
         // Fallback to calculated height
@@ -106,8 +107,10 @@ export function useScrollProgress(
 
   // Update progress based on scroll position - uses ref for immediate values
   const updateProgress = useCallback(() => {
+    if (!isMountedRef.current) return;
+
     const currentScrollY = window.scrollY;
-    
+
     // Use ref values for immediate access (no stale closures)
     const { sectionTopPosition, sectionHeight } = sectionBoundsRef.current;
 
@@ -135,7 +138,7 @@ export function useScrollProgress(
 
     // Store target and update current
     targetProgressRef.current = normalizedProgress;
-    
+
     if (!smooth) {
       currentProgressRef.current = normalizedProgress;
       setProgress(normalizedProgress);
@@ -144,6 +147,11 @@ export function useScrollProgress(
 
   // Smooth animation loop - uses refs for immediate values
   const animateSmoothProgress = useCallback(() => {
+    if (!isMountedRef.current) {
+      rafIdRef.current = null;
+      return;
+    }
+
     const target = targetProgressRef.current;
     const current = currentProgressRef.current;
     const diff = target - current;
@@ -161,6 +169,8 @@ export function useScrollProgress(
 
   // Scroll event handler
   const handleScroll = useCallback(() => {
+    if (!isMountedRef.current) return;
+
     updateProgress();
 
     if (smooth && !rafIdRef.current) {
@@ -168,8 +178,17 @@ export function useScrollProgress(
     }
   }, [updateProgress, smooth, animateSmoothProgress]);
 
+  // Resize handler - memoized for proper cleanup
+  const handleResize = useCallback(() => {
+    if (!isMountedRef.current) return;
+    updateSectionBounds();
+    updateProgress();
+  }, [updateSectionBounds, updateProgress]);
+
   // Setup scroll listener
   useEffect(() => {
+    isMountedRef.current = true;
+
     // Initialize bounds
     updateSectionBounds();
 
@@ -177,19 +196,18 @@ export function useScrollProgress(
     updateProgress();
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', () => {
-      updateSectionBounds();
-      updateProgress();
-    }, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
 
     return () => {
+      isMountedRef.current = false;
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', updateSectionBounds);
+      window.removeEventListener('resize', handleResize);
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
       }
     };
-  }, [handleScroll, updateSectionBounds, updateProgress]);
+  }, [handleScroll, handleResize]);
 
   return {
     progress,

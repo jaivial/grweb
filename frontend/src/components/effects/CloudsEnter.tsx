@@ -1,4 +1,4 @@
-import React, { FC, useRef, useMemo, useState, useEffect } from 'react';
+import React, { FC, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Cloud } from '@react-three/drei';
 import * as THREE from 'three';
@@ -47,14 +47,29 @@ interface CloudControllerProps {
   cloudConfigs: CloudConfig[];
 }
 
+// Camera updater - updates camera position without recreating WebGL context
+const CameraUpdater: FC<{ cameraZ: number }> = ({ cameraZ }) => {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    camera.position.z = cameraZ;
+    camera.updateProjectionMatrix();
+  }, [camera, cameraZ]);
+
+  return null;
+};
+
 const CloudController: FC<CloudControllerProps> = ({ progress, cloudConfigs }) => {
   const groupRef = useRef<THREE.Group>(null);
   const { invalidate } = useThree();
   const currentProgressRef = useRef(0);
+  const targetProgressRef = useRef(0);
 
   useFrame(() => {
+    targetProgressRef.current = progress;
+
     const lerpFactor = 0.12;
-    currentProgressRef.current += (progress - currentProgressRef.current) * lerpFactor;
+    currentProgressRef.current += (targetProgressRef.current - currentProgressRef.current) * lerpFactor;
 
     if (groupRef.current) {
       groupRef.current.children.forEach((child, index) => {
@@ -73,7 +88,7 @@ const CloudController: FC<CloudControllerProps> = ({ progress, cloudConfigs }) =
               mat.opacity = currentProgressRef.current * BASE_OPACITY;
               mat.transparent = true;
               mat.depthWrite = false;
-              mat.needsUpdate = true;
+              // REMOVED: mat.needsUpdate = true - this causes GPU texture re-uploads every frame
             }
           }
         });
@@ -109,18 +124,11 @@ export const CloudsEnter: FC<CloudsEnterProps> = ({
   progress,
   className = '',
 }) => {
-  const [cameraZ, setCameraZ] = useState(() =>
-    getCameraZ(typeof window !== 'undefined' ? window.innerWidth : 1024)
+  // Calculate initial camera Z - no state to avoid re-renders
+  const cameraZ = useMemo(() =>
+    getCameraZ(typeof window !== 'undefined' ? window.innerWidth : 1024),
+    []
   );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setCameraZ(getCameraZ(window.innerWidth));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const divClassName = 'absolute inset-0 pointer-events-none overflow-hidden ' + className;
 
@@ -131,7 +139,6 @@ export const CloudsEnter: FC<CloudsEnterProps> = ({
       data-component="CloudsEnter"
     >
       <Canvas
-        key={cameraZ}
         camera={{ fov: 60, position: [0, 0, cameraZ], near: 0.1, far: 2000 }}
         scene={{ background: null }}
         style={{ background: 'transparent' }}
@@ -139,6 +146,7 @@ export const CloudsEnter: FC<CloudsEnterProps> = ({
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 1.5]}
       >
+        <CameraUpdater cameraZ={cameraZ} />
         <ambientLight intensity={0.5} />
         <directionalLight intensity={0.3} position={[0, 1, 1]} />
         <CloudController progress={progress} cloudConfigs={CLOUD_CONFIGS} />

@@ -46,7 +46,8 @@ export function useIntersectionAnimation(
     if (!element) return;
 
     const observer = new IntersectionObserver(handleIntersection, {
-      threshold: Array.from({ length: 11 }, (_, i) => i / 10),
+      // Reduced from 11 thresholds to minimal set - prevents excessive callbacks
+      threshold: [0, threshold, 1],
       rootMargin,
     });
 

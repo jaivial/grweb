@@ -1,4 +1,4 @@
-import React, { FC, MutableRefObject, Suspense, useRef, useMemo, useState, useEffect } from 'react';
+import React, { FC, MutableRefObject, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Cloud } from '@react-three/drei';
 import * as THREE from 'three';
@@ -31,6 +31,7 @@ interface CloudConfig {
 const CLOUD_OPACITY = 0.6;
 const BASE_OPACITY = 0.6;
 
+// Memoize cloud configs to prevent recreation
 const CLOUD_CONFIGS: CloudConfig[] = [
   { seed: 1, scale: [9, 3.5, 3.5], volume: 22, color: '#888888', speed: 0.1, fade: 30, segments: 12, position: [0, 10, -10], growth: 0.3, concentrate: 'inside', drift: 0.5 },
   { seed: 2, scale: [7, 2.5, 2.5], volume: 14, color: '#999999', speed: 0.08, fade: 26, segments: 10, position: [-8, 8, -9], growth: 0.25, concentrate: 'inside', drift: -0.8 },
@@ -59,46 +60,57 @@ interface CloudControllerProps {
   cloudConfigs: CloudConfig[];
 }
 
+// Camera updater - updates camera position without recreating WebGL context
+const CameraUpdater: FC<{ cameraZ: number }> = ({ cameraZ }) => {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    camera.position.z = cameraZ;
+    camera.updateProjectionMatrix();
+  }, [camera, cameraZ]);
+
+  return null;
+};
+
 const CloudController: FC<CloudControllerProps> = ({ smokeStateRef, cloudConfigs }) => {
   const groupRef = useRef<THREE.Group>(null);
   const { invalidate } = useThree();
   const materialOpacityRef = useRef(1);
-  const targetOpacityRef = useRef(1);
-  const targetOffsetRef = useRef(0);
   const currentOffsetRef = useRef(0);
-  const initialPositionsRef = useRef<Map<number, [number, number, number]>>(new Map());
+  // Store initial positions once - use useMemo to compute once
+  const initialPositions = useMemo(() => {
+    const map = new Map<number, [number, number, number]>();
+    cloudConfigs.forEach(cfg => map.set(cfg.seed, cfg.position));
+    return map;
+  }, [cloudConfigs]);
 
   useFrame(() => {
     const state = smokeStateRef.current;
-    const opacity = state.opacity;
-    const offset = state.offset;
-
-    targetOpacityRef.current = opacity;
-    targetOffsetRef.current = offset;
+    const targetOpacity = state.opacity;
+    const targetOffset = state.offset;
 
     const lerpFactor = 0.12;
-    materialOpacityRef.current += (targetOpacityRef.current - materialOpacityRef.current) * lerpFactor;
-    currentOffsetRef.current += (targetOffsetRef.current - currentOffsetRef.current) * lerpFactor;
+    materialOpacityRef.current += (targetOpacity - materialOpacityRef.current) * lerpFactor;
+    currentOffsetRef.current += (targetOffset - currentOffsetRef.current) * lerpFactor;
 
     if (groupRef.current) {
       groupRef.current.position.y = currentOffsetRef.current * 30;
 
       groupRef.current.children.forEach((child, index) => {
         const cfg = cloudConfigs[index];
-        if (cfg && !cfg.fixed && initialPositionsRef.current.has(cfg.seed)) {
-          const initialPos = initialPositionsRef.current.get(cfg.seed)!;
+        if (cfg && !cfg.fixed && initialPositions.has(cfg.seed)) {
+          const initialPos = initialPositions.get(cfg.seed)!;
           child.position.x = initialPos[0] + currentOffsetRef.current * cfg.drift * 40;
         }
-        const targetOpacity = cfg.fixed ? 1 : materialOpacityRef.current * BASE_OPACITY;
+        const opacity = cfg.fixed ? 1 : materialOpacityRef.current * BASE_OPACITY;
         child.traverse((node) => {
           const mesh = node as THREE.Mesh;
           if (mesh.isMesh && mesh.material) {
             const mat = mesh.material as THREE.MeshLambertMaterial;
             if (mat.opacity !== undefined) {
-              mat.opacity = targetOpacity;
+              mat.opacity = opacity;
               mat.transparent = true;
               mat.depthWrite = false;
-              mat.needsUpdate = true;
             }
           }
         });
@@ -110,27 +122,22 @@ const CloudController: FC<CloudControllerProps> = ({ smokeStateRef, cloudConfigs
 
   return (
     <group ref={groupRef}>
-      {cloudConfigs.map((cfg) => {
-        if (!initialPositionsRef.current.has(cfg.seed)) {
-          initialPositionsRef.current.set(cfg.seed, cfg.position);
-        }
-        return (
-          <Cloud
-            key={cfg.seed}
-            seed={cfg.seed}
-            scale={cfg.scale}
-            volume={cfg.volume}
-            color={cfg.color}
-            opacity={CLOUD_OPACITY}
-            speed={cfg.speed}
-            fade={cfg.fade}
-            segments={cfg.segments}
-            position={cfg.position}
-            growth={cfg.growth}
-            concentrate={cfg.concentrate}
-          />
-        );
-      })}
+      {cloudConfigs.map((cfg) => (
+        <Cloud
+          key={cfg.seed}
+          seed={cfg.seed}
+          scale={cfg.scale}
+          volume={cfg.volume}
+          color={cfg.color}
+          opacity={CLOUD_OPACITY}
+          speed={cfg.speed}
+          fade={cfg.fade}
+          segments={cfg.segments}
+          position={cfg.position}
+          growth={cfg.growth}
+          concentrate={cfg.concentrate}
+        />
+      ))}
     </group>
   );
 };
@@ -139,18 +146,11 @@ export const SmokeOverlay: FC<SmokeOverlayProps> = ({
   smokeStateRef,
   className = '',
 }) => {
-  const [cameraZ, setCameraZ] = useState(() =>
-    getCameraZ(typeof window !== 'undefined' ? window.innerWidth : 1024)
+  // Calculate initial camera Z - no state to avoid re-renders
+  const cameraZ = useMemo(() =>
+    getCameraZ(typeof window !== 'undefined' ? window.innerWidth : 1024),
+    []
   );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setCameraZ(getCameraZ(window.innerWidth));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const divClassName = 'absolute inset-0 pointer-events-none overflow-hidden ' + className;
 
@@ -161,7 +161,6 @@ export const SmokeOverlay: FC<SmokeOverlayProps> = ({
       data-component="SmokeOverlay"
     >
       <Canvas
-        key={cameraZ}
         id="fixed-clouds-canvas"
         camera={{ fov: 60, position: [0, 0, cameraZ], near: 0.1, far: 2000 }}
         scene={{ background: null }}
@@ -170,6 +169,7 @@ export const SmokeOverlay: FC<SmokeOverlayProps> = ({
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 1.5]}
       >
+        <CameraUpdater cameraZ={cameraZ} />
         <ambientLight intensity={0.5} />
         <directionalLight intensity={0.3} position={[0, 1, 1]} />
         <Suspense fallback={null}>

@@ -1,5 +1,8 @@
 import { FC, useEffect, useRef, useMemo, useState, useCallback } from 'react';
 
+// Test log - should appear immediately when this module loads
+window.console.log('[FrameAnimator] Module loaded');
+
 const ANIMATION_START = 0.0;
 
 export interface EdgeFadeOverlay {
@@ -23,6 +26,12 @@ export interface FrameAnimatorProps {
   maxWidth?: number;
   aspectRatio?: number;
   edgeFadeOverlay?: EdgeFadeOverlay | null;
+  /** On-demand frame getter - enables memory-efficient loading */
+  getFrame?: (index: number) => HTMLImageElement | null;
+  /** Preload frames around an index */
+  preloadAround?: (centerIndex: number) => void;
+  /** Total frames available (when using getFrame) */
+  totalFrames?: number;
 }
 
 export const FrameAnimator: FC<FrameAnimatorProps> = ({
@@ -34,41 +43,118 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
   maxWidth = Infinity,
   aspectRatio,
   edgeFadeOverlay,
+  getFrame,
+  preloadAround,
+  totalFrames,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentFrameRef = useRef(-1);
-  const [staticFrameLoaded, setStaticFrameLoaded] = useState(false);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 9999
   );
 
-  // Track window width for responsive side fades
+  // Debug logging - uses window.console to prevent stripping
+  const logFrame = (context: string, data?: Record<string, unknown>) => {
+    const prefix = '[FrameAnimator:' + context + ']';
+    window.console.log(prefix, {
+      framesAvailable: frames.length,
+      totalFrames,
+      progress: typeof progress === 'number' ? progress.toFixed(3) : progress,
+      isAnimating,
+      windowWidth,
+      usingGetFrame: !!getFrame,
+      ...data
+    });
+  };
+
+  // Log initial state
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    logFrame('MOUNT', { maxWidth, aspectRatio });
+    return () => logFrame('UNMOUNT');
   }, []);
 
-  // Calculate frame index based on progress
+  // Use totalFrames if provided, otherwise use frames.length
+  const effectiveTotal = totalFrames ?? frames.length;
+
+  // Get frame - use getFrame function if available, otherwise array access
+  const getFrameByIndex = useCallback((index: number): HTMLImageElement | null => {
+    if (getFrame) {
+      return getFrame(index);
+    }
+    return frames[index] ?? null;
+  }, [frames, getFrame]);
+
+  // Combined resize handler
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      // Redraw current frame after resize
+      if (effectiveTotal > 0 && currentFrameRef.current >= 0 && isAnimating) {
+        requestAnimationFrame(() => {
+          if (currentFrameRef.current >= 0) {
+            drawFrameInternal(currentFrameRef.current, window.innerWidth);
+          }
+        });
+      }
+    };
+
+    const drawFrameInternal = (index: number, currentWidth: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas || effectiveTotal === 0) return;
+
+      const frame = getFrameByIndex(index);
+      if (!frame) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.min(currentWidth, maxWidth);
+      const height = aspectRatio ? width / aspectRatio : width / (frame.width / frame.height);
+
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(frame, 0, 0, width, height);
+    };
+
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, [effectiveTotal, maxWidth, aspectRatio, isAnimating, getFrameByIndex]);
+
   const frameIndex = useMemo(() => {
     const animationEnd = staticPauseStart;
 
     if (progress <= 0) return 0;
-    if (progress >= animationEnd) return frames.length - 1;
+    if (progress >= animationEnd) return effectiveTotal - 1;
 
     const animationProgress = progress / animationEnd;
-    const index = Math.floor(animationProgress * (frames.length - 1));
+    const index = Math.floor(animationProgress * (effectiveTotal - 1));
 
-    return Math.max(0, Math.min(frames.length - 1, index));
-  }, [progress, frames.length, staticPauseStart]);
+    return Math.max(0, Math.min(effectiveTotal - 1, index));
+  }, [progress, effectiveTotal, staticPauseStart]);
 
-  // Draw the current frame
   const drawFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
-    if (!canvas || frames.length === 0) return;
+    if (!canvas || effectiveTotal === 0) {
+      logFrame('DRAW_SKIP', { reason: 'no_canvas_or_no_frames', index });
+      return;
+    }
 
-    const frame = frames[index];
-    if (!frame) return;
+    const frame = getFrameByIndex(index);
+    if (!frame) {
+      logFrame('DRAW_SKIP', { reason: 'frame_not_loaded', index, usingGetFrame: !!getFrame });
+      // Frame not loaded yet - trigger preload
+      if (preloadAround) {
+        preloadAround(index);
+      }
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -82,41 +168,38 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
 
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(frame, 0, 0, width, height);
-  }, [frames, maxWidth, aspectRatio, windowWidth]);
+  }, [effectiveTotal, maxWidth, aspectRatio, windowWidth, getFrameByIndex, preloadAround]);
 
-  // Effect to draw frame when index changes
+  // Preload frames around current position
   useEffect(() => {
-    if (frames.length === 0) return;
-    if (!isAnimating) return;
+    if (preloadAround && isAnimating && frameIndex >= 0) {
+      preloadAround(frameIndex);
+    }
+  }, [frameIndex, isAnimating, preloadAround]);
+
+  useEffect(() => {
+    if (effectiveTotal === 0) return;
+    if (!isAnimating) {
+      logFrame('STOPPED', { effectiveTotal });
+      return;
+    }
 
     if (currentFrameRef.current === -1) {
-      // Initial draw when animating starts
       currentFrameRef.current = frameIndex;
+      logFrame('FIRST_FRAME', { index: frameIndex });
       drawFrame(frameIndex);
     } else if (frameIndex !== currentFrameRef.current) {
       currentFrameRef.current = frameIndex;
+      logFrame('FRAME_CHANGE', { index: frameIndex, prev: currentFrameRef.current });
       drawFrame(frameIndex);
     }
-  }, [frameIndex, frames, isAnimating, drawFrame]);
+  }, [frameIndex, effectiveTotal, isAnimating, drawFrame]);
 
-  // Effect for resize
-  useEffect(() => {
-    if (!isAnimating) return;
-
-    const handleResize = () => {
-      if (frames.length > 0 && frameIndex >= 0) {
-        drawFrame(frameIndex);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [frameIndex, frames, isAnimating, drawFrame, windowWidth]);
-
-  const showCanvas = frames.length > 0;
+  const showCanvas = effectiveTotal > 0;
   const canvasWidth = Math.min(windowWidth, maxWidth);
   const canvasHeight = aspectRatio ? canvasWidth / aspectRatio : canvasWidth;
 
@@ -140,7 +223,6 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
           height: canvasHeight + 'px',
         }}
       />
-      {/* Edge fade overlay */}
       {edgeFadeOverlay && (
         <div
           className="absolute pointer-events-none"
