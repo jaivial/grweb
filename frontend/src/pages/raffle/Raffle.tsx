@@ -1,7 +1,6 @@
 import { FC, useState, useMemo, useCallback, useEffect } from 'react';
 import { Trophy } from 'lucide-react';
 import { BiLogoInstagram } from 'react-icons/bi';
-import Layout from '../../layouts/Layout';
 import { Icon } from '../../components/ui/Icon';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -212,7 +211,7 @@ export const Raffle: FC = () => {
   }, [formData, ticketCount, validateForm]);
 
   return (
-    <Layout>
+    <>
       <Head {...pageMetaConfig['/raffle']} />
       <main className="min-h-screen bg-black" data-section="raffle-page">
         {/* 200vh Hero Animation Section */}
@@ -715,7 +714,7 @@ export const Raffle: FC = () => {
         </section>
 
       </main>
-    </Layout>
+    </>
   );
 };
 
