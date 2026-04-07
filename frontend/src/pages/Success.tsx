@@ -262,9 +262,7 @@ return (
         {/* Footer Note */}
         <div className="text-center mt-12 text-gray-500 text-sm">
           <p>Questions? Contact us at <span className="text-red-accent">support@grstrength.com</span></p>
-          <p className="text-gray-500 text-sm">
-            Questions? Contact us at <span className="text-red-accent">support@grstrength.com</span>
-          </p>
+      
         </div>
       </div>
     </div>

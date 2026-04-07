@@ -1,17 +1,10 @@
 import type { JSX } from 'react';
-import { Button } from '@components/ui/Button';
-import { Icon } from '@components/ui/Icon';
-import { Card } from '@components/ui/Card';
 import { generateShareMessage, getTwitterShareUrl, getFacebookShareUrl } from '../utils/formatters';
 
 interface ShareButtonsProps {
   ticketCount: number;
 }
 
-/**
- * Share Buttons Component
- * Allows users to share their entry on social media
- */
 export function ShareButtons({ ticketCount }: ShareButtonsProps): JSX.Element {
   const message = generateShareMessage(ticketCount);
 
@@ -24,57 +17,41 @@ export function ShareButtons({ ticketCount }: ShareButtonsProps): JSX.Element {
   };
 
   const handleInstagramShare = () => {
-    // Copy message to clipboard
     navigator.clipboard.writeText(message).then(() => {
-      alert('Message copied to clipboard! Share it on Instagram.');
+      alert('Mensaje copiado al portapapeles. Compártelo en Instagram.');
     });
   };
 
   return (
-    <Card variant="outlined" padding="md" className="mb-8 animate-slide-up" style={{ animationDelay: '0.4s' }}>
-      <h3 className="text-lg font-semibold text-white mb-4 text-center">
-        Share the Excitement!
+    <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 mb-6" data-ui="share-section">
+      <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider mb-4 text-center" data-ui="share-title">
+        Comparte con tus amigos
       </h3>
-      
-      <p className="text-gray-400 text-sm text-center mb-6">
-        Let your friends know about the GR Cup Raffle
-      </p>
-      
-      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        {/* Twitter */}
-        <Button
-          variant="outline"
-          size="md"
+
+      <div className="flex gap-3 justify-center" data-ui="share-buttons">
+        <button
           onClick={handleTwitterShare}
-          leftIcon={<Icon name="twitter" size="sm" />}
-          className="flex-1 sm:flex-none"
+          className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
+          data-ui="share-twitter"
         >
           Twitter
-        </Button>
-        
-        {/* Facebook */}
-        <Button
-          variant="outline"
-          size="md"
+        </button>
+        <button
           onClick={handleFacebookShare}
-          leftIcon={<Icon name="facebook" size="sm" />}
-          className="flex-1 sm:flex-none"
+          className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
+          data-ui="share-facebook"
         >
           Facebook
-        </Button>
-        
-        {/* Instagram */}
-        <Button
-          variant="outline"
-          size="md"
+        </button>
+        <button
           onClick={handleInstagramShare}
-          leftIcon={<Icon name="instagram" size="sm" />}
-          className="flex-1 sm:flex-none"
+          className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
+          data-ui="share-instagram"
         >
           Instagram
-        </Button>
+        </button>
       </div>
-    </Card>
+    </div>
   );
 }
 

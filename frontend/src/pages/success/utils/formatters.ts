@@ -4,7 +4,7 @@
  * Formats a price in euros
  */
 export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('en-EU', {
+  return new Intl.NumberFormat('es-ES', {
     style: 'currency',
     currency: 'EUR',
   }).format(price);
@@ -14,8 +14,8 @@ export function formatPrice(price: number): string {
  * Formats ticket count
  */
 export function formatTicketCount(count: number): string {
-  if (count === 1) return '1 ticket';
-  return `${count} tickets`;
+  if (count === 1) return '1 boleto';
+  return `${count} boletos`;
 }
 
 /**
@@ -37,9 +37,9 @@ export function formatInstagram(username: string): string {
  */
 export function generateShareMessage(ticketCount: number): string {
   if (ticketCount === 1) {
-    return `I just entered the GR Cup 2026 Raffle! 🎉 Good luck to everyone! #GRCup #Powerlifting`;
+    return `Acabo de entrar en el sorteo de la GRStrength Cup 2026. Suerte a todos. #GRCup #Powerlifting`;
   }
-  return `I just got ${ticketCount} tickets for the GR Cup 2026 Raffle! 🎉 #GRCup #Powerlifting`;
+  return `Acabo de comprar ${ticketCount} boletos para el sorteo de la GRStrength Cup 2026. #GRCup #Powerlifting`;
 }
 
 /**
