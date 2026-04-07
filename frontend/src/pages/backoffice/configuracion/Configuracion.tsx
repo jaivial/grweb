@@ -1,16 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { JSX } from 'react';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { Tabs } from '../../../components/ui';
 import { EmailSettingsForm } from './components/EmailSettingsForm';
+import { StripeSettingsForm } from './components/StripeSettingsForm';
 import { useEmailConfig } from './hooks/useEmailConfig';
+import { useStripeConfig } from './hooks/useStripeConfig';
 import { Settings } from 'lucide-react';
 
 const TABS = [
   { id: 'email', label: 'Configuración de Email' },
+  { id: 'stripe', label: 'Stripe' },
 ];
 
-const DEFAULT_CONFIG = {
+const DEFAULT_EMAIL_CONFIG = {
   mainProvider: 0,
   gmailAddress: null,
   gmailAppPassword: null,
@@ -21,19 +24,31 @@ const DEFAULT_CONFIG = {
   smtpPort: 587,
 };
 
+const DEFAULT_STRIPE_CONFIG = {
+  secretKey: null,
+  publishableKey: null,
+  webhookSecret: null,
+};
+
 export function Configuracion(): JSX.Element {
   const [activeTab, setActiveTab] = useState('email');
-  const { config, isLoading, error, isSaving, fetchConfig, saveConfig } = useEmailConfig();
+  const { config: emailConfig, isLoading: emailLoading, error: emailError, isSaving: emailSaving, fetchConfig: fetchEmailConfig, saveConfig: saveEmailConfig } = useEmailConfig();
+  const { config: stripeConfig, isLoading: stripeLoading, error: stripeError, isSaving: stripeSaving, fetchConfig: fetchStripeConfig, saveConfig: saveStripeConfig } = useStripeConfig();
 
   useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
+    fetchEmailConfig();
+    fetchStripeConfig();
+  }, [fetchEmailConfig, fetchStripeConfig]);
 
   const handleTabChange = useCallback((tabId: string) => {
     setActiveTab(tabId);
   }, []);
 
-  const formData = config ?? DEFAULT_CONFIG;
+  const emailFormData = useMemo(() => emailConfig ?? DEFAULT_EMAIL_CONFIG, [emailConfig]);
+  const stripeFormData = useMemo(() => stripeConfig ?? DEFAULT_STRIPE_CONFIG, [stripeConfig]);
+
+  const isLoading = activeTab === 'email' ? emailLoading : stripeLoading;
+  const error = activeTab === 'email' ? emailError : stripeError;
 
   return (
     <BackofficeLayout>
@@ -69,11 +84,19 @@ export function Configuracion(): JSX.Element {
           </div>
         ) : (
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 xs:p-6" data-ui="form-container">
-            <EmailSettingsForm
-              initialData={formData}
-              onSave={saveConfig}
-              isSaving={isSaving}
-            />
+            {activeTab === 'email' ? (
+              <EmailSettingsForm
+                initialData={emailFormData}
+                onSave={saveEmailConfig}
+                isSaving={emailSaving}
+              />
+            ) : (
+              <StripeSettingsForm
+                initialData={stripeFormData}
+                onSave={saveStripeConfig}
+                isSaving={stripeSaving}
+              />
+            )}
           </div>
         )}
       </div>
