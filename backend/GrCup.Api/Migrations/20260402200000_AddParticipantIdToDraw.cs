@@ -9,18 +9,32 @@ namespace GrCup.Api.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
-                ALTER TABLE `Draws`
-                    ADD COLUMN IF NOT EXISTS `ParticipantId` int NULL;
+                SET @dbname = DATABASE();
 
-                CREATE INDEX IF NOT EXISTS `IX_Draws_ParticipantId` ON `Draws` (`ParticipantId`);
+                SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'Draws' AND COLUMN_NAME = 'ParticipantId');
+                SET @sql_col = IF(@col_exists = 0,
+                    'ALTER TABLE `Draws` ADD COLUMN `ParticipantId` int NULL',
+                    'SELECT 1');
+                PREPARE stmt FROM @sql_col;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+
+                SET @idx_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+                    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'Draws' AND INDEX_NAME = 'IX_Draws_ParticipantId');
+                SET @sql_idx = IF(@idx_exists = 0,
+                    'CREATE INDEX `IX_Draws_ParticipantId` ON `Draws` (`ParticipantId`)',
+                    'SELECT 1');
+                PREPARE stmt FROM @sql_idx;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
 
                 SET @fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-                    WHERE TABLE_SCHEMA = DATABASE() AND CONSTRAINT_NAME = 'FK_Draws_Participants_ParticipantId');
-
-                SET @sql = IF(@fk_exists = 0,
+                    WHERE TABLE_SCHEMA = @dbname AND CONSTRAINT_NAME = 'FK_Draws_Participants_ParticipantId');
+                SET @sql_fk = IF(@fk_exists = 0,
                     'ALTER TABLE `Draws` ADD CONSTRAINT `FK_Draws_Participants_ParticipantId` FOREIGN KEY (`ParticipantId`) REFERENCES `Participants`(`Id`) ON DELETE SET NULL',
                     'SELECT 1');
-                PREPARE stmt FROM @sql;
+                PREPARE stmt FROM @sql_fk;
                 EXECUTE stmt;
                 DEALLOCATE PREPARE stmt;
             ");

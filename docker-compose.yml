@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./backend/GrCup.Api
+      dockerfile: Dockerfile
+    container_name: grcup-api
+    restart: unless-stopped
+    ports:
+      - "5006:5006"
+    environment:
+      - ASPNETCORE_URLS=http://+:5006
+      - ASPNETCORE_ENVIRONMENT=Production
+    env_file:
+      - ./backend/GrCup.Api/.env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - grcup-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5006/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  mysql:
+    image: mysql:8.0
+    container_name: grcup-mysql
+    restart: unless-stopped
+    ports:
+      - "3308:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-grcup_secure_root_2026}
+      - MYSQL_DATABASE=grcup
+      - MYSQL_USER=grcup
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-grcup_secure_user_2026}
+    volumes:
+      - grcup-mysql-data:/var/lib/mysql
+    networks:
+      - grcup-network
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-grcup_secure_root_2026}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  grcup-network:
+    driver: bridge
+
+volumes:
+  grcup-mysql-data:
+    driver: local

@@ -13,12 +13,52 @@ namespace GrCup.Api.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
-                ALTER TABLE `Participants`
-                    ADD COLUMN IF NOT EXISTS `Phone` varchar(20) CHARACTER SET utf8mb4 NULL,
-                    ADD COLUMN IF NOT EXISTS `Price` decimal(10,2) NULL,
-                    ADD COLUMN IF NOT EXISTS `IsPaid` tinyint(1) NOT NULL DEFAULT TRUE,
-                    ADD COLUMN IF NOT EXISTS `PaymentMethod` varchar(20) CHARACTER SET utf8mb4 NULL,
-                    ADD COLUMN IF NOT EXISTS `DateModified` datetime(6) NULL;
+                SET @dbname = DATABASE();
+
+                SET @col_phone = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'Participants' AND COLUMN_NAME = 'Phone');
+                SET @sql_phone = IF(@col_phone = 0,
+                    'ALTER TABLE `Participants` ADD COLUMN `Phone` varchar(20) CHARACTER SET utf8mb4 NULL',
+                    'SELECT 1');
+                PREPARE stmt FROM @sql_phone;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+
+                SET @col_price = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'Participants' AND COLUMN_NAME = 'Price');
+                SET @sql_price = IF(@col_price = 0,
+                    'ALTER TABLE `Participants` ADD COLUMN `Price` decimal(10,2) NULL',
+                    'SELECT 1');
+                PREPARE stmt FROM @sql_price;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+
+                SET @col_ispaid = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'Participants' AND COLUMN_NAME = 'IsPaid');
+                SET @sql_ispaid = IF(@col_ispaid = 0,
+                    'ALTER TABLE `Participants` ADD COLUMN `IsPaid` tinyint(1) NOT NULL DEFAULT TRUE',
+                    'SELECT 1');
+                PREPARE stmt FROM @sql_ispaid;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+
+                SET @col_payment = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'Participants' AND COLUMN_NAME = 'PaymentMethod');
+                SET @sql_payment = IF(@col_payment = 0,
+                    'ALTER TABLE `Participants` ADD COLUMN `PaymentMethod` varchar(20) CHARACTER SET utf8mb4 NULL',
+                    'SELECT 1');
+                PREPARE stmt FROM @sql_payment;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+
+                SET @col_modified = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'Participants' AND COLUMN_NAME = 'DateModified');
+                SET @sql_modified = IF(@col_modified = 0,
+                    'ALTER TABLE `Participants` ADD COLUMN `DateModified` datetime(6) NULL',
+                    'SELECT 1');
+                PREPARE stmt FROM @sql_modified;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
             ");
         }
 
