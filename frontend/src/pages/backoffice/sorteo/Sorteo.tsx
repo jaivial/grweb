@@ -815,7 +815,7 @@ export function Sorteo(): JSX.Element {
                   {searchTerm ? 'Sin resultados para la búsqueda' : 'Sin participantes todavía'}
                 </div>
               ) : (
-                <div className="bg-dark-surface/50 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden min-w-0">
+                <div className="bg-dark-surface/50 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden min-w-0 mb-12">
                   <div className="overflow-x-auto min-w-0">
                     <table className="w-full min-w-[600px]">
                       <thead>
