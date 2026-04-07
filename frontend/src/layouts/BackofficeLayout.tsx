@@ -78,7 +78,7 @@ export function BackofficeLayout({ children }: BackofficeLayoutProps): JSX.Eleme
   }
 
   return (
-    <div className="min-h-screen bg-dark-base flex" data-ui="backoffice-layout">
+    <div className="min-h-screen bg-dark-base flex overflow-x-hidden" data-ui="backoffice-layout">
       {/* Mobile Header */}
       <header className="xl:hidden fixed top-0 left-0 right-0 z-30 bg-dark-surface/80 backdrop-blur-xl border-b border-white/5 px-3 xs:px-4 py-2.5 xs:py-3 flex items-center justify-between min-h-[56px] xs:min-h-[60px]" data-ui="mobile-header">
         <button
@@ -175,7 +175,7 @@ export function BackofficeLayout({ children }: BackofficeLayoutProps): JSX.Eleme
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-h-screen pt-20 xl:pt-0" data-ui="main-content">
+      <main className="flex-1 min-h-screen pt-20 xl:pt-0 min-w-0" data-ui="main-content">
         {children}
       </main>
     </div>

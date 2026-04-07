@@ -443,7 +443,7 @@ export function Sorteo(): JSX.Element {
 
   return (
     <BackofficeLayout>
-      <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="sorteo-page">
+      <div className="p-3 xs:p-4 sm:p-6 xl:p-8 min-w-0" data-ui="sorteo-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1">Sorteo</h1>
@@ -815,9 +815,9 @@ export function Sorteo(): JSX.Element {
                   {searchTerm ? 'Sin resultados para la búsqueda' : 'Sin participantes todavía'}
                 </div>
               ) : (
-                <div className="bg-dark-surface/50 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
+                <div className="bg-dark-surface/50 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden min-w-0">
+                  <div className="overflow-x-auto min-w-0">
+                    <table className="w-full min-w-[600px]">
                       <thead>
                         <tr className="border-b border-white/5">
                           <th className="px-4 xs:px-6 py-3 xs:py-4 text-left text-xs font-semibold text-gray-400 uppercase">Nombre</th>
