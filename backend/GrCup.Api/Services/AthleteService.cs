@@ -97,7 +97,7 @@ public class AthleteService
 
         if (!string.IsNullOrWhiteSpace(club))
         {
-            query = query.Where(a => a.Club != null && a.Club.ToLower().Contains(club.ToLower()));
+            query = query.Where(a => a.Club != null && a.Club.ToLower() == club.ToLower());
         }
 
         var totalCount = await query.CountAsync();
@@ -146,7 +146,7 @@ public class AthleteService
 
         if (!string.IsNullOrWhiteSpace(club))
         {
-            query = query.Where(a => a.Club != null && a.Club.ToLower().Contains(club.ToLower()));
+            query = query.Where(a => a.Club != null && a.Club.ToLower() == club.ToLower());
         }
 
         var total = await query.CountAsync();

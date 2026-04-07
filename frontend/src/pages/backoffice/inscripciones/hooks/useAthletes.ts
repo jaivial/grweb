@@ -1,147 +1,136 @@
-import { useState, useCallback } from 'react';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useCallback } from 'react';
 import { token } from '../../../../stores/auth';
 import { api } from '../../../../utils/api';
 import {
-  athletes,
-  athletesLoading,
-  athletesError,
-  athletesPage,
-  athletesPageSize,
-  athletesTotalCount,
-  athletesTotalPages,
-  athletesStats,
-  athletesSearchQuery,
-  athletesSexFilter,
-  athletesWeightCategoryFilter,
-  athletesStatusFilter,
-  athletesClubFilter,
-  hasActiveFilters,
-  setAthletes,
-  setAthletesLoading,
-  setAthletesError,
-  setAthletesPage,
-  clearAthletesFilters,
-  addAthlete,
-  updateAthlete as updateAthleteInStore,
-  removeAthlete,
+  athletesAtom,
+  athletesLoadingAtom,
+  athletesErrorAtom,
+  athletesPageAtom,
+  athletesPageSizeAtom,
+  athletesTotalCountAtom,
+  athletesTotalPagesAtom,
+  athletesStatsAtom,
+  athletesSearchQueryAtom,
+  athletesSexFilterAtom,
+  athletesWeightCategoryFilterAtom,
+  athletesStatusFilterAtom,
+  athletesClubFilterAtom,
+  hasActiveFiltersAtom,
 } from '../../../../stores/athletesStore';
 import type { Athlete, AthleteFormData } from '../../../../types/athlete';
-import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../../constants/categories';
 
-interface UseAthletesReturn {
-  athletes: typeof athletes.value;
-  stats: typeof athletesStats.value;
-  isLoading: boolean;
-  error: string | null;
-  currentPage: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasFilters: boolean;
-  fetchAthletes: () => Promise<void>;
-  createAthlete: (data: AthleteFormData) => Promise<Athlete>;
-  updateAthlete: (id: number, data: AthleteFormData) => Promise<Athlete>;
-  deleteAthlete: (id: number) => Promise<void>;
-  goToPage: (page: number) => void;
-  nextPage: () => void;
-  prevPage: () => void;
-  refresh: () => Promise<void>;
-}
+export function useAthletes() {
+  const [athletes, setAthletes] = useAtom(athletesAtom);
+  const [isLoading, setIsLoading] = useAtom(athletesLoadingAtom);
+  const [error, setError] = useAtom(athletesErrorAtom);
+  const [currentPage, setCurrentPage] = useAtom(athletesPageAtom);
+  const [pageSize] = useAtom(athletesPageSizeAtom);
+  const [totalCount, setTotalCount] = useAtom(athletesTotalCountAtom);
+  const totalPages = useAtomValue(athletesTotalPagesAtom);
+  const stats = useAtomValue(athletesStatsAtom);
+  const hasFilters = useAtomValue(hasActiveFiltersAtom);
+  const setStats = useSetAtom(athletesStatsAtom);
 
-export function useAthletes(): UseAthletesReturn {
-  const [currentPage, setCurrentPage] = useState(athletesPage.value);
-  const [pageSize] = useState(athletesPageSize.value);
+  const searchQuery = useAtomValue(athletesSearchQueryAtom);
+  const sexFilter = useAtomValue(athletesSexFilterAtom);
+  const weightCategoryFilter = useAtomValue(athletesWeightCategoryFilterAtom);
+  const statusFilter = useAtomValue(athletesStatusFilterAtom);
+  const clubFilter = useAtomValue(athletesClubFilterAtom);
 
-  const fetchAthletes = useCallback(async () => {
+  const fetchAthletes = useCallback(async (
+    pageOverride?: number,
+    filters?: {
+      search?: string;
+      sex?: string;
+      weightCategory?: string;
+      status?: string;
+      club?: string;
+    }
+  ) => {
     if (!token.value) return;
-    
-    setAthletesLoading(true);
-    setAthletesError(null);
+
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const params = {
-        page: athletesPage.value,
+      const response = await api.getAthletes({
+        page: pageOverride ?? currentPage,
         pageSize: pageSize,
-        search: athletesSearchQuery.value || undefined,
-        sex: athletesSexFilter.value || undefined,
-        weightCategory: athletesWeightCategoryFilter.value || undefined,
-        status: athletesStatusFilter.value || undefined,
-        club: athletesClubFilter.value || undefined,
-      };
-
-      const response = await api.getAthletes(params);
-      
-      setAthletes({
-        athletes: response.athletes,
-        totalCount: response.totalCount,
-        stats: response.stats,
+        search: filters?.search || searchQuery || undefined,
+        sex: filters?.sex || sexFilter || undefined,
+        weightCategory: filters?.weightCategory || weightCategoryFilter || undefined,
+        status: filters?.status || statusFilter || undefined,
+        club: filters?.club || clubFilter || undefined,
       });
+
+      setAthletes(response.athletes);
+      setTotalCount(response.totalCount);
+      setStats(response.stats);
     } catch (err) {
-      setAthletesError(err instanceof Error ? err.message : 'Error al cargar atletas');
+      setError(err instanceof Error ? err.message : 'Error al cargar atletas');
     } finally {
-      setAthletesLoading(false);
+      setIsLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, searchQuery, sexFilter, weightCategoryFilter, statusFilter, clubFilter, setIsLoading, setError, setAthletes, setTotalCount, setStats]);
 
   const createAthlete = useCallback(async (data: AthleteFormData): Promise<Athlete> => {
     if (!token.value) throw new Error('No autenticado');
-    
+
     const athlete = await api.createAthlete({
       ...data,
       registrationDate: data.registrationDate || new Date().toISOString().split('T')[0],
     });
-    
-    addAthlete(athlete);
+
+    setAthletes((prev) => [athlete, ...prev]);
     return athlete;
-  }, []);
+  }, [setAthletes]);
 
   const updateAthlete = useCallback(async (id: number, data: AthleteFormData): Promise<Athlete> => {
     if (!token.value) throw new Error('No autenticado');
-    
+
     const athlete = await api.updateAthlete(id, data);
-    updateAthleteInStore(athlete);
+    setAthletes((prev) => prev.map((a) => (a.id === id ? athlete : a)));
     return athlete;
-  }, []);
+  }, [setAthletes]);
 
   const deleteAthlete = useCallback(async (id: number): Promise<void> => {
     if (!token.value) throw new Error('No autenticado');
-    
+
     await api.deleteAthlete(id);
-    removeAthlete(id);
-  }, []);
+    setAthletes((prev) => prev.filter((a) => a.id !== id));
+  }, [setAthletes]);
 
   const goToPage = useCallback((page: number) => {
     setCurrentPage(page);
-    setAthletesPage(page);
-    fetchAthletes();
-  }, [fetchAthletes]);
+  }, [setCurrentPage]);
 
   const nextPage = useCallback(() => {
-    if (currentPage < athletesTotalPages.value) {
-      goToPage(currentPage + 1);
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
     }
-  }, [currentPage, goToPage]);
+  }, [currentPage, totalPages, setCurrentPage]);
 
   const prevPage = useCallback(() => {
     if (currentPage > 1) {
-      goToPage(currentPage - 1);
+      setCurrentPage(currentPage - 1);
     }
-  }, [currentPage, goToPage]);
+  }, [currentPage, setCurrentPage]);
 
   const refresh = useCallback(async () => {
     await fetchAthletes();
   }, [fetchAthletes]);
 
   return {
-    athletes: athletes.value,
-    stats: athletesStats.value,
-    isLoading: athletesLoading.value,
-    error: athletesError.value,
+    athletes,
+    stats,
+    isLoading,
+    error,
     currentPage,
     pageSize,
-    totalCount: athletesTotalCount.value,
-    totalPages: athletesTotalPages.value,
-    hasFilters: hasActiveFilters.value,
+    totalCount,
+    totalPages,
+    hasFilters,
     fetchAthletes,
     createAthlete,
     updateAthlete,
