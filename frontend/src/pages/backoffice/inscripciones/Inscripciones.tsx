@@ -65,6 +65,7 @@ export function Inscripciones(): JSX.Element {
   const [loadingResponsableUrl, setLoadingResponsableUrl] = useState(true);
   const [savingResponsableUrl, setSavingResponsableUrl] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const [urlSaved, setUrlSaved] = useState(false);
   const [clubs, setClubs] = useState<string[]>([]);
   const [loadingClubs, setLoadingClubs] = useState(true);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'loading' | 'success'>('idle');
@@ -201,11 +202,14 @@ export function Inscripciones(): JSX.Element {
     if (!responsableUrl) return;
     try {
       setSavingResponsableUrl(true);
+      setUrlSaved(false);
       await api.updateResponsableUrlInscripciones({
         value: responsableUrl.value,
         url: url,
       });
       setResponsableUrl(prev => prev ? { ...prev, url } : null);
+      setUrlSaved(true);
+      setTimeout(() => setUrlSaved(false), 3000);
     } catch (error) {
       console.error('Error updating URL:', error);
     } finally {
@@ -448,6 +452,12 @@ export function Inscripciones(): JSX.Element {
                     Guardar
                   </Button>
                 </div>
+                {urlSaved && (
+                  <p className="mt-2 text-sm text-green-400 flex items-center gap-1.5" data-ui="url-saved-confirmation">
+                    <Check className="w-4 h-4" />
+                    URL guardada correctamente
+                  </p>
+                )}
               </div>
             )}
           </div>
