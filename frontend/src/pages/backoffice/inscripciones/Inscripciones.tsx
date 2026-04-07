@@ -339,7 +339,7 @@ export function Inscripciones(): JSX.Element {
 
   return (
     <BackofficeLayout>
-      <div className="p-3 xs:p-4 sm:p-6 xl:p-8 max-w-[95%] mx-auto" data-ui="inscripciones-page">
+      <div className="p-3 xs:p-4 sm:p-6 xl:p-8 max-w-full mx-auto min-w-0 overflow-hidden" data-ui="inscripciones-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">Inscripciones</h1>
@@ -476,7 +476,7 @@ export function Inscripciones(): JSX.Element {
         )}
 
         {/* Tabs - wrapper with overflow for horizontal scroll */}
-        <div className="mb-4 xs:mb-6 -mx-3 xs:-mx-4 px-3 xs:px-4 overflow-x-auto scrollbar-hide">
+        <div className="mb-4 xs:mb-6 w-full overflow-x-auto scrollbar-hide">
           <Tabs
             tabs={TABS}
             activeTab={activeTab}
@@ -486,9 +486,9 @@ export function Inscripciones(): JSX.Element {
 
         {/* Tab Content */}
         {activeTab === 'todas' ? (
-          <div className="space-y-4 xs:space-y-6" data-ui="todas-tab">
+          <div className="space-y-4 xs:space-y-6 min-w-0" data-ui="todas-tab">
             {/* KPI Section */}
-            <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5" data-ui="kpi-section">
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5 min-w-0" data-ui="kpi-section">
               <KpiCard label="Total" value={stats.total} className="kpi-compact" />
               <KpiCard label="Pagados" value={stats.paid} color="success" className="kpi-compact" />
               <KpiCard label="Pendientes" value={stats.pending} color="warning" className="kpi-compact" />
@@ -513,14 +513,16 @@ export function Inscripciones(): JSX.Element {
                 Exportar PDF
               </button>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-x-auto" data-ui="table-container">
-              <ResponsiveTable
-                columns={tableColumns}
-                data={athletes}
-                keyExtractor={(a) => a.id}
-                isLoading={isLoading}
-                emptyMessage="No hay atletas registrados"
-              />
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl min-w-0" data-ui="table-container">
+              <div className="overflow-x-auto min-w-0">
+                <ResponsiveTable
+                  columns={tableColumns}
+                  data={athletes}
+                  keyExtractor={(a) => a.id}
+                  isLoading={isLoading}
+                  emptyMessage="No hay atletas registrados"
+                />
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
