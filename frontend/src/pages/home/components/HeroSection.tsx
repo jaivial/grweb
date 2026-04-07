@@ -53,7 +53,7 @@ export const HeroSection: FC = () => {
   }, [isVisible]);
 
   const containerClassName = 'relative';
-  const viewportClassName = 'sticky top-0 h-screen overflow-hidden transition-opacity duration-500';
+  const viewportClassName = 'sticky top-0 h-dvh overflow-hidden transition-opacity duration-500 flex items-center justify-center';
 
   return (
     <div
@@ -73,7 +73,12 @@ export const HeroSection: FC = () => {
             progress={animationState.frameProgress}
             isAnimating={animationState.frameAnimationActive}
             maxWidth={540}
-            aspectRatio={9 / 16}
+            className="mx-auto h-dvh"
+            containerStyle={{
+              maskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 80%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 80%, transparent 100%)',
+              maskSize: '100% 58%',
+            }}
             edgeFadeOverlay={{
               background: 'linear-gradient(to right, #0a0a0a 0%, transparent 55%, transparent 65%, #0a0a0a 100%)',
               maxWidth: '540px',

@@ -23,6 +23,8 @@ export interface VideoFrameAnimatorProps {
   edgeFadeOverlay?: EdgeFadeOverlay | null;
   /** Path to the video file */
   src?: string;
+  /** Custom container styles (e.g., mask, height) */
+  containerStyle?: React.CSSProperties;
 }
 
 const VIDEO_SRC = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/trophy_hero_60fps_hq_reversed.mp4';
@@ -35,6 +37,7 @@ export const VideoFrameAnimator: FC<VideoFrameAnimatorProps> = ({
   aspectRatio,
   edgeFadeOverlay,
   src = VIDEO_SRC,
+  containerStyle,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -183,19 +186,21 @@ export const VideoFrameAnimator: FC<VideoFrameAnimatorProps> = ({
   }, [drawFrame]);
 
   const canvasWidth = Math.min(windowWidth, maxWidth);
-  const canvasHeight = aspectRatio ? canvasWidth / aspectRatio : canvasWidth;
+  const canvasHeight = aspectRatio ? canvasWidth / aspectRatio : window.innerHeight;
+
+  const defaultStyle: React.CSSProperties = {
+    maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+    WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
+    maskSize: '100% 100%',
+    maskRepeat: 'no-repeat',
+    maskPosition: 'center',
+  };
 
   return (
     <div
       className={`relative overflow-hidden flex items-center justify-center ${className}`}
       data-component="VideoFrameAnimator"
-      style={{
-        maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-        WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%)',
-        maskSize: '100% 100%',
-        maskRepeat: 'no-repeat',
-        maskPosition: 'center',
-      }}
+      style={containerStyle ? { ...defaultStyle, ...containerStyle } : defaultStyle}
     >
       {/* Hidden video element — canvas draws the visible output */}
       <video
