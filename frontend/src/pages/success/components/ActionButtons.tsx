@@ -1,25 +1,15 @@
 import type { JSX } from 'react';
-import { Button } from '@components/ui/Button';
-import { Icon } from '@components/ui/Icon';
 
-/**
- * Action Buttons Component
- * Provides navigation options after purchase
- */
 export function ActionButtons(): JSX.Element {
   return (
-    <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.5s' }}>
-      {/* Return Home */}
-      <Button
-        variant="outline"
-        size="lg"
-        onClick={() => {
-          window.location.href = '/';
-        }}
-        leftIcon={<Icon name="home" size="sm" />}
+    <div className="flex justify-center" data-ui="action-buttons">
+      <button
+        onClick={() => { window.location.href = '/'; }}
+        className="px-6 py-3 min-h-[48px] text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
+        data-ui="btn-home"
       >
-        Return Home
-      </Button>
+        Volver al inicio
+      </button>
     </div>
   );
 }

@@ -1,54 +1,27 @@
 import type { JSX } from 'react';
-import { Card } from '@components/ui/Card';
-import { Icon } from '@components/ui/Icon';
 
-/**
- * Next Steps Component
- * Displays what happens after successful purchase
- */
 export function NextSteps(): JSX.Element {
-  const steps = [
-    {
-      icon: 'mail',
-      title: 'Confirmation Email',
-      description: 'You\'ll receive a confirmation email shortly with your ticket details.',
-    },
-    {
-      icon: 'calendar',
-      title: 'Wait for the Draw',
-      description: 'The winner will be randomly selected after the ticket sales close.',
-    },
-    {
-      icon: 'sparkles',
-      title: 'Winner Announcement',
-      description: 'The winner will be announced on our website and social media.',
-    },
-  ];
-
   return (
-    <Card variant="gradient" padding="lg" className="mb-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-      <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-        <Icon name="info" color="red-accent" size="md" />
-        What Happens Next?
+    <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 mb-6" data-ui="next-steps">
+      <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider mb-4" data-ui="next-steps-title">
+        Siguientes pasos
       </h3>
-      
-      <div className="space-y-4">
-        {steps.map((step, index) => (
-          <div key={step.title} className="flex items-start gap-4">
-            {/* Step number */}
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-accent/20 flex items-center justify-center">
-              <span className="text-red-accent font-bold text-sm">{index + 1}</span>
-            </div>
-            
-            {/* Content */}
-            <div className="flex-1">
-              <h4 className="text-white font-medium mb-1">{step.title}</h4>
-              <p className="text-gray-400 text-sm">{step.description}</p>
-            </div>
-          </div>
-        ))}
+
+      <div className="space-y-3" data-ui="next-steps-list">
+        <div className="flex items-start gap-3" data-ui="step-email">
+          <span className="text-xs font-bold text-red-accent mt-0.5">1</span>
+          <p className="text-sm text-white/60">Recibirás un correo de confirmación con los detalles de tu participación.</p>
+        </div>
+        <div className="flex items-start gap-3" data-ui="step-draw">
+          <span className="text-xs font-bold text-red-accent mt-0.5">2</span>
+          <p className="text-sm text-white/60">El ganador se anunciará el último día de competición tras la entrega de premios.</p>
+        </div>
+        <div className="flex items-start gap-3" data-ui="step-follow">
+          <span className="text-xs font-bold text-red-accent mt-0.5">3</span>
+          <p className="text-sm text-white/60">Sigue <span className="text-white font-medium">@grstrengthclub</span> en Instagram para estar al día.</p>
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }
 

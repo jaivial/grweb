@@ -1,23 +1,10 @@
 import type { JSX } from 'react';
-import { Spinner } from '@components/ui/Spinner';
-import { Card } from '@components/ui/Card';
 
-/**
- * Loading State Component
- * Displays loading indicator while fetching data
- */
 export function LoadingState(): JSX.Element {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Card variant="default" padding="xl" className="text-center">
-        <Spinner size="xl" color="red-accent" className="mb-4" />
-        <h2 className="text-xl font-semibold text-white mb-2">
-          Loading...
-        </h2>
-        <p className="text-gray-400">
-          Verifying your purchase
-        </p>
-      </Card>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-ui="loading-state">
+      <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" data-ui="loading-spinner" />
+      <p className="text-sm text-white/50">Verificando tu compra...</p>
     </div>
   );
 }
