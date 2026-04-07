@@ -1,4 +1,4 @@
-import { FC, useState, useMemo, useCallback, useEffect } from 'react';
+import { FC, useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Trophy } from 'lucide-react';
 import { BiLogoInstagram } from 'react-icons/bi';
 import { Icon } from '../../components/ui/Icon';
@@ -99,11 +99,25 @@ export const Raffle: FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isLoadingWinner, setIsLoadingWinner] = useState(true);
+  const [formVisible, setFormVisible] = useState(false);
+  const enrollRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     fetchConfirmedWinner().finally(() => {
       setIsLoadingWinner(false);
     });
+  }, []);
+
+  // Observe enrollment form visibility
+  useEffect(() => {
+    const el = enrollRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFormVisible(entry.isIntersecting),
+      { rootMargin: '-10% 0px -10% 0px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   const totalPrice = useMemo(() => {
@@ -474,7 +488,7 @@ export const Raffle: FC = () => {
         </section>
 
         {/* Enrollment Section */}
-        <section id="enroll" className="min-h-screen py-24 px-4 bg-dark-base" data-section="enroll">
+        <section id="enroll" ref={enrollRef} className="min-h-screen py-24 px-4 bg-dark-base" data-section="enroll">
           <div className="max-w-2xl mx-auto" data-slot="enroll-container">
             <div className="text-center mb-12" data-slot="enroll-header">
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="enroll-title">
@@ -712,6 +726,17 @@ export const Raffle: FC = () => {
             </form>
           </div>
         </section>
+
+        {/* Floating CTA */}
+        {!formVisible && (
+          <button
+            onClick={() => enrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-red-accent hover:bg-red-600 text-white text-sm font-bold rounded-full shadow-lg shadow-red-accent/40 transition-all duration-300"
+            data-ui="floating-cta"
+          >
+            Compra ya
+          </button>
+        )}
 
       </main>
     </>
