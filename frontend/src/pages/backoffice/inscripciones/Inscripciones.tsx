@@ -339,7 +339,7 @@ export function Inscripciones(): JSX.Element {
 
   return (
     <BackofficeLayout>
-      <div className="p-3 xs:p-4 sm:p-6 xl:p-8 max-w-full mx-auto min-w-0 overflow-hidden" data-ui="inscripciones-page">
+      <div className="p-3 xs:p-4 sm:p-6 xl:p-8 pb-12 max-w-full mx-auto min-w-0 overflow-hidden" data-ui="inscripciones-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">Inscripciones</h1>
