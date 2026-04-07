@@ -1,0 +1,401 @@
+{
+  "project": "GR Cup Raffle Application",
+  "domain": "grcup.jaimedigitalstudio.com",
+  "server": {
+    "host": "hetzner",
+    "ip": "65.109.100.94",
+    "current_dns_points_to": "185.111.111.156 (BunnyCDN)"
+  },
+  "created_at": "2026-04-06",
+  "architecture": {
+    "frontend": {
+      "type": "static_spa",
+      "framework": "React + Vite + TypeScript + Tailwind",
+      "serve_method": "nginx_direct",
+      "build_output": "/var/www/grweb/dist",
+      "cdn": "BunnyCDN (confirmed - will be used as CDN layer)"
+    },
+    "backend": {
+      "type": "docker_container",
+      "framework": "ASP.NET Core 8 Minimal API",
+      "internal_port": 5006,
+      "external_port": 5006
+    },
+    "database": {
+      "type": "docker_container",
+      "engine": "MySQL 8.0",
+      "internal_port": 3306,
+      "external_port": 3308,
+      "database_name": "grcup",
+      "volume": "grcup-mysql-data"
+    }
+  },
+  "ports_inventory": {
+    "used_ports": [22, 80, 443, 3000, 3002, 3003, 3004, 3005, 3306, 3307, 5050, 5432, 6379, 8000, 8081, 8082, 8083, 8084, 8086, 8089, 8090, 8091, 8092, 8093, 8094, 8095, 8096, 8097, 8099, 8100, 6333, 6334, 11434, 27017, 13001, 18080, 18789, 18791, 18792, 18889],
+    "assigned_ports": {
+      "backend_api": 5006,
+      "mysql_external": 3308
+    }
+  },
+  "pm2_processes": [
+    "menustudioai-backend (port 3002)",
+    "watchdog-backend (port 3003)",
+    "tourtovalencia (port 3004)",
+    "jaimedigitalstudio-api (port 3005)",
+    "herobudget-* microservices (ports 8081-8100)"
+  ],
+  "docker_resources": {
+    "existing_containers": ["mysql:8.0", "chromadb", "qdrant", "villacarmen-*"],
+    "new_containers": ["grcup-api", "grcup-mysql"]
+  },
+  "env_variables": {
+    "STRIPE_SECRET_KEY": "REPLACE_WITH_YOUR_STRIPE_SECRET_KEY",
+    "STRIPE_PUBLISHABLE_KEY": "REPLACE_WITH_YOUR_STRIPE_PUBLISHABLE_KEY",
+    "STRIPE_WEBHOOK_SECRET": "REPLACE_WITH_YOUR_STRIPE_WEBHOOK_SECRET",
+    "JWT_SECRET": "REPLACE_WITH_SECURE_32CHAR_SECRET",
+    "CONNECTION_STRING": "Server=grcup-mysql;Database=grcup;User=root;Password=SECURE_PASSWORD_HERE;",
+    "BUNNYCDN_HOSTNAME": "storage.bunnycdn.com",
+    "BUNNYCDN_USERNAME": "jaimedigitalstudio",
+    "BUNNYCDN_PASSWORD": "0ad9ada0-7f63-4cf5-a19ba8fd8404-0c0a-40fb",
+    "BUNNYCDN_READONLY_PASSWORD": "b78999d3-9a58-4da7-b02e414a0b36-9419-4b9a",
+    "GOOGLE_PASSWORD": "pvey rsmk kcyn mfgm"
+  },
+  "deployment_steps": [
+    {
+      "phase": 1,
+      "name": "Preparation",
+      "tasks": [
+        {
+          "id": "1.1",
+          "task": "Create Docker network for GR Cup",
+          "command": "docker network create grcup-network",
+          "status": "pending"
+        },
+        {
+          "id": "1.2",
+          "task": "Create .env file on server with production variables",
+          "path": "/var/www/grweb/backend/GrCup.Api/.env",
+          "status": "pending"
+        },
+        {
+          "id": "1.3",
+          "task": "Generate secure JWT secret (32+ chars)",
+          "status": "pending"
+        },
+        {
+          "id": "1.4",
+          "task": "Generate secure MySQL root password",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Docker Setup",
+      "tasks": [
+        {
+          "id": "2.1",
+          "task": "Create Dockerfile for backend API",
+          "path": "backend/GrCup.Api/Dockerfile",
+          "content": "See docker/dockerfile-backend.md",
+          "status": "pending"
+        },
+        {
+          "id": "2.2",
+          "task": "Create docker-compose.yml",
+          "path": "/var/www/grweb/docker-compose.yml",
+          "content": "See docker/docker-compose.md",
+          "status": "pending"
+        },
+        {
+          "id": "2.3",
+          "task": "Build Docker images",
+          "command": "cd /var/www/grweb && docker-compose build",
+          "status": "pending"
+        },
+        {
+          "id": "2.4",
+          "task": "Run database migrations",
+          "command": "docker-compose run --rm api dotnet ef database update",
+          "status": "pending"
+        },
+        {
+          "id": "2.5",
+          "task": "Start containers",
+          "command": "docker-compose up -d",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Frontend Build",
+      "tasks": [
+        {
+          "id": "3.1",
+          "task": "Install frontend dependencies",
+          "command": "cd /var/www/grweb/frontend && npm ci",
+          "status": "pending"
+        },
+        {
+          "id": "3.2",
+          "task": "Set production API URL in .env",
+          "path": "/var/www/grweb/frontend/.env.production",
+          "content": "VITE_API_URL=https://grcup.jaimedigitalstudio.com/api",
+          "status": "pending"
+        },
+        {
+          "id": "3.3",
+          "task": "Build production frontend",
+          "command": "cd /var/www/grweb/frontend && npm run build",
+          "status": "pending"
+        },
+        {
+          "id": "3.4",
+          "task": "Copy dist to serving directory",
+          "command": "cp -r /var/www/grweb/frontend/dist /var/www/grweb/dist",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Nginx Configuration",
+      "tasks": [
+        {
+          "id": "4.1",
+          "task": "Create optimized nginx config",
+          "path": "/etc/nginx/sites-available/grcup.jaimedigitalstudio.com",
+          "status": "pending",
+          "features": [
+            "HTTP/3 QUIC support",
+            "TLS 1.2/1.3 only",
+            "OCSP Stapling",
+            "Brotli/Gzip compression",
+            "Security headers (HSTS, CSP, X-Frame-Options, etc.)",
+            "Static asset caching (1 year immutable)",
+            "Rate limiting",
+            "SPA fallback to index.html",
+            "API proxy to backend container",
+            "SignalR WebSocket support"
+          ]
+        },
+        {
+          "id": "4.2",
+          "task": "Enable site symlink",
+          "command": "ln -s /etc/nginx/sites-available/grcup.jaimedigitalstudio.com /etc/nginx/sites-enabled/",
+          "status": "pending"
+        },
+        {
+          "id": "4.3",
+          "task": "Test nginx configuration",
+          "command": "nginx -t",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "SSL Certificate",
+      "tasks": [
+        {
+          "id": "5.1",
+          "task": "Update DNS to point to Hetzner server",
+          "note": "Change A record from 185.111.111.156 to 65.109.100.94, or configure BunnyCDN pull zone origin",
+          "status": "pending"
+        },
+        {
+          "id": "5.2",
+          "task": "Obtain Let's Encrypt certificate",
+          "command": "certbot certonly --nginx -d grcup.jaimedigitalstudio.com",
+          "status": "pending"
+        },
+        {
+          "id": "5.3",
+          "task": "Set up auto-renewal",
+          "command": "certbot renew --dry-run",
+          "status": "pending"
+        },
+        {
+          "id": "5.4",
+          "task": "Reload nginx with SSL",
+          "command": "systemctl reload nginx",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "Verification",
+      "tasks": [
+        {
+          "id": "6.1",
+          "task": "Test frontend accessibility",
+          "command": "curl -I https://grcup.jaimedigitalstudio.com",
+          "status": "pending"
+        },
+        {
+          "id": "6.2",
+          "task": "Test API health endpoint",
+          "command": "curl https://grcup.jaimedigitalstudio.com/api/health",
+          "status": "pending"
+        },
+        {
+          "id": "6.3",
+          "task": "Test SignalR WebSocket connection",
+          "status": "pending"
+        },
+        {
+          "id": "6.4",
+          "task": "Test Stripe webhook endpoint",
+          "note": "Use Stripe CLI: stripe listen --forward-to https://grcup.jaimedigitalstudio.com/api/webhooks/stripe",
+          "status": "pending"
+        },
+        {
+          "id": "6.5",
+          "task": "Run database migration verification",
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "nginx_config_template": {
+    "file": "/etc/nginx/sites-available/grcup.jaimedigitalstudio.com",
+    "upstream_backend": "http://127.0.0.1:5006",
+    "static_root": "/var/www/grweb/dist",
+    "key_features": {
+      "http3_quic": true,
+      "http2": true,
+      "tls_versions": ["TLSv1.2", "TLSv1.3"],
+      "ocsp_stapling": true,
+      "gzip": true,
+      "brotli": "optional (requires nginx module)",
+      "security_headers": [
+        "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload",
+        "X-Frame-Options: SAMEORIGIN",
+        "X-Content-Type-Options: nosniff",
+        "X-XSS-Protection: 1; mode=block",
+        "Referrer-Policy: strict-origin-when-cross-origin",
+        "Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+      ],
+      "caching": {
+        "static_assets": "1 year, immutable",
+        "html": "no-cache"
+      },
+      "rate_limiting": {
+        "global_connection": "10 per IP",
+        "api_requests": "5 per IP burst 10"
+      }
+    },
+    "locations": {
+      "/": {
+        "type": "spa_fallback",
+        "try_files": "$uri $uri/ /index.html"
+      },
+      "/api/": {
+        "type": "proxy",
+        "target": "http://127.0.0.1:5006",
+        "websocket": true
+      },
+      "/api/webhooks/stripe": {
+        "type": "proxy",
+        "target": "http://127.0.0.1:5006",
+        "note": "No rate limiting for webhooks"
+      },
+      "~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp|map|json|avif|webm)$": {
+        "type": "static",
+        "cache": "1 year immutable"
+      }
+    }
+  },
+  "docker_compose_template": {
+    "version": "3.8",
+    "services": {
+      "api": {
+        "build": "./backend/GrCup.Api",
+        "container_name": "grcup-api",
+        "restart": "unless-stopped",
+        "ports": ["5006:5006"],
+        "environment": {
+          "ASPNETCORE_URLS": "http://+:5006",
+          "ASPNETCORE_ENVIRONMENT": "Production"
+        },
+        "env_file": ["./backend/GrCup.Api/.env"],
+        "depends_on": ["mysql"],
+        "networks": ["grcup-network"]
+      },
+      "mysql": {
+        "image": "mysql:8.0",
+        "container_name": "grcup-mysql",
+        "restart": "unless-stopped",
+        "ports": ["3308:3306"],
+        "environment": {
+          "MYSQL_ROOT_PASSWORD": "SECURE_PASSWORD_HERE",
+          "MYSQL_DATABASE": "grcup"
+        },
+        "volumes": ["grcup-mysql-data:/var/lib/mysql"],
+        "networks": ["grcup-network"],
+        "command": ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+      }
+    },
+    "networks": {
+      "grcup-network": {
+        "driver": "bridge"
+      }
+    },
+    "volumes": {
+      "grcup-mysql-data": {}
+    }
+  },
+  "dockerfile_template": {
+    "base_image": "mcr.microsoft.com/dotnet/aspnet:8.0",
+    "sdk_image": "mcr.microsoft.com/dotnet/sdk:8.0",
+    "workdir": "/app",
+    "expose_port": 5006,
+    "optimizations": [
+      "Multi-stage build for smaller image",
+      "NuGet package caching",
+      "Publish with Release configuration",
+      "Trim unused assemblies"
+    ]
+  },
+  "rollback_plan": {
+    "steps": [
+      "docker-compose down",
+      "Restore previous nginx config: rm /etc/nginx/sites-enabled/grcup.jaimedigitalstudio.com",
+      "nginx -s reload",
+      "Restore database from backup if needed"
+    ]
+  },
+  "monitoring": {
+    "logs": {
+      "docker_logs": "docker-compose logs -f",
+      "nginx_access": "/var/log/nginx/grcup.jaimedigitalstudio.com.access.log",
+      "nginx_error": "/var/log/nginx/grcup.jaimedigitalstudio.com.error.log"
+    },
+    "health_checks": {
+      "api": "curl -f https://grcup.jaimedigitalstudio.com/api/health || exit 1",
+      "database": "docker exec grcup-mysql mysqladmin ping -h localhost"
+    }
+  },
+  "security_checklist": [
+    "Change all default passwords before deployment",
+    "Ensure JWT_SECRET is 32+ characters",
+    "Verify Stripe webhook secret matches dashboard",
+    "Enable firewall rules for only necessary ports",
+    "Set up fail2ban for SSH",
+    "Configure database backups",
+    "Review CSP headers for production needs",
+    "Remove or protect admin endpoints"
+  ],
+  "confirmed_decisions": {
+    "cdn": "BunnyCDN will be used as CDN layer (origin: 65.109.100.94)",
+    "database": "Containerized MySQL on port 3308",
+    "stripe": "Production keys confirmed ready"
+  },
+  "notes": [
+    "Configure BunnyCDN pull zone origin to point to 65.109.100.94",
+    "MySQL containerized on port 3308 (native MySQL on 3306 left untouched)",
+    "Stripe live keys are production ready"
+  ]
+}
