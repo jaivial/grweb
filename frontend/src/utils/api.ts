@@ -205,6 +205,7 @@ class ApiClient {
       totalPages: number;
       stats: {
         total: number;
+        inscritos: number;
         paid: number;
         pending: number;
         disqualified: number;

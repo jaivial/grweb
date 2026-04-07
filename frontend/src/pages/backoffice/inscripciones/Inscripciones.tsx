@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAtom, useAtomValue } from 'jotai';
 import type { JSX } from 'react';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { Tabs, KpiCard, Accordion, CustomSelector, Button, Modal, Badge, ResponsiveTable } from '../../../components/ui';
@@ -11,6 +12,15 @@ import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories'
 import { api } from '../../../utils/api';
 import { IoMaleSharp, IoFemaleSharp } from "react-icons/io5";
 import { Lock, Unlock, Pencil, Trash2, Check } from 'lucide-react';
+import {
+  athletesSearchQueryAtom,
+  athletesSexFilterAtom,
+  athletesWeightCategoryFilterAtom,
+  athletesStatusFilterAtom,
+  athletesClubFilterAtom,
+  athletesPageAtom,
+  clearAthletesFiltersAtom,
+} from '../../../stores/athletesStore';
 
 // Dynamic import for pdfExport to reduce initial bundle size
 const getExportPdf = () => import('../../../utils/pdfExport').then(m => m.exportPdf);
@@ -128,6 +138,32 @@ export function Inscripciones(): JSX.Element {
     };
     fetchClubs();
   }, []);
+
+  // Re-fetch when page changes
+  useEffect(() => {
+    if (activeTab === 'todas') {
+      fetchAthletes();
+    }
+  }, [currentPage]);
+
+  // Watch filter atoms and fetch when they change
+  const searchQuery = useAtomValue(athletesSearchQueryAtom);
+  const sexFilter = useAtomValue(athletesSexFilterAtom);
+  const weightCategoryFilter = useAtomValue(athletesWeightCategoryFilterAtom);
+  const statusFilter = useAtomValue(athletesStatusFilterAtom);
+  const clubFilter = useAtomValue(athletesClubFilterAtom);
+
+  useEffect(() => {
+    if (activeTab === 'todas') {
+      fetchAthletes(1, {
+        search: searchQuery || undefined,
+        sex: sexFilter || undefined,
+        weightCategory: weightCategoryFilter || undefined,
+        status: statusFilter || undefined,
+        club: clubFilter || undefined,
+      });
+    }
+  }, [searchQuery, sexFilter, weightCategoryFilter, statusFilter, clubFilter]);
 
   const handleTogglePreparadas = useCallback(async () => {
     if (!preparadas) return;
@@ -452,7 +488,7 @@ export function Inscripciones(): JSX.Element {
 
             {/* Filters */}
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-hidden">
-              <FiltersAccordion onApply={fetchAthletes} clubs={clubs} />
+              <FiltersAccordion clubs={clubs} />
             </div>
 
             {/* Table */}
@@ -558,12 +594,20 @@ export function Inscripciones(): JSX.Element {
   );
 }
 
-function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: string[] }) {
+function FiltersAccordion({ clubs }: { clubs: string[] }) {
   const [search, setSearch] = useState('');
   const [sex, setSex] = useState<string | null>(null);
   const [weightCategory, setWeightCategory] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [club, setClub] = useState<string | null>(null);
+
+  const [, setSearchQuery] = useAtom(athletesSearchQueryAtom);
+  const [, setSexFilter] = useAtom(athletesSexFilterAtom);
+  const [, setWeightCategoryFilter] = useAtom(athletesWeightCategoryFilterAtom);
+  const [, setStatusFilter] = useAtom(athletesStatusFilterAtom);
+  const [, setClubFilter] = useAtom(athletesClubFilterAtom);
+  const [, setPage] = useAtom(athletesPageAtom);
+  const [, clearFilters] = useAtom(clearAthletesFiltersAtom);
 
   const categoryOptions = useMemo(() => {
     if (sex === 'Female') {
@@ -574,16 +618,35 @@ function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: stri
     return [];
   }, [sex]);
 
-  const handleApply = useCallback(() => {
-    // Update store filters
-    athletesSearchQuery.value = search;
-    athletesSexFilter.value = sex;
-    athletesWeightCategoryFilter.value = weightCategory;
-    athletesStatusFilter.value = status;
-    athletesClubFilter.value = club;
-    athletesPage.value = 1;
-    onApply();
-  }, [search, sex, weightCategory, status, club, onApply]);
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setSearchQuery(value);
+    setPage(1);
+  }, [setSearchQuery, setPage]);
+
+  const handleSexChange = useCallback((value: string | null) => {
+    setSex(value);
+    setSexFilter(value);
+    setPage(1);
+  }, [setSexFilter, setPage]);
+
+  const handleWeightCategoryChange = useCallback((value: string | null) => {
+    setWeightCategory(value);
+    setWeightCategoryFilter(value);
+    setPage(1);
+  }, [setWeightCategoryFilter, setPage]);
+
+  const handleStatusChange = useCallback((value: string | null) => {
+    setStatus(value);
+    setStatusFilter(value);
+    setPage(1);
+  }, [setStatusFilter, setPage]);
+
+  const handleClubChange = useCallback((value: string | null) => {
+    setClub(value);
+    setClubFilter(value);
+    setPage(1);
+  }, [setClubFilter, setPage]);
 
   const handleClear = useCallback(() => {
     setSearch('');
@@ -591,9 +654,8 @@ function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: stri
     setWeightCategory(null);
     setStatus(null);
     setClub(null);
-    clearAthletesFilters();
-    onApply();
-  }, [onApply]);
+    clearFilters();
+  }, [clearFilters]);
 
   return (
     <Accordion title="Filtros" defaultOpen={false}>
@@ -603,7 +665,7 @@ function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: stri
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Nombre o email..."
             className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
           />
@@ -613,7 +675,7 @@ function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: stri
           label="Sexo"
           options={SEX_OPTIONS}
           value={sex}
-          onChange={setSex}
+          onChange={handleSexChange}
           placeholder="Todos"
           allowClear
         />
@@ -622,7 +684,7 @@ function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: stri
           label="Categoría"
           options={categoryOptions}
           value={weightCategory}
-          onChange={setWeightCategory}
+          onChange={handleWeightCategoryChange}
           placeholder="Todas"
           allowClear
           disabled={!sex}
@@ -632,7 +694,7 @@ function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: stri
           label="Estado"
           options={STATUS_OPTIONS}
           value={status}
-          onChange={setStatus}
+          onChange={handleStatusChange}
           placeholder="Todos"
           allowClear
         />
@@ -641,21 +703,17 @@ function FiltersAccordion({ onApply, clubs }: { onApply: () => void; clubs: stri
           label="Club"
           options={clubs.map(c => ({ value: c, label: c }))}
           value={club}
-          onChange={setClub}
+          onChange={handleClubChange}
           placeholder="Todos"
           allowClear
         />
 
         <div className="flex items-end gap-3">
-          <Button onClick={handleApply} className="min-h-[48px] flex-1 sm:flex-none bg-red-accent/90 hover:bg-red-accent text-white border-0 shadow-lg shadow-red-accent/20">Aplicar</Button>
           <Button variant="ghost" onClick={handleClear} className="min-h-[48px] text-white/60 hover:text-white hover:bg-white/10">Limpiar</Button>
         </div>
       </div>
     </Accordion>
   );
 }
-
-// Re-export athletes store for filters
-import { athletesSearchQuery, athletesSexFilter, athletesWeightCategoryFilter, athletesStatusFilter, athletesClubFilter, clearAthletesFilters, athletesPage } from '../../../stores/athletesStore';
 
 export default Inscripciones;
