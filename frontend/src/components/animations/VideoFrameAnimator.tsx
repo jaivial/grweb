@@ -43,7 +43,12 @@ export const VideoFrameAnimator: FC<VideoFrameAnimatorProps> = ({
     typeof window !== 'undefined' ? window.innerWidth : 9999
   );
   const videoDurationRef = useRef(0);
-  const lastTimeRef = useRef(-1);
+
+  // Fluid animation state - refs for RAF-based interpolation
+  const targetProgressRef = useRef(0);
+  const currentDisplayProgressRef = useRef(0);
+  const lastSeekedTimeRef = useRef(-1);
+  const rafIdRef = useRef<number | null>(null);
 
   // Track window width
   useEffect(() => {
@@ -75,29 +80,73 @@ export const VideoFrameAnimator: FC<VideoFrameAnimatorProps> = ({
     ctx.drawImage(video, 0, 0, width, height);
   }, [isVideoLoaded, windowWidth, maxWidth, aspectRatio]);
 
-  // Sync video currentTime with scroll progress — seek directly on scroll
+  // RAF-based smooth interpolation loop
+  const startInterpolationLoop = useCallback(() => {
+    if (rafIdRef.current) return;
+
+    const loop = () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || !isVideoLoaded) {
+        rafIdRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
+      const duration = videoDurationRef.current;
+      if (duration <= 0) {
+        rafIdRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
+      const target = targetProgressRef.current;
+      const current = currentDisplayProgressRef.current;
+      const diff = target - current;
+
+      // Smooth interpolation with easing
+      if (Math.abs(diff) > 0.0001) {
+        // Interpolation factor: higher = snappier/less lag, lower = smoother/more lag
+        currentDisplayProgressRef.current += diff * 0.3;
+        const displayProgress = currentDisplayProgressRef.current;
+        const targetTime = displayProgress * duration;
+
+        // Only seek if we've moved enough from last seek (0.008 = ~half frame for smoother updates)
+        if (Math.abs(targetTime - lastSeekedTimeRef.current) > 0.008) {
+          video.currentTime = targetTime;
+          lastSeekedTimeRef.current = targetTime;
+        }
+
+        drawFrame();
+        rafIdRef.current = requestAnimationFrame(loop);
+      } else {
+        currentDisplayProgressRef.current = target;
+        rafIdRef.current = null;
+      }
+    };
+
+    rafIdRef.current = requestAnimationFrame(loop);
+  }, [isVideoLoaded, drawFrame]);
+
+  // Update target progress and start animation loop
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !isAnimating || !isVideoLoaded) return;
+    if (!isAnimating || !isVideoLoaded) return;
 
-    const duration = videoDurationRef.current;
-    if (duration <= 0) return;
+    targetProgressRef.current = progress;
 
-    const targetTime = progress * duration;
-    video.currentTime = targetTime;
-    lastTimeRef.current = targetTime;
-    drawFrame();
-  }, [progress, isAnimating, isVideoLoaded, drawFrame]);
+    // Start RAF loop if not running
+    if (!rafIdRef.current) {
+      startInterpolationLoop();
+    }
+  }, [progress, isAnimating, isVideoLoaded, startInterpolationLoop]);
 
-  // Redraw on seeked (fallback after decode)
+  // Stop animation loop when not animating
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!isAnimating && rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+  }, [isAnimating]);
 
-    const handleSeeked = () => drawFrame();
-    video.addEventListener('seeked', handleSeeked);
-    return () => video.removeEventListener('seeked', handleSeeked);
-  }, [drawFrame]);
+  // No need for seeked listener - RAF loop handles drawing continuously
 
   // Draw on resize
   useEffect(() => {
@@ -112,9 +161,11 @@ export const VideoFrameAnimator: FC<VideoFrameAnimatorProps> = ({
     const handleLoadedMetadata = () => {
       videoDurationRef.current = video.duration;
       setIsVideoLoaded(true);
-      // Draw first frame
+      // Initialize state
       video.currentTime = 0;
-      lastTimeRef.current = 0;
+      lastSeekedTimeRef.current = 0;
+      targetProgressRef.current = 0;
+      currentDisplayProgressRef.current = 0;
     };
 
     const handleCanPlayThrough = () => {
