@@ -385,6 +385,37 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // ─── Stripe Config (Admin) ───
+
+  async getStripeAdminConfig() {
+    return this.request<{
+      secretKey: string | null;
+      publishableKey: string | null;
+      webhookSecret: string | null;
+    }>('/api/admin/stripe-config');
+  }
+
+  async updateStripeAdminConfig(data: {
+    secretKey: string | null;
+    publishableKey: string | null;
+    webhookSecret: string | null;
+  }) {
+    return this.request<{
+      secretKey: string | null;
+      publishableKey: string | null;
+      webhookSecret: string | null;
+    }>('/api/admin/stripe-config', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteStripeAdminConfig() {
+    return this.request<{ message: string }>('/api/admin/stripe-config', {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiClient(API_URL);

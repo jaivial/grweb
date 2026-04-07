@@ -28,7 +28,7 @@ public static class WebhookEndpoints
 
             try
             {
-                var stripeEvent = stripeService.ConstructEvent(json, signature);
+                var stripeEvent = await stripeService.ConstructEventAsync(json, signature);
 
                 if (stripeEvent.Type == "checkout.session.completed")
                 {

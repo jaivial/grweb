@@ -68,10 +68,10 @@ public static class PublicEndpoints
         });
 
         // GET /api/config/stripe - Get Stripe publishable key
-        app.MapGet("/api/config/stripe", (StripeService stripeService) =>
+        app.MapGet("/api/config/stripe", async (StripeService stripeService) =>
         {
             return Results.Ok(new {
-                publishableKey = stripeService.GetPublishableKey()
+                publishableKey = await stripeService.GetPublishableKeyAsync()
             });
         });
 

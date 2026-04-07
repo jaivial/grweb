@@ -5,21 +5,49 @@ namespace GrCup.Api.Services;
 
 public class StripeService
 {
-    private readonly string _secretKey;
-    private readonly string _webhookSecret;
-    private readonly string _publishableKey;
+    private readonly IServiceProvider _serviceProvider;
 
-    public StripeService(IConfiguration configuration)
+    public StripeService(IServiceProvider serviceProvider)
     {
-        _secretKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY") 
-            ?? throw new InvalidOperationException("STRIPE_SECRET_KEY environment variable not set");
-        _webhookSecret = Environment.GetEnvironmentVariable("STRIPE_WEBHOOK_SECRET") 
-            ?? throw new InvalidOperationException("STRIPE_WEBHOOK_SECRET environment variable not set");
-        _publishableKey = Environment.GetEnvironmentVariable("STRIPE_PUBLISHABLE_KEY") 
-            ?? throw new InvalidOperationException("STRIPE_PUBLISHABLE_KEY environment variable not set");
+        _serviceProvider = serviceProvider;
+    }
 
-        // Configure Stripe with secret key
-        StripeConfiguration.ApiKey = _secretKey;
+    /// <summary>
+    /// Resolves Stripe credentials from database, falling back to environment variables.
+    /// </summary>
+    private async Task<(string SecretKey, string PublishableKey, string WebhookSecret)> ResolveCredentialsAsync()
+    {
+        string? secretKey = null;
+        string? publishableKey = null;
+        string? webhookSecret = null;
+
+        using var scope = _serviceProvider.CreateScope();
+        var configService = scope.ServiceProvider.GetRequiredService<StripeConfigService>();
+        var config = await configService.GetConfigAsync();
+
+        if (config != null)
+        {
+            secretKey = config.SecretKey;
+            publishableKey = config.PublishableKey;
+            webhookSecret = config.WebhookSecret;
+        }
+
+        // Fallback to environment variables
+        secretKey ??= Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY");
+        publishableKey ??= Environment.GetEnvironmentVariable("STRIPE_PUBLISHABLE_KEY");
+        webhookSecret ??= Environment.GetEnvironmentVariable("STRIPE_WEBHOOK_SECRET");
+
+        if (string.IsNullOrEmpty(secretKey))
+            throw new InvalidOperationException("Stripe SecretKey not configured. Set it via backoffice or STRIPE_SECRET_KEY env var.");
+        if (string.IsNullOrEmpty(webhookSecret))
+            throw new InvalidOperationException("Stripe WebhookSecret not configured. Set it via backoffice or STRIPE_WEBHOOK_SECRET env var.");
+        if (string.IsNullOrEmpty(publishableKey))
+            throw new InvalidOperationException("Stripe PublishableKey not configured. Set it via backoffice or STRIPE_PUBLISHABLE_KEY env var.");
+
+        // Update Stripe API key before each operation
+        StripeConfiguration.ApiKey = secretKey;
+
+        return (secretKey, publishableKey, webhookSecret);
     }
 
     /// <summary>
@@ -35,6 +63,8 @@ public class StripeService
         string cancelUrl,
         string? phone = null)
     {
+        await ResolveCredentialsAsync();
+
         var options = new SessionCreateOptions
         {
             PaymentMethodTypes = new List<string> { "card" },
@@ -76,9 +106,10 @@ public class StripeService
     /// <summary>
     /// Constructs and validates a Stripe webhook event
     /// </summary>
-    public Event ConstructEvent(string json, string signature)
+    public async Task<Event> ConstructEventAsync(string json, string signature)
     {
-        return EventUtility.ConstructEvent(json, signature, _webhookSecret);
+        var (_, _, webhookSecret) = await ResolveCredentialsAsync();
+        return EventUtility.ConstructEvent(json, signature, webhookSecret);
     }
 
     /// <summary>
@@ -86,6 +117,7 @@ public class StripeService
     /// </summary>
     public async Task<Session> GetSessionAsync(string sessionId)
     {
+        await ResolveCredentialsAsync();
         var service = new SessionService();
         return await service.GetAsync(sessionId);
     }
@@ -93,9 +125,10 @@ public class StripeService
     /// <summary>
     /// Gets the publishable key for frontend use
     /// </summary>
-    public string GetPublishableKey()
+    public async Task<string> GetPublishableKeyAsync()
     {
-        return _publishableKey;
+        var (_, publishableKey, _) = await ResolveCredentialsAsync();
+        return publishableKey;
     }
 
     /// <summary>
