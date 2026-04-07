@@ -67,6 +67,18 @@ class ApiClient {
     return this.request<{ publishableKey: string }>('/api/config/stripe');
   }
 
+  async getSessionDetails(sessionId: string) {
+    return this.request<{
+      firstName: string;
+      surname: string;
+      email: string;
+      instagram: string;
+      ticketCount: number;
+      totalPaid: number;
+      sessionId: string;
+    }>(`/api/tickets/session/${sessionId}`);
+  }
+
   async getPublicInscripcionConfig() {
     return this.request<{ active: boolean; url: string | null }>('/api/inscripcion-config');
   }

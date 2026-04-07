@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import type { PurchaseDetails } from '../types';
-
-const STORAGE_KEY = 'gr_cup_purchase';
+import { api } from '../../../utils/api';
 
 /**
- * Hook to retrieve and manage purchase details from storage
+ * Hook to retrieve purchase details from the backend using session_id.
+ * Falls back to localStorage, then to an error state.
  */
 export function usePaymentStatus() {
   const [isLoading, setIsLoading] = useState(true);
@@ -12,75 +12,70 @@ export function usePaymentStatus() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Retrieve purchase details from localStorage
-    const storedPurchase = localStorage.getItem(STORAGE_KEY);
-    
-    if (storedPurchase) {
-      try {
-        const parsed = JSON.parse(storedPurchase) as PurchaseDetails;
-        
-        // Validate required fields
-        if (parsed.firstName && parsed.email && parsed.ticketCount && parsed.totalPaid) {
-          setPurchaseDetails(parsed);
-        } else {
-          setError('Invalid purchase data');
-        }
-      } catch (err) {
-        setError('Failed to parse purchase data');
-      }
-    } else {
-      // Try to get from URL parameters (session_id)
+    const fetchDetails = async () => {
+      // 1. Try session_id from URL (primary source)
       const urlParams = new URLSearchParams(window.location.search);
       const sessionId = urlParams.get('session_id');
-      
+
       if (sessionId) {
-        // In production, you would verify the session with the backend
-        // For now, create a basic entry
-        setPurchaseDetails({
-          firstName: 'Participant',
-          surname: '',
-          email: 'N/A',
-          instagram: '@grcup',
-          ticketCount: 1,
-          totalPaid: 0.50,
-          sessionId,
-        });
-      } else {
-        setError('No purchase data found');
+        try {
+          const data = await api.getSessionDetails(sessionId);
+          setPurchaseDetails({
+            firstName: data.firstName,
+            surname: data.surname,
+            email: data.email,
+            instagram: data.instagram,
+            ticketCount: data.ticketCount,
+            totalPaid: data.totalPaid,
+            sessionId: data.sessionId,
+          });
+          return;
+        } catch {
+          // Backend fetch failed — fall through to localStorage
+        }
       }
-    }
-    
-    setIsLoading(false);
+
+      // 2. Fallback: localStorage (from checkout form before redirect)
+      const storedPurchase = localStorage.getItem('gr_cup_purchase_data');
+      if (storedPurchase) {
+        try {
+          const parsed = JSON.parse(storedPurchase);
+          if (parsed.firstName && parsed.email && parsed.ticketCount) {
+            setPurchaseDetails({
+              firstName: parsed.firstName,
+              surname: parsed.surname || '',
+              email: parsed.email,
+              instagram: parsed.instagram || '',
+              ticketCount: parsed.ticketCount,
+              totalPaid: parsed.ticketCount * 0.50,
+            });
+            return;
+          }
+        } catch {
+          // Parse failed — fall through
+        }
+      }
+
+      setError('No se encontraron datos de la compra');
+    };
+
+    fetchDetails().finally(() => setIsLoading(false));
   }, []);
-
-  /**
-   * Clear purchase data from storage
-   */
-  const clearPurchaseData = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setPurchaseDetails(null);
-  };
-
-  return {
-    isLoading,
-    purchaseDetails,
-    error,
-    clearPurchaseData,
-  };
+  return { isLoading, purchaseDetails, error };
 }
 
 /**
  * Saves purchase details to storage
  */
 export function savePurchaseToStorage(details: PurchaseDetails): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(details));
+  localStorage.setItem('gr_cup_purchase_data', JSON.stringify(details));
 }
 
 /**
  * Retrieves purchase details from storage
  */
 export function getPurchaseFromStorage(): PurchaseDetails | null {
-  const stored = localStorage.getItem(STORAGE_KEY);
+  const stored = localStorage.getItem('gr_cup_purchase_data');
   if (stored) {
     try {
       return JSON.parse(stored) as PurchaseDetails;
