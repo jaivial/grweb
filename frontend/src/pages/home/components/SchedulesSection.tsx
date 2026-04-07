@@ -41,7 +41,7 @@ const formatTime = (timeStr: string): string => {
 /**
  * Background Image - Same style as WeightCategoriesSection
  */
-const BackgroundImage: FC = () => {
+const BackgroundImage: FC<{ src: string }> = ({ src }) => {
   return (
     <div
       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform rotate-3"
@@ -68,7 +68,7 @@ const BackgroundImage: FC = () => {
           aria-hidden
         />
         <img
-          src={bgImageSrc}
+          src={src}
           alt=""
           className="w-full h-auto object-cover"
           data-ui="background-image"
@@ -487,7 +487,7 @@ export const SchedulesSection: FC<SchedulesSectionProps> = ({ className = '' }) 
       data-ui="schedules-section"
     >
       {/* Background Image - only show when there are schedules */}
-      {!isLoading && schedules.length > 0 && <BackgroundImage />}
+      {!isLoading && schedules.length > 0 && <BackgroundImage src={bgImageSrc} />}
 
       {/* Semi-opacity dark overlay - darker for new image */}
       <div
