@@ -299,7 +299,7 @@ export function Inscripciones(): JSX.Element {
 
   return (
     <BackofficeLayout>
-      <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="inscripciones-page">
+      <div className="p-3 xs:p-4 sm:p-6 xl:p-8 max-w-[95%] mx-auto" data-ui="inscripciones-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">Inscripciones</h1>
@@ -451,12 +451,12 @@ export function Inscripciones(): JSX.Element {
             </div>
 
             {/* Filters */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-visible">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-hidden">
               <FiltersAccordion onApply={fetchAthletes} clubs={clubs} />
             </div>
 
             {/* Table */}
-            <div className="flex justify-end mb-3">
+            <div className="flex justify-start mb-3">
               <button
                 onClick={handleExportPdf}
                 className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
@@ -467,7 +467,7 @@ export function Inscripciones(): JSX.Element {
                 Exportar PDF
               </button>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-x-auto max-w-[93vw]" data-ui="table-container">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-x-auto" data-ui="table-container">
               <ResponsiveTable
                 columns={tableColumns}
                 data={athletes}

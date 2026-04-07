@@ -91,7 +91,7 @@ export function ResponsiveTable<T extends Record<string, any>>({
   return (
     <div className="w-full overflow-x-auto" data-ui="responsive-table">
       {/* Desktop Table */}
-      <table className={`w-max ${className}`}>
+      <table className={`w-full ${className}`}>
         <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10" data-ui="table-header">
           <tr>
             {columns.map(col => (
