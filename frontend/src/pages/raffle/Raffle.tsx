@@ -218,7 +218,7 @@ export const Raffle: FC = () => {
         <div
           id="raffle-page-container"
           className="relative"
-          style={{ height: '200vh' }}
+          style={{ height: '600vh' }}
           data-component="RaffleHeroContainer"
         >
           <div

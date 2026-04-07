@@ -1,4 +1,4 @@
-import { FC, useMemo, useEffect, useState, useRef } from 'react';
+import { FC, useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { useScrollProgress } from '../../hooks/useScrollProgress';
 import { useFramePreloader } from '../../hooks/useFramePreloader';
 import { BELT_FRAMES_CONFIG } from '../../utils/frameSources';
@@ -8,14 +8,24 @@ interface RaffleFramesProps {
 }
 
 export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
-  const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentFrameRef = useRef(-1);
 
-  // DNS prefetch + preconnect for BunnyCDN storage to reduce latency
+  const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
+    frameSource: BELT_FRAMES_CONFIG,
+    priorityBatchSize: 10,
+    backgroundBatchSize: 32,
+    backgroundBatchDelay: 0,
+  });
+
+  // Sync loading state
   useEffect(() => {
-    // Preconnect for early TCP/TLS handshake
+    setIsLoading(framesLoading);
+  }, [framesLoading]);
+
+  // DNS prefetch + preconnect for BunnyCDN to reduce latency
+  useEffect(() => {
     const preconnect = document.createElement('link');
     preconnect.rel = 'preconnect';
     preconnect.href = 'https://storage.bunnycdn.com';
@@ -28,7 +38,6 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
     preconnectCdn.crossOrigin = 'anonymous';
     document.head.appendChild(preconnectCdn);
 
-    // DNS prefetch for additional DNS resolution speed
     const prefetch = document.createElement('link');
     prefetch.rel = 'dns-prefetch';
     prefetch.href = 'https://storage.bunnycdn.com';
@@ -43,10 +52,11 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
 
   // Preload first few critical frames for immediate display
   useEffect(() => {
+    const baseUrl = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp';
     const preloadFrames = [
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000001.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000002.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages/frame_000003.webp',
+      `${baseUrl}/frame_000001.webp`,
+      `${baseUrl}/frame_000002.webp`,
+      `${baseUrl}/frame_000003.webp`,
     ];
 
     preloadFrames.forEach((url) => {
@@ -59,61 +69,32 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
     });
   }, []);
 
-  const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
-    frameSource: BELT_FRAMES_CONFIG,
-    priorityBatchSize: 5,
-    backgroundBatchSize: 32,
-    backgroundBatchDelay: 0,
-  });
-
-  // Sync loading state
-  useEffect(() => {
-    setIsLoading(framesLoading);
-  }, [framesLoading]);
-
-  // Intersection observer for visibility
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setHasBeenVisible(entry.intersectionRatio > 0.02);
-      },
-      {
-        threshold: Array.from({ length: 100 }, (_, i) => i / 100),
-      }
-    );
-
-    const element = document.getElementById(containerId);
-    if (element) {
-      observer.observe(element);
-    }
-
-    return () => observer.disconnect();
-  }, [containerId]);
-
   const { progress: scrollProgress } = useScrollProgress({
-    totalVh: 200,
+    totalVh: 300,
     smooth: true,
     smoothFactor: 0.15,
     sectionSelector: `#${containerId}`,
   });
 
-  // Calculate frame index based on progress
+  const totalFrames = frames.length;
+
+  // Scroll-to-frame speed multiplier — 1.2 means animation completes at ~83% scroll
+  const scrollSpeed = 1;
+
+  // Calculate frame index based on progress (0-based)
   const frameIndex = useMemo(() => {
-    const staticPauseStart = 1;
-
+    if (totalFrames === 0) return 0;
     if (scrollProgress <= 0) return 0;
-    if (scrollProgress >= staticPauseStart) return frames.length - 1;
+    if (scrollProgress >= 1) return totalFrames - 1;
 
-    const animationProgress = scrollProgress / staticPauseStart;
-    const index = Math.floor(animationProgress * (frames.length - 1));
+    const index = Math.floor(scrollProgress * scrollSpeed * (totalFrames - 1));
+    return Math.max(0, Math.min(totalFrames - 1, index));
+  }, [scrollProgress, totalFrames, scrollSpeed]);
 
-    return Math.max(0, Math.min(frames.length - 1, index));
-  }, [scrollProgress, frames.length]);
-
-  // Draw the current frame - fits within the constrained container
-  const drawFrame = (index: number) => {
+  // Draw the current frame — fits within the constrained container
+  const drawFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
-    if (!canvas || frames.length === 0) return;
+    if (!canvas) return;
 
     const frame = frames[index];
     if (!frame) return;
@@ -135,33 +116,29 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(frame, 0, 0, width, height);
-  };
+  }, [frames]);
 
-  // Effect to draw frame when index changes
+  // Redraw when frameIndex changes OR when frames finish loading
   useEffect(() => {
-    if (frames.length === 0) return;
-
     if (frameIndex !== currentFrameRef.current) {
       currentFrameRef.current = frameIndex;
+    }
+    if (frames[frameIndex]) {
       drawFrame(frameIndex);
     }
-  }, [frameIndex, frames]);
+  }, [frameIndex, frames.length, drawFrame]);
 
-  // Effect for resize
+  // Redraw on resize
   useEffect(() => {
-    if (frames.length > 0 && frameIndex >= 0) {
-      drawFrame(frameIndex);
-    }
-
     const handleResize = () => {
-      if (frames.length > 0 && frameIndex >= 0) {
+      if (frames[frameIndex]) {
         drawFrame(frameIndex);
       }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [frameIndex, frames]);
+  }, [frameIndex, frames, drawFrame]);
 
   const showCanvas = frames.length > 0;
 
@@ -187,12 +164,11 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
         </div>
       )}
 
-      {/* Frame Animation with constrained canvas and mask */}
+      {/* Frame Animation with constrained canvas */}
       <div
         className="absolute inset-0 flex items-center justify-center z-0 pb-32"
         data-component="RaffleFramesWrapper"
       >
-        {/* Mask container with explicit size - fade effect from center to edges */}
         <div
           className="relative overflow-hidden rounded-lg shadow-2xl"
           data-ui="frame-mask-container"
@@ -200,11 +176,14 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
             width: 'min(90vw, 900px)',
             height: 'auto',
             aspectRatio: '16/9',
-            maskImage: 'radial-gradient(45% 52%, black 42%, transparent 100%)',
-            WebkitMaskImage: 'radial-gradient(45% 52%, black 42%, transparent 100%)',
+            maskImage: 'radial-gradient(48% 48% at 51% 51%, black 40%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(48% 48% at 51% 51%, black 40%, transparent 100%)',
             maskSize: '100% 100%',
+            WebkitMaskSize: '100% 100%',
             maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
             maskPosition: 'center',
+            WebkitMaskPosition: 'center',
           }}
         >
           {/* Red accent glow behind canvas */}
@@ -222,9 +201,9 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
               height: '100%',
             }}
           />
-          {/* Edge fade overlay - dark borders on all 4 sides */}
+          {/* Edge fade overlay */}
           <div
-            className="absolute inset-0 pointer-events-none z-20 rounded-lg"
+            className="absolute inset-0 pointer-events-none z-5 rounded-lg"
             data-ui="canvas-edge-fade"
             style={{
               background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)',

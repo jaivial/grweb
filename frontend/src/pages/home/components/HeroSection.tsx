@@ -55,11 +55,11 @@ export const HeroSection: FC = () => {
   useEffect(() => {
     // Use public CDN URL (pull zone), not storage URL (requires auth)
     const criticalFrames = [
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000783.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000782.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000781.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000780.webp',
-      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_000779.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0001.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0002.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0003.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0004.webp',
+      'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0005.webp',
     ];
 
     criticalFrames.forEach((url) => {
@@ -75,9 +75,10 @@ export const HeroSection: FC = () => {
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: {
       source: 'cdn',
-      startFrame: 783,
-      endFrame: 1,
-      order: 'desc',
+      startFrame: 1,
+      endFrame: 313,
+      order: 'asc',
+      digits: 4,
     },
     priorityBatchSize: 5,
     backgroundBatchSize: 32,
@@ -155,17 +156,23 @@ export const HeroSection: FC = () => {
         style={{ opacity: hasBeenVisible ? 1 : 0, display: hasBeenVisible ? 'block' : 'none' }}
         data-component="HeroViewport"
       >
-        <div className="relative z-0" data-component="FrameWrapper">
+        <div className="relative z-0 flex items-center justify-center h-full" data-component="FrameWrapper">
           <FrameAnimator
             frames={frames}
             progress={animationState.frameProgress}
             isAnimating={animationState.frameAnimationActive}
             staticPauseStart={1}
-            maxWidth={540}
-            aspectRatio={9 / 16}
+            maxWidth={640}
+            className="h-full"
+            maskStyle={{
+              maskImage: 'radial-gradient(80% 51%, black 40%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(80% 51%, black 40%, transparent 100%)',
+              maskSize: '100% 69%',
+              WebkitMaskSize: '100% 69%',
+            }}
             edgeFadeOverlay={{
               background: 'linear-gradient(to right, #0a0a0a 0%, transparent 55%, transparent 65%, #0a0a0a 100%)',
-              maxWidth: '540px',
+              maxWidth: '640px',
               margin: '0 auto',
             }}
           />
