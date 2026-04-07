@@ -437,7 +437,7 @@ export const SchedulesSection: FC<SchedulesSectionProps> = ({ className = '' }) 
     const fetchSchedules = async () => {
       try {
         // Check if schedules are published
-        const pubResp = await fetch(`${API_URL}/schedules/published`);
+        const pubResp = await fetch(`${API_URL}/api/schedules/published`);
         if (pubResp.ok) {
           const pubData = await pubResp.json();
           setIsPublished(pubData.published);
@@ -447,7 +447,7 @@ export const SchedulesSection: FC<SchedulesSectionProps> = ({ className = '' }) 
           }
         }
 
-        const response = await fetch(`${API_URL}/schedules`);
+        const response = await fetch(`${API_URL}/api/schedules`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
