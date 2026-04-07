@@ -1,4 +1,5 @@
 import { FC, useRef, useEffect, useState, useMemo } from 'react';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 export interface PricesAllMovementsSectionProps {
   className?: string;
@@ -50,13 +51,14 @@ const AnimatedItem: FC<{ children: React.ReactNode; direction: 'up' | 'down' | '
 
 const AngledImage: FC<{ src: string; alt: string; rotation: 'left' | 'center' | 'right'; dataUi: string }> = ({ src, alt, rotation, dataUi }) => {
   const rotationClass = rotation === 'center' ? '' : rotation === 'left' ? 'sm:-rotate-6' : 'sm:rotate-6';
-  
+  const resolvedSrc = useCdnImage(src);
+
   return (
     <div className={`relative ${rotationClass} transition-transform duration-500 group`} data-ui={`image-wrapper-${dataUi}`}>
       <div className="relative overflow-hidden rounded-lg" data-ui={`image-container-${dataUi}`}>
 
         <div className="relative overflow-hidden rounded-lg" data-ui={`image-mask-${dataUi}`} style={{ maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)', maskSize: '100% 100%', maskRepeat: 'no-repeat', maskPosition: 'center' }}>
-          <img src={src} alt={alt} className="w-full h-auto object-cover" data-ui={dataUi} style={{ filter: 'contrast(1.05) saturate(0.9)' }} loading="lazy" decoding="async" />
+          <img src={resolvedSrc} alt={alt} className="w-full h-auto object-cover" data-ui={dataUi} style={{ filter: 'contrast(1.05) saturate(0.9)' }} loading="lazy" decoding="async" />
           <div className="absolute inset-0 pointer-events-none" data-ui={`image-edge-fade-${dataUi}`} style={{ background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)' }} aria-hidden />
         </div>
       </div>
@@ -68,6 +70,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
   const titleStyle: React.CSSProperties = { fontFamily: '"Contrail One", sans-serif', fontWeight: 400, letterSpacing: '0.02em', color: '#ffffff', textTransform: 'uppercase', textShadow: '0 0 20px rgba(0, 0, 0, 0.8)' };
   const subtitleStyle: React.CSSProperties = { fontFamily: '"Contrail One", sans-serif', fontWeight: 400, letterSpacing: '0.02em', color: 'rgba(255, 255, 255, 0.9)', textTransform: 'uppercase' };
   const movementLabelStyle: React.CSSProperties = { fontFamily: '"Contrail One", sans-serif', fontWeight: 400, letterSpacing: '0.05em', color: '#8B0000', textTransform: 'uppercase', textShadow: '0 0 20px rgba(139, 0, 0, 0.5)' };
+  const logoSrc = useCdnImage('https://jaimedigitalstudio.b-cdn.net/grcup/logos/ChatGPT%20Image%2029%20mar%202026%2C%2018_16_29.png');
 
   return (
     <section className={`relative overflow-hidden ${className}`} style={{ minHeight: 'auto', background: '#0a0a0a', paddingTop: '60px', paddingBottom: '80px' }} data-section="prices-all-movements" data-ui="prices-all-movements-section">
@@ -78,7 +81,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
 
       <div className="relative z-20 max-w-6xl mx-auto px-6 lg:px-12" data-ui="section-content">
         <AnimatedItem direction="up" delay={0} dataUi="animated-logo">
-          <div className="flex justify-center mb-8" data-ui="logo-container"><div className="relative w-32 sm:w-40 md:w-48" data-ui="logo-wrapper"><img src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/ChatGPT%20Image%2029%20mar%202026%2C%2018_16_29.png" alt="GR Cup Logo" className="w-full h-auto object-contain" data-ui="logo" loading="lazy" decoding="async" /></div></div>
+          <div className="flex justify-center mb-8" data-ui="logo-container"><div className="relative w-32 sm:w-40 md:w-48" data-ui="logo-wrapper"><img src={logoSrc} alt="GR Cup Logo" className="w-full h-auto object-contain" data-ui="logo" loading="lazy" decoding="async" /></div></div>
         </AnimatedItem>
 
         <AnimatedItem direction="up" delay={100} dataUi="animated-title">

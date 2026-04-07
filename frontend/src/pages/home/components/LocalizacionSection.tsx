@@ -1,4 +1,5 @@
 import { FC, useRef, useEffect, useState, useMemo } from 'react';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 export interface LocalizacionSectionProps {
   className?: string;
@@ -134,6 +135,7 @@ const AnimatedImage: FC<{
     distance: 50,
     enterDuration: 700,
   });
+  const resolvedSrc = useCdnImage(src);
 
   return (
     <figure
@@ -158,7 +160,7 @@ const AnimatedImage: FC<{
           }}
         >
           <img
-            src={src}
+            src={resolvedSrc}
             alt={alt}
             className="w-full h-auto block"
             loading="lazy"

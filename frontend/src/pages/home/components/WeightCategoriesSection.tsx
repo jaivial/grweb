@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 export interface WeightCategoriesSectionProps {
   className?: string;
@@ -168,7 +169,8 @@ const ShimmerButton: FC = () => {
 /**
  * Background Image - Styled exactly like AthletesSection images
  */
-const BackgroundImage: FC = () => {
+const BackgroundImage: FC<{ src: string }> = ({ src }) => {
+  const resolvedSrc = useCdnImage(src);
   return (
     <div
       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform rotate-3"
@@ -197,7 +199,7 @@ const BackgroundImage: FC = () => {
           aria-hidden
         />
         <img
-          src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_47_22.png"
+          src={resolvedSrc}
           alt=""
           className="w-full h-auto object-cover"
           data-ui="background-image"
@@ -256,7 +258,7 @@ export const WeightCategoriesSection: FC<WeightCategoriesSectionProps> = ({ clas
       data-ui="weight-categories-section"
     >
       {/* Background Image - styled like AthletesSection */}
-      <BackgroundImage />
+      <BackgroundImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_47_22.png" />
 
       {/* Semi-opacity dark overlay - above image, below fades */}
       <div

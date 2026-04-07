@@ -1,5 +1,6 @@
 import { FC, useEffect, useState, useMemo } from 'react';
 import { CalendarClock } from 'lucide-react';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 export interface SchedulesSectionProps {
   className?: string;
@@ -67,7 +68,7 @@ const BackgroundImage: FC = () => {
           aria-hidden
         />
         <img
-          src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2023%20mar%202026%2C%2000_43_58.png"
+          src={bgImageSrc}
           alt=""
           className="w-full h-auto object-cover"
           data-ui="background-image"
@@ -430,6 +431,7 @@ export const SchedulesSection: FC<SchedulesSectionProps> = ({ className = '' }) 
   const [schedules, setSchedules] = useState<ScheduleGroupedByDate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPublished, setIsPublished] = useState(true);
+  const bgImageSrc = useCdnImage('https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2023%20mar%202026%2C%2000_43_58.png');
 
   useEffect(() => {
     const fetchSchedules = async () => {

@@ -1,4 +1,5 @@
 import { FC, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 export interface AthletesSectionProps {
   className?: string;
@@ -132,6 +133,8 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
     textTransform: 'uppercase',
     textShadow: '0 0 20px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5)',
   };
+  const athlete1Src = useCdnImage('https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_40_58.png');
+  const athlete2Src = useCdnImage('https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_52_34.png');
 
   // Dark red accent style
   const accentStyle: React.CSSProperties = {
@@ -274,7 +277,7 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
                     aria-hidden
                   />
                   <img
-                    src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_40_58.png"
+                    src={athlete1Src}
                     alt="Atleta competiendo en powerlifting"
                     className="w-full h-auto object-cover"
                     data-ui="image-1"
@@ -341,7 +344,7 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
                     aria-hidden
                   />
                   <img
-                    src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_52_34.png"
+                    src={athlete2Src}
                     alt="Atleta mostrando el trofeo del GR Cup"
                     className="w-full h-auto object-cover"
                     data-ui="image-2"
