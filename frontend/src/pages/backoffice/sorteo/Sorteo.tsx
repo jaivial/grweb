@@ -8,6 +8,7 @@ import { Input } from '../../../components/ui/Input';
 import { Icon } from '../../../components/ui/Icon';
 import { CustomSelector } from '../../../components/ui/CustomSelector/CustomSelector';
 import { Tabs } from '../../../components/ui/Tabs/Tabs';
+import { KpiCard } from '../../../components/ui/KpiCard/KpiCard';
 import { countryCodeOptions } from '../../../utils/countryCodes';
 
 // Dynamic import for pdfExport to reduce initial bundle size
@@ -37,6 +38,12 @@ interface Participant {
   price?: number;
   isPaid?: boolean;
   paymentMethod?: string;
+}
+
+interface Statistics {
+  totalParticipants: number;
+  totalTickets: number;
+  totalRevenue: number;
 }
 
 interface ParticipantsResponse {
@@ -88,6 +95,7 @@ export function Sorteo(): JSX.Element {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [drawInProgress, setDrawInProgress] = useState(false);
   const [activeTab, setActiveTab] = useState('sorteo');
+  const [stats, setStats] = useState<Statistics | null>(null);
 
   // Participants tab state
   const [participantsData, setParticipantsData] = useState<ParticipantsResponse | null>(null);
@@ -263,6 +271,7 @@ export function Sorteo(): JSX.Element {
 
   useEffect(() => {
     fetchDraws();
+    api.getStatistics().then(setStats).catch(() => {});
   }, []);
 
   async function fetchDraws() {
@@ -439,6 +448,40 @@ export function Sorteo(): JSX.Element {
         <div className="mb-4 xs:mb-6" data-ui="page-header">
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1">Sorteo</h1>
           <p className="text-sm xs:text-base text-gray-400">Selecciona aleatoriamente al ganador del premio</p>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 xs:gap-4 mb-6" data-ui="kpi-row">
+          <KpiCard
+            label="Participantes"
+            value={stats?.totalParticipants ?? 0}
+            color="default"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            label="Tickets Vendidos"
+            value={stats?.totalTickets ?? 0}
+            color="success"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            label="Recaudacion"
+            value={stats ? `${stats.totalRevenue.toFixed(2)} EUR` : '0.00 EUR'}
+            color="warning"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
         </div>
 
         {/* Tabs */}
