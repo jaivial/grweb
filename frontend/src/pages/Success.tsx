@@ -59,7 +59,7 @@ export default function Success() {
     return (
       <>
         <Head {...pageMetaConfig['/success']} />
-        <div className="min-h-screen flex items-center justify-center bg-dark-base" data-ui="success-loading">
+        <div className="flex items-center justify-center py-32" data-ui="success-loading">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin mx-auto mb-4" data-ui="success-spinner" />
             <p className="text-white/50 text-sm">Verificando tu compra...</p>
@@ -73,7 +73,7 @@ export default function Success() {
     return (
       <>
         <Head {...pageMetaConfig['/success']} />
-        <div className="min-h-screen flex items-center justify-center bg-dark-base px-4" data-ui="success-error">
+        <div className="flex items-center justify-center py-32 px-4" data-ui="success-error">
           <div className="text-center max-w-sm">
             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4" data-ui="error-icon">
               <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -107,8 +107,18 @@ export default function Success() {
   return (
     <>
       <Head {...pageMetaConfig['/success']} />
-      <main className="min-h-screen bg-dark-base py-16 px-4" data-ui="success-page">
+      <div className="py-16 px-4" data-ui="success-page">
         <div className="max-w-md mx-auto" data-ui="success-content">
+
+          {/* Logo */}
+          <div className="text-center mb-8" data-ui="success-logo">
+            <img
+              src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png"
+              alt="GRStrength Cup"
+              className="h-16 mx-auto"
+              loading="lazy"
+            />
+          </div>
 
           {/* Header */}
           <div className="text-center mb-10" data-ui="success-header">
@@ -191,7 +201,7 @@ export default function Success() {
           </div>
 
         </div>
-      </main>
+      </div>
     </>
   );
 }
