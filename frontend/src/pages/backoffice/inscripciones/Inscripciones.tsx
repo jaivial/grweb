@@ -513,7 +513,7 @@ export function Inscripciones(): JSX.Element {
                 Exportar PDF
               </button>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl min-w-0" data-ui="table-container">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl min-w-0 mb-12" data-ui="table-container">
               <div className="overflow-x-auto min-w-0">
                 <ResponsiveTable
                   columns={tableColumns}
