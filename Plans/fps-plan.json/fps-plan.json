@@ -1,0 +1,270 @@
+{
+  "project": "Trophy Hero Scroll Animation",
+  "description": "Full pipeline: video → reversed frames → BunnyCDN upload → sliding window scroll animation",
+  "steps": [
+
+    {
+      "phase": 1,
+      "title": "Pre-flight Checks",
+      "tasks": [
+        {
+          "id": "1.1",
+          "title": "Verify FFmpeg is installed",
+          "status": "pending",
+          "command": "ffmpeg -version",
+          "notes": "Requires ffmpeg >= 4.0. Install via: brew install ffmpeg (mac) or apt install ffmpeg (linux)"
+        },
+        {
+          "id": "1.2",
+          "title": "Analyze source video",
+          "status": "pending",
+          "command": "ffprobe -v quiet -print_format json -show_streams -show_format /home/jaime/Downloads/trophyframes/trophy_hero.mp4",
+          "notes": "Confirm duration, fps, resolution, codec. Expected: ~12s, 60fps"
+        },
+        {
+          "id": "1.3",
+          "title": "Read BunnyCDN credentials",
+          "status": "pending",
+          "file": "/home/jaime/Downloads/projects/grweb/backend/GrCup.Api/docs/BUNNYCDN_STORAGE.md",
+          "fields_needed": ["STORAGE_ZONE_NAME", "STORAGE_API_KEY", "STORAGE_ZONE_ID"],
+          "notes": "Storage zone ID should be 1342426 as stated"
+        },
+        {
+          "id": "1.4",
+          "title": "Create local output folder for frames",
+          "status": "pending",
+          "command": "mkdir -p /home/jaime/Downloads/trophyframes/output_webp",
+          "notes": "This is where the reversed 24fps WebP frames will be saved locally before upload"
+        }
+      ]
+    },
+
+    {
+      "phase": 2,
+      "title": "Video Processing — Reverse + Extract Frames",
+      "tasks": [
+        {
+          "id": "2.1",
+          "title": "Reverse the video and extract frames at 24fps as WebP",
+          "status": "pending",
+          "command": "ffmpeg -i /home/jaime/Downloads/trophyframes/trophy_hero.mp4 -vf 'reverse,fps=24' -quality 75 /home/jaime/Downloads/trophyframes/output_webp/frame_%04d.webp",
+          "notes": [
+            "reverse: reverses the entire video in memory before processing — requires enough RAM for full video",
+            "fps=24: outputs exactly 24 frames per second (~288 frames for a 12s video)",
+            "quality 75: targets ~20-40KB per frame. Adjust up/down if frames are over 40KB",
+            "If video is long and reverse causes memory issues, use step 2.1b instead"
+          ]
+        },
+        {
+          "id": "2.1b",
+          "title": "[ALTERNATIVE] Reverse via pts trick if memory is an issue",
+          "status": "skipped",
+          "command": "ffmpeg -i /home/jaime/Downloads/trophyframes/trophy_hero.mp4 -vf 'setpts=PTS*-1+DURATION/TB,fps=24' -quality 75 /home/jaime/Downloads/trophyframes/output_webp/frame_%04d.webp",
+          "notes": "Use this only if step 2.1 crashes due to memory. Less reliable but avoids loading full video into RAM"
+        },
+        {
+          "id": "2.2",
+          "title": "Verify frame count and average file size",
+          "status": "pending",
+          "command": "ls /home/jaime/Downloads/trophyframes/output_webp/ | wc -l && du -sh /home/jaime/Downloads/trophyframes/output_webp/ && find /home/jaime/Downloads/trophyframes/output_webp/ -name '*.webp' -exec du -k {} + | sort -n | tail -5",
+          "notes": "Expected: ~288 frames. Check largest frames. If any exceed 40KB, reduce quality in step 2.1"
+        },
+        {
+          "id": "2.3",
+          "title": "[CONDITIONAL] Re-encode frames that exceed 40KB",
+          "status": "pending",
+          "command": "for f in /home/jaime/Downloads/trophyframes/output_webp/*.webp; do size=$(du -k \"$f\" | cut -f1); if [ $size -gt 40 ]; then ffmpeg -i \"$f\" -quality 65 \"${f%.webp}_compressed.webp\" && mv \"${f%.webp}_compressed.webp\" \"$f\"; fi; done",
+          "notes": "Only run if step 2.2 shows frames over 40KB. Drops quality to 65 for those specific frames only"
+        },
+        {
+          "id": "2.4",
+          "title": "Final size audit",
+          "status": "pending",
+          "command": "du -sh /home/jaime/Downloads/trophyframes/output_webp/ && echo 'Total frames:' && ls /home/jaime/Downloads/trophyframes/output_webp/ | wc -l",
+          "notes": "Target: under 10MB total. Under 5MB is ideal for mobile cold load"
+        }
+      ]
+    },
+
+    {
+      "phase": 3,
+      "title": "BunnyCDN — Clear Existing Frames",
+      "tasks": [
+        {
+          "id": "3.1",
+          "title": "List current files in BunnyCDN folder to confirm path",
+          "status": "pending",
+          "command": "curl -s -H 'AccessKey: YOUR_STORAGE_API_KEY' 'https://storage.bunnycdn.com/YOUR_STORAGE_ZONE_NAME/grcup/frames/trophy_frames_webp/'",
+          "notes": "Replace YOUR_STORAGE_API_KEY and YOUR_STORAGE_ZONE_NAME from BUNNYCDN_STORAGE.md. Confirm the path exists before deleting"
+        },
+        {
+          "id": "3.2",
+          "title": "Delete all files in grcup/frames/trophy_frames_webp/",
+          "status": "pending",
+          "command": "curl -s -X DELETE -H 'AccessKey: YOUR_STORAGE_API_KEY' 'https://storage.bunnycdn.com/YOUR_STORAGE_ZONE_NAME/grcup/frames/trophy_frames_webp/'",
+          "notes": [
+            "BunnyCDN supports folder deletion by appending trailing slash",
+            "Storage zone ID: 1342426",
+            "This is irreversible — confirm step 3.1 list looks correct before running"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Confirm folder is empty",
+          "status": "pending",
+          "command": "curl -s -H 'AccessKey: YOUR_STORAGE_API_KEY' 'https://storage.bunnycdn.com/YOUR_STORAGE_ZONE_NAME/grcup/frames/trophy_frames_webp/'",
+          "notes": "Should return empty array [] or 404. If files remain, repeat 3.2"
+        }
+      ]
+    },
+
+    {
+      "phase": 4,
+      "title": "BunnyCDN — Upload New Frames",
+      "tasks": [
+        {
+          "id": "4.1",
+          "title": "Upload all WebP frames to BunnyCDN",
+          "status": "pending",
+          "command": "for f in /home/jaime/Downloads/trophyframes/output_webp/*.webp; do filename=$(basename $f); curl -s -X PUT -H 'AccessKey: YOUR_STORAGE_API_KEY' -H 'Content-Type: image/webp' --data-binary @\"$f\" \"https://storage.bunnycdn.com/YOUR_STORAGE_ZONE_NAME/grcup/frames/trophy_frames_webp/$filename\"; echo \"Uploaded: $filename\"; done",
+          "notes": [
+            "Uploads sequentially. For faster upload use xargs -P 8 to parallelize 8 at a time",
+            "BunnyCDN Storage API rate limit: generous, parallelism is fine"
+          ]
+        },
+        {
+          "id": "4.1b",
+          "title": "[FASTER ALTERNATIVE] Parallel upload with xargs",
+          "status": "skipped",
+          "command": "ls /home/jaime/Downloads/trophyframes/output_webp/*.webp | xargs -P 8 -I {} sh -c 'filename=$(basename {}); curl -s -X PUT -H \"AccessKey: YOUR_STORAGE_API_KEY\" -H \"Content-Type: image/webp\" --data-binary @{} \"https://storage.bunnycdn.com/YOUR_STORAGE_ZONE_NAME/grcup/frames/trophy_frames_webp/$filename\" && echo \"Done: $filename\"'",
+          "notes": "8 parallel uploads. Reduce -P value if you hit rate limits"
+        },
+        {
+          "id": "4.2",
+          "title": "Verify upload count matches local frame count",
+          "status": "pending",
+          "command": "curl -s -H 'AccessKey: YOUR_STORAGE_API_KEY' 'https://storage.bunnycdn.com/YOUR_STORAGE_ZONE_NAME/grcup/frames/trophy_frames_webp/' | python3 -c \"import sys,json; data=json.load(sys.stdin); print(f'Files on CDN: {len(data)}')\"",
+          "notes": "Count should match local frame count from step 2.2"
+        },
+        {
+          "id": "4.3",
+          "title": "Purge BunnyCDN pull zone cache",
+          "status": "pending",
+          "command": "curl -s -X POST -H 'AccessKey: YOUR_ACCOUNT_API_KEY' 'https://api.bunny.net/pullzone/YOUR_PULL_ZONE_ID/purgeCache'",
+          "notes": "Uses Account API Key (different from Storage API Key). Pull zone ID found in BunnyCDN dashboard. Ensures CDN edge nodes serve new frames immediately"
+        }
+      ]
+    },
+
+    {
+      "phase": 5,
+      "title": "Frontend — Sliding Window Cache",
+      "tasks": [
+        {
+          "id": "5.1",
+          "title": "Define animation constants",
+          "status": "pending",
+          "code": {
+            "language": "javascript",
+            "snippet": "const TOTAL_FRAMES = 288; // 24fps × 12s\nconst CDN_BASE_URL = 'https://YOUR_PULL_ZONE.b-cdn.net/grcup/frames/trophy_frames_webp';\nconst WINDOW_SIZE = 60;   // 30 behind + 30 ahead (~480MB RAM max)\nconst MAX_FRAME_JUMP = 8; // prevents scroll outrunning cache\nconst PRELOAD_INITIAL = 60; // frames loaded before animation is unlocked"
+          }
+        },
+        {
+          "id": "5.2",
+          "title": "Implement frame URL helper",
+          "status": "pending",
+          "code": {
+            "language": "javascript",
+            "snippet": "function frameUrl(index) {\n  const padded = String(index + 1).padStart(4, '0');\n  return `${CDN_BASE_URL}/frame_${padded}.webp`;\n}"
+          },
+          "notes": "Adjust padding and naming to match what FFmpeg generated in step 2.1"
+        },
+        {
+          "id": "5.3",
+          "title": "Implement sliding window cache with eviction",
+          "status": "pending",
+          "code": {
+            "language": "javascript",
+            "snippet": "const cache = new Map();\n\nfunction updateCache(currentFrame) {\n  const start = Math.max(0, currentFrame - 30);\n  const end = Math.min(TOTAL_FRAMES - 1, currentFrame + 30);\n\n  // Evict frames outside window (~8MB freed per eviction)\n  for (const [index] of cache) {\n    if (index < start || index > end) {\n      cache.delete(index);\n    }\n  }\n\n  // Preload frames inside window\n  for (let i = start; i <= end; i++) {\n    if (!cache.has(i)) {\n      const img = new Image();\n      img.src = frameUrl(i);\n      cache.set(i, img);\n    }\n  }\n}"
+          }
+        },
+        {
+          "id": "5.4",
+          "title": "Implement clamped scroll frame advance",
+          "status": "pending",
+          "code": {
+            "language": "javascript",
+            "snippet": "let displayedFrame = 0;\nconst canvas = document.querySelector('#trophy-canvas');\nconst ctx = canvas.getContext('2d');\n\nfunction drawFrame(index) {\n  const img = cache.get(index);\n  if (img && img.complete) {\n    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);\n  }\n}\n\nwindow.addEventListener('scroll', () => {\n  const scrollable = document.body.scrollHeight - window.innerHeight;\n  const progress = Math.min(window.scrollY / scrollable, 1);\n  const targetFrame = Math.floor(progress * (TOTAL_FRAMES - 1));\n\n  // Clamp jump — animation catches up smoothly, never teleports\n  if (targetFrame > displayedFrame) {\n    displayedFrame = Math.min(displayedFrame + MAX_FRAME_JUMP, targetFrame);\n  } else {\n    displayedFrame = Math.max(displayedFrame - MAX_FRAME_JUMP, targetFrame);\n  }\n\n  drawFrame(displayedFrame);\n  updateCache(displayedFrame);\n}, { passive: true });"
+          }
+        },
+        {
+          "id": "5.5",
+          "title": "Implement initial preload gate",
+          "status": "pending",
+          "notes": "Block scroll interaction until first 60 frames are ready. Show a progress indicator or freeze on frame 0.",
+          "code": {
+            "language": "javascript",
+            "snippet": "let animationReady = false;\n\nasync function preloadInitialFrames() {\n  const promises = [];\n  for (let i = 0; i < PRELOAD_INITIAL; i++) {\n    const img = new Image();\n    img.src = frameUrl(i);\n    cache.set(i, img);\n    promises.push(new Promise(res => {\n      img.onload = res;\n      img.onerror = res; // don't block on failed frames\n    }));\n  }\n  await Promise.all(promises);\n  animationReady = true;\n  // Remove loading overlay\n  document.querySelector('#loading-overlay')?.remove();\n}"
+          }
+        },
+        {
+          "id": "5.6",
+          "title": "Add preload link in HTML head for first frame",
+          "status": "pending",
+          "code": {
+            "language": "html",
+            "snippet": "<link rel='preload' as='image' href='https://YOUR_PULL_ZONE.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0001.webp' fetchpriority='high'>"
+          },
+          "notes": "Tells browser to fetch frame 0 at highest priority before JS even runs"
+        }
+      ]
+    },
+
+    {
+      "phase": 6,
+      "title": "Testing & Validation",
+      "tasks": [
+        {
+          "id": "6.1",
+          "title": "Test on desktop Chrome — check RAM in DevTools",
+          "status": "pending",
+          "notes": "Open DevTools > Memory tab. Heap should stay under 600MB during scroll. Watch for leaks on repeated scroll up/down"
+        },
+        {
+          "id": "6.2",
+          "title": "Test on Safari iOS (real device, not simulator)",
+          "status": "pending",
+          "notes": "Simulator does not enforce real memory limits. Must test on physical iPhone. Enable Safari Web Inspector via Settings > Safari > Advanced"
+        },
+        {
+          "id": "6.3",
+          "title": "Test cold load in incognito / private tab",
+          "status": "pending",
+          "notes": "Verify loading overlay shows correctly, first 60 frames load before scroll is enabled, no blank canvas flashes"
+        },
+        {
+          "id": "6.4",
+          "title": "Test fast scroll (fling) behavior",
+          "status": "pending",
+          "notes": "Animation should catch up smoothly due to MAX_FRAME_JUMP clamp. Should not crash, freeze, or show blank frames"
+        },
+        {
+          "id": "6.5",
+          "title": "Verify frame count and ordering (reversed correctly)",
+          "status": "pending",
+          "notes": "Frame 0001 should be the last frame of the original video. Frame 0288 should be the first frame of the original video"
+        }
+      ]
+    }
+
+  ],
+
+  "credentials_placeholder": {
+    "note": "Fill these from /home/jaime/Downloads/projects/grweb/backend/GrCup.Api/docs/BUNNYCDN_STORAGE.md",
+    "STORAGE_ZONE_NAME": "YOUR_STORAGE_ZONE_NAME",
+    "STORAGE_API_KEY": "YOUR_STORAGE_API_KEY",
+    "STORAGE_ZONE_ID": "1342426",
+    "PULL_ZONE_URL": "https://YOUR_PULL_ZONE.b-cdn.net",
+    "ACCOUNT_API_KEY": "YOUR_ACCOUNT_API_KEY (for cache purge)"
+  }
+}

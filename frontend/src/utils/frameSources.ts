@@ -17,30 +17,33 @@ export interface CdnFrameConfig extends FrameSourceConfig {
   startFrame?: number;
   endFrame?: number;
   order?: 'asc' | 'desc';
+  /** Number of zero-padding digits for frame filenames. Default: 6 */
+  digits?: number;
 }
 
 export type FrameConfig = LocalFrameConfig | CdnFrameConfig;
 
 const CDN_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp';
 const LOCAL_PATH = '/trophy';
-const BELT_PATH = '/compressedbeltimages';
 
-export const BUNNYCDN_BELT_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/compressedbeltimages';
+// Belt frames: 169 webp frames from belt_output_webp folder, 6-digit padding
+export const BUNNYCDN_BELT_BASE = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp';
 
-// Belt frames configuration - 845 frames in ascending order
 export const BELT_FRAMES_CONFIG: CdnFrameConfig = {
   source: 'cdn',
   baseUrl: BUNNYCDN_BELT_BASE,
   startFrame: 1,
-  endFrame: 845,
+  endFrame: 169,
   order: 'asc',
+  digits: 6,
 };
 
-function padFrame(n: number): string {
-  return String(n).padStart(6, '0');
+function padFrame(n: number, digits: number = 6): string {
+  return String(n).padStart(digits, '0');
 }
 
 export function generateFrameUrls(config: FrameConfig): string[] {
+  const digits = 'digits' in config ? (config as CdnFrameConfig).digits : 6;
   if (config.source === 'cdn') {
     const {
       baseUrl = CDN_BASE,
@@ -55,11 +58,11 @@ export function generateFrameUrls(config: FrameConfig): string[] {
 
     if (order === 'desc') {
       for (let i = maxFrame; i >= minFrame; i--) {
-        urls.push(`${baseUrl}/frame_${padFrame(i)}.webp`);
+        urls.push(`${baseUrl}/frame_${padFrame(i, digits)}.webp`);
       }
     } else {
       for (let i = minFrame; i <= maxFrame; i++) {
-        urls.push(`${baseUrl}/frame_${padFrame(i)}.webp`);
+        urls.push(`${baseUrl}/frame_${padFrame(i, digits)}.webp`);
       }
     }
     return urls;
@@ -69,7 +72,7 @@ export function generateFrameUrls(config: FrameConfig): string[] {
   const { path = LOCAL_PATH, startFrame = 1, endFrame = 783 } = config;
   const urls: string[] = [];
   for (let i = startFrame; i <= endFrame; i++) {
-    urls.push(`${path}/frame_${padFrame(i)}.webp`);
+    urls.push(`${path}/frame_${padFrame(i, digits)}.webp`);
   }
   return urls;
 }

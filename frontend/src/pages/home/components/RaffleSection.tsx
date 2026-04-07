@@ -1,4 +1,4 @@
-import { FC, useMemo, useEffect, useState, useRef } from 'react';
+import { FC, useMemo, useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useScrollProgress } from '@hooks/useScrollProgress';
 import { useFramePreloader } from '@hooks/useFramePreloader';
@@ -13,8 +13,9 @@ export const RaffleSection: FC = () => {
 
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: BELT_FRAMES_CONFIG,
-    batchSize: 20,
-    batchDelay: 50,
+    priorityBatchSize: 10,
+    backgroundBatchSize: 32,
+    backgroundBatchDelay: 0,
   });
 
   // Sync loading state
@@ -63,7 +64,6 @@ export const RaffleSection: FC = () => {
 
   // Text visibility calculations based on scroll progress
   const text1Opacity = useMemo(() => {
-    // Fade in at 10%, fade out from 40% to 50%
     const fadeInStart = 0.10;
     const fadeInEnd = 0.12;
     const fadeOutStart = 0.40;
@@ -81,7 +81,6 @@ export const RaffleSection: FC = () => {
   }, [scrollProgress]);
 
   const text2Opacity = useMemo(() => {
-    // Fade in at 45%, stays until 95%
     const fadeInStart = 0.45;
     const fadeInEnd = 0.48;
     const fadeOutStart = 0.95;
@@ -99,7 +98,6 @@ export const RaffleSection: FC = () => {
   }, [scrollProgress]);
 
   const buttonOpacity = useMemo(() => {
-    // Appears at 95%
     const fadeInStart = 0.95;
     const fadeInEnd = 0.98;
 
@@ -132,7 +130,7 @@ export const RaffleSection: FC = () => {
             className="text-center text-5xl md:text-6xl lg:text-7xl font-bold uppercase tracking-wider"
             style={{
               fontFamily: '"Contrail One", sans-serif',
-              color: '#b91c1c', // red-700
+              color: '#b91c1c',
             }}
           >
             SORTEO
@@ -148,7 +146,7 @@ export const RaffleSection: FC = () => {
           </div>
         </div>
 
-        {/* Frame Animation - with bottom padding and mask */}
+        {/* Frame Animation */}
         <div className="absolute inset-0 flex items-center justify-center z-0 pb-32" data-component="FrameWrapper">
           <FrameAnimator
             frames={frames}
@@ -157,6 +155,14 @@ export const RaffleSection: FC = () => {
             staticPauseStart={1}
             maxWidth={540}
             aspectRatio={16 / 9}
+            scrollSpeed={1}
+            maskStyle={{
+              maskImage: 'radial-gradient(80% 51%, black 40%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(80% 51%, black 40%, transparent 100%)',
+              maskSize: '100% 121%',
+              WebkitMaskSize: '100% 121%',
+              height: 'auto',
+            }}
             edgeFadeOverlay={{
               background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)',
               maxWidth: '540px',
@@ -165,12 +171,11 @@ export const RaffleSection: FC = () => {
           />
         </div>
 
-        {/* Text Overlay Container - Bottom section, button moved lower */}
+        {/* Text Overlay Container */}
         <div
           className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-end pb-32 md:pb-40 z-20"
           data-component="RaffleTextOverlay"
         >
-          {/* Text 1: "Entra en el sorteo de un cinturon SBD" */}
           <div
             className="w-full flex justify-center translate-y-[20px] lg:translate-y-[100px] max-w-[320px] lg:max-w-[540px] mx-auto text-center"
             style={{ opacity: text1Opacity, pointerEvents: text1Opacity > 0.5 ? 'auto' : 'none' }}
@@ -187,7 +192,6 @@ export const RaffleSection: FC = () => {
             </h2>
           </div>
 
-          {/* Text 2: "Participa tantas veces como quieras..." */}
           <div
             className="w-full flex justify-center mt-4"
             style={{ opacity: text2Opacity, pointerEvents: text2Opacity > 0.5 ? 'auto' : 'none' }}
@@ -204,7 +208,6 @@ export const RaffleSection: FC = () => {
             </h2>
           </div>
 
-          {/* Button: "Participa ya" */}
           <div
             className="mt-8"
             style={{ opacity: 1, pointerEvents: 'auto' }}
