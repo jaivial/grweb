@@ -20,6 +20,9 @@ export default function Success() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Show navbar (no hero section on this page)
+    window.dispatchEvent(new CustomEvent('heroVisibilityChange', { detail: { isVisible: false } }));
+
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
 
