@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { JSX } from 'react';
-import Layout from '../../layouts/Layout';
 import { CustomSelector } from '../../components/ui';
 import { api } from '../../utils/api';
 import type { AthleteFormData } from '../../types/athlete';
@@ -127,21 +126,21 @@ export function Inscripcion(): JSX.Element {
   // Show loading state while checking prepared status
   if (preparada === null) {
     return (
-      <Layout>
+      <>
         <Head {...pageMetaConfig['/inscripcion']} />
         <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
           <div className="max-w-2xl mx-auto flex items-center justify-center min-h-[400px]">
             <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           </div>
         </main>
-      </Layout>
+      </>
     );
   }
 
   // Show AEP delegation info if inscripciones are prepared but AEP manages them
   if (preparada && responsable === false) {
     return (
-      <Layout>
+      <>
         <Head {...pageMetaConfig['/inscripcion']} />
         <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
           <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[400px]" data-ui="aep-delegation">
@@ -174,14 +173,14 @@ export function Inscripcion(): JSX.Element {
             )}
           </div>
         </main>
-      </Layout>
+      </>
     );
   }
 
   // Show fallback when inscripciones are not prepared
   if (!preparada) {
     return (
-      <Layout>
+      <>
         <Head {...pageMetaConfig['/inscripcion']} />
         <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
           <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[400px]" data-ui="inscripcion-fallback">
@@ -212,12 +211,12 @@ export function Inscripcion(): JSX.Element {
             </div>
           </div>
         </main>
-      </Layout>
+      </>
     );
   }
 
   return (
-    <Layout>
+    <>
       <Head {...pageMetaConfig['/inscripcion']} />
       <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
         <div className="max-w-2xl mx-auto">
@@ -422,7 +421,7 @@ export function Inscripcion(): JSX.Element {
           </p>
         </div>
       </main>
-    </Layout>
+    </>
   );
 }
 
