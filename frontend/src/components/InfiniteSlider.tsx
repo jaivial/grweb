@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo, FC } from 'react';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 export interface SliderImage {
   src: string;
@@ -29,6 +30,24 @@ export interface InfiniteSliderProps {
  * - Respects prefers-reduced-motion
  * - Performance optimized with will-change
  */
+
+// Sub-component to resolve CDN images via fetch+blob (bypasses CORS)
+const CdnImg: FC<{ src: string; alt?: string; title?: string; height: number; gap: number }> = ({ src, alt, title, height, gap }) => {
+  const resolvedSrc = useCdnImage(src);
+  return (
+    <img
+      src={resolvedSrc}
+      alt={alt || ''}
+      title={title}
+      className="h-full w-auto object-contain select-none pointer-events-none flex-shrink-0"
+      style={{ height: `${height}px`, marginRight: `${gap}px` }}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+    />
+  );
+};
+
 export const InfiniteSlider: FC<InfiniteSliderProps> = ({
   images,
   speed = 50,
@@ -90,18 +109,7 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
 
   // Render a single image item
   const renderImage = useCallback((img: SliderImage, index: number) => {
-    const content = (
-      <img
-        src={img.src}
-        alt={img.alt || ''}
-        title={img.title}
-        className="h-full w-auto object-contain select-none pointer-events-none flex-shrink-0"
-        style={{ height: `${height}px`, marginRight: `${gap}px` }}
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-      />
-    );
+    const content = <CdnImg src={img.src} alt={img.alt} title={img.title} height={height} gap={gap} />;
 
     if (img.href) {
       return (

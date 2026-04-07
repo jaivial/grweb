@@ -1,4 +1,5 @@
 import { FC, useRef, useEffect, useState, useMemo } from 'react';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 export interface OrganizationEquipmentSectionProps {
   className?: string;
@@ -146,6 +147,7 @@ const AnimatedImage: FC<{
     distance: 50,
     enterDuration: 700,
   });
+  const resolvedSrc = useCdnImage(src);
 
   return (
     <figure
@@ -167,7 +169,7 @@ const AnimatedImage: FC<{
           }}
         >
           <img
-            src={src}
+            src={resolvedSrc}
             alt={alt}
             className="w-full h-auto block"
             loading="lazy"
@@ -215,6 +217,8 @@ const AnimatedImage: FC<{
  * - Decorative accent elements
  */
 export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps> = ({ className = '' }) => {
+  const aepLogoSrc = useCdnImage('https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp');
+  const nicoPhotoSrc = useCdnImage('https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/f7efa2c624614a66b35f6ab01980e09e.webp');
   // Common text styles matching existing sections
   const titleStyle: React.CSSProperties = {
     fontFamily: '"Contrail One", sans-serif',
@@ -466,7 +470,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
             >
               <div data-ui="organizer-aep">
                 <img
-                  src="https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp"
+                  src={aepLogoSrc}
                   alt="AEP - Asociación Española de Powerlifting"
                   className="w-64 md:w-72 lg:w-[22rem] h-auto mx-auto mb-4 object-cover rounded-xl"
                   loading="lazy"
@@ -495,7 +499,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
 
               <div data-ui="organizer-nicogr">
                 <img
-                  src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/f7efa2c624614a66b35f6ab01980e09e.webp"
+                  src={nicoPhotoSrc}
                   alt="Nico GR - Organizador"
                   className="w-64 md:w-72 lg:w-[22rem] h-auto mx-auto mb-4 object-cover rounded-xl"
                   loading="lazy"
