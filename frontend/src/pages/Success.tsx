@@ -107,7 +107,7 @@ export default function Success() {
   return (
     <>
       <Head {...pageMetaConfig['/success']} />
-      <div className="py-16 px-4" data-ui="success-page">
+      <div className="py-16 px-4" style={{ paddingTop: '120px' }} data-ui="success-page">
         <div className="max-w-md mx-auto" data-ui="success-content">
 
           {/* Logo */}
