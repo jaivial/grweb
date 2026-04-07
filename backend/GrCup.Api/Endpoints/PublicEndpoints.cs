@@ -59,6 +59,36 @@ public static class PublicEndpoints
             }
         });
 
+        // GET /api/tickets/session/{sessionId} - Retrieve purchase details from Stripe session
+        app.MapGet("/api/tickets/session/{sessionId}", async (
+            string sessionId,
+            StripeService stripeService,
+            ILogger<Program> logger) =>
+        {
+            try
+            {
+                var session = await stripeService.GetSessionAsync(sessionId);
+                var (firstName, surname, email, instagram, ticketCount, _) = stripeService.ExtractMetadata(session);
+                var totalPaid = stripeService.CalculateTotalPaid(session);
+
+                return Results.Ok(new
+                {
+                    firstName,
+                    surname,
+                    email,
+                    instagram,
+                    ticketCount,
+                    totalPaid,
+                    sessionId = session.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error retrieving session {SessionId}", sessionId);
+                return Results.NotFound(new { error = "Session not found" });
+            }
+        });
+
         // GET /api/participants/count - Get total participant count
         app.MapGet("/api/participants/count", async (
             ParticipantService participantService) =>
