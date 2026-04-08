@@ -284,7 +284,7 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
                     style={{
                       filter: 'contrast(1.05) saturate(0.9)',
                     }}
-                    loading="lazy"
+                    loading="eager"
                     decoding="async"
                   />
                   {/* Additional edge fade overlays for top, bottom, left, right */}
@@ -351,7 +351,7 @@ export const AthletesSection: FC<AthletesSectionProps> = ({ className = '' }) =>
                     style={{
                       filter: 'contrast(1.05) saturate(0.9)',
                     }}
-                    loading="lazy"
+                    loading="eager"
                     decoding="async"
                   />
                   {/* Additional edge fade overlays for top, bottom, left, right */}

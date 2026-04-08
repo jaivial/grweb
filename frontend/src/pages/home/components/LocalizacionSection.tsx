@@ -163,7 +163,7 @@ const AnimatedImage: FC<{
             src={resolvedSrc}
             alt={alt}
             className="w-full h-auto block"
-            loading="lazy"
+            loading="eager"
           />
           <div
             className="absolute inset-0 pointer-events-none"

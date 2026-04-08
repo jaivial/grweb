@@ -172,7 +172,7 @@ const AnimatedImage: FC<{
             src={resolvedSrc}
             alt={alt}
             className="w-full h-auto block"
-            loading="lazy"
+            loading="eager"
           />
           {/* Edge fade overlay */}
           <div
@@ -473,7 +473,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
                   src={aepLogoSrc}
                   alt="AEP - Asociación Española de Powerlifting"
                   className="w-64 md:w-72 lg:w-[22rem] h-auto mx-auto mb-4 object-cover rounded-xl"
-                  loading="lazy"
+                  loading="eager"
                   data-ui="organizer-aep-image"
                 />
                 <h4
@@ -502,7 +502,7 @@ export const OrganizationEquipmentSection: FC<OrganizationEquipmentSectionProps>
                   src={nicoPhotoSrc}
                   alt="Nico GR - Organizador"
                   className="w-64 md:w-72 lg:w-[22rem] h-auto mx-auto mb-4 object-cover rounded-xl"
-                  loading="lazy"
+                  loading="eager"
                   data-ui="organizer-nicogr-image"
                 />
                 <h4

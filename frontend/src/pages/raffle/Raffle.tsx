@@ -100,7 +100,14 @@ export const Raffle: FC = () => {
 
   const [isLoadingWinner, setIsLoadingWinner] = useState(true);
   const [formVisible, setFormVisible] = useState(false);
+  const [isWide, setIsWide] = useState(window.innerWidth > 600);
   const enrollRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsWide(window.innerWidth > 600);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     fetchConfirmedWinner().finally(() => {
@@ -232,7 +239,7 @@ export const Raffle: FC = () => {
         <div
           id="raffle-page-container"
           className="relative"
-          style={{ height: '600vh' }}
+          style={{ height: isWide ? '250dvh' : '150vh' }}
           data-component="RaffleHeroContainer"
         >
           <div
@@ -731,7 +738,7 @@ export const Raffle: FC = () => {
         {!formVisible && (
           <button
             onClick={() => enrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
-            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-red-accent hover:bg-red-600 text-white text-sm font-bold rounded-full shadow-lg shadow-red-accent/40 transition-all duration-300"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-red-accent hover:bg-red-600 text-white text-sm font-bold rounded-full shadow-lg shadow-red-accent/40 transition-all duration-300"
             data-ui="floating-cta"
           >
             Compra ya

@@ -75,7 +75,7 @@ const BackgroundImage: FC<{ src: string }> = ({ src }) => {
           style={{
             filter: 'contrast(1.05) saturate(0.85) brightness(0.7)',
           }}
-          loading="lazy"
+          loading="eager"
           decoding="async"
         />
         <div

@@ -10,6 +10,13 @@ export const RaffleSection: FC = () => {
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [isWide, setIsWide] = useState(window.innerWidth > 600);
+
+  useEffect(() => {
+    const handleResize = () => setIsWide(window.innerWidth > 600);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
     frameSource: BELT_FRAMES_CONFIG,
@@ -36,7 +43,7 @@ export const RaffleSection: FC = () => {
   }, [isLoading]);
 
   const { progress: scrollProgress } = useScrollProgress({
-    totalVh: 600,
+    totalVh: isWide ? 250 : 200,
     smooth: true,
     smoothFactor: 0.15,
     sectionSelector: '#raffle-container',
@@ -115,7 +122,7 @@ export const RaffleSection: FC = () => {
     <div
       id="raffle-container"
       className="relative"
-      style={{ height: '600vh' }}
+      style={{ height: isWide ? '250dvh' : '200dvh' }}
       data-section="raffle"
       data-component="RaffleSection"
     >

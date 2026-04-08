@@ -58,7 +58,7 @@ const AngledImage: FC<{ src: string; alt: string; rotation: 'left' | 'center' | 
       <div className="relative overflow-hidden rounded-lg" data-ui={`image-container-${dataUi}`}>
 
         <div className="relative overflow-hidden rounded-lg" data-ui={`image-mask-${dataUi}`} style={{ maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)', maskSize: '100% 100%', maskRepeat: 'no-repeat', maskPosition: 'center' }}>
-          <img src={resolvedSrc} alt={alt} className="w-full h-auto object-cover" data-ui={dataUi} style={{ filter: 'contrast(1.05) saturate(0.9)' }} loading="lazy" decoding="async" />
+          <img src={resolvedSrc} alt={alt} className="w-full h-auto object-cover" data-ui={dataUi} style={{ filter: 'contrast(1.05) saturate(0.9)' }} loading="eager" decoding="async" />
           <div className="absolute inset-0 pointer-events-none" data-ui={`image-edge-fade-${dataUi}`} style={{ background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)' }} aria-hidden />
         </div>
       </div>
@@ -81,7 +81,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
 
       <div className="relative z-20 max-w-6xl mx-auto px-6 lg:px-12" data-ui="section-content">
         <AnimatedItem direction="up" delay={0} dataUi="animated-logo">
-          <div className="flex justify-center mb-8" data-ui="logo-container"><div className="relative w-32 sm:w-40 md:w-48" data-ui="logo-wrapper"><img src={logoSrc} alt="GR Cup Logo" className="w-full h-auto object-contain" data-ui="logo" loading="lazy" decoding="async" /></div></div>
+          <div className="flex justify-center mb-8" data-ui="logo-container"><div className="relative w-32 sm:w-40 md:w-48" data-ui="logo-wrapper"><img src={logoSrc} alt="GR Cup Logo" className="w-full h-auto object-contain" data-ui="logo" loading="eager" decoding="async" /></div></div>
         </AnimatedItem>
 
         <AnimatedItem direction="up" delay={100} dataUi="animated-title">
