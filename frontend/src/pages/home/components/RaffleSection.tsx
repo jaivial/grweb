@@ -184,7 +184,7 @@ export const RaffleSection: FC = () => {
           data-component="RaffleTextOverlay"
         >
           <div
-            className="w-full flex justify-center translate-y-[20px] lg:translate-y-[100px] max-w-[320px] lg:max-w-[540px] mx-auto text-center"
+            className="w-full flex justify-center translate-y-[20px] lg:translate-y-[190px] max-w-[320px] lg:max-w-[769px] mx-auto text-center"
             style={{ opacity: text1Opacity, pointerEvents: text1Opacity > 0.5 ? 'auto' : 'none' }}
           >
             <h2
