@@ -119,7 +119,7 @@ export default function Success() {
               src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png"
               alt="GRStrength Cup"
               className="h-16 mx-auto"
-              loading="lazy"
+              loading="eager"
             />
           </div>
 

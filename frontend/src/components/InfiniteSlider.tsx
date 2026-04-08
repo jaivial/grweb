@@ -41,7 +41,7 @@ const CdnImg: FC<{ src: string; alt?: string; title?: string; height: number; ga
       title={title}
       className="h-full w-auto object-contain select-none pointer-events-none flex-shrink-0"
       style={{ height: `${height}px`, marginRight: `${gap}px` }}
-      loading="lazy"
+      loading="eager"
       decoding="async"
       draggable={false}
     />

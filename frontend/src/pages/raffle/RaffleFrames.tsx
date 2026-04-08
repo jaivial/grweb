@@ -70,7 +70,7 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
   }, []);
 
   const { progress: scrollProgress } = useScrollProgress({
-    totalVh: 300,
+    totalVh: 75,
     smooth: true,
     smoothFactor: 0.15,
     sectionSelector: `#${containerId}`,
