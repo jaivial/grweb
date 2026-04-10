@@ -83,7 +83,7 @@ export default function Login() {
                   type="text"
                   value={username}
                   onInput={(e) => setUsername((e.target as HTMLInputElement).value)}
-                  className="w-full bg-dark-base border-2 border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:border-red-accent focus:outline-none transition-colors"
+                  className="w-full text-base bg-dark-base border-2 border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:border-red-accent focus:outline-none transition-colors"
                   placeholder="Enter your username"
                   disabled={isLoading.value}
                   autoComplete="username"
@@ -108,7 +108,7 @@ export default function Login() {
                   type="password"
                   value={password}
                   onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
-                  className="w-full bg-dark-base border-2 border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:border-red-accent focus:outline-none transition-colors"
+                  className="w-full text-base bg-dark-base border-2 border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:border-red-accent focus:outline-none transition-colors"
                   placeholder="Enter your password"
                   disabled={isLoading.value}
                   autoComplete="current-password"

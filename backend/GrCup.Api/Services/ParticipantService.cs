@@ -53,9 +53,16 @@ public class ParticipantService
     }
 
     /// <summary>
-    /// Updates an existing participant's ticket count and total paid
+    /// Updates an existing participant's ticket count, total paid, and payment fields
     /// </summary>
-    public async Task<Participant> UpdateAsync(int id, int additionalTickets, decimal additionalPaid)
+    public async Task<Participant> UpdateAsync(
+        int id,
+        int additionalTickets,
+        decimal additionalPaid,
+        bool? isPaid = null,
+        string? paymentMethod = null,
+        string? stripeSessionId = null,
+        decimal? price = null)
     {
         var participant = await _context.Participants.FindAsync(id);
         if (participant == null)
@@ -63,6 +70,17 @@ public class ParticipantService
 
         participant.TicketCount += additionalTickets;
         participant.TotalPaid += additionalPaid;
+
+        if (isPaid.HasValue)
+            participant.IsPaid = isPaid.Value;
+        if (paymentMethod != null)
+            participant.PaymentMethod = paymentMethod;
+        if (stripeSessionId != null)
+            participant.StripeSessionId = stripeSessionId;
+        if (price.HasValue)
+            participant.Price = price;
+
+        participant.DateModified = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return participant;
@@ -87,6 +105,21 @@ public class ParticipantService
     }
 
     /// <summary>
+    /// Gets a participant by email + paymentMethod + isPaid combination
+    /// </summary>
+    public async Task<Participant?> GetByEmailAndMethodAsync(string email, string paymentMethod, bool isPaid)
+    {
+        var normalEmail = email.ToLowerInvariant();
+        var normalMethod = paymentMethod.ToLowerInvariant();
+        return await _context.Participants
+            .FirstOrDefaultAsync(p =>
+                p.Email.ToLower() == normalEmail &&
+                p.PaymentMethod != null &&
+                p.PaymentMethod.ToLower() == normalMethod &&
+                p.IsPaid == isPaid);
+    }
+
+    /// <summary>
     /// Gets a participant by ID
     /// </summary>
     public async Task<Participant?> GetByIdAsync(int id)
@@ -95,19 +128,23 @@ public class ParticipantService
     }
 
     /// <summary>
-    /// Gets paginated list of participants with optional search filter
+    /// Gets paginated list of participants with optional search, sort, and filter
     /// </summary>
     public async Task<(List<Participant> Participants, int TotalCount)> GetAllPaginatedAsync(
-        int page, 
-        int pageSize, 
-        string? searchTerm = null)
+        int page,
+        int pageSize,
+        string? searchTerm = null,
+        string sortBy = "createdAt",
+        string sortOrder = "desc",
+        bool? isPaid = null,
+        string? paymentMethod = null)
     {
         var query = _context.Participants.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var term = searchTerm.ToLower();
-            query = query.Where(p => 
+            query = query.Where(p =>
                 p.FirstName.ToLower().Contains(term) ||
                 p.Surname.ToLower().Contains(term) ||
                 p.Email.ToLower().Contains(term) ||
@@ -115,10 +152,42 @@ public class ParticipantService
             );
         }
 
+        if (isPaid.HasValue)
+        {
+            query = query.Where(p => p.IsPaid == isPaid.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(paymentMethod))
+        {
+            query = query.Where(p => p.PaymentMethod != null && p.PaymentMethod.ToLower() == paymentMethod.ToLower());
+        }
+
         var totalCount = await query.CountAsync();
 
-        var participants = await query
-            .OrderByDescending(p => p.CreatedAt)
+        var sortField = sortBy.ToLowerInvariant();
+        var ascending = sortOrder.ToLowerInvariant() == "asc";
+
+        IOrderedQueryable<Participant> ordered;
+        switch (sortField)
+        {
+            case "ticketcount":
+                ordered = ascending
+                    ? query.OrderBy(p => p.TicketCount)
+                    : query.OrderByDescending(p => p.TicketCount);
+                break;
+            case "name":
+                ordered = ascending
+                    ? query.OrderBy(p => p.FirstName).ThenBy(p => p.Surname)
+                    : query.OrderByDescending(p => p.FirstName).ThenByDescending(p => p.Surname);
+                break;
+            default:
+                ordered = ascending
+                    ? query.OrderBy(p => p.CreatedAt)
+                    : query.OrderByDescending(p => p.CreatedAt);
+                break;
+        }
+
+        var participants = await ordered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -148,6 +217,16 @@ public class ParticipantService
     public async Task<decimal> GetTotalRevenueAsync()
     {
         return await _context.Participants.SumAsync(p => p.TotalPaid);
+    }
+
+    /// <summary>
+    /// Gets total revenue grouped by payment method
+    /// </summary>
+    public async Task<Dictionary<string, decimal>> GetRevenueByPaymentMethodAsync()
+    {
+        return await _context.Participants
+            .GroupBy(p => p.PaymentMethod ?? "unknown")
+            .ToDictionaryAsync(g => g.Key.ToLowerInvariant(), g => g.Sum(p => p.TotalPaid));
     }
 
     /// <summary>
@@ -187,7 +266,8 @@ public class ParticipantService
     }
 
     /// <summary>
-    /// Increments ticket count for an existing participant or creates new one
+    /// Increments ticket count for an existing participant or creates new one.
+    /// Groups by (email, paymentMethod) so different payment methods create separate records.
     /// </summary>
     public async Task<Participant> CreateOrUpdateAsync(
         string firstName,
@@ -202,11 +282,20 @@ public class ParticipantService
         string? paymentMethod = null,
         string? stripeSessionId = null)
     {
-        var existing = await GetByEmailAsync(email);
+        // Lookup by email + paymentMethod to group same-method entries together
+        Participant? existing = null;
+        if (!string.IsNullOrEmpty(paymentMethod))
+        {
+            existing = await GetByEmailAndMethodAsync(email, paymentMethod, isPaid);
+        }
+        else
+        {
+            existing = await GetByEmailAsync(email);
+        }
 
         if (existing != null)
         {
-            return await UpdateAsync(existing.Id, ticketCount, totalPaid);
+            return await UpdateAsync(existing.Id, ticketCount, totalPaid, isPaid, paymentMethod, stripeSessionId, price);
         }
         else
         {
@@ -225,7 +314,7 @@ public class ParticipantService
     }
 
     /// <summary>
-    /// Gets a random participant for winner draw (weighted by ticket count)
+    /// Gets a random participant for winner draw (weighted by combined ticket count per email)
     /// </summary>
     public async Task<Participant?> GetRandomParticipantAsync()
     {
@@ -234,7 +323,17 @@ public class ParticipantService
         if (!participants.Any())
             return null;
 
-        var totalTickets = participants.Sum(p => p.TicketCount);
+        // Group by email and sum tickets per person
+        var grouped = participants
+            .GroupBy(p => p.Email.ToLower())
+            .Select(g => new {
+                Email = g.Key,
+                TotalTickets = g.Sum(p => p.TicketCount),
+                Representative = g.OrderByDescending(p => p.TicketCount).First()
+            })
+            .ToList();
+
+        var totalTickets = grouped.Sum(g => g.TotalTickets);
         if (totalTickets == 0)
             return null;
 
@@ -243,14 +342,24 @@ public class ParticipantService
         var randomValue = (Math.Abs(BitConverter.ToInt32(bytes)) % totalTickets) + 1;
 
         var cumulative = 0;
-        foreach (var p in participants)
+        foreach (var g in grouped)
         {
-            cumulative += p.TicketCount;
+            cumulative += g.TotalTickets;
             if (randomValue <= cumulative)
-                return p;
+                return g.Representative;
         }
 
-        return participants.LastOrDefault();
+        return grouped.LastOrDefault()?.Representative;
+    }
+
+    /// <summary>
+    /// Gets the combined ticket count for a given email across all rows
+    /// </summary>
+    public async Task<int> GetCombinedTicketCountAsync(string email)
+    {
+        return await _context.Participants
+            .Where(p => p.Email.ToLower() == email.ToLower())
+            .SumAsync(p => p.TicketCount);
     }
 
     /// <summary>

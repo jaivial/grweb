@@ -24,6 +24,7 @@ const Sorteo = lazy(() => import('./pages/backoffice/sorteo/Sorteo').then(m => (
 const Horarios = lazy(() => import('./pages/backoffice/horarios/Horarios').then(m => ({ default: m.default })));
 const InscripcionConfigPage = lazy(() => import('./pages/backoffice/InscripcionConfig').then(m => ({ default: m.default })));
 const Configuracion = lazy(() => import('./pages/backoffice/configuracion/Configuracion').then(m => ({ default: m.Configuracion })));
+const RaffleConfigPage = lazy(() => import('./pages/backoffice/raffle-config/RaffleConfigPage').then(m => ({ default: m.RaffleConfigPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -117,6 +118,14 @@ export function App() {
         component={() => (
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}><Configuracion /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/raffle-config"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><RaffleConfigPage /></Suspense>
           </ProtectedRoute>
         )}
       />

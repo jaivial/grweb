@@ -60,7 +60,7 @@ export async function login(user: string, pass: string): Promise<boolean> {
       isLoading.value = false;
       return true;
     } else {
-      error.value = 'Login failed';
+      error.value = 'Login Failed';
       isLoading.value = false;
       return false;
     }

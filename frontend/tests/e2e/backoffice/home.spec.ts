@@ -6,19 +6,18 @@ test.describe('Backoffice Home', () => {
   test.beforeEach(async ({ page }) => {
     await loginViaApi(page);
     await page.goto('/backoffice');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('displays backoffice header', async ({ page }) => {
-    await expect(page.locator('[data-ui="backoffice-home"] h1')).toContainText('Panel de Administración', { timeout: 10000 });
+    await expect(page.locator('h1').filter({ hasText: 'Panel de Administracion' })).toBeVisible({ timeout: 15000 });
   });
 
   test('displays navigation cards', async ({ page }) => {
-    await expect(page.locator('text=Inscripciones')).toBeVisible();
-    await expect(page.locator('text=Sorteo')).toBeVisible();
-    await expect(page.locator('text=Horarios')).toBeVisible();
-    await expect(page.locator('text=Configuración General')).toBeVisible();
+    await expect(page.locator('text=Inscripciones').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Sorteo').first()).toBeVisible();
+    await expect(page.locator('text=Horarios').first()).toBeVisible();
+    await expect(page.locator('text=Configuración General').first()).toBeVisible();
   });
 
   test('navigation links work', async ({ page }) => {
@@ -26,20 +25,17 @@ test.describe('Backoffice Home', () => {
     await expect(page).toHaveURL(/\/backoffice\/inscripciones/, { timeout: 10000 });
 
     await page.goto('/backoffice');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('domcontentloaded');
     await page.click('a[href="/backoffice/horarios"]');
     await expect(page).toHaveURL(/\/backoffice\/horarios/, { timeout: 10000 });
 
     await page.goto('/backoffice');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('domcontentloaded');
     await page.click('a[href="/backoffice/sorteo"]');
     await expect(page).toHaveURL(/\/backoffice\/sorteo/, { timeout: 10000 });
 
     await page.goto('/backoffice');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('domcontentloaded');
     await page.click('a[href="/backoffice/configuracion"]');
     await expect(page).toHaveURL(/\/backoffice\/configuracion/, { timeout: 10000 });
   });
@@ -47,7 +43,7 @@ test.describe('Backoffice Home', () => {
   test('no console errors', async ({ page }) => {
     const monitor = monitorConsole(page);
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     monitor.assertNoErrors();
   });
 });

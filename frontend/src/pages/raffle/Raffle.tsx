@@ -84,6 +84,19 @@ export const Raffle: FC = () => {
   const TICKET_PRICE = 0.5;
   const MAX_TICKETS = 50;
 
+  // Raffle enabled/disabled check
+  const [raffleEnabled, setRaffleEnabled] = useState(true);
+  const [disabledMessage, setDisabledMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getPublicRaffleConfig()
+      .then(data => {
+        setRaffleEnabled(data.isEnabled);
+        setDisabledMessage(data.disabledMessage);
+      })
+      .catch(() => {});
+  }, []);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -230,6 +243,20 @@ export const Raffle: FC = () => {
       setIsSubmitting(false);
     }
   }, [formData, ticketCount, validateForm]);
+
+  // Show disabled message when raffle is turned off
+  if (!raffleEnabled) {
+    return (
+      <div className="min-h-screen bg-dark-base flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-3xl font-bold text-white mb-4">Sorteo cerrado</h1>
+          <p className="text-gray-400 text-lg">
+            {disabledMessage || 'El sorteo no esta disponible en este momento.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

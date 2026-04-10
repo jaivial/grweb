@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "gr_cup_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiamFpbWVAaG90bWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjgwMWZkMDQxLTA2OTEtNDMwYi1iN2JmLTQ2ZjAyNzRkYjgzZCIsImV4cCI6MTc3NTg1NjgyMSwiaXNzIjoiR3JDdXBBcGkiLCJhdWQiOiJHckN1cCJ9._dEEBr-qTVZTqkZ4wxwe2GOM2rSOAGyNUFKEQNvpGDY",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1775856821.702613,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": []
+}

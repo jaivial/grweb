@@ -442,7 +442,7 @@ export function Inscripciones(): JSX.Element {
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     placeholder="https://..."
-                    className="flex-1 px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
+                    className="flex-1 px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
                   />
                   <Button
                     onClick={() => handleSaveUrl(urlInput)}
@@ -679,7 +679,7 @@ function FiltersAccordion({ clubs }: { clubs: string[] }) {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Nombre o email..."
-            className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
+            className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
           />
         </div>
 

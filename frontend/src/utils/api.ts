@@ -100,12 +100,28 @@ class ApiClient {
       totalParticipants: number;
       totalTickets: number;
       totalRevenue: number;
+      cashRevenue: number;
+      stripeRevenue: number;
+      bankRevenue: number;
     }>('/api/admin/statistics');
   }
 
-  async getParticipants(page: number = 1, search?: string) {
-    const params = new URLSearchParams({ page: page.toString() });
-    if (search) params.append('search', search);
+  async getParticipants(params: {
+    page: number;
+    search?: string;
+    sortBy?: 'ticketCount' | 'name' | 'createdAt';
+    sortOrder?: 'asc' | 'desc';
+    isPaid?: boolean | null;
+    paymentMethod?: string | null;
+    pageSize?: number;
+  }) {
+    const urlParams = new URLSearchParams({ page: params.page.toString() });
+    if (params.search) urlParams.append('search', params.search);
+    if (params.sortBy) urlParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) urlParams.append('sortOrder', params.sortOrder);
+    if (params.isPaid !== undefined && params.isPaid !== null) urlParams.append('isPaid', String(params.isPaid));
+    if (params.paymentMethod) urlParams.append('paymentMethod', params.paymentMethod);
+    if (params.pageSize) urlParams.append('pageSize', params.pageSize.toString());
 
     return this.request<{
       participants: any[];
@@ -113,11 +129,11 @@ class ApiClient {
       page: number;
       pageSize: number;
       totalPages: number;
-    }>(`/api/admin/participants?${params}`);
+    }>(`/api/admin/participants?${urlParams}`);
   }
 
   async exportCsv() {
-    const response = await fetch(`${this.baseUrl}/admin/export/csv`, {
+    const response = await fetch(`${this.baseUrl}/api/admin/export/csv`, {
       credentials: 'include',
     });
 
@@ -293,6 +309,23 @@ class ApiClient {
 
   async updateInscripcionConfig(data: { active: boolean; url: string | null }) {
     return this.request<{ active: boolean; url: string | null }>('/api/admin/inscripcion-config', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  // ─── Raffle Config ───
+
+  async getPublicRaffleConfig() {
+    return this.request<{ isEnabled: boolean; disabledMessage: string | null }>('/api/raffle/config');
+  }
+
+  async getRaffleConfig() {
+    return this.request<{ isEnabled: boolean; disabledMessage: string | null }>('/api/admin/raffle-config');
+  }
+
+  async updateRaffleConfig(data: { isEnabled: boolean; disabledMessage: string | null }) {
+    return this.request<{ isEnabled: boolean; disabledMessage: string | null }>('/api/admin/raffle-config', {
       method: 'PUT',
       body: data,
     });

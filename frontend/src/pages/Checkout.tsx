@@ -152,7 +152,7 @@ export default function Checkout() {
                 name="firstName"
                 value={formData.firstName}
                 onInput={handleInputChange}
-                className={`w-full px-4 py-3 bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
+                className={`w-full px-4 py-3 text-base bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
                   errors.firstName ? 'border-red-500' : 'border-zinc-700'
                 }`}
                 placeholder="John"
@@ -172,7 +172,7 @@ export default function Checkout() {
                 name="surname"
                 value={formData.surname}
                 onInput={handleInputChange}
-                className={`w-full px-4 py-3 bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
+                className={`w-full px-4 py-3 text-base bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
                   errors.surname ? 'border-red-500' : 'border-zinc-700'
                 }`}
                 placeholder="Doe"
@@ -192,7 +192,7 @@ export default function Checkout() {
                 name="email"
                 value={formData.email}
                 onInput={handleInputChange}
-                className={`w-full px-4 py-3 bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
+                className={`w-full px-4 py-3 text-base bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
                   errors.email ? 'border-red-500' : 'border-zinc-700'
                 }`}
                 placeholder="john@example.com"
@@ -212,7 +212,7 @@ export default function Checkout() {
                 name="instagram"
                 value={formData.instagram}
                 onInput={handleInputChange}
-                className={`w-full px-4 py-3 bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
+                className={`w-full px-4 py-3 text-base bg-dark-surface border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-accent transition-colors ${
                   errors.instagram ? 'border-red-500' : 'border-zinc-700'
                 }`}
                 placeholder="@yourusername"
