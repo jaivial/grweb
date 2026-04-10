@@ -103,7 +103,7 @@ export function AthleteForm({
             type="text"
             value={formData.firstName}
             onChange={(e) => updateField('firstName', e.target.value)}
-            className={`w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30 ${errors.firstName ? 'border-red-500/50' : 'border-white/10'}`}
+            className={`w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30 ${errors.firstName ? 'border-red-500/50' : 'border-white/10'}`}
             placeholder="Nombre"
           />
           {errors.firstName && <p className="mt-1 text-sm text-red-400">{errors.firstName}</p>}
@@ -115,7 +115,7 @@ export function AthleteForm({
             type="text"
             value={formData.surname}
             onChange={(e) => updateField('surname', e.target.value)}
-            className={`w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30 ${errors.surname ? 'border-red-500/50' : 'border-white/10'}`}
+            className={`w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30 ${errors.surname ? 'border-red-500/50' : 'border-white/10'}`}
             placeholder="Apellidos"
           />
           {errors.surname && <p className="mt-1 text-sm text-red-400">{errors.surname}</p>}
@@ -129,7 +129,7 @@ export function AthleteForm({
             type="email"
             value={formData.email}
             onChange={(e) => updateField('email', e.target.value)}
-            className={`w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30 ${errors.email ? 'border-red-500/50' : 'border-white/10'}`}
+            className={`w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30 ${errors.email ? 'border-red-500/50' : 'border-white/10'}`}
             placeholder="email@ejemplo.com"
           />
           {errors.email && <p className="mt-1 text-sm text-red-400">{errors.email}</p>}
@@ -141,7 +141,7 @@ export function AthleteForm({
             type="tel"
             value={formData.phone}
             onChange={(e) => updateField('phone', e.target.value)}
-            className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30"
+            className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30"
             placeholder="+34 600 000 000"
           />
         </div>
@@ -172,7 +172,7 @@ export function AthleteForm({
             type="text"
             value={formData.club}
             onChange={(e) => updateField('club', e.target.value)}
-            className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30"
+            className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30"
             placeholder="Nombre del club"
           />
         </div>
@@ -184,7 +184,7 @@ export function AthleteForm({
             step="0.1"
             value={formData.totalWeight || ''}
             onChange={(e) => updateField('totalWeight', e.target.value ? parseFloat(e.target.value) : undefined)}
-            className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30"
+            className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/30"
             placeholder="0.0"
           />
         </div>

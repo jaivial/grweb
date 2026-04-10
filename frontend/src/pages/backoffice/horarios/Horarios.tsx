@@ -835,9 +835,11 @@ function ScheduleFormModal({
             label="Hora de fin"
             value={formData.endTime}
             onChange={(v) => setFormData(prev => ({ ...prev, endTime: v || '10:00' }))}
+            minTime={formData.startTime}
           />
         </div>
 
+        {formData.weightCategory && formData.date && formData.startTime && formData.endTime && (
         <div className="flex flex-col xs:flex-row justify-end gap-3 pt-4 border-t border-white/10">
           <Button type="button" variant="ghost" onClick={onClose} className="min-h-[44px] text-white/60 hover:text-white hover:bg-white/10">
             Cancelar
@@ -846,6 +848,7 @@ function ScheduleFormModal({
             {initialData ? 'Guardar' : 'Crear'}
           </Button>
         </div>
+        )}
       </form>
     </Modal>
   );

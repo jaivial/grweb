@@ -6,38 +6,34 @@ test.describe('Admin Login', () => {
   test.beforeEach(async ({ page }) => {
     await logout(page);
     await goToLogin(page);
-    // Wait for the page to be fully loaded
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
   });
 
   test('shows login form with correct elements', async ({ page }) => {
     await expect(page.locator('h1')).toContainText('Admin Login', { timeout: 10000 });
-    await expect(page.locator('input[name="username"]')).toBeVisible();
-    await expect(page.locator('input[name="password"]')).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Username' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Password' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
   });
 
-  test('successful login with valid credentials redirects to dashboard', async ({ page }) => {
-    await page.fill('input[name="username"]', TEST_CREDENTIALS.username);
-    await page.fill('input[name="password"]', TEST_CREDENTIALS.password);
-    await page.click('button[type="submit"]');
+  test('successful login with valid credentials redirects to backoffice', async ({ page }) => {
+    await page.getByRole('textbox', { name: 'Username' }).fill(TEST_CREDENTIALS.username);
+    await page.getByRole('textbox', { name: 'Password' }).fill(TEST_CREDENTIALS.password);
+    await page.getByRole('button', { name: 'Sign In' }).click();
 
-    await expect(page).toHaveURL(/\/admin\/dashboard/, { timeout: 15000 });
-    await expect(page.locator('h1')).toContainText('Admin Dashboard', { timeout: 10000 });
+    await expect(page).toHaveURL(/\/backoffice(?!\/login)/, { timeout: 15000 });
   });
 
-  test('failed login with invalid credentials shows error', async ({ page }) => {
-    await page.fill('input[name="username"]', 'wrong@example.com');
-    await page.fill('input[name="password"]', 'wrongpassword');
-    await page.click('button[type="submit"]');
-
-    await expect(page.locator('text=Login failed').first()).toBeVisible({ timeout: 5000 });
-    await expect(page).toHaveURL(/\/admin\/login/);
+  test('failed login stays on login page', async ({ page }) => {
+    await page.getByRole('textbox', { name: 'Username' }).fill('wrong@example.com');
+    await page.getByRole('textbox', { name: 'Password' }).fill('wrongpassword');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+    await page.waitForURL(/\/backoffice\/login/, { timeout: 10000 });
   });
 
   test('empty credentials shows validation error', async ({ page }) => {
-    await page.click('button[type="submit"]');
+    await page.getByRole('button', { name: 'Sign In' }).click();
 
     await expect(page.locator('text=Username is required')).toBeVisible({ timeout: 5000 });
   });

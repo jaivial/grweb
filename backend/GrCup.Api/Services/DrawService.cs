@@ -16,7 +16,7 @@ public class DrawService
     }
 
     /// <summary>
-    /// Selects a random winner weighted by ticket count
+    /// Selects a random winner weighted by combined ticket count per email
     /// </summary>
     public async Task<Draw?> SelectRandomWinnerAsync()
     {
@@ -25,12 +25,15 @@ public class DrawService
         if (winner == null)
             return null;
 
+        // Get combined ticket count across all rows for this email
+        var combinedTickets = await _participantService.GetCombinedTicketCountAsync(winner.Email);
+
         var draw = new Draw
         {
             WinnerEmail = winner.Email,
             WinnerName = $"{winner.FirstName} {winner.Surname}",
             WinnerInstagram = winner.Instagram,
-            WinnerTicketCount = winner.TicketCount,
+            WinnerTicketCount = combinedTickets,
             DrawDate = DateTime.UtcNow,
             IsConfirmed = false,
             ParticipantId = winner.Id

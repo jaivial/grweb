@@ -163,6 +163,7 @@ app.MapInscripcionPreparadaEndpoints();
 app.MapResponsableUrlInscripcionEndpoints();
 app.MapEmailConfigEndpoints();
 app.MapStripeConfigEndpoints();
+app.MapRaffleConfigEndpoints();
 app.MapSitemapEndpoints();
 
 

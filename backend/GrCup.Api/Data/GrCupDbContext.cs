@@ -18,12 +18,14 @@ public class GrCupDbContext : DbContext
     public DbSet<SchedulePublishedConfig> SchedulePublishedConfig => Set<SchedulePublishedConfig>();
     public DbSet<EmailConfig> EmailConfig => Set<EmailConfig>();
     public DbSet<StripeConfig> StripeConfig => Set<StripeConfig>();
+    public DbSet<RaffleConfig> RaffleConfig => Set<RaffleConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Participant>(entity => {
-            entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.Email);
             entity.HasIndex(e => e.StripeSessionId);
+            entity.HasIndex(e => new { e.Email, e.PaymentMethod, e.IsPaid });
             entity.Property(e => e.TotalPaid).HasPrecision(10, 2);
         });
 

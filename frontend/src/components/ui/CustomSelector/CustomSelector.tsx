@@ -177,7 +177,7 @@ export function CustomSelector<T extends string | number>({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar..."
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50"
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-base text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50"
               />
             </div>
           )}

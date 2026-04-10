@@ -29,7 +29,7 @@ export const baseInputStyles = `
 export const inputSizeStyles = {
   sm: {
     padding: 'px-3 py-1.5',
-    text: 'text-sm',
+    text: 'text-base',
     iconSize: 'w-4 h-4',
     rounded: 'rounded-lg',
   },

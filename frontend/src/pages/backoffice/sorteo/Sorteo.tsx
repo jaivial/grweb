@@ -44,6 +44,9 @@ interface Statistics {
   totalParticipants: number;
   totalTickets: number;
   totalRevenue: number;
+  cashRevenue: number;
+  stripeRevenue: number;
+  bankRevenue: number;
 }
 
 interface ParticipantsResponse {
@@ -103,6 +106,10 @@ export function Sorteo(): JSX.Element {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<'ticketCount' | 'name' | 'createdAt'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterIsPaid, setFilterIsPaid] = useState<'' | 'true' | 'false'>('');
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<'' | 'cash' | 'bank' | 'stripe'>('');
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
   const [editFormData, setEditFormData] = useState<EditFormData>({
     firstName: '',
@@ -133,6 +140,9 @@ export function Sorteo(): JSX.Element {
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualSuccess, setManualSuccess] = useState(false);
 
+  // Submit overlay state
+  const [submitOverlay, setSubmitOverlay] = useState<'idle' | 'loading' | 'success'>('idle');
+
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
@@ -153,23 +163,39 @@ export function Sorteo(): JSX.Element {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Fetch participants when page or search changes
+  // Fetch participants when page, search, or filters change
   useEffect(() => {
     if (activeTab === 'participantes') {
       fetchParticipants();
     }
-  }, [activeTab, currentPage, debouncedSearch]);
+  }, [activeTab, currentPage, debouncedSearch, sortBy, sortOrder, filterIsPaid, filterPaymentMethod]);
 
   async function fetchParticipants() {
     try {
       setParticipantsLoading(true);
-      const response = await api.getParticipants(currentPage, debouncedSearch || undefined);
+      const response = await api.getParticipants({
+        page: currentPage,
+        search: debouncedSearch || undefined,
+        sortBy,
+        sortOrder,
+        isPaid: filterIsPaid !== '' ? filterIsPaid === 'true' : undefined,
+        paymentMethod: filterPaymentMethod !== '' ? filterPaymentMethod : undefined,
+      });
       setParticipantsData(response);
     } catch {
       setError('Error al cargar participantes');
     } finally {
       setParticipantsLoading(false);
     }
+  }
+
+  function resetFilters() {
+    setSortBy('createdAt');
+    setSortOrder('desc');
+    setFilterIsPaid('');
+    setFilterPaymentMethod('');
+    setSearchTerm('');
+    setCurrentPage(1);
   }
 
   async function handleDeleteParticipant(id: number) {
@@ -397,11 +423,29 @@ export function Sorteo(): JSX.Element {
 
     setManualSubmitting(true);
     setError(null);
+    setSubmitOverlay('loading');
 
     try {
       const nameParts = manualFormData.name.trim().split(' ');
       const firstName = nameParts[0];
       const surname = nameParts.slice(1).join(' ') || '';
+
+      // Optimistic KPI update
+      setStats(prev => prev ? {
+        ...prev,
+        totalParticipants: prev.totalParticipants + 1,
+        totalTickets: prev.totalTickets + manualFormData.ticketCount,
+        totalRevenue: prev.totalRevenue + (manualFormData.ticketCount * TICKET_PRICE),
+        cashRevenue: manualFormData.paymentMethod === 'cash'
+          ? prev.cashRevenue + (manualFormData.ticketCount * TICKET_PRICE)
+          : prev.cashRevenue,
+        stripeRevenue: manualFormData.paymentMethod === 'stripe'
+          ? prev.stripeRevenue + (manualFormData.ticketCount * TICKET_PRICE)
+          : prev.stripeRevenue,
+        bankRevenue: manualFormData.paymentMethod === 'bank'
+          ? prev.bankRevenue + (manualFormData.ticketCount * TICKET_PRICE)
+          : prev.bankRevenue,
+      } : prev);
 
       await api.createManualParticipant({
         firstName,
@@ -414,21 +458,43 @@ export function Sorteo(): JSX.Element {
         phone: `${manualFormData.countryCode}${manualFormData.phone}`,
       });
 
-      setManualSuccess(true);
-      setManualFormData({
-        name: '',
-        email: '',
-        countryCode: '+34',
-        phone: '',
-        instagram: '',
-        ticketCount: 1,
-        paymentMethod: 'cash',
-        dataConsent: false,
-        contestPolicy: false,
-      });
+      setSubmitOverlay('success');
 
-      setTimeout(() => setManualSuccess(false), 3000);
+      setTimeout(() => {
+        setSubmitOverlay('idle');
+        setManualSuccess(true);
+        setManualFormData({
+          name: '',
+          email: '',
+          countryCode: '+34',
+          phone: '',
+          instagram: '',
+          ticketCount: 1,
+          paymentMethod: 'cash',
+          dataConsent: false,
+          contestPolicy: false,
+        });
+        setTimeout(() => setManualSuccess(false), 3000);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 1000);
     } catch (err) {
+      setSubmitOverlay('idle');
+      // Revert optimistic update
+      setStats(prev => prev ? {
+        ...prev,
+        totalParticipants: prev.totalParticipants - 1,
+        totalTickets: prev.totalTickets - manualFormData.ticketCount,
+        totalRevenue: prev.totalRevenue - (manualFormData.ticketCount * TICKET_PRICE),
+        cashRevenue: manualFormData.paymentMethod === 'cash'
+          ? prev.cashRevenue - (manualFormData.ticketCount * TICKET_PRICE)
+          : prev.cashRevenue,
+        stripeRevenue: manualFormData.paymentMethod === 'stripe'
+          ? prev.stripeRevenue - (manualFormData.ticketCount * TICKET_PRICE)
+          : prev.stripeRevenue,
+        bankRevenue: manualFormData.paymentMethod === 'bank'
+          ? prev.bankRevenue - (manualFormData.ticketCount * TICKET_PRICE)
+          : prev.bankRevenue,
+      } : prev);
       setError('Error al crear participante');
     } finally {
       setManualSubmitting(false);
@@ -451,11 +517,12 @@ export function Sorteo(): JSX.Element {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 xs:gap-4 mb-6" data-ui="kpi-row">
+        <div className="flex flex-wrap gap-3 xs:gap-4 mb-6" data-ui="kpi-row">
           <KpiCard
             label="Participantes"
             value={stats?.totalParticipants ?? 0}
             color="default"
+            className="flex-1 min-w-[140px]"
             icon={
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -466,6 +533,7 @@ export function Sorteo(): JSX.Element {
             label="Tickets Vendidos"
             value={stats?.totalTickets ?? 0}
             color="success"
+            className="flex-1 min-w-[140px]"
             icon={
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -473,12 +541,35 @@ export function Sorteo(): JSX.Element {
             }
           />
           <KpiCard
-            label="Recaudacion"
+            label="Recaudacion Total"
             value={stats ? `${stats.totalRevenue.toFixed(2)} EUR` : '0.00 EUR'}
             color="warning"
+            className="flex-1 min-w-[140px]"
             icon={
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            label="Recaudacion Efectivo"
+            value={stats ? `${stats.cashRevenue.toFixed(2)} EUR` : '0.00 EUR'}
+            color="default"
+            className="flex-1 min-w-[140px]"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            label="Recaudacion Stripe"
+            value={stats ? `${stats.stripeRevenue.toFixed(2)} EUR` : '0.00 EUR'}
+            color="success"
+            className="flex-1 min-w-[140px]"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
             }
           />
@@ -491,6 +582,29 @@ export function Sorteo(): JSX.Element {
           onChange={setActiveTab}
           className="mb-6"
         />
+
+        {/* Submit Overlay */}
+        {submitOverlay !== 'idle' && (
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-dark-bg/95 backdrop-blur-sm" data-ui="submit-overlay">
+            <div className="text-center">
+              {submitOverlay === 'loading' ? (
+                <>
+                  <div className="w-16 h-16 border-4 border-white/20 border-t-red-accent rounded-full animate-spin mb-6 mx-auto" />
+                  <p className="text-white text-xl font-semibold">Creando participante...</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-6 mx-auto">
+                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-white text-xl font-semibold">Participante creado!</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -701,7 +815,69 @@ export function Sorteo(): JSX.Element {
 
             {/* Search */}
             <div className="mb-4">
-              <div className="relative">
+
+              {/* Filter Bar */}
+              <div className="flex flex-wrap items-center gap-2 xs:gap-3">
+                <CustomSelector
+                  label="Ordenar por"
+                  options={[
+                    { value: 'createdAt', label: 'Fecha' },
+                    { value: 'ticketCount', label: 'Tickets' },
+                    { value: 'name', label: 'Nombre' },
+                  ]}
+                  value={sortBy}
+                  onChange={(v) => { setSortBy(v as typeof sortBy); setCurrentPage(1); }}
+                  allowClear={false}
+                  className="min-w-[130px]"
+                />
+                <CustomSelector
+                  label="Dirección"
+                  options={[
+                    { value: 'desc', label: 'Descendente' },
+                    { value: 'asc', label: 'Ascendente' },
+                  ]}
+                  value={sortOrder}
+                  onChange={(v) => { setSortOrder(v as typeof sortOrder); setCurrentPage(1); }}
+                  allowClear={false}
+                  className="min-w-[130px]"
+                />
+                <CustomSelector
+                  label="Método"
+                  options={[
+                    { value: '', label: 'Todos' },
+                    { value: 'cash', label: 'Efectivo' },
+                    { value: 'bank', label: 'Transferencia' },
+                    { value: 'stripe', label: 'Stripe' },
+                  ]}
+                  value={filterPaymentMethod}
+                  onChange={(v) => { setFilterPaymentMethod(v as typeof filterPaymentMethod); setCurrentPage(1); }}
+                  allowClear={false}
+                  className="min-w-[140px]"
+                />
+                <CustomSelector
+                  label="Estado"
+                  options={[
+                    { value: '', label: 'Todos' },
+                    { value: 'true', label: 'Pagados' },
+                    { value: 'false', label: 'No pagados' },
+                  ]}
+                  value={filterIsPaid}
+                  onChange={(v) => { setFilterIsPaid(v as typeof filterIsPaid); setCurrentPage(1); }}
+                  allowClear={false}
+                  className="min-w-[130px]"
+                />
+                {(sortBy !== 'createdAt' || sortOrder !== 'desc' || filterIsPaid !== '' || filterPaymentMethod !== '' || searchTerm !== '') && (
+                  <button
+                    onClick={resetFilters}
+                    className="self-end mb-0.5 px-3 py-2 min-h-[40px] text-sm font-medium text-red-accent bg-red-accent/10 border border-red-accent/20 rounded-lg hover:bg-red-accent/20 transition-colors whitespace-nowrap"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+
+              {/* Search Input */}
+              <div className="relative mt-3">
                 <div className="absolute inset-y-0 left-0 pl-3 xs:pl-4 flex items-center pointer-events-none">
                   <svg className="w-4 h-4 xs:w-5 xs:h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -712,7 +888,7 @@ export function Sorteo(): JSX.Element {
                     value={searchTerm}
                     onInput={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
                     placeholder="Buscar por nombre, email o Instagram..."
-                    className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20 transition-colors"
+                    className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20 transition-colors"
                   />
                   {searchTerm && (
                     <button
@@ -771,7 +947,7 @@ export function Sorteo(): JSX.Element {
                           min="1"
                           value={editFormData.ticketCount}
                           onChange={(e) => setEditFormData(prev => ({ ...prev, ticketCount: parseInt(e.target.value) || 1 }))}
-                          className="w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
+                          className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-accent/50 focus:ring-2 focus:ring-red-accent/20"
                         />
                       </div>
                       <div className="flex items-center gap-3">
@@ -817,7 +993,7 @@ export function Sorteo(): JSX.Element {
               ) : (
                 <div className="bg-dark-surface/50 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden min-w-0 mb-12">
                   <div className="overflow-x-auto min-w-0">
-                    <table className="w-full min-w-[600px]">
+                    <table className="w-full min-w-[700px]">
                       <thead>
                         <tr className="border-b border-white/5">
                           <th className="px-4 xs:px-6 py-3 xs:py-4 text-left text-xs font-semibold text-gray-400 uppercase">Nombre</th>
@@ -825,6 +1001,7 @@ export function Sorteo(): JSX.Element {
                           <th className="px-4 xs:px-6 py-3 xs:py-4 text-left text-xs font-semibold text-gray-400 uppercase">Instagram</th>
                           <th className="px-4 xs:px-6 py-3 xs:py-4 text-center text-xs font-semibold text-gray-400 uppercase">Tickets</th>
                           <th className="px-4 xs:px-6 py-3 xs:py-4 text-center text-xs font-semibold text-gray-400 uppercase">Pagado</th>
+                          <th className="px-4 xs:px-6 py-3 xs:py-4 text-center text-xs font-semibold text-gray-400 uppercase">Metodo</th>
                           <th className="px-4 xs:px-6 py-3 xs:py-4 text-right text-xs font-semibold text-gray-400 uppercase">Acciones</th>
                         </tr>
                       </thead>
@@ -844,6 +1021,17 @@ export function Sorteo(): JSX.Element {
                                 <span className="px-2 py-1 text-xs font-bold rounded-full bg-green-500/10 text-green-400">Sí</span>
                               ) : (
                                 <span className="px-2 py-1 text-xs font-bold rounded-full bg-yellow-500/10 text-yellow-400">No</span>
+                              )}
+                            </td>
+                            <td className="px-4 xs:px-6 py-3 xs:py-4 text-center">
+                              {p.paymentMethod === 'stripe' ? (
+                                <span className="px-2 py-1 text-xs font-bold rounded-full bg-purple-500/10 text-purple-400">Stripe</span>
+                              ) : p.paymentMethod === 'cash' ? (
+                                <span className="px-2 py-1 text-xs font-bold rounded-full bg-green-500/10 text-green-400">Efectivo</span>
+                              ) : p.paymentMethod === 'bank' ? (
+                                <span className="px-2 py-1 text-xs font-bold rounded-full bg-blue-500/10 text-blue-400">Transferencia</span>
+                              ) : (
+                                <span className="px-2 py-1 text-xs font-bold rounded-full bg-white/5 text-gray-500">-</span>
                               )}
                             </td>
                             <td className="px-4 xs:px-6 py-3 xs:py-4 text-right">

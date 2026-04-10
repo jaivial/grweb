@@ -121,7 +121,7 @@ export function Inscripcion(): JSX.Element {
   }, [formData, validate]);
 
   const inputClass = (hasError: boolean) =>
-    `w-full px-4 py-3 min-h-[48px] bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/50 ${hasError ? 'border-red-500/50' : 'border-white/10'}`;
+    `w-full px-4 py-3 min-h-[48px] text-[16px] bg-white/5 backdrop-blur-xl border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-accent/50 ${hasError ? 'border-red-500/50' : 'border-white/10'}`;
 
   // Show loading state while checking prepared status
   if (preparada === null) {
@@ -313,7 +313,7 @@ export function Inscripcion(): JSX.Element {
                       key={option.value}
                       type="button"
                       onClick={() => updateField('sex', option.value as 'Male' | 'Female')}
-                      className={`px-4 py-3 min-h-[48px] rounded-xl border transition-all ${
+                      className={`px-4 py-3 min-h-[48px] text-[16px] rounded-xl border transition-all ${
                         formData.sex === option.value
                           ? 'bg-red-accent/20 border-red-accent text-white'
                           : 'bg-white/5 border-white/10 text-white/70 hover:border-white/20'

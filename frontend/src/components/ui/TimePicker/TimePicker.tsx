@@ -1,6 +1,12 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { JSX } from 'react';
+import {
+  WheelPicker,
+  WheelPickerWrapper,
+  type WheelPickerOption,
+} from '@ncdai/react-wheel-picker';
+import '@ncdai/react-wheel-picker/style.css';
 
 export interface TimePickerProps {
   value: string | null;
@@ -11,10 +17,23 @@ export interface TimePickerProps {
   minuteStep?: number;
   placeholder?: string;
   className?: string;
+  /** Earliest allowed time in "HH:MM" format. Options before this are disabled. */
+  minTime?: string;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+function buildMinuteOptions(step: number): WheelPickerOption<number>[] {
+  const minutes: number[] = [];
+  for (let m = 0; m < 60; m += step) minutes.push(m);
+  return minutes.map(m => ({ value: m, label: String(m).padStart(2, '0') }));
+}
+
+const pickerClassNames = {
+  optionItem: 'text-white/40 data-rwp-highlight:text-white font-mono',
+  highlightWrapper: 'bg-white/10 rounded-lg',
+  highlightItem: 'text-white font-semibold',
+};
 
 export function TimePicker({
   value,
@@ -25,57 +44,61 @@ export function TimePicker({
   minuteStep = 5,
   placeholder = 'Seleccionar hora...',
   className = '',
+  minTime,
 }: TimePickerProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
-  const [activeColumn, setActiveColumn] = useState<'hours' | 'minutes'>('hours');
-  const hoursRef = useRef<HTMLDivElement>(null);
-  const minutesRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const parsedValue = useMemo(() => {
-    if (!value) return { hours: null, minutes: null };
+  const minuteOptions = useMemo(() => buildMinuteOptions(minuteStep), [minuteStep]);
+
+  const parsed = useMemo(() => {
+    if (!value) return { hours: 0, minutes: 0 };
     const [h, m] = value.split(':').map(Number);
     return { hours: h, minutes: m };
   }, [value]);
 
-  const selectedHours = parsedValue.hours;
-  const selectedMinutes = parsedValue.minutes;
+  const parsedMin = useMemo(() => {
+    if (!minTime) return null;
+    const [h, m] = minTime.split(':').map(Number);
+    return { hours: h, minutes: m };
+  }, [minTime]);
 
-  // Scroll selected option into view
-  useEffect(() => {
-    if (isOpen && activeColumn === 'hours' && hoursRef.current) {
-      const selected = hoursRef.current.querySelector('[data-selected="true"]');
-      if (selected) {
-        selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-    }
-    if (isOpen && activeColumn === 'minutes' && minutesRef.current) {
-      const selected = minutesRef.current.querySelector('[data-selected="true"]');
-      if (selected) {
-        selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-    }
-  }, [isOpen, activeColumn, selectedHours, selectedMinutes]);
+  // Filter hours: disable those before minTime hour
+  const filteredHourOptions: WheelPickerOption<number>[] = useMemo(() => {
+    if (!parsedMin) return HOURS.map(h => ({ value: h, label: String(h).padStart(2, '0') }));
+    return HOURS.map(h => ({
+      value: h,
+      label: String(h).padStart(2, '0'),
+      disabled: h < parsedMin.hours,
+    }));
+  }, [parsedMin]);
 
-  const handleHourSelect = useCallback((hour: number) => {
-    if (selectedMinutes !== null) {
-      const timeStr = `${String(hour).padStart(2, '0')}:${String(selectedMinutes).padStart(2, '0')}`;
-      onChange(timeStr);
-      setIsOpen(false);
-    } else {
-      setActiveColumn('minutes');
+  // Filter minutes: only disable when the selected hour equals minTime hour
+  const filteredMinuteOptions: WheelPickerOption<number>[] = useMemo(() => {
+    if (!parsedMin || parsed.hours > parsedMin.hours) return minuteOptions;
+    if (parsed.hours < parsedMin.hours) {
+      // All minutes invalid — shouldn't happen if hour constraint works, but disable all
+      return minuteOptions.map(m => ({ ...m, disabled: true }));
     }
-  }, [selectedMinutes, onChange]);
+    // Same hour as min — disable minutes before min minute
+    return minuteOptions.map(m => ({
+      ...m,
+      disabled: m.value < parsedMin.minutes,
+    }));
+  }, [parsedMin, parsed.hours, minuteOptions]);
 
-  const handleMinuteSelect = useCallback((minute: number) => {
-    if (selectedHours !== null) {
-      const timeStr = `${String(selectedHours).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      onChange(timeStr);
-      setIsOpen(false);
-    }
-  }, [selectedHours, onChange]);
+  const handleHourChange = useCallback((hour: number) => {
+    if (parsedMin && hour < parsedMin.hours) return;
+    const m = value ? value.split(':')[1] : '00';
+    onChange(`${String(hour).padStart(2, '0')}:${m}`);
+  }, [value, onChange, parsedMin]);
+
+  const handleMinuteChange = useCallback((minute: number) => {
+    if (parsedMin && parsed.hours === parsedMin.hours && minute < parsedMin.minutes) return;
+    const h = value ? value.split(':')[0] : '00';
+    onChange(`${h}:${String(minute).padStart(2, '0')}`);
+  }, [value, onChange, parsedMin, parsed.hours]);
 
   const handleClear = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,28 +106,13 @@ export function TimePicker({
   }, [onChange]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const isInsideContainer = containerRef.current && containerRef.current.contains(target);
-      const isInsideDropdown = target instanceof Element && target.closest('[data-ui="timepicker-picker"]');
-
-      if (!isInsideContainer && !isInsideDropdown) {
-        setIsOpen(false);
-      }
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleOpenToggle = useCallback((e: React.MouseEvent) => {
-    if (!disabled) {
-      if (!isOpen && triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        setDropdownPos({ top: rect.top + window.scrollY, left: rect.left });
-      }
-      setIsOpen(!isOpen);
-    }
-  }, [disabled, isOpen]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   const formatDisplayTime = useCallback((timeStr: string | null): string => {
     if (!timeStr) return '';
@@ -113,25 +121,6 @@ export function TimePicker({
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${m} ${ampm}`;
-  }, []);
-
-  const handleHoursScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const scrollTop = el.scrollTop;
-    const itemHeight = 44;
-    const newHour = Math.round(scrollTop / itemHeight);
-    const clampedHour = Math.max(0, Math.min(23, newHour));
-    if (clampedHour !== selectedHours && !selectedHours) {
-      // Preview selection during scroll
-    }
-  }, [selectedHours]);
-
-  const handleMinutesScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const scrollTop = el.scrollTop;
-    const itemHeight = 44;
-    const newMinute = Math.round(scrollTop / itemHeight);
-    const clampedMinute = Math.min(55, newMinute - (newMinute % 5));
   }, []);
 
   return (
@@ -145,7 +134,7 @@ export function TimePicker({
       <button
         ref={triggerRef}
         type="button"
-        onClick={handleOpenToggle}
+        onClick={() => { if (!disabled) setIsOpen(true); }}
         disabled={disabled}
         className={`
           w-full px-4 py-3 min-h-[48px] text-left bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl
@@ -153,7 +142,6 @@ export function TimePicker({
           focus:outline-none focus:ring-2 focus:ring-red-accent/30 focus:ring-offset-0
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/10 hover:border-white/20'}
           ${error ? 'border-red-500/50' : ''}
-          ${isOpen ? 'bg-white/10 border-red-accent/50 ring-2 ring-red-accent/30' : ''}
         `}
         data-ui="timepicker-trigger"
       >
@@ -183,93 +171,54 @@ export function TimePicker({
 
       {isOpen && createPortal(
         <div
-          className="fixed z-[9999] w-64 bg-dark-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-          data-ui="timepicker-picker"
-          style={{
-            top: dropdownPos.top - 8,
-            left: dropdownPos.left,
-            transform: 'translateY(-100%)',
-          }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          data-ui="timepicker-backdrop"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
         >
-          {/* iOS-style wheel picker */}
-          <div className="flex h-52">
-            {/* Hours column */}
-            <div className="flex-1 relative">
-              <div
-                ref={hoursRef}
-                className="h-full overflow-y-auto scrollbar-hide py-[60px]"
-                onScroll={handleHoursScroll}
-                data-ui="timepicker-hours-scroll"
-              >
-                {HOURS.map(hour => (
-                  <div
-                    key={hour}
-                    onClick={() => handleHourSelect(hour)}
-                    className={`
-                      h-11 flex items-center justify-center text-lg cursor-pointer transition-all duration-200
-                      ${selectedHours === hour
-                        ? 'text-white font-semibold scale-110'
-                        : 'text-white/50 hover:text-white/80'}
-                    `}
-                    data-ui="timepicker-hour"
-                    data-hour={hour}
-                    data-selected={selectedHours === hour ? 'true' : 'false'}
-                  >
-                    {String(hour).padStart(2, '0')}
-                  </div>
-                ))}
-              </div>
-              {/* Selection indicator */}
-              <div className="absolute inset-x-0 top-[60px] h-11 bg-white/10 rounded-lg pointer-events-none" data-ui="timepicker-hours-indicator" />
-            </div>
+          <div
+            className="bg-dark-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden p-4 sm:p-4 w-[85vw] max-w-xs sm:w-64 sm:max-w-none"
+            data-ui="timepicker-picker"
+          >
+            <WheelPickerWrapper className="w-full sm:w-64 rounded-lg border border-white/10 bg-transparent" >
+              <WheelPicker<number>
+                options={filteredHourOptions}
+                value={parsed.hours}
+                onValueChange={handleHourChange}
+                infinite
+                optionItemHeight={40}
+                classNames={{
+                  ...pickerClassNames,
+                  optionItem: 'text-3xl sm:text-base text-white/40 font-mono',
+                  highlightItem: 'text-3xl sm:text-base text-white font-semibold',
+                }}
+              />
+              <div className="flex items-center justify-center px-1 text-white/60 text-2xl sm:text-lg font-bold" data-ui="timepicker-separator">:</div>
+              <WheelPicker<number>
+                options={filteredMinuteOptions}
+                value={parsed.minutes}
+                onValueChange={handleMinuteChange}
+                infinite
+                optionItemHeight={40}
+                classNames={{
+                  ...pickerClassNames,
+                  optionItem: 'text-3xl sm:text-base text-white/40 font-mono',
+                  highlightItem: 'text-3xl sm:text-base text-white font-semibold',
+                }}
+              />
+            </WheelPickerWrapper>
 
-            {/* Divider */}
-            <div className="w-px bg-white/10" data-ui="timepicker-divider" />
-
-            {/* Minutes column */}
-            <div className="flex-1 relative">
-              <div
-                ref={minutesRef}
-                className="h-full overflow-y-auto scrollbar-hide py-[60px]"
-                onScroll={handleMinutesScroll}
-                data-ui="timepicker-minutes-scroll"
+            <div className="flex justify-end mt-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-red-accent hover:text-red-accent/80 transition-colors"
+                data-ui="timepicker-done"
               >
-                {MINUTES.map(minute => (
-                  <div
-                    key={minute}
-                    onClick={() => handleMinuteSelect(minute)}
-                    className={`
-                      h-11 flex items-center justify-center text-lg cursor-pointer transition-all duration-200
-                      ${selectedMinutes === minute
-                        ? 'text-white font-semibold scale-110'
-                        : 'text-white/50 hover:text-white/80'}
-                    `}
-                    data-ui="timepicker-minute"
-                    data-minute={minute}
-                    data-selected={selectedMinutes === minute ? 'true' : 'false'}
-                  >
-                    {String(minute).padStart(2, '0')}
-                  </div>
-                ))}
-              </div>
-              {/* Selection indicator */}
-              <div className="absolute inset-x-0 top-[60px] h-11 bg-white/10 rounded-lg pointer-events-none" data-ui="timepicker-minutes-indicator" />
+                Hecho
+              </button>
             </div>
           </div>
-
-          {/* Done button */}
-          <div className="flex justify-end p-3 border-t border-white/10">
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-red-accent hover:text-red-accent/80 transition-colors"
-              data-ui="timepicker-done"
-            >
-              Hecho
-            </button>
-          </div>
-        </div>
-      ,
+        </div>,
         document.body
       )}
 

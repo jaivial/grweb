@@ -71,12 +71,16 @@ public static class AdminEndpoints
             var totalParticipants = await participantService.GetCountAsync();
             var totalTickets = await participantService.GetTotalTicketsAsync();
             var totalRevenue = await participantService.GetTotalRevenueAsync();
+            var revenueByMethod = await participantService.GetRevenueByPaymentMethodAsync();
 
             return Results.Ok(new
             {
                 totalParticipants,
                 totalTickets,
-                totalRevenue = Math.Round(totalRevenue, 2)
+                totalRevenue = Math.Round(totalRevenue, 2),
+                cashRevenue = Math.Round(revenueByMethod.GetValueOrDefault("cash", 0), 2),
+                stripeRevenue = Math.Round(revenueByMethod.GetValueOrDefault("stripe", 0), 2),
+                bankRevenue = Math.Round(revenueByMethod.GetValueOrDefault("bank", 0), 2)
             });
         });
 
@@ -86,11 +90,15 @@ public static class AdminEndpoints
         app.MapGet("/api/admin/participants", [Authorize] async (
             ParticipantService participantService,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] string? search = null) =>
+            [FromQuery] int pageSize = 15,
+            [FromQuery] string? search = null,
+            [FromQuery] string sortBy = "createdAt",
+            [FromQuery] string sortOrder = "desc",
+            [FromQuery] bool? isPaid = null,
+            [FromQuery] string? paymentMethod = null) =>
         {
             var (participants, totalCount) = await participantService.GetAllPaginatedAsync(
-                page, pageSize, search
+                page, pageSize, search, sortBy, sortOrder, isPaid, paymentMethod
             );
 
             return Results.Ok(new
@@ -153,35 +161,60 @@ public static class AdminEndpoints
                 return Results.BadRequest(new { error = "Invalid payment method. Must be: cash, bank, or stripe" });
 
             var totalPaid = request.TicketCount * request.Price;
-            var isPaid = request.PaymentMethod.ToLower() != "cash";
+            var isPaid = true;
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var normalizedMethod = request.PaymentMethod.ToLower();
 
-            var participant = await participantService.CreateManualAsync(
-                request.FirstName,
-                request.Surname ?? "",
-                request.Email,
-                request.Instagram ?? "",
-                request.TicketCount,
-                totalPaid,
-                request.Phone,
-                request.Price,
-                isPaid,
-                request.PaymentMethod.ToLower()
-            );
+            // Check for existing participant with same email + paymentMethod combination
+            var existing = await participantService.GetByEmailAndMethodAsync(normalizedEmail, normalizedMethod, isPaid);
+            Participant participant;
+
+            if (existing != null)
+            {
+                // Update existing record: add tickets and total paid for this payment method
+                participant = await participantService.UpdateAsync(
+                    existing.Id,
+                    request.TicketCount,
+                    totalPaid,
+                    isPaid,
+                    normalizedMethod,
+                    null,
+                    request.Price
+                );
+                logger.LogInformation(
+                    "Manual participant updated (existing): {Email}, added {TicketCount} tickets, {PaymentMethod}",
+                    normalizedEmail, request.TicketCount, normalizedMethod
+                );
+            }
+            else
+            {
+                participant = await participantService.CreateManualAsync(
+                    request.FirstName,
+                    request.Surname ?? "",
+                    normalizedEmail,
+                    request.Instagram ?? "",
+                    request.TicketCount,
+                    totalPaid,
+                    request.Phone,
+                    request.Price,
+                    isPaid,
+                    normalizedMethod
+                );
+                logger.LogInformation(
+                    "Manual participant created: {Email}, {TicketCount} tickets, {PaymentMethod}",
+                    normalizedEmail, request.TicketCount, normalizedMethod
+                );
+            }
 
             // Broadcast updated count
             var count = await participantService.GetCountAsync();
             await hubContext.BroadcastParticipantCountAsync(count);
 
-            logger.LogInformation(
-                "Manual participant created: {Email}, {TicketCount} tickets, {PaymentMethod}",
-                request.Email, request.TicketCount, request.PaymentMethod
-            );
-
             // Send raffle confirmation email (non-blocking)
             try
             {
                 await emailService.SendRaffleConfirmationAsync(
-                    request.Email,
+                    normalizedEmail,
                     request.FirstName,
                     request.Surname ?? "",
                     request.TicketCount,
@@ -190,7 +223,7 @@ public static class AdminEndpoints
             }
             catch (Exception emailEx)
             {
-                logger.LogError(emailEx, "Failed to send raffle confirmation email to {Email}", request.Email);
+                logger.LogError(emailEx, "Failed to send raffle confirmation email to {Email}", normalizedEmail);
             }
 
             return Results.Ok(participant);

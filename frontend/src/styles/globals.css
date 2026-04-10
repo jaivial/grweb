@@ -262,6 +262,23 @@ img {
   }
 }
 
+/* Prevent iPhone auto-zoom on input focus (requires >=16px font-size) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input:not([type]),
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}
+
 /* Glassmorphism Utilities */
 .glass {
   background: var(--glass-bg);
