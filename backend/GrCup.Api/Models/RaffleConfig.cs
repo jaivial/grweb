@@ -10,4 +10,8 @@ public class RaffleConfig
     public bool IsEnabled { get; set; } = true;
     [MaxLength(500)]
     public string? DisabledMessage { get; set; }
+    
+    // Raffle method: "default" or "custom"
+    [MaxLength(20)]
+    public string RaffleMethod { get; set; } = "default";
 }

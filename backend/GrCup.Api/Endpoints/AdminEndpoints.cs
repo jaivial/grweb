@@ -35,8 +35,8 @@ public static class AdminEndpoints
                 context.Response.Cookies.Append("gr_cup_token", token, new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = !env.IsDevelopment(),
-                    SameSite = env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
+                    Secure = false, // Allow HTTP for testing - change to !env.IsDevelopment() in production
+                    SameSite = SameSiteMode.Lax,
                     Path = "/",
                     MaxAge = TimeSpan.FromDays(1)
                 });

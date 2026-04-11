@@ -87,12 +87,33 @@ export const Raffle: FC = () => {
   // Raffle enabled/disabled check
   const [raffleEnabled, setRaffleEnabled] = useState(true);
   const [disabledMessage, setDisabledMessage] = useState<string | null>(null);
+  const [raffleMethod, setRaffleMethod] = useState<'default' | 'custom'>('default');
+  const [customProducts, setCustomProducts] = useState<Array<{
+    id: number;
+    title: string;
+    subtitle?: string;
+    imageData?: string | null;
+  }>>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
   useEffect(() => {
     api.getPublicRaffleConfig()
       .then(data => {
         setRaffleEnabled(data.isEnabled);
         setDisabledMessage(data.disabledMessage);
+        setRaffleMethod(data.raffleMethod || 'default');
+        
+        // Fetch custom products if method is custom
+        if (data.raffleMethod === 'custom') {
+          setLoadingProducts(true);
+          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/raffle/products`)
+            .then(res => res.json())
+            .then(data => {
+              setCustomProducts(data.products || []);
+            })
+            .catch(() => {})
+            .finally(() => setLoadingProducts(false));
+        }
       })
       .catch(() => {});
   }, []);
@@ -261,13 +282,14 @@ export const Raffle: FC = () => {
   return (
     <>
       <Head {...pageMetaConfig['/raffle']} />
-      <main className="min-h-screen bg-black" data-section="raffle-page">
+      <main className="min-h-screen bg-black" data-section="raffle-page" data-testid="raffle-page">
         {/* 200vh Hero Animation Section */}
         <div
           id="raffle-page-container"
           className="relative"
           style={{ height: isWide ? '250dvh' : '150vh' }}
           data-component="RaffleHeroContainer"
+          data-testid="raffle-hero"
         >
           <div
             className="sticky top-0 h-screen overflow-hidden"
@@ -334,7 +356,7 @@ export const Raffle: FC = () => {
         </div>
 
         {/* Rules Section - Black background */}
-        <section id="rules" className="min-h-screen py-24 px-4 bg-black" data-section="rules">
+        <section id="rules" className="min-h-screen py-24 px-4 bg-black" data-section="rules" data-testid="raffle-rules">
           <div className="max-w-6xl mx-auto" data-slot="rules-container">
             <div className="text-center mb-16" data-slot="rules-header">
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="rules-title">
@@ -383,8 +405,73 @@ export const Raffle: FC = () => {
           </div>
         </section>
 
+        {/* Custom Products Section (only shown when raffle method is "custom") */}
+        {raffleMethod === 'custom' && (
+          <section id="custom-products" className="min-h-screen py-24 px-4 bg-black" data-testid="custom-products-section">
+            <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+                  Productos del Sorteo
+                </h2>
+                <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+                  Participa para ganar estos increíbles productos
+                </p>
+              </div>
+
+              {loadingProducts ? (
+                <div className="flex items-center justify-center py-24">
+                  <div className="w-12 h-12 border-4 border-white/20 border-t-red-accent rounded-full animate-spin" />
+                </div>
+              ) : customProducts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {customProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="group p-6 rounded-2xl bg-gray-900 border border-gray-800 hover:border-red-accent/50 transition-all duration-300 hover:scale-[1.02]"
+                      data-testid="product-card"
+                    >
+                      {/* Product Image */}
+                      {product.imageData ? (
+                        <div className="mb-4 overflow-hidden rounded-xl">
+                          <img
+                            src={product.imageData}
+                            alt={product.title}
+                            className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                            data-testid="card-image"
+                          />
+                        </div>
+                      ) : (
+                        <div className="mb-4 h-48 bg-gray-800 rounded-xl flex items-center justify-center" data-testid="card-image">
+                          <Trophy className="w-16 h-16 text-gray-600" />
+                        </div>
+                      )}
+
+                      {/* Product Info */}
+                      <h3 className="text-2xl font-bold text-white mb-2" data-testid="card-title">
+                        {product.title}
+                      </h3>
+                      {product.subtitle && (
+                        <p className="text-base text-gray-400" data-testid="card-subtitle">
+                          {product.subtitle}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-24" data-testid="no-products-message">
+                  <Trophy className="w-24 h-24 text-gray-600 mx-auto mb-4" />
+                  <p className="text-xl text-gray-400">
+                    No hay productos disponibles en este momento
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* How to Enter Section - Black background */}
-        <section id="how-to-enter" className="min-h-screen py-24 px-4 bg-black" data-section="how-to-enter">
+        <section id="how-to-enter" className="min-h-screen py-24 px-4 bg-black" data-section="how-to-enter" data-testid="raffle-how-to-enter">
           <div className="max-w-6xl mx-auto" data-slot="how-to-enter-container">
             <div className="text-center mb-16" data-slot="how-to-enter-header">
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="how-to-enter-title">

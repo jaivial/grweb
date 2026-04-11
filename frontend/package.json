@@ -8,7 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "jest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "../scripts/test-headed.sh",
+    "test:e2e:headless": "../scripts/test-headless.sh",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@fontsource/roboto-mono": "^5.2.8",

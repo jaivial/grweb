@@ -19,6 +19,7 @@ public class GrCupDbContext : DbContext
     public DbSet<EmailConfig> EmailConfig => Set<EmailConfig>();
     public DbSet<StripeConfig> StripeConfig => Set<StripeConfig>();
     public DbSet<RaffleConfig> RaffleConfig => Set<RaffleConfig>();
+    public DbSet<RaffleProduct> RaffleProducts => Set<RaffleProduct>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +48,12 @@ public class GrCupDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(d => d.ParticipantId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<RaffleProduct>(entity => {
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.DisplayOrder);
+            entity.Property(e => e.ImageData).HasColumnType("longtext");
         });
     }
 }

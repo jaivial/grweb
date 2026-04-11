@@ -164,6 +164,8 @@ app.MapResponsableUrlInscripcionEndpoints();
 app.MapEmailConfigEndpoints();
 app.MapStripeConfigEndpoints();
 app.MapRaffleConfigEndpoints();
+app.MapRaffleProductsEndpoints();
+app.MapImageUploadEndpoints();
 app.MapSitemapEndpoints();
 
 
