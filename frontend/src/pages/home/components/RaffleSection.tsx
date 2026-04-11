@@ -11,11 +11,41 @@ export const RaffleSection: FC = () => {
   const [isVisible, setIsVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isWide, setIsWide] = useState(window.innerWidth > 600);
+  
+  // Custom raffle products
+  const [raffleMethod, setRaffleMethod] = useState<'default' | 'custom'>('default');
+  const [customProducts, setCustomProducts] = useState<Array<{
+    id: number;
+    title: string;
+    subtitle?: string;
+    imageData?: string | null;
+  }>>([]);
 
   useEffect(() => {
     const handleResize = () => setIsWide(window.innerWidth > 600);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Fetch raffle config and products
+  useEffect(() => {
+    const fetchRaffleConfig = async () => {
+      try {
+        const configRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/raffle/config`);
+        const config = await configRes.json();
+        setRaffleMethod(config.raffleMethod || 'default');
+        
+        if (config.raffleMethod === 'custom') {
+          const productsRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/raffle/products`);
+          const productsData = await productsRes.json();
+          setCustomProducts(productsData.products || []);
+        }
+      } catch (err) {
+        console.error('Error fetching raffle config:', err);
+      }
+    };
+    
+    fetchRaffleConfig();
   }, []);
 
   const { frames, isLoading: framesLoading, loadProgress } = useFramePreloader({
@@ -119,6 +149,78 @@ export const RaffleSection: FC = () => {
   const frameProgress = scrollProgress;
 
   return (
+    <>
+      {/* Always visible raffle section wrapper */}
+      <div data-testid="raffle-section">
+      {/* Custom Products Section (shown before animation when method is custom) */}
+      {raffleMethod === 'custom' && customProducts.length > 0 && (
+        <div className="py-16 px-4 bg-gray-900/50">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+                Productos del Sorteo
+              </h2>
+              <p className="text-base text-gray-400">
+                Participa para ganar estos increíbles productos
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {customProducts.slice(0, 3).map((product) => (
+                <div
+                  key={product.id}
+                  className="group p-4 rounded-xl bg-gray-900 border border-gray-800 hover:border-red-accent/50 transition-all duration-300"
+                  data-testid="custom-product-card"
+                >
+                  {/* Product Image */}
+                  {product.imageData ? (
+                    <div className="mb-3 overflow-hidden rounded-lg">
+                      <img
+                        src={product.imageData}
+                        alt={product.title}
+                        className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  ) : (
+                    <div className="mb-3 h-32 bg-gray-800 rounded-lg flex items-center justify-center">
+                      <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* Product Info */}
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    {product.title}
+                  </h3>
+                  {product.subtitle && (
+                    <p className="text-sm text-gray-400 line-clamp-2">
+                      {product.subtitle}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {customProducts.length > 3 && (
+              <div className="text-center mt-8">
+                <button
+                  onClick={() => navigate('/raffle')}
+                  className="px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={{
+                    background: 'rgba(139, 0, 0, 0.8)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(139, 0, 0, 0.6)',
+                  }}
+                >
+                  Ver todos los productos ({customProducts.length})
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     <div
       id="raffle-container"
       className="relative"
@@ -273,6 +375,8 @@ export const RaffleSection: FC = () => {
         )}
       </div>
     </div>
+    </div>
+    </>
   );
 };
 
