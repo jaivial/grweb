@@ -58,6 +58,7 @@ export function Card({
           onClick?.();
         }
       } : undefined}
+      data-ui="card"
     >
       {children}
     </div>

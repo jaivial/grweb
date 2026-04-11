@@ -23,7 +23,6 @@ export function Head({
     if (title) {
       document.title = title;
     }
-    // Update or inject meta description
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
       metaDesc = document.createElement('meta');
@@ -32,7 +31,6 @@ export function Head({
     }
     metaDesc.setAttribute('content', description || DEFAULT_DESCRIPTION);
 
-    // Update og:title
     let ogTitle = document.querySelector('meta[property="og:title"]');
     if (!ogTitle) {
       ogTitle = document.createElement('meta');
@@ -41,7 +39,6 @@ export function Head({
     }
     ogTitle.setAttribute('content', title || DEFAULT_TITLE);
 
-    // Update og:description
     let ogDesc = document.querySelector('meta[property="og:description"]');
     if (!ogDesc) {
       ogDesc = document.createElement('meta');
@@ -50,25 +47,21 @@ export function Head({
     }
     ogDesc.setAttribute('content', description || DEFAULT_DESCRIPTION);
 
-    // Update og:image
     let ogImg = document.querySelector('meta[property="og:image"]');
     if (ogImg) {
       ogImg.setAttribute('content', ogImage || DEFAULT_OG_IMAGE);
     }
 
-    // Update twitter:title
     let twTitle = document.querySelector('meta[name="twitter:title"]');
     if (twTitle) {
       twTitle.setAttribute('content', title || DEFAULT_TITLE);
     }
 
-    // Update twitter:description
     let twDesc = document.querySelector('meta[name="twitter:description"]');
     if (twDesc) {
       twDesc.setAttribute('content', description || DEFAULT_DESCRIPTION);
     }
 
-    // Canonical URL
     if (canonicalUrl) {
       let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
       if (!canonical) {

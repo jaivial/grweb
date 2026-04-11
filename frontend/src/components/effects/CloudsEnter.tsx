@@ -128,7 +128,7 @@ export const CloudsEnter: FC<CloudsEnterProps> = ({
     <div
       className={divClassName}
       style={{ zIndex: 15 }}
-      data-component="CloudsEnter"
+      data-ui="clouds-enter"
     >
       <Canvas
         key={cameraZ}

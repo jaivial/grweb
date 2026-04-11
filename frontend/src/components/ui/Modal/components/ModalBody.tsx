@@ -11,7 +11,7 @@ export function ModalBody({
   children,
 }: ModalBodyProps): ReactNode {
   return (
-    <div className={`text-gray-300 ${className}`}>
+    <div className={`text-gray-300 ${className}`} data-ui="modal-body">
       {children}
     </div>
   );

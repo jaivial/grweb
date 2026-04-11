@@ -150,14 +150,15 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
           className="absolute inset-0 z-30 flex items-center justify-center bg-black"
           data-component="LoadingOverlay"
         >
-          <div className="text-center">
-            <div className="w-64 h-2 bg-gray-800 rounded-full overflow-hidden">
+          <div className="text-center" data-ui="loading-text">
+            <div className="w-64 h-2 bg-gray-800 rounded-full overflow-hidden" data-ui="loading-bar">
               <div
                 className="h-full bg-gradient-to-r from-red-accent to-dark-red"
                 style={{ width: (loadProgress * 100) + '%', transition: 'width 0.3s ease-out' }}
+                data-ui="loading-progress"
               />
             </div>
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="text-gray-400 text-sm mt-2" data-ui="loading-percent">
               {Math.round(loadProgress * 100)}%
             </p>
           </div>
@@ -200,6 +201,7 @@ export const RaffleFrames: FC<RaffleFramesProps> = ({ containerId }) => {
               width: '100%',
               height: '100%',
             }}
+            data-ui="raffle-canvas"
           />
           {/* Edge fade overlay */}
           <div

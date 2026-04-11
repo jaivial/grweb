@@ -4,6 +4,7 @@ import { useScrollProgress } from '@hooks/useScrollProgress';
 import { useFramePreloader } from '@hooks/useFramePreloader';
 import { BELT_FRAMES_CONFIG } from '@utils/frameSources';
 import { FrameAnimator } from '@components/animations/FrameAnimator';
+import { FallbackImage } from '../../../components/ui/FallbackImage';
 
 export const RaffleSection: FC = () => {
   const [, navigate] = useLocation();
@@ -12,13 +13,12 @@ export const RaffleSection: FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isWide, setIsWide] = useState(window.innerWidth > 600);
   
-  // Custom raffle products
-  const [raffleMethod, setRaffleMethod] = useState<'default' | 'custom'>('default');
+  const [raffleMethod, setRaffleMethod] = useState<0 | 1>(0);
   const [customProducts, setCustomProducts] = useState<Array<{
     id: number;
     title: string;
     subtitle?: string;
-    imageData?: string | null;
+    imageUrl?: string | null;
   }>>([]);
 
   useEffect(() => {
@@ -27,15 +27,15 @@ export const RaffleSection: FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch raffle config and products
   useEffect(() => {
     const fetchRaffleConfig = async () => {
       try {
         const configRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/raffle/config`);
         const config = await configRes.json();
-        setRaffleMethod(config.raffleMethod || 'default');
+        const method = config.raffleMethod === 1 ? 1 : 0;
+        setRaffleMethod(method);
         
-        if (config.raffleMethod === 'custom') {
+        if (method === 1) {
           const productsRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/raffle/products`);
           const productsData = await productsRes.json();
           setCustomProducts(productsData.products || []);
@@ -153,48 +153,37 @@ export const RaffleSection: FC = () => {
       {/* Always visible raffle section wrapper */}
       <div data-testid="raffle-section">
       {/* Custom Products Section (shown before animation when method is custom) */}
-      {raffleMethod === 'custom' && customProducts.length > 0 && (
-        <div className="py-16 px-4 bg-gray-900/50">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+      {raffleMethod === 1 && customProducts.length > 0 && (
+        <div className="py-16 px-4 bg-gray-900/50" data-ui="raffle-custom-products">
+          <div className="max-w-6xl mx-auto" data-ui="raffle-custom-products-inner">
+            <div className="text-center mb-12" data-ui="raffle-products-header">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="raffle-products-title">
                 Productos del Sorteo
               </h2>
-              <p className="text-base text-gray-400">
+              <p className="text-base text-gray-400" data-ui="raffle-products-subtitle">
                 Participa para ganar estos increíbles productos
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" data-ui="raffle-products-grid">
               {customProducts.slice(0, 3).map((product) => (
                 <div
                   key={product.id}
                   className="group p-4 rounded-xl bg-gray-900 border border-gray-800 hover:border-red-accent/50 transition-all duration-300"
                   data-testid="custom-product-card"
                 >
-                  {/* Product Image */}
-                  {product.imageData ? (
-                    <div className="mb-3 overflow-hidden rounded-lg">
-                      <img
-                        src={product.imageData}
-                        alt={product.title}
-                        className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  ) : (
-                    <div className="mb-3 h-32 bg-gray-800 rounded-lg flex items-center justify-center">
-                      <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
-                    </div>
-                  )}
+                  <FallbackImage
+                    src={product.imageUrl}
+                    alt={product.title}
+                    className="h-32 mb-3"
+                    iconClassName="w-10 h-10"
+                  />
 
-                  {/* Product Info */}
-                  <h3 className="text-lg font-bold text-white mb-1">
+                  <h3 className="text-lg font-bold text-white mb-1" data-ui="raffle-product-title">
                     {product.title}
                   </h3>
                   {product.subtitle && (
-                    <p className="text-sm text-gray-400 line-clamp-2">
+                    <p className="text-sm text-gray-400 line-clamp-2" data-ui="raffle-product-subtitle">
                       {product.subtitle}
                     </p>
                   )}
@@ -203,7 +192,7 @@ export const RaffleSection: FC = () => {
             </div>
 
             {customProducts.length > 3 && (
-              <div className="text-center mt-8">
+              <div className="text-center mt-8" data-ui="raffle-products-more">
                 <button
                   onClick={() => navigate('/raffle')}
                   className="px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
@@ -212,6 +201,7 @@ export const RaffleSection: FC = () => {
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(139, 0, 0, 0.6)',
                   }}
+                  data-testid="raffle-view-all-products-btn"
                 >
                   Ver todos los productos ({customProducts.length})
                 </button>
@@ -241,16 +231,18 @@ export const RaffleSection: FC = () => {
               fontFamily: '"Contrail One", sans-serif',
               color: '#b91c1c',
             }}
+            data-ui="raffle-heading"
           >
             SORTEO
           </h1>
           {/* Separator line with faded margins */}
-          <div className="relative mt-4 mx-8 md:mx-16 lg:mx-32">
+          <div className="relative mt-4 mx-8 md:mx-16 lg:mx-32" data-ui="raffle-separator-wrapper">
             <div
               className="h-px"
               style={{
                 background: 'linear-gradient(to right, transparent, #dc2626 20%, #dc2626 80%, transparent)',
               }}
+              data-ui="raffle-separator-line"
             />
           </div>
         </div>
@@ -288,6 +280,7 @@ export const RaffleSection: FC = () => {
           <div
             className="w-full flex justify-center translate-y-[20px] lg:translate-y-[190px] max-w-[320px] lg:max-w-[769px] mx-auto text-center"
             style={{ opacity: text1Opacity, pointerEvents: text1Opacity > 0.5 ? 'auto' : 'none' }}
+            data-ui="raffle-text1-wrapper"
           >
             <h2
               className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white text-center px-4 max-w-4xl transition-transform transition-opacity duration-300 ease-out !leading-[1.6]"
@@ -296,6 +289,7 @@ export const RaffleSection: FC = () => {
                 textTransform: 'uppercase',
                 transform: `translateY(${(1 - text1Opacity) * 50}px)`,
               }}
+              data-ui="raffle-text1"
             >
               Entra en el sorteo de un cinturon SBD
             </h2>
@@ -304,6 +298,7 @@ export const RaffleSection: FC = () => {
           <div
             className="w-full flex justify-center mt-4"
             style={{ opacity: text2Opacity, pointerEvents: text2Opacity > 0.5 ? 'auto' : 'none' }}
+            data-ui="raffle-text2-wrapper"
           >
             <h2
               className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white text-center  max-w-[420px] lg:max-w-[540px] px-4 transition-transform transition-opacity duration-300 ease-out"
@@ -312,6 +307,7 @@ export const RaffleSection: FC = () => {
                 textTransform: 'uppercase',
                 transform: `translateY(${(1 - text2Opacity) * 30}px)`,
               }}
+              data-ui="raffle-text2"
             >
               Participa tantas veces como quieras para tener mas oportunidades de ganar
             </h2>
@@ -320,6 +316,7 @@ export const RaffleSection: FC = () => {
           <div
             className="mt-8"
             style={{ opacity: 1, pointerEvents: 'auto' }}
+            data-ui="raffle-button-wrapper"
           >
             <button
               onClick={() => navigate('/raffle')}
@@ -333,6 +330,7 @@ export const RaffleSection: FC = () => {
                 fontFamily: '"Contrail One", sans-serif',
                 textTransform: 'uppercase',
               }}
+              data-testid="raffle-participate-btn"
             >
               Participa ya
             </button>
@@ -345,14 +343,15 @@ export const RaffleSection: FC = () => {
             className="absolute inset-0 z-30 flex items-center justify-center bg-dark-base"
             data-component="LoadingOverlay"
           >
-            <div className="text-center">
-              <div className="w-64 h-2 bg-dark-surface rounded-full overflow-hidden">
+            <div className="text-center" data-ui="raffle-loading-content">
+              <div className="w-64 h-2 bg-dark-surface rounded-full overflow-hidden" data-ui="raffle-loading-bar">
                 <div
                   className="h-full bg-gradient-to-r from-red-accent to-dark-red"
                   style={{ width: (loadProgress * 100) + '%', transition: 'width 0.3s ease-out' }}
+                  data-ui="raffle-loading-bar-fill"
                 />
               </div>
-              <p className="text-gray-400 text-sm mt-2">
+              <p className="text-gray-400 text-sm mt-2" data-ui="raffle-loading-percent">
                 {Math.round(loadProgress * 100)}%
               </p>
             </div>
@@ -365,12 +364,12 @@ export const RaffleSection: FC = () => {
             className="absolute bottom-4 left-4 z-50 bg-black/80 text-white p-4 rounded-lg text-xs font-mono"
             data-component="DebugPanel"
           >
-            <div>Progress: {(scrollProgress * 100).toFixed(1)}%</div>
-            <div>Text1 Opacity: {text1Opacity.toFixed(2)}</div>
-            <div>Text2 Opacity: {text2Opacity.toFixed(2)}</div>
-            <div>Button Opacity: {buttonOpacity.toFixed(2)}</div>
-            <div>Frames Loaded: {frames.length}</div>
-            <div>Frame: {Math.floor(scrollProgress * (frames.length - 1)) + 1}/{frames.length}</div>
+            <div data-ui="debug-progress">Progress: {(scrollProgress * 100).toFixed(1)}%</div>
+            <div data-ui="debug-text1-opacity">Text1 Opacity: {text1Opacity.toFixed(2)}</div>
+            <div data-ui="debug-text2-opacity">Text2 Opacity: {text2Opacity.toFixed(2)}</div>
+            <div data-ui="debug-button-opacity">Button Opacity: {buttonOpacity.toFixed(2)}</div>
+            <div data-ui="debug-frames-loaded">Frames Loaded: {frames.length}</div>
+            <div data-ui="debug-frame-number">Frame: {Math.floor(scrollProgress * (frames.length - 1)) + 1}/{frames.length}</div>
           </div>
         )}
       </div>

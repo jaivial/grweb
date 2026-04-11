@@ -97,7 +97,7 @@ export function Home(): JSX.Element {
   return (
     <>
       <Head {...pageMetaConfig['/']} />
-      <main className="min-h-screen bg-dark-base">
+      <main className="min-h-screen bg-dark-base" data-ui="home-main">
       {/* Hero Section */}
       <HeroSection />
 

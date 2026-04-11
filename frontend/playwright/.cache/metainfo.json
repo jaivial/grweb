@@ -1,0 +1,36 @@
+{
+  "version": "1.59.1",
+  "viteVersion": "6.4.2",
+  "registerSourceHash": "ea233d95b980072c81eb49458aee55f5d33fdb02",
+  "components": [],
+  "sources": {
+    "/home/jaime/projects/grweb/frontend/playwright/index.html": {
+      "timestamp": 1775931735512.7375
+    },
+    "/home/jaime/projects/grweb/frontend/playwright/index.js": {
+      "timestamp": 1775935143734.1555
+    },
+    "/home/jaime/projects/grweb/frontend/node_modules/react/index.js": {
+      "timestamp": 1775930673195.5188
+    },
+    "/home/jaime/projects/grweb/frontend/node_modules/react-dom/client.js": {
+      "timestamp": 1775930673195.5188
+    },
+    "/home/jaime/projects/grweb/frontend/node_modules/react/cjs/react.production.min.js": {
+      "timestamp": 1775930673202.8293
+    },
+    "/home/jaime/projects/grweb/frontend/node_modules/react-dom/index.js": {
+      "timestamp": 1775930673196.5188
+    },
+    "/home/jaime/projects/grweb/frontend/node_modules/react-dom/cjs/react-dom.production.min.js": {
+      "timestamp": 1775930673231.5183
+    },
+    "/home/jaime/projects/grweb/frontend/node_modules/react-dom/node_modules/scheduler/index.js": {
+      "timestamp": 1775930673195.5188
+    },
+    "/home/jaime/projects/grweb/frontend/node_modules/react-dom/node_modules/scheduler/cjs/scheduler.production.min.js": {
+      "timestamp": 1775930673201.3423
+    }
+  },
+  "deps": {}
+}

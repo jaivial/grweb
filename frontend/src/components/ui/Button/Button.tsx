@@ -62,23 +62,24 @@ export function Button({
       onClick={onClick}
       key={key}
       aria-label={ariaLabel}
+      data-testid="button"
     >
       {/* Loading spinner */}
       {isLoading && (
-        <Spinner size={spinnerSize} className="mr-2" />
+        <Spinner size={spinnerSize} className="mr-2" data-ui="button-spinner" />
       )}
 
       {/* Left icon */}
       {leftIcon && !isLoading && (
-        <span className={iconSize}>{leftIcon}</span>
+        <span className={iconSize} data-ui="button-left-icon">{leftIcon}</span>
       )}
 
       {/* Button text */}
-      <span>{children}</span>
+      <span data-ui="button-text">{children}</span>
 
       {/* Right icon */}
       {rightIcon && !isLoading && (
-        <span className={iconSize}>{rightIcon}</span>
+        <span className={iconSize} data-ui="button-right-icon">{rightIcon}</span>
       )}
     </button>
   );

@@ -11,7 +11,5 @@ public class RaffleConfig
     [MaxLength(500)]
     public string? DisabledMessage { get; set; }
     
-    // Raffle method: "default" or "custom"
-    [MaxLength(20)]
-    public string RaffleMethod { get; set; } = "default";
+    public int RaffleMethod { get; set; } = 0;
 }

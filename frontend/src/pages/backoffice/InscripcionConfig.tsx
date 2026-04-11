@@ -88,10 +88,10 @@ export function InscripcionConfigPage(): JSX.Element {
           {/* Toggle */}
           <div className="flex items-center justify-between mb-6" data-ui="toggle-row">
             <div>
-              <h2 className="text-lg font-semibold text-white mb-1">
+              <h2 className="text-lg font-semibold text-white mb-1" data-ui="toggle-status-title">
                 {config?.active ? 'Inscripciones por web' : 'Inscripciones por AEP'}
               </h2>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-gray-400" data-ui="toggle-status-desc">
                 {config?.active
                   ? 'Los usuarios se inscriben a traves del formulario web'
                   : 'Los usuarios son redirigidos a la pagina de la AEP'}
@@ -120,6 +120,7 @@ export function InscripcionConfigPage(): JSX.Element {
                 <label
                   htmlFor="aep-url"
                   className="block text-sm font-medium text-gray-300 mb-2"
+                  data-ui="url-label"
                 >
                   URL de la AEP para las inscripciones
                 </label>
@@ -160,7 +161,7 @@ export function InscripcionConfigPage(): JSX.Element {
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12" data-ui="loading-state">
-            <div className="w-8 h-8 border-2 border-white/20 border-t-red-accent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-white/20 border-t-red-accent rounded-full animate-spin" data-ui="inscripcion-spinner" />
           </div>
         )}
       </div>

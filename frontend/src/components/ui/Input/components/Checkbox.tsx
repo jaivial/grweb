@@ -30,7 +30,7 @@ export function Checkbox({
   };
 
   return (
-    <div className={`flex items-start gap-3 ${className}`}>
+    <div className={`flex items-start gap-3 ${className}`} data-ui="checkbox">
       {/* Hidden actual checkbox */}
       <input
         type="checkbox"
@@ -42,6 +42,7 @@ export function Checkbox({
         disabled={isDisabled}
         className="sr-only peer"
         aria-invalid={!!error}
+        data-testid="checkbox-input"
       />
 
       {/* Custom checkbox visual */}
@@ -59,6 +60,7 @@ export function Checkbox({
           peer-focus-visible:ring-offset-2
           peer-focus-visible:ring-offset-dark-base
         `}
+        data-ui="checkbox-label"
       >
         {/* Checkbox box */}
         <span
@@ -73,6 +75,7 @@ export function Checkbox({
             }
             ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}
           `}
+          data-ui="checkbox-box"
         >
           {/* Checkmark */}
           {checked && (
@@ -82,6 +85,7 @@ export function Checkbox({
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth="3"
+              data-ui="checkbox-checkmark"
             >
               <path
                 strokeLinecap="round"
@@ -93,12 +97,12 @@ export function Checkbox({
         </span>
 
         {/* Label text */}
-        <span className="flex-1">{label}</span>
+        <span className="flex-1" data-ui="checkbox-label-text">{label}</span>
       </label>
 
       {/* Error message */}
       {error && (
-        <p className="text-sm text-red-400 mt-1">{error}</p>
+        <p className="text-sm text-red-400 mt-1" data-ui="checkbox-error">{error}</p>
       )}
     </div>
   );

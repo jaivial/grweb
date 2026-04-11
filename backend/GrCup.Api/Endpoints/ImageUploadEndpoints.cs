@@ -1,5 +1,5 @@
+using GrCup.Api.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 
 namespace GrCup.Api.Endpoints;
 
@@ -7,10 +7,10 @@ public static class ImageUploadEndpoints
 {
     public static void MapImageUploadEndpoints(this IEndpointRouteBuilder app)
     {
-        // Admin: Upload image and convert to base64
-        // POST /api/admin/upload-image
         app.MapPost("/api/admin/upload-image", [Authorize] async (
-            HttpRequest request) =>
+            HttpRequest request,
+            ImageProcessorService imageProcessor,
+            BunnyCdnService bunnyCdn) =>
         {
             var form = await request.ReadFormAsync();
             var file = form.Files.GetFile("image");
@@ -20,40 +20,50 @@ public static class ImageUploadEndpoints
                 return Results.BadRequest(new { success = false, message = "No image file provided" });
             }
 
-            // Validate file type
-            var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
-            if (!allowedTypes.Contains(file.ContentType))
+            if (!imageProcessor.IsValidImageType(file.ContentType))
             {
-                return Results.BadRequest(new { 
-                    success = false, 
-                    message = "Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed" 
-                });
-            }
-
-            // Validate file size (max 5MB)
-            if (file.Length > 5 * 1024 * 1024)
-            {
-                return Results.BadRequest(new { 
-                    success = false, 
-                    message = "File size exceeds 5MB limit" 
-                });
-            }
-
-            // Convert to base64
-            using var memoryStream = new MemoryStream();
-            await file.CopyToAsync(memoryStream);
-            var imageBytes = memoryStream.ToArray();
-            var base64String = Convert.ToBase64String(imageBytes);
-
-            return Results.Ok(new { 
-                success = true, 
-                data = new
+                return Results.BadRequest(new
                 {
-                    imageData = base64String,
-                    imageMimeType = file.ContentType,
-                    fileSize = file.Length
-                }
-            });
+                    success = false,
+                    message = "Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed"
+                });
+            }
+
+            if (!imageProcessor.IsValidFileSize(file.Length))
+            {
+                return Results.BadRequest(new
+                {
+                    success = false,
+                    message = "File size exceeds 5MB limit"
+                });
+            }
+
+            using var imageStream = file.OpenReadStream();
+            var processedStream = await imageProcessor.ProcessToWebpAsync(imageStream);
+            var fileName = BunnyCdnService.GenerateFileName(file.FileName);
+
+            try
+            {
+                var imageUrl = await bunnyCdn.UploadImageAsync(processedStream, fileName);
+
+                return Results.Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        imageUrl,
+                        fileSize = processedStream.Length
+                    }
+                });
+            }
+            catch
+            {
+                return Results.StatusCode(500);
+            }
+            finally
+            {
+                await processedStream.DisposeAsync();
+            }
         });
     }
 }

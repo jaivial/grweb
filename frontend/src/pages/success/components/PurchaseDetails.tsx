@@ -13,7 +13,7 @@ export function PurchaseDetails({ details }: PurchaseDetailsProps): JSX.Element 
         Resumen
       </h3>
 
-      <div className="space-y-3">
+      <div className="space-y-3" data-ui="purchase-details-rows">
         <div className="flex items-center justify-between" data-ui="purchase-row-tickets">
           <span className="text-sm text-white/50">Boletos</span>
           <span className="text-sm font-medium text-white">{formatTicketCount(details.ticketCount)}</span>

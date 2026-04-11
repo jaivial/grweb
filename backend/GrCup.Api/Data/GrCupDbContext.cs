@@ -53,7 +53,6 @@ public class GrCupDbContext : DbContext
         modelBuilder.Entity<RaffleProduct>(entity => {
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.DisplayOrder);
-            entity.Property(e => e.ImageData).HasColumnType("longtext");
         });
     }
 }

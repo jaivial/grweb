@@ -28,15 +28,15 @@ export const AnimatedText: FC<AnimatedTextProps> = ({
     <div
       className={`absolute inset-0 flex items-center justify-center ${className}`}
       style={containerStyle}
-      data-component="AnimatedText"
+      data-ui="animated-text"
     >
-      <div className="text-center px-4">
+      <div className="text-center px-4" data-ui="animated-text-inner">
         {logoSrc && (
           <img
             src={logoSrc}
             alt="GR Cup Logo"
             className="mx-auto mb-6 w-80 h-auto"
-            data-component="HeroLogo"
+            data-ui="animated-text-logo"
           />
         )}
         <h1
@@ -49,6 +49,7 @@ export const AnimatedText: FC<AnimatedTextProps> = ({
             WebkitFontSmoothing: 'antialiased',
             MozOsxFontSmoothing: 'grayscale',
           }}
+          data-ui="animated-text-heading"
         >
           {text}
         </h1>

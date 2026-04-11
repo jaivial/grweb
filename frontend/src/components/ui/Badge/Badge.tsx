@@ -26,8 +26,8 @@ export function Badge({
   const combinedClasses = `${badgeClasses} ${className} ${classNameAlt}`.trim();
 
   return (
-    <span className={combinedClasses}>
-      {icon && <span className="w-4 h-4">{icon}</span>}
+    <span className={combinedClasses} data-ui="badge">
+      {icon && <span className="w-4 h-4" data-ui="badge-icon">{icon}</span>}
       {children}
     </span>
   );

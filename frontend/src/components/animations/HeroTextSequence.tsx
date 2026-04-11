@@ -37,9 +37,9 @@ export const HeroTextSequence: FC<HeroTextSequenceProps> = ({
     <div
       className={`absolute inset-0 flex flex-col items-center justify-center ${className}`}
       style={{ zIndex: 20 }}
-      data-component="HeroTextSequence"
+      data-ui="hero-text-sequence"
     >
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center" data-ui="hero-text-center">
         <AnimatedText
           text={HERO_TEXT}
           opacity={textOpacity}
@@ -52,13 +52,15 @@ export const HeroTextSequence: FC<HeroTextSequenceProps> = ({
       <div
         className="pb-8 flex flex-col items-center transition-opacity duration-500"
         style={{ opacity: showScrollHint ? 1 : 0 }}
+        data-ui="hero-scroll-hint"
       >
-        <span className="text-white/70 text-sm tracking-widest uppercase mb-2">desliza</span>
+        <span className="text-white/70 text-sm tracking-widest uppercase mb-2" data-ui="hero-scroll-label">desliza</span>
         <svg
           className="w-6 h-6 text-white/70 animate-bounce"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          data-ui="hero-scroll-arrow"
         >
           <path
             strokeLinecap="round"

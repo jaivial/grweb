@@ -1,10 +1,3 @@
-/**
- * RaffleConfigPage — Backoffice page for enabling/disabling the public raffle.
- * Follows the same pattern as InscripcionConfigPage.
- *
- * TDD Status: RED — tests define behavior, implementation follows.
- */
-
 import { useEffect, useState, useCallback, useRef, type JSX } from 'react';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { api } from '../../../utils/api';
@@ -33,14 +26,12 @@ export function RaffleConfigPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   
-  // New state for raffle method and products
   const [raffleMethod, setRaffleMethod] = useState<'default' | 'custom'>('default');
   const [products, setProducts] = useState<RaffleProduct[]>([]);
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<RaffleProduct | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Product form state
   const [productTitle, setProductTitle] = useState('');
   const [productSubtitle, setProductSubtitle] = useState('');
   const [productImageData, setProductImageData] = useState<string | null>(null);
@@ -57,7 +48,6 @@ export function RaffleConfigPage(): JSX.Element {
       setRaffleMethod(data.raffleMethod || 'default');
       setError(null);
       
-      // Fetch products if custom method
       if (data.raffleMethod === 'custom') {
         await fetchProducts();
       }
@@ -71,7 +61,7 @@ export function RaffleConfigPage(): JSX.Element {
   const fetchProducts = useCallback(async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/admin/raffle-products`, {
-        credentials: 'include', // Send cookies with request
+        credentials: 'include',
       });
       const data = await response.json();
       if (data.success) {
@@ -139,7 +129,6 @@ export function RaffleConfigPage(): JSX.Element {
         raffleMethod: method,
       });
       
-      // Fetch products if switching to custom
       if (method === 'custom') {
         await fetchProducts();
       }
@@ -157,13 +146,11 @@ export function RaffleConfigPage(): JSX.Element {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       setError('Solo se permiten archivos de imagen');
       return;
     }
 
-    // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       setError('La imagen no debe superar 5MB');
       return;
@@ -173,11 +160,10 @@ export function RaffleConfigPage(): JSX.Element {
       setUploadingImage(true);
       setError(null);
       
-      // Convert to base64
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        const base64 = result.split(',')[1]; // Remove data:image/xxx;base64, prefix
+        const base64 = result.split(',')[1];
         setProductImageData(base64);
         setProductImageMimeType(file.type);
         setImagePreview(result);
@@ -209,7 +195,7 @@ export function RaffleConfigPage(): JSX.Element {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Send cookies with request
+        credentials: 'include',
         body: JSON.stringify({
           title: productTitle,
           subtitle: productSubtitle || null,
@@ -224,7 +210,6 @@ export function RaffleConfigPage(): JSX.Element {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
         
-        // Reset form
         setProductTitle('');
         setProductSubtitle('');
         setProductImageData(null);
@@ -233,7 +218,6 @@ export function RaffleConfigPage(): JSX.Element {
         setShowProductForm(false);
         setEditingProduct(null);
         
-        // Refresh products
         await fetchProducts();
       } else {
         setError(data.message || 'Error al guardar el producto');
@@ -254,7 +238,7 @@ export function RaffleConfigPage(): JSX.Element {
         `${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/admin/raffle-products/${productId}`,
         {
           method: 'DELETE',
-          credentials: 'include', // Send cookies with request
+          credentials: 'include',
         }
       );
 
@@ -277,7 +261,6 @@ export function RaffleConfigPage(): JSX.Element {
     setEditingProduct(product);
     setProductTitle(product.title);
     setProductSubtitle(product.subtitle || '');
-    // Don't set image preview since we don't have the actual image data in admin list
     setShowProductForm(true);
   };
 
@@ -296,26 +279,23 @@ export function RaffleConfigPage(): JSX.Element {
 
   return (
     <BackofficeLayout>
-      <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-testid="raffle-config-content">
-        {/* Header */}
-        <div className="mb-6 xs:mb-8">
-          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">
+      <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-testid="raffle-config-content" data-ui="raffle-config-page">
+        <div className="mb-6 xs:mb-8" data-ui="raffle-config-header">
+          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2" data-ui="raffle-config-title">
             Configuracion del Sorteo
           </h1>
-          <p className="text-sm xs:text-base text-gray-400">
+          <p className="text-sm xs:text-base text-gray-400" data-ui="raffle-config-subtitle">
             Activa o desactiva el sorteo y configura los productos del mismo
           </p>
         </div>
 
-        {/* Toggle Card */}
-        <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-6 mb-6">
-          {/* Toggle Row */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-white mb-1">
+        <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-6 mb-6" data-ui="raffle-toggle-card">
+          <div className="flex items-center justify-between mb-6" data-ui="raffle-toggle-row">
+            <div data-ui="raffle-toggle-info">
+              <h2 className="text-lg font-semibold text-white mb-1" data-ui="raffle-toggle-title">
                 {config?.isEnabled ? 'Sorteo activo' : 'Sorteo desactivado'}
               </h2>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-gray-400" data-ui="raffle-toggle-desc">
                 {config?.isEnabled
                   ? 'Los usuarios pueden participar en el sorteo'
                   : 'El formulario de sorteo no esta disponible'}
@@ -328,22 +308,24 @@ export function RaffleConfigPage(): JSX.Element {
               className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 ${
                 config?.isEnabled ? 'bg-red-accent' : 'bg-gray-600'
               } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+              data-testid="raffle-toggle-btn"
             >
               <span
                 className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-200 ${
                   config?.isEnabled ? 'translate-x-7' : 'translate-x-1'
                 }`}
+                data-ui="raffle-toggle-knob"
               />
             </button>
           </div>
 
-          {/* Disabled Message Input (shown when disabled) */}
           {!config?.isEnabled && (
-            <div className="space-y-4" data-testid="message-input-section">
-              <div>
+            <div className="space-y-4" data-testid="message-input-section" data-ui="raffle-message-section">
+              <div data-ui="raffle-message-field">
                 <label
                   htmlFor="disabled-message"
                   className="block text-sm font-medium text-gray-300 mb-2"
+                  data-ui="raffle-message-label"
                 >
                   Mensaje para usuarios (opcional)
                 </label>
@@ -361,6 +343,7 @@ export function RaffleConfigPage(): JSX.Element {
                 onClick={handleSaveMessage}
                 disabled={saving}
                 className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-white bg-red-accent hover:bg-red-accent/90 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="save-message-btn"
               >
                 {saving ? 'Guardando...' : 'Guardar mensaje'}
               </button>
@@ -368,10 +351,9 @@ export function RaffleConfigPage(): JSX.Element {
           )}
         </div>
 
-        {/* Raffle Method Selector */}
-        <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-6 mb-6" data-testid="raffle-method-selector">
-          <h2 className="text-lg font-semibold text-white mb-4">Metodo del Sorteo</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-6 mb-6" data-testid="raffle-method-selector" data-ui="raffle-method-card">
+          <h2 className="text-lg font-semibold text-white mb-4" data-ui="raffle-method-title">Metodo del Sorteo</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="raffle-method-options">
             <button
               onClick={() => handleMethodChange('default')}
               disabled={saving}
@@ -382,8 +364,8 @@ export function RaffleConfigPage(): JSX.Element {
               } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
               data-testid="method-default-option"
             >
-              <h3 className="text-base font-semibold text-white mb-2">Predeterminado</h3>
-              <p className="text-sm text-gray-400">
+              <h3 className="text-base font-semibold text-white mb-2" data-ui="method-default-title">Predeterminado</h3>
+              <p className="text-sm text-gray-400" data-ui="method-default-desc">
                 Usa el contenido predeterminado con animaciones de belt fijo
               </p>
             </button>
@@ -397,19 +379,18 @@ export function RaffleConfigPage(): JSX.Element {
               } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
               data-testid="method-custom-option"
             >
-              <h3 className="text-base font-semibold text-white mb-2">Personalizado</h3>
-              <p className="text-sm text-gray-400">
+              <h3 className="text-base font-semibold text-white mb-2" data-ui="method-custom-title">Personalizado</h3>
+              <p className="text-sm text-gray-400" data-ui="method-custom-desc">
                 Permite agregar productos con imagenes, titulos y subtulos personalizados
               </p>
             </button>
           </div>
         </div>
 
-        {/* Product Management Section (only shown when custom method is selected) */}
         {raffleMethod === 'custom' && (
-          <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-6 mb-6" data-testid="product-management-section">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-white">Productos del Sorteo</h2>
+          <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-6 mb-6" data-testid="product-management-section" data-ui="product-management-card">
+            <div className="flex items-center justify-between mb-6" data-ui="product-management-header">
+              <h2 className="text-lg font-semibold text-white" data-ui="product-management-title">Productos del Sorteo</h2>
               <button
                 onClick={() => {
                   resetProductForm();
@@ -419,24 +400,22 @@ export function RaffleConfigPage(): JSX.Element {
                 className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-white bg-red-accent hover:bg-red-accent/90 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid="add-product-btn"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" data-ui="add-product-icon">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Agregar Producto
               </button>
             </div>
 
-            {/* Product Form */}
             {showProductForm && (
-              <div className="bg-white/5 border border-white/10 rounded-lg p-6 mb-6" data-testid="product-form">
-                <h3 className="text-base font-semibold text-white mb-4">
+              <div className="bg-white/5 border border-white/10 rounded-lg p-6 mb-6" data-testid="product-form" data-ui="product-form-card">
+                <h3 className="text-base font-semibold text-white mb-4" data-ui="product-form-title">
                   {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
                 </h3>
                 
-                <div className="space-y-4">
-                  {/* Title */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                <div className="space-y-4" data-ui="product-form-fields">
+                  <div data-ui="product-title-field">
+                    <label className="block text-sm font-medium text-gray-300 mb-2" data-ui="product-title-label">
                       Titulo del Producto *
                     </label>
                     <input
@@ -449,9 +428,8 @@ export function RaffleConfigPage(): JSX.Element {
                     />
                   </div>
 
-                  {/* Subtitle */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <div data-ui="product-subtitle-field">
+                    <label className="block text-sm font-medium text-gray-300 mb-2" data-ui="product-subtitle-label">
                       Subtitulo (opcional)
                     </label>
                     <input
@@ -464,9 +442,8 @@ export function RaffleConfigPage(): JSX.Element {
                     />
                   </div>
 
-                  {/* Image Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <div data-ui="product-image-field">
+                    <label className="block text-sm font-medium text-gray-300 mb-2" data-ui="product-image-label">
                       Imagen del Producto
                     </label>
                     <input
@@ -478,24 +455,23 @@ export function RaffleConfigPage(): JSX.Element {
                       data-testid="product-image-upload"
                     />
                     {uploadingImage && (
-                      <p className="text-sm text-gray-400 mt-2">Cargando imagen...</p>
+                      <p className="text-sm text-gray-400 mt-2" data-ui="product-image-uploading">Cargando imagen...</p>
                     )}
                   </div>
 
-                  {/* Image Preview */}
                   {imagePreview && (
-                    <div data-testid="image-preview">
-                      <p className="text-sm text-gray-300 mb-2">Vista previa:</p>
+                    <div data-testid="image-preview" data-ui="product-image-preview">
+                      <p className="text-sm text-gray-300 mb-2" data-ui="product-preview-label">Vista previa:</p>
                       <img
                         src={imagePreview}
                         alt="Vista previa del producto"
                         className="max-w-xs h-auto rounded-lg border border-white/10"
+                        data-ui="product-preview-img"
                       />
                     </div>
                   )}
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex gap-3 pt-4" data-ui="product-form-actions">
                     <button
                       onClick={handleSaveProduct}
                       disabled={saving || !productTitle.trim()}
@@ -508,6 +484,7 @@ export function RaffleConfigPage(): JSX.Element {
                       onClick={resetProductForm}
                       disabled={saving}
                       className="px-4 py-3 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      data-testid="cancel-product-btn"
                     >
                       Cancelar
                     </button>
@@ -516,43 +493,40 @@ export function RaffleConfigPage(): JSX.Element {
               </div>
             )}
 
-            {/* Products List */}
             {products.length > 0 && (
-              <div className="space-y-3" data-testid="products-list">
+              <div className="space-y-3" data-testid="products-list" data-ui="products-list">
                 {products.map((product) => (
                   <div
                     key={product.id}
                     className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col sm:flex-row gap-4"
                     data-testid="product-item"
+                    data-ui={`product-item-${product.id}`}
                   >
-                    {/* Image */}
-                    <div className="w-full sm:w-32 h-32 flex-shrink-0">
+                    <div className="w-full sm:w-32 h-32 flex-shrink-0" data-ui={`product-image-container-${product.id}`}>
                       {product.hasImage ? (
-                        <div className="w-full h-full bg-gradient-to-br from-red-accent/20 to-red-accent/5 rounded-lg flex items-center justify-center" data-testid="product-image">
-                          <svg className="w-12 h-12 text-red-accent/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-full h-full bg-gradient-to-br from-red-accent/20 to-red-accent/5 rounded-lg flex items-center justify-center" data-testid="product-image" data-ui={`product-image-placeholder-${product.id}`}>
+                          <svg className="w-12 h-12 text-red-accent/50" fill="none" stroke="currentColor" viewBox="0 0 24 24" data-ui={`product-image-icon-${product.id}`}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
                       ) : (
-                        <div className="w-full h-full bg-white/5 rounded-lg flex items-center justify-center text-gray-500">
+                        <div className="w-full h-full bg-white/5 rounded-lg flex items-center justify-center text-gray-500" data-ui={`product-no-image-${product.id}`}>
                           Sin imagen
                         </div>
                       )}
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-semibold text-white mb-1" data-testid="product-title">
+                    <div className="flex-1 min-w-0" data-ui={`product-info-${product.id}`}>
+                      <h3 className="text-base font-semibold text-white mb-1" data-testid="product-title" data-ui={`product-item-title-${product.id}`}>
                         {product.title}
                       </h3>
                       {product.subtitle && (
-                        <p className="text-sm text-gray-400 mb-3" data-testid="product-subtitle">
+                        <p className="text-sm text-gray-400 mb-3" data-testid="product-subtitle" data-ui={`product-item-subtitle-${product.id}`}>
                           {product.subtitle}
                         </p>
                       )}
                       
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2" data-ui={`product-item-actions-${product.id}`}>
                         <button
                           onClick={() => handleEditProduct(product)}
                           disabled={saving}
@@ -577,29 +551,27 @@ export function RaffleConfigPage(): JSX.Element {
             )}
 
             {products.length === 0 && !showProductForm && (
-              <div className="text-center py-12">
-                <p className="text-gray-400">No hay productos configurados aun. Haz clic en "Agregar Producto" para comenzar.</p>
+              <div className="text-center py-12" data-ui="products-empty">
+                <p className="text-gray-400" data-ui="products-empty-text">No hay productos configurados aun. Haz clic en "Agregar Producto" para comenzar.</p>
               </div>
             )}
           </div>
         )}
 
-        {/* Status Messages */}
         {error && (
-          <div className="p-4 mb-4 bg-red-accent/10 border border-red-accent/20 rounded-lg text-red-accent text-sm" data-testid="error-message">
+          <div className="p-4 mb-4 bg-red-accent/10 border border-red-accent/20 rounded-lg text-red-accent text-sm" data-testid="error-message" data-ui="raffle-config-error">
             {error}
           </div>
         )}
         {success && (
-          <div className="p-4 mb-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm" data-testid="success-message" data-testid="product-saved-success">
+          <div className="p-4 mb-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm" data-testid="success-message" data-ui="raffle-config-success">
             Cambios guardados correctamente
           </div>
         )}
 
-        {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-12" data-testid="loading-spinner">
-            <div className="w-8 h-8 border-2 border-white/20 border-t-red-accent rounded-full animate-spin" />
+          <div className="flex items-center justify-center py-12" data-testid="loading-spinner" data-ui="raffle-config-loading">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-red-accent rounded-full animate-spin" data-ui="raffle-config-spinner" />
           </div>
         )}
       </div>

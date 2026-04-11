@@ -109,7 +109,7 @@ export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
       data-section="main-title"
       data-ui="main-title-section"
     >
-      <div className="max-w-5xl w-full px-6 flex flex-col items-center">
+      <div className="max-w-5xl w-full px-6 flex flex-col items-center" data-ui="main-title-content">
         
         {/* Logo */}
         <div
@@ -141,9 +141,10 @@ export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
           <h1
             className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl flex flex-col"
             style={titleStyle}
+            data-ui="championship-heading"
           >
-            <span className="mb-1">CAMPEONATO DE POWERLIFTING</span>
-            <span>AEP2 REGIONAL DE VALENCIA, MURCIA Y BALEARES</span>
+            <span className="mb-1" data-ui="championship-line-1">CAMPEONATO DE POWERLIFTING</span>
+            <span data-ui="championship-line-2">AEP2 REGIONAL DE VALENCIA, MURCIA Y BALEARES</span>
           </h1>
         </div>
 
@@ -164,6 +165,7 @@ export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
           <h2
             className="text-xl md:text-2xl lg:text-3xl xl:text-4xl"
             style={titleStyle}
+            data-ui="event-date-heading"
           >
             1-2 Mayo 2026
           </h2>
@@ -186,6 +188,7 @@ export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
           <h3
             className="text-lg md:text-xl lg:text-2xl xl:text-3xl"
             style={titleStyle}
+            data-ui="event-location-heading"
           >
             Alumussafes (Valencia)
           </h3>

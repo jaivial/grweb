@@ -302,10 +302,8 @@ namespace GrCup.Api.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("RaffleMethod")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
+                    b.Property<int>("RaffleMethod")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -329,12 +327,9 @@ namespace GrCup.Api.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("int");
 
-                    b.Property<string>("ImageData")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ImageMimeType")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");

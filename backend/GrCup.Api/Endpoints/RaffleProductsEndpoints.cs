@@ -1,5 +1,6 @@
 using GrCup.Api.Data;
 using GrCup.Api.Models;
+using GrCup.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,16 +11,13 @@ public static class RaffleProductsEndpoints
 {
     public static void MapRaffleProductsEndpoints(this IEndpointRouteBuilder app)
     {
-        // Public: Get active raffle products (only when method is "custom")
-        // GET /api/raffle/products
         app.MapGet("/api/raffle/products", async (GrCupDbContext db) =>
         {
             var config = await db.RaffleConfig.FirstOrDefaultAsync();
-            
-            // If custom method is not active, return empty list
-            if (config?.RaffleMethod != "custom")
+
+            if (config == null || config.RaffleMethod == 0)
             {
-                return Results.Ok(new { products = Array.Empty<object>(), raffleMethod = config?.RaffleMethod ?? "default" });
+                return Results.Ok(new { products = Array.Empty<object>(), raffleMethod = 0 });
             }
 
             var products = await db.RaffleProducts
@@ -30,31 +28,29 @@ public static class RaffleProductsEndpoints
                     p.Id,
                     p.Title,
                     p.Subtitle,
-                    ImageData = p.ImageData != null ? $"data:{p.ImageMimeType};base64,{p.ImageData}" : null,
+                    p.ImageUrl,
                     p.DisplayOrder
                 })
                 .ToListAsync();
 
-            return Results.Ok(new { products, raffleMethod = "custom" });
+            return Results.Ok(new { products, raffleMethod = 1 });
         });
 
-        // Admin: Get all raffle products (including inactive)
-        // GET /api/admin/raffle-products
         app.MapGet("/api/admin/raffle-products", [Authorize] async (GrCupDbContext db) =>
         {
             var products = await db.RaffleProducts
                 .OrderBy(p => p.DisplayOrder)
                 .ToListAsync();
 
-            return Results.Ok(new { 
-                success = true, 
+            return Results.Ok(new
+            {
+                success = true,
                 data = products.Select(p => new
                 {
                     p.Id,
                     p.Title,
                     p.Subtitle,
-                    p.ImageMimeType,
-                    HasImage = !string.IsNullOrEmpty(p.ImageData),
+                    p.ImageUrl,
                     p.DisplayOrder,
                     p.IsActive,
                     p.CreatedAt,
@@ -63,29 +59,63 @@ public static class RaffleProductsEndpoints
             });
         });
 
-        // Admin: Create a new raffle product
-        // POST /api/admin/raffle-products
         app.MapPost("/api/admin/raffle-products", [Authorize] async (
             GrCupDbContext db,
-            [FromBody] CreateRaffleProductRequest request) =>
+            HttpRequest request,
+            ImageProcessorService imageProcessor,
+            BunnyCdnService bunnyCdn) =>
         {
-            // Validate image data if provided
-            if (!string.IsNullOrEmpty(request.ImageData) && string.IsNullOrEmpty(request.ImageMimeType))
+            var form = await request.ReadFormAsync();
+
+            var title = form["title"].ToString();
+            var subtitle = form["subtitle"].ToString();
+
+            if (string.IsNullOrWhiteSpace(title))
             {
-                return Results.BadRequest(new { success = false, message = "Image MIME type is required when image data is provided" });
+                return Results.BadRequest(new { success = false, message = "Title is required" });
             }
 
-            // Get max display order for new products
-            var maxOrder = await db.RaffleProducts.AnyAsync() 
+            string? imageUrl = null;
+            var imageFile = form.Files.GetFile("image");
+            if (imageFile != null)
+            {
+                if (!imageProcessor.IsValidImageType(imageFile.ContentType))
+                {
+                    return Results.BadRequest(new { success = false, message = "Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed" });
+                }
+
+                if (!imageProcessor.IsValidFileSize(imageFile.Length))
+                {
+                    return Results.BadRequest(new { success = false, message = "File size exceeds 5MB limit" });
+                }
+
+                using var imageStream = imageFile.OpenReadStream();
+                var processedStream = await imageProcessor.ProcessToWebpAsync(imageStream);
+                var fileName = BunnyCdnService.GenerateFileName(imageFile.FileName);
+
+                try
+                {
+                    imageUrl = await bunnyCdn.UploadImageAsync(processedStream, fileName);
+                }
+                catch (Exception ex)
+                {
+                    return Results.StatusCode(500);
+                }
+                finally
+                {
+                    await processedStream.DisposeAsync();
+                }
+            }
+
+            var maxOrder = await db.RaffleProducts.AnyAsync()
                 ? await db.RaffleProducts.MaxAsync(p => p.DisplayOrder)
                 : 0;
 
             var product = new RaffleProduct
             {
-                Title = request.Title,
-                Subtitle = request.Subtitle,
-                ImageData = request.ImageData,
-                ImageMimeType = request.ImageMimeType,
+                Title = title,
+                Subtitle = string.IsNullOrEmpty(subtitle) ? null : subtitle,
+                ImageUrl = imageUrl,
                 DisplayOrder = maxOrder + 1,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -95,26 +125,27 @@ public static class RaffleProductsEndpoints
             db.RaffleProducts.Add(product);
             await db.SaveChangesAsync();
 
-            return Results.Ok(new { 
-                success = true, 
+            return Results.Ok(new
+            {
+                success = true,
                 data = new
                 {
                     product.Id,
                     product.Title,
                     product.Subtitle,
-                    HasImage = !string.IsNullOrEmpty(product.ImageData),
+                    product.ImageUrl,
                     product.DisplayOrder,
                     product.IsActive
                 }
             });
         });
 
-        // Admin: Update a raffle product
-        // PUT /api/admin/raffle-products/{id}
         app.MapPut("/api/admin/raffle-products/{id}", [Authorize] async (
             GrCupDbContext db,
             int id,
-            [FromBody] UpdateRaffleProductRequest request) =>
+            HttpRequest request,
+            ImageProcessorService imageProcessor,
+            BunnyCdnService bunnyCdn) =>
         {
             var product = await db.RaffleProducts.FindAsync(id);
             if (product == null)
@@ -122,52 +153,81 @@ public static class RaffleProductsEndpoints
                 return Results.NotFound(new { success = false, message = "Product not found" });
             }
 
-            // Validate image data if provided
-            if (!string.IsNullOrEmpty(request.ImageData) && string.IsNullOrEmpty(request.ImageMimeType))
+            var form = await request.ReadFormAsync();
+
+            var title = form["title"].ToString();
+            var subtitle = form["subtitle"].ToString();
+            var isActiveStr = form["isActive"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(title))
             {
-                return Results.BadRequest(new { success = false, message = "Image MIME type is required when image data is provided" });
+                product.Title = title;
             }
 
-            product.Title = request.Title ?? product.Title;
-            product.Subtitle = request.Subtitle ?? product.Subtitle;
-            
-            if (request.ImageData != null)
+            product.Subtitle = subtitle.Length > 0 ? (string.IsNullOrEmpty(subtitle) ? null : subtitle) : product.Subtitle;
+
+            if (bool.TryParse(isActiveStr, out var isActive))
             {
-                product.ImageData = request.ImageData;
-                product.ImageMimeType = request.ImageMimeType;
+                product.IsActive = isActive;
             }
-            
-            if (request.DisplayOrder.HasValue)
+
+            var imageFile = form.Files.GetFile("image");
+            if (imageFile != null)
             {
-                product.DisplayOrder = request.DisplayOrder.Value;
+                if (!imageProcessor.IsValidImageType(imageFile.ContentType))
+                {
+                    return Results.BadRequest(new { success = false, message = "Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed" });
+                }
+
+                if (!imageProcessor.IsValidFileSize(imageFile.Length))
+                {
+                    return Results.BadRequest(new { success = false, message = "File size exceeds 5MB limit" });
+                }
+
+                using var imageStream = imageFile.OpenReadStream();
+                var processedStream = await imageProcessor.ProcessToWebpAsync(imageStream);
+                var fileName = BunnyCdnService.GenerateFileName(imageFile.FileName);
+
+                try
+                {
+                    var newUrl = await bunnyCdn.UploadImageAsync(processedStream, fileName);
+
+                    if (!string.IsNullOrEmpty(product.ImageUrl))
+                    {
+                        _ = bunnyCdn.DeleteImageAsync(product.ImageUrl);
+                    }
+
+                    product.ImageUrl = newUrl;
+                }
+                catch
+                {
+                    return Results.StatusCode(500);
+                }
+                finally
+                {
+                    await processedStream.DisposeAsync();
+                }
             }
-            
-            if (request.IsActive.HasValue)
-            {
-                product.IsActive = request.IsActive.Value;
-            }
-            
+
             product.UpdatedAt = DateTime.UtcNow;
-
             await db.SaveChangesAsync();
 
-            return Results.Ok(new { 
-                success = true, 
+            return Results.Ok(new
+            {
+                success = true,
                 data = new
                 {
                     product.Id,
                     product.Title,
                     product.Subtitle,
-                    HasImage = !string.IsNullOrEmpty(product.ImageData),
+                    product.ImageUrl,
                     product.DisplayOrder,
                     product.IsActive
                 }
             });
         });
 
-        // Admin: Delete a raffle product
-        // DELETE /api/admin/raffle-products/{id}
-        app.MapDelete("/api/admin/raffle-products/{id}", [Authorize] async (
+        app.MapPatch("/api/admin/raffle-products/{id}/toggle-status", [Authorize] async (
             GrCupDbContext db,
             int id) =>
         {
@@ -177,20 +237,50 @@ public static class RaffleProductsEndpoints
                 return Results.NotFound(new { success = false, message = "Product not found" });
             }
 
+            product.IsActive = !product.IsActive;
+            product.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    product.Id,
+                    product.Title,
+                    product.IsActive
+                }
+            });
+        });
+
+        app.MapDelete("/api/admin/raffle-products/{id}", [Authorize] async (
+            GrCupDbContext db,
+            int id,
+            BunnyCdnService bunnyCdn) =>
+        {
+            var product = await db.RaffleProducts.FindAsync(id);
+            if (product == null)
+            {
+                return Results.NotFound(new { success = false, message = "Product not found" });
+            }
+
+            if (!string.IsNullOrEmpty(product.ImageUrl))
+            {
+                _ = bunnyCdn.DeleteImageAsync(product.ImageUrl);
+            }
+
             db.RaffleProducts.Remove(product);
             await db.SaveChangesAsync();
 
             return Results.Ok(new { success = true, message = "Product deleted successfully" });
         });
 
-        // Admin: Reorder products
-        // POST /api/admin/raffle-products/reorder
         app.MapPost("/api/admin/raffle-products/reorder", [Authorize] async (
             GrCupDbContext db,
             [FromBody] ReorderProductsRequest request) =>
         {
             var products = await db.RaffleProducts.Where(p => request.ProductIds.Contains(p.Id)).ToListAsync();
-            
+
             for (int i = 0; i < request.ProductIds.Length; i++)
             {
                 var product = products.FirstOrDefault(p => p.Id == request.ProductIds[i]);
@@ -207,21 +297,5 @@ public static class RaffleProductsEndpoints
         });
     }
 }
-
-public record CreateRaffleProductRequest(
-    string Title,
-    string? Subtitle,
-    string? ImageData,
-    string? ImageMimeType
-);
-
-public record UpdateRaffleProductRequest(
-    string? Title,
-    string? Subtitle,
-    string? ImageData,
-    string? ImageMimeType,
-    int? DisplayOrder,
-    bool? IsActive
-);
 
 public record ReorderProductsRequest(int[] ProductIds);

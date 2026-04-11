@@ -7,7 +7,7 @@ export function Schedules(): JSX.Element {
   return (
     <>
       <Head {...pageMetaConfig['/horarios']} />
-      <main className="min-h-screen bg-dark-base" style={{ paddingTop: '190px' }} data-page="schedules">
+      <main className="min-h-screen bg-dark-base" style={{ paddingTop: '190px' }} data-ui="schedules-page">
       <SchedulesSection />
       </main>
     </>

@@ -315,10 +315,11 @@ export const LogoLoop = React.memo<LogoLoopProps>(
               className={cx(
                 'flex-none text-[length:var(--logoloop-logoHeight)] leading-[1]',
                 isVertical ? 'mb-[var(--logoloop-gap)]' : 'mr-[var(--logoloop-gap)]',
-                scaleOnHover && 'overflow-visible group/item'
+                scaleOnHover && 'overflow visible group/item'
               )}
               key={key}
               role="listitem"
+              data-ui={`logoloop-item-${key}`}
             >
               {renderItem(item, key)}
             </li>
@@ -336,6 +337,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
                 'transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover/item:scale-120'
             )}
             aria-hidden={!!(item as any).href && !(item as any).ariaLabel}
+            data-ui={`logoloop-node-${key}`}
           >
             {(item as any).node}
           </span>
@@ -359,6 +361,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
             loading="eager"
             decoding="async"
             draggable={false}
+            data-ui={`logoloop-img-${key}`}
           />
         );
 
@@ -378,6 +381,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
             aria-label={itemAriaLabel || 'logo link'}
             target="_blank"
             rel="noreferrer noopener"
+            data-testid={`logoloop-link-${key}`}
           >
             {content}
           </a>
@@ -390,10 +394,11 @@ export const LogoLoop = React.memo<LogoLoopProps>(
             className={cx(
               'flex-none text-[length:var(--logoloop-logoHeight)] leading-[1]',
               isVertical ? 'mb-[var(--logoloop-gap)]' : 'mr-[var(--logoloop-gap)]',
-              scaleOnHover && 'overflow-visible group/item'
+              scaleOnHover && 'overflow visible group/item'
             )}
             key={key}
             role="listitem"
+            data-ui={`logoloop-item-${key}`}
           >
             {inner}
           </li>
@@ -411,6 +416,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
             role="list"
             aria-hidden={copyIndex > 0}
             ref={copyIndex === 0 ? seqRef : undefined}
+            data-ui={`logoloop-list-copy-${copyIndex}`}
           >
             {logos.map((item, itemIndex) => renderLogoItem(item, `${copyIndex}-${itemIndex}`))}
           </ul>
@@ -432,7 +438,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     );
 
     return (
-      <div ref={containerRef} className={rootClasses} style={containerStyle} role="region" aria-label={ariaLabel}>
+      <div ref={containerRef} className={rootClasses} style={containerStyle} role="region" aria-label={ariaLabel} data-ui="logoloop-container">
         {fadeOut && (
           <>
             {isVertical ? (
@@ -444,6 +450,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
                     'h-[clamp(24px,8%,120px)]',
                     'bg-[linear-gradient(to_bottom,var(--logoloop-fadeColor,var(--logoloop-fadeColorAuto))_0%,rgba(0,0,0,0)_100%)]'
                   )}
+                  data-ui="logoloop-fade-top"
                 />
                 <div
                   aria-hidden
@@ -452,6 +459,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
                     'h-[clamp(24px,8%,120px)]',
                     'bg-[linear-gradient(to_top,var(--logoloop-fadeColor,var(--logoloop-fadeColorAuto))_0%,rgba(0,0,0,0)_100%)]'
                   )}
+                  data-ui="logoloop-fade-bottom"
                 />
               </>
             ) : (
@@ -463,6 +471,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
                     'w-[clamp(24px,8%,120px)]',
                     'bg-[linear-gradient(to_right,var(--logoloop-fadeColor,var(--logoloop-fadeColorAuto))_0%,rgba(0,0,0,0)_100%)]'
                   )}
+                  data-ui="logoloop-fade-left"
                 />
                 <div
                   aria-hidden
@@ -471,6 +480,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
                     'w-[clamp(24px,8%,120px)]',
                     'bg-[linear-gradient(to_left,var(--logoloop-fadeColor,var(--logoloop-fadeColorAuto))_0%,rgba(0,0,0,0)_100%)]'
                   )}
+                  data-ui="logoloop-fade-right"
                 />
               </>
             )}
@@ -486,6 +496,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
           ref={trackRef}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          data-ui="logoloop-track"
         >
           {logoLists}
         </div>

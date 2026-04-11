@@ -44,3 +44,7 @@ frontend/public/compressedbeltimages/
 backend/GrCup.Api/docs/BUNNYCDN_STORAGE.md
 backend/GrCup.Api/docs/BUNNYCDN_STORAGE.md
 .aider*
+
+# Browser-agent exploration sessions (ad-hoc, not committed)
+frontend/tests/e2e/explore-*.spec.ts
+

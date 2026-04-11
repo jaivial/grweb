@@ -54,8 +54,10 @@ export function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      data-ui="icon"
+      data-icon-name={name}
     >
-      <path d={path} />
+      <path d={path} data-ui="icon-path" />
     </svg>
   );
 }

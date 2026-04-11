@@ -96,7 +96,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
             
             {/* Squat Image with Label */}
             <div className="flex flex-col items-center" data-ui="image-squat-wrapper">
-              <div className="w-full max-w-[280px] sm:max-w-none">
+              <div className="w-full max-w-[280px] sm:max-w-none" data-ui="squat-image-container">
                 <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2029%20mar%202026%2C%2021_55_55.png" alt="Atleta realizando sentadilla" rotation="left" dataUi="squat" />
               </div>
               <h3 className="mt-4 text-xl sm:text-2xl md:text-3xl sm:hidden" data-ui="movement-text-squat-mobile" style={movementLabelStyle}>Sentadilla</h3>
@@ -104,7 +104,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
 
             {/* Bench Image with Label */}
             <div className="flex flex-col items-center" data-ui="image-bench-wrapper">
-              <div className="w-full max-w-[280px] sm:max-w-none -mt-4 sm:mt-0">
+              <div className="w-full max-w-[280px] sm:max-w-none -mt-4 sm:mt-0" data-ui="bench-image-container">
                 <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2023%20mar%202026%2C%2000_00_19.png" alt="Atleta realizando press de banca" rotation="center" dataUi="bench" />
               </div>
               <h3 className="mt-4 text-xl sm:text-2xl md:text-3xl sm:hidden" data-ui="movement-text-bench-mobile" style={movementLabelStyle}>Press de banca</h3>
@@ -112,7 +112,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
 
             {/* Deadlift Image with Label */}
             <div className="flex flex-col items-center" data-ui="image-deadlift-wrapper">
-              <div className="w-full max-w-[280px] sm:max-w-none -mt-8 sm:mt-0">
+              <div className="w-full max-w-[280px] sm:max-w-none -mt-8 sm:mt-0" data-ui="deadlift-image-container">
                 <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_51_04.png" alt="Atleta realizando peso muerto" rotation="right" dataUi="deadlift" />
               </div>
               <h3 className="mt-4 text-xl sm:text-2xl md:text-3xl sm:hidden" data-ui="movement-text-deadlift-mobile" style={movementLabelStyle}>Peso muerto</h3>

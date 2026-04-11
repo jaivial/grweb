@@ -21,8 +21,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (isVerifying) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-base">
-        <div className="text-red-accent text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-dark-base" data-ui="protected-route-loading">
+        <div className="text-red-accent text-xl" data-ui="protected-route-loading-text">Loading...</div>
       </div>
     );
   }

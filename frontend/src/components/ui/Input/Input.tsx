@@ -49,19 +49,19 @@ export function Input({
   const containerWidth = fullWidth ? 'w-full' : 'w-auto';
 
   return (
-    <div className={`${containerWidth}`}>
+    <div className={`${containerWidth}`} data-ui="input-container">
       {/* Label */}
       {label && (
-        <label className={getLabelClasses(hasError)}>
+        <label className={getLabelClasses(hasError)} data-ui="input-label">
           {label}
         </label>
       )}
 
       {/* Input wrapper */}
-      <div className="relative">
+      <div className="relative" data-ui="input-wrapper">
         {/* Left icon */}
         {leftIcon && (
-          <div className={getIconWrapperClasses('left')}>
+          <div className={getIconWrapperClasses('left')} data-ui="input-left-icon">
             {leftIcon}
           </div>
         )}
@@ -73,12 +73,13 @@ export function Input({
           disabled={isDisabled}
           aria-invalid={hasError}
           aria-describedby={error ? `${props.name}-error` : hint ? `${props.name}-hint` : undefined}
+          data-testid="input"
           {...props}
         />
 
         {/* Right icon */}
         {rightIcon && (
-          <div className={getIconWrapperClasses('right')}>
+          <div className={getIconWrapperClasses('right')} data-ui="input-right-icon">
             {rightIcon}
           </div>
         )}
@@ -86,14 +87,14 @@ export function Input({
 
       {/* Error message */}
       {error && (
-        <p id={`${props.name}-error`} className={getErrorClasses()}>
+        <p id={`${props.name}-error`} className={getErrorClasses()} data-ui="input-error">
           {error}
         </p>
       )}
 
       {/* Hint text */}
       {hint && !error && (
-        <p id={`${props.name}-hint`} className={getHintClasses()}>
+        <p id={`${props.name}-hint`} className={getHintClasses()} data-ui="input-hint">
           {hint}
         </p>
       )}
