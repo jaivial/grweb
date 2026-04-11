@@ -1,9 +1,3 @@
-/**
- * Ticket Quantity Selector Component
- * 
- * Allows users to select the number of raffle tickets to purchase.
- */
-
 import type { JSX } from 'react';
 import { Button } from '@components/ui';
 import { MinusIcon, PlusIcon } from '@components/ui/Icon';
@@ -27,7 +21,6 @@ export function TicketQuantitySelector({
   totalPrice,
   error,
 }: TicketQuantitySelectorProps): JSX.Element {
-  // Handle manual input change
   const handleInputChange = (e: Event) => {
     const target = e.target as HTMLInputElement;
     const value = parseInt(target.value, 10);
@@ -37,31 +30,28 @@ export function TicketQuantitySelector({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-gray-300">
+    <div className="space-y-4" data-ui="ticket-quantity-selector">
+      <div className="flex items-center justify-between" data-ui="ticket-selector-header">
+        <label className="block text-sm font-medium text-gray-300" data-ui="ticket-selector-label">
           Number of Tickets
         </label>
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-gray-500" data-ui="ticket-price-hint">
           {pricePerTicket} € per ticket
         </span>
       </div>
 
-      {/* Quantity Controls */}
-      <div className="flex items-center gap-4">
-        {/* Decrement Button */}
+      <div className="flex items-center gap-4" data-ui="ticket-controls">
         <Button
           variant="secondary"
           size="md"
           onClick={onDecrement}
           disabled={quantity <= 1}
           aria-label="Decrease quantity"
+          data-testid="ticket-decrement-btn"
         >
           <MinusIcon className="w-5 h-5" />
         </Button>
 
-        {/* Quantity Input */}
         <input
           type="number"
           value={quantity}
@@ -69,22 +59,22 @@ export function TicketQuantitySelector({
           min="1"
           max="100"
           className="w-24 px-4 py-3 text-center bg-dark-surface border border-dark-border rounded-lg text-white text-lg font-semibold focus:outline-none focus:border-red-accent focus:ring-1 focus:ring-red-accent transition-colors"
+          data-testid="ticket-quantity-input"
         />
 
-        {/* Increment Button */}
         <Button
           variant="secondary"
           size="md"
           onClick={onIncrement}
           disabled={quantity >= 100}
           aria-label="Increase quantity"
+          data-testid="ticket-increment-btn"
         >
           <PlusIcon className="w-5 h-5" />
         </Button>
       </div>
 
-      {/* Quick Select Buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" data-ui="ticket-quick-select">
         {[1, 5, 10, 20, 50].map((num) => (
           <button
             key={num}
@@ -95,21 +85,20 @@ export function TicketQuantitySelector({
                 ? 'bg-red-accent text-black font-medium'
                 : 'bg-dark-surface text-gray-400 hover:bg-dark-border'
             }`}
+            data-testid={`ticket-quick-${num}-btn`}
           >
             {num}
           </button>
         ))}
       </div>
 
-      {/* Error Message */}
       {error && (
-        <p className="text-red-500 text-sm">{error}</p>
+        <p className="text-red-500 text-sm" data-ui="ticket-quantity-error">{error}</p>
       )}
 
-      {/* Total Price */}
-      <div className="flex items-center justify-between pt-4 border-t border-dark-border">
-        <span className="text-gray-400">Total</span>
-        <span className="text-2xl font-bold text-white">{totalPrice}</span>
+      <div className="flex items-center justify-between pt-4 border-t border-dark-border" data-ui="ticket-total-row">
+        <span className="text-gray-400" data-ui="ticket-total-label">Total</span>
+        <span className="text-2xl font-bold text-white" data-ui="ticket-total-value">{totalPrice}</span>
       </div>
     </div>
   );

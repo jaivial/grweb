@@ -27,7 +27,7 @@ export function WinnersSection(): JSX.Element {
 
   return (
     <section id="winners" data-ui="winners-section" className="min-h-screen py-24 px-4 bg-dark-surface">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto" data-ui="winners-container">
         <div className="text-center mb-16" data-ui="winners-header">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" data-ui="winners-title">
             Ganador del Sorteo

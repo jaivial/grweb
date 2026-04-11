@@ -55,8 +55,8 @@ export function StripeSettingsForm({ initialData, onSave, isSaving }: StripeSett
     <form onSubmit={handleSubmit} className="space-y-6" data-ui="stripe-settings-form">
       {/* Stripe Icon + Title */}
       <div className="space-y-4 p-4 bg-white/[0.02] border border-white/5 rounded-xl" data-ui="stripe-keys-section">
-        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-          <svg className="w-4 h-4 text-red-accent" viewBox="0 0 24 24" fill="currentColor">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2" data-ui="stripe-keys-title">
+          <svg className="w-4 h-4 text-red-accent" viewBox="0 0 24 24" fill="currentColor" data-ui="stripe-keys-icon">
             <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-7.076-2.304l-.917 5.675C5.15 22.71 8.054 24 11.641 24c2.608 0 4.742-.634 6.269-1.869 1.688-1.37 2.527-3.377 2.527-5.841 0-4.13-2.537-5.841-6.461-7.14z"/>
           </svg>
           Claves de API de Stripe

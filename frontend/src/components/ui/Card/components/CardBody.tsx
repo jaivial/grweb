@@ -16,7 +16,7 @@ export function CardBody({
   children,
 }: CardBodyProps): ReactNode {
   return (
-    <div className={`text-gray-300 ${className}`}>
+    <div className={`text-gray-300 ${className}`} data-ui="card-body">
       {children}
     </div>
   );

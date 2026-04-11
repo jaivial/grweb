@@ -158,7 +158,7 @@ export const SmokeOverlay: FC<SmokeOverlayProps> = ({
     <div
       className={divClassName}
       style={{ zIndex: 10, background: 'transparent' }}
-      data-component="SmokeOverlay"
+      data-ui="smoke-overlay"
     >
       <Canvas
         key={cameraZ}

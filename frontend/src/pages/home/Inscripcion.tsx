@@ -129,8 +129,8 @@ export function Inscripcion(): JSX.Element {
       <>
         <Head {...pageMetaConfig['/inscripcion']} />
         <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
-          <div className="max-w-2xl mx-auto flex items-center justify-center min-h-[400px]">
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <div className="max-w-2xl mx-auto flex items-center justify-center min-h-[400px]" data-ui="inscripcion-loading">
+            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" data-ui="inscripcion-loading-spinner" />
           </div>
         </main>
       </>
@@ -144,14 +144,14 @@ export function Inscripcion(): JSX.Element {
         <Head {...pageMetaConfig['/inscripcion']} />
         <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
           <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[400px]" data-ui="aep-delegation">
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="aep-delegation-title">
               Inscripciones AEP
             </h2>
-            <p className="text-center text-lg text-gray-300 mb-6 max-w-xl px-4">
+            <p className="text-center text-lg text-gray-300 mb-6 max-w-xl px-4" data-ui="aep-delegation-description">
               Las inscripciones para la GRStrength CUP se gestionan a través de la página oficial de la Asociación Española de Powerlifting (AEP). Haz clic en el botón para acceder al formulario de inscripción en su web.
             </p>
             {aepUrl ? (
-            <div className="group/glass relative">
+            <div className="group/glass relative" data-ui="aep-button-wrapper">
               <a
                 href={aepUrl}
                 target="_blank"
@@ -159,12 +159,12 @@ export function Inscripcion(): JSX.Element {
                 className="relative inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl hover:bg-white/15 hover:border-white/30 transition-all duration-300 cursor-pointer hover:!text-white"
                 data-ui="aep-inscripcion-button"
               >
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="aep-external-link-icon">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
                 Ir a la inscripción oficial AEP
               </a>
-              <div className="absolute inset-0 rounded-xl transition-shadow duration-300 group-hover/glass:shadow-lg group-hover/glass:shadow-red-500/20 pointer-events-none -z-10" />
+              <div className="absolute inset-0 rounded-xl transition-shadow duration-300 group-hover/glass:shadow-lg group-hover/glass:shadow-red-500/20 pointer-events-none -z-10" data-ui="aep-button-glow" />
             </div>
             ) : (
             <p className="text-center text-sm text-gray-400 italic mt-4" data-ui="aep-url-pending">
@@ -184,16 +184,16 @@ export function Inscripcion(): JSX.Element {
         <Head {...pageMetaConfig['/inscripcion']} />
         <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
           <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[400px]" data-ui="inscripcion-fallback">
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="inscripcion-fallback-title">
               Próximamente...
             </h2>
-            <svg className="w-16 h-16 text-white opacity-100 mb-4" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-16 h-16 text-white opacity-100 mb-4" viewBox="0 0 24 24" fill="currentColor" data-ui="inscripcion-fallback-icon">
               <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
             </svg>
-            <p className="text-center text-lg text-gray-300 mb-6 max-w-xl px-4">
+            <p className="text-center text-lg text-gray-300 mb-6 max-w-xl px-4" data-ui="inscripcion-fallback-text">
               Las inscripciones a la GRStrength CUP todavía no están abiertas. Síguenos en instagram para mantenerte informado.
             </p>
-            <div className="group/scale relative">
+            <div className="group/scale relative" data-ui="inscripcion-instagram-wrapper">
               <a
                 href="https://www.instagram.com/grstrengthclub/"
                 target="_blank"
@@ -201,13 +201,13 @@ export function Inscripcion(): JSX.Element {
                 className="relative inline-flex items-center gap-3 px-6 py-3 min-h-[48px] text-base font-medium text-white bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:border-white/30 transition-all cursor-pointer"
                 data-ui="instagram-fallback-button"
               >
-                <span className="absolute inset-0 rounded-lg -z-10" style={{ background: 'linear-gradient(to right, #9333ea, #ec4899, #f97316)' }} />
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <span className="absolute inset-0 rounded-lg -z-10" style={{ background: 'linear-gradient(to right, #9333ea, #ec4899, #f97316)' }} data-ui="instagram-gradient-bg" />
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor" data-ui="instagram-fallback-icon">
                   <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                 </svg>
                 Síguenos en Instagram
               </a>
-              <div className="absolute inset-0 rounded-lg transition-shadow duration-200 group-hover/scale:shadow-lg group-hover/scale:shadow-red-500/30 pointer-events-none -z-10" />
+              <div className="absolute inset-0 rounded-lg transition-shadow duration-200 group-hover/scale:shadow-lg group-hover/scale:shadow-red-500/30 pointer-events-none -z-10" data-ui="instagram-button-glow" />
             </div>
           </div>
         </main>
@@ -219,13 +219,13 @@ export function Inscripcion(): JSX.Element {
     <>
       <Head {...pageMetaConfig['/inscripcion']} />
       <main className="min-h-screen bg-dark-base py-16 px-4 mt-[10rem]" data-section="inscripcion" data-ui="inscripcion-page">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto" data-ui="inscripcion-form-container">
           {/* Header */}
           <div className="text-center mb-12" data-ui="inscripcion-header">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="inscripcion-form-title">
               ¡Inscríbete al II GRSTRENGTH CUP!
             </h1>
-            <p className="text-lg text-gray-400">
+            <p className="text-lg text-gray-400" data-ui="inscripcion-form-subtitle">
               Rellena el formulario para registrarte en el campeonato
             </p>
           </div>
@@ -233,11 +233,11 @@ export function Inscripcion(): JSX.Element {
           {/* Success Message */}
           {submitSuccess && (
             <div className="mb-8 p-6 bg-green-500/10 border border-green-500/30 rounded-2xl text-center" data-ui="success-message">
-              <svg className="w-12 h-12 mx-auto mb-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-12 h-12 mx-auto mb-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="success-icon">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 className="text-xl font-semibold text-white mb-2">¡Inscripción enviada!</h3>
-              <p className="text-gray-400">Te hemos registrado correctamente. Te contactaremos pronto.</p>
+              <h3 className="text-xl font-semibold text-white mb-2" data-ui="success-title">¡Inscripción enviada!</h3>
+              <p className="text-gray-400" data-ui="success-text">Te hemos registrado correctamente. Te contactaremos pronto.</p>
             </div>
           )}
 
@@ -251,63 +251,67 @@ export function Inscripcion(): JSX.Element {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6" data-ui="inscripcion-form">
             {/* Name Fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Nombre *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="form-row-names">
+              <div data-ui="form-field-firstname">
+                <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-firstname">Nombre *</label>
                 <input
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => updateField('firstName', e.target.value)}
                   className={inputClass(!!errors.firstName)}
                   placeholder="Tu nombre"
+                  data-testid="input-firstname"
                 />
-                {errors.firstName && <p className="mt-1 text-sm text-red-400">{errors.firstName}</p>}
+                {errors.firstName && <p className="mt-1 text-sm text-red-400" data-ui="error-firstname">{errors.firstName}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Apellidos *</label>
+              <div data-ui="form-field-surname">
+                <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-surname">Apellidos *</label>
                 <input
                   type="text"
                   value={formData.surname}
                   onChange={(e) => updateField('surname', e.target.value)}
                   className={inputClass(!!errors.surname)}
                   placeholder="Tus apellidos"
+                  data-testid="input-surname"
                 />
-                {errors.surname && <p className="mt-1 text-sm text-red-400">{errors.surname}</p>}
+                {errors.surname && <p className="mt-1 text-sm text-red-400" data-ui="error-surname">{errors.surname}</p>}
               </div>
             </div>
 
             {/* Contact Fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Email *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="form-row-contact">
+              <div data-ui="form-field-email">
+                <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-email">Email *</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
                   className={inputClass(!!errors.email)}
                   placeholder="email@ejemplo.com"
+                  data-testid="input-email"
                 />
-                {errors.email && <p className="mt-1 text-sm text-red-400">{errors.email}</p>}
+                {errors.email && <p className="mt-1 text-sm text-red-400" data-ui="error-email">{errors.email}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Teléfono</label>
+              <div data-ui="form-field-phone">
+                <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-phone">Teléfono</label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => updateField('phone', e.target.value)}
                   className={inputClass(false)}
                   placeholder="+34 600 000 000"
+                  data-testid="input-phone"
                 />
               </div>
             </div>
 
             {/* Sex and Category */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Sexo *</label>
-                <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="form-row-category">
+              <div data-ui="form-field-sex">
+                <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-sex">Sexo *</label>
+                <div className="grid grid-cols-2 gap-2" data-ui="sex-options">
                   {SEX_OPTIONS.map(option => (
                     <button
                       key={option.value}
@@ -318,6 +322,7 @@ export function Inscripcion(): JSX.Element {
                           ? 'bg-red-accent/20 border-red-accent text-white'
                           : 'bg-white/5 border-white/10 text-white/70 hover:border-white/20'
                       }`}
+                      data-testid={`btn-sex-${option.value.toLowerCase()}`}
                     >
                       {option.label}
                     </button>
@@ -325,7 +330,7 @@ export function Inscripcion(): JSX.Element {
                 </div>
               </div>
 
-              <div>
+              <div data-ui="form-field-weight">
                 <CustomSelector
                   label="Categoría de peso *"
                   options={categoryOptions}
@@ -338,20 +343,21 @@ export function Inscripcion(): JSX.Element {
             </div>
 
             {/* Club and Weight */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Club</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="form-row-club">
+              <div data-ui="form-field-club">
+                <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-club">Club</label>
                 <input
                   type="text"
                   value={formData.club}
                   onChange={(e) => updateField('club', e.target.value)}
                   className={inputClass(false)}
                   placeholder="Nombre del club"
+                  data-testid="input-club"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Marca Total (kg)</label>
+              <div data-ui="form-field-totalweight">
+                <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-totalweight">Marca Total (kg)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -359,24 +365,26 @@ export function Inscripcion(): JSX.Element {
                   onChange={(e) => updateField('totalWeight', e.target.value ? parseFloat(e.target.value) : undefined)}
                   className={inputClass(false)}
                   placeholder="0.0"
+                  data-testid="input-totalweight"
                 />
               </div>
             </div>
 
             {/* Coach */}
-            <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">Entrenador (opcional)</label>
+            <div data-ui="form-field-coach">
+              <label className="block text-sm font-medium text-white/80 mb-2" data-ui="label-coach">Entrenador (opcional)</label>
               <input
                 type="text"
                 value={formData.coach}
                 onChange={(e) => updateField('coach', e.target.value)}
                 className={inputClass(false)}
                 placeholder="Nombre del entrenador"
+                data-testid="input-coach"
               />
             </div>
 
             {/* Submit Button */}
-            <div className="pt-4 relative">
+            <div className="pt-4 relative" data-ui="form-submit-wrapper">
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -390,16 +398,17 @@ export function Inscripcion(): JSX.Element {
                   border: `1px solid rgba(139, 0, 0, ${buttonHovered ? 0.6 : 0.3})`,
                   boxShadow: `0 ${buttonHovered ? 12 : 8}px 32px rgba(0, 0, 0, 0.3), inset 0 0 ${buttonHovered ? 80 : 60}px rgba(139, 0, 0, ${buttonHovered ? 0.1 : 0.05})`,
                 }}
+                data-testid="btn-submit-inscripcion"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" data-ui="submit-spinner" />
                     Enviando...
                   </>
                 ) : (
                   <>
                     Enviar inscripción
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="submit-arrow-icon">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
                   </>
@@ -411,12 +420,13 @@ export function Inscripcion(): JSX.Element {
                 style={{
                   background: 'linear-gradient(90deg, transparent 0%, rgba(220, 20, 60, 0.6) 50%, transparent 100%)',
                 }}
+                data-ui="form-submit-accent-line"
               />
             </div>
           </form>
 
           {/* Footer Note */}
-          <p className="text-center text-sm text-gray-500 mt-8">
+          <p className="text-center text-sm text-gray-500 mt-8" data-ui="form-footer-note">
             * Campos obligatorios. Te contactaremos por email para confirmar tu inscripción.
           </p>
         </div>

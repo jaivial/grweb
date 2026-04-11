@@ -4,16 +4,13 @@ import { Footer } from '@pages/home/components/Footer';
 
 export const Layout: FC<{ children: ReactNode }> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-dark-base overflow-x-clip" data-component="LayoutRoot">
-      {/* Glassmorphism Navbar - appears when hero is 98% out of view */}
+    <div className="min-h-screen bg-dark-base overflow-x-clip" data-ui="layout-root">
       <Navbar />
 
-      {/* Main content - no padding-top since hero is full-screen */}
-      <main data-slot="main-content">
+      <main data-ui="layout-main-content">
         {children}
       </main>
 
-      {/* Footer - included in all public routes */}
       <Footer />
     </div>
   );

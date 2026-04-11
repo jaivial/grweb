@@ -119,6 +119,8 @@ builder.Services.AddSingleton<JwtService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<EmailConfigService>();
 builder.Services.AddScoped<StripeConfigService>();
+builder.Services.AddScoped<ImageProcessorService>();
+builder.Services.AddHttpClient<BunnyCdnService>();
 
 // ─── Swagger ───
 builder.Services.AddEndpointsApiExplorer();
@@ -170,3 +172,5 @@ app.MapSitemapEndpoints();
 
 
 app.Run();
+
+public partial class Program { }

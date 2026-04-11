@@ -24,13 +24,9 @@ export interface FrameAnimatorProps {
   aspectRatio?: number;
   edgeFadeOverlay?: EdgeFadeOverlay | null;
   maskStyle?: React.CSSProperties;
-  /** Enable sliding window mode with this window size. When set, frames are cached around current frame. */
   windowSize?: number;
-  /** Update function from useFramePreloader sliding window mode */
   updateCache?: (frameIndex: number) => void;
-  /** Direct cache map (from useSlidingWindowCache). When provided, used instead of frames[index]. */
   cache?: Map<number, HTMLImageElement>;
-  /** Scroll-to-frame speed multiplier. Higher = faster playback (finishes in less scroll distance). Default: 1 */
   scrollSpeed?: number;
 }
 
@@ -56,14 +52,12 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     typeof window !== 'undefined' ? window.innerWidth : 9999
   );
 
-  // Track window width for responsive side fades
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Calculate frame index based on progress + speed multiplier
   const frameIndex = useMemo(() => {
     const animationEnd = staticPauseStart;
     const effectiveProgress = Math.min(progress * scrollSpeed, 1);
@@ -77,7 +71,6 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     return Math.max(0, Math.min(frames.length - 1, index));
   }, [progress, frames.length, staticPauseStart, scrollSpeed]);
 
-  // Draw the current frame
   const drawFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -103,11 +96,9 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     ctx.drawImage(frame, 0, 0, width, height);
   }, [frames, cache, maxWidth, aspectRatio, windowWidth]);
 
-  // Effect to draw frame when index changes or when frames become available
   useEffect(() => {
     if (!isAnimating) return;
 
-    // In sliding window mode, always update cache (even if frames.length === 0)
     if (windowSize && updateCache) {
       updateCache(frameIndex);
     }
@@ -115,7 +106,6 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     if (frames.length === 0) return;
 
     if (currentFrameRef.current === -1) {
-      // Initial draw when animating starts
       currentFrameRef.current = frameIndex;
       drawFrame(frameIndex);
     } else if (frameIndex !== currentFrameRef.current) {
@@ -124,18 +114,15 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     }
   }, [frameIndex, isAnimating, drawFrame, windowSize, updateCache]);
 
-  // Separate effect: redraw when frames become available (sliding window first fill)
   useEffect(() => {
     if (frames.length === 0) return;
     if (!isAnimating) return;
-    // frames just became available — draw current frame
     if (currentFrameRef.current === -1) {
       currentFrameRef.current = frameIndex;
       drawFrame(frameIndex);
     }
   }, [frames.length, isAnimating, frameIndex, drawFrame]);
 
-  // Effect for resize
   useEffect(() => {
     if (!isAnimating) return;
 
@@ -156,7 +143,7 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
   return (
     <div
       className={`relative overflow-hidden flex items-center justify-center ${className}`}
-      data-component="FrameAnimator"
+      data-ui="frame-animator"
       style={{
         height: '100dvh',
         width: '100%',
@@ -171,6 +158,7 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
     >
       <canvas
         ref={canvasRef}
+        data-ui="frame-animator-canvas"
         style={{
           display: showCanvas ? 'block' : 'none',
           width: canvasWidth + 'px',
@@ -179,7 +167,6 @@ export const FrameAnimator: FC<FrameAnimatorProps> = ({
           objectFit: 'contain',
         }}
       />
-      {/* Edge fade overlay */}
       {edgeFadeOverlay && (
         <div
           className="absolute pointer-events-none"

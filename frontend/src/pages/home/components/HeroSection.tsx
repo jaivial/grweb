@@ -217,21 +217,23 @@ export const HeroSection: FC = () => {
             className="absolute inset-0 z-30 flex items-center justify-center bg-dark-base"
             data-component="LoadingOverlay"
           >
-            <div className="text-center">
-              <div className="relative w-20 h-20 mx-auto mb-6">
+            <div className="text-center" data-ui="hero-loading-content">
+              <div className="relative w-20 h-20 mx-auto mb-6" data-ui="hero-loading-icon-wrapper">
                 <img
                   src="/trophyicon.png"
                   alt="Loading"
                   className="w-full h-full object-contain animate-pulse"
+                  data-ui="hero-loading-icon"
                 />
               </div>
-              <div className="w-64 h-2 bg-dark-surface rounded-full overflow-hidden">
+              <div className="w-64 h-2 bg-dark-surface rounded-full overflow-hidden" data-ui="hero-loading-bar">
                 <div
                   className="h-full bg-gradient-to-r from-black to-red-800 transition-all duration-300"
                   style={{ width: (loadProgress * 100) + '%' }}
+                  data-ui="hero-loading-bar-fill"
                 />
               </div>
-              <p className="text-gray-400 text-sm mt-2">
+              <p className="text-gray-400 text-sm mt-2" data-ui="hero-loading-percent">
                 {Math.round(loadProgress * 100)}%
               </p>
             </div>
@@ -243,15 +245,15 @@ export const HeroSection: FC = () => {
             className="absolute bottom-4 left-4 z-50 bg-black/80 text-white p-4 rounded-lg text-xs font-mono"
             data-component="DebugPanel"
           >
-            <div>Progress: {(scrollProgress * 100).toFixed(1)}%</div>
-            <div>Phase: {animationState.currentPhase}</div>
-            <div>Text Opacity: {animationState.textOpacity.toFixed(2)}</div>
-            <div>Smoke Opacity: {animationState.smokeOpacity.toFixed(2)}</div>
-            <div>Smoke Offset: {animationState.smokeOffset.toFixed(2)}</div>
-            <div>Frame Active: {animationState.frameAnimationActive.toString()}</div>
-            <div>Frame Progress: {(animationState.frameProgress * 100).toFixed(1)}%</div>
-            <div>Clouds Enter: {(animationState.cloudsEnterProgress * 100).toFixed(1)}%</div>
-            <div>Frames Loaded: {frames.length}</div>
+            <div data-ui="debug-progress">Progress: {(scrollProgress * 100).toFixed(1)}%</div>
+            <div data-ui="debug-phase">Phase: {animationState.currentPhase}</div>
+            <div data-ui="debug-text-opacity">Text Opacity: {animationState.textOpacity.toFixed(2)}</div>
+            <div data-ui="debug-smoke-opacity">Smoke Opacity: {animationState.smokeOpacity.toFixed(2)}</div>
+            <div data-ui="debug-smoke-offset">Smoke Offset: {animationState.smokeOffset.toFixed(2)}</div>
+            <div data-ui="debug-frame-active">Frame Active: {animationState.frameAnimationActive.toString()}</div>
+            <div data-ui="debug-frame-progress">Frame Progress: {(animationState.frameProgress * 100).toFixed(1)}%</div>
+            <div data-ui="debug-clouds-enter">Clouds Enter: {(animationState.cloudsEnterProgress * 100).toFixed(1)}%</div>
+            <div data-ui="debug-frames-loaded">Frames Loaded: {frames.length}</div>
           </div>
         )}
       </div>

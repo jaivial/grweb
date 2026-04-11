@@ -137,28 +137,43 @@ public class RaffleConfigServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateConfig_ReEnablesRaffle_WhenSettingIsEnabledTrue()
+    public void RaffleConfig_DefaultsToMethodZero()
     {
-        // Arrange — disabled config
-        _context.RaffleConfig.Add(new RaffleConfig
-        {
-            IsEnabled = false,
-            DisabledMessage = "Cerrado"
-        });
+        var config = new RaffleConfig();
+        Assert.Equal(0, config.RaffleMethod);
+    }
+
+    [Fact]
+    public void RaffleConfig_CanSetMethodToOne()
+    {
+        var config = new RaffleConfig { RaffleMethod = 1 };
+        Assert.Equal(1, config.RaffleMethod);
+    }
+
+    [Fact]
+    public async Task UpdateConfig_SetsRaffleMethodToCustom()
+    {
+        _context.RaffleConfig.Add(new RaffleConfig { IsEnabled = true });
         await _context.SaveChangesAsync();
 
         var config = await _context.RaffleConfig.FirstOrDefaultAsync();
-
-        // Act
-        config!.IsEnabled = true;
-        config.DisabledMessage = null;
+        config!.RaffleMethod = 1;
         config.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        // Assert
         var updated = await _context.RaffleConfig.FirstOrDefaultAsync();
         Assert.NotNull(updated);
-        Assert.True(updated.IsEnabled);
-        Assert.Null(updated.DisabledMessage);
+        Assert.Equal(1, updated.RaffleMethod);
+    }
+
+    [Fact]
+    public async Task RaffleConfig_IncludesRaffleMethodInResponse()
+    {
+        _context.RaffleConfig.Add(new RaffleConfig { IsEnabled = true, RaffleMethod = 1 });
+        await _context.SaveChangesAsync();
+
+        var config = await _context.RaffleConfig.FirstOrDefaultAsync();
+        Assert.NotNull(config);
+        Assert.Equal(1, config.RaffleMethod);
     }
 }

@@ -317,15 +317,15 @@ class ApiClient {
   // ─── Raffle Config ───
 
   async getPublicRaffleConfig() {
-    return this.request<{ isEnabled: boolean; disabledMessage: string | null; raffleMethod?: 'default' | 'custom' }>('/api/raffle/config');
+    return this.request<{ isEnabled: boolean; disabledMessage: string | null; raffleMethod?: number }>('/api/raffle/config');
   }
 
   async getRaffleConfig() {
-    return this.request<{ isEnabled: boolean; disabledMessage: string | null; raffleMethod?: 'default' | 'custom' }>('/api/admin/raffle-config');
+    return this.request<{ isEnabled: boolean; disabledMessage: string | null; raffleMethod?: number }>('/api/admin/raffle-config');
   }
 
-  async updateRaffleConfig(data: { isEnabled: boolean; disabledMessage: string | null; raffleMethod?: 'default' | 'custom' }) {
-    return this.request<{ isEnabled: boolean; disabledMessage: string | null; raffleMethod: 'default' | 'custom' }>('/api/admin/raffle-config', {
+  async updateRaffleConfig(data: { isEnabled: boolean; disabledMessage: string | null; raffleMethod?: number }) {
+    return this.request<{ isEnabled: boolean; disabledMessage: string | null; raffleMethod: number }>('/api/admin/raffle-config', {
       method: 'PUT',
       body: data,
     });

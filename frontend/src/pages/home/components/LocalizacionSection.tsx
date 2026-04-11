@@ -164,6 +164,7 @@ const AnimatedImage: FC<{
             alt={alt}
             className="w-full h-auto block"
             loading="eager"
+            data-ui={`image-${dataUi}`}
           />
           <div
             className="absolute inset-0 pointer-events-none"

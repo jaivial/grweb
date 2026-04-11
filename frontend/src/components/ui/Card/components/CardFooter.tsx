@@ -17,7 +17,7 @@ export function CardFooter({
   children,
 }: CardFooterProps): ReactNode {
   return (
-    <div className={`mt-4 pt-4 border-t border-dark-border flex items-center gap-3 ${className}`}>
+    <div className={`mt-4 pt-4 border-t border-dark-border flex items-center gap-3 ${className}`} data-ui="card-footer">
       {children}
     </div>
   );

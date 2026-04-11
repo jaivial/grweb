@@ -20,18 +20,6 @@ export interface InfiniteSliderProps {
   className?: string;
 }
 
-/**
- * InfiniteSlider - A custom hand-crafted infinite automatic image slider
- * Features:
- * - Smooth CSS-based infinite scrolling
- * - Automatic direction control
- * - Pause on hover support
- * - Edge fade effects
- * - Respects prefers-reduced-motion
- * - Performance optimized with will-change
- */
-
-// Sub-component to resolve CDN images via fetch+blob (bypasses CORS)
 const CdnImg: FC<{ src: string; alt?: string; title?: string; height: number; gap: number }> = ({ src, alt, title, height, gap }) => {
   const resolvedSrc = useCdnImage(src);
   return (
@@ -44,6 +32,7 @@ const CdnImg: FC<{ src: string; alt?: string; title?: string; height: number; ga
       loading="eager"
       decoding="async"
       draggable={false}
+      data-ui="slider-cdn-img"
     />
   );
 };
@@ -63,13 +52,11 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
   const [isPaused, setIsPaused] = useState(false);
   const [setWidth, setSetWidth] = useState(0);
 
-  // Check for reduced motion preference
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Calculate the width of one set of images for the animation
   useEffect(() => {
     const measureSet = () => {
       if (!trackRef.current) return;
@@ -80,12 +67,10 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
     };
 
     measureSet();
-    // Re-measure on window resize
     window.addEventListener('resize', measureSet);
     return () => window.removeEventListener('resize', measureSet);
   }, [images, gap, height]);
 
-  // Calculate animation duration based on set width and speed
   const duration = useMemo(() => {
     if (setWidth === 0) return '20s';
     const timeInSeconds = setWidth / speed;
@@ -107,7 +92,6 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
     '--slider-fade-color': fadeColor,
   } as React.CSSProperties), [duration, direction, fadeSize, fadeColor]);
 
-  // Render a single image item
   const renderImage = useCallback((img: SliderImage, index: number) => {
     const content = <CdnImg src={img.src} alt={img.alt} title={img.title} height={height} gap={gap} />;
 
@@ -119,7 +103,7 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           className="flex-shrink-0 flex items-center no-underline hover:opacity-80 transition-opacity"
-          data-ui={`slider-link-${index}`}
+          data-testid={`slider-link-${index}`}
         >
           {content}
         </a>
@@ -139,7 +123,6 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
 
   if (images.length === 0) return null;
 
-  // Build a single array with all images (2 sets for seamless loop)
   const allImages = [...images, ...images];
 
   return (
@@ -150,7 +133,6 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Left fade */}
       <div
         className="absolute left-0 top-0 bottom-0 w-full pointer-events-none z-10"
         style={{
@@ -161,7 +143,6 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         aria-hidden
       />
 
-      {/* Right fade */}
       <div
         className="absolute right-0 top-0 bottom-0 w-full pointer-events-none z-10"
         style={{
@@ -172,13 +153,11 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         aria-hidden
       />
 
-      {/* Slider track */}
       <div
         ref={trackRef}
         className="flex items-center"
         data-ui="slider-track"
       >
-        {/* Single sliding set with all images */}
         <div
           className={`flex items-center slider-animate ${isPaused || prefersReducedMotion ? 'slider-paused' : ''}`}
           data-ui="slider-set-1"
@@ -187,7 +166,6 @@ export const InfiniteSlider: FC<InfiniteSliderProps> = ({
         </div>
       </div>
 
-      {/* CSS for animation - injected once */}
       <style>{`
         @keyframes sliderScroll {
           0% {

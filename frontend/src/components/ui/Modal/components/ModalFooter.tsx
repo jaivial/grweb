@@ -11,7 +11,7 @@ export function ModalFooter({
   children,
 }: ModalFooterProps): ReactNode {
   return (
-    <div className={`mt-6 pt-4 border-t border-dark-border flex items-center justify-end gap-3 ${className}`}>
+    <div className={`mt-6 pt-4 border-t border-dark-border flex items-center justify-end gap-3 ${className}`} data-ui="modal-footer">
       {children}
     </div>
   );

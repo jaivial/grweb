@@ -173,6 +173,7 @@ const AnimatedImage: FC<{
             alt={alt}
             className="w-full h-auto block"
             loading="eager"
+            data-ui={`image-${dataUi}`}
           />
           {/* Edge fade overlay */}
           <div

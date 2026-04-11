@@ -106,7 +106,7 @@ const LoadingSkeleton: FC = () => {
               background: 'rgba(255, 255, 255, 0.1)',
             }}
           />
-          <div className="space-y-2">
+          <div className="space-y-2" data-ui="skeleton-rows">
             {[1, 2, 3].map((j) => (
               <div
                 key={`skeleton-row-${i}-${j}`}

@@ -19,6 +19,7 @@ export interface CustomSelectorProps<T = string> {
   searchable?: boolean;
   allowClear?: boolean;
   className?: string;
+  'data-testid'?: string;
 }
 
 export function CustomSelector<T extends string | number>({
@@ -32,6 +33,7 @@ export function CustomSelector<T extends string | number>({
   searchable = false,
   allowClear = true,
   className = '',
+  'data-testid': dataTestId,
 }: CustomSelectorProps<T>): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,7 +107,7 @@ export function CustomSelector<T extends string | number>({
   }, [filteredOptions, handleSelect]);
 
   return (
-    <div ref={containerRef} className={`relative ${className}`} data-ui="custom-selector">
+    <div ref={containerRef} className={`relative ${className}`} data-ui="custom-selector" data-testid={dataTestId}>
       {label && (
         <label className="block text-sm font-medium text-white/80 mb-1.5" data-ui="selector-label">
           {label}

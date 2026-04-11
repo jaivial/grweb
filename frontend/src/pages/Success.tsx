@@ -20,7 +20,6 @@ export default function Success() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Show navbar (no hero section on this page)
     window.dispatchEvent(new CustomEvent('heroVisibilityChange', { detail: { isVisible: false } }));
 
     const params = new URLSearchParams(window.location.search);
@@ -63,9 +62,9 @@ export default function Success() {
       <>
         <Head {...pageMetaConfig['/success']} />
         <div className="flex items-center justify-center py-32" data-ui="success-loading">
-          <div className="text-center">
+          <div className="text-center" data-ui="success-loading-inner">
             <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin mx-auto mb-4" data-ui="success-spinner" />
-            <p className="text-white/50 text-sm">Verificando tu compra...</p>
+            <p className="text-white/50 text-sm" data-ui="success-loading-text">Verificando tu compra...</p>
           </div>
         </div>
       </>
@@ -77,26 +76,26 @@ export default function Success() {
       <>
         <Head {...pageMetaConfig['/success']} />
         <div className="flex items-center justify-center py-32 px-4" data-ui="success-error">
-          <div className="text-center max-w-sm">
+          <div className="text-center max-w-sm" data-ui="success-error-inner">
             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4" data-ui="error-icon">
-              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} data-ui="error-icon-svg">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-white mb-2">Algo salió mal</h1>
-            <p className="text-white/50 text-sm mb-6">{error}</p>
-            <div className="flex gap-3 justify-center">
+            <h1 className="text-xl font-bold text-white mb-2" data-ui="error-title">Algo salió mal</h1>
+            <p className="text-white/50 text-sm mb-6" data-ui="error-message">{error}</p>
+            <div className="flex gap-3 justify-center" data-ui="error-buttons">
               <button
                 onClick={() => navigate('/checkout')}
                 className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-white bg-red-accent/90 hover:bg-red-accent rounded-xl transition-colors"
-                data-ui="btn-retry"
+                data-testid="btn-retry"
               >
                 Reintentar
               </button>
               <button
                 onClick={() => navigate('/')}
                 className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
-                data-ui="btn-home-error"
+                data-testid="btn-home-error"
               >
                 Volver al inicio
               </button>
@@ -113,20 +112,19 @@ export default function Success() {
       <div className="py-16 px-4" style={{ paddingTop: '120px' }} data-ui="success-page">
         <div className="max-w-md mx-auto" data-ui="success-content">
 
-          {/* Logo */}
           <div className="text-center mb-8" data-ui="success-logo">
             <img
               src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png"
               alt="GRStrength Cup"
               className="h-16 mx-auto"
               loading="eager"
+              data-ui="success-logo-img"
             />
           </div>
 
-          {/* Header */}
           <div className="text-center mb-10" data-ui="success-header">
             <div className="w-24 h-24 rounded-full bg-green-500/15 flex items-center justify-center mx-auto mb-6" data-ui="success-icon-circle">
-              <svg className="w-12 h-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-12 h-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} data-ui="success-check-icon">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
@@ -138,66 +136,63 @@ export default function Success() {
             </p>
           </div>
 
-          {/* Purchase Details */}
           {sessionData && (
             <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 mb-6" data-ui="purchase-details">
               <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider mb-4" data-ui="purchase-details-title">
                 Resumen
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3" data-ui="purchase-rows">
                 <div className="flex items-center justify-between" data-ui="purchase-row-name">
-                  <span className="text-sm text-white/50">Nombre</span>
-                  <span className="text-sm font-medium text-white">{sessionData.firstName} {sessionData.surname}</span>
+                  <span className="text-sm text-white/50" data-ui="purchase-label-name">Nombre</span>
+                  <span className="text-sm font-medium text-white" data-ui="purchase-value-name">{sessionData.firstName} {sessionData.surname}</span>
                 </div>
                 <div className="flex items-center justify-between" data-ui="purchase-row-email">
-                  <span className="text-sm text-white/50">Email</span>
-                  <span className="text-sm font-medium text-white">{sessionData.email}</span>
+                  <span className="text-sm text-white/50" data-ui="purchase-label-email">Email</span>
+                  <span className="text-sm font-medium text-white" data-ui="purchase-value-email">{sessionData.email}</span>
                 </div>
                 {sessionData.instagram && (
                   <div className="flex items-center justify-between" data-ui="purchase-row-instagram">
-                    <span className="text-sm text-white/50">Instagram</span>
-                    <span className="text-sm font-medium text-white">@{sessionData.instagram.replace('@', '')}</span>
+                    <span className="text-sm text-white/50" data-ui="purchase-label-instagram">Instagram</span>
+                    <span className="text-sm font-medium text-white" data-ui="purchase-value-instagram">@{sessionData.instagram.replace('@', '')}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between" data-ui="purchase-row-tickets">
-                  <span className="text-sm text-white/50">Boletos</span>
-                  <span className="text-sm font-medium text-white">{sessionData.ticketCount === 1 ? '1 boleto' : `${sessionData.ticketCount} boletos`}</span>
+                  <span className="text-sm text-white/50" data-ui="purchase-label-tickets">Boletos</span>
+                  <span className="text-sm font-medium text-white" data-ui="purchase-value-tickets">{sessionData.ticketCount === 1 ? '1 boleto' : `${sessionData.ticketCount} boletos`}</span>
                 </div>
                 <div className="pt-3 mt-1 border-t border-white/5 flex items-center justify-between" data-ui="purchase-row-total">
-                  <span className="text-sm text-white/50">Total</span>
-                  <span className="text-lg font-bold text-white">{formattedTotal}</span>
+                  <span className="text-sm text-white/50" data-ui="purchase-label-total">Total</span>
+                  <span className="text-lg font-bold text-white" data-ui="purchase-value-total">{formattedTotal}</span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Next Steps */}
           <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 mb-6" data-ui="next-steps">
             <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider mb-4" data-ui="next-steps-title">
               Siguientes pasos
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-3" data-ui="next-steps-list">
               <div className="flex items-start gap-3" data-ui="step-email">
-                <span className="text-xs font-bold text-red-accent mt-0.5">1</span>
-                <p className="text-sm text-white/60">Recibirás un correo de confirmación con los detalles de tu participación.</p>
+                <span className="text-xs font-bold text-red-accent mt-0.5" data-ui="step-email-num">1</span>
+                <p className="text-sm text-white/60" data-ui="step-email-text">Recibirás un correo de confirmación con los detalles de tu participación.</p>
               </div>
               <div className="flex items-start gap-3" data-ui="step-draw">
-                <span className="text-xs font-bold text-red-accent mt-0.5">2</span>
-                <p className="text-sm text-white/60">El ganador se anunciará el último día de competición tras la entrega de premios.</p>
+                <span className="text-xs font-bold text-red-accent mt-0.5" data-ui="step-draw-num">2</span>
+                <p className="text-sm text-white/60" data-ui="step-draw-text">El ganador se anunciará el último día de competición tras la entrega de premios.</p>
               </div>
               <div className="flex items-start gap-3" data-ui="step-follow">
-                <span className="text-xs font-bold text-red-accent mt-0.5">3</span>
-                <p className="text-sm text-white/60">Sigue <span className="text-white font-medium">@grstrengthclub</span> en Instagram para estar al día.</p>
+                <span className="text-xs font-bold text-red-accent mt-0.5" data-ui="step-follow-num">3</span>
+                <p className="text-sm text-white/60" data-ui="step-follow-text">Sigue <span className="text-white font-medium" data-ui="step-follow-handle">@grstrengthclub</span> en Instagram para estar al día.</p>
               </div>
             </div>
           </div>
 
-          {/* Action */}
           <div className="flex justify-center" data-ui="action-buttons">
             <button
               onClick={() => navigate('/')}
               className="px-6 py-3 min-h-[48px] text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
-              data-ui="btn-home"
+              data-testid="btn-home"
             >
               Volver al inicio
             </button>

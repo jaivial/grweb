@@ -24,8 +24,8 @@ export function Spinner({
   const combinedClasses = `${spinnerClasses} ${className}`.trim();
 
   return (
-    <div className={combinedClasses} role="status" aria-label="Loading">
-      <span className="sr-only">Loading...</span>
+    <div className={combinedClasses} role="status" aria-label="Loading" data-ui="spinner">
+      <span className="sr-only" data-ui="spinner-label">Loading...</span>
     </div>
   );
 }

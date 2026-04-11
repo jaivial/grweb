@@ -28,23 +28,23 @@ export function Table<T extends Record<string, any>>({
   // Loading state
   if (isLoading) {
     return (
-      <div className="overflow-x-auto">
-        <table className={`w-full ${className}`}>
-          <thead>
-            <tr>
+      <div className="overflow-x-auto" data-ui="table-loading">
+        <table className={`w-full ${className}`} data-ui="table">
+          <thead data-ui="table-header">
+            <tr data-ui="table-header-row">
               {columns.map((col) => (
-                <th key={col.key} className={getHeaderCellClasses()}>
+                <th key={col.key} className={getHeaderCellClasses()} data-ui="table-header-cell">
                   {col.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody data-ui="table-body">
             {[...Array(5)].map((_, i) => (
-              <tr key={i} className="animate-pulse">
+              <tr key={i} className="animate-pulse" data-ui="table-skeleton-row">
                 {columns.map((col) => (
-                  <td key={col.key} className={getCellClasses(variant)}>
-                    <div className="h-4 bg-gray-700 rounded w-3/4" />
+                  <td key={col.key} className={getCellClasses(variant)} data-ui="table-skeleton-cell">
+                    <div className="h-4 bg-gray-700 rounded w-3/4" data-ui="table-skeleton-placeholder" />
                   </td>
                 ))}
               </tr>
@@ -58,23 +58,24 @@ export function Table<T extends Record<string, any>>({
   // Empty state
   if (!data || data.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">{emptyMessage}</p>
+      <div className="text-center py-12" data-ui="table-empty">
+        <p className="text-gray-500" data-ui="table-empty-message">{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-dark-border">
-      <table className={`w-full ${className}`}>
+    <div className="overflow-x-auto rounded-xl border border-dark-border" data-ui="table-wrapper">
+      <table className={`w-full ${className}`} data-ui="table">
         {/* Header */}
         {showHeader && (
-          <thead className={stickyHeader ? 'sticky top-0 z-10' : ''}>
-            <tr>
+          <thead className={stickyHeader ? 'sticky top-0 z-10' : ''} data-ui="table-header">
+            <tr data-ui="table-header-row">
               {columns.map((col) => (
                 <th
                   key={col.key}
                   className={`${getHeaderCellClasses()} ${col.headerClass || ''} ${col.width || ''}`}
+                  data-ui="table-header-cell"
                 >
                   {col.header}
                 </th>
@@ -84,16 +85,17 @@ export function Table<T extends Record<string, any>>({
         )}
 
         {/* Body */}
-        <tbody>
+        <tbody data-ui="table-body">
           {data.map((item, index) => (
             <tr
               key={index}
               className={`${getRowClasses(index % 2 === 0, !!onRowClick, variant)} ${
                 onRowClick ? 'cursor-pointer hover:bg-red-accent/10 transition-colors' : ''
               }`}
+              data-ui="table-row"
             >
               {columns.map((col) => (
-                <td key={col.key} className={`${getCellClasses(variant)} ${col.class || ''}`}>
+                <td key={col.key} className={`${getCellClasses(variant)} ${col.class || ''}`} data-ui="table-cell">
                   {col.render
                     ? col.render(item, index)
                     : item[col.key] !== undefined

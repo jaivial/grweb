@@ -9,16 +9,8 @@ interface LightningProps {
   className?: string;
 }
 
-/**
- * Lightning Component
- * 
- * Creates a WebGL-based lightning effect using fragment shaders.
- * Renders animated lightning bolts with configurable color, speed, and intensity.
- * 
- * Uses FBM (Fractal Brownian Motion) noise for organic lightning appearance.
- */
 const Lightning: React.FC<LightningProps> = ({ 
-  hue = 0, // Dark red default (0 = red)
+  hue = 0,
   xOffset = 0, 
   speed = 1, 
   intensity = 1, 
@@ -198,7 +190,7 @@ const Lightning: React.FC<LightningProps> = ({
     };
   }, [hue, xOffset, speed, intensity, size]);
 
-  return <canvas ref={canvasRef} className={"w-full h-full " + className} data-component="Lightning" />;
+  return <canvas ref={canvasRef} className={"w-full h-full " + className} data-ui="lightning-canvas" />;
 };
 
 export default Lightning;

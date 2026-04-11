@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /backoffice/
+Disallow: /backoffice/*
+Sitemap: https://grcup.com/api/sitemap

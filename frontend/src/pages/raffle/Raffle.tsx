@@ -11,6 +11,7 @@ import { api } from '../../utils/api';
 import { latestConfirmedWinner, fetchConfirmedWinner } from '../../stores/participants';
 import { Head } from '../../components/Head';
 import { pageMetaConfig } from '../../metaConfig';
+import { FallbackImage } from '../../components/ui/FallbackImage';
 
 // Spanish rules data
 const rules = [
@@ -87,12 +88,12 @@ export const Raffle: FC = () => {
   // Raffle enabled/disabled check
   const [raffleEnabled, setRaffleEnabled] = useState(true);
   const [disabledMessage, setDisabledMessage] = useState<string | null>(null);
-  const [raffleMethod, setRaffleMethod] = useState<'default' | 'custom'>('default');
+  const [raffleMethod, setRaffleMethod] = useState<0 | 1>(0);
   const [customProducts, setCustomProducts] = useState<Array<{
     id: number;
     title: string;
     subtitle?: string;
-    imageData?: string | null;
+    imageUrl?: string | null;
   }>>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
 
@@ -101,10 +102,10 @@ export const Raffle: FC = () => {
       .then(data => {
         setRaffleEnabled(data.isEnabled);
         setDisabledMessage(data.disabledMessage);
-        setRaffleMethod(data.raffleMethod || 'default');
+        const method = (data as any).raffleMethod;
+        setRaffleMethod(method === 1 ? 1 : 0);
         
-        // Fetch custom products if method is custom
-        if (data.raffleMethod === 'custom') {
+        if (method === 1) {
           setLoadingProducts(true);
           fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5006'}/api/raffle/products`)
             .then(res => res.json())
@@ -268,10 +269,10 @@ export const Raffle: FC = () => {
   // Show disabled message when raffle is turned off
   if (!raffleEnabled) {
     return (
-      <div className="min-h-screen bg-dark-base flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <h1 className="text-3xl font-bold text-white mb-4">Sorteo cerrado</h1>
-          <p className="text-gray-400 text-lg">
+      <div className="min-h-screen bg-dark-base flex items-center justify-center p-4" data-ui="raffle-disabled-page">
+        <div className="text-center max-w-md" data-ui="raffle-disabled-content">
+          <h1 className="text-3xl font-bold text-white mb-4" data-ui="raffle-disabled-title">Sorteo cerrado</h1>
+          <p className="text-gray-400 text-lg" data-ui="raffle-disabled-message">
             {disabledMessage || 'El sorteo no esta disponible en este momento.'}
           </p>
         </div>
@@ -307,12 +308,13 @@ export const Raffle: FC = () => {
                 SORTEO
               </h1>
               {/* Separator line with faded margins */}
-              <div className="relative mt-4 mx-8 md:mx-16 lg:mx-32">
+              <div className="relative mt-4 mx-8 md:mx-16 lg:mx-32" data-ui="raffle-separator">
                 <div
                   className="h-px"
                   style={{
                     background: 'linear-gradient(to right, transparent, #dc2626 20%, #dc2626 80%, transparent)',
                   }}
+                  data-ui="raffle-separator-line"
                 />
               </div>
             </div>
@@ -326,26 +328,28 @@ export const Raffle: FC = () => {
               data-component="RaffleTextOverlay"
             >
               {/* Text 1 - Static */}
-              <div className="w-full flex justify-center" style={{ opacity: 1 }}>
-                <h2
+              <div className="w-full flex justify-center" style={{ opacity: 1 }} data-ui="raffle-text-1">
+                <h1
                   className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white text-center px-4 max-w-4xl"
                   style={{
                     fontFamily: '"Contrail One", sans-serif',
                     textTransform: 'uppercase',
                   }}
+                  data-ui="raffle-hero-title"
                 >
                   Entra en el sorteo de un cinturon SBD
-                </h2>
+                </h1>
               </div>
 
               {/* Text 2 - Static */}
-              <div className="w-full flex justify-center mt-4" style={{ opacity: 1 }}>
+              <div className="w-full flex justify-center mt-4" style={{ opacity: 1 }} data-ui="raffle-text-2">
                 <h2
                   className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white text-center px-4 max-w-4xl"
                   style={{
                     fontFamily: '"Contrail One", sans-serif',
                     textTransform: 'uppercase',
                   }}
+                  data-ui="raffle-hero-subtitle"
                 >
                   Participa tantas veces como quieras para tener mas oportunidades de ganar
                 </h2>
@@ -406,47 +410,38 @@ export const Raffle: FC = () => {
         </section>
 
         {/* Custom Products Section (only shown when raffle method is "custom") */}
-        {raffleMethod === 'custom' && (
+        {raffleMethod === 1 && (
           <section id="custom-products" className="min-h-screen py-24 px-4 bg-black" data-testid="custom-products-section">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }}>
+            <div className="max-w-6xl mx-auto" data-ui="custom-products-container">
+              <div className="text-center mb-16" data-ui="custom-products-header">
+                <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: '"Contrail One", sans-serif', textTransform: 'uppercase' }} data-ui="custom-products-title">
                   Productos del Sorteo
                 </h2>
-                <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+                <p className="text-xl text-gray-400 max-w-2xl mx-auto" data-ui="custom-products-subtitle">
                   Participa para ganar estos increíbles productos
                 </p>
               </div>
 
               {loadingProducts ? (
-                <div className="flex items-center justify-center py-24">
-                  <div className="w-12 h-12 border-4 border-white/20 border-t-red-accent rounded-full animate-spin" />
+                <div className="flex items-center justify-center py-24" data-ui="custom-products-loading">
+                  <div className="w-12 h-12 border-4 border-white/20 border-t-red-accent rounded-full animate-spin" data-ui="custom-products-spinner" />
                 </div>
               ) : customProducts.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" data-ui="custom-products-grid">
                   {customProducts.map((product) => (
                     <div
                       key={product.id}
                       className="group p-6 rounded-2xl bg-gray-900 border border-gray-800 hover:border-red-accent/50 transition-all duration-300 hover:scale-[1.02]"
                       data-testid="product-card"
+                      data-ui={`custom-product-card-${product.id}`}
                     >
-                      {/* Product Image */}
-                      {product.imageData ? (
-                        <div className="mb-4 overflow-hidden rounded-xl">
-                          <img
-                            src={product.imageData}
-                            alt={product.title}
-                            className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
-                            data-testid="card-image"
-                          />
-                        </div>
-                      ) : (
-                        <div className="mb-4 h-48 bg-gray-800 rounded-xl flex items-center justify-center" data-testid="card-image">
-                          <Trophy className="w-16 h-16 text-gray-600" />
-                        </div>
-                      )}
+                      <FallbackImage
+                        src={product.imageUrl}
+                        alt={product.title}
+                        className="h-48 mb-4"
+                        iconClassName="w-16 h-16"
+                      />
 
-                      {/* Product Info */}
                       <h3 className="text-2xl font-bold text-white mb-2" data-testid="card-title">
                         {product.title}
                       </h3>
@@ -460,8 +455,8 @@ export const Raffle: FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-24" data-testid="no-products-message">
-                  <Trophy className="w-24 h-24 text-gray-600 mx-auto mb-4" />
-                  <p className="text-xl text-gray-400">
+                  <FallbackImage className="h-24 mx-auto mb-4" iconClassName="w-24 h-24" alt="" />
+                  <p className="text-xl text-gray-400" data-ui="no-products-text">
                     No hay productos disponibles en este momento
                   </p>
                 </div>
@@ -515,7 +510,7 @@ export const Raffle: FC = () => {
                       <Icon name={step.icon as any} color="red-accent" size="lg" />
                     </div>
 
-                    <div className="flex-1 hidden lg:block" />
+                <div className="flex-1 hidden lg:block" data-ui="step-spacer" />
                   </div>
                 ))}
               </div>
@@ -762,10 +757,10 @@ export const Raffle: FC = () => {
 
               {/* Summary */}
               <div className="flex items-center justify-between py-4" data-ui="enroll-summary">
-                <span className="text-xl text-gray-300">
+                <span className="text-xl text-gray-300" data-ui="enroll-summary-detail">
                   {ticketCount} boleto{ticketCount !== 1 ? 's' : ''} × 0,50 €
                 </span>
-                <span className="text-3xl font-bold text-white">
+                <span className="text-3xl font-bold text-white" data-ui="enroll-summary-price">
                   {totalPrice}
                 </span>
               </div>
@@ -781,8 +776,8 @@ export const Raffle: FC = () => {
                     onChange={(e) => updateFormData('dataConsent', e.target.checked)}
                     className="mt-1 w-5 h-5 rounded border-gray-600 bg-dark-card text-red-accent focus:ring-red-accent focus:ring-offset-0 cursor-pointer"
                   />
-                  <div className="flex-1">
-                    <label htmlFor="data-consent" className="text-gray-300 cursor-pointer">
+                  <div className="flex-1" data-ui="data-consent-content">
+                    <label htmlFor="data-consent" className="text-gray-300 cursor-pointer" data-ui="data-consent-label">
                       He leído y acepto la{' '}
                       <a
                         href="/consentimiento-datos"
@@ -795,7 +790,7 @@ export const Raffle: FC = () => {
                       </a>
                     </label>
                     {errors.dataConsent && (
-                      <p className="text-red-400 text-sm mt-1">{errors.dataConsent}</p>
+                      <p className="text-red-400 text-sm mt-1" data-ui="data-consent-error">{errors.dataConsent}</p>
                     )}
                   </div>
                 </div>
@@ -809,8 +804,8 @@ export const Raffle: FC = () => {
                     onChange={(e) => updateFormData('contestPolicy', e.target.checked)}
                     className="mt-1 w-5 h-5 rounded border-gray-600 bg-dark-card text-red-accent focus:ring-red-accent focus:ring-offset-0 cursor-pointer"
                   />
-                  <div className="flex-1">
-                    <label htmlFor="contest-policy" className="text-gray-300 cursor-pointer">
+                  <div className="flex-1" data-ui="contest-policy-content">
+                    <label htmlFor="contest-policy" className="text-gray-300 cursor-pointer" data-ui="contest-policy-label">
                       He leído y estoy de acuerdo con la{' '}
                       <a
                         href="/politica-concurso"
@@ -823,7 +818,7 @@ export const Raffle: FC = () => {
                       </a>
                     </label>
                     {errors.contestPolicy && (
-                      <p className="text-red-400 text-sm mt-1">{errors.contestPolicy}</p>
+                      <p className="text-red-400 text-sm mt-1" data-ui="contest-policy-error">{errors.contestPolicy}</p>
                     )}
                   </div>
                 </div>

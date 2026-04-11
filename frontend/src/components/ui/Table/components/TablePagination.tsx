@@ -35,8 +35,8 @@ export function TablePagination({
   // Don't render if only one page
   if (totalPages <= 1) {
     return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t border-dark-border ${className}`}>
-        <p className="text-sm text-gray-400">
+      <div className={`flex items-center justify-between px-4 py-3 border-t border-dark-border ${className}`} data-ui="table-pagination">
+        <p className="text-sm text-gray-400" data-ui="pagination-info">
           Showing {startItem} to {endItem} of {totalItems} results
         </p>
       </div>
@@ -44,14 +44,14 @@ export function TablePagination({
   }
 
   return (
-    <div className={`flex items-center justify-between px-4 py-3 border-t border-dark-border ${className}`}>
+    <div className={`flex items-center justify-between px-4 py-3 border-t border-dark-border ${className}`} data-ui="table-pagination">
       {/* Results info */}
-      <p className="text-sm text-gray-400">
+      <p className="text-sm text-gray-400" data-ui="pagination-info">
         Showing {startItem} to {endItem} of {totalItems} results
       </p>
 
       {/* Page navigation */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" data-ui="pagination-controls">
         {/* Previous button */}
         <button
           onClick={() => onPageChange(currentPage - 1)}
@@ -62,6 +62,7 @@ export function TablePagination({
               : 'text-gray-300 hover:bg-white/10 hover:text-white'
           }`}
           aria-label="Previous page"
+          data-testid="pagination-prev-btn"
         >
           <Icon name="chevron-left" size="sm" />
         </button>
@@ -73,11 +74,12 @@ export function TablePagination({
               key={`page-${index}`}
               onClick={() => onPageChange(page)}
               className={getPaginationButtonClasses(currentPage === page, false)}
+              data-testid={`pagination-page-${page}`}
             >
               {page}
             </button>
           ) : (
-            <span key={`ellipsis-${index}`} className="px-2 text-gray-500">
+            <span key={`ellipsis-${index}`} className="px-2 text-gray-500" data-ui="pagination-ellipsis">
               {page}
             </span>
           )
@@ -93,6 +95,7 @@ export function TablePagination({
               : 'text-gray-300 hover:bg-white/10 hover:text-white'
           }`}
           aria-label="Next page"
+          data-testid="pagination-next-btn"
         >
           <Icon name="chevron-right" size="sm" />
         </button>

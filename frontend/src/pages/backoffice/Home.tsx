@@ -50,10 +50,10 @@ export function BackofficeHome(): JSX.Element {
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="backoffice-home">
         {/* Header */}
         <div className="mb-6 xs:mb-8" data-ui="home-header">
-          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2">
+          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2" data-ui="home-title">
             Panel de Administracion
           </h1>
-          <p className="text-sm xs:text-base text-gray-400">
+          <p className="text-sm xs:text-base text-gray-400" data-ui="home-subtitle">
             Gestiona las inscripciones, sorteos y horarios del GR Cup
           </p>
         </div>
@@ -172,31 +172,31 @@ export function BackofficeHome(): JSX.Element {
         {/* Info Cards */}
         <div className="mt-6 xs:mt-8 grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 xs:gap-6" data-ui="info-cards">
           <div className="p-5 bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl" data-ui="info-how">
-            <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-red-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2" data-ui="info-how-title">
+              <svg className="w-4 h-4 text-red-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="info-how-icon">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Como funciona
             </h3>
-            <div className="space-y-2 text-gray-400 text-sm">
-              <p>Cada ticket cuesta <span className="text-white font-semibold">0.50 EUR</span></p>
-              <p>Los participantes pueden comprar multiples tickets</p>
-              <p>El ganador se selecciona aleatoriamente (ponderado por tickets)</p>
-              <p>Actualizaciones en tiempo real via SignalR</p>
+            <div className="space-y-2 text-gray-400 text-sm" data-ui="info-how-list">
+              <p data-ui="info-how-price">Cada ticket cuesta <span className="text-white font-semibold" data-ui="info-how-price-value">0.50 EUR</span></p>
+              <p data-ui="info-how-multiple">Los participantes pueden comprar multiples tickets</p>
+              <p data-ui="info-how-winner">El ganador se selecciona aleatoriamente (ponderado por tickets)</p>
+              <p data-ui="info-how-realtime">Actualizaciones en tiempo real via SignalR</p>
             </div>
           </div>
           <div className="p-5 bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl" data-ui="info-security">
-            <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-red-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2" data-ui="info-security-title">
+              <svg className="w-4 h-4 text-red-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="info-security-icon">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               Seguridad
             </h3>
-            <div className="space-y-2 text-gray-400 text-sm">
-              <p>Todas las rutas admin estan protegidas por JWT</p>
-              <p>Las sesiones expiran despues de 24 horas</p>
-              <p>Todos los sorteos quedan registrados con timestamps</p>
-              <p>Cambiar credenciales por defecto en produccion</p>
+            <div className="space-y-2 text-gray-400 text-sm" data-ui="info-security-list">
+              <p data-ui="info-security-jwt">Todas las rutas admin estan protegidas por JWT</p>
+              <p data-ui="info-security-sessions">Las sesiones expiran despues de 24 horas</p>
+              <p data-ui="info-security-audit">Todos los sorteos quedan registrados con timestamps</p>
+              <p data-ui="info-security-creds">Cambiar credenciales por defecto en produccion</p>
             </div>
           </div>
         </div>

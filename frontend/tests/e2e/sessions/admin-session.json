@@ -2,15 +2,15 @@
   "cookies": [
     {
       "name": "gr_cup_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiamFpbWVAaG90bWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6Ijk2OGViMjMzLWRhYTItNDg2ZC1iYzQ2LTBhYTE1ZDE4MzI4OCIsImV4cCI6MTc3NTk1ODA0MiwiaXNzIjoiR3JDdXBBcGkiLCJhdWQiOiJHckN1cCJ9.DoKi7-AVm50BLjkltSciThzTsEi9qd5HPiByEVlBs2M",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiamFpbWVAaG90bWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6ImVlMmVlYzNmLWRjNWEtNGI2Ny1iMWVmLTdjMzA3NzE0ODU4NCIsImV4cCI6MTc3NjAwMjMyOCwiaXNzIjoiR3JDdXBBcGkiLCJhdWQiOiJHckN1cCJ9.T84t58QXciFyajn4ryX555mfKpULGm8yTa1a00VXzZs",
       "domain": "localhost",
       "path": "/",
-      "expires": 1775958042.445638,
+      "expires": 1776002328.579116,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
     }
   ],
-  "savedAt": "2026-04-11T01:40:43.456Z",
+  "savedAt": "2026-04-11T13:58:49.594Z",
   "hasAuthCookie": true
 }

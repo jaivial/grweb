@@ -55,17 +55,17 @@ export function Configuracion(): JSX.Element {
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="configuracion-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
-          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2 flex items-center gap-3">
+          <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2 flex items-center gap-3" data-ui="config-title">
             <Settings className="w-6 h-6 text-red-accent" />
             Configuración General
           </h1>
-          <p className="text-sm xs:text-base text-white/50">
+          <p className="text-sm xs:text-base text-white/50" data-ui="config-subtitle">
             Gestiona la configuración general del sistema
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="mb-4 xs:mb-6 -mx-3 xs:-mx-4 px-3 xs:px-4 overflow-x-auto scrollbar-hide">
+        <div className="mb-4 xs:mb-6 -mx-3 xs:-mx-4 px-3 xs:px-4 overflow-x-auto scrollbar-hide" data-ui="config-tabs-wrapper">
           <Tabs
             tabs={TABS}
             activeTab={activeTab}
@@ -76,7 +76,7 @@ export function Configuracion(): JSX.Element {
         {/* Content */}
         {isLoading ? (
           <div className="flex items-center justify-center py-16" data-ui="loading-state">
-            <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" data-ui="config-loading-spinner" />
           </div>
         ) : error ? (
           <div className="p-4 bg-red-accent/10 border border-red-accent/20 rounded-xl text-red-400 text-sm" data-ui="error-state">

@@ -1,0 +1,385 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="cea25c75-bc75-42c1-94f6-70ba3ec6e08b" name="@fedora 2026-04-12 01:15:38" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-04-12T01:15:38.6305273+02:00" queuing="2026-04-12T01:15:38.6305273+02:00" start="2026-04-12T01:15:37.5799751+02:00" finish="2026-04-12T01:15:39.0757749+02:00" />
+  <TestSettings name="default" id="c9d0e9d4-9935-46c7-953a-1ee77a936dd6">
+    <Deployment runDeploymentRoot="_fedora_2026-04-12_01_15_38" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="3fdd0454-a6de-4e9b-97e3-3812e08623f1" testId="645f4c59-c1e6-8b2d-a013-68be2f44366d" testName="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_IncludesDisabledMessage_WhenSet" computerName="fedora" duration="00:00:00.0015067" startTime="2026-04-12T01:15:38.9092355+02:00" endTime="2026-04-12T01:15:38.9092355+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3fdd0454-a6de-4e9b-97e3-3812e08623f1" />
+    <UnitTestResult executionId="5f0b6fa4-06ad-42c0-b9ec-5252f275230d" testId="37fce6b8-eb22-cf3c-2f52-9374bddd85fa" testName="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_TitleRequired_Returns400" computerName="fedora" duration="00:00:00.0017127" startTime="2026-04-12T01:15:38.6038986+02:00" endTime="2026-04-12T01:15:38.6038987+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5f0b6fa4-06ad-42c0-b9ec-5252f275230d" />
+    <UnitTestResult executionId="3e637d6b-b1bf-4b14-9edc-bf09fb80f2e0" testId="1fffba7d-ccfa-b7ae-8686-63d6653e2643" testName="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_InvalidFileType_Returns400" computerName="fedora" duration="00:00:00.0023591" startTime="2026-04-12T01:15:38.6906374+02:00" endTime="2026-04-12T01:15:38.6906375+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3e637d6b-b1bf-4b14-9edc-bf09fb80f2e0">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Contains() Failure
+Not found: tipo
+In value:  Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed</Message>
+          <StackTrace>   at GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_InvalidFileType_Returns400() in /home/jaime/projects/grweb/backend/GrCup.Api.Tests/RaffleProductsApiTests.cs:line 263
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="c11f0e3a-b738-4b8a-b30c-1ce674babb4c" testId="a72c1bad-2937-c65f-86e8-2d0d8f27d276" testName="GrCup.Api.Tests.RaffleProductsApiTests.GetAdminProducts_ReturnsCorrectShape" computerName="fedora" duration="00:00:00.0067475" startTime="2026-04-12T01:15:38.6454312+02:00" endTime="2026-04-12T01:15:38.6454313+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c11f0e3a-b738-4b8a-b30c-1ce674babb4c" />
+    <UnitTestResult executionId="4e4785c0-85cf-4f4f-b1aa-d54727e81f80" testId="857cdcda-ec90-beb1-bec3-8dd688fbeb28" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByNameDesc" computerName="fedora" duration="00:00:00.0068252" startTime="2026-04-12T01:15:38.9570647+02:00" endTime="2026-04-12T01:15:38.9570648+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4e4785c0-85cf-4f4f-b1aa-d54727e81f80" />
+    <UnitTestResult executionId="218efa51-06e8-43ed-bb72-4dcf37384208" testId="60c3e896-784a-90f6-8b32-8a69069d86e8" testName="GrCup.Api.Tests.RaffleProductsServiceTests.RaffleConfig_DefaultsToMethodZero" computerName="fedora" duration="00:00:00.0002612" startTime="2026-04-12T01:15:38.9352127+02:00" endTime="2026-04-12T01:15:38.9352128+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="218efa51-06e8-43ed-bb72-4dcf37384208" />
+    <UnitTestResult executionId="e4d4118c-a126-4c8c-b6a9-1dec8e100846" testId="a7528a30-4235-4cfa-777c-6ed7e76777d5" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_ReturnsAllWhenSearchIsEmpty" computerName="fedora" duration="00:00:00.0019721" startTime="2026-04-12T01:15:38.9591070+02:00" endTime="2026-04-12T01:15:38.9591071+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e4d4118c-a126-4c8c-b6a9-1dec8e100846" />
+    <UnitTestResult executionId="2149f932-a6ae-49e4-82f8-9f6f3e1dcc28" testId="5447ee14-d99c-4fb9-eea5-a05c22476285" testName="GrCup.Api.Tests.RaffleProductsApiTests.GetAdminProducts_ReturnsEmptyWhenNoProducts" computerName="fedora" duration="00:00:00.0095234" startTime="2026-04-12T01:15:38.6012070+02:00" endTime="2026-04-12T01:15:38.6012071+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2149f932-a6ae-49e4-82f8-9f6f3e1dcc28" />
+    <UnitTestResult executionId="071a38d3-2bdc-4088-8af3-f0e8ca246014" testId="40c281ca-2a60-682f-ed54-e79c9b4a842d" testName="GrCup.Api.Tests.RaffleConfigServiceTests.UpdateConfig_SetsRaffleMethodToCustom" computerName="fedora" duration="00:00:00.0008922" startTime="2026-04-12T01:15:38.9136971+02:00" endTime="2026-04-12T01:15:38.9136974+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="071a38d3-2bdc-4088-8af3-f0e8ca246014" />
+    <UnitTestResult executionId="6841b0fd-41d4-4628-81b0-24b8bc868379" testId="4b6723d0-ca68-05f0-10d7-c8bf7dc45711" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByPaymentMethodStripe" computerName="fedora" duration="00:00:00.0014418" startTime="2026-04-12T01:15:38.9779722+02:00" endTime="2026-04-12T01:15:38.9779722+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6841b0fd-41d4-4628-81b0-24b8bc868379" />
+    <UnitTestResult executionId="7804744f-fbca-41b7-bf37-0cebcddd122b" testId="3eb1fd1c-6b91-a710-20a3-e96acbec65f1" testName="GrCup.Api.Tests.RaffleConfigServiceTests.RaffleConfig_DefaultsToMethodZero" computerName="fedora" duration="00:00:00.0001428" startTime="2026-04-12T01:15:38.9127490+02:00" endTime="2026-04-12T01:15:38.9127490+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7804744f-fbca-41b7-bf37-0cebcddd122b" />
+    <UnitTestResult executionId="f0b4b62b-4819-4441-a523-d9c456a1f320" testId="57cbcc2c-9b49-0232-8b2c-7e985f07da67" testName="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_ReturnsIsEnabledFalse_WhenRaffleIsDisabled" computerName="fedora" duration="00:00:00.0221277" startTime="2026-04-12T01:15:38.9091564+02:00" endTime="2026-04-12T01:15:38.9091567+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f0b4b62b-4819-4441-a523-d9c456a1f320" />
+    <UnitTestResult executionId="45d38522-6e64-4490-8adf-77859265d6c9" testId="483070ae-63b7-9826-496d-71ce0c76b630" testName="GrCup.Api.Tests.RaffleConfigServiceTests.RaffleConfig_CanSetMethodToOne" computerName="fedora" duration="00:00:00.0006562" startTime="2026-04-12T01:15:38.8849069+02:00" endTime="2026-04-12T01:15:38.8849069+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="45d38522-6e64-4490-8adf-77859265d6c9" />
+    <UnitTestResult executionId="6a1f935a-fc2a-4acc-82c3-f7a8fbb3878d" testId="6d65bdd5-171a-477a-c809-371a433e23a5" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_ReturnsRemainingOnLastPage" computerName="fedora" duration="00:00:00.4809831" startTime="2026-04-12T01:15:38.8975310+02:00" endTime="2026-04-12T01:15:38.8975312+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6a1f935a-fc2a-4acc-82c3-f7a8fbb3878d" />
+    <UnitTestResult executionId="8cca740c-bca1-4fac-9d6f-6f5de1a12400" testId="f5931e46-f5aa-9e99-d80b-1bdcb6e42452" testName="GrCup.Api.Tests.RaffleProductsApiTests.UpdateProduct_UpdatesTitle" computerName="fedora" duration="00:00:00.0101873" startTime="2026-04-12T01:15:38.5390764+02:00" endTime="2026-04-12T01:15:38.5390766+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8cca740c-bca1-4fac-9d6f-6f5de1a12400" />
+    <UnitTestResult executionId="f6b9cb17-cb2c-499b-be23-b64edba21105" testId="168fbc05-0a98-8c6a-d92d-1dcfbf29333e" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SearchesByInstagram" computerName="fedora" duration="00:00:00.0010235" startTime="2026-04-12T01:15:39.0012465+02:00" endTime="2026-04-12T01:15:39.0012466+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f6b9cb17-cb2c-499b-be23-b64edba21105" />
+    <UnitTestResult executionId="26e38d86-1eba-43b5-9ca5-51ed9c3a46de" testId="1a340166-a67a-8c0c-28c4-1f8b0460ba40" testName="GrCup.Api.Tests.RaffleProductsServiceTests.RaffleMethod_CanBeZeroOrOne" computerName="fedora" duration="00:00:00.4681228" startTime="2026-04-12T01:15:38.8846475+02:00" endTime="2026-04-12T01:15:38.8846476+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="26e38d86-1eba-43b5-9ca5-51ed9c3a46de" />
+    <UnitTestResult executionId="2921c108-905f-4c7a-8046-e7dfc470a704" testId="46d86a0b-0c51-462f-76b1-0d764ae53fca" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByCreatedAtDescByDefault" computerName="fedora" duration="00:00:00.0010695" startTime="2026-04-12T01:15:39.0001570+02:00" endTime="2026-04-12T01:15:39.0001571+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2921c108-905f-4c7a-8046-e7dfc470a704" />
+    <UnitTestResult executionId="ee6625b9-7c91-4477-a1e3-337bddd633c4" testId="6e9d26e2-a26e-f8cc-c9e1-36f3c60d49b9" testName="GrCup.Api.Tests.RaffleProductsApiTests.UpdateRaffleConfig_SetsRaffleMethod" computerName="fedora" duration="00:00:00.0046561" startTime="2026-04-12T01:15:38.5793197+02:00" endTime="2026-04-12T01:15:38.5793198+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ee6625b9-7c91-4477-a1e3-337bddd633c4" />
+    <UnitTestResult executionId="11667a30-4bbf-4138-93ec-527993df4377" testId="b527263b-3f77-80ae-cbf9-bf2bc4e45558" testName="GrCup.Api.Tests.RaffleProductsApiTests.DeleteProduct_NonExistent_Returns404" computerName="fedora" duration="00:00:00.0014200" startTime="2026-04-12T01:15:38.6193803+02:00" endTime="2026-04-12T01:15:38.6193804+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="11667a30-4bbf-4138-93ec-527993df4377" />
+    <UnitTestResult executionId="73c757a7-7624-4c52-a28c-6f2956e15190" testId="738296a9-95b4-35e3-d20a-836fabc7c176" testName="GrCup.Api.Tests.RaffleProductsServiceTests.CreateProduct_WithSubtitle_StoresSubtitle" computerName="fedora" duration="00:00:00.0043687" startTime="2026-04-12T01:15:38.9348593+02:00" endTime="2026-04-12T01:15:38.9348594+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="73c757a7-7624-4c52-a28c-6f2956e15190" />
+    <UnitTestResult executionId="29757221-e40a-49f3-8bba-6bc0622e48d1" testId="201de9b9-d1e0-8ebc-bc6a-6879c28b4d4e" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByNameAsc" computerName="fedora" duration="00:00:00.0054072" startTime="2026-04-12T01:15:38.9764545+02:00" endTime="2026-04-12T01:15:38.9764548+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="29757221-e40a-49f3-8bba-6bc0622e48d1" />
+    <UnitTestResult executionId="1cbaca78-4246-4a7e-89b6-89c1b5582370" testId="ec064b90-9c28-a71c-ef5a-c1431468cb81" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SearchesByName" computerName="fedora" duration="00:00:00.0010112" startTime="2026-04-12T01:15:39.0078857+02:00" endTime="2026-04-12T01:15:39.0078857+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1cbaca78-4246-4a7e-89b6-89c1b5582370" />
+    <UnitTestResult executionId="4e637429-e27e-43c6-b947-9a1bb61c058b" testId="e58c4c36-c70c-67dc-c447-cb49198f092e" testName="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicProducts_RaffleMethod1_ExcludesInactiveProducts" computerName="fedora" duration="00:00:00.0138342" startTime="2026-04-12T01:15:38.6178619+02:00" endTime="2026-04-12T01:15:38.6178621+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4e637429-e27e-43c6-b947-9a1bb61c058b" />
+    <UnitTestResult executionId="9b54b020-6cb6-45d4-bc8a-4a909aa73885" testId="5ee0903b-0569-4940-2f6e-cd2a5da4f55d" testName="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicProducts_RaffleMethod0_ReturnsEmptyArray" computerName="fedora" duration="00:00:00.0057535" startTime="2026-04-12T01:15:38.6786039+02:00" endTime="2026-04-12T01:15:38.6786040+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9b54b020-6cb6-45d4-bc8a-4a909aa73885" />
+    <UnitTestResult executionId="834f5733-c1ae-4a29-9eff-fcd5201e47da" testId="13b923dd-bdc0-d474-9384-017a6aadcefa" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SearchesByEmail" computerName="fedora" duration="00:00:00.0335478" startTime="2026-04-12T01:15:38.9312076+02:00" endTime="2026-04-12T01:15:38.9312077+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="834f5733-c1ae-4a29-9eff-fcd5201e47da" />
+    <UnitTestResult executionId="8db6f53b-dd03-46ee-b012-34ba78854cdd" testId="6951d103-0b8f-ee36-59c2-2dd44a0d1108" testName="GrCup.Api.Tests.RaffleProductsServiceTests.ToggleStatus_FlipsIsActive" computerName="fedora" duration="00:00:00.0017716" startTime="2026-04-12T01:15:38.9370912+02:00" endTime="2026-04-12T01:15:38.9370914+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8db6f53b-dd03-46ee-b012-34ba78854cdd" />
+    <UnitTestResult executionId="541164e7-ab47-4e71-b0fa-7b3db178a275" testId="5268d54f-4361-789c-e30d-f1824a02eb93" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SkipsCorrectly" computerName="fedora" duration="00:00:00.0046080" startTime="2026-04-12T01:15:39.0068198+02:00" endTime="2026-04-12T01:15:39.0068199+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="541164e7-ab47-4e71-b0fa-7b3db178a275" />
+    <UnitTestResult executionId="1717d19d-81c3-4b05-8eeb-c12e14873a7c" testId="9708ae43-2bdf-9b9f-f65a-de44c498488f" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByTicketCountDesc" computerName="fedora" duration="00:00:00.0060113" startTime="2026-04-12T01:15:38.9841275+02:00" endTime="2026-04-12T01:15:38.9841277+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1717d19d-81c3-4b05-8eeb-c12e14873a7c" />
+    <UnitTestResult executionId="7f269950-efb4-442e-8e68-f33e32280479" testId="898043bb-aa00-860a-f9f5-3ab98f7c54ef" testName="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_WithTitleOnly_Returns200" computerName="fedora" duration="00:00:00.0056308" startTime="2026-04-12T01:15:38.6385437+02:00" endTime="2026-04-12T01:15:38.6385439+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7f269950-efb4-442e-8e68-f33e32280479" />
+    <UnitTestResult executionId="0dd718f6-5b24-467c-9620-19d2dd2bba0d" testId="e189bd98-930b-7b3d-fb91-20012aa1fe34" testName="GrCup.Api.Tests.RaffleProductsApiTests.ReorderProducts_ChangesDisplayOrder" computerName="fedora" duration="00:00:00.0205759" startTime="2026-04-12T01:15:38.6661481+02:00" endTime="2026-04-12T01:15:38.6661482+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0dd718f6-5b24-467c-9620-19d2dd2bba0d" />
+    <UnitTestResult executionId="e598b9c8-8bd1-4b68-a862-3d0597ce1b25" testId="8b9e68d5-688c-c1d3-df21-f23e69db309f" testName="GrCup.Api.Tests.RaffleProductsApiTests.DeleteProduct_RemovesProduct" computerName="fedora" duration="00:00:00.0064396" startTime="2026-04-12T01:15:38.6727191+02:00" endTime="2026-04-12T01:15:38.6727193+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e598b9c8-8bd1-4b68-a862-3d0597ce1b25" />
+    <UnitTestResult executionId="9d9c52bf-7d9c-4c6d-be4d-48d002578e10" testId="5c977333-2b7d-f219-3066-40744cdc7279" testName="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_ReturnsDefaultEnabled_WhenNoConfigExists" computerName="fedora" duration="00:00:00.0006501" startTime="2026-04-12T01:15:38.9143977+02:00" endTime="2026-04-12T01:15:38.9143978+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9d9c52bf-7d9c-4c6d-be4d-48d002578e10" />
+    <UnitTestResult executionId="0b6bc784-a8b7-44f3-9474-881c7ff37893" testId="09f4a585-3e70-5933-e30a-c56c49ae5dd1" testName="GrCup.Api.Tests.RaffleProductsServiceTests.DeleteProduct_RemovesFromDb" computerName="fedora" duration="00:00:00.0128060" startTime="2026-04-12T01:15:38.9570866+02:00" endTime="2026-04-12T01:15:38.9570866+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0b6bc784-a8b7-44f3-9474-881c7ff37893" />
+    <UnitTestResult executionId="1445abf4-7d44-4ab7-b365-8c317bbf6960" testId="f6c911fa-e1d6-412e-8430-63e0e4abb511" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByIsPaidFalse" computerName="fedora" duration="00:00:00.0009167" startTime="2026-04-12T01:15:39.0088564+02:00" endTime="2026-04-12T01:15:39.0088564+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1445abf4-7d44-4ab7-b365-8c317bbf6960" />
+    <UnitTestResult executionId="d99cede9-b484-4de5-a4d5-5acd9a50632e" testId="48dbac4d-2b86-0f76-14a6-acdf2f10a5d4" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByPaymentMethodBank" computerName="fedora" duration="00:00:00.0018591" startTime="2026-04-12T01:15:38.9990162+02:00" endTime="2026-04-12T01:15:38.9990163+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d99cede9-b484-4de5-a4d5-5acd9a50632e" />
+    <UnitTestResult executionId="e3dd69dc-7276-4150-a61f-5f7b0c155cf3" testId="8cbcd6dc-e028-0eb5-fc7e-f46e6f714e64" testName="GrCup.Api.Tests.RaffleConfigServiceTests.UpdateConfig_SetsDisabledMessage_WhenProvided" computerName="fedora" duration="00:00:00.0012592" startTime="2026-04-12T01:15:38.9115076+02:00" endTime="2026-04-12T01:15:38.9115077+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e3dd69dc-7276-4150-a61f-5f7b0c155cf3" />
+    <UnitTestResult executionId="8445c49f-1c14-492d-bf84-17b288e42372" testId="2e7677d9-be54-972f-4f5a-04e98107ed15" testName="GrCup.Api.Tests.RaffleProductsApiTests.UpdateProduct_TogglesIsActive" computerName="fedora" duration="00:00:00.1056621" startTime="2026-04-12T01:15:38.5282381+02:00" endTime="2026-04-12T01:15:38.5282541+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8445c49f-1c14-492d-bf84-17b288e42372" />
+    <UnitTestResult executionId="21c798a2-dd44-4f89-ac47-6a90578a5852" testId="74b46501-12e3-1abf-3fdc-1906e7a41b50" testName="GrCup.Api.Tests.RaffleProductsServiceTests.ReorderProducts_ChangesDisplayOrder" computerName="fedora" duration="00:00:00.0455679" startTime="2026-04-12T01:15:38.9303366+02:00" endTime="2026-04-12T01:15:38.9303369+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="21c798a2-dd44-4f89-ac47-6a90578a5852" />
+    <UnitTestResult executionId="f441df2d-7e32-4b11-8b1a-65a020611f7b" testId="fec72b08-9fde-cdd1-7875-2e080db28371" testName="GrCup.Api.Tests.RaffleConfigServiceTests.RaffleConfig_IncludesRaffleMethodInResponse" computerName="fedora" duration="00:00:00.4674047" startTime="2026-04-12T01:15:38.8841675+02:00" endTime="2026-04-12T01:15:38.8841677+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f441df2d-7e32-4b11-8b1a-65a020611f7b" />
+    <UnitTestResult executionId="e34848e8-6a55-4264-8d7b-bd9336745c15" testId="cf90342f-94fc-f97f-f87e-4d6583e34c7b" testName="GrCup.Api.Tests.RaffleProductsServiceTests.GetActiveProducts_FiltersCorrectly" computerName="fedora" duration="00:00:00.0069371" startTime="2026-04-12T01:15:38.9441619+02:00" endTime="2026-04-12T01:15:38.9441620+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e34848e8-6a55-4264-8d7b-bd9336745c15" />
+    <UnitTestResult executionId="88fe7d31-f3b6-4d16-b597-60e143def0af" testId="70084e4b-cd14-606d-1432-4bcab8c41496" testName="GrCup.Api.Tests.RaffleProductsApiTests.ToggleStatus_FlipsIsActive" computerName="fedora" duration="00:00:00.0132352" startTime="2026-04-12T01:15:38.6327540+02:00" endTime="2026-04-12T01:15:38.6327541+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="88fe7d31-f3b6-4d16-b597-60e143def0af" />
+    <UnitTestResult executionId="20a910e0-b856-4cbd-947b-a5f9eda2d418" testId="a4fc5001-b764-dc4e-117e-1a580c9a5e1e" testName="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_WithTitleAndSubtitle_Returns200" computerName="fedora" duration="00:00:00.0069644" startTime="2026-04-12T01:15:38.5461572+02:00" endTime="2026-04-12T01:15:38.5461573+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="20a910e0-b856-4cbd-947b-a5f9eda2d418" />
+    <UnitTestResult executionId="00a7a520-60cd-4890-9dac-768bb360097c" testId="613d0714-215c-3852-7c59-c5b70039933f" testName="GrCup.Api.Tests.RaffleConfigServiceTests.UpdateConfig_SetsIsEnabledFalse_WhenUpdating" computerName="fedora" duration="00:00:00.0009862" startTime="2026-04-12T01:15:38.9125590+02:00" endTime="2026-04-12T01:15:38.9125591+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="00a7a520-60cd-4890-9dac-768bb360097c" />
+    <UnitTestResult executionId="e225de71-a7b8-4893-8527-30d308ead23d" testId="bd345429-b6fc-5044-e682-c7acb65aaeed" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByPaymentMethodCash" computerName="fedora" duration="00:00:00.0125307" startTime="2026-04-12T01:15:38.9508556+02:00" endTime="2026-04-12T01:15:38.9508558+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e225de71-a7b8-4893-8527-30d308ead23d" />
+    <UnitTestResult executionId="a1310d9b-553b-4b47-a83d-08fcc20670b8" testId="9ab854b2-ec95-b7e9-733a-3ca636389596" testName="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_ReturnsIsEnabledTrue_WhenDefaultConfigExists" computerName="fedora" duration="00:00:00.0012965" startTime="2026-04-12T01:15:38.9101446+02:00" endTime="2026-04-12T01:15:38.9101448+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a1310d9b-553b-4b47-a83d-08fcc20670b8" />
+    <UnitTestResult executionId="bbe289a2-637e-43c7-9f27-cc73a8eac470" testId="3d3fa530-b698-aa6e-0ea8-58f92573e891" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_CombinesFiltersAndSorting" computerName="fedora" duration="00:00:00.0117411" startTime="2026-04-12T01:15:38.9709547+02:00" endTime="2026-04-12T01:15:38.9709548+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bbe289a2-637e-43c7-9f27-cc73a8eac470" />
+    <UnitTestResult executionId="df1c35ba-9976-412f-b821-58c158fd2a35" testId="6d1257d4-6a26-cc4d-6c52-7ab3b68890b9" testName="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicProducts_RaffleMethod1_ReturnsActiveProducts" computerName="fedora" duration="00:00:00.0129973" startTime="2026-04-12T01:15:38.6020409+02:00" endTime="2026-04-12T01:15:38.6020410+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="df1c35ba-9976-412f-b821-58c158fd2a35" />
+    <UnitTestResult executionId="7d195e91-755f-46de-8eb8-6f06f6cc857b" testId="fe344ad7-2a7b-4e5d-d6e0-7d212270518d" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByTicketCountAsc" computerName="fedora" duration="00:00:00.0061995" startTime="2026-04-12T01:15:38.9375001+02:00" endTime="2026-04-12T01:15:38.9375003+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7d195e91-755f-46de-8eb8-6f06f6cc857b" />
+    <UnitTestResult executionId="b95fbbed-2736-429a-9543-2363ffef13ef" testId="cbe396d1-08d5-76fe-0112-b3a3eba48f79" testName="GrCup.Api.Tests.RaffleProductsServiceTests.UpdateProduct_ChangesTitle" computerName="fedora" duration="00:00:00.0006986" startTime="2026-04-12T01:15:38.9587095+02:00" endTime="2026-04-12T01:15:38.9587095+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b95fbbed-2736-429a-9543-2363ffef13ef" />
+    <UnitTestResult executionId="9318976d-2a98-42b6-bf5e-46567bba109f" testId="7e99c146-85bd-b0b7-40c2-2eac45a2965b" testName="GrCup.Api.Tests.RaffleProductsServiceTests.CreateProduct_SetsCorrectDefaults" computerName="fedora" duration="00:00:00.0008297" startTime="2026-04-12T01:15:38.9579739+02:00" endTime="2026-04-12T01:15:38.9579740+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9318976d-2a98-42b6-bf5e-46567bba109f" />
+    <UnitTestResult executionId="1590335b-fe85-4803-977b-e568bb752d02" testId="4dbdbd6e-7b9a-5d65-876a-f99c56e70ef4" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByIsPaidTrue" computerName="fedora" duration="00:00:00.0127451" startTime="2026-04-12T01:15:38.9970550+02:00" endTime="2026-04-12T01:15:38.9970551+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1590335b-fe85-4803-977b-e568bb752d02" />
+    <UnitTestResult executionId="9d7719cd-e875-411f-b88a-9ae766a5c8de" testId="917095e5-e118-7c2b-92da-3b55a3c8c30c" testName="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_ReturnsCorrectPage" computerName="fedora" duration="00:00:00.0008316" startTime="2026-04-12T01:15:39.0021331+02:00" endTime="2026-04-12T01:15:39.0021332+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9d7719cd-e875-411f-b88a-9ae766a5c8de" />
+    <UnitTestResult executionId="36eda14b-7713-47c4-81c0-8465ad7d1f6e" testId="d7b88f87-27df-5919-ad11-e27215cfbd93" testName="GrCup.Api.Tests.RaffleProductsServiceTests.CreateProduct_WithImageUrl_StoresUrl" computerName="fedora" duration="00:00:00.0006219" startTime="2026-04-12T01:15:38.9593726+02:00" endTime="2026-04-12T01:15:38.9593726+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="36eda14b-7713-47c4-81c0-8465ad7d1f6e" />
+    <UnitTestResult executionId="52cc6fca-e1f7-4581-90e2-bb290c1d45fe" testId="7fe95827-ad93-31cf-ab6e-16b56be9e834" testName="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_OversizedFile_Returns400" computerName="fedora" duration="00:00:00.0118324" startTime="2026-04-12T01:15:38.5581525+02:00" endTime="2026-04-12T01:15:38.5581527+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="52cc6fca-e1f7-4581-90e2-bb290c1d45fe" />
+    <UnitTestResult executionId="67f3ae8c-8889-490e-be19-0a02bea5a905" testId="eb0892dd-b2aa-dc48-8348-aa104e82f5aa" testName="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicConfig_ReturnsCurrentConfig" computerName="fedora" duration="00:00:00.0162388" startTime="2026-04-12T01:15:38.5745331+02:00" endTime="2026-04-12T01:15:38.5745333+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="67f3ae8c-8889-490e-be19-0a02bea5a905" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_WithTitleOnly_Returns200" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="898043bb-aa00-860a-f9f5-3ab98f7c54ef">
+      <Execution id="7f269950-efb4-442e-8e68-f33e32280479" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="CreateProduct_WithTitleOnly_Returns200" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.RaffleConfig_IncludesRaffleMethodInResponse" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="fec72b08-9fde-cdd1-7875-2e080db28371">
+      <Execution id="f441df2d-7e32-4b11-8b1a-65a020611f7b" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="RaffleConfig_IncludesRaffleMethodInResponse" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.UpdateConfig_SetsDisabledMessage_WhenProvided" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="8cbcd6dc-e028-0eb5-fc7e-f46e6f714e64">
+      <Execution id="e3dd69dc-7276-4150-a61f-5f7b0c155cf3" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="UpdateConfig_SetsDisabledMessage_WhenProvided" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.UpdateConfig_SetsRaffleMethodToCustom" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="40c281ca-2a60-682f-ed54-e79c9b4a842d">
+      <Execution id="071a38d3-2bdc-4088-8af3-f0e8ca246014" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="UpdateConfig_SetsRaffleMethodToCustom" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByIsPaidTrue" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="4dbdbd6e-7b9a-5d65-876a-f99c56e70ef4">
+      <Execution id="1590335b-fe85-4803-977b-e568bb752d02" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_FiltersByIsPaidTrue" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_InvalidFileType_Returns400" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="1fffba7d-ccfa-b7ae-8686-63d6653e2643">
+      <Execution id="3e637d6b-b1bf-4b14-9edc-bf09fb80f2e0" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="CreateProduct_InvalidFileType_Returns400" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicProducts_RaffleMethod1_ExcludesInactiveProducts" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="e58c4c36-c70c-67dc-c447-cb49198f092e">
+      <Execution id="4e637429-e27e-43c6-b947-9a1bb61c058b" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="GetPublicProducts_RaffleMethod1_ExcludesInactiveProducts" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SearchesByEmail" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="13b923dd-bdc0-d474-9384-017a6aadcefa">
+      <Execution id="834f5733-c1ae-4a29-9eff-fcd5201e47da" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SearchesByEmail" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_ReturnsRemainingOnLastPage" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="6d65bdd5-171a-477a-c809-371a433e23a5">
+      <Execution id="6a1f935a-fc2a-4acc-82c3-f7a8fbb3878d" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_ReturnsRemainingOnLastPage" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.DeleteProduct_RemovesProduct" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="8b9e68d5-688c-c1d3-df21-f23e69db309f">
+      <Execution id="e598b9c8-8bd1-4b68-a862-3d0597ce1b25" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="DeleteProduct_RemovesProduct" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByNameAsc" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="201de9b9-d1e0-8ebc-bc6a-6879c28b4d4e">
+      <Execution id="29757221-e40a-49f3-8bba-6bc0622e48d1" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SortsByNameAsc" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.GetAdminProducts_ReturnsCorrectShape" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="a72c1bad-2937-c65f-86e8-2d0d8f27d276">
+      <Execution id="c11f0e3a-b738-4b8a-b30c-1ce674babb4c" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="GetAdminProducts_ReturnsCorrectShape" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.DeleteProduct_NonExistent_Returns404" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="b527263b-3f77-80ae-cbf9-bf2bc4e45558">
+      <Execution id="11667a30-4bbf-4138-93ec-527993df4377" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="DeleteProduct_NonExistent_Returns404" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.UpdateProduct_ChangesTitle" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="cbe396d1-08d5-76fe-0112-b3a3eba48f79">
+      <Execution id="b95fbbed-2736-429a-9543-2363ffef13ef" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="UpdateProduct_ChangesTitle" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_CombinesFiltersAndSorting" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="3d3fa530-b698-aa6e-0ea8-58f92573e891">
+      <Execution id="bbe289a2-637e-43c7-9f27-cc73a8eac470" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_CombinesFiltersAndSorting" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_TitleRequired_Returns400" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="37fce6b8-eb22-cf3c-2f52-9374bddd85fa">
+      <Execution id="5f0b6fa4-06ad-42c0-b9ec-5252f275230d" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="CreateProduct_TitleRequired_Returns400" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByPaymentMethodBank" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="48dbac4d-2b86-0f76-14a6-acdf2f10a5d4">
+      <Execution id="d99cede9-b484-4de5-a4d5-5acd9a50632e" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_FiltersByPaymentMethodBank" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.CreateProduct_WithSubtitle_StoresSubtitle" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="738296a9-95b4-35e3-d20a-836fabc7c176">
+      <Execution id="73c757a7-7624-4c52-a28c-6f2956e15190" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="CreateProduct_WithSubtitle_StoresSubtitle" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.DeleteProduct_RemovesFromDb" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="09f4a585-3e70-5933-e30a-c56c49ae5dd1">
+      <Execution id="0b6bc784-a8b7-44f3-9474-881c7ff37893" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="DeleteProduct_RemovesFromDb" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.UpdateProduct_TogglesIsActive" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="2e7677d9-be54-972f-4f5a-04e98107ed15">
+      <Execution id="8445c49f-1c14-492d-bf84-17b288e42372" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="UpdateProduct_TogglesIsActive" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_WithTitleAndSubtitle_Returns200" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="a4fc5001-b764-dc4e-117e-1a580c9a5e1e">
+      <Execution id="20a910e0-b856-4cbd-947b-a5f9eda2d418" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="CreateProduct_WithTitleAndSubtitle_Returns200" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.RaffleConfig_CanSetMethodToOne" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="483070ae-63b7-9826-496d-71ce0c76b630">
+      <Execution id="45d38522-6e64-4490-8adf-77859265d6c9" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="RaffleConfig_CanSetMethodToOne" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SkipsCorrectly" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="5268d54f-4361-789c-e30d-f1824a02eb93">
+      <Execution id="541164e7-ab47-4e71-b0fa-7b3db178a275" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SkipsCorrectly" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.UpdateProduct_UpdatesTitle" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="f5931e46-f5aa-9e99-d80b-1bdcb6e42452">
+      <Execution id="8cca740c-bca1-4fac-9d6f-6f5de1a12400" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="UpdateProduct_UpdatesTitle" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByPaymentMethodCash" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="bd345429-b6fc-5044-e682-c7acb65aaeed">
+      <Execution id="e225de71-a7b8-4893-8527-30d308ead23d" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_FiltersByPaymentMethodCash" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByTicketCountAsc" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="fe344ad7-2a7b-4e5d-d6e0-7d212270518d">
+      <Execution id="7d195e91-755f-46de-8eb8-6f06f6cc857b" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SortsByTicketCountAsc" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByIsPaidFalse" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="f6c911fa-e1d6-412e-8430-63e0e4abb511">
+      <Execution id="1445abf4-7d44-4ab7-b365-8c317bbf6960" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_FiltersByIsPaidFalse" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.ToggleStatus_FlipsIsActive" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="6951d103-0b8f-ee36-59c2-2dd44a0d1108">
+      <Execution id="8db6f53b-dd03-46ee-b012-34ba78854cdd" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="ToggleStatus_FlipsIsActive" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByNameDesc" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="857cdcda-ec90-beb1-bec3-8dd688fbeb28">
+      <Execution id="4e4785c0-85cf-4f4f-b1aa-d54727e81f80" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SortsByNameDesc" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.ReorderProducts_ChangesDisplayOrder" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="e189bd98-930b-7b3d-fb91-20012aa1fe34">
+      <Execution id="0dd718f6-5b24-467c-9620-19d2dd2bba0d" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="ReorderProducts_ChangesDisplayOrder" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicProducts_RaffleMethod0_ReturnsEmptyArray" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="5ee0903b-0569-4940-2f6e-cd2a5da4f55d">
+      <Execution id="9b54b020-6cb6-45d4-bc8a-4a909aa73885" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="GetPublicProducts_RaffleMethod0_ReturnsEmptyArray" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SearchesByInstagram" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="168fbc05-0a98-8c6a-d92d-1dcfbf29333e">
+      <Execution id="f6b9cb17-cb2c-499b-be23-b64edba21105" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SearchesByInstagram" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.ToggleStatus_FlipsIsActive" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="70084e4b-cd14-606d-1432-4bcab8c41496">
+      <Execution id="88fe7d31-f3b6-4d16-b597-60e143def0af" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="ToggleStatus_FlipsIsActive" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SearchesByName" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="ec064b90-9c28-a71c-ef5a-c1431468cb81">
+      <Execution id="1cbaca78-4246-4a7e-89b6-89c1b5582370" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SearchesByName" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.ReorderProducts_ChangesDisplayOrder" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="74b46501-12e3-1abf-3fdc-1906e7a41b50">
+      <Execution id="21c798a2-dd44-4f89-ac47-6a90578a5852" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="ReorderProducts_ChangesDisplayOrder" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByCreatedAtDescByDefault" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="46d86a0b-0c51-462f-76b1-0d764ae53fca">
+      <Execution id="2921c108-905f-4c7a-8046-e7dfc470a704" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SortsByCreatedAtDescByDefault" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.RaffleConfig_DefaultsToMethodZero" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="60c3e896-784a-90f6-8b32-8a69069d86e8">
+      <Execution id="218efa51-06e8-43ed-bb72-4dcf37384208" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="RaffleConfig_DefaultsToMethodZero" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_FiltersByPaymentMethodStripe" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="4b6723d0-ca68-05f0-10d7-c8bf7dc45711">
+      <Execution id="6841b0fd-41d4-4628-81b0-24b8bc868379" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_FiltersByPaymentMethodStripe" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.RaffleConfig_DefaultsToMethodZero" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="3eb1fd1c-6b91-a710-20a3-e96acbec65f1">
+      <Execution id="7804744f-fbca-41b7-bf37-0cebcddd122b" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="RaffleConfig_DefaultsToMethodZero" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_ReturnsAllWhenSearchIsEmpty" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="a7528a30-4235-4cfa-777c-6ed7e76777d5">
+      <Execution id="e4d4118c-a126-4c8c-b6a9-1dec8e100846" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_ReturnsAllWhenSearchIsEmpty" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_ReturnsCorrectPage" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="917095e5-e118-7c2b-92da-3b55a3c8c30c">
+      <Execution id="9d7719cd-e875-411f-b88a-9ae766a5c8de" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_ReturnsCorrectPage" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.GetAdminProducts_ReturnsEmptyWhenNoProducts" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="5447ee14-d99c-4fb9-eea5-a05c22476285">
+      <Execution id="2149f932-a6ae-49e4-82f8-9f6f3e1dcc28" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="GetAdminProducts_ReturnsEmptyWhenNoProducts" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_ReturnsDefaultEnabled_WhenNoConfigExists" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="5c977333-2b7d-f219-3066-40744cdc7279">
+      <Execution id="9d9c52bf-7d9c-4c6d-be4d-48d002578e10" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="GetConfig_ReturnsDefaultEnabled_WhenNoConfigExists" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_OversizedFile_Returns400" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="7fe95827-ad93-31cf-ab6e-16b56be9e834">
+      <Execution id="52cc6fca-e1f7-4581-90e2-bb290c1d45fe" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="CreateProduct_OversizedFile_Returns400" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicProducts_RaffleMethod1_ReturnsActiveProducts" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="6d1257d4-6a26-cc4d-6c52-7ab3b68890b9">
+      <Execution id="df1c35ba-9976-412f-b821-58c158fd2a35" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="GetPublicProducts_RaffleMethod1_ReturnsActiveProducts" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.UpdateConfig_SetsIsEnabledFalse_WhenUpdating" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="613d0714-215c-3852-7c59-c5b70039933f">
+      <Execution id="00a7a520-60cd-4890-9dac-768bb360097c" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="UpdateConfig_SetsIsEnabledFalse_WhenUpdating" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.CreateProduct_WithImageUrl_StoresUrl" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="d7b88f87-27df-5919-ad11-e27215cfbd93">
+      <Execution id="36eda14b-7713-47c4-81c0-8465ad7d1f6e" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="CreateProduct_WithImageUrl_StoresUrl" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_ReturnsIsEnabledTrue_WhenDefaultConfigExists" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="9ab854b2-ec95-b7e9-733a-3ca636389596">
+      <Execution id="a1310d9b-553b-4b47-a83d-08fcc20670b8" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="GetConfig_ReturnsIsEnabledTrue_WhenDefaultConfigExists" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.ParticipantServiceTests.GetAllPaginatedAsync_SortsByTicketCountDesc" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="9708ae43-2bdf-9b9f-f65a-de44c498488f">
+      <Execution id="1717d19d-81c3-4b05-8eeb-c12e14873a7c" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.ParticipantServiceTests" name="GetAllPaginatedAsync_SortsByTicketCountDesc" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.UpdateRaffleConfig_SetsRaffleMethod" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="6e9d26e2-a26e-f8cc-c9e1-36f3c60d49b9">
+      <Execution id="ee6625b9-7c91-4477-a1e3-337bddd633c4" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="UpdateRaffleConfig_SetsRaffleMethod" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.RaffleMethod_CanBeZeroOrOne" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="1a340166-a67a-8c0c-28c4-1f8b0460ba40">
+      <Execution id="26e38d86-1eba-43b5-9ca5-51ed9c3a46de" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="RaffleMethod_CanBeZeroOrOne" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.GetActiveProducts_FiltersCorrectly" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="cf90342f-94fc-f97f-f87e-4d6583e34c7b">
+      <Execution id="e34848e8-6a55-4264-8d7b-bd9336745c15" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="GetActiveProducts_FiltersCorrectly" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsApiTests.GetPublicConfig_ReturnsCurrentConfig" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="eb0892dd-b2aa-dc48-8348-aa104e82f5aa">
+      <Execution id="67f3ae8c-8889-490e-be19-0a02bea5a905" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsApiTests" name="GetPublicConfig_ReturnsCurrentConfig" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleProductsServiceTests.CreateProduct_SetsCorrectDefaults" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="7e99c146-85bd-b0b7-40c2-2eac45a2965b">
+      <Execution id="9318976d-2a98-42b6-bf5e-46567bba109f" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleProductsServiceTests" name="CreateProduct_SetsCorrectDefaults" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_ReturnsIsEnabledFalse_WhenRaffleIsDisabled" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="57cbcc2c-9b49-0232-8b2c-7e985f07da67">
+      <Execution id="f0b4b62b-4819-4441-a523-d9c456a1f320" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="GetConfig_ReturnsIsEnabledFalse_WhenRaffleIsDisabled" />
+    </UnitTest>
+    <UnitTest name="GrCup.Api.Tests.RaffleConfigServiceTests.GetConfig_IncludesDisabledMessage_WhenSet" storage="/home/jaime/projects/grweb/backend/grcup.api.tests/bin/debug/net8.0/grcup.api.tests.dll" id="645f4c59-c1e6-8b2d-a013-68be2f44366d">
+      <Execution id="3fdd0454-a6de-4e9b-97e3-3812e08623f1" />
+      <TestMethod codeBase="/home/jaime/projects/grweb/backend/GrCup.Api.Tests/bin/Debug/net8.0/GrCup.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="GrCup.Api.Tests.RaffleConfigServiceTests" name="GetConfig_IncludesDisabledMessage_WhenSet" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="645f4c59-c1e6-8b2d-a013-68be2f44366d" executionId="3fdd0454-a6de-4e9b-97e3-3812e08623f1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="37fce6b8-eb22-cf3c-2f52-9374bddd85fa" executionId="5f0b6fa4-06ad-42c0-b9ec-5252f275230d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1fffba7d-ccfa-b7ae-8686-63d6653e2643" executionId="3e637d6b-b1bf-4b14-9edc-bf09fb80f2e0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a72c1bad-2937-c65f-86e8-2d0d8f27d276" executionId="c11f0e3a-b738-4b8a-b30c-1ce674babb4c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="857cdcda-ec90-beb1-bec3-8dd688fbeb28" executionId="4e4785c0-85cf-4f4f-b1aa-d54727e81f80" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="60c3e896-784a-90f6-8b32-8a69069d86e8" executionId="218efa51-06e8-43ed-bb72-4dcf37384208" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a7528a30-4235-4cfa-777c-6ed7e76777d5" executionId="e4d4118c-a126-4c8c-b6a9-1dec8e100846" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5447ee14-d99c-4fb9-eea5-a05c22476285" executionId="2149f932-a6ae-49e4-82f8-9f6f3e1dcc28" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="40c281ca-2a60-682f-ed54-e79c9b4a842d" executionId="071a38d3-2bdc-4088-8af3-f0e8ca246014" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4b6723d0-ca68-05f0-10d7-c8bf7dc45711" executionId="6841b0fd-41d4-4628-81b0-24b8bc868379" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3eb1fd1c-6b91-a710-20a3-e96acbec65f1" executionId="7804744f-fbca-41b7-bf37-0cebcddd122b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="57cbcc2c-9b49-0232-8b2c-7e985f07da67" executionId="f0b4b62b-4819-4441-a523-d9c456a1f320" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="483070ae-63b7-9826-496d-71ce0c76b630" executionId="45d38522-6e64-4490-8adf-77859265d6c9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6d65bdd5-171a-477a-c809-371a433e23a5" executionId="6a1f935a-fc2a-4acc-82c3-f7a8fbb3878d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f5931e46-f5aa-9e99-d80b-1bdcb6e42452" executionId="8cca740c-bca1-4fac-9d6f-6f5de1a12400" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="168fbc05-0a98-8c6a-d92d-1dcfbf29333e" executionId="f6b9cb17-cb2c-499b-be23-b64edba21105" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1a340166-a67a-8c0c-28c4-1f8b0460ba40" executionId="26e38d86-1eba-43b5-9ca5-51ed9c3a46de" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="46d86a0b-0c51-462f-76b1-0d764ae53fca" executionId="2921c108-905f-4c7a-8046-e7dfc470a704" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e9d26e2-a26e-f8cc-c9e1-36f3c60d49b9" executionId="ee6625b9-7c91-4477-a1e3-337bddd633c4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b527263b-3f77-80ae-cbf9-bf2bc4e45558" executionId="11667a30-4bbf-4138-93ec-527993df4377" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="738296a9-95b4-35e3-d20a-836fabc7c176" executionId="73c757a7-7624-4c52-a28c-6f2956e15190" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="201de9b9-d1e0-8ebc-bc6a-6879c28b4d4e" executionId="29757221-e40a-49f3-8bba-6bc0622e48d1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ec064b90-9c28-a71c-ef5a-c1431468cb81" executionId="1cbaca78-4246-4a7e-89b6-89c1b5582370" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e58c4c36-c70c-67dc-c447-cb49198f092e" executionId="4e637429-e27e-43c6-b947-9a1bb61c058b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5ee0903b-0569-4940-2f6e-cd2a5da4f55d" executionId="9b54b020-6cb6-45d4-bc8a-4a909aa73885" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="13b923dd-bdc0-d474-9384-017a6aadcefa" executionId="834f5733-c1ae-4a29-9eff-fcd5201e47da" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6951d103-0b8f-ee36-59c2-2dd44a0d1108" executionId="8db6f53b-dd03-46ee-b012-34ba78854cdd" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5268d54f-4361-789c-e30d-f1824a02eb93" executionId="541164e7-ab47-4e71-b0fa-7b3db178a275" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9708ae43-2bdf-9b9f-f65a-de44c498488f" executionId="1717d19d-81c3-4b05-8eeb-c12e14873a7c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="898043bb-aa00-860a-f9f5-3ab98f7c54ef" executionId="7f269950-efb4-442e-8e68-f33e32280479" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e189bd98-930b-7b3d-fb91-20012aa1fe34" executionId="0dd718f6-5b24-467c-9620-19d2dd2bba0d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8b9e68d5-688c-c1d3-df21-f23e69db309f" executionId="e598b9c8-8bd1-4b68-a862-3d0597ce1b25" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5c977333-2b7d-f219-3066-40744cdc7279" executionId="9d9c52bf-7d9c-4c6d-be4d-48d002578e10" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="09f4a585-3e70-5933-e30a-c56c49ae5dd1" executionId="0b6bc784-a8b7-44f3-9474-881c7ff37893" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f6c911fa-e1d6-412e-8430-63e0e4abb511" executionId="1445abf4-7d44-4ab7-b365-8c317bbf6960" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="48dbac4d-2b86-0f76-14a6-acdf2f10a5d4" executionId="d99cede9-b484-4de5-a4d5-5acd9a50632e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8cbcd6dc-e028-0eb5-fc7e-f46e6f714e64" executionId="e3dd69dc-7276-4150-a61f-5f7b0c155cf3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2e7677d9-be54-972f-4f5a-04e98107ed15" executionId="8445c49f-1c14-492d-bf84-17b288e42372" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="74b46501-12e3-1abf-3fdc-1906e7a41b50" executionId="21c798a2-dd44-4f89-ac47-6a90578a5852" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="fec72b08-9fde-cdd1-7875-2e080db28371" executionId="f441df2d-7e32-4b11-8b1a-65a020611f7b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cf90342f-94fc-f97f-f87e-4d6583e34c7b" executionId="e34848e8-6a55-4264-8d7b-bd9336745c15" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="70084e4b-cd14-606d-1432-4bcab8c41496" executionId="88fe7d31-f3b6-4d16-b597-60e143def0af" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a4fc5001-b764-dc4e-117e-1a580c9a5e1e" executionId="20a910e0-b856-4cbd-947b-a5f9eda2d418" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="613d0714-215c-3852-7c59-c5b70039933f" executionId="00a7a520-60cd-4890-9dac-768bb360097c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bd345429-b6fc-5044-e682-c7acb65aaeed" executionId="e225de71-a7b8-4893-8527-30d308ead23d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9ab854b2-ec95-b7e9-733a-3ca636389596" executionId="a1310d9b-553b-4b47-a83d-08fcc20670b8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3d3fa530-b698-aa6e-0ea8-58f92573e891" executionId="bbe289a2-637e-43c7-9f27-cc73a8eac470" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6d1257d4-6a26-cc4d-6c52-7ab3b68890b9" executionId="df1c35ba-9976-412f-b821-58c158fd2a35" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="fe344ad7-2a7b-4e5d-d6e0-7d212270518d" executionId="7d195e91-755f-46de-8eb8-6f06f6cc857b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cbe396d1-08d5-76fe-0112-b3a3eba48f79" executionId="b95fbbed-2736-429a-9543-2363ffef13ef" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7e99c146-85bd-b0b7-40c2-2eac45a2965b" executionId="9318976d-2a98-42b6-bf5e-46567bba109f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4dbdbd6e-7b9a-5d65-876a-f99c56e70ef4" executionId="1590335b-fe85-4803-977b-e568bb752d02" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="917095e5-e118-7c2b-92da-3b55a3c8c30c" executionId="9d7719cd-e875-411f-b88a-9ae766a5c8de" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d7b88f87-27df-5919-ad11-e27215cfbd93" executionId="36eda14b-7713-47c4-81c0-8465ad7d1f6e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7fe95827-ad93-31cf-ab6e-16b56be9e834" executionId="52cc6fca-e1f7-4581-90e2-bb290c1d45fe" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="eb0892dd-b2aa-dc48-8348-aa104e82f5aa" executionId="67f3ae8c-8889-490e-be19-0a02bea5a905" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="56" executed="56" passed="55" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.25)
+[xUnit.net 00:00:00.51]   Discovering: GrCup.Api.Tests
+[xUnit.net 00:00:00.53]   Discovered:  GrCup.Api.Tests
+[xUnit.net 00:00:00.53]   Starting:    GrCup.Api.Tests
+[xUnit.net 00:00:00.84]       Assert.Contains() Failure
+[xUnit.net 00:00:00.84]       Not found: tipo
+[xUnit.net 00:00:00.84]       In value:  Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed
+[xUnit.net 00:00:00.84]       Stack Trace:
+[xUnit.net 00:00:00.84]         /home/jaime/projects/grweb/backend/GrCup.Api.Tests/RaffleProductsApiTests.cs(263,0): at GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_InvalidFileType_Returns400()
+[xUnit.net 00:00:00.84]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:01.16]   Finished:    GrCup.Api.Tests
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="fedora" outcome="Error" timestamp="2026-04-12T01:15:38.6891067+02:00">
+        <Text>[xUnit.net 00:00:00.84]     GrCup.Api.Tests.RaffleProductsApiTests.CreateProduct_InvalidFileType_Returns400 [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>
