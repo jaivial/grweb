@@ -97,9 +97,13 @@ public static class RaffleProductsEndpoints
                 {
                     imageUrl = await bunnyCdn.UploadImageAsync(processedStream, fileName);
                 }
+                catch (HttpRequestException ex)
+                {
+                    return Results.BadRequest(new { success = false, message = "Image upload failed: CDN authentication failed or storage zone not accessible. Please check BUNNYCDN_PASSWORD configuration." });
+                }
                 catch (Exception ex)
                 {
-                    return Results.StatusCode(500);
+                    return Results.BadRequest(new { success = false, message = "Image upload failed: " + ex.Message });
                 }
                 finally
                 {
@@ -199,9 +203,13 @@ public static class RaffleProductsEndpoints
 
                     product.ImageUrl = newUrl;
                 }
-                catch
+                catch (HttpRequestException ex)
                 {
-                    return Results.StatusCode(500);
+                    return Results.BadRequest(new { success = false, message = "Image upload failed: CDN authentication failed or storage zone not accessible. Please check BUNNYCDN_PASSWORD configuration." });
+                }
+                catch (Exception ex)
+                {
+                    return Results.BadRequest(new { success = false, message = "Image upload failed: " + ex.Message });
                 }
                 finally
                 {

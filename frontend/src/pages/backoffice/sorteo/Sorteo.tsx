@@ -592,13 +592,39 @@ export function Sorteo(): JSX.Element {
   }
 
   async function handleToggleGiftStatus(gift: GiftItem) {
+    // Optimistic update - immediately toggle locally without showing loading spinner
+    const previousGifts = [...gifts];
+    const previousEditingGift = editingGift;
+    
+    setGifts(prev => prev.map(g => 
+      g.id === gift.id ? { ...g, isActive: !g.isActive } : g
+    ));
+    
+    // Also update editingGift if it's the same gift being toggled
+    if (editingGift && editingGift.id === gift.id) {
+      setEditingGift(prev => prev ? { ...prev, isActive: !prev.isActive } : prev);
+    }
+
     try {
-      await fetch(`${API_URL}/api/admin/raffle-products/${gift.id}/toggle-status`, {
+      const res = await fetch(`${API_URL}/api/admin/raffle-products/${gift.id}/toggle-status`, {
         method: 'PATCH',
         credentials: 'include',
       });
-      await fetchGifts();
-    } catch {
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      // Success - we already updated UI optimistically, no need to refetch
+      // The server is the source of truth and will be consistent
+    } catch (err) {
+      // Revert optimistic update on failure
+      setGifts(previousGifts);
+      if (previousEditingGift && previousEditingGift.id === gift.id) {
+        setEditingGift(previousEditingGift);
+      }
+      setToastMessage('Error al cambiar estado del premio');
+      setToastType('error');
     }
   }
 
@@ -1623,6 +1649,7 @@ export function Sorteo(): JSX.Element {
                       )}
                       <div className="flex items-center gap-2" data-ui={`premios-card-actions-${gift.id}`}>
                         <button
+                          type="button"
                           onClick={(e) => { e.stopPropagation(); handleToggleGiftStatus(gift); }}
                           className={`p-2 rounded-lg transition-colors ${
                             gift.isActive
@@ -1668,10 +1695,13 @@ export function Sorteo(): JSX.Element {
                 title: editingGift.title,
                 subtitle: editingGift.subtitle || '',
                 imageUrl: editingGift.imageUrl,
+                isActive: editingGift.isActive,
               } : null}
               isOpen={giftModalOpen}
               onClose={() => { setGiftModalOpen(false); setEditingGift(null); }}
               onSave={handleSaveGift}
+              onToggleStatus={giftModalMode === 'edit' && editingGift ? () => handleToggleGiftStatus(editingGift) : undefined}
+              onDelete={giftModalMode === 'edit' && editingGift ? () => { setGiftModalOpen(false); setDeletingGift(editingGift); setDeleteModalOpen(true); } : undefined}
             />
 
             {giftSuccess && giftModalOpen === false && (

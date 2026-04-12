@@ -34,7 +34,7 @@ function useScrollVisibility(options: {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting && !hasBeenSeen.current) {
         hasBeenSeen.current = true;
-        setAnimationStyle(prefersReducedMotion ? { opacity: 1, transform: 'none' } : { opacity: 1, transform: 'none', transition: `opacity ${enterDuration}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${enterDuration}ms cubic-bezier(0.4, 0, 0.2, 1)` });
+        setAnimationStyle(prefersReducedMotion ? { opacity: 1, transform: 'none' } : { opacity: 1, transform: 'none', transitionProperty: 'opacity, transform', transitionDuration: `${enterDuration}ms, ${enterDuration}ms`, transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1), cubic-bezier(0.4, 0, 0.2, 1)' });
       }
     }, { threshold, rootMargin });
     observer.observe(element);

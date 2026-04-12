@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, type JSX } from 'react';
+import { useState, useCallback, useMemo, useEffect, type JSX } from 'react';
 import { X, Upload, Loader2 } from 'lucide-react';
 import type { FallbackImageProps } from '../../../components/ui/FallbackImage/FallbackImage';
 
@@ -7,6 +7,7 @@ interface GiftData {
   title: string;
   subtitle: string;
   imageUrl?: string | null;
+  isActive?: boolean;
 }
 
 interface GiftModalProps {
@@ -15,9 +16,11 @@ interface GiftModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (formData: FormData) => Promise<void>;
+  onToggleStatus?: () => void;
+  onDelete?: () => void;
 }
 
-export function GiftModal({ mode, gift, isOpen, onClose, onSave }: GiftModalProps): JSX.Element | null {
+export function GiftModal({ mode, gift, isOpen, onClose, onSave, onToggleStatus, onDelete }: GiftModalProps): JSX.Element | null {
   const [title, setTitle] = useState(gift?.title || '');
   const [subtitle, setSubtitle] = useState(gift?.subtitle || '');
   const [imagePreview, setImagePreview] = useState<string | null>(gift?.imageUrl || null);
@@ -25,6 +28,14 @@ export function GiftModal({ mode, gift, isOpen, onClose, onSave }: GiftModalProp
   const [titleError, setTitleError] = useState('');
   const [imageError, setImageError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Sync state when gift prop changes
+  useEffect(() => {
+    setTitle(gift?.title || '');
+    setSubtitle(gift?.subtitle || '');
+    setImagePreview(gift?.imageUrl || null);
+    setImageFile(null);
+  }, [gift]);
 
   const modalTitle = useMemo(() =>
     mode === 'create' ? 'Nuevo Premio' : 'Editar Premio',
@@ -192,12 +203,50 @@ export function GiftModal({ mode, gift, isOpen, onClose, onSave }: GiftModalProp
             )}
           </div>
 
+          {/* Status Toggle - only in edit mode */}
+          {mode === 'edit' && gift?.id && onToggleStatus && (
+            <div className="flex items-center justify-between py-3 border-t border-white/10" data-ui="gift-modal-status-toggle">
+              <div data-ui="gift-modal-status-info">
+                <p className="text-sm font-medium text-gray-300">Visibilidad</p>
+                <p className="text-xs text-gray-500"> Controla si el premio aparece en el sorteo</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer" data-ui="gift-toggle-switch-container">
+                <input
+                  type="checkbox"
+                  checked={gift.isActive ?? false}
+                  onChange={onToggleStatus}
+                  className="sr-only peer"
+                  data-testid="gift-status-toggle"
+                />
+                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-accent"></div>
+                <span className="ml-3 text-sm font-medium text-gray-300" data-ui="gift-toggle-label">
+                  {gift.isActive ? 'Activo' : 'Inactivo'}
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* Delete Button - only in edit mode */}
+          {mode === 'edit' && gift?.id && onDelete && (
+            <div className="pt-2 border-t border-white/10" data-ui="gift-modal-delete">
+              <button
+                type="button"
+                onClick={onDelete}
+                className="w-full px-4 py-3 min-h-[44px] text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl transition-colors"
+                data-testid="gift-delete-btn"
+              >
+                Eliminar Premio
+              </button>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2" data-ui="gift-modal-actions">
             <button
               type="button"
               onClick={handleClose}
               disabled={saving}
               className="flex-1 px-4 py-3 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] border border-white/10 rounded-xl transition-colors disabled:opacity-50"
+              data-testid="gift-cancel-btn"
               data-ui="gift-modal-cancel"
             >
               Cancelar
