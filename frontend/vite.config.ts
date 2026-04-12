@@ -70,6 +70,12 @@ export default defineConfig({
           }]
         }
       }
+    }, {
+      test: {
+        name: 'unit',
+        include: ['src/**/*.vitest.test.{ts,tsx}'],
+        environment: 'node',
+      }
     }]
   }
 });

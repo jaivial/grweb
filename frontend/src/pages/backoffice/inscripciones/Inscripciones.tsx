@@ -275,7 +275,7 @@ export function Inscripciones(): JSX.Element {
       sex: a.sex === 'Male' ? 'Hombre' : 'Mujer',
       category: `${a.weightCategory} KG`,
       club: a.club || '-',
-      weight: a.totalWeight ? `${a.totalWeight}` : '-',
+      weight: a.totalWeight ? `${a.totalWeight} Kg` : '-',
       date: a.registrationDate,
       status: ATHLETE_STATUS_LABELS[a.status],
     }));

@@ -17,8 +17,11 @@ export interface PdfExportOptions {
 
 const BRAND_RED = [220, 20, 60] as const;
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+export function formatDate(dateStr: string): string {
+  // Only append T00:00:00 if the string is a date-only format (YYYY-MM-DD)
+  // ISO datetime strings already have a time component
+  const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
+  const date = new Date(normalized);
   return date.toLocaleDateString('es-ES', {
     day: '2-digit',
     month: 'short',
