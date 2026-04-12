@@ -1,14 +1,14 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 import { Participantes } from '../Participantes';
 
 // Mock the api module
-const mockGetParticipants = jest.fn();
-const mockDeleteParticipant = jest.fn();
-const mockUpdateParticipant = jest.fn();
-const mockExportCsv = jest.fn();
+const mockGetParticipants = vi.fn();
+const mockDeleteParticipant = vi.fn();
+const mockUpdateParticipant = vi.fn();
+const mockExportCsv = vi.fn();
 
-jest.mock('../../../../utils/api', () => ({
+vi.mock('../../../../utils/api', () => ({
   api: {
     getParticipants: (...args: any[]) => mockGetParticipants(...args),
     deleteParticipant: (...args: any[]) => mockDeleteParticipant(...args),
@@ -18,15 +18,15 @@ jest.mock('../../../../utils/api', () => ({
 }));
 
 // Mock BackofficeLayout to just render children
-jest.mock('../../../../layouts/BackofficeLayout', () => ({
+vi.mock('../../../../layouts/BackofficeLayout', () => ({
   BackofficeLayout: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="backoffice-layout-mock">{children}</div>
   ),
 }));
 
 // Mock wouter
-jest.mock('wouter', () => ({
-  useLocation: () => ['/backoffice/participantes', jest.fn()],
+vi.mock('wouter', () => ({
+  useLocation: () => ['/backoffice/participantes', vi.fn()],
 }));
 
 // Suppress window.confirm in tests
@@ -67,8 +67,8 @@ const mockParticipantsResponse = {
 
 describe('Participantes Page', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    window.confirm = jest.fn(() => true);
+    vi.clearAllMocks();
+    window.confirm = vi.fn(() => true);
     mockGetParticipants.mockResolvedValue(mockParticipantsResponse);
   });
 

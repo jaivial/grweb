@@ -121,6 +121,7 @@ export function GiftModal({ mode, gift, isOpen, onClose, onSave, onToggleStatus,
             onClick={handleClose}
             disabled={saving}
             className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            data-testid="gift-modal-close"
             data-ui="gift-modal-close"
           >
             <X className="w-5 h-5" />

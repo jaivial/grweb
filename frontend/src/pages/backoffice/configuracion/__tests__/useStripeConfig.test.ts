@@ -1,16 +1,17 @@
 import { renderHook, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { useStripeConfig } from '../hooks/useStripeConfig';
 import { api } from '../../../../utils/api';
 
-jest.mock('../../../../utils/api', () => ({
+vi.mock('../../../../utils/api', () => ({
   api: {
-    getStripeAdminConfig: jest.fn(),
-    updateStripeAdminConfig: jest.fn(),
-    deleteStripeAdminConfig: jest.fn(),
+    getStripeAdminConfig: vi.fn(),
+    updateStripeAdminConfig: vi.fn(),
+    deleteStripeAdminConfig: vi.fn(),
   },
 }));
 
-jest.mock('../../../../stores/auth', () => ({
+vi.mock('../../../../stores/auth', () => ({
   token: { value: 'mock-token' },
 }));
 
@@ -22,7 +23,7 @@ const mockConfig = {
 
 describe('useStripeConfig', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('initial state', () => {
@@ -38,7 +39,7 @@ describe('useStripeConfig', () => {
 
   describe('fetchConfig', () => {
     test('fetches config successfully', async () => {
-      (api.getStripeAdminConfig as jest.Mock).mockResolvedValue(mockConfig);
+      (api.getStripeAdminConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockConfig);
 
       const { result } = renderHook(() => useStripeConfig());
 
@@ -53,7 +54,7 @@ describe('useStripeConfig', () => {
     });
 
     test('sets error on fetch failure', async () => {
-      (api.getStripeAdminConfig as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (api.getStripeAdminConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useStripeConfig());
 
@@ -71,7 +72,7 @@ describe('useStripeConfig', () => {
 
   describe('saveConfig', () => {
     test('saves config successfully', async () => {
-      (api.updateStripeAdminConfig as jest.Mock).mockResolvedValue(mockConfig);
+      (api.updateStripeAdminConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockConfig);
 
       const { result } = renderHook(() => useStripeConfig());
 
@@ -86,7 +87,7 @@ describe('useStripeConfig', () => {
     });
 
     test('returns false and sets error on save failure', async () => {
-      (api.updateStripeAdminConfig as jest.Mock).mockRejectedValue(new Error('Save failed'));
+      (api.updateStripeAdminConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Save failed'));
 
       const { result } = renderHook(() => useStripeConfig());
 
@@ -100,7 +101,7 @@ describe('useStripeConfig', () => {
 
     test('sets isSaving state during save', async () => {
       let resolvePromise: (value: typeof mockConfig) => void;
-      (api.updateStripeAdminConfig as jest.Mock).mockImplementation(
+      (api.updateStripeAdminConfig as ReturnType<typeof vi.fn>).mockImplementation(
         () => new Promise<typeof mockConfig>((resolve) => { resolvePromise = resolve; })
       );
 
@@ -122,7 +123,7 @@ describe('useStripeConfig', () => {
 
   describe('deleteConfig', () => {
     test('deletes config successfully', async () => {
-      (api.deleteStripeAdminConfig as jest.Mock).mockResolvedValue({ message: 'Deleted' });
+      (api.deleteStripeAdminConfig as ReturnType<typeof vi.fn>).mockResolvedValue({ message: 'Deleted' });
 
       const { result } = renderHook(() => useStripeConfig());
 
@@ -136,7 +137,7 @@ describe('useStripeConfig', () => {
     });
 
     test('returns false on delete failure', async () => {
-      (api.deleteStripeAdminConfig as jest.Mock).mockRejectedValue(new Error('Delete failed'));
+      (api.deleteStripeAdminConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useStripeConfig());
 

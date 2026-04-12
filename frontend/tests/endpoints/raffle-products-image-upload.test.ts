@@ -49,9 +49,9 @@ describe('Raffle Products Image Upload', () => {
 
       const response = await api.postForm('/api/admin/raffle-products', formData);
       
-      console.log('Create with image - Status:', response.status);
-      const json = await response.json();
-      console.log('Create with image - Response:', JSON.stringify(json, null, 2));
+      const text = await response.text();
+      let json: any;
+      try { json = JSON.parse(text); } catch { /* non-JSON response */ }
       
       expect(response.status).toBe(200);
       expect(json.success).toBe(true);
@@ -92,9 +92,9 @@ describe('Raffle Products Image Upload', () => {
 
       const response = await api.putForm(`/api/admin/raffle-products/${productId}`, updateForm);
       
-      console.log('Update with image - Status:', response.status);
-      const json = await response.json();
-      console.log('Update with image - Response:', JSON.stringify(json, null, 2));
+      const text = await response.text();
+      let json: any;
+      try { json = JSON.parse(text); } catch { /* non-JSON response */ }
       
       expect(response.status).toBe(200);
       expect(json.success).toBe(true);

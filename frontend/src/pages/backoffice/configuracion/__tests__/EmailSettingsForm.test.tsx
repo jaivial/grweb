@@ -1,8 +1,9 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { EmailSettingsForm } from '../components/EmailSettingsForm';
 import type { EmailConfigData } from '../hooks/useEmailConfig';
 
-jest.mock('../../../../utils/api', () => ({
+vi.mock('../../../../utils/api', () => ({
   api: {},
 }));
 
@@ -18,10 +19,10 @@ const defaultConfig: EmailConfigData = {
 };
 
 describe('EmailSettingsForm', () => {
-  const mockOnSave = jest.fn().mockResolvedValue(true);
+  const mockOnSave = vi.fn().mockResolvedValue(true);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Rendering', () => {

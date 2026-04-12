@@ -22,12 +22,11 @@ export const CreateMode: Story = {
     onSave: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await expect(modal.getByTestId('gift-form-modal')).toBeVisible();
-    await expect(modal.getByTestId('gift-modal-title')).toContainText('Nuevo');
-    await expect(modal.getByTestId('gift-title-input')).toBeVisible();
-    await expect(modal.getByTestId('gift-subtitle-input')).toBeVisible();
-    await expect(modal.getByTestId('gift-save-btn')).toBeVisible();
+    await expect(canvas.getByTestId('gift-form-modal')).toBeVisible();
+    await expect(canvas.getByTestId('gift-modal-title')).toHaveTextContent('Nuevo');
+    await expect(canvas.getByTestId('gift-title-input')).toBeVisible();
+    await expect(canvas.getByTestId('gift-subtitle-input')).toBeVisible();
+    await expect(canvas.getByTestId('gift-save-btn')).toBeVisible();
   },
 };
 
@@ -40,11 +39,10 @@ export const EditMode: Story = {
     onSave: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await expect(modal.getByTestId('gift-form-modal')).toBeVisible();
-    await expect(modal.getByTestId('gift-modal-title')).toContainText('Editar');
-    await expect(modal.getByTestId('gift-title-input')).toHaveValue('Camiseta Oficial');
-    await expect(modal.getByTestId('gift-subtitle-input')).toHaveValue('Edición limitada 2026');
+    await expect(canvas.getByTestId('gift-form-modal')).toBeVisible();
+    await expect(canvas.getByTestId('gift-modal-title')).toHaveTextContent('Editar');
+    await expect(canvas.getByTestId('gift-title-input')).toHaveValue('Camiseta Oficial');
+    await expect(canvas.getByTestId('gift-subtitle-input')).toHaveValue('Edición limitada 2026');
   },
 };
 
@@ -62,9 +60,8 @@ export const EditModeWithImage: Story = {
     onSave: fn(),
   },
   play: async ({ canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await expect(modal.getByTestId('gift-form-modal')).toBeVisible();
-    await expect(modal.getByTestId('gift-image-preview-container')).toBeVisible();
+    await expect(canvas.getByTestId('gift-form-modal')).toBeVisible();
+    await expect(canvas.getByTestId('gift-image-preview')).toBeVisible();
   },
 };
 
@@ -76,10 +73,9 @@ export const ValidateRequiredFields: Story = {
     onSave: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    const saveBtn = modal.getByTestId('gift-save-btn');
+    const saveBtn = canvas.getByTestId('gift-save-btn');
     await userEvent.click(saveBtn);
-    await expect(modal.getByTestId('gift-title-error')).toBeVisible();
+    await expect(canvas.getByTestId('gift-title-error')).toBeVisible();
     await expect(args.onSave).not.toHaveBeenCalled();
   },
 };
@@ -92,10 +88,11 @@ export const FillAndSubmit: Story = {
     onSave: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await userEvent.type(modal.getByTestId('gift-title-input'), 'Nuevo Premio Test');
-    await userEvent.type(modal.getByTestId('gift-subtitle-input'), 'Subtítulo del premio');
-    await userEvent.click(modal.getByTestId('gift-save-btn'));
+    await userEvent.click(canvas.getByTestId('gift-title-input'));
+    await userEvent.type(canvas.getByTestId('gift-title-input'), 'Nuevo Premio Test');
+    await userEvent.click(canvas.getByTestId('gift-subtitle-input'));
+    await userEvent.type(canvas.getByTestId('gift-subtitle-input'), 'Subtítulo del premio');
+    await userEvent.click(canvas.getByTestId('gift-save-btn'));
     await expect(args.onSave).toHaveBeenCalledTimes(1);
   },
 };
@@ -108,8 +105,7 @@ export const CloseButtonWorks: Story = {
     onSave: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await userEvent.click(modal.getByTestId('gift-modal-close'));
+    await userEvent.click(canvas.getByTestId('gift-modal-close'));
     await expect(args.onClose).toHaveBeenCalledTimes(1);
   },
 };

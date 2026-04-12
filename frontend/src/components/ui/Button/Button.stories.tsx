@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, within, fireEvent } from 'storybook/test';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from './Button';
 
@@ -63,7 +63,8 @@ export const Disabled: Story = {
   play: async ({ args, canvas }) => {
     const btn = canvas.getByRole('button', { name: 'Deshabilitado' });
     await expect(btn).toBeDisabled();
-    await userEvent.click(btn);
+    // Use fireEvent instead of userEvent because disabled buttons have pointer-events: none
+    fireEvent.click(btn);
     await expect(args.onClick).not.toHaveBeenCalled();
   },
 };

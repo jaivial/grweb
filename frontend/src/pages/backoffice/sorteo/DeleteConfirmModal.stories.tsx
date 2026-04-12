@@ -19,11 +19,10 @@ export const Open: Story = {
     onConfirm: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await expect(modal.getByTestId('delete-confirm-modal')).toBeVisible();
-    await expect(modal.getByTestId('delete-confirm-no')).toBeVisible();
-    await expect(modal.getByTestId('delete-confirm-yes')).toBeVisible();
-    await expect(modal.getByTestId('delete-confirm-name')).toContainText('Camiseta Oficial GR Cup');
+    await expect(canvas.getByTestId('delete-confirm-modal')).toBeVisible();
+    await expect(canvas.getByTestId('delete-confirm-no')).toBeVisible();
+    await expect(canvas.getByTestId('delete-confirm-yes')).toBeVisible();
+    await expect(canvas.getByTestId('delete-confirm-name')).toHaveTextContent('Camiseta Oficial GR Cup');
   },
 };
 
@@ -35,8 +34,7 @@ export const CancelDelete: Story = {
     onConfirm: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await userEvent.click(modal.getByTestId('delete-confirm-no'));
+    await userEvent.click(canvas.getByTestId('delete-confirm-no'));
     await expect(args.onClose).toHaveBeenCalledTimes(1);
     await expect(args.onConfirm).not.toHaveBeenCalled();
   },
@@ -50,8 +48,7 @@ export const ConfirmDelete: Story = {
     onConfirm: fn(),
   },
   play: async ({ args, canvas }) => {
-    const modal = within(canvas.parentElement || canvas);
-    await userEvent.click(modal.getByTestId('delete-confirm-yes'));
+    await userEvent.click(canvas.getByTestId('delete-confirm-yes'));
     await expect(args.onConfirm).toHaveBeenCalledTimes(1);
   },
 };

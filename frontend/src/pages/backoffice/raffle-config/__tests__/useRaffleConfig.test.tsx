@@ -1,31 +1,31 @@
 /**
  * TDD RED: Tests for RaffleConfigPage.
- * Run: npm test -- --testPathPatterns="raffle-config"
+ * Run: npx vitest run --project unit -- src/pages/backoffice/raffle-config
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { api } from '../../../../utils/api';
 
-jest.mock('../../../../utils/api', () => ({
+vi.mock('../../../../utils/api', () => ({
   api: {
-    getRaffleConfig: jest.fn(),
-    updateRaffleConfig: jest.fn(),
+    getRaffleConfig: vi.fn(),
+    updateRaffleConfig: vi.fn(),
   },
 }));
 
-jest.mock('../../../../stores/auth', () => ({
+vi.mock('../../../../stores/auth', () => ({
   token: { value: 'mock-token' },
   isAuthenticated: { value: true },
 }));
 
-const mockApi = api as jest.Mocked<typeof api>;
+const mockApi = api as vi.Mocked<typeof api>;
 
-const mockEnabled = { isEnabled: true, disabledMessage: null as string | null };
-const mockDisabled = { isEnabled: false, disabledMessage: 'El sorteo ha terminado.' };
+const mockEnabled = { isEnabled: true, disabledMessage: null as string | null, raffleMethod: 'default' as const };
+const mockDisabled = { isEnabled: false, disabledMessage: 'El sorteo ha terminado.', raffleMethod: 'default' as const };
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { RaffleConfigPage } = require('../RaffleConfigPage') as { RaffleConfigPage: React.ComponentType };
+const { RaffleConfigPage } = await import('../RaffleConfigPage') as { RaffleConfigPage: React.ComponentType };
 
 function renderPage(config = mockEnabled) {
   mockApi.getRaffleConfig.mockResolvedValue(config);
@@ -33,7 +33,7 @@ function renderPage(config = mockEnabled) {
 }
 
 describe('RaffleConfigPage', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { vi.clearAllMocks(); });
 
   test('fetches config on mount', () => {
     renderPage();
@@ -61,30 +61,40 @@ describe('RaffleConfigPage', () => {
     expect(await findByPlaceholderText(/mensaje personalizado/i)).toBeInTheDocument();
   });
 
-  test('hides message input when enabled', () => {
-    const { queryByPlaceholderText } = renderPage(mockEnabled);
+  test('hides message input when enabled', async () => {
+    const { queryByPlaceholderText, findByText } = renderPage(mockEnabled);
+    // Wait for config to load
+    await findByText(/sorteo activo/i);
     expect(queryByPlaceholderText(/mensaje personalizado/i)).not.toBeInTheDocument();
   });
 
   test('calls updateRaffleConfig when disabling', async () => {
     mockApi.updateRaffleConfig.mockResolvedValue({ isEnabled: false, disabledMessage: null });
-    const { container } = renderPage(mockEnabled);
+    const { container, findByText } = renderPage(mockEnabled);
+    // Wait for config to load
+    await findByText(/sorteo activo/i);
     const btn = container.querySelector('button[aria-label="Desactivar sorteo"]');
-    btn && fireEvent.click(btn);
-    expect(mockApi.updateRaffleConfig).toHaveBeenCalledWith({ isEnabled: false, disabledMessage: null });
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn!);
+    await waitFor(() => {
+      expect(mockApi.updateRaffleConfig).toHaveBeenCalledWith({ isEnabled: false, disabledMessage: null, raffleMethod: 'default' });
+    });
   });
 
   test('shows error when API fails', async () => {
     mockApi.getRaffleConfig.mockRejectedValue(new Error('fail'));
-    const { findByText } = renderPage();
+    const { findByText } = render(<RaffleConfigPage />);
     expect(await findByText(/error al cargar/i)).toBeInTheDocument();
   });
 
   test('shows success after save', async () => {
     mockApi.updateRaffleConfig.mockResolvedValue({ isEnabled: false, disabledMessage: null });
     const { findByText, container } = renderPage(mockEnabled);
+    // Wait for config to load
+    await findByText(/sorteo activo/i);
     const btn = container.querySelector('button[aria-label="Desactivar sorteo"]');
-    btn && fireEvent.click(btn);
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn!);
     expect(await findByText(/cambios guardados/i)).toBeInTheDocument();
   });
 });
