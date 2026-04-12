@@ -10,6 +10,7 @@ interface BackofficeLayoutProps {
 const navItems = [
   { href: '/backoffice', label: 'Inicio', icon: 'home' },
   { href: '/backoffice/inscripciones', label: 'Inscripciones', icon: 'users' },
+  { href: '/backoffice/participantes', label: 'Participantes', icon: 'ticket' },
   { href: '/backoffice/sorteo', label: 'Sorteo', icon: 'dice' },
   { href: '/backoffice/horarios', label: 'Horarios', icon: 'calendar' },
   { href: '/backoffice/configuracion', label: 'Configuración', icon: 'settings' },

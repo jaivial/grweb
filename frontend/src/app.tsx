@@ -25,6 +25,7 @@ const Horarios = lazy(() => import('./pages/backoffice/horarios/Horarios').then(
 const InscripcionConfigPage = lazy(() => import('./pages/backoffice/InscripcionConfig').then(m => ({ default: m.default })));
 const Configuracion = lazy(() => import('./pages/backoffice/configuracion/Configuracion').then(m => ({ default: m.Configuracion })));
 const RaffleConfigPage = lazy(() => import('./pages/backoffice/raffle-config/RaffleConfigPage').then(m => ({ default: m.RaffleConfigPage })));
+const Participantes = lazy(() => import('./pages/backoffice/participantes/Participantes').then(m => ({ default: m.default })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -126,6 +127,14 @@ export function App() {
         component={() => (
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}><RaffleConfigPage /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/participantes"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Participantes /></Suspense>
           </ProtectedRoute>
         )}
       />
