@@ -75,7 +75,9 @@ function useScrollVisibility(options: {
             setAnimationStyle({
               opacity: 1,
               transform: 'none',
-              transition: `opacity ${enterDuration}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${enterDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+              transitionProperty: 'opacity, transform',
+              transitionDuration: `${enterDuration}ms, ${enterDuration}ms`,
+              transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1), cubic-bezier(0.4, 0, 0.2, 1)',
             });
           }
         }

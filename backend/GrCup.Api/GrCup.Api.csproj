@@ -6,6 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Copy .env to output directory after build -->
+  <Target Name="CopyEnvFile" AfterTargets="Build">
+    <Copy SourceFiles=".env" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="2.1.0" />
     <PackageReference Include="MailKit" Version="4.7.1" />
