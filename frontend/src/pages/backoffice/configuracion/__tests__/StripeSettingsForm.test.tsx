@@ -1,8 +1,9 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { StripeSettingsForm } from '../components/StripeSettingsForm';
 import type { StripeConfigData } from '../../../../stores/stripeConfigStore';
 
-jest.mock('../../../../utils/api', () => ({
+vi.mock('../../../../utils/api', () => ({
   api: {},
 }));
 
@@ -13,10 +14,10 @@ const defaultConfig: StripeConfigData = {
 };
 
 describe('StripeSettingsForm', () => {
-  const mockOnSave = jest.fn().mockResolvedValue(true);
+  const mockOnSave = vi.fn().mockResolvedValue(true);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Rendering', () => {

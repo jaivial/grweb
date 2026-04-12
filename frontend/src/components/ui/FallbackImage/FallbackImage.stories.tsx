@@ -1,4 +1,4 @@
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, within, waitFor } from 'storybook/test';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { FallbackImage } from './FallbackImage';
 
@@ -20,7 +20,8 @@ export const WithValidImage: Story = {
   },
   play: async ({ canvas }) => {
     const img = canvas.getByRole('img');
-    await expect(img).toBeVisible();
+    // Wait for the image to load (it starts with opacity-0 and becomes visible after onLoad)
+    await waitFor(() => expect(img).toBeVisible());
   },
 };
 

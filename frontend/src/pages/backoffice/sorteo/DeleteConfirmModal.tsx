@@ -40,7 +40,7 @@ export function DeleteConfirmModal({ isOpen, giftTitle, onClose, onConfirm }: De
         </div>
 
         <p className="text-gray-400 text-sm mb-6" data-ui="delete-confirm-message">
-          ¿Estás seguro de que quieres eliminar <span className="text-white font-semibold" data-ui="delete-confirm-name">{giftTitle}</span>? Esta acción no se puede deshacer.
+          ¿Estás seguro de que quieres eliminar <span className="text-white font-semibold" data-testid="delete-confirm-name" data-ui="delete-confirm-name">{giftTitle}</span>? Esta acción no se puede deshacer.
         </p>
 
         <div className="flex gap-3" data-ui="delete-confirm-actions">

@@ -71,10 +71,27 @@ export default defineConfig({
         }
       }
     }, {
+      extends: true,
       test: {
         name: 'unit',
-        include: ['src/**/*.vitest.test.{ts,tsx}'],
+        environment: 'jsdom',
+        include: [
+          'src/**/*.test.{ts,tsx}',
+        ],
+        setupFiles: ['./tests/vitest.setup.ts'],
+        globals: true,
+      }
+    }, {
+      extends: true,
+      test: {
+        name: 'endpoint',
         environment: 'node',
+        include: [
+          'tests/endpoints/**/*.test.{ts,tsx}',
+        ],
+        globals: true,
+        testTimeout: 30_000,
+        hookTimeout: 30_000,
       }
     }]
   }

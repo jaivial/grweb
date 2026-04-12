@@ -1,17 +1,18 @@
 import { renderHook, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { useEmailConfig } from '../hooks/useEmailConfig';
 import { api } from '../../../../utils/api';
 import type { EmailConfigData } from '../hooks/useEmailConfig';
 
-jest.mock('../../../../utils/api', () => ({
+vi.mock('../../../../utils/api', () => ({
   api: {
-    getEmailConfig: jest.fn(),
-    updateEmailConfig: jest.fn(),
-    deleteEmailConfig: jest.fn(),
+    getEmailConfig: vi.fn(),
+    updateEmailConfig: vi.fn(),
+    deleteEmailConfig: vi.fn(),
   },
 }));
 
-jest.mock('../../../../stores/auth', () => ({
+vi.mock('../../../../stores/auth', () => ({
   token: { value: 'mock-token' },
 }));
 
@@ -39,12 +40,12 @@ const mockGmailConfig: EmailConfigData = {
 
 describe('useEmailConfig', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('fetchConfig', () => {
     test('fetches config successfully', async () => {
-      (api.getEmailConfig as jest.Mock).mockResolvedValue(mockConfig);
+      (api.getEmailConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockConfig);
 
       const { result } = renderHook(() => useEmailConfig());
 
@@ -59,7 +60,7 @@ describe('useEmailConfig', () => {
     });
 
     test('sets error on fetch failure', async () => {
-      (api.getEmailConfig as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (api.getEmailConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useEmailConfig());
 
@@ -82,7 +83,7 @@ describe('useEmailConfig', () => {
 
   describe('saveConfig', () => {
     test('saves config successfully', async () => {
-      (api.updateEmailConfig as jest.Mock).mockResolvedValue(mockConfig);
+      (api.updateEmailConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockConfig);
 
       const { result } = renderHook(() => useEmailConfig());
 
@@ -97,7 +98,7 @@ describe('useEmailConfig', () => {
     });
 
     test('returns false and sets error on save failure', async () => {
-      (api.updateEmailConfig as jest.Mock).mockRejectedValue(new Error('Save failed'));
+      (api.updateEmailConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Save failed'));
 
       const { result } = renderHook(() => useEmailConfig());
 
@@ -110,7 +111,7 @@ describe('useEmailConfig', () => {
     });
 
     test('saves Gmail config correctly', async () => {
-      (api.updateEmailConfig as jest.Mock).mockResolvedValue(mockGmailConfig);
+      (api.updateEmailConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGmailConfig);
 
       const { result } = renderHook(() => useEmailConfig());
 
@@ -125,7 +126,7 @@ describe('useEmailConfig', () => {
 
     test('sets isSaving state during save', async () => {
       let resolvePromise: (value: typeof mockConfig) => void;
-      (api.updateEmailConfig as jest.Mock).mockImplementation(
+      (api.updateEmailConfig as ReturnType<typeof vi.fn>).mockImplementation(
         () => new Promise<typeof mockConfig>((resolve) => { resolvePromise = resolve; })
       );
 
@@ -147,7 +148,7 @@ describe('useEmailConfig', () => {
 
   describe('deleteConfig', () => {
     test('deletes config successfully', async () => {
-      (api.deleteEmailConfig as jest.Mock).mockResolvedValue({ message: 'Deleted' });
+      (api.deleteEmailConfig as ReturnType<typeof vi.fn>).mockResolvedValue({ message: 'Deleted' });
 
       const { result } = renderHook(() => useEmailConfig());
 
@@ -161,7 +162,7 @@ describe('useEmailConfig', () => {
     });
 
     test('returns false on delete failure', async () => {
-      (api.deleteEmailConfig as jest.Mock).mockRejectedValue(new Error('Delete failed'));
+      (api.deleteEmailConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useEmailConfig());
 
