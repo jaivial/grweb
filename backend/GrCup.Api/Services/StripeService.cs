@@ -61,9 +61,26 @@ public class StripeService
         int ticketCount,
         string successUrl,
         string cancelUrl,
-        string? phone = null)
+        string? phone = null,
+        int? competicionId = null)
     {
         await ResolveCredentialsAsync();
+
+        var metadata = new Dictionary<string, string>
+        {
+            { "firstName", firstName },
+            { "surname", surname },
+            { "email", email.ToLowerInvariant() },
+            { "instagram", instagram },
+            { "ticketCount", ticketCount.ToString() },
+            { "phone", phone ?? "" }
+        };
+
+        // Add competicionId for competition-specific email routing
+        if (competicionId.HasValue)
+        {
+            metadata["competicion_id"] = competicionId.Value.ToString();
+        }
 
         var options = new SessionCreateOptions
         {
@@ -88,15 +105,7 @@ public class StripeService
             Mode = "payment",
             SuccessUrl = successUrl,
             CancelUrl = cancelUrl,
-            Metadata = new Dictionary<string, string>
-            {
-                { "firstName", firstName },
-                { "surname", surname },
-                { "email", email.ToLowerInvariant() },
-                { "instagram", instagram },
-                { "ticketCount", ticketCount.ToString() },
-                { "phone", phone ?? "" }
-            }
+            Metadata = metadata
         };
 
         var service = new SessionService();
@@ -134,17 +143,20 @@ public class StripeService
     /// <summary>
     /// Extracts participant data from Stripe session metadata
     /// </summary>
-    public (string FirstName, string Surname, string Email, string Instagram, int TicketCount, string? Phone) ExtractMetadata(Session session)
+    public (string FirstName, string Surname, string Email, string Instagram, int TicketCount, string? Phone, int? CompeticionId) ExtractMetadata(Session session)
     {
         var metadata = session.Metadata;
         var phone = metadata.TryGetValue("phone", out var p) && !string.IsNullOrEmpty(p) ? p : null;
+        var competicionIdStr = metadata.TryGetValue("competicion_id", out var cid) && !string.IsNullOrEmpty(cid) ? cid : null;
+        int? competicionId = !string.IsNullOrEmpty(competicionIdStr) && int.TryParse(competicionIdStr, out var parsed) ? parsed : null;
         return (
             metadata["firstName"],
             metadata["surname"],
             metadata["email"],
             metadata["instagram"],
             int.Parse(metadata["ticketCount"]),
-            phone
+            phone,
+            competicionId
         );
     }
 

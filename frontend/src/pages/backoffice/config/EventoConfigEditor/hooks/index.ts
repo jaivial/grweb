@@ -1,0 +1,1 @@
+export { useEventoConfig } from './useEventoConfig';

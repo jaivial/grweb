@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { JSX, FC } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
-import { token } from '../../../stores/auth';
-import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { Tabs, Button, CustomSelector, DatePicker, TimePicker, Modal } from '../../../components/ui';
 import type { Schedule, ScheduleFormData } from '../../../types/schedule';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
 import { api } from '../../../utils/api';
 import { deduplicateSchedules } from '../../../hooks';
+import { useCompeticionSlug } from '../../../hooks/useCompeticionSlug';
+import { useAtomValue } from 'jotai';
+import { currentCompeticionIdAtom } from '../../../stores/auth.atoms';
 
 // Dynamic import for pdfExport to reduce initial bundle size
 const getExportPdf = () => import('../../../utils/pdfExport').then(m => m.exportPdf);
@@ -354,6 +355,10 @@ export function Horarios(): JSX.Element {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
 
+  // Competition context
+  const { competicionSlug } = useCompeticionSlug();
+  const competicionId = useAtomValue(currentCompeticionIdAtom);
+
   // Schedules published toggle
   const [schedulesPublished, setSchedulesPublished] = useState(true);
   const [schedulesPublishedLoading, setSchedulesPublishedLoading] = useState(true);
@@ -369,14 +374,14 @@ export function Horarios(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch schedules from API
+  // Fetch schedules from API (scoped to competition)
+  // Auth handled via HttpOnly cookie (credentials: 'include') — no token guard needed
   const fetchSchedulesFromApi = useCallback(async () => {
-    if (!token.value) return;
+    if (!competicionId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const response = await api.getSchedules();
-      // Flatten grouped data and deduplicate in one step
+      const response = await api.getSchedules(undefined, competicionId);
       const deduplicated = deduplicateSchedules(response as Parameters<typeof deduplicateSchedules>[0]);
       setSchedulesLocal(deduplicated);
     } catch (err) {
@@ -384,13 +389,13 @@ export function Horarios(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [competicionId]);
 
   useEffect(() => {
     fetchSchedulesFromApi();
     const fetchPublishedConfig = async () => {
       try {
-        const config = await api.getSchedulesPublishedConfig();
+        const config = await api.getSchedulesPublishedConfig(competicionId);
         setSchedulesPublished(config.value);
       } catch {
         // default to true
@@ -399,14 +404,14 @@ export function Horarios(): JSX.Element {
       }
     };
     fetchPublishedConfig();
-  }, [fetchSchedulesFromApi]);
+  }, [fetchSchedulesFromApi, competicionId]);
 
-  // Fetch public schedules for preview
+  // Fetch public schedules for preview (scoped to competition)
   useEffect(() => {
     const fetchPreviewSchedules = async () => {
       setPreviewLoading(true);
       try {
-        const data = await api.getPublicSchedules();
+        const data = await api.getPublicSchedules(competicionSlug || undefined);
         setPreviewSchedules(data);
       } catch {
         setPreviewSchedules([]);
@@ -418,14 +423,15 @@ export function Horarios(): JSX.Element {
     if (activeContentTab === 'preview') {
       fetchPreviewSchedules();
     }
-  }, [activeContentTab]);
+  }, [activeContentTab, competicionSlug]);
 
   const handleSexTabChange = useCallback((tabId: string) => {
     setActiveSexTab(tabId as 'Male' | 'Female');
   }, []);
 
   const handleAddSchedule = useCallback(async (data: ScheduleFormData) => {
-    const created = await api.createSchedule(data);
+    const payload = { ...data, competicionId: competicionId };
+    const created = await api.createSchedule(payload);
     setSchedulesLocal(prev => [...prev, created].sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
       if (dateCompare !== 0) return dateCompare;
@@ -474,7 +480,7 @@ export function Horarios(): JSX.Element {
   const handleTogglePublished = useCallback(async () => {
     try {
       setSchedulesPublishedSaving(true);
-      await api.updateSchedulesPublishedConfig({ value: !schedulesPublished });
+      await api.updateSchedulesPublishedConfig({ value: !schedulesPublished }, competicionId);
       setSchedulesPublished(prev => !prev);
       setToggleSuccess(true);
       setTimeout(() => setToggleSuccess(false), 3000);
@@ -483,7 +489,7 @@ export function Horarios(): JSX.Element {
     } finally {
       setSchedulesPublishedSaving(false);
     }
-  }, [schedulesPublished]);
+  }, [schedulesPublished, competicionId]);
 
   // Get categories for current sex
   const categories = activeSexTab === 'Female' ? WOMEN_CATEGORIES : MEN_CATEGORIES;
@@ -494,7 +500,7 @@ export function Horarios(): JSX.Element {
   }, [schedules, activeSexTab]);
 
   return (
-    <BackofficeLayout>
+    <>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="horarios-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
@@ -730,7 +736,8 @@ export function Horarios(): JSX.Element {
           mode="edit"
         />
       )}
-    </BackofficeLayout>
+
+    </>
   );
 }
 

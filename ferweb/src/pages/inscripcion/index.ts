@@ -1,0 +1,1 @@
+export { InscripcionPage } from './InscripcionPage';

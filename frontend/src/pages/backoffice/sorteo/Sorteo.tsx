@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, Fragment } from 'react';
 import type { JSX } from 'react';
 import { Plus, Filter, ToggleLeft, ToggleRight, Edit2, Trash2, Gift } from 'lucide-react';
-import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { api } from '../../../utils/api';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
@@ -684,7 +683,6 @@ export function Sorteo(): JSX.Element {
   ];
 
   return (
-    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8 min-w-0" data-ui="sorteo-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
@@ -1720,7 +1718,7 @@ export function Sorteo(): JSX.Element {
           </Fragment>
         )}
       </div>
-    </BackofficeLayout>
+
   );
 }
 

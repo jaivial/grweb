@@ -42,7 +42,8 @@ public static class PublicEndpoints
                     request.TicketCount,
                     successUrl,
                     cancelUrl,
-                    request.Phone
+                    request.Phone,
+                    request.CompeticionId
                 );
 
                 logger.LogInformation("Created Stripe session {SessionId} for {Email}", session.Id, request.Email);
@@ -68,7 +69,7 @@ public static class PublicEndpoints
             try
             {
                 var session = await stripeService.GetSessionAsync(sessionId);
-                var (firstName, surname, email, instagram, ticketCount, _) = stripeService.ExtractMetadata(session);
+                var (firstName, surname, email, instagram, ticketCount, _, _) = stripeService.ExtractMetadata(session);
                 var totalPaid = stripeService.CalculateTotalPaid(session);
 
                 return Results.Ok(new
@@ -128,12 +129,8 @@ public static class PublicEndpoints
             });
         });
 
-        // GET /api/schedules/published - Check if schedules are published
-        app.MapGet("/api/schedules/published", async (GrCupDbContext db) =>
-        {
-            var config = await db.SchedulePublishedConfig.FirstOrDefaultAsync();
-            return Results.Ok(new { published = config?.Value ?? true });
-        });
+        // NOTE: /api/schedules/published has been moved to ScheduleEndpoints.cs
+        // It now accepts an optional ?slug= parameter for competition scoping
 
         // POST /api/athletes - Public athlete registration with confirmation email
         app.MapPost("/api/athletes", async (
@@ -147,12 +144,12 @@ public static class PublicEndpoints
                 string.IsNullOrWhiteSpace(athlete.Email) ||
                 string.IsNullOrWhiteSpace(athlete.WeightCategory))
             {
-                return Results.BadRequest(new { error = "Nombre, apellidos, email y categoría son obligatorios." });
+                return Results.BadRequest(new { error = "Nombre, apellidos, email y categoria son obligatorios." });
             }
 
             if (!athlete.Email.Contains("@"))
             {
-                return Results.BadRequest(new { error = "Email inválido." });
+                return Results.BadRequest(new { error = "Email invalido." });
             }
 
             try
@@ -210,6 +207,63 @@ public static class PublicEndpoints
             var winner = await drawService.GetLatestConfirmedWinnerAsync();
             return Results.Ok(new { success = true, data = winner });
         });
+
+        // GET /api/competiciones/:slug/config - Get public competition config with dynamic prices and categories
+        app.MapGet("/api/competiciones/{slug}/config", async (
+            string slug,
+            CompeticionService competicionService,
+            ScheduleService scheduleService,
+            GrCupDbContext db) =>
+        {
+            var competicion = await competicionService.GetBySlugAsync(slug);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competicion no encontrada" });
+
+            var config = competicionService.GetEventoConfig(competicion);
+            var plazasDisponibles = await competicionService.GetPlazasDisponiblesAsync(competicion.Id);
+            
+            // Get categories from schedules SCOPED to this competition
+            var categoriasMasculino = await db.Schedules
+                .Where(s => s.CompeticionId == competicion.Id && s.SexCategory == Models.Enums.Sex.Male)
+                .Select(s => s.WeightCategory)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+            
+            var categoriasFemenino = await db.Schedules
+                .Where(s => s.CompeticionId == competicion.Id && s.SexCategory == Models.Enums.Sex.Female)
+                .Select(s => s.WeightCategory)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+
+            return Results.Ok(new { 
+                success = true, 
+                data = new { 
+                    precioBase = config.PrecioBase,
+                    precioHandler = config.PrecioHandler,
+                    precioUpsell = config.PrecioUpsell,
+                    precioRifa = config.PrecioRifa,
+                    precioTotal = config.PrecioBase + (config.PrecioHandler > 0 ? config.PrecioHandler : 0),
+                    precioTotalConHandler = config.PrecioBase + config.PrecioHandler,
+                    precioTotalConUpsell = config.PrecioBase + config.PrecioUpsell,
+                    precioTotalConTodo = config.PrecioBase + config.PrecioUpsell + config.PrecioHandler,
+                    aforoMaximo = config.AforoMaximo,
+                    plazasDisponibles = plazasDisponibles,
+                    inscripcionAbierta = config.InscripcionAbierta && plazasDisponibles > 0,
+                    categoriasMasculino,
+                    categoriasFemenino,
+                    eventName = competicion.Nombre,
+                    eventDate = competicion.Fecha.ToString("yyyy-MM-dd"),
+                    eventLocation = competicion.Lugar,
+                    contactEmail = competicion.EmailContacto,
+                    horariosReady = competicion.HorariosReady,
+                    instagramUrl = competicion.LandingConfig != null 
+                        ? System.Text.Json.JsonSerializer.Deserialize<LandingConfig>(competicion.LandingConfig)?.InstagramUrl 
+                        : null
+                }
+            });
+        });
     }
 }
 
@@ -220,5 +274,6 @@ public record TicketPurchaseRequest(
     string Instagram,
     int TicketCount,
     string FrontendUrl,
-    string? Phone
+    string? Phone,
+    int? CompeticionId = null
 );

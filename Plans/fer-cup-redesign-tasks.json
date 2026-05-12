@@ -1,0 +1,543 @@
+{
+  "project": "FER CUP Redesign - ferweb rebranding",
+  "source": "Google Doc brief (1SmH7Xsj-dUzMbfEB-ZaeXC5pOCZrraIl8QtrZsZUZxE)",
+  "qaUrl": "https://ferdev.menustudioai.com/",
+  "createdAt": "2026-05-12",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Global rebranding: constants + all string replacements",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "FER_EVENT.name = 'FER CUP' in constants.ts",
+        "FER_EVENT.location = 'Valencia' in constants.ts",
+        "Zero occurrences of 'FER Powerlifting Day' in ferweb/src/",
+        "Zero occurrences of 'Almussafes' in ferweb/src/ (except historical/contextual)",
+        "TypeScript compiles without errors"
+      ],
+      "substeps": [
+        {
+          "id": "1.1",
+          "description": "Update constants.ts: FER_EVENT.name to 'FER CUP', FER_EVENT.location to 'Valencia'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/constants/constants.ts"],
+          "status": "pending"
+        },
+        {
+          "id": "1.2",
+          "description": "Search and replace all 'FER Powerlifting Day' references in ferweb/src/ components",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/Hero.tsx", "ferweb/src/pages/fer/components/QueEs.tsx", "ferweb/src/pages/fer/components/FerFooter.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "1.3",
+          "description": "Search and replace all 'FER Entrenamiento' references with 'GR Strength' in ferweb/src/",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QueEs.tsx", "ferweb/src/pages/fer/components/ElClubSection.tsx", "ferweb/src/pages/fer/components/FerFooter.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "1.4",
+          "description": "Search and replace all 'Almussafes' references with 'Valencia' in ferweb/src/",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/Hero.tsx", "ferweb/src/pages/fer/components/FerFooter.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "1.5",
+          "description": "Run TypeScript build to verify no compilation errors after all rebranding changes",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Hero section: GR STRENGTH presenta FER CUP + Valencia chip",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "Hero shows 'GR STRENGTH presenta' above main title",
+        "Main title shows 'FER CUP'",
+        "Location chip reads 'VALENCIA' instead of 'ALMUSSAFES'",
+        "All brand icons and slideshow still render correctly",
+        "All images in Hero/HeroSlideshow have grayscale filter"
+      ],
+      "substeps": [
+        {
+          "id": "2.1",
+          "description": "Update Hero.tsx: change 'Presenta' text to 'GR STRENGTH presenta', ensure main title reads 'FER CUP'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/Hero.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "2.2",
+          "description": "Update Hero.tsx location chip from 'ALMUSSAFES' to 'VALENCIA'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/Hero.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "2.3",
+          "description": "Apply grayscale filter to all images in Hero.tsx and HeroSlideshow.tsx",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/Hero.tsx", "ferweb/src/pages/fer/components/HeroSlideshow.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "2.4",
+          "description": "Verify Hero brand icons (HERO_BRAND_ICONS) still render correctly after rebranding",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/Hero.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "2.5",
+          "description": "Run build and verify Hero section compiles without errors",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "QueEs + QueIncluye: updated copy, judges description, included items",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "QueEs title reads 'FER CUP' not 'FER Powerlifting Day'",
+        "Description says 'Organizado por GR Strength, tu club de confianza en Valencia'",
+        "Judges highlight reads 'Jueces internacionales profesionales con certificacion oficial'",
+        "Added 'Competir contra gente de tu nivel' below spotters",
+        "QueIncluye has zona calentamiento, merchandising limitado y rebajado, gestion profesional"
+      ],
+      "substeps": [
+        {
+          "id": "3.1",
+          "description": "Update QueEs.tsx title from 'FER Powerlifting Day' to 'FER CUP', update description to reference GR Strength and Valencia",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QueEs.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "3.2",
+          "description": "Update QueEs.tsx HIGHLIGHTS: replace FEDDF judges with international certified judges, add 'Competir contra gente de tu nivel'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QueEs.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "3.3",
+          "description": "Update QueIncluye.tsx CARDS: update judges card description to international certified judges",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QueIncluye.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "3.4",
+          "description": "Update QueIncluye.tsx MERCH_ITEMS: ensure zona calentamiento equipada, merchandising limitado y rebajado, gestion profesional del evento are present",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QueIncluye.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "3.5",
+          "description": "Apply grayscale filter to all images in QueEs.tsx and QueIncluye.tsx",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QueEs.tsx", "ferweb/src/pages/fer/components/QueIncluye.tsx"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "QuienPuede: full categories replacement with 6 new cards",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "6 category cards shown: GR Strength affiliates, FER gym members, external athletes, beginners, without coach, experienced",
+        "Grid layout works on mobile (2-col) and desktop (3-col)",
+        "All data-ui attributes are unique",
+        "Grayscale filter on images"
+      ],
+      "substeps": [
+        {
+          "id": "4.1",
+          "description": "Replace PARTICIPANTS array in QuienPuede.tsx with 6 new categories from the brief",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QuienPuede.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "4.2",
+          "description": "Update grid layout to accommodate 6 cards: 2-col on sm, 3-col on lg",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QuienPuede.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "4.3",
+          "description": "Add unique data-ui attributes to each new card element",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QuienPuede.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "4.4",
+          "description": "Apply grayscale filter to any images in QuienPuede.tsx",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/QuienPuede.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "4.5",
+          "description": "Run build and verify QuienPuede compiles without errors",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Sobre Nosotros: rework ElClubSection with new values + origin story",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "VALUES updated to RESPETO, EQUIPO, SUPERACION, PROFESIONALIDAD",
+        "Section title references 'GR Strength' not 'FER Entrenamiento'",
+        "3-step GRS origin story block visible",
+        "Vision statement 'Ser el referente del powerlifting de todo el pais' present",
+        "Photos have grayscale filter"
+      ],
+      "substeps": [
+        {
+          "id": "5.1",
+          "description": "Update ElClubSection.tsx VALUES array to ['RESPETO', 'EQUIPO', 'SUPERACION', 'PROFESIONALIDAD'] with descriptions from brief",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/ElClubSection.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "5.2",
+          "description": "Update ElClubSection.tsx title/description: 'Conoce la historia, los valores y las personas detras de GR Strength'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/ElClubSection.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "5.3",
+          "description": "Add 3-step GRS origin story block: small project -> biggest club in Spain -> FER CUP event",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/ElClubSection.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "5.4",
+          "description": "Add vision statement 'Ser el referente del powerlifting de todo el pais' and team section (Directiva, Jueces & Spotters, Comunidad 100+)",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/ElClubSection.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "5.5",
+          "description": "Apply grayscale filter to all photos in ElClubSection.tsx",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/ElClubSection.tsx"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "PolaroidGallery + ParallaxShowcase: updated text + grayscale",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "PolaroidGallery subtitle reads 'Esto es lo que vivimos en GR Strength'",
+        "All polaroid photos have grayscale filter",
+        "ParallaxShowcase photos have grayscale filter",
+        "Hover reveals color on photos"
+      ],
+      "substeps": [
+        {
+          "id": "6.1",
+          "description": "Update PolaroidGallery.tsx subtitle from 'Asi se vivio la ultima edicion' to 'Esto es lo que vivimos en GR Strength'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/PolaroidGallery.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "6.2",
+          "description": "Apply grayscale filter to all polaroid images in PolaroidGallery.tsx with hover:grayscale-0",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/PolaroidGallery.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "6.3",
+          "description": "Apply grayscale filter to all images in ParallaxShowcase.tsx with hover reveal",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/ParallaxShowcase.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "6.4",
+          "description": "Verify both sections have unique data-ui attributes on all elements",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/PolaroidGallery.tsx", "ferweb/src/pages/fer/components/ParallaxShowcase.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "6.5",
+          "description": "Run build and verify both sections compile without errors",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "GRS Peak Program: new section component",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "New GrPeakProgram.tsx component created",
+        "Shows coaching program details: +40 EUR, deadline 20 junio, features list",
+        "Design matches FER landing aesthetic (dark bg, silver accents, Framer Motion)",
+        "Imported and rendered in FerLanding.tsx between ComoFunciona and ParallaxShowcase",
+        "All data-ui attributes unique"
+      ],
+      "substeps": [
+        {
+          "id": "7.1",
+          "description": "Create GrPeakProgram.tsx component with Framer Motion animations, FER_COLORS styling, and content from brief",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/GrPeakProgram.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "7.2",
+          "description": "Add features list: Coaching online 1:1, Correccion tecnica, Programacion individualizada, Estrategia de intentos, Gestion trabajo accesorio",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/GrPeakProgram.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "7.3",
+          "description": "Add price badge (+40 EUR), deadline text 'fecha maxima para reservar tu coaching: 20 de junio', and exclusive pricing note",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/GrPeakProgram.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "7.4",
+          "description": "Import GrPeakProgram in FerLanding.tsx and render between ComoFunciona and ParallaxShowcase",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/FerLanding.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "7.5",
+          "description": "Add unique data-ui attributes to all elements in GrPeakProgram, run build to verify",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/GrPeakProgram.tsx"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "GrHandlerService + Handling: updated copy for free handler",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "GrHandlerService shows 'No tienes handler? Nosotros nos encargamos de ello de forma gratuita'",
+        "Shows 'Tan solo, informanos sobre ello'",
+        "Clearly communicates FREE service",
+        "All data-ui attributes unique"
+      ],
+      "substeps": [
+        {
+          "id": "8.1",
+          "description": "Update GrHandlerService.tsx: replace placeholder copy with free handler messaging from brief",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/GrHandlerService.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "8.2",
+          "description": "Ensure handler service is clearly marked as FREE (gratuito), not paid",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/GrHandlerService.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "8.3",
+          "description": "Verify unique data-ui attributes on all elements",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/GrHandlerService.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "8.4",
+          "description": "Verify GrHandlerService renders correctly in FerLanding.tsx section order",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/FerLanding.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "8.5",
+          "description": "Run build and verify GrHandlerService compiles without errors",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Final CTA section + Footer updates",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "Final CTA before footer: 'No importa tu nivel... te esperamos en la FER CUP'",
+        "CTA button reads 'FER CUP x GRS' and scrolls to inscripcion form",
+        "Footer shows 'GR STRENGTH' not 'FER ENTRENAMIENTO'",
+        "Footer says 'Hecho con corazon en Valencia' not 'Almussafes'",
+        "Copyright updated to 'GR Strength'"
+      ],
+      "substeps": [
+        {
+          "id": "9.1",
+          "description": "Create FerCtaSection.tsx: final CTA with text 'No importa tu nivel. Si tienes ganas de superarte y disfrutar del powerlifting en buena compania, te esperamos en la FER CUP.'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/FerCtaSection.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "9.2",
+          "description": "Add 'FER CUP x GRS' button to CTA that scrolls to inscripcion form (use scrollToForm pattern)",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/FerCtaSection.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "9.3",
+          "description": "Import FerCtaSection in FerLanding.tsx and render before FerFooter",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/FerLanding.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "9.4",
+          "description": "Update FerFooter.tsx: 'FER ENTRENAMIENTO' -> 'GR STRENGTH', 'Almussafes' -> 'Valencia', copyright 'GR Strength'",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/FerFooter.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "9.5",
+          "description": "Run build and verify CTA + Footer compile without errors",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Remaining sections grayscale + text rebranding sweep",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "All images in DisciplinasSection, ComoFunciona, HorariosSection have grayscale filter",
+        "No remaining 'FER Powerlifting Day', 'FER Entrenamiento', or 'Almussafes' in any ferweb/src/ file",
+        "Full build passes with zero errors"
+      ],
+      "substeps": [
+        {
+          "id": "10.1",
+          "description": "Apply grayscale filter to images in DisciplinasSection.tsx",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/DisciplinasSection.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "10.2",
+          "description": "Apply grayscale filter to images in ComoFunciona.tsx and HorariosSection",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/components/ComoFunciona.tsx", "ferweb/src/pages/fer/components/HorariosSection/index.tsx"],
+          "status": "pending"
+        },
+        {
+          "id": "10.3",
+          "description": "Final grep sweep: search all ferweb/src/ for 'FER Powerlifting Day', 'FER Entrenamiento', 'Almussafes' and fix any remaining occurrences",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        },
+        {
+          "id": "10.4",
+          "description": "Run full TypeScript build (npm run build) and verify zero compilation errors",
+          "agent": "front-developer",
+          "files": [],
+          "status": "pending"
+        },
+        {
+          "id": "10.5",
+          "description": "Verify final section ordering in FerLanding.tsx is correct",
+          "agent": "front-developer",
+          "files": ["ferweb/src/pages/fer/FerLanding.tsx"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Visual QA validation with agent-browser at ferdev.menustudioai.com",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "All sections render correctly on mobile viewport",
+        "All sections render correctly on desktop viewport",
+        "All rebranding text changes visible (FER CUP, GR Strength, Valencia)",
+        "New sections (GrPeakProgram, FerCtaSection) render correctly",
+        "Grayscale filter applied to all photos",
+        "No console errors or broken layouts"
+      ],
+      "substeps": [
+        {
+          "id": "11.1",
+          "description": "Use agent-browser to capture full-page screenshot of ferdev.menustudioai.com on desktop viewport",
+          "agent": "qa-tester",
+          "files": [],
+          "status": "pending"
+        },
+        {
+          "id": "11.2",
+          "description": "Validate Hero section: GR STRENGTH presenta FER CUP, VALENCIA chip, grayscale images",
+          "agent": "qa-tester",
+          "files": [],
+          "status": "pending"
+        },
+        {
+          "id": "11.3",
+          "description": "Validate content sections: QueEs (judges, GR Strength), QuienPuede (6 cards), ElClubSection (new values), PolaroidGallery (new subtitle)",
+          "agent": "qa-tester",
+          "files": [],
+          "status": "pending"
+        },
+        {
+          "id": "11.4",
+          "description": "Validate new sections: GrPeakProgram (price, deadline, features), FerCtaSection (CTA text, button), Footer (GR STRENGTH, Valencia)",
+          "agent": "qa-tester",
+          "files": [],
+          "status": "pending"
+        },
+        {
+          "id": "11.5",
+          "description": "Capture mobile viewport screenshots and check responsive layout, report all issues found",
+          "agent": "qa-tester",
+          "files": [],
+          "status": "pending"
+        }
+      ]
+    }
+  ]
+}

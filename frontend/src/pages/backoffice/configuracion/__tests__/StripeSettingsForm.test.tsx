@@ -1,9 +1,8 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { vi } from 'vitest';
 import { StripeSettingsForm } from '../components/StripeSettingsForm';
 import type { StripeConfigData } from '../../../../stores/stripeConfigStore';
 
-vi.mock('../../../../utils/api', () => ({
+vi.mock('../../../../api/client', () => ({
   api: {},
 }));
 

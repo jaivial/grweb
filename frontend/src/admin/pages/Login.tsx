@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { login, isLoading, error } from '../../stores/auth';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function Login() {
   const [, navigate] = useLocation();
+  const { login, isLoading } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -27,10 +28,14 @@ export default function Login() {
       return;
     }
 
-    const success = await login(username.trim(), password);
-    
-    if (success) {
-      navigate('/backoffice');
+    const user = await login({ email: username.trim(), password });
+
+    if (user) {
+      // Use the first competition's slug for the redirect
+      const firstSlug = user.competiciones && user.competiciones.length > 0
+        ? user.competiciones[0].slug
+        : '';
+      navigate(firstSlug ? `/backoffice/${firstSlug}` : '/backoffice');
     }
   }
 
@@ -44,19 +49,19 @@ export default function Login() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2" data-ui="login-title">Admin Login</h1>
-          <p className="text-gray-400" data-ui="login-subtitle">GR Cup Raffle Management</p>
+          <p className="text-gray-400" data-ui="login-subtitle">Panel de Administracion</p>
         </div>
 
         <div className="bg-dark-surface rounded-2xl p-8 border border-gray-700 shadow-red-accent animate-slide-up" data-ui="login-form-card">
           <form onSubmit={handleSubmit} className="space-y-6" data-testid="login-form">
-            {(localError || error.value) && (
+            {localError && (
               <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 flex items-start gap-3" data-ui="login-error-alert">
                 <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" data-ui="login-error-icon">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <div data-ui="login-error-content">
                   <p className="text-red-500 font-semibold text-sm" data-ui="login-error-title">Login Failed</p>
-                  <p className="text-red-400 text-sm mt-1" data-ui="login-error-message">{localError || error.value}</p>
+                  <p className="text-red-400 text-sm mt-1" data-ui="login-error-message">{localError}</p>
                 </div>
               </div>
             )}
@@ -79,7 +84,7 @@ export default function Login() {
                   onInput={(e) => setUsername((e.target as HTMLInputElement).value)}
                   className="w-full text-base bg-dark-base border-2 border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:border-red-accent focus:outline-none transition-colors"
                   placeholder="Enter your username"
-                  disabled={isLoading.value}
+                  disabled={isLoading}
                   autoComplete="username"
                   data-testid="login-username-input"
                 />
@@ -104,7 +109,7 @@ export default function Login() {
                   onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
                   className="w-full text-base bg-dark-base border-2 border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:border-red-accent focus:outline-none transition-colors"
                   placeholder="Enter your password"
-                  disabled={isLoading.value}
+                  disabled={isLoading}
                   autoComplete="current-password"
                   data-testid="login-password-input"
                 />
@@ -113,11 +118,11 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={isLoading.value}
+              disabled={isLoading}
               className="w-full bg-gradient-to-r from-red-accent to-dark-red text-white font-bold py-4 rounded-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               data-testid="login-submit-btn"
             >
-              {isLoading.value ? (
+              {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" data-ui="login-spinner"></div>
                   Signing in...
@@ -135,18 +140,12 @@ export default function Login() {
 
           <div className="mt-6 p-4 bg-dark-base rounded-lg border border-gray-700" data-ui="login-credentials-notice">
             <div className="flex items-start gap-3" data-ui="login-credentials-content">
-              <svg className="w-5 h-5 text-dark-red flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" data-ui="login-info-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              <svg className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" data-ui="login-info-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
               </svg>
-              <div className="text-sm" data-ui="login-credentials-text">
-                <p className="text-dark-red font-semibold mb-1" data-ui="login-credentials-title">Credenciales</p>
-                <p className="text-gray-500" data-ui="login-credentials-user">
-                  Username: <span className="text-gray-400 font-mono">jaime@hotmail.com</span>
-                </p>
-                <p className="text-gray-500" data-ui="login-credentials-pass">
-                  Password: <span className="text-gray-400 font-mono">test123123</span>
-                </p>
-              </div>
+              <p className="text-sm text-gray-500" data-ui="login-credentials-text">
+                Si necesitas acceso, contacta al administrador de la plataforma.
+              </p>
             </div>
           </div>
         </div>

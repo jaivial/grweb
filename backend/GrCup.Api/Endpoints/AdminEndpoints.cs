@@ -219,7 +219,8 @@ public static class AdminEndpoints
                     request.Surname ?? "",
                     request.TicketCount,
                     totalPaid,
-                    request.Instagram);
+                    request.Instagram,
+                    request.CompeticionId);
             }
             catch (Exception emailEx)
             {
@@ -353,7 +354,8 @@ public record ManualParticipantRequest(
     int TicketCount,
     decimal Price,
     string PaymentMethod,
-    string? Phone
+    string? Phone,
+    int? CompeticionId = null
 );
 
 public record UpdateParticipantRequest(

@@ -1,9 +1,8 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { vi } from 'vitest';
 import { EmailSettingsForm } from '../components/EmailSettingsForm';
 import type { EmailConfigData } from '../hooks/useEmailConfig';
 
-vi.mock('../../../../utils/api', () => ({
+vi.mock('../../../../api/client', () => ({
   api: {},
 }));
 

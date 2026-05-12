@@ -79,6 +79,7 @@ export default function Checkout() {
         email: formData.email,
         instagram: formData.instagram,
         ticketCount: quantity,
+        competicionId: 1, // GR Cup 2026
       });
 
       window.location.href = response.url;

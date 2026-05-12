@@ -11,10 +11,10 @@ public static class EmailConfigEndpoints
 {
     public static void MapEmailConfigEndpoints(this IEndpointRouteBuilder app)
     {
-        // GET /api/admin/email-config
-        app.MapGet("/api/admin/email-config", [Authorize] async (EmailConfigService service) =>
+        // GET /api/admin/email-config?competicionId=1
+        app.MapGet("/api/admin/email-config", [Authorize] async (EmailConfigService service, int? competicionId) =>
         {
-            var config = await service.GetConfigAsync();
+            var config = await service.GetConfigAsync(competicionId);
             if (config == null)
             {
                 return Results.Ok(new
@@ -42,10 +42,11 @@ public static class EmailConfigEndpoints
             });
         });
 
-        // PUT /api/admin/email-config
+        // PUT /api/admin/email-config?competicionId=1
         app.MapPut("/api/admin/email-config", [Authorize] async (
             EmailConfigService service,
-            [FromBody] EmailConfigRequest request) =>
+            [FromBody] EmailConfigRequest request,
+            int? competicionId) =>
         {
             var config = new EmailConfig
             {
@@ -58,7 +59,7 @@ public static class EmailConfigEndpoints
                 SmtpHost = request.SmtpHost,
                 SmtpPort = request.SmtpPort
             };
-            var result = await service.UpsertConfigAsync(config);
+            var result = await service.UpsertConfigAsync(config, competicionId);
             return Results.Ok(new
             {
                 mainProvider = (int)result.MainProvider,
@@ -72,10 +73,10 @@ public static class EmailConfigEndpoints
             });
         });
 
-        // DELETE /api/admin/email-config
-        app.MapDelete("/api/admin/email-config", [Authorize] async (EmailConfigService service) =>
+        // DELETE /api/admin/email-config?competicionId=1
+        app.MapDelete("/api/admin/email-config", [Authorize] async (EmailConfigService service, int? competicionId) =>
         {
-            var deleted = await service.DeleteConfigAsync();
+            var deleted = await service.DeleteConfigAsync(competicionId);
             return deleted ? Results.Ok(new { message = "Configuración eliminada" }) : Results.NotFound(new { message = "No se encontró configuración" });
         });
     }
