@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+ :root {
+  /* Keep in sync with FER_COLORS in src/pages/fer/constants.ts and tailwind.config.js */
+  --fer-bg-dark: #0B0F1A;
+  --fer-bg-card: #161B26;
+  --fer-accent: #8B95A5;
+  --fer-glow: #CBD5E1;
+  --fer-text: #F1F5F9;
+  --fer-text-muted: #8494A7;
+  --fer-gold: #C9CDD4;
+  --fer-purple: #7C8DA4;
+  --fer-silver: #A8B2C1;
+  --fer-shimmer: #E2E8F0;
+
+  --glass-blur: 20px;
+  --glass-border-radius: 0.6rem;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--fer-bg-dark);
+  color: var(--fer-text);
+  line-height: 1.6;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--fer-bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--fer-bg-card);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1E2433;
+}
+
+::selection {
+  background-color: var(--fer-accent);
+  color: var(--fer-bg-dark);
+}
+
+:focus-visible {
+  outline: 2px solid var(--fer-accent);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--fer-glow);
+  text-decoration: none;
+  transition: color 150ms ease-in-out;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.text-shimmer {
+  background: linear-gradient(
+    110deg,
+    var(--fer-silver) 0%,
+    var(--fer-shimmer) 40%,
+    var(--fer-glow) 50%,
+    var(--fer-shimmer) 60%,
+    var(--fer-silver) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.bg-shimmer {
+  background: linear-gradient(
+    110deg,
+    var(--fer-bg-card) 0%,
+    rgba(168, 178, 193, 0.08) 40%,
+    rgba(226, 232, 240, 0.12) 50%,
+    rgba(168, 178, 193, 0.08) 60%,
+    var(--fer-bg-card) 100%
+  );
+  background-size: 200% auto;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 300ms ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 300ms ease-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 18px;
+  }
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="search"],
+input:not([type]),
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}

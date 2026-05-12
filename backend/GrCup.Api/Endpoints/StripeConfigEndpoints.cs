@@ -16,10 +16,10 @@ public static class StripeConfigEndpoints
 
     public static void MapStripeConfigEndpoints(this IEndpointRouteBuilder app)
     {
-        // GET /api/admin/stripe-config
-        app.MapGet("/api/admin/stripe-config", [Authorize] async (StripeConfigService service) =>
+        // GET /api/admin/stripe-config?competicionId=1
+        app.MapGet("/api/admin/stripe-config", [Authorize] async (StripeConfigService service, int? competicionId) =>
         {
-            var config = await service.GetConfigAsync();
+            var config = await service.GetConfigAsync(competicionId);
             if (config == null)
             {
                 return Results.Ok(new
@@ -37,10 +37,11 @@ public static class StripeConfigEndpoints
             });
         });
 
-        // PUT /api/admin/stripe-config
+        // PUT /api/admin/stripe-config?competicionId=1
         app.MapPut("/api/admin/stripe-config", [Authorize] async (
             StripeConfigService service,
-            [FromBody] StripeConfigRequest request) =>
+            [FromBody] StripeConfigRequest request,
+            int? competicionId) =>
         {
             var config = new StripeConfig
             {
@@ -48,7 +49,7 @@ public static class StripeConfigEndpoints
                 PublishableKey = request.PublishableKey,
                 WebhookSecret = request.WebhookSecret
             };
-            var result = await service.UpsertConfigAsync(config);
+            var result = await service.UpsertConfigAsync(config, competicionId);
             return Results.Ok(new
             {
                 secretKey = MaskKey(result.SecretKey),
@@ -57,10 +58,10 @@ public static class StripeConfigEndpoints
             });
         });
 
-        // DELETE /api/admin/stripe-config
-        app.MapDelete("/api/admin/stripe-config", [Authorize] async (StripeConfigService service) =>
+        // DELETE /api/admin/stripe-config?competicionId=1
+        app.MapDelete("/api/admin/stripe-config", [Authorize] async (StripeConfigService service, int? competicionId) =>
         {
-            var deleted = await service.DeleteConfigAsync();
+            var deleted = await service.DeleteConfigAsync(competicionId);
             return deleted ? Results.Ok(new { message = "Configuración Stripe eliminada" }) : Results.NotFound(new { message = "No se encontró configuración Stripe" });
         });
     }

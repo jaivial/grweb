@@ -6,7 +6,7 @@ namespace GrCup.Api.Services;
 
 public class ImageProcessorService
 {
-    private const int MaxFileSizeBytes = 30 * 1024;
+    private const int MaxFileSizeBytes = 100 * 1024; // 100KB target for logos
     private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "image/jpeg", "image/png", "image/webp", "image/gif"

@@ -1,20 +1,33 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { JSX } from 'react';
 import { useLocation } from 'wouter';
-import { logout } from '../stores/auth';
+import { useAtomValue } from 'jotai';
+import { userCompeticionesAtom, currentCompeticionAtom, currentCompeticionIdAtom, isCurrentFerAtom, hasPermissionAtom, userRoleAtom } from '../stores/auth.atoms';
+import { useCompeticionSlug } from '../hooks/useCompeticionSlug';
+import { useAuth } from '../hooks/useAuth';
 
 interface BackofficeLayoutProps {
   children: React.ReactNode;
 }
 
-const navItems = [
-  { href: '/backoffice', label: 'Inicio', icon: 'home' },
-  { href: '/backoffice/inscripciones', label: 'Inscripciones', icon: 'users' },
-  { href: '/backoffice/participantes', label: 'Participantes', icon: 'ticket' },
-  { href: '/backoffice/sorteo', label: 'Sorteo', icon: 'dice' },
-  { href: '/backoffice/horarios', label: 'Horarios', icon: 'calendar' },
-  { href: '/backoffice/configuracion', label: 'Configuración', icon: 'settings' },
-] as const;
+interface NavItem {
+  subPath: string;
+  label: string;
+  icon: string;
+  ferOnly?: boolean;
+  grcupOnly?: boolean;
+  requiredPermission?: string;
+}
+
+const allNavItems: NavItem[] = [
+  { subPath: '', label: 'Inicio', icon: 'home', requiredPermission: 'view_dashboard' },
+  { subPath: 'inscripciones', label: 'Inscripciones', icon: 'users', requiredPermission: 'view_inscriptos' },
+  { subPath: 'qr-reader', label: 'Lector QR', icon: 'qrcode', requiredPermission: 'view_qr' },
+  { subPath: 'participantes', label: 'Participantes', icon: 'ticket', grcupOnly: true, requiredPermission: 'view_participantes' },
+  { subPath: 'sorteo', label: 'Sorteo', icon: 'dice', grcupOnly: true, requiredPermission: 'manage_raffle' },
+  { subPath: 'horarios', label: 'Horarios', icon: 'calendar', requiredPermission: 'view_horarios' },
+  { subPath: 'configuracion', label: 'Configuracion', icon: 'settings', requiredPermission: 'manage_config' },
+];
 
 function NavIcon({ icon }: { icon: string }) {
   switch (icon) {
@@ -55,28 +68,171 @@ function NavIcon({ icon }: { icon: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       );
+    case 'qrcode':
+      return (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="navicon-svg-qrcode">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zm11 0h7v7h-7V3zM3 14h7v7H3v-7zm14 3h.01M17 17h.01M14 14h3v3h-3v-3zm3 3h3v3h-3v-3z" />
+        </svg>
+      );
     default:
       return null;
   }
 }
 
+function CompeticionSelector() {
+  const competiciones = useAtomValue(userCompeticionesAtom);
+  const currentCompeticion = useAtomValue(currentCompeticionAtom);
+  const { buildPath, competicionSlug } = useCompeticionSlug();
+  const [, setLocation] = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [currentPath] = useLocation();
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  // When selecting a different competition, navigate to the same sub-page
+  // under the new competition's slug
+  const handleSelect = useCallback((compSlug: string) => {
+    // Extract current sub-path after the slug segment
+    const slugPrefix = `/backoffice/${competicionSlug}`;
+    let subPath = '';
+    if (currentPath.startsWith(slugPrefix)) {
+      subPath = currentPath.slice(slugPrefix.length);
+      if (subPath.startsWith('/')) subPath = subPath.slice(1);
+    }
+    const newPath = `/backoffice/${compSlug}${subPath ? '/' + subPath : ''}`;
+    setLocation(newPath);
+    setIsOpen(false);
+  }, [competicionSlug, currentPath, setLocation]);
+
+  if (competiciones.length === 0) return null;
+
+  const single = competiciones.length === 1;
+
+  // Role display labels (Spanish)
+  const roleLabels: Record<string, string> = {
+    root: 'Root',
+    admin: 'Admin',
+    manager: 'Manager',
+    empleado: 'Empleado',
+    checkin: 'Check-in',
+    operator: 'Empleado',
+  };
+
+  return (
+    <div className="px-3 py-2 border-b border-white/5" data-ui="competicion-selector" ref={dropdownRef}>
+      <button
+        onClick={() => !single && setIsOpen(prev => !prev)}
+        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-dark-base border border-white/5 transition-colors ${
+          single ? 'cursor-default' : 'hover:border-white/10 cursor-pointer'
+        }`}
+        data-testid="competicion-selector-btn"
+        disabled={single}
+      >
+        <div className="w-7 h-7 rounded-md bg-gradient-to-br from-red-accent/20 to-dark-red/20 flex items-center justify-center flex-shrink-0" data-ui="competicion-selector-icon">
+          <svg className="w-3.5 h-3.5 text-red-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        </div>
+        <div className="flex-1 text-left min-w-0" data-ui="competicion-selector-info">
+          <p className="text-sm font-medium text-white truncate" data-ui="competicion-selector-name">
+            {currentCompeticion?.nombre ?? 'Seleccionar'}
+          </p>
+          <p className="text-xs text-gray-500" data-ui="competicion-selector-role">
+            {currentCompeticion?.role ? roleLabels[currentCompeticion.role] ?? currentCompeticion.role : ''}
+          </p>
+        </div>
+        {!single && (
+          <svg
+            className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            data-ui="competicion-selector-chevron"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        )}
+      </button>
+
+      {isOpen && !single && (
+        <div className="mt-1 py-1 bg-dark-base border border-white/5 rounded-lg shadow-xl overflow-hidden" data-ui="competicion-selector-dropdown">
+          {competiciones.map((comp) => (
+            <button
+              key={comp.id}
+              onClick={() => handleSelect(comp.slug)}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors ${
+                comp.slug === competicionSlug ? 'bg-white/5' : ''
+              }`}
+              data-testid={`competicion-option-${comp.slug}`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white truncate" data-ui={`competicion-option-name-${comp.slug}`}>{comp.nombre}</p>
+                <p className="text-xs text-gray-500" data-ui={`competicion-option-role-${comp.slug}`}>{roleLabels[comp.role] ?? comp.role}</p>
+              </div>
+              {comp.slug === competicionSlug && (
+                <svg className="w-4 h-4 text-red-accent flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BackofficeLayout({ children }: BackofficeLayoutProps): JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { logout } = useAuth();
+  const currentCompeticion = useAtomValue(currentCompeticionAtom);
+  const competicionId = useAtomValue(currentCompeticionIdAtom);
+  const isFER = useAtomValue(isCurrentFerAtom);
+  const hasPermission = useAtomValue(hasPermissionAtom);
+  const { buildPath, competicionSlug } = useCompeticionSlug();
 
-  const handleLogout = useCallback(() => {
-    logout();
+  // Filter nav items by competition type AND role permissions
+  const navItems = useMemo(() => {
+    return allNavItems.filter((item) => {
+      // Filter by competition type
+      if (item.ferOnly && !isFER) return false;
+      if (item.grcupOnly && isFER) return false;
+
+      // Filter by role permission
+      if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [isFER, hasPermission]);
+
+  const competicionName = useMemo(() => currentCompeticion?.nombre ?? 'GR Cup', [currentCompeticion?.nombre]);
+
+  const handleLogout = useCallback(async () => {
+    await logout();
     window.location.href = '/backoffice/login';
-  }, []);
+  }, [logout]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(prev => !prev);
   }, []);
 
-  function isActive(href: string) {
-    if (href === '/backoffice') return location === '/backoffice';
-    return location.startsWith(href);
-  }
+  const isActive = useCallback((subPath: string) => {
+    const fullPath = buildPath(subPath);
+    if (subPath === '' || !subPath) return location === buildPath('');
+    return location === fullPath || location.startsWith(fullPath + '/');
+  }, [location, buildPath]);
 
   return (
     <div className="min-h-screen bg-dark-base flex overflow-x-hidden" data-ui="backoffice-layout">
@@ -91,7 +247,7 @@ export function BackofficeLayout({ children }: BackofficeLayoutProps): JSX.Eleme
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <span className="text-base xs:text-lg font-semibold text-white truncate max-w-[120px] xs:max-w-none" data-ui="mobile-title">GR Cup</span>
+        <span className="text-base xs:text-lg font-semibold text-white truncate max-w-[120px] xs:max-w-none" data-ui="mobile-title">{competicionName}</span>
         <button
           onClick={handleLogout}
           className="p-2 text-gray-400 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2"
@@ -126,32 +282,39 @@ export function BackofficeLayout({ children }: BackofficeLayoutProps): JSX.Eleme
       >
         <div className="flex flex-col h-full" data-ui="sidebar-content">
           <div className="px-6 py-5 border-b border-white/5" data-ui="sidebar-header">
-            <h1 className="text-xl font-bold text-white" data-ui="sidebar-title">GR Cup</h1>
+            <h1 className="text-xl font-bold text-white" data-ui="sidebar-title">{competicionName}</h1>
             <p className="text-sm text-gray-500" data-ui="sidebar-subtitle">Panel de Administracion</p>
           </div>
 
-          <nav className="flex-1 p-3 space-y-0.5" data-ui="sidebar-nav">
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className={`
-                    flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150
-                    ${active
-                      ? 'text-white bg-white/5 border-l-2 border-red-accent'
-                      : 'text-gray-400 hover:text-white hover:bg-white/[0.03]'
-                    }
-                  `}
-                  data-testid={`backoffice-nav-${item.icon}-link`}
-                  data-section={item.label.toLowerCase()}
-                >
-                  <NavIcon icon={item.icon} />
-                  <span className="text-sm font-medium" data-ui={`nav-label-${item.icon}`}>{item.label}</span>
-                </a>
-              );
-            })}
+          <CompeticionSelector />
+
+          <nav className="flex-1 p-3" data-ui="sidebar-nav">
+            <ul data-ui="sidenav-list" role="list" className="space-y-0.5">
+              {navItems.map((item) => {
+                const active = isActive(item.subPath);
+                const itemHref = buildPath(item.subPath);
+                return (
+                  <li data-ui="sidenav-item" role="listitem" key={item.subPath}>
+                    <button
+                      onClick={() => { setLocation(itemHref); setSidebarOpen(false); }}
+                      className={`
+                        flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150 w-full text-left
+                        ${active
+                          ? 'text-white bg-white/5 border-l-2 border-red-accent'
+                          : 'text-gray-400 hover:text-white hover:bg-white/[0.03]'
+                        }
+                      `}
+                      data-testid={`backoffice-nav-${item.icon}-link`}
+                      data-section={item.label.toLowerCase()}
+                      aria-current={active ? 'page' : undefined}
+                    >
+                      <NavIcon icon={item.icon} />
+                      <span className="text-sm font-medium" data-ui={`nav-label-${item.icon}`}>{item.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
 
           <div className="p-3 border-t border-white/5 hidden xl:block" data-ui="sidebar-footer">

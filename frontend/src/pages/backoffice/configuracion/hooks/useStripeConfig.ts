@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { useSetAtom, useAtomValue } from 'jotai';
-import { token } from '../../../../stores/auth';
-import { api } from '../../../../utils/api';
+import api from '../../../../api/client';
 import {
   stripeConfigAtom,
   stripeConfigLoadingAtom,
@@ -20,7 +19,7 @@ interface UseStripeConfigReturn {
   deleteConfig: () => Promise<boolean>;
 }
 
-export function useStripeConfig(): UseStripeConfigReturn {
+export function useStripeConfig(competicionId?: number): UseStripeConfigReturn {
   const setConfig = useSetAtom(stripeConfigAtom);
   const setLoading = useSetAtom(stripeConfigLoadingAtom);
   const setSaving = useSetAtom(stripeConfigSavingAtom);
@@ -32,56 +31,64 @@ export function useStripeConfig(): UseStripeConfigReturn {
   const error = useAtomValue(stripeConfigErrorAtom);
 
   const fetchConfig = useCallback(async () => {
-    if (!token.value) return;
-
     setLoading(true);
     setError(null);
 
     try {
-      const data = await api.getStripeAdminConfig();
-      setConfig(data);
+      const result = await api.getStripeAdminConfig(competicionId);
+      if (result.success && result.data) {
+        setConfig(result.data as StripeConfigData);
+      } else {
+        setError(result.message || 'Error al cargar la configuración de Stripe');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar la configuración de Stripe');
     } finally {
       setLoading(false);
     }
-  }, [setConfig, setLoading, setError]);
+  }, [competicionId, setConfig, setLoading, setError]);
 
   const saveConfig = useCallback(async (data: StripeConfigData): Promise<boolean> => {
-    if (!token.value) return false;
-
     setSaving(true);
     setError(null);
 
     try {
-      const result = await api.updateStripeAdminConfig(data);
-      setConfig(result);
-      return true;
+      const result = await api.updateStripeAdminConfig(data, competicionId);
+      if (result.success && result.data) {
+        setConfig(result.data as StripeConfigData);
+        return true;
+      } else {
+        setError(result.message || 'Error al guardar la configuración de Stripe');
+        return false;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar la configuración de Stripe');
       return false;
     } finally {
       setSaving(false);
     }
-  }, [setConfig, setSaving, setError]);
+  }, [competicionId, setConfig, setSaving, setError]);
 
   const deleteConfig = useCallback(async (): Promise<boolean> => {
-    if (!token.value) return false;
-
     setSaving(true);
     setError(null);
 
     try {
-      await api.deleteStripeAdminConfig();
-      setConfig(null);
-      return true;
+      const result = await api.deleteStripeAdminConfig(competicionId);
+      if (result.success) {
+        setConfig(null);
+        return true;
+      } else {
+        setError(result.message || 'Error al eliminar la configuración de Stripe');
+        return false;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar la configuración de Stripe');
       return false;
     } finally {
       setSaving(false);
     }
-  }, [setConfig, setSaving, setError]);
+  }, [competicionId, setConfig, setSaving, setError]);
 
   return {
     config,

@@ -52,6 +52,7 @@ class ApiClient {
     instagram: string;
     ticketCount: number;
     phone?: string;
+    competicionId?: number;
   }) {
     return this.request<{ sessionId: string; url: string }>('/api/tickets/buy', {
       method: 'POST',
@@ -272,9 +273,12 @@ class ApiClient {
 
   // ─── Schedules (Horarios) ───
 
-  async getSchedules(sexCategory?: string) {
-    const params = sexCategory ? `?sexCategory=${sexCategory}` : '';
-    return this.request<any[]>(`/api/admin/schedules${params}`);
+  async getSchedules(sexCategory?: string, competicionId?: number) {
+    const params = new URLSearchParams();
+    if (sexCategory) params.set('sexCategory', sexCategory);
+    if (competicionId) params.set('competicionId', competicionId.toString());
+    const qs = params.toString();
+    return this.request<any[]>(`/api/admin/schedules${qs ? '?' + qs : ''}`);
   }
 
   async getSchedule(id: number) {
@@ -363,20 +367,24 @@ class ApiClient {
 
   // ─── Public Schedules ───
 
-  async getPublicSchedules() {
-    return this.request<any[]>('/api/schedules');
+  async getPublicSchedules(slug?: string) {
+    const params = slug ? `?slug=${encodeURIComponent(slug)}` : '';
+    return this.request<any[]>(`/api/schedules${params}`);
   }
 
-  async isSchedulesPublished() {
-    return this.request<{ published: boolean }>('/api/schedules/published');
+  async isSchedulesPublished(slug?: string) {
+    const params = slug ? `?slug=${encodeURIComponent(slug)}` : '';
+    return this.request<{ published: boolean; horariosReady: boolean }>(`/api/schedules/published${params}`);
   }
 
-  async getSchedulesPublishedConfig() {
-    return this.request<{ value: boolean; dateModified: string | null }>('/api/admin/schedules/published-config');
+  async getSchedulesPublishedConfig(competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
+    return this.request<{ value: boolean; dateModified: string | null }>(`/api/admin/schedules/published-config${params}`);
   }
 
-  async updateSchedulesPublishedConfig(data: { value: boolean }) {
-    return this.request<{ value: boolean; dateModified: string }>('/api/admin/schedules/published-config', {
+  async updateSchedulesPublishedConfig(data: { value: boolean }, competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
+    return this.request<{ value: boolean; dateModified: string }>(`/api/admin/schedules/published-config${params}`, {
       method: 'PUT',
       body: data,
     });
@@ -388,7 +396,8 @@ class ApiClient {
 
   // ─── Email Config ───
 
-  async getEmailConfig() {
+  async getEmailConfig(competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
     return this.request<{
       mainProvider: number;
       gmailAddress: string | null;
@@ -398,7 +407,7 @@ class ApiClient {
       smtpEmailAddress: string | null;
       smtpHost: string | null;
       smtpPort: number;
-    }>('/api/admin/email-config');
+    }>(`/api/admin/email-config${params}`);
   }
 
   async updateEmailConfig(data: {
@@ -410,7 +419,8 @@ class ApiClient {
     smtpEmailAddress: string | null;
     smtpHost: string | null;
     smtpPort: number;
-  }) {
+  }, competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
     return this.request<{
       mainProvider: number;
       gmailAddress: string | null;
@@ -420,46 +430,75 @@ class ApiClient {
       smtpEmailAddress: string | null;
       smtpHost: string | null;
       smtpPort: number;
-    }>('/api/admin/email-config', {
+    }>(`/api/admin/email-config${params}`, {
       method: 'PUT',
       body: data,
     });
   }
 
-  async deleteEmailConfig() {
-    return this.request<{ message: string }>('/api/admin/email-config', {
+  async deleteEmailConfig(competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
+    return this.request<{ message: string }>(`/api/admin/email-config${params}`, {
       method: 'DELETE',
     });
   }
 
   // ─── Stripe Config (Admin) ───
 
-  async getStripeAdminConfig() {
+  async getStripeAdminConfig(competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
     return this.request<{
       secretKey: string | null;
       publishableKey: string | null;
       webhookSecret: string | null;
-    }>('/api/admin/stripe-config');
+    }>(`/api/admin/stripe-config${params}`);
   }
 
   async updateStripeAdminConfig(data: {
     secretKey: string | null;
     publishableKey: string | null;
     webhookSecret: string | null;
-  }) {
+  }, competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
     return this.request<{
       secretKey: string | null;
       publishableKey: string | null;
       webhookSecret: string | null;
-    }>('/api/admin/stripe-config', {
+    }>(`/api/admin/stripe-config${params}`, {
       method: 'PUT',
       body: data,
     });
   }
 
-  async deleteStripeAdminConfig() {
-    return this.request<{ message: string }>('/api/admin/stripe-config', {
+  async deleteStripeAdminConfig(competicionId?: number) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
+    return this.request<{ message: string }>(`/api/admin/stripe-config${params}`, {
       method: 'DELETE',
+    });
+  }
+
+  // ─── QR Check-in (Multi-tenant) ───
+
+  async getCheckinEstado(slug: string, inscripcionId: number) {
+    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/${inscripcionId}/estado`);
+  }
+
+  async confirmarParticipacion(slug: string, inscripcionId: number) {
+    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-participacion`, {
+      method: 'POST',
+    });
+  }
+
+  async confirmarPagoEfectivo(slug: string, inscripcionId: number) {
+    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-pago-efectivo`, {
+      method: 'POST',
+    });
+  }
+
+  async searchCheckinByQr(slug: string, qrData: string) {
+    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/buscar-qr`, {
+      method: 'POST',
+      body: { qrData },
     });
   }
 }

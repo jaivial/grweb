@@ -49,7 +49,7 @@ public static class WebhookEndpoints
                     }
 
                     // Extract participant data from metadata
-                    var (firstName, surname, email, instagram, ticketCount, phone) =
+                    var (firstName, surname, email, instagram, ticketCount, phone, competicionId) =
                         stripeService.ExtractMetadata(session);
 
                     var totalPaid = stripeService.CalculateTotalPaid(session);
@@ -71,8 +71,8 @@ public static class WebhookEndpoints
                     );
 
                     logger.LogInformation(
-                        "Processed payment for {Email}: {TicketCount} tickets, {TotalPaid}€",
-                        email, ticketCount, totalPaid
+                        "Processed payment for {Email}: {TicketCount} tickets, {TotalPaid}€ (competicionId: {CompeticionId})",
+                        email, ticketCount, totalPaid, competicionId
                     );
 
                     // Send raffle confirmation email (non-blocking)
@@ -84,7 +84,8 @@ public static class WebhookEndpoints
                             surname,
                             ticketCount,
                             totalPaid,
-                            instagram);
+                            instagram,
+                            competicionId);
                     }
                     catch (Exception emailEx)
                     {

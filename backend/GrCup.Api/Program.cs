@@ -89,7 +89,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 // Check for token in cookie if not in Authorization header
                 if (string.IsNullOrEmpty(context.Request.Headers.Authorization) && path.StartsWithSegments("/api"))
                 {
-                    var cookieToken = context.Request.Cookies["gr_cup_token"];
+                    var cookieToken = context.Request.Cookies["gr_cup_token"]
+                        ?? context.Request.Cookies["gr_token"];
                     if (!string.IsNullOrEmpty(cookieToken))
                     {
                         context.Token = cookieToken;
@@ -122,6 +123,13 @@ builder.Services.AddScoped<StripeConfigService>();
 builder.Services.AddScoped<ImageProcessorService>();
 builder.Services.AddHttpClient<BunnyCdnService>();
 
+// ─── Multi-tenant Services (Phase 1) ───
+builder.Services.AddScoped<CompeticionService>();
+builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<InscripcionService>();
+builder.Services.AddScoped<PermissionService>();
+builder.Services.AddScoped<SeedService>();
+
 // ─── Swagger ───
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => {
@@ -136,6 +144,17 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GrCupDbContext>();
     db.Database.Migrate();
+    
+    // ─── Phase 0: Seed initial data ───
+    var seedService = scope.ServiceProvider.GetRequiredService<SeedService>();
+    try
+    {
+        await seedService.SeedAsync();
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Seed failed - database may not be available");
+    }
 }
 
 // ─── Middleware ───
@@ -169,6 +188,12 @@ app.MapRaffleConfigEndpoints();
 app.MapRaffleProductsEndpoints();
 app.MapImageUploadEndpoints();
 app.MapSitemapEndpoints();
+
+// ─── Multi-tenant Endpoints (Phase 1) ───
+app.MapCompeticionEndpoints();
+app.MapUsuarioEndpoints();
+app.MapInscripcionEndpoints();
+app.MapRifaEndpoints();
 
 
 app.Run();

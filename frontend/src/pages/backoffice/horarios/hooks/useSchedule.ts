@@ -39,17 +39,23 @@ interface UseScheduleReturn {
   errorSignal: Signal<string | null>;
 }
 
-export function useSchedule(): UseScheduleReturn {
+interface UseScheduleOptions {
+  competicionId?: number | null;
+}
+
+export function useSchedule(options: UseScheduleOptions = {}): UseScheduleReturn {
+  const { competicionId } = options;
   const [activeTab, setActiveTabState] = useState<'Male' | 'Female'>(schedulesSexTab.value);
 
   const fetchSchedules = useCallback(async () => {
     if (!token.value) return;
+    if (!competicionId) return;  // Skip fetch until competicionId is resolved
     
     setSchedulesLoading(true);
     setSchedulesError(null);
 
     try {
-      const response = await api.getSchedules();
+      const response = await api.getSchedules(undefined, competicionId);
       // Backend returns ScheduleGroupedByDate[], flatten to Schedule[] for the store
       const flat = Array.isArray(response) && response.length > 0 && 'schedules' in response[0]
         ? flattenGroupedData(response as ScheduleGroupedByDate[])
@@ -60,23 +66,25 @@ export function useSchedule(): UseScheduleReturn {
     } finally {
       setSchedulesLoading(false);
     }
-  }, []);
+  }, [competicionId]);
 
   const createSchedule = useCallback(async (data: ScheduleFormData): Promise<Schedule> => {
     if (!token.value) throw new Error('No autenticado');
     
-    const schedule = await api.createSchedule(data);
+    const payload = { ...data, competicionId: competicionId ?? undefined };
+    const schedule = await api.createSchedule(payload);
     addSchedule(schedule);
     return schedule;
-  }, []);
+  }, [competicionId]);
 
   const updateSchedule = useCallback(async (id: number, data: ScheduleFormData): Promise<Schedule> => {
     if (!token.value) throw new Error('No autenticado');
     
-    const schedule = await api.updateSchedule(id, data);
+    const payload = { ...data, competicionId: competicionId ?? undefined };
+    const schedule = await api.updateSchedule(id, payload);
     updateScheduleInStore(schedule);
     return schedule;
-  }, []);
+  }, [competicionId]);
 
   const deleteSchedule = useCallback(async (id: number): Promise<void> => {
     if (!token.value) throw new Error('No autenticado');

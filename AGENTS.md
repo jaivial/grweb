@@ -7,6 +7,77 @@ Este repo contiene:
 
 ---
 
+## NORMA OBLIGATORIA: Orquestación via Project Manager
+
+**REGLA SUPREMA**: Toda tarea en este proyecto DEBE ser procesada a través del agente **Project Manager** con su skill asociada **project-management**. No se permite la ejecución directa de tareas.
+
+### Protocolo obligatorio
+
+1. **Toda tarea** debe invocarse como: agente `project-manager` + skill `project-management`
+2. El Project Manager es el ÚNICO punto de entrada para cualquier acción
+3. El Project Manager descompone la tarea y delega a agentes dedicados:
+   - **Frontend** → agente `front-developer` + skills `frontenac` + `front-design` + `frontend-design` + `impeccable`
+   - **Frontend QA** → agente `frontend-qa` + skill `ui-ux-pro-max`
+   - **QA / Testing** → agente `qa-tester` + skills `quality-auditor` + `qa-browser-testing`
+   - **Backend** → agente dedicado con skill correspondiente
+   - **DevOps** → agente `gr-devops-agent` + skill `gr-dev-ops`
+   - **Seguridad** → agente dedicado + skill `security-audit`
+   - **Git** → agente dedicado + skill `git-workflow`
+4. Cada agente dedicado DEBE cargar al menos una skill por sesión
+5. No se puede hacer NINGUNA acción sin que el Project Manager invoque un agente nuevo
+
+### Cadena de invocación
+
+```
+[Usuario solicita tarea]
+        ↓
+[Project Manager + skill: project-management]
+        ↓ (descompone y delega)
+[Agente dedicado + skill correspondiente]
+        ↓
+[Resultado validado → PM decide siguiente paso]
+        ↓ (si es frontend)
+[qa-tester + skills: quality-auditor + qa-browser-testing]
+        ↓
+[Reporte final del PM]
+```
+
+### Skills del proyecto
+
+| Skill | Propósito | Llamada obligatoria por |
+|-------|-----------|------------------------|
+| `project-management` | Orquestación de tareas y agentes | project-manager (siempre) |
+| `frontenac` | Arquitectura React: folder-per-component, Jotai, useMemo | front-developer (siempre) |
+| `front-design` | UI mobile-first, accesible, moderna | front-developer (siempre) |
+| `frontend-design` | Estética production-grade distintiva, tipografía, color, composición | front-developer (siempre) |
+| `impeccable` | Color/design iteration, critique, polish, colorize | front-developer (siempre) |
+| `ui-ux-pro-max` | Inteligencia de diseño UI/UX: 50+ estilos, 161 paletas, 99 UX guidelines | frontend-qa (siempre) |
+| `quality-auditor` | Auditoría de calidad frontend completa | qa-tester (siempre) |
+| `qa-browser-testing` | Testing con Chrome headless (agent-browser) | qa-tester (siempre) |
+| `gr-dev-ops` | DevOps: Docker, systemctl, Cloudflare tunnels, nginx, migraciones, deploys | gr-devops-agent (obligatoria) |
+
+### Agentes del proyecto
+
+| Agente | Rol | Skills obligatorias |
+|--------|-----|---------------------|
+| `project-manager` | Orquestador. NUNCA ejecuta directamente | project-management |
+| `front-developer` | Desarrollo frontend React/Preact | frontenac + front-design + frontend-design + impeccable |
+| `frontend-qa` | QA UI/UX con design intelligence | ui-ux-pro-max |
+| `qa-tester` | QA con browser headless | quality-auditor + qa-browser-testing |
+| `gr-devops-agent` | DevOps: Docker, systemctl, tunnels, nginx, deploys | gr-dev-ops (obligatoria) |
+
+### Reglas de precedencia actualizadas
+
+1. Regla suprema: Project Manager + project-management skill → orquesta todo
+2. Reglas de seguridad/contratos > AGENTS específico > reglas globales
+3. Toda creación/modificación frontend → front-developer + frontenac + front-design + frontend-design + impeccable
+4. Toda validación frontend UI/UX → frontend-qa + ui-ux-pro-max
+5. Toda validación frontend técnica → qa-tester + quality-auditor + qa-browser-testing
+6. Toda operación DevOps (restart, rebuild, migrate, deploy, health check) → gr-devops-agent + gr-dev-ops
+7. Ningún agente puede omitir el uso de su skill obligatoria
+
+---
+
 ## Objetivo principal
 - Máxima velocidad percibida y real: HTML/CSS/JS mínimos, assets optimizados.
 - Mantener contratos de datos usados por la UI (API responses, SignalR messages).
@@ -73,10 +144,14 @@ frontend/src/
 
 ### Convenciones
 - Componentes funcionales con hooks.
-- Estado global via Preact Signals.
+- Estado global via Jotai atoms (OBLIGATORIO: cero `useState`, usar `useAtomValue` / `useSetAtom`).
 - TailwindCSS para estilos (clases utilitarias).
 - `prefers-reduced-motion` debe desactivar animaciones de scroll.
 - Imágenes con `loading="lazy"` cuando proceda.
+- Arquitectura folder-per-component (ver skill `frontenac`).
+- Todo valor derivado en render DEBE usar `useMemo`.
+- Todo handler pasado a hijos DEBE usar `useCallback`.
+- Ningún archivo debe superar 800 líneas.
 
 ---
 

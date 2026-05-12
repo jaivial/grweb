@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { JSX } from 'react';
 import { Input } from '../../../../components/ui/Input/Input';
 import { CustomSelector } from '../../../../components/ui/CustomSelector/CustomSelector';
@@ -21,9 +21,10 @@ interface EmailSettingsFormProps {
   initialData: EmailConfigData;
   onSave: (data: EmailConfigData) => Promise<boolean>;
   isSaving: boolean;
+  competicionId?: number;
 }
 
-export function EmailSettingsForm({ initialData, onSave, isSaving }: EmailSettingsFormProps): JSX.Element {
+export function EmailSettingsForm({ initialData, onSave, isSaving, competicionId }: EmailSettingsFormProps): JSX.Element {
   const [mainProvider, setMainProvider] = useState<number>(initialData.mainProvider ?? 0);
   const [gmailAddress, setGmailAddress] = useState(initialData.gmailAddress ?? '');
   const [gmailAppPassword, setGmailAppPassword] = useState(initialData.gmailAppPassword ?? '');
@@ -34,6 +35,8 @@ export function EmailSettingsForm({ initialData, onSave, isSaving }: EmailSettin
   const [smtpPort, setSmtpPort] = useState<number>(initialData.smtpPort || 587);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
@@ -42,8 +45,11 @@ export function EmailSettingsForm({ initialData, onSave, isSaving }: EmailSettin
       // Gmail
       if (!gmailAddress.trim()) {
         newErrors.gmailAddress = 'La dirección de Gmail es obligatoria';
-      } else if (!gmailAddress.includes('@gmail.com') && !gmailAddress.includes('@googlemail.com')) {
-        newErrors.gmailAddress = 'Debe ser una cuenta de Gmail válida';
+      } else {
+        const lower = gmailAddress.trim().toLowerCase();
+        if (!lower.endsWith('@gmail.com') && !lower.endsWith('@googlemail.com')) {
+          newErrors.gmailAddress = 'Debe ser una cuenta de Gmail válida (ej: tu@gmail.com)';
+        }
       }
       if (!gmailAppPassword.trim()) {
         newErrors.gmailAppPassword = 'La contraseña de aplicación es obligatoria';
@@ -70,7 +76,11 @@ export function EmailSettingsForm({ initialData, onSave, isSaving }: EmailSettin
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    setSaveError(null);
+    
+    if (!validate()) {
+      return;
+    }
 
     const data: EmailConfigData = {
       mainProvider,
@@ -83,10 +93,16 @@ export function EmailSettingsForm({ initialData, onSave, isSaving }: EmailSettin
       smtpPort: mainProvider === 0 ? smtpPort : 0,
     };
 
-    const saved = await onSave(data);
-    if (saved) {
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+    try {
+      const saved = await onSave(data);
+      if (saved) {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        setSaveError('No se pudo guardar la configuración. Verifica que tienes permisos.');
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Error al guardar la configuración');
     }
   }, [mainProvider, gmailAddress, gmailAppPassword, smtpUsername, smtpPassword, smtpEmailAddress, smtpHost, smtpPort, validate, onSave]);
 
@@ -95,7 +111,22 @@ export function EmailSettingsForm({ initialData, onSave, isSaving }: EmailSettin
   }, [smtpPort]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" data-ui="email-settings-form">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" data-ui="email-settings-form">
+      {/* Scope Indicator */}
+      <div className="mb-6 p-3 bg-white/5 border border-white/10 rounded-xl flex items-start gap-3" data-ui="scope-indicator">
+        <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5" data-ui="scope-dot"></div>
+        <div>
+          <p className="text-sm font-medium text-white" data-ui="scope-title">
+            Configuracion de Email
+          </p>
+          <p className="text-xs text-white/50" data-ui="scope-description">
+            {competicionId
+              ? 'Esta configuracion es especifica para la competicion activa. Si esta vacia, se usara la configuracion global.'
+              : 'Configuracion global. No hay competicion activa.'}
+          </p>
+        </div>
+      </div>
+
       {/* Provider Selector */}
       <div data-ui="provider-section">
         <CustomSelector
@@ -215,6 +246,13 @@ export function EmailSettingsForm({ initialData, onSave, isSaving }: EmailSettin
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Save Error */}
+      {saveError && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm" data-ui="save-error-message">
+          {saveError}
         </div>
       )}
 

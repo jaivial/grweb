@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { JSX } from 'react';
-import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
+import { useAtomValue } from 'jotai';
 import { Tabs } from '../../../components/ui';
 import { EmailSettingsForm } from './components/EmailSettingsForm';
 import { StripeSettingsForm } from './components/StripeSettingsForm';
 import { useEmailConfig } from './hooks/useEmailConfig';
 import { useStripeConfig } from './hooks/useStripeConfig';
+import { EventoConfigEditor } from '../config/EventoConfigEditor';
+import { currentCompeticionIdAtom } from '../../../stores/auth.atoms';
 import { Settings } from 'lucide-react';
 
 const TABS = [
   { id: 'email', label: 'Configuración de Email' },
   { id: 'stripe', label: 'Stripe' },
+  { id: 'evento', label: 'Evento' },
 ];
 
 const DEFAULT_EMAIL_CONFIG = {
@@ -32,8 +35,9 @@ const DEFAULT_STRIPE_CONFIG = {
 
 export function Configuracion(): JSX.Element {
   const [activeTab, setActiveTab] = useState('email');
-  const { config: emailConfig, isLoading: emailLoading, error: emailError, isSaving: emailSaving, fetchConfig: fetchEmailConfig, saveConfig: saveEmailConfig } = useEmailConfig();
-  const { config: stripeConfig, isLoading: stripeLoading, error: stripeError, isSaving: stripeSaving, fetchConfig: fetchStripeConfig, saveConfig: saveStripeConfig } = useStripeConfig();
+  const competicionId = useAtomValue(currentCompeticionIdAtom);
+  const { config: emailConfig, isLoading: emailLoading, error: emailError, isSaving: emailSaving, fetchConfig: fetchEmailConfig, saveConfig: saveEmailConfig } = useEmailConfig(competicionId ?? undefined);
+  const { config: stripeConfig, isLoading: stripeLoading, error: stripeError, isSaving: stripeSaving, fetchConfig: fetchStripeConfig, saveConfig: saveStripeConfig } = useStripeConfig(competicionId ?? undefined);
 
   useEffect(() => {
     fetchEmailConfig();
@@ -51,7 +55,6 @@ export function Configuracion(): JSX.Element {
   const error = activeTab === 'email' ? emailError : stripeError;
 
   return (
-    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="configuracion-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
@@ -62,6 +65,19 @@ export function Configuracion(): JSX.Element {
           <p className="text-sm xs:text-base text-white/50" data-ui="config-subtitle">
             Gestiona la configuración general del sistema
           </p>
+          {competicionId && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-white/60" data-ui="competition-context">
+              <span className="px-2 py-0.5 bg-red-accent/20 text-red-accent rounded-full text-xs">
+                Competicion activa
+              </span>
+              <span>Configuracion especifica para esta competicion</span>
+            </div>
+          )}
+          {!competicionId && (
+            <div className="mt-2 text-sm text-white/60" data-ui="global-context">
+              Configuracion global (sin competicion activa)
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -74,7 +90,9 @@ export function Configuracion(): JSX.Element {
         </div>
 
         {/* Content */}
-        {isLoading ? (
+        {activeTab === 'evento' ? (
+          <EventoConfigEditor />
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-16" data-ui="loading-state">
             <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" data-ui="config-loading-spinner" />
           </div>
@@ -89,6 +107,7 @@ export function Configuracion(): JSX.Element {
                 initialData={emailFormData}
                 onSave={saveEmailConfig}
                 isSaving={emailSaving}
+                competicionId={competicionId ?? undefined}
               />
             ) : (
               <StripeSettingsForm
@@ -100,7 +119,7 @@ export function Configuracion(): JSX.Element {
           </div>
         )}
       </div>
-    </BackofficeLayout>
+
   );
 }
 

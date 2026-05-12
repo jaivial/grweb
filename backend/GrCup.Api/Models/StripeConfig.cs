@@ -1,10 +1,16 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GrCup.Api.Models;
 
 public class StripeConfig
 {
     public int Id { get; set; }
+
+    // Per-competition FK (nullable = global config)
+    public int? CompeticionId { get; set; }
+    [ForeignKey(nameof(CompeticionId))]
+    public Competicion? Competicion { get; set; }
 
     [MaxLength(255)]
     public string? SecretKey { get; set; }

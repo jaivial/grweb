@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { verifyAuth } from '@stores/auth';
+import { useAuth } from '../hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: any;
@@ -8,18 +8,19 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [location, setLocation] = useLocation();
-  const [isVerifying, setIsVerifying] = useState(true);
+  const { isAuthenticated, isLoading } = useAuth();
+  const [initialCheck, setInitialCheck] = useState(false);
 
   useEffect(() => {
-    verifyAuth().then(valid => {
-      setIsVerifying(false);
-      if (!valid) {
+    if (!isLoading) {
+      setInitialCheck(true);
+      if (!isAuthenticated) {
         setLocation('/backoffice/login');
       }
-    });
-  }, []);
+    }
+  }, [isLoading, isAuthenticated, setLocation]);
 
-  if (isVerifying) {
+  if (!initialCheck || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-base" data-ui="protected-route-loading">
         <div className="text-red-accent text-xl" data-ui="protected-route-loading-text">Loading...</div>

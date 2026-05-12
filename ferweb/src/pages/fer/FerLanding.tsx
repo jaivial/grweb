@@ -1,0 +1,219 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
+import api from '../../api/client';
+import type { Competicion } from '../../types/api';
+import { FER_COLORS } from './constants';
+import { useFerInscripcion } from './hooks/useFerInscripcion';
+import { Hero } from './components/Hero';
+import { QueEs } from './components/QueEs';
+import { QueIncluye } from './components/QueIncluye';
+import { QuienPuede } from './components/QuienPuede';
+import { InscripcionForm } from './components/InscripcionForm';
+import { ConfirmacionModal } from './components/ConfirmacionModal';
+import { UpsellModal } from './components/UpsellModal';
+import { FerFooter } from './components/FerFooter';
+import { PolaroidGallery } from './components/PolaroidGallery';
+import { DisciplinasSection } from './components/DisciplinasSection';
+import { ElClubSection } from './components/ElClubSection';
+import { ParallaxShowcase } from './components/ParallaxShowcase';
+import { HorariosSection } from './components/HorariosSection';
+import { ComoFunciona } from './components/ComoFunciona';
+import { GrHandlerService } from './components/GrHandlerService';
+
+export function FerLanding() {
+  const [competicion, setCompeticion] = useState<Competicion | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
+  const [plazasDisponibles, setPlazasDisponibles] = useState(80);
+  const [categoriasMasculino, setCategoriasMasculino] = useState<string[]>([]);
+  const [categoriasFemenino, setCategoriasFemenino] = useState<string[]>([]);
+
+  const formRef = useRef<HTMLDivElement>(null);
+  const inscripcionHook = useFerInscripcion();
+
+  // ── Load competicion data ──
+  const loadCompeticion = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Fetch both competition details and config in parallel
+      const [compResult, configResult] = await Promise.all([
+        api.getCompeticionBySlug('fer'),
+        api.getCompeticionConfig('fer'),
+      ]);
+      
+      if (compResult.success && compResult.data) {
+        setCompeticion(compResult.data);
+        const plazas = compResult.data.plazasDisponibles ?? 80;
+        setPlazasDisponibles(plazas);
+      }
+      
+      if (configResult.success && configResult.data) {
+        setCategoriasMasculino(configResult.data.categoriasMasculino || []);
+        setCategoriasFemenino(configResult.data.categoriasFemenino || []);
+        if (configResult.data.plazasDisponibles !== undefined) {
+          setPlazasDisponibles(configResult.data.plazasDisponibles);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading competicion:', error);
+      toast.error('Error cargando la información del evento', {
+        style: { background: '#161B26', color: '#F8FAFC' },
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCompeticion();
+  }, [loadCompeticion]);
+
+  // ── Scroll to form ──
+  const scrollToForm = useCallback(() => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // ── Form submit handler ──
+  const handleFormSubmit = useCallback(async () => {
+    const success = await inscripcionHook.submit('fer');
+    if (success) {
+      setShowConfirmation(true);
+      setPlazasDisponibles((prev) => Math.max(0, prev - 1));
+    }
+  }, [inscripcionHook]);
+
+  // ── Show upsell after confetti ──
+  const handleShowUpsell = useCallback(() => {
+    setShowUpsell(true);
+  }, []);
+
+  // ── Close modals ──
+  const closeConfirmation = useCallback(() => {
+    setShowConfirmation(false);
+  }, []);
+
+  const closeUpsell = useCallback(() => {
+    setShowUpsell(false);
+  }, []);
+
+  // ── Memoized derived state ──
+  const qrCode = useMemo(
+    () => inscripcionHook.inscripcionResult?.qrCode ?? '',
+    [inscripcionHook.inscripcionResult]
+  );
+
+  const inscripcionId = useMemo(
+    () => inscripcionHook.inscripcionResult?.id ?? null,
+    [inscripcionHook.inscripcionResult]
+  );
+
+  const nombre = useMemo(
+    () => inscripcionHook.formData?.nombre ?? undefined,
+    [inscripcionHook.formData?.nombre]
+  );
+
+  const email = useMemo(
+    () => inscripcionHook.formData?.email ?? undefined,
+    [inscripcionHook.formData?.email]
+  );
+
+  // ── Loading state ──
+  if (isLoading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: FER_COLORS.bgDark }}
+        data-ui="fer-loading"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          data-ui="fer-loading-spinner"
+        >
+          <Loader2
+            className="w-12 h-12 animate-spin"
+            style={{ color: FER_COLORS.accent }}
+          />
+          <p
+            className="mt-4 text-sm animate-pulse"
+            style={{ color: FER_COLORS.textMuted }}
+            data-ui="fer-loading-text"
+          >
+            Cargando evento...
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: FER_COLORS.bgDark }}
+      data-ui="fer-landing-root"
+    >
+      <Hero onCtaClick={scrollToForm} />
+
+      <QueEs />
+
+      <DisciplinasSection />
+
+      <QueIncluye />
+
+      <ElClubSection />
+
+      <QuienPuede />
+
+      <PolaroidGallery />
+
+      <ComoFunciona
+        precioBase={competicion?.eventoConfig?.precioBase}
+        precioHandler={competicion?.eventoConfig?.precioHandler}
+      />
+
+      <ParallaxShowcase />
+
+      <HorariosSection />
+
+      {/* Wrap form section in a div for the ref */}
+      <div ref={formRef} data-ui="fer-form-anchor">
+        <InscripcionForm
+          hook={inscripcionHook}
+          plazasDisponibles={plazasDisponibles}
+          precioBase={competicion?.eventoConfig?.precioBase}
+          precioHandler={competicion?.eventoConfig?.precioHandler}
+          categoriasMasculino={categoriasMasculino}
+          categoriasFemenino={categoriasFemenino}
+          contactEmail={competicion?.landingConfig?.contactEmail}
+          onSubmit={handleFormSubmit}
+        />
+      </div>
+
+      <GrHandlerService />
+
+      <FerFooter />
+
+      {/* Modals */}
+      <ConfirmacionModal
+        isOpen={showConfirmation}
+        qrCode={qrCode}
+        nombre={nombre}
+        email={email}
+        onClose={closeConfirmation}
+        onShowUpsell={handleShowUpsell}
+      />
+
+      <UpsellModal
+        isOpen={showUpsell}
+        inscripcionId={inscripcionId}
+        slug="fer"
+        onClose={closeUpsell}
+      />
+    </div>
+  );
+}
+
+export default FerLanding;

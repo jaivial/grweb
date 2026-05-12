@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import { token } from '../../../../stores/auth';
-import { api } from '../../../../utils/api';
+import api from '../../../../api/client';
 
 export interface EmailConfigData {
   mainProvider: number;
@@ -23,63 +22,71 @@ interface UseEmailConfigReturn {
   deleteConfig: () => Promise<boolean>;
 }
 
-export function useEmailConfig(): UseEmailConfigReturn {
+export function useEmailConfig(competicionId?: number): UseEmailConfigReturn {
   const [config, setConfig] = useState<EmailConfigData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchConfig = useCallback(async () => {
-    if (!token.value) return;
-
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await api.getEmailConfig();
-      setConfig(data);
+      const result = await api.getEmailConfig(competicionId);
+      if (result.success && result.data) {
+        setConfig(result.data as EmailConfigData);
+      } else {
+        setError(result.message || 'Error al cargar la configuración de email');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar la configuración de email');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [competicionId]);
 
   const saveConfig = useCallback(async (data: EmailConfigData): Promise<boolean> => {
-    if (!token.value) return false;
-
     setIsSaving(true);
     setError(null);
 
     try {
-      const result = await api.updateEmailConfig(data);
-      setConfig(result);
-      return true;
+      const result = await api.updateEmailConfig(data, competicionId);
+      if (result.success && result.data) {
+        setConfig(result.data as EmailConfigData);
+        return true;
+      } else {
+        setError(result.message || 'Error al guardar la configuración');
+        return false;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar la configuración');
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [competicionId]);
 
   const deleteConfig = useCallback(async (): Promise<boolean> => {
-    if (!token.value) return false;
-
     setIsSaving(true);
     setError(null);
 
     try {
-      await api.deleteEmailConfig();
-      setConfig(null);
-      return true;
+      const result = await api.deleteEmailConfig(competicionId);
+      if (result.success) {
+        setConfig(null);
+        return true;
+      } else {
+        setError(result.message || 'Error al eliminar la configuración');
+        return false;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar la configuración');
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [competicionId]);
 
   return {
     config,

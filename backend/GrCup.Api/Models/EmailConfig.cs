@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GrCup.Api.Models;
 
@@ -12,6 +13,11 @@ public class EmailConfig
 {
     public int Id { get; set; }
     public EmailProvider MainProvider { get; set; } = EmailProvider.Smtp;
+
+    // Per-competition FK (nullable = global config)
+    public int? CompeticionId { get; set; }
+    [ForeignKey(nameof(CompeticionId))]
+    public Competicion? Competicion { get; set; }
 
     // Gmail fields
     [MaxLength(255)]

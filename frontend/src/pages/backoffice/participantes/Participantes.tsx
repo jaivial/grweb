@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { JSX } from 'react';
-import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { api } from '../../../utils/api';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
@@ -217,7 +216,6 @@ export function Participantes(): JSX.Element {
   );
 
   return (
-    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8 min-w-0" data-ui="participantes-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
@@ -563,7 +561,7 @@ export function Participantes(): JSX.Element {
           </div>
         )}
       </div>
-    </BackofficeLayout>
+
   );
 }
 
