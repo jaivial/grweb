@@ -47,6 +47,7 @@ export default defineConfig({
       protocol: 'wss',
       clientPort: 443,
       path: '/hmr',
+      overlay: false,
     },
     proxy: {
       '/api': {

@@ -34,7 +34,11 @@ public static class FerLiftEndpoints
                     body.PesoMuerto1, body.PesoMuerto2, body.PesoMuerto3,
                     username);
 
-                return Results.Ok(new { success = true, data = lifts });
+                return Results.Ok(new { success = true, data = lifts.Select(l => new
+                {
+                    l.Id, l.InscripcionId, l.LiftType, l.AttemptNumber, l.Weight,
+                    l.UpdatedBy, l.UpdatedAt, l.Juez1Voto, l.Juez2Voto, l.Juez3Voto
+                }) });
             }
             catch (InvalidOperationException ex)
             {
@@ -79,7 +83,10 @@ public static class FerLiftEndpoints
                     competicion.Id, inscripcionId, liftType, attemptNumber, body.Weight, username);
                 if (entry == null)
                     return Results.NotFound(new { success = false, message = "Intento no encontrado" });
-                return Results.Ok(new { success = true, data = entry });
+                return Results.Ok(new { success = true, data = new {
+                    entry.Id, entry.InscripcionId, entry.LiftType, entry.AttemptNumber, entry.Weight,
+                    entry.UpdatedBy, entry.UpdatedAt, entry.Juez1Voto, entry.Juez2Voto, entry.Juez3Voto
+                }});
             }
             catch (InvalidOperationException ex)
             {
@@ -107,7 +114,10 @@ public static class FerLiftEndpoints
             if (entry == null)
                 return Results.NotFound(new { success = false, message = "Intento no encontrado" });
 
-            return Results.Ok(new { success = true, data = entry });
+            return Results.Ok(new { success = true, data = new {
+                entry.Id, entry.InscripcionId, entry.LiftType, entry.AttemptNumber, entry.Weight,
+                entry.UpdatedBy, entry.UpdatedAt, entry.Juez1Voto, entry.Juez2Voto, entry.Juez3Voto
+            }});
         });
 
         // GET /api/competiciones/{slug}/attempts - All attempts for competition (judge table)
