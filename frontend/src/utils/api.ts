@@ -273,9 +273,12 @@ class ApiClient {
 
   // ─── Schedules (Horarios) ───
 
-  async getSchedules(sexCategory?: string) {
-    const params = sexCategory ? `?sexCategory=${sexCategory}` : '';
-    return this.request<any[]>(`/api/admin/schedules${params}`);
+  async getSchedules(sexCategory?: string, competicionId?: number | null) {
+    const params = new URLSearchParams();
+    if (sexCategory) params.append('sexCategory', sexCategory);
+    if (competicionId) params.append('competicionId', String(competicionId));
+    const qs = params.toString();
+    return this.request<any[]>(`/api/admin/schedules${qs ? '?' + qs : ''}`);
   }
 
   async getSchedule(id: number) {
@@ -364,20 +367,24 @@ class ApiClient {
 
   // ─── Public Schedules ───
 
-  async getPublicSchedules() {
-    return this.request<any[]>('/api/schedules');
+  async getPublicSchedules(slug?: string) {
+    const params = slug ? `?slug=${encodeURIComponent(slug)}` : '';
+    return this.request<any[]>(`/api/schedules${params}`);
   }
 
-  async isSchedulesPublished() {
-    return this.request<{ published: boolean }>('/api/schedules/published');
+  async isSchedulesPublished(slug?: string) {
+    const params = slug ? `?slug=${encodeURIComponent(slug)}` : '';
+    return this.request<{ published: boolean }>(`/api/schedules/published${params}`);
   }
 
-  async getSchedulesPublishedConfig() {
-    return this.request<{ value: boolean; dateModified: string | null }>('/api/admin/schedules/published-config');
+  async getSchedulesPublishedConfig(competicionId?: number | null) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
+    return this.request<{ value: boolean; dateModified: string | null }>(`/api/admin/schedules/published-config${params}`);
   }
 
-  async updateSchedulesPublishedConfig(data: { value: boolean }) {
-    return this.request<{ value: boolean; dateModified: string }>('/api/admin/schedules/published-config', {
+  async updateSchedulesPublishedConfig(data: { value: boolean }, competicionId?: number | null) {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
+    return this.request<{ value: boolean; dateModified: string }>(`/api/admin/schedules/published-config${params}`, {
       method: 'PUT',
       body: data,
     });
@@ -482,6 +489,24 @@ class ApiClient {
 
   async confirmCheckin(athleteId: number) {
     return this.request<any>(`/api/admin/checkin/${athleteId}/confirm`, {
+      method: 'POST',
+    });
+  }
+
+  // ─── QR Reader / Checkin FER ───
+
+  async getCheckinEstado(slug: string, inscripcionId: number) {
+    return this.request<any>(`/api/competiciones/${slug}/checkin/${inscripcionId}/estado`);
+  }
+
+  async confirmarParticipacion(slug: string, inscripcionId: number) {
+    return this.request<any>(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-participacion`, {
+      method: 'POST',
+    });
+  }
+
+  async confirmarPagoEfectivo(slug: string, inscripcionId: number) {
+    return this.request<any>(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-pago-efectivo`, {
       method: 'POST',
     });
   }
