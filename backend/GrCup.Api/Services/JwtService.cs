@@ -12,11 +12,12 @@ public class JwtService
     private readonly IConfiguration _configuration;
     private readonly string _secretKey;
     private readonly string _issuer;
-    private readonly string _audience = "GrCup";
+    private readonly string _audience = "GrCup"; // Must match Program.cs ValidAudience
 
     public JwtService(IConfiguration configuration)
     {
         _configuration = configuration;
+        // Check both JWT_SECRET and JWT_SECRET_KEY for compatibility
         _secretKey = Environment.GetEnvironmentVariable("JWT_SECRET")
             ?? Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
             ?? throw new InvalidOperationException("JWT_SECRET environment variable not set");
@@ -103,7 +104,7 @@ public class JwtService
                 }
             }
             claims.Add(new Claim(ClaimTypes.Role, highestRole));
-            
+
             // Add competitions as claims with their specific role
             foreach (var uc in usuario.UsuarioCompeticiones)
             {
@@ -200,6 +201,15 @@ public class JwtService
     }
 
     /// <summary>
+    /// Extracts username from a valid JWT token
+    /// </summary>
+    public string? GetUsernameFromToken(string token)
+    {
+        var principal = ValidateToken(token);
+        return principal?.FindFirst(ClaimTypes.Name)?.Value;
+    }
+
+    /// <summary>
     /// Extracts email from a valid JWT token
     /// </summary>
     public string? GetEmailFromToken(string token)
@@ -233,7 +243,7 @@ public class JwtService
     {
         var principal = ValidateToken(token);
         var permissionsClaim = principal?.FindFirst("permissions")?.Value;
-        
+
         if (string.IsNullOrEmpty(permissionsClaim))
             return new List<string>();
 

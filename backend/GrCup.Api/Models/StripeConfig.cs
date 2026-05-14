@@ -12,6 +12,9 @@ public class StripeConfig
     [ForeignKey(nameof(CompeticionId))]
     public Competicion? Competicion { get; set; }
 
+    // Navigation property
+    public virtual Competicion? Competicion { get; set; }
+
     [MaxLength(255)]
     public string? SecretKey { get; set; }
 

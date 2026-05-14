@@ -273,12 +273,9 @@ class ApiClient {
 
   // ─── Schedules (Horarios) ───
 
-  async getSchedules(sexCategory?: string, competicionId?: number) {
-    const params = new URLSearchParams();
-    if (sexCategory) params.set('sexCategory', sexCategory);
-    if (competicionId) params.set('competicionId', competicionId.toString());
-    const qs = params.toString();
-    return this.request<any[]>(`/api/admin/schedules${qs ? '?' + qs : ''}`);
+  async getSchedules(sexCategory?: string) {
+    const params = sexCategory ? `?sexCategory=${sexCategory}` : '';
+    return this.request<any[]>(`/api/admin/schedules${params}`);
   }
 
   async getSchedule(id: number) {
@@ -367,24 +364,20 @@ class ApiClient {
 
   // ─── Public Schedules ───
 
-  async getPublicSchedules(slug?: string) {
-    const params = slug ? `?slug=${encodeURIComponent(slug)}` : '';
-    return this.request<any[]>(`/api/schedules${params}`);
+  async getPublicSchedules() {
+    return this.request<any[]>('/api/schedules');
   }
 
-  async isSchedulesPublished(slug?: string) {
-    const params = slug ? `?slug=${encodeURIComponent(slug)}` : '';
-    return this.request<{ published: boolean; horariosReady: boolean }>(`/api/schedules/published${params}`);
+  async isSchedulesPublished() {
+    return this.request<{ published: boolean }>('/api/schedules/published');
   }
 
-  async getSchedulesPublishedConfig(competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
-    return this.request<{ value: boolean; dateModified: string | null }>(`/api/admin/schedules/published-config${params}`);
+  async getSchedulesPublishedConfig() {
+    return this.request<{ value: boolean; dateModified: string | null }>('/api/admin/schedules/published-config');
   }
 
-  async updateSchedulesPublishedConfig(data: { value: boolean }, competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
-    return this.request<{ value: boolean; dateModified: string }>(`/api/admin/schedules/published-config${params}`, {
+  async updateSchedulesPublishedConfig(data: { value: boolean }) {
+    return this.request<{ value: boolean; dateModified: string }>('/api/admin/schedules/published-config', {
       method: 'PUT',
       body: data,
     });
@@ -396,8 +389,7 @@ class ApiClient {
 
   // ─── Email Config ───
 
-  async getEmailConfig(competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
+  async getEmailConfig() {
     return this.request<{
       mainProvider: number;
       gmailAddress: string | null;
@@ -407,7 +399,7 @@ class ApiClient {
       smtpEmailAddress: string | null;
       smtpHost: string | null;
       smtpPort: number;
-    }>(`/api/admin/email-config${params}`);
+    }>('/api/admin/email-config');
   }
 
   async updateEmailConfig(data: {
@@ -419,8 +411,7 @@ class ApiClient {
     smtpEmailAddress: string | null;
     smtpHost: string | null;
     smtpPort: number;
-  }, competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
+  }) {
     return this.request<{
       mainProvider: number;
       gmailAddress: string | null;
@@ -430,76 +421,101 @@ class ApiClient {
       smtpEmailAddress: string | null;
       smtpHost: string | null;
       smtpPort: number;
-    }>(`/api/admin/email-config${params}`, {
+    }>('/api/admin/email-config', {
       method: 'PUT',
       body: data,
     });
   }
 
-  async deleteEmailConfig(competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
-    return this.request<{ message: string }>(`/api/admin/email-config${params}`, {
+  async deleteEmailConfig() {
+    return this.request<{ message: string }>('/api/admin/email-config', {
       method: 'DELETE',
     });
   }
 
   // ─── Stripe Config (Admin) ───
 
-  async getStripeAdminConfig(competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
+  async getStripeAdminConfig() {
     return this.request<{
       secretKey: string | null;
       publishableKey: string | null;
       webhookSecret: string | null;
-    }>(`/api/admin/stripe-config${params}`);
+    }>('/api/admin/stripe-config');
   }
 
   async updateStripeAdminConfig(data: {
     secretKey: string | null;
     publishableKey: string | null;
     webhookSecret: string | null;
-  }, competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
+  }) {
     return this.request<{
       secretKey: string | null;
       publishableKey: string | null;
       webhookSecret: string | null;
-    }>(`/api/admin/stripe-config${params}`, {
+    }>('/api/admin/stripe-config', {
       method: 'PUT',
       body: data,
     });
   }
 
-  async deleteStripeAdminConfig(competicionId?: number) {
-    const params = competicionId ? `?competicionId=${competicionId}` : '';
-    return this.request<{ message: string }>(`/api/admin/stripe-config${params}`, {
+  async deleteStripeAdminConfig() {
+    return this.request<{ message: string }>('/api/admin/stripe-config', {
       method: 'DELETE',
     });
   }
 
-  // ─── QR Check-in (Multi-tenant) ───
+  // ─── Checkin ───
 
-  async getCheckinEstado(slug: string, inscripcionId: number) {
-    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/${inscripcionId}/estado`);
+  async getCheckinStatus(athleteId: number) {
+    return this.request<any>(`/api/admin/checkin/${athleteId}`);
   }
 
-  async confirmarParticipacion(slug: string, inscripcionId: number) {
-    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-participacion`, {
+  async findByQrCode(qrCode: string) {
+    return this.request<any>(`/api/admin/checkin/qr/${encodeURIComponent(qrCode)}`);
+  }
+
+  async generateQrCode(athleteId: number) {
+    return this.request<any>(`/api/admin/checkin/${athleteId}/qr`, {
       method: 'POST',
     });
   }
 
-  async confirmarPagoEfectivo(slug: string, inscripcionId: number) {
-    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-pago-efectivo`, {
+  async confirmCheckin(athleteId: number) {
+    return this.request<any>(`/api/admin/checkin/${athleteId}/confirm`, {
       method: 'POST',
     });
   }
 
-  async searchCheckinByQr(slug: string, qrData: string) {
-    return this.request<{ success: boolean; data: any }>(`/api/competiciones/${slug}/checkin/buscar-qr`, {
+  // ─── Lifts ───
+
+  async setOpeners(athleteId: number, data: { squatWeight: number; benchWeight: number; deadliftWeight: number }) {
+    return this.request<any>(`/api/admin/athletes/${athleteId}/openers`, {
       method: 'POST',
-      body: { qrData },
+      body: data,
     });
+  }
+
+  async getOpeners(athleteId: number) {
+    return this.request<any>(`/api/admin/athletes/${athleteId}/openers`);
+  }
+
+  async updateAttempt(athleteId: number, liftType: string, attemptNumber: number, weight: number) {
+    return this.request<any>(`/api/admin/athletes/${athleteId}/attempts/${liftType}/${attemptNumber}`, {
+      method: 'PUT',
+      body: { weight },
+    });
+  }
+
+  async getAllAttempts(athleteId: number) {
+    return this.request<any>(`/api/admin/athletes/${athleteId}/attempts`);
+  }
+
+  async getCompetitionAttempts() {
+    return this.request<any>('/api/admin/attempts');
+  }
+
+  async getAuditLog(athleteId: number) {
+    return this.request<any>(`/api/admin/athletes/${athleteId}/audit`);
   }
 }
 

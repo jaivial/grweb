@@ -38,11 +38,7 @@ export default defineConfig({
     ],
   },
   server: {
-    allowedHosts: [
-      'localhost',
-      'fer-backoffice.menustudioai.com',
-      'fer-backoffice'
-    ],
+    allowedHosts: ['fer-backoffice.menustudioai.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:5006',

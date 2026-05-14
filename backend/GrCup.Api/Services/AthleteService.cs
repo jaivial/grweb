@@ -57,7 +57,9 @@ public class AthleteService
 
     public async Task<Athlete?> GetByIdAsync(int id)
     {
-        return await _context.Athletes.FindAsync(id);
+        return await _context.Athletes
+            .Include(a => a.LiftEntries)
+            .FirstOrDefaultAsync(a => a.Id == id);
     }
 
     public async Task<(List<Athlete> Athletes, int TotalCount)> GetAllPaginatedAsync(
@@ -103,6 +105,7 @@ public class AthleteService
         var totalCount = await query.CountAsync();
 
         var athletes = await query
+            .Include(a => a.LiftEntries)
             .OrderByDescending(a => a.RegistrationDate)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

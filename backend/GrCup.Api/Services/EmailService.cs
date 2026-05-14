@@ -1,7 +1,5 @@
-using System.IO;
 using MailKit.Net.Smtp;
 using MimeKit;
-using MimeKit.Utils;
 using GrCup.Api.Models;
 using GrCup.Api.Data;
 using GrCup.Api.Models.Enums;
@@ -71,11 +69,11 @@ public class EmailService
 
     public async Task SendInscriptionConfirmationAsync(
         string email, string firstName, string surname, string weightCategory,
-        string sex, string? club, string? coach, Competicion? competicion = null)
+        string sex, string? club, string? coach)
     {
         try
         {
-            var creds = await GetCredentialsAsync(competicion?.Id);
+            var creds = await GetCredentialsAsync();
 
             // Check if schedules are published and fetch matching schedules
             var schedulesPublished = await _dbContext.SchedulePublishedConfig.FirstOrDefaultAsync();
@@ -92,25 +90,12 @@ public class EmailService
             }
 
             var message = new MimeMessage();
-            
-            // Use competition-specific branding
-            var senderName = competicion?.Nombre ?? "GR Cup";
-            var eventName = competicion?.Descripcion ?? competicion?.Nombre ?? "GR Cup";
-            var logoUrl = competicion?.LogoUrl ?? "https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png";
-            var contactInstagram = competicion?.LandingConfig != null 
-                ? System.Text.Json.JsonSerializer.Deserialize<LandingConfig>(competicion.LandingConfig)?.InstagramUrl?.Replace("https://instagram.com/", "@") 
-                : "@grstrengthclub";
-            var eventDate = competicion?.Fecha.ToString("dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-ES")) 
-                ?? "14 y 15 de junio de 2025";
-            var eventLocation = competicion?.Lugar ?? "Almussafes, Valencia";
-            
-            message.From.Add(new MailboxAddress(senderName, creds.FromAddress));
+            message.From.Add(new MailboxAddress("GRStrength Cup", creds.FromAddress));
             message.To.Add(new MailboxAddress($"{firstName} {surname}", email));
-            message.Subject = $"Confirmación de inscripción — {eventName}";
-            message.Body = BuildConfirmationHtml(firstName, surname, weightCategory, sex, club, coach, athleteSchedules,
-                senderName, eventName, eventDate, eventLocation, logoUrl, contactInstagram ?? "@grstrengthclub");
+            message.Subject = "Confirmación de inscripción -- II GRStrength AEP2 Regional de Valencia, Murcia y Baleares";
+            message.Body = BuildConfirmationHtml(firstName, surname, weightCategory, sex, club, coach, athleteSchedules);
 
-            await SendAsync(message, competicion?.Id);
+            await SendAsync(message);
             _logger.LogInformation("Confirmation email sent to {Email} ({FirstName} {Surname})", email, firstName, surname);
         }
         catch (Exception ex)
@@ -171,10 +156,10 @@ public class EmailService
 
     private static MimeEntity BuildConfirmationHtml(
         string firstName, string surname, string weightCategory,
-        string sex, string? club, string? coach, List<Schedule>? schedules,
-        string senderName, string eventName, string eventDate, string eventLocation,
-        string logoUrl, string contactInstagram)
+        string sex, string? club, string? coach, List<Schedule>? schedules)
     {
+        const string eventDate = "14 y 15 de junio de 2025";
+        const string eventLocation = "Pabellón Municipal de Almussafes. Avda Laura Méndez, s/n, 46440 Almussafes, Valencia";
         var sexLabel = sex == "Male" ? "Masculina" : "Femenina";
         var clubLabel = !string.IsNullOrWhiteSpace(club) ? club : "Sin club registrado";
         var coachLabel = !string.IsNullOrWhiteSpace(coach) ? coach : "Sin entrenador registrado";
@@ -197,7 +182,7 @@ public class EmailService
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
           <tr>
             <td align="center" style="padding:40px 30px 20px 30px;background-color:#1A1A1A;" bgcolor="#1A1A1A">
-              <img src="{logoUrl}" alt="{senderName}" width="180" style="display:block;max-width:180px;" />
+              <img src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png" alt="GRStrength Cup" width="180" style="display:block;max-width:180px;" />
             </td>
           </tr>
           <tr>
@@ -207,7 +192,7 @@ public class EmailService
           </tr>
           <tr>
             <td style="padding:0 30px 20px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#333333;">
-              Tu inscripción al <strong style="color:#1A1A1A;">{eventName}</strong> ha sido registrada correctamente.
+              Tu inscripción al <strong style="color:#1A1A1A;">II GRStrength AEP2 Regional de Valencia, Murcia y Baleares</strong> ha sido registrada correctamente.
             </td>
           </tr>
           <tr>
@@ -308,7 +293,7 @@ public class EmailService
         var textBody = $"""
 ¡Hola, {firstName}!
 
-Tu inscripción al {eventName} ha sido registrada correctamente.
+Tu inscripción al II GRStrength AEP2 Regional de Valencia, Murcia y Baleares ha sido registrada correctamente.
 
 DATOS DE INSCRIPCIÓN
 Nombre completo: {firstName} {surname}
@@ -453,7 +438,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             <td style="padding:0 30px 20px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#333333;">
               Se ha registrado un nuevo participante en el <strong>II GRStrength AEP2 Regional de Valencia, Murcia y Baleares</strong>.<br>
               <strong>Fecha:</strong> 14 y 15 de junio de 2025<br>
-              <strong>Lugar:</strong> Pabellón Municipal de Almussafes. Avda. Laura Méndez, s/n, 46440 Almussafes, Valencia
+              <strong>Lugar:</strong> Pabellón Municipal de Almussafes. Avda Laura Méndez, s/n, 46440 Almussafes, Valencia
             </td>
           </tr>
           <tr>
@@ -511,7 +496,7 @@ Nueva inscripción recibida
 
 Se ha registrado un nuevo participante en el II GRStrength AEP2 Regional de Valencia, Murcia y Baleares.
 Fecha: 14 y 15 de junio de 2025
-Lugar: Pabellón Municipal de Almussafes. Avda. Laura Méndez, s/n, 46440 Almussafes, Valencia
+Lugar: Pabellón Municipal de Almussafes. Avda Laura Méndez, s/n, 46440 Almussafes, Valencia
 
 DATOS DEL PARTICIPANTE
 Nombre completo: {firstName} {surname}
@@ -698,42 +683,94 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
         return new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody }.ToMessageBody();
     }
 
-    // ─── FER-specific email methods ───
-
     /// <summary>
-    /// Sends FER inscription confirmation email to the athlete
+    /// Sends FER inscription confirmation email with optional QR code attachment
     /// </summary>
     public async Task SendFerConfirmationAsync(
-        Inscripcion inscripcion,
-        Competicion competicion,
-        EventoConfig? eventoConfig = null,
-        byte[]? qrCodeImage = null,
-        string? qrCodeUrl = null)
+        Inscripcion inscripcion, Competicion competicion, EventoConfig config,
+        byte[]? qrCodeImage, string? qrCode)
     {
         try
         {
             var creds = await GetCredentialsAsync(competicion.Id);
-            var config = eventoConfig ?? new EventoConfig();
 
             var message = new MimeMessage();
-            var senderName = competicion.Nombre ?? "FER Powerlifting Day";
-            var eventName = competicion.Descripcion ?? competicion.Nombre ?? "FER Powerlifting Day";
-            var eventDate = competicion.Fecha.ToString("dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-ES"));
-            var eventLocation = competicion.Lugar ?? "Almussafes, Valencia";
-            var contactInstagram = "@ferentrenamiento";
-
-            message.From.Add(new MailboxAddress(senderName, creds.FromAddress));
+            message.From.Add(new MailboxAddress(competicion.Nombre, creds.FromAddress));
             message.To.Add(new MailboxAddress(inscripcion.Nombre, inscripcion.Email));
-            message.Subject = $"Confirmación de inscripción — {eventName}";
+            message.Subject = $"Confirmación de inscripción -- {competicion.Nombre}";
 
-            // Build body with inline QR image
-            var bodyBuilder = new BodyBuilder();
-            BuildFerConfirmationHtmlWithQr(bodyBuilder, inscripcion, eventName, eventDate, eventLocation, contactInstagram, config, qrCodeImage);
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+<!DOCTYPE html>
+<html lang='es'>
+<head><meta charset='utf-8'></head>
+<body style='margin:0;padding:0;background-color:#F5F5F5;'>
+  <table role='presentation' width='100%' cellpadding='0' cellspacing='0' border='0' style='background-color:#F5F5F5;'>
+    <tr>
+      <td align='center' style='padding:20px 10px;'>
+        <table role='presentation' width='600' cellpadding='0' cellspacing='0' border='0' style='max-width:600px;width:100%;background-color:#FFFFFF;border-radius:12px;overflow:hidden;'>
+          <tr>
+            <td align='center' style='padding:40px 30px 20px 30px;background-color:#1a1a2e;'>
+              <h1 style='color:#ffffff;margin:0;font-family:sans-serif;'>{competicion.Nombre}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style='padding:30px;font-family:sans-serif;'>
+              <h2 style='color:#1a1a2e;'>Hola, {inscripcion.Nombre}!</h2>
+              <p>Tu inscripción ha sido registrada correctamente.</p>
+              <table width='100%' cellpadding='0' cellspacing='0' border='0' style='background-color:#F9F9F9;border-radius:8px;'>
+                <tr><td style='padding:16px 20px;font-family:sans-serif;'>
+                  <strong>Categoría de peso:</strong> {inscripcion.CategoriaPeso}<br>
+                  <strong>Sexo:</strong> {inscripcion.Sexo}<br>
+                  <strong>Experiencia:</strong> {inscripcion.Experiencia}
+                </td></tr>
+              </table>
+              <p style='margin-top:20px;'><strong>Fecha:</strong> {competicion.Fecha:dd/MM/yyyy}<br>
+              <strong>Lugar:</strong> {competicion.Lugar}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style='padding:20px 30px;border-top:1px solid #E5E5E5;text-align:center;font-family:sans-serif;font-size:12px;color:#999999;'>
+              Este es un mensaje automático. No respondas a este correo.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+                TextBody = $@"Hola, {inscripcion.Nombre}!
+
+Tu inscripción a {competicion.Nombre} ha sido registrada correctamente.
+
+Categoría de peso: {inscripcion.CategoriaPeso}
+Sexo: {inscripcion.Sexo}
+Experiencia: {inscripcion.Experiencia}
+
+Fecha: {competicion.Fecha:dd/MM/yyyy}
+Lugar: {competicion.Lugar}
+
+Este es un mensaje automático. No respondas a este correo."
+            };
+
+            // Attach QR code image if available
+            if (qrCodeImage != null && qrCodeImage.Length > 0)
+            {
+                var attachment = new MimePart("image", "png")
+                {
+                    Content = new MimeContent(new MemoryStream(qrCodeImage)),
+                    ContentDisposition = new ContentDisposition(ContentDisposition.Attachment),
+                    ContentTransferEncoding = ContentEncoding.Base64,
+                    FileName = $"qr_{inscripcion.Id}.png"
+                };
+                bodyBuilder.Attachments.Add(attachment);
+            }
+
             message.Body = bodyBuilder.ToMessageBody();
-
             await SendAsync(message, competicion.Id);
-            _logger.LogInformation("FER confirmation email sent to {Email}. QR embedded: {HasQr}",
-                inscripcion.Email, qrCodeImage != null);
+            _logger.LogInformation("FER confirmation email sent to {Email} for competicion {CompeticionId}", inscripcion.Email, competicion.Id);
         }
         catch (Exception ex)
         {
@@ -742,721 +779,112 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
     }
 
     /// <summary>
-    /// Sends FER payment confirmation email after cash is received via QR scan
+    /// Sends FER admin notification for new inscription
     /// </summary>
-    public async Task SendFerPaymentConfirmationAsync(
-        Inscripcion inscripcion,
-        Competicion competicion)
+    public async Task SendFerAdminNotificationAsync(Inscripcion inscripcion, Competicion competicion)
+    {
+        try
+        {
+            var config = await _configService.GetConfigAsync(competicion.Id);
+            if (config == null)
+            {
+                _logger.LogWarning("No email config found for competicion {CompeticionId}, skipping admin notification", competicion.Id);
+                return;
+            }
+
+            var adminEmail = config.MainProvider == EmailProvider.Gmail
+                ? config.GmailAddress
+                : config.SmtpEmailAddress;
+
+            if (string.IsNullOrEmpty(adminEmail))
+            {
+                _logger.LogWarning("No admin email configured for competicion {CompeticionId}", competicion.Id);
+                return;
+            }
+
+            var creds = await GetCredentialsAsync(competicion.Id);
+
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(competicion.Nombre, creds.FromAddress));
+            message.To.Add(new MailboxAddress("Administrador", adminEmail));
+            message.Subject = $"Nueva inscripción FER: {inscripcion.Nombre}";
+            message.Body = new BodyBuilder
+            {
+                HtmlBody = $@"
+<!DOCTYPE html><html><body style='font-family:sans-serif;'>
+<h2>Nueva inscripción en {competicion.Nombre}</h2>
+<table style='background-color:#F9F9F9;border-radius:8px;padding:16px;'>
+<tr><td><strong>Nombre:</strong> {inscripcion.Nombre}</td></tr>
+<tr><td><strong>Email:</strong> {inscripcion.Email}</td></tr>
+<tr><td><strong>Categoría:</strong> {inscripcion.CategoriaPeso}</td></tr>
+<tr><td><strong>Sexo:</strong> {inscripcion.Sexo}</td></tr>
+<tr><td><strong>Experiencia:</strong> {inscripcion.Experiencia}</td></tr>
+{(inscripcion.PagoConfirmado ? "<tr><td><strong>Pago:</strong> Confirmado</td></tr>" : "<tr><td><strong>Pago:</strong> Pendiente</td></tr>")}
+</table>
+</body></html>",
+                TextBody = $@"Nueva inscripción en {competicion.Nombre}
+Nombre: {inscripcion.Nombre}
+Email: {inscripcion.Email}
+Categoría: {inscripcion.CategoriaPeso}
+Sexo: {inscripcion.Sexo}
+Experiencia: {inscripcion.Experiencia}
+Pago: {(inscripcion.PagoConfirmado ? "Confirmado" : "Pendiente")}"
+            }.ToMessageBody();
+
+            await SendAsync(message, competicion.Id);
+            _logger.LogInformation("FER admin notification sent for inscription {Id}", inscripcion.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send FER admin notification for inscription {Id}", inscripcion.Id);
+        }
+    }
+
+    /// <summary>
+    /// Sends FER payment confirmation email after payment is confirmed
+    /// </summary>
+    public async Task SendFerPaymentConfirmationAsync(Inscripcion inscripcion, Competicion competicion)
     {
         try
         {
             var creds = await GetCredentialsAsync(competicion.Id);
 
             var message = new MimeMessage();
-            var senderName = competicion.Nombre ?? "FER Powerlifting Day";
-            var eventName = competicion.Descripcion ?? competicion.Nombre ?? "FER Powerlifting Day";
-            var eventDate = competicion.Fecha.ToString("dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-ES"));
-            var eventLocation = competicion.Lugar ?? "Almussafes, Valencia";
-
-            message.From.Add(new MailboxAddress(senderName, creds.FromAddress));
+            message.From.Add(new MailboxAddress(competicion.Nombre, creds.FromAddress));
             message.To.Add(new MailboxAddress(inscripcion.Nombre, inscripcion.Email));
-            message.Subject = $"Pago confirmado — {eventName}";
-            message.Body = BuildFerPaymentConfirmationHtml(inscripcion, eventName, eventDate, eventLocation);
+            message.Subject = $"Pago confirmado -- {competicion.Nombre}";
+            message.Body = new BodyBuilder
+            {
+                HtmlBody = $@"
+<!DOCTYPE html><html><body style='font-family:sans-serif;'>
+<h2>Pago confirmado, {inscripcion.Nombre}!</h2>
+<p>Tu pago para <strong>{competicion.Nombre}</strong> ha sido confirmado.</p>
+<table style='background-color:#F9F9F9;border-radius:8px;padding:16px;'>
+<tr><td><strong>Total pagado:</strong> {inscripcion.TotalPagado:F2} EUR</td></tr>
+<tr><td><strong>Categoría:</strong> {inscripcion.CategoriaPeso}</td></tr>
+</table>
+<p><strong>Fecha:</strong> {competicion.Fecha:dd/MM/yyyy}<br>
+<strong>Lugar:</strong> {competicion.Lugar}</p>
+<p>Te esperamos!</p>
+</body></html>",
+                TextBody = $@"Pago confirmado, {inscripcion.Nombre}!
+
+Tu pago para {competicion.Nombre} ha sido confirmado.
+Total pagado: {inscripcion.TotalPagado:F2} EUR
+Categoría: {inscripcion.CategoriaPeso}
+
+Fecha: {competicion.Fecha:dd/MM/yyyy}
+Lugar: {competicion.Lugar}
+
+Te esperamos!"
+            }.ToMessageBody();
 
             await SendAsync(message, competicion.Id);
-            _logger.LogInformation("FER payment confirmation email sent to {Email} ({Nombre})", inscripcion.Email, inscripcion.Nombre);
+            _logger.LogInformation("FER payment confirmation email sent to {Email}", inscripcion.Email);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send FER payment confirmation email to {Email}", inscripcion.Email);
         }
-    }
-
-    /// <summary>
-    /// Sends FER admin notification when a new inscription is created
-    /// </summary>
-    public async Task SendFerAdminNotificationAsync(
-        Inscripcion inscripcion,
-        Competicion competicion)
-    {
-        try
-        {
-            var creds = await GetCredentialsAsync(competicion.Id);
-            var adminEmail = competicion.EmailContacto;
-
-            if (string.IsNullOrEmpty(adminEmail))
-            {
-                _logger.LogWarning("No contact email configured for competition {Id}, skipping admin notification", competicion.Id);
-                return;
-            }
-
-            var eventName = competicion.Descripcion ?? competicion.Nombre ?? "FER Powerlifting Day";
-
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(competicion.Nombre ?? "FER", creds.FromAddress));
-            message.To.Add(new MailboxAddress("Administrador", adminEmail));
-            message.Subject = $"Nueva inscripción FER: {inscripcion.Nombre}";
-            message.Body = BuildFerAdminNotificationHtml(inscripcion, eventName);
-
-            await SendAsync(message, competicion.Id);
-            _logger.LogInformation("FER admin notification sent for {Nombre}", inscripcion.Nombre);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send FER admin notification for {Email}", inscripcion.Email);
-        }
-    }
-
-    private static MimeEntity BuildFerConfirmationHtml(
-        Inscripcion inscripcion,
-        string eventName,
-        string eventDate,
-        string eventLocation,
-        string contactInstagram,
-        EventoConfig config,
-        string? qrCodeUrl)
-    {
-        var sexoLabel = inscripcion.Sexo == "masculino" ? "Masculino" : "Femenino";
-        var handlerLabel = inscripcion.QuiereHandler ? $"Sí (+{config.PrecioHandler} EUR)" : "No";
-        var experienciaLabels = new Dictionary<string, string>
-        {
-            ["rookie"] = "Rookie (primera competición)",
-            ["principiante"] = "Principiante",
-            ["intermedio"] = "Intermedio",
-            ["avanzado"] = "Avanzado"
-        };
-        var experienciaLabel = experienciaLabels.TryGetValue(inscripcion.Experiencia, out var expLabel) ? expLabel : inscripcion.Experiencia;
-        var pagoPendiente = !inscripcion.PagoConfirmado;
-        var firstName = inscripcion.Nombre.Contains(' ') ? inscripcion.Nombre.Split(' ')[0] : inscripcion.Nombre;
-
-        // Pre-compute optional HTML rows (cannot use $"..." inside raw strings)
-        var telefonoRow = !string.IsNullOrEmpty(inscripcion.Telefono)
-            ? $"<tr><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;\">Teléfono</td><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;\">{inscripcion.Telefono}</td></tr>"
-            : "";
-        var instagramRow = !string.IsNullOrEmpty(inscripcion.Instagram)
-            ? $"<tr><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;\">Instagram</td><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;\">{inscripcion.Instagram}</td></tr>"
-            : "";
-
-        var pagoPendienteHtml = pagoPendiente
-            ? $@"<tr><td style=""padding:15px 30px;""><table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#3B1D0B;border:1px solid #D97706;border-radius:8px;""><tr><td style=""padding:12px 16px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;color:#FBBF24;""><strong>Pago pendiente.</strong> El pago se realizará en efectivo en la zona de registro el día del evento. Total: <strong>{inscripcion.TotalPagado:F0} EUR</strong>.</td></tr></table></td></tr>"
-            : "";
-
-        var qrCodeHtml = !string.IsNullOrEmpty(qrCodeUrl)
-            ? $@"<tr><td style=""padding:10px 30px 5px 30px;""><table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#FFFFFF;border-radius:8px;padding:16px;""><tr><td align=""center"" style=""padding:16px;""><img src=""{qrCodeUrl}"" alt=""Tu código QR de registro"" width=""180"" style=""display:block;max-width:180px;border-radius:8px;"" /></td></tr><tr><td align=""center"" style=""padding:0 16px 12px 16px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#8494A7;"">Presenta este código QR en la zona de registro el día del evento</td></tr></table></td></tr>"
-            : "";
-
-        // Pre-compute optional text lines
-        var telefonoText = !string.IsNullOrEmpty(inscripcion.Telefono) ? $"Teléfono: {inscripcion.Telefono}" : "";
-        var instagramText = !string.IsNullOrEmpty(inscripcion.Instagram) ? $"Instagram: {inscripcion.Instagram}" : "";
-        var pagoPendienteText = pagoPendiente ? "PAGO PENDIENTE: El pago se realizará en efectivo en la zona de registro el día del evento." : "";
-        var qrCodeText = !string.IsNullOrEmpty(qrCodeUrl) ? $"Tu código QR: {qrCodeUrl}" : "";
-
-        var htmlBody = $"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Confirmación de inscripción</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0B0F1A;" bgcolor="#0B0F1A">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;">
-    <tr>
-      <td align="center" style="padding:20px 10px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#161B26;border-radius:12px;overflow:hidden;border:1px solid rgba(139,149,165,0.15);">
-          <tr>
-            <td align="center" style="padding:35px 30px 20px 30px;background:linear-gradient(135deg,#0B0F1A 0%,#1a2235 100%);" bgcolor="#0B0F1A">
-              <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:28px;font-weight:700;color:#C9CDD4;letter-spacing:2px;">
-                FER POWERLIFTING
-              </div>
-              <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;color:#8B95A5;margin-top:4px;letter-spacing:4px;">
-                DAY
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td align="center" style="padding:25px 30px 10px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#F1F5F9;">
-              Hola, {firstName}!
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#8494A7;">
-              Tu inscripción al <strong style="color:#C9CDD4;">{eventName}</strong> ha sido registrada correctamente.
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;border-radius:8px;border:1px solid rgba(139,149,165,0.1);">
-                <tr>
-                  <td style="padding:14px 20px 6px 20px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#8B95A5;">
-                    Datos de inscripción
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 20px 14px 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;width:40%;">Nombre</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.Nombre}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Email</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.Email}</td>
-                      </tr>
-                      {telefonoRow}
-                      {instagramRow}
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Sexo</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{sexoLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Categoría de peso</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.CategoriaPeso}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Experiencia</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{experienciaLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Handler (GR Strength)</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{handlerLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Total</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#C9CDD4;">{inscripcion.TotalPagado:F0} EUR</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          {pagoPendienteHtml}
-          <tr>
-            <td style="padding:0 30px 10px 30px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="height:1px;background-color:rgba(139,149,165,0.15);font-size:0;line-height:0;">&nbsp;</td></tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:15px 30px 8px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#C9CDD4;">
-              Cuándo y dónde
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 15px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#8494A7;">
-              <strong style="color:#F1F5F9;">Fecha:</strong> {eventDate}<br>
-              <strong style="color:#F1F5F9;">Lugar:</strong> {eventLocation}
-            </td>
-          </tr>
-          {qrCodeHtml}
-          <tr>
-            <td style="padding:0 30px 15px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#8494A7;">
-              Presenta tu código QR en la zona de registro el día del evento para confirmar tu participación.
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:15px 30px 20px 30px;border-top:1px solid rgba(139,149,165,0.1);text-align:center;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;line-height:16px;color:#8B95A5;">
-              Este es un mensaje automático. Por favor, no respondas a este correo.<br>
-              Si tienes alguna consulta, contacta con nosotros en Instagram <strong style="color:#C9CDD4;">{contactInstagram}</strong>.
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-""";
-
-        var textBody = $"""
-Hola, {inscripcion.Nombre}!
-
-Tu inscripción al {eventName} ha sido registrada correctamente.
-
-DATOS DE INSCRIPCIÓN
-Nombre: {inscripcion.Nombre}
-Email: {inscripcion.Email}
-{telefonoText}
-{instagramText}
-Sexo: {sexoLabel}
-Categoría de peso: {inscripcion.CategoriaPeso}
-Experiencia: {experienciaLabel}
-Handler (GR Strength): {handlerLabel}
-Total: {inscripcion.TotalPagado:F0} EUR
-
-{pagoPendienteText}
-
-Cuándo y dónde
-Fecha: {eventDate}
-Lugar: {eventLocation}
-{qrCodeText}
-Presenta tu código QR en la zona de registro el día del evento.
-
-Mensaje automático. Contacta en Instagram {contactInstagram}.
-""";
-
-        return new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody }.ToMessageBody();
-    }
-
-    /// <summary>
-    /// Builds FER confirmation HTML with inline QR code image (embedded as base64)
-    /// </summary>
-    private static void BuildFerConfirmationHtmlWithQr(
-        BodyBuilder bodyBuilder,
-        Inscripcion inscripcion,
-        string eventName,
-        string eventDate,
-        string eventLocation,
-        string contactInstagram,
-        EventoConfig config,
-        byte[]? qrCodeImage)
-    {
-        var sexoLabel = inscripcion.Sexo == "masculino" ? "Masculino" : "Femenino";
-        var handlerLabel = inscripcion.QuiereHandler ? $"Sí (+{config.PrecioHandler} EUR)" : "No";
-        var experienciaLabels = new Dictionary<string, string>
-        {
-            ["rookie"] = "Rookie (primera competición)",
-            ["principiante"] = "Principiante",
-            ["intermedio"] = "Intermedio",
-            ["avanzado"] = "Avanzado"
-        };
-        var experienciaLabel = experienciaLabels.TryGetValue(inscripcion.Experiencia, out var expLabel) ? expLabel : inscripcion.Experiencia;
-        var pagoPendiente = !inscripcion.PagoConfirmado;
-        var firstName = inscripcion.Nombre.Contains(' ') ? inscripcion.Nombre.Split(' ')[0] : inscripcion.Nombre;
-
-        // Pre-compute optional HTML rows
-        var telefonoRow = !string.IsNullOrEmpty(inscripcion.Telefono)
-            ? $"<tr><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;\">Teléfono</td><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;\">{inscripcion.Telefono}</td></tr>"
-            : "";
-        var instagramRow = !string.IsNullOrEmpty(inscripcion.Instagram)
-            ? $"<tr><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;\">Instagram</td><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;\">{inscripcion.Instagram}</td></tr>"
-            : "";
-
-        var pagoPendienteHtml = pagoPendiente
-            ? $@"<tr><td style=""padding:15px 30px;""><table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#3B1D0B;border:1px solid #D97706;border-radius:8px;""><tr><td style=""padding:12px 16px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;color:#FBBF24;""><strong>Pago pendiente.</strong> El pago se realizará en efectivo en la zona de registro el día del evento. Total: <strong>{inscripcion.TotalPagado:F0} EUR</strong>.</td></tr></table></td></tr>"
-            : "";
-
-        // QR code section - embedded inline or fallback message
-        var qrCodeSection = qrCodeImage != null
-            ? @"<tr><td style=""padding:10px 30px 5px 30px;""><table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#FFFFFF;border-radius:8px;""><tr><td align=""center"" style=""padding:16px;""><img src=""cid:qrcode@fer"" alt=""Tu código QR de registro"" width=""180"" style=""display:block;max-width:180px;border-radius:8px;"" /></td></tr><tr><td align=""center"" style=""padding:0 16px 12px 16px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#8494A7;"">Presenta este código QR en la zona de registro el día del evento</td></tr></table></td></tr>"
-            : @"<tr><td style=""padding:10px 30px 5px 30px;""><table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1a1a2e;border-radius:8px;border:1px solid rgba(139,149,165,0.2);""><tr><td align=""center"" style=""padding:16px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8B95A5;"">Tu código QR estará disponible en la zona de registro el día del evento</td></tr></table></td></tr>";
-
-        // Pre-compute optional text lines
-        var telefonoText = !string.IsNullOrEmpty(inscripcion.Telefono) ? $"Teléfono: {inscripcion.Telefono}" : "";
-        var instagramText = !string.IsNullOrEmpty(inscripcion.Instagram) ? $"Instagram: {inscripcion.Instagram}" : "";
-        var pagoPendienteText = pagoPendiente ? "PAGO PENDIENTE: El pago se realizará en efectivo en la zona de registro el día del evento." : "";
-        var qrCodeText = qrCodeImage != null ? "Tu código QR está incluido en este email." : "";
-
-        var htmlBody = $"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Confirmación de inscripción</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0B0F1A;" bgcolor="#0B0F1A">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;">
-    <tr>
-      <td align="center" style="padding:20px 10px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#161B26;border-radius:12px;overflow:hidden;border:1px solid rgba(139,149,165,0.15);">
-          <tr>
-            <td align="center" style="padding:35px 30px 20px 30px;background:linear-gradient(135deg,#0B0F1A 0%,#1a2235 100%);" bgcolor="#0B0F1A">
-              <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:28px;font-weight:700;color:#C9CDD4;letter-spacing:2px;">
-                FER POWERLIFTING
-              </div>
-              <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;color:#8B95A5;margin-top:4px;letter-spacing:4px;">
-                DAY
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td align="center" style="padding:25px 30px 10px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#F1F5F9;">
-              Hola, {firstName}!
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#8494A7;">
-              Tu inscripción al <strong style="color:#C9CDD4;">{eventName}</strong> ha sido registrada correctamente.
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;border-radius:8px;border:1px solid rgba(139,149,165,0.1);">
-                <tr>
-                  <td style="padding:14px 20px 6px 20px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#8B95A5;">
-                    Datos de inscripción
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 20px 14px 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;width:40%;">Nombre</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.Nombre}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Email</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.Email}</td>
-                      </tr>
-                      {telefonoRow}
-                      {instagramRow}
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Sexo</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{sexoLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Categoría de peso</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.CategoriaPeso}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Experiencia</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{experienciaLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Handler (GR Strength)</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{handlerLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Total</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#C9CDD4;">{inscripcion.TotalPagado:F0} EUR</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          {pagoPendienteHtml}
-          <tr>
-            <td style="padding:0 30px 10px 30px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="height:1px;background-color:rgba(139,149,165,0.15);font-size:0;line-height:0;">&nbsp;</td></tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:15px 30px 8px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#C9CDD4;">
-              Cuándo y dónde
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 15px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#8494A7;">
-              <strong style="color:#F1F5F9;">Fecha:</strong> {eventDate}<br>
-              <strong style="color:#F1F5F9;">Lugar:</strong> {eventLocation}
-            </td>
-          </tr>
-          {qrCodeSection}
-          <tr>
-            <td style="padding:0 30px 15px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#8494A7;">
-              Presenta tu código QR en la zona de registro el día del evento para confirmar tu participación.
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:15px 30px 20px 30px;border-top:1px solid rgba(139,149,165,0.1);text-align:center;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;line-height:16px;color:#8B95A5;">
-              Este es un mensaje automático. Por favor, no respondas a este correo.<br>
-              Si tienes alguna consulta, contacta con nosotros en Instagram <strong style="color:#C9CDD4;">{contactInstagram}</strong>.
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-""";
-
-        var textBody = $"""
-Hola, {inscripcion.Nombre}!
-
-Tu inscripción al {eventName} ha sido registrada correctamente.
-
-DATOS DE INSCRIPCIÓN
-Nombre: {inscripcion.Nombre}
-Email: {inscripcion.Email}
-{telefonoText}
-{instagramText}
-Sexo: {sexoLabel}
-Categoría de peso: {inscripcion.CategoriaPeso}
-Experiencia: {experienciaLabel}
-Handler (GR Strength): {handlerLabel}
-Total: {inscripcion.TotalPagado:F0} EUR
-
-{pagoPendienteText}
-
-Cuándo y dónde
-Fecha: {eventDate}
-Lugar: {eventLocation}
-{qrCodeText}
-Presenta tu código QR en la zona de registro el día del evento.
-
-Mensaje automático. Contacta en Instagram {contactInstagram}.
-""";
-
-        bodyBuilder.HtmlBody = htmlBody;
-        bodyBuilder.TextBody = textBody;
-
-        // Embed QR code as inline image if provided
-        if (qrCodeImage != null)
-        {
-            var imagePart = new MimePart("image", "png")
-            {
-                ContentId = "qrcode@fer",
-                ContentDisposition = new ContentDisposition(ContentDisposition.Inline),
-                ContentTransferEncoding = ContentEncoding.Base64
-            };
-            imagePart.Content = new MimeContent(new MemoryStream(qrCodeImage));
-            bodyBuilder.LinkedResources.Add(imagePart);
-        }
-    }
-
-        private static MimeEntity BuildFerPaymentConfirmationHtml(
-        Inscripcion inscripcion,
-        string eventName,
-        string eventDate,
-        string eventLocation)
-    {
-        var htmlBody = $"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Pago confirmado</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0B0F1A;" bgcolor="#0B0F1A">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;">
-    <tr>
-      <td align="center" style="padding:20px 10px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#161B26;border-radius:12px;overflow:hidden;border:1px solid rgba(139,149,165,0.15);">
-          <tr>
-            <td align="center" style="padding:35px 30px 20px 30px;background:linear-gradient(135deg,#0B0F1A 0%,#1a2235 100%);" bgcolor="#0B0F1A">
-              <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:28px;font-weight:700;color:#C9CDD4;letter-spacing:2px;">
-                FER POWERLIFTING
-              </div>
-              <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;color:#8B95A5;margin-top:4px;letter-spacing:4px;">
-                DAY
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td align="center" style="padding:25px 30px 10px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#10B981;">
-              Pago confirmado
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#8494A7;">
-              Hola <strong style="color:#F1F5F9;">{inscripcion.Nombre.Split(' ')[0]}</strong>, tu pago de <strong style="color:#C9CDD4;">{inscripcion.TotalPagado:F0} EUR</strong> en efectivo ha sido confirmado correctamente para el <strong style="color:#C9CDD4;">{eventName}</strong>.
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;border-radius:8px;border:1px solid rgba(16,185,129,0.2);">
-                <tr>
-                  <td style="padding:14px 20px 6px 20px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#10B981;">
-                    Resumen del pago
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 20px 14px 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Método de pago</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">Efectivo</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Total pagado</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#10B981;">{inscripcion.TotalPagado:F0} EUR</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:15px 30px 20px 30px;border-top:1px solid rgba(139,149,165,0.1);text-align:center;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;line-height:16px;color:#8B95A5;">
-              Este es un mensaje automático. Por favor, no respondas a este correo.<br>
-              Fecha: {eventDate} | Lugar: {eventLocation}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-""";
-
-        var textBody = $"""
-Pago confirmado
-
-Hola {inscripcion.Nombre}, tu pago de {inscripcion.TotalPagado:F0} EUR en efectivo ha sido confirmado para el {eventName}.
-
-Método de pago: Efectivo
-Total pagado: {inscripcion.TotalPagado:F0} EUR
-
-Fecha: {eventDate}
-Lugar: {eventLocation}
-
-Mensaje automático.
-""";
-
-        return new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody }.ToMessageBody();
-    }
-
-    private static MimeEntity BuildFerAdminNotificationHtml(
-        Inscripcion inscripcion,
-        string eventName)
-    {
-        var sexoLabel = inscripcion.Sexo == "masculino" ? "Masculino" : "Femenino";
-        var experienciaLabels = new Dictionary<string, string>
-        {
-            ["rookie"] = "Rookie (primera competición)",
-            ["principiante"] = "Principiante",
-            ["intermedio"] = "Intermedio",
-            ["avanzado"] = "Avanzado"
-        };
-        var experienciaLabel = experienciaLabels.TryGetValue(inscripcion.Experiencia, out var expLabel) ? expLabel : inscripcion.Experiencia;
-        
-        // Pre-compute optional HTML rows
-        var telefonoRow = !string.IsNullOrEmpty(inscripcion.Telefono)
-            ? $"<tr><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;\">Teléfono</td><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;\">{inscripcion.Telefono}</td></tr>"
-            : "";
-        var instagramRow = !string.IsNullOrEmpty(inscripcion.Instagram)
-            ? $"<tr><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;\">Instagram</td><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;\">@{inscripcion.Instagram}</td></tr>"
-            : "";
-        var handlerLabel = inscripcion.QuiereHandler ? "Sí" : "No";
-        var entrenadorLabel = inscripcion.TieneEntrenador ? "Sí" : "No";
-        var pagoStatus = inscripcion.PagoConfirmado ? $"<span style=\"color:#10B981;\">Pagado</span>" : $"<span style=\"color:#F59E0B;\">Pendiente</span>";
-        var notasRow = !string.IsNullOrEmpty(inscripcion.Notas)
-            ? $"<tr><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;vertical-align:top;\">Notas</td><td style=\"padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;\">{inscripcion.Notas}</td></tr>"
-            : "";
-
-        // Pre-compute optional text lines
-        var telefonoText = !string.IsNullOrEmpty(inscripcion.Telefono) ? $"Teléfono: {inscripcion.Telefono}" : "";
-        var instagramText = !string.IsNullOrEmpty(inscripcion.Instagram) ? $"Instagram: @{inscripcion.Instagram}" : "";
-        var notasText = !string.IsNullOrEmpty(inscripcion.Notas) ? $"Notas: {inscripcion.Notas}" : "";
-
-        var htmlBody = $"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nueva inscripción FER</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0B0F1A;" bgcolor="#0B0F1A">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;">
-    <tr>
-      <td align="center" style="padding:20px 10px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#161B26;border-radius:12px;overflow:hidden;border:1px solid rgba(139,149,165,0.15);">
-          <tr>
-            <td align="center" style="padding:30px 30px 15px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:20px;font-weight:700;color:#F1F5F9;">
-              Nueva inscripción FER
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;line-height:22px;color:#8494A7;">
-              Se ha registrado un nuevo participante en el <strong style="color:#C9CDD4;">{eventName}</strong>.
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 30px 20px 30px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0B0F1A;border-radius:8px;border:1px solid rgba(139,149,165,0.1);">
-                <tr>
-                  <td style="padding:14px 20px 6px 20px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#8B95A5;">
-                    Datos del participante
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 20px 14px 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;width:40%;">Nombre completo</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.Nombre}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Email</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.Email}</td>
-                      </tr>
-                      {telefonoRow}
-                      {instagramRow}
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Sexo</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{sexoLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Categoría de peso</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{inscripcion.CategoriaPeso} kg</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Experiencia</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{experienciaLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">¿Tiene entrenador?</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{entrenadorLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Handler (GR Strength)</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#F1F5F9;">{handlerLabel}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Estado del pago</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;">{pagoStatus}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;color:#8494A7;">Total a pagar</td>
-                        <td style="padding:5px 0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#C9CDD4;">{inscripcion.TotalPagado:F0} EUR</td>
-                      </tr>
-                      {notasRow}
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px 30px 20px 30px;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;line-height:16px;color:#8B95A5;border-top:1px solid rgba(139,149,165,0.1);padding-top:15px;">
-              Mensaje automático del sistema de inscripciones FER.
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-""";
-
-        var textBody = $"""
-Nueva inscripción FER
-
-Se ha registrado un nuevo participante en el {eventName}.
-
-Nombre completo: {inscripcion.Nombre}
-Email: {inscripcion.Email}
-{telefonoText}
-{instagramText}
-Sexo: {sexoLabel}
-Categoría de peso: {inscripcion.CategoriaPeso} kg
-Experiencia: {experienciaLabel}
-¿Tiene entrenador?: {entrenadorLabel}
-Handler (GR Strength): {handlerLabel}
-Estado del pago: {(inscripcion.PagoConfirmado ? "Pagado" : "Pendiente")}
-Total a pagar: {inscripcion.TotalPagado:F0} EUR
-{notasText}
-
----
-Mensaje automático del sistema de inscripciones FER.
-""";
-
-        return new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody }.ToMessageBody();
     }
 }

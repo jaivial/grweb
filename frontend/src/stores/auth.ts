@@ -15,7 +15,7 @@ export const isAuthenticated = computed(() => token.value !== null);
 // Verify authentication with backend - sends cookie automatically with fetch
 export async function verifyAuth(): Promise<boolean> {
   try {
-    const response = await fetch('/api/admin/verify', {
+    const response = await fetch('/api/auth/me', {
       credentials: 'include' // Cookie is sent automatically (HttpOnly, not readable by JS)
     });
     if (response.ok) {
@@ -37,7 +37,7 @@ export function logout() {
   token.value = null;
   username.value = null;
   // Call logout endpoint to clear the HttpOnly cookie
-  fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+  fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
 }
 
 // Login function - calls API and sets cookie
@@ -46,11 +46,11 @@ export async function login(user: string, pass: string): Promise<boolean> {
   error.value = null;
 
   try {
-    const response = await fetch('/api/admin/login', {
+    const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // Receive cookie from response
-      body: JSON.stringify({ username: user, password: pass }),
+      credentials: 'include',
+      body: JSON.stringify({ email: user, password: pass }),
     });
 
     if (response.ok) {

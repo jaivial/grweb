@@ -10,15 +10,12 @@ public class Schedule
     public DateOnly Date { get; set; }
     public TimeOnly StartTime { get; set; }
     public TimeOnly EndTime { get; set; }
-    
-    /// <summary>
-    /// Foreign key to Competicion. Nullable for backward compat with legacy schedules.
-    /// </summary>
-    public int? CompeticionId { get; set; }
-    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    
+
+    // Multi-tenant FK (nullable for legacy GR Cup data)
+    public int? CompeticionId { get; set; }
+
     // Navigation property
     public virtual Competicion? Competicion { get; set; }
 }

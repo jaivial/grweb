@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GrCup.Api.Models.Enums;
 
 namespace GrCup.Api.Models;
@@ -18,4 +19,7 @@ public class Athlete
     public AthleteStatus Status { get; set; } = AthleteStatus.Inscrito;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public string? QrCode { get; set; }
+    public DateTime? CheckinAt { get; set; }
+    public ICollection<LiftEntry> LiftEntries { get; set; } = new List<LiftEntry>();
 }

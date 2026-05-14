@@ -121,9 +121,11 @@ builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<EmailConfigService>();
 builder.Services.AddScoped<StripeConfigService>();
 builder.Services.AddScoped<ImageProcessorService>();
+builder.Services.AddScoped<CheckinService>();
+builder.Services.AddScoped<LiftService>();
 builder.Services.AddHttpClient<BunnyCdnService>();
 
-// ─── Multi-tenant Services (Phase 1) ───
+// ─── Multi-tenant Services ───
 builder.Services.AddScoped<CompeticionService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<InscripcionService>();
@@ -144,8 +146,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GrCupDbContext>();
     db.Database.Migrate();
-    
-    // ─── Phase 0: Seed initial data ───
+
+    // Seed initial data
     var seedService = scope.ServiceProvider.GetRequiredService<SeedService>();
     try
     {
@@ -187,13 +189,16 @@ app.MapStripeConfigEndpoints();
 app.MapRaffleConfigEndpoints();
 app.MapRaffleProductsEndpoints();
 app.MapImageUploadEndpoints();
+app.MapCheckinEndpoints();
+app.MapLiftEndpoints();
 app.MapSitemapEndpoints();
 
-// ─── Multi-tenant Endpoints (Phase 1) ───
+// ─── Multi-tenant Endpoints ───
 app.MapCompeticionEndpoints();
 app.MapUsuarioEndpoints();
 app.MapInscripcionEndpoints();
 app.MapRifaEndpoints();
+app.MapTutorialEndpoints();
 
 
 app.Run();
