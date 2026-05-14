@@ -511,8 +511,9 @@ class ApiClient {
     });
   }
 
-  async getFerCompetitionAttempts(slug: string) {
-    return this.request<any>(`/api/competiciones/${slug}/attempts`);
+  async getFerCompetitionAttempts(slug: string, query?: string) {
+    const url = `/api/competiciones/${slug}/attempts${query || ''}`;
+    return this.request<any>(url);
   }
 
   // ─── FER Lift Attempts ───
