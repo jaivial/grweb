@@ -16,11 +16,11 @@ import { UpsellModal } from './components/UpsellModal';
 import { FerFooter } from './components/FerFooter';
 import { PolaroidGallery } from './components/PolaroidGallery';
 import { DisciplinasSection } from './components/DisciplinasSection';
-import { ElClubSection } from './components/ElClubSection';
 import { ParallaxShowcase } from './components/ParallaxShowcase';
 import { HorariosSection } from './components/HorariosSection';
 import { ComoFunciona } from './components/ComoFunciona';
 import { GrHandlerService } from './components/GrHandlerService';
+import { FloatingCtaButton } from './components/FloatingCtaButton';
 
 export function FerLanding() {
   const [competicion, setCompeticion] = useState<Competicion | null>(null);
@@ -85,10 +85,12 @@ export function FerLanding() {
     }
   }, [inscripcionHook]);
 
-  // ── Show upsell after confetti ──
+  // ── Show upsell after confetti (only if user didn't select Peak Program) ──
   const handleShowUpsell = useCallback(() => {
-    setShowUpsell(true);
-  }, []);
+    if (!inscripcionHook.formData.peakProgram) {
+      setShowUpsell(true);
+    }
+  }, [inscripcionHook.formData.peakProgram]);
 
   // ── Close modals ──
   const closeConfirmation = useCallback(() => {
@@ -157,13 +159,13 @@ export function FerLanding() {
     >
       <Hero onCtaClick={scrollToForm} />
 
+      <FloatingCtaButton onCtaClick={scrollToForm} />
+
       <QueEs />
 
       <DisciplinasSection />
 
       <QueIncluye />
-
-      <ElClubSection />
 
       <QuienPuede />
 
@@ -172,6 +174,8 @@ export function FerLanding() {
       <ComoFunciona
         precioBase={competicion?.eventoConfig?.precioBase}
         precioHandler={competicion?.eventoConfig?.precioHandler}
+        precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
+        fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram}
       />
 
       <ParallaxShowcase />
@@ -184,10 +188,11 @@ export function FerLanding() {
           hook={inscripcionHook}
           plazasDisponibles={plazasDisponibles}
           precioBase={competicion?.eventoConfig?.precioBase}
-          precioHandler={competicion?.eventoConfig?.precioHandler}
           categoriasMasculino={categoriasMasculino}
           categoriasFemenino={categoriasFemenino}
           contactEmail={competicion?.landingConfig?.contactEmail}
+          precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
+          fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
           onSubmit={handleFormSubmit}
         />
       </div>
@@ -211,6 +216,8 @@ export function FerLanding() {
         inscripcionId={inscripcionId}
         slug="fer"
         onClose={closeUpsell}
+        precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
+        fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
       />
     </div>
   );
