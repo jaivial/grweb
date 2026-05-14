@@ -658,20 +658,20 @@ export function JudgeTablePage(): JSX.Element {
                           key={num}
                           className={clsx(
                             'text-sm font-mono text-center',
-                          att ? 'cursor-pointer hover:text-red-accent transition-colors' : 'text-gray-500',
-                          isSavingWeight && 'text-yellow-400',
-                          att && !isSavingWeight && att.juez1Voto !== null && att.juez2Voto !== null && att.juez3Voto !== null
-                            ? [att.juez1Voto, att.juez2Voto, att.juez3Voto].filter(v => v === true).length >= 2
-                              ? 'text-green-400'
-                              : [att.juez1Voto, att.juez2Voto, att.juez3Voto].filter(v => v === false).length >= 2
-                                ? 'text-red-400'
-                                : 'text-gray-300'
-                            : 'text-gray-300',
+                            'cursor-pointer hover:text-red-accent transition-colors',
+                            isSavingWeight && 'text-yellow-400',
+                            att && !isSavingWeight && att.juez1Voto !== null && att.juez2Voto !== null && att.juez3Voto !== null
+                              ? [att.juez1Voto, att.juez2Voto, att.juez3Voto].filter(v => v === true).length >= 2
+                                ? 'text-green-400'
+                                : [att.juez1Voto, att.juez2Voto, att.juez3Voto].filter(v => v === false).length >= 2
+                                  ? 'text-red-400'
+                                  : 'text-gray-300'
+                              : att ? 'text-gray-300' : 'text-gray-500',
                           )}
                           onClick={() => {
-                            if (att) handleStartEdit(athlete.id, activeLiftTab, num, att.weight);
+                            handleStartEdit(athlete.id, activeLiftTab, num, att?.weight ?? 0);
                           }}
-                          title={att ? 'Click para editar peso' : undefined}
+                          title={att ? 'Click para editar peso' : 'Click para añadir peso'}
                         >
                           {isSavingWeight ? (
                             <Loader2 className="w-4 h-4 inline-block animate-spin" />
