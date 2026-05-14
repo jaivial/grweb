@@ -116,7 +116,7 @@ export function Navbar() {
                   style={{ color: FER_COLORS.text }}
                   data-ui="fer-navbar-logo-fer"
                 >
-                  FER CUP 2026
+                  FER CUP II 2026
                 </span>
                 <span
                   className="text-xs font-medium hidden sm:inline"

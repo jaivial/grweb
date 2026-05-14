@@ -156,7 +156,14 @@ export function Hero({ onCtaClick }: HeroProps) {
               style={{ color: FER_COLORS.glow }}
               data-ui="fer-hero-title-day"
             >
-              CUP
+              CUP{' '}
+            </span>
+            <span
+              className=\"text-[0.55em] align-super font-extrabold tracking-widest\"
+              style={{ color: FER_COLORS.gold }}
+              data-ui=\"fer-hero-title-ii\"
+            >
+              II
             </span>
           </motion.h1>
 
