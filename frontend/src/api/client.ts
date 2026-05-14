@@ -561,6 +561,13 @@ class ApiClient {
     });
   }
 
+  async updateAttemptWeight(slug: string, inscripcionId: number, liftType: string, attemptNumber: number, weight: number): Promise<ApiResponse<any>> {
+    return this.request(`/api/competiciones/${slug}/checkin/${inscripcionId}/attempt/${liftType}/${attemptNumber}/weight`, {
+      method: 'PUT',
+      body: JSON.stringify({ weight }),
+    });
+  }
+
   async getFerCompetitionAttempts(slug: string): Promise<ApiResponse<any>> {
     return this.request(`/api/competiciones/${slug}/attempts`);
   }

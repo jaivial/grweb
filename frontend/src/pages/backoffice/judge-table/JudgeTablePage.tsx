@@ -127,6 +127,11 @@ export function JudgeTablePage(): JSX.Element {
   // Saving indicator per key
   const [savingKeys, setSavingKeys] = useState<Set<string>>(new Set());
 
+  // Weight editing state
+  const [editingCell, setEditingCell] = useState<{ inscripcionId: number; liftType: string; attemptNumber: number } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
+  const editingInputRef = useRef<HTMLInputElement>(null);
+
   // Settings panel
   const [showSettings, setShowSettings] = useState(false);
   const [selectedMaleCats, setSelectedMaleCats] = useState<Set<string>>(new Set(WEIGHT_CATEGORIES_MALE));
@@ -187,6 +192,14 @@ export function JudgeTablePage(): JSX.Element {
     intervalRef.current = setInterval(fetchData, REFRESH_INTERVAL_MS);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchData]);
+
+  // Auto-focus editing input
+  useEffect(() => {
+    if (editingCell && editingInputRef.current) {
+      editingInputRef.current.focus();
+      editingInputRef.current.select();
+    }
+  }, [editingCell]);
 
   // ─── Derived: filtered attempts ───
 
@@ -296,6 +309,46 @@ export function JudgeTablePage(): JSX.Element {
     },
     [localVotes, getDisplayVotes],
   );
+
+  // ─── Weight editing ───
+
+  const handleStartEdit = useCallback(
+    (inscripcionId: number, liftType: string, attemptNumber: number, currentWeight: number) => {
+      setEditingCell({ inscripcionId, liftType, attemptNumber });
+      setEditingValue(currentWeight > 0 ? String(currentWeight) : '');
+    },
+    [],
+  );
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingCell) return;
+    const { inscripcionId, liftType, attemptNumber } = editingCell;
+    const newWeight = parseFloat(editingValue);
+    if (isNaN(newWeight) || newWeight < 0) {
+      setEditingCell(null);
+      return;
+    }
+    const key = getVoteKey(inscripcionId, liftType, attemptNumber);
+    setSavingKeys((prev) => new Set(prev).add(key));
+    setEditingCell(null);
+    try {
+      await api.updateAttemptWeight(slug, inscripcionId, liftType, attemptNumber, newWeight);
+      toast.success('Peso actualizado');
+      fetchData();
+    } catch {
+      toast.error('Error al actualizar peso');
+    } finally {
+      setSavingKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  }, [editingCell, editingValue, slug, fetchData]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCell(null);
+  }, []);
 
   // ─── Category toggle ───
 
@@ -563,9 +616,58 @@ export function JudgeTablePage(): JSX.Element {
                     <span className="text-sm text-white font-medium truncate">{formatNombre(athlete.nombre)}</span>
                     <span className="text-xs text-gray-400">{athlete.categoriaPeso}</span>
                     <span className="text-xs text-gray-400">{athlete.sexo === 'M' ? 'M' : 'F'}</span>
-                    <span className="text-sm text-gray-300 font-mono text-center">{att1?.weight ?? '-'}</span>
-                    <span className="text-sm text-gray-300 font-mono text-center">{att2?.weight ?? '-'}</span>
-                    <span className="text-sm text-gray-300 font-mono text-center">{att3?.weight ?? '-'}</span>
+                    {[1, 2, 3].map((num) => {
+                      const att = num === 1 ? att1 : num === 2 ? att2 : att3;
+                      const isEditing = editingCell?.inscripcionId === athlete.id
+                        && editingCell?.liftType === activeLiftTab
+                        && editingCell?.attemptNumber === num;
+                      const weightKey = getVoteKey(athlete.id, activeLiftTab, num);
+                      const isSavingWeight = savingKeys.has(weightKey);
+
+                      if (isEditing) {
+                        return (
+                          <div key={num} className="flex items-center justify-center">
+                            <input
+                              ref={editingInputRef}
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEdit();
+                                if (e.key === 'Escape') handleCancelEdit();
+                              }}
+                              onBlur={handleSaveEdit}
+                              className="w-20 px-1.5 py-0.5 text-sm font-mono text-center bg-dark-surface border border-red-accent/50 rounded text-white outline-none"
+                            />
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <span
+                          key={num}
+                          className={clsx(
+                            'text-sm font-mono text-center',
+                            att ? 'cursor-pointer hover:text-red-accent transition-colors text-gray-300' : 'text-gray-500',
+                            isSavingWeight && 'text-yellow-400',
+                          )}
+                          onClick={() => {
+                            if (att) handleStartEdit(athlete.id, activeLiftTab, num, att.weight);
+                          }}
+                          title={att ? 'Click para editar peso' : undefined}
+                        >
+                          {isSavingWeight ? (
+                            <Loader2 className="w-4 h-4 inline-block animate-spin" />
+                          ) : att ? (
+                            att.weight
+                          ) : (
+                            '-'
+                          )}
+                        </span>
+                      );
+                    })}
                     <span className={`text-sm font-semibold text-center ${resultadoColor}`}>{resultadoLabel}</span>
                   </div>
                 );
@@ -604,9 +706,51 @@ export function JudgeTablePage(): JSX.Element {
                   <span className="text-sm text-white font-medium truncate">{formatNombre(athlete.nombre)}</span>
                   <span className="text-xs text-gray-400">{athlete.categoriaPeso}</span>
                   <span className="text-xs text-gray-400">{athlete.sexo === 'M' ? 'M' : 'F'}</span>
-                  <span className="text-sm text-white font-mono font-semibold text-center">
-                    {attempt.weight > 0 ? attempt.weight : '-'}
-                  </span>
+                  {(() => {
+                    const isEditing = editingCell?.inscripcionId === athlete.id
+                      && editingCell?.liftType === activeLiftTab
+                      && editingCell?.attemptNumber === attemptNum;
+                    const weightKey = getVoteKey(athlete.id, activeLiftTab, attemptNum);
+                    const isSavingWeight = savingKeys.has(weightKey);
+
+                    if (isEditing) {
+                      return (
+                        <div className="flex items-center justify-center">
+                          <input
+                            ref={editingInputRef}
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit();
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                            onBlur={handleSaveEdit}
+                            className="w-20 px-1.5 py-0.5 text-sm font-mono text-center bg-dark-surface border border-red-accent/50 rounded text-white outline-none"
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <span
+                        className={clsx(
+                          'text-sm font-mono font-semibold text-center cursor-pointer hover:text-red-accent transition-colors',
+                          isSavingWeight ? 'text-yellow-400' : 'text-white',
+                        )}
+                        onClick={() => handleStartEdit(athlete.id, activeLiftTab, attemptNum, attempt.weight)}
+                        title="Click para editar peso"
+                      >
+                        {isSavingWeight ? (
+                          <Loader2 className="w-4 h-4 inline-block animate-spin" />
+                        ) : (
+                          attempt.weight > 0 ? attempt.weight : '-'
+                        )}
+                      </span>
+                    );
+                  })()}
 
                   {/* Válido column */}
                   <div className="flex items-center justify-center gap-2">

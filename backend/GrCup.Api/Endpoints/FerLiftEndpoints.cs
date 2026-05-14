@@ -57,6 +57,36 @@ public static class FerLiftEndpoints
             return Results.Ok(new { success = true, data = attempts });
         });
 
+        // PUT /api/competiciones/{slug}/checkin/{inscripcionId}/attempt/{liftType}/{attemptNumber}/weight - Edit attempt weight
+        app.MapPut("/api/competiciones/{slug}/checkin/{inscripcionId:int}/attempt/{liftType}/{attemptNumber:int}/weight", [Authorize] async (
+            string slug,
+            int inscripcionId,
+            string liftType,
+            int attemptNumber,
+            WeightEditRequest body,
+            CompeticionService competicionService,
+            InscripcionService inscripcionService,
+            HttpContext context) =>
+        {
+            var competicion = await competicionService.GetBySlugAsync(slug);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competición no encontrada" });
+
+            var username = context.User.Identity?.Name ?? "admin";
+            try
+            {
+                var entry = await inscripcionService.UpdateAttemptWeightAsync(
+                    competicion.Id, inscripcionId, liftType, attemptNumber, body.Weight, username);
+                if (entry == null)
+                    return Results.NotFound(new { success = false, message = "Intento no encontrado" });
+                return Results.Ok(new { success = true, data = entry });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+        });
+
         // PUT /api/competiciones/{slug}/checkin/{inscripcionId}/attempt/{liftType}/{attemptNumber}/juez - Judge vote
         app.MapPut("/api/competiciones/{slug}/checkin/{inscripcionId:int}/attempt/{liftType}/{attemptNumber:int}/juez", [Authorize] async (
             string slug,
@@ -159,3 +189,4 @@ public record FerLiftRequest(
 );
 
 public record JudgeVoteRequest(int JuezNumero, bool? Voto);
+public record WeightEditRequest(decimal Weight);

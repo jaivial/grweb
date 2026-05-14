@@ -572,6 +572,13 @@ class ApiClient {
       body: { juezNumero, voto },
     });
   }
+
+  async updateAttemptWeight(slug: string, inscripcionId: number, liftType: string, attemptNumber: number, weight: number) {
+    return this.request<any>(`/api/competiciones/${slug}/checkin/${inscripcionId}/attempt/${liftType}/${attemptNumber}/weight`, {
+      method: 'PUT',
+      body: { weight },
+    });
+  }
 }
 
 export const api = new ApiClient(API_URL);
