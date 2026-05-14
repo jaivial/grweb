@@ -658,8 +658,15 @@ export function JudgeTablePage(): JSX.Element {
                           key={num}
                           className={clsx(
                             'text-sm font-mono text-center',
-                            att ? 'cursor-pointer hover:text-red-accent transition-colors text-gray-300' : 'text-gray-500',
-                            isSavingWeight && 'text-yellow-400',
+                          att ? 'cursor-pointer hover:text-red-accent transition-colors' : 'text-gray-500',
+                          isSavingWeight && 'text-yellow-400',
+                          att && !isSavingWeight && att.juez1Voto !== null && att.juez2Voto !== null && att.juez3Voto !== null
+                            ? [att.juez1Voto, att.juez2Voto, att.juez3Voto].filter(v => v === true).length >= 2
+                              ? 'text-green-400'
+                              : [att.juez1Voto, att.juez2Voto, att.juez3Voto].filter(v => v === false).length >= 2
+                                ? 'text-red-400'
+                                : 'text-gray-300'
+                            : 'text-gray-300',
                           )}
                           onClick={() => {
                             if (att) handleStartEdit(athlete.id, activeLiftTab, num, att.weight);
@@ -685,6 +692,11 @@ export function JudgeTablePage(): JSX.Element {
               const attemptNum = activeSubtab as 1 | 2 | 3;
               const attempt = matchingAttempts.find((a) => a.attemptNumber === attemptNum);
               if (!attempt) {
+                const noKey = getVoteKey(athlete.id, activeLiftTab, attemptNum);
+                const isEditingNo = editingCell?.inscripcionId === athlete.id
+                  && editingCell?.liftType === activeLiftTab
+                  && editingCell?.attemptNumber === attemptNum;
+                const isSavingNo = savingKeys.has(noKey);
                 return (
                   <div
                     key={athlete.id}
@@ -694,15 +706,26 @@ export function JudgeTablePage(): JSX.Element {
                     <span className="text-sm text-gray-400 font-medium truncate">{formatNombre(athlete.nombre)}</span>
                     <span className="text-xs text-gray-500">{athlete.categoriaPeso}</span>
                     <span className="text-xs text-gray-500">{athlete.sexo === 'masculino' ? 'M' : 'F'}</span>
-                    <span
-                      className="text-sm text-gray-500 font-mono text-center cursor-pointer hover:text-white transition-colors"
-                      onClick={() => {
-                        setEditingCell({ inscripcionId: athlete.id, liftType: activeLiftTab, attemptNumber: attemptNum });
-                        setEditingValue('');
-                      }}
-                    >
-                      —
-                    </span>
+                    {isEditingNo ? (
+                      <div className="flex items-center justify-center">
+                        <input
+                          ref={editingInputRef}
+                          type="number" step="0.5" min="0"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEdit(); if (e.key === 'Escape') handleCancelEdit(); }}
+                          onBlur={handleSaveEdit}
+                          className="w-20 px-1.5 py-0.5 text-sm font-mono text-center bg-dark-surface border border-red-accent/50 rounded text-white outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <span
+                        className="text-sm text-gray-500 font-mono text-center cursor-pointer hover:text-white transition-colors"
+                        onClick={() => { setEditingCell({ inscripcionId: athlete.id, liftType: activeLiftTab, attemptNumber: attemptNum }); setEditingValue(''); }}
+                      >
+                        {isSavingNo ? <Loader2 className="w-4 h-4 inline-block animate-spin" /> : '—'}
+                      </span>
+                    )}
                     <span className="text-xs text-gray-600 text-center">Click para añadir</span>
                   </div>
                 );
@@ -754,7 +777,12 @@ export function JudgeTablePage(): JSX.Element {
                       <span
                         className={clsx(
                           'text-sm font-mono font-semibold text-center cursor-pointer hover:text-red-accent transition-colors',
-                          isSavingWeight ? 'text-yellow-400' : 'text-white',
+                          isSavingWeight ? 'text-yellow-400' :
+                            votes.juez1 !== null && votes.juez2 !== null && votes.juez3 !== null ? (
+                              [votes.juez1, votes.juez2, votes.juez3].filter(v => v === true).length >= 2 ? 'text-green-400' :
+                              [votes.juez1, votes.juez2, votes.juez3].filter(v => v === false).length >= 2 ? 'text-red-400' :
+                              'text-white'
+                            ) : 'text-white',
                         )}
                         onClick={() => handleStartEdit(athlete.id, activeLiftTab, attemptNum, attempt.weight)}
                         title="Click para editar peso"
