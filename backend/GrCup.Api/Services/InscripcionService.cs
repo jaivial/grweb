@@ -599,7 +599,41 @@ public class InscripcionService
     }
 
     #endregion
+
+    #region Judge Votes
+
+    /// <summary>
+    /// Updates a judge's vote for a specific lift attempt
+    /// </summary>
+    public async Task<LiftEntryInscripcion?> UpdateJudgeVoteAsync(int competicionId, int inscripcionId,
+        string liftType, int attemptNumber, int juezNumero, bool? voto)
+    {
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null) return null;
+
+        var entry = await _context.LiftEntriesInscripcion
+            .FirstOrDefaultAsync(l => l.InscripcionId == inscripcionId &&
+                                      l.LiftType == liftType &&
+                                      l.AttemptNumber == attemptNumber);
+
+        if (entry == null) return null;
+
+        switch (juezNumero)
+        {
+            case 1: entry.Juez1Voto = voto; break;
+            case 2: entry.Juez2Voto = voto; break;
+            case 3: entry.Juez3Voto = voto; break;
+        }
+
+        entry.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return entry;
+    }
+
+    #endregion
 }
+
 public record CreateInscripcionRequest(
     string Nombre,
     string Email,

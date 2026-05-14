@@ -563,6 +563,15 @@ class ApiClient {
   async getAuditLog(athleteId: number) {
     return this.request<any>(`/api/admin/athletes/${athleteId}/audit`);
   }
+
+  // ─── FER Judge Votes ───
+
+  async updateJudgeVote(slug: string, inscripcionId: number, liftType: string, attemptNumber: number, juezNumero: number, voto: boolean | null) {
+    return this.request<any>(`/api/competiciones/${slug}/checkin/${inscripcionId}/attempt/${liftType}/${attemptNumber}/juez`, {
+      method: 'PUT',
+      body: { juezNumero, voto },
+    });
+  }
 }
 
 export const api = new ApiClient(API_URL);
