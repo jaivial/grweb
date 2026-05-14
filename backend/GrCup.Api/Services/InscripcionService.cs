@@ -53,12 +53,10 @@ public class InscripcionService
         if (existing)
             throw new InvalidOperationException("Email already registered for this competition");
 
-        // Calculate total (base price + optional upsell + optional handler)
+        // Calculate total (base price + optional peak program)
         var totalPagado = config.PrecioBase;
-        if (request.UpsellPreparacion)
-            totalPagado += config.PrecioUpsell;
-        if (request.QuiereHandler)
-            totalPagado += config.PrecioHandler;
+        if (request.PeakProgram)
+            totalPagado += config.PrecioPeakProgram;
 
         var inscripcion = new Inscripcion
         {
@@ -73,7 +71,7 @@ public class InscripcionService
 
             Experiencia = request.Experiencia,
             TieneEntrenador = request.TieneEntrenador,
-            UpsellPreparacion = request.UpsellPreparacion,
+            QuierePeakProgram = request.PeakProgram,
             PagoConfirmado = false, // Will be confirmed via QR scan or manual
             ParticipacionConfirmada = false,
             TotalPagado = totalPagado,
@@ -101,35 +99,6 @@ public class InscripcionService
         }
         await _context.SaveChangesAsync();
 
-        return inscripcion;
-    }
-
-    /// <summary>
-    /// Adds upsell to an existing inscription
-    /// </summary>
-    public async Task<Inscripcion?> AddUpsellAsync(int inscripcionId, bool quiereUpsell)
-    {
-        var inscripcion = await _context.Inscripciones.FindAsync(inscripcionId);
-        if (inscripcion == null)
-            return null;
-
-        if (!quiereUpsell)
-            return inscripcion;
-
-        if (inscripcion.UpsellPreparacion)
-            return inscripcion; // Already has upsell
-
-        var competicion = await _competicionService.GetByIdAsync(inscripcion.CompeticionId);
-        if (competicion == null)
-            return null;
-
-        var config = _competicionService.GetEventoConfig(competicion);
-        
-        inscripcion.UpsellPreparacion = true;
-        inscripcion.TotalPagado += config.PrecioUpsell;
-        inscripcion.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
         return inscripcion;
     }
 
@@ -255,6 +224,7 @@ public class InscripcionService
             inscripcion.CategoriaPeso,
             inscripcion.Experiencia,
             inscripcion.QuiereHandler,
+            inscripcion.QuierePeakProgram,
             inscripcion.PagoConfirmado,
             inscripcion.ParticipacionConfirmada,
             inscripcion.TotalPagado,
@@ -384,8 +354,8 @@ public class InscripcionService
         if (request.TieneEntrenador.HasValue)
             inscripcion.TieneEntrenador = request.TieneEntrenador.Value;
 
-        if (request.UpsellPreparacion.HasValue)
-            inscripcion.UpsellPreparacion = request.UpsellPreparacion.Value;
+        if (request.QuierePeakProgram.HasValue)
+            inscripcion.QuierePeakProgram = request.QuierePeakProgram.Value;
 
         if (request.PagoConfirmado.HasValue)
             inscripcion.PagoConfirmado = request.PagoConfirmado.Value;
@@ -444,7 +414,6 @@ public class InscripcionService
             Total: inscripciones.Count,
             Pagados: inscripciones.Count(i => i.PagoConfirmado),
             Pendientes: inscripciones.Count(i => !i.PagoConfirmado),
-            Upsells: inscripciones.Count(i => i.UpsellPreparacion),
             Checkins: inscripciones.Count(i => i.CheckinAt.HasValue),
             Revenue: inscripciones.Where(i => i.PagoConfirmado).Sum(i => i.TotalPagado),
             PorExperiencia: new Dictionary<string, int>
@@ -470,11 +439,11 @@ public class InscripcionService
             .ToListAsync();
 
         var csv = new StringBuilder();
-        csv.AppendLine("ID,Nombre,Email,Instagram,Categoría,Experiencia,Handler,Entrenador,Upsell,Pagado,Total (€),Check-in,Fecha");
+        csv.AppendLine("ID,Nombre,Email,Instagram,Categoría,Experiencia,Handler,PeakProgram,Pagado,Total (€),Check-in,Fecha");
 
         foreach (var i in inscripciones)
         {
-            csv.AppendLine($"{i.Id},\"{i.Nombre}\",\"{i.Email}\",\"{i.Instagram ?? ""}\",{i.CategoriaPeso},{i.Experiencia},{(i.QuiereHandler ? "Sí" : "No")},{(i.TieneEntrenador ? "Sí" : "No")},{(i.UpsellPreparacion ? "Sí" : "No")},{(i.PagoConfirmado ? "Sí" : "No")},{i.TotalPagado},{(i.CheckinAt.HasValue ? i.CheckinAt.Value.ToString("yyyy-MM-dd HH:mm") : "No")},{i.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+            csv.AppendLine($"{i.Id},\"{i.Nombre}\",\"{i.Email}\",\"{i.Instagram ?? ""}\",{i.CategoriaPeso},{i.Experiencia},{(i.QuiereHandler ? "Sí" : "No")},{(i.QuierePeakProgram ? "Sí" : "No")},{(i.PagoConfirmado ? "Sí" : "No")},{i.TotalPagado},{(i.CheckinAt.HasValue ? i.CheckinAt.Value.ToString("yyyy-MM-dd HH:mm") : "No")},{i.CreatedAt:yyyy-MM-dd HH:mm:ss}");
         }
 
         return csv.ToString();
@@ -560,7 +529,7 @@ public record CreateInscripcionRequest(
 
     string Experiencia,
     bool TieneEntrenador,
-    bool UpsellPreparacion,
+    bool PeakProgram,
     bool AceptaTerminos
 );
 
@@ -575,7 +544,7 @@ public record UpdateInscripcionRequest(
 
     string? Experiencia = null,
     bool? TieneEntrenador = null,
-    bool? UpsellPreparacion = null,
+    bool? QuierePeakProgram = null,
     bool? PagoConfirmado = null,
     bool? ParticipacionConfirmada = null,
     string? PaymentMethod = null,
@@ -592,6 +561,7 @@ public record InscripcionEstadoDto(
     string? CategoriaPeso,
     string Experiencia,
     bool QuiereHandler,
+    bool QuierePeakProgram,
     bool PagoConfirmado,
     bool ParticipacionConfirmada,
     decimal TotalPagado,
@@ -604,7 +574,6 @@ public record InscripcionStats(
     int Total,
     int Pagados,
     int Pendientes,
-    int Upsells,
     int Checkins,
     decimal Revenue,
     Dictionary<string, int> PorExperiencia,
