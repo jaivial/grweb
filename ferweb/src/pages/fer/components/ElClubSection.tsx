@@ -25,9 +25,9 @@ function GridPhoto({
 }) {
   const resolvedSrc = useCdnImage(src);
 
-  const enterStart = 0.08 + index * 0.05;
-  const peakStart = enterStart + 0.08;
-  const exitEnd = 0.65 + index * 0.03;
+  const enterStart = 0.06 + index * 0.04;
+  const peakStart = enterStart + 0.06;
+  const exitEnd = 0.78 + index * 0.02;
 
   const opacity = useTransform(
     scrollProgress,
@@ -84,21 +84,21 @@ export function ElClubSection(): JSX.Element {
     offset: ['start end', 'end start'],
   });
 
-  const titleOpacity = useTransform(scrollYProgress, [0.05, 0.12, 0.35, 0.45], [0, 1, 1, 0]);
-  const titleScale = useTransform(scrollYProgress, [0.05, 0.12], [0.85, 1]);
-  const titleY = useTransform(scrollYProgress, [0.05, 0.12], [50, 0]);
+  const titleOpacity = useTransform(scrollYProgress, [0.02, 0.10, 0.55, 0.70], [0, 1, 1, 0]);
+  const titleScale = useTransform(scrollYProgress, [0.02, 0.10], [0.85, 1]);
+  const titleY = useTransform(scrollYProgress, [0.02, 0.10], [50, 0]);
 
-  const valuesEnter = useTransform(scrollYProgress, [0.55, 0.65, 0.85, 0.95], [0, 1, 1, 0]);
-  const valuesScale = useTransform(scrollYProgress, [0.55, 0.65], [0.9, 1]);
+  const valuesEnter = useTransform(scrollYProgress, [0.50, 0.60, 0.88, 0.98], [0, 1, 1, 0]);
+  const valuesScale = useTransform(scrollYProgress, [0.50, 0.60], [0.9, 1]);
 
-  const underlineScaleX = useTransform(scrollYProgress, [0.12, 0.22], [0, 1]);
-  const underlineOpacity = useTransform(scrollYProgress, [0.12, 0.18, 0.35, 0.45], [0, 1, 1, 0]);
+  const underlineScaleX = useTransform(scrollYProgress, [0.10, 0.20], [0, 1]);
+  const underlineOpacity = useTransform(scrollYProgress, [0.10, 0.16, 0.55, 0.70], [0, 1, 1, 0]);
 
   return (
     <section
       ref={containerRef}
       className="relative overflow-hidden"
-      style={{ height: '80vh', backgroundColor: FER_COLORS.bgDark }}
+      style={{ minHeight: '100vh', backgroundColor: FER_COLORS.bgDark }}
       data-ui="el-club-section"
     >
       <div

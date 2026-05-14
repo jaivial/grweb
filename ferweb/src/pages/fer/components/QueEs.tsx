@@ -9,6 +9,7 @@ const HIGHLIGHTS = [
   { icon: Dumbbell, text: '3 intentos por levantamiento' },
   { icon: Star, text: 'Ambiente de competición real' },
   { icon: Heart, text: 'Spotters profesionales' },
+  { icon: Trophy, text: 'Competir contra gente de tu nivel' },
 ] as const;
 
 export function QueEs() {

@@ -1,0 +1,61 @@
+# Plan: Lift Attempts para FER + Home cards + QR + Judge Table
+
+## 1. Home cards dinámicas por tipo de competición
+**Archivo**: `frontend/src/pages/backoffice/Home.tsx`
+
+- Importar `isCurrentFerAtom` y `currentCompeticionTipoAtom`
+- Filtrar cards según tipo:
+  - **GR Cup**: Inscripciones, Participantes, Sorteo, Horarios, Configuración, Lector QR, Mesa de Jueces
+  - **FER**: Inscripciones, Horarios, Configuración, Lector QR, Mesa de Jueces (quitar Participantes y Sorteo)
+- Usar `buildPath` o slug dinámico para todos los hrefs
+
+## 2. Modelo LiftEntryInscripcion (Backend)
+**Nuevo archivo**: `backend/GrCup.Api/Models/LiftEntryInscripcion.cs`
+```csharp
+public class LiftEntryInscripcion {
+    public int Id { get; set; }
+    public int InscripcionId { get; set; }
+    public string LiftType { get; set; }  // Squat, Bench, Deadlift
+    public int AttemptNumber { get; set; }  // 1, 2, 3
+    public decimal Weight { get; set; }
+    public string? UpdatedBy { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public virtual Inscripcion Inscripcion { get; set; }
+}
+```
+
+- DbSet en GrCupDbContext
+- Migration
+
+## 3. Endpoints FER Lifts (Backend)
+**Nuevo archivo**: `backend/GrCup.Api/Endpoints/FerLiftEndpoints.cs`
+
+- `POST /api/competiciones/{slug}/checkin/{inscripcionId}/openers` — Set openers
+- `GET /api/competiciones/{slug}/checkin/{inscripcionId}/openers` — Get openers
+- `GET /api/competiciones/{slug}/checkin/{inscripcionId}/attempts` — All attempts
+- `PUT /api/competiciones/{slug}/checkin/{inscripcionId}/attempts/{liftType}/{attemptNumber}` — Update
+
+Service: Extender InscripcionService o crear FerLiftService
+
+## 4. QR Reader: Lift Attempts Section
+**Archivo**: `frontend/src/pages/backoffice/qr-reader/QrReaderPage.tsx`
+
+- Cuando participacionConfirmada y pagoConfirmado, mostrar sección de openers
+- 3 lift cards: Sentadilla, Press de Banca, Peso Muerto
+- Cada card: 3 inputs numéricos (intentos 1, 2, 3)
+- Botón "Guardar Intentos"
+- API call a POST /api/competiciones/{slug}/checkin/{id}/openers
+
+## 5. Judge Table para FER
+**Archivo**: `frontend/src/pages/backoffice/judge-table/JudgeTablePage.tsx`
+
+- Modificar para aceptar slug de competición
+- Cargar lifts de inscripciones FER desde GET /api/competiciones/{slug}/attempts (nuevo endpoint)
+- Mostrar tabla con nombre, categoría, y pesos de cada lift/attempt
+
+## 6. Edit Modal: Tab de Intentos
+**Archivo**: `frontend/src/pages/backoffice/inscripciones/fer-components/FerInscripcionEditForm.tsx`
+
+- Añadir tabs: 'Datos' | 'Intentos'
+- Tab Intentos: editor de openers (igual que QR reader)
+- Guardar via endpoint

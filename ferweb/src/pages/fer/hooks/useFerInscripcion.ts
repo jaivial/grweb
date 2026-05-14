@@ -32,7 +32,7 @@ export const ferInscripcionSchema = z.object({
     .min(1, 'Selecciona una categoría de peso'),
   quiereHandler: z.boolean(),
   experiencia: z.enum(['rookie', 'principiante', 'intermedio', 'avanzado']),
-  tieneEntrenador: z.boolean(),
+  peakProgram: z.boolean(),
   aceptaTerminos: z.boolean().refine((val) => val === true, {
     message: 'Debes aceptar los términos y condiciones',
   }),
@@ -51,7 +51,7 @@ export const INITIAL_FORM_DATA: FerInscripcionFormData = {
   categoriaPeso: '',
   quiereHandler: false,
   experiencia: 'principiante',
-  tieneEntrenador: false,
+  peakProgram: false,
   aceptaTerminos: false,
 };
 
@@ -135,8 +135,7 @@ export function useFerInscripcion(): UseFerInscripcionReturn {
           categoriaPeso: formData.categoriaPeso,
           quiereHandler: formData.quiereHandler,
           experiencia: formData.experiencia,
-          tieneEntrenador: formData.tieneEntrenador,
-          upsellPreparacion: false,
+          peakProgram: formData.peakProgram,
           aceptaTerminos: true,
         };
 

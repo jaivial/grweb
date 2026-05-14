@@ -14,6 +14,8 @@ export interface InscripcionConfig {
   pageState: InscripcionPageState;
   precioBase: number | undefined;
   precioHandler: number | undefined;
+  precioPeakProgram: number | undefined;
+  fechaLimitePeakProgram: string | null;
   reload: () => void;
 }
 
@@ -85,6 +87,16 @@ export function useInscripcionConfig(): InscripcionConfig {
     [competicion?.eventoConfig?.precioHandler]
   );
 
+  const precioPeakProgram = useMemo(
+    () => competicion?.eventoConfig?.precioPeakProgram,
+    [competicion?.eventoConfig?.precioPeakProgram]
+  );
+
+  const fechaLimitePeakProgram = useMemo(
+    () => competicion?.eventoConfig?.fechaLimitePeakProgram ?? null,
+    [competicion?.eventoConfig?.fechaLimitePeakProgram]
+  );
+
   return {
     competicion,
     plazasDisponibles,
@@ -93,6 +105,8 @@ export function useInscripcionConfig(): InscripcionConfig {
     pageState,
     precioBase,
     precioHandler,
+    precioPeakProgram,
+    fechaLimitePeakProgram,
     reload,
   };
 }

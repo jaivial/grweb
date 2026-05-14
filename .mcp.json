@@ -2,6 +2,17 @@
   "mcpServers": {
     "forge_extension": {
       "url": "http://localhost:17341/mcp"
+    },
+    "wide-researcher": {
+      "command": "node",
+      "args": [
+        "/root/.npm/_npx/77091404085bd1d4/node_modules/wide-researcher/bin/wide-researcher-mcp.js",
+        "--project-config",
+        "/var/www/grweb/.wide-researcher/config.json"
+      ],
+      "env": {
+        "PYTHON_BIN": "/root/.wide-researcher/venv/bin/python"
+      }
     }
   }
 }

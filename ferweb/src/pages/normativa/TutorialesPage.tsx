@@ -152,9 +152,9 @@ function VideoSlide({
   const [isExpanded, setIsExpanded] = useState(() => {
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);
-      return stored !== null ? stored === 'true' : true;
+      return stored !== null ? stored === 'true' : false;
     } catch {
-      return true;
+      return false;
     }
   });
 
@@ -174,14 +174,6 @@ function VideoSlide({
     [STORAGE_KEY]
   );
 
-  const trimmedDescription = useMemo(() => {
-    if (video.description.length > 55) {
-      return video.description.slice(0, 55) + '...';
-    }
-    return video.description;
-  }, [video.description]);
-
-  // Share handler — native Web Share API
   const handleShare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const url = window.location.href;
@@ -572,7 +564,7 @@ function VideoSlide({
           {/* Accordion header — always visible */}
           <div className="flex items-start justify-between gap-2 px-3.5 py-2.5">
             <div className="flex-1 min-w-0">
-              {video.hashtags && (
+              {isExpanded && video.hashtags && (
                 <p
                   data-ui={`tiktok-hashtags-${originalIndex}`}
                   className="text-xs sm:text-sm font-semibold text-[#fe2c55] drop-shadow-md mb-1"
@@ -582,9 +574,11 @@ function VideoSlide({
               )}
               <p
                 data-ui={`tiktok-description-${originalIndex}`}
-                className="text-sm sm:text-base font-medium text-white/90 drop-shadow-md leading-relaxed"
+                className={`text-sm sm:text-base font-medium text-white/90 drop-shadow-md leading-relaxed ${
+                  isExpanded ? '' : 'line-clamp-1'
+                }`}
               >
-                {isExpanded ? video.description : trimmedDescription}
+                {video.description}
               </p>
             </div>
             {/* Chevron toggle button */}

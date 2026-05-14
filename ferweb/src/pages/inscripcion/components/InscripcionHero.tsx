@@ -7,10 +7,9 @@ import { FER_COLORS, FER_EVENT } from '../../fer/constants/constants';
 interface InscripcionHeroProps {
   plazasDisponibles: number;
   precioBase: number | undefined;
-  precioHandler: number | undefined;
 }
 
-export function InscripcionHero({ plazasDisponibles, precioBase, precioHandler }: InscripcionHeroProps) {
+export function InscripcionHero({ plazasDisponibles, precioBase }: InscripcionHeroProps) {
   const [, navigate] = useLocation();
 
   const plazasBadgeStyle = useMemo(
@@ -30,11 +29,6 @@ export function InscripcionHero({ plazasDisponibles, precioBase, precioHandler }
   const priceText = useMemo(
     () => (precioBase !== undefined ? `${precioBase} EUR` : undefined),
     [precioBase]
-  );
-
-  const handlerPriceText = useMemo(
-    () => (precioHandler !== undefined && precioHandler > 0 ? `+${precioHandler} EUR handler` : undefined),
-    [precioHandler]
   );
 
   return (
@@ -126,21 +120,6 @@ export function InscripcionHero({ plazasDisponibles, precioBase, precioHandler }
                 data-ui="inscripcion-hero-price-text"
               >
                 {priceText}
-              </span>
-            </div>
-          )}
-          {handlerPriceText && (
-            <div
-              className="flex items-center gap-2"
-              data-ui="inscripcion-hero-handler-price"
-            >
-              <Tag size={16} style={{ color: FER_COLORS.accent }} data-ui="inscripcion-hero-handler-price-icon" />
-              <span
-                className="text-sm sm:text-base font-bold"
-                style={{ color: FER_COLORS.accent }}
-                data-ui="inscripcion-hero-handler-price-text"
-              >
-                {handlerPriceText}
               </span>
             </div>
           )}

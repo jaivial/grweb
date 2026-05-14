@@ -59,7 +59,7 @@ export function GrHandlerService() {
             style={{ color: FER_COLORS.textMuted }}
             data-ui="gr-handler-service-description"
           >
-            Mas informacion disponible proximamente.
+            ¿No tienes handler? Nosotros nos encargamos de ello de forma gratuita. Tan solo, infórmanos sobre ello.
           </p>
         </motion.div>
       </div>

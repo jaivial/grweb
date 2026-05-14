@@ -58,8 +58,10 @@ export function InscripcionPage() {
   }, [inscripcionHook, config.plazasDisponibles]);
 
   const handleShowUpsell = useCallback(() => {
-    setShowUpsell(true);
-  }, []);
+    if (!inscripcionHook.formData.peakProgram) {
+      setShowUpsell(true);
+    }
+  }, [inscripcionHook.formData.peakProgram]);
 
   const closeConfirmation = useCallback(() => {
     setShowConfirmation(false);
@@ -125,7 +127,6 @@ export function InscripcionPage() {
         <InscripcionHero
           plazasDisponibles={plazasDisponibles}
           precioBase={config.precioBase}
-          precioHandler={config.precioHandler}
         />
 
         <main className="flex-1" data-ui="inscripcion-page-main">
@@ -133,10 +134,11 @@ export function InscripcionPage() {
             hook={inscripcionHook}
             plazasDisponibles={plazasDisponibles}
             precioBase={config.precioBase}
-            precioHandler={config.precioHandler}
             categoriasMasculino={config.categoriasMasculino}
             categoriasFemenino={config.categoriasFemenino}
             contactEmail={config.competicion?.landingConfig?.contactEmail}
+            precioPeakProgram={config.precioPeakProgram}
+            fechaLimitePeakProgram={config.fechaLimitePeakProgram}
             onSubmit={handleFormSubmit}
           />
         </main>
@@ -158,6 +160,8 @@ export function InscripcionPage() {
           inscripcionId={inscripcionId}
           slug="fer"
           onClose={closeUpsell}
+          precioPeakProgram={config.precioPeakProgram}
+          fechaLimitePeakProgram={config.fechaLimitePeakProgram}
         />
       </div>
     </>

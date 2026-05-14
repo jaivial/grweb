@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   ClipboardList,
@@ -11,7 +11,6 @@ import {
   Clock,
   UserPlus,
   Info,
-  ChevronRight,
 } from 'lucide-react';
 import { FER_COLORS } from '../constants';
 
@@ -243,9 +242,11 @@ function DisclaimerTile({
 interface ComoFuncionaProps {
   precioBase?: number;
   precioHandler?: number;
+  precioPeakProgram?: number;
+  fechaLimitePeakProgram?: string;
 }
 
-export function ComoFunciona({ precioBase, precioHandler }: ComoFuncionaProps) {
+export function ComoFunciona({ precioBase, precioHandler, precioPeakProgram, fechaLimitePeakProgram }: ComoFuncionaProps) {
   const prefersReducedMotion = useReducedMotion();
 
   /* --- variants --- */
@@ -343,12 +344,6 @@ export function ComoFunciona({ precioBase, precioHandler }: ComoFuncionaProps) {
         : '@keyframes ferShimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }',
     [prefersReducedMotion]
   );
-
-  /* --- handlers --- */
-
-  const handleScrollToHandlerService = useCallback(() => {
-    document.getElementById('gr-handler-service')?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
 
   return (
     <section
@@ -468,7 +463,7 @@ export function ComoFunciona({ precioBase, precioHandler }: ComoFuncionaProps) {
         </div>
 
         {/* Pricing info */}
-        {(precioBase !== undefined || (precioHandler !== undefined && precioHandler > 0)) && (
+        {(precioBase !== undefined) && (
           <div
             className="mt-8 sm:mt-10 p-5 sm:p-6 rounded-2xl text-center"
             style={{
@@ -506,29 +501,68 @@ export function ComoFunciona({ precioBase, precioHandler }: ComoFuncionaProps) {
                   </span>
                 </div>
               )}
-              {precioHandler !== undefined && precioHandler > 0 && (
-                <div data-ui="fer-como-funciona-pricing-handler">
-                  <span
-                    className="text-sm"
-                    style={{ color: FER_COLORS.textMuted }}
-                    data-ui="fer-como-funciona-pricing-handler-label"
-                  >
-                    Handler GR Strength:{' '}
-                  </span>
+            </div>
+
+            {/* Handler free text */}
+            <div
+              className="mt-4 p-4 rounded-xl"
+              style={{
+                backgroundColor: `${FER_COLORS.accent}10`,
+                border: `1px solid ${FER_COLORS.accent}20`,
+              }}
+              data-ui="fer-como-funciona-pricing-handler-free"
+            >
+              <p
+                className="text-sm sm:text-base leading-relaxed"
+                style={{ color: FER_COLORS.textMuted }}
+                data-ui="fer-como-funciona-pricing-handler-free-text"
+              >
+                ¿No tienes handler? Nosotros nos encargamos de ello de forma gratuita. Tan solo, infórmanos sobre ello.
+              </p>
+            </div>
+
+            {/* Peak Program pricing */}
+            {precioPeakProgram !== undefined && (
+              <div
+                className="mt-4 p-4 rounded-xl"
+                style={{
+                  backgroundColor: `${FER_COLORS.gold}10`,
+                  border: `1px solid ${FER_COLORS.gold}30`,
+                }}
+                data-ui="fer-como-funciona-pricing-peak"
+              >
+                <h6
+                  className="text-base sm:text-lg font-bold mb-2"
+                  style={{ color: FER_COLORS.gold }}
+                  data-ui="fer-como-funciona-pricing-peak-title"
+                >
+                  GRS Peak Program
+                </h6>
+                <p
+                  className="text-sm sm:text-base leading-relaxed mb-2"
+                  style={{ color: FER_COLORS.textMuted }}
+                  data-ui="fer-como-funciona-pricing-peak-desc"
+                >
+                  Programamos tu entrenamiento hasta el evento
+                </p>
+                <div
+                  className="flex flex-wrap items-center justify-center gap-4"
+                  data-ui="fer-como-funciona-pricing-peak-details"
+                >
                   <span
                     className="text-lg font-bold"
-                    style={{ color: FER_COLORS.gold }}
-                    data-ui="fer-como-funciona-pricing-handler-value"
+                    style={{ color: FER_COLORS.text }}
+                    data-ui="fer-como-funciona-pricing-peak-value"
                   >
-                    {precioHandler} EUR
+                  {precioPeakProgram} EUR
                   </span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* CTA — prominent GRStrength handler service */}
+        {/* CTA — inform about free handler */}
         <motion.div
           variants={ctaVariants}
           initial="hidden"
@@ -537,35 +571,15 @@ export function ComoFunciona({ precioBase, precioHandler }: ComoFuncionaProps) {
           className="mt-10 sm:mt-14 text-center"
           data-ui="fer-como-funciona-cta-container"
         >
-          <motion.button
-            type="button"
-            onClick={handleScrollToHandlerService}
-            whileHover={prefersReducedMotion ? undefined : { scale: 1.03 }}
-            whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-            className="inline-flex items-center justify-center gap-3 px-8 py-4 sm:px-10 sm:py-5 rounded-2xl text-base sm:text-lg font-bold cursor-pointer transition-shadow duration-200"
-            style={{
-              background: `linear-gradient(135deg, ${FER_COLORS.gold} 0%, ${FER_COLORS.shimmer} 100%)`,
-              color: FER_COLORS.bgDark,
-              boxShadow: `0 4px 24px ${FER_COLORS.gold}40, 0 0 48px ${FER_COLORS.gold}15`,
-            }}
-            data-ui="fer-como-funciona-cta-button"
+          <p
+            className="text-sm sm:text-base leading-relaxed"
+            style={{ color: FER_COLORS.textMuted }}
+            data-ui="fer-como-funciona-cta-text"
           >
-            <span data-ui="fer-como-funciona-cta-text">
-              No tienes handler? Elige el servicio de handlers de GRStrength
-            </span>
-            <motion.span
-              animate={
-                prefersReducedMotion ? undefined : { x: [0, 4, 0] }
-              }
-              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-              data-ui="fer-como-funciona-cta-arrow-wrapper"
-            >
-              <ChevronRight
-                size={22}
-                data-ui="fer-como-funciona-cta-chevron"
-              />
-            </motion.span>
-          </motion.button>
+            {fechaLimitePeakProgram
+              ? `Fecha límite para contratar el GRS Peak Program: ${new Date(fechaLimitePeakProgram).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`
+              : 'El GRS Peak Program tiene fecha límite de contratación. Consulta los detalles.'}
+          </p>
         </motion.div>
       </div>
     </section>

@@ -14,11 +14,17 @@ const HorariosPage = lazy(() =>
 const UbicacionPage = lazy(() =>
   import('./pages/ubicacion/UbicacionPage').then((m) => ({ default: m.UbicacionPage }))
 );
-const NormativaPage = lazy(() =>
-  import('./pages/normativa/NormativaPage').then((m) => ({ default: m.NormativaPage }))
+const TutorialesPage = lazy(() =>
+  import('./pages/normativa/TutorialesPage').then((m) => ({ default: m.TutorialesPage }))
 );
 const SobreNosotrosPage = lazy(() =>
   import('./pages/sobre-nosotros/SobreNosotrosPage').then((m) => ({ default: m.SobreNosotrosPage }))
+);
+const TerminosPage = lazy(() =>
+  import('./pages/terminos/TerminosPage').then((m) => ({ default: m.TerminosPage }))
+);
+const PrivacidadPage = lazy(() =>
+  import('./pages/privacidad/PrivacidadPage').then((m) => ({ default: m.PrivacidadPage }))
 );
 
 function PageLoader() {
@@ -55,8 +61,10 @@ export function App() {
         <Route path="/inscripcion" component={InscripcionPage} />
         <Route path="/horarios" component={HorariosPage} />
         <Route path="/ubicacion" component={UbicacionPage} />
-        <Route path="/normativa" component={NormativaPage} />
+        <Route path="/tutoriales" component={TutorialesPage} />
         <Route path="/sobre-nosotros" component={SobreNosotrosPage} />
+        <Route path="/terms" component={TerminosPage} />
+        <Route path="/privacy" component={PrivacidadPage} />
       </Router>
     </Suspense>
   );

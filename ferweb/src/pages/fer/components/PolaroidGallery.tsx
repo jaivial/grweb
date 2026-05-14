@@ -50,7 +50,7 @@ function PolaroidCard({ src, caption, rotation, index, side }: PolaroidCardProps
     <motion.div
       ref={cardRef}
       style={motionStyle}
-      className="group relative rounded-sm p-2 pb-5 shadow-2xl select-none"
+      className="group relative rounded-sm p-2 pb-5 shadow-2xl select-none bg-white/80"
       data-ui={`polaroid-card-${index}`}
       data-testid={`polaroid-card-${index}`}
     >
@@ -85,7 +85,7 @@ function PolaroidCard({ src, caption, rotation, index, side }: PolaroidCardProps
         className="text-center mt-3 text-sm tracking-wide"
         style={{
           fontFamily: '"Caveat", cursive, sans-serif',
-          color: '#374151',
+          color: '#111827',
         }}
         data-ui={`polaroid-caption-${index}`}
       >
@@ -174,7 +174,7 @@ export function PolaroidGallery({ className = '' }: PolaroidGalleryProps): JSX.E
             style={{ color: FER_COLORS.textMuted }}
             data-ui="polaroid-gallery-subtitle"
           >
-            Así se vivió la última edición
+            Esto es lo que vivimos en GR Strength.
           </p>
         </div>
 
