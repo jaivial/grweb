@@ -717,7 +717,8 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                 : "No";
             var instagramText = !string.IsNullOrWhiteSpace(inscripcion.Instagram) ? inscripcion.Instagram : "—";
             var telefonoText = !string.IsNullOrWhiteSpace(inscripcion.Telefono) ? inscripcion.Telefono : "—";
-            var precioTotal = config.PrecioBase + (inscripcion.QuiereHandler ? config.PrecioHandler : 0) + (inscripcion.QuierePeakProgram ? config.PrecioPeakProgram : 0);
+            // Handler is free — only base + peak program
+            var precioTotal = config.PrecioBase + (inscripcion.QuierePeakProgram ? config.PrecioPeakProgram : 0);
 
             // ── Build HTML body ──
             var html = $@"<!DOCTYPE html>
@@ -733,7 +734,6 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
       <td align=""center"" style=""padding:24px 12px;"">
         <table role=""presentation"" width=""600"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""max-width:600px;width:100%;background-color:#161B22;border-radius:16px;overflow:hidden;border:1px solid #30363D;"">
 
-          {{-- HEADER --}}
           <tr>
             <td align=""center"" style=""padding:48px 32px 24px 32px;background:linear-gradient(135deg,#1a1a2e 0%,#16213E 50%,#0F3460 100%);"" bgcolor=""#1a1a2e"">
               <h1 style=""color:#FFFFFF;margin:0 0 8px 0;font-size:32px;font-weight:800;letter-spacing:1px;text-transform:uppercase;"">
@@ -744,12 +744,11 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
               </p>
               <img src=""https://jaimedigitalstudio.b-cdn.net/fer/media/icons/ferwebicons/Gemini_Generated_Image_ocrwoeocrwoeocrw-removebg-preview.webp""
                    alt=""FER CUP II""
-                   width=""80""
-                   style=""display:inline-block;max-width:80px;border-radius:50%;border:2px solid rgba(255,215,0,0.3);padding:4px;background:rgba(255,255,255,0.05);margin-top:4px;"" />
+                   width=""120""
+                   style=""display:inline-block;max-width:120px;margin-top:8px;"" />
             </td>
           </tr>
 
-          {{-- GREETING --}}
           <tr>
             <td style=""padding:32px 32px 8px 32px;"">
               <h2 style=""color:#E6EDF3;margin:0 0 6px 0;font-size:22px;font-weight:700;"">
@@ -762,7 +761,6 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             </td>
           </tr>
 
-          {{-- ATHLETE DATA CARD --}}
           <tr>
             <td style=""padding:16px 32px;"">
               <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1C2128;border-radius:12px;border:1px solid #30363D;"">
@@ -819,7 +817,6 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             </td>
           </tr>
 
-          {{-- PAYMENT STATUS --}}
           <tr>
             <td style=""padding:0 32px;"">
               <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1C2128;border-radius:12px;border:1px solid #30363D;"">
@@ -828,7 +825,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                     <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"">
                       <tr>
                         <td style=""font-size:14px;font-weight:700;color:#E6EDF3;"">
-                          {(inscripcion.PagoConfirmado ? "✅ " : "❌ ")} Pago realizado:
+                          Pago realizado:
                         </td>
                         <td style=""font-size:14px;font-weight:800;text-align:right;"">
                           <span style=""color:{(inscripcion.PagoConfirmado ? "#3FB950" : "#F85149")};"">
@@ -848,21 +845,19 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             </td>
           </tr>
 
-          {{-- PAYMENT INSTRUCTIONS --}}
           <tr>
             <td style=""padding:12px 32px;"">
               <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#2D1B2E;border-radius:12px;border:1px solid rgba(248,81,73,0.25);"">
                 <tr>
                   <td style=""padding:16px 20px;"">
                     <p style=""margin:0 0 8px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#F85149;"">
-                      💰 CÓMO PAGAR
+                      COMO PAGAR
                     </p>
                     <p style=""margin:0 0 6px 0;font-size:13px;line-height:20px;color:#E6EDF3;"">
                       El pago se realiza <strong style=""color:#F85149;"">SOLO en efectivo</strong> en la mesa de registro el día de la competición, por orden de llamada/llegada.
                     </p>
                     <p style=""margin:0;font-size:13px;line-height:20px;color:#8B949E;"">
-                      La inscripción online solo garantiza una plaza reservada debido al límite de participantes. 
-                      La entrada incluye tu pase y el de <strong style=""color:#E6EDF3;"">1 handler</strong> en el área reservada al competidor.
+                      La inscripción online solo garantiza una plaza reservada debido al límite de participantes.
                     </p>
                   </td>
                 </tr>
@@ -870,7 +865,6 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             </td>
           </tr>
 
-          {{-- QR CODE SECTION --}}
           {(qrCodeImage != null && qrCodeImage.Length > 0 ? $@"
           <tr>
             <td style=""padding:16px 32px;"">
@@ -878,7 +872,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                 <tr>
                   <td align=""center"" style=""padding:20px 20px 8px 20px;"">
                     <p style=""margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#58A6FF;"">
-                      📱 TU CÓDIGO QR
+                      CODIGO QR
                     </p>
                     <p style=""margin:4px 0 0 0;font-size:12px;color:#8B949E;"">
                       Preséntalo en la mesa de registro el día del evento
@@ -890,30 +884,22 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                     <div style=""display:inline-block;background-color:#FFFFFF;border-radius:12px;padding:12px;"">
                       <img src=""cid:qr_{inscripcion.Id}""
                            alt=""Código QR""
-                           width=""200""
-                           style=""display:block;width:200px;height:200px;border-radius:8px;"" />
+                           width=""280""
+                           style=""display:block;width:280px;height:280px;border-radius:8px;"" />
                     </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td align=""center"" style=""padding:0 20px 20px 20px;"">
-                    <p style=""margin:0;font-size:11px;color:#8B949E;font-family:monospace;word-break:break-all;"">
-                      {qrCode}
-                    </p>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>" : "")}
 
-          {{-- EVENT DETAILS --}}
           <tr>
             <td style=""padding:8px 32px 0 32px;"">
               <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1C2128;border-radius:12px;border:1px solid #30363D;"">
                 <tr>
                   <td style=""padding:16px 20px 8px 20px;"">
                     <p style=""margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#58A6FF;"">
-                      📍 DETALLES DEL EVENTO
+                      DETALLES DEL EVENTO
                     </p>
                   </td>
                 </tr>
@@ -935,15 +921,13 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             </td>
           </tr>
 
-          {{-- INSTRUCCIONES --}}
           <tr>
             <td style=""padding:12px 32px;"">
               <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1C2128;border-radius:12px;border:1px solid #30363D;"">
                 <tr>
                   <td style=""padding:16px 20px 8px 20px;"">
                     <p style=""margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#58A6FF;"">
-                      📋
-                      PRÓXIMOS PASOS
+                      PROXIMOS PASOS
                     </p>
                   </td>
                 </tr>
@@ -963,7 +947,6 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             </td>
           </tr>
 
-          {{-- FOOTER --}}
           <tr>
             <td style=""padding:24px 32px;border-top:1px solid #30363D;text-align:center;"">
               <p style=""margin:0 0 4px 0;font-size:12px;color:#484F58;"">
