@@ -43,18 +43,11 @@ export function FerFooter({ contactEmail }: FerFooterProps) {
               aria-label="Instagram GR Strength Club"
             >
               <span
-                className="text-lg font-bold"
-                style={{ color: FER_COLORS.accent }}
-                data-ui="fer-footer-instagram-gr-icon"
-              >
-                @
-              </span>
-              <span
                 className="text-sm font-medium hidden sm:inline"
                 style={{ color: FER_COLORS.text }}
                 data-ui="fer-footer-instagram-gr-text"
               >
-                grstrengthclub
+                @grstrengthclub
               </span>
             </a>
 
@@ -68,18 +61,11 @@ export function FerFooter({ contactEmail }: FerFooterProps) {
               aria-label="Instagram FER Entrenamiento"
             >
               <span
-                className="text-lg font-bold"
-                style={{ color: FER_COLORS.gold }}
-                data-ui="fer-footer-instagram-fer-icon"
-              >
-                @
-              </span>
-              <span
                 className="text-sm font-medium hidden sm:inline"
                 style={{ color: FER_COLORS.text }}
                 data-ui="fer-footer-instagram-fer-text"
               >
-                ferentrenamiento
+                @ferentrenamiento
               </span>
             </a>
 
