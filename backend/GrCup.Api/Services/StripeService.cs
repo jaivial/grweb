@@ -14,8 +14,9 @@ public class StripeService
 
     /// <summary>
     /// Resolves Stripe credentials from database, falling back to environment variables.
+    /// When competicionId is provided, tries competition-specific config first, then global.
     /// </summary>
-    private async Task<(string SecretKey, string PublishableKey, string WebhookSecret)> ResolveCredentialsAsync()
+    private async Task<(string SecretKey, string PublishableKey, string WebhookSecret)> ResolveCredentialsAsync(int? competicionId = null)
     {
         string? secretKey = null;
         string? publishableKey = null;
@@ -23,7 +24,7 @@ public class StripeService
 
         using var scope = _serviceProvider.CreateScope();
         var configService = scope.ServiceProvider.GetRequiredService<StripeConfigService>();
-        var config = await configService.GetConfigAsync();
+        var config = await configService.GetConfigAsync(competicionId);
 
         if (config != null)
         {
@@ -51,7 +52,8 @@ public class StripeService
     }
 
     /// <summary>
-    /// Creates a Stripe Checkout session for ticket purchase
+    /// Creates a Stripe Checkout session for ticket purchase.
+    /// Uses per-competition Stripe credentials when competicionId is provided.
     /// </summary>
     public async Task<Session> CreateCheckoutSessionAsync(
         string firstName,
@@ -64,7 +66,7 @@ public class StripeService
         string? phone = null,
         int? competicionId = null)
     {
-        await ResolveCredentialsAsync();
+        await ResolveCredentialsAsync(competicionId);
 
         var metadata = new Dictionary<string, string>
         {
@@ -113,16 +115,18 @@ public class StripeService
     }
 
     /// <summary>
-    /// Constructs and validates a Stripe webhook event
+    /// Constructs and validates a Stripe webhook event.
+    /// Uses competition-specific webhook secret when competicionId is provided.
     /// </summary>
-    public async Task<Event> ConstructEventAsync(string json, string signature)
+    public async Task<Event> ConstructEventAsync(string json, string signature, int? competicionId = null)
     {
-        var (_, _, webhookSecret) = await ResolveCredentialsAsync();
+        var (_, _, webhookSecret) = await ResolveCredentialsAsync(competicionId);
         return EventUtility.ConstructEvent(json, signature, webhookSecret);
     }
 
     /// <summary>
-    /// Retrieves a Stripe Checkout session by ID
+    /// Retrieves a Stripe Checkout session by ID.
+    /// Uses global credentials since sessions are cross-competition.
     /// </summary>
     public async Task<Session> GetSessionAsync(string sessionId)
     {
@@ -132,11 +136,12 @@ public class StripeService
     }
 
     /// <summary>
-    /// Gets the publishable key for frontend use
+    /// Gets the publishable key for frontend use.
+    /// Uses global credentials by default.
     /// </summary>
-    public async Task<string> GetPublishableKeyAsync()
+    public async Task<string> GetPublishableKeyAsync(int? competicionId = null)
     {
-        var (_, publishableKey, _) = await ResolveCredentialsAsync();
+        var (_, publishableKey, _) = await ResolveCredentialsAsync(competicionId);
         return publishableKey;
     }
 
