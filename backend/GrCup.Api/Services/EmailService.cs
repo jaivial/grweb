@@ -953,7 +953,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                 Este es un mensaje automático. No respondas a este correo.
               </p>
               <p style=""margin:0;font-size:12px;color:#484F58;"">
-                Síguenos en Instagram <strong style=""color:#58A6FF;"">@entrenafer</strong> para estar al día.
+                Síguenos en Instagram: <a href=""https://www.instagram.com/grstrengthclub/"" style=""color:#58A6FF;text-decoration:underline;"">https://www.instagram.com/grstrengthclub/</a>
               </p>
             </td>
           </tr>
@@ -1005,7 +1005,7 @@ PROXIMOS PASOS
 4. ¡Prepárate para dar lo mejor de ti en la plataforma!
 
 ---
-Este es un mensaje automático. Síguenos en Instagram @entrenafer para estar al día.
+Este es un mensaje automático. Síguenos en Instagram: https://www.instagram.com/grstrengthclub/
 ";
             bodyBuilder.TextBody = textBody;
 
