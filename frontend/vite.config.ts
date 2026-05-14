@@ -46,6 +46,7 @@ export default defineConfig({
       host: 'fer-backoffice.menustudioai.com',
       protocol: 'wss',
       clientPort: 443,
+      path: '/hmr',
     },
     proxy: {
       '/api': {

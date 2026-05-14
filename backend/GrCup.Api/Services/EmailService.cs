@@ -1098,36 +1098,218 @@ Pago: {(inscripcion.PagoConfirmado ? "Confirmado" : "Pendiente")}"
         {
             var creds = await GetCredentialsAsync(competicion.Id);
 
+            var fullName = inscripcion.Nombre;
+            var sexLabel = inscripcion.Sexo == "masculino" ? "Masculino" : "Femenino";
+            var expLabel = inscripcion.Experiencia switch
+            {
+                "rookie" => "Rookie",
+                "principiante" => "Principiante",
+                "intermedio" => "Intermedio",
+                "avanzado" => "Avanzado",
+                _ => inscripcion.Experiencia
+            };
+            var handlerText = inscripcion.QuiereHandler ? "Sí" : "No";
+            var paymentMethodText = inscripcion.PaymentMethod switch
+            {
+                "efectivo" => "Efectivo (presencial)",
+                "transferencia" => "Transferencia bancaria",
+                "stripe" => "Tarjeta (Stripe)",
+                _ => inscripcion.PaymentMethod ?? "—"
+            };
+
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(competicion.Nombre, creds.FromAddress));
             message.To.Add(new MailboxAddress(inscripcion.Nombre, inscripcion.Email));
-            message.Subject = $"Pago confirmado -- {competicion.Nombre}";
-            message.Body = new BodyBuilder
-            {
-                HtmlBody = $@"
-<!DOCTYPE html><html><body style='font-family:sans-serif;'>
-<h2>Pago confirmado, {inscripcion.Nombre}!</h2>
-<p>Tu pago para <strong>{competicion.Nombre}</strong> ha sido confirmado.</p>
-<table style='background-color:#F9F9F9;border-radius:8px;padding:16px;'>
-<tr><td><strong>Total pagado:</strong> {inscripcion.TotalPagado:F2} EUR</td></tr>
-<tr><td><strong>Categoría:</strong> {inscripcion.CategoriaPeso}</td></tr>
-</table>
-<p><strong>Fecha:</strong> {competicion.Fecha:dd/MM/yyyy}<br>
-<strong>Lugar:</strong> {competicion.Lugar}</p>
-<p>Te esperamos!</p>
-</body></html>",
-                TextBody = $@"Pago confirmado, {inscripcion.Nombre}!
+            message.Subject = $"Pago confirmado — {competicion.Nombre}";
 
-Tu pago para {competicion.Nombre} ha sido confirmado.
-Total pagado: {inscripcion.TotalPagado:F2} EUR
-Categoría: {inscripcion.CategoriaPeso}
+            var htmlBody = $@"
+<!DOCTYPE html>
+<html lang=""es"">
+<head>
+  <meta charset=""utf-8"">
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+  <title>Pago confirmado — {competicion.Nombre}</title>
+</head>
+<body style=""margin:0;padding:0;background-color:#0D1117;font-family:'Segoe UI',Arial,Helvetica,sans-serif;"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#0D1117;"">
+    <tr>
+      <td align=""center"" style=""padding:24px 12px;"">
+        <table role=""presentation"" width=""600"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""max-width:600px;width:100%;background-color:#161B22;border-radius:16px;overflow:hidden;border:1px solid #30363D;"">
 
-Fecha: {competicion.Fecha:dd/MM/yyyy}
+          <tr>
+            <td align=""center"" style=""padding:48px 32px 24px 32px;background:linear-gradient(135deg,#1a1a2e 0%,#16213E 50%,#0F3460 100%);"" bgcolor=""#1a1a2e"">
+              <h1 style=""color:#FFFFFF;margin:0 0 8px 0;font-size:32px;font-weight:800;letter-spacing:1px;text-transform:uppercase;"">
+                {competicion.Nombre}
+              </h1>
+              <p style=""color:#B0B0C0;margin:0 0 4px 0;font-size:14px;letter-spacing:2px;text-transform:uppercase;"">
+                Presentado por
+              </p>
+              <img src=""https://jaimedigitalstudio.b-cdn.net/fer/media/icons/ferwebicons/Gemini_Generated_Image_ocrwoeocrwoeocrw-removebg-preview.webp""
+                   alt=""{competicion.Nombre}""
+                   width=""120""
+                   style=""display:inline-block;max-width:120px;margin-top:8px;"" />
+            </td>
+          </tr>
+
+          <tr>
+            <td style=""padding:32px 32px 8px 32px;"">
+              <h2 style=""color:#E6EDF3;margin:0 0 6px 0;font-size:22px;font-weight:700;"">
+                ¡Pago confirmado, {fullName}!
+              </h2>
+              <p style=""color:#8B949E;margin:0;font-size:15px;line-height:24px;"">
+                El pago de tu inscripción para la <strong style=""color:#E6EDF3;"">{competicion.Nombre}</strong> ha sido confirmado correctamente. ¡Ya estás dentro!
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style=""padding:16px 32px;"">
+              <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1C2128;border-radius:12px;border:1px solid #30363D;"">
+                <tr>
+                  <td style=""padding:16px 20px 8px 20px;"">
+                    <p style=""margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#58A6FF;"">
+                      PAGO CONFIRMADO
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style=""padding:0 20px 16px 20px;"">
+                    <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"">
+                      <tr>
+                        <td style=""font-size:32px;font-weight:800;color:#3FB950;text-align:center;padding-bottom:12px;"" colspan=""2"">
+                          ✓ {inscripcion.TotalPagado:F2} EUR
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;width:45%;"">Método de pago</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{paymentMethodText}</td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Categoría de peso</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{inscripcion.CategoriaPeso}</td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Sexo</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{sexLabel}</td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Experiencia</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{expLabel}</td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Handler GR Strength</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{handlerText}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style=""padding:0 32px;"">
+              <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1C2128;border-radius:12px;border:1px solid #30363D;"">
+                <tr>
+                  <td style=""padding:16px 20px 8px 20px;"">
+                    <p style=""margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#58A6FF;"">
+                      DETALLES DEL EVENTO
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style=""padding:0 20px 12px 20px;"">
+                    <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"">
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;width:45%;"">Fecha</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{competicion.Fecha:dddd, dd 'de' MMMM 'de' yyyy}</td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Lugar</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{competicion.Lugar}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style=""padding:12px 32px;"">
+              <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background-color:#1C2128;border-radius:12px;border:1px solid #30363D;"">
+                <tr>
+                  <td style=""padding:16px 20px 8px 20px;"">
+                    <p style=""margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#58A6FF;"">
+                      PRÓXIMOS PASOS
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style=""padding:0 20px 12px 20px;"">
+                    <ol style=""margin:0;padding-left:20px;font-size:13px;line-height:22px;color:#8B949E;"">
+                      <li style=""margin-bottom:6px;"">Busca el email de confirmación de inscripción con tu código QR.</li>
+                      <li style=""margin-bottom:6px;"">Acude a la mesa de registro el día del evento con el QR (no hace falta pagar nada más).</li>
+                      <li style=""margin-bottom:6px;"">
+                        {(inscripcion.QuiereHandler ? "Nosotros nos encargamos del handler de forma gratuita." : "Si necesitas handler, infórmanos el día del evento.")}
+                      </li>
+                      <li>¡Prepárate para darlo todo en la plataforma!</li>
+                    </ol>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style=""padding:24px 32px;border-top:1px solid #30363D;text-align:center;"">
+              <p style=""margin:0 0 4px 0;font-size:12px;color:#484F58;"">
+                Este es un mensaje automático. No respondas a este correo.
+              </p>
+              <p style=""margin:0;font-size:12px;color:#484F58;"">
+                Síguenos en Instagram: <a href=""https://www.instagram.com/grstrengthclub/"" style=""color:#58A6FF;text-decoration:underline;"">@grstrengthclub</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>";
+
+            var textBody = $@"¡Pago confirmado, {fullName}!
+
+El pago de tu inscripción para la {competicion.Nombre} ha sido confirmado correctamente. ¡Ya estás dentro!
+
+PAGO CONFIRMADO
+Total pagado: {inscripcion.TotalPagado:F2} EUR ✓
+Método de pago: {paymentMethodText}
+Categoría de peso: {inscripcion.CategoriaPeso}
+Sexo: {sexLabel}
+Experiencia: {expLabel}
+Handler GR Strength: {handlerText}
+
+DETALLES DEL EVENTO
+Fecha: {competicion.Fecha:dddd, dd 'de' MMMM 'de' yyyy}
 Lugar: {competicion.Lugar}
 
-Te esperamos!"
-            }.ToMessageBody();
+PRÓXIMOS PASOS
+1. Busca el email de confirmación de inscripción con tu código QR.
+2. Acude a la mesa de registro el día del evento con el QR (no hace falta pagar nada más).
+3. {(inscripcion.QuiereHandler ? "Nosotros nos encargamos del handler de forma gratuita." : "Si necesitas handler, infórmanos el día del evento.")}
+4. ¡Prepárate para darlo todo en la plataforma!
 
+---
+Este es un mensaje automático. Síguenos en Instagram: @grstrengthclub (https://www.instagram.com/grstrengthclub/)";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = htmlBody,
+                TextBody = textBody
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
             await SendAsync(message, competicion.Id);
             _logger.LogInformation("FER payment confirmation email sent to {Email}", inscripcion.Email);
         }
