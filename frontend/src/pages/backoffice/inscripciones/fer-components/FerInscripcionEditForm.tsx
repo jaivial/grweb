@@ -159,22 +159,39 @@ export function FerInscripcionEditForm({
     })();
   }, [slug, inscripcion?.id]);
 
-  const handleSaveLifts = useCallback(async () => {
-    if (!slug || !inscripcion) return;
-    setLiftSaving(true);
-    setLiftSaved(false);
-    try {
-      const result = await api.setFerOpeners(slug, inscripcion.id, liftData);
-      if (result.success) {
-        setLiftSaved(true);
-        setTimeout(() => setLiftSaved(false), 3000);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liftDataRef = useRef(liftData);
+  liftDataRef.current = liftData;
+
+  // Auto-save 600ms after user stops typing
+  useEffect(() => {
+    if (!slug || !inscripcion?.id) return;
+    // Skip the initial mount load
+    if (liftData.sentadilla1 === 0 && liftData.sentadilla2 === 0 && liftData.sentadilla3 === 0 &&
+        liftData.banca1 === 0 && liftData.banca2 === 0 && liftData.banca3 === 0 &&
+        liftData.pesoMuerto1 === 0 && liftData.pesoMuerto2 === 0 && liftData.pesoMuerto3 === 0) return;
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+    debounceTimerRef.current = setTimeout(async () => {
+      setLiftSaving(true);
+      try {
+        const result = await api.setFerOpeners(slug, inscripcion.id, liftDataRef.current);
+        if (result.success) {
+          setLiftSaved(true);
+          setTimeout(() => setLiftSaved(false), 3000);
+        }
+      } catch (err) {
+        console.error('Error saving lifts:', err);
+      } finally {
+        setLiftSaving(false);
       }
-    } catch (err) {
-      console.error('Error saving lifts:', err);
-    } finally {
-      setLiftSaving(false);
-    }
-  }, [slug, inscripcion, liftData]);
+    }, 600);
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [slug, inscripcion?.id, liftData]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" data-ui="fer-edit-form">
@@ -594,21 +611,14 @@ export function FerInscripcionEditForm({
             </div>
           </div>
 
-          <div className="flex justify-center pt-2">
-            <Button
-              type="button"
-              onClick={handleSaveLifts}
-              disabled={liftSaving}
-              className="min-h-[44px] bg-blue-500/90 hover:bg-blue-500 text-white border-0"
-              data-ui="fer-edit-save-lifts-btn"
-            >
-              {liftSaving ? 'Guardando...' : 'Guardar Intentos'}
-            </Button>
-          </div>
-
-          {liftSaved && (
-            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm text-center" data-ui="fer-edit-lifts-saved">
-              Intentos guardados correctamente
+          {liftSaving && (
+            <div className="text-center text-xs text-blue-400 animate-pulse" data-ui="fer-edit-lifts-saving">
+              Guardando...
+            </div>
+          )}
+          {liftSaved && !liftSaving && (
+            <div className="text-center text-xs text-green-400" data-ui="fer-edit-lifts-saved">
+              Guardado
             </div>
           )}
         </div>
