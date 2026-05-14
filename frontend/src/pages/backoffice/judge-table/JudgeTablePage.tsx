@@ -623,7 +623,7 @@ export function JudgeTablePage(): JSX.Element {
                   >
                     <span className="text-sm text-white font-medium truncate">{formatNombre(athlete.nombre)}</span>
                     <span className="text-xs text-gray-400">{athlete.categoriaPeso}</span>
-                    <span className="text-xs text-gray-400">{athlete.sexo === 'M' ? 'M' : 'F'}</span>
+                    <span className="text-xs text-gray-400">{athlete.sexo === 'masculino' ? 'M' : 'F'}</span>
                     {[1, 2, 3].map((num) => {
                       const att = num === 1 ? att1 : num === 2 ? att2 : att3;
                       const isEditing = editingCell?.inscripcionId === athlete.id
@@ -693,7 +693,7 @@ export function JudgeTablePage(): JSX.Element {
                   >
                     <span className="text-sm text-gray-400 font-medium truncate">{formatNombre(athlete.nombre)}</span>
                     <span className="text-xs text-gray-500">{athlete.categoriaPeso}</span>
-                    <span className="text-xs text-gray-500">{athlete.sexo === 'M' ? 'M' : 'F'}</span>
+                    <span className="text-xs text-gray-500">{athlete.sexo === 'masculino' ? 'M' : 'F'}</span>
                     <span className="text-sm text-gray-500 font-mono text-center">—</span>
                     <span className="text-xs text-gray-600 text-center">Sin intento</span>
                   </div>
