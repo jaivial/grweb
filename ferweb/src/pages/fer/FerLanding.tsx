@@ -199,7 +199,7 @@ export function FerLanding() {
 
       <GrHandlerService />
 
-      <FerFooter />
+      <FerFooter contactEmail={competicion?.landingConfig?.contactEmail} />
 
       {/* Modals */}
       <ConfirmacionModal
