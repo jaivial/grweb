@@ -16,24 +16,24 @@ export function DisciplinasSection(): JSX.Element {
     offset: ['start end', 'end start'],
   });
 
-  const titleOpacity = useTransform(scrollYProgress, [0.04, 0.12, 0.42, 0.52], [0, 1, 1, 0]);
+  const titleOpacity = useTransform(scrollYProgress, [0.04, 0.12, 0.55, 0.70], [0, 1, 1, 0]);
   const titleY = useTransform(scrollYProgress, [0.04, 0.12], [50, 0]);
-  const titleScale = useTransform(scrollYProgress, [0.04, 0.12, 0.42, 0.52], [0.85, 1, 1, 0.92]);
+  const titleScale = useTransform(scrollYProgress, [0.04, 0.12, 0.55, 0.70], [0.85, 1, 1, 0.92]);
 
   const underlineScaleX = useTransform(scrollYProgress, [0.08, 0.18], [0, 1]);
-  const underlineOpacity = useTransform(scrollYProgress, [0.08, 0.12, 0.42, 0.52], [0, 1, 1, 0]);
+  const underlineOpacity = useTransform(scrollYProgress, [0.08, 0.12, 0.55, 0.70], [0, 1, 1, 0]);
 
-  const subtitleOpacity = useTransform(scrollYProgress, [0.58, 0.68, 0.88, 0.96], [0, 1, 1, 0]);
-  const subtitleScale = useTransform(scrollYProgress, [0.58, 0.68], [0.92, 1]);
+  const subtitleOpacity = useTransform(scrollYProgress, [0.60, 0.72, 0.88, 0.96], [0, 1, 1, 0]);
+  const subtitleScale = useTransform(scrollYProgress, [0.60, 0.72], [0.92, 1]);
 
-  const cornerAccentOpacity = useTransform(scrollYProgress, [0.06, 0.14, 0.44, 0.54], [0, 1, 1, 0]);
+  const cornerAccentOpacity = useTransform(scrollYProgress, [0.06, 0.14, 0.55, 0.70], [0, 1, 1, 0]);
 
   const disciplineOpacity = useMemo(
     () =>
       DISCIPLINES.map((_, i) => {
         const enterStart = 0.16 + i * 0.06;
         const peakStart = enterStart + 0.04;
-        const exitEnd = 0.50 + i * 0.015;
+        const exitEnd = 0.60 + i * 0.03;
         return { enterStart, peakStart, exitEnd };
       }),
     []
