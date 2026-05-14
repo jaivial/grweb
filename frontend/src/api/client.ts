@@ -568,8 +568,9 @@ class ApiClient {
     });
   }
 
-  async getFerCompetitionAttempts(slug: string): Promise<ApiResponse<any>> {
-    return this.request(`/api/competiciones/${slug}/attempts`);
+  async getFerCompetitionAttempts(slug: string, query?: string): Promise<ApiResponse<any>> {
+    const url = `/api/competiciones/${slug}/attempts${query || ''}`;
+    return this.request(url);
   }
 }
 

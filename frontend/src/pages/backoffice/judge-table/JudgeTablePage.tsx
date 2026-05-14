@@ -55,7 +55,7 @@ const SUBTABS = [
 
 type SubtabKey = 1 | 2 | 3 | 'all';
 
-const REFRESH_INTERVAL_MS = 5000;
+const REFRESH_INTERVAL_MS = 30000;
 
 const WEIGHT_CATEGORIES_MALE = [
   'Hasta 59kg',
@@ -151,9 +151,9 @@ export function JudgeTablePage(): JSX.Element {
     try {
       // Build category filter
       const selectedCats = [...selectedMaleCats, ...selectedFemaleCats];
-      const params = selectedCats.length > 0 ? `?categorias=${selectedCats.join(',')}` : '';
+      const params = selectedCats.length > 0 && selectedCats.length < (WEIGHT_CATEGORIES_MALE.length + WEIGHT_CATEGORIES_FEMALE.length) ? `?categorias=${selectedCats.join(',')}` : '';
 
-      const result = await api.getFerCompetitionAttempts(slug);
+      const result = await api.getFerCompetitionAttempts(slug, params);
       const raw = result?.data ?? [];
       const list: AthleteAttempt[] = Array.isArray(raw) ? raw.map((item: any) => ({
         id: item.id,
@@ -226,7 +226,7 @@ export function JudgeTablePage(): JSX.Element {
       if (!row) return { juez1: null, juez2: null, juez3: null };
       const att = row.attempts.find((a) => a.liftType === liftType && a.attemptNumber === attemptNumber);
       if (!att) return { juez1: null, juez2: null, juez3: null };
-      return { juez1: att.juez1Voto, juez2: att.juez2Vote, juez3: att.juez3Vote };
+      return { juez1: att.juez1Voto, juez2: att.juez2Voto, juez3: att.juez3Voto };
     },
     [localVotes, athletes],
   );
