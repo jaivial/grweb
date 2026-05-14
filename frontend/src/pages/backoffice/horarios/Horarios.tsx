@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { JSX, FC } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
+import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { Tabs, Button, CustomSelector, DatePicker, TimePicker, Modal } from '../../../components/ui';
-import type { Schedule, ScheduleFormData } from '../../../types/schedule';
+import type { Schedule, ScheduleFormData, ScheduleGroupedByDate } from '../../../types/schedule';
 import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../constants/categories';
 import { api } from '../../../utils/api';
 import { deduplicateSchedules } from '../../../hooks';
@@ -442,11 +443,11 @@ export function Horarios(): JSX.Element {
 
   const handleUpdateSchedule = useCallback(async (data: ScheduleFormData) => {
     if (editingSchedule) {
-      const updated = await api.updateSchedule(editingSchedule.id, data);
+      const updated = await api.updateSchedule(editingSchedule.id, { ...data, competicionId });
       setSchedulesLocal(prev => prev.map(s => s.id === updated.id ? updated : s));
       setEditingSchedule(null);
     }
-  }, [editingSchedule]);
+  }, [editingSchedule, competicionId]);
 
   const handleDeleteSchedule = useCallback(async (id: number) => {
     await api.deleteSchedule(id);
@@ -500,7 +501,7 @@ export function Horarios(): JSX.Element {
   }, [schedules, activeSexTab]);
 
   return (
-    <>
+    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="horarios-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
@@ -736,8 +737,7 @@ export function Horarios(): JSX.Element {
           mode="edit"
         />
       )}
-
-    </>
+    </BackofficeLayout>
   );
 }
 

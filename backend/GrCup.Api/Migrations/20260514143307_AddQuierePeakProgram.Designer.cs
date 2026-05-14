@@ -4,6 +4,7 @@ using GrCup.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrCup.Api.Migrations
 {
     [DbContext(typeof(GrCupDbContext))]
-    partial class GrCupDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260514143307_AddQuierePeakProgram")]
+    partial class AddQuierePeakProgram
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -356,6 +359,9 @@ namespace GrCup.Api.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<bool>("UpsellPreparacion")
+                        .HasColumnType("tinyint(1)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email");
@@ -450,46 +456,6 @@ namespace GrCup.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("LiftEntries");
-                });
-
-            modelBuilder.Entity("GrCup.Api.Models.LiftEntryInscripcion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttemptNumber")
-                        .HasColumnType("int");
-
-                    b.Property<int>("InscripcionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("LiftType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<decimal>("Weight")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("decimal(6,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InscripcionId");
-
-                    b.HasIndex("InscripcionId", "LiftType", "AttemptNumber")
-                        .IsUnique();
-
-                    b.ToTable("LiftEntriesInscripcion");
                 });
 
             modelBuilder.Entity("GrCup.Api.Models.Participant", b =>
@@ -1067,17 +1033,6 @@ namespace GrCup.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Athlete");
-                });
-
-            modelBuilder.Entity("GrCup.Api.Models.LiftEntryInscripcion", b =>
-                {
-                    b.HasOne("GrCup.Api.Models.Inscripcion", "Inscripcion")
-                        .WithMany()
-                        .HasForeignKey("InscripcionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Inscripcion");
                 });
 
             modelBuilder.Entity("GrCup.Api.Models.RifaConfig", b =>

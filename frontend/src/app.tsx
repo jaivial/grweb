@@ -1,5 +1,6 @@
 import { Router, Route, useLocation } from 'wouter';
 import { useEffect, lazy, Suspense } from 'react';
+import { Toaster } from 'react-hot-toast';
 import Layout from './layouts/Layout';
 import { Home } from './pages/home/Home';
 import Login from './admin/pages/Login';
@@ -28,6 +29,7 @@ const RaffleConfigPage = lazy(() => import('./pages/backoffice/raffle-config/Raf
 const Participantes = lazy(() => import('./pages/backoffice/participantes/Participantes').then(m => ({ default: m.default })));
 const Checkin = lazy(() => import('./pages/backoffice/checkin/CheckinPage').then(m => ({ default: m.CheckinPage })));
 const JudgeTable = lazy(() => import('./pages/backoffice/judge-table/JudgeTablePage').then(m => ({ default: m.JudgeTablePage })));
+const QrReader = lazy(() => import('./pages/backoffice/qr-reader/QrReaderPage').then(m => ({ default: m.QrReaderPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -58,6 +60,7 @@ export function App() {
   return (
     <>
       <ScrollToTop />
+      <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#1a1a2e', color: '#fff', border: '1px solid #374151' } }} />
       <Router>
       {/* Public Routes */}
       <Route path="/" component={() => <Layout><Home /></Layout>} />
@@ -153,6 +156,106 @@ export function App() {
         component={() => (
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}><JudgeTable /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+
+      {/* Slug-based Backoffice Routes (/backoffice/:competicionSlug/...) */}
+      <Route
+        path="/backoffice/:competicionSlug"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><BackofficeHome /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/inscripciones"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Inscripciones /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/sorteo"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Sorteo /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/horarios"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Horarios /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/inscripcion-config"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><InscripcionConfigPage /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/configuracion"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Configuracion /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/raffle-config"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><RaffleConfigPage /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/participantes"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Participantes /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/checkin"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Checkin /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/judge-table"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><JudgeTable /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+
+      {/* QR Reader */}
+      <Route
+        path="/backoffice/qr-reader"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><QrReader /></Suspense>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/backoffice/:competicionSlug/qr-reader"
+        component={() => (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><QrReader /></Suspense>
           </ProtectedRoute>
         )}
       />

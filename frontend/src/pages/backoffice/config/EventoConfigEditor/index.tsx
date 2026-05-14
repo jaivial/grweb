@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { JSX } from 'react';
 import { useAtomValue } from 'jotai';
-import { currentCompeticionIdAtom } from '../../../../stores/auth.atoms';
+import { currentCompeticionIdAtom, isCurrentFerAtom } from '../../../../stores/auth.atoms';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { useEventoConfig } from './hooks';
@@ -10,6 +10,7 @@ import { Save } from 'lucide-react';
 
 export function EventoConfigEditor(): JSX.Element {
   const competicionId = useAtomValue(currentCompeticionIdAtom);
+  const isFer = useAtomValue(isCurrentFerAtom);
   const { canManageConfig } = usePermissions();
   const { form, loading, saving, loadConfig, updateField, saveConfig } = useEventoConfig(competicionId ?? 0);
 
@@ -48,17 +49,19 @@ export function EventoConfigEditor(): JSX.Element {
             form={form}
             disabled={!canManageConfig}
             onUpdate={updateField}
+            isFer={isFer}
           />
         </div>
 
         <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-xl p-4 sm:p-6" data-ui="evento-card-capacity">
           <h3 className="text-lg font-semibold text-white mb-5" data-ui="evento-card-capacity-title">
-            Capacidad y Control
+            Capacidad
           </h3>
           <EventoCapacityFields
             form={form}
             disabled={!canManageConfig}
             onUpdate={updateField}
+            isFer={isFer}
           />
         </div>
       </div>

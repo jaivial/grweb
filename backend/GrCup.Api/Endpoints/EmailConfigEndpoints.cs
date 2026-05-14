@@ -19,26 +19,34 @@ public static class EmailConfigEndpoints
             {
                 return Results.Ok(new
                 {
-                    mainProvider = (int)EmailProvider.Smtp,
-                    gmailAddress = (string?)null,
-                    gmailAppPassword = (string?)null,
-                    smtpUsername = (string?)null,
-                    smtpPassword = (string?)null,
-                    smtpEmailAddress = (string?)null,
-                    smtpHost = "smtp.gmail.com",
-                    smtpPort = 587
+                    success = true,
+                    data = new
+                    {
+                        mainProvider = (int)EmailProvider.Smtp,
+                        gmailAddress = (string?)null,
+                        gmailAppPassword = (string?)null,
+                        smtpUsername = (string?)null,
+                        smtpPassword = (string?)null,
+                        smtpEmailAddress = (string?)null,
+                        smtpHost = "smtp.gmail.com",
+                        smtpPort = 587
+                    }
                 });
             }
             return Results.Ok(new
             {
-                mainProvider = (int)config.MainProvider,
-                gmailAddress = config.GmailAddress,
-                gmailAppPassword = config.GmailAppPassword,
-                smtpUsername = config.SmtpUsername,
-                smtpPassword = config.SmtpPassword,
-                smtpEmailAddress = config.SmtpEmailAddress,
-                smtpHost = config.SmtpHost,
-                smtpPort = config.SmtpPort
+                success = true,
+                data = new
+                {
+                    mainProvider = (int)config.MainProvider,
+                    gmailAddress = config.GmailAddress,
+                    gmailAppPassword = config.GmailAppPassword,
+                    smtpUsername = config.SmtpUsername,
+                    smtpPassword = config.SmtpPassword,
+                    smtpEmailAddress = config.SmtpEmailAddress,
+                    smtpHost = config.SmtpHost,
+                    smtpPort = config.SmtpPort
+                }
             });
         });
 
@@ -62,14 +70,18 @@ public static class EmailConfigEndpoints
             var result = await service.UpsertConfigAsync(config, competicionId);
             return Results.Ok(new
             {
-                mainProvider = (int)result.MainProvider,
-                gmailAddress = result.GmailAddress,
-                gmailAppPassword = result.GmailAppPassword,
-                smtpUsername = result.SmtpUsername,
-                smtpPassword = result.SmtpPassword,
-                smtpEmailAddress = result.SmtpEmailAddress,
-                smtpHost = result.SmtpHost,
-                smtpPort = result.SmtpPort
+                success = true,
+                data = new
+                {
+                    mainProvider = (int)result.MainProvider,
+                    gmailAddress = result.GmailAddress,
+                    gmailAppPassword = result.GmailAppPassword,
+                    smtpUsername = result.SmtpUsername,
+                    smtpPassword = result.SmtpPassword,
+                    smtpEmailAddress = result.SmtpEmailAddress,
+                    smtpHost = result.SmtpHost,
+                    smtpPort = result.SmtpPort
+                }
             });
         });
 
@@ -77,7 +89,7 @@ public static class EmailConfigEndpoints
         app.MapDelete("/api/admin/email-config", [Authorize] async (EmailConfigService service, int? competicionId) =>
         {
             var deleted = await service.DeleteConfigAsync(competicionId);
-            return deleted ? Results.Ok(new { message = "Configuración eliminada" }) : Results.NotFound(new { message = "No se encontró configuración" });
+            return deleted ? Results.Ok(new { success = true, message = "Configuración eliminada" }) : Results.NotFound(new { success = false, message = "No se encontró configuración" });
         });
     }
 }

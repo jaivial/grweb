@@ -30,7 +30,7 @@ public static class UsuarioEndpoints
             if (result == null)
             {
                 logger.LogWarning("Failed login attempt for {Email}", email);
-                return Results.Unauthorized();
+                return Results.Json(new { success = false, message = "Credenciales incorrectas" }, statusCode: 401);
             }
 
             logger.LogInformation("User logged in: {Email}", email);

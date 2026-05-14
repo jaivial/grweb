@@ -1,9 +1,11 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { JSX } from 'react';
+import { useAtomValue } from 'jotai';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { api } from '../../../utils/api';
 import type { LiftType } from '../../../types/lift';
 import { RefreshCw, Clock, ChevronDown, ChevronRight, Save, X, History, Loader2 } from 'lucide-react';
+import { currentCompeticionAtom, isCurrentFerAtom } from '../../../stores/auth.atoms';
 
 // ─── Types ───
 
@@ -106,12 +108,54 @@ export function JudgeTablePage(): JSX.Element {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
 
+  const currentCompeticion = useAtomValue(currentCompeticionAtom);
+  const isFer = useAtomValue(isCurrentFerAtom);
+  const slug = currentCompeticion?.slug ?? '';
+
   // ─── Fetch data ───
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await api.getCompetitionAttempts();
-      const list: AthleteAttempt[] = Array.isArray(data) ? data : data?.athletes ?? [];
+      let list: AthleteAttempt[];
+      if (isFer && slug) {
+        const result = await api.getFerCompetitionAttempts(slug);
+        const raw = result?.data ?? [];
+        list = (Array.isArray(raw) ? raw : []).map((item: any) => {
+          // Parse nombre: try "Apellido, Nombre" or "Nombre Apellido" formats
+          const nameParts = (item.nombre ?? '').split(',').map((s: string) => s.trim());
+          let firstName: string, surname: string;
+          if (nameParts.length >= 2) {
+            surname = nameParts[0];
+            firstName = nameParts[1];
+          } else {
+            const spaceIdx = nameParts[0].lastIndexOf(' ');
+            if (spaceIdx > 0) {
+              surname = nameParts[0].substring(spaceIdx + 1);
+              firstName = nameParts[0].substring(0, spaceIdx);
+            } else {
+              surname = nameParts[0];
+              firstName = '';
+            }
+          }
+          return {
+            athleteId: item.id,
+            firstName,
+            surname,
+            weightCategory: item.categoriaPeso ?? '',
+            sex: item.sexo ?? '',
+            club: null,
+            attempts: Array.isArray(item.attempts) ? item.attempts.map((a: any) => ({
+              liftType: a.liftType as LiftType,
+              attemptNumber: a.attemptNumber,
+              weight: a.weight,
+              updatedAt: a.updatedAt,
+            })) : [],
+          };
+        });
+      } else {
+        const data = await api.getCompetitionAttempts();
+        list = Array.isArray(data) ? data : data?.athletes ?? [];
+      }
       setAthletes(list);
       setLastUpdated(new Date());
       setError(null);
@@ -126,7 +170,7 @@ export function JudgeTablePage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [expandedCategories.size]);
+  }, [isFer, slug, expandedCategories.size]);
 
   useEffect(() => {
     fetchData();
@@ -199,6 +243,7 @@ export function JudgeTablePage(): JSX.Element {
   }, []);
 
   const handleSaveAttempt = useCallback(async (athleteId: number) => {
+    if (isFer) return; // FER mode is read-only — lifts are set via QR reader
     const raw = editingWeights[athleteId];
     const weight = Number(raw);
     if (isNaN(weight) || weight < WEIGHT_MIN || weight > WEIGHT_MAX) return;
@@ -224,7 +269,7 @@ export function JudgeTablePage(): JSX.Element {
         return next;
       });
     }
-  }, [editingWeights, rows, fetchData]);
+  }, [isFer, editingWeights, rows, fetchData]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, athleteId: number) => {
     if (e.key === 'Enter') handleSaveAttempt(athleteId);
@@ -330,13 +375,15 @@ export function JudgeTablePage(): JSX.Element {
                   {isExpanded && (
                     <div className="border-t border-white/5" data-ui={`judge-category-${cat}-body`}>
                       {/* Table header */}
-                      <div className="hidden md:grid grid-cols-[1fr_100px_70px_80px_140px_44px] gap-2 px-4 py-2 text-xs text-gray-500 font-medium border-b border-white/5" data-ui={`judge-category-${cat}-table-head`}>
+                      <div className="hidden md:grid grid-cols-[var(--cols)] gap-2 px-4 py-2 text-xs text-gray-500 font-medium border-b border-white/5"
+                        style={{ '--cols': isFer ? '1fr 100px 70px 80px' : '1fr 100px 70px 80px 140px 44px' } as React.CSSProperties}
+                        data-ui={`judge-category-${cat}-table-head`}>
                         <span data-ui="judge-th-name">Atleta</span>
                         <span data-ui="judge-th-lift">Elevacion</span>
                         <span data-ui="judge-th-attempt">Intento</span>
                         <span data-ui="judge-th-weight">Peso (kg)</span>
-                        <span data-ui="judge-th-next">Siguiente (kg)</span>
-                        <span data-ui="judge-th-actions" />
+                        {!isFer && <span data-ui="judge-th-next">Siguiente (kg)</span>}
+                        {!isFer && <span data-ui="judge-th-actions" />}
                       </div>
 
                       {groupRows.map((row) => {
@@ -347,11 +394,12 @@ export function JudgeTablePage(): JSX.Element {
                         return (
                           <div key={row.athleteId}
                             className={`
-                              grid grid-cols-1 md:grid-cols-[1fr_100px_70px_80px_140px_44px] gap-2 md:gap-2
+                              grid grid-cols-1 md:grid-cols-[var(--cols)] gap-2 md:gap-2
                               px-4 py-2.5 border-b border-white/5 last:border-b-0
                               items-center transition-colors
                               ${isCurrent ? 'bg-yellow-500/5 border-l-2 border-l-yellow-500' : 'hover:bg-white/[0.02]'}
                             `}
+                            style={{ '--cols': isFer ? '1fr 100px 70px 80px' : '1fr 100px 70px 80px 140px 44px' } as React.CSSProperties}
                             data-ui={`judge-row-${row.athleteId}`}>
 
                             {/* Name */}
@@ -399,6 +447,7 @@ export function JudgeTablePage(): JSX.Element {
                             </div>
 
                             {/* Next attempt input + save */}
+                            {!isFer && (
                             <div className="flex items-center gap-2" data-ui={`judge-row-${row.athleteId}-next-col`}>
                               <span className="text-[10px] text-gray-500 md:hidden" data-ui={`judge-row-${row.athleteId}-next-label-mobile`}>
                                 Siguiente ({LIFT_LABELS[row.nextLift]} #{row.nextAttempt}):
@@ -421,8 +470,9 @@ export function JudgeTablePage(): JSX.Element {
                                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                               </button>
                             </div>
+                            )}
 
-                            <div data-ui={`judge-row-${row.athleteId}-spacer`} />
+                            {!isFer && <div data-ui={`judge-row-${row.athleteId}-spacer`} />}
                           </div>
                         );
                       })}

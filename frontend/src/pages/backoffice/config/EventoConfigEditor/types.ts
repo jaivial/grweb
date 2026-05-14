@@ -4,6 +4,8 @@ export interface EventoConfigFormData {
   precioUpsell: number;
   precioRifa: number;
   precioHandler: number;
+  precioPeakProgram: number;
+  fechaLimitePeakProgram: string;
   maxTicketsPorPersona: number;
   inscripcionAbierta: boolean;
 }

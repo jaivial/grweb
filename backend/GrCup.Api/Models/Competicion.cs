@@ -129,9 +129,6 @@ public class EventoConfig
     /// Base registration price in EUR
     public decimal PrecioBase { get; set; } = 35;
     
-    /// Upsell preparation price in EUR
-    public decimal PrecioUpsell { get; set; } = 60;
-    
     /// <summary>
     /// Handler service price in EUR (GR Strength handler)
     /// </summary>
@@ -148,7 +145,10 @@ public class EventoConfig
     
     /// Stripe price ID for base registration
     public string? StripePriceId { get; set; }
-    
-    /// Stripe price ID for upsell
-    public string? StripeUpsellPriceId { get; set; }
+
+    /// GRS Peak Program price in EUR (includes training programming up to event)
+    public decimal PrecioPeakProgram { get; set; } = 0;
+
+    /// Limit date to book the GRS Peak Program (ISO date string)
+    public string? FechaLimitePeakProgram { get; set; }
 }

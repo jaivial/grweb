@@ -66,7 +66,6 @@ public class SeedService
                 {
                     AforoMaximo = 100,
                     PrecioBase = 35,
-                    PrecioUpsell = 60,
                     PrecioRifa = 5,
                     MaxTicketsPorPersona = 10,
                     InscripcionAbierta = true
@@ -102,7 +101,6 @@ public class SeedService
                 {
                     AforoMaximo = 80,
                     PrecioBase = 35,
-                    PrecioUpsell = 50,
                     PrecioRifa = 5,
                     MaxTicketsPorPersona = 5,
                     InscripcionAbierta = true

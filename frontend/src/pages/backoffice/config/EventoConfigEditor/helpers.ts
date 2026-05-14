@@ -7,6 +7,8 @@ export function toFormData(raw: Record<string, unknown>): EventoConfigFormData {
     precioUpsell: typeof raw.precioUpsell === 'number' ? raw.precioUpsell : 60,
     precioRifa: typeof raw.precioRifa === 'number' ? raw.precioRifa : 5,
     precioHandler: typeof raw.precioHandler === 'number' ? raw.precioHandler : 0,
+    precioPeakProgram: typeof raw.precioPeakProgram === 'number' ? raw.precioPeakProgram : 0,
+    fechaLimitePeakProgram: typeof raw.fechaLimitePeakProgram === 'string' ? raw.fechaLimitePeakProgram : '',
     maxTicketsPorPersona: typeof raw.maxTicketsPorPersona === 'number' ? raw.maxTicketsPorPersona : 10,
     inscripcionAbierta: typeof raw.inscripcionAbierta === 'boolean' ? raw.inscripcionAbierta : true,
   };

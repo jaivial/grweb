@@ -35,7 +35,7 @@ export default function Login() {
       const firstSlug = user.competiciones && user.competiciones.length > 0
         ? user.competiciones[0].slug
         : '';
-      navigate(firstSlug ? `/backoffice/${firstSlug}` : '/backoffice');
+      navigate('/backoffice');
     }
   }
 
