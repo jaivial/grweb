@@ -208,8 +208,8 @@ export function FerInscripcionEditForm({
         </button>
       </div>
 
-      {activeTab === 'datos' && (
-        <>
+      {activeTab === 'datos' &&
+        <div className="contents" data-ui="fer-edit-datos-tab">
       {/* ── Grid Fields ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="fer-edit-grid">
         {/* Nombre */}
@@ -519,11 +519,10 @@ export function FerInscripcionEditForm({
         />
       </div>
 
-      </> {/* end datos tab */}
+      </div>
+}
 
-      )}
-
-      {activeTab === 'intentos' && (
+      {activeTab === 'intentos' && 
         <div className="space-y-5" data-ui="fer-edit-intentos">
           <div className="text-center mb-2">
             <p className="text-sm font-semibold text-white/80" data-ui="fer-edit-intentos-title">INTENTOS (OPENERS)</p>
@@ -613,7 +612,7 @@ export function FerInscripcionEditForm({
             </div>
           )}
         </div>
-      )}
+}
 
       {/* ── Actions (visible in both tabs) ── */}
       <div className="flex justify-end gap-3 pt-2" data-ui="fer-edit-actions">
