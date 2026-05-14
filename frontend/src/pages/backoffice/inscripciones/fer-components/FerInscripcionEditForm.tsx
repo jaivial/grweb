@@ -519,7 +519,103 @@ export function FerInscripcionEditForm({
         />
       </div>
 
-      {/* ── Actions ── */}
+      </> {/* end datos tab */}
+
+      )}
+
+      {activeTab === 'intentos' && (
+        <div className="space-y-5" data-ui="fer-edit-intentos">
+          <div className="text-center mb-2">
+            <p className="text-sm font-semibold text-white/80" data-ui="fer-edit-intentos-title">INTENTOS (OPENERS)</p>
+            <p className="text-xs text-white/50" data-ui="fer-edit-intentos-subtitle">Registra los pesos de apertura para cada levantamiento</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Sentadilla */}
+            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-sentadilla">
+              <p className="text-sm font-bold text-blue-400 mb-3 text-center">Sentadilla</p>
+              <div className="space-y-2">
+                {[1, 2, 3].map((n) => (
+                  <div key={`sentadilla-${n}`} data-ui={`fer-edit-sentadilla-${n}`}>
+                    <label className="text-xs text-white/50 block mb-0.5">Intento {n}</label>
+                    <input
+                      type="number"
+                      value={liftData[`sentadilla${n}` as keyof typeof liftData] || ''}
+                      onChange={(e) => updateLift(`sentadilla${n}`, Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-red-accent/50"
+                      placeholder="0"
+                      min="0" step="0.5"
+                      data-ui={`fer-edit-sentadilla-${n}-input`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Press de Banca */}
+            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-banca">
+              <p className="text-sm font-bold text-purple-400 mb-3 text-center">Press de Banca</p>
+              <div className="space-y-2">
+                {[1, 2, 3].map((n) => (
+                  <div key={`banca-${n}`} data-ui={`fer-edit-banca-${n}`}>
+                    <label className="text-xs text-white/50 block mb-0.5">Intento {n}</label>
+                    <input
+                      type="number"
+                      value={liftData[`banca${n}` as keyof typeof liftData] || ''}
+                      onChange={(e) => updateLift(`banca${n}`, Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-red-accent/50"
+                      placeholder="0"
+                      min="0" step="0.5"
+                      data-ui={`fer-edit-banca-${n}-input`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Peso Muerto */}
+            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-pesomuerto">
+              <p className="text-sm font-bold text-orange-400 mb-3 text-center">Peso Muerto</p>
+              <div className="space-y-2">
+                {[1, 2, 3].map((n) => (
+                  <div key={`pesomuerto-${n}`} data-ui={`fer-edit-pesomuerto-${n}`}>
+                    <label className="text-xs text-white/50 block mb-0.5">Intento {n}</label>
+                    <input
+                      type="number"
+                      value={liftData[`pesoMuerto${n}` as keyof typeof liftData] || ''}
+                      onChange={(e) => updateLift(`pesoMuerto${n}`, Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-red-accent/50"
+                      placeholder="0"
+                      min="0" step="0.5"
+                      data-ui={`fer-edit-pesomuerto-${n}-input`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center pt-2">
+            <Button
+              type="button"
+              onClick={handleSaveLifts}
+              disabled={liftSaving}
+              className="min-h-[44px] bg-blue-500/90 hover:bg-blue-500 text-white border-0"
+              data-ui="fer-edit-save-lifts-btn"
+            >
+              {liftSaving ? 'Guardando...' : 'Guardar Intentos'}
+            </Button>
+          </div>
+
+          {liftSaved && (
+            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm text-center" data-ui="fer-edit-lifts-saved">
+              Intentos guardados correctamente
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Actions (visible in both tabs) ── */}
       <div className="flex justify-end gap-3 pt-2" data-ui="fer-edit-actions">
         <Button
           variant="ghost"
