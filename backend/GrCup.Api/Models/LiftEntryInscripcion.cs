@@ -29,6 +29,21 @@ public class LiftEntryInscripcion
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Judge 1 vote: null = pending, true = valid (white), false = invalid (red)
+    /// </summary>
+    public bool? Juez1Voto { get; set; }
+
+    /// <summary>
+    /// Judge 2 vote: null = pending, true = valid (white), false = invalid (red)
+    /// </summary>
+    public bool? Juez2Voto { get; set; }
+
+    /// <summary>
+    /// Judge 3 vote: null = pending, true = valid (white), false = invalid (red)
+    /// </summary>
+    public bool? Juez3Voto { get; set; }
+
     // Navigation
     [ForeignKey(nameof(InscripcionId))]
     public virtual Inscripcion Inscripcion { get; set; } = null!;
