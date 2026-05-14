@@ -116,6 +116,8 @@ class ApiClient {
   async getCompeticionConfig(slug: string): Promise<ApiResponse<{
     precioBase: number;
     precioHandler: number;
+    precioPeakProgram: number;
+    fechaLimitePeakProgram: string;
     precioUpsell: number;
     precioRifa: number;
     precioTotal: number;

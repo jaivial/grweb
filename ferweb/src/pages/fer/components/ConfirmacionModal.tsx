@@ -115,12 +115,20 @@ export function ConfirmacionModal({
           >
             {/* Close button */}
             <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-fer-accent/50"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="absolute top-4 right-4 p-2 rounded-full transition-colors duration-200 z-10"
+              style={{
+                backgroundColor: `${FER_COLORS.bgDark}80`,
+                color: FER_COLORS.textMuted,
+              }}
               data-ui="fer-confirmation-close"
               aria-label="Cerrar"
             >
-              <X size={20} style={{ color: FER_COLORS.textMuted }} />
+              <X size={20} />
             </button>
 
             {/* Canvas confetti */}

@@ -1,0 +1,17 @@
+{
+  "project_name": "grweb",
+  "project_root": "/var/www/grweb",
+  "collection_name": "grweb_34b1bb26",
+  "qdrant_url": "http://127.0.0.1:6333",
+  "embed_model": "embed-v4.0",
+  "embed_dim": 1536,
+  "batch_size": 16,
+  "max_file_bytes": 65536,
+  "embed_provider": "cohere",
+  "file_index_path": "/var/www/grweb/.wide-researcher/.file_index.json",
+  "secrets_path": "/root/.wide-researcher/secrets.json",
+  "cohere_api_key_field": "cohere_api_key",
+  "cohere_embedding_types": [
+    "float"
+  ]
+}

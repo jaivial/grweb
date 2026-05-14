@@ -156,14 +156,7 @@ export function Hero({ onCtaClick }: HeroProps) {
               style={{ color: FER_COLORS.glow }}
               data-ui="fer-hero-title-day"
             >
-              CUP{' '}
-            </span>
-            <span
-              className=\"text-[0.55em] align-super font-extrabold tracking-widest\"
-              style={{ color: FER_COLORS.gold }}
-              data-ui=\"fer-hero-title-ii\"
-            >
-              II
+              CUP II
             </span>
           </motion.h1>
 
@@ -198,7 +191,7 @@ export function Hero({ onCtaClick }: HeroProps) {
             >
               <MapPin size={18} style={{ color: FER_COLORS.accent }} data-ui="fer-hero-chip-location-icon" />
               <span className="font-medium" style={{ color: FER_COLORS.text }} data-ui="fer-hero-chip-location-text">
-                {FER_EVENT.location}
+                ALMUSSAFES
               </span>
             </div>
           </motion.div>

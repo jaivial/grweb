@@ -4,10 +4,12 @@ import { FER_COLORS, CLUB_PHOTOS } from '../constants';
 import { useCdnImage } from '@hooks/useCdnImage';
 
 const PARTICIPANTS = [
-  { title: 'Socios del Club FER', desc: 'Precio especial para socios activos del club', bg: CLUB_PHOTOS.atmosphere[0] },
-  { title: 'Atletas externos', desc: 'Abierto a cualquier persona con ganas de competir', bg: CLUB_PHOTOS.atmosphere[1] },
-  { title: 'Principiantes', desc: 'Evento dise\u00f1ado para tu primera experiencia competitiva', bg: CLUB_PHOTOS.atmosphere[2] },
-  { title: 'Sin entrenador', desc: 'Te ayudamos con la preparaci\u00f3n si no tienes coach', bg: CLUB_PHOTOS.atmosphere[3] },
+  { title: 'Afiliados del club GR Strength', desc: 'Precio especial…', bg: CLUB_PHOTOS.atmosphere[0] },
+  { title: 'Socios del gimnasio FER', desc: 'Precio especial…', bg: CLUB_PHOTOS.atmosphere[1] },
+  { title: 'Atletas externos a ambas entidades.', desc: 'Abierto a cualquier persona con ganas de competir', bg: CLUB_PHOTOS.atmosphere[2] },
+  { title: 'Principiantes.', desc: 'Evento diseñado para tu primera experiencia competitiva', bg: CLUB_PHOTOS.atmosphere[3] },
+  { title: 'Atletas sin entrenador.', desc: 'Te ayudamos con tu preparación si no tienes coach', bg: CLUB_PHOTOS.atmosphere[0] },
+  { title: 'Atletas con experiencia.', desc: 'Para experimentados que quieran disfrutar de la tarima.', bg: CLUB_PHOTOS.atmosphere[1] },
 ] as const;
 
 function CardBgImage({ src }: { src: string }) {

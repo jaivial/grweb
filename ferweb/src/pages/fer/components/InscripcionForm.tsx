@@ -14,14 +14,15 @@ interface InscripcionFormProps {
   hook: UseFerInscripcionReturn;
   plazasDisponibles: number;
   precioBase?: number;
-  precioHandler?: number;
   categoriasMasculino?: string[];
   categoriasFemenino?: string[];
   contactEmail?: string;
+  precioPeakProgram?: number;
+  fechaLimitePeakProgram?: string | null;
   onSubmit: () => void;
 }
 
-export function InscripcionForm({ hook, plazasDisponibles, precioBase, precioHandler, categoriasMasculino, categoriasFemenino, contactEmail, onSubmit }: InscripcionFormProps) {
+export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoriasMasculino, categoriasFemenino, contactEmail, precioPeakProgram, fechaLimitePeakProgram, onSubmit }: InscripcionFormProps) {
   const {
     formData,
     errors,
@@ -90,7 +91,7 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, precioHan
   const selectCategory = useCallback((cat: string) => { updateField('categoriaPeso', cat); setCategoryDropdownOpen(false); }, [updateField]);
   const toggleDropdown = useCallback(() => setCategoryDropdownOpen(prev => !prev), []);
   const toggleHandler = useCallback(() => updateField('quiereHandler', !formData.quiereHandler), [formData.quiereHandler, updateField]);
-  const toggleEntrenador = useCallback(() => updateField('tieneEntrenador', !formData.tieneEntrenador), [formData.tieneEntrenador, updateField]);
+  const togglePeakProgram = useCallback(() => updateField('peakProgram', !formData.peakProgram), [formData.peakProgram, updateField]);
   const toggleTerminos = useCallback((e: React.ChangeEvent<HTMLInputElement>) => updateField('aceptaTerminos', e.target.checked), [updateField]);
 
   const inputStyle = useMemo(
@@ -537,13 +538,8 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, precioHan
                       </p>
                     </div>
                     <p className="text-sm mt-0.5" style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-handler-hint">
-                      Servicio de acompañamiento el día del evento
+                      Servicio de acompañamiento el día del evento — <strong style={{ color: FER_COLORS.green }}>gratuito</strong>
                     </p>
-                    {precioHandler !== undefined && precioHandler > 0 && (
-                      <p className="text-xs mt-1 font-semibold" style={{ color: FER_COLORS.gold }} data-ui="fer-form-handler-price">
-                        +{precioHandler} EUR
-                      </p>
-                    )}
                   </div>
                   <button
                     type="button"
@@ -551,7 +547,7 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, precioHan
                     disabled={isSubmitting}
                     className={clsx(
                       'w-14 h-8 rounded-full transition-all duration-300 relative flex-shrink-0',
-                      formData.quiereHandler ? 'bg-fer-accent' : 'bg-gray-600',
+                      formData.quiereHandler ? 'bg-green-500' : 'bg-gray-600',
                       'focus:outline-none focus:ring-2 focus:ring-fer-accent/50',
                     )}
                     data-ui="fer-form-handler-toggle"
@@ -567,7 +563,59 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, precioHan
                     />
                   </button>
                 </div>
-                {formData.quiereHandler && precioHandler !== undefined && precioHandler > 0 && (
+              </div>
+
+              {/* ── GRS Peak Program ── */}
+              <div
+                className="p-4 rounded-xl"
+                style={{ backgroundColor: FER_COLORS.bgCard }}
+                data-ui="fer-form-field-peak-program"
+              >
+                <div className="flex items-start justify-between gap-4" data-ui="fer-form-peak-header">
+                  <div data-ui="fer-form-peak-info">
+                    <div className="flex items-center gap-2" data-ui="fer-form-peak-title-row">
+                      <Zap size={16} style={{ color: FER_COLORS.accent }} data-ui="fer-form-peak-icon" aria-hidden="true" />
+                      <p className="font-semibold" style={{ color: FER_COLORS.text }} data-ui="fer-form-peak-title">
+                        GRS Peak Program
+                      </p>
+                    </div>
+                    <p className="text-sm mt-0.5" style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-peak-desc">
+                      Programamos tu entrenamiento hasta el evento
+                    </p>
+                    {precioPeakProgram !== undefined && precioPeakProgram > 0 && (
+                      <p className="text-xs mt-2 font-semibold" style={{ color: FER_COLORS.gold }} data-ui="fer-form-peak-price">
+                        {precioPeakProgram} EUR
+                      </p>
+                    )}
+                    {fechaLimitePeakProgram && (
+                      <p className="text-xs mt-0.5" style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-peak-date">
+                        Límite: {new Date(fechaLimitePeakProgram).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={togglePeakProgram}
+                    disabled={isSubmitting}
+                    className={clsx(
+                      'w-14 h-8 rounded-full transition-all duration-300 relative flex-shrink-0 mt-1',
+                      formData.peakProgram ? 'bg-green-500' : 'bg-gray-600',
+                      'focus:outline-none focus:ring-2 focus:ring-fer-accent/50',
+                    )}
+                    data-ui="fer-form-peak-toggle"
+                    role="switch"
+                    aria-checked={formData.peakProgram}
+                    aria-label="GRS Peak Program"
+                  >
+                    <motion.div
+                      className="absolute top-1 w-6 h-6 rounded-full bg-white shadow-md"
+                      animate={{ left: formData.peakProgram ? 'calc(100% - 28px)' : '4px' }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      data-ui="fer-form-peak-toggle-knob"
+                    />
+                  </button>
+                </div>
+                {formData.peakProgram && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -578,48 +626,11 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, precioHan
                       color: FER_COLORS.textMuted,
                       border: `1px solid ${FER_COLORS.accent}20`,
                     }}
-                    data-ui="fer-form-handler-message"
+                    data-ui="fer-form-peak-message"
                   >
-                    No te preocupes, <strong style={{ color: FER_COLORS.text }}>GR Strength</strong> te puede ayudar. Si mantienes esta casilla activada, estarás optando al servicio extra de handler por GR Strength que tiene un valor de <strong style={{ color: FER_COLORS.gold }}>{precioHandler} EUR</strong>.
+                    Te ayudaremos a prepararte con un plan de entrenamiento personalizado hasta el día del evento. Al activar esta opción, añadirás el <strong style={{ color: FER_COLORS.gold }}>{precioPeakProgram} EUR</strong> del Peak Program a tu inscripción.
                   </motion.div>
                 )}
-              </div>
-
-              {/* ── Tiene entrenador? ── */}
-              <div
-                className="flex items-center justify-between p-4 rounded-xl"
-                style={{ backgroundColor: FER_COLORS.bgCard }}
-                data-ui="fer-form-field-entrenador"
-              >
-                <div data-ui="fer-form-entrenador-info">
-                  <p className="font-semibold" style={{ color: FER_COLORS.text }} data-ui="fer-form-entrenador-question">
-                    ¿Tienes entrenador?
-                  </p>
-                  <p className="text-sm" style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-entrenador-hint">
-                    ¿Un coach te preparará?
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleEntrenador}
-                  disabled={isSubmitting}
-                  className={clsx(
-                    'w-14 h-8 rounded-full transition-all duration-300 relative',
-                    formData.tieneEntrenador ? 'bg-fer-accent' : 'bg-gray-600',
-                    'focus:outline-none focus:ring-2 focus:ring-fer-accent/50',
-                  )}
-                  data-ui="fer-form-entrenador-toggle"
-                  role="switch"
-                  aria-checked={formData.tieneEntrenador}
-                  aria-label="¿Tienes entrenador?"
-                >
-                  <motion.div
-                    className="absolute top-1 w-6 h-6 rounded-full bg-white shadow-md"
-                    animate={{ left: formData.tieneEntrenador ? 'calc(100% - 28px)' : '4px' }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    data-ui="fer-form-entrenador-toggle-knob"
-                  />
-                </button>
               </div>
 
               {/* ── Términos ── */}

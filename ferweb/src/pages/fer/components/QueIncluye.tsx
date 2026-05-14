@@ -6,15 +6,15 @@ import { useCdnImage } from '@hooks/useCdnImage';
 
 const CARDS = [
   { icon: Trophy, title: 'Trofeos', desc: 'Top 3 de cada categoría premiados', bg: CLUB_PHOTOS.gallery[3] },
-  { icon: Award, title: 'Camiseta', desc: 'Camiseta oficial del evento incluida', bg: HERO_CAMISETA_BG },
-  { icon: Shield, title: 'Jueces', desc: 'Jueces FEDDF certificados', bg: CLUB_PHOTOS.gallery[1] },
+  { icon: Award, title: 'Handling', desc: 'Contarás con entrenadores profesionales que te ayudarán en todo momento si es necesario.', bg: HERO_CAMISETA_BG },
+  { icon: Shield, title: 'Jueces', desc: 'Jueces internacionales profesionales con certificación oficial.', bg: CLUB_PHOTOS.gallery[1] },
   { icon: Users, title: 'Spotters', desc: 'Spotters profesionales en plataforma', bg: CLUB_PHOTOS.gallery[4] },
 ] as const;
 
 const MERCH_ITEMS = [
-  'Banda de competición oficial',
-  'Zona de calentamiento equipada',
-  'Agua y bebidas isotónicas',
+  'Zona de calentamiento equipada.',
+  'Nos encargaremos de la gestión.',
+  'Merchandising del club limitado y rebajado.',
 ] as const;
 
 function CardBgImage({ src }: { src: string }) {
@@ -158,7 +158,7 @@ export function QueIncluye() {
             style={{ color: FER_COLORS.gold }}
             data-ui="fer-que-incluye-merch-title"
           >
-            Merchandising adicional
+            Podrás disfrutar:
           </h4>
           <ul className="space-y-3 mt-4" data-ui="fer-que-incluye-merch-list">
             {MERCH_ITEMS.map((item, i) => (

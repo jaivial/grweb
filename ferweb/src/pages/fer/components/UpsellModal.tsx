@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, X, Loader2 } from 'lucide-react';
+import { Zap, X, Loader2, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { FER_COLORS } from '../constants';
 import api from '../../../api/client';
@@ -10,9 +10,11 @@ interface UpsellModalProps {
   inscripcionId: number | null;
   slug: string;
   onClose: () => void;
+  precioPeakProgram?: number;
+  fechaLimitePeakProgram?: string | null;
 }
 
-export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModalProps) {
+export function UpsellModal({ isOpen, inscripcionId, slug, onClose, precioPeakProgram, fechaLimitePeakProgram }: UpsellModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleUpsell = useCallback(
@@ -25,13 +27,13 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
       setIsSubmitting(true);
       try {
         await api.addUpsell(slug, inscripcionId, true);
-        toast.success('¡Preparación añadida! Te contactaremos pronto.', {
-          icon: '🎯',
+        toast.success('¡Peak Program añadido! Te contactaremos pronto.', {
+          icon: '⚡',
           style: { background: '#161B26', color: '#F8FAFC' },
         });
       } catch (error) {
         console.error('Upsell error:', error);
-        toast.error('No se pudo añadir la preparación. Contacta con nosotros.', {
+        toast.error('No se pudo añadir el Peak Program. Contacta con nosotros.', {
           style: { background: '#161B26', color: '#F8FAFC' },
         });
       } finally {
@@ -45,6 +47,24 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
   const handleNoThanks = useCallback(() => {
     onClose();
   }, [onClose]);
+
+  const limitDateFormatted = useMemo(() => {
+    if (!fechaLimitePeakProgram) return null;
+    try {
+      return new Date(fechaLimitePeakProgram).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return null;
+    }
+  }, [fechaLimitePeakProgram]);
+
+  const price = useMemo(
+    () => (precioPeakProgram !== undefined && precioPeakProgram > 0 ? precioPeakProgram : null),
+    [precioPeakProgram]
+  );
 
   return (
     <AnimatePresence>
@@ -92,7 +112,7 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
               style={{ backgroundColor: `${FER_COLORS.gold}18` }}
               data-ui="fer-upsell-icon-bg"
             >
-              <Star size={32} style={{ color: FER_COLORS.gold }} data-ui="fer-upsell-icon" />
+              <Zap size={32} style={{ color: FER_COLORS.gold }} data-ui="fer-upsell-icon" />
             </motion.div>
 
             {/* Title */}
@@ -104,7 +124,10 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
               style={{ color: FER_COLORS.text }}
               data-ui="fer-upsell-title"
             >
-              ¿No tienes entrenador?
+              GRS{' '}
+              <span style={{ color: FER_COLORS.gold }} data-ui="fer-upsell-title-highlight">
+                Peak Program
+              </span>
             </motion.h2>
 
             {/* Description */}
@@ -116,9 +139,9 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
               style={{ color: FER_COLORS.textMuted }}
               data-ui="fer-upsell-description"
             >
-              Podemos ayudarte con la preparación para tu primera competición.
-              Incluye planificación de entrenamiento, técnica de los tres levantamientos
-              y seguimiento personalizado.
+              ¿Te gustaría llegar al FER CUP con un plan de entrenamiento personalizado?
+              Programamos tu preparación desde hoy hasta el día del evento: técnica de los tres
+              levantamientos, periodización y seguimiento continuo.
             </motion.p>
 
             {/* Price card */}
@@ -140,14 +163,14 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
                     style={{ color: FER_COLORS.text }}
                     data-ui="fer-upsell-price-label"
                   >
-                    Ayuda de preparación
+                    GRS Peak Program
                   </span>
                   <p
                     className="text-xs mt-1"
                     style={{ color: FER_COLORS.textMuted }}
                     data-ui="fer-upsell-price-detail"
                   >
-                    Plan de entrenamiento + técnica
+                    Plan personalizado + seguimiento
                   </p>
                 </div>
                 <span
@@ -155,9 +178,26 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
                   style={{ color: FER_COLORS.gold }}
                   data-ui="fer-upsell-price"
                 >
-                  +50€
+                  +{price ?? 60}€
                 </span>
               </div>
+
+              {/* Limit date */}
+              {limitDateFormatted && (
+                <div
+                  className="mt-3 pt-3 flex items-center gap-2 text-xs"
+                  style={{
+                    color: FER_COLORS.textMuted,
+                    borderTop: `1px solid ${FER_COLORS.accent}15`,
+                  }}
+                  data-ui="fer-upsell-limit-date"
+                >
+                  <Clock size={14} style={{ color: FER_COLORS.accent }} data-ui="fer-upsell-limit-date-icon" />
+                  <span data-ui="fer-upsell-limit-date-text">
+                    Fecha límite de contratación: {limitDateFormatted}
+                  </span>
+                </div>
+              )}
             </motion.div>
 
             {/* Note */}
@@ -169,7 +209,7 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
               style={{ color: FER_COLORS.textMuted }}
               data-ui="fer-upsell-note"
             >
-              No es obligatorio, pero puede marcar la diferencia en tu debut
+              Actívalo ahora o contacta con nosotros más tarde
             </motion.p>
 
             {/* Actions */}
@@ -205,7 +245,7 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose }: UpsellModa
                 {isSubmitting ? (
                   <Loader2 size={18} className="animate-spin" data-ui="fer-upsell-spinner" />
                 ) : null}
-                Quiero ayuda
+                Quiero el Peak Program
               </button>
             </motion.div>
           </motion.div>

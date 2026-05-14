@@ -50,8 +50,9 @@ export interface EventoConfig {
   precioBase: number;
   precioUpsell: number;
   precioHandler: number;
+  precioPeakProgram: number;
+  fechaLimitePeakProgram: string;
   precioRifa: number;
-  precioHandler?: number;
   maxTicketsPorPersona: number;
   inscripcionAbierta: boolean;
   stripePriceId?: string;
@@ -134,8 +135,8 @@ export interface CreateInscripcionRequest {
   quiereHandler: boolean;
 
   experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
-  tieneEntrenador: boolean;
-  upsellPreparacion: boolean;
+  peakProgram: boolean;
+  upsellPreparacion?: boolean;
   aceptaTerminos: boolean;
 }
 
@@ -300,14 +301,14 @@ export interface SchedulePublishedConfig {
 export interface FERInscripcionFormData {
   nombre: string;
   email: string;
-  instagram: string;
+  instagram?: string;
   telefono: string;
   sexo: 'masculino' | 'femenino';
   categoriaPeso: string;
   quiereHandler: boolean;
 
   experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
-  tieneEntrenador: boolean;
+  peakProgram: boolean;
   upsellPreparacion: boolean;
   aceptaTerminos: boolean;
 }

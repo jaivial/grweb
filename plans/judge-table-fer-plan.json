@@ -1,0 +1,26 @@
+# Judge Table FER - Plan de Implementacion
+
+## Backend
+1. **Modelo LiftEntryInscripcion**: Anadir campos Juez1Voto, Juez2Voto, Juez3Voto (bool? nullable)
+   - null = sin voto
+   - true = valido (blanco)
+   - false = invalido (rojo)
+2. **Migration**: AddJudgeVotes
+3. **Endpoints**:
+   - `PUT /api/competiciones/{slug}/checkin/{inscripcionId}/attempt/{liftType}/{attemptNumber}/juez` - guardar voto de juez
+   - `GET /api/competiciones/{slug}/inscripciones` - filtrado por categorias de peso
+4. **InscripcionService**: metodo para guardar voto de juez
+
+## Frontend (JudgeTablePage.tsx) - REWRITE COMPLETA
+1. **3 tabs principales**: Sentadilla, Press de Banca, Peso Muerto
+2. **4 subtabs**: Intento 1, 2, 3, Todos
+3. **Tabla**: Nombre, Categoria, Sexo, Peso (attempt)
+4. **Columna Valido** (solo en no-Todos): 3 circulos por juez + lock icon
+5. **Lock**: desbloquea edicion de circulos; al bloquear guarda via API
+6. **Circulos**: click→blanco (valido), 2 clicks→rojo (invalido)
+7. **Tab Todos**: todas las columnas de pesos + color valido/invalido
+8. **Settings**: checkboxes para filtrar categorias de peso
+
+## Flujo de datos
+- GET /api/competiciones/{slug}/attempts → datos con jueces
+- PUT voto → actualiza LiftEntryInscripcion
