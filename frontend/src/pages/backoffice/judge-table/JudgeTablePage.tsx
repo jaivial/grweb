@@ -55,8 +55,6 @@ const SUBTABS = [
 
 type SubtabKey = 1 | 2 | 3 | 'all';
 
-const REFRESH_INTERVAL_MS = 30000;
-
 const WEIGHT_CATEGORIES_MALE = [
   'Hasta 59kg',
   'Hasta 66kg',
@@ -186,13 +184,6 @@ export function JudgeTablePage(): JSX.Element {
     fetchData();
   }, [fetchData]);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    intervalRef.current = setInterval(fetchData, REFRESH_INTERVAL_MS);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [fetchData]);
-
   // Auto-focus editing input
   useEffect(() => {
     if (editingCell && editingInputRef.current) {
@@ -271,6 +262,24 @@ export function JudgeTablePage(): JSX.Element {
           Promise.all(saves)
             .then(() => {
               toast.success('Votos guardados correctamente');
+              // Optimistic update: update athletes state with new votes
+              setAthletes((prev) =>
+                prev.map((a) => {
+                  if (a.id !== athleteId) return a;
+                  return {
+                    ...a,
+                    attempts: a.attempts.map((att) => {
+                      if (att.liftType !== liftType || att.attemptNumber !== attemptNumber) return att;
+                      return {
+                        ...att,
+                        juez1Voto: votesToSave.juez1,
+                        juez2Voto: votesToSave.juez2,
+                        juez3Voto: votesToSave.juez3,
+                      };
+                    }),
+                  };
+                }),
+              );
               setLockStates((prev) => ({ ...prev, [key]: true }));
               // After save, clear local votes since they match server now
               setLocalVotes((prev) => {
@@ -278,7 +287,6 @@ export function JudgeTablePage(): JSX.Element {
                 delete next[key];
                 return next;
               });
-              fetchData();
             })
             .catch(() => {
               toast.error('Error al guardar votos');
@@ -295,7 +303,7 @@ export function JudgeTablePage(): JSX.Element {
         }
       }
     },
-    [lockStates, localVotes, slug, getDisplayVotes, fetchData],
+    [lockStates, localVotes, slug, getDisplayVotes],
   );
 
   const handleCircleClick = useCallback(
