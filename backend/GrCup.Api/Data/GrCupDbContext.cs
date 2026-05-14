@@ -21,8 +21,9 @@ public class GrCupDbContext : DbContext
     public DbSet<StripeConfig> StripeConfig => Set<StripeConfig>();
     public DbSet<RaffleConfig> RaffleConfig => Set<RaffleConfig>();
     public DbSet<RaffleProduct> RaffleProducts => Set<RaffleProduct>();
+    public DbSet<LiftEntry> LiftEntries => Set<LiftEntry>();
 
-    // Multi-tenant models (Phase 1)
+    // Multi-tenant models
     public DbSet<Competicion> Competiciones => Set<Competicion>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<UsuarioCompeticion> UsuariosCompeticiones => Set<UsuarioCompeticion>();
@@ -30,6 +31,9 @@ public class GrCupDbContext : DbContext
     public DbSet<Inscripcion> Inscripciones => Set<Inscripcion>();
     public DbSet<RifaTicket> RifaTickets => Set<RifaTicket>();
     public DbSet<RifaConfig> RifaConfigs => Set<RifaConfig>();
+
+    // Tutorial interactions (likes & comments)
+    public DbSet<TutorialInteraction> TutorialInteractions => Set<TutorialInteraction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -94,6 +98,16 @@ public class GrCupDbContext : DbContext
             entity.HasOne(sc => sc.Competicion)
                 .WithMany()
                 .HasForeignKey(sc => sc.CompeticionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LiftEntry>(entity => {
+            entity.HasIndex(e => e.AthleteId);
+            entity.HasIndex(e => new { e.AthleteId, e.LiftType, e.AttemptNumber }).IsUnique();
+            entity.Property(e => e.Weight).HasPrecision(10, 2);
+            entity.HasOne(e => e.Athlete)
+                .WithMany(a => a.LiftEntries)
+                .HasForeignKey(e => e.AthleteId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -162,5 +176,14 @@ public class GrCupDbContext : DbContext
 
         // Rename legacy RaffleConfig to avoid conflict with new one
         modelBuilder.Entity<Models.RaffleConfig>().ToTable("raffle_config_legacy");
+
+        // TutorialInteractions
+        modelBuilder.Entity<TutorialInteraction>(entity =>
+        {
+            entity.HasIndex(e => e.VideoId);
+            entity.HasIndex(e => new { e.VideoId, e.Tipo });
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+        });
     }
 }

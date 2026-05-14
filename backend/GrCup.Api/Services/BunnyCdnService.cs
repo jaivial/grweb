@@ -15,7 +15,12 @@ public class BunnyCdnService
         _pullZoneUrl = Environment.GetEnvironmentVariable("BUNNYCDN_PULL_ZONE_URL") ?? "https://jaimedigitalstudio.b-cdn.net";
     }
 
-    public async Task<string> UploadImageAsync(Stream imageStream, string fileName, string subfolder = "customGifts")
+    public async Task<string> UploadImageAsync(Stream imageStream, string fileName)
+    {
+        return await UploadImageAsync(imageStream, fileName, "customGifts");
+    }
+
+    public async Task<string> UploadImageAsync(Stream imageStream, string fileName, string subfolder)
     {
         var url = $"https://storage.bunnycdn.com/{_storageZone}/grcup/{subfolder}/{fileName}";
 

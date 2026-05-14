@@ -19,6 +19,9 @@ public class EmailConfig
     [ForeignKey(nameof(CompeticionId))]
     public Competicion? Competicion { get; set; }
 
+    // Navigation property
+    public virtual Competicion? Competicion { get; set; }
+
     // Gmail fields
     [MaxLength(255)]
     public string? GmailAddress { get; set; }

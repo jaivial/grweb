@@ -1,13 +1,9 @@
 import { Router, Route, useLocation } from 'wouter';
 import { useEffect, lazy, Suspense } from 'react';
-import { useAtomValue } from 'jotai';
 import Layout from './layouts/Layout';
 import { Home } from './pages/home/Home';
 import Login from './admin/pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
-import { BackofficeLayout } from './layouts/BackofficeLayout';
-import { userCompeticionesAtom } from './stores/auth.atoms';
-import { useAuth } from './hooks/useAuth';
 
 // Lazy load all page components to reduce initial bundle size
 const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.default })));
@@ -30,7 +26,8 @@ const InscripcionConfigPage = lazy(() => import('./pages/backoffice/InscripcionC
 const Configuracion = lazy(() => import('./pages/backoffice/configuracion/Configuracion').then(m => ({ default: m.Configuracion })));
 const RaffleConfigPage = lazy(() => import('./pages/backoffice/raffle-config/RaffleConfigPage').then(m => ({ default: m.RaffleConfigPage })));
 const Participantes = lazy(() => import('./pages/backoffice/participantes/Participantes').then(m => ({ default: m.default })));
-const QrReaderPage = lazy(() => import('./pages/backoffice/qr-reader/QrReaderPage').then(m => ({ default: m.QrReaderPage })));
+const Checkin = lazy(() => import('./pages/backoffice/checkin/CheckinPage').then(m => ({ default: m.CheckinPage })));
+const JudgeTable = lazy(() => import('./pages/backoffice/judge-table/JudgeTablePage').then(m => ({ default: m.JudgeTablePage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -57,39 +54,6 @@ const LazyPage = ({ children }: { children: React.ReactNode }) => (
   </Suspense>
 );
 
-/**
- * Redirects /backoffice (no slug) to /backoffice/${firstAvailableSlug}
- * This handles old bookmarks and direct navigation.
- */
-function BackofficeRedirect() {
-  const competiciones = useAtomValue(userCompeticionesAtom);
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    if (competiciones.length > 0) {
-      setLocation(`/backoffice/${competiciones[0].slug}`);
-    } else {
-      // No competitions available, go to login
-      setLocation('/backoffice/login');
-    }
-  }, [competiciones, setLocation]);
-
-  return <PageLoader />;
-}
-
-/**
- * Wrapper for protected backoffice routes with BackofficeLayout at the router level.
- */
-function BackofficeRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <ProtectedRoute>
-      <BackofficeLayout>
-        <Suspense fallback={<PageLoader />}>{children}</Suspense>
-      </BackofficeLayout>
-    </ProtectedRoute>
-  );
-}
-
 export function App() {
   return (
     <>
@@ -111,69 +75,85 @@ export function App() {
       {/* Backoffice Login (Public) */}
       <Route path="/backoffice/login" component={Login} />
 
-      {/* Backoffice redirect: /backoffice → /backoffice/${firstSlug} */}
+      {/* Protected Backoffice Routes */}
       <Route
         path="/backoffice"
         component={() => (
           <ProtectedRoute>
-            <BackofficeRedirect />
+            <Suspense fallback={<PageLoader />}><BackofficeHome /></Suspense>
           </ProtectedRoute>
         )}
       />
-
-      {/* Protected Backoffice Routes (with :competicionSlug) */}
       <Route
-        path="/backoffice/:competicionSlug"
+        path="/backoffice/inscripciones"
         component={() => (
-          <BackofficeRoute><BackofficeHome /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Inscripciones /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/inscripciones"
+        path="/backoffice/sorteo"
         component={() => (
-          <BackofficeRoute><Inscripciones /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Sorteo /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/sorteo"
+        path="/backoffice/horarios"
         component={() => (
-          <BackofficeRoute><Sorteo /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Horarios /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/horarios"
+        path="/backoffice/inscripcion-config"
         component={() => (
-          <BackofficeRoute><Horarios /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><InscripcionConfigPage /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/inscripcion-config"
+        path="/backoffice/configuracion"
         component={() => (
-          <BackofficeRoute><InscripcionConfigPage /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Configuracion /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/configuracion"
+        path="/backoffice/raffle-config"
         component={() => (
-          <BackofficeRoute><Configuracion /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><RaffleConfigPage /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/raffle-config"
+        path="/backoffice/participantes"
         component={() => (
-          <BackofficeRoute><RaffleConfigPage /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Participantes /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/participantes"
+        path="/backoffice/checkin"
         component={() => (
-          <BackofficeRoute><Participantes /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><Checkin /></Suspense>
+          </ProtectedRoute>
         )}
       />
       <Route
-        path="/backoffice/:competicionSlug/qr-reader"
+        path="/backoffice/judge-table"
         component={() => (
-          <BackofficeRoute><QrReaderPage /></BackofficeRoute>
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}><JudgeTable /></Suspense>
+          </ProtectedRoute>
         )}
       />
       </Router>

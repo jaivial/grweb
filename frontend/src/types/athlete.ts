@@ -4,6 +4,18 @@ export type Sex = 'Male' | 'Female';
 // Athlete status enum
 export type AthleteStatus = 'Inscrito' | 'Paid' | 'PendingPayment' | 'Disqualified' | 'MissingDocumentation';
 
+// Lift entry from backend
+export interface AthleteLiftEntry {
+  id: number;
+  athleteId: number;
+  liftType: 'Squat' | 'Bench' | 'Deadlift';
+  attemptNumber: number;
+  weight: number;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Athlete interface
 export interface Athlete {
   id: number;
@@ -18,6 +30,9 @@ export interface Athlete {
   registrationDate: string;
   coach?: string | null;
   status: AthleteStatus;
+  qrCode?: string | null;
+  checkinAt?: string | null;
+  liftEntries?: AthleteLiftEntry[];
   createdAt: string;
   updatedAt: string;
 }
