@@ -908,7 +908,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                     <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"">
                       <tr>
                         <td style=""padding:4px 0;font-size:13px;color:#8B949E;width:45%;"">Fecha</td>
-                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{competicion.Fecha:dddd, dd \""de\"" MMMM \""de\"" yyyy}</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{competicion.Fecha:dddd, dd 'de' MMMM 'de' yyyy}</td>
                       </tr>
                       <tr>
                         <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Lugar</td>
@@ -982,23 +982,23 @@ Experiencia: {expLabel}
 Handler GR Strength: {handlerText}
 GRS Peak Program: {peakText}
 
-{(inscripcion.PagoConfirmado ? "✅ Pago realizado: SÍ" : "❌ Pago realizado: NO")}
+{(inscripcion.PagoConfirmado ? "Pago realizado: SÍ" : "Pago realizado: NO")}
 Total a pagar: {precioTotal:F2} EUR
 
-💰 CÓMO PAGAR
+COMO PAGAR
 El pago se realiza SOLO en efectivo en la mesa de registro el día de la competición, por orden de llamada/llegada.
 
-La inscripción online solo garantiza una plaza reservada debido al límite de participantes. La entrada incluye tu pase y el de 1 handler en el área reservada al competidor.
+La inscripción online solo garantiza una plaza reservada debido al límite de participantes.
 
-{(qrCode != null ? $@"📱 CÓDIGO QR
+{(qrCode != null ? $@"CODIGO QR
 Presenta tu código QR en la mesa de registro el día del evento.
 Código: {qrCode}" : "")}
 
-📍 DETALLES DEL EVENTO
-Fecha: {competicion.Fecha:dddd, dd \""de\"" MMMM \""de\"" yyyy}
+DETALLES DEL EVENTO
+Fecha: {competicion.Fecha:dddd, dd 'de' MMMM 'de' yyyy}
 Lugar: {competicion.Lugar}
 
-📋 PRÓXIMOS PASOS
+PROXIMOS PASOS
 1. Guarda tu código QR para presentarlo el día del evento.
 2. Acude a la mesa de registro el día de la competición con el QR y el pago en efectivo.
 3. {(inscripcion.QuiereHandler ? "Nosotros nos encargamos del handler de forma gratuita." : "Si necesitas handler, infórmanos el día del evento.")}
