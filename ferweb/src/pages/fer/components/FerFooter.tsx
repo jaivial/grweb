@@ -43,7 +43,7 @@ export function FerFooter({ contactEmail }: FerFooterProps) {
               aria-label="Instagram GR Strength Club"
             >
               <span
-                className="text-sm font-medium hidden sm:inline"
+                className="text-sm font-medium"
                 style={{ color: FER_COLORS.text }}
                 data-ui="fer-footer-instagram-gr-text"
               >
@@ -61,7 +61,7 @@ export function FerFooter({ contactEmail }: FerFooterProps) {
               aria-label="Instagram FER Entrenamiento"
             >
               <span
-                className="text-sm font-medium hidden sm:inline"
+                className="text-sm font-medium"
                 style={{ color: FER_COLORS.text }}
                 data-ui="fer-footer-instagram-fer-text"
               >
