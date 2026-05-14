@@ -603,6 +603,44 @@ public class InscripcionService
     #region Judge Votes
 
     /// <summary>
+    /// Updates the weight for a specific lift attempt (inline edit from judge table)
+    /// </summary>
+    public async Task<LiftEntryInscripcion?> UpdateAttemptWeightAsync(int competicionId, int inscripcionId,
+        string liftType, int attemptNumber, decimal weight, string updatedBy)
+    {
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null) return null;
+
+        var existing = await _context.LiftEntriesInscripcion
+            .FirstOrDefaultAsync(l => l.InscripcionId == inscripcionId &&
+                                      l.LiftType == liftType &&
+                                      l.AttemptNumber == attemptNumber);
+
+        if (existing != null)
+        {
+            existing.Weight = weight;
+            existing.UpdatedBy = updatedBy;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return existing;
+        }
+
+        var entry = new LiftEntryInscripcion
+        {
+            InscripcionId = inscripcionId,
+            LiftType = liftType,
+            AttemptNumber = attemptNumber,
+            Weight = weight,
+            UpdatedBy = updatedBy,
+            UpdatedAt = DateTime.UtcNow
+        };
+        _context.LiftEntriesInscripcion.Add(entry);
+        await _context.SaveChangesAsync();
+        return entry;
+    }
+
+    /// <summary>
     /// Updates a judge's vote for a specific lift attempt
     /// </summary>
     public async Task<LiftEntryInscripcion?> UpdateJudgeVoteAsync(int competicionId, int inscripcionId,
