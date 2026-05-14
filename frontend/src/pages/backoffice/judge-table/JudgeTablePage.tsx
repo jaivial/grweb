@@ -694,8 +694,16 @@ export function JudgeTablePage(): JSX.Element {
                     <span className="text-sm text-gray-400 font-medium truncate">{formatNombre(athlete.nombre)}</span>
                     <span className="text-xs text-gray-500">{athlete.categoriaPeso}</span>
                     <span className="text-xs text-gray-500">{athlete.sexo === 'masculino' ? 'M' : 'F'}</span>
-                    <span className="text-sm text-gray-500 font-mono text-center">—</span>
-                    <span className="text-xs text-gray-600 text-center">Sin intento</span>
+                    <span
+                      className="text-sm text-gray-500 font-mono text-center cursor-pointer hover:text-white transition-colors"
+                      onClick={() => {
+                        setEditingCell({ inscripcionId: athlete.id, liftType: activeLiftTab, attemptNumber: attemptNum });
+                        setEditingValue('');
+                      }}
+                    >
+                      —
+                    </span>
+                    <span className="text-xs text-gray-600 text-center">Click para añadir</span>
                   </div>
                 );
               }
@@ -713,7 +721,7 @@ export function JudgeTablePage(): JSX.Element {
                 >
                   <span className="text-sm text-white font-medium truncate">{formatNombre(athlete.nombre)}</span>
                   <span className="text-xs text-gray-400">{athlete.categoriaPeso}</span>
-                  <span className="text-xs text-gray-400">{athlete.sexo === 'M' ? 'M' : 'F'}</span>
+                  <span className="text-xs text-gray-400">{athlete.sexo === 'masculino' ? 'M' : 'F'}</span>
                   {(() => {
                     const isEditing = editingCell?.inscripcionId === athlete.id
                       && editingCell?.liftType === activeLiftTab
