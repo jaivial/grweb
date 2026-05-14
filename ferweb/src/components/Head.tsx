@@ -8,7 +8,7 @@ interface HeadProps {
   children?: ReactNode;
 }
 
-const DEFAULT_TITLE = 'FER CUP 2026';
+const DEFAULT_TITLE = 'FER CUP II 2026';
 const DEFAULT_DESCRIPTION = 'Tu primera competición de powerlifting en Valencia, Valencia.';
 const DEFAULT_OG_IMAGE = '/og-image.png';
 

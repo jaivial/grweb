@@ -83,7 +83,7 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
               style={{ color: FER_COLORS.text }}
               data-ui="mobile-sidebar-logo-fer"
             >
-              FER CUP 2026
+              FER CUP II 2026
             </span>
             <span
               className="text-xs font-medium"

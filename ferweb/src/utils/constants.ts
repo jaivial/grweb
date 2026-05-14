@@ -79,7 +79,7 @@ export const VALIDATION_PATTERNS = {
 } as const;
 
 export const SEO = {
-  SITE_NAME: 'FER CUP',
+  SITE_NAME: 'FER CUP II',
   SITE_URL: 'https://fer.menustudioai.com',
   DEFAULT_DESCRIPTION: 'Entérate del FER CUP y participa en el sorteo.',
   DEFAULT_KEYWORDS: 'FER, Powerlifting, Sorteo, Evento',

@@ -21,7 +21,7 @@ export const FER_COLORS = {
 } as const;
 
 export const FER_EVENT = {
-  name: 'FER CUP',
+  name: 'FER CUP II',
   date: '25 Julio 2026',
   location: 'Valencia',
   instagramUrl: 'https://instagram.com/ferentrenamiento',
@@ -102,6 +102,6 @@ export const NAV_LINKS = [
   { label: 'Inscripción', path: '/inscripcion' },
   { label: 'Horarios', path: '/horarios' },
   { label: 'Ubicación', path: '/ubicacion' },
-  { label: 'Normativa', path: '/normativa' },
+  { label: 'Tutoriales', path: '/tutoriales' },
   { label: 'Sobre Nosotros', path: '/sobre-nosotros' },
 ] as const;
