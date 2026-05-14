@@ -13,8 +13,8 @@ import toast from 'react-hot-toast';
 
 interface JudgeVote {
   juez1Voto: boolean | null;
-  juez2Vote: boolean | null;
-  juez3Vote: boolean | null;
+  juez2Voto: boolean | null;
+  juez3Voto: boolean | null;
 }
 
 interface AttemptData {
@@ -23,8 +23,8 @@ interface AttemptData {
   attemptNumber: number;
   weight: number;
   juez1Voto: boolean | null;
-  juez2Vote: boolean | null;
-  juez3Vote: boolean | null;
+  juez2Voto: boolean | null;
+  juez3Voto: boolean | null;
 }
 
 interface AthleteAttempt {
@@ -167,8 +167,8 @@ export function JudgeTablePage(): JSX.Element {
           attemptNumber: a.attemptNumber,
           weight: a.weight,
           juez1Voto: a.juez1Voto ?? null,
-          juez2Vote: a.juez2Vote ?? null,
-          juez3Vote: a.juez3Vote ?? null,
+          juez2Voto: a.juez2Voto ?? null,
+          juez3Voto: a.juez3Voto ?? null,
         })) : [],
       })) : [];
 
@@ -210,8 +210,7 @@ export function JudgeTablePage(): JSX.Element {
           (a) => a.liftType === activeLiftTab
         );
         return { athlete, matchingAttempts };
-      })
-      .filter(({ matchingAttempts }) => matchingAttempts.length > 0);
+      });
   }, [athletes, activeLiftTab]);
 
   // ─── Vote helpers ───
@@ -279,6 +278,7 @@ export function JudgeTablePage(): JSX.Element {
                 delete next[key];
                 return next;
               });
+              fetchData();
             })
             .catch(() => {
               toast.error('Error al guardar votos');
@@ -295,7 +295,7 @@ export function JudgeTablePage(): JSX.Element {
         }
       }
     },
-    [lockStates, localVotes, slug, getDisplayVotes],
+    [lockStates, localVotes, slug, getDisplayVotes, fetchData],
   );
 
   const handleCircleClick = useCallback(
