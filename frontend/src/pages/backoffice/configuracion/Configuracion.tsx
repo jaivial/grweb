@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { JSX } from 'react';
 import { useAtomValue } from 'jotai';
+import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { Tabs } from '../../../components/ui';
 import { EmailSettingsForm } from './components/EmailSettingsForm';
 import { StripeSettingsForm } from './components/StripeSettingsForm';
@@ -8,13 +9,17 @@ import { useEmailConfig } from './hooks/useEmailConfig';
 import { useStripeConfig } from './hooks/useStripeConfig';
 import { EventoConfigEditor } from '../config/EventoConfigEditor';
 import { currentCompeticionIdAtom } from '../../../stores/auth.atoms';
+import { isCurrentFerAtom } from '../../../stores/auth.atoms';
 import { Settings } from 'lucide-react';
 
-const TABS = [
-  { id: 'email', label: 'Configuración de Email' },
-  { id: 'stripe', label: 'Stripe' },
-  { id: 'evento', label: 'Evento' },
-];
+function useTabs() {
+  const isFer = useAtomValue(isCurrentFerAtom);
+  return useMemo(() => [
+    { id: 'email', label: 'Configuración de Email' },
+    { id: 'stripe', label: 'Stripe' },
+    { id: 'evento', label: isFer ? 'Evento' : 'GRS Peak Program' },
+  ], [isFer]);
+}
 
 const DEFAULT_EMAIL_CONFIG = {
   mainProvider: 0,
@@ -36,6 +41,7 @@ const DEFAULT_STRIPE_CONFIG = {
 export function Configuracion(): JSX.Element {
   const [activeTab, setActiveTab] = useState('email');
   const competicionId = useAtomValue(currentCompeticionIdAtom);
+  const tabs = useTabs();
   const { config: emailConfig, isLoading: emailLoading, error: emailError, isSaving: emailSaving, fetchConfig: fetchEmailConfig, saveConfig: saveEmailConfig } = useEmailConfig(competicionId ?? undefined);
   const { config: stripeConfig, isLoading: stripeLoading, error: stripeError, isSaving: stripeSaving, fetchConfig: fetchStripeConfig, saveConfig: saveStripeConfig } = useStripeConfig(competicionId ?? undefined);
 
@@ -55,6 +61,7 @@ export function Configuracion(): JSX.Element {
   const error = activeTab === 'email' ? emailError : stripeError;
 
   return (
+    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="configuracion-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
@@ -83,7 +90,7 @@ export function Configuracion(): JSX.Element {
         {/* Tabs */}
         <div className="mb-4 xs:mb-6 -mx-3 xs:-mx-4 px-3 xs:px-4 overflow-x-auto scrollbar-hide" data-ui="config-tabs-wrapper">
           <Tabs
-            tabs={TABS}
+            tabs={tabs}
             activeTab={activeTab}
             onChange={handleTabChange}
           />
@@ -119,7 +126,7 @@ export function Configuracion(): JSX.Element {
           </div>
         )}
       </div>
-
+    </BackofficeLayout>
   );
 }
 
