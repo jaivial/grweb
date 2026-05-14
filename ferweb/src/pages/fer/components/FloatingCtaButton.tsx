@@ -9,39 +9,53 @@ interface FloatingCtaButtonProps {
 }
 
 /**
- * Floating "¡Inscribite ya!" button that follows the user across the homepage.
- * Disappears when the inscription form section is 50% visible.
+ * Floating "¡Inscríbete ya!" button that follows the user across the homepage.
+ * Hidden when the hero section is ≥50% visible (top of page) or when the
+ * inscription form section is ≥50% visible (user reached the form).
  */
 export function FloatingCtaButton({ onCtaClick }: FloatingCtaButtonProps): JSX.Element {
   const [isVisible, setIsVisible] = useState(false);
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const heroHiddenRef = useRef(false);
+  const formHiddenRef = useRef(false);
 
   useEffect(() => {
-    // Observe the inscription form section — hide button when 50% in view
-    const formSection = document.querySelector('[data-ui="fer-inscripcion-section"]');
-    if (!formSection) {
-      // If form section doesn't exist yet, show the button
+    const heroEl = document.querySelector('[data-ui="fer-hero-section"]');
+    const formEl = document.querySelector('[data-ui="fer-inscripcion-section"]');
+
+    const evaluate = () => {
+      setIsVisible(!heroHiddenRef.current && !formHiddenRef.current);
+    };
+
+    let observer: IntersectionObserver | null = null;
+
+    if (heroEl || formEl) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const el = entry.target;
+            const isHalfVisible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+
+            if (el === heroEl) {
+              heroHiddenRef.current = isHalfVisible;
+            }
+            if (el === formEl) {
+              formHiddenRef.current = isHalfVisible;
+            }
+          }
+          evaluate();
+        },
+        { threshold: [0, 0.5] }
+      );
+
+      if (heroEl) observer.observe(heroEl);
+      if (formEl) observer.observe(formEl);
+    } else {
+      // If neither exists yet, show the button by default
       setIsVisible(true);
-      return;
     }
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            setIsVisible(false);
-          } else {
-            setIsVisible(true);
-          }
-        }
-      },
-      { threshold: [0, 0.5] }
-    );
-
-    observerRef.current.observe(formSection);
-
     return () => {
-      observerRef.current?.disconnect();
+      observer?.disconnect();
     };
   }, []);
 
