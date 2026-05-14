@@ -18,9 +18,11 @@ import {
 import type { Inscripcion } from '../../../../types/api';
 import { FerFiltersAccordion } from './FerFiltersAccordion';
 import { FerInscripcionEditForm } from './FerInscripcionEditForm';
+import { FerInscripcionCreateForm } from './FerInscripcionCreateForm';
 
 const FER_TABS = [
   { id: 'todas', label: 'Todas las inscripciones' },
+  { id: 'anadir', label: 'Añadir inscripción' },
 ];
 
 const FER_EXP_LABELS: Record<string, string> = {
@@ -47,6 +49,7 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
     fetchInscripciones,
     fetchStats,
     updateInscripcion,
+    createInscripcion,
     deleteInscripcion,
     goToPage,
     nextPage,
@@ -92,6 +95,18 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
     }
   }, [editInscripcion, updateInscripcion]);
 
+  const handleCreateInscripcion = useCallback(async (data: any) => {
+    setSubmissionStatus('loading');
+    try {
+      await createInscripcion(data);
+      setSubmissionStatus('success');
+      setActiveTab('todas');
+      setTimeout(() => setSubmissionStatus('idle'), 2000);
+    } catch {
+      setSubmissionStatus('idle');
+    }
+  }, [createInscripcion]);
+
   const handleDeleteInscripcion = useCallback(async () => {
     if (!inscripcionToDelete) return;
     const result = await deleteInscripcion(inscripcionToDelete.id);
@@ -123,6 +138,17 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         {FER_EXP_LABELS[i.experiencia] || i.experiencia || '-'}
       </span>
     )},
+    { key: 'quiereHandler', header: 'Handler', render: (i: Inscripcion) => (
+      <span className={`text-xs px-2 py-1 rounded-xl inline-flex items-center gap-1 ${i.quiereHandler ? 'bg-purple-500/15 text-purple-400' : 'bg-white/5 text-white/40'}`} data-ui="fer-handler-badge">
+        {i.quiereHandler ? '✓' : '—'}
+      </span>
+    )},
+    { key: 'peakProgram', header: 'Peak Prg', render: (i: Inscripcion) => (
+      <span className={`text-xs px-2 py-1 rounded-xl inline-flex items-center gap-1 ${i.quierePeakProgram ? 'bg-indigo-500/15 text-indigo-400' : 'bg-white/5 text-white/40'}`} data-ui="fer-peakprogram-badge">
+        {i.quierePeakProgram ? '✓' : '—'}
+      </span>
+    )},
+
     { key: 'pagoConfirmado', header: 'Pago', render: (i: Inscripcion) => (
       <span className={`text-xs px-2 py-1 rounded-xl ${i.pagoConfirmado ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`} data-ui="fer-pago-badge">
         {i.pagoConfirmado ? 'Confirmado' : 'Pendiente'}
@@ -176,6 +202,7 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'todas' ? (
         <div className="space-y-4 xs:space-y-6 min-w-0" data-ui="fer-todas-tab">
           {/* KPI Section */}
           <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5 min-w-0" data-ui="fer-kpi-section">
@@ -204,7 +231,7 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
           </div>
 
           {/* Table */}
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl min-w-0 mb-48" data-ui="fer-table-container">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden min-w-0 mb-48" data-ui="fer-table-container">
             <div className="overflow-x-auto min-w-0">
               <ResponsiveTable
                 columns={ferTableColumns}
@@ -230,6 +257,12 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
             )}
           </div>
         </div>
+        ) : (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 xs:p-6" data-ui="fer-anadir-tab">
+            <h2 className="text-base xs:text-lg font-semibold text-white mb-4 xs:mb-6">Nueva Inscripción FER</h2>
+            <FerInscripcionCreateForm onSubmit={handleCreateInscripcion} isLoading={isLoading} />
+          </div>
+        )}
       </div>
 
       {/* Edit Modal */}

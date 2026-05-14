@@ -515,9 +515,91 @@ public class InscripcionService
     }
 
     #endregion
-}
 
-// DTOs
+    #region Lift Attempts (FER)
+
+    /// <summary>
+    /// Sets openers (attempt 1) for all 3 lifts for an inscription
+    /// </summary>
+    public async Task<List<LiftEntryInscripcion>> SetOpenersAsync(
+        int competicionId, int inscripcionId,
+        decimal sentadilla1, decimal sentadilla2, decimal sentadilla3,
+        decimal banca1, decimal banca2, decimal banca3,
+        decimal pesoMuerto1, decimal pesoMuerto2, decimal pesoMuerto3,
+        string updatedBy)
+    {
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null)
+            throw new InvalidOperationException("Inscripción no encontrada");
+        if (!inscripcion.PagoConfirmado)
+            throw new InvalidOperationException("Debe confirmar el pago antes de registrar intentos");
+
+        var now = DateTime.UtcNow;
+        var results = new List<LiftEntryInscripcion>();
+
+        // Sentadilla
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 1, sentadilla1, updatedBy, now));
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 2, sentadilla2, updatedBy, now));
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 3, sentadilla3, updatedBy, now));
+
+        // Press de Banca
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 1, banca1, updatedBy, now));
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 2, banca2, updatedBy, now));
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 3, banca3, updatedBy, now));
+
+        // Peso Muerto
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 1, pesoMuerto1, updatedBy, now));
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 2, pesoMuerto2, updatedBy, now));
+        results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 3, pesoMuerto3, updatedBy, now));
+
+        await _context.SaveChangesAsync();
+        return results;
+    }
+
+    private async Task<LiftEntryInscripcion> UpsertLiftAttempt(
+        int inscripcionId, string liftType, int attemptNumber, decimal weight, string updatedBy, DateTime now)
+    {
+        var existing = await _context.LiftEntriesInscripcion
+            .FirstOrDefaultAsync(l => l.InscripcionId == inscripcionId &&
+                                       l.LiftType == liftType &&
+                                       l.AttemptNumber == attemptNumber);
+
+        if (existing != null)
+        {
+            existing.Weight = weight;
+            existing.UpdatedBy = updatedBy;
+            existing.UpdatedAt = now;
+            return existing;
+        }
+
+        var entry = new LiftEntryInscripcion
+        {
+            InscripcionId = inscripcionId,
+            LiftType = liftType,
+            AttemptNumber = attemptNumber,
+            Weight = weight,
+            UpdatedBy = updatedBy,
+            UpdatedAt = now
+        };
+        _context.LiftEntriesInscripcion.Add(entry);
+        return entry;
+    }
+
+    /// <summary>
+    /// Gets all lift attempts for an inscription
+    /// </summary>
+    public async Task<List<LiftEntryInscripcion>> GetAllAttemptsAsync(int competicionId, int inscripcionId)
+    {
+        return await _context.LiftEntriesInscripcion
+            .Where(l => l.InscripcionId == inscripcionId)
+            .OrderBy(l => l.LiftType)
+            .ThenBy(l => l.AttemptNumber)
+            .ToListAsync();
+    }
+
+    #endregion
+}
 public record CreateInscripcionRequest(
     string Nombre,
     string Email,

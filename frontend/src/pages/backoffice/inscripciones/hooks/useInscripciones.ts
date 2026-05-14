@@ -1,7 +1,7 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useCallback } from 'react';
 import api from '../../../../api/client';
-import type { UpdateInscripcionRequest } from '../../../../types/api';
+import type { CreateInscripcionRequest, UpdateInscripcionRequest } from '../../../../types/api';
 import {
   ferInscripcionesAtom,
   ferInscripcionesLoadingAtom,
@@ -89,6 +89,15 @@ export function useInscripciones(competicionId: number) {
     return result;
   }, [competicionId, fetchInscripciones, fetchStats]);
 
+  const createInscripcion = useCallback(async (data: CreateInscripcionRequest) => {
+    const result = await api.createAdminInscripcion(competicionId, data);
+    if (result.success) {
+      await fetchInscripciones();
+      await fetchStats();
+    }
+    return result;
+  }, [competicionId, fetchInscripciones, fetchStats]);
+
   const deleteInscripcion = useCallback(async (inscripcionId: number) => {
     const result = await api.deleteAdminInscripcion(competicionId, inscripcionId);
     if (result.success) {
@@ -136,6 +145,7 @@ export function useInscripciones(competicionId: number) {
     fetchInscripciones,
     fetchStats,
     updateInscripcion,
+    createInscripcion,
     deleteInscripcion,
     goToPage,
     nextPage,

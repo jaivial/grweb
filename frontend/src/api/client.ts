@@ -252,6 +252,20 @@ class ApiClient {
   }
 
 
+  async createAdminInscripcion(
+    competicionId: number,
+    data: CreateInscripcionRequest
+  ): Promise<ApiResponse<Inscripcion>> {
+    return this.request<Inscripcion>(
+      `/api/admin/competiciones/${competicionId}/inscripciones`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+
   async updateAdminInscripcion(
     competicionId: number,
     inscripcionId: number,

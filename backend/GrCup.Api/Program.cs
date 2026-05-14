@@ -199,6 +199,7 @@ app.MapUsuarioEndpoints();
 app.MapInscripcionEndpoints();
 app.MapRifaEndpoints();
 app.MapTutorialEndpoints();
+app.MapFerLiftEndpoints();
 
 
 app.Run();

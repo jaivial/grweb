@@ -8,17 +8,26 @@ interface EventoCapacityFieldsProps {
   form: EventoConfigFormData;
   disabled: boolean;
   onUpdate: <K extends keyof EventoConfigFormData>(key: K, value: EventoConfigFormData[K]) => void;
+  isFer?: boolean;
 }
 
-export function EventoCapacityFields({ form, disabled, onUpdate }: EventoCapacityFieldsProps): JSX.Element {
+export function EventoCapacityFields({ form, disabled, onUpdate, isFer }: EventoCapacityFieldsProps): JSX.Element {
   const capacityFields = useMemo(
-    () => FIELD_CONFIG.filter(f => f.suffix === null),
-    []
+    () => {
+      let fields = FIELD_CONFIG.filter(f => f.suffix === null);
+      if (isFer) {
+        // FER: only show aforoMaximo, not maxTicketsPorPersona
+        fields = fields.filter(f => f.key === 'aforMaximo');
+      }
+      return fields;
+    },
+    [isFer]
   );
 
   return (
     <div className="space-y-4" data-ui="evento-capacity-fields">
-      {capacityFields.map(field => (
+      {capacityFields.map(function(field) {
+        return (
         <div key={field.key} data-ui={`evento-field-${field.key}`}>
           <label
             htmlFor={`evento-${field.key}`}
@@ -43,8 +52,10 @@ export function EventoCapacityFields({ form, disabled, onUpdate }: EventoCapacit
             data-ui={`evento-input-${field.key}`}
           />
         </div>
-      ))}
+        );
+      })}
 
+      {!isFer && (
       <div className="pt-4 border-t border-white/10" data-ui="evento-toggle-section">
         <div className="flex items-center justify-between" data-ui="evento-toggle-row">
           <div data-ui="evento-toggle-info">
@@ -83,6 +94,7 @@ export function EventoCapacityFields({ form, disabled, onUpdate }: EventoCapacit
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

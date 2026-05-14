@@ -17,9 +17,6 @@ public class EmailConfig
     // Per-competition FK (nullable = global config)
     public int? CompeticionId { get; set; }
     [ForeignKey(nameof(CompeticionId))]
-    public Competicion? Competicion { get; set; }
-
-    // Navigation property
     public virtual Competicion? Competicion { get; set; }
 
     // Gmail fields

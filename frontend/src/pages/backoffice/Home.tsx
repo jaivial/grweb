@@ -7,8 +7,8 @@ import { KpiCard } from '../../components/ui/KpiCard/KpiCard';
 import { api } from '../../utils/api';
 import { useSignalR } from '../../hooks/useSignalR';
 import { participantCount } from '../../stores/participants';
-import { currentCompeticionAtom } from '../../stores/auth.atoms';
-import { Settings } from 'lucide-react';
+import { currentCompeticionAtom, isCurrentFerAtom } from '../../stores/auth.atoms';
+import { Settings, Users, Calendar, QrCode, ClipboardList, Gavel } from 'lucide-react';
 
 interface Statistics {
   totalParticipants: number;
@@ -21,13 +21,14 @@ export function BackofficeHome(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentCompeticion = useAtomValue(currentCompeticionAtom);
+  const isFer = useAtomValue(isCurrentFerAtom);
 
   useSignalR();
 
-  const qrReaderHref = useMemo(() => {
-    const slug = currentCompeticion?.slug;
-    return slug ? `/backoffice/${slug}/qr-reader` : '/backoffice/qr-reader';
-  }, [currentCompeticion?.slug]);
+  const slug = currentCompeticion?.slug ?? '';
+  const buildPath = (subPath: string) => slug ? `/backoffice/${slug}/${subPath}` : `/backoffice/${subPath}`;
+
+  const qrReaderHref = useMemo(() => buildPath('qr-reader'), [slug]);
 
   const fetchStatistics = useCallback(async () => {
     try {
@@ -95,78 +96,56 @@ export function BackofficeHome(): JSX.Element {
             icon={
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-          />
+          <p className="text-sm xs:text-base text-gray-400" data-ui="home-subtitle">
+            Gestiona las {isFer ? 'inscripciones y horarios' : 'inscripciones, sorteos y horarios'} de {currentCompeticion?.nombre ?? 'la competicion'}
+          </p>
         </div>
 
         {/* Section Cards */}
-        <CardGrid columns={4}>
+        <CardGrid columns={isFer ? 3 : 4}>
           <SectionCard
             title="Inscripciones"
             description="Gestiona los atletas registrados y filtra por categoria"
-            href="/backoffice/inscripciones"
-            icon={
-              <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            }
+            href={buildPath('inscripciones')}
+            icon={<ClipboardList className="w-5 h-5 xs:w-6 xs:h-6 text-red-accent" />}
           />
+          {!isFer && (<>
           <SectionCard
             title="Participantes"
             description="Administra las entradas del sorteo y exporta datos en CSV"
-            href="/backoffice/participantes"
-            icon={
-              <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-              </svg>
-            }
+            href={buildPath('participantes')}
+            icon={<Users className="w-5 h-5 xs:w-6 xs:h-6 text-blue-400" />}
           />
           <SectionCard
             title="Sorteo"
             description="Realiza el sorteo de ganadores entre los participantes"
-            href="/backoffice/sorteo"
-            icon={
-              <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
+            href={buildPath('sorteo')}
+            icon={<Gavel className="w-5 h-5 xs:w-6 xs:h-6 text-purple-400" />}
           />
+          </>)}
           <SectionCard
             title="Horarios"
             description="Configura los horarios de las categorias por dia"
-            href="/backoffice/horarios"
-            icon={
-              <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            }
+            href={buildPath('horarios')}
+            icon={<Calendar className="w-5 h-5 xs:w-6 xs:h-6 text-blue-400" />}
           />
           <SectionCard
             title="Configuración General"
             description="Configura el sistema de email para envíos automáticos"
-            href="/backoffice/configuracion"
-            icon={<Settings className="w-5 h-5 xs:w-6 xs:h-6" />}
+            href={buildPath('configuracion')}
+            icon={<Settings className="w-5 h-5 xs:w-6 xs:h-6 text-gray-400" />}
           />
           <SectionCard
             title="Lector QR"
             description="Escanea el código QR del atleta para verificar inscripción y pago"
             href={qrReaderHref}
-            icon={
-              <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-              </svg>
-            }
+            icon={<QrCode className="w-5 h-5 xs:w-6 xs:h-6 text-green-400" />}
           />
           <SectionCard
             title="Mesa de Jueces"
-            description="Vista en vivo de atletas, intentos y pesos para el juez de mesa"
-            href="/backoffice/judge-table"
-            icon={
-              <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-            }
+            description="Vista en vivo de intentos y pesos de cada atleta"
+            href={buildPath('judge-table')}
+            icon={<Users className="w-5 h-5 xs:w-6 xs:h-6 text-orange-400" />}
           />
         </CardGrid>
 

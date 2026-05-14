@@ -39,6 +39,14 @@ export default defineConfig({
   },
   server: {
     allowedHosts: ['fer-backoffice.menustudioai.com'],
+    headers: {
+      'Permissions-Policy': 'camera=(self)',
+    },
+    hmr: {
+      host: 'fer-backoffice.menustudioai.com',
+      protocol: 'wss',
+      clientPort: 443,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5006',

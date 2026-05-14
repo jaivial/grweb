@@ -36,7 +36,7 @@ export function useStripeConfig(competicionId?: number): UseStripeConfigReturn {
 
     try {
       const result = await api.getStripeAdminConfig(competicionId);
-      if (result.success && result.data) {
+      if (result.success) {
         setConfig(result.data as StripeConfigData);
       } else {
         setError(result.message || 'Error al cargar la configuración de Stripe');
@@ -54,7 +54,7 @@ export function useStripeConfig(competicionId?: number): UseStripeConfigReturn {
 
     try {
       const result = await api.updateStripeAdminConfig(data, competicionId);
-      if (result.success && result.data) {
+      if (result.success) {
         setConfig(result.data as StripeConfigData);
         return true;
       } else {

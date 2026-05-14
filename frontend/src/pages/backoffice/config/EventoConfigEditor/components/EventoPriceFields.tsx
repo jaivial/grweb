@@ -2,17 +2,31 @@ import { useMemo, useCallback } from 'react';
 import type { JSX } from 'react';
 import type { EventoConfigFormData } from '../types';
 import { FIELD_CONFIG } from '../constants';
-import { Euro } from 'lucide-react';
+import { Euro, Calendar } from 'lucide-react';
+import { DatePicker } from '../../../../../components/ui/DatePicker';
 
 interface EventoPriceFieldsProps {
   form: EventoConfigFormData;
   disabled: boolean;
   onUpdate: <K extends keyof EventoConfigFormData>(key: K, value: EventoConfigFormData[K]) => void;
+  isFer?: boolean;
 }
 
-export function EventoPriceFields({ form, disabled, onUpdate }: EventoPriceFieldsProps): JSX.Element {
+export function EventoPriceFields({ form, disabled, onUpdate, isFer }: EventoPriceFieldsProps): JSX.Element {
   const priceFields = useMemo(
-    () => FIELD_CONFIG.filter(f => f.suffix === 'EUR'),
+    () => {
+      let fields = FIELD_CONFIG.filter(f => f.suffix === 'EUR');
+      if (isFer) {
+        // FER: only show PrecioBase and PrecioPeakProgram
+        fields = fields.filter(f => f.key === 'precioBase' || f.key === 'precioPeakProgram');
+      }
+      return fields;
+    },
+    [isFer]
+  );
+
+  const dateField = useMemo(
+    () => FIELD_CONFIG.find(f => f.key === 'fechaLimitePeakProgram'),
     []
   );
 
@@ -49,6 +63,29 @@ export function EventoPriceFields({ form, disabled, onUpdate }: EventoPriceField
           </div>
         </div>
       ))}
+
+      {dateField && (
+        <div className="pt-4 border-t border-white/10" data-ui="evento-field-fechaLimitePeakProgram">
+          <label
+            htmlFor={`evento-${dateField.key}`}
+            className="block text-sm font-medium text-gray-300 mb-1.5"
+            data-ui={`evento-label-${dateField.key}`}
+          >
+            <Calendar size={14} className="inline mr-1.5 opacity-60" />
+            {dateField.label}
+          </label>
+          <DatePicker
+            value={form.fechaLimitePeakProgram}
+            onChange={useCallback(
+              (date: string | null) => onUpdate('fechaLimitePeakProgram', date ?? ''),
+              [onUpdate]
+            )}
+            disabled={disabled}
+            placeholder="Seleccionar fecha..."
+            data-ui="evento-input-fechaLimitePeakProgram"
+          />
+        </div>
+      )}
     </div>
   );
 }

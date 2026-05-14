@@ -24,16 +24,24 @@ public static class StripeConfigEndpoints
             {
                 return Results.Ok(new
                 {
-                    secretKey = (string?)null,
-                    publishableKey = (string?)null,
-                    webhookSecret = (string?)null
+                    success = true,
+                    data = new
+                    {
+                        secretKey = (string?)null,
+                        publishableKey = (string?)null,
+                        webhookSecret = (string?)null
+                    }
                 });
             }
             return Results.Ok(new
             {
-                secretKey = MaskKey(config.SecretKey),
-                publishableKey = config.PublishableKey,
-                webhookSecret = MaskKey(config.WebhookSecret)
+                success = true,
+                data = new
+                {
+                    secretKey = MaskKey(config.SecretKey),
+                    publishableKey = config.PublishableKey,
+                    webhookSecret = MaskKey(config.WebhookSecret)
+                }
             });
         });
 
@@ -52,9 +60,13 @@ public static class StripeConfigEndpoints
             var result = await service.UpsertConfigAsync(config, competicionId);
             return Results.Ok(new
             {
-                secretKey = MaskKey(result.SecretKey),
-                publishableKey = result.PublishableKey,
-                webhookSecret = MaskKey(result.WebhookSecret)
+                success = true,
+                data = new
+                {
+                    secretKey = MaskKey(result.SecretKey),
+                    publishableKey = result.PublishableKey,
+                    webhookSecret = MaskKey(result.WebhookSecret)
+                }
             });
         });
 
@@ -62,7 +74,7 @@ public static class StripeConfigEndpoints
         app.MapDelete("/api/admin/stripe-config", [Authorize] async (StripeConfigService service, int? competicionId) =>
         {
             var deleted = await service.DeleteConfigAsync(competicionId);
-            return deleted ? Results.Ok(new { message = "Configuración Stripe eliminada" }) : Results.NotFound(new { message = "No se encontró configuración Stripe" });
+            return deleted ? Results.Ok(new { success = true, message = "Configuración Stripe eliminada" }) : Results.NotFound(new { success = false, message = "No se encontró configuración Stripe" });
         });
     }
 }

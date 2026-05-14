@@ -71,17 +71,18 @@ public class Inscripcion
     [Required]
     [MaxLength(50)]
     public string Experiencia { get; set; } = "principiante";
-    
+
     /// <summary>
-    /// Whether the athlete has a coach/trainer
+    /// Whether the athlete wants the GRS Peak Program (training programming up to event)
+    /// </summary>
+    public bool QuierePeakProgram { get; set; } = false;
+
+    /// <summary>
+    /// [LEGACY] Whether the athlete has a coach/trainer. Kept for backward compatibility.
+    /// Use QuiereHandler or other fields for new registrations.
     /// </summary>
     public bool TieneEntrenador { get; set; } = false;
-    
-    /// <summary>
-    /// Optional upsell: wants coaching/preparation help (+50€)
-    /// </summary>
-    public bool UpsellPreparacion { get; set; } = false;
-    
+
     /// <summary>
     /// QR code data (base64 or JSON with signature)
     /// </summary>

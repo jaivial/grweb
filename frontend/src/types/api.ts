@@ -111,8 +111,7 @@ export interface Inscripcion {
   instagram?: string;
   pesoAprox: number;
   experiencia: 'principiante' | 'intermedio' | 'avanzado';
-  tieneEntrenador: boolean;
-  upsellPreparacion: boolean;
+  quierePeakProgram?: boolean;
   telefono?: string;
   sexo?: string;
   categoriaPeso?: string;
@@ -133,10 +132,13 @@ export interface CreateInscripcionRequest {
   nombre: string;
   email: string;
   instagram?: string;
+  telefono?: string;
+  sexo?: string;
+  categoriaPeso?: string;
   pesoAprox: number;
   experiencia: 'principiante' | 'intermedio' | 'avanzado';
-  tieneEntrenador: boolean;
-  upsellPreparacion: boolean;
+  quiereHandler?: boolean;
+  quierePeakProgram?: boolean;
   aceptaTerminos: boolean;
 }
 
@@ -250,9 +252,8 @@ export interface UpdateInscripcionRequest {
   categoriaPeso?: string;
   pesoAprox?: number;
   experiencia?: 'principiante' | 'intermedio' | 'avanzado';
-  tieneEntrenador?: boolean;
-  upsellPreparacion?: boolean;
   quiereHandler?: boolean;
+  quierePeakProgram?: boolean;
   participacionConfirmada?: boolean;
   pagoConfirmado?: boolean;
   paymentMethod?: string;
@@ -283,7 +284,5 @@ export interface FERInscripcionFormData {
   instagram: string;
   pesoAprox: number;
   experiencia: 'principiante' | 'intermedio' | 'avanzado';
-  tieneEntrenador: boolean;
-  upsellPreparacion: boolean;
   aceptaTerminos: boolean;
 }

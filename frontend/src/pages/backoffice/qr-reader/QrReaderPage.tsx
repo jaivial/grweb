@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAtomValue } from 'jotai';
 import { currentCompeticionAtom } from '../../../stores/auth.atoms';
+import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 import { api } from '../../../utils/api';
 import { Confetti, AnimatedCheckmark, SuccessBanner, WarningIcon } from './components';
 
@@ -57,6 +58,15 @@ export function QrReaderPage(): JSX.Element {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [manualQrInput, setManualQrInput] = useState('');
+  const [liftData, setLiftData] = useState({
+    sentadilla1: 0, sentadilla2: 0, sentadilla3: 0,
+    banca1: 0, banca2: 0, banca3: 0,
+    pesoMuerto1: 0, pesoMuerto2: 0, pesoMuerto3: 0,
+  });
+  const [liftSaving, setLiftSaving] = useState(false);
+  const [liftSaved, setLiftSaved] = useState(false);
+
+  const updateLift = (field: string, value: number) => setLiftData(prev => ({ ...prev, [field]: value }));
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
@@ -120,10 +130,17 @@ export function QrReaderPage(): JSX.Element {
           scanner.stop().catch(() => {});
           scannerRef.current = null;
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!cancelled) {
           console.error('QR scanner error:', err);
-          setErrorMsg('No se pudo acceder a la cámara. Puedes introducir el código QR manualmente.');
+          const msg = err?.message ?? '';
+          if (msg.includes('NotAllowedError') || msg.includes('Permission denied')) {
+            setErrorMsg('Permiso de cámara denegado por el navegador. Si usas fer-backoffice.menustudioai.com, el administrador debe crear una Transform Rule en Cloudflare Dashboard (Security > Transform Rules) que añada "Permissions-Policy: camera=(self)" para este subdominio. Mientras tanto, introduce el código QR manualmente.');
+          } else if (msg.includes('NotFoundError') || msg.includes('Requested device not found')) {
+            setErrorMsg('No se detectó ninguna cámara en este dispositivo. Puedes introducir el código QR manualmente.');
+          } else {
+            setErrorMsg('No se pudo acceder a la cámara. Puedes introducir el código QR manualmente.');
+          }
         }
       }
     };
@@ -140,6 +157,49 @@ export function QrReaderPage(): JSX.Element {
       isScannerStartedRef.current = false;
     };
   }, [scanState, slug]);
+
+  // Load existing openers when athlete data is loaded
+  useEffect(() => {
+    if (!slug || !inscripcion?.id) return;
+    (async () => {
+      try {
+        const result = await api.getFerOpeners(slug, inscripcion.id);
+        if (result.success && result.data) {
+          const data = result.data;
+          setLiftData({
+            sentadilla1: data.sentadilla1 ?? 0,
+            sentadilla2: data.sentadilla2 ?? 0,
+            sentadilla3: data.sentadilla3 ?? 0,
+            banca1: data.banca1 ?? 0,
+            banca2: data.banca2 ?? 0,
+            banca3: data.banca3 ?? 0,
+            pesoMuerto1: data.pesoMuerto1 ?? 0,
+            pesoMuerto2: data.pesoMuerto2 ?? 0,
+            pesoMuerto3: data.pesoMuerto3 ?? 0,
+          });
+        }
+      } catch (err) {
+        console.error('Error loading openers:', err);
+      }
+    })();
+  }, [slug, inscripcion?.id]);
+
+  const handleSaveLifts = useCallback(async () => {
+    if (!slug || !inscripcion) return;
+    setLiftSaving(true);
+    setLiftSaved(false);
+    try {
+      const result = await api.setFerOpeners(slug, inscripcion.id, liftData);
+      if (result.success) {
+        setLiftSaved(true);
+        setTimeout(() => setLiftSaved(false), 3000);
+      }
+    } catch (err) {
+      console.error('Error saving lifts:', err);
+    } finally {
+      setLiftSaving(false);
+    }
+  }, [slug, inscripcion, liftData]);
 
   const handleQrScanned = useCallback(
     async (qrData: string) => {
@@ -241,6 +301,9 @@ export function QrReaderPage(): JSX.Element {
     setShowPaymentConfirmDialog(false);
     setShowPaymentSuccess(false);
     setShowConfetti(false);
+    setLiftData({ sentadilla1: 0, sentadilla2: 0, sentadilla3: 0, banca1: 0, banca2: 0, banca3: 0, pesoMuerto1: 0, pesoMuerto2: 0, pesoMuerto3: 0 });
+    setLiftSaving(false);
+    setLiftSaved(false);
     if (paymentSuccessTimerRef.current) clearTimeout(paymentSuccessTimerRef.current);
   }, []);
 
@@ -278,7 +341,8 @@ export function QrReaderPage(): JSX.Element {
     <>
       <Confetti active={showConfetti} />
 
-      <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto" data-ui="qr-reader-page">
+      <BackofficeLayout>
+        <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto" data-ui="qr-reader-page">
         <div className="mb-6" data-ui="qr-reader-header">
           <h1 className="text-2xl font-bold text-white mb-1" data-ui="qr-reader-title">
             Lector QR
@@ -563,6 +627,84 @@ export function QrReaderPage(): JSX.Element {
               </div>
             </div>
 
+            {/* Lift attempts (openers) */}
+            {inscripcion.pagoConfirmado && inscripcion.participacionConfirmada && (
+              <div className="p-5 rounded-xl bg-dark-surface border border-white/5" data-ui="qr-reader-lifts-card">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1" data-ui="qr-reader-lifts-label">
+                  INTENTOS (OPENERS)
+                </h3>
+                <p className="text-xs text-gray-500 mb-4" data-ui="qr-reader-lifts-subtitle">
+                  Registra los pesos de apertura para cada levantamiento
+                </p>
+                <div className="grid grid-cols-3 gap-4" data-ui="qr-reader-lifts-grid">
+                  {/* Sentadilla */}
+                  <div data-ui="qr-reader-lifts-sentadilla">
+                    <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Sentadilla</p>
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((n) => (
+                        <input
+                          key={`sentadilla${n}`}
+                          type="number"
+                          value={liftData[`sentadilla${n}` as keyof typeof liftData]}
+                          onChange={(e) => updateLift(`sentadilla${n}`, Number(e.target.value))}
+                          placeholder={`Intento ${n}`}
+                          className="w-full px-3 py-2 rounded-lg bg-dark-base border border-white/10 text-white text-sm focus:outline-none focus:border-red-accent"
+                          data-ui={`qr-reader-lifts-input-sentadilla${n}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {/* Press de Banca */}
+                  <div data-ui="qr-reader-lifts-banca">
+                    <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Press de Banca</p>
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((n) => (
+                        <input
+                          key={`banca${n}`}
+                          type="number"
+                          value={liftData[`banca${n}` as keyof typeof liftData]}
+                          onChange={(e) => updateLift(`banca${n}`, Number(e.target.value))}
+                          placeholder={`Intento ${n}`}
+                          className="w-full px-3 py-2 rounded-lg bg-dark-base border border-white/10 text-white text-sm focus:outline-none focus:border-red-accent"
+                          data-ui={`qr-reader-lifts-input-banca${n}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {/* Peso Muerto */}
+                  <div data-ui="qr-reader-lifts-peso-muerto">
+                    <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Peso Muerto</p>
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((n) => (
+                        <input
+                          key={`pesoMuerto${n}`}
+                          type="number"
+                          value={liftData[`pesoMuerto${n}` as keyof typeof liftData]}
+                          onChange={(e) => updateLift(`pesoMuerto${n}`, Number(e.target.value))}
+                          placeholder={`Intento ${n}`}
+                          className="w-full px-3 py-2 rounded-lg bg-dark-base border border-white/10 text-white text-sm focus:outline-none focus:border-red-accent"
+                          data-ui={`qr-reader-lifts-input-peso-muerto${n}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSaveLifts}
+                  disabled={liftSaving}
+                  className="w-full mt-4 py-3 rounded-xl bg-red-accent text-white font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-ui="qr-reader-lifts-save-btn"
+                >
+                  {liftSaving ? 'Guardando...' : 'Guardar Intentos'}
+                </button>
+                {liftSaved && (
+                  <p className="text-green-400 text-sm text-center mt-2" data-ui="qr-reader-lifts-saved-msg">
+                    Intentos guardados correctamente
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Schedule */}
             {inscripcion.horarios && inscripcion.horarios.length > 0 && (
               <div className="p-5 rounded-xl bg-dark-surface border border-white/5" data-ui="qr-reader-schedule-card">
@@ -713,7 +855,8 @@ export function QrReaderPage(): JSX.Element {
             </button>
           </div>
         )}
-      </div>
+        </div>
+      </BackofficeLayout>
     </>
   );
 }

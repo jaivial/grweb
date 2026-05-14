@@ -2,10 +2,6 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { JSX } from 'react';
 import { Button } from '../../../../components/ui';
 import { CheckCircle, ChevronDown } from 'lucide-react';
-import type { Inscripcion } from '../../../../types/api';
-import api from '../../../../api/client';
-import { useAtomValue } from 'jotai';
-import { currentCompeticionAtom } from '../../../../stores/auth.atoms';
 
 const DEFAULT_MEN_CATEGORIES = ['-53', '-59', '-66', '-74', '-83', '-93', '-105', '-120', '+120'] as const;
 const DEFAULT_WOMEN_CATEGORIES = ['-43', '-47', '-52', '-57', '-63', '-69', '-76', '-84', '+84'] as const;
@@ -24,49 +20,27 @@ const EXPERIENCE_DESCRIPTIONS: Record<string, string> = {
   avanzado: 'He competido en más de 10 AEP2 y al menos un AEP1',
 };
 
-interface FerInscripcionEditFormProps {
-  inscripcion: Inscripcion;
+interface FerInscripcionCreateFormProps {
   onSubmit: (data: any) => Promise<void>;
-  onCancel: () => void;
   isLoading: boolean;
 }
 
-export function FerInscripcionEditForm({
-  inscripcion,
+export function FerInscripcionCreateForm({
   onSubmit,
-  onCancel,
   isLoading,
-}: FerInscripcionEditFormProps): JSX.Element {
-  const currentCompeticion = useAtomValue(currentCompeticionAtom);
-  const slug = currentCompeticion?.slug ?? '';
-
+}: FerInscripcionCreateFormProps): JSX.Element {
   const [formData, setFormData] = useState({
-    nombre: inscripcion.nombre || '',
-    email: inscripcion.email || '',
-    instagram: inscripcion.instagram || '',
-    telefono: inscripcion.telefono || '',
-    sexo: inscripcion.sexo || '',
-    categoriaPeso: inscripcion.categoriaPeso || '',
-    experiencia: inscripcion.experiencia || 'principiante',
-    quiereHandler: inscripcion.quiereHandler ?? false,
-    quierePeakProgram: inscripcion.quierePeakProgram ?? false,
-    aceptaTerminos: inscripcion.aceptaTerminos ?? false,
-    pagoConfirmado: inscripcion.pagoConfirmado ?? false,
-    participacionConfirmada: inscripcion.participacionConfirmada ?? false,
-    notas: inscripcion.notas || '',
+    nombre: '',
+    email: '',
+    instagram: '',
+    telefono: '',
+    sexo: '',
+    categoriaPeso: '',
+    experiencia: 'principiante',
+    quiereHandler: false,
+    quierePeakProgram: false,
+    aceptaTerminos: false,
   });
-
-  const [activeTab, setActiveTab] = useState<'datos' | 'intentos'>('datos');
-
-  const [liftData, setLiftData] = useState({
-    sentadilla1: 0, sentadilla2: 0, sentadilla3: 0,
-    banca1: 0, banca2: 0, banca3: 0,
-    pesoMuerto1: 0, pesoMuerto2: 0, pesoMuerto3: 0,
-  });
-  const [liftSaving, setLiftSaving] = useState(false);
-  const [liftSaved, setLiftSaved] = useState(false);
-
-  const updateLift = (field: string, value: number) => setLiftData(prev => ({ ...prev, [field]: value }));
 
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -108,6 +82,9 @@ export function FerInscripcionEditForm({
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.sexo || !formData.categoriaPeso) {
+      return;
+    }
     onSubmit(formData);
   }, [formData, onSubmit]);
 
@@ -133,141 +110,74 @@ export function FerInscripcionEditForm({
     setFormData(prev => ({ ...prev, [field]: !(prev as any)[field] }));
   }, []);
 
-  // Load existing openers on mount
-  useEffect(() => {
-    if (!slug || !inscripcion?.id) return;
-    (async () => {
-      try {
-        const result = await api.getFerOpeners(slug, inscripcion.id);
-        if (result.success && result.data) {
-          const data = result.data;
-          setLiftData({
-            sentadilla1: data.sentadilla1 ?? 0,
-            sentadilla2: data.sentadilla2 ?? 0,
-            sentadilla3: data.sentadilla3 ?? 0,
-            banca1: data.banca1 ?? 0,
-            banca2: data.banca2 ?? 0,
-            banca3: data.banca3 ?? 0,
-            pesoMuerto1: data.pesoMuerto1 ?? 0,
-            pesoMuerto2: data.pesoMuerto2 ?? 0,
-            pesoMuerto3: data.pesoMuerto3 ?? 0,
-          });
-        }
-      } catch (err) {
-        console.error('Error loading openers:', err);
-      }
-    })();
-  }, [slug, inscripcion?.id]);
-
-  const handleSaveLifts = useCallback(async () => {
-    if (!slug || !inscripcion) return;
-    setLiftSaving(true);
-    setLiftSaved(false);
-    try {
-      const result = await api.setFerOpeners(slug, inscripcion.id, liftData);
-      if (result.success) {
-        setLiftSaved(true);
-        setTimeout(() => setLiftSaved(false), 3000);
-      }
-    } catch (err) {
-      console.error('Error saving lifts:', err);
-    } finally {
-      setLiftSaving(false);
-    }
-  }, [slug, inscripcion, liftData]);
+  const isFormValid = formData.nombre && formData.email && formData.sexo && formData.categoriaPeso;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" data-ui="fer-edit-form">
-      {/* ── Tab Headers ── */}
-      <div className="flex border-b border-white/10 mb-4" data-ui="fer-edit-tabs">
-        <button
-          type="button"
-          onClick={() => setActiveTab('datos')}
-          className={`px-6 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none ${
-            activeTab === 'datos'
-              ? 'text-red-accent border-b-2 border-red-accent'
-              : 'text-white/50 hover:text-white/80'
-          }`}
-          data-ui="fer-edit-tab-datos"
-          data-active={activeTab === 'datos' ? 'true' : 'false'}
-        >
-          Datos
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('intentos')}
-          className={`px-6 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none ${
-            activeTab === 'intentos'
-              ? 'text-red-accent border-b-2 border-red-accent'
-              : 'text-white/50 hover:text-white/80'
-          }`}
-          data-ui="fer-edit-tab-intentos"
-          data-active={activeTab === 'intentos' ? 'true' : 'false'}
-        >
-          Intentos
-        </button>
-      </div>
-
-      {activeTab === 'datos' && (
-        <>
+    <form onSubmit={handleSubmit} className="space-y-5" data-ui="fer-create-form">
       {/* ── Grid Fields ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="fer-edit-grid">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-ui="fer-create-grid">
         {/* Nombre */}
-        <div data-ui="fer-edit-nombre">
-          <label className="block text-sm font-semibold text-white/60 mb-1.5">Nombre completo</label>
+        <div data-ui="fer-create-nombre">
+          <label className="block text-sm font-semibold text-white/60 mb-1.5">Nombre completo *</label>
           <input
             type="text"
             value={formData.nombre}
             onChange={(e) => handleChange('nombre', e.target.value)}
             className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-red-accent/50 focus:border-2 transition-all"
-            data-ui="fer-edit-nombre-input"
+            data-ui="fer-create-nombre-input"
+            placeholder="Nombre y apellidos"
+            required
           />
         </div>
 
         {/* Email */}
-        <div data-ui="fer-edit-email">
-          <label className="block text-sm font-semibold text-white/60 mb-1.5">Email</label>
+        <div data-ui="fer-create-email">
+          <label className="block text-sm font-semibold text-white/60 mb-1.5">Email *</label>
           <input
             type="email"
             value={formData.email}
             onChange={(e) => handleChange('email', e.target.value)}
             className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-red-accent/50 focus:border-2 transition-all"
-            data-ui="fer-edit-email-input"
+            data-ui="fer-create-email-input"
+            placeholder="correo@ejemplo.com"
+            required
           />
         </div>
 
         {/* Telefono */}
-        <div data-ui="fer-edit-telefono">
+        <div data-ui="fer-create-telefono">
           <label className="block text-sm font-semibold text-white/60 mb-1.5">Teléfono</label>
           <input
             type="text"
             value={formData.telefono}
             onChange={(e) => handleChange('telefono', e.target.value)}
             className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-red-accent/50 focus:border-2 transition-all"
-            data-ui="fer-edit-telefono-input"
+            data-ui="fer-create-telefono-input"
+            placeholder="+34 600 000 000"
           />
         </div>
 
         {/* Instagram */}
-        <div data-ui="fer-edit-instagram">
+        <div data-ui="fer-create-instagram">
           <label className="block text-sm font-semibold text-white/60 mb-1.5">Instagram</label>
-          <div className="relative" data-ui="fer-edit-instagram-wrapper">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" data-ui="fer-edit-instagram-at">@</span>
+          <div className="relative" data-ui="fer-create-instagram-wrapper">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" data-ui="fer-create-instagram-at">@</span>
             <input
               type="text"
               value={formData.instagram}
               onChange={(e) => handleChange('instagram', e.target.value)}
               className="w-full pl-9 pr-4 py-3 min-h-[48px] text-base bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-red-accent/50 focus:border-2 transition-all"
-              data-ui="fer-edit-instagram-input"
+              data-ui="fer-create-instagram-input"
+              placeholder="usuario"
             />
           </div>
         </div>
       </div>
 
       {/* ── Sexo ── */}
-      <div data-ui="fer-edit-sexo">
-        <label className="block text-sm font-semibold text-white/60 mb-2.5">Sexo</label>
-        <div className="grid grid-cols-2 gap-3" data-ui="fer-edit-sexo-grid">
+      <div data-ui="fer-create-sexo">
+        <label className="block text-sm font-semibold text-white/60 mb-2.5">Sexo *</label>
+        <div className="grid grid-cols-2 gap-3" data-ui="fer-create-sexo-grid">
           {(['masculino', 'femenino'] as const).map((sex) => {
             const isActive = formData.sexo === sex;
             return (
@@ -280,7 +190,7 @@ export function FerInscripcionEditForm({
                     ? 'bg-red-accent/80 text-white shadow-lg scale-[1.02]'
                     : 'bg-white/5 text-white/50 hover:bg-white/[0.08]'
                 }`}
-                data-ui={`fer-edit-sexo-btn-${sex}`}
+                data-ui={`fer-create-sexo-btn-${sex}`}
                 data-active={isActive ? 'true' : 'false'}
                 aria-pressed={isActive}
               >
@@ -292,29 +202,29 @@ export function FerInscripcionEditForm({
       </div>
 
       {/* ── Categoria de Peso (Dropdown) ── */}
-      <div data-ui="fer-edit-categoria" ref={categoryDropdownRef}>
-        <label className="block text-sm font-semibold text-white/60 mb-1.5">Categoría de peso</label>
-        <div className="relative" data-ui="fer-edit-categoria-wrapper">
+      <div data-ui="fer-create-categoria" ref={categoryDropdownRef}>
+        <label className="block text-sm font-semibold text-white/60 mb-1.5">Categoría de peso *</label>
+        <div className="relative" data-ui="fer-create-categoria-wrapper">
           <button
             type="button"
             onClick={toggleDropdown}
             className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 border border-white/10 rounded-xl text-left flex items-center justify-between transition-all duration-200 focus:outline-none focus:border-red-accent/50 focus:border-2"
-            data-ui="fer-edit-categoria-trigger"
+            data-ui="fer-create-categoria-trigger"
           >
-            <span className={formData.categoriaPeso ? 'text-white' : 'text-white/40'} data-ui="fer-edit-categoria-selected">
+            <span className={formData.categoriaPeso ? 'text-white' : 'text-white/40'} data-ui="fer-create-categoria-selected">
               {formData.categoriaPeso ? `${formData.categoriaPeso} kg` : 'Selecciona categoría'}
             </span>
             <ChevronDown
               size={18}
               className={`text-white/40 transition-transform duration-200 ${categoryDropdownOpen ? 'rotate-180' : ''}`}
-              data-ui="fer-edit-categoria-chevron"
+              data-ui="fer-create-categoria-chevron"
               aria-hidden="true"
             />
           </button>
           {categoryDropdownOpen && (
             <div
               className="absolute z-20 w-full mt-1 py-1 rounded-xl overflow-hidden bg-gray-800 border border-white/10 shadow-xl"
-              data-ui="fer-edit-categoria-dropdown"
+              data-ui="fer-create-categoria-dropdown"
             >
               {availableCategories.map((cat) => {
                 const isSelected = formData.categoriaPeso === cat;
@@ -326,7 +236,7 @@ export function FerInscripcionEditForm({
                     className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
                       isSelected ? 'font-semibold text-white bg-red-accent/20' : 'text-white/60 hover:bg-white/5 hover:text-white'
                     }`}
-                    data-ui={`fer-edit-categoria-option-${cat}`}
+                    data-ui={`fer-create-categoria-option-${cat}`}
                   >
                     {cat} kg
                   </button>
@@ -338,9 +248,9 @@ export function FerInscripcionEditForm({
       </div>
 
       {/* ── Experiencia (Buttons) ── */}
-      <div data-ui="fer-edit-experiencia">
+      <div data-ui="fer-create-experiencia">
         <label className="block text-sm font-semibold text-white/60 mb-2.5">Experiencia</label>
-        <div className="grid grid-cols-2 gap-2.5" data-ui="fer-edit-experiencia-grid">
+        <div className="grid grid-cols-2 gap-2.5" data-ui="fer-create-experiencia-grid">
           {EXPERIENCE_LEVELS.map((exp) => {
             const isActive = formData.experiencia === exp;
             return (
@@ -353,16 +263,16 @@ export function FerInscripcionEditForm({
                     ? 'bg-red-accent/80 text-white shadow-lg scale-[1.02]'
                     : 'bg-white/5 text-white/50 hover:bg-white/[0.08]'
                 }`}
-                data-ui={`fer-edit-experiencia-btn-${exp}`}
+                data-ui={`fer-create-experiencia-btn-${exp}`}
                 data-active={isActive ? 'true' : 'false'}
                 aria-pressed={isActive}
               >
-                <span className="block" data-ui={`fer-edit-experiencia-label-${exp}`}>
+                <span className="block" data-ui={`fer-create-experiencia-label-${exp}`}>
                   {EXPERIENCE_LABELS[exp]}
                 </span>
                 <span
                   className="block text-xs mt-0.5 font-normal leading-tight opacity-70"
-                  data-ui={`fer-edit-experiencia-desc-${exp}`}
+                  data-ui={`fer-create-experiencia-desc-${exp}`}
                 >
                   {EXPERIENCE_DESCRIPTIONS[exp]}
                 </span>
@@ -373,10 +283,10 @@ export function FerInscripcionEditForm({
       </div>
 
       {/* ── Toggle Switches Row ── */}
-      <div className="space-y-3" data-ui="fer-edit-toggles">
+      <div className="space-y-3" data-ui="fer-create-toggles">
         {/* Quiere Handler */}
-        <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-xl" data-ui="fer-edit-handler">
-          <div data-ui="fer-edit-handler-info">
+        <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-xl" data-ui="fer-create-handler">
+          <div data-ui="fer-create-handler-info">
             <p className="text-sm font-semibold text-white/80">Handler GR Strength</p>
             <p className="text-xs text-white/50">Servicio de acompañamiento el día del evento</p>
           </div>
@@ -386,7 +296,7 @@ export function FerInscripcionEditForm({
             className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors duration-200 ${
               formData.quiereHandler ? 'bg-red-accent/80' : 'bg-gray-600'
             }`}
-            data-ui="fer-edit-handler-toggle"
+            data-ui="fer-create-handler-toggle"
             role="switch"
             aria-checked={formData.quiereHandler}
           >
@@ -394,14 +304,14 @@ export function FerInscripcionEditForm({
               className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
                 formData.quiereHandler ? 'translate-x-7' : 'translate-x-1'
               }`}
-              data-ui="fer-edit-handler-knob"
+              data-ui="fer-create-handler-knob"
             />
           </button>
         </div>
 
         {/* Quiere Peak Program */}
-        <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-xl" data-ui="fer-edit-peakprogram">
-          <div data-ui="fer-edit-peakprogram-info">
+        <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-xl" data-ui="fer-create-peakprogram">
+          <div data-ui="fer-create-peakprogram-info">
             <p className="text-sm font-semibold text-white/80">Peak Program</p>
             <p className="text-xs text-white/50">Programa de peak semanal personalizado</p>
           </div>
@@ -411,7 +321,7 @@ export function FerInscripcionEditForm({
             className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors duration-200 ${
               formData.quierePeakProgram ? 'bg-red-accent/80' : 'bg-gray-600'
             }`}
-            data-ui="fer-edit-peakprogram-toggle"
+            data-ui="fer-create-peakprogram-toggle"
             role="switch"
             aria-checked={formData.quierePeakProgram}
           >
@@ -419,7 +329,7 @@ export function FerInscripcionEditForm({
               className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
                 formData.quierePeakProgram ? 'translate-x-7' : 'translate-x-1'
               }`}
-              data-ui="fer-edit-peakprogram-knob"
+              data-ui="fer-create-peakprogram-knob"
             />
           </button>
         </div>
@@ -427,20 +337,20 @@ export function FerInscripcionEditForm({
       </div>
 
       {/* ── Acepta Términos (Checkbox) ── */}
-      <div data-ui="fer-edit-terminos">
+      <div data-ui="fer-create-terminos">
         <label
           className="flex items-start gap-3 cursor-pointer group p-3 rounded-xl bg-white/[0.03] border border-white/5"
-          htmlFor="fer-edit-acepta-terminos"
-          data-ui="fer-edit-terminos-label"
+          htmlFor="fer-create-acepta-terminos"
+          data-ui="fer-create-terminos-label"
         >
-          <div className="relative mt-0.5" data-ui="fer-edit-terminos-checkbox-wrapper">
+          <div className="relative mt-0.5" data-ui="fer-create-terminos-checkbox-wrapper">
             <input
-              id="fer-edit-acepta-terminos"
+              id="fer-create-acepta-terminos"
               type="checkbox"
               checked={formData.aceptaTerminos}
               onChange={() => toggleSwitch('aceptaTerminos')}
               className="sr-only"
-              data-ui="fer-edit-terminos-input"
+              data-ui="fer-create-terminos-input"
             />
             <div
               className={`w-6 h-6 rounded-md flex items-center justify-center transition-all duration-200 ${
@@ -448,94 +358,28 @@ export function FerInscripcionEditForm({
                   ? 'bg-red-accent/80 shadow-md shadow-red-accent/30'
                   : 'bg-gray-600 border border-gray-500'
               }`}
-              data-ui="fer-edit-terminos-checkbox"
+              data-ui="fer-create-terminos-checkbox"
             >
               {formData.aceptaTerminos && (
-                <CheckCircle size={14} className="text-white" data-ui="fer-edit-terminos-check" aria-hidden="true" />
+                <CheckCircle size={14} className="text-white" data-ui="fer-create-terminos-check" aria-hidden="true" />
               )}
             </div>
           </div>
-          <span className="text-sm leading-relaxed text-white/60" data-ui="fer-edit-terminos-text">
+          <span className="text-sm leading-relaxed text-white/60" data-ui="fer-create-terminos-text">
             Acepta términos y condiciones y política de privacidad
           </span>
         </label>
       </div>
 
-      {/* ── Pago confirmado toggle ── */}
-      <div className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-xl" data-ui="fer-edit-pago-toggle">
-        <button
-          type="button"
-          onClick={() => toggleSwitch('pagoConfirmado')}
-          className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors duration-200 ${
-            formData.pagoConfirmado ? 'bg-green-500' : 'bg-gray-600'
-          }`}
-          data-ui="fer-edit-pago-button"
-          role="switch"
-          aria-checked={formData.pagoConfirmado}
-        >
-          <span
-            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
-              formData.pagoConfirmado ? 'translate-x-7' : 'translate-x-1'
-            }`}
-          />
-        </button>
-        <span className="text-sm text-white/70" data-ui="fer-edit-pago-label">
-          {formData.pagoConfirmado ? 'Pago confirmado' : 'Pago pendiente'}
-        </span>
-      </div>
-
-      {/* ── Check-in toggle ── */}
-      <div className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-xl" data-ui="fer-edit-checkin-toggle">
-        <button
-          type="button"
-          onClick={() => toggleSwitch('participacionConfirmada')}
-          className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors duration-200 ${
-            formData.participacionConfirmada ? 'bg-blue-500' : 'bg-gray-600'
-          }`}
-          data-ui="fer-edit-checkin-button"
-          role="switch"
-          aria-checked={formData.participacionConfirmada}
-        >
-          <span
-            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
-              formData.participacionConfirmada ? 'translate-x-7' : 'translate-x-1'
-            }`}
-          />
-        </button>
-        <span className="text-sm text-white/70" data-ui="fer-edit-checkin-label">
-          {formData.participacionConfirmada ? 'Check-in confirmado' : 'Check-in pendiente'}
-        </span>
-      </div>
-
-      {/* ── Notas ── */}
-      <div data-ui="fer-edit-notas">
-        <label className="block text-sm font-semibold text-white/60 mb-1.5">Notas</label>
-        <textarea
-          value={formData.notas}
-          onChange={(e) => handleChange('notas', e.target.value)}
-          rows={3}
-          className="w-full px-4 py-3 text-base bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-red-accent/50 focus:border-2 transition-all resize-none"
-          data-ui="fer-edit-notas-input"
-        />
-      </div>
-
       {/* ── Actions ── */}
-      <div className="flex justify-end gap-3 pt-2" data-ui="fer-edit-actions">
-        <Button
-          variant="ghost"
-          onClick={onCancel}
-          className="min-h-[44px] text-white/60 hover:text-white"
-          data-ui="fer-edit-cancel-btn"
-        >
-          Cancelar
-        </Button>
+      <div className="flex justify-end gap-3 pt-2" data-ui="fer-create-actions">
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !isFormValid}
           className="min-h-[44px] bg-red-accent/90 hover:bg-red-accent text-white border-0"
-          data-ui="fer-edit-submit-btn"
+          data-ui="fer-create-submit-btn"
         >
-          {isLoading ? 'Guardando...' : 'Guardar cambios'}
+          {isLoading ? 'Creando...' : 'Crear inscripción'}
         </Button>
       </div>
     </form>

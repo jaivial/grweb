@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import type { JSX } from 'react';
 import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
+import { isCurrentFerAtom, currentCompeticionIdAtom } from '../../../stores/auth.atoms';
+import { FerInscripcionesPage } from './fer-components/FerInscripcionesPage';
 import { Tabs, KpiCard, Accordion, CustomSelector, Button, Modal, Badge, ResponsiveTable } from '../../../components/ui';
 import { useAthletes } from './hooks/useAthletes';
 import { AthleteForm } from './components/AthleteForm';
@@ -131,6 +133,8 @@ function OpenerCell({ athleteId, liftType, value, canEdit, onSave }: {
 }
 
 export function Inscripciones(): JSX.Element {
+  const isFer = useAtomValue(isCurrentFerAtom);
+  const competicionId = useAtomValue(currentCompeticionIdAtom);
   const [activeTab, setActiveTab] = useState('todas');
   const [editAthlete, setEditAthlete] = useState<Athlete | null>(null);
   const [athleteToDelete, setAthleteToDelete] = useState<Athlete | null>(null);
@@ -471,6 +475,12 @@ export function Inscripciones(): JSX.Element {
   ], [handleSaveOpener, qrLoading, handleGenerateQr]);
 
   return (
+    <>
+      {isFer ? (
+        <BackofficeLayout>
+          <FerInscripcionesPage competicionId={competicionId ?? 0} />
+        </BackofficeLayout>
+      ) : (
     <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8 pb-12 max-w-full mx-auto min-w-0 overflow-hidden" data-ui="inscripciones-page">
         {/* Header */}
@@ -792,6 +802,8 @@ export function Inscripciones(): JSX.Element {
         </div>
       )}
     </BackofficeLayout>
+      )}
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { JSX } from 'react';
 
 export interface DatePickerProps {
@@ -217,9 +218,7 @@ export function DatePicker({
               className="p-2 hover:bg-white/10 rounded-xl transition-colors"
               data-ui="datepicker-prev"
             >
-              <svg className="w-5 h-5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="w-5 h-5 text-white/60" />
             </button>
 
             <span className="font-medium text-white" data-ui="datepicker-month-year">
@@ -232,9 +231,7 @@ export function DatePicker({
               className="p-2 hover:bg-white/10 rounded-xl transition-colors"
               data-ui="datepicker-next"
             >
-              <svg className="w-5 h-5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <ChevronRight className="w-5 h-5 text-white/60" />
             </button>
           </div>
 

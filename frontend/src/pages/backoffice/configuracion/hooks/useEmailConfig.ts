@@ -34,7 +34,7 @@ export function useEmailConfig(competicionId?: number): UseEmailConfigReturn {
 
     try {
       const result = await api.getEmailConfig(competicionId);
-      if (result.success && result.data) {
+      if (result.success) {
         setConfig(result.data as EmailConfigData);
       } else {
         setError(result.message || 'Error al cargar la configuración de email');
@@ -52,7 +52,7 @@ export function useEmailConfig(competicionId?: number): UseEmailConfigReturn {
 
     try {
       const result = await api.updateEmailConfig(data, competicionId);
-      if (result.success && result.data) {
+      if (result.success) {
         setConfig(result.data as EmailConfigData);
         return true;
       } else {

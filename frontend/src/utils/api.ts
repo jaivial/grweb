@@ -511,6 +511,27 @@ class ApiClient {
     });
   }
 
+  async getFerCompetitionAttempts(slug: string) {
+    return this.request<any>(`/api/competiciones/${slug}/attempts`);
+  }
+
+  // ─── FER Lift Attempts ───
+
+  async getFerOpeners(slug: string, inscripcionId: number) {
+    return this.request<any>(`/api/competiciones/${slug}/checkin/${inscripcionId}/openers`);
+  }
+
+  async setFerOpeners(slug: string, inscripcionId: number, data: {
+    sentadilla1: number; sentadilla2: number; sentadilla3: number;
+    banca1: number; banca2: number; banca3: number;
+    pesoMuerto1: number; pesoMuerto2: number; pesoMuerto3: number;
+  }) {
+    return this.request<any>(`/api/competiciones/${slug}/checkin/${inscripcionId}/openers`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
   // ─── Lifts ───
 
   async setOpeners(athleteId: number, data: { squatWeight: number; benchWeight: number; deadliftWeight: number }) {

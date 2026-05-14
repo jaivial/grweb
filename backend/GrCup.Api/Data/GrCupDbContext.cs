@@ -22,6 +22,7 @@ public class GrCupDbContext : DbContext
     public DbSet<RaffleConfig> RaffleConfig => Set<RaffleConfig>();
     public DbSet<RaffleProduct> RaffleProducts => Set<RaffleProduct>();
     public DbSet<LiftEntry> LiftEntries => Set<LiftEntry>();
+    public DbSet<LiftEntryInscripcion> LiftEntriesInscripcion => Set<LiftEntryInscripcion>();
 
     // Multi-tenant models
     public DbSet<Competicion> Competiciones => Set<Competicion>();
@@ -108,6 +109,16 @@ public class GrCupDbContext : DbContext
             entity.HasOne(e => e.Athlete)
                 .WithMany(a => a.LiftEntries)
                 .HasForeignKey(e => e.AthleteId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LiftEntryInscripcion>(entity => {
+            entity.HasIndex(e => e.InscripcionId);
+            entity.HasIndex(e => new { e.InscripcionId, e.LiftType, e.AttemptNumber }).IsUnique();
+            entity.Property(e => e.Weight).HasPrecision(6, 2);
+            entity.HasOne(e => e.Inscripcion)
+                .WithMany()
+                .HasForeignKey(e => e.InscripcionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

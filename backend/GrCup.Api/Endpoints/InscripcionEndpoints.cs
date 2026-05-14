@@ -79,6 +79,8 @@ public static class InscripcionEndpoints
                         inscripcion.QrCode,
                         inscripcion.TotalPagado,
                         inscripcion.ParticipacionConfirmada,
+                        inscripcion.QuiereHandler,
+                        inscripcion.QuierePeakProgram,
                         mensaje = "Inscripción creada correctamente. Te llegará un email de confirmación."
                     }
                 });
@@ -88,35 +90,6 @@ public static class InscripcionEndpoints
                 logger.LogWarning(ex, "Failed to create inscription for {Slug}", slug);
                 return Results.BadRequest(new { success = false, message = ex.Message });
             }
-        });
-
-        // POST /api/competiciones/:slug/inscripcion/:id/upsell - Add upsell
-        app.MapPost("/api/competiciones/{slug}/inscripcion/{id:int}/upsell", async (
-            string slug,
-            int id,
-            [FromBody] UpsellRequest request,
-            InscripcionService inscripcionService,
-            ILogger<Program> logger) =>
-        {
-            var inscripcion = await inscripcionService.AddUpsellAsync(id, request.QuiereUpsell);
-            if (inscripcion == null)
-                return Results.NotFound(new { success = false, message = "Inscription not found" });
-
-            logger.LogInformation("Upsell added to inscription {Id}: {Upsell}", id, request.QuiereUpsell);
-
-            return Results.Ok(new
-            {
-                success = true,
-                data = new
-                {
-                    inscripcion.Id,
-                    inscripcion.UpsellPreparacion,
-                    inscripcion.TotalPagado,
-                    mensaje = request.QuiereUpsell
-                        ? "Upsell añadido. Te llegará un email de confirmación."
-                        : "Upsell no solicitado. Puedes continuar con tu inscripción base."
-                }
-            });
         });
 
         // GET /api/competiciones/:slug/inscripcion/:id/qr - Get QR code
@@ -173,7 +146,6 @@ public static class InscripcionEndpoints
                     inscripcion.Experiencia,
                     inscripcion.PagoConfirmado,
                     inscripcion.ParticipacionConfirmada,
-                    inscripcion.UpsellPreparacion,
                     inscripcion.QuiereHandler,
                     inscripcion.CheckinAt,
                     inscripcion.TotalPagado
@@ -477,5 +449,4 @@ public static class InscripcionEndpoints
     }
 }
 
-public record UpsellRequest(bool QuiereUpsell);
 public record ConfirmarPagoRequest(string? PaymentMethod = null);
