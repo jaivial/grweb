@@ -537,6 +537,33 @@ class ApiClient {
     });
   }
 
+  // ─── FER Lift Attempts ───
+
+  async getFerOpeners(slug: string, inscripcionId: number): Promise<ApiResponse<any>> {
+    return this.request(`/api/competiciones/${slug}/checkin/${inscripcionId}/openers`);
+  }
+
+  async setFerOpeners(slug: string, inscripcionId: number, data: {
+    sentadilla1: number; sentadilla2: number; sentadilla3: number;
+    banca1: number; banca2: number; banca3: number;
+    pesoMuerto1: number; pesoMuerto2: number; pesoMuerto3: number;
+  }): Promise<ApiResponse<any>> {
+    return this.request(`/api/competiciones/${slug}/checkin/${inscripcionId}/openers`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateJudgeVote(slug: string, inscripcionId: number, liftType: string, attemptNumber: number, juezNumero: number, voto: boolean | null): Promise<ApiResponse<any>> {
+    return this.request(`/api/competiciones/${slug}/checkin/${inscripcionId}/attempt/${liftType}/${attemptNumber}/juez`, {
+      method: 'PUT',
+      body: JSON.stringify({ juezNumero, voto }),
+    });
+  }
+
+  async getFerCompetitionAttempts(slug: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/competiciones/${slug}/attempts`);
+  }
 }
 
 export const api = new ApiClient(API_URL);

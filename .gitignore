@@ -48,3 +48,7 @@ backend/GrCup.Api/docs/BUNNYCDN_STORAGE.md
 # Browser-agent exploration sessions (ad-hoc, not committed)
 frontend/tests/e2e/explore-*.spec.ts
 
+# Large media files (videos, raw footage)
+ferweb/scripts/raw/
+ferweb/scripts/compressed/
+
