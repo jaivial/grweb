@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Camera, MapPin, Mail } from 'lucide-react';
+import { MapPin, Mail } from 'lucide-react';
 import { FER_COLORS, FER_EVENT } from '../constants';
 
 interface FerFooterProps {
@@ -42,13 +42,19 @@ export function FerFooter({ contactEmail }: FerFooterProps) {
               data-ui="fer-footer-instagram-gr"
               aria-label="Instagram GR Strength Club"
             >
-              <Camera size={20} style={{ color: FER_COLORS.accent }} data-ui="fer-footer-instagram-gr-icon" />
+              <span
+                className="text-lg font-bold"
+                style={{ color: FER_COLORS.accent }}
+                data-ui="fer-footer-instagram-gr-icon"
+              >
+                @
+              </span>
               <span
                 className="text-sm font-medium hidden sm:inline"
                 style={{ color: FER_COLORS.text }}
                 data-ui="fer-footer-instagram-gr-text"
               >
-                @grstrengthclub
+                grstrengthclub
               </span>
             </a>
 
@@ -61,13 +67,19 @@ export function FerFooter({ contactEmail }: FerFooterProps) {
               data-ui="fer-footer-instagram-fer"
               aria-label="Instagram FER Entrenamiento"
             >
-              <Camera size={20} style={{ color: FER_COLORS.gold }} data-ui="fer-footer-instagram-fer-icon" />
+              <span
+                className="text-lg font-bold"
+                style={{ color: FER_COLORS.gold }}
+                data-ui="fer-footer-instagram-fer-icon"
+              >
+                @
+              </span>
               <span
                 className="text-sm font-medium hidden sm:inline"
                 style={{ color: FER_COLORS.text }}
                 data-ui="fer-footer-instagram-fer-text"
               >
-                @ferentrenamiento
+                ferentrenamiento
               </span>
             </a>
 
