@@ -688,7 +688,7 @@ export function JudgeTablePage(): JSX.Element {
                 return (
                   <div
                     key={athlete.id}
-                    className="grid gap-2 px-4 py-2.5 border-b border-white/5 last:border-b-0 items-center opacity-40"
+                    className="grid gap-2 px-4 py-2.5 border-b border-white/5 last:border-b-0 items-center hover:bg-white/[0.02] transition-colors"
                     style={{ gridTemplateColumns: '1fr 120px 70px 80px 1fr' }}
                   >
                     <span className="text-sm text-gray-400 font-medium truncate">{formatNombre(athlete.nombre)}</span>
