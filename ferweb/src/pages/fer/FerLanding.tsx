@@ -167,21 +167,6 @@ export function FerLanding() {
 
       <QueIncluye />
 
-      <QuienPuede />
-
-      <PolaroidGallery />
-
-      <ComoFunciona
-        precioBase={competicion?.eventoConfig?.precioBase}
-        precioHandler={competicion?.eventoConfig?.precioHandler}
-        precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
-        fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram}
-      />
-
-      <ParallaxShowcase />
-
-      <HorariosSection />
-
       {/* Wrap form section in a div for the ref */}
       <div ref={formRef} data-ui="fer-form-anchor">
         <InscripcionForm
@@ -196,6 +181,21 @@ export function FerLanding() {
           onSubmit={handleFormSubmit}
         />
       </div>
+
+      <QuienPuede />
+
+      <PolaroidGallery />
+
+      <ComoFunciona
+        precioBase={competicion?.eventoConfig?.precioBase}
+        precioHandler={competicion?.eventoConfig?.precioHandler}
+        precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
+        fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram}
+      />
+
+      <ParallaxShowcase />
+
+      <HorariosSection />
 
       <GrHandlerService />
 
