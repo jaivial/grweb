@@ -52,34 +52,39 @@ export function FloatingCtaButton({ onCtaClick }: FloatingCtaButtonProps): JSX.E
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.button
-          initial={{ y: 100, opacity: 0, scale: 0.9 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 100, opacity: 0, scale: 0.85 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          onClick={handleClick}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-6 py-3.5 rounded-full shadow-2xl cursor-pointer select-none"
-          style={{
-            background: `linear-gradient(135deg, ${FER_COLORS.accent}, ${FER_COLORS.gold})`,
-            boxShadow: `0 8px 32px ${FER_COLORS.accent}55, 0 0 60px ${FER_COLORS.gold}22`,
-          }}
-          data-ui="floating-cta-button"
+        <div
+          className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
+          data-ui="floating-cta-wrapper"
         >
-          <Zap
-            size={18}
-            className="text-white animate-pulse"
-            style={{ filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' }}
-            data-ui="floating-cta-icon"
-            aria-hidden="true"
-          />
-          <span
-            className="text-white font-bold text-sm sm:text-base tracking-wide"
-            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.3)' }}
-            data-ui="floating-cta-text"
+          <motion.button
+            initial={{ y: 100, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 100, opacity: 0, scale: 0.85 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            onClick={handleClick}
+            className="flex items-center gap-2.5 px-6 py-3.5 rounded-full shadow-2xl cursor-pointer select-none pointer-events-auto"
+            style={{
+              background: `linear-gradient(135deg, ${FER_COLORS.accent}, ${FER_COLORS.gold})`,
+              boxShadow: `0 8px 32px ${FER_COLORS.accent}55, 0 0 60px ${FER_COLORS.gold}22`,
+            }}
+            data-ui="floating-cta-button"
           >
-            ¡Inscríbete ya!
-          </span>
-        </motion.button>
+            <Zap
+              size={18}
+              className="text-white animate-pulse"
+              style={{ filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' }}
+              data-ui="floating-cta-icon"
+              aria-hidden="true"
+            />
+            <span
+              className="text-white font-bold text-sm sm:text-base tracking-wide"
+              style={{ textShadow: '0 1px 8px rgba(0,0,0,0.3)' }}
+              data-ui="floating-cta-text"
+            >
+              ¡Inscríbete ya!
+            </span>
+          </motion.button>
+        </div>
       )}
     </AnimatePresence>
   );
