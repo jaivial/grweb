@@ -167,21 +167,6 @@ export function FerLanding() {
 
       <QueIncluye />
 
-      {/* Wrap form section in a div for the ref */}
-      <div ref={formRef} data-ui="fer-form-anchor">
-        <InscripcionForm
-          hook={inscripcionHook}
-          plazasDisponibles={plazasDisponibles}
-          precioBase={competicion?.eventoConfig?.precioBase}
-          categoriasMasculino={categoriasMasculino}
-          categoriasFemenino={categoriasFemenino}
-          contactEmail={competicion?.landingConfig?.contactEmail}
-          precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
-          fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
-          onSubmit={handleFormSubmit}
-        />
-      </div>
-
       <QuienPuede />
 
       <PolaroidGallery />
@@ -196,6 +181,21 @@ export function FerLanding() {
       <ParallaxShowcase />
 
       <HorariosSection />
+
+      {/* Wrap form section in a div for the ref */}
+      <div ref={formRef} data-ui="fer-form-anchor">
+        <InscripcionForm
+          hook={inscripcionHook}
+          plazasDisponibles={plazasDisponibles}
+          precioBase={competicion?.eventoConfig?.precioBase}
+          categoriasMasculino={categoriasMasculino}
+          categoriasFemenino={categoriasFemenino}
+          contactEmail={competicion?.landingConfig?.contactEmail}
+          precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
+          fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
+          onSubmit={handleFormSubmit}
+        />
+      </div>
 
       <GrHandlerService />
 
