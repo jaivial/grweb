@@ -20,19 +20,19 @@ public class UserManagementService
     {
         return await _context.UsuariosCompeticiones
             .Include(uc => uc.Usuario)
-            .Where(uc => uc.CompeticionId == competicionId && uc.Usuario.IsActive)
+            .Where(uc => uc.CompeticionId == competicionId)
             .OrderBy(uc => uc.Role)
             .ThenBy(uc => uc.Usuario.Nombre)
             .Select(uc => new CompetitionMemberResponse(
-                uc.Id,
                 uc.UsuarioId,
-                uc.Usuario.Email,
                 uc.Usuario.Nombre,
+                uc.Usuario.Email,
                 UserRoleNames.Normalize(uc.Role),
-                uc.InvitedByEmail,
+                uc.Usuario.IsActive,
+                !uc.InvitationAccepted && uc.InvitedAt != null,
                 uc.InvitedAt,
-                uc.InvitationAccepted,
-                uc.CreatedAt
+                uc.InvitationAccepted ? uc.InvitedAt : null,
+                null
             ))
             .ToListAsync();
     }
@@ -87,9 +87,33 @@ public class UserManagementService
     {
         var assignment = await _context.UsuariosCompeticiones
             .Include(uc => uc.Usuario)
-            .FirstOrDefaultAsync(uc => uc.CompeticionId == competicionId && uc.UsuarioId == usuarioId && uc.Usuario.IsActive);
+            .FirstOrDefaultAsync(uc => uc.CompeticionId == competicionId && uc.UsuarioId == usuarioId);
 
-        return assignment == null ? null : MapMember(assignment);
+        if (assignment == null)
+            return null;
+
+        InvitedByInfo? invitedBy = null;
+        if (!string.IsNullOrEmpty(assignment.InvitedByEmail))
+        {
+            var inviter = await _context.Usuarios
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == assignment.InvitedByEmail.ToLower());
+            if (inviter != null)
+            {
+                invitedBy = new InvitedByInfo(inviter.Id, inviter.Nombre, inviter.Email);
+            }
+        }
+
+        return new CompetitionMemberResponse(
+            assignment.UsuarioId,
+            assignment.Usuario.Nombre,
+            assignment.Usuario.Email,
+            UserRoleNames.Normalize(assignment.Role),
+            assignment.Usuario.IsActive,
+            !assignment.InvitationAccepted && assignment.InvitedAt != null,
+            assignment.InvitedAt,
+            assignment.InvitationAccepted ? assignment.InvitedAt : null,
+            invitedBy
+        );
     }
 
     public async Task<Usuario> CreateUserAsync(CreateCompetitionUserRequest request, int competicionId, string password, string invitedByEmail)
@@ -236,21 +260,6 @@ public class UserManagementService
         return normalizedRole;
     }
 
-    private static CompetitionMemberResponse MapMember(UsuarioCompeticion assignment)
-    {
-        return new CompetitionMemberResponse(
-            assignment.Id,
-            assignment.UsuarioId,
-            assignment.Usuario.Email,
-            assignment.Usuario.Nombre,
-            UserRoleNames.Normalize(assignment.Role),
-            assignment.InvitedByEmail,
-            assignment.InvitedAt,
-            assignment.InvitationAccepted,
-            assignment.CreatedAt
-        );
-    }
-
     private static string GetRoleName(string role) => role switch
     {
         "root" => "Root",
@@ -297,16 +306,18 @@ public record CreateCompetitionUserRequest(
 
 public record UpdateCompetitionUserRoleRequest(string Role);
 
+public record InvitedByInfo(int Id, string Nombre, string Email);
+
 public record CompetitionMemberResponse(
     int Id,
-    int UsuarioId,
-    string Email,
     string Nombre,
+    string Email,
     string Role,
-    string? InvitedByEmail,
-    DateTime? InvitedAt,
-    bool InvitationAccepted,
-    DateTime CreatedAt
+    bool IsActive,
+    bool IsPending,
+    DateTime? InvitationSentAt,
+    DateTime? InvitationAcceptedAt,
+    InvitedByInfo? InvitedBy
 );
 
 public record CompetitionRoleResponse(
