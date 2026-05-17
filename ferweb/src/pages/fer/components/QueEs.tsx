@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Dumbbell, Star, Heart } from 'lucide-react';
-import { FER_COLORS, CLUB_PHOTOS } from '../constants';
+import { FER_COLORS, CLUB_PHOTOS, FER_QUE_ES_IMAGE } from '../constants';
 import { useCdnImage } from '@hooks/useCdnImage';
 
 const HIGHLIGHTS = [
-  { icon: Trophy, text: 'Jueces certificados FEDDF' },
+  { icon: Trophy, text: 'Jueces internacionales profesionales con certificación oficial' },
   { icon: Dumbbell, text: '3 intentos por levantamiento' },
   { icon: Star, text: 'Ambiente de competición real' },
   { icon: Heart, text: 'Spotters profesionales' },
@@ -65,9 +65,9 @@ export function QueEs() {
               style={{ color: FER_COLORS.text }}
               data-ui="fer-que-es-title"
             >
-              ¿Qué es el{' '}
+              ¿Qué es la{' '}
               <span style={{ color: FER_COLORS.accent }} data-ui="fer-que-es-title-highlight">
-                FER CUP
+                FER Cup
               </span>
               ?
             </motion.h2>
@@ -149,12 +149,13 @@ export function QueEs() {
 }
 
 function QueEsImage() {
-  const resolvedSrc = useCdnImage(CLUB_PHOTOS.hero.main);
+  const resolvedSrc = useCdnImage(FER_QUE_ES_IMAGE);
   return (
     <motion.img
       src={resolvedSrc}
       alt="Entrenamiento en el club FER"
       className="w-full h-full object-cover"
+      style={{ objectPosition: 'center 25%' }}
       loading="lazy"
       decoding="async"
       initial={{ scale: 1.1 }}

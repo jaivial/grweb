@@ -3,6 +3,15 @@
  * 260 files: 253 images, 7 videos
  */
 
+export const FER_CUP_LOGO_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/logos/fer-cup-logo.webp' as const;
+
+export const FER_QUE_ES_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-que-es.webp' as const;
+export const FER_QUE_INCLUYE_JUECES_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-que-incluye-jueces.webp' as const;
+export const FER_QUE_INCLUYE_SPOTTERS_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-que-incluye-spotters.webp' as const;
+export const FER_QUIEN_PUEDE_SIN_ENTRENADOR_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-quien-puede-sin-entrenador.webp' as const;
+export const FER_QUIEN_PUEDE_SIN_EXPERIENCIA_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-quien-puede-sin-experiencia.webp' as const;
+export const FER_POLAROID_0_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-polaroid-0.webp' as const;
+
 // --- Alfonso Fernández ---
 export const MEDIA_ALFONSO_FERNANDEZ_IMAGES: readonly string[] = [
   'https://jaimedigitalstudio.b-cdn.net/fer/media/GRS%20-%20FOTOS%20_%20CLUB/Alfonso%20Fern%C3%A1ndez/IMG_3276.webp',
@@ -289,4 +298,3 @@ export const MEDIA_RODRIGO_TELLO_IMAGES: readonly string[] = [
   'https://jaimedigitalstudio.b-cdn.net/fer/media/GRS%20-%20FOTOS%20_%20CLUB/Rodrigo%20Tello/JUAN-9.webp',
   'https://jaimedigitalstudio.b-cdn.net/fer/media/GRS%20-%20FOTOS%20_%20CLUB/Rodrigo%20Tello/JUAN.webp',
 ];
-

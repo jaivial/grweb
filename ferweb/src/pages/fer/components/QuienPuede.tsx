@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { FER_COLORS, CLUB_PHOTOS } from '../constants';
+import { FER_COLORS, CLUB_PHOTOS, FER_QUIEN_PUEDE_SIN_ENTRENADOR_IMAGE, FER_QUIEN_PUEDE_SIN_EXPERIENCIA_IMAGE } from '../constants';
 import { useCdnImage } from '@hooks/useCdnImage';
 
 const PARTICIPANTS = [
@@ -8,8 +8,8 @@ const PARTICIPANTS = [
   { title: 'Socios del gimnasio FER', desc: 'Precio especial…', bg: CLUB_PHOTOS.atmosphere[1] },
   { title: 'Atletas externos a ambas entidades.', desc: 'Abierto a cualquier persona con ganas de competir', bg: CLUB_PHOTOS.atmosphere[2] },
   { title: 'Principiantes.', desc: 'Evento diseñado para tu primera experiencia competitiva', bg: CLUB_PHOTOS.atmosphere[3] },
-  { title: 'Atletas sin entrenador.', desc: 'Te ayudamos con tu preparación si no tienes coach', bg: CLUB_PHOTOS.atmosphere[0] },
-  { title: 'Atletas con experiencia.', desc: 'Para experimentados que quieran disfrutar de la tarima.', bg: CLUB_PHOTOS.atmosphere[1] },
+  { title: 'Atletas sin entrenador.', desc: 'Te ayudamos con tu preparación si no tienes coach', bg: FER_QUIEN_PUEDE_SIN_ENTRENADOR_IMAGE },
+  { title: 'Atletas con experiencia.', desc: 'Para experimentados que quieran disfrutar de la tarima.', bg: FER_QUIEN_PUEDE_SIN_EXPERIENCIA_IMAGE },
 ] as const;
 
 function CardBgImage({ src }: { src: string }) {
@@ -19,6 +19,7 @@ function CardBgImage({ src }: { src: string }) {
       src={resolvedSrc}
       alt=""
       className="absolute inset-0 w-full h-full object-cover"
+      style={{ objectPosition: 'center 25%' }}
       loading="lazy"
       decoding="async"
       initial={{ opacity: 0, scale: 1.15 }}

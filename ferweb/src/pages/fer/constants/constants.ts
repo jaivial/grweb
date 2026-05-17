@@ -5,6 +5,8 @@
  * FER_COLORS: Keep in sync with tailwind.config.js and src/styles/globals.css
  */
 
+import { FER_CUP_LOGO_IMAGE } from './mediaCdnUrls';
+
 export const FER_COLORS = {
   bgDark: '#0B0F1A',
   bgCard: '#161B26',
@@ -50,9 +52,7 @@ export const HERO_SLIDESHOW_IMAGES = [
 ] as const;
 
 export const HERO_BRAND_ICONS = {
-  ferIcon: 'https://jaimedigitalstudio.b-cdn.net/fer/media/icons/ferwebicons/fericon.webp',
-  crossCollab: 'https://jaimedigitalstudio.b-cdn.net/fer/media/icons/ferwebicons/collabicon2.webp',
-  mainLogo: 'https://jaimedigitalstudio.b-cdn.net/fer/media/icons/ferwebicons/Gemini_Generated_Image_ocrwoeocrwoeocrw-removebg-preview.webp',
+  ferLogo: FER_CUP_LOGO_IMAGE,
 } as const;
 
 export const HERO_CAMISETA_BG = 'https://jaimedigitalstudio.b-cdn.net/fer/media/GRS%20-%20FOTOS%20_%20CLUB/General/IMG_3008.webp' as const;
