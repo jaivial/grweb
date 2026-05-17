@@ -60,6 +60,7 @@ function GridPhoto({
         src={resolvedSrc}
         alt=""
         className="w-full h-full object-cover"
+        style={{ objectPosition: 'center 25%' }}
         loading="lazy"
         decoding="async"
         data-ui={`club-grid-img-${index}`}

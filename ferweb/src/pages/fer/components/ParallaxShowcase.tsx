@@ -66,6 +66,7 @@ function FloatingPhoto({
         src={resolvedSrc}
         alt=""
         className="w-full h-full object-cover"
+        style={{ objectPosition: 'center 25%' }}
         loading="lazy"
         decoding="async"
         data-ui="parallax-photo-img"
@@ -333,6 +334,7 @@ function StaticPhoto({ src, index }: { src: string; index: number }) {
         src={resolvedSrc}
         alt=""
         className="w-full h-full object-cover"
+        style={{ objectPosition: 'center 25%' }}
         loading="lazy"
         decoding="async"
         data-ui={`parallax-static-img-${index}`}

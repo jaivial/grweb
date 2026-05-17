@@ -23,3 +23,12 @@ export {
 export type { Experiencia } from './constants';
 
 export { CLUB_PHOTOS } from './clubPhotos';
+export {
+  FER_CUP_LOGO_IMAGE,
+  FER_QUE_ES_IMAGE,
+  FER_QUE_INCLUYE_JUECES_IMAGE,
+  FER_QUE_INCLUYE_SPOTTERS_IMAGE,
+  FER_QUIEN_PUEDE_SIN_ENTRENADOR_IMAGE,
+  FER_QUIEN_PUEDE_SIN_EXPERIENCIA_IMAGE,
+  FER_POLAROID_0_IMAGE,
+} from './mediaCdnUrls';

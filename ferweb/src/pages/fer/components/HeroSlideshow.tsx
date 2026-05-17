@@ -121,8 +121,8 @@ function SlideshowImage({ imageIndex, prefersReducedMotion }: SlideshowImageProp
       <motion.img
         src={src}
         alt=""
-        className="w-full h-full object-cover object-center"
-        style={{ filter: 'grayscale(100%)' }}
+        className="w-full h-full object-cover"
+        style={{ filter: 'grayscale(100%)', objectPosition: 'center 25%' }}
         loading={imageIndex < 3 ? 'eager' : 'lazy'}
         decoding="async"
         initial={fadeIn.initial}

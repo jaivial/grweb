@@ -6,6 +6,7 @@ import {
   CLUB_PHOTOS,
   POLAROID_START_OFFSET_X,
   POLAROID_START_ROTATION,
+  FER_POLAROID_0_IMAGE,
 } from '../constants';
 
 interface PolaroidCardProps {
@@ -69,6 +70,7 @@ function PolaroidCard({ src, caption, rotation, index, side }: PolaroidCardProps
           src={resolvedSrc}
           alt={caption}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          style={{ objectPosition: 'center 25%' }}
           loading="lazy"
           decoding="async"
           data-ui={`polaroid-img-${index}`}
@@ -117,7 +119,7 @@ export function PolaroidGallery({ className = '' }: PolaroidGalleryProps): JSX.E
   const photos = useMemo(
     () =>
       CLUB_PHOTOS.gallery.map((src, i) => ({
-        src,
+        src: i === 0 ? FER_POLAROID_0_IMAGE : src,
         caption: GALLERY_CAPTIONS[i],
         rotation: GALLERY_ROTATIONS[i],
       })),
