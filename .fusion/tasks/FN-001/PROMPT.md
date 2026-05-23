@@ -1,0 +1,3 @@
+# FN-001
+
+Text-only frontend copy change in @ferweb/: find the card label that currently displays "Atletas externos a ambas entidades" and change it to "ATLETAS DE OTROS CLUBES". Desired outcome: the FER web UI no longer shows the old copy anywhere in the relevant card, and the new uppercase copy is displayed with existing styling/layout unchanged. Scope should be limited to the FER frontend files that define this card text; do not alter API contracts or unrelated UI. Project rule: process via Project Manager/project-management orchestration and delegate frontend work to the appropriate frontend agent/skills if available.

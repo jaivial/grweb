@@ -1,5 +1,11 @@
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
 User-agent: *
 Allow: /
 Disallow: /backoffice/
 Disallow: /backoffice/*
-Sitemap: https://grcup.com/api/sitemap
+Sitemap: https://fercup.com/sitemap.xml

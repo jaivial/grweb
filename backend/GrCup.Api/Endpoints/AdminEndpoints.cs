@@ -13,39 +13,36 @@ public static class AdminEndpoints
     public static void MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
         // ─── Authentication ───
-        
-        // POST /api/admin/login
-        app.MapPost("/api/admin/login", (
+
+        // POST /api/admin/login - authenticate using database credentials
+        app.MapPost("/api/admin/login", async (
             [FromBody] LoginRequest request,
+            UsuarioService usuarioService,
             JwtService jwtService,
             IWebHostEnvironment env,
             HttpContext context,
             ILogger<Program> logger) =>
         {
-            // Hardcoded admin credentials
-            var adminUsername = "jaime@hotmail.com";
-            var adminPassword = "test123123";
-
-            if (request.Username == adminUsername && request.Password == adminPassword)
+            var result = await usuarioService.AuthenticateAsync(request.Username, request.Password);
+            if (result == null)
             {
-                var token = jwtService.GenerateToken(request.Username);
-                logger.LogInformation("Admin login successful for {Username}", request.Username);
-
-                // Set HttpOnly cookie - Secure only in production (HTTPS)
-                context.Response.Cookies.Append("gr_cup_token", token, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = false, // Allow HTTP for testing - change to !env.IsDevelopment() in production
-                    SameSite = SameSiteMode.Lax,
-                    Path = "/",
-                    MaxAge = TimeSpan.FromDays(1)
-                });
-
-                return Results.Ok(new { success = true });
+                logger.LogWarning("Failed admin login attempt for {Username}", request.Username);
+                return Results.Unauthorized();
             }
 
-            logger.LogWarning("Failed admin login attempt for {Username}", request.Username);
-            return Results.Unauthorized();
+            logger.LogInformation("Admin login successful for {Username}", request.Username);
+
+            // Set HttpOnly cookie - Secure only in production (HTTPS)
+            context.Response.Cookies.Append("gr_cup_token", result.Token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !env.IsDevelopment(),
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                MaxAge = TimeSpan.FromDays(1)
+            });
+
+            return Results.Ok(new { success = true, user = result.User });
         });
 
         // POST /api/admin/logout

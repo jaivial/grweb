@@ -189,6 +189,12 @@ class ApiClient {
     });
   }
 
+  async addPeakProgram(slug: string, inscripcionId: number): Promise<ApiResponse<Inscripcion>> {
+    return this.request<Inscripcion>(`/api/competiciones/${slug}/inscripcion/${inscripcionId}/peak-program`, {
+      method: 'POST',
+    });
+  }
+
   async updateInscripcion(inscripcionId: number, data: { quiereUpsell?: boolean }): Promise<ApiResponse<Inscripcion>> {
     // This would call an admin endpoint to update an inscripcion
     // For now, we use the upsell endpoint

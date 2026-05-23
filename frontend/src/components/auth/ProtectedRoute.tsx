@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { Navigate, useLocation } from 'wouter';
+import { Redirect } from 'wouter';
 import { Spinner } from '../ui/Spinner';
 
 interface ProtectedRouteProps {
@@ -19,9 +19,8 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { isSuperadmin } = usePermissions();
-  const [location] = useLocation();
 
-  // Show loading spinner while checking auth
+  // Show loading spinner while checking auth - check this FIRST before any auth redirect
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -30,9 +29,9 @@ export function ProtectedRoute({
     );
   }
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated (only after loading is complete)
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Redirect to="/backoffice/login" />;
   }
 
   // Check superadmin requirement

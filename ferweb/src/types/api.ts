@@ -109,6 +109,7 @@ export interface Inscripcion {
   experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   tieneEntrenador: boolean;
   upsellPreparacion: boolean;
+  quierePeakProgram?: boolean;
   telefono?: string;
   sexo?: string;
   categoriaPeso?: string;

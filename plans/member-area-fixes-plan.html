@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plan de Arreglos: Invitaciones y Area de Miembros</title>
+  <style>
+    :root {
+      --bg: #101114;
+      --panel: #181a20;
+      --panel-2: #20232b;
+      --text: #f2f3f5;
+      --muted: #a6adbb;
+      --line: #333844;
+      --accent: #ef4444;
+      --accent-2: #38bdf8;
+      --ok: #34d399;
+      --warn: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 40px 20px 72px;
+    }
+    .hero {
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.16), rgba(56, 189, 248, 0.08)), var(--panel);
+      border-radius: 24px;
+      padding: 32px;
+    }
+    h1, h2, h3, h4 { line-height: 1.2; margin: 0; }
+    h1 { font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.04em; }
+    h2 { font-size: 28px; margin-bottom: 18px; }
+    h3 { font-size: 21px; margin-bottom: 12px; }
+    h4 { font-size: 16px; margin: 18px 0 8px; color: var(--accent-2); }
+    p { margin: 10px 0; color: var(--muted); }
+    code {
+      background: #0c0d10;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 2px 6px;
+      color: #f8fafc;
+      font-size: 0.92em;
+    }
+    pre {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      background: #0c0d10;
+      border-radius: 14px;
+      padding: 16px;
+      color: #e5e7eb;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .pill {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+      font-size: 13px;
+    }
+    .toc, .phase, .card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 20px;
+      padding: 24px;
+      margin-top: 24px;
+    }
+    .phase { position: relative; }
+    .phase::before {
+      content: attr(data-phase);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      height: 30px;
+      padding: 0 10px;
+      margin-bottom: 14px;
+      border-radius: 999px;
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+    }
+    ol, ul { padding-left: 22px; margin: 12px 0; }
+    li { margin: 8px 0; color: var(--muted); }
+    li strong { color: var(--text); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .card { margin-top: 0; background: var(--panel-2); }
+    .tag {
+      display: inline-block;
+      margin: 0 6px 8px 0;
+      border-radius: 7px;
+      padding: 3px 8px;
+      background: rgba(56, 189, 248, 0.12);
+      color: #bae6fd;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .warn { color: #fde68a; }
+    .ok { color: #bbf7d0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      overflow: hidden;
+      border-radius: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 12px;
+      text-align: left;
+      vertical-align: top;
+      color: var(--muted);
+    }
+    th { color: var(--text); background: #15171d; }
+    a { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>Plan de arreglos: invitaciones y area de miembros</h1>
+      <p>Objetivo: convertir la experiencia de miembros en un flujo completo y coherente con el backoffice, mejorar la invitacion por email y reemplazar modales anidados por rutas navegables con slugs, layout y breadcrumbs.</p>
+      <div class="meta">
+        <span class="pill">Backend: EmailService + env website_frontend_url</span>
+        <span class="pill">Frontend: Backoffice members area</span>
+        <span class="pill">UX: tabs, breadcrumbs, rutas detail</span>
+        <span class="pill">QA: tunnel fer-backoffice</span>
+      </div>
+    </section>
+
+    <section class="toc">
+      <h2>Indice</h2>
+      <ol>
+        <li><a href="#scope">Alcance y decisiones</a></li>
+        <li><a href="#email-template">Mejorar plantilla de email</a></li>
+        <li><a href="#frontend-url">URL de login desde variable de entorno</a></li>
+        <li><a href="#members-tabs">Tabs Roles y Miembros</a></li>
+        <li><a href="#detail-routes">Rutas detalle con slugs y breadcrumbs</a></li>
+        <li><a href="#api-contracts">Contratos API y ajustes necesarios</a></li>
+        <li><a href="#qa">Validacion, build y tunnel</a></li>
+        <li><a href="#acceptance">Criterios de aceptacion</a></li>
+      </ol>
+    </section>
+
+    <section id="scope" class="phase" data-phase="FASE 0">
+      <h2>Alcance y decisiones</h2>
+      <p>Esta fase evita rehacer componentes sin direccion y fija la arquitectura antes de tocar codigo.</p>
+      <ol>
+        <li><strong>Confirmar rutas objetivo.</strong> Usar rutas bajo competition slug: <code>/backoffice/:competicionSlug/users</code>, <code>/backoffice/:competicionSlug/users/roles/:roleSlug</code> y <code>/backoffice/:competicionSlug/users/members/:usuarioId</code>.</li>
+        <li><strong>Definir slugs canonicos.</strong> Los roles navegables seran <code>root</code>, <code>admin</code>, <code>staff</code>, <code>registrador</code>. Roles legacy se normalizan antes de construir enlaces.</li>
+        <li><strong>Evitar modales anidados.</strong> El detalle de rol y el detalle de miembro deben ser paginas con layout, no overlays. Solo se conserva modal para acciones cortas como confirmacion de borrado si hace falta.</li>
+        <li><strong>Mantener reglas de permisos.</strong> Root puede todo. Admin puede gestionar staff y registrador, pero no admins ni root. Staff y registrador no ven la seccion.</li>
+        <li><strong>Aplicar patrones del proyecto.</strong> Todas las paginas deben usar <code>BackofficeLayout</code>, data attributes en tags HTML y derived data con <code>useMemo</code>.</li>
+      </ol>
+    </section>
+
+    <section id="email-template" class="phase" data-phase="FASE 1">
+      <h2>Mejorar plantilla de email de invitacion</h2>
+      <p>La invitacion debe verse profesional, legible en clientes de email y alineada con el backoffice.</p>
+      <h3>Archivos probables</h3>
+      <p><code>backend/GrCup.Api/Services/EmailService.cs</code></p>
+      <ol>
+        <li><strong>Extraer builder de plantilla.</strong> Crear un metodo privado <code>BuildUserInvitationEmailHtml</code> para separar estilo/contenido de <code>SendUserInvitationAsync</code>.</li>
+        <li><strong>Usar HTML compatible con email.</strong> Usar tablas, estilos inline, ancho maximo 600px, fondos solidos, padding seguro y sin dependencias externas.</li>
+        <li><strong>Mejorar jerarquia visual.</strong> Header oscuro con nombre de competicion, bloque de credenciales, CTA principal, instrucciones de seguridad y footer de soporte.</li>
+        <li><strong>Agregar texto alternativo.</strong> Mantener <code>TextBody</code> con login URL, email, password temporal y recomendacion de cambiar contrasena.</li>
+        <li><strong>Escapar contenido dinamico.</strong> Usar <code>WebUtility.HtmlEncode</code> para nombre, email, competicion y password.</li>
+        <li><strong>No loguear password.</strong> El password temporal solo se manda al destinatario, nunca a logs ni respuestas API.</li>
+      </ol>
+      <h3>Direccion visual recomendada</h3>
+      <ul>
+        <li>Fondo general gris claro <code>#f4f5f7</code>.</li>
+        <li>Tarjeta blanca con header negro/tinta.</li>
+        <li>CTA rojo o negro, texto claro y alto contraste.</li>
+        <li>Bloque de credenciales con borde suave y monospace para password.</li>
+        <li>Footer con aviso: "Si no esperabas esta invitacion, ignora este email".</li>
+      </ul>
+    </section>
+
+    <section id="frontend-url" class="phase" data-phase="FASE 2">
+      <h2>URL del boton Iniciar sesion desde variable de entorno</h2>
+      <p>El href del CTA de email debe depender de <code>website_frontend_url</code>. Por ahora el valor esperado es <code>fer-backoffice.menustudioai.com</code>.</p>
+      <ol>
+        <li><strong>Leer variable exacta.</strong> En backend usar <code>Environment.GetEnvironmentVariable("website_frontend_url")</code>.</li>
+        <li><strong>Agregar fallback seguro.</strong> Si no existe, usar <code>https://fer-backoffice.menustudioai.com</code> durante esta etapa.</li>
+        <li><strong>Normalizar protocolo.</strong> Si la variable viene como <code>fer-backoffice.menustudioai.com</code>, convertir a <code>https://fer-backoffice.menustudioai.com</code>.</li>
+        <li><strong>Construir URL final.</strong> El boton debe apuntar a <code>{website_frontend_url}/backoffice/login</code>.</li>
+        <li><strong>Configurar entorno Docker.</strong> Agregar <code>website_frontend_url=fer-backoffice.menustudioai.com</code> al archivo de entorno usado por <code>grcup-api</code> o al compose si corresponde.</li>
+        <li><strong>Validar en email.</strong> Enviar invitacion de prueba y confirmar que el href contiene dominio correcto, protocolo correcto y ruta login.</li>
+      </ol>
+      <pre><code>private static string GetBackofficeLoginUrl()
+{
+    var baseUrl = Environment.GetEnvironmentVariable("website_frontend_url")
+        ?? "https://fer-backoffice.menustudioai.com";
+
+    if (!baseUrl.StartsWith("http://") &amp;&amp; !baseUrl.StartsWith("https://"))
+        baseUrl = $"https://{baseUrl}";
+
+    return $"{baseUrl.TrimEnd('/')}/backoffice/login";
+}</code></pre>
+    </section>
+
+    <section id="members-tabs" class="phase" data-phase="FASE 3">
+      <h2>Dos pestanas en el area de miembros: Roles y Miembros</h2>
+      <p>La pagina principal debe organizarse en dos vistas claras para evitar mezclar overview de roles con tabla de usuarios.</p>
+      <h3>Archivos probables</h3>
+      <p><code>backoffice/src/pages/backoffice/users/*</code>, <code>backoffice/src/app.tsx</code>, <code>backoffice/src/layouts/BackofficeLayout.tsx</code></p>
+      <ol>
+        <li><strong>Crear estado de tab en URL.</strong> Preferir rutas o query param: <code>/users?tab=roles</code> y <code>/users?tab=members</code>. Si se usa estado local, debe sincronizarse con URL para deep-link.</li>
+        <li><strong>Tab Roles.</strong> Mostrar cards de <code>root</code>, <code>admin</code>, <code>staff</code>, <code>registrador</code> con contador, descripcion corta y botones de accion.</li>
+        <li><strong>Tab Miembros.</strong> Mostrar tabla/lista de miembros con busqueda, rol, estado de invitacion y accion primaria para ver detalle.</li>
+        <li><strong>Usar iconos lucide-react.</strong> En cards de roles usar botones con iconos como <code>Eye</code> para ver rol, <code>UserPlus</code> para anadir miembro en ese rol y <code>Shield</code> o <code>Users</code> para indicar permisos.</li>
+        <li><strong>Mejorar affordance UX.</strong> La card completa puede ser clickable, pero debe tener botones visibles: "Ver rol" y "Anadir". Evitar que el usuario tenga que adivinar que la card abre algo.</li>
+        <li><strong>Responsivo.</strong> Tabs en mobile deben ser botones full-width o scroll horizontal con touch targets de minimo 44px.</li>
+        <li><strong>Accesibilidad.</strong> Usar <code>role="tablist"</code>, <code>role="tab"</code>, <code>aria-selected</code> y foco visible.</li>
+      </ol>
+      <table>
+        <thead>
+          <tr><th>Elemento</th><th>Accion</th><th>Icono sugerido</th><th>Resultado</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Card de rol</td><td>Ver rol</td><td><code>Eye</code></td><td>Navega a ruta de detalle del rol</td></tr>
+          <tr><td>Card de rol</td><td>Anadir miembro</td><td><code>UserPlus</code></td><td>Abre flujo de creacion preseleccionando rol</td></tr>
+          <tr><td>Card de rol</td><td>Capacidades</td><td><code>ShieldCheck</code></td><td>Indica permisos principales</td></tr>
+          <tr><td>Fila de miembro</td><td>Ver miembro</td><td><code>ChevronRight</code></td><td>Navega a detalle de miembro</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="detail-routes" class="phase" data-phase="FASE 4">
+      <h2>Reemplazar detailed views en modal por rutas con slugs y breadcrumbs</h2>
+      <p>La mejor solucion es convertir los detailed views en paginas reales. Esto elimina modales anidados, mejora navegacion, permite compartir enlaces y respeta el layout del backoffice.</p>
+      <h3>Rutas nuevas</h3>
+      <ul>
+        <li><code>/backoffice/:competicionSlug/users</code>: pagina principal con tabs Roles y Miembros.</li>
+        <li><code>/backoffice/:competicionSlug/users/roles/:roleSlug</code>: detalle de rol.</li>
+        <li><code>/backoffice/:competicionSlug/users/members/:usuarioId</code>: detalle de miembro.</li>
+        <li><code>/backoffice/:competicionSlug/users/new?role=staff</code>: alta de miembro con rol preseleccionado.</li>
+      </ul>
+      <h3>Detalle de rol</h3>
+      <ol>
+        <li><strong>Crear pagina <code>RoleDetailPage</code>.</strong> Debe usar <code>BackofficeLayout</code> y leer <code>roleSlug</code> desde router.</li>
+        <li><strong>Breadcrumbs.</strong> Mostrar: Backoffice / Miembros / Roles / Staff.</li>
+        <li><strong>Header de rol.</strong> Mostrar nombre, descripcion, contador, capabilities y restricciones.</li>
+        <li><strong>Lista de miembros.</strong> Mostrar miembros filtrados por rol con accion para ir a detalle de miembro.</li>
+        <li><strong>Acciones.</strong> Boton "Anadir miembro" navega a <code>/users/new?role=:roleSlug</code>.</li>
+        <li><strong>Estados vacios.</strong> Si no hay miembros en el rol, mostrar empty state con CTA de anadir si el usuario puede gestionar.</li>
+      </ol>
+      <h3>Detalle de miembro</h3>
+      <ol>
+        <li><strong>Crear pagina <code>MemberDetailPage</code>.</strong> Debe usar <code>BackofficeLayout</code>, leer <code>usuarioId</code> y cargar el miembro.</li>
+        <li><strong>Breadcrumbs.</strong> Mostrar: Backoffice / Miembros / Nombre del miembro.</li>
+        <li><strong>Vista principal.</strong> Mostrar datos de usuario, rol, estado de invitacion, email, fecha de invitacion y quien lo invito.</li>
+        <li><strong>Editar rol.</strong> Select con roles permitidos segun actor: root puede todos; admin solo staff/registrador.</li>
+        <li><strong>Eliminar miembro.</strong> Boton con confirmacion. Admin no puede eliminar admins ni root.</li>
+        <li><strong>Guardar cambios.</strong> Usar endpoint <code>PUT /api/competition/{id}/users/{usuarioId}/role</code> y mostrar toast de exito/error.</li>
+      </ol>
+      <h3>Alta de miembro</h3>
+      <ol>
+        <li><strong>Crear pagina <code>NewMemberPage</code>.</strong> Debe aceptar query <code>?role=staff</code> para preseleccionar rol desde una card.</li>
+        <li><strong>Formulario.</strong> Campos: nombre, email, password, rol. Validar email y password minimo 8 caracteres.</li>
+        <li><strong>Submit.</strong> Usar endpoint <code>POST /api/competition/{id}/users</code>.</li>
+        <li><strong>Post-submit.</strong> Redirigir a detalle del miembro creado o volver a Miembros con toast.</li>
+      </ol>
+    </section>
+
+    <section id="api-contracts" class="phase" data-phase="FASE 5">
+      <h2>Contratos API y ajustes necesarios</h2>
+      <p>Las rutas detail necesitan datos especificos y errores claros para que la UX no dependa de cargar toda la lista siempre.</p>
+      <ol>
+        <li><strong>Verificar endpoint detail.</strong> Confirmar <code>GET /api/competition/{id}/users/{usuarioId}</code> devuelve un solo miembro.</li>
+        <li><strong>Crear respuesta consistente.</strong> Mantener <code>{ success: true, data: ... }</code> y errores <code>{ success: false, message: ... }</code>.</li>
+        <li><strong>POST debe devolver miembro creado.</strong> La respuesta debe incluir <code>usuarioId</code> para redirigir a detalle.</li>
+        <li><strong>Errores 403 claros.</strong> Si admin intenta editar admin/root, devolver mensaje util: "No puedes modificar usuarios admin o root".</li>
+        <li><strong>Email no debe bloquear UX.</strong> Si crear usuario funciona pero email falla, decidir si se devuelve warning o success con mensaje. Recomendado: success con warning logged y toast informativo si backend lo expone.</li>
+      </ol>
+    </section>
+
+    <section id="qa" class="phase" data-phase="FASE 6">
+      <h2>Validacion, build y tunnel</h2>
+      <p>Despues de implementar, validar backend, frontend y tunnel publico.</p>
+      <h3>Backend</h3>
+      <ol>
+        <li>Ejecutar <code>dotnet build</code> en <code>backend/GrCup.Api</code>.</li>
+        <li>Rebuild/restart API con Docker Compose.</li>
+        <li>Verificar <code>http://localhost:5006/api/health</code>.</li>
+        <li>Crear usuario de prueba y verificar email recibido.</li>
+      </ol>
+      <h3>Frontend</h3>
+      <ol>
+        <li>Ejecutar <code>npm run typecheck</code> en <code>backoffice</code>.</li>
+        <li>Ejecutar <code>npm run build</code> en <code>backoffice</code>.</li>
+        <li>Reiniciar preview en <code>:5173</code> si el tunnel sirve el build.</li>
+        <li>Verificar <code>https://fer-backoffice.menustudioai.com/backoffice/fer/users</code>.</li>
+      </ol>
+      <h3>Browser QA</h3>
+      <ol>
+        <li>Login como root y confirmar que ve Miembros en todos los competition IDs.</li>
+        <li>Login como admin y confirmar que ve Miembros solo en competitions asignadas.</li>
+        <li>Login como staff y confirmar que no ve Miembros ni puede acceder por URL directa.</li>
+        <li>Login como registrador y confirmar que solo ve QR.</li>
+        <li>Probar tabs Roles y Miembros en desktop y mobile.</li>
+        <li>Probar rutas detail con refresh del navegador.</li>
+      </ol>
+    </section>
+
+    <section id="acceptance" class="phase" data-phase="FASE 7">
+      <h2>Criterios de aceptacion</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="tag">Email</span>
+          <h3>Invitacion mejorada</h3>
+          <ul>
+            <li>El email se ve bien en Gmail y cliente mobile.</li>
+            <li>El CTA usa <code>website_frontend_url</code>.</li>
+            <li>El href final es <code>https://fer-backoffice.menustudioai.com/backoffice/login</code>.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="tag">Members</span>
+          <h3>Tabs funcionales</h3>
+          <ul>
+            <li>Existen pestanas Roles y Miembros.</li>
+            <li>Las cards de roles tienen botones con iconos lucide-react.</li>
+            <li>Las acciones son visibles, no solo clicks ocultos.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="tag">Routing</span>
+          <h3>Detalles como paginas</h3>
+          <ul>
+            <li>Detalle de rol tiene URL propia, layout y breadcrumbs.</li>
+            <li>Detalle de miembro tiene URL propia, layout y breadcrumbs.</li>
+            <li>Refresh en rutas detail no rompe la pagina.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="tag">Security</span>
+          <h3>Reglas de permisos</h3>
+          <ul>
+            <li>Root puede gestionar todo.</li>
+            <li>Admin no puede modificar admin/root.</li>
+            <li>Staff y registrador no acceden al area de miembros.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

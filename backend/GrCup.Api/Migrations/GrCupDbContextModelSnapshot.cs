@@ -135,6 +135,9 @@ namespace GrCup.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("ModulesConfig")
+                        .HasColumnType("json");
+
                     b.Property<string>("Lugar")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -943,6 +946,9 @@ namespace GrCup.Api.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsRoot")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<bool>("IsSuperadmin")
                         .HasColumnType("tinyint(1)");
 
@@ -967,6 +973,8 @@ namespace GrCup.Api.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("IsRoot");
+
                     b.HasIndex("IsSuperadmin");
 
                     b.ToTable("Usuarios");
@@ -986,9 +994,20 @@ namespace GrCup.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime?>("InvitedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("InvitedByEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<bool>("InvitationAccepted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<int>("UsuarioId")
                         .HasColumnType("int");

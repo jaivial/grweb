@@ -1,91 +1,99 @@
 <!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
+<html lang="es" data-ui="fer-root">
+  <head data-ui="fer-head">
+    <meta charset="UTF-8" data-meta="charset" />
     <!-- BunnyCDN preconnect for faster image loading -->
-    <link rel="preconnect" href="https://storage.bunnycdn.com" crossorigin="anonymous" />
-    <link rel="preconnect" href="https://jaimedigitalstudio.b-cdn.net" crossorigin="anonymous" />
-    <link rel="dns-prefetch" href="https://storage.bunnycdn.com" />
-    <link rel="dns-prefetch" href="https://jaimedigitalstudio.b-cdn.net" />
+    <link rel="preconnect" href="https://storage.bunnycdn.com" crossorigin="anonymous" data-link="storage-bunnycdn-preconnect" />
+    <link rel="preconnect" href="https://jaimedigitalstudio.b-cdn.net" crossorigin="anonymous" data-link="jaime-bunnycdn-preconnect" />
+    <link rel="dns-prefetch" href="https://storage.bunnycdn.com" data-link="storage-bunnycdn-prefetch" />
+    <link rel="dns-prefetch" href="https://jaimedigitalstudio.b-cdn.net" data-link="jaime-bunnycdn-prefetch" />
     <!-- Google Fonts: Fugaz One -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" data-link="google-fonts-preconnect" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-link="google-fonts-static-preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap" rel="stylesheet" data-link="google-fonts-stylesheet" />
     <!-- Browser tab & Google search -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" data-link="favicon-ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" data-link="favicon-16" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" data-link="favicon-32" />
     <!-- Apple / iOS -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" data-link="apple-touch-icon" />
     <!-- Android Chrome PWA -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" data-link="android-icon-192" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" data-link="android-icon-512" />
+    <link rel="manifest" href="/site.webmanifest" data-link="site-manifest" />
+    <link rel="canonical" href="https://fercup.com/" data-link="canonical-home" />
     <!-- Open Graph / social sharing -->
-    <meta property="og:image" content="/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="description" content="GR Cup 2026: la mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7. Información sobre categorías, horarios y cómo inscribirse." />
-    <meta name="keywords" content="powerlifting, GR Cup, GRcup, Gr Cup, AEP, powerhispania, sbd, a7, nico gr, asociacion española de powerlifting, copa powerlifting españa" />
-    <meta name="robots" content="index, follow" />
-    <meta name="author" content="GR Cup" />
-    <meta property="og:title" content="GR Cup 2026 — Copa de Powerlifting en España" />
-    <meta property="og:description" content="La mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://grcup.com/" />
-    <meta property="og:locale" content="es_ES" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="GR Cup 2026 — Copa de Powerlifting en España" />
-    <meta name="twitter:description" content="La mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7." />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GR Cup 2026 — Copa de Powerlifting en España</title>
-    <script type="application/ld+json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" data-meta="viewport" />
+    <meta name="description" content="FER CUP II 2026: competición de powerlifting en Almussafes, Valencia. Sentadilla, press de banca y peso muerto para atletas que quieren vivir su primera tarima." data-meta="description" />
+    <meta name="keywords" content="FER CUP, FER CUP II, powerlifting, competición powerlifting, Almussafes, Valencia, sentadilla, press banca, peso muerto" data-meta="keywords" />
+    <meta name="robots" content="index, follow, max-image-preview:large" data-meta="robots" />
+    <meta name="author" content="FER Entrenamiento" data-meta="author" />
+    <meta name="theme-color" content="#dc2626" data-meta="theme-color" />
+    <meta property="og:title" content="FER CUP II 2026 | Powerlifting en Almussafes" data-meta="og-title" />
+    <meta property="og:description" content="Tu primera competición de powerlifting en Valencia: sentadilla, press de banca y peso muerto en un evento pensado para atletas que quieren subirse a la tarima." data-meta="og-description" />
+    <meta property="og:type" content="website" data-meta="og-type" />
+    <meta property="og:url" content="https://fercup.com/" data-meta="og-url" />
+    <meta property="og:site_name" content="FER CUP" data-meta="og-site-name" />
+    <meta property="og:locale" content="es_ES" data-meta="og-locale" />
+    <meta property="og:image" content="https://jaimedigitalstudio.b-cdn.net/fer/media/logos/fer-cup-logo.webp" data-meta="og-image" />
+    <meta property="og:image:secure_url" content="https://jaimedigitalstudio.b-cdn.net/fer/media/logos/fer-cup-logo.webp" data-meta="og-image-secure-url" />
+    <meta property="og:image:type" content="image/webp" data-meta="og-image-type" />
+    <meta property="og:image:width" content="1200" data-meta="og-image-width" />
+    <meta property="og:image:height" content="630" data-meta="og-image-height" />
+    <meta property="og:image:alt" content="FER CUP II 2026, competición de powerlifting en Almussafes, Valencia" data-meta="og-image-alt" />
+    <meta name="twitter:card" content="summary_large_image" data-meta="twitter-card" />
+    <meta name="twitter:title" content="FER CUP II 2026 | Powerlifting en Almussafes" data-meta="twitter-title" />
+    <meta name="twitter:description" content="Tu primera competición de powerlifting en Valencia: sentadilla, press de banca y peso muerto en una tarima cercana y competitiva." data-meta="twitter-description" />
+    <meta name="twitter:image" content="https://jaimedigitalstudio.b-cdn.net/fer/media/logos/fer-cup-logo.webp" data-meta="twitter-image" />
+    <meta name="twitter:image:alt" content="FER CUP II 2026, competición de powerlifting en Almussafes, Valencia" data-meta="twitter-image-alt" />
+    <title data-ui="fer-title">FER CUP II 2026 | Powerlifting en Almussafes</title>
+    <script type="application/ld+json" data-schema="sports-event">
     {
       "@context": "https://schema.org",
       "@type": "SportsEvent",
-      "name": "GR Cup 2026",
-      "description": "Copa de powerlifting en España. Competición de squat, bench press y deadlift con sorteos de material SBD y A7.",
-      "startDate": "2026-05-01",
-      "endDate": "2026-05-03",
+      "name": "FER CUP II 2026",
+      "description": "Competición de powerlifting en Almussafes, Valencia. Sentadilla, press de banca y peso muerto para atletas que quieren vivir su primera tarima.",
+      "startDate": "2026-07-25",
       "eventStatus": "https://schema.org/EventScheduled",
       "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
       "location": {
         "@type": "Place",
-        "name": "Madrid, España",
+        "name": "Almussafes, Valencia",
         "address": {
           "@type": "PostalAddress",
-          "addressLocality": "Madrid",
+          "addressLocality": "Almussafes",
+          "addressRegion": "Valencia",
           "addressCountry": "ES"
         }
       },
       "organizer": {
         "@type": "Organization",
-        "name": "GR Cup",
-        "url": "https://grcup.com"
+        "name": "FER Entrenamiento",
+        "url": "https://fercup.com"
       },
       "offers": {
         "@type": "Offer",
-        "url": "https://grcup.com/inscripcion",
+        "url": "https://fercup.com/",
         "priceCurrency": "EUR"
       }
     }
     </script>
-    <script type="application/ld+json">
+    <script type="application/ld+json" data-schema="website">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": "GR Cup",
-      "url": "https://grcup.com",
+      "name": "FER CUP",
+      "url": "https://fercup.com",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://grcup.com/?q={search_term_string}",
+        "target": "https://fercup.com/?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }
     </script>
   </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body data-ui="fer-body">
+    <div id="app" data-ui="fer-app-root"></div>
+    <script type="module" src="/src/main.tsx" data-script="app-entry"></script>
   </body>
 </html>

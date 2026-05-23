@@ -87,7 +87,7 @@ public class SeedService
         {
             var fer = new Competicion
             {
-                Nombre = "FER Powerlifting Day",
+                Nombre = "FER CUP II",
                 Slug = "fer",
                 Fecha = new DateTime(2026, 7, 25),
                 Lugar = "Almussafes, Valencia",
@@ -95,7 +95,7 @@ public class SeedService
                 Tipo = "fer",
                 EmailContacto = "info@ferentrenamiento.com",
                 Telefono = "+34 600 000 000",
-                Descripcion = "FER Powerlifting Day: tu primera competición de powerlifting en un ambiente profesional y acogedor",
+                Descripcion = "FER CUP II: tu primera competición de powerlifting en un ambiente profesional y acogedor",
                 QrSecret = GenerateQrSecret("fer"),
                 EventoConfig = System.Text.Json.JsonSerializer.Serialize(new EventoConfig
                 {
@@ -138,6 +138,7 @@ public class SeedService
                 Email = adminEmail,
                 PasswordHash = HashPassword(adminPassword),
                 Nombre = adminNombre,
+                IsRoot = true,
                 IsSuperadmin = true,
                 IsActive = true,
                 LastLoginAt = null
@@ -173,6 +174,7 @@ public class SeedService
         {
             // Upgrade existing user to superadmin
             existingAdmin.IsSuperadmin = true;
+            existingAdmin.IsRoot = true;
             await _context.SaveChangesAsync();
             _logger.LogInformation("Upgraded existing user to superadmin: {Email}", existingAdmin.Email);
         }

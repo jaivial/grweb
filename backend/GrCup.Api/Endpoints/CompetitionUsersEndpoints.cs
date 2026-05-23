@@ -10,13 +10,18 @@ public static class CompetitionUsersEndpoints
 {
     public static void MapCompetitionUsersEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/competition/{competicionId:int}/users")
+        var group = app.MapGroup("/api/competition/{competicionId}/users")
             .RequireAuthorization();
 
         group.MapGet("/", async (
             int competicionId,
             HttpContext context,
-            UserManagementService userService) =>
+            UserManagementService userService,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? search = null,
+            [FromQuery] string? role = null,
+            [FromQuery] bool? status = null) =>
         {
             var currentUserId = context.User.GetUserId();
             if (!currentUserId.HasValue)
@@ -25,8 +30,14 @@ public static class CompetitionUsersEndpoints
             if (!await userService.CanManageUsersAsync(currentUserId.Value, competicionId))
                 return Results.Forbid();
 
-            var members = await userService.GetCompetitionMembersAsync(competicionId);
-            return Results.Ok(new { success = true, data = members });
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            if (!string.IsNullOrWhiteSpace(role) && !UserRoleNames.IsValid(role))
+                return Results.BadRequest(new { success = false, message = $"Invalid role '{role}'", code = "INVALID_ROLE" });
+
+            var result = await userService.GetCompetitionMembersPaginatedAsync(competicionId, page, pageSize, search, role, status);
+            return Results.Ok(new { success = true, data = result });
         });
 
         var rolesGroup = app.MapGroup("/api/competition/{competicionId:int}/roles")

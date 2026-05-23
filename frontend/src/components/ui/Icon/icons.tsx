@@ -114,3 +114,10 @@ export const ExternalLinkIcon = createIconComponent('external-link');
 
 // Scale icon (for fairness)
 export const ScaleIcon = createIconComponent('target');
+
+// User management icons
+export const UserPlusIcon = createIconComponent('user-plus');
+export const ShieldCheckIcon = createIconComponent('shield-check');
+
+// QR code icon
+export const QRIcon = createIconComponent('qr');

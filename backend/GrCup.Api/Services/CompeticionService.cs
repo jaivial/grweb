@@ -19,6 +19,19 @@ public class CompeticionService
         DefaultIgnoreCondition = JsonIgnoreCondition.Never
     };
 
+    public static readonly CompetitionModuleDefinition[] ModuleCatalog =
+    {
+        new("dashboard", "Inicio", "Panel principal del workspace.", "home", "", null),
+        new("inscripciones", "Inscripciones", "Gestion de atletas inscritos.", "users", "inscripciones", null),
+        new("qr-reader", "Lector QR", "Escaneo de QR para check-in y validacion.", "qrcode", "qr-reader", null),
+        new("judge-table", "Mesa de Jueces", "Intentos, pesos y votos en competiciones FER.", "judge", "judge-table", "fer"),
+        new("participantes", "Participantes", "Participantes y tickets del sorteo GR Cup.", "ticket", "participantes", "grcup"),
+        new("sorteo", "Sorteo", "Gestion del sorteo y premios.", "dice", "sorteo", "grcup"),
+        new("horarios", "Horarios", "Bloques horarios y publicaciones.", "calendar", "horarios", null),
+        new("users", "Miembros", "Gestion de miembros del workspace.", "members", "users", null),
+        new("configuracion", "Configuracion", "Configuracion general, email y pagos.", "settings", "configuracion", null)
+    };
+
     public CompeticionService(GrCupDbContext context)
     {
         _context = context;
@@ -213,6 +226,72 @@ public class CompeticionService
         return true;
     }
 
+    public async Task<Competicion?> UpdateModulesAsync(int id, IEnumerable<CompetitionModuleUpdate> updates)
+    {
+        var competicion = await _context.Competiciones.FindAsync(id);
+        if (competicion == null)
+            return null;
+
+        var validKeys = ModuleCatalog.Select(m => m.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var merged = GetModulesForCompetition(competicion)
+            .ToDictionary(module => module.Key, module => module.Enabled, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var update in updates)
+        {
+            if (!validKeys.Contains(update.Key))
+                throw new InvalidOperationException($"Invalid module '{update.Key}'");
+
+            merged[update.Key] = update.Enabled;
+        }
+
+        competicion.ModulesConfig = JsonSerializer.Serialize(merged, _jsonOpts);
+        competicion.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return competicion;
+    }
+
+    public static List<CompetitionModuleResponse> GetModulesForCompetition(Competicion competicion)
+    {
+        var configured = ParseModulesConfig(competicion.ModulesConfig);
+        var tipo = competicion.Tipo ?? "grcup";
+
+        return ModuleCatalog
+            .Select(module => new CompetitionModuleResponse(
+                module.Key,
+                module.Label,
+                module.Description,
+                module.Icon,
+                module.SubPath,
+                configured.TryGetValue(module.Key, out var enabled) ? enabled : IsModuleEnabledByDefault(module, tipo),
+                module.RequiredTipo
+            ))
+            .ToList();
+    }
+
+    private static Dictionary<string, bool> ParseModulesConfig(string? modulesConfig)
+    {
+        if (string.IsNullOrWhiteSpace(modulesConfig))
+            return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, bool>>(modulesConfig);
+            return parsed == null
+                ? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, bool>(parsed, StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static bool IsModuleEnabledByDefault(CompetitionModuleDefinition module, string tipo)
+    {
+        return module.RequiredTipo == null || string.Equals(module.RequiredTipo, tipo, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Gets available spots for a competition
     /// </summary>
@@ -327,3 +406,24 @@ public record UpdateCompeticionRequest(
     LandingConfig? LandingConfig = null,
     EventoConfig? EventoConfig = null
 );
+
+public record CompetitionModuleDefinition(
+    string Key,
+    string Label,
+    string Description,
+    string Icon,
+    string SubPath,
+    string? RequiredTipo
+);
+
+public record CompetitionModuleResponse(
+    string Key,
+    string Label,
+    string Description,
+    string Icon,
+    string SubPath,
+    bool Enabled,
+    string? RequiredTipo
+);
+
+public record CompetitionModuleUpdate(string Key, bool Enabled);

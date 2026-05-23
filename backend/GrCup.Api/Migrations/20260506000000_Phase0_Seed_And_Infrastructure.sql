@@ -28,7 +28,7 @@ WHERE NOT EXISTS (SELECT 1 FROM competiciones WHERE slug = 'grcup');
 -- 2. Seed FER competition
 -- ============================================
 INSERT INTO competiciones (nombre, slug, fecha, lugar, activo, tipo, qr_secret, evento_config, landing_config, created_at, updated_at)
-SELECT 'FER Powerlifting Day', 'fer', '2026-07-25', 'Almussafes, Valencia', TRUE, 'fer',
+SELECT 'FER CUP II', 'fer', '2026-07-25', 'Almussafes, Valencia', TRUE, 'fer',
        UUID(),
        '{"aforoMaximo": 80, "precioBase": 35, "precioUpsell": 50, "precioRifa": 5, "maxTicketsPorPersona": 5, "inscripcionAbierta": true}',
        '{"primaryColor": "#3B82F6", "secondaryColor": "#60A5FA", "descripcion": "Tu primera competición de Powerlifting", "instagramUrl": "https://instagram.com/ferentrenamiento"}',

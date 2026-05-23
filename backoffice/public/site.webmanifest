@@ -1,0 +1,22 @@
+{
+  "name": "GR Cup 2026 — Copa de Powerlifting en España",
+  "short_name": "GR Cup",
+  "description": "Copa de powerlifting en España. Competición de squat, bench press y deadlift con sorteos de material SBD y A7.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#dc2626",
+  "categories": ["sports", "events"],
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

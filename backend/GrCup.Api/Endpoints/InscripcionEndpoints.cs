@@ -92,6 +92,48 @@ public static class InscripcionEndpoints
             }
         });
 
+        // POST /api/competiciones/:slug/inscripcion/:id/peak-program - Add GRS Peak Program to an inscription
+        app.MapPost("/api/competiciones/{slug}/inscripcion/{id:int}/peak-program", async (
+            string slug,
+            int id,
+            CompeticionService competicionService,
+            InscripcionService inscripcionService,
+            ILogger<Program> logger) =>
+        {
+            var competicion = await competicionService.GetBySlugAsync(slug);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            try
+            {
+                var inscripcion = await inscripcionService.AddPeakProgramAsync(competicion.Id, id);
+                if (inscripcion == null)
+                    return Results.NotFound(new { success = false, message = "Inscription not found" });
+
+                logger.LogInformation("Peak Program added to inscription {Id} for competition {Slug}", id, slug);
+
+                return Results.Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        inscripcion.Id,
+                        inscripcion.Nombre,
+                        inscripcion.Email,
+                        inscripcion.QrCode,
+                        inscripcion.TotalPagado,
+                        inscripcion.QuierePeakProgram,
+                        mensaje = "GRS Peak Program añadido correctamente."
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to add Peak Program to inscription {Id} for {Slug}", id, slug);
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+        });
+
         // GET /api/competiciones/:slug/inscripcion/:id/qr - Get QR code
         app.MapGet("/api/competiciones/{slug}/inscripcion/{id:int}/qr", async (
             string slug,

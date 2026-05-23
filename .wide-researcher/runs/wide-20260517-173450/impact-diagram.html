@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>wide-researcher · wide-20260517-173450</title>
+<link rel="stylesheet" href="https://esm.sh/reactflow@11.11.4/dist/style.css">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+  }
+  html, body, #root { margin:0; padding:0; height:100%; background:var(--bg); color:var(--text); }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; overflow:hidden; }
+
+  header {
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    padding: .75rem 1.25rem; background: rgba(13,17,23,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid #21262d; display:flex; gap:1rem; align-items:center;
+  }
+  header h1 { font-size:.95rem; margin:0; color:var(--accent); font-weight:600; }
+  header .meta { font-size:.75rem; color:var(--muted); margin-left:auto; font-variant-numeric: tabular-nums; }
+  header #hint { color:#aacbff; font-size:.78rem; font-family:ui-monospace,monospace; }
+
+  #root { padding-top: 56px; box-sizing: border-box; }
+
+  /* Origin (centre) card */
+  .origin-card {
+    background: linear-gradient(180deg, #1f6feb 0%, #0d419d 100%);
+    color:#fff; padding: 1rem 1.25rem; border-radius: 12px;
+    box-shadow: 0 8px 30px #1f6feb55;
+    max-width: 380px; min-width: 240px;
+    text-align: center; font-weight: 600; font-size: .9rem; line-height: 1.35;
+  }
+  .origin-card small {
+    display:block; color:#aacbff; font-weight:400;
+    text-transform:uppercase; font-size:.62rem; letter-spacing:.1em; margin-bottom:.4rem;
+  }
+  .origin-prompt { font-weight: 600; }
+
+  /* File cards */
+  .file-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    min-width: 240px; max-width: 340px; box-shadow: 0 2px 10px #0008;
+    overflow: hidden; display: flex;
+    transition: border-color .15s ease, background .15s ease, transform .15s ease;
+  }
+  .file-card:hover { border-color: var(--accent); background: #1f2937; transform: translateY(-1px); }
+  .file-card-bar { width: 4px; flex-shrink: 0; }
+  .file-card-body { padding: .55rem .7rem; flex: 1; min-width: 0; }
+  .file-card-path { color:var(--text); font-family: ui-monospace, monospace; font-size:.72rem;
+                     word-break: break-all; line-height: 1.3; }
+  .file-card-meta { display:flex; gap:.4rem; align-items:center; margin-top:.35rem;
+                     color:var(--muted); font-size:.68rem; flex-wrap: wrap; }
+  .badge { background:#21262d; padding:1px 6px; border-radius:4px; color:var(--muted);
+            font-size:.62rem; }
+  .badge.owner { background:#1c3d5a; color:#aacbff; }
+  .score { margin-left:auto; color: var(--accent); font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, monospace; }
+  .file-card-symbols { color:#aacbff; font-family:ui-monospace,monospace; font-size:.65rem;
+                        margin-top:.35rem; word-break: break-all; }
+  .file-card-lines { color:var(--muted); font-family:ui-monospace,monospace; font-size:.62rem;
+                      margin-top:.2rem; }
+
+  /* Ring accent (left-bar already coloured via inline style) */
+  .file-card.ring-0 { border-color: #2ea04388; }
+  .file-card.ring-1 { border-color: #d2992288; }
+  .file-card.ring-2 { border-color: #f8514988; }
+  .file-card.ring-3 { border-color: #6e768188; }
+
+  /* React Flow tweaks for dark theme */
+  .react-flow__handle { opacity: 0; }
+  .react-flow__controls { background: #161b22 !important; }
+  .react-flow__controls button { background: #161b22 !important; color: #e6edf3 !important;
+                                  border-bottom: 1px solid #30363d !important; }
+  .react-flow__controls button:hover { background: #1f2937 !important; }
+  .react-flow__minimap { border-radius: 6px; }
+</style>
+</head><body>
+<header>
+  <h1>wide-researcher · impact radius</h1>
+  <span id="hint"></span>
+  <div class="meta">wide-20260517-173450 · 2026-05-17T17:34:50+00:00 · 12 files · 40 edges</div>
+</header>
+<div id="root"></div>
+<script type="module">
+
+import React, { useMemo, useCallback } from 'https://esm.sh/react@18';
+import { createRoot } from 'https://esm.sh/react-dom@18/client?deps=react@18';
+import ReactFlow, {
+  Background, Controls, MiniMap, Handle, Position,
+} from 'https://esm.sh/reactflow@11.11.4?deps=react@18,react-dom@18';
+
+const DATA = {"prompt": "Analyze Qdrant wide-research coverage for project root /var/www/grweb and OpenCode MCP preference configuration", "slug": "wide-20260517-173450", "generatedAt": "2026-05-17T17:34:50+00:00", "fileCount": 12, "edgeCount": 40, "nodes": [{"id": "origin", "type": "originNode", "position": {"x": 0, "y": 0}, "data": {"prompt": "Analyze Qdrant wide-research coverage for project root /var/www/grweb and OpenCode MCP preference configuration"}, "draggable": false}, {"id": "f1", "type": "fileNode", "position": {"x": 220.0, "y": 0.0}, "data": {"id": "f1", "path": "plans/backoffice-users-migration-plan.html", "fullPath": "/var/www/grweb/plans/backoffice-users-migration-plan.html", "repo": "grweb", "language": "text", "agent_owner": "", "atomic_layer": "", "symbols": ["part:3", "part:2", "part:1"], "lines": [[263, 296], [51, 80], [102, 138], [217, 242]], "score": 0.707, "chunks": 4, "ring": 0}}, {"id": "f2", "type": "fileNode", "position": {"x": -220.0, "y": 2.694222958124177e-14}, "data": {"id": "f2", "path": ".claude/agents/wide-researcher.md", "fullPath": "/var/www/grweb/.claude/agents/wide-researcher.md", "repo": "grweb", "language": "markdown", "agent_owner": "", "atomic_layer": "", "symbols": ["Hard rules", "wide-researcher", "(intro)", "Workflow"], "lines": [[62, 73], [6, 12], [1, 5], [13, 54], [55, 61]], "score": 0.473, "chunks": 5, "ring": 0}}, {"id": "f3", "type": "fileNode", "position": {"x": 368.5846759939566, "y": 201.35872621376527}, "data": {"id": "f3", "path": ".claude/skills/wide-research/SKILL.md", "fullPath": "/var/www/grweb/.claude/skills/wide-research/SKILL.md", "repo": "grweb", "language": "markdown", "agent_owner": "", "atomic_layer": "", "symbols": ["(intro)", "How to invoke", "Hard rules", "Filter cheat-sheet"], "lines": [[1, 5], [21, 33], [75, 83], [34, 51]], "score": 0.45, "chunks": 4, "ring": 1}}, {"id": "f4", "type": "fileNode", "position": {"x": -358.6741101717745, "y": 218.52432974954013}, "data": {"id": "f4", "path": "frontend/vitest.config.ts", "fullPath": "/var/www/grweb/frontend/vitest.config.ts", "repo": "grweb", "language": "typescript", "agent_owner": "", "atomic_layer": "", "symbols": [], "lines": [[5, 24]], "score": 0.305, "chunks": 1, "ring": 1}}, {"id": "f5", "type": "fileNode", "position": {"x": -9.910565822182173, "y": -419.88305596330537}, "data": {"id": "f5", "path": ".claude/skills/wide-research/references/mcp-tools.md", "fullPath": "/var/www/grweb/.claude/skills/wide-research/references/mcp-tools.md", "repo": "grweb", "language": "markdown", "agent_owner": "", "atomic_layer": "", "symbols": ["wide-researcher MCP tools — full reference", "`wr_find(query, k?, lang?, role?, layer?, mode?)`"], "lines": [[1, 2], [3, 65]], "score": 0.223, "chunks": 2, "ring": 1}}, {"id": "f6", "type": "fileNode", "position": {"x": 334.9874296382467, "y": 521.7120105808958}, "data": {"id": "f6", "path": "frontend/public/robots.txt", "fullPath": "/var/www/grweb/frontend/public/robots.txt", "repo": "grweb", "language": "text", "agent_owner": "", "atomic_layer": "", "symbols": [], "lines": [[1, 5]], "score": 0.191, "chunks": 1, "ring": 2}}, {"id": "f7", "type": "fileNode", "position": {"x": -619.309569441635, "y": 29.25161872472599}, "data": {"id": "f7", "path": "backoffice/public/robots.txt", "fullPath": "/var/www/grweb/backoffice/public/robots.txt", "repo": "grweb", "language": "text", "agent_owner": "", "atomic_layer": "", "symbols": [], "lines": [[1, 5]], "score": 0.191, "chunks": 1, "ring": 2}}, {"id": "f8", "type": "fileNode", "position": {"x": 284.3221398033881, "y": -550.9636293056218}, "data": {"id": "f8", "path": "tunnel-services.md", "fullPath": "/var/www/grweb/tunnel-services.md", "repo": "grweb", "language": "markdown", "agent_owner": "", "atomic_layer": "", "symbols": ["GrWeb Tunnel Services - Quick Reference", "Services Running"], "lines": [[1, 2], [3, 10]], "score": 0.184, "chunks": 2, "ring": 2}}, {"id": "f9", "type": "fileNode", "position": {"x": 58.00450536751638, "y": 817.9458890153246}, "data": {"id": "f9", "path": "nginx/grcup.jaimedigitalstudio.com", "fullPath": "/var/www/grweb/nginx/grcup.jaimedigitalstudio.com", "repo": "grweb", "language": "text", "agent_owner": "", "atomic_layer": "", "symbols": [], "lines": [[1, 80]], "score": 0.183, "chunks": 1, "ring": 3}}, {"id": "f10", "type": "fileNode", "position": {"x": -817.9458890153246, "y": 58.00450536751644}, "data": {"id": "f10", "path": "backend/GrCup.Api/.env.example", "fullPath": "/var/www/grweb/backend/GrCup.Api/.env.example", "repo": "grweb", "language": "text", "agent_owner": "", "atomic_layer": "", "symbols": [], "lines": [[1, 16]], "score": 0.173, "chunks": 1, "ring": 3}}, {"id": "f11", "type": "fileNode", "position": {"x": -58.00450536751649, "y": -817.9458890153246}, "data": {"id": "f11", "path": ".claude/skills/wide-research/references/impact-diagram.md", "fullPath": "/var/www/grweb/.claude/skills/wide-research/references/impact-diagram.md", "repo": "grweb", "language": "markdown", "agent_owner": "", "atomic_layer": "", "symbols": ["research-context.json shape"], "lines": [[13, 51]], "score": 0.094, "chunks": 1, "ring": 3}}, {"id": "f12", "type": "fileNode", "position": {"x": 817.9458890153246, "y": -58.00450536751653}, "data": {"id": "f12", "path": "AGENTS.md", "fullPath": "/var/www/grweb/AGENTS.md", "repo": "grweb", "language": "markdown", "agent_owner": "", "atomic_layer": "", "symbols": ["Jerarquía de AGENTS por carpeta (obligatorio)"], "lines": [[98, 114]], "score": 0.093, "chunks": 1, "ring": 3}}], "edges": [{"id": "e-origin-f1", "source": "origin", "target": "f1", "kind": "origin0", "reason": "ring 0 · direct semantic hit"}, {"id": "e-origin-f2", "source": "origin", "target": "f2", "kind": "origin0", "reason": "ring 0 · direct semantic hit"}, {"id": "e-origin-f3", "source": "origin", "target": "f3", "kind": "origin1", "reason": "ring 1 · close cluster"}, {"id": "e-origin-f4", "source": "origin", "target": "f4", "kind": "origin1", "reason": "ring 1 · close cluster"}, {"id": "e-origin-f5", "source": "origin", "target": "f5", "kind": "origin1", "reason": "ring 1 · close cluster"}, {"id": "e-origin-f6", "source": "origin", "target": "f6", "kind": "origin2", "reason": "ring 2 · adjacent cluster"}, {"id": "e-origin-f7", "source": "origin", "target": "f7", "kind": "origin2", "reason": "ring 2 · adjacent cluster"}, {"id": "e-origin-f8", "source": "origin", "target": "f8", "kind": "origin2", "reason": "ring 2 · adjacent cluster"}, {"id": "e-origin-f9", "source": "origin", "target": "f9", "kind": "origin3", "reason": "ring 3 · distant cluster"}, {"id": "e-origin-f10", "source": "origin", "target": "f10", "kind": "origin3", "reason": "ring 3 · distant cluster"}, {"id": "e-origin-f11", "source": "origin", "target": "f11", "kind": "origin3", "reason": "ring 3 · distant cluster"}, {"id": "e-origin-f12", "source": "origin", "target": "f12", "kind": "origin3", "reason": "ring 3 · distant cluster"}, {"id": "e-prox-f1-f3", "source": "f1", "target": "f3", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f2-f4", "source": "f2", "target": "f4", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f2-f5", "source": "f2", "target": "f5", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f3-f6", "source": "f3", "target": "f6", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f4-f7", "source": "f4", "target": "f7", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f5-f8", "source": "f5", "target": "f8", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f6-f9", "source": "f6", "target": "f9", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f7-f10", "source": "f7", "target": "f10", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f8-f11", "source": "f8", "target": "f11", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-prox-f8-f12", "source": "f8", "target": "f12", "kind": "proximity", "reason": "nearest inner-ring neighbour"}, {"id": "e-nb-f1-f3", "source": "f1", "target": "f3", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f1-f2", "source": "f1", "target": "f2", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f2-f4", "source": "f2", "target": "f4", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f2-f7", "source": "f2", "target": "f7", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f3-f6", "source": "f3", "target": "f6", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f4-f7", "source": "f4", "target": "f7", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f5-f8", "source": "f5", "target": "f8", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f11-f5", "source": "f5", "target": "f11", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f6-f9", "source": "f6", "target": "f9", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f10-f7", "source": "f7", "target": "f10", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f11-f8", "source": "f8", "target": "f11", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f3-f9", "source": "f9", "target": "f3", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f10-f4", "source": "f10", "target": "f4", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f12-f3", "source": "f12", "target": "f3", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-nb-f1-f12", "source": "f12", "target": "f1", "kind": "neighbor", "reason": "spatial neighbour"}, {"id": "e-f2-f3", "source": "f2", "target": "f3", "kind": "symbol", "reason": "shares symbol: (intro), Hard rules"}, {"id": "e-f5-f11", "source": "f5", "target": "f11", "kind": "dir", "reason": "same dir: references"}, {"id": "e-f8-f12", "source": "f8", "target": "f12", "kind": "dir", "reason": "same dir: grweb"}]};
+
+const ringColor = (r) => ['#2ea043', '#d29922', '#f85149', '#6e7681'][r] || '#6e7681';
+
+function OriginNode({ data }) {
+  return React.createElement('div', { className: 'origin-card' },
+    React.createElement(Handle, { type: 'target', position: Position.Top, id: 't', style: { opacity: 0 } }),
+    React.createElement('small', null, 'ORIGIN · USER PROMPT'),
+    React.createElement('div', { className: 'origin-prompt' }, data.prompt),
+    React.createElement(Handle, { type: 'source', position: Position.Bottom, id: 's', style: { opacity: 0 } })
+  );
+}
+
+function FileNode({ data }) {
+  const lineStr = (data.lines && data.lines.length)
+    ? 'L' + data.lines[0][0] + '-' + data.lines[0][1] + (data.lines.length > 1 ? ' +' + (data.lines.length - 1) : '')
+    : '';
+  return React.createElement('div', {
+    className: 'file-card ring-' + data.ring,
+    title: data.fullPath + '\nscore=' + data.score + ' · chunks=' + data.chunks
+            + '\nowner=' + (data.agent_owner || '-')
+            + '\nlayer=' + (data.atomic_layer || '-')
+            + '\nsymbols: ' + ((data.symbols || []).slice(0, 3).join(', ') || '(none)')
+  },
+    React.createElement(Handle, { type: 'target', position: Position.Top, id: 't', style: { opacity: 0 } }),
+    React.createElement('div', { className: 'file-card-bar', style: { background: ringColor(data.ring) } }),
+    React.createElement('div', { className: 'file-card-body' },
+      React.createElement('div', { className: 'file-card-path' }, data.path),
+      React.createElement('div', { className: 'file-card-meta' },
+        React.createElement('span', { className: 'badge' }, data.language || data.repo || '-'),
+        data.agent_owner ? React.createElement('span', { className: 'badge owner' }, data.agent_owner) : null,
+        React.createElement('span', { className: 'score' }, data.score.toFixed(3)),
+      ),
+      (data.symbols && data.symbols.length)
+        ? React.createElement('div', { className: 'file-card-symbols' }, (data.symbols.slice(0, 3)).join(', '))
+        : null,
+      lineStr
+        ? React.createElement('div', { className: 'file-card-lines' }, lineStr + ' · ' + data.chunks + ' chunk' + (data.chunks > 1 ? 's' : ''))
+        : null
+    ),
+    React.createElement(Handle, { type: 'source', position: Position.Bottom, id: 's', style: { opacity: 0 } })
+  );
+}
+
+const nodeTypes = { fileNode: FileNode, originNode: OriginNode };
+
+function edgeStyle(kind) {
+  switch (kind) {
+    case 'origin0':   return { stroke: '#79c0ff', strokeWidth: 2.8, strokeOpacity: 1.0 };
+    case 'origin1':   return { stroke: '#79c0ff', strokeWidth: 2.0, strokeOpacity: 0.85 };
+    case 'origin2':   return { stroke: '#79c0ff', strokeWidth: 1.6, strokeOpacity: 0.70 };
+    case 'origin3':   return { stroke: '#79c0ff', strokeWidth: 1.3, strokeOpacity: 0.55 };
+    case 'proximity': return { stroke: '#a5d6ff', strokeWidth: 1.6, strokeOpacity: 0.80, strokeDasharray: '6 4' };
+    case 'neighbor':  return { stroke: '#a5d6ff', strokeWidth: 1.2, strokeOpacity: 0.60 };
+    case 'symbol':    return { stroke: '#3fb950', strokeWidth: 2.2, strokeOpacity: 0.95 };
+    case 'owner':     return { stroke: '#e3b341', strokeWidth: 1.6, strokeOpacity: 0.75, strokeDasharray: '4 3' };
+    case 'dir':       return { stroke: '#b1bac4', strokeWidth: 1.2, strokeOpacity: 0.60, strokeDasharray: '1 4' };
+    default:          return { stroke: '#8b949e', strokeWidth: 1.0, strokeOpacity: 0.55 };
+  }
+}
+
+function App() {
+  const nodes = useMemo(() => DATA.nodes, []);
+  const edges = useMemo(() =>
+    DATA.edges.map(e => ({
+      id: e.id, source: e.source, target: e.target,
+      // 'default' = bezier in React Flow 11. 'straight' = polyline.
+      type: (e.kind && e.kind.indexOf('origin') === 0) ? 'default' : 'straight',
+      animated: false,
+      style: edgeStyle(e.kind),
+      label: '',
+      data: { kind: e.kind, reason: e.reason },
+    })), []);
+
+  const onEdgeMouseEnter = useCallback((_, edge) => {
+    const el = document.getElementById('hint');
+    if (el && edge?.data?.reason) el.textContent = edge.data.reason;
+  }, []);
+  const onEdgeMouseLeave = useCallback(() => {
+    const el = document.getElementById('hint');
+    if (el) el.textContent = '';
+  }, []);
+
+  return React.createElement(ReactFlow, {
+    nodes, edges, nodeTypes,
+    fitView: true,
+    fitViewOptions: { padding: 0.22, includeHiddenNodes: false },
+    minZoom: 0.15, maxZoom: 2,
+    nodesDraggable: true,
+    nodesConnectable: false,
+    elementsSelectable: true,
+    proOptions: { hideAttribution: true },
+    onEdgeMouseEnter, onEdgeMouseLeave,
+    defaultEdgeOptions: { type: 'default' },
+  },
+    React.createElement(Background, { color: '#21262d', gap: 32, size: 1 }),
+    React.createElement(MiniMap, { pannable: true, zoomable: true,
+      style: { background: '#161b22' },
+      nodeColor: (n) => n.type === 'originNode' ? '#58a6ff' : ringColor(n.data?.ring || 3),
+      maskColor: 'rgba(13,17,23,.7)' }),
+    React.createElement(Controls, { showInteractive: false }),
+  );
+}
+
+createRoot(document.getElementById('root')).render(React.createElement(App));
+
+</script>
+</body></html>

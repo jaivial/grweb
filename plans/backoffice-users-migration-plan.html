@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" data-plan="document-root">
+<head data-plan="document-head">
+  <meta charset="utf-8" data-plan="meta-charset">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-plan="meta-viewport">
+  <title data-plan="document-title">Backoffice Users Migration Plan</title>
+  <style data-plan="document-styles">
+    :root {
+      --bg: #0d1117;
+      --panel: #151b23;
+      --panel-soft: #1f2937;
+      --text: #f8fafc;
+      --muted: #a7b0bf;
+      --line: #303846;
+      --accent: #38bdf8;
+      --accent-2: #f97316;
+      --ok: #22c55e;
+      --warn: #facc15;
+      --danger: #fb7185;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 34rem), var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 72px; }
+    header, section { border: 1px solid var(--line); background: rgba(21, 27, 35, 0.94); border-radius: 22px; padding: 28px; margin: 18px 0; }
+    header { background: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(249, 115, 22, 0.12)), var(--panel); }
+    h1, h2, h3 { line-height: 1.15; margin: 0; }
+    h1 { font-size: clamp(32px, 5vw, 54px); letter-spacing: -0.04em; }
+    h2 { font-size: 27px; margin-bottom: 14px; }
+    h3 { font-size: 19px; margin: 18px 0 8px; color: #dbeafe; }
+    p { color: var(--muted); margin: 10px 0; }
+    a { color: #7dd3fc; }
+    code { background: #0a0f16; border: 1px solid var(--line); border-radius: 7px; color: #e2e8f0; padding: 2px 6px; font-size: 0.92em; }
+    ul, ol { margin: 10px 0 0 20px; padding: 0; }
+    li { color: var(--muted); margin: 7px 0; }
+    strong { color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; overflow: hidden; border-radius: 14px; }
+    th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: #223044; color: #f8fafc; }
+    td { color: var(--muted); background: rgba(15, 23, 42, 0.42); }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .pill { display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,0.13); border-radius: 999px; padding: 7px 12px; color: var(--text); background: rgba(255,255,255,0.06); font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 14px; }
+    .card { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--panel-soft); }
+    .note { border-left: 4px solid var(--accent); padding: 12px 14px; background: rgba(56, 189, 248, 0.08); border-radius: 10px; }
+    .warning { border-left-color: var(--warn); background: rgba(250, 204, 21, 0.08); }
+    .danger { border-left-color: var(--danger); background: rgba(251, 113, 133, 0.08); }
+    .ok { color: #86efac; }
+    .warn { color: #fde68a; }
+    .danger-text { color: #fecdd3; }
+    .checklist li { list-style: none; margin-left: -18px; }
+    @media (max-width: 720px) {
+      main { width: min(100% - 20px, 1180px); padding-top: 20px; }
+      header, section { padding: 20px; border-radius: 16px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body data-plan="document-body">
+  <main data-plan="plan-main">
+    <header data-plan="plan-hero">
+      <h1 data-plan="plan-title">Backoffice Users Migration Plan</h1>
+      <p data-plan="plan-subtitle">Detailed implementation plan for migrating the route-based users/member backoffice implementation from <code data-plan="code-frontend-root">/var/www/grweb/frontend/</code> into the new canonical project at <code data-plan="code-backoffice-root">/var/www/grweb/backoffice/</code>.</p>
+      <div class="meta" data-plan="plan-meta">
+        <span class="pill" data-plan="meta-scope">Scope: plan only</span>
+        <span class="pill" data-plan="meta-source">Source/reference: frontend</span>
+        <span class="pill" data-plan="meta-target">Canonical app: backoffice</span>
+        <span class="pill" data-plan="meta-routing">PM routing required</span>
+      </div>
+    </header>
+
+    <section data-plan="objective-section">
+      <h2 data-plan="objective-title">Objective</h2>
+      <p data-plan="objective-copy">Move the route-based backoffice users/member experience into <code data-plan="objective-path-backoffice">/var/www/grweb/backoffice/</code>, making it the canonical deployed backoffice. After migration, <code data-plan="objective-path-frontend">/var/www/grweb/frontend/</code> becomes source/reference only for these pages and must not be treated as the deployed backoffice.</p>
+      <ul class="checklist" data-plan="objective-checklist">
+        <li data-plan="objective-item-1">[ ] Confirm <code data-plan="objective-code-1">/backoffice</code> is the canonical deployed app served through the Cloudflare tunnel.</li>
+        <li data-plan="objective-item-2">[ ] Port users list, role detail, member detail, and new member flows to <code data-plan="objective-code-2">backoffice/src/</code>.</li>
+        <li data-plan="objective-item-3">[ ] Fix frontend rule violations and invalid Hook usage before or during the port.</li>
+        <li data-plan="objective-item-4">[ ] Align backend API behavior and failure reporting so the UI can trust responses.</li>
+      </ul>
+    </section>
+
+    <section data-plan="current-state-section">
+      <h2 data-plan="current-state-title">Current State</h2>
+      <div class="grid" data-plan="current-state-grid">
+        <div class="card" data-plan="current-state-card-frontend">
+          <h3 data-plan="current-state-frontend-title">Frontend Source Pages</h3>
+          <ul data-plan="current-state-frontend-list">
+            <li data-plan="current-state-frontend-1"><code data-plan="current-state-code-1">/var/www/grweb/frontend/src/pages/backoffice/users/UsersPage.tsx</code></li>
+            <li data-plan="current-state-frontend-2"><code data-plan="current-state-code-2">/var/www/grweb/frontend/src/pages/backoffice/users/RoleDetailPage.tsx</code></li>
+            <li data-plan="current-state-frontend-3"><code data-plan="current-state-code-3">/var/www/grweb/frontend/src/pages/backoffice/users/MemberDetailPage.tsx</code></li>
+            <li data-plan="current-state-frontend-4"><code data-plan="current-state-code-4">/var/www/grweb/frontend/src/pages/backoffice/users/NewMemberPage.tsx</code></li>
+            <li data-plan="current-state-frontend-5"><code data-plan="current-state-code-5">/var/www/grweb/frontend/src/pages/backoffice/users/index.ts</code></li>
+          </ul>
+        </div>
+        <div class="card" data-plan="current-state-card-backoffice">
+          <h3 data-plan="current-state-backoffice-title">Backoffice Target Project</h3>
+          <ul data-plan="current-state-backoffice-list">
+            <li data-plan="current-state-backoffice-1"><code data-plan="current-state-code-6">/var/www/grweb/backoffice/src/app.tsx</code> currently owns app routing.</li>
+            <li data-plan="current-state-backoffice-2"><code data-plan="current-state-code-7">/var/www/grweb/backoffice/src/pages/backoffice/users/UsersPage.tsx</code> exists and should be reconciled with the route-based source implementation.</li>
+            <li data-plan="current-state-backoffice-3"><code data-plan="current-state-code-8">/var/www/grweb/backoffice/src/api/client.ts</code> and <code data-plan="current-state-code-9">/var/www/grweb/backoffice/src/types/api.ts</code> define the client contract.</li>
+          </ul>
+        </div>
+        <div class="card" data-plan="current-state-card-backend">
+          <h3 data-plan="current-state-backend-title">Backend Touchpoints</h3>
+          <ul data-plan="current-state-backend-list">
+            <li data-plan="current-state-backend-1"><code data-plan="current-state-code-10">/var/www/grweb/backend/GrCup.Api/Endpoints/CompetitionUsersEndpoints.cs</code></li>
+            <li data-plan="current-state-backend-2"><code data-plan="current-state-code-11">/var/www/grweb/backend/GrCup.Api/Services/UserManagementService.cs</code></li>
+            <li data-plan="current-state-backend-3"><code data-plan="current-state-code-12">/var/www/grweb/backend/GrCup.Api/Services/EmailService.cs</code></li>
+            <li data-plan="current-state-backend-4"><code data-plan="current-state-code-13">/var/www/grweb/backend/GrCup.Api/Models/Enums/UserRole.cs</code></li>
+          </ul>
+        </div>
+      </div>
+      <p class="note warning" data-plan="current-state-note">The previous review identified route migration, hook correctness, API response shape, invitation URL, SMTP failure reporting, role validation, permission enforcement, deployment targeting, and QA as required next steps.</p>
+    </section>
+
+    <section data-plan="target-architecture-section">
+      <h2 data-plan="target-architecture-title">Target Architecture</h2>
+      <table data-plan="target-architecture-table">
+        <thead data-plan="target-architecture-thead">
+          <tr data-plan="target-architecture-head-row">
+            <th data-plan="target-architecture-th-area">Area</th>
+            <th data-plan="target-architecture-th-target">Target</th>
+            <th data-plan="target-architecture-th-files">Primary Files To Modify Later</th>
+          </tr>
+        </thead>
+        <tbody data-plan="target-architecture-tbody">
+          <tr data-plan="target-architecture-row-routing">
+            <td data-plan="target-architecture-routing-area">Backoffice routing</td>
+            <td data-plan="target-architecture-routing-target">Routes for users list, role detail, member detail, and new member live in the canonical backoffice app.</td>
+            <td data-plan="target-architecture-routing-files"><code data-plan="target-architecture-code-1">/var/www/grweb/backoffice/src/app.tsx</code></td>
+          </tr>
+          <tr data-plan="target-architecture-row-pages">
+            <td data-plan="target-architecture-pages-area">Backoffice pages</td>
+            <td data-plan="target-architecture-pages-target">Folder-per-component pages with atoms, memoized derived render data, stable child handlers, and complete <code data-plan="target-architecture-code-2">data-*</code> coverage.</td>
+            <td data-plan="target-architecture-pages-files"><code data-plan="target-architecture-code-3">/var/www/grweb/backoffice/src/pages/backoffice/users/*</code></td>
+          </tr>
+          <tr data-plan="target-architecture-row-api">
+            <td data-plan="target-architecture-api-area">API contract</td>
+            <td data-plan="target-architecture-api-target">Either backend returns paginated/filterable results for <code data-plan="target-architecture-code-4">/api/competition/{competicionId}/users</code>, or the backoffice client/types formally model the current array response.</td>
+            <td data-plan="target-architecture-api-files"><code data-plan="target-architecture-code-5">/var/www/grweb/backend/GrCup.Api/Endpoints/CompetitionUsersEndpoints.cs</code>, <code data-plan="target-architecture-code-6">/var/www/grweb/backoffice/src/api/client.ts</code>, <code data-plan="target-architecture-code-7">/var/www/grweb/backoffice/src/types/api.ts</code></td>
+          </tr>
+          <tr data-plan="target-architecture-row-email">
+            <td data-plan="target-architecture-email-area">Invitation email</td>
+            <td data-plan="target-architecture-email-target">CTA uses <code data-plan="target-architecture-code-8">website_frontend_url</code> through <code data-plan="target-architecture-code-9">GetBackofficeLoginUrl()</code>, and SMTP failures are visible to the API caller.</td>
+            <td data-plan="target-architecture-email-files"><code data-plan="target-architecture-code-10">/var/www/grweb/backend/GrCup.Api/Services/EmailService.cs</code>, <code data-plan="target-architecture-code-11">/var/www/grweb/backend/GrCup.Api/Endpoints/CompetitionUsersEndpoints.cs</code></td>
+          </tr>
+          <tr data-plan="target-architecture-row-deploy">
+            <td data-plan="target-architecture-deploy-area">Deployment</td>
+            <td data-plan="target-architecture-deploy-target">Cloudflare tunnel and service restart target the new backoffice project, not the legacy frontend route source.</td>
+            <td data-plan="target-architecture-deploy-files"><code data-plan="target-architecture-code-12">/var/www/grweb/backoffice/</code>, deployment/service config discovered by devops agent</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-plan="phases-section">
+      <h2 data-plan="phases-title">Phases</h2>
+      <ol data-plan="phases-list">
+        <li data-plan="phase-1"><strong data-plan="phase-1-strong">Discovery and canonical-app confirmation:</strong> confirm deployed route, service, build command, Cloudflare tunnel destination, and source of truth.</li>
+        <li data-plan="phase-2"><strong data-plan="phase-2-strong">Frontend migration:</strong> port users pages from <code data-plan="phase-code-1">frontend/src/pages/backoffice/users/</code> to <code data-plan="phase-code-2">backoffice/src/pages/backoffice/users/</code>, correcting invalid hooks and project-rule violations.</li>
+        <li data-plan="phase-3"><strong data-plan="phase-3-strong">Route wiring:</strong> add backoffice routes in <code data-plan="phase-code-3">backoffice/src/app.tsx</code> for list, role detail, member detail, and new member.</li>
+        <li data-plan="phase-4"><strong data-plan="phase-4-strong">Backend contract fixes:</strong> align users API shape, invitation URL, SMTP failure reporting, and role validation error handling.</li>
+        <li data-plan="phase-5"><strong data-plan="phase-5-strong">Permissions verification:</strong> validate root, admin, staff, registrador, and admin-protection rules end to end.</li>
+        <li data-plan="phase-6"><strong data-plan="phase-6-strong">Build, deploy, and QA:</strong> run backend build, backoffice typecheck/build, browser QA, API smoke tests, deploy/restart correct backoffice, and verify public URL.</li>
+      </ol>
+    </section>
+
+    <section data-plan="agent-matrix-section">
+      <h2 data-plan="agent-matrix-title">Agent Delegation Matrix</h2>
+      <table data-plan="agent-matrix-table">
+        <thead data-plan="agent-matrix-thead">
+          <tr data-plan="agent-matrix-head-row">
+            <th data-plan="agent-matrix-th-phase">Phase</th>
+            <th data-plan="agent-matrix-th-agent">Agent</th>
+            <th data-plan="agent-matrix-th-skills">Required Skills</th>
+            <th data-plan="agent-matrix-th-output">Expected Output</th>
+          </tr>
+        </thead>
+        <tbody data-plan="agent-matrix-tbody">
+          <tr data-plan="agent-matrix-row-pm">
+            <td data-plan="agent-matrix-pm-phase">All orchestration</td>
+            <td data-plan="agent-matrix-pm-agent">project-manager</td>
+            <td data-plan="agent-matrix-pm-skills"><code data-plan="agent-matrix-code-1">project-management</code></td>
+            <td data-plan="agent-matrix-pm-output">Sequential task breakdown, handoffs, acceptance checks, final status.</td>
+          </tr>
+          <tr data-plan="agent-matrix-row-frontend">
+            <td data-plan="agent-matrix-frontend-phase">Frontend migration and route wiring</td>
+            <td data-plan="agent-matrix-frontend-agent">front-developer</td>
+            <td data-plan="agent-matrix-frontend-skills"><code data-plan="agent-matrix-code-2">frontenac</code>, <code data-plan="agent-matrix-code-3">front-design</code>, <code data-plan="agent-matrix-code-4">frontend-design</code>, <code data-plan="agent-matrix-code-5">impeccable</code></td>
+            <td data-plan="agent-matrix-frontend-output">Ported pages, compliant state/handlers/memoization, route map, data attributes, files under 800 lines.</td>
+          </tr>
+          <tr data-plan="agent-matrix-row-backend">
+            <td data-plan="agent-matrix-backend-phase">API, email, roles, permissions</td>
+            <td data-plan="agent-matrix-backend-agent">backend agent</td>
+            <td data-plan="agent-matrix-backend-skills"><code data-plan="agent-matrix-code-6">api-design</code>, plus security review if permission logic changes are non-trivial</td>
+            <td data-plan="agent-matrix-backend-output">Consistent response contracts, clean 400s, reliable email failure reporting, permission behavior.</td>
+          </tr>
+          <tr data-plan="agent-matrix-row-devops">
+            <td data-plan="agent-matrix-devops-phase">Deploy/restart and URL verification</td>
+            <td data-plan="agent-matrix-devops-agent">gr-devops-agent</td>
+            <td data-plan="agent-matrix-devops-skills"><code data-plan="agent-matrix-code-7">gr-dev-ops</code></td>
+            <td data-plan="agent-matrix-devops-output">Correct service/tunnel restarted, canonical URL verified, health checks captured.</td>
+          </tr>
+          <tr data-plan="agent-matrix-row-qa">
+            <td data-plan="agent-matrix-qa-phase">Browser QA and quality audit</td>
+            <td data-plan="agent-matrix-qa-agent">qa-tester</td>
+            <td data-plan="agent-matrix-qa-skills"><code data-plan="agent-matrix-code-8">quality-auditor</code>, <code data-plan="agent-matrix-code-9">qa-browser-testing</code></td>
+            <td data-plan="agent-matrix-qa-output">Functional, visual, responsive, accessibility, and API smoke-test report.</td>
+          </tr>
+          <tr data-plan="agent-matrix-row-security">
+            <td data-plan="agent-matrix-security-phase">Permission hardening review</td>
+            <td data-plan="agent-matrix-security-agent">security agent</td>
+            <td data-plan="agent-matrix-security-skills"><code data-plan="agent-matrix-code-10">security-audit</code></td>
+            <td data-plan="agent-matrix-security-output">Authorization risk review for admin/member operations.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-plan="detailed-tasks-section">
+      <h2 data-plan="detailed-tasks-title">Detailed Tasks</h2>
+      <h3 data-plan="detailed-frontend-title">Frontend Migration Tasks</h3>
+      <ul class="checklist" data-plan="detailed-frontend-list">
+        <li data-plan="detailed-frontend-1">[ ] Treat <code data-plan="detailed-code-1">/var/www/grweb/frontend/src/pages/backoffice/users/</code> as source/reference only; do not deploy it as the backoffice.</li>
+        <li data-plan="detailed-frontend-2">[ ] Compare source pages with existing <code data-plan="detailed-code-2">/var/www/grweb/backoffice/src/pages/backoffice/users/UsersPage.tsx</code> and preserve the better project-native patterns.</li>
+        <li data-plan="detailed-frontend-3">[ ] Create or update backoffice page modules for <code data-plan="detailed-code-3">UsersPage.tsx</code>, <code data-plan="detailed-code-4">RoleDetailPage.tsx</code>, <code data-plan="detailed-code-5">MemberDetailPage.tsx</code>, <code data-plan="detailed-code-6">NewMemberPage.tsx</code>, and <code data-plan="detailed-code-7">index.ts</code>.</li>
+        <li data-plan="detailed-frontend-4">[ ] Fix invalid Hook usage from <code data-plan="detailed-code-8">/var/www/grweb/frontend/src/pages/backoffice/users/MemberDetailPage.tsx</code> before or while porting so hooks are top-level, unconditional, and never inside callbacks/branches.</li>
+        <li data-plan="detailed-frontend-5">[ ] Replace local <code data-plan="detailed-code-9">useState</code> with atoms where state is required by project rules, using <code data-plan="detailed-code-10">useAtomValue</code> and <code data-plan="detailed-code-11">useSetAtom</code>.</li>
+        <li data-plan="detailed-frontend-6">[ ] Put all derived render structures, filtered lists, counters, labels, route params transformations, and display models behind <code data-plan="detailed-code-12">useMemo</code>.</li>
+        <li data-plan="detailed-frontend-7">[ ] Stabilize handlers passed to child components with <code data-plan="detailed-code-13">useCallback</code>.</li>
+        <li data-plan="detailed-frontend-8">[ ] Keep folder-per-component organization and split large files before they approach 800 lines.</li>
+        <li data-plan="detailed-frontend-9">[ ] Ensure every TSX/HTML tag in modified files has a unique semantic <code data-plan="detailed-code-14">data-*</code> attribute within its logical block.</li>
+        <li data-plan="detailed-frontend-10">[ ] Wire routes in <code data-plan="detailed-code-15">/var/www/grweb/backoffice/src/app.tsx</code> for users list, role detail, member detail, and new member.</li>
+      </ul>
+
+      <h3 data-plan="detailed-backend-title">Backend Contract And Reliability Tasks</h3>
+      <ul class="checklist" data-plan="detailed-backend-list">
+        <li data-plan="detailed-backend-1">[ ] Decide contract for <code data-plan="detailed-code-16">GET /api/competition/{competicionId}/users</code>: implement paginated/filterable backend response or formalize array response in <code data-plan="detailed-code-17">/var/www/grweb/backoffice/src/api/client.ts</code> and <code data-plan="detailed-code-18">/var/www/grweb/backoffice/src/types/api.ts</code>.</li>
+        <li data-plan="detailed-backend-2">[ ] If backend pagination is selected, update <code data-plan="detailed-code-19">/var/www/grweb/backend/GrCup.Api/Endpoints/CompetitionUsersEndpoints.cs</code> and <code data-plan="detailed-code-20">/var/www/grweb/backend/GrCup.Api/Services/UserManagementService.cs</code> with page, pageSize, search, role, and status filters.</li>
+        <li data-plan="detailed-backend-3">[ ] Fix invitation CTA generation in <code data-plan="detailed-code-21">/var/www/grweb/backend/GrCup.Api/Services/EmailService.cs</code> so user invitations use <code data-plan="detailed-code-22">website_frontend_url</code> via <code data-plan="detailed-code-23">GetBackofficeLoginUrl()</code>.</li>
+        <li data-plan="detailed-backend-4">[ ] Fix email-send failure reporting in <code data-plan="detailed-code-24">/var/www/grweb/backend/GrCup.Api/Endpoints/CompetitionUsersEndpoints.cs</code> so failed SMTP does not silently return success.</li>
+        <li data-plan="detailed-backend-5">[ ] Move invalid role validation into endpoint try/catch or return a clean <code data-plan="detailed-code-25">400</code> error with the project error shape.</li>
+        <li data-plan="detailed-backend-6">[ ] Verify authorization checks for list, create, update, delete, role switch, and competition assignment operations.</li>
+      </ul>
+
+      <h3 data-plan="detailed-permissions-title">Permissions To Verify</h3>
+      <table data-plan="permissions-table">
+        <thead data-plan="permissions-thead">
+          <tr data-plan="permissions-head-row">
+            <th data-plan="permissions-th-role">Role</th>
+            <th data-plan="permissions-th-expected">Expected Behavior</th>
+          </tr>
+        </thead>
+        <tbody data-plan="permissions-tbody">
+          <tr data-plan="permissions-row-root"><td data-plan="permissions-root-role">root</td><td data-plan="permissions-root-expected">Can access all competitions and manage permitted users across competitions.</td></tr>
+          <tr data-plan="permissions-row-admin"><td data-plan="permissions-admin-role">admin</td><td data-plan="permissions-admin-expected">Can access only assigned competitions; cannot modify, delete, or switch other admins.</td></tr>
+          <tr data-plan="permissions-row-staff"><td data-plan="permissions-staff-role">staff</td><td data-plan="permissions-staff-expected">No config or members access.</td></tr>
+          <tr data-plan="permissions-row-registrador"><td data-plan="permissions-registrador-role">registrador</td><td data-plan="permissions-registrador-expected">QR-only access.</td></tr>
+          <tr data-plan="permissions-row-admin-protect"><td data-plan="permissions-admin-protect-role">admin protection</td><td data-plan="permissions-admin-protect-expected">Admins cannot modify/delete/switch admins even if they can manage lower roles.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-plan="acceptance-section">
+      <h2 data-plan="acceptance-title">Acceptance Criteria</h2>
+      <ul class="checklist" data-plan="acceptance-list">
+        <li data-plan="acceptance-1">[ ] <code data-plan="acceptance-code-1">/var/www/grweb/backoffice/</code> is confirmed as the canonical deployed backoffice and <code data-plan="acceptance-code-2">/var/www/grweb/frontend/</code> is documented as source/reference only for this migration.</li>
+        <li data-plan="acceptance-2">[ ] Backoffice routes load users list, role detail, member detail, and new member pages without console hook errors.</li>
+        <li data-plan="acceptance-3">[ ] Migrated frontend code follows atom state, <code data-plan="acceptance-code-3">useMemo</code>, <code data-plan="acceptance-code-4">useCallback</code>, folder-per-component, <code data-plan="acceptance-code-5">data-*</code>, and under-800-line rules.</li>
+        <li data-plan="acceptance-4">[ ] Users API contract is explicit and implemented consistently in backend or backoffice client/types.</li>
+        <li data-plan="acceptance-5">[ ] Invitation email links resolve to the canonical backoffice login URL based on <code data-plan="acceptance-code-6">website_frontend_url</code>.</li>
+        <li data-plan="acceptance-6">[ ] SMTP send failures are surfaced as failure or warning according to the chosen API contract, never silent success.</li>
+        <li data-plan="acceptance-7">[ ] Invalid role requests return clean 400 responses.</li>
+        <li data-plan="acceptance-8">[ ] Permission matrix passes for root, admin, staff, registrador, and admin-protection cases.</li>
+        <li data-plan="acceptance-9">[ ] Backend build, backoffice typecheck/build, browser QA, and API smoke tests pass.</li>
+        <li data-plan="acceptance-10">[ ] Correct deployed URL is verified through Cloudflare tunnel after restart.</li>
+      </ul>
+    </section>
+
+    <section data-plan="test-plan-section">
+      <h2 data-plan="test-plan-title">Test Plan</h2>
+      <table data-plan="test-plan-table">
+        <thead data-plan="test-plan-thead">
+          <tr data-plan="test-plan-head-row">
+            <th data-plan="test-plan-th-check">Check</th>
+            <th data-plan="test-plan-th-owner">Owner</th>
+            <th data-plan="test-plan-th-command">Expected Command Or Method</th>
+          </tr>
+        </thead>
+        <tbody data-plan="test-plan-tbody">
+          <tr data-plan="test-plan-row-backend-build"><td data-plan="test-backend-build-check">Backend build</td><td data-plan="test-backend-build-owner">backend agent</td><td data-plan="test-backend-build-command"><code data-plan="test-code-1">dotnet build</code> from <code data-plan="test-code-2">/var/www/grweb/backend/GrCup.Api</code></td></tr>
+          <tr data-plan="test-plan-row-backoffice-typecheck"><td data-plan="test-backoffice-typecheck-check">Backoffice typecheck/build</td><td data-plan="test-backoffice-typecheck-owner">front-developer</td><td data-plan="test-backoffice-typecheck-command">Use project scripts from <code data-plan="test-code-3">/var/www/grweb/backoffice/package.json</code>, typically typecheck then build.</td></tr>
+          <tr data-plan="test-plan-row-browser"><td data-plan="test-browser-check">Browser QA</td><td data-plan="test-browser-owner">qa-tester</td><td data-plan="test-browser-command">Use <code data-plan="test-code-4">qa-browser-testing</code> against desktop and mobile widths for all migrated routes.</td></tr>
+          <tr data-plan="test-plan-row-api"><td data-plan="test-api-check">API smoke tests</td><td data-plan="test-api-owner">backend agent / qa-tester</td><td data-plan="test-api-command">Exercise list, create invite, invalid role, forbidden role changes, and permission-denied cases.</td></tr>
+          <tr data-plan="test-plan-row-deploy"><td data-plan="test-deploy-check">Deployment verification</td><td data-plan="test-deploy-owner">gr-devops-agent</td><td data-plan="test-deploy-command">Restart correct backoffice service, verify Cloudflare tunnel URL, check logs and health endpoint if available.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-plan="rollback-section">
+      <h2 data-plan="rollback-title">Rollback Plan</h2>
+      <ol data-plan="rollback-list">
+        <li data-plan="rollback-1">Stop deployment if backend build, backoffice build, or permission smoke tests fail.</li>
+        <li data-plan="rollback-2">Keep the existing deployed service untouched until the new <code data-plan="rollback-code-1">/var/www/grweb/backoffice/</code> build is verified locally.</li>
+        <li data-plan="rollback-3">If deployment fails, point service/tunnel back to the last known working build target and restore previous environment values.</li>
+        <li data-plan="rollback-4">If API contract changes cause breakage, revert to the formalized array-response client path or restore prior backend endpoint behavior until pagination is ready.</li>
+        <li data-plan="rollback-5">If invitation emails fail after changes, disable invite sending path or return explicit warning/failure while preserving created-user audit logs.</li>
+      </ol>
+    </section>
+
+    <section data-plan="risks-section">
+      <h2 data-plan="risks-title">Risks</h2>
+      <table data-plan="risks-table">
+        <thead data-plan="risks-thead">
+          <tr data-plan="risks-head-row"><th data-plan="risks-th-risk">Risk</th><th data-plan="risks-th-impact">Impact</th><th data-plan="risks-th-mitigation">Mitigation</th></tr>
+        </thead>
+        <tbody data-plan="risks-tbody">
+          <tr data-plan="risks-row-canonical"><td data-plan="risks-canonical-risk">Wrong canonical app assumption</td><td data-plan="risks-canonical-impact">Changes land in unused project.</td><td data-plan="risks-canonical-mitigation">DevOps confirms service and Cloudflare tunnel before implementation.</td></tr>
+          <tr data-plan="risks-row-hooks"><td data-plan="risks-hooks-risk">Invalid Hook usage persists after port</td><td data-plan="risks-hooks-impact">Runtime failures and unstable render behavior.</td><td data-plan="risks-hooks-mitigation">Fix hooks before route wiring; run browser QA and build checks.</td></tr>
+          <tr data-plan="risks-row-contract"><td data-plan="risks-contract-risk">API contract mismatch</td><td data-plan="risks-contract-impact">Users table pagination/filtering breaks or silently misrepresents data.</td><td data-plan="risks-contract-mitigation">Choose one contract and update client/types/tests in the same phase.</td></tr>
+          <tr data-plan="risks-row-permissions"><td data-plan="risks-permissions-risk">Permission regression</td><td data-plan="risks-permissions-impact">Unauthorized config/member access or admin modification.</td><td data-plan="risks-permissions-mitigation">Security review plus role-specific smoke tests.</td></tr>
+          <tr data-plan="risks-row-email"><td data-plan="risks-email-risk">SMTP failures hidden by success responses</td><td data-plan="risks-email-impact">Operators think invitations were delivered when they were not.</td><td data-plan="risks-email-mitigation">Return explicit failure/warning and log correlation IDs.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-plan="order-section">
+      <h2 data-plan="order-title">Estimated Order Of Execution</h2>
+      <ol data-plan="order-list">
+        <li data-plan="order-1">Project manager opens implementation session and delegates canonical deployment discovery to <code data-plan="order-code-1">gr-devops-agent</code>.</li>
+        <li data-plan="order-2">Frontend agent audits source and target users pages, fixes <code data-plan="order-code-2">MemberDetailPage.tsx</code> hook usage during migration, and ports components into <code data-plan="order-code-3">backoffice/src/pages/backoffice/users/</code>.</li>
+        <li data-plan="order-3">Frontend agent wires <code data-plan="order-code-4">backoffice/src/app.tsx</code> routes and runs backoffice typecheck/build.</li>
+        <li data-plan="order-4">Backend agent aligns <code data-plan="order-code-5">/api/competition/{competicionId}/users</code> contract and updates invitation, SMTP reporting, and role validation.</li>
+        <li data-plan="order-5">Security/backend agents verify role permissions and admin-protection behavior with API smoke tests.</li>
+        <li data-plan="order-6">QA agent runs browser QA across all migrated routes and records accessibility/responsive findings.</li>
+        <li data-plan="order-7">DevOps agent deploys/restarts the confirmed backoffice service through the Cloudflare tunnel and verifies the public URL.</li>
+        <li data-plan="order-8">Project manager summarizes results, blockers, and any residual risks.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>

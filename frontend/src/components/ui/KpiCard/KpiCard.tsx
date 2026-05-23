@@ -32,24 +32,24 @@ export function KpiCard({
 }: KpiCardProps): JSX.Element {
   return (
     <div
-      className={`p-3 xs:p-4 rounded-2xl ${colorClasses[color]} ${className}`}
+      className={`flex flex-col justify-between p-3 xs:p-4 rounded-2xl min-w-0 ${colorClasses[color]} ${className}`}
       data-ui="kpi-card"
     >
-      <div className="flex items-start justify-between gap-2 xs:gap-3" data-ui="kpi-content">
+      <div className="flex items-start justify-between gap-2 xs:gap-3 mb-2" data-ui="kpi-content">
         <div className="flex-1 min-w-0" data-ui="kpi-text">
-          <p className="text-xs xs:text-sm text-white/50 truncate" data-ui="kpi-label">
+          <p className="text-xs xs:text-sm text-white/60 leading-tight" data-ui="kpi-label">
             {label}
-          </p>
-          <p className="text-xl xs:text-2xl font-bold mt-0.5 xs:mt-1 truncate" data-ui="kpi-value">
-            {value}
           </p>
         </div>
         {icon && (
-          <div className={`flex-shrink-0 ${iconColorClasses[color]}`} data-ui="kpi-icon">
+          <div className={`flex-shrink-0 ${iconColorClasses[color]} opacity-70`} data-ui="kpi-icon">
             {icon}
           </div>
         )}
       </div>
+      <p className="text-2xl xs:text-3xl sm:text-4xl font-bold text-white tracking-tight leading-none" data-ui="kpi-value">
+        {value}
+      </p>
     </div>
   );
 }

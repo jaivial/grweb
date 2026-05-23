@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import { atomWithStorage } from 'jotai/utils';
 import type { Usuario, CompeticionAssignment, UserRole } from '../types/api';
 
 // Auth atoms
@@ -7,8 +8,8 @@ export const isAuthenticatedAtom = atom((get) => get(userAtom) !== null);
 export const isSuperadminAtom = atom((get) => get(userAtom)?.isSuperadmin ?? false);
 export const isLoadingAuthAtom = atom<boolean>(true);
 
-// Competicion selection atoms
-export const currentCompeticionIdAtom = atom<number | null>(null);
+// Competicion selection atoms - persisted to localStorage for session continuity
+export const currentCompeticionIdAtom = atomWithStorage<number | null>('gr_current_competicion_id', null);
 export const currentCompeticionAtom = atom<CompeticionAssignment | null>((get) => {
   const user = get(userAtom);
   const competicionId = get(currentCompeticionIdAtom);

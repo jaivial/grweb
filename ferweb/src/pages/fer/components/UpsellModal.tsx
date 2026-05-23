@@ -19,14 +19,25 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose, precioPeakPr
 
   const handleUpsell = useCallback(
     async (quiere: boolean) => {
-      if (!inscripcionId || !quiere) {
+      if (!quiere) {
         onClose();
+        return;
+      }
+
+      if (!inscripcionId) {
+        toast.error('No se pudo identificar tu inscripción. Contacta con nosotros.', {
+          style: { background: '#161B26', color: '#F8FAFC' },
+        });
         return;
       }
 
       setIsSubmitting(true);
       try {
-        await api.addUpsell(slug, inscripcionId, true);
+        const response = await api.addPeakProgram(slug, inscripcionId);
+        if (!response.success) {
+          throw new Error(response.message || 'No se pudo añadir el Peak Program');
+        }
+
         toast.success('¡Peak Program añadido! Te contactaremos pronto.', {
           icon: '⚡',
           style: { background: '#161B26', color: '#F8FAFC' },
@@ -234,7 +245,7 @@ export function UpsellModal({ isOpen, inscripcionId, slug, onClose, precioPeakPr
               </button>
               <button
                 onClick={() => handleUpsell(true)}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !inscripcionId}
                 className="flex-1 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-fer-gold/50 disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{
                   backgroundColor: FER_COLORS.gold,

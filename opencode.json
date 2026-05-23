@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "wide-researcher": {
+      "type": "local",
+      "command": [
+        "node",
+        "/root/.nvm/versions/node/v22.22.0/bin/wide-researcher-mcp"
+      ],
+      "environment": {
+        "WIDE_RESEARCHER_PROJECT_CONFIG": "/var/www/grweb/.wide-researcher/config.json",
+        "PYTHON_BIN": "/root/.wide-researcher/venv/bin/python",
+        "COHERE_API_KEY": "cohere_UKOaEDyAY9xtUJfggTSJhnO48izlcTB2PI3iT0qx0n4bhS"
+      },
+      "enabled": true,
+      "timeout": 10000
+    }
+  }
+}

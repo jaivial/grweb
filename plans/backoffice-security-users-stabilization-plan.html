@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan de estabilización: seguridad backend y usuarios backoffice</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f4ef;
+      --panel: #ffffff;
+      --ink: #1f2933;
+      --muted: #64748b;
+      --line: #d9e2ec;
+      --critical: #b91c1c;
+      --high: #c2410c;
+      --medium: #a16207;
+      --ok: #047857;
+      --accent: #1d4ed8;
+      --soft-accent: #dbeafe;
+      --soft-critical: #fee2e2;
+      --soft-high: #ffedd5;
+      --soft-medium: #fef3c7;
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #e0f2fe 0, transparent 34rem), var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 64px;
+    }
+
+    header {
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    h1, h2, h3 { line-height: 1.15; margin: 0; }
+    h1 { max-width: 980px; font-size: clamp(2rem, 4vw, 4.25rem); letter-spacing: -0.05em; }
+    h2 { margin-bottom: 16px; font-size: clamp(1.35rem, 2vw, 2rem); letter-spacing: -0.03em; }
+    h3 { margin-top: 24px; margin-bottom: 10px; font-size: 1.08rem; }
+    p { margin: 0 0 12px; }
+    a { color: var(--accent); }
+
+    section {
+      margin-top: 24px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .lead { margin-top: 18px; max-width: 900px; color: var(--muted); font-size: 1.08rem; }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: var(--soft-accent); color: #1e3a8a; font-weight: 700; font-size: 0.88rem; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .card { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #fbfdff; }
+    .muted { color: var(--muted); }
+    .tag { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; }
+    .critical { background: var(--soft-critical); color: var(--critical); }
+    .high { background: var(--soft-high); color: var(--high); }
+    .medium { background: var(--soft-medium); color: var(--medium); }
+    .ok { background: #dcfce7; color: var(--ok); }
+    .phase { border-left: 6px solid var(--accent); }
+    .phase.critical-border { border-left-color: var(--critical); }
+    .phase.high-border { border-left-color: var(--high); }
+    .phase.medium-border { border-left-color: var(--medium); }
+    .code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 0.9em; }
+    code { padding: 2px 5px; border-radius: 6px; background: #eef2f7; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    ul, ol { margin: 10px 0 0 20px; padding: 0; }
+    li { margin: 7px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; overflow: hidden; border-radius: 14px; font-size: 0.94rem; }
+    th, td { padding: 12px 14px; border: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { background: #f1f5f9; font-weight: 800; }
+    tr:nth-child(even) td { background: #fbfdff; }
+    .checklist li { list-style: none; margin-left: -20px; }
+    .checklist li::before { content: "☐"; margin-right: 9px; color: var(--accent); font-weight: 900; }
+    .warning { padding: 14px 16px; border: 1px solid #fed7aa; border-radius: 16px; background: #fff7ed; color: #7c2d12; }
+    .success { padding: 14px 16px; border: 1px solid #bbf7d0; border-radius: 16px; background: #f0fdf4; color: #14532d; }
+    @media (max-width: 820px) {
+      main { width: min(100% - 20px, 1180px); padding-top: 16px; }
+      header, section { padding: 20px; border-radius: 20px; }
+      .grid { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Plan de estabilización: seguridad backend y usuarios del backoffice</h1>
+      <p class="lead">Plan pragmático para corregir primero los riesgos críticos de autorización y exposición de secretos, y después estabilizar el flujo de usuarios del backoffice migrado a <strong>/var/www/grweb/backoffice/</strong>.</p>
+      <div class="meta">
+        <span class="pill">URL canónica: https://fer-backoffice.menustudioai.com</span>
+        <span class="pill">Puerto backoffice: 5174</span>
+        <span class="pill">Backend: ASP.NET Core 8 Minimal API</span>
+        <span class="pill">Frontend: Preact + Vite + TypeScript</span>
+      </div>
+    </header>
+
+    <section id="resumen-ejecutivo">
+      <h2>Resumen Ejecutivo</h2>
+      <p>El sistema tiene dos frentes de riesgo: controles backend insuficientes en endpoints administrativos y un flujo de usuarios del backoffice inconsistente tras la migración. La prioridad debe ser cerrar autorización, secretos y permisos multi-tenant antes de invertir en pulido visual.</p>
+      <div class="grid">
+        <div class="card">
+          <h3><span class="tag critical">Crítico</span> Backend</h3>
+          <p>Varios endpoints sensibles están protegidos solo con <code>[Authorize]</code>, exponiendo acciones administrativas a roles como staff o registrador.</p>
+        </div>
+        <div class="card">
+          <h3><span class="tag critical">Crítico</span> Backoffice</h3>
+          <p>La página de usuarios espera un array, pero la API devuelve un objeto paginado con <code>items</code> y <code>totalCount</code>. Además hay rutas rotas por parámetros y slugs no registrados.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="estado-actual">
+      <h2>Estado Actual</h2>
+      <table>
+        <thead>
+          <tr><th>Área</th><th>Situación</th><th>Archivos relevantes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Backoffice canónico</td>
+            <td>La app válida vive en <code>/var/www/grweb/backoffice/</code>, URL <code>https://fer-backoffice.menustudioai.com</code>, puerto <code>5174</code>. El antiguo <code>frontend/</code> no debe usarse para backoffice.</td>
+            <td><code>backoffice/src/app.tsx</code>, <code>backoffice/src/pages/backoffice/users/*</code></td>
+          </tr>
+          <tr>
+            <td>Contrato usuarios</td>
+            <td>Backend devuelve <code>data.items</code>, <code>totalCount</code>, <code>page</code>, <code>pageSize</code>, <code>totalPages</code>; frontend mezcla array y tipos incompatibles.</td>
+            <td><code>backoffice/src/api/client.ts:414-493</code>, <code>backoffice/src/types/api.ts:138-144</code>, <code>backend/GrCup.Api/Endpoints/CompetitionUsersEndpoints.cs:39-40</code></td>
+          </tr>
+          <tr>
+            <td>Rutas usuarios</td>
+            <td>Existe navegación a URLs con slug, pero las rutas registradas no cubren esas variantes. El detalle usa <code>:userId</code> mientras la página lee <code>usuarioId</code>.</td>
+            <td><code>backoffice/src/app.tsx:71-73</code>, <code>RoleDetailPage.tsx:75,79</code>, <code>NewMemberPage.tsx:113</code>, <code>MemberDetailPage.tsx:34</code></td>
+          </tr>
+          <tr>
+            <td>Autorización backend</td>
+            <td>Endpoints administrativos y mutaciones de check-in/inscripción carecen de filtros centralizados y permisos por competición.</td>
+            <td><code>AdminEndpoints.cs</code>, <code>CheckinEndpoints.cs</code>, <code>InscripcionEndpoints.cs</code>, <code>UsuarioEndpoints.cs</code></td>
+          </tr>
+          <tr>
+            <td>Secretos</td>
+            <td>Configuración de email expone secretos SMTP/Gmail a cualquier usuario autenticado.</td>
+            <td><code>backend/GrCup.Api/Endpoints/EmailConfigEndpoints.cs:15-50</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="problema">
+      <h2>Problema</h2>
+      <p>La autorización actual no distingue con suficiente precisión entre autenticación, rol global y permisos por competición. Esto permite accesos indebidos a funciones sensibles y dificulta auditar cambios. En paralelo, el backoffice de usuarios tiene contratos API duplicados y rutas inconsistentes que rompen listados, creación y detalle de miembros.</p>
+      <ul>
+        <li><strong>Riesgo de seguridad:</strong> staff o registradores autenticados podrían invocar endpoints administrativos no destinados a ellos.</li>
+        <li><strong>Riesgo de secretos:</strong> credenciales SMTP/Gmail pueden filtrarse desde endpoints de configuración.</li>
+        <li><strong>Riesgo multi-tenant:</strong> check-in e inscripciones no verifican permisos sobre la competición objetivo.</li>
+        <li><strong>Riesgo operativo:</strong> el backoffice navega a rutas que no existen o lee parámetros incorrectos.</li>
+        <li><strong>Riesgo de mantenimiento:</strong> hay dos contratos de miembros incompatibles y dos patrones CRUD simultáneos.</li>
+      </ul>
+    </section>
+
+    <section id="arquitectura-objetivo">
+      <h2>Arquitectura Objetivo</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Backend seguro por defecto</h3>
+          <ul>
+            <li>Filtros/extensiones centralizados para Minimal APIs: <code>RequireRootAdmin()</code>, <code>RequireAdminRole()</code>, <code>RequireCompetitionPermission()</code>.</li>
+            <li>Autorización aplicada por grupo de rutas y reforzada en servicios críticos.</li>
+            <li>Permisos tenant-aware para check-in e inscripciones usando <code>competicionId</code> explícito.</li>
+            <li>Protección de auto-eliminación centralizada en servicio, no solo en endpoints nuevos.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Gestión segura de secretos</h3>
+          <ul>
+            <li>Endpoints de configuración devuelven solo estado, flags y valores enmascarados.</li>
+            <li>Secretos crudos nunca salen por JSON ni logs.</li>
+            <li>Login legacy hardcoded eliminado o restringido a entorno local controlado.</li>
+            <li>Cookies con <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code> adecuado y expiración explícita.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Contrato API único para usuarios</h3>
+          <ul>
+            <li>Un contrato paginado normalizado: <code>items</code>, <code>totalCount</code>, <code>page</code>, <code>pageSize</code>, <code>totalPages</code>.</li>
+            <li>Tipos frontend alineados con backend.</li>
+            <li>Sin duplicación de APIs de miembros en <code>client.ts</code>.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Backoffice route-based</h3>
+          <ul>
+            <li>Un flujo canónico para usuarios: preferentemente CRUD por rutas.</li>
+            <li>Rutas slug-aware registradas en <code>backoffice/src/app.tsx</code>.</li>
+            <li>Gates de permisos consistentes en lista, creación, detalle y rol.</li>
+            <li>Componentes bajo reglas frontenac: <code>data-*</code>, <code>useMemo</code>, <code>useCallback</code>, sin handlers inline.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="principios">
+      <h2>Principios</h2>
+      <ol>
+        <li><strong>Seguridad antes que UX:</strong> cerrar exposición de endpoints y secretos antes del pulido frontend.</li>
+        <li><strong>Autorización centralizada:</strong> evitar repetir condiciones frágiles en cada endpoint.</li>
+        <li><strong>Defensa en profundidad:</strong> validar en filtros de endpoint y en servicios cuando el daño sea alto.</li>
+        <li><strong>Contratos explícitos:</strong> una sola forma de paginar usuarios en backend y backoffice.</li>
+        <li><strong>Backoffice canónico:</strong> cualquier cambio de usuarios se hace en <code>backoffice/</code>, no en <code>frontend/</code>.</li>
+        <li><strong>Tareas pequeñas:</strong> cada fase debe poder validarse con build, smoke tests y QA puntual.</li>
+      </ol>
+    </section>
+
+    <section id="fases">
+      <h2>Fases</h2>
+
+      <article class="card phase critical-border">
+        <h3>Fase 0: Hotfix mínimo de rutas de miembros</h3>
+        <p><span class="tag critical">Crítico</span> Objetivo: hacer utilizables las rutas básicas sin abordar todavía el rediseño completo del CRUD.</p>
+        <ul>
+          <li>Corregir mismatch <code>:userId</code> vs <code>usuarioId</code>.</li>
+          <li>Registrar rutas slug-aware usadas por navegación existente.</li>
+          <li>No cambiar visual ni flujo modal todavía salvo lo estrictamente necesario.</li>
+        </ul>
+        <h3>Criterios de aceptación</h3>
+        <ul class="checklist">
+          <li>La navegación desde usuarios a detalle de miembro resuelve el parámetro correcto.</li>
+          <li>Las URLs con slug de competición cargan páginas existentes sin 404 interno.</li>
+          <li><code>npm run typecheck</code> y <code>npm run build</code> pasan en <code>backoffice/</code>.</li>
+        </ul>
+      </article>
+
+      <article class="card phase critical-border">
+        <h3>Fase 1: Cierre crítico de autorización administrativa</h3>
+        <p><span class="tag critical">Crítico</span> Objetivo: impedir que usuarios autenticados sin privilegio ejecuten endpoints administrativos.</p>
+        <ul>
+          <li>Crear extensiones/filtros de autorización reutilizables para Minimal APIs.</li>
+          <li>Aplicar filtros a endpoints sensibles de <code>AdminEndpoints.cs</code>.</li>
+          <li>Retirar o restringir login hardcoded legacy.</li>
+        </ul>
+        <h3>Criterios de aceptación</h3>
+        <ul class="checklist">
+          <li>Un usuario staff/registrador recibe <code>403</code> en endpoints administrativos restringidos.</li>
+          <li>Un root/admin autorizado conserva acceso a endpoints administrativos necesarios.</li>
+          <li>No queda login hardcoded disponible en producción.</li>
+          <li><code>dotnet build</code> pasa en <code>backend/GrCup.Api/</code>.</li>
+        </ul>
+      </article>
+
+      <article class="card phase critical-border">
+        <h3>Fase 2: Secretos y configuración de email</h3>
+        <p><span class="tag critical">Crítico</span> Objetivo: impedir exposición de credenciales SMTP/Gmail y corregir copy operativo.</p>
+        <ul>
+          <li>Enmascarar valores sensibles en respuestas de configuración.</li>
+          <li>Separar lectura de estado de configuración de escritura de secretos.</li>
+          <li>Corregir copy de email: la cuenta ya existe, el primer acceso solo activa/establece flujo inicial.</li>
+        </ul>
+        <h3>Criterios de aceptación</h3>
+        <ul class="checklist">
+          <li>Ninguna respuesta JSON contiene contraseña SMTP, token Gmail, secret key ni valor crudo equivalente.</li>
+          <li>Usuarios no autorizados reciben <code>403</code> en endpoints de escritura de configuración.</li>
+          <li>El email de invitación no afirma que la cuenta se crea recién en el primer acceso.</li>
+          <li>Smoke test confirma solo flags/valores masked como <code>********</code> o sufijos parciales seguros.</li>
+        </ul>
+      </article>
+
+      <article class="card phase high-border">
+        <h3>Fase 3: Permisos tenant-aware en check-in e inscripciones</h3>
+        <p><span class="tag high">Alta</span> Objetivo: exigir permiso por competición en mutaciones operativas.</p>
+        <ul>
+          <li>Agregar contexto de competición a rutas que hoy no lo tienen o derivarlo de forma segura.</li>
+          <li>Aplicar <code>RequireCompetitionPermission</code> para check-in e inscripciones admin.</li>
+          <li>Evitar que un usuario con acceso a una competición modifique otra.</li>
+        </ul>
+        <h3>Criterios de aceptación</h3>
+        <ul class="checklist">
+          <li>Un registrador solo puede operar sobre competiciones asignadas.</li>
+          <li>Mutaciones sin <code>competicionId</code> validable fallan con <code>400</code> o <code>403</code> según corresponda.</li>
+          <li>Se mantienen contratos de respuesta compatibles para clientes actuales o se documenta la migración.</li>
+          <li><code>dotnet build</code> y smoke tests de check-in/inscripción pasan.</li>
+        </ul>
+      </article>
+
+      <article class="card phase high-border">
+        <h3>Fase 4: Contrato paginado único de usuarios</h3>
+        <p><span class="tag high">Alta</span> Objetivo: alinear frontend y backend alrededor de <code>items/totalCount</code>.</p>
+        <ul>
+          <li>Normalizar tipos en <code>backoffice/src/types/api.ts</code>.</li>
+          <li>Eliminar duplicación incompatible en <code>backoffice/src/api/client.ts</code>.</li>
+          <li>Adaptar helpers y página de usuarios al objeto paginado.</li>
+        </ul>
+        <h3>Criterios de aceptación</h3>
+        <ul class="checklist">
+          <li><code>UsersPage</code> renderiza <code>data.items</code> y pagina con <code>totalCount</code>.</li>
+          <li>No existen dos métodos públicos incompatibles para listar miembros/usuarios de competición.</li>
+          <li>El frontend no asume array raíz para <code>/api/competition/{competicionId}/users</code>.</li>
+          <li><code>npm run typecheck</code> y <code>npm run build</code> pasan en <code>backoffice/</code>.</li>
+        </ul>
+      </article>
+
+      <article class="card phase high-border">
+        <h3>Fase 5: Un flujo canónico de CRUD de usuarios</h3>
+        <p><span class="tag high">Alta</span> Objetivo: elegir flujo route-based y retirar ambigüedad modal/rutas.</p>
+        <ul>
+          <li>Conectar la lista a rutas de crear, detalle y rol.</li>
+          <li>Retirar o aislar modales CRUD si ya no son el patrón principal.</li>
+          <li>Aplicar gates de permisos en todas las páginas de ruta.</li>
+        </ul>
+        <h3>Criterios de aceptación</h3>
+        <ul class="checklist">
+          <li>Crear miembro, ver detalle y editar rol se realizan por rutas canónicas.</li>
+          <li>Usuarios sin permiso no ven acciones ni pueden entrar directamente por URL.</li>
+          <li>El rol admin/root no se ofrece a usuarios no root desde UI.</li>
+          <li>Browser QA pasa contra <code>https://fer-backoffice.menustudioai.com</code>.</li>
+        </ul>
+      </article>
+
+      <article class="card phase medium-border">
+        <h3>Fase 6: Limpieza frontenac y deuda media</h3>
+        <p><span class="tag medium">Media</span> Objetivo: dejar las páginas de usuarios conformes a las reglas de arquitectura frontend.</p>
+        <ul>
+          <li>Agregar atributos <code>data-*</code> diferenciadores en elementos HTML.</li>
+          <li>Mover datos derivados a <code>useMemo</code>.</li>
+          <li>Estabilizar handlers pasados a hijos con <code>useCallback</code>.</li>
+          <li>Planificar limpieza separada de <code>useState</code> en layout/protected route.</li>
+        </ul>
+        <h3>Criterios de aceptación</h3>
+        <ul class="checklist">
+          <li>Las páginas de usuarios no tienen handlers inline pasados a componentes hijos.</li>
+          <li>Listas, contadores, textos compuestos y clases derivadas usan <code>useMemo</code>.</li>
+          <li>Todo tag HTML editado en TSX tiene atributo <code>data-ui</code>, <code>data-slot</code> o equivalente.</li>
+          <li>La limpieza de <code>useState</code> fuera de usuarios queda como ticket separado, no mezclado.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section id="tareas-pequenas">
+      <h2>Tareas Pequeñas</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Prioridad</th><th>Tarea</th><th>Archivos concretos a modificar</th><th>Validación</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FE-00</td>
+            <td><span class="tag critical">Crítica</span></td>
+            <td>Corregir parámetro de detalle miembro: usar el mismo nombre en ruta y página.</td>
+            <td><code>backoffice/src/app.tsx:73</code>, <code>backoffice/src/pages/backoffice/users/MemberDetailPage.tsx:34</code></td>
+            <td><code>npm run typecheck</code>; abrir detalle desde lista.</td>
+          </tr>
+          <tr>
+            <td>FE-01</td>
+            <td><span class="tag critical">Crítica</span></td>
+            <td>Registrar rutas slug-aware usadas por navegación actual.</td>
+            <td><code>backoffice/src/app.tsx:71-73</code>, revisar links en <code>RoleDetailPage.tsx:75,79</code>, <code>NewMemberPage.tsx:113</code></td>
+            <td>URLs con slug cargan sin fallback/404.</td>
+          </tr>
+          <tr>
+            <td>BE-01</td>
+            <td><span class="tag critical">Crítica</span></td>
+            <td>Crear extensiones/filtros centralizados de autorización para Minimal APIs.</td>
+            <td><code>backend/GrCup.Api/Extensions/AuthorizationEndpointExtensions.cs</code> nuevo o equivalente; posible <code>backend/GrCup.Api/Services/UserManagementService.cs</code></td>
+            <td>Tests/smoke por roles; <code>dotnet build</code>.</td>
+          </tr>
+          <tr>
+            <td>BE-02</td>
+            <td><span class="tag critical">Crítica</span></td>
+            <td>Aplicar autorización estricta a endpoints sensibles de administración.</td>
+            <td><code>backend/GrCup.Api/Endpoints/AdminEndpoints.cs:59,68,90,124,142,234,262,284,298,323,331</code></td>
+            <td>Staff/registrador recibe <code>403</code>; root/admin permitido.</td>
+          </tr>
+          <tr>
+            <td>BE-03</td>
+            <td><span class="tag critical">Crítica</span></td>
+            <td>Eliminar o restringir login hardcoded y endurecer cookies.</td>
+            <td><code>backend/GrCup.Api/Endpoints/AdminEndpoints.cs:25-39</code>, configuración auth/cookies en <code>Program.cs</code> si aplica</td>
+            <td>No disponible en producción; cookies <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>.</td>
+          </tr>
+          <tr>
+            <td>BE-04</td>
+            <td><span class="tag critical">Crítica</span></td>
+            <td>Enmascarar secretos de email y limitar escritura a rol autorizado.</td>
+            <td><code>backend/GrCup.Api/Endpoints/EmailConfigEndpoints.cs:15-50</code>, servicios/config DTO relacionados</td>
+            <td>Respuesta sin secretos crudos; smoke test JSON.</td>
+          </tr>
+          <tr>
+            <td>BE-05</td>
+            <td><span class="tag medium">Media</span></td>
+            <td>Corregir copy de CTA/email de invitación.</td>
+            <td>Servicio o plantilla que genera email de usuarios; buscar referencias al texto de cuenta no creada.</td>
+            <td>Email indica que la cuenta ya existe y explica primer acceso sin ambigüedad.</td>
+          </tr>
+          <tr>
+            <td>BE-06</td>
+            <td><span class="tag high">Alta</span></td>
+            <td>Agregar permisos por competición a check-in.</td>
+            <td><code>backend/GrCup.Api/Endpoints/CheckinEndpoints.cs:11,22,33,44,56</code>, servicio de permisos si aplica</td>
+            <td>Usuario sin permiso sobre competición recibe <code>403</code>.</td>
+          </tr>
+          <tr>
+            <td>BE-07</td>
+            <td><span class="tag high">Alta</span></td>
+            <td>Agregar permisos por competición a mutaciones de inscripción y grupo admin.</td>
+            <td><code>backend/GrCup.Api/Endpoints/InscripcionEndpoints.cs:189-348</code>, <code>backend/GrCup.Api/Endpoints/InscripcionEndpoints.cs:352-448</code></td>
+            <td>Mutaciones tenant-aware verificadas con smoke tests.</td>
+          </tr>
+          <tr>
+            <td>BE-08</td>
+            <td><span class="tag medium">Media</span></td>
+            <td>Centralizar protección contra auto-remoción.</td>
+            <td><code>backend/GrCup.Api/Services/UserManagementService.cs</code>, <code>backend/GrCup.Api/Endpoints/UsuarioEndpoints.cs:221-237</code></td>
+            <td>Ningún endpoint permite remover/degradar el propio último acceso crítico.</td>
+          </tr>
+          <tr>
+            <td>FE-02</td>
+            <td><span class="tag high">Alta</span></td>
+            <td>Normalizar contrato paginado de usuarios en tipos y cliente API.</td>
+            <td><code>backoffice/src/api/client.ts:414-493</code>, <code>backoffice/src/types/api.ts:138-144</code></td>
+            <td>Tipos usan <code>items/totalCount</code>; sin duplicados incompatibles.</td>
+          </tr>
+          <tr>
+            <td>FE-03</td>
+            <td><span class="tag high">Alta</span></td>
+            <td>Adaptar <code>UsersPage</code> y helpers al contrato paginado.</td>
+            <td><code>backoffice/src/pages/backoffice/users/UsersPage.tsx:293-296</code>, <code>backoffice/src/pages/backoffice/users/UsersPage.helpers.ts:10-15</code></td>
+            <td>Lista renderiza <code>items</code> y total usa <code>totalCount</code>.</td>
+          </tr>
+          <tr>
+            <td>FE-04</td>
+            <td><span class="tag high">Alta</span></td>
+            <td>Elegir flujo route-based y conectar lista a crear/detalle/rol.</td>
+            <td><code>UsersPage.tsx:420-422</code>, <code>NewMemberPage.tsx</code>, <code>MemberDetailPage.tsx</code>, <code>RoleDetailPage.tsx</code></td>
+            <td>No hay dos flujos CRUD principales compitiendo.</td>
+          </tr>
+          <tr>
+            <td>FE-05</td>
+            <td><span class="tag high">Alta</span></td>
+            <td>Agregar gates de permisos en páginas route-based.</td>
+            <td><code>UsersPage.tsx:364-368</code> como referencia; modificar <code>RoleDetailPage.tsx</code>, <code>MemberDetailPage.tsx</code>, <code>NewMemberPage.tsx</code></td>
+            <td>Acceso directo por URL sin permiso muestra bloqueo o redirect seguro.</td>
+          </tr>
+          <tr>
+            <td>FE-06</td>
+            <td><span class="tag medium">Media</span></td>
+            <td>Ocultar rol admin/root para usuarios no root.</td>
+            <td><code>NewMemberPage.tsx</code>, componentes/selectores de rol relacionados</td>
+            <td>La UI no ofrece escalamiento de privilegios no permitido.</td>
+          </tr>
+          <tr>
+            <td>FE-07</td>
+            <td><span class="tag medium">Media</span></td>
+            <td>Aplicar limpieza frontenac en páginas de usuarios.</td>
+            <td><code>UsersPage.tsx</code>, <code>NewMemberPage.tsx</code>, <code>MemberDetailPage.tsx</code>, <code>RoleDetailPage.tsx</code>, helpers/hooks locales si existen</td>
+            <td><code>data-*</code>, <code>useMemo</code> y <code>useCallback</code> conformes.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="matriz-agentes-skills">
+      <h2>Matriz Agentes/Skills</h2>
+      <table>
+        <thead>
+          <tr><th>Trabajo</th><th>Agente</th><th>Skills obligatorias</th><th>Notas de ejecución</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Orquestación de fases</td>
+            <td><code>project-manager</code></td>
+            <td><code>project-management</code></td>
+            <td>Divide por tareas pequeñas y valida resultado antes de avanzar.</td>
+          </tr>
+          <tr>
+            <td>Endpoints, contratos y filtros Minimal API</td>
+            <td>Backend agent</td>
+            <td><code>api-design</code>, <code>security-audit</code></td>
+            <td>Priorizar autorización centralizada, respuestas consistentes y no romper clientes.</td>
+          </tr>
+          <tr>
+            <td>Revisión de secretos y hardening</td>
+            <td>Security agent</td>
+            <td><code>security-audit</code></td>
+            <td>Validar que no haya secretos crudos en JSON, logs o fixtures.</td>
+          </tr>
+          <tr>
+            <td>Backoffice Preact</td>
+            <td><code>front-developer</code></td>
+            <td><code>frontenac</code>, <code>front-design</code>, <code>frontend-design</code>, <code>impeccable</code></td>
+            <td>Modificar solo <code>backoffice/</code> para backoffice canónico.</td>
+          </tr>
+          <tr>
+            <td>QA navegador</td>
+            <td><code>qa-tester</code></td>
+            <td><code>quality-auditor</code>, <code>qa-browser-testing</code></td>
+            <td>Ejecutar contra <code>https://fer-backoffice.menustudioai.com</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="criterios-aceptacion">
+      <h2>Criterios de Aceptación Globales</h2>
+      <ul class="checklist">
+        <li>Los endpoints críticos de <code>AdminEndpoints.cs</code> ya no dependen solo de <code>[Authorize]</code>.</li>
+        <li><code>EmailConfigEndpoints.cs</code> no expone secretos crudos a ningún usuario.</li>
+        <li>Check-in e inscripciones validan permisos por competición.</li>
+        <li>La protección contra auto-remoción está en servicio o capa central reutilizable.</li>
+        <li>El contrato de usuarios en backoffice usa una sola forma paginada: <code>items/totalCount/page/pageSize/totalPages</code>.</li>
+        <li>Las rutas con slug y detalle de miembro funcionan en la app canónica de backoffice.</li>
+        <li>Las páginas route-based de usuarios tienen gates de permiso equivalentes al listado.</li>
+        <li>La UI no ofrece rol admin/root a usuarios no root.</li>
+        <li><code>dotnet build</code> pasa en backend y <code>npm run typecheck</code>/<code>npm run build</code> pasan en backoffice.</li>
+      </ul>
+    </section>
+
+    <section id="plan-pruebas">
+      <h2>Plan de Pruebas</h2>
+      <table>
+        <thead>
+          <tr><th>Tipo</th><th>Comando o acción</th><th>Resultado esperado</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Build backend</td>
+            <td><code>dotnet build</code> desde <code>backend/GrCup.Api/</code></td>
+            <td>Compila sin errores.</td>
+          </tr>
+          <tr>
+            <td>Typecheck backoffice</td>
+            <td><code>npm run typecheck</code> desde <code>backoffice/</code></td>
+            <td>Sin errores de tipos, especialmente contrato paginado.</td>
+          </tr>
+          <tr>
+            <td>Build backoffice</td>
+            <td><code>npm run build</code> desde <code>backoffice/</code></td>
+            <td>Build Vite exitoso.</td>
+          </tr>
+          <tr>
+            <td>Smoke API admin</td>
+            <td>Invocar endpoints sensibles con token staff/registrador y root/admin.</td>
+            <td>Staff/registrador obtiene <code>403</code>; root/admin obtiene éxito esperado.</td>
+          </tr>
+          <tr>
+            <td>Smoke API secretos</td>
+            <td>GET configuración email con usuario autenticado permitido.</td>
+            <td>Respuesta contiene solo estado y valores enmascarados, nunca secretos crudos.</td>
+          </tr>
+          <tr>
+            <td>Smoke API tenant</td>
+            <td>Mutar check-in/inscripción de competición no asignada.</td>
+            <td>Respuesta <code>403</code> y sin cambios persistidos.</td>
+          </tr>
+          <tr>
+            <td>QA navegador</td>
+            <td>Abrir <code>https://fer-backoffice.menustudioai.com</code>, login, usuarios, crear, detalle, rol.</td>
+            <td>Rutas cargan, permisos se respetan, no hay 404 ni errores visibles.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="riesgos">
+      <h2>Riesgos</h2>
+      <ul>
+        <li><strong>Ruptura de clientes existentes:</strong> agregar <code>competicionId</code> a rutas puede requerir compatibilidad temporal o migración coordinada.</li>
+        <li><strong>Permisos mal modelados:</strong> si los roles actuales no distinguen root/admin/staff/registrador con claridad, primero hay que consolidar claims.</li>
+        <li><strong>Duplicidad histórica:</strong> eliminar APIs duplicadas en <code>client.ts</code> puede revelar dependencias ocultas.</li>
+        <li><strong>QA incompleto:</strong> las pruebas manuales deben cubrir acceso directo por URL, no solo navegación normal.</li>
+        <li><strong>Deuda frontend fuera de alcance:</strong> <code>useState</code> en layout/protected route debe tratarse después para no mezclar riesgos.</li>
+      </ul>
+    </section>
+
+    <section id="rollback">
+      <h2>Rollback</h2>
+      <div class="warning">
+        <p><strong>Regla:</strong> no revertir controles de seguridad críticos para recuperar UX. Si una fase de seguridad bloquea operación legítima, ajustar claims/permisos o allowlist específica, no volver a <code>[Authorize]</code> genérico.</p>
+      </div>
+      <ul>
+        <li><strong>Backend autorización:</strong> mantener cambios en ramas pequeñas. Si falla un endpoint legítimo, revertir solo la aplicación del filtro en ese endpoint y abrir hotfix de permisos.</li>
+        <li><strong>Secret masking:</strong> no volver a exponer secretos; si la UI necesita datos, añadir DTO seguro con flags o valores parcialmente enmascarados.</li>
+        <li><strong>Tenant-aware routes:</strong> si una ruta nueva rompe cliente, conservar endpoint legacy temporal con permiso centralizado y marcar deprecación.</li>
+        <li><strong>Frontend usuarios:</strong> si route-based falla, mantener lista operativa y desactivar enlaces rotos antes que reactivar modales inseguros.</li>
+      </ul>
+    </section>
+
+    <section id="orden-recomendado">
+      <h2>Orden Recomendado</h2>
+      <ol>
+        <li><strong>FE-00 y FE-01:</strong> hotfix mínimo para que rutas de miembros sean navegables.</li>
+        <li><strong>BE-01, BE-02, BE-03:</strong> autorización centralizada, endpoints admin y login/cookies.</li>
+        <li><strong>BE-04 y BE-05:</strong> secretos de email y copy de invitación.</li>
+        <li><strong>BE-06 y BE-07:</strong> permisos por competición en check-in e inscripciones.</li>
+        <li><strong>BE-08:</strong> auto-protección en servicios.</li>
+        <li><strong>FE-02 y FE-03:</strong> contrato paginado único en backoffice.</li>
+        <li><strong>FE-04, FE-05 y FE-06:</strong> flujo route-based, gates y restricciones de rol.</li>
+        <li><strong>FE-07:</strong> limpieza frontenac de atributos, memorias y handlers.</li>
+        <li><strong>Validación final:</strong> <code>dotnet build</code>, <code>npm run typecheck</code>, <code>npm run build</code>, smoke tests API y QA navegador contra URL canónica.</li>
+      </ol>
+      <div class="success">
+        <p><strong>Resultado esperado:</strong> backend con permisos explícitos y secretos protegidos; backoffice de usuarios navegable, tenant-aware y alineado con un contrato API paginado único.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
