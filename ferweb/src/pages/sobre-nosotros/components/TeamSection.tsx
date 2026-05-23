@@ -1,15 +1,19 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Award } from 'lucide-react';
-import { FER_COLORS } from '../../fer/constants';
+import {
+  FER_COLORS,
+  FER_SOBRE_TEAM_GRS_IMAGE,
+  FER_SOBRE_TEAM_JUDGES_IMAGE,
+  FER_SOBRE_TEAM_COMMUNITY_IMAGE,
+} from '../../fer/constants';
 import { useCdnImage } from '@hooks/useCdnImage';
-import { CLUB_PHOTOS } from '../../fer/constants/clubPhotos';
 import { TEAM_MEMBERS, SOBRE_SECTION_IDS } from '../constants';
 
 const TEAM_PHOTOS = [
-  CLUB_PHOTOS.portraits[0],
-  CLUB_PHOTOS.portraits[4],
-  CLUB_PHOTOS.portraits[8],
+  FER_SOBRE_TEAM_GRS_IMAGE,
+  FER_SOBRE_TEAM_JUDGES_IMAGE,
+  FER_SOBRE_TEAM_COMMUNITY_IMAGE,
 ] as const;
 
 export function TeamSection() {
@@ -151,6 +155,7 @@ function TeamCard({
           src={resolvedSrc}
           alt={member.name}
           className="w-full h-full object-cover"
+          style={index === 0 ? { transform: 'rotate(90deg) scale(1.45)' } : undefined}
           loading="lazy"
           decoding="async"
           data-ui={`sobre-team-card-photo-img-${index}`}

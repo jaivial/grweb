@@ -4,40 +4,40 @@
  */
 
 export const VENUE_INFO = {
-  name: 'GRS Club',
-  fullName: 'GRS Club — GR Strength',
-  address: 'Pol. Industrial Vara de Quart, Valencia',
-  fullAddress: 'Pol. Industrial Vara de Quart, 46440 Valencia, España',
-  coordinates: { lat: 39.3464, lng: -0.4147 },
+  name: 'Pabellón de Almussafes',
+  fullName: 'Pabellón de Almussafes',
+  address: 'Almussafes, Valencia',
+  fullAddress: 'Pabellón de Almussafes, 46440 Almussafes, Valencia, España',
+  coordinates: { lat: 39.2893, lng: -0.4135 },
   email: 'info@ferentrenamiento.com',
   instagram: 'https://instagram.com/ferentrenamiento',
-  googleMapsUrl: 'https://maps.google.com/?q=39.3464,-0.4147',
+  googleMapsUrl: 'https://share.google/xNIU0yhc4Gck5jFpt',
 } as const;
 
 export const TRANSPORT_OPTIONS = [
   {
     icon: 'car' as const,
     title: 'En coche',
-    description: 'Desde Valencia centro, toma la V-31 o A-7 hacia el polígono. Aproximadamente 25 minutos.',
-    detail: 'Parking gratuito disponible en las inmediaciones del polígono.',
+    description: 'Desde Valencia centro, toma la V-31 o A-7 en dirección Almussafes.',
+    detail: 'Consulta la ruta exacta al Pabellón de Almussafes en Google Maps.',
   },
   {
     icon: 'bus' as const,
     title: 'En autobús',
-    description: 'Línea de bus con parada en el Polígono Industrial.',
-    detail: 'Consulta horarios actualizados en Metrobús.',
+    description: 'Revisa las conexiones disponibles hasta Almussafes antes del evento.',
+    detail: 'Consulta horarios actualizados y combina la ruta con Google Maps.',
   },
   {
     icon: 'train' as const,
     title: 'En tren / Metro',
-    description: 'Cercanías C1 o C2 hasta la estación más cercana, a 10 minutos caminando.',
-    detail: 'Desde Estación del Nord, aprox. 30 min.',
+    description: 'Busca la conexión más conveniente hasta Almussafes o alrededores.',
+    detail: 'Planifica el último tramo hasta el pabellón con el enlace del mapa.',
   },
 ] as const;
 
 export const CONTACT_CARDS = [
-  { label: 'Instagram', value: '@ferentrenamiento', href: 'https://instagram.com/ferentrenamiento' },
-  { label: 'Email', value: 'info@ferentrenamiento.com', href: 'mailto:info@ferentrenamiento.com' },
+  { label: 'Instagram', value: '@grstrengthclub', href: 'https://www.instagram.com/grstrengthclub?igsh=ZGwzY2JrdWhteXZo' },
+  { label: 'Instagram', value: '@nicogr_', href: 'https://www.instagram.com/nicogr_?igsh=MXA2emd4ZTUxcGxxNg==' },
 ] as const;
 
 export const UBICACION_SECTION_IDS = {

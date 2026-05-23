@@ -75,9 +75,9 @@ export function UbicacionCta() {
               style={{ color: FER_COLORS.text }}
               data-ui="ubicacion-cta-title"
             >
-              Nos vemos en el{' '}
+              NOS VEMOS EN EL{' '}
               <span style={{ color: FER_COLORS.glow }} data-ui="ubicacion-cta-title-highlight">
-                GRS Club
+                FER ENTRENAMIENTO
               </span>
             </h2>
             <p
@@ -85,7 +85,7 @@ export function UbicacionCta() {
               style={{ color: FER_COLORS.textMuted }}
               data-ui="ubicacion-cta-description"
             >
-              {FER_EVENT.date} — {VENUE_INFO.address}. No te pierdas el evento de powerlifting del año.
+              {FER_EVENT.date} — {VENUE_INFO.fullAddress}. No te pierdas el evento de powerlifting del año.
             </p>
             <button
               onClick={handleNavigate}

@@ -1,6 +1,7 @@
 {
-  "name": "FER Powerlifting Day",
-  "short_name": "FER",
+  "name": "FER CUP II 2026 | Powerlifting en Almussafes",
+  "short_name": "FER CUP",
+  "description": "Competición de powerlifting en Almussafes, Valencia. Sentadilla, press de banca y peso muerto para atletas que quieren vivir su primera tarima.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A1628",

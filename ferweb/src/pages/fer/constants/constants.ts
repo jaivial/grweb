@@ -102,6 +102,7 @@ export const NAV_LINKS = [
   { label: 'Inscripción', path: '/inscripcion' },
   { label: 'Horarios', path: '/horarios' },
   { label: 'Ubicación', path: '/ubicacion' },
+  { label: 'Galería', path: '/galeria' },
   { label: 'Tutoriales', path: '/tutoriales' },
   { label: 'Sobre Nosotros', path: '/sobre-nosotros' },
 ] as const;

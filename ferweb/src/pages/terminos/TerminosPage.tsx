@@ -9,62 +9,62 @@ const SECTIONS = [
   {
     title: '1. Identificación del organizador',
     content:
-      'La competición FER CUP II 2026 es organizada y gestionada íntegramente por GR Strength Club (en adelante, «el Club» o «el Organizador»), con sede en Valencia, Valencia. FER Entrenamiento actúa únicamente como el gimnasio anfitrión que cede sus instalaciones para la celebración del evento, sin asumir responsabilidad alguna en la organización, gestión, inscripciones, cobros o desarrollo de la competición.',
+      'La FER CUP es un evento organizado y gestionado íntegramente por:\n\nGRUPO DE RECREACIÓN DEPORTIVA DE HALTEROFILIA GR STRENGTH TORRENT VALENCIA\nNIF: G24770950\nDomicilio social: Calle Paralelo, nº2, Bloque A, Puerta 3, 46440 Almussafes (Valencia)\n\n(en adelante, «GR Strength» o «el Organizador»).\n\nLa competición se celebrará en el Pabellón Municipal de Almussafes (Valencia).\n\nFER Entrenamiento actúa exclusivamente como entidad colaboradora y gimnasio asociado al evento, sin intervenir en la organización administrativa, gestión de inscripciones o desarrollo operativo de la competición.',
   },
   {
-    title: '2. Aceptación de los términos',
+    title: '2. Aceptación de las condiciones',
     content:
-      'La inscripción y participación en el FER CUP II 2026 implica la aceptación plena y sin reservas de los presentes términos y condiciones. Si el participante no está de acuerdo con alguna de las cláusulas aquí recogidas, deberá abstenerse de inscribirse o participar en el evento.',
+      'La inscripción y participación en la FER CUP implica la aceptación plena y sin reservas de los presentes términos y condiciones.\n\nEn caso de no estar de acuerdo con cualquiera de las disposiciones recogidas en este documento, el participante deberá abstenerse de formalizar su inscripción o participar en el evento.',
   },
   {
     title: '3. Requisitos de participación',
     content:
-      'Podrán participar todas las personas mayores de 14 años que completen el proceso de inscripción y abonen la tarifa correspondiente. Los participantes menores de edad deberán presentar una autorización firmada por su tutor o tutora legal. Es responsabilidad del participante asegurarse de que su estado de salud le permite realizar esfuerzos físicos intensos propios del powerlifting. El Organizador se reserva el derecho de admisión.',
+      'Podrán participar todas las personas mayores de 14 años que completen correctamente el proceso de inscripción.\n\nLos participantes menores de edad deberán aportar autorización firmada por su padre, madre o tutor legal.\n\nCada participante declara encontrarse en condiciones físicas adecuadas para la práctica del powerlifting y asume voluntariamente los riesgos inherentes a este tipo de actividad deportiva.\n\nEl Organizador se reserva el derecho de admisión y podrá rechazar o cancelar cualquier inscripción cuando existan motivos razonables para ello.',
   },
   {
-    title: '4. Proceso de inscripción y pago',
+    title: '4. Inscripción y participación',
     content:
-      'Las inscripciones se realizarán exclusivamente a través de la web oficial del evento. El pago se efectuará mediante Stripe (tarjeta de crédito o débito) en el momento de la inscripción. El precio de la inscripción incluye: participación en la competición, camiseta oficial del evento y acceso a las instalaciones durante la jornada. No se incluyen gastos de desplazamiento, alojamiento ni manutención.',
+      'Las inscripciones se realizarán exclusivamente a través de la web oficial del evento.\n\nLa plaza quedará reservada únicamente tras completar correctamente el formulario de inscripción y seguir las instrucciones indicadas por la organización.\n\nLa inscripción incluye:\n• Participación en la competición\n• Acceso a las instalaciones durante el evento\n• Servicios y recursos incluidos por la organización según disponibilidad\n\nLos gastos de desplazamiento, alojamiento, manutención o cualquier otro coste externo correrán a cargo del participante.',
   },
   {
-    title: '5. Cancelaciones y devoluciones',
+    title: '5. Cancelaciones y modificaciones',
     content:
-      'Las cancelaciones deberán comunicarse por escrito a la dirección de correo electrónico que el Organizador determine. Se aplicará la siguiente política de devoluciones:\n\n• Cancelación con más de 30 días de antelación: devolución del 100 % del importe.\n• Cancelación entre 15 y 30 días de antelación: devolución del 50 % del importe.\n• Cancelación con menos de 15 días de antelación: no se realizará devolución.\n\nEl Organizador se reserva el derecho de cancelar o aplazar el evento por causas de fuerza mayor. En tal caso, se ofrecerá a los inscritos la opción de transferir su plaza a la nueva fecha o recibir el reembolso íntegro.',
+      'Las solicitudes de cancelación deberán comunicarse por escrito a través del correo electrónico indicado por la organización.\n\nEl Organizador se reserva el derecho de modificar horarios, categorías, estructura del evento o cualquier aspecto organizativo cuando resulte necesario para el correcto funcionamiento de la competición.\n\nAsimismo, GR Strength podrá cancelar, aplazar o reprogramar el evento por causas organizativas, técnicas, sanitarias o de fuerza mayor.\n\nEn dichos supuestos, se comunicará oportunamente a los participantes la solución adoptada.',
   },
   {
-    title: '6. Categorías y peso',
+    title: '6. Categorías y pesaje',
     content:
-      'Los participantes serán clasificados en categorías según su sexo, edad y peso corporal, conforme al reglamento de la competición. El pesaje se realizará el día del evento en el horario y lugar indicados. El participante que no se presente al pesaje en la franja horaria asignada quedará automáticamente descalificado.',
+      'Los participantes serán distribuidos en categorías conforme a los criterios establecidos por la organización.\n\nEl pesaje se realizará en el horario y lugar previamente comunicados a través de los canales oficiales del evento.\n\nLa nocomparecencia dentro de la franja horaria asignada podrá implicar la descalificación o reubicación del participante, según determine la organización.',
   },
   {
     title: '7. Normativa de competición',
     content:
-      'La competición se regirá por el reglamento oficial de powerlifting adaptado para el evento. Todos los participantes se comprometen a cumplir las normas establecidas y a seguir las indicaciones de los jueces y el personal de la organización. El uso de sustancias dopantes está terminantemente prohibido. El Organizador se reserva el derecho de descalificar a cualquier participante que incumpla la normativa.',
+      'La FER CUP seguirá un reglamento interno inspirado en las competiciones oficiales de powerlifting, adaptado al formato y filosofía del evento.\n\nTodos los participantes deberán:\n• Respetar las indicaciones de jueces y organización\n• Mantener una conducta deportiva adecuada\n• Cumplir las normas de seguridad y funcionamiento\n\nEl Organizador podrá descalificar a cualquier participante que:\n• incumpla las normas del evento\n• actúe de forma antideportiva\n• ponga en riesgo la seguridad del resto de asistentes',
   },
   {
-    title: '8. Limitación de responsabilidad',
+    title: '8. Exención y limitación de responsabilidad',
     content:
-      'La participación en el FER CUP II 2026 implica la asunción de los riesgos inherentes a la práctica del powerlifting. El Organizador dispondrá de los medios de seguridad y asistencia básicos; no obstante, no se hace responsable de lesiones, daños personales o pérdidas materiales que pudieran ocurrir durante el desarrollo del evento, salvo en los casos en que la ley establezca lo contrario. Se recomienda a todos los participantes disponer de un seguro deportivo o de accidentes propio.',
+      'La participación en la FER CUP implica la aceptación de los riesgos inherentes a la práctica del powerlifting y del entrenamiento de fuerza.\n\nEl Organizador adoptará las medidas razonables de seguridad y coordinación necesarias para el correcto desarrollo del evento; no obstante, no será responsable de lesiones, daños físicos, pérdidas materiales o incidencias derivadas de la participación, salvo en aquellos casos legalmente exigibles.\n\nSe recomienda a todos los participantes disponer de seguro deportivo o cobertura médica adecuada.',
   },
   {
     title: '9. Derechos de imagen',
     content:
-      'Al inscribirse, el participante autoriza al Organizador a captar, reproducir y difundir imágenes y vídeos del evento en los que pudiera aparecer, con fines promocionales y de difusión del FER CUP y del Club, en cualquier medio o soporte (web, redes sociales, prensa, etc.), sin que ello genere derecho a compensación económica alguna. Quien desee oponerse a la utilización de su imagen deberá comunicarlo por escrito al Organizador antes del inicio del evento.',
+      'La participación en la FER CUP implica la autorización para la captación y utilización de fotografías y vídeos realizados durante el evento.\n\nGR Strength podrá utilizar dicho contenido con fines:\n• promocionales\n• publicitarios\n• informativos\n• audiovisuales y de comunicación\n\nen cualquier soporte físico o digital relacionado con el evento, el club o futuros proyectos deportivos.\n\nQuienes deseen limitar el uso de su imagen deberán comunicarlo previamente por escrito a la organización antes del inicio del evento.',
   },
   {
-    title: '10. Modificaciones',
+    title: '10. Modificaciones de las condiciones',
     content:
-      'El Organizador se reserva el derecho de modificar los presentes términos y condiciones en cualquier momento, notificando los cambios a través de la web oficial. La participación en el evento después de la publicación de las modificaciones implicará la aceptación de las mismas.',
+      'GR Strength se reserva el derecho de modificar los presentes términos y condiciones cuando resulte necesario por motivos organizativos, legales o técnicos.\n\nLas modificaciones relevantes serán comunicadas a través de los canales oficiales del evento.',
   },
   {
     title: '11. Legislación aplicable y jurisdicción',
     content:
-      'Los presentes términos y condiciones se rigen por la legislación española. Cualquier controversia que pudiera derivarse de la interpretación o ejecución de estos términos será sometida a los juzgados y tribunales de Valencia, con renuncia expresa a cualquier otro fuero que pudiera corresponder.',
+      'Los presentes términos y condiciones se regirán por la legislación española.\n\nCualquier conflicto o controversia relacionado con la interpretación o aplicación de estas condiciones será sometido a los juzgados y tribunales de Valencia, salvo disposición legal imperativa en contrario.',
   },
   {
     title: '12. Contacto',
     content:
-      'Para cualquier consulta relacionada con estos términos y condiciones, puedes escribirnos a la dirección de correo electrónico que el Organizador indique en la web oficial o contactar a través de nuestras redes sociales.',
+      'Para cualquier consulta relacionada con la FER CUP o con los presentes términos y condiciones, puede contactar con la organización a través del correo electrónico o canales oficiales indicados en la web del evento.',
   },
 ];
 

@@ -1,9 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users } from 'lucide-react';
-import { FER_COLORS } from '../../fer/constants';
+import { FER_COLORS, FER_SOBRE_HERO_IMAGE } from '../../fer/constants';
 import { useCdnImage } from '@hooks/useCdnImage';
-import { CLUB_PHOTOS } from '../../fer/constants/clubPhotos';
 import { SOBRE_SECTION_IDS } from '../constants';
 
 export function SobreHero() {
@@ -17,7 +16,7 @@ export function SobreHero() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const heroImageSrc = useCdnImage(CLUB_PHOTOS.atmosphere[1]);
+  const heroImageSrc = useCdnImage(FER_SOBRE_HERO_IMAGE);
 
   const containerVariants = useMemo(
     () => ({

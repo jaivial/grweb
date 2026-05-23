@@ -1,3 +1,9 @@
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
 User-agent: *
 Allow: /
-Sitemap: https://fer.menustudioai.com/sitemap.xml
+Sitemap: https://fercup.com/sitemap.xml

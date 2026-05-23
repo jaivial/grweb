@@ -25,8 +25,7 @@ import type {
   SchedulePublishedConfig,
 } from '../types/api';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5006';
-const API_URL = rawApiUrl.includes('localhost') ? '' : rawApiUrl;
+const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 class ApiClient {
   private baseUrl: string;

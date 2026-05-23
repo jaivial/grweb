@@ -14,6 +14,9 @@ const HorariosPage = lazy(() =>
 const UbicacionPage = lazy(() =>
   import('./pages/ubicacion/UbicacionPage').then((m) => ({ default: m.UbicacionPage }))
 );
+const GaleriaPage = lazy(() =>
+  import('./pages/galeria/GaleriaPage').then((m) => ({ default: m.GaleriaPage }))
+);
 const TutorialesPage = lazy(() =>
   import('./pages/normativa/TutorialesPage').then((m) => ({ default: m.TutorialesPage }))
 );
@@ -53,19 +56,22 @@ function ScrollToTop() {
 
 export function App() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Router>
-        <ScrollToTop />
-        <Navbar />
-        <Route path="/" component={FerLanding} />
-        <Route path="/inscripcion" component={InscripcionPage} />
-        <Route path="/horarios" component={HorariosPage} />
-        <Route path="/ubicacion" component={UbicacionPage} />
-        <Route path="/tutoriales" component={TutorialesPage} />
-        <Route path="/sobre-nosotros" component={SobreNosotrosPage} />
-        <Route path="/terms" component={TerminosPage} />
-        <Route path="/privacy" component={PrivacidadPage} />
-      </Router>
-    </Suspense>
+    <div className="[overflow-x:clip]" data-ui="app-shell">
+      <Suspense fallback={<PageLoader />}>
+        <Router>
+          <ScrollToTop />
+          <Navbar />
+          <Route path="/" component={FerLanding} />
+          <Route path="/inscripcion" component={InscripcionPage} />
+          <Route path="/horarios" component={HorariosPage} />
+          <Route path="/ubicacion" component={UbicacionPage} />
+          <Route path="/galeria" component={GaleriaPage} />
+          <Route path="/tutoriales" component={TutorialesPage} />
+          <Route path="/sobre-nosotros" component={SobreNosotrosPage} />
+          <Route path="/terms" component={TerminosPage} />
+          <Route path="/privacy" component={PrivacidadPage} />
+        </Router>
+      </Suspense>
+    </div>
   );
 }

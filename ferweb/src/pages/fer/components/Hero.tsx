@@ -13,10 +13,7 @@ export function Hero({ onCtaClick }: HeroProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-  // Resolve brand icon URLs via CDN hook
-  const ferIconSrc = useCdnImage(HERO_BRAND_ICONS.ferIcon);
-  const crossCollabSrc = useCdnImage(HERO_BRAND_ICONS.crossCollab);
-  const mainLogoSrc = useCdnImage(HERO_BRAND_ICONS.mainLogo);
+  const ferLogoSrc = useCdnImage(HERO_BRAND_ICONS.ferLogo);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -89,39 +86,20 @@ export function Hero({ onCtaClick }: HeroProps) {
           className="text-center max-w-4xl mx-auto"
           data-ui="fer-hero-content"
         >
-          {/* 3-image brand row */}
+          {/* Brand logo */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
             data-ui="fer-hero-brand-row"
           >
-            <div
-              className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6"
-              data-ui="fer-hero-brand-row-inner"
-            >
-              <img
-                src={ferIconSrc}
-                alt="FER"
-                className="h-40 w-auto object-contain"
-                loading="lazy"
-                data-ui="fer-hero-brand-fer-icon"
-              />
-              <img
-                src={crossCollabSrc}
-                alt="Cross Collab"
-                className="h-12 md:h-16 w-auto object-contain opacity-80"
-                loading="lazy"
-                data-ui="fer-hero-brand-crosscollab"
-              />
-              <img
-                src={mainLogoSrc}
-                alt="FER Cup Logo"
-                className="h-20 w-auto object-contain"
-                loading="lazy"
-                data-ui="fer-hero-brand-main-logo"
-              />
-            </div>
+            <img
+              src={ferLogoSrc}
+              alt="FER Cup Logo"
+              className="mx-auto h-auto w-[22rem] max-w-[96vw] object-contain sm:w-56 md:w-96 lg:w-[34rem] xl:w-[40rem]"
+              loading="lazy"
+              data-ui="fer-hero-brand-main-logo"
+            />
           </motion.div>
 
           <motion.p
@@ -129,7 +107,7 @@ export function Hero({ onCtaClick }: HeroProps) {
             variants={titleVariants}
             initial="hidden"
             animate="visible"
-            className="text-sm uppercase tracking-[0.3em] mb-4 mt-8"
+            className="text-[0.65rem] xs:text-xs sm:text-sm uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-4 mt-6 sm:mt-8"
             style={{ color: FER_COLORS.gold }}
             data-ui="fer-hero-presenta"
           >
@@ -141,7 +119,7 @@ export function Hero({ onCtaClick }: HeroProps) {
             variants={titleVariants}
             initial="hidden"
             animate="visible"
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black mb-6 leading-none mx-8"
+            className="text-4xl xs:text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black mb-4 sm:mb-6 leading-none mx-2 sm:mx-8"
             style={{ color: FER_COLORS.text }}
             data-ui="fer-hero-title"
           >
@@ -169,28 +147,28 @@ export function Hero({ onCtaClick }: HeroProps) {
             data-ui="fer-hero-info-chips"
           >
             <div
-              className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl border"
+              className="flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border"
               style={{
                 backgroundColor: `${FER_COLORS.bgCard}90`,
                 borderColor: `${FER_COLORS.accent}25`,
               }}
               data-ui="fer-hero-chip-date"
             >
-              <Calendar size={18} style={{ color: FER_COLORS.accent }} data-ui="fer-hero-chip-date-icon" />
-              <span className="font-medium" style={{ color: FER_COLORS.text }} data-ui="fer-hero-chip-date-text">
+              <Calendar size={14} className="sm:w-[18px] sm:h-[18px]" style={{ color: FER_COLORS.accent }} data-ui="fer-hero-chip-date-icon" />
+              <span className="font-medium text-xs sm:text-sm" style={{ color: FER_COLORS.text }} data-ui="fer-hero-chip-date-text">
                 {FER_EVENT.date}
               </span>
             </div>
             <div
-              className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl border"
+              className="flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border"
               style={{
                 backgroundColor: `${FER_COLORS.bgCard}90`,
                 borderColor: `${FER_COLORS.accent}25`,
               }}
               data-ui="fer-hero-chip-location"
             >
-              <MapPin size={18} style={{ color: FER_COLORS.accent }} data-ui="fer-hero-chip-location-icon" />
-              <span className="font-medium" style={{ color: FER_COLORS.text }} data-ui="fer-hero-chip-location-text">
+              <MapPin size={14} className="sm:w-[18px] sm:h-[18px]" style={{ color: FER_COLORS.accent }} data-ui="fer-hero-chip-location-icon" />
+              <span className="font-medium text-xs sm:text-sm" style={{ color: FER_COLORS.text }} data-ui="fer-hero-chip-location-text">
                 ALMUSSAFES
               </span>
             </div>
@@ -201,7 +179,7 @@ export function Hero({ onCtaClick }: HeroProps) {
             variants={titleVariants}
             initial="hidden"
             animate="visible"
-            className="text-lg sm:text-xl md:text-2xl mb-12 font-light"
+            className="text-base xs:text-lg sm:text-xl md:text-2xl mb-8 sm:mb-12 font-light"
             style={{ color: FER_COLORS.textMuted }}
             data-ui="fer-hero-tagline"
           >
@@ -217,7 +195,7 @@ export function Hero({ onCtaClick }: HeroProps) {
           >
             <motion.button
               onClick={handleInscripcionClick}
-              className="group relative px-10 sm:px-14 py-4 sm:py-5 text-base sm:text-lg font-bold rounded-full overflow-hidden transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-fer-accent/50"
+              className="group relative px-6 sm:px-10 py-3 sm:py-4 text-sm sm:text-base font-bold rounded-full overflow-hidden transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-fer-accent/50"
               style={{
                 backgroundColor: FER_COLORS.accent,
                 color: FER_COLORS.text,

@@ -61,7 +61,7 @@ export function DisciplinasSection(): JSX.Element {
         />
 
         <motion.div
-          className="absolute w-[500px] h-[500px] sm:w-[700px] sm:h-[700px] rounded-full pointer-events-none"
+          className="absolute w-[min(500px,90vw)] h-[min(500px,90vw)] sm:w-[700px] sm:h-[700px] rounded-full pointer-events-none"
           style={{
             background: `radial-gradient(circle, ${FER_COLORS.accent}12 0%, transparent 65%)`,
             opacity: titleOpacity,
@@ -72,7 +72,7 @@ export function DisciplinasSection(): JSX.Element {
         />
 
         <motion.div
-          className="absolute w-[350px] h-[350px] sm:w-[500px] sm:h-[500px] rounded-full pointer-events-none"
+          className="absolute w-[min(350px,80vw)] h-[min(350px,80vw)] sm:w-[500px] sm:h-[500px] rounded-full pointer-events-none"
           style={{
             background: `radial-gradient(circle, ${FER_COLORS.purple}18 0%, transparent 60%)`,
             opacity: titleOpacity,

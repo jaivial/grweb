@@ -23,7 +23,7 @@ export const STORAGE_KEYS = {
 export const SOCIAL_LINKS = {
   INSTAGRAM: 'https://instagram.com/ferentrenamiento',
   INSTAGRAM_HANDLE: '@ferentrenamiento',
-  WEBSITE: 'https://fer.menustudioai.com',
+  WEBSITE: 'https://fercup.com',
 } as const;
 
 export const ANIMATION = {
@@ -80,7 +80,7 @@ export const VALIDATION_PATTERNS = {
 
 export const SEO = {
   SITE_NAME: 'FER CUP II',
-  SITE_URL: 'https://fer.menustudioai.com',
+  SITE_URL: 'https://fercup.com',
   DEFAULT_DESCRIPTION: 'Entérate del FER CUP y participa en el sorteo.',
   DEFAULT_KEYWORDS: 'FER, Powerlifting, Sorteo, Evento',
   TWITTER_HANDLE: '',

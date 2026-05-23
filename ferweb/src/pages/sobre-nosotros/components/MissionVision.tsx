@@ -1,10 +1,17 @@
-import { useMemo, useState, useEffect } from 'react';
+import { type CSSProperties, useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Target, Eye } from 'lucide-react';
-import { FER_COLORS } from '../../fer/constants';
+import { FER_COLORS, FER_SOBRE_MISSION_IMAGE } from '../../fer/constants';
 import { useCdnImage } from '@hooks/useCdnImage';
 import { CLUB_PHOTOS } from '../../fer/constants/clubPhotos';
 import { MISSION_STATEMENT, VISION_STATEMENT, SOBRE_SECTION_IDS } from '../constants';
+
+const missionImageClassName = 'w-full aspect-[4/3] object-cover';
+const missionImageStyle: CSSProperties = { objectPosition: 'center center' };
+
+const visionImageWrapperClassName = 'relative aspect-[4/3] rounded-2xl overflow-hidden md:order-2';
+const visionImageClassName = 'absolute left-0 -top-[90px] h-[calc(100%+140px)] w-full object-cover';
+const visionImageStyle: CSSProperties = { objectPosition: 'center top' };
 
 export function MissionVision() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -17,7 +24,7 @@ export function MissionVision() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const missionImageSrc = useCdnImage(CLUB_PHOTOS.action[2]);
+  const missionImageSrc = useCdnImage(FER_SOBRE_MISSION_IMAGE);
   const visionImageSrc = useCdnImage(CLUB_PHOTOS.action[4]);
 
   const containerVariants = useMemo(
@@ -69,7 +76,8 @@ export function MissionVision() {
             <img
               src={missionImageSrc}
               alt="Entrenamiento de powerlifting en FER"
-              className="w-full aspect-[4/3] object-cover"
+              className={missionImageClassName}
+              style={missionImageStyle}
               loading="lazy"
               decoding="async"
               data-ui="sobre-mission-image"
@@ -169,14 +177,15 @@ export function MissionVision() {
           {/* Image */}
           <motion.div
             variants={itemVariants}
-            className="relative rounded-2xl overflow-hidden md:order-2"
+            className={visionImageWrapperClassName}
             style={{ border: `1px solid ${FER_COLORS.accent}15` }}
             data-ui="sobre-vision-image-wrapper"
           >
             <img
               src={visionImageSrc}
               alt="Atletas entrenando en el GRS Club"
-              className="w-full aspect-[4/3] object-cover"
+              className={visionImageClassName}
+              style={visionImageStyle}
               loading="lazy"
               decoding="async"
               data-ui="sobre-vision-image"

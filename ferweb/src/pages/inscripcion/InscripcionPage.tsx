@@ -117,7 +117,7 @@ export function InscripcionPage() {
       <Head
         title="Inscripción | FER CUP"
         description="Inscríbete al FER CUP 2026 en Valencia, Valencia. Plazas limitadas. Tu primera competición de powerlifting."
-        canonicalUrl="https://fer.menustudioai.com/inscripcion"
+        canonicalUrl="https://fercup.com/inscripcion"
       />
       <div
         className="min-h-screen flex flex-col"

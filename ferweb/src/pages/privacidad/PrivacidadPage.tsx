@@ -9,62 +9,67 @@ const SECTIONS = [
   {
     title: '1. Responsable del tratamiento',
     content:
-      'El responsable del tratamiento de los datos personales recogidos a través de esta web es GR Strength Club (en adelante, «el Club» o «el Responsable»), con sede en Valencia, Valencia. FER Entrenamiento actúa únicamente como gimnasio anfitrión del evento y no participa en la recogida, tratamiento o gestión de los datos personales de los participantes.',
+      'El responsable del tratamiento de los datos personales recogidos a través de esta página web es:\n\nGRUPO DE RECREACIÓN DEPORTIVA DE HALTEROFILIA GR STRENGTH TORRENT VALENCIA\nNIF: G24770950\nDomicilio social: Calle Paralelo, nº2, Bloque A, Puerta 3, 46440 Almussafes (Valencia)\n\n(en adelante, «GR Strength» o «el Organizador»).\n\nLa FER CUP se celebrará en el Pabellón Municipal de Almussafes (Valencia).\n\nFER Entrenamiento actúa exclusivamente como entidad colaboradora y gimnasio asociado al evento, sin intervenir en la gestión, almacenamiento o tratamiento de los datos personales de los participantes.',
   },
   {
-    title: '2. Datos recopilados',
+    title: '2. Datos personales recopilados',
     content:
-      'Durante el proceso de inscripción y navegación por la web, podemos recopilar las siguientes categorías de datos:\n\n• Datos identificativos: nombre, apellidos, fecha de nacimiento, DNI/NIE.\n• Datos de contacto: dirección de correo electrónico, número de teléfono.\n• Datos de participación: categoría, peso corporal, experiencia previa, club al que pertenece (si procede).\n• Datos de pago: se procesan exclusivamente a través de Stripe. El Club no almacena números de tarjeta ni datos bancarios.\n• Datos de navegación: dirección IP, tipo de navegador, páginas visitadas (mediante cookies analíticas).',
+      'Durante el proceso de inscripción y navegación por la web, podremos recopilar las siguientes categorías de datos:\n\n• Datos identificativos: nombre, apellidos, fecha de nacimiento y DNI/NIE.\n• Datos de contacto: correo electrónico y número de teléfono.\n• Datos relacionados con la competición: categoría, peso corporal, experiencia previa y club al que pertenece el participante, en caso de existir.\n• Datos de navegación: dirección IP, navegador utilizado y comportamiento de navegación mediante cookies analíticas.\n\nGR Strength no recopila ni almacena datos bancarios o números de tarjeta.',
   },
   {
     title: '3. Finalidad del tratamiento',
     content:
-      'Los datos personales recogidos serán tratados con las siguientes finalidades:\n\n• Gestionar la inscripción y participación en el FER CUP II 2026.\n• Procesar el pago de la inscripción a través de Stripe.\n• Comunicar información relevante sobre el evento (horarios, cambios de última hora, resultados).\n• Publicar clasificaciones y resultados oficiales de la competición.\n• Difundir imágenes y vídeos del evento con fines promocionales (según lo establecido en los términos y condiciones).\n• Mejorar la experiencia de navegación en la web mediante cookies analíticas.',
+      'Los datos personales serán tratados con las siguientes finalidades:\n\n• Gestionar la inscripción y participación en la FER CUP.\n• Organizar horarios, categorías, listados y funcionamiento general del evento.\n• Contactar con los participantes para comunicar información relevante relacionada con la competición.\n• Publicar clasificaciones, resultados y listados oficiales derivados del evento.\n• Difundir imágenes y vídeos captados durante la competición con fines promocionales, publicitarios y de comunicación relacionados con GR Strength y futuros eventos.\n• Mejorar la experiencia de navegación y el funcionamiento de la web mediante herramientas analíticas.',
   },
   {
     title: '4. Base legal del tratamiento',
     content:
-      'El tratamiento de sus datos se basa en las siguientes bases legales:\n\n• Ejecución de un contrato: la inscripción en el evento constituye una relación contractual entre el participante y el Organizador.\n• Consentimiento del interesado: para la difusión de imágenes y vídeos con fines promocionales, y para el uso de cookies no esenciales.\n• Interés legítimo: para la publicación de clasificaciones y resultados.\n• Cumplimiento de obligaciones legales: cuando sea requerido por la normativa aplicable.',
+      'El tratamiento de los datos personales se fundamenta en:\n\n• La ejecución de la relación contractual derivada de la inscripción en el evento.\n• El consentimiento del interesado para el uso de cookies no esenciales y la difusión de imágenes o vídeos con fines promocionales.\n• El interés legítimo del Organizador para la publicación de clasificaciones y resultados deportivos.\n• El cumplimiento de obligaciones legales aplicables.',
   },
   {
-    title: '5. Plazo de conservación',
+    title: '5. Conservación de los datos',
     content:
-      'Los datos personales se conservarán durante el tiempo necesario para cumplir con las finalidades descritas y, en todo caso, durante los plazos legalmente establecidos. Una vez finalizada la competición, los datos se mantendrán durante un plazo máximo de cinco años por motivos fiscales y legales, salvo que el interesado ejerza su derecho de supresión antes de dicho plazo.',
+      'Los datos personales se conservarán únicamente durante el tiempo necesario para cumplir con las finalidades descritas anteriormente y, posteriormente, durante los plazos legalmente exigidos.\n\nCon carácter general, los datos podrán conservarse durante un máximo de cinco años por motivos administrativos, legales o fiscales, salvo que el interesado solicite previamente su supresión cuando ello sea legalmente posible.',
   },
   {
     title: '6. Destinatarios de los datos',
     content:
-      'Los datos personales no serán cedidos a terceros salvo en los siguientes casos:\n\n• Stripe, como plataforma de procesamiento de pagos (consulta su política de privacidad en stripe.com/privacy).\n• Autoridades públicas y administrativas, cuando lo exija la legislación vigente.\n• Prestadores de servicios tecnológicos (alojamiento web, correo electrónico) que actúan como encargados del tratamiento y están sujetos a las garantías contractuales exigidas por el RGPD.\n\nNo se realizan transferencias internacionales de datos fuera del Espacio Económico Europeo (EEE), salvo las inherentes a los servicios de Stripe, que garantizan un nivel adecuado de protección mediante cláusulas contractuales tipo.',
+      'Los datos personales no serán cedidos a terceros salvo en los siguientes supuestos:\n\n• Cuando exista obligación legal.\n• A proveedores tecnológicos necesarios para el funcionamiento de la web o la gestión de comunicaciones, actuando siempre bajo contrato y conforme al Reglamento General de Protección de Datos (RGPD).\n• A autoridades públicas o administrativas cuando resulte legalmente exigible.\n\nNo se realizarán transferencias internacionales de datos fuera del Espacio Económico Europeo (EEE), salvo aquellas derivadas del uso de herramientas tecnológicas que cumplan con las garantías exigidas por la normativa europea vigente.',
   },
   {
     title: '7. Derechos del usuario',
     content:
-      'El interesado puede ejercer en cualquier momento los siguientes derechos reconocidos por el Reglamento General de Protección de Datos (RGPD):\n\n• Derecho de acceso: saber qué datos tratamos y para qué.\n• Derecho de rectificación: solicitar la corrección de datos inexactos.\n• Derecho de supresión («derecho al olvido»): solicitar la eliminación de sus datos.\n• Derecho a la limitación del tratamiento: solicitar que se restrinja el tratamiento de sus datos.\n• Derecho a la portabilidad: recibir sus datos en un formato estructurado y legible.\n• Derecho de oposición: oponerse al tratamiento de sus datos para fines concretos.\n\nPara ejercer estos derechos, debe enviar una solicitud por escrito a la dirección de correo electrónico que el Organizador indique en la web oficial, indicando el derecho que desea ejercer y adjuntando una copia de su DNI o documento identificativo.',
+      'El usuario podrá ejercer en cualquier momento los siguientes derechos:\n\n• Acceso a sus datos personales.\n• Rectificación de datos inexactos o incompletos.\n• Supresión de sus datos personales.\n• Limitación del tratamiento.\n• Oposición al tratamiento.\n• Portabilidad de los datos.\n\nPara ejercer cualquiera de estos derechos, deberá enviar una solicitud a la dirección de correo electrónico indicada en la web oficial, adjuntando copia de un documento identificativo válido.',
   },
   {
-    title: '8. Seguridad de los datos',
+    title: '8. Uso de imágenes y contenido audiovisual',
     content:
-      'El Club ha adoptado las medidas técnicas y organizativas necesarias para garantizar la seguridad e integridad de los datos personales, y para evitar su pérdida, alteración, acceso no autorizado o divulgación, de acuerdo con el estado de la tecnología y la naturaleza de los datos almacenados.',
+      'La participación en el evento implica la posible captación de fotografías y vídeos durante el desarrollo de la competición.\n\nDicho contenido podrá ser utilizado por GR Strength con fines promocionales, informativos y publicitarios en:\n• Redes sociales\n• Página web\n• Material gráfico o audiovisual\n• Publicaciones relacionadas con el evento y futuros proyectos\n\nEn caso de oposición al uso de la imagen, el participante deberá comunicarlo previamente al Organizador por escrito.',
   },
   {
-    title: '9. Cookies',
+    title: '9. Seguridad de los datos',
     content:
-      'Este sitio web utiliza cookies propias y de terceros para mejorar la experiencia de navegación y recopilar información estadística anónima. Puede configurar o rechazar las cookies en cualquier momento a través de la configuración de su navegador. Para más información, consulte nuestra política de cookies.',
+      'GR Strength ha adoptado las medidas técnicas y organizativas necesarias para garantizar la confidencialidad, integridad y seguridad de los datos personales, evitando su alteración, pérdida, tratamiento o acceso no autorizado.',
   },
   {
-    title: '10. Reclamaciones',
+    title: '10. Cookies',
     content:
-      'Si considera que el tratamiento de sus datos personales infringe la normativa de protección de datos, puede presentar una reclamación ante la Agencia Española de Protección de Datos (AEPD) a través de su sede electrónica (www.aepd.es).',
+      'Esta web utiliza cookies propias y de terceros con fines técnicos, analíticos y de mejora de la experiencia de usuario.\n\nEl usuario podrá aceptar, rechazar o configurar el uso de cookies mediante el banner habilitado en la página web o a través de la configuración de su navegador.',
   },
   {
-    title: '11. Modificaciones',
+    title: '11. Reclamaciones',
     content:
-      'El Club se reserva el derecho de modificar la presente política de privacidad para adaptarla a novedades legislativas, jurisprudenciales o de interpretación de la Agencia Española de Protección de Datos. Los cambios serán notificados a través de la web oficial.',
+      'Si considera que el tratamiento de sus datos personales vulnera la normativa vigente, puede presentar una reclamación ante la Agencia Española de Protección de Datos (AEPD):\n\nhttps://www.aepd.es',
   },
   {
-    title: '12. Contacto',
+    title: '12. Modificaciones de la política de privacidad',
     content:
-      'Para cualquier consulta relacionada con la protección de datos personales, puede escribirnos a la dirección de correo electrónico que el Organizador indique en la web oficial, indicando en el asunto «Protección de Datos».',
+      'GR Strength se reserva el derecho de modificar la presente Política de Privacidad para adaptarla a novedades legislativas, criterios jurisprudenciales o cambios en el funcionamiento del evento o de la web.\n\nLa versión actualizada estará siempre disponible en la página oficial.',
+  },
+  {
+    title: '13. Contacto',
+    content:
+      'Para cualquier consulta relacionada con la protección de datos personales, puede contactar con el Organizador a través del correo electrónico indicado en la web oficial, indicando en el asunto:\n\n"Protección de Datos".',
   },
 ];
 

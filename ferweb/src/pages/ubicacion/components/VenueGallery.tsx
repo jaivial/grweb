@@ -1,17 +1,11 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { FER_COLORS } from '../../fer/constants';
-import { CLUB_PHOTOS } from '../../fer/constants/clubPhotos';
+import { FER_COLORS, FER_UBICACION_INSTALACIONES_IMAGES } from '../../fer/constants';
 import { useCdnImage } from '@hooks/useCdnImage';
 import { UBICACION_SECTION_IDS } from '../constants';
 
-const GALLERY_IMAGES = [
-  ...CLUB_PHOTOS.atmosphere,
-  CLUB_PHOTOS.gallery[0],
-  CLUB_PHOTOS.gallery[1],
-  CLUB_PHOTOS.gallery[2],
-] as const;
+const GALLERY_IMAGES = FER_UBICACION_INSTALACIONES_IMAGES;
 
 function GalleryThumbnail({
   src,

@@ -14,7 +14,6 @@ import { InscripcionForm } from './components/InscripcionForm';
 import { ConfirmacionModal } from './components/ConfirmacionModal';
 import { UpsellModal } from './components/UpsellModal';
 import { FerFooter } from './components/FerFooter';
-import { PolaroidGallery } from './components/PolaroidGallery';
 import { DisciplinasSection } from './components/DisciplinasSection';
 import { ParallaxShowcase } from './components/ParallaxShowcase';
 import { HorariosSection } from './components/HorariosSection';
@@ -126,27 +125,33 @@ export function FerLanding() {
   if (isLoading) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
+        className="min-h-screen flex flex-col items-center justify-center gap-6"
         style={{ backgroundColor: FER_COLORS.bgDark }}
         data-ui="fer-loading"
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          data-ui="fer-loading-spinner"
-        >
+        <div className="relative" data-ui="fer-loading-spinner">
+          <div
+            className="w-16 h-16 rounded-full border-4 border-white/10"
+            style={{ borderColor: `${FER_COLORS.accent}30` }}
+          />
           <Loader2
-            className="w-12 h-12 animate-spin"
+            className="absolute inset-0 w-16 h-16 animate-spin"
             style={{ color: FER_COLORS.accent }}
           />
-          <p
-            className="mt-4 text-sm animate-pulse"
-            style={{ color: FER_COLORS.textMuted }}
-            data-ui="fer-loading-text"
-          >
-            Cargando evento...
-          </p>
-        </motion.div>
+          <div
+            className="absolute inset-2 rounded-full bg-gradient-to-br from-transparent to-white/5"
+          />
+        </div>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-base sm:text-lg font-medium tracking-wide"
+          style={{ color: FER_COLORS.textMuted }}
+          data-ui="fer-loading-text"
+        >
+          Cargando evento...
+        </motion.p>
       </div>
     );
   }
@@ -168,8 +173,6 @@ export function FerLanding() {
       <QueIncluye />
 
       <QuienPuede />
-
-      <PolaroidGallery />
 
       <ComoFunciona
         precioBase={competicion?.eventoConfig?.precioBase}

@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Users } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { FER_COLORS, FER_EVENT } from '../../fer/constants';
+import { FER_COLORS } from '../../fer/constants';
 import { SOBRE_SECTION_IDS } from '../constants';
 
 export function CommunityCta() {
@@ -88,7 +88,7 @@ export function CommunityCta() {
               data-ui="sobre-cta-description"
             >
               No importa tu nivel. Si tienes ganas de superarte y disfrutar del powerlifting
-              en buena compañía, te esperamos en el {FER_EVENT.name}.
+              en buena compañía, te esperamos en la FER CUP.
             </p>
             <button
               onClick={handleInscribete}
