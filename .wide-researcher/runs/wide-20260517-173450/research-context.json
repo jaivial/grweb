@@ -1,0 +1,308 @@
+{
+  "planSlug": "wide-20260517-173450",
+  "createdAt": "2026-05-17T17:34:50+00:00",
+  "prompt": "Analyze Qdrant wide-research coverage for project root /var/www/grweb and OpenCode MCP preference configuration",
+  "researcher": "wide-researcher",
+  "project": "grweb",
+  "projectRoot": "/var/www/grweb",
+  "collection": "grweb_34b1bb26",
+  "matchedFiles": [
+    {
+      "path": "/var/www/grweb/plans/backoffice-users-migration-plan.html",
+      "repo": "grweb",
+      "language": "text",
+      "matches": 4,
+      "score": 0.7067,
+      "role": "other",
+      "atomic_layer": null,
+      "top_symbols": [
+        "part:3",
+        "part:2",
+        "part:1"
+      ],
+      "line_hits": [
+        [
+          263,
+          296
+        ],
+        [
+          51,
+          80
+        ],
+        [
+          102,
+          138
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/.claude/agents/wide-researcher.md",
+      "repo": "grweb",
+      "language": "markdown",
+      "matches": 5,
+      "score": 0.4726,
+      "role": "docs",
+      "atomic_layer": null,
+      "top_symbols": [
+        "Hard rules",
+        "wide-researcher",
+        "(intro)"
+      ],
+      "line_hits": [
+        [
+          62,
+          73
+        ],
+        [
+          6,
+          12
+        ],
+        [
+          1,
+          5
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/.claude/skills/wide-research/SKILL.md",
+      "repo": "grweb",
+      "language": "markdown",
+      "matches": 4,
+      "score": 0.4504,
+      "role": "docs",
+      "atomic_layer": null,
+      "top_symbols": [
+        "(intro)",
+        "How to invoke",
+        "Hard rules"
+      ],
+      "line_hits": [
+        [
+          1,
+          5
+        ],
+        [
+          21,
+          33
+        ],
+        [
+          75,
+          83
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/frontend/vitest.config.ts",
+      "repo": "grweb",
+      "language": "typescript",
+      "matches": 1,
+      "score": 0.3049,
+      "role": "frontend",
+      "atomic_layer": null,
+      "top_symbols": [],
+      "line_hits": [
+        [
+          5,
+          24
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/.claude/skills/wide-research/references/mcp-tools.md",
+      "repo": "grweb",
+      "language": "markdown",
+      "matches": 2,
+      "score": 0.2226,
+      "role": "docs",
+      "atomic_layer": null,
+      "top_symbols": [
+        "wide-researcher MCP tools — full reference",
+        "`wr_find(query, k?, lang?, role?, layer?, mode?)`"
+      ],
+      "line_hits": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          65
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/frontend/public/robots.txt",
+      "repo": "grweb",
+      "language": "text",
+      "matches": 1,
+      "score": 0.1913,
+      "role": "other",
+      "atomic_layer": null,
+      "top_symbols": [],
+      "line_hits": [
+        [
+          1,
+          5
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/backoffice/public/robots.txt",
+      "repo": "grweb",
+      "language": "text",
+      "matches": 1,
+      "score": 0.1913,
+      "role": "other",
+      "atomic_layer": null,
+      "top_symbols": [],
+      "line_hits": [
+        [
+          1,
+          5
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/tunnel-services.md",
+      "repo": "grweb",
+      "language": "markdown",
+      "matches": 2,
+      "score": 0.1836,
+      "role": "docs",
+      "atomic_layer": null,
+      "top_symbols": [
+        "GrWeb Tunnel Services - Quick Reference",
+        "Services Running"
+      ],
+      "line_hits": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          10
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/nginx/grcup.jaimedigitalstudio.com",
+      "repo": "grweb",
+      "language": "text",
+      "matches": 1,
+      "score": 0.1832,
+      "role": "other",
+      "atomic_layer": null,
+      "top_symbols": [],
+      "line_hits": [
+        [
+          1,
+          80
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/backend/GrCup.Api/.env.example",
+      "repo": "grweb",
+      "language": "text",
+      "matches": 1,
+      "score": 0.1732,
+      "role": "other",
+      "atomic_layer": null,
+      "top_symbols": [],
+      "line_hits": [
+        [
+          1,
+          16
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/.claude/skills/wide-research/references/impact-diagram.md",
+      "repo": "grweb",
+      "language": "markdown",
+      "matches": 1,
+      "score": 0.0936,
+      "role": "docs",
+      "atomic_layer": null,
+      "top_symbols": [
+        "research-context.json shape"
+      ],
+      "line_hits": [
+        [
+          13,
+          51
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    },
+    {
+      "path": "/var/www/grweb/AGENTS.md",
+      "repo": "grweb",
+      "language": "markdown",
+      "matches": 1,
+      "score": 0.0935,
+      "role": "docs",
+      "atomic_layer": null,
+      "top_symbols": [
+        "Jerarquía de AGENTS por carpeta (obligatorio)"
+      ],
+      "line_hits": [
+        [
+          98,
+          114
+        ]
+      ],
+      "sources": [
+        "semantic"
+      ]
+    }
+  ],
+  "candidateRoles": [
+    "docs",
+    "frontend",
+    "other"
+  ],
+  "candidateLayers": [],
+  "flags": {
+    "filesLikelyTouched": 12
+  },
+  "wideResearch": {
+    "diagramPath": "/var/www/grweb/.wide-researcher/runs/wide-20260517-173450/impact-diagram.html",
+    "topK": 12,
+    "semanticHits": 36,
+    "keywordHits": 0
+  }
+}

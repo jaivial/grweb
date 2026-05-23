@@ -101,6 +101,58 @@ export interface LoginResponse {
   data?: Usuario;
 }
 
+// ─── Role & Member Management ───
+
+export type RoleSlug = 'root' | 'admin' | 'staff' | 'registrador';
+
+export interface Role {
+  slug: RoleSlug;
+  name: string;
+  description: string;
+  capabilities: string[];
+  restrictions: string[];
+  memberCount: number;
+}
+
+export interface MemberDetail {
+  id: number;
+  email: string;
+  nombre: string;
+  isActive: boolean;
+  role: RoleSlug;
+  invitedBy?: {
+    id: number;
+    nombre: string;
+    email: string;
+  };
+  invitationSentAt?: string;
+  invitationAcceptedAt?: string;
+  isPending: boolean;
+}
+
+export interface CreateMemberRequest {
+  email: string;
+  password: string;
+  nombre: string;
+  role: RoleSlug;
+}
+
+export interface UpdateMemberRoleRequest {
+  role: RoleSlug;
+}
+
+export interface CompetitionUsersResponse {
+  users: MemberDetail[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface RoleWithMembers extends Role {
+  members: MemberDetail[];
+}
+
 // ─── Inscripcion ───
 
 export interface Inscripcion {

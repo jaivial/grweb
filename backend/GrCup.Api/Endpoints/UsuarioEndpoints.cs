@@ -78,7 +78,7 @@ public static class UsuarioEndpoints
             return Results.Ok(new
             {
                 success = true,
-                data = service.MapToUserResponse(usuario)
+                data = await service.MapToUserResponseAsync(usuario)
             });
         });
 
@@ -257,4 +257,3 @@ public static class UsuarioEndpoints
         });
     }
 }
-

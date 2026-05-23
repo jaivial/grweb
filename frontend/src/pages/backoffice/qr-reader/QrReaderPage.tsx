@@ -1,13 +1,11 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { JSX } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAtomValue } from 'jotai';
+import toast from 'react-hot-toast';
 import { currentCompeticionAtom } from '../../../stores/auth.atoms';
-import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
-import { api } from '../../../utils/api';
-import { Confetti, AnimatedCheckmark, SuccessBanner, WarningIcon } from './components';
-
-// ─── Types ───
+import { BackofficeLayout } from '../BackofficeLayout';
+import { api } from '../../../api/client';
+import { CheckIcon, XIcon, WarningIcon } from '../../../components/ui/Icon';
 
 interface InscripcionEstado {
   id: number;
@@ -37,13 +35,9 @@ interface InscripcionEstado {
 
 type ScanState = 'scanning' | 'loading' | 'loaded' | 'error';
 
-// ─── Helpers ───
-
 function formatPrice(amount: number): string {
   return amount.toFixed(2);
 }
-
-// ─── Main Component ───
 
 export function QrReaderPage(): JSX.Element {
   const currentCompeticion = useAtomValue(currentCompeticionAtom);
@@ -55,23 +49,12 @@ export function QrReaderPage(): JSX.Element {
   const [participationConfirmed, setParticipationConfirmed] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [showPaymentConfirmDialog, setShowPaymentConfirmDialog] = useState(false);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [manualQrInput, setManualQrInput] = useState('');
-  const [liftData, setLiftData] = useState({
-    sentadilla1: 0, sentadilla2: 0, sentadilla3: 0,
-    banca1: 0, banca2: 0, banca3: 0,
-    pesoMuerto1: 0, pesoMuerto2: 0, pesoMuerto3: 0,
-  });
-  const [liftSaving, setLiftSaving] = useState(false);
-  const [liftSaved, setLiftSaved] = useState(false);
-
-  const updateLift = (field: string, value: number) => setLiftData(prev => ({ ...prev, [field]: value }));
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
   const isScannerStartedRef = useRef(false);
-  const paymentSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const slug = useMemo(() => currentCompeticion?.slug ?? '', [currentCompeticion?.slug]);
 
@@ -92,14 +75,6 @@ export function QrReaderPage(): JSX.Element {
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 4000);
   }, []);
-
-  useEffect(() => {
-    if (!showPaymentSuccess) return;
-    paymentSuccessTimerRef.current = setTimeout(() => setShowPaymentSuccess(false), 5000);
-    return () => {
-      if (paymentSuccessTimerRef.current) clearTimeout(paymentSuccessTimerRef.current);
-    };
-  }, [showPaymentSuccess]);
 
   useEffect(() => {
     if (scanState !== 'scanning' || !slug) return;
@@ -135,11 +110,11 @@ export function QrReaderPage(): JSX.Element {
           console.error('QR scanner error:', err);
           const msg = err?.message ?? '';
           if (msg.includes('NotAllowedError') || msg.includes('Permission denied')) {
-            setErrorMsg('Permiso de cámara denegado por el navegador. Si usas fer-backoffice.menustudioai.com, el administrador debe crear una Transform Rule en Cloudflare Dashboard (Security > Transform Rules) que añada "Permissions-Policy: camera=(self)" para este subdominio. Mientras tanto, introduce el código QR manualmente.');
+            setErrorMsg('Permiso de cámara denegado. Introduce el código QR manualmente.');
           } else if (msg.includes('NotFoundError') || msg.includes('Requested device not found')) {
-            setErrorMsg('No se detectó ninguna cámara en este dispositivo. Puedes introducir el código QR manualmente.');
+            setErrorMsg('No se detectó ninguna cámara. Introduce el código QR manualmente.');
           } else {
-            setErrorMsg('No se pudo acceder a la cámara. Puedes introducir el código QR manualmente.');
+            setErrorMsg('No se pudo acceder a la cámara. Introduce el código QR manualmente.');
           }
         }
       }
@@ -157,49 +132,6 @@ export function QrReaderPage(): JSX.Element {
       isScannerStartedRef.current = false;
     };
   }, [scanState, slug]);
-
-  // Load existing openers when athlete data is loaded
-  useEffect(() => {
-    if (!slug || !inscripcion?.id) return;
-    (async () => {
-      try {
-        const result = await api.getFerOpeners(slug, inscripcion.id);
-        if (result.success && result.data) {
-          const data = result.data;
-          setLiftData({
-            sentadilla1: data.sentadilla1 ?? 0,
-            sentadilla2: data.sentadilla2 ?? 0,
-            sentadilla3: data.sentadilla3 ?? 0,
-            banca1: data.banca1 ?? 0,
-            banca2: data.banca2 ?? 0,
-            banca3: data.banca3 ?? 0,
-            pesoMuerto1: data.pesoMuerto1 ?? 0,
-            pesoMuerto2: data.pesoMuerto2 ?? 0,
-            pesoMuerto3: data.pesoMuerto3 ?? 0,
-          });
-        }
-      } catch (err) {
-        console.error('Error loading openers:', err);
-      }
-    })();
-  }, [slug, inscripcion?.id]);
-
-  const handleSaveLifts = useCallback(async () => {
-    if (!slug || !inscripcion) return;
-    setLiftSaving(true);
-    setLiftSaved(false);
-    try {
-      const result = await api.setFerOpeners(slug, inscripcion.id, liftData);
-      if (result.success) {
-        setLiftSaved(true);
-        setTimeout(() => setLiftSaved(false), 3000);
-      }
-    } catch (err) {
-      console.error('Error saving lifts:', err);
-    } finally {
-      setLiftSaving(false);
-    }
-  }, [slug, inscripcion, liftData]);
 
   const handleQrScanned = useCallback(
     async (qrData: string) => {
@@ -241,7 +173,7 @@ export function QrReaderPage(): JSX.Element {
             confirmParticipation(slug, inscripcionId);
           }
         } else {
-          setErrorMsg((result as any).message || 'No se encontró la inscripción');
+          setErrorMsg(result.message || 'No se encontró la inscripción');
           setScanState('error');
         }
       } catch (err) {
@@ -261,9 +193,11 @@ export function QrReaderPage(): JSX.Element {
           setParticipationConfirmed(true);
           setInscripcion((prev) => (prev ? { ...prev, participacionConfirmada: true } : prev));
           triggerConfetti();
+          toast.success('Participación confirmada');
         }
       } catch (err) {
         console.error('Error confirming participation:', err);
+        toast.error('Error al confirmar participación');
       } finally {
         setConfirmingParticipation(false);
       }
@@ -280,11 +214,12 @@ export function QrReaderPage(): JSX.Element {
       if (result.success) {
         setPaymentConfirmed(true);
         setInscripcion((prev) => (prev ? { ...prev, pagoConfirmado: true } : prev));
-        setShowPaymentSuccess(true);
         triggerConfetti();
+        toast.success('Pago confirmado');
       }
     } catch (err) {
       console.error('Error confirming cash payment:', err);
+      toast.error('Error al confirmar pago');
     } finally {
       setConfirmingPayment(false);
     }
@@ -299,12 +234,7 @@ export function QrReaderPage(): JSX.Element {
     setConfirmingParticipation(false);
     setConfirmingPayment(false);
     setShowPaymentConfirmDialog(false);
-    setShowPaymentSuccess(false);
     setShowConfetti(false);
-    setLiftData({ sentadilla1: 0, sentadilla2: 0, sentadilla3: 0, banca1: 0, banca2: 0, banca3: 0, pesoMuerto1: 0, pesoMuerto2: 0, pesoMuerto3: 0 });
-    setLiftSaving(false);
-    setLiftSaved(false);
-    if (paymentSuccessTimerRef.current) clearTimeout(paymentSuccessTimerRef.current);
   }, []);
 
   const handleManualSubmit = useCallback(
@@ -322,13 +252,7 @@ export function QrReaderPage(): JSX.Element {
   }, []);
 
   const handleOpenPaymentDialog = useCallback(() => setShowPaymentConfirmDialog(true), []);
-
   const handleClosePaymentDialog = useCallback(() => setShowPaymentConfirmDialog(false), []);
-
-  const handleClosePaymentSuccess = useCallback(() => {
-    setShowPaymentSuccess(false);
-    if (paymentSuccessTimerRef.current) clearTimeout(paymentSuccessTimerRef.current);
-  }, []);
 
   const caseType = useMemo(() => {
     if (!inscripcion) return null;
@@ -338,25 +262,21 @@ export function QrReaderPage(): JSX.Element {
   }, [inscripcion]);
 
   return (
-    <>
-      <Confetti active={showConfetti} />
-
-      <BackofficeLayout>
-        <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto" data-ui="qr-reader-page">
+    <BackofficeLayout breadcrumbs={[{ label: 'Escáner QR' }]} title="Lector QR">
+      <div className="max-w-2xl mx-auto" data-ui="qr-reader-page">
         <div className="mb-6" data-ui="qr-reader-header">
           <h1 className="text-2xl font-bold text-white mb-1" data-ui="qr-reader-title">
             Lector QR
           </h1>
           <p className="text-gray-400 text-sm" data-ui="qr-reader-subtitle">
-            Escanea el código QR del atleta para confirmar participación y pago
+            Escanea el código QR del participante para confirmar participación y pago
           </p>
         </div>
 
-        {/* ── Scanner ── */}
         {scanState === 'scanning' && (
           <div className="space-y-4" data-ui="qr-reader-scanning">
             <div
-              className="rounded-2xl overflow-hidden border border-white/10"
+              className="rounded-2xl overflow-hidden border border-white/10 bg-dark-surface"
               style={{ minHeight: 300 }}
               data-ui="qr-reader-video-container"
             >
@@ -388,7 +308,6 @@ export function QrReaderPage(): JSX.Element {
           </div>
         )}
 
-        {/* ── Loading ── */}
         {scanState === 'loading' && (
           <div className="flex flex-col items-center justify-center py-20" data-ui="qr-reader-loading">
             <div
@@ -401,7 +320,6 @@ export function QrReaderPage(): JSX.Element {
           </div>
         )}
 
-        {/* ── Error ── */}
         {scanState === 'error' && (
           <div className="p-6 rounded-xl bg-dark-surface border border-red-500/20 text-center" data-ui="qr-reader-error">
             <p className="text-red-400 mb-4" data-ui="qr-reader-error-msg">{errorMsg}</p>
@@ -415,135 +333,21 @@ export function QrReaderPage(): JSX.Element {
           </div>
         )}
 
-        {/* ── Loaded ── */}
         {scanState === 'loaded' && inscripcion && (
           <div className="space-y-4" data-ui="qr-reader-result">
-            {/* Case A: Participation just confirmed */}
-            {caseType === 'A' && (
-              <div className="text-center py-6" data-ui="qr-reader-case-a">
-                {confirmingParticipation ? (
-                  <div className="flex flex-col items-center py-8" data-ui="qr-reader-confirming-participation">
-                    <div
-                      className="w-12 h-12 border-4 border-red-accent border-t-transparent rounded-full animate-spin mb-4"
-                      data-ui="qr-reader-confirming-spinner"
-                    />
-                    <p className="text-gray-400" data-ui="qr-reader-confirming-text">
-                      Confirmando participación...
-                    </p>
-                  </div>
-                ) : participationConfirmed ? (
-                  <div data-ui="qr-reader-participation-confirmed" className="py-4">
-                    <div className="flex justify-center mb-4" data-ui="qr-reader-checkmark-wrapper">
-                      <AnimatedCheckmark size={80} color="#22c55e" />
-                    </div>
-                    <h2
-                      className="text-2xl font-bold text-green-400 mb-2"
-                      data-ui="qr-reader-confirmed-title"
-                    >
-                      Participación confirmada
-                    </h2>
-                    <p className="text-gray-400 text-sm" data-ui="qr-reader-confirmed-subtitle">
-                      Has confirmado participación para{' '}
-                      <strong className="text-white">{inscripcion.competicionNombre}</strong>
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* Case C: All complete */}
             {caseType === 'C' && !paymentConfirmed && (
-              <SuccessBanner title="Todo correcto" subtitle="Participación y pago confirmados" />
-            )}
-
-            {/* Payment success overlay dialog */}
-            {showPaymentSuccess && (
-              <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-                data-ui="qr-reader-payment-success-overlay"
-              >
-                <div
-                  className="bg-dark-surface rounded-2xl p-6 sm:p-8 max-w-sm w-full mx-4 border border-green-500/20 shadow-2xl"
-                  data-ui="qr-reader-payment-success-dialog"
-                >
-                  <div className="text-center" data-ui="qr-reader-payment-success-content">
-                    <div className="flex justify-center mb-4" data-ui="qr-reader-payment-success-icon">
-                      <AnimatedCheckmark size={72} color="#22c55e" />
-                    </div>
-                    <h3
-                      className="text-2xl font-bold text-green-400 mb-4"
-                      data-ui="qr-reader-payment-success-title"
-                    >
-                      Pago exitoso
-                    </h3>
-
-                    <div
-                      className="space-y-2 mb-6 text-left bg-dark-base/50 rounded-xl p-4"
-                      data-ui="qr-reader-payment-success-breakdown"
-                    >
-                      <div className="flex justify-between text-sm" data-ui="qr-reader-breakdown-inscripcion-row">
-                        <span className="text-gray-400" data-ui="qr-reader-breakdown-inscripcion-label">
-                          Inscripción
-                        </span>
-                        <span className="text-white font-medium" data-ui="qr-reader-breakdown-inscripcion-value">
-                          {formatPrice(priceBreakdown?.inscripcion ?? inscripcion.totalPagado)} EUR
-                        </span>
-                      </div>
-                      {priceBreakdown?.hasHandler && (
-                        <div className="flex justify-between text-sm" data-ui="qr-reader-breakdown-handler-row">
-                          <span className="text-gray-400" data-ui="qr-reader-breakdown-handler-label">
-                            Handler GR Strength
-                          </span>
-                          <span className="text-white font-medium" data-ui="qr-reader-breakdown-handler-value">
-                            {formatPrice(priceBreakdown.handler)} EUR
-                          </span>
-                        </div>
-                      )}
-                      <div
-                        className="border-t border-white/10 pt-2 mt-2"
-                        data-ui="qr-reader-breakdown-total-divider"
-                      />
-                      <div className="flex justify-between font-bold" data-ui="qr-reader-breakdown-total-row">
-                        <span className="text-green-400" data-ui="qr-reader-breakdown-total-label">Total</span>
-                        <span className="text-green-400" data-ui="qr-reader-breakdown-total-value">
-                          {formatPrice(priceBreakdown?.total ?? inscripcion.totalPagado)} EUR
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleClosePaymentSuccess}
-                      className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
-                      data-ui="qr-reader-payment-success-close"
-                    >
-                      Continuar
-                    </button>
-                    <p
-                      className="text-xs text-gray-500 mt-2"
-                      data-ui="qr-reader-payment-success-autoclose"
-                    >
-                      Se cerrará automáticamente...
-                    </p>
-                  </div>
+              <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-center" data-ui="qr-reader-success-banner">
+                <div className="flex justify-center mb-2">
+                  <CheckIcon size="xl" className="text-green-400" />
                 </div>
+                <p className="text-green-400 font-semibold">Todo correcto</p>
+                <p className="text-gray-400 text-sm">Participación y pago confirmados</p>
               </div>
             )}
 
-            {/* Payment confirmed inline banner (after dialog closes) */}
-            {paymentConfirmed && !showPaymentSuccess && (
-              <SuccessBanner
-                title="Pago exitoso"
-                subtitle={`Se ha recibido ${formatPrice(priceBreakdown?.total ?? inscripcion.totalPagado)} EUR en efectivo`}
-              />
-            )}
-
-            {/* Athlete data card */}
             <div className="p-5 rounded-xl bg-dark-surface border border-white/5" data-ui="qr-reader-athlete-card">
-              <h3
-                className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3"
-                data-ui="qr-reader-athlete-label"
-              >
-                Datos del atleta
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3" data-ui="qr-reader-athlete-label">
+                Datos del participante
               </h3>
               <div className="grid grid-cols-2 gap-3" data-ui="qr-reader-athlete-grid">
                 <div data-ui="qr-reader-field-nombre">
@@ -570,7 +374,7 @@ export function QrReaderPage(): JSX.Element {
                   <div data-ui="qr-reader-field-instagram">
                     <p className="text-xs text-gray-500" data-ui="qr-reader-field-label-instagram">Instagram</p>
                     <p className="text-white font-medium text-sm" data-ui="qr-reader-field-value-instagram">
-                      {inscripcion.instagram}
+                      @{inscripcion.instagram}
                     </p>
                   </div>
                 )}
@@ -627,107 +431,6 @@ export function QrReaderPage(): JSX.Element {
               </div>
             </div>
 
-            {/* Lift attempts (openers) */}
-            {inscripcion.pagoConfirmado && inscripcion.participacionConfirmada && (
-              <div className="p-5 rounded-xl bg-dark-surface border border-white/5" data-ui="qr-reader-lifts-card">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1" data-ui="qr-reader-lifts-label">
-                  INTENTOS (OPENERS)
-                </h3>
-                <p className="text-xs text-gray-500 mb-4" data-ui="qr-reader-lifts-subtitle">
-                  Registra los pesos de apertura para cada levantamiento
-                </p>
-                <div className="grid grid-cols-3 gap-4" data-ui="qr-reader-lifts-grid">
-                  {/* Sentadilla */}
-                  <div data-ui="qr-reader-lifts-sentadilla">
-                    <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Sentadilla</p>
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((n) => (
-                        <input
-                          key={`sentadilla${n}`}
-                          type="number"
-                          value={liftData[`sentadilla${n}` as keyof typeof liftData]}
-                          onChange={(e) => updateLift(`sentadilla${n}`, Number(e.target.value))}
-                          placeholder={`Intento ${n}`}
-                          className="w-full px-3 py-2 rounded-lg bg-dark-base border border-white/10 text-white text-sm focus:outline-none focus:border-red-accent"
-                          data-ui={`qr-reader-lifts-input-sentadilla${n}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  {/* Press de Banca */}
-                  <div data-ui="qr-reader-lifts-banca">
-                    <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Press de Banca</p>
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((n) => (
-                        <input
-                          key={`banca${n}`}
-                          type="number"
-                          value={liftData[`banca${n}` as keyof typeof liftData]}
-                          onChange={(e) => updateLift(`banca${n}`, Number(e.target.value))}
-                          placeholder={`Intento ${n}`}
-                          className="w-full px-3 py-2 rounded-lg bg-dark-base border border-white/10 text-white text-sm focus:outline-none focus:border-red-accent"
-                          data-ui={`qr-reader-lifts-input-banca${n}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  {/* Peso Muerto */}
-                  <div data-ui="qr-reader-lifts-peso-muerto">
-                    <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Peso Muerto</p>
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((n) => (
-                        <input
-                          key={`pesoMuerto${n}`}
-                          type="number"
-                          value={liftData[`pesoMuerto${n}` as keyof typeof liftData]}
-                          onChange={(e) => updateLift(`pesoMuerto${n}`, Number(e.target.value))}
-                          placeholder={`Intento ${n}`}
-                          className="w-full px-3 py-2 rounded-lg bg-dark-base border border-white/10 text-white text-sm focus:outline-none focus:border-red-accent"
-                          data-ui={`qr-reader-lifts-input-peso-muerto${n}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSaveLifts}
-                  disabled={liftSaving}
-                  className="w-full mt-4 py-3 rounded-xl bg-red-accent text-white font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  data-ui="qr-reader-lifts-save-btn"
-                >
-                  {liftSaving ? 'Guardando...' : 'Guardar Intentos'}
-                </button>
-                {liftSaved && (
-                  <p className="text-green-400 text-sm text-center mt-2" data-ui="qr-reader-lifts-saved-msg">
-                    Intentos guardados correctamente
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Schedule */}
-            {inscripcion.horarios && inscripcion.horarios.length > 0 && (
-              <div className="p-5 rounded-xl bg-dark-surface border border-white/5" data-ui="qr-reader-schedule-card">
-                <h3
-                  className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3"
-                  data-ui="qr-reader-schedule-label"
-                >
-                  Horario asignado
-                </h3>
-                {inscripcion.horarios.map((h, i) => (
-                  <div key={i} className="flex justify-between text-sm py-1" data-ui={`qr-reader-schedule-item-${i}`}>
-                    <span className="text-gray-400" data-ui={`qr-reader-schedule-date-${i}`}>
-                      {new Date(h.date).toLocaleDateString('es-ES')}
-                    </span>
-                    <span className="text-white font-medium" data-ui={`qr-reader-schedule-time-${i}`}>
-                      {h.startTime} - {h.endTime}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Payment pending section */}
             {!inscripcion.pagoConfirmado && !paymentConfirmed && participationConfirmed && (
               <div className="space-y-3" data-ui="qr-reader-payment-section">
                 <div
@@ -735,31 +438,14 @@ export function QrReaderPage(): JSX.Element {
                   data-ui="qr-reader-payment-alert"
                 >
                   <div className="flex items-start gap-3" data-ui="qr-reader-payment-alert-inner">
-                    <WarningIcon />
+                    <WarningIcon size="sm" className="text-amber-400 mt-0.5" />
                     <div data-ui="qr-reader-payment-alert-text">
                       <p className="text-amber-400 text-sm font-semibold mb-1" data-ui="qr-reader-payment-alert-title">
                         Pago pendiente en efectivo
                       </p>
                       <p className="text-gray-400 text-sm" data-ui="qr-reader-payment-alert-desc">
-                        Recoger{' '}
-                        <strong className="text-white">
-                          {formatPrice(priceBreakdown?.total ?? inscripcion.totalPagado)} EUR
-                        </strong>{' '}
-                        en efectivo
+                        Recoger <strong className="text-white">{formatPrice(priceBreakdown?.total ?? inscripcion.totalPagado)} EUR</strong> en efectivo
                       </p>
-                      {priceBreakdown?.hasHandler && (
-                        <div
-                          className="mt-2 text-xs text-gray-500 space-y-0.5"
-                          data-ui="qr-reader-payment-alert-breakdown"
-                        >
-                          <p data-ui="qr-reader-payment-alert-breakdown-inscripcion">
-                            Inscripción: {formatPrice(priceBreakdown.inscripcion)} EUR
-                          </p>
-                          <p data-ui="qr-reader-payment-alert-breakdown-handler">
-                            Handler GR Strength: {formatPrice(priceBreakdown.handler)} EUR
-                          </p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -774,7 +460,6 @@ export function QrReaderPage(): JSX.Element {
               </div>
             )}
 
-            {/* Payment confirmation dialog */}
             {showPaymentConfirmDialog && (
               <div
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -784,47 +469,26 @@ export function QrReaderPage(): JSX.Element {
                   className="bg-dark-surface rounded-2xl p-6 max-w-sm w-full mx-4 border border-white/10"
                   data-ui="qr-reader-payment-dialog"
                 >
-                  <h3
-                    className="text-lg font-bold text-white mb-4"
-                    data-ui="qr-reader-payment-dialog-title"
-                  >
+                  <h3 className="text-lg font-bold text-white mb-4" data-ui="qr-reader-payment-dialog-title">
                     Confirmar recepción de pago
                   </h3>
-
-                  <div
-                    className="bg-dark-base/50 rounded-xl p-4 mb-4 space-y-2"
-                    data-ui="qr-reader-payment-dialog-breakdown"
-                  >
+                  <div className="bg-dark-base/50 rounded-xl p-4 mb-4 space-y-2" data-ui="qr-reader-payment-dialog-breakdown">
                     <div className="flex justify-between text-sm" data-ui="qr-reader-dialog-inscripcion-row">
-                      <span className="text-gray-400" data-ui="qr-reader-dialog-inscripcion-label">
-                        Inscripción
-                      </span>
-                      <span className="text-white font-medium" data-ui="qr-reader-dialog-inscripcion-value">
-                        {formatPrice(priceBreakdown?.inscripcion ?? inscripcion.totalPagado)} EUR
-                      </span>
+                      <span className="text-gray-400">Inscripción</span>
+                      <span className="text-white font-medium">{formatPrice(priceBreakdown?.inscripcion ?? inscripcion.totalPagado)} EUR</span>
                     </div>
                     {priceBreakdown?.hasHandler && (
                       <div className="flex justify-between text-sm" data-ui="qr-reader-dialog-handler-row">
-                        <span className="text-gray-400" data-ui="qr-reader-dialog-handler-label">
-                          Handler GR Strength
-                        </span>
-                        <span className="text-white font-medium" data-ui="qr-reader-dialog-handler-value">
-                          {formatPrice(priceBreakdown.handler)} EUR
-                        </span>
+                        <span className="text-gray-400">Handler GR Strength</span>
+                        <span className="text-white font-medium">{formatPrice(priceBreakdown.handler)} EUR</span>
                       </div>
                     )}
-                    <div
-                      className="border-t border-white/10 pt-2"
-                      data-ui="qr-reader-dialog-total-divider"
-                    />
+                    <div className="border-t border-white/10 pt-2" data-ui="qr-reader-dialog-total-divider" />
                     <div className="flex justify-between font-bold" data-ui="qr-reader-dialog-total-row">
-                      <span className="text-amber-400" data-ui="qr-reader-dialog-total-label">Total a cobrar</span>
-                      <span className="text-amber-400" data-ui="qr-reader-dialog-total-value">
-                        {formatPrice(priceBreakdown?.total ?? inscripcion.totalPagado)} EUR
-                      </span>
+                      <span className="text-amber-400">Total a cobrar</span>
+                      <span className="text-amber-400">{formatPrice(priceBreakdown?.total ?? inscripcion.totalPagado)} EUR</span>
                     </div>
                   </div>
-
                   <div className="flex gap-3" data-ui="qr-reader-payment-dialog-actions">
                     <button
                       onClick={handleClosePaymentDialog}
@@ -845,7 +509,6 @@ export function QrReaderPage(): JSX.Element {
               </div>
             )}
 
-            {/* Scan another */}
             <button
               onClick={resetScanner}
               className="w-full py-3 rounded-xl bg-white/5 text-gray-400 font-semibold hover:bg-white/10 transition-colors mt-4"
@@ -855,9 +518,8 @@ export function QrReaderPage(): JSX.Element {
             </button>
           </div>
         )}
-        </div>
-      </BackofficeLayout>
-    </>
+      </div>
+    </BackofficeLayout>
   );
 }
 

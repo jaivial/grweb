@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using GrCup.Api.Models;
+using GrCup.Api.Models.Enums;
 
 namespace GrCup.Api.Services;
 
@@ -52,8 +53,8 @@ public class JwtService
 
     /// <summary>
     /// Generates a JWT token with full user permissions and competitions.
-    /// Supports 5 roles: root, admin, manager, empleado, checkin.
-    /// Legacy 'operator' role is normalized to 'empleado'.
+    /// Supports 4 canonical roles: root, admin, staff, registrador.
+    /// Legacy roles are normalized to canonical role names.
     /// </summary>
     public string GenerateTokenWithPermissions(Usuario usuario)
     {
@@ -69,9 +70,10 @@ public class JwtService
         };
 
         // Determine highest role
-        if (usuario.IsSuperadmin)
+        if (usuario.IsRoot || usuario.IsSuperadmin)
         {
             claims.Add(new Claim(ClaimTypes.Role, "Superadmin"));
+            claims.Add(new Claim("is_root", "true"));
             claims.Add(new Claim("is_superadmin", "true"));
         }
         else
@@ -81,26 +83,22 @@ public class JwtService
             foreach (var uc in usuario.UsuarioCompeticiones)
             {
                 var normalizedRole = NormalizeRole(uc.Role);
-                if (normalizedRole == "root")
+                if (normalizedRole == UserRoleNames.Root)
                 {
                     highestRole = "Root";
                     break;
                 }
-                if (normalizedRole == "admin" && highestRole != "Root")
+                if (normalizedRole == UserRoleNames.Admin && highestRole != "Root")
                 {
                     highestRole = "Admin";
                 }
-                if (normalizedRole == "manager" && highestRole != "Root" && highestRole != "Admin")
+                if (normalizedRole == UserRoleNames.Staff && highestRole != "Root" && highestRole != "Admin")
                 {
-                    highestRole = "Manager";
+                    highestRole = "Staff";
                 }
-                if (normalizedRole == "empleado" && highestRole != "Root" && highestRole != "Admin" && highestRole != "Manager")
+                if (normalizedRole == UserRoleNames.Registrador && highestRole == "User")
                 {
-                    highestRole = "Empleado";
-                }
-                if (normalizedRole == "checkin" && highestRole == "User")
-                {
-                    highestRole = "Checkin";
+                    highestRole = "Registrador";
                 }
             }
             claims.Add(new Claim(ClaimTypes.Role, highestRole));
@@ -115,7 +113,7 @@ public class JwtService
 
         // Build permissions list
         var permissions = new List<string>();
-        if (usuario.IsSuperadmin)
+        if (usuario.IsRoot || usuario.IsSuperadmin)
         {
             // Root/superadmin gets all system permissions
             permissions.Add("system:manage_users");
@@ -160,13 +158,11 @@ public class JwtService
     }
 
     /// <summary>
-    /// Normalizes legacy role names to the new system.
-    /// 'operator' -> 'empleado'
+    /// Normalizes legacy role names to canonical user flags.
     /// </summary>
     private static string NormalizeRole(string role)
     {
-        if (role == "operator") return "empleado";
-        return role;
+        return UserRoleNames.Normalize(role);
     }
 
     /// <summary>

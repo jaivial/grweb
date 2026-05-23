@@ -23,8 +23,11 @@ public class Usuario
     public string Nombre { get; set; } = string.Empty;
     
     /// <summary>
-    /// Superadmin has access to everything (root-level access)
+    /// Root has access to every competition and all sections.
+    /// IsSuperadmin is kept for existing accounts and claims.
     /// </summary>
+    public bool IsRoot { get; set; } = false;
+
     public bool IsSuperadmin { get; set; } = false;
     
     /// <summary>
@@ -47,8 +50,8 @@ public class Usuario
 
 /// <summary>
 /// Many-to-many relationship between users and competitions.
-/// Supported roles: root, admin, manager, empleado, checkin.
-/// Legacy 'operator' is normalized to 'empleado'.
+/// Supported roles: root, admin, staff, registrador.
+/// Legacy roles are normalized by UserRoleNames.
 /// </summary>
 public class UsuarioCompeticion
 {
@@ -58,11 +61,19 @@ public class UsuarioCompeticion
     public int CompeticionId { get; set; }
     
     /// <summary>
-    /// Role in this competition: 'root', 'admin', 'manager', 'empleado', 'checkin'.
-    /// Legacy 'operator' is treated as 'empleado'.
+    /// Role in this competition: 'root', 'admin', 'staff', 'registrador'.
+    /// Legacy values are normalized when read or updated.
     /// </summary>
     [Required]
-    public string Role { get; set; } = "empleado";
+    [MaxLength(50)]
+    public string Role { get; set; } = "staff";
+
+    [MaxLength(255)]
+    public string? InvitedByEmail { get; set; }
+
+    public DateTime? InvitedAt { get; set; }
+
+    public bool InvitationAccepted { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     

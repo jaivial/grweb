@@ -91,7 +91,7 @@ export function exportPdf(options: PdfExportOptions): void {
       if (key === 'date') return formatDate(String(value));
       if (key === 'startTime' || key === 'endTime') return formatTime(String(value));
       if (key === 'registrationDate') return formatDate(String(value));
-      if (key === 'sex') return value === 'Male' ? 'Hombre' : 'Mujer';
+      if (key === 'sex') return value === 'masculino' ? 'Hombre' : 'Mujer';
       if (key === 'isPaid') return value ? 'Sí' : 'No';
       return String(value);
     })

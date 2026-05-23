@@ -45,8 +45,11 @@ public static class TutorialEndpoints
             [FromBody] LikeRequest request,
             [FromServices] GrCupDbContext db) =>
         {
-            if (string.IsNullOrWhiteSpace(request.SessionId))
+            if (request is null || string.IsNullOrWhiteSpace(request.SessionId))
                 return Results.BadRequest(new { error = "SessionId is required" });
+
+            if (videoId.Length > 50 || request.SessionId.Length > 100)
+                return Results.BadRequest(new { error = "Invalid tutorial like request" });
 
             var existing = await db.TutorialInteractions
                 .FirstOrDefaultAsync(i =>
@@ -86,6 +89,9 @@ public static class TutorialEndpoints
             if (string.IsNullOrWhiteSpace(sessionId))
                 return Results.Ok(new { liked = false });
 
+            if (videoId.Length > 50 || sessionId.Length > 100)
+                return Results.BadRequest(new { error = "Invalid tutorial liked request" });
+
             var liked = await db.TutorialInteractions
                 .AnyAsync(i =>
                     i.VideoId == videoId &&
@@ -101,8 +107,11 @@ public static class TutorialEndpoints
             [FromBody] CommentRequest request,
             [FromServices] GrCupDbContext db) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Contenido))
+            if (request is null || string.IsNullOrWhiteSpace(request.Contenido))
                 return Results.BadRequest(new { error = "Comment content is required" });
+
+            if (videoId.Length > 50 || request.Autor?.Length > 100)
+                return Results.BadRequest(new { error = "Invalid tutorial comment request" });
 
             if (request.Contenido.Length > 500)
                 return Results.BadRequest(new { error = "Comment too long (max 500 chars)" });

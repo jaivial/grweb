@@ -70,7 +70,10 @@ export type IconName =
   | 'dashboard'
   | 'credit-card'
   | 'credit-card-outline'
-  | 'file-text';
+  | 'file-text'
+  | 'user-plus'
+  | 'shield-check'
+  | 'qr';
 
 // Icon size types
 export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';

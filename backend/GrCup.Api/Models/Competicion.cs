@@ -44,7 +44,14 @@ public class Competicion
     /// </summary>
     [Column(TypeName = "json")]
     public string? EventoConfig { get; set; }
-    
+
+    /// <summary>
+    /// JSON map of backoffice module keys to enabled/disabled state.
+    /// Missing keys fall back to the module catalog defaults.
+    /// </summary>
+    [Column(TypeName = "json")]
+    public string? ModulesConfig { get; set; }
+
     /// <summary>
     /// Secret key for signing QR codes
     /// </summary>

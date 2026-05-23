@@ -58,10 +58,10 @@ export function InscripcionPage() {
   }, [inscripcionHook, config.plazasDisponibles]);
 
   const handleShowUpsell = useCallback(() => {
-    if (!inscripcionHook.formData.peakProgram) {
+    if (!inscripcionHook.formData.peakProgram && inscripcionHook.inscripcionResult?.id) {
       setShowUpsell(true);
     }
-  }, [inscripcionHook.formData.peakProgram]);
+  }, [inscripcionHook.formData.peakProgram, inscripcionHook.inscripcionResult?.id]);
 
   const closeConfirmation = useCallback(() => {
     setShowConfirmation(false);

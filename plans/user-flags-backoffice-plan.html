@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan: Sistema de Flags de Usuario - Backoffice</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a1a2e;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 3px solid #4361ee;
+            padding-bottom: 1rem;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        h2 {
+            color: #4361ee;
+            margin: 2rem 0 1rem;
+            padding-left: 1rem;
+            border-left: 4px solid #4361ee;
+        }
+        h3 {
+            color: #3a0ca3;
+            margin: 1.5rem 0 0.75rem;
+        }
+        h4 {
+            color: #555;
+            margin: 1rem 0 0.5rem;
+            font-weight: 600;
+        }
+        ul, ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+        li { margin-bottom: 0.5rem; }
+        .phase {
+            background: #f8f9fa;
+            border-left: 4px solid #7209b7;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .step {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin: 0.75rem 0;
+        }
+        .step-header {
+            font-weight: 600;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .step-number {
+            background: #4361ee;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+        .file-path {
+            background: #2b2d42;
+            color: #a8dadc;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .code-block {
+            background: #2b2d42;
+            color: #a8dadc;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 0.75rem 0;
+        }
+        .permission-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        .permission-table th, .permission-table td {
+            border: 1px solid #ddd;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .permission-table th {
+            background: #4361ee;
+            color: white;
+        }
+        .permission-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .check { color: #2ec4b6; font-weight: bold; }
+        .cross { color: #e63946; font-weight: bold; }
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .note-title {
+            font-weight: 600;
+            color: #856404;
+        }
+        .diagram {
+            background: #f0f0f0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        .role-card {
+            display: inline-block;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem;
+            min-width: 150px;
+        }
+        .role-card.root { border-color: #7209b7; }
+        .role-card.admin { border-color: #4361ee; }
+        .role-card.staff { border-color: #2ec4b6; }
+        .role-card.registrador { border-color: #f72585; }
+        .role-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+        .toc ul { margin-left: 1rem; }
+        .toc a {
+            color: #4361ee;
+            text-decoration: none;
+        }
+        .toc a:hover { text-decoration: underline; }
+        .summary-box {
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+        .tag {
+            display: inline-block;
+            background: #e0e0e0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+        .tag-backend { background: #3a0ca3; color: white; }
+        .tag-frontend { background: #4361ee; color: white; }
+        .tag-db { background: #2ec4b6; color: white; }
+        .tag-email { background: #f72585; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Plan Detallado: Sistema de Flags de Usuario</h1>
+        <p class="subtitle">Backoffice - GR Cup / FER Competition Management</p>
+
+        <div class="summary-box">
+            <strong>Objetivo:</strong> Implementar un sistema de roles granular para el backoffice con 4 tipos de usuarios (root, admin, staff, registrador) con permisos específicos por competition ID y secciones de la aplicación.
+        </div>
+
+        <div class="toc">
+            <strong>Tabla de Contenidos</strong>
+            <ul>
+                <li><a href="#resumen-roles">1. Resumen de Roles y Permisos</a></li>
+                <li><a href="#fase0">2. Fase 0: Análisis y Planificación</a></li>
+                <li><a href="#fase1">3. Fase 1: Backend - Modelos y Base de Datos</a></li>
+                <li><a href="#fase2">4. Fase 2: Backend - Servicios y Lógica de Negocio</a></li>
+                <li><a href="#fase3">5. Fase 3: Backend - API Endpoints</a></li>
+                <li><a href="#fase4">6. Fase 4: Frontend - Estructura y Routing</a></li>
+                <li><a href="#fase5">7. Fase 5: Frontend - Componentes de Gestión de Usuarios</a></li>
+                <li><a href="#fase6">8. Fase 6: Frontend - Sección de Admin por Competition</a></li>
+                <li><a href="#fase7">9. Fase 7: Sistema de Invitación por Email</a></li>
+                <li><a href="#fase8">10. Fase 8: Testing y Validación</a></li>
+                <li><a href="#fase9">11. Fase 9: Documentación y Deployment</a></li>
+            </ul>
+        </div>
+
+        <h2 id="resumen-roles">1. Resumen de Roles y Permisos</h2>
+
+        <h3>Jerarquía de Roles</h3>
+        <div class="role-card root">
+            <div class="role-name">ROOT</div>
+            <div>Acceso TOTAL</div>
+            <small>Todos los competition IDs</small>
+        </div>
+        <div class="role-card admin">
+            <div class="role-name">ADMIN</div>
+            <div>Full access</div>
+            <small>Competition IDs asignados</small>
+        </div>
+        <div class="role-card staff">
+            <div class="role-name">STAFF</div>
+            <div>Sin Configuración</div>
+            <small>Competition IDs asignados</small>
+        </div>
+        <div class="role-card registrador">
+            <div class="role-name">REGISTRADOR</div>
+            <div>Solo QR</div>
+            <small>Competition IDs asignados</small>
+        </div>
+
+        <h3>Matriz de Permisos por Sección</h3>
+        <table class="permission-table">
+            <thead>
+                <tr>
+                    <th>Sección</th>
+                    <th>ROOT</th>
+                    <th>ADMIN</th>
+                    <th>STAFF</th>
+                    <th>REGISTRADOR</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Dashboard</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>Inscripciones</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>Horarios</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>Sorteo</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>QR Reader</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                </tr>
+                <tr>
+                    <td>Judge Table (FER)</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="cross">✗</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>Configuración</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="cross">✗</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>Gestión de Usuarios</td>
+                    <td class="check">✓</td>
+                    <td class="check">✓</td>
+                    <td class="cross">✗</td>
+                    <td class="cross">✗</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="note">
+            <div class="note-title">Reglas Importantes:</div>
+            <ul>
+                <li><strong>ROOT:</strong> Acceso automático a TODOS los competition IDs sin necesidad de asignación</li>
+                <li><strong>ADMIN/STAFF/REGISTRADOR:</strong> Deben ser miembros de un competition ID para tener acceso</li>
+                <li><strong>ADMIN:</strong> No puede cambiar el rol de otros usuarios con rol ADMIN</li>
+                <li><strong>REGISTRADOR:</strong> Solo ve la sección QR, no tiene acceso a ningún otro menú</li>
+            </ul>
+        </div>
+
+        <h2 id="fase0">2. Fase 0: Análisis y Planificación</h2>
+
+        <div class="phase">
+            <h3>0.1 Revisión de Modelos Existentes</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Revisar modelo Usuario.cs actual
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Models/Usuario.cs</span></p>
+                <p>Verificar campos existentes: Id, Email, PasswordHash, Nombre, IsSuperadmin, IsActive</p>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    Revisar modelo UsuarioCompeticion.cs
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Models/UsuarioCompeticion.cs</span></p>
+                <p>Entender la relación muchos a muchos entre usuarios y competencias</p>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    Revisar PermissionService.cs
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Services/PermissionService.cs</span></p>
+                <p>Entender el sistema actual de permisos para no romper backwards compatibility</p>
+            </div>
+        </div>
+
+        <h2 id="fase1">3. Fase 1: Backend - Modelos y Base de Datos</h2>
+
+        <div class="phase">
+            <h3>1.1 Actualizar Enum de Roles</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Crear nuevo enum UserRole en el proyecto
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Models/Enums/UserRole.cs</span></p>
+                <div class="code-block">
+public enum UserRole
+{
+    Root = 0,
+    Admin = 1,
+    Staff = 2,
+    Registrador = 3
+}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    Migrar datos existentes de roles
+                </div>
+                <p>Crear script de migración para convertir:</p>
+                <ul>
+                    <li>'root' → UserRole.Root</li>
+                    <li>'admin' → UserRole.Admin</li>
+                    <li>'manager', 'empleado' → UserRole.Staff</li>
+                    <li>'checkin' → UserRole.Registrador</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>1.2 Actualizar Modelos de Dominio</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Modificar Usuario.cs
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Models/Usuario.cs</span></p>
+                <div class="code-block">
+// Agregar nuevo campo
+public bool IsRoot { get; set; }
+
+// Mantener IsSuperadmin para backwards compatibility
+// pero IsRoot será el flag primario
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    Modificar UsuarioCompeticion.cs
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Models/UsuarioCompeticion.cs</span></p>
+                <div class="code-block">
+// Cambiar el tipo de Role de string a enum
+public UserRole Role { get; set; }
+
+// Mantener string Role para legacy o remover según decisión
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    Agregar campos de auditoría
+                </div>
+                <p>Agregar a UsuarioCompeticion:</p>
+                <div class="code-block">
+public string? InvitedByEmail { get; set; }
+public DateTime? InvitedAt { get; set; }
+public bool InvitationAccepted { get; set; }
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>1.3 Crear Migración EF Core</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Generar migración inicial
+                </div>
+                <p>En <span class="file-path">backend/GrCup.Api/</span>:</p>
+                <div class="code-block">
+dotnet ef migrations add AddUserRoleFlags_V1
+    --output-dir Migrations/UserRoles
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    Revisar y ajustar migración
+                </div>
+                <p>Revisar el archivo generado en <span class="file-path">Migrations/UserRoles/</span></p>
+                <p>Asegurar que incluye:</p>
+                <ul>
+                    <li>Alter table Usuario add column IsRoot</li>
+                    <li>Alter table UsuarioCompeticion add column Role int (enum)</li>
+                    <li>Data migration para convertir roles existentes</li>
+                </ul>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    Aplicar migración a base de datos
+                </div>
+                <div class="code-block">
+dotnet ef database update
+                </div>
+            </div>
+        </div>
+
+        <h2 id="fase2">4. Fase 2: Backend - Servicios y Lógica de Negocio</h2>
+
+        <div class="phase">
+            <h3>2.1 Crear PermissionService actualizado</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Actualizar PermissionService.cs
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Services/PermissionService.cs</span></p>
+                <div class="code-block">
+public static class PermissionKeys
+{
+    // Competitions
+    public const string ViewDashboard = "comp:view_dashboard";
+    public const string ViewInscriptos = "comp:view_inscriptos";
+    public const string ManageInscriptos = "comp:manage_inscriptos";
+    public const string ViewHorarios = "comp:view_horarios";
+    public const string ManageHorarios = "comp:manage_horarios";
+    public const string ViewRaffle = "comp:view_raffle";
+    public const string ManageRaffle = "comp:manage_raffle";
+    public const string DoCheckin = "comp:do_checkin";
+    public const string ViewJudgeTable = "comp:view_judge_table";
+
+    // Configuration (restricted)
+    public const string ViewConfig = "comp:view_config";
+    public const string ManageConfig = "comp:manage_config";
+
+    // User Management (restricted)
+    public const string ViewUsers = "comp:view_users";
+    public const string ManageUsers = "comp:manage_users";
+}
+
+public static readonly Dictionary<UserRole, string[]> RolePermissions = new()
+{
+    [UserRole.Root] = AllPermissions, // Todos los permisos
+    [UserRole.Admin] = new[] {
+        PermissionKeys.ViewDashboard,
+        PermissionKeys.ViewInscriptos,
+        PermissionKeys.ManageInscriptos,
+        PermissionKeys.ViewHorarios,
+        PermissionKeys.ManageHorarios,
+        PermissionKeys.ViewRaffle,
+        PermissionKeys.ManageRaffle,
+        PermissionKeys.DoCheckin,
+        PermissionKeys.ViewJudgeTable,
+        PermissionKeys.ViewConfig,
+        PermissionKeys.ManageConfig,
+        PermissionKeys.ViewUsers,
+        PermissionKeys.ManageUsers,
+    },
+    [UserRole.Staff] = new[] {
+        PermissionKeys.ViewDashboard,
+        PermissionKeys.ViewInscriptos,
+        PermissionKeys.ManageInscriptos,
+        PermissionKeys.ViewHorarios,
+        PermissionKeys.ManageHorarios,
+        PermissionKeys.ViewRaffle,
+        PermissionKeys.ManageRaffle,
+        PermissionKeys.DoCheckin,
+        // NOT: ViewConfig, ManageConfig, ViewUsers, ManageUsers
+    },
+    [UserRole.Registrador] = new[] {
+        PermissionKeys.DoCheckin,
+    },
+};
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>2.2 Crear UserManagementService</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Crear UserManagementService.cs
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Services/UserManagementService.cs</span></p>
+                <p>Responsabilidades:</p>
+                <ul>
+                    <li>Crear usuario con email y password temporal</li>
+                    <li>Asignar usuario a competition con rol específico</li>
+                    <li>Actualizar rol de usuario en competition</li>
+                    <li>Eliminar usuario de competition</li>
+                    <li>Validar que admins no puedan modificar otros admins</li>
+                </ul>
+                <div class="code-block">
+public class UserManagementService
+{
+    public async Task<Usuario> CreateUserAsync(CreateUserRequest request, int competicionId);
+    public async Task<bool> UpdateUserRoleAsync(int usuarioId, int competicionId, UserRole newRole, int requestingUserId);
+    public async Task<bool> RemoveUserFromCompetitionAsync(int usuarioId, int competicionId);
+    public async Task<List<UsuarioCompeticion>> GetCompetitionMembersAsync(int competicionId);
+    public async Task<bool> CanModifyUserRoleAsync(int requestingUserId, int targetUserId, int competicionId);
+}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Implementar método CanModifyUserRoleAsync con reglas:</p>
+                <div class="code-block">
+// Un usuario NO puede modificar el rol de otro usuario si:
+// 1. El objetivo tiene rol Admin
+// 2. El solicitante no es Root
+// 3. El solicitante tiene rol Staff o Registrador
+public async Task<bool> CanModifyUserRoleAsync(int requestingUserId, int targetUserId, int competicionId)
+{
+    // Root puede modificar cualquier rol
+    if (await IsUserRootAsync(requestingUserId)) return true;
+
+    // Admin solo puede modificar Staff y Registrador, NO otros Admins
+    if (await IsUserAdminOfCompetitionAsync(requestingUserId, competicionId))
+    {
+        var targetRole = await GetUserRoleInCompetitionAsync(targetUserId, competicionId);
+        return targetRole != UserRole.Admin;
+    }
+
+    return false;
+}
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>2.3 Actualizar AuthService</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Modificar UsuarioService.cs para incluir nuevos roles
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Services/UsuarioService.cs</span></p>
+                <p>Agregar método para verificar acceso a competition:</p>
+                <div class="code-block">
+public async Task<bool> HasAccessToCompetitionAsync(int usuarioId, int competicionId)
+{
+    var usuario = await _context.Usuarios.FindAsync(usuarioId);
+    if (usuario?.IsRoot == true) return true;
+
+    return await _context.UsuarioCompeticiones
+        .AnyAsync(uc => uc.UsuarioId == usuarioId && uc.CompeticionId == competicionId);
+}
+
+public async Task<UserRole?> GetUserRoleInCompetitionAsync(int usuarioId, int competicionId)
+{
+    var usuario = await _context.Usuarios.FindAsync(usuarioId);
+    if (usuario?.IsRoot == true) return UserRole.Root;
+
+    var uc = await _context.UsuarioCompeticiones
+        .FirstOrDefaultAsync(x => x.UsuarioId == usuarioId && x.CompeticionId == competicionId);
+
+    return uc?.Role;
+}
+                </div>
+            </div>
+        </div>
+
+        <h2 id="fase3">5. Fase 3: Backend - API Endpoints</h2>
+
+        <div class="phase">
+            <h3>3.1 Crear CompetitionUsersEndpoints</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Crear archivo de endpoints
+                </div>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Endpoints/CompetitionUsersEndpoints.cs</span></p>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Definir endpoints REST:</p>
+                <table class="permission-table">
+                    <thead>
+                        <tr><th>Método</th><th>Endpoint</th><th>Descripción</th><th>Auth</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>GET</td><td>/api/competition/{id}/users</td><td>Listar miembros</td><td>Admin+</td></tr>
+                        <tr><td>GET</td><td>/api/competition/{id}/users/{userId}</td><td>Detalle de usuario</td><td>Admin+</td></tr>
+                        <tr><td>POST</td><td>/api/competition/{id}/users</td><td>Crear usuario</td><td>Admin</td></tr>
+                        <tr><td>PUT</td><td>/api/competition/{id}/users/{userId}/role</td><td>Actualizar rol</td><td>Admin*</td></tr>
+                        <tr><td>DELETE</td><td>/api/competition/{id}/users/{userId}</td><td>Eliminar de competition</td><td>Admin*</td></tr>
+                    </tbody>
+                </table>
+                <p><small>* Admin no puede modificar otros Admins</small></p>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                </div>
+                <p>Implementar endpoint POST (crear usuario con invitación):</p>
+                <div class="code-block">
+authGroup.MapPost("/competition/{competicionId:int}/users", async (
+    int competicionId,
+    CreateCompetitionUserRequest request,
+    HttpContext context,
+    UserManagementService userService,
+    EmailService emailService,
+    JwtService jwtService) =>
+{
+    // 1. Verificar que el solicitante es Admin+ del competition
+    var requestingUser = await GetCurrentUserAsync(context);
+    if (!await CanManageUsersAsync(requestingUser.Id, competicionId))
+        return Results.Forbid();
+
+    // 2. Generar password temporal seguro
+    var tempPassword = GenerateSecurePassword(12);
+
+    // 3. Crear usuario
+    var user = await userService.CreateUserAsync(request, competicionId, tempPassword);
+
+    // 4. Enviar email de invitación
+    var loginUrl = $"{GetAppUrl()}/backoffice/login";
+    var emailBody = BuildInvitationEmail(request.Nombre, loginUrl, request.Email, tempPassword, competicionId);
+    await emailService.SendAsync(request.Email, "Invitación al Backoffice", emailBody);
+
+    return Results.Created($"/api/competition/{competicionId}/users/{user.Id}", user);
+});
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>3.2 Actualizar endpoints de permisos</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Modificar endpoint GET /api/auth/me para incluir:</p>
+                <div class="code-block">
+public class UserResponse
+{
+    // ... campos existentes
+    public bool IsRoot { get; set; }
+    public List<CompetitionMembership> Competiciones { get; set; }
+}
+
+public class CompetitionMembership
+{
+    public int Id { get; set; }
+    public string Nombre { get; set; }
+    public string Slug { get; set; }
+    public UserRole Role { get; set; }
+    public List<string> Permissions { get; set; }
+}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Actualizar middleware de autorización:</p>
+                <p>Ubicación: <span class="file-path">backend/GrCup.Api/Middleware/CompetitionAuthorizationMiddleware.cs</span></p>
+                <div class="code-block">
+// Verificar acceso a competition por URL
+if (routeValues.TryGetValue("competicionId", out var compId) || routeValues.TryGetValue("competicionSlug", out var compSlug))
+{
+    var competicionId = await ResolveCompeticionId(compSlug?.ToString(), compId);
+    if (competicionId.HasValue)
+    {
+        if (!await usuarioService.HasAccessToCompetitionAsync(userId, competicionId.Value))
+        {
+            // Root tiene acceso a todo
+            if (!await usuarioService.IsUserRootAsync(userId))
+                return Results.Forbid();
+        }
+    }
+}
+                </div>
+            </div>
+        </div>
+
+        <h2 id="fase4">6. Fase 4: Frontend - Estructura y Routing</h2>
+
+        <div class="phase">
+            <h3>4.1 Actualizar tipos TypeScript</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    Crear tipos de roles
+                </div>
+                <p>Ubicación: <span class="file-path">backoffice/src/types/user-roles.ts</span></p>
+                <div class="code-block">
+export enum UserRole {
+    Root = 'root',
+    Admin = 'admin',
+    Staff = 'staff',
+    Registrador = 'registrador'
+}
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+    [UserRole.Root]: 'Root',
+    [UserRole.Admin]: 'Administrador',
+    [UserRole.Staff]: 'Staff',
+    [UserRole.Registrador]: 'Registrador'
+};
+
+export const ROLE_COLORS: Record<UserRole, string> = {
+    [UserRole.Root]: 'purple',
+    [UserRole.Admin]: 'blue',
+    [UserRole.Staff]: 'teal',
+    [UserRole.Registrador]: 'pink'
+};
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Actualizar <span class="file-path">backoffice/src/types/api.ts</span></p>
+                <div class="code-block">
+export interface CompetitionMember {
+    id: number;
+    usuarioId: number;
+    email: string;
+    nombre: string;
+    role: UserRole;
+    invitedAt: string | null;
+    invitationAccepted: boolean;
+}
+
+export interface CreateUserRequest {
+    email: string;
+    password: string;
+    nombre: string;
+    role: UserRole;
+}
+
+export interface UpdateUserRoleRequest {
+    role: UserRole;
+}
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>4.2 Actualizar stores de autenticación</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Modificar <span class="file-path">backoffice/src/stores/auth.atoms.ts</span></p>
+                <div class="code-block">
+import { atom } from 'jotai';
+import { UserRole } from '../types/user-roles';
+
+export const isRootAtom = atom((get) => {
+    const user = get(userAtom);
+    return user?.isRoot === true;
+});
+
+export const isAdminOfCurrentCompetitionAtom = atom((get) => {
+    const user = get(userAtom);
+    const currentComp = get(currentCompeticionAtom);
+    if (!user || !currentComp) return false;
+    return currentComp.role === UserRole.Admin;
+});
+
+export const canManageUsersAtom = atom((get) => {
+    const isRoot = get(isRootAtom);
+    const isAdmin = get(isAdminOfCurrentCompetitionAtom);
+    return isRoot || isAdmin;
+});
+
+export const competitionRoleAtom = atom((get) => {
+    const currentComp = get(currentCompeticionAtom);
+    return currentComp?.role ?? null;
+});
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Agregar permisos por rol:</p>
+                <div class="code-block">
+export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+    [UserRole.Root]: ['*'], // Todos los permisos
+    [UserRole.Admin]: [
+        'view_dashboard', 'view_inscriptos', 'manage_inscriptos',
+        'view_horarios', 'manage_horarios', 'view_raffle', 'manage_raffle',
+        'do_checkin', 'view_judge_table', 'view_config', 'manage_config',
+        'view_users', 'manage_users'
+    ],
+    [UserRole.Staff]: [
+        'view_dashboard', 'view_inscriptos', 'manage_inscriptos',
+        'view_horarios', 'manage_horarios', 'view_raffle', 'manage_raffle',
+        'do_checkin'
+    ],
+    [UserRole.Registrador]: ['do_checkin']
+};
+
+export const hasPermissionAtom = atom((get) => {
+    return (permission: string) => {
+        const user = get(userAtom);
+        const isRoot = get(isRootAtom);
+        if (isRoot) return true;
+
+        const role = get(competitionRoleAtom);
+        if (!role) return false;
+
+        const permissions = ROLE_PERMISSIONS[role];
+        return permissions.includes(permission) || permissions.includes('*');
+    };
+});
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>4.3 Actualizar layout y navegación</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Modificar <span class="file-path">backoffice/src/layouts/BackofficeLayout.tsx</span></p>
+                <p>Filtrar items de navegación según rol:</p>
+                <div class="code-block">
+const allNavItems = [
+    { path: '/backoffice/:competicionSlug/', label: 'Dashboard', icon: HomeIcon, permission: 'view_dashboard' },
+    { path: '/backoffice/:competicionSlug/inscripciones', label: 'Inscripciones', icon: UsersIcon, permission: 'view_inscriptos' },
+    { path: '/backoffice/:competicionSlug/horarios', label: 'Horarios', icon: ClockIcon, permission: 'view_horarios' },
+    { path: '/backoffice/:competicionSlug/sorteo', label: 'Sorteo', icon: GiftIcon, permission: 'view_raffle' },
+    { path: '/backoffice/:competicionSlug/qr-reader', label: 'QR Reader', icon: QrIcon, permission: 'do_checkin' },
+    { path: '/backoffice/:competicionSlug/judge-table', label: 'Judge Table', icon: TableIcon, permission: 'view_judge_table', ferOnly: true },
+    { path: '/backoffice/:competicionSlug/configuracion', label: 'Configuración', icon: SettingsIcon, permission: 'view_config' },
+    { path: '/backoffice/:competicionSlug/users', label: 'Usuarios', icon: UsersCogIcon, permission: 'view_users' },
+];
+
+const visibleNavItems = useMemo(() => {
+    return allNavItems.filter(item => {
+        if (item.ferOnly && !isFER) return false;
+        if (item.grcupOnly && isFER) return false;
+        if (item.permission && !hasPermission(item.permission)) return false;
+        return true;
+    });
+}, [isFER, hasPermission]);
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Crear guard de rutas para usuarios no autorizados:</p>
+                <p>Ubicación: <span class="file-path">backoffice/src/components/ProtectedRoute.tsx</span></p>
+                <div class="code-block">
+export const ProtectedRoute: FunctionComponent<{ permission?: string; children: ComponentChildren }> = ({ permission, children }) => {
+    const { isAuthenticated } = useAuth();
+    const hasPermission = useAtomValue(hasPermissionAtom);
+
+    if (!isAuthenticated) return <Navigate to="/backoffice/login" />;
+
+    if (permission && !hasPermission(permission)) {
+        return <Navigate to={`/backoffice/${currentCompeticionSlug}/`} />;
+    }
+
+    return <>{children}</>;
+};
+                </div>
+            </div>
+        </div>
+
+        <h2 id="fase5">7. Fase 5: Frontend - Componentes de Gestión de Usuarios</h2>
+
+        <div class="phase">
+            <h3>5.1 Estructura de carpetas</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear estructura folder-per-component:</p>
+                <div class="code-block">
+backoffice/src/pages/backoffice/users/
+├── UsersPage.tsx                 # Página principal
+├── UsersPage.components.tsx      # Sub-componentes inline
+├── UsersPage.hooks.ts           # Hooks personalizados
+├── UsersPage.constants.ts       # Constantes
+└── index.ts                     # Barrel export
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>5.2 Componente de tarjeta de rol</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear <span class="file-path">backoffice/src/pages/backoffice/users/components/RoleCard.tsx</span></p>
+                <div class="code-block">
+interface RoleCardProps {
+    role: UserRole;
+    memberCount: number;
+    onClick: () => void;
+    'data-testid': string;
+}
+
+export const RoleCard: FunctionComponent<RoleCardProps> = ({ role, memberCount, onClick }) => {
+    const roleLabel = ROLE_LABELS[role];
+    const roleColor = ROLE_COLORS[role];
+
+    return (
+        <div
+            className={`bg-white rounded-xl border-2 border-${roleColor}-200 p-6 cursor-pointer hover:border-${roleColor}-400 transition-colors`}
+            onClick={onClick}
+            data-testid={`role-card-${role}`}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && onClick()}
+        >
+            <div className={`text-${roleColor}-600 font-semibold uppercase text-sm`}>
+                {roleLabel}
+            </div>
+            <div className="text-3xl font-bold mt-2">{memberCount}</div>
+            <div className="text-gray-500 text-sm">miembros</div>
+        </div>
+    );
+};
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>5.3 Modal de detalle de usuarios por rol</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear <span class="file-path">backoffice/src/pages/backoffice/users/components/RoleMembersModal.tsx</span></p>
+                <div class="code-block">
+interface RoleMembersModalProps {
+    role: UserRole;
+    isOpen: boolean;
+    onClose: () => void;
+    members: CompetitionMember[];
+    onEditUser: (user: CompetitionMember) => void;
+    onDeleteUser: (user: CompetitionMember) => void;
+    canModify: boolean;
+}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Contenido del modal:</p>
+                <ul>
+                    <li>Lista de usuarios con nombre, email, fecha de invitación</li>
+                    <li>Botón de editar (pencil icon) - visible solo si canModify</li>
+                    <li>Botón de eliminar (trash icon) - visible solo si canModify y usuario no es Admin</li>
+                    <li>Estado vacío si no hay miembros</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>5.4 Modal para crear/editar usuario</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear <span class="file-path">backoffice/src/pages/backoffice/users/components/UserFormModal.tsx</span></p>
+                <div class="code-block">
+interface UserFormModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (data: CreateUserRequest) => Promise<void>;
+    mode: 'create' | 'edit';
+    user?: CompetitionMember;
+    currentUserRole: UserRole;
+    'data-testid': string;
+}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Form fields para modo CREATE:</p>
+                <ul>
+                    <li>Nombre (text input, required)</li>
+                    <li>Email (email input, required)</li>
+                    <li>Rol (select dropdown) - NO mostrar Admin si el current user es Admin</li>
+                </ul>
+                <p>Form fields para modo EDIT:</p>
+                <ul>
+                    <li>Rol (select dropdown) - Solo Staff/Registrador selectable si current user es Admin</li>
+                    <li>Si current user es Root, todos los roles disponibles</li>
+                </ul>
+                <div class="note">
+                    <div class="note-title">Regla de negocio:</div>
+                    <p>Un Admin NO puede asignar rol Admin a otro usuario. Solo Root puede hacerlo.</p>
+                </div>
+            </div>
+        </div>
+
+        <h2 id="fase6">8. Fase 6: Frontend - Sección de Admin por Competition</h2>
+
+        <div class="phase">
+            <h3>6.1 Página principal de usuarios</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear <span class="file-path">backoffice/src/pages/backoffice/users/UsersPage.tsx</span></p>
+                <div class="code-block">
+export const UsersPage: FunctionComponent = () => {
+    const { hasPermission } = usePermissions();
+    const { currentCompeticionId } = useCurrentCompetition();
+
+    const { data: members, isLoading, refetch } = useQuery({
+        queryKey: ['competition-members', currentCompeticionId],
+        queryFn: () => api.get(`/competition/${currentCompeticionId}/users`),
+        enabled: hasPermission('view_users'),
+    });
+
+    const membersByRole = useMemo(() => {
+        return groupBy(members ?? [], 'role');
+    }, [members]);
+
+    const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<CompetitionMember | null>(null);
+
+    const handleCreateUser = async (data: CreateUserRequest) => {
+        await api.post(`/competition/${currentCompeticionId}/users`, data);
+        await refetch();
+        setIsCreateModalOpen(false);
+    };
+
+    // ... resto del componente
+};
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Layout de la página:</p>
+                <div class="code-block">
+return (
+    <div className="p-6" data-page="users" data-competicion={currentCompeticionId}>
+        <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
+            {canManageUsers && (
+                <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="btn-primary"
+                    data-action="create-user"
+                >
+                    + Agregar Usuario
+                </button>
+            )}
+        </div>
+
+        {/* Role Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {Object.entries(membersByRole).map(([role, users]) => (
+                <RoleCard
+                    key={role}
+                    role={role as UserRole}
+                    memberCount={users.length}
+                    onClick={() => setSelectedRole(role as UserRole)}
+                    data-testid={`role-card-${role}`}
+                />
+            ))}
+        </div>
+
+        {/* Members Table */}
+        <MembersTable
+            members={members ?? []}
+            canModify={canManageUsers}
+            onEdit={setEditingUser}
+            onDelete={handleDeleteUser}
+        />
+
+        {/* Modals */}
+        {selectedRole && (
+            <RoleMembersModal
+                role={selectedRole}
+                isOpen={true}
+                onClose={() => setSelectedRole(null)}
+                members={membersByRole[selectedRole] ?? []}
+                // ...
+            />
+        )}
+    </div>
+);
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>6.2 Hook de usuarios</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear <span class="file-path">backoffice/src/pages/backoffice/users/users.hooks.ts</span></p>
+                <div class="code-block">
+export const useCompetitionUsers = (competicionId: number) => {
+    const queryClient = useQueryClient();
+    const toast = useToast();
+
+    const membersQuery = useQuery({
+        queryKey: ['competition-members', competicionId],
+        queryFn: () => api.get<CompetitionMember[]>(`/competition/${competicionId}/users`),
+    });
+
+    const createUser = useMutation({
+        mutationFn: (data: CreateUserRequest) =>
+            api.post(`/competition/${competicionId}/users`, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['competition-members', competicionId]);
+            toast.success('Usuario creado. Se ha enviado un email de invitación.');
+        },
+        onError: () => toast.error('Error al crear usuario'),
+    });
+
+    const updateUserRole = useMutation({
+        mutationFn: ({ userId, role }: { userId: number; role: UserRole }) =>
+            api.put(`/competition/${competicionId}/users/${userId}/role`, { role }),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['competition-members', competicionId]);
+            toast.success('Rol actualizado');
+        },
+        onError: (err) => {
+            if (err.message.includes('cannot modify admin')) {
+                toast.error('No puedes modificar el rol de otro Administrador');
+            } else {
+                toast.error('Error al actualizar rol');
+            }
+        },
+    });
+
+    const deleteUser = useMutation({
+        mutationFn: (userId: number) =>
+            api.delete(`/competition/${competicionId}/users/${userId}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['competition-members', competicionId]);
+            toast.success('Usuario eliminado del competition');
+        },
+    });
+
+    return {
+        members: membersQuery.data ?? [],
+        isLoading: membersQuery.isLoading,
+        createUser,
+        updateUserRole,
+        deleteUser,
+    };
+};
+                </div>
+            </div>
+        </div>
+
+        <h2 id="fase7">9. Fase 7: Sistema de Invitación por Email</h2>
+
+        <div class="phase">
+            <h3>7.1 Template de email de invitación</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear template HTML en <span class="file-path">backend/GrCup.Api/Services/EmailTemplates/InvitationEmail.html</span></p>
+                <div class="code-block">
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #4361ee, #7209b7); color: white; padding: 30px; text-align: center; }
+        .content { padding: 30px; background: #f9f9f9; }
+        .credentials { background: white; border: 2px dashed #4361ee; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .credentials strong { color: #4361ee; }
+        .button { display: inline-block; background: #4361ee; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Invitación al Backoffice</h1>
+        </div>
+        <div class="content">
+            <p>Hola <strong>{{nombre}}</strong>,</p>
+            <p>Has sido invitado a formar parte del equipo de <strong>{{competicionNombre}}</strong> en el backoffice de GR Cup.</p>
+
+            <div class="credentials">
+                <p><strong>Email:</strong> {{email}}</p>
+                <p><strong>Contraseña temporal:</strong> {{password}}</p>
+            </div>
+
+            <p>Por favor, cambia tu contraseña después de iniciar sesión.</p>
+
+            <a href="{{loginUrl}}" class="button">Iniciar Sesión</a>
+
+            <p>Si tienes alguna pregunta, contacta al administrador del sistema.</p>
+        </div>
+        <div class="footer">
+            <p>Este email fue enviado automáticamente. No respondas a este mensaje.</p>
+        </div>
+    </div>
+</body>
+</html>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>7.2 Servicio de email</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Agregar método en <span class="file-path">backend/GrCup.Api/Services/EmailService.cs</span></p>
+                <div class="code-block">
+public async Task SendUserInvitationAsync(string email, string nombre, string tempPassword, string competicionNombre, int competicionId)
+{
+    var emailConfig = await _emailConfigService.GetConfigAsync(competicionId);
+    if (emailConfig == null)
+    {
+        _logger.LogWarning("No email config found for competition {CompeticionId}", competicionId);
+        return;
+    }
+
+    var loginUrl = $"{_appUrl}/backoffice/login";
+    var template = await LoadTemplateAsync("InvitationEmail.html");
+
+    var html = template
+        .Replace("{{nombre}}", nombre)
+        .Replace("{{email}}", email)
+        .Replace("{{password}}", tempPassword)
+        .Replace("{{competicionNombre}}", competicionNombre)
+        .Replace("{{loginUrl}}", loginUrl);
+
+    await SendEmailAsync(email, $"Invitación al equipo de {competicionNombre}", html, emailConfig);
+}
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>7.3 Integración en endpoint</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Modificar POST /api/competition/{id}/users para enviar email:</p>
+                <div class="code-block">
+// Dentro del endpoint de creación de usuario
+var tempPassword = GenerateSecurePassword(12);
+var user = await _userService.CreateUserAsync(request, competicionId, tempPassword);
+
+// Obtener nombre de competition
+var competicion = await _competicionService.GetByIdAsync(competicionId);
+
+// Enviar email de invitación
+await _emailService.SendUserInvitationAsync(
+    request.Email,
+    request.Nombre,
+    tempPassword,
+    competicion.Nombre,
+    competicionId
+);
+                </div>
+            </div>
+        </div>
+
+        <h2 id="fase8">10. Fase 8: Testing y Validación</h2>
+
+        <div class="phase">
+            <h3>8.1 Testing Backend</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear tests unitarios en <span class="file-path">backend/GrCup.Api.Tests/Services/UserManagementServiceTests.cs</span></p>
+                <div class="code-block">
+[Fact]
+public async Task CreateUser_ShouldCreateAndSendEmail()
+{
+    // Arrange
+    var request = new CreateUserRequest { Email = "test@test.com", Nombre = "Test", Role = UserRole.Staff };
+    // Act
+    var result = await _service.CreateUserAsync(request, 1, "tempPass");
+    // Assert
+    Assert.NotNull(result);
+    _emailService.Verify(x => x.SendUserInvitationAsync(...), Times.Once);
+}
+
+[Fact]
+public async Task UpdateUserRole_AdminCannotUpdateOtherAdmin()
+{
+    // Arrange
+    var adminUser = await CreateUserWithRole(UserRole.Admin);
+    var targetAdmin = await CreateUserWithRole(UserRole.Admin);
+    // Act
+    var result = await _service.CanModifyUserRoleAsync(adminUser.Id, targetAdmin.Id, 1);
+    // Assert
+    Assert.False(result);
+}
+
+[Fact]
+public async Task UpdateUserRole_RootCanUpdateAnyRole()
+{
+    // Arrange
+    var rootUser = await CreateUserWithRole(UserRole.Root);
+    var targetAdmin = await CreateUserWithRole(UserRole.Admin);
+    // Act
+    var result = await _service.CanModifyUserRoleAsync(rootUser.Id, targetAdmin.Id, 1);
+    // Assert
+    Assert.True(result);
+}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Crear tests de integración para endpoints:</p>
+                <div class="code-block">
+[Fact]
+public async Task PostCompetitionUsers_WithAdminRole_ReturnsCreated()
+{
+    // Arrange - crear adminuser con rol admin
+    // Act
+    var response = await _client.PostAsJsonAsync("/api/competition/1/users", new {
+        email = "new@test.com",
+        nombre = "New User",
+        role = "staff"
+    });
+    // Assert
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+}
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>8.2 Testing Frontend</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Crear tests de componentes con Vitest:</p>
+                <div class="code-block">
+// backoffice/src/pages/backoffice/users/__tests__/RoleCard.test.tsx
+import { render, screen, fireEvent } from '@testing-library/preact';
+import { RoleCard } from '../components/RoleCard';
+
+describe('RoleCard', () => {
+    it('renders role name and member count', () => {
+        render(<RoleCard role={UserRole.Admin} memberCount={5} onClick={() => {}} />);
+        expect(screen.getByText('Administrador')).toBeTruthy();
+        expect(screen.getByText('5')).toBeTruthy();
+    });
+
+    it('calls onClick when clicked', () => {
+        const onClick = vi.fn();
+        render(<RoleCard role={UserRole.Staff} memberCount={3} onClick={onClick} />);
+        fireEvent.click(screen.getByTestId('role-card-staff'));
+        expect(onClick).toHaveBeenCalled();
+    });
+});
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                </div>
+                <p>Tests de integración de permisos:</p>
+                <div class="code-block">
+// backoffice/src/stores/__tests__/auth.atoms.test.ts
+describe('hasPermission', () => {
+    it('root user has all permissions', () => {
+        const store = createStore();
+        store.set(userAtom, { isRoot: true });
+        const hasPermission = store.get(hasPermissionAtom);
+
+        expect(hasPermission('view_config')).toBe(true);
+        expect(hasPermission('manage_users')).toBe(true);
+    });
+
+    it('staff cannot access config', () => {
+        const store = createStore();
+        store.set(userAtom, { isRoot: false });
+        store.set(competitionRoleAtom, UserRole.Staff);
+        const hasPermission = store.get(hasPermissionAtom);
+
+        expect(hasPermission('view_inscriptos')).toBe(true);
+        expect(hasPermission('view_config')).toBe(false);
+    });
+
+    it('registrador only has checkin permission', () => {
+        const store = createStore();
+        store.set(userAtom, { isRoot: false });
+        store.set(competitionRoleAtom, UserRole.Registrador);
+        const hasPermission = store.get(hasPermissionAtom);
+
+        expect(hasPermission('do_checkin')).toBe(true);
+        expect(hasPermission('view_inscriptos')).toBe(false);
+    });
+});
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>8.3 Validación Manual</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Checklist de validación:</p>
+                <table class="permission-table">
+                    <thead>
+                        <tr><th>Escenario</th><th>Esperado</th><th>OK</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Root hace login</td><td>Ve todos los competitions y todas las secciones</td><td>☐</td></tr>
+                        <tr><td>Admin hace login</td><td>Solo ve competitions asignados, todas las secciones</td><td>☐</td></tr>
+                        <tr><td>Staff hace login</td><td>Ve competitions asignados, sin Configuración ni Usuarios</td><td>☐</td></tr>
+                        <tr><td>Registrador hace login</td><td>Solo ve sección QR del competition asignado</td><td>☐</td></tr>
+                        <tr><td>Admin intenta cambiar rol de otro Admin</td><td>Error: "No puedes modificar Admin"</td><td>☐</td></tr>
+                        <tr><td>Admin crea nuevo usuario</td><td>Email enviado con credenciales</td><td>☐</td></tr>
+                        <tr><td>Admin asigna rol Staff</td><td>Usuario creado con rol Staff</td><td>☐</td></tr>
+                        <tr><td>Root asigna rol Admin</td><td>Usuario creado con rol Admin</td><td>☐</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h2 id="fase9">11. Fase 9: Documentación y Deployment</h2>
+
+        <div class="phase">
+            <h3>9.1 Migración de Datos</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Script de migración de roles legacy:</p>
+                <div class="code-block">
+-- Migration: Convert legacy roles to new UserRole enum
+-- File: Migrations/UserRoles/MigrateLegacyRoles.cs
+
+UPDATE UsuarioCompeticion
+SET Role = CASE
+    WHEN Role = 'root' THEN 'root'
+    WHEN Role = 'admin' THEN 'admin'
+    WHEN Role IN ('manager', 'empleado') THEN 'staff'
+    WHEN Role = 'checkin' THEN 'registrador'
+    ELSE 'staff' -- default fallback
+END;
+
+-- Also update Usuario.IsSuperadmin to IsRoot for root users
+UPDATE Usuario
+SET IsRoot = 1
+WHERE IsSuperadmin = 1;
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>9.2 Actualizar README</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Documentar el sistema de roles en <span class="file-path">backoffice/README.md</span></p>
+                <div class="code-block">
+## Sistema de Roles de Usuario
+
+### Roles Disponibles
+
+| Rol | Descripción | Permisos |
+|-----|-------------|----------|
+| Root | Superadministrador | Acceso total a todos los competitions y secciones |
+| Admin | Administrador de Competition | Full access al competition asignado |
+| Staff | Personal | Acceso sin configuración ni gestión de usuarios |
+| Registrador | Registro | Solo acceso a QR Reader |
+
+### Permisos por Sección
+
+[Tabla de permisos...]
+
+### API Endpoints de Gestión de Usuarios
+
+- `GET /api/competition/{id}/users` - Listar miembros
+- `POST /api/competition/{id}/users` - Crear usuario
+- `PUT /api/competition/{id}/users/{userId}/role` - Actualizar rol
+- `DELETE /api/competition/{id}/users/{userId}` - Eliminar
+                </div>
+            </div>
+        </div>
+
+        <div class="phase">
+            <h3>9.3 Deployment Checklist</h3>
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                </div>
+                <p>Pasos de deploy:</p>
+                <ol>
+                    <li>Ejecutar migración de base de datos: <code>dotnet ef database update</code></li>
+                    <li>Build backend: <code>dotnet build</code></li>
+                    <li>Build frontend: <code>cd backoffice && npm run build</code></li>
+                    <li>Reiniciar servicios: <code>sudo systemctl restart grcup-api</code></li>
+                    <li>Verificar health endpoint: <code>curl https://api.grcup.com/health</code></li>
+                    <li>Test de smoke con usuario de cada rol</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="summary-box">
+            <strong>Resumen de Entregables:</strong>
+            <ul>
+                <li>Backend: Modelos actualizados, servicios, endpoints de gestión de usuarios</li>
+                <li>Frontend: Nueva página de usuarios, modales de CRUD, sistema de permisos</li>
+                <li>Email: Template de invitación, servicio de envío</li>
+                <li>Testing: Unit tests, integration tests, checklist de validación</li>
+                <li>Documentación: README actualizado, este plan en HTML</li>
+            </ul>
+        </div>
+
+        <footer style="text-align: center; padding: 2rem; color: #666; border-top: 1px solid #eee; margin-top: 2rem;">
+            <p>Plan creado para el proyecto GR Cup Backoffice - Sistema de Flags de Usuario</p>
+            <p>Fecha: Mayo 2026 | Versión: 1.0</p>
+        </footer>
+    </div>
+</body>
+</html>

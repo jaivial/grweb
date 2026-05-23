@@ -17,10 +17,7 @@ export function useAuth() {
         const result = await api.getMe();
         if (result.success && result.data) {
           setUser(result.data);
-          // Do NOT set currentCompeticionIdAtom here anymore.
-          // The URL slug will drive the atom via useCompeticionSlug.
-          // We still set a fallback for cases where the user is on
-          // a non-backoffice page (the atom needs a default).
+          // Keep a default competition for shared auth-dependent UI.
           if (result.data.competiciones && result.data.competiciones.length > 0) {
             setCurrentCompeticionId(result.data.competiciones[0].id);
           }

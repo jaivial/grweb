@@ -8,4 +8,3 @@ export { useDebounce } from './useDebounce';
 export { useSignalR } from './useSignalR';
 export { useIntersectionAnimation, useStaggeredIntersection } from './useIntersectionAnimation';
 export { deduplicateSchedules } from './useDeduplicate';
-export { useCompeticionSlug } from './useCompeticionSlug';

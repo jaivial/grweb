@@ -222,20 +222,9 @@ public static class PublicEndpoints
             var config = competicionService.GetEventoConfig(competicion);
             var plazasDisponibles = await competicionService.GetPlazasDisponiblesAsync(competicion.Id);
             
-            // Get categories from schedules SCOPED to this competition
-            var categoriasMasculino = await db.Schedules
-                .Where(s => s.CompeticionId == competicion.Id && s.SexCategory == Models.Enums.Sex.Male)
-                .Select(s => s.WeightCategory)
-                .Distinct()
-                .OrderBy(c => c)
-                .ToListAsync();
-            
-            var categoriasFemenino = await db.Schedules
-                .Where(s => s.CompeticionId == competicion.Id && s.SexCategory == Models.Enums.Sex.Female)
-                .Select(s => s.WeightCategory)
-                .Distinct()
-                .OrderBy(c => c)
-                .ToListAsync();
+            // Return all standard IPF weight categories (not filtered by schedule availability)
+            var categoriasMasculino = new List<string> { "-53", "-59", "-66", "-74", "-83", "-93", "-105", "-120", "+120" };
+            var categoriasFemenino = new List<string> { "-43", "-47", "-52", "-57", "-63", "-69", "-76", "-84", "+84" };
 
             return Results.Ok(new { 
                 success = true, 

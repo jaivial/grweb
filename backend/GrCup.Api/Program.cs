@@ -129,6 +129,7 @@ builder.Services.AddHttpClient<BunnyCdnService>();
 // ─── Multi-tenant Services ───
 builder.Services.AddScoped<CompeticionService>();
 builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<UserManagementService>();
 builder.Services.AddScoped<InscripcionService>();
 builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<SeedService>();
@@ -176,6 +177,9 @@ app.UseAuthorization();
 // ─── Map SignalR Hub ───
 app.MapHub<ParticipantsHub>("/hubs/participants");
 
+// ─── Healthcheck ───
+app.MapGet("/api/health", () => Results.Ok(new { success = true, status = "healthy" }));
+
 // ─── Map API Endpoints ───
 app.MapPublicEndpoints();
 app.MapWebhookEndpoints();
@@ -196,7 +200,9 @@ app.MapSitemapEndpoints();
 
 // ─── Multi-tenant Endpoints ───
 app.MapCompeticionEndpoints();
+app.MapWorkspaceAdminEndpoints();
 app.MapUsuarioEndpoints();
+app.MapCompetitionUsersEndpoints();
 app.MapInscripcionEndpoints();
 app.MapRifaEndpoints();
 app.MapTutorialEndpoints();

@@ -19,6 +19,11 @@ import type {
   UpdateInscripcionRequest,
   UpdateRifaConfigRequest,
   SellTicketRequest,
+  Role,
+  RoleWithMembers,
+  MemberDetail,
+  CreateMemberRequest,
+  CompetitionUsersResponse,
 } from '../types/api';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -405,6 +410,63 @@ class ApiClient {
   }
 
 
+  // ─── Competition Users ───
+
+  async getCompetitionUsers(
+    competicionId: number,
+    params: { page?: number; pageSize?: number; search?: string; role?: string } = {}
+  ): Promise<ApiResponse<CompetitionUsersResponse>> {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set('page', params.page.toString());
+    if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
+    if (params.search) queryParams.set('search', params.search);
+    if (params.role) queryParams.set('role', params.role);
+
+    const query = queryParams.toString();
+    return this.request<CompetitionUsersResponse>(
+      `/api/competition/${competicionId}/users${query ? `?${query}` : ''}`
+    );
+  }
+
+
+  async getCompetitionUser(competicionId: number, usuarioId: number): Promise<ApiResponse<MemberDetail>> {
+    return this.request<MemberDetail>(`/api/competition/${competicionId}/users/${usuarioId}`);
+  }
+
+
+  async createCompetitionUser(competicionId: number, data: CreateMemberRequest): Promise<ApiResponse<MemberDetail>> {
+    return this.request<MemberDetail>(`/api/competition/${competicionId}/users`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+
+  async updateCompetitionUserRole(competicionId: number, usuarioId: number, role: string): Promise<ApiResponse<MemberDetail>> {
+    return this.request<MemberDetail>(`/api/competition/${competicionId}/users/${usuarioId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+
+  async deleteCompetitionUser(competicionId: number, usuarioId: number): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/competition/${competicionId}/users/${usuarioId}`, {
+      method: 'DELETE',
+    });
+  }
+
+
+  async getCompetitionRoles(competicionId: number): Promise<ApiResponse<Role[]>> {
+    return this.request<Role[]>(`/api/competition/${competicionId}/roles`);
+  }
+
+
+  async getCompetitionRoleWithMembers(competicionId: number, roleSlug: string): Promise<ApiResponse<RoleWithMembers>> {
+    return this.request<RoleWithMembers>(`/api/competition/${competicionId}/roles/${roleSlug}/members`);
+  }
+
+
   // ─── Email Config ───
 
   async getEmailConfig(competicionId?: number): Promise<ApiResponse<{
@@ -571,6 +633,48 @@ class ApiClient {
   async getFerCompetitionAttempts(slug: string, query?: string): Promise<ApiResponse<any>> {
     const url = `/api/competiciones/${slug}/attempts${query || ''}`;
     return this.request(url);
+  }
+
+  // ─── QR Checkin ───
+
+  async getCheckinEstado(slug: string, inscripcionId: number): Promise<ApiResponse<{
+    id: number;
+    nombre: string;
+    email: string;
+    instagram?: string;
+    telefono?: string;
+    sexo: string;
+    categoriaPeso?: string;
+    experiencia: string;
+    quiereHandler: boolean;
+    pagoConfirmado: boolean;
+    participacionConfirmada: boolean;
+    totalPagado: number;
+    checkinAt?: string;
+    competicionNombre: string;
+    precioInscripcion?: number;
+    precioHandler?: number;
+    horarios?: Array<{
+      date: string;
+      startTime: string;
+      endTime: string;
+      weightCategory: string;
+      sexCategory: string;
+    }>;
+  }>> {
+    return this.request(`/api/competiciones/${slug}/checkin/${inscripcionId}/estado`);
+  }
+
+  async confirmarParticipacion(slug: string, inscripcionId: number): Promise<ApiResponse<void>> {
+    return this.request(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-participacion`, {
+      method: 'POST',
+    });
+  }
+
+  async confirmarPagoEfectivo(slug: string, inscripcionId: number): Promise<ApiResponse<void>> {
+    return this.request(`/api/competiciones/${slug}/checkin/${inscripcionId}/confirmar-pago-efectivo`, {
+      method: 'POST',
+    });
   }
 }
 

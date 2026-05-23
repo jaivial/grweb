@@ -5,13 +5,14 @@ using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.EntityFrameworkCore;
 using GrCup.Api.Data;
 using GrCup.Api.Models;
+using GrCup.Api.Models.Enums;
 
 namespace GrCup.Api.Services;
 
 /// <summary>
 /// Service for managing users and permissions.
-/// Supports 5 roles: root, admin, manager, empleado, checkin.
-/// Legacy 'operator' role is normalized to 'empleado'.
+/// Supports 4 canonical roles: root, admin, staff, registrador.
+/// Legacy roles are normalized to the canonical role names.
 /// </summary>
 public class UsuarioService
 {
@@ -81,6 +82,7 @@ public class UsuarioService
             Email = request.Email.ToLower().Trim(),
             PasswordHash = HashPassword(request.Password),
             Nombre = request.Nombre,
+            IsRoot = request.IsRoot || request.IsSuperadmin,
             IsSuperadmin = request.IsSuperadmin,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -123,6 +125,12 @@ public class UsuarioService
         if (request.IsSuperadmin.HasValue)
             usuario.IsSuperadmin = request.IsSuperadmin.Value;
 
+        if (request.IsRoot.HasValue)
+            usuario.IsRoot = request.IsRoot.Value;
+
+        if (request.IsSuperadmin.HasValue && request.IsSuperadmin.Value)
+            usuario.IsRoot = true;
+
         usuario.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -161,6 +169,21 @@ public class UsuarioService
         if (!VerifyPassword(password, usuario.PasswordHash))
             return null;
 
+        // First login: accept all pending invitations
+        if (usuario.LastLoginAt == null)
+        {
+            var pendingAssignments = _context.UsuariosCompeticiones
+                .Where(uc => uc.UsuarioId == usuario.Id && !uc.InvitationAccepted);
+            foreach (var assignment in pendingAssignments)
+            {
+                assignment.InvitationAccepted = true;
+            }
+            if (pendingAssignments.Any())
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
         // Update last login
         usuario.LastLoginAt = DateTime.UtcNow;
         usuario.UpdatedAt = DateTime.UtcNow;
@@ -171,7 +194,7 @@ public class UsuarioService
 
         return new AuthResult(
             Token: token,
-            User: MapToUserResponse(usuario)
+            User: await MapToUserResponseAsync(usuario)
         );
     }
 
@@ -193,12 +216,13 @@ public class UsuarioService
 
     /// <summary>
     /// Assigns a user to a competition with a role.
-    /// Normalizes 'operator' to 'empleado'.
+    /// Normalizes legacy role names to canonical user flags.
     /// </summary>
     public async Task<UsuarioCompeticion> AssignToCompetitionAsync(int usuarioId, int competicionId, string role)
     {
-        // Normalize legacy roles
-        var normalizedRole = role == "operator" ? "empleado" : role;
+        var normalizedRole = NormalizeRole(role);
+        if (string.IsNullOrWhiteSpace(normalizedRole))
+            throw new InvalidOperationException($"Invalid role '{role}'");
 
         // Check if already assigned
         var existing = await _context.UsuariosCompeticiones
@@ -253,6 +277,32 @@ public class UsuarioService
     }
 
     #endregion
+
+    public async Task<bool> IsUserRootAsync(int usuarioId)
+    {
+        return await _context.Usuarios
+            .AnyAsync(u => u.Id == usuarioId && u.IsActive && (u.IsRoot || u.IsSuperadmin));
+    }
+
+    public async Task<bool> HasAccessToCompetitionAsync(int usuarioId, int competicionId)
+    {
+        if (await IsUserRootAsync(usuarioId))
+            return true;
+
+        return await _context.UsuariosCompeticiones
+            .AnyAsync(uc => uc.UsuarioId == usuarioId && uc.CompeticionId == competicionId);
+    }
+
+    public async Task<string?> GetUserRoleInCompetitionAsync(int usuarioId, int competicionId)
+    {
+        if (await IsUserRootAsync(usuarioId))
+            return UserRoleNames.Root;
+
+        var assignment = await _context.UsuariosCompeticiones
+            .FirstOrDefaultAsync(uc => uc.UsuarioId == usuarioId && uc.CompeticionId == competicionId);
+
+        return assignment == null ? null : NormalizeRole(assignment.Role);
+    }
 
     #region Permissions
 
@@ -320,7 +370,7 @@ public class UsuarioService
         // Add role-based permissions for each competition
         foreach (var uc in usuario.UsuarioCompeticiones)
         {
-            var normalizedRole = uc.Role == "operator" ? "empleado" : uc.Role;
+            var normalizedRole = NormalizeRole(uc.Role);
             var rolePerms = PermissionService.GetPermissionsForRole(normalizedRole);
 
             foreach (var perm in rolePerms)
@@ -354,7 +404,7 @@ public class UsuarioService
             return false;
 
         // Superadmin has all permissions
-        if (usuario.IsSuperadmin)
+        if (usuario.IsRoot || usuario.IsSuperadmin)
             return true;
 
         // System permissions require superadmin
@@ -371,7 +421,7 @@ public class UsuarioService
             if (userComp == null)
                 return false;
 
-            var normalizedRole = userComp.Role == "operator" ? "empleado" : userComp.Role;
+            var normalizedRole = NormalizeRole(userComp.Role);
             var rolePerms = PermissionService.GetPermissionsForRole(normalizedRole);
             var permName = permission.Replace("comp:", "");
             return rolePerms.Any(p => p == permission || p.Replace("comp:", "") == permName);
@@ -389,7 +439,7 @@ public class UsuarioService
     /// <summary>
     /// Hashes a password using PBKDF2
     /// </summary>
-    private static string HashPassword(string password)
+    public static string HashPassword(string password)
     {
         byte[] salt = new byte[16];
         using var rng = RandomNumberGenerator.Create();
@@ -429,7 +479,7 @@ public class UsuarioService
 
     /// <summary>
     /// Maps a user to a response DTO.
-    /// Normalizes 'operator' role to 'empleado' in the response.
+    /// Normalizes legacy roles in the response.
     /// </summary>
     public UserResponse MapToUserResponse(Usuario usuario)
     {
@@ -437,14 +487,16 @@ public class UsuarioService
             Id: usuario.Id,
             Email: usuario.Email,
             Nombre: usuario.Nombre,
+            IsRoot: usuario.IsRoot || usuario.IsSuperadmin,
             IsSuperadmin: usuario.IsSuperadmin,
             IsActive: usuario.IsActive,
             Competiciones: usuario.UsuarioCompeticiones.Select(uc => new CompeticionAssignment(
                 uc.CompeticionId,
                 uc.Competicion.Nombre,
                 uc.Competicion.Slug,
-                uc.Role == "operator" ? "empleado" : uc.Role, // Normalize legacy role
-                uc.Competicion.Tipo ?? "grcup"
+                NormalizeRole(uc.Role),
+                uc.Competicion.Tipo ?? "grcup",
+                CompeticionService.GetModulesForCompetition(uc.Competicion)
             )).ToList(),
             Permissions: usuario.UsuarioPermissions
                 .Where(p => p.Granted)
@@ -453,7 +505,45 @@ public class UsuarioService
         );
     }
 
+    public async Task<UserResponse> MapToUserResponseAsync(Usuario usuario)
+    {
+        if (!(usuario.IsRoot || usuario.IsSuperadmin))
+            return MapToUserResponse(usuario);
+
+        var competiciones = await _context.Competiciones
+            .Where(c => c.Activo)
+            .OrderBy(c => c.Nombre)
+            .Select(c => new CompeticionAssignment(
+                c.Id,
+                c.Nombre,
+                c.Slug,
+                UserRoleNames.Root,
+                c.Tipo ?? "grcup",
+                CompeticionService.GetModulesForCompetition(c)
+            ))
+            .ToListAsync();
+
+        return new UserResponse(
+            Id: usuario.Id,
+            Email: usuario.Email,
+            Nombre: usuario.Nombre,
+            IsRoot: true,
+            IsSuperadmin: usuario.IsSuperadmin,
+            IsActive: usuario.IsActive,
+            Competiciones: competiciones,
+            Permissions: usuario.UsuarioPermissions
+                .Where(p => p.Granted)
+                .Select(p => new UserPermissionDto(p.PermissionKey, p.CompeticionId))
+                .ToList()
+        );
+    }
+
     #endregion
+
+    public static string NormalizeRole(string role)
+    {
+        return UserRoleNames.Normalize(role);
+    }
 }
 
 // DTOs
@@ -461,6 +551,7 @@ public record CreateUsuarioRequest(
     string Email,
     string Password,
     string Nombre,
+    bool IsRoot = false,
     bool IsSuperadmin = false
 );
 
@@ -469,6 +560,7 @@ public record UpdateUsuarioRequest(
     string? Email = null,
     string? Password = null,
     bool? IsActive = null,
+    bool? IsRoot = null,
     bool? IsSuperadmin = null
 );
 
@@ -478,6 +570,7 @@ public record UserResponse(
     int Id,
     string Email,
     string Nombre,
+    bool IsRoot,
     bool IsSuperadmin,
     bool IsActive,
     List<CompeticionAssignment> Competiciones,
@@ -489,7 +582,8 @@ public record CompeticionAssignment(
     string Nombre,
     string Slug,
     string Role,
-    string Tipo
+    string Tipo,
+    List<CompetitionModuleResponse> Modules
 );
 
 public record UserPermissionDto(

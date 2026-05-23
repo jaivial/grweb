@@ -86,10 +86,10 @@ export function FerLanding() {
 
   // ── Show upsell after confetti (only if user didn't select Peak Program) ──
   const handleShowUpsell = useCallback(() => {
-    if (!inscripcionHook.formData.peakProgram) {
+    if (!inscripcionHook.formData.peakProgram && inscripcionHook.inscripcionResult?.id) {
       setShowUpsell(true);
     }
-  }, [inscripcionHook.formData.peakProgram]);
+  }, [inscripcionHook.formData.peakProgram, inscripcionHook.inscripcionResult?.id]);
 
   // ── Close modals ──
   const closeConfirmation = useCallback(() => {

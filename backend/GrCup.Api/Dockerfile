@@ -14,6 +14,11 @@ RUN dotnet publish "GrCup.Api.csproj" -c Release -o /app/publish /p:UseAppHost=f
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
+# Required by Docker HEALTHCHECK.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser
 

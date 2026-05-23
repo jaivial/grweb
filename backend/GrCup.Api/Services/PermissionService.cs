@@ -1,13 +1,14 @@
 using System.Security.Claims;
 using GrCup.Api.Data;
 using GrCup.Api.Models;
+using GrCup.Api.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrCup.Api.Services;
 
 /// <summary>
 /// Service for checking user permissions in the multi-tenant system.
-/// Supports 5 roles: root, admin, manager, empleado, checkin.
+/// Supports 4 canonical roles: root, admin, staff, registrador.
 /// </summary>
 public class PermissionService
 {
@@ -24,6 +25,7 @@ public class PermissionService
     public const string CompViewInscriptos = "comp:view_inscriptos";
     public const string CompManageInscriptos = "comp:manage_inscriptos";
     public const string CompExportData = "comp:export_data";
+    public const string CompViewConfig = "comp:view_config";
     public const string CompManageConfig = "comp:manage_config";
     public const string CompViewRaffle = "comp:view_raffle";
     public const string CompManageRaffle = "comp:manage_raffle";
@@ -32,14 +34,17 @@ public class PermissionService
     public const string CompViewHorarios = "comp:view_horarios";
     public const string CompManageHorarios = "comp:manage_horarios";
     public const string CompViewParticipantes = "comp:view_participantes";
+    public const string CompViewUsers = "comp:view_users";
+    public const string CompManageUsers = "comp:manage_users";
 
     // All competition permissions (for root/admin)
     private static readonly string[] AllCompPermissions = new[]
     {
         CompViewDashboard, CompViewInscriptos, CompManageInscriptos,
-        CompExportData, CompManageConfig, CompViewRaffle,
+        CompExportData, CompViewConfig, CompManageConfig, CompViewRaffle,
         CompManageRaffle, CompSellTickets, CompDoCheckin,
-        CompViewHorarios, CompManageHorarios, CompViewParticipantes
+        CompViewHorarios, CompManageHorarios, CompViewParticipantes,
+        CompViewUsers, CompManageUsers
     };
 
     // All system permissions (for root/superadmin)
@@ -51,9 +56,9 @@ public class PermissionService
     // Role -> permission mapping
     private static readonly Dictionary<string, string[]> RolePermissions = new()
     {
-        ["root"] = AllCompPermissions.Concat(AllSystemPermissions).ToArray(),
-        ["admin"] = AllCompPermissions,
-        ["manager"] = new[]
+        [UserRoleNames.Root] = AllCompPermissions.Concat(AllSystemPermissions).ToArray(),
+        [UserRoleNames.Admin] = AllCompPermissions,
+        [UserRoleNames.Staff] = new[]
         {
             CompViewDashboard, CompViewInscriptos, CompManageInscriptos,
             CompViewRaffle, CompManageRaffle, CompDoCheckin,
@@ -61,27 +66,19 @@ public class PermissionService
             CompViewHorarios, CompManageHorarios,
             CompViewParticipantes
         },
-        ["empleado"] = new[]
-        {
-            CompViewInscriptos, CompDoCheckin,
-            CompViewHorarios, CompManageHorarios,
-            CompSellTickets
-        },
-        ["checkin"] = new[]
+        [UserRoleNames.Registrador] = new[]
         {
             CompDoCheckin
         },
     };
 
-    // Legacy role alias: 'operator' maps to 'empleado'
     private static string NormalizeRole(string role)
     {
-        if (role == "operator") return "empleado";
-        return role;
+        return UserRoleNames.Normalize(role);
     }
 
     // Valid roles
-    public static readonly string[] ValidRoles = { "root", "admin", "manager", "empleado", "checkin" };
+    public static readonly string[] ValidRoles = UserRoleNames.ValidRoles;
 
     public PermissionService(GrCupDbContext context)
     {
@@ -111,7 +108,7 @@ public class PermissionService
             return false;
 
         // Superadmin (root) has all permissions
-        if (user.IsSuperadmin)
+        if (user.IsRoot || user.IsSuperadmin)
             return true;
 
         // System permissions require superadmin
@@ -160,7 +157,7 @@ public class PermissionService
         var permissions = new HashSet<string>();
 
         // Superadmin has all permissions
-        if (user.IsSuperadmin)
+        if (user.IsRoot || user.IsSuperadmin)
         {
             foreach (var p in AllSystemPermissions)
                 permissions.Add(p);
@@ -248,7 +245,7 @@ public class PermissionService
         if (user == null || !user.IsActive)
             return false;
 
-        if (user.IsSuperadmin)
+        if (user.IsRoot || user.IsSuperadmin)
             return true;
 
         return user.UsuarioCompeticiones.Any(uc => uc.CompeticionId == competicionId);
@@ -267,7 +264,7 @@ public class PermissionService
         if (user == null || !user.IsActive)
             return new List<Competicion>();
 
-        if (user.IsSuperadmin)
+        if (user.IsRoot || user.IsSuperadmin)
         {
             return await _context.Competiciones
                 .Where(c => c.Activo)
@@ -286,6 +283,8 @@ public class PermissionService
     public async Task AssignRoleAsync(int usuarioId, int competicionId, string role)
     {
         var normalizedRole = NormalizeRole(role);
+        if (string.IsNullOrWhiteSpace(normalizedRole))
+            throw new InvalidOperationException($"Invalid role '{role}'");
 
         var existing = await _context.UsuariosCompeticiones
             .FirstOrDefaultAsync(uc => uc.UsuarioId == usuarioId && uc.CompeticionId == competicionId);
@@ -347,7 +346,7 @@ public static class PermissionExtensions
     /// </summary>
     public static bool IsSuperadmin(this ClaimsPrincipal user)
     {
-        return user.HasClaim("is_superadmin", "true") || user.IsInRole("Superadmin");
+        return user.HasClaim("is_root", "true") || user.HasClaim("is_superadmin", "true") || user.IsInRole("Superadmin");
     }
 
     /// <summary>

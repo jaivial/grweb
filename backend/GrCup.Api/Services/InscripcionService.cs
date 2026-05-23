@@ -102,6 +102,29 @@ public class InscripcionService
         return inscripcion;
     }
 
+    public async Task<Inscripcion?> AddPeakProgramAsync(int competicionId, int inscripcionId)
+    {
+        var competicion = await _competicionService.GetByIdAsync(competicionId);
+        if (competicion == null)
+            throw new InvalidOperationException($"Competition {competicionId} not found");
+
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null)
+            return null;
+
+        if (inscripcion.QuierePeakProgram)
+            return inscripcion;
+
+        var config = _competicionService.GetEventoConfig(competicion);
+        inscripcion.QuierePeakProgram = true;
+        inscripcion.TotalPagado += config.PrecioPeakProgram;
+        inscripcion.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return inscripcion;
+    }
+
     /// <summary>
     /// Confirms payment for an inscription
     /// </summary>

@@ -17,36 +17,34 @@ public static class EmailConfigEndpoints
             var config = await service.GetConfigAsync(competicionId);
             if (config == null)
             {
-                return Results.Ok(new
-                {
-                    success = true,
-                    data = new
-                    {
-                        mainProvider = (int)EmailProvider.Smtp,
-                        gmailAddress = (string?)null,
-                        gmailAppPassword = (string?)null,
-                        smtpUsername = (string?)null,
-                        smtpPassword = (string?)null,
-                        smtpEmailAddress = (string?)null,
-                        smtpHost = "smtp.gmail.com",
-                        smtpPort = 587
-                    }
-                });
+            return Results.Ok(new
+            {
+                success = true,
+                data = new EmailConfigResponse(
+                    (int)EmailProvider.Smtp,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "smtp.gmail.com",
+                    587
+                )
+            });
             }
             return Results.Ok(new
             {
                 success = true,
-                data = new
-                {
-                    mainProvider = (int)config.MainProvider,
-                    gmailAddress = config.GmailAddress,
-                    gmailAppPassword = config.GmailAppPassword,
-                    smtpUsername = config.SmtpUsername,
-                    smtpPassword = config.SmtpPassword,
-                    smtpEmailAddress = config.SmtpEmailAddress,
-                    smtpHost = config.SmtpHost,
-                    smtpPort = config.SmtpPort
-                }
+                data = new EmailConfigResponse(
+                    (int)config.MainProvider,
+                    config.GmailAddress,
+                    EmailConfigMasker.MaskSecret(config.GmailAppPassword),
+                    config.SmtpUsername,
+                    EmailConfigMasker.MaskSecret(config.SmtpPassword),
+                    config.SmtpEmailAddress,
+                    config.SmtpHost,
+                    config.SmtpPort
+                )
             });
         });
 
@@ -71,17 +69,16 @@ public static class EmailConfigEndpoints
             return Results.Ok(new
             {
                 success = true,
-                data = new
-                {
-                    mainProvider = (int)result.MainProvider,
-                    gmailAddress = result.GmailAddress,
-                    gmailAppPassword = result.GmailAppPassword,
-                    smtpUsername = result.SmtpUsername,
-                    smtpPassword = result.SmtpPassword,
-                    smtpEmailAddress = result.SmtpEmailAddress,
-                    smtpHost = result.SmtpHost,
-                    smtpPort = result.SmtpPort
-                }
+                data = new EmailConfigResponse(
+                    (int)result.MainProvider,
+                    result.GmailAddress,
+                    EmailConfigMasker.MaskSecret(result.GmailAppPassword),
+                    result.SmtpUsername,
+                    EmailConfigMasker.MaskSecret(result.SmtpPassword),
+                    result.SmtpEmailAddress,
+                    result.SmtpHost,
+                    result.SmtpPort
+                )
             });
         });
 
@@ -104,3 +101,39 @@ public record EmailConfigRequest(
     string? SmtpHost,
     int SmtpPort
 );
+
+/// <summary>
+/// Response DTO that masks sensitive email configuration secrets.
+/// Secrets are NEVER returned in plain text - only masked values or null.
+/// </summary>
+public record EmailConfigResponse(
+    int MainProvider,
+    string? GmailAddress,
+    string? GmailAppPasswordMasked,
+    string? SmtpUsername,
+    string? SmtpPasswordMasked,
+    string? SmtpEmailAddress,
+    string? SmtpHost,
+    int SmtpPort
+);
+
+/// <summary>
+/// Helper class to mask sensitive email configuration values.
+/// </summary>
+public static class EmailConfigMasker
+{
+    /// <summary>
+    /// Masks a secret value, returning only the last 4 characters prefixed with asterisks.
+    /// Returns null if the input is null or empty.
+    /// </summary>
+    public static string? MaskSecret(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return null;
+
+        if (value.Length <= 4)
+            return new string('*', value.Length);
+
+        return new string('*', value.Length - 4) + value[^4..];
+    }
+}

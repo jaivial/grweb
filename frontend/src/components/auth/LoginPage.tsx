@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -6,6 +7,7 @@ import { Card } from '../ui/Card';
 
 export function LoginPage() {
   const { login, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,6 +24,8 @@ export function LoginPage() {
     const success = await login({ email, password });
     if (!success) {
       setError('Email o contraseña incorrectos');
+    } else {
+      setLocation('/backoffice');
     }
   };
 

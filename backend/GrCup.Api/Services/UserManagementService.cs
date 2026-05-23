@@ -37,6 +37,67 @@ public class UserManagementService
             .ToListAsync();
     }
 
+    public async Task<CompetitionMembersPaginatedResponse> GetCompetitionMembersPaginatedAsync(
+        int competicionId,
+        int page,
+        int pageSize,
+        string? search,
+        string? role,
+        bool? status)
+    {
+        var query = _context.UsuariosCompeticiones
+            .Include(uc => uc.Usuario)
+            .Where(uc => uc.CompeticionId == competicionId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            query = query.Where(uc =>
+                uc.Usuario.Nombre.ToLower().Contains(searchLower) ||
+                uc.Usuario.Email.ToLower().Contains(searchLower));
+        }
+
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            var normalizedRole = UserRoleNames.Normalize(role);
+            if (!string.IsNullOrEmpty(normalizedRole))
+                query = query.Where(uc => uc.Role == normalizedRole);
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(uc => uc.Usuario.IsActive == status.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var members = await query
+            .OrderBy(uc => uc.Role)
+            .ThenBy(uc => uc.Usuario.Nombre)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(uc => new CompetitionMemberResponse(
+                uc.UsuarioId,
+                uc.Usuario.Nombre,
+                uc.Usuario.Email,
+                UserRoleNames.Normalize(uc.Role),
+                uc.Usuario.IsActive,
+                !uc.InvitationAccepted && uc.InvitedAt != null,
+                uc.InvitedAt,
+                uc.InvitationAccepted ? uc.InvitedAt : null,
+                null
+            ))
+            .ToListAsync();
+
+        return new CompetitionMembersPaginatedResponse(
+            members,
+            totalCount,
+            page,
+            pageSize,
+            (int)Math.Ceiling((double)totalCount / pageSize)
+        );
+    }
+
     public async Task<List<CompetitionRoleResponse>> GetCompetitionRolesAsync(int competicionId)
     {
         var members = await GetCompetitionMembersAsync(competicionId);
@@ -176,8 +237,84 @@ public class UserManagementService
             return false;
 
         assignment.Role = normalizedRole;
+        if (normalizedRole == UserRoleNames.Root)
+        {
+            assignment.Usuario.IsRoot = true;
+            assignment.Usuario.IsSuperadmin = true;
+            assignment.Usuario.UpdatedAt = DateTime.UtcNow;
+        }
+
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<CompetitionMemberResponse?> UpdateCompetitionMemberAsync(
+        int usuarioId,
+        int competicionId,
+        UpdateCompetitionMemberRequest request,
+        int requestingUserId)
+    {
+        var assignment = await _context.UsuariosCompeticiones
+            .Include(uc => uc.Usuario)
+            .FirstOrDefaultAsync(uc => uc.UsuarioId == usuarioId && uc.CompeticionId == competicionId);
+
+        if (assignment == null)
+            throw new KeyNotFoundException("User not found in competition");
+
+        if (!await CanModifyUserRoleAsync(requestingUserId, usuarioId, competicionId))
+            throw new UnauthorizedAccessException("No tienes permisos para modificar este usuario");
+
+        if (request.Nombre != null)
+        {
+            var nombre = request.Nombre.Trim();
+            if (nombre.Length < 2)
+                throw new InvalidOperationException("El nombre debe tener al menos 2 caracteres");
+            assignment.Usuario.Nombre = nombre;
+        }
+
+        if (request.Email != null)
+        {
+            var email = request.Email.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+                throw new InvalidOperationException("El email no es valido");
+
+            var exists = await _context.Usuarios.AnyAsync(u => u.Id != usuarioId && u.Email.ToLower() == email);
+            if (exists)
+                throw new InvalidOperationException($"User with email {request.Email} already exists");
+
+            assignment.Usuario.Email = email;
+        }
+
+        if (request.Password != null)
+        {
+            if (request.Password.Length < 8)
+                throw new InvalidOperationException("La contrasena debe tener al menos 8 caracteres");
+            assignment.Usuario.PasswordHash = UsuarioService.HashPassword(request.Password);
+        }
+
+        if (request.IsActive.HasValue)
+        {
+            assignment.Usuario.IsActive = request.IsActive.Value;
+        }
+
+        if (request.Role != null)
+        {
+            var normalizedRole = ValidateRole(request.Role);
+            if (!await CanAssignRoleAsync(requestingUserId, normalizedRole))
+                throw new UnauthorizedAccessException("No tienes permisos para asignar este rol");
+
+            assignment.Role = normalizedRole;
+            if (normalizedRole == UserRoleNames.Root)
+            {
+                assignment.Usuario.IsRoot = true;
+                assignment.Usuario.IsSuperadmin = true;
+            }
+        }
+
+        assignment.Usuario.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return await GetCompetitionMemberAsync(competicionId, usuarioId);
     }
 
     public async Task<string?> GetTargetUserRoleAsync(int usuarioId, int competicionId)
@@ -306,6 +443,14 @@ public record CreateCompetitionUserRequest(
 
 public record UpdateCompetitionUserRoleRequest(string Role);
 
+public record UpdateCompetitionMemberRequest(
+    string? Nombre = null,
+    string? Email = null,
+    string? Role = null,
+    bool? IsActive = null,
+    string? Password = null
+);
+
 public record InvitedByInfo(int Id, string Nombre, string Email);
 
 public record CompetitionMemberResponse(
@@ -337,4 +482,12 @@ public record CompetitionRoleWithMembersResponse(
     List<string> Capabilities,
     List<string> Restrictions,
     List<CompetitionMemberResponse> Members
+);
+
+public record CompetitionMembersPaginatedResponse(
+    List<CompetitionMemberResponse> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages
 );

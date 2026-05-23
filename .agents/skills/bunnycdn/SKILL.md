@@ -1,3 +1,8 @@
+---
+name: bunnycdn
+description: Manage BunnyCDN storage assets, public CDN URLs, cache purging, and GR Platform media path conventions. Use when listing, uploading, downloading, deleting, or publishing assets for GR Cup or FER via BunnyCDN MCP tools.
+---
+
 # BunnyCDN Skill
 
 ## Overview

@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="es" data-ui="plan-html-root">
+  <head data-ui="plan-head">
+    <meta charset="utf-8" data-ui="plan-meta-charset">
+    <meta name="viewport" content="width=device-width, initial-scale=1" data-ui="plan-meta-viewport">
+    <title data-ui="plan-title">Plan backoffice: inscripciones y users</title>
+    <style data-ui="plan-styles">
+      :root {
+        color-scheme: dark;
+        --bg: #0b0b12;
+        --panel: #151521;
+        --panel-2: #1c1c2a;
+        --border: rgba(255, 255, 255, 0.12);
+        --text: #f7f7fb;
+        --muted: #a6adbb;
+        --accent: #ef4444;
+        --accent-2: #38bdf8;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: radial-gradient(circle at top left, rgba(239, 68, 68, 0.18), transparent 32rem), var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 48px 0 72px;
+      }
+
+      section,
+      article {
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 24px 90px rgba(0, 0, 0, 0.28);
+      }
+
+      header {
+        margin-bottom: 28px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        letter-spacing: -0.03em;
+      }
+
+      h1 {
+        font-size: clamp(2.1rem, 5vw, 4.8rem);
+        line-height: 0.95;
+      }
+
+      h2 {
+        font-size: clamp(1.45rem, 3vw, 2.25rem);
+      }
+
+      h3 {
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      code {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.24);
+        color: #fee2e2;
+        padding: 0.12rem 0.35rem;
+        font-size: 0.92em;
+      }
+
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 1.15rem;
+      }
+
+      li {
+        color: var(--muted);
+        margin: 0.38rem 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 16px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 12px 14px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      td {
+        color: var(--muted);
+      }
+
+      .hero {
+        display: grid;
+        gap: 20px;
+        padding: 34px;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(56, 189, 248, 0.08) 52%, rgba(255, 255, 255, 0.04));
+      }
+
+      .kicker {
+        color: #fecaca;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .card {
+        background: rgba(12, 12, 18, 0.48);
+      }
+
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .pill {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        padding: 7px 11px;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 4px 9px;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .badge.ok {
+        background: rgba(34, 197, 94, 0.13);
+        color: #86efac;
+      }
+
+      .badge.warn {
+        background: rgba(245, 158, 11, 0.14);
+        color: #fcd34d;
+      }
+
+      .badge.info {
+        background: rgba(56, 189, 248, 0.13);
+        color: #7dd3fc;
+      }
+
+      .task {
+        border-left: 4px solid var(--accent);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      @media (max-width: 860px) {
+        .grid.two,
+        .grid.three {
+          grid-template-columns: 1fr;
+        }
+
+        section,
+        article,
+        .hero {
+          padding: 18px;
+          border-radius: 18px;
+        }
+
+        table {
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+      }
+    </style>
+  </head>
+  <body data-ui="plan-body">
+    <main data-ui="plan-main">
+      <header class="hero" data-ui="plan-hero">
+        <p class="kicker" data-ui="plan-hero-kicker">Arquitectura backoffice</p>
+        <h1 data-ui="plan-hero-title">Plan para inscripciones y users</h1>
+        <p data-ui="plan-hero-summary">Plan de implementación para añadir exportación PDF A4 horizontal, mejorar interacción de filas/celdas, hacer explícitas las acciones CRUD con iconos de <code data-ui="plan-hero-code-lucide">lucide-react</code>, migrar detalles de usuarios/roles a rutas y normalizar dropdowns con <code data-ui="plan-hero-code-selector">CustomSelector</code>.</p>
+        <div class="pill-row" data-ui="plan-hero-pills">
+          <span class="pill" data-ui="plan-pill-project">Proyecto: backoffice/</span>
+          <span class="pill" data-ui="plan-pill-stack">React + Vite + TS + Tailwind</span>
+          <span class="pill" data-ui="plan-pill-router">Rutas: wouter</span>
+          <span class="pill" data-ui="plan-pill-state">Estado: Jotai</span>
+        </div>
+      </header>
+
+      <section class="stack" data-ui="plan-current-architecture">
+        <h2 data-ui="architecture-title">Arquitectura Actual</h2>
+        <div class="grid two" data-ui="architecture-grid">
+          <article class="card" data-ui="architecture-inscripciones-card">
+            <h3 data-ui="architecture-inscripciones-title">Inscripciones</h3>
+            <p data-ui="architecture-inscripciones-text">La ruta <code data-ui="architecture-code-inscripciones-route">/backoffice/inscripciones</code> y su variante con slug cargan <code data-ui="architecture-code-inscripciones-file">src/pages/backoffice/inscripciones/Inscripciones.tsx</code>. Si la competición actual es FER, delega en <code data-ui="architecture-code-fer-file">FerInscripcionesPage</code>. La tabla usa <code data-ui="architecture-code-responsive-table">ResponsiveTable</code>, cuyo flag <code data-ui="architecture-code-sticky">sticky</code> fija la primera columna durante scroll horizontal.</p>
+          </article>
+          <article class="card" data-ui="architecture-users-card">
+            <h3 data-ui="architecture-users-title">Users</h3>
+            <p data-ui="architecture-users-text"><code data-ui="architecture-code-users-route">/backoffice/users</code> renderiza <code data-ui="architecture-code-users-page">UsersPage.tsx</code>. Esta página contiene role cards, tabla de miembros y modales inline de detalle. Ya existen páginas separadas <code data-ui="architecture-code-role-page">RoleDetailPage.tsx</code>, <code data-ui="architecture-code-member-page">MemberDetailPage.tsx</code> y <code data-ui="architecture-code-new-page">NewMemberPage.tsx</code>, pero las rutas con slug no están completas para detalle de roles/miembros.</p>
+          </article>
+        </div>
+        <div class="grid three" data-ui="architecture-dependencies-grid">
+          <article class="card" data-ui="architecture-dependency-pdf">
+            <h3 data-ui="architecture-dependency-pdf-title">PDF</h3>
+            <p data-ui="architecture-dependency-pdf-text"><code data-ui="architecture-code-jspdf">jspdf</code> y <code data-ui="architecture-code-autotable">jspdf-autotable</code> ya están instalados. <code data-ui="architecture-code-pdf-export">src/utils/pdfExport.ts</code> ya usa <code data-ui="architecture-code-landscape">orientation: 'landscape'</code> y <code data-ui="architecture-code-a4">format: 'a4'</code>.</p>
+          </article>
+          <article class="card" data-ui="architecture-dependency-icons">
+            <h3 data-ui="architecture-dependency-icons-title">Iconos</h3>
+            <p data-ui="architecture-dependency-icons-text"><code data-ui="architecture-code-lucide-package">lucide-react</code> ya está instalado y usado en inscripciones. Se puede usar directamente en users para iconos como <code data-ui="architecture-code-eye">Eye</code>, <code data-ui="architecture-code-user-plus">UserPlus</code>, <code data-ui="architecture-code-pencil">Pencil</code>, <code data-ui="architecture-code-trash">Trash2</code> y <code data-ui="architecture-code-shield">Shield</code>.</p>
+          </article>
+          <article class="card" data-ui="architecture-dependency-dropdown">
+            <h3 data-ui="architecture-dependency-dropdown-title">Dropdown Reutilizable</h3>
+            <p data-ui="architecture-dependency-dropdown-text">El componente existente es <code data-ui="architecture-code-custom-selector">src/components/ui/CustomSelector/CustomSelector.tsx</code>. En users quedan selects nativos en <code data-ui="architecture-code-users-selects">UsersPage.tsx</code>, <code data-ui="architecture-code-member-selects">MemberDetailPage.tsx</code> y <code data-ui="architecture-code-new-selects">NewMemberPage.tsx</code>.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="stack" data-ui="plan-files-section">
+        <h2 data-ui="files-title">Archivos Concretos A Modificar</h2>
+        <table data-ui="files-table">
+          <thead data-ui="files-table-head">
+            <tr data-ui="files-table-head-row">
+              <th data-ui="files-th-area">Área</th>
+              <th data-ui="files-th-file">Archivo</th>
+              <th data-ui="files-th-purpose">Propósito</th>
+            </tr>
+          </thead>
+          <tbody data-ui="files-table-body">
+            <tr data-ui="files-row-inscripciones-main">
+              <td data-ui="files-cell-inscripciones-main-area">Inscripciones</td>
+              <td data-ui="files-cell-inscripciones-main-path"><code data-ui="files-code-inscripciones-main">backoffice/src/pages/backoffice/inscripciones/Inscripciones.tsx</code></td>
+              <td data-ui="files-cell-inscripciones-main-purpose">Actualizar botón PDF, abrir modal al click en nombre, quitar sticky en columna nombre y mantener handlers memoizados.</td>
+            </tr>
+            <tr data-ui="files-row-fer-page">
+              <td data-ui="files-cell-fer-page-area">Inscripciones FER</td>
+              <td data-ui="files-cell-fer-page-path"><code data-ui="files-code-fer-page">backoffice/src/pages/backoffice/inscripciones/fer-components/FerInscripcionesPage.tsx</code></td>
+              <td data-ui="files-cell-fer-page-purpose">Replicar comportamiento de click en nombre, quitar sticky y añadir export PDF si la tarea aplica también a FER.</td>
+            </tr>
+            <tr data-ui="files-row-pdf-util">
+              <td data-ui="files-cell-pdf-util-area">Exportación</td>
+              <td data-ui="files-cell-pdf-util-path"><code data-ui="files-code-pdf-util">backoffice/src/utils/pdfExport.ts</code></td>
+              <td data-ui="files-cell-pdf-util-purpose">Validar columnas anchas, ancho automático y opción de título/subtítulo sin cambiar la orientación A4 horizontal ya existente.</td>
+            </tr>
+            <tr data-ui="files-row-users-page">
+              <td data-ui="files-cell-users-page-area">Users</td>
+              <td data-ui="files-cell-users-page-path"><code data-ui="files-code-users-page">backoffice/src/pages/backoffice/users/UsersPage.tsx</code></td>
+              <td data-ui="files-cell-users-page-purpose">Sustituir modales de detalle por navegación, añadir botones CRUD visibles en cards/rows y migrar selects a CustomSelector si quedan en create modal.</td>
+            </tr>
+            <tr data-ui="files-row-app-routes">
+              <td data-ui="files-cell-app-routes-area">Routing</td>
+              <td data-ui="files-cell-app-routes-path"><code data-ui="files-code-app-routes">backoffice/src/app.tsx</code></td>
+              <td data-ui="files-cell-app-routes-purpose">Añadir rutas con y sin slug para <code data-ui="files-code-route-role">users/roles/:roleSlug</code>, <code data-ui="files-code-route-member">users/members/:usuarioId</code> y alinear el nombre del parámetro con MemberDetailPage.</td>
+            </tr>
+            <tr data-ui="files-row-role-detail">
+              <td data-ui="files-cell-role-detail-area">Detalle rol</td>
+              <td data-ui="files-cell-role-detail-path"><code data-ui="files-code-role-detail">backoffice/src/pages/backoffice/users/RoleDetailPage.tsx</code></td>
+              <td data-ui="files-cell-role-detail-purpose">Pulir navegación de miembros, botones UX y compatibilidad con ruta sin slug si se mantiene.</td>
+            </tr>
+            <tr data-ui="files-row-member-detail">
+              <td data-ui="files-cell-member-detail-area">Detalle usuario</td>
+              <td data-ui="files-cell-member-detail-path"><code data-ui="files-code-member-detail">backoffice/src/pages/backoffice/users/MemberDetailPage.tsx</code></td>
+              <td data-ui="files-cell-member-detail-purpose">Migrar select de rol a CustomSelector, resolver parámetro <code data-ui="files-code-param-usuario">usuarioId</code> y mantener acciones guardar/eliminar.</td>
+            </tr>
+            <tr data-ui="files-row-new-member">
+              <td data-ui="files-cell-new-member-area">Nuevo usuario</td>
+              <td data-ui="files-cell-new-member-path"><code data-ui="files-code-new-member">backoffice/src/pages/backoffice/users/NewMemberPage.tsx</code></td>
+              <td data-ui="files-cell-new-member-purpose">Migrar select de rol a CustomSelector y respetar query param <code data-ui="files-code-query-role">role</code>.</td>
+            </tr>
+            <tr data-ui="files-row-users-index">
+              <td data-ui="files-cell-users-index-area">Exports</td>
+              <td data-ui="files-cell-users-index-path"><code data-ui="files-code-users-index">backoffice/src/pages/backoffice/users/index.ts</code></td>
+              <td data-ui="files-cell-users-index-purpose">Verificar exports de páginas existentes si se añade o renombra alguna vista de detalle.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="stack" data-ui="plan-tasks-section">
+        <h2 data-ui="tasks-title">Tareas Pequeñas Y Criterios De Aceptación</h2>
+
+        <article class="task stack" data-ui="task-1">
+          <h3 data-ui="task-1-title">Tarea 1: Descargar inscripciones en PDF A4 horizontal</h3>
+          <p data-ui="task-1-approach">En <code data-ui="task-1-code-page">Inscripciones.tsx</code> ya existe <code data-ui="task-1-code-handler">handleExportPdf</code> y el botón <code data-ui="task-1-code-button">Exportar PDF</code>. La implementación debe endurecer el alcance: confirmar que exporta la lista visible o la lista completa según producto, mejorar columnas para A4 landscape y reutilizar <code data-ui="task-1-code-util">exportPdf</code>.</p>
+          <ol data-ui="task-1-subtasks">
+            <li data-ui="task-1-subtask-1">Validar si el PDF debe exportar página actual filtrada o todos los resultados filtrados; si debe ser completo, añadir método API o endpoint frontend para traer todos antes de exportar.</li>
+            <li data-ui="task-1-subtask-2">Ajustar columnas para A4 horizontal: nombre, email, teléfono, sexo, categoría, club, marca, fecha y estado.</li>
+            <li data-ui="task-1-subtask-3">Usar icono <code data-ui="task-1-code-download">Download</code> de lucide-react y añadir estado disabled/loading si la exportación requiere fetch extra.</li>
+            <li data-ui="task-1-subtask-4">Si FER también entra dentro de “inscripciones”, añadir exportación PDF equivalente en <code data-ui="task-1-code-fer">FerInscripcionesPage.tsx</code>.</li>
+          </ol>
+          <ul data-ui="task-1-acceptance">
+            <li data-ui="task-1-acceptance-1">El botón genera un PDF <code data-ui="task-1-code-pdf">.pdf</code> en orientación horizontal A4.</li>
+            <li data-ui="task-1-acceptance-2">El PDF muestra cabecera, fecha de generación y tabla legible sin columnas cortadas en desktop.</li>
+            <li data-ui="task-1-acceptance-3">El contenido respeta filtros activos o se documenta/exporta claramente como página actual.</li>
+            <li data-ui="task-1-acceptance-4">No se añaden paquetes nuevos porque <code data-ui="task-1-code-dep-jspdf">jspdf</code> y <code data-ui="task-1-code-dep-autotable">jspdf-autotable</code> ya existen.</li>
+          </ul>
+        </article>
+
+        <article class="task stack" data-ui="task-2">
+          <h3 data-ui="task-2-title">Tarea 2: Click en nombre abre edición y deja de ser sticky</h3>
+          <p data-ui="task-2-approach">La columna nombre de <code data-ui="task-2-code-table-columns">tableColumns</code> usa <code data-ui="task-2-code-sticky">sticky: true</code>, por eso queda fija al hacer scroll horizontal. La celda debe convertirse en un botón semántico que llama a <code data-ui="task-2-code-set-edit">setEditAthlete(a)</code> y el flag sticky debe eliminarse.</p>
+          <ol data-ui="task-2-subtasks">
+            <li data-ui="task-2-subtask-1">Quitar <code data-ui="task-2-code-sticky-remove">sticky: true</code> de la columna nombre en <code data-ui="task-2-code-inscripciones">Inscripciones.tsx</code>.</li>
+            <li data-ui="task-2-subtask-2">Cambiar el render de nombre/email por un <code data-ui="task-2-code-button-tag">button</code> full-width con <code data-ui="task-2-code-aria">aria-label</code> y <code data-ui="task-2-code-data">data-ui</code> único por atleta.</li>
+            <li data-ui="task-2-subtask-3">Actualizar dependencias del <code data-ui="task-2-code-usememo">useMemo</code> de columnas para incluir el handler estable de abrir edición.</li>
+            <li data-ui="task-2-subtask-4">Repetir en FER para <code data-ui="task-2-code-fer-column">ferTableColumns</code> si aplica al flujo FER.</li>
+          </ol>
+          <ul data-ui="task-2-acceptance">
+            <li data-ui="task-2-acceptance-1">Al hacer click sobre el nombre del atleta se abre el modal <code data-ui="task-2-code-modal">Editar Atleta</code>.</li>
+            <li data-ui="task-2-acceptance-2">La columna nombre se desplaza junto con el resto de columnas durante scroll horizontal.</li>
+            <li data-ui="task-2-acceptance-3">Los botones de acción editar, QR y eliminar siguen funcionando sin propagación accidental.</li>
+            <li data-ui="task-2-acceptance-4">Todos los tags nuevos en TSX incluyen atributo <code data-ui="task-2-code-data-attribute">data-ui</code> o equivalente.</li>
+          </ul>
+        </article>
+
+        <article class="task stack" data-ui="task-3">
+          <h3 data-ui="task-3-title">Tarea 3: UX buttons CRUD con lucide-react en users</h3>
+          <p data-ui="task-3-approach">Actualmente las role cards son botones completos y cada row solo abre detalle desde la celda de nombre. Se deben añadir acciones visibles para que el usuario entienda qué puede hacer: ver detalle, añadir miembro en rol, editar rol de usuario y eliminar si hay permisos.</p>
+          <ol data-ui="task-3-subtasks">
+            <li data-ui="task-3-subtask-1">Importar iconos de <code data-ui="task-3-code-lucide">lucide-react</code> en <code data-ui="task-3-code-users-page">UsersPage.tsx</code>: <code data-ui="task-3-code-eye">Eye</code>, <code data-ui="task-3-code-user-plus">UserPlus</code>, <code data-ui="task-3-code-pencil">Pencil</code>, <code data-ui="task-3-code-trash">Trash2</code>, <code data-ui="task-3-code-arrow">ArrowRight</code>.</li>
+            <li data-ui="task-3-subtask-2">Actualizar <code data-ui="task-3-code-role-card">RoleCard</code> para mostrar botones “Ver rol” y “Añadir miembro” si <code data-ui="task-3-code-can-manage">canManageUsers</code> es true.</li>
+            <li data-ui="task-3-subtask-3">Actualizar <code data-ui="task-3-code-member-row">MemberRow</code> para incluir columna acciones con botones “Ver”, “Editar rol” y “Eliminar”, deshabilitados o ocultos según permisos.</li>
+            <li data-ui="task-3-subtask-4">Asegurar que clicks en botones no disparan navegación duplicada usando <code data-ui="task-3-code-stop">stopPropagation</code> si la fila completa también navega.</li>
+          </ol>
+          <ul data-ui="task-3-acceptance">
+            <li data-ui="task-3-acceptance-1">Cada role card comunica visualmente al menos la acción de ver detalle y, con permiso, añadir usuario.</li>
+            <li data-ui="task-3-acceptance-2">Cada row de usuarios muestra acciones CRUD comprensibles con icono, label accesible y estado disabled cuando aplique.</li>
+            <li data-ui="task-3-acceptance-3">Los iconos provienen de <code data-ui="task-3-code-lucide-package">lucide-react</code>.</li>
+            <li data-ui="task-3-acceptance-4">La tabla mantiene responsividad y ancho mínimo sin romper mobile.</li>
+          </ul>
+        </article>
+
+        <article class="task stack" data-ui="task-4">
+          <h3 data-ui="task-4-title">Tarea 4: Cambiar modal de detalle por rutas de detalle</h3>
+          <p data-ui="task-4-approach">La base ya existe: <code data-ui="task-4-code-role-page">RoleDetailPage.tsx</code> y <code data-ui="task-4-code-member-page">MemberDetailPage.tsx</code>. La tarea principal es que <code data-ui="task-4-code-users-page">UsersPage.tsx</code> navegue con <code data-ui="task-4-code-set-location">useLocation</code> en vez de setear <code data-ui="task-4-code-selected-role">selectedRoleAtom</code> o <code data-ui="task-4-code-selected-member">selectedMemberAtom</code>.</p>
+          <ol data-ui="task-4-subtasks">
+            <li data-ui="task-4-subtask-1">Añadir rutas faltantes con slug en <code data-ui="task-4-code-app">app.tsx</code>: <code data-ui="task-4-code-route-role-slug">/backoffice/:competicionSlug/users/roles/:roleSlug</code>, <code data-ui="task-4-code-route-member-slug">/backoffice/:competicionSlug/users/members/:usuarioId</code> y <code data-ui="task-4-code-route-new-slug">/backoffice/:competicionSlug/users/new</code>.</li>
+            <li data-ui="task-4-subtask-2">Corregir la ruta sin slug de miembro: actualmente usa <code data-ui="task-4-code-userid">:userId</code> pero la página lee <code data-ui="task-4-code-usuarioid">params.usuarioId</code>.</li>
+            <li data-ui="task-4-subtask-3">Reemplazar <code data-ui="task-4-code-handle-role">handleSelectRole</code> por navegación a rol y <code data-ui="task-4-code-handle-member">handleSelectMember</code> por navegación a miembro.</li>
+            <li data-ui="task-4-subtask-4">Eliminar o dejar sin uso los modales <code data-ui="task-4-code-member-modal">MemberDetailModal</code>, <code data-ui="task-4-code-role-modal">RoleDetailModal</code> y atoms de selección si ya no son necesarios.</li>
+          </ol>
+          <ul data-ui="task-4-acceptance">
+            <li data-ui="task-4-acceptance-1">Click en role card navega a una URL de detalle de rol.</li>
+            <li data-ui="task-4-acceptance-2">Click en user row navega a una URL de detalle de usuario.</li>
+            <li data-ui="task-4-acceptance-3">Recargar la página de detalle mantiene la vista y vuelve a consultar datos por API.</li>
+            <li data-ui="task-4-acceptance-4">No se renderizan modales de detalle desde <code data-ui="task-4-code-users-modal-free">UsersPage</code>.</li>
+          </ul>
+        </article>
+
+        <article class="task stack" data-ui="task-5">
+          <h3 data-ui="task-5-title">Tarea 5: Migrar option dropdowns a CustomSelector</h3>
+          <p data-ui="task-5-approach">El dropdown reutilizable es <code data-ui="task-5-code-custom-selector">CustomSelector</code>. En users quedan selects nativos en creación inline, detalle de miembro y página de nuevo miembro. Se recomienda centralizar las opciones de rol para evitar duplicación y mantener permisos por rol en helpers.</p>
+          <ol data-ui="task-5-subtasks">
+            <li data-ui="task-5-subtask-1">Crear o reutilizar constantes de opciones en <code data-ui="task-5-code-constants">UsersPage.constants.ts</code> con shape <code data-ui="task-5-code-select-option">SelectOption&lt;UserRole&gt;[]</code> o <code data-ui="task-5-code-role-slug-option">SelectOption&lt;RoleSlug&gt;[]</code>.</li>
+            <li data-ui="task-5-subtask-2">Sustituir select en <code data-ui="task-5-code-member-detail">MemberDetailPage.tsx</code> por <code data-ui="task-5-code-custom-selector-member">CustomSelector</code>, manteniendo disabled y permisos.</li>
+            <li data-ui="task-5-subtask-3">Sustituir select en <code data-ui="task-5-code-new-member">NewMemberPage.tsx</code> por <code data-ui="task-5-code-custom-selector-new">CustomSelector</code>.</li>
+            <li data-ui="task-5-subtask-4">Si se conserva create modal en <code data-ui="task-5-code-users-modal">UsersPage.tsx</code>, migrar también su select de rol; si se elimina por rutas, no dejar código muerto.</li>
+          </ol>
+          <ul data-ui="task-5-acceptance">
+            <li data-ui="task-5-acceptance-1">No quedan <code data-ui="task-5-code-native-select">&lt;select&gt;</code> nativos en páginas users.</li>
+            <li data-ui="task-5-acceptance-2">El valor seleccionado, disabled y errores se comportan igual que antes.</li>
+            <li data-ui="task-5-acceptance-3">Las opciones respetan permisos: admin no puede asignar root/admin; root sí.</li>
+            <li data-ui="task-5-acceptance-4">Los dropdowns se abren en portal sin quedar cortados por contenedores con overflow.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="stack" data-ui="plan-sequence-section">
+        <h2 data-ui="sequence-title">Orden Recomendado De Implementación</h2>
+        <ol data-ui="sequence-list">
+          <li data-ui="sequence-item-1">Corregir rutas en <code data-ui="sequence-code-app">app.tsx</code> y navegación de users para desbloquear el cambio modal a detailed view.</li>
+          <li data-ui="sequence-item-2">Actualizar UX CRUD de users con lucide-react y eliminar código muerto de modales si queda reemplazado por rutas.</li>
+          <li data-ui="sequence-item-3">Migrar selects de users a <code data-ui="sequence-code-selector">CustomSelector</code> y consolidar opciones de rol.</li>
+          <li data-ui="sequence-item-4">Aplicar cambios de tabla en inscripciones: click en nombre y quitar sticky.</li>
+          <li data-ui="sequence-item-5">Endurecer exportación PDF y validar A4 horizontal con datos reales.</li>
+        </ol>
+      </section>
+
+      <section class="stack" data-ui="plan-risks-section">
+        <h2 data-ui="risks-title">Riesgos Y Decisiones Pendientes</h2>
+        <div class="grid two" data-ui="risks-grid">
+          <article class="card" data-ui="risk-pdf-scope">
+            <span class="badge warn" data-ui="risk-pdf-badge">Decisión</span>
+            <h3 data-ui="risk-pdf-title">PDF: página actual vs lista completa</h3>
+            <p data-ui="risk-pdf-text">El handler actual exporta <code data-ui="risk-pdf-code-athletes">athletes</code>, que normalmente representa la página actual. Si producto espera “lista completa”, habrá que añadir una carga paginada completa o endpoint de exportación PDF/JSON.</p>
+          </article>
+          <article class="card" data-ui="risk-fer-scope">
+            <span class="badge warn" data-ui="risk-fer-badge">Decisión</span>
+            <h3 data-ui="risk-fer-title">Alcance FER</h3>
+            <p data-ui="risk-fer-text">La pantalla de inscripciones bifurca a FER con <code data-ui="risk-fer-code-page">FerInscripcionesPage</code>. Conviene confirmar si las tareas 1 y 2 aplican a todas las inscripciones o solo al flujo GR Cup estándar.</p>
+          </article>
+          <article class="card" data-ui="risk-routes">
+            <span class="badge info" data-ui="risk-routes-badge">Técnico</span>
+            <h3 data-ui="risk-routes-title">Parámetros de ruta inconsistentes</h3>
+            <p data-ui="risk-routes-text"><code data-ui="risk-routes-code-app">app.tsx</code> define <code data-ui="risk-routes-code-userid">:userId</code>, mientras <code data-ui="risk-routes-code-page">MemberDetailPage</code> lee <code data-ui="risk-routes-code-usuarioid">usuarioId</code>. Esto debe corregirse para evitar detalles vacíos.</p>
+          </article>
+          <article class="card" data-ui="risk-data-attributes">
+            <span class="badge ok" data-ui="risk-data-badge">Regla repo</span>
+            <h3 data-ui="risk-data-title">Atributos data obligatorios</h3>
+            <p data-ui="risk-data-text">Todo tag nuevo en TSX/HTML debe incluir <code data-ui="risk-data-code">data-ui</code>, <code data-ui="risk-data-code-slot">data-slot</code> o equivalente, con valor diferenciador dentro del bloque lógico.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="stack" data-ui="plan-validation-section">
+        <h2 data-ui="validation-title">Validación Final</h2>
+        <ul data-ui="validation-list">
+          <li data-ui="validation-item-typecheck">Ejecutar <code data-ui="validation-code-typecheck">npm run typecheck</code> en <code data-ui="validation-code-backoffice">backoffice/</code>.</li>
+          <li data-ui="validation-item-build">Ejecutar <code data-ui="validation-code-build">npm run build</code> en <code data-ui="validation-code-build-dir">backoffice/</code>.</li>
+          <li data-ui="validation-item-manual-pdf">Validar manualmente PDF con suficientes inscripciones para confirmar layout A4 horizontal y paginación.</li>
+          <li data-ui="validation-item-manual-users">Validar manualmente navegación desde role card, user row, botón añadir, detalle rol y detalle usuario.</li>
+          <li data-ui="validation-item-mobile">Revisar mobile: tabla users con acciones, scroll horizontal de inscripciones y dropdowns en portal.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

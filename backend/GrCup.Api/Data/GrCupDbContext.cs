@@ -127,15 +127,19 @@ public class GrCupDbContext : DbContext
             entity.HasIndex(e => e.Slug).IsUnique();
             entity.HasIndex(e => e.Activo);
             entity.HasIndex(e => e.Tipo);
+            entity.Property(e => e.ModulesConfig).HasColumnType("json");
         });
 
         modelBuilder.Entity<Usuario>(entity => {
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.IsRoot);
             entity.HasIndex(e => e.IsSuperadmin);
         });
 
         modelBuilder.Entity<UsuarioCompeticion>(entity => {
             entity.HasIndex(e => new { e.UsuarioId, e.CompeticionId }).IsUnique();
+            entity.Property(e => e.Role).HasMaxLength(50);
+            entity.Property(e => e.InvitedByEmail).HasMaxLength(255);
             entity.HasOne(uc => uc.Usuario)
                 .WithMany(u => u.UsuarioCompeticiones)
                 .HasForeignKey(uc => uc.UsuarioId)
