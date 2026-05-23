@@ -3,8 +3,7 @@ import { Head } from '../../components/Head';
 import type { TutorialVideo } from '../../constants/videoUrls';
 import { Heart, MessageCircle, Share2, ChevronUp, Send } from 'lucide-react';
 
-// In dev via Vite proxy, use relative paths so the Vite dev server proxies them
-// In production, point to the real API
+// Use relative paths by default so nginx/Vite proxy route API requests.
 const API_BASE = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL.replace(/\/+$/, '')
   : '';
@@ -93,6 +92,12 @@ function VideoSlide({
   const commentInputRef = useRef<HTMLInputElement>(null);
   const [showPauseIndicator, setShowPauseIndicator] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = 1;
+    }
+  }, []);
 
   // Like state
   const [liked, setLiked] = useState(false);
@@ -346,7 +351,6 @@ function VideoSlide({
           className="h-full w-auto aspect-[9/16] max-h-full object-contain"
           playsInline
           loop
-          muted
           preload="metadata"
           onClick={handleVideoClick}
         >

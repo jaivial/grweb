@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { MapPin, Mail } from 'lucide-react';
-import { FER_COLORS, FER_EVENT } from '../constants';
+import { FER_COLORS, FER_EVENT, FER_CUP_LOGO_IMAGE } from '../constants';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 interface FerFooterProps {
   contactEmail?: string;
@@ -8,10 +9,11 @@ interface FerFooterProps {
 
 export function FerFooter({ contactEmail }: FerFooterProps) {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const logoSrc = useCdnImage(FER_CUP_LOGO_IMAGE);
 
   return (
     <footer
-      className="py-10 sm:py-12 px-4"
+      className="py-10 sm:py-12 px-4 overflow-x-hidden"
       style={{ backgroundColor: FER_COLORS.bgDark }}
       data-ui="fer-footer"
     >
@@ -20,7 +22,7 @@ export function FerFooter({ contactEmail }: FerFooterProps) {
           {/* Logo image */}
           <div className="mb-6" data-ui="fer-footer-logo-image-wrapper">
             <img
-              src="https://jaimedigitalstudio.b-cdn.net/fer/media/icons/ferwebicons/Gemini_Generated_Image_ocrwoeocrwoeocrw-removebg-preview.webp"
+              src={logoSrc}
               alt="FER Entrenamiento"
               className="h-16 sm:h-20 w-auto object-contain"
               loading="lazy"

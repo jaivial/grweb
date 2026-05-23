@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { X, Camera } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { FER_COLORS, NAV_LINKS } from '../../pages/fer/constants';
+import { FER_COLORS, FER_CUP_LOGO_IMAGE, NAV_LINKS } from '../../pages/fer/constants';
+import { useCdnImage } from '@hooks/useCdnImage';
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface MobileSidebarProps {
 export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
   const [location, navigate] = useLocation();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const logoSrc = useCdnImage(FER_CUP_LOGO_IMAGE);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -74,35 +76,9 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
           style={{ borderBottom: `1px solid ${FER_COLORS.accent}15` }}
           data-ui="mobile-sidebar-header"
         >
-          <div
-            className="flex items-center gap-2"
-            data-ui="mobile-sidebar-logo"
-          >
-            <span
-              className="text-lg font-black"
-              style={{ color: FER_COLORS.text }}
-              data-ui="mobile-sidebar-logo-fer"
-            >
-              FER CUP II 2026
-            </span>
-            <span
-              className="text-xs font-medium"
-              style={{ color: FER_COLORS.glow }}
-              data-ui="mobile-sidebar-logo-sub"
-            >
-              ENTRENAMIENTO
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg transition-colors"
-            style={{ color: FER_COLORS.textMuted }}
-            data-ui="mobile-sidebar-close"
-            aria-label="Cerrar menú"
-          >
-            <X size={20} data-ui="mobile-sidebar-close-icon" />
-          </button>
+          FER CUP II
         </div>
+
 
         <nav className="flex-1 py-4" data-ui="mobile-sidebar-nav">
           {NAV_LINKS.map((link) => {
@@ -132,14 +108,13 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
           style={{ borderTop: `1px solid ${FER_COLORS.accent}15` }}
           data-ui="mobile-sidebar-footer"
         >
-          <div
-            className="flex items-center gap-2 text-xs"
-            style={{ color: FER_COLORS.textMuted }}
-            data-ui="mobile-sidebar-footer-content"
-          >
-            <Camera size={14} data-ui="mobile-sidebar-footer-icon" />
-            <span data-ui="mobile-sidebar-footer-text">Valencia, Valencia</span>
-          </div>
+          <img
+            src={logoSrc}
+            alt="FER Cup Logo"
+            className="mx-auto h-12 w-auto max-w-full object-contain opacity-90"
+            loading="lazy"
+            data-ui="mobile-sidebar-footer-logo"
+          />
         </div>
       </motion.div>
     </>

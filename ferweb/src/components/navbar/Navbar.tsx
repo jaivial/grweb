@@ -88,7 +88,7 @@ export function Navbar() {
             animate={navbarVariants.animate}
             exit={navbarVariants.exit}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed top-0 left-0 right-0 z-50"
+            className="fixed top-0 left-0 right-0 z-50 overflow-x-hidden"
             style={{
               backgroundColor: `${FER_COLORS.bgDark}e6`,
               backdropFilter: 'blur(20px)',
@@ -118,13 +118,7 @@ export function Navbar() {
                 >
                   FER CUP II 2026
                 </span>
-                <span
-                  className="text-xs font-medium hidden sm:inline"
-                  style={{ color: FER_COLORS.glow }}
-                  data-ui="fer-navbar-logo-sub"
-                >
-                  ENTRENAMIENTO
-                </span>
+
               </button>
 
               <nav className="hidden xl:flex items-center gap-1" data-ui="fer-navbar-desktop-nav">

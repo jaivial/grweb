@@ -1,3 +1,4 @@
+import type { MotionValue } from 'framer-motion';
 import type { Schedule, ScheduleGroupedByDate } from '../../../../types/api';
 
 export interface ConsolidatedRow {
@@ -40,7 +41,7 @@ export interface DateBlockProps {
   group: ScheduleGroupedByDate;
   index: number;
   isLast: boolean;
-  timelineProgress: number;
+  timelineProgress: MotionValue<number>;
 }
 
 export { type Schedule, type ScheduleGroupedByDate };

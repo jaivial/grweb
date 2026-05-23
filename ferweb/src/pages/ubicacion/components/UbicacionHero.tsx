@@ -111,13 +111,13 @@ export function UbicacionHero() {
               style={{ color: FER_COLORS.text }}
               data-ui="ubicacion-hero-title-text"
             >
-              Cómo{' '}
+              Cómo llegar al{' '}
             </span>
             <span
               style={{ color: FER_COLORS.glow }}
               data-ui="ubicacion-hero-title-highlight"
             >
-              llegar
+              Pabellón
             </span>
           </motion.h1>
 
@@ -128,8 +128,7 @@ export function UbicacionHero() {
             style={{ color: FER_COLORS.textMuted }}
             data-ui="ubicacion-hero-subtitle"
           >
-            Encuentra el GRS Club en Valencia, a solo 25 minutos de Valencia.
-            Un espacio diseñado para el rendimiento y la comunidad.
+            Encuentra el Pabellón de Almussafes y planifica tu ruta para llegar al evento sin complicaciones.
           </motion.p>
 
           {/* CTA */}
@@ -152,7 +151,7 @@ export function UbicacionHero() {
                 data-ui="ubicacion-hero-cta-icon"
               />
               <span data-ui="ubicacion-hero-cta-text">
-                VER MAPA
+                VER CÓMO LLEGAR
               </span>
             </a>
           </motion.div>

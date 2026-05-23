@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Mail, ArrowRight } from 'lucide-react';
+import { Camera, ArrowRight } from 'lucide-react';
 import { FER_COLORS, FER_EVENT } from '../../fer/constants';
 import { CONTACT_CARDS, VENUE_INFO, UBICACION_SECTION_IDS } from '../constants';
 
@@ -105,11 +105,7 @@ export function ContactSection() {
               }}
               data-ui={`ubicacion-contact-card-${i}`}
             >
-              {i === 0 ? (
-                <Camera size={20} style={{ color: FER_COLORS.accent }} data-ui={`ubicacion-contact-card-icon-${i}`} />
-              ) : (
-                <Mail size={20} style={{ color: FER_COLORS.accent }} data-ui={`ubicacion-contact-card-icon-${i}`} />
-              )}
+              <Camera size={20} style={{ color: FER_COLORS.accent }} data-ui={`ubicacion-contact-card-icon-${i}`} />
               <div data-ui={`ubicacion-contact-card-info-${i}`}>
                 <p
                   className="text-xs uppercase tracking-wider font-medium"

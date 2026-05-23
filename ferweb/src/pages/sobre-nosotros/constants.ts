@@ -14,20 +14,25 @@ export const VISION_STATEMENT = {
 } as const;
 
 export const HISTORY_TEXT = [
-  'GR Strength nació en Valencia con una idea clara: crear un espacio donde la pasión por el powerlifting y el entrenamiento de fuerza se combinara con un ambiente cercano y profesional.',
-  'Lo que empezó como un pequeño proyecto personal ha crecido hasta convertirse en una referencia del powerlifting en Valencia. Nuestro club, el GRS Club, ha sido testigo de cientos de primeras competiciones, marcas personales superadas y amistades forjadas sobre la plataforma.',
-  'Hoy, con el FER CUP, damos un paso más: crear un evento donde tanto principiantes como experimentados puedan vivir la emoción de una competición real en un entorno acogedor y seguro.',
+  'GR Strength nació como un grupo de atletas que veían el powerlifting como algo mucho más profundo que levantar muchos kilos. Desde el principio teníamos una idea clara: convertir GRS en el hogar de todo atleta que quisiera vivir este deporte en equipo.',
+  'Lo que empezó como un pequeño proyecto personal ha crecido hasta convertirse en el club más grande de España, con una sede increíble: FER Entrenamiento, el mejor centro especializado en powerlifting de toda Valencia.',
+  'Hoy, con esta FER CUP, damos un paso más: crear un evento donde tanto principiantes como atletas experimentados puedan vivir la emoción de una competición real en un entorno acogedor y seguro.',
 ] as const;
 
 export const CORE_VALUES = [
   {
-    title: 'Camaradería',
-    description: 'Creemos en la fuerza del grupo. En FER, cada levantamiento se celebra entre todos, porque el éxito de uno es el éxito del equipo.',
+    title: 'Respeto',
+    description: 'No importa tu nivel, edad o experiencia. En FER hay sitio para todo el mundo que quiera mejorar y disfrutar del powerlifting.',
+    icon: 'heart' as const,
+  },
+  {
+    title: 'Equipo',
+    description: 'Creemos en la fuerza del grupo. En GRS, cada levantamiento se celebra entre todos, porque el éxito de uno es el éxito del equipo.',
     icon: 'users' as const,
   },
   {
     title: 'Superación',
-    description: 'Cada día es una oportunidad para ser mejor que ayer. Fomentamos la mejora constante, tanto dentro como fuera de la plataforma.',
+    description: 'Nos gusta ganar como al que más. Te apoyaremos en todo lo necesario para que cumplas tus objetivos. Fomentamos la mejora constante, tanto dentro como fuera de la plataforma.',
     icon: 'flame' as const,
   },
   {
@@ -35,30 +40,25 @@ export const CORE_VALUES = [
     description: 'Jueces certificados, spotters experimentados, equipamiento homologado. Cada detalle importa para que tu experiencia sea perfecta.',
     icon: 'shield' as const,
   },
-  {
-    title: 'Inclusión',
-    description: 'No importa tu nivel, edad o experiencia. En FER hay sitio para todo el mundo que quiera mejorar y disfrutar del powerlifting.',
-    icon: 'heart' as const,
-  },
 ] as const;
 
 export const TEAM_MEMBERS = [
   {
-    name: 'FER',
-    role: 'Fundador & Head Coach',
-    description: 'Apasionado del powerlifting con más de 10 años de experiencia formando atletas.',
+    name: 'GRS',
+    role: 'Mejor club español',
+    description: 'Directiva formada por un equipo experimentado en gestionar el club más grande y más laureado del país.',
     photoIndex: 0,
   },
   {
-    name: 'Equipo Técnico',
-    role: 'Jueces & Spotters',
-    description: 'Profesionales certificados FEDDF que garantizan la calidad de cada competición.',
+    name: 'Jueces & Spotters',
+    role: 'Equipo técnico',
+    description: 'Profesionales certificados internacionalmente que garantizan la calidad de cada competición.',
     photoIndex: 1,
   },
   {
     name: 'Comunidad',
-    role: 'Atletas & Voluntarios',
-    description: 'Más de 100 atletas forman la familia FER. Cada uno aporta algo único al grupo.',
+    role: 'Atletas & Staff',
+    description: 'Más de 100 atletas forman GRS. Cada uno aporta algo único al grupo.',
     photoIndex: 2,
   },
 ] as const;

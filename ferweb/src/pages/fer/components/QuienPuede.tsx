@@ -4,9 +4,9 @@ import { FER_COLORS, CLUB_PHOTOS, FER_QUIEN_PUEDE_SIN_ENTRENADOR_IMAGE, FER_QUIE
 import { useCdnImage } from '@hooks/useCdnImage';
 
 const PARTICIPANTS = [
-  { title: 'Afiliados del club GR Strength', desc: 'Precio especial…', bg: CLUB_PHOTOS.atmosphere[0] },
-  { title: 'Socios del gimnasio FER', desc: 'Precio especial…', bg: CLUB_PHOTOS.atmosphere[1] },
-  { title: 'Atletas externos a ambas entidades.', desc: 'Abierto a cualquier persona con ganas de competir', bg: CLUB_PHOTOS.atmosphere[2] },
+  { title: 'Afiliados del club GR Strength', bg: CLUB_PHOTOS.atmosphere[0] },
+  { title: 'Socios del gimnasio FER', bg: CLUB_PHOTOS.atmosphere[1] },
+  { title: 'ATLETAS DE OTROS CLUBES', desc: 'Abierto a cualquier persona con ganas de competir', bg: CLUB_PHOTOS.atmosphere[2] },
   { title: 'Principiantes.', desc: 'Evento diseñado para tu primera experiencia competitiva', bg: CLUB_PHOTOS.atmosphere[3] },
   { title: 'Atletas sin entrenador.', desc: 'Te ayudamos con tu preparación si no tienes coach', bg: FER_QUIEN_PUEDE_SIN_ENTRENADOR_IMAGE },
   { title: 'Atletas con experiencia.', desc: 'Para experimentados que quieran disfrutar de la tarima.', bg: FER_QUIEN_PUEDE_SIN_EXPERIENCIA_IMAGE },
@@ -123,13 +123,15 @@ export function QuienPuede() {
                 >
                   {item.title}
                 </h3>
-                <p
-                  className="text-sm sm:text-base leading-relaxed"
-                  style={{ color: FER_COLORS.textMuted }}
-                  data-ui="fer-quien-puede-card-desc"
-                >
-                  {item.desc}
-                </p>
+                {'desc' in item && (
+                  <p
+                    className="text-sm sm:text-base leading-relaxed"
+                    style={{ color: FER_COLORS.textMuted }}
+                    data-ui="fer-quien-puede-card-desc"
+                  >
+                    {item.desc}
+                  </p>
+                )}
               </div>
             </motion.div>
           ))}

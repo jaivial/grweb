@@ -16,6 +16,7 @@ interface FloatingPhotoProps {
   startScale: number;
   size: 'sm' | 'md' | 'lg';
   zIndex: number;
+  moveRange: [number, number];
   visibleRange: [number, number];
 }
 
@@ -31,17 +32,18 @@ function FloatingPhoto({
   startScale,
   size,
   zIndex,
+  moveRange,
   visibleRange,
 }: FloatingPhotoProps) {
   const resolvedSrc = useCdnImage(src);
 
-  const x = useTransform(scrollProgress, [0, 1], [startX, endX]);
-  const y = useTransform(scrollProgress, [0, 1], [startY, endY]);
-  const rotate = useTransform(scrollProgress, [0, 1], [startRotation, endRotation]);
-  const scale = useTransform(scrollProgress, [0, 0.5, 1], [startScale, 1.05, startScale * 0.95]);
+  const x = useTransform(scrollProgress, [0, moveRange[0], moveRange[1], 1], [startX, startX, endX, endX]);
+  const y = useTransform(scrollProgress, [0, moveRange[0], moveRange[1], 1], [startY, startY, endY, endY]);
+  const rotate = useTransform(scrollProgress, [0, moveRange[0], moveRange[1], 1], [startRotation, startRotation, endRotation, endRotation]);
+  const scale = useTransform(scrollProgress, [visibleRange[0], moveRange[0], moveRange[1], visibleRange[1]], [startScale, 1, 1.05, startScale * 0.98]);
   const opacity = useTransform(
     scrollProgress,
-    [visibleRange[0], visibleRange[0] + 0.08, visibleRange[1] - 0.08, visibleRange[1]],
+    [visibleRange[0], visibleRange[0] + 0.06, visibleRange[1] - 0.08, visibleRange[1]],
     [0, 0.9, 0.9, 0]
   );
 
@@ -116,12 +118,12 @@ function ParallaxText({
 
   return (
     <div
-      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+      className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center overflow-x-clip"
       style={{ zIndex }}
       data-ui="parallax-text-wrapper"
     >
       <motion.h2
-        style={{ y, opacity, scale, color, fontSize, fontWeight: 900, fontFamily: '"Syne", "Inter", system-ui, sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+        style={{ y, opacity, scale, color, fontSize, fontWeight: 900, fontFamily: '"Syne", "Inter", system-ui, sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase', textShadow: `0 0 24px ${FER_COLORS.bgDark}, 0 4px 32px ${FER_COLORS.bgDark}` }}
         className="text-center pointer-events-none select-none whitespace-nowrap"
         data-ui="parallax-text"
       >
@@ -134,17 +136,25 @@ function ParallaxText({
 /** 8 unique images not used by any other component */
 const PARALLAX_IMAGES = CLUB_PHOTOS.parallax;
 const PARALLAX_VIDEO = CLUB_PHOTOS.parallaxVideo;
+const PARALLAX_ACCELERATION_START = 0.06;
+const PARALLAX_ACCELERATION_END = 0.9;
 
 export function ParallaxShowcase(): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ['start end', 'end start'],
+    offset: ['start start', 'end end'],
   });
 
-  const videoOpacity = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [0, 0.35, 0.35, 0]);
-  const videoScale = useTransform(scrollYProgress, [0, 0.5, 1], [1, 1.2, 1.4]);
+  const videoOpacity = useTransform(scrollYProgress, [0, 0.12, 0.9, 1], [0, 0.35, 0.35, 0]);
+  const videoScale = useTransform(scrollYProgress, [0, 0.55, 1], [1, 1.18, 1.36]);
+  const acceleratedScrollProgress = useTransform(
+    scrollYProgress,
+    [PARALLAX_ACCELERATION_START, PARALLAX_ACCELERATION_END],
+    [0, 1],
+    { clamp: true }
+  );
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -165,14 +175,14 @@ export function ParallaxShowcase(): JSX.Element {
    */
   const photoConfigs = useMemo(
     () => [
-      { src: PARALLAX_IMAGES[0], startX: -320 * mobileScale, startY: 100 * mobileScale, endX: -80 * mobileScale, endY: -30 * mobileScale, startRot: -8, endRot: 2, startScale: 0.8, size: 'md' as const, z: 2, visible: [0.05, 0.55] },
-      { src: PARALLAX_IMAGES[1], startX: 300 * mobileScale, startY: -80 * mobileScale, endX: 100 * mobileScale, endY: 50 * mobileScale, startRot: 5, endRot: -3, startScale: 0.85, size: 'lg' as const, z: 3, visible: [0.1, 0.65] },
-      { src: PARALLAX_IMAGES[2], startX: -220 * mobileScale, startY: -180 * mobileScale, endX: -100 * mobileScale, endY: 60 * mobileScale, startRot: -4, endRot: 1, startScale: 0.75, size: 'sm' as const, z: 1, visible: [0.15, 0.6] },
-      { src: PARALLAX_IMAGES[3], startX: 260 * mobileScale, startY: 140 * mobileScale, endX: 60 * mobileScale, endY: -60 * mobileScale, startRot: 7, endRot: -2, startScale: 0.9, size: 'md' as const, z: 2, visible: [0.25, 0.75] },
-      { src: PARALLAX_IMAGES[4], startX: -350 * mobileScale, startY: 120 * mobileScale, endX: -40 * mobileScale, endY: 30 * mobileScale, startRot: -6, endRot: 3, startScale: 0.8, size: 'lg' as const, z: 3, visible: [0.35, 0.85] },
-      { src: PARALLAX_IMAGES[5], startX: 340 * mobileScale, startY: -100 * mobileScale, endX: 80 * mobileScale, endY: -20 * mobileScale, startRot: 4, endRot: -4, startScale: 0.85, size: 'sm' as const, z: 1, visible: [0.3, 0.8] },
-      { src: PARALLAX_IMAGES[6], startX: -180 * mobileScale, startY: 200 * mobileScale, endX: -90 * mobileScale, endY: -50 * mobileScale, startRot: -3, endRot: 2, startScale: 0.8, size: 'md' as const, z: 2, visible: [0.4, 0.9] },
-      { src: PARALLAX_IMAGES[7], startX: 200 * mobileScale, startY: -160 * mobileScale, endX: 110 * mobileScale, endY: 40 * mobileScale, startRot: 6, endRot: -1, startScale: 0.9, size: 'lg' as const, z: 3, visible: [0.45, 0.95] },
+      { src: PARALLAX_IMAGES[0], startX: -240 * mobileScale, startY: 100 * mobileScale, endX: -80 * mobileScale, endY: -30 * mobileScale, startRot: -8, endRot: 2, startScale: 0.8, size: 'md' as const, z: 2, move: [0.22, 0.56], visible: [0.18, 0.62] },
+      { src: PARALLAX_IMAGES[1], startX: 225 * mobileScale, startY: -80 * mobileScale, endX: 100 * mobileScale, endY: 50 * mobileScale, startRot: 5, endRot: -3, startScale: 0.85, size: 'lg' as const, z: 3, move: [0.26, 0.62], visible: [0.22, 0.68] },
+      { src: PARALLAX_IMAGES[2], startX: -165 * mobileScale, startY: -180 * mobileScale, endX: -100 * mobileScale, endY: 60 * mobileScale, startRot: -4, endRot: 1, startScale: 0.75, size: 'sm' as const, z: 1, move: [0.32, 0.66], visible: [0.28, 0.72] },
+      { src: PARALLAX_IMAGES[3], startX: 195 * mobileScale, startY: 140 * mobileScale, endX: 60 * mobileScale, endY: -60 * mobileScale, startRot: 7, endRot: -2, startScale: 0.9, size: 'md' as const, z: 2, move: [0.38, 0.72], visible: [0.34, 0.78] },
+      { src: PARALLAX_IMAGES[4], startX: -260 * mobileScale, startY: 120 * mobileScale, endX: -40 * mobileScale, endY: 30 * mobileScale, startRot: -6, endRot: 3, startScale: 0.8, size: 'lg' as const, z: 3, move: [0.44, 0.8], visible: [0.4, 0.86] },
+      { src: PARALLAX_IMAGES[5], startX: 255 * mobileScale, startY: -100 * mobileScale, endX: 80 * mobileScale, endY: -20 * mobileScale, startRot: 4, endRot: -4, startScale: 0.85, size: 'sm' as const, z: 1, move: [0.5, 0.84], visible: [0.46, 0.9] },
+      { src: PARALLAX_IMAGES[6], startX: -135 * mobileScale, startY: 200 * mobileScale, endX: -90 * mobileScale, endY: -50 * mobileScale, startRot: -3, endRot: 2, startScale: 0.8, size: 'md' as const, z: 2, move: [0.56, 0.88], visible: [0.52, 0.94] },
+      { src: PARALLAX_IMAGES[7], startX: 150 * mobileScale, startY: -160 * mobileScale, endX: 110 * mobileScale, endY: 40 * mobileScale, startRot: 6, endRot: -1, startScale: 0.9, size: 'lg' as const, z: 3, move: [0.6, 0.9], visible: [0.56, 0.96] },
     ],
     [mobileScale]
   );
@@ -185,7 +195,7 @@ export function ParallaxShowcase(): JSX.Element {
             <FloatingPhoto
               key={`parallax-photo-${i}`}
               src={cfg.src}
-              scrollProgress={scrollYProgress}
+              scrollProgress={acceleratedScrollProgress}
               startX={cfg.startX}
               startY={cfg.startY}
               endX={cfg.endX}
@@ -195,10 +205,11 @@ export function ParallaxShowcase(): JSX.Element {
               startScale={cfg.startScale}
               size={cfg.size}
               zIndex={cfg.z}
+              moveRange={cfg.move as [number, number]}
               visibleRange={cfg.visible as [number, number]}
             />
           )),
-    [photoConfigs, scrollYProgress, useStaticLayout]
+    [acceleratedScrollProgress, photoConfigs, useStaticLayout]
   );
 
   const textLayers = useMemo(
@@ -206,13 +217,13 @@ export function ParallaxShowcase(): JSX.Element {
       useStaticLayout
         ? null
         : [
-            { text: 'LA FUERZA', color: FER_COLORS.gold, fontSize: 'clamp(1.25rem, 5vw, 6rem)', enter: 0.08, exit: 0.42, yStart: 80 * mobileScale, z: 10 },
-            { text: 'NO SE HEREDA', color: FER_COLORS.glow, fontSize: 'clamp(1.1rem, 4vw, 4.5rem)', enter: 0.32, exit: 0.62, yStart: 60 * mobileScale, z: 10 },
-            { text: 'SE ENTRENA', color: FER_COLORS.gold, fontSize: 'clamp(1.25rem, 5vw, 6rem)', enter: 0.52, exit: 0.88, yStart: -60 * mobileScale, z: 10 },
+            { text: 'LA FUERZA', color: FER_COLORS.gold, fontSize: 'clamp(1.25rem, 5vw, 6rem)', enter: 0.03, exit: 0.56, yStart: 72 * mobileScale, z: 20 },
+            { text: 'NO SE HEREDA', color: FER_COLORS.glow, fontSize: 'clamp(1.1rem, 4vw, 4.5rem)', enter: 0.2, exit: 0.7, yStart: 56 * mobileScale, z: 20 },
+            { text: 'SE ENTRENA', color: FER_COLORS.gold, fontSize: 'clamp(1.25rem, 5vw, 6rem)', enter: 0.68, exit: 0.98, yStart: -56 * mobileScale, z: 20 },
           ].map((cfg) => (
             <ParallaxText
               key={`parallax-text-${cfg.text}`}
-              scrollProgress={scrollYProgress}
+              scrollProgress={acceleratedScrollProgress}
               text={cfg.text}
               color={cfg.color}
               fontSize={cfg.fontSize}
@@ -222,7 +233,7 @@ export function ParallaxShowcase(): JSX.Element {
               zIndex={cfg.z}
             />
           )),
-    [scrollYProgress, useStaticLayout, mobileScale]
+    [acceleratedScrollProgress, useStaticLayout, mobileScale]
   );
 
   /* ---------- Static fallback (reduced motion only) ---------- */
@@ -277,12 +288,12 @@ export function ParallaxShowcase(): JSX.Element {
   return (
     <section
       ref={containerRef}
-      className="relative min-h-[600vh] md:min-h-[500vh]"
+      className="relative w-full max-w-full min-h-[410svh] overflow-x-clip sm:min-h-[530svh] md:min-h-[610vh]"
       style={{ backgroundColor: FER_COLORS.bgDark }}
       data-ui="parallax-showcase-section"
     >
       <div
-        className="sticky top-0 h-screen overflow-hidden"
+        className="sticky inset-x-0 top-0 h-[100svh] min-h-[100svh] w-full max-w-full overflow-clip md:h-screen md:min-h-screen"
         data-ui="parallax-viewport"
       >
         <motion.video
@@ -312,7 +323,7 @@ export function ParallaxShowcase(): JSX.Element {
         />
 
         <div
-          className="relative w-full h-full flex items-center justify-center"
+          className="relative flex h-full w-full max-w-full items-center justify-center overflow-x-clip"
           data-ui="parallax-layers"
         >
           {photos}

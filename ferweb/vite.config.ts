@@ -17,7 +17,7 @@ export default defineConfig({
   server: {
     port: 5174,
     host: '0.0.0.0',
-    allowedHosts: ['ferdev.menustudioai.com', 'fer.menustudioai.com', 'localhost'],
+    allowedHosts: ['fercup.com', 'www.fercup.com', 'ferdev.menustudioai.com', 'localhost'],
     hmr: {
       clientPort: 443,
       protocol: 'wss',

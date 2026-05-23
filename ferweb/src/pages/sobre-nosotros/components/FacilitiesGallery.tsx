@@ -1,19 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Building2 } from 'lucide-react';
-import { FER_COLORS } from '../../fer/constants';
+import { FER_COLORS, FER_UBICACION_INSTALACIONES_IMAGES } from '../../fer/constants';
 import { useCdnImage } from '@hooks/useCdnImage';
-import { CLUB_PHOTOS } from '../../fer/constants/clubPhotos';
 import { SOBRE_SECTION_IDS } from '../constants';
 
-const FACILITY_PHOTOS = [
-  CLUB_PHOTOS.gallery[0],
-  CLUB_PHOTOS.gallery[2],
-  CLUB_PHOTOS.gallery[4],
-  CLUB_PHOTOS.gallery[6],
-  CLUB_PHOTOS.gallery[7],
-  CLUB_PHOTOS.gallery[8],
-] as const;
+const FACILITY_PHOTOS = FER_UBICACION_INSTALACIONES_IMAGES;
 
 export function FacilitiesGallery() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);

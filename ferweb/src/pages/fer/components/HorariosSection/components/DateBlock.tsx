@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { motion, useMotionValueEvent } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import { FER_COLORS } from '../../../constants';
 import { formatDateEs, consolidateScheduleRows } from '../helpers';
@@ -7,7 +7,20 @@ import { TimelineLine } from './TimelineLine';
 import { ScheduleRowCard } from './ScheduleRowCard';
 import type { DateBlockProps } from '../types';
 
+function clampProgress(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(Math.max(value, 0), 1);
+}
+
 export function DateBlock({ group, index, isLast, timelineProgress }: DateBlockProps) {
+  const [currentProgress, setCurrentProgress] = useState(() =>
+    clampProgress(timelineProgress.get())
+  );
+
+  useMotionValueEvent(timelineProgress, 'change', (latest) => {
+    setCurrentProgress(clampProgress(latest));
+  });
+
   const rows = useMemo(
     () => consolidateScheduleRows(group.schedules),
     [group.schedules]
@@ -32,15 +45,15 @@ export function DateBlock({ group, index, isLast, timelineProgress }: DateBlockP
 
   const dotBorderColor = useMemo(
     () =>
-      `${FER_COLORS.gold}${Math.min(Math.round(timelineProgress * 200 + 60), 255)
+      `${FER_COLORS.gold}${Math.min(Math.round(currentProgress * 200 + 60), 255)
         .toString(16)
         .padStart(2, '0')}`,
-    [timelineProgress]
+    [currentProgress]
   );
 
   const dotGlow = useMemo(
-    () => `0 0 16px ${FER_COLORS.gold}${Math.round(timelineProgress * 60).toString(16).padStart(2, '0')}`,
-    [timelineProgress]
+    () => `0 0 16px ${FER_COLORS.gold}${Math.round(currentProgress * 60).toString(16).padStart(2, '0')}`,
+    [currentProgress]
   );
 
   return (
@@ -52,7 +65,7 @@ export function DateBlock({ group, index, isLast, timelineProgress }: DateBlockP
       className="relative pl-9 sm:pl-12"
       data-ui={`horarios-date-block-${index}`}
     >
-      <TimelineLine progress={timelineProgress} isLast={isLast} />
+      <TimelineLine progress={currentProgress} isLast={isLast} />
 
       {/* Timeline dot */}
       <div
@@ -68,8 +81,8 @@ export function DateBlock({ group, index, isLast, timelineProgress }: DateBlockP
           className="w-2.5 h-2.5 rounded-full"
           style={{
             backgroundColor: FER_COLORS.gold,
-            opacity: 0.5 + timelineProgress * 0.5,
-            boxShadow: `0 0 8px ${FER_COLORS.gold}${Math.round(timelineProgress * 80).toString(16).padStart(2, '0')}`,
+            opacity: 0.5 + currentProgress * 0.5,
+            boxShadow: `0 0 8px ${FER_COLORS.gold}${Math.round(currentProgress * 80).toString(16).padStart(2, '0')}`,
           }}
           data-ui={`horarios-timeline-dot-inner-${index}`}
         />

@@ -12,6 +12,24 @@ export const FER_QUIEN_PUEDE_SIN_ENTRENADOR_IMAGE = 'https://jaimedigitalstudio.
 export const FER_QUIEN_PUEDE_SIN_EXPERIENCIA_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-quien-puede-sin-experiencia.webp' as const;
 export const FER_POLAROID_0_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/fer-polaroid-0.webp' as const;
 
+export const FER_UBICACION_INSTALACIONES_IMAGES: readonly string[] = [
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07053.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07028.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07034.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07073.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07204.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07513.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07528.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-img-8633.webp',
+  'https://jaimedigitalstudio.b-cdn.net/fer/media/images/ubicacion/ubicacion-ffz07446.webp',
+] as const;
+
+export const FER_SOBRE_HERO_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/sobre-nosotros/sobre-hero.webp' as const;
+export const FER_SOBRE_MISSION_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/sobre-nosotros/sobre-mission.webp' as const;
+export const FER_SOBRE_TEAM_GRS_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/sobre-nosotros/sobre-team-grs.webp' as const;
+export const FER_SOBRE_TEAM_JUDGES_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/sobre-nosotros/sobre-team-judges.webp' as const;
+export const FER_SOBRE_TEAM_COMMUNITY_IMAGE = 'https://jaimedigitalstudio.b-cdn.net/fer/media/images/sobre-nosotros/sobre-team-community.webp' as const;
+
 // --- Alfonso Fernández ---
 export const MEDIA_ALFONSO_FERNANDEZ_IMAGES: readonly string[] = [
   'https://jaimedigitalstudio.b-cdn.net/fer/media/GRS%20-%20FOTOS%20_%20CLUB/Alfonso%20Fern%C3%A1ndez/IMG_3276.webp',

@@ -5,8 +5,8 @@ import { FER_COLORS, CLUB_PHOTOS, HERO_CAMISETA_BG, FER_QUE_INCLUYE_JUECES_IMAGE
 import { useCdnImage } from '@hooks/useCdnImage';
 
 const CARDS = [
-  { icon: Trophy, title: 'Trofeos', desc: 'Top 3 de cada categoría premiados', bg: CLUB_PHOTOS.gallery[3] },
-  { icon: Award, title: 'Handling', desc: 'Contarás con entrenadores profesionales que te ayudarán en todo momento si es necesario.', bg: HERO_CAMISETA_BG },
+  { icon: Trophy, title: 'Trofeos', desc: 'TOP 3 ABSOLUTOS PREMIADOS', bg: CLUB_PHOTOS.gallery[3] },
+  { icon: Award, title: 'Handling', desc: 'NO ESTARÁS SOLO EN TARIMA', bg: HERO_CAMISETA_BG },
   { icon: Shield, title: 'Jueces', desc: 'Jueces internacionales profesionales con certificación oficial.', bg: FER_QUE_INCLUYE_JUECES_IMAGE },
   { icon: Users, title: 'Spotters', desc: 'Spotters profesionales en plataforma', bg: FER_QUE_INCLUYE_SPOTTERS_IMAGE },
 ] as const;

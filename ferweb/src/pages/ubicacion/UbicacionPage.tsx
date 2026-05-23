@@ -15,7 +15,7 @@ export function UbicacionPage() {
     <>
       <Head
         title="Ubicación | FER CUP"
-        description="Encuentra el GRS Club en Valencia, Valencia. Cómo llegar al FER CUP: coche, autobús y tren."
+        description="Cómo llegar al Pabellón de Almussafes para el FER CUP: ubicación, mapa y opciones de transporte."
       />
       <div
         className="min-h-screen flex flex-col"

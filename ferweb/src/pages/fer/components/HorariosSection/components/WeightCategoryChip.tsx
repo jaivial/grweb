@@ -5,6 +5,12 @@ import type { WeightCategoryChipProps } from '../types';
 
 export function WeightCategoryChip({ label, sexCategory, index }: WeightCategoryChipProps) {
   const color = useMemo(() => getSexColor(sexCategory, FER_COLORS), [sexCategory]);
+  const displayLabel = useMemo(() => {
+    let result = label;
+    if (!result.startsWith('-')) result = `-${result}`;
+    if (!result.endsWith('kg')) result = `${result}kg`;
+    return result;
+  }, [label]);
 
   return (
     <span
@@ -16,7 +22,7 @@ export function WeightCategoryChip({ label, sexCategory, index }: WeightCategory
       }}
       data-ui={`horarios-weight-chip-${index}`}
     >
-      {label}
+      {displayLabel}
     </span>
   );
 }

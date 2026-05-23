@@ -62,12 +62,12 @@ export function MapSection() {
             style={{ color: FER_COLORS.text }}
             data-ui="ubicacion-map-title"
           >
-            Encuéntranos en el{' '}
+            Cómo llegar al{' '}
             <span
               style={{ color: FER_COLORS.glow }}
               data-ui="ubicacion-map-title-highlight"
             >
-              mapa
+              pabellón
             </span>
           </h2>
           <div
@@ -81,7 +81,7 @@ export function MapSection() {
             style={{ color: FER_COLORS.textMuted }}
             data-ui="ubicacion-map-description"
           >
-            {VENUE_INFO.fullName} — {VENUE_INFO.address}
+            Encuentra el Pabellón de Almussafes en Google Maps y abre la ruta directa desde tu ubicación.
           </p>
         </motion.div>
 
@@ -104,7 +104,7 @@ export function MapSection() {
               className="w-full h-full border-0"
               allowFullScreen
               loading="lazy"
-              title="Mapa de ubicación del GRS Club en Valencia, Valencia"
+              title="Mapa de ubicación del Pabellón de Almussafes"
               data-ui="ubicacion-map-iframe"
               style={{ filter: 'grayscale(0.3) contrast(1.1)' }}
             />
@@ -176,7 +176,7 @@ export function MapSection() {
           >
             <MapPin size={16} data-ui="ubicacion-map-link-icon" />
             <span data-ui="ubicacion-map-link-text">
-              Abrir en Google Maps
+              Abrir ruta al Pabellón de Almussafes
             </span>
             <ExternalLink size={14} data-ui="ubicacion-map-link-external" />
           </a>
