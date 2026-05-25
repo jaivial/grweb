@@ -1,8 +1,19 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Loader2, Zap, AlertCircle, ChevronDown, Shield } from 'lucide-react';
+import { CheckCircle, Loader2, Zap, AlertCircle, ChevronDown, Shield, Percent, X } from 'lucide-react';
 import clsx from 'clsx';
-import { FER_COLORS, EXPERIENCE_LEVELS, EXPERIENCE_DESCRIPTIONS, EXPERIENCE_LABELS } from '../constants';
+import {
+  FER_COLORS,
+  EXPERIENCE_LEVELS,
+  EXPERIENCE_DESCRIPTIONS,
+  EXPERIENCE_LABELS,
+  MODALIDAD_VALUES,
+  MODALIDAD_LABELS,
+  MODALIDAD_DESCRIPTIONS,
+  MODALIDAD_LIFTS,
+  type Experiencia,
+  type Modalidad,
+} from '../constants';
 import type { UseFerInscripcionReturn } from '../hooks/useFerInscripcion';
 import { DuplicateEmailPanel } from './DuplicateEmailPanel';
 
@@ -19,20 +30,29 @@ interface InscripcionFormProps {
   contactEmail?: string;
   precioPeakProgram?: number;
   fechaLimitePeakProgram?: string | null;
+  cuponesDescuentoActivo?: boolean;
   onSubmit: () => void;
 }
 
-export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoriasMasculino, categoriasFemenino, contactEmail, precioPeakProgram, fechaLimitePeakProgram, onSubmit }: InscripcionFormProps) {
+export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoriasMasculino, categoriasFemenino, contactEmail, precioPeakProgram, fechaLimitePeakProgram, cuponesDescuentoActivo = false, onSubmit }: InscripcionFormProps) {
   const {
     formData,
     errors,
     isSubmitting,
     isDuplicateEmail,
+    couponCode,
+    appliedCoupon,
+    couponError,
+    isValidatingCoupon,
     clearDuplicateEmail,
     updateField,
+    applyCoupon,
+    removeCoupon,
+    setCouponCode,
   } = hook;
 
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [couponOpen, setCouponOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -87,12 +107,32 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
   );
 
   const setSexo = useCallback((sex: 'masculino' | 'femenino') => updateField('sexo', sex), [updateField]);
-  const setExperiencia = useCallback((exp: string) => updateField('experiencia', exp), [updateField]);
+  const setModalidad = useCallback((modalidad: Modalidad) => updateField('modalidad', modalidad), [updateField]);
+  const setExperiencia = useCallback((exp: Experiencia) => updateField('experiencia', exp), [updateField]);
   const selectCategory = useCallback((cat: string) => { updateField('categoriaPeso', cat); setCategoryDropdownOpen(false); }, [updateField]);
   const toggleDropdown = useCallback(() => setCategoryDropdownOpen(prev => !prev), []);
   const toggleHandler = useCallback(() => updateField('quiereHandler', !formData.quiereHandler), [formData.quiereHandler, updateField]);
   const togglePeakProgram = useCallback(() => updateField('peakProgram', !formData.peakProgram), [formData.peakProgram, updateField]);
   const toggleTerminos = useCallback((e: React.ChangeEvent<HTMLInputElement>) => updateField('aceptaTerminos', e.target.checked), [updateField]);
+  const toggleCouponOpen = useCallback(() => setCouponOpen((prev) => !prev), []);
+  const handleCouponChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const nextValue = e.target.value;
+      if (appliedCoupon) {
+        removeCoupon();
+      }
+      setCouponCode(nextValue);
+    },
+    [appliedCoupon, removeCoupon, setCouponCode]
+  );
+  const handleApplyCoupon = useCallback(() => {
+    void applyCoupon('fer');
+  }, [applyCoupon]);
+  const subtotalPreview = useMemo(
+    () => (precioBase ?? 0) + (formData.peakProgram ? precioPeakProgram ?? 0 : 0),
+    [formData.peakProgram, precioBase, precioPeakProgram]
+  );
+  const finalPreview = appliedCoupon?.total ?? subtotalPreview;
 
   const inputStyle = useMemo(
     () => ({
@@ -101,35 +141,6 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
     }),
     []
   );
-
-  // Derived validation state
-  const isFormValid = useMemo(() => {
-    // nombre: min 2 chars
-    const isNombreValid = formData.nombre.trim().length >= 2;
-
-    // email: basic format check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmailValid = emailRegex.test(formData.email.trim());
-
-    // telefono: min 6 chars
-    const isTelefonoValid = formData.telefono.trim().length >= 6;
-
-    // sexo: valid enum value
-    const isSexoValid = formData.sexo === 'masculino' || formData.sexo === 'femenino';
-
-    // categoriaPeso: non-empty
-    const isCategoriaValid = formData.categoriaPeso.length > 0;
-
-    // experiencia: valid enum value
-    const isExperienciaValid = ['rookie', 'principiante', 'intermedio', 'avanzado'].includes(formData.experiencia);
-
-    // aceptaTerminos: must be true
-    const isTerminosValid = formData.aceptaTerminos === true;
-
-    return isNombreValid && isEmailValid && isTelefonoValid && isSexoValid &&
-           isCategoriaValid && isExperienciaValid && isTerminosValid;
-  }, [formData.nombre, formData.email, formData.telefono, formData.sexo,
-      formData.categoriaPeso, formData.experiencia, formData.aceptaTerminos]);
 
   const inputClass = useCallback(
     (fieldName: string) =>
@@ -203,8 +214,7 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
             <motion.form
               key="fer-inscripcion-form"
               initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-80px' }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.5 }}
               onSubmit={handleSubmit}
               className="space-y-5 p-6 sm:p-8 rounded-3xl"
@@ -469,6 +479,71 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
                 )}
               </div>
 
+              {/* ── Modalidad ── */}
+              <div data-ui="fer-form-field-modalidad">
+                <label
+                  className="block text-sm font-semibold mb-3"
+                  style={{ color: FER_COLORS.text }}
+                  data-ui="fer-form-label-modalidad"
+                >
+                  Modalidad *
+                </label>
+                <div className="grid grid-cols-1 gap-3" data-ui="fer-form-modalidad-grid">
+                  {MODALIDAD_VALUES.map((modalidad) => {
+                    const isActive = formData.modalidad === modalidad;
+                    return (
+                      <button
+                        key={modalidad}
+                        type="button"
+                        onClick={() => setModalidad(modalidad)}
+                        disabled={isSubmitting}
+                        className={clsx(
+                          'px-4 py-4 rounded-xl text-left transition-all duration-200 border',
+                          'focus:outline-none focus:ring-2 focus:ring-fer-accent/50',
+                          isActive && 'scale-[1.01] shadow-lg',
+                        )}
+                        style={{
+                          backgroundColor: isActive ? `${FER_COLORS.accent}22` : FER_COLORS.bgCard,
+                          borderColor: isActive ? `${FER_COLORS.accent}80` : `${FER_COLORS.accent}12`,
+                          boxShadow: isActive ? `0 0 22px ${FER_COLORS.accent}24` : 'none',
+                        }}
+                        data-ui={`fer-form-modalidad-btn-${modalidad}`}
+                        data-active={isActive ? 'true' : 'false'}
+                        aria-pressed={isActive}
+                      >
+                        <span
+                          className="block text-sm font-bold"
+                          style={{ color: isActive ? FER_COLORS.text : FER_COLORS.textMuted }}
+                          data-ui={`fer-form-modalidad-label-${modalidad}`}
+                        >
+                          {MODALIDAD_LABELS[modalidad]}
+                        </span>
+                        <span
+                          className="block text-xs mt-1 font-semibold uppercase tracking-[0.18em]"
+                          style={{ color: FER_COLORS.gold }}
+                          data-ui={`fer-form-modalidad-lifts-${modalidad}`}
+                        >
+                          {MODALIDAD_LIFTS[modalidad]}
+                        </span>
+                        <span
+                          className="block text-xs mt-1.5 leading-relaxed"
+                          style={{ color: FER_COLORS.textMuted }}
+                          data-ui={`fer-form-modalidad-desc-${modalidad}`}
+                        >
+                          {MODALIDAD_DESCRIPTIONS[modalidad]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.modalidad && (
+                  <p className="text-red-400 text-sm mt-1.5 flex items-center gap-1" data-ui="fer-form-error-modalidad">
+                    <AlertCircle size={14} aria-hidden="true" />
+                    {errors.modalidad}
+                  </p>
+                )}
+              </div>
+
               {/* ── Experiencia ── */}
               <div data-ui="fer-form-field-experiencia">
                 <label
@@ -633,6 +708,134 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
                 )}
               </div>
 
+              {cuponesDescuentoActivo && (
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ backgroundColor: FER_COLORS.bgCard, border: `1px solid ${FER_COLORS.accent}18` }}
+                  data-ui="fer-form-coupon-card"
+                >
+                  <button
+                    type="button"
+                    onClick={toggleCouponOpen}
+                    disabled={isSubmitting}
+                    className="w-full min-h-[56px] px-4 py-3 flex items-center justify-between gap-3 text-left transition-colors hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-fer-accent/50 disabled:opacity-60"
+                    data-ui="fer-form-coupon-toggle"
+                    aria-expanded={couponOpen}
+                  >
+                    <span className="flex items-center gap-3" data-ui="fer-form-coupon-toggle-copy">
+                      <span
+                        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: `${FER_COLORS.gold}18` }}
+                        data-ui="fer-form-coupon-icon-bg"
+                      >
+                        <Percent size={18} style={{ color: FER_COLORS.gold }} data-ui="fer-form-coupon-icon" aria-hidden="true" />
+                      </span>
+                      <span data-ui="fer-form-coupon-title-wrap">
+                        <span className="block text-sm font-semibold" style={{ color: FER_COLORS.text }} data-ui="fer-form-coupon-title">
+                          Tengo un cupón
+                        </span>
+                        <span className="block text-xs mt-0.5" style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-coupon-subtitle">
+                          Se aplicará al total de inscripción y extras
+                        </span>
+                      </span>
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      className={clsx('transition-transform duration-200', couponOpen && 'rotate-180')}
+                      style={{ color: FER_COLORS.textMuted }}
+                      data-ui="fer-form-coupon-chevron"
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {couponOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        data-ui="fer-form-coupon-panel"
+                      >
+                        <div className="px-4 pb-4 space-y-3" data-ui="fer-form-coupon-panel-inner">
+                          <div className="flex flex-col sm:flex-row gap-2" data-ui="fer-form-coupon-input-row">
+                            <input
+                              id="fer-coupon-code"
+                              type="text"
+                              value={couponCode}
+                              onChange={handleCouponChange}
+                              maxLength={200}
+                              className="w-full px-4 py-3 rounded-xl outline-none transition-all duration-200 border-2 border-transparent focus:border-fer-accent/60 placeholder-gray-500"
+                              style={inputStyle}
+                              placeholder="Escribe tu cupón"
+                              disabled={isSubmitting || isValidatingCoupon}
+                              data-ui="fer-form-coupon-input"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleApplyCoupon}
+                              disabled={isSubmitting || isValidatingCoupon || !couponCode.trim()}
+                              className="min-h-[48px] px-5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-fer-gold/50 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 active:scale-[0.98]"
+                              style={{ backgroundColor: FER_COLORS.gold, color: FER_COLORS.bgDark }}
+                              data-ui="fer-form-coupon-apply"
+                            >
+                              {isValidatingCoupon ? (
+                                <Loader2 size={16} className="animate-spin" data-ui="fer-form-coupon-spinner" aria-hidden="true" />
+                              ) : null}
+                              <span data-ui="fer-form-coupon-apply-text">Aplicar</span>
+                            </button>
+                          </div>
+
+                          {couponError && (
+                            <p className="text-red-400 text-sm flex items-center gap-1" data-ui="fer-form-coupon-error">
+                              <AlertCircle size={14} data-ui="fer-form-coupon-error-icon" aria-hidden="true" />
+                              <span data-ui="fer-form-coupon-error-text">{couponError}</span>
+                            </p>
+                          )}
+
+                          {appliedCoupon && (
+                            <div
+                              className="rounded-xl p-3"
+                              style={{ backgroundColor: `${FER_COLORS.green}10`, border: `1px solid ${FER_COLORS.green}25` }}
+                              data-ui="fer-form-coupon-success"
+                            >
+                              <div className="flex items-start justify-between gap-3" data-ui="fer-form-coupon-success-header">
+                                <div data-ui="fer-form-coupon-success-copy">
+                                  <p className="text-sm font-bold" style={{ color: FER_COLORS.green }} data-ui="fer-form-coupon-success-title">
+                                    Cupón aplicado: {appliedCoupon.codigo}
+                                  </p>
+                                  <p className="text-xs mt-1" style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-coupon-success-detail">
+                                    Descuento de {appliedCoupon.importeDescuento.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR sobre {appliedCoupon.subtotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={removeCoupon}
+                                  disabled={isSubmitting}
+                                  className="p-1.5 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-fer-accent/50 disabled:opacity-50"
+                                  data-ui="fer-form-coupon-remove"
+                                  aria-label="Quitar cupón"
+                                >
+                                  <X size={16} style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-coupon-remove-icon" aria-hidden="true" />
+                                </button>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between gap-3" data-ui="fer-form-coupon-total-row">
+                                <span className="text-xs uppercase tracking-[0.16em] font-bold" style={{ color: FER_COLORS.textMuted }} data-ui="fer-form-coupon-total-label">
+                                  Total final
+                                </span>
+                                <span className="text-lg font-black" style={{ color: FER_COLORS.gold }} data-ui="fer-form-coupon-total-value">
+                                  {finalPreview.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
               {/* ── Términos ── */}
               <div data-ui="fer-form-field-terminos">
                 <label
@@ -700,20 +903,20 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
               {/* ── Submit ── */}
               <motion.button
                 type="submit"
-                disabled={isAgotado || isSubmitting || !isFormValid}
+                disabled={isAgotado || isSubmitting}
                 className={clsx(
                   'w-full py-4 rounded-xl font-bold text-lg transition-all duration-300',
                   'flex items-center justify-center gap-2.5',
                   'focus:outline-none focus:ring-2 focus:ring-fer-accent/50',
-                  !isAgotado && !isSubmitting && isFormValid && 'hover:scale-[1.015] active:scale-[0.985]',
-                  (isAgotado || !isFormValid) && 'opacity-50 cursor-not-allowed',
+                  !isAgotado && !isSubmitting && 'hover:scale-[1.015] active:scale-[0.985]',
+                  isAgotado && 'opacity-50 cursor-not-allowed',
                 )}
                 style={{
-                  backgroundColor: !isAgotado && isFormValid ? FER_COLORS.accent : FER_COLORS.bgCard,
-                  color: !isAgotado && isFormValid ? FER_COLORS.text : FER_COLORS.textMuted,
-                  boxShadow: !isAgotado && isFormValid ? `0 0 30px ${FER_COLORS.accent}35` : 'none',
+                  backgroundColor: !isAgotado ? FER_COLORS.accent : FER_COLORS.bgCard,
+                  color: !isAgotado ? FER_COLORS.text : FER_COLORS.textMuted,
+                  boxShadow: !isAgotado ? `0 0 30px ${FER_COLORS.accent}35` : 'none',
                 }}
-                whileTap={!isAgotado && isFormValid ? { scale: 0.97 } : undefined}
+                whileTap={!isAgotado && !isSubmitting ? { scale: 0.97 } : undefined}
                 data-ui="fer-form-submit"
               >
                 {isSubmitting ? (

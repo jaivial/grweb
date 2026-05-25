@@ -314,6 +314,11 @@ namespace GrCup.Api.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("Modalidad")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -331,6 +336,10 @@ namespace GrCup.Api.Migrations
                     b.Property<string>("PaymentMethod")
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
+
+                    b.Property<string>("StripeSessionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("QrCode")
                         .HasColumnType("longtext");
@@ -363,7 +372,11 @@ namespace GrCup.Api.Migrations
 
                     b.HasIndex("Email");
 
+                    b.HasIndex("Modalidad");
+
                     b.HasIndex("PagoConfirmado");
+
+                    b.HasIndex("StripeSessionId");
 
                     b.HasIndex("CompeticionId", "Email");
 
@@ -770,6 +783,9 @@ namespace GrCup.Api.Migrations
 
                     b.Property<int?>("CompeticionId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");

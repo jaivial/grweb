@@ -14,6 +14,8 @@ import {
   ferInscripcionesSearchQueryAtom,
   ferInscripcionesPagoConfirmadoFilterAtom,
   ferInscripcionesExperienciaFilterAtom,
+  ferInscripcionesModalidadFilterAtom,
+  ferInscripcionesPaymentMethodFilterAtom,
   ferHasActiveFiltersAtom,
 } from '../../../../stores/ferInscripcionesStore';
 
@@ -32,6 +34,8 @@ export function useInscripciones(competicionId: number) {
   const searchQuery = useAtomValue(ferInscripcionesSearchQueryAtom);
   const pagoConfirmadoFilter = useAtomValue(ferInscripcionesPagoConfirmadoFilterAtom);
   const experienciaFilter = useAtomValue(ferInscripcionesExperienciaFilterAtom);
+  const modalidadFilter = useAtomValue(ferInscripcionesModalidadFilterAtom);
+  const paymentMethodFilter = useAtomValue(ferInscripcionesPaymentMethodFilterAtom);
 
   const fetchInscripciones = useCallback(async (
     pageOverride?: number,
@@ -39,6 +43,8 @@ export function useInscripciones(competicionId: number) {
       search?: string;
       pagoConfirmado?: boolean;
       experiencia?: string;
+      modalidad?: string;
+      paymentMethod?: string;
     }
   ) => {
     setIsLoading(true);
@@ -51,6 +57,8 @@ export function useInscripciones(competicionId: number) {
         search: filters?.search || searchQuery || undefined,
         pagoConfirmado: filters?.pagoConfirmado ?? pagoConfirmadoFilter,
         experiencia: filters?.experiencia || experienciaFilter || undefined,
+        modalidad: filters?.modalidad || modalidadFilter || undefined,
+        paymentMethod: filters?.paymentMethod || paymentMethodFilter || undefined,
       });
 
       if (response.success && response.data) {
@@ -64,7 +72,7 @@ export function useInscripciones(competicionId: number) {
     } finally {
       setIsLoading(false);
     }
-  }, [competicionId, currentPage, pageSize, searchQuery, pagoConfirmadoFilter, experienciaFilter, setIsLoading, setError, setInscripciones, setTotalCount]);
+  }, [competicionId, currentPage, pageSize, searchQuery, pagoConfirmadoFilter, experienciaFilter, modalidadFilter, paymentMethodFilter, setIsLoading, setError, setInscripciones, setTotalCount]);
 
   const fetchStats = useCallback(async () => {
     try {

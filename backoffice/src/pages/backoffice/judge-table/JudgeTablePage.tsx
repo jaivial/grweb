@@ -33,6 +33,7 @@ interface AthleteAttempt {
   email: string;
   sexo: string;
   categoriaPeso: string;
+  modalidad: string;
   attempts: AttemptData[];
 }
 
@@ -104,6 +105,12 @@ function getNextCircleState(current: boolean | null): boolean | null {
   return null;                          // red -> gray
 }
 
+function isLiftAllowedForModalidad(modalidad: string | undefined, liftType: LiftType): boolean {
+  if (modalidad === 'solo_banca') return liftType === 'Bench';
+  if (modalidad === 'solo_peso_muerto') return liftType === 'Deadlift';
+  return true;
+}
+
 // ─── Component ───
 
 export function JudgeTablePage(): JSX.Element {
@@ -159,6 +166,7 @@ export function JudgeTablePage(): JSX.Element {
         email: item.email ?? '',
         sexo: item.sexo ?? '',
         categoriaPeso: item.categoriaPeso ?? '',
+        modalidad: item.modalidad ?? 'completa',
         attempts: Array.isArray(item.attempts) ? item.attempts.map((a: any) => ({
           id: a.id,
           liftType: a.liftType,
@@ -201,7 +209,8 @@ export function JudgeTablePage(): JSX.Element {
           (a) => a.liftType === activeLiftTab
         );
         return { athlete, matchingAttempts };
-      });
+      })
+      .filter(({ athlete }) => isLiftAllowedForModalidad(athlete.modalidad, activeLiftTab));
   }, [athletes, activeLiftTab]);
 
   // ─── Vote helpers ───

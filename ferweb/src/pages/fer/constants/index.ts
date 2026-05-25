@@ -12,6 +12,10 @@ export {
   EXPERIENCE_LEVELS,
   EXPERIENCE_DESCRIPTIONS,
   EXPERIENCE_LABELS,
+  MODALIDAD_VALUES,
+  MODALIDAD_LABELS,
+  MODALIDAD_DESCRIPTIONS,
+  MODALIDAD_LIFTS,
   SECTION_IDS,
   SCROLL_OFFSET,
   POLAROID_PHOTOS,
@@ -20,7 +24,7 @@ export {
   NAV_LINKS,
 } from './constants';
 
-export type { Experiencia } from './constants';
+export type { Experiencia, Modalidad } from './constants';
 
 export { CLUB_PHOTOS } from './clubPhotos';
 export {

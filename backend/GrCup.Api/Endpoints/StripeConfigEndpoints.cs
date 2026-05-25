@@ -7,19 +7,14 @@ namespace GrCup.Api.Endpoints;
 
 public static class StripeConfigEndpoints
 {
-    private static string MaskKey(string? key)
-    {
-        if (string.IsNullOrEmpty(key)) return string.Empty;
-        if (key.Length <= 4) return "****";
-        return "****" + key[^4..];
-    }
+    private static bool HasKey(string? key) => !string.IsNullOrWhiteSpace(key);
 
     public static void MapStripeConfigEndpoints(this IEndpointRouteBuilder app)
     {
         // GET /api/admin/stripe-config?competicionId=1
         app.MapGet("/api/admin/stripe-config", [Authorize] async (StripeConfigService service, int? competicionId) =>
         {
-            var config = await service.GetConfigAsync(competicionId);
+            var config = await service.GetExactConfigAsync(competicionId);
             if (config == null)
             {
                 return Results.Ok(new
@@ -27,9 +22,10 @@ public static class StripeConfigEndpoints
                     success = true,
                     data = new
                     {
-                        secretKey = (string?)null,
+                        hasSecretKey = false,
                         publishableKey = (string?)null,
-                        webhookSecret = (string?)null
+                        hasWebhookSecret = false,
+                        activo = false
                     }
                 });
             }
@@ -38,9 +34,10 @@ public static class StripeConfigEndpoints
                 success = true,
                 data = new
                 {
-                    secretKey = MaskKey(config.SecretKey),
+                    hasSecretKey = HasKey(config.SecretKey),
                     publishableKey = config.PublishableKey,
-                    webhookSecret = MaskKey(config.WebhookSecret)
+                    hasWebhookSecret = HasKey(config.WebhookSecret),
+                    activo = config.Activo
                 }
             });
         });
@@ -55,17 +52,39 @@ public static class StripeConfigEndpoints
             {
                 SecretKey = request.SecretKey,
                 PublishableKey = request.PublishableKey,
-                WebhookSecret = request.WebhookSecret
+                WebhookSecret = request.WebhookSecret,
+                Activo = request.Activo ?? false
             };
-            var result = await service.UpsertConfigAsync(config, competicionId);
+            var result = await service.UpsertConfigAsync(config, competicionId, request.Activo);
             return Results.Ok(new
             {
                 success = true,
                 data = new
                 {
-                    secretKey = MaskKey(result.SecretKey),
+                    hasSecretKey = HasKey(result.SecretKey),
                     publishableKey = result.PublishableKey,
-                    webhookSecret = MaskKey(result.WebhookSecret)
+                    hasWebhookSecret = HasKey(result.WebhookSecret),
+                    activo = result.Activo
+                }
+            });
+        });
+
+        // PUT /api/admin/stripe-config/active?competicionId=1
+        app.MapPut("/api/admin/stripe-config/active", [Authorize] async (
+            StripeConfigService service,
+            [FromBody] StripeConfigActiveRequest request,
+            int? competicionId) =>
+        {
+            var result = await service.SetActiveAsync(competicionId, request.Activo);
+            return Results.Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    hasSecretKey = HasKey(result.SecretKey),
+                    publishableKey = result.PublishableKey,
+                    hasWebhookSecret = HasKey(result.WebhookSecret),
+                    activo = result.Activo
                 }
             });
         });
@@ -82,5 +101,8 @@ public static class StripeConfigEndpoints
 public record StripeConfigRequest(
     string? SecretKey,
     string? PublishableKey,
-    string? WebhookSecret
+    string? WebhookSecret,
+    bool? Activo = null
 );
+
+public record StripeConfigActiveRequest(bool Activo);

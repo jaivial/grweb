@@ -1,10 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { Head } from '../../components/Head';
 import { FER_COLORS } from '../fer/constants/constants';
 import { useFerInscripcion } from '../fer/hooks/useFerInscripcion';
 import { InscripcionForm } from '../fer/components/InscripcionForm';
 import { ConfirmacionModal } from '../fer/components/ConfirmacionModal';
 import { UpsellModal } from '../fer/components/UpsellModal';
+import { PaymentChoiceModal } from '../fer/components/PaymentChoiceModal';
 import { FerFooter } from '../fer/components/FerFooter';
 import { useInscripcionConfig } from './hooks';
 import { InscripcionHero, InscripcionClosed, InscripcionLoading, InscripcionError } from './components';
@@ -12,9 +14,11 @@ import { InscripcionHero, InscripcionClosed, InscripcionLoading, InscripcionErro
 export function InscripcionPage() {
   const config = useInscripcionConfig();
   const inscripcionHook = useFerInscripcion();
+  const { isSubmitting, startStripeCheckout, submitCash, validate } = inscripcionHook;
 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
+  const [showPaymentChoice, setShowPaymentChoice] = useState(false);
   const [localPlazas, setLocalPlazas] = useState<number | null>(null);
 
   // ── Derived state ──
@@ -48,14 +52,80 @@ export function InscripcionPage() {
     [inscripcionHook.formData?.email]
   );
 
+  const subtotalAmount = useMemo(
+    () => (config.precioBase ?? 0) + (inscripcionHook.formData.peakProgram ? config.precioPeakProgram ?? 0 : 0),
+    [config.precioBase, config.precioPeakProgram, inscripcionHook.formData.peakProgram]
+  );
+
+  const totalAmount = useMemo(
+    () => inscripcionHook.appliedCoupon?.total ?? subtotalAmount,
+    [inscripcionHook.appliedCoupon?.total, subtotalAmount]
+  );
+
+  const discountAmount = useMemo(
+    () => inscripcionHook.appliedCoupon?.importeDescuento ?? 0,
+    [inscripcionHook.appliedCoupon?.importeDescuento]
+  );
+
+  const isStripeAvailable = useMemo(
+    () => config.pagoStripeActivo && config.stripeDisponible,
+    [config.pagoStripeActivo, config.stripeDisponible]
+  );
+
+  const paymentModalMode = useMemo(
+    () => (config.pagoStripeActivo && !config.pagoEfectivoActivo ? 'stripeOnly' : 'choice') as 'stripeOnly' | 'choice',
+    [config.pagoEfectivoActivo, config.pagoStripeActivo]
+  );
+
   // ── Handlers ──
   const handleFormSubmit = useCallback(async () => {
-    const success = await inscripcionHook.submit('fer');
+    if (!validate()) return;
+
+    if (totalAmount <= 0) {
+      const success = await submitCash('fer', false);
+      if (success) {
+        setShowConfirmation(true);
+        setLocalPlazas((prev) => Math.max(0, (prev ?? config.plazasDisponibles) - 1));
+      }
+      return;
+    }
+
+    if (!config.pagoEfectivoActivo && !isStripeAvailable) {
+      toast.error('El pago online no está disponible ahora mismo. Inténtalo más tarde.', {
+        style: { background: '#161B26', color: '#F8FAFC' },
+      });
+      return;
+    }
+
+    if (isStripeAvailable) {
+      setShowPaymentChoice(true);
+      return;
+    }
+
+    const success = await submitCash('fer', false);
     if (success) {
       setShowConfirmation(true);
       setLocalPlazas((prev) => Math.max(0, (prev ?? config.plazasDisponibles) - 1));
     }
-  }, [inscripcionHook, config.plazasDisponibles]);
+  }, [config.pagoEfectivoActivo, config.plazasDisponibles, isStripeAvailable, submitCash, totalAmount, validate]);
+
+  const handleCashPayment = useCallback(async () => {
+    const includeOnlinePaymentLink = config.pagoStripeActivo && config.pagoEfectivoActivo;
+    const success = await submitCash('fer', includeOnlinePaymentLink);
+    if (success) {
+      setShowPaymentChoice(false);
+      setShowConfirmation(true);
+      setLocalPlazas((prev) => Math.max(0, (prev ?? config.plazasDisponibles) - 1));
+    }
+  }, [config.pagoEfectivoActivo, config.pagoStripeActivo, config.plazasDisponibles, submitCash]);
+
+  const handleStripePayment = useCallback(async () => {
+    const result = await startStripeCheckout('fer');
+    if (result === 'already_paid') {
+      setShowPaymentChoice(false);
+      setShowConfirmation(true);
+    }
+  }, [startStripeCheckout]);
 
   const handleShowUpsell = useCallback(() => {
     if (!inscripcionHook.formData.peakProgram && inscripcionHook.inscripcionResult?.id) {
@@ -70,6 +140,12 @@ export function InscripcionPage() {
   const closeUpsell = useCallback(() => {
     setShowUpsell(false);
   }, []);
+
+  const closePaymentChoice = useCallback(() => {
+    if (!isSubmitting) {
+      setShowPaymentChoice(false);
+    }
+  }, [isSubmitting]);
 
   // ── Page states ──
   if (config.pageState === 'loading') {
@@ -139,6 +215,7 @@ export function InscripcionPage() {
             contactEmail={config.competicion?.landingConfig?.contactEmail}
             precioPeakProgram={config.precioPeakProgram}
             fechaLimitePeakProgram={config.fechaLimitePeakProgram}
+            cuponesDescuentoActivo={config.cuponesDescuentoActivo}
             onSubmit={handleFormSubmit}
           />
         </main>
@@ -146,6 +223,19 @@ export function InscripcionPage() {
         <FerFooter />
 
         {/* Modals */}
+        <PaymentChoiceModal
+          isOpen={showPaymentChoice}
+          mode={paymentModalMode}
+          amount={totalAmount}
+          subtotal={subtotalAmount}
+          discount={discountAmount}
+          couponCode={inscripcionHook.appliedCoupon?.codigo}
+          isSubmitting={isSubmitting}
+          onStripe={handleStripePayment}
+          onCash={handleCashPayment}
+          onClose={closePaymentChoice}
+        />
+
         <ConfirmacionModal
           isOpen={showConfirmation}
           qrCode={qrCode}

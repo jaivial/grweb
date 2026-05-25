@@ -16,6 +16,10 @@ export interface InscripcionConfig {
   precioHandler: number | undefined;
   precioPeakProgram: number | undefined;
   fechaLimitePeakProgram: string | null;
+  pagoStripeActivo: boolean;
+  pagoEfectivoActivo: boolean;
+  stripeDisponible: boolean;
+  cuponesDescuentoActivo: boolean;
   reload: () => void;
 }
 
@@ -27,6 +31,14 @@ export function useInscripcionConfig(): InscripcionConfig {
   const [categoriasMasculino, setCategoriasMasculino] = useState<string[]>([]);
   const [categoriasFemenino, setCategoriasFemenino] = useState<string[]>([]);
   const [pageState, setPageState] = useState<InscripcionPageState>('loading');
+  const [precioBaseConfig, setPrecioBaseConfig] = useState<number | undefined>(undefined);
+  const [precioHandlerConfig, setPrecioHandlerConfig] = useState<number | undefined>(undefined);
+  const [precioPeakProgramConfig, setPrecioPeakProgramConfig] = useState<number | undefined>(undefined);
+  const [fechaLimitePeakProgramConfig, setFechaLimitePeakProgramConfig] = useState<string | null>(null);
+  const [pagoStripeActivo, setPagoStripeActivo] = useState(false);
+  const [pagoEfectivoActivo, setPagoEfectivoActivo] = useState(false);
+  const [stripeDisponible, setStripeDisponible] = useState(false);
+  const [cuponesDescuentoActivo, setCuponesDescuentoActivo] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   const loadConfig = useCallback(async () => {
@@ -46,6 +58,14 @@ export function useInscripcionConfig(): InscripcionConfig {
       if (configResult.success && configResult.data) {
         setCategoriasMasculino(configResult.data.categoriasMasculino || []);
         setCategoriasFemenino(configResult.data.categoriasFemenino || []);
+        setPrecioBaseConfig(configResult.data.precioBase);
+        setPrecioHandlerConfig(configResult.data.precioHandler);
+        setPrecioPeakProgramConfig(configResult.data.precioPeakProgram);
+        setFechaLimitePeakProgramConfig(configResult.data.fechaLimitePeakProgram ?? null);
+        setPagoStripeActivo(Boolean(configResult.data.pagoStripeActivo));
+        setPagoEfectivoActivo(configResult.data.pagoEfectivoActivo !== false);
+        setStripeDisponible(Boolean(configResult.data.stripeDisponible));
+        setCuponesDescuentoActivo(Boolean(configResult.data.cuponesDescuentoActivo));
         if (configResult.data.plazasDisponibles !== undefined) {
           setPlazasDisponibles(configResult.data.plazasDisponibles);
         }
@@ -55,9 +75,15 @@ export function useInscripcionConfig(): InscripcionConfig {
         }
       }
 
-      if (!compResult.success && !configResult.success) {
+      if (!configResult.success) {
         setPageState('error');
-        toast.error('Error cargando la información del evento', { style: TOAST_STYLE });
+        toast.error('Error cargando la configuración del evento. Inténtalo de nuevo.', { style: TOAST_STYLE });
+        return;
+      }
+
+      if (!compResult.success) {
+        setPageState('error');
+        toast.error('Error cargando la información del evento. Inténtalo de nuevo.', { style: TOAST_STYLE });
         return;
       }
 
@@ -78,23 +104,23 @@ export function useInscripcionConfig(): InscripcionConfig {
   }, []);
 
   const precioBase = useMemo(
-    () => competicion?.eventoConfig?.precioBase,
-    [competicion?.eventoConfig?.precioBase]
+    () => precioBaseConfig ?? competicion?.eventoConfig?.precioBase,
+    [competicion?.eventoConfig?.precioBase, precioBaseConfig]
   );
 
   const precioHandler = useMemo(
-    () => competicion?.eventoConfig?.precioHandler,
-    [competicion?.eventoConfig?.precioHandler]
+    () => precioHandlerConfig ?? competicion?.eventoConfig?.precioHandler,
+    [competicion?.eventoConfig?.precioHandler, precioHandlerConfig]
   );
 
   const precioPeakProgram = useMemo(
-    () => competicion?.eventoConfig?.precioPeakProgram,
-    [competicion?.eventoConfig?.precioPeakProgram]
+    () => precioPeakProgramConfig ?? competicion?.eventoConfig?.precioPeakProgram,
+    [competicion?.eventoConfig?.precioPeakProgram, precioPeakProgramConfig]
   );
 
   const fechaLimitePeakProgram = useMemo(
-    () => competicion?.eventoConfig?.fechaLimitePeakProgram ?? null,
-    [competicion?.eventoConfig?.fechaLimitePeakProgram]
+    () => fechaLimitePeakProgramConfig ?? competicion?.eventoConfig?.fechaLimitePeakProgram ?? null,
+    [competicion?.eventoConfig?.fechaLimitePeakProgram, fechaLimitePeakProgramConfig]
   );
 
   return {
@@ -107,6 +133,10 @@ export function useInscripcionConfig(): InscripcionConfig {
     precioHandler,
     precioPeakProgram,
     fechaLimitePeakProgram,
+    pagoStripeActivo,
+    pagoEfectivoActivo,
+    stripeDisponible,
+    cuponesDescuentoActivo,
     reload,
   };
 }

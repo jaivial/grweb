@@ -14,6 +14,8 @@ public static class WebhookEndpoints
             HttpRequest request,
             StripeService stripeService,
             ParticipantService participantService,
+            InscripcionService inscripcionService,
+            CompeticionService competicionService,
             EmailService emailService,
             IHubContext<ParticipantsHub> hubContext,
             ILogger<Program> logger) =>
@@ -28,7 +30,8 @@ public static class WebhookEndpoints
 
             try
             {
-                var stripeEvent = await stripeService.ConstructEventAsync(json, signature);
+                var competicionIdHint = StripeService.ExtractCompeticionIdFromRawEvent(json);
+                var stripeEvent = await stripeService.ConstructEventAsync(json, signature, competicionIdHint);
 
                 if (stripeEvent.Type == "checkout.session.completed")
                 {
@@ -38,6 +41,103 @@ public static class WebhookEndpoints
                     {
                         logger.LogWarning("Session is null in webhook");
                         return Results.BadRequest();
+                    }
+
+                    if (session.Metadata != null && session.Metadata.TryGetValue("type", out var type) && (type == "fer_inscripcion" || type == "fer_inscripcion_deferred"))
+                    {
+                        if (type == "fer_inscripcion_deferred")
+                        {
+                            if (!session.Metadata.TryGetValue("competicion_id", out var deferredCompeticionIdRaw) ||
+                                !int.TryParse(deferredCompeticionIdRaw, out var deferredCompeticionId))
+                            {
+                                logger.LogWarning("Invalid deferred FER inscription metadata in Stripe session {SessionId}", session.Id);
+                                return Results.BadRequest();
+                            }
+
+                            try
+                            {
+                                var inscripcion = await inscripcionService.CreateFromStripeMetadataAsync(
+                                    deferredCompeticionId, session.Metadata, session.Id);
+
+                                if (inscripcion.PagoConfirmado)
+                                {
+                                    logger.LogInformation("Deferred FER inscription {InscripcionId} already confirmed, skipping session {SessionId}", inscripcion.Id, session.Id);
+                                    return Results.Ok();
+                                }
+
+                                var competicion = await competicionService.GetByIdAsync(deferredCompeticionId);
+                                if (competicion != null && competicion.Tipo == "fer")
+                                {
+                                    var eventConfig = competicionService.GetEventoConfig(competicion);
+                                    byte[]? qrCodeImage = null;
+                                    var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
+                                    var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
+                                    if (qrResult.HasValue)
+                                        qrCodeImage = qrResult.Value.Bytes;
+
+                                    await emailService.SendFerConfirmationAsync(inscripcion, competicion, eventConfig, qrCodeImage, inscripcion.QrCode);
+                                    await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
+                                }
+
+                                logger.LogInformation("Created FER inscription {InscripcionId} from deferred Stripe session {SessionId}", inscripcion.Id, session.Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, "Failed to create deferred FER inscription from Stripe session {SessionId}", session.Id);
+                                return Results.StatusCode(500);
+                            }
+
+                            return Results.Ok();
+                        }
+
+                        if (!session.Metadata.TryGetValue("competicion_id", out var competicionIdRaw) ||
+                            !int.TryParse(competicionIdRaw, out var ferCompeticionId) ||
+                            !session.Metadata.TryGetValue("inscripcion_id", out var inscripcionIdRaw) ||
+                            !int.TryParse(inscripcionIdRaw, out var inscripcionId))
+                        {
+                            logger.LogWarning("Invalid FER inscription metadata in Stripe session {SessionId}", session.Id);
+                            return Results.BadRequest();
+                        }
+
+                        var existingInscripcion = await inscripcionService.GetByIdAsync(inscripcionId);
+                        if (existingInscripcion == null || existingInscripcion.CompeticionId != ferCompeticionId)
+                        {
+                            logger.LogWarning("FER inscription {InscripcionId} not found for Stripe session {SessionId}", inscripcionId, session.Id);
+                            return Results.Ok();
+                        }
+
+                        if (existingInscripcion.PagoConfirmado)
+                        {
+                            logger.LogInformation("FER inscription {InscripcionId} already paid, skipping Stripe session {SessionId}", inscripcionId, session.Id);
+                            return Results.Ok();
+                        }
+
+                        var previousPaymentMethod = existingInscripcion.PaymentMethod;
+                        var inscripcion2 = await inscripcionService.ConfirmStripePaymentAsync(ferCompeticionId, inscripcionId, session.Id);
+                        var competicion2 = await competicionService.GetByIdAsync(ferCompeticionId);
+
+                        if (inscripcion2 != null && competicion2 != null && competicion2.Tipo == "fer")
+                        {
+                            var config = competicionService.GetEventoConfig(competicion2);
+                            if (string.Equals(previousPaymentMethod, InscripcionService.PaymentMethodEfectivo, StringComparison.OrdinalIgnoreCase))
+                            {
+                                await emailService.SendFerPaymentConfirmationAsync(inscripcion2, competicion2);
+                            }
+                            else
+                            {
+                                byte[]? qrCodeImage = null;
+                                var qrPayload = inscripcionService.GenerateQrCodePayload(competicion2.Id, inscripcion2.Id, competicion2.QrSecret);
+                                var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion2.Id, inscripcion2.Id);
+                                if (qrResult.HasValue)
+                                    qrCodeImage = qrResult.Value.Bytes;
+
+                                await emailService.SendFerConfirmationAsync(inscripcion2, competicion2, config, qrCodeImage, inscripcion2.QrCode);
+                                await emailService.SendFerAdminNotificationAsync(inscripcion2, competicion2);
+                            }
+                        }
+
+                        logger.LogInformation("Processed FER Stripe payment for inscription {InscripcionId}, session {SessionId}", inscripcionId, session.Id);
+                        return Results.Ok();
                     }
 
                     // Idempotency: skip if this session was already processed

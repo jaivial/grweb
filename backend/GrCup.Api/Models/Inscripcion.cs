@@ -50,6 +50,13 @@ public class Inscripcion
     [Required]
     [MaxLength(50)]
     public string CategoriaPeso { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Competition modality: completa, solo_banca, solo_peso_muerto
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string Modalidad { get; set; } = "completa";
     
     /// <summary>
     /// Whether the athlete wants the handler service (GR Strength)
@@ -98,6 +105,26 @@ public class Inscripcion
     /// </summary>
     [MaxLength(50)]
     public string? PaymentMethod { get; set; }
+
+    [MaxLength(255)]
+    public string? StripeSessionId { get; set; }
+
+    public int? CuponDescuentoId { get; set; }
+
+    [MaxLength(200)]
+    public string? CodigoCupon { get; set; }
+
+    [MaxLength(20)]
+    public string? TipoDescuentoCupon { get; set; }
+
+    [Column(TypeName = "decimal(10,2)")]
+    public decimal? ValorDescuentoCupon { get; set; }
+
+    [Column(TypeName = "decimal(10,2)")]
+    public decimal SubtotalAntesDescuento { get; set; } = 0;
+
+    [Column(TypeName = "decimal(10,2)")]
+    public decimal ImporteDescuento { get; set; } = 0;
     
     /// <summary>
     /// Total amount paid in EUR
@@ -125,6 +152,7 @@ public class Inscripcion
     
     // Navigation properties
     public virtual Competicion Competicion { get; set; } = null!;
+    public virtual CuponDescuento? CuponDescuento { get; set; }
     public virtual ICollection<RifaTicket> RifaTickets { get; set; } = new List<RifaTicket>();
 }
 

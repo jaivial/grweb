@@ -17,9 +17,11 @@ interface InscripcionEstado {
   telefono?: string;
   sexo: string;
   categoriaPeso?: string;
+  modalidad: string;
   experiencia: string;
   quiereHandler: boolean;
   pagoConfirmado: boolean;
+  paymentMethod?: string;
   participacionConfirmada: boolean;
   totalPagado: number;
   checkinAt?: string;
@@ -41,6 +43,36 @@ type ScanState = 'scanning' | 'loading' | 'loaded' | 'error';
 
 function formatPrice(amount: number): string {
   return amount.toFixed(2);
+}
+
+function getModalidadLabel(modalidad?: string): string {
+  switch (modalidad) {
+    case 'solo_banca':
+      return 'Solo banca';
+    case 'solo_peso_muerto':
+      return 'Solo peso muerto';
+    default:
+      return 'Competición completa';
+  }
+}
+
+function getPaymentMethodLabel(paymentMethod?: string): string {
+  switch (paymentMethod) {
+    case 'stripe':
+      return 'Stripe';
+    case 'transferencia':
+      return 'Transferencia';
+    case 'efectivo':
+      return 'Efectivo';
+    default:
+      return 'Sin definir';
+  }
+}
+
+function isLiftAllowedForModalidad(modalidad: string | undefined, liftType: 'Squat' | 'Bench' | 'Deadlift'): boolean {
+  if (modalidad === 'solo_banca') return liftType === 'Bench';
+  if (modalidad === 'solo_peso_muerto') return liftType === 'Deadlift';
+  return true;
 }
 
 // ─── Main Component ───
@@ -87,6 +119,10 @@ export function QrReaderPage(): JSX.Element {
       hasHandler: inscripcion.quiereHandler && handlerPrice > 0,
     };
   }, [inscripcion]);
+
+  const showSentadilla = isLiftAllowedForModalidad(inscripcion?.modalidad, 'Squat');
+  const showBanca = isLiftAllowedForModalidad(inscripcion?.modalidad, 'Bench');
+  const showPesoMuerto = isLiftAllowedForModalidad(inscripcion?.modalidad, 'Deadlift');
 
   const triggerConfetti = useCallback(() => {
     setShowConfetti(true);
@@ -588,6 +624,12 @@ export function QrReaderPage(): JSX.Element {
                     </p>
                   </div>
                 )}
+                <div data-ui="qr-reader-field-modalidad">
+                  <p className="text-xs text-gray-500" data-ui="qr-reader-field-label-modalidad">Modalidad</p>
+                  <p className="text-white font-medium text-sm" data-ui="qr-reader-field-value-modalidad">
+                    {getModalidadLabel(inscripcion.modalidad)}
+                  </p>
+                </div>
                 <div data-ui="qr-reader-field-experiencia">
                   <p className="text-xs text-gray-500" data-ui="qr-reader-field-label-experiencia">Experiencia</p>
                   <p className="text-white font-medium text-sm capitalize" data-ui="qr-reader-field-value-experiencia">
@@ -624,6 +666,12 @@ export function QrReaderPage(): JSX.Element {
                     {inscripcion.pagoConfirmado ? 'Confirmado' : 'Pendiente'}
                   </p>
                 </div>
+                <div data-ui="qr-reader-field-payment-method">
+                  <p className="text-xs text-gray-500" data-ui="qr-reader-field-label-payment-method">Método</p>
+                  <p className="text-white font-medium text-sm" data-ui="qr-reader-field-value-payment-method">
+                    {getPaymentMethodLabel(inscripcion.paymentMethod)}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -636,9 +684,9 @@ export function QrReaderPage(): JSX.Element {
                 <p className="text-xs text-gray-500 mb-4" data-ui="qr-reader-lifts-subtitle">
                   Registra los pesos de apertura para cada levantamiento
                 </p>
-                <div className="grid grid-cols-3 gap-4" data-ui="qr-reader-lifts-grid">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-ui="qr-reader-lifts-grid">
                   {/* Sentadilla */}
-                  <div data-ui="qr-reader-lifts-sentadilla">
+                  {showSentadilla && <div data-ui="qr-reader-lifts-sentadilla">
                     <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Sentadilla</p>
                     <div className="space-y-2">
                       {[1, 2, 3].map((n) => (
@@ -653,9 +701,9 @@ export function QrReaderPage(): JSX.Element {
                         />
                       ))}
                     </div>
-                  </div>
+                  </div>}
                   {/* Press de Banca */}
-                  <div data-ui="qr-reader-lifts-banca">
+                  {showBanca && <div data-ui="qr-reader-lifts-banca">
                     <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Press de Banca</p>
                     <div className="space-y-2">
                       {[1, 2, 3].map((n) => (
@@ -670,9 +718,9 @@ export function QrReaderPage(): JSX.Element {
                         />
                       ))}
                     </div>
-                  </div>
+                  </div>}
                   {/* Peso Muerto */}
-                  <div data-ui="qr-reader-lifts-peso-muerto">
+                  {showPesoMuerto && <div data-ui="qr-reader-lifts-peso-muerto">
                     <p className="text-xs text-gray-400 font-semibold mb-2 text-center">Peso Muerto</p>
                     <div className="space-y-2">
                       {[1, 2, 3].map((n) => (
@@ -687,7 +735,7 @@ export function QrReaderPage(): JSX.Element {
                         />
                       ))}
                     </div>
-                  </div>
+                  </div>}
                 </div>
                 <button
                   onClick={handleSaveLifts}
@@ -728,7 +776,26 @@ export function QrReaderPage(): JSX.Element {
             )}
 
             {/* Payment pending section */}
-            {!inscripcion.pagoConfirmado && !paymentConfirmed && participationConfirmed && (
+            {!inscripcion.pagoConfirmado && inscripcion.paymentMethod === 'stripe' && participationConfirmed && (
+              <div
+                className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20"
+                data-ui="qr-reader-stripe-pending-alert"
+              >
+                <div className="flex items-start gap-3" data-ui="qr-reader-stripe-pending-inner">
+                  <WarningIcon />
+                  <div data-ui="qr-reader-stripe-pending-text">
+                    <p className="text-indigo-300 text-sm font-semibold mb-1" data-ui="qr-reader-stripe-pending-title">
+                      Pago online pendiente
+                    </p>
+                    <p className="text-gray-400 text-sm" data-ui="qr-reader-stripe-pending-desc">
+                      Esta inscripción fue marcada para pago por Stripe. No confirmes efectivo salvo que cambies el método desde inscripciones.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!inscripcion.pagoConfirmado && !paymentConfirmed && participationConfirmed && inscripcion.paymentMethod !== 'stripe' && (
               <div className="space-y-3" data-ui="qr-reader-payment-section">
                 <div
                   className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20"

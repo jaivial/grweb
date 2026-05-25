@@ -58,7 +58,7 @@ public static class FerLiftEndpoints
                 return Results.NotFound(new { success = false, message = "Competición no encontrada" });
 
             var attempts = await inscripcionService.GetAllAttemptsAsync(competicion.Id, inscripcionId);
-            return Results.Ok(new { success = true, data = attempts });
+            return Results.Ok(new { success = true, data = ToOpenersResponse(attempts) });
         });
 
         // PUT /api/competiciones/{slug}/checkin/{inscripcionId}/attempt/{liftType}/{attemptNumber}/weight - Edit attempt weight
@@ -150,6 +150,7 @@ public static class FerLiftEndpoints
                     i.Email,
                     i.Sexo,
                     i.CategoriaPeso,
+                    i.Modalidad,
                     i.PagoConfirmado,
                     i.ParticipacionConfirmada,
                     i.CheckinAt
@@ -171,10 +172,11 @@ public static class FerLiftEndpoints
                 i.Email,
                 i.Sexo,
                 i.CategoriaPeso,
+                i.Modalidad,
                 i.PagoConfirmado,
                 i.ParticipacionConfirmada,
                 i.CheckinAt,
-                attempts = lifts.Where(l => l.InscripcionId == i.Id).Select(l => new
+                attempts = lifts.Where(l => l.InscripcionId == i.Id && InscripcionService.IsLiftAllowed(i.Modalidad, l.LiftType)).Select(l => new
                 {
                     l.Id,
                     liftType = l.LiftType,
@@ -189,6 +191,26 @@ public static class FerLiftEndpoints
 
             return Results.Ok(new { success = true, data = grouped });
         });
+    }
+
+    private static object ToOpenersResponse(IEnumerable<LiftEntryInscripcion> attempts)
+    {
+        decimal GetWeight(string liftType, int attemptNumber) => attempts
+            .FirstOrDefault(l => l.LiftType == liftType && l.AttemptNumber == attemptNumber)
+            ?.Weight ?? 0;
+
+        return new
+        {
+            sentadilla1 = GetWeight("Squat", 1),
+            sentadilla2 = GetWeight("Squat", 2),
+            sentadilla3 = GetWeight("Squat", 3),
+            banca1 = GetWeight("Bench", 1),
+            banca2 = GetWeight("Bench", 2),
+            banca3 = GetWeight("Bench", 3),
+            pesoMuerto1 = GetWeight("Deadlift", 1),
+            pesoMuerto2 = GetWeight("Deadlift", 2),
+            pesoMuerto3 = GetWeight("Deadlift", 3),
+        };
     }
 }
 

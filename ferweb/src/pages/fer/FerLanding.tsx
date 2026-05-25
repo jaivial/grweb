@@ -13,8 +13,10 @@ import { QuienPuede } from './components/QuienPuede';
 import { InscripcionForm } from './components/InscripcionForm';
 import { ConfirmacionModal } from './components/ConfirmacionModal';
 import { UpsellModal } from './components/UpsellModal';
+import { PaymentChoiceModal } from './components/PaymentChoiceModal';
 import { FerFooter } from './components/FerFooter';
 import { DisciplinasSection } from './components/DisciplinasSection';
+import { ModalidadesHomeSection } from './components/ModalidadesHomeSection';
 import { ParallaxShowcase } from './components/ParallaxShowcase';
 import { HorariosSection } from './components/HorariosSection';
 import { ComoFunciona } from './components/ComoFunciona';
@@ -29,6 +31,11 @@ export function FerLanding() {
   const [plazasDisponibles, setPlazasDisponibles] = useState(80);
   const [categoriasMasculino, setCategoriasMasculino] = useState<string[]>([]);
   const [categoriasFemenino, setCategoriasFemenino] = useState<string[]>([]);
+  const [pagoStripeActivo, setPagoStripeActivo] = useState(false);
+  const [pagoEfectivoActivo, setPagoEfectivoActivo] = useState(false);
+  const [stripeDisponible, setStripeDisponible] = useState(false);
+  const [cuponesDescuentoActivo, setCuponesDescuentoActivo] = useState(false);
+  const [showPaymentChoice, setShowPaymentChoice] = useState(false);
 
   const formRef = useRef<HTMLDivElement>(null);
   const inscripcionHook = useFerInscripcion();
@@ -52,6 +59,10 @@ export function FerLanding() {
       if (configResult.success && configResult.data) {
         setCategoriasMasculino(configResult.data.categoriasMasculino || []);
         setCategoriasFemenino(configResult.data.categoriasFemenino || []);
+        setPagoStripeActivo(Boolean(configResult.data.pagoStripeActivo));
+        setPagoEfectivoActivo(configResult.data.pagoEfectivoActivo !== false);
+        setStripeDisponible(Boolean(configResult.data.stripeDisponible));
+        setCuponesDescuentoActivo(Boolean(configResult.data.cuponesDescuentoActivo));
         if (configResult.data.plazasDisponibles !== undefined) {
           setPlazasDisponibles(configResult.data.plazasDisponibles);
         }
@@ -75,14 +86,84 @@ export function FerLanding() {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  const subtotalAmount = useMemo(
+    () => (competicion?.eventoConfig?.precioBase ?? 0) + (inscripcionHook.formData.peakProgram ? competicion?.eventoConfig?.precioPeakProgram ?? 0 : 0),
+    [competicion?.eventoConfig?.precioBase, competicion?.eventoConfig?.precioPeakProgram, inscripcionHook.formData.peakProgram]
+  );
+
+  const totalAmount = useMemo(
+    () => inscripcionHook.appliedCoupon?.total ?? subtotalAmount,
+    [inscripcionHook.appliedCoupon?.total, subtotalAmount]
+  );
+
+  const discountAmount = useMemo(
+    () => inscripcionHook.appliedCoupon?.importeDescuento ?? 0,
+    [inscripcionHook.appliedCoupon?.importeDescuento]
+  );
+
+  const isStripeAvailable = useMemo(
+    () => pagoStripeActivo && stripeDisponible,
+    [pagoStripeActivo, stripeDisponible]
+  );
+
+  const paymentModalMode = useMemo(
+    () => (pagoStripeActivo && !pagoEfectivoActivo ? 'stripeOnly' : 'choice') as 'stripeOnly' | 'choice',
+    [pagoEfectivoActivo, pagoStripeActivo]
+  );
+
   // ── Form submit handler ──
   const handleFormSubmit = useCallback(async () => {
-    const success = await inscripcionHook.submit('fer');
+    if (totalAmount <= 0) {
+      const success = await inscripcionHook.submitCash('fer', false);
+      if (success) {
+        setShowConfirmation(true);
+        setPlazasDisponibles((prev) => Math.max(0, prev - 1));
+      }
+      return;
+    }
+
+    if (!pagoEfectivoActivo && !isStripeAvailable) {
+      toast.error('El pago online no está disponible ahora mismo. Inténtalo más tarde.', {
+        style: { background: '#161B26', color: '#F8FAFC' },
+      });
+      return;
+    }
+
+    if (isStripeAvailable) {
+      setShowPaymentChoice(true);
+      return;
+    }
+
+    const success = await inscripcionHook.submitCash('fer', false);
     if (success) {
       setShowConfirmation(true);
       setPlazasDisponibles((prev) => Math.max(0, prev - 1));
     }
+  }, [inscripcionHook, pagoEfectivoActivo, isStripeAvailable, totalAmount]);
+
+  const handleCashPayment = useCallback(async () => {
+    const includeOnlinePaymentLink = pagoStripeActivo && pagoEfectivoActivo;
+    const success = await inscripcionHook.submitCash('fer', includeOnlinePaymentLink);
+    if (success) {
+      setShowPaymentChoice(false);
+      setShowConfirmation(true);
+      setPlazasDisponibles((prev) => Math.max(0, prev - 1));
+    }
+  }, [inscripcionHook, pagoEfectivoActivo, pagoStripeActivo]);
+
+  const handleStripePayment = useCallback(async () => {
+    const result = await inscripcionHook.startStripeCheckout('fer');
+    if (result === 'already_paid') {
+      setShowPaymentChoice(false);
+      setShowConfirmation(true);
+    }
   }, [inscripcionHook]);
+
+  const closePaymentChoice = useCallback(() => {
+    if (!inscripcionHook.isSubmitting) {
+      setShowPaymentChoice(false);
+    }
+  }, [inscripcionHook.isSubmitting]);
 
   // ── Show upsell after confetti (only if user didn't select Peak Program) ──
   const handleShowUpsell = useCallback(() => {
@@ -170,6 +251,8 @@ export function FerLanding() {
 
       <DisciplinasSection />
 
+      <ModalidadesHomeSection />
+
       <QueIncluye />
 
       <QuienPuede />
@@ -196,6 +279,7 @@ export function FerLanding() {
           contactEmail={competicion?.landingConfig?.contactEmail}
           precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
           fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
+          cuponesDescuentoActivo={cuponesDescuentoActivo}
           onSubmit={handleFormSubmit}
         />
       </div>
@@ -205,6 +289,19 @@ export function FerLanding() {
       <FerFooter contactEmail={competicion?.landingConfig?.contactEmail} />
 
       {/* Modals */}
+      <PaymentChoiceModal
+        isOpen={showPaymentChoice}
+        mode={paymentModalMode}
+        amount={totalAmount}
+        subtotal={subtotalAmount}
+        discount={discountAmount}
+        couponCode={inscripcionHook.appliedCoupon?.codigo}
+        isSubmitting={inscripcionHook.isSubmitting}
+        onStripe={handleStripePayment}
+        onCash={handleCashPayment}
+        onClose={closePaymentChoice}
+      />
+
       <ConfirmacionModal
         isOpen={showConfirmation}
         qrCode={qrCode}

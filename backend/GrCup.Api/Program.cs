@@ -131,6 +131,7 @@ builder.Services.AddScoped<CompeticionService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<UserManagementService>();
 builder.Services.AddScoped<InscripcionService>();
+builder.Services.AddScoped<CuponDescuentoService>();
 builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<SeedService>();
 
@@ -180,6 +181,22 @@ app.MapHub<ParticipantsHub>("/hubs/participants");
 // ─── Healthcheck ───
 app.MapGet("/api/health", () => Results.Ok(new { success = true, status = "healthy" }));
 
+// ─── Anti-cache headers for API responses ───
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate, private";
+            context.Response.Headers.Pragma = "no-cache";
+            context.Response.Headers.Expires = "0";
+            return Task.CompletedTask;
+        });
+    }
+    await next();
+});
+
 // ─── Map API Endpoints ───
 app.MapPublicEndpoints();
 app.MapWebhookEndpoints();
@@ -207,6 +224,7 @@ app.MapInscripcionEndpoints();
 app.MapRifaEndpoints();
 app.MapTutorialEndpoints();
 app.MapFerLiftEndpoints();
+app.MapCuponDescuentoEndpoints();
 
 
 app.Run();

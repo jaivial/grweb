@@ -4,6 +4,7 @@ import type { JSX } from 'react';
 export interface KpiCardProps {
   label: string;
   value: string | number;
+  description?: string;
   icon?: ReactNode;
   color?: 'default' | 'success' | 'warning' | 'danger';
   className?: string;
@@ -26,6 +27,7 @@ const iconColorClasses = {
 export function KpiCard({
   label,
   value,
+  description,
   icon,
   color = 'default',
   className = '',
@@ -43,6 +45,11 @@ export function KpiCard({
           <p className="text-xl xs:text-2xl font-bold mt-0.5 xs:mt-1 truncate" data-ui="kpi-value">
             {value}
           </p>
+          {description && (
+            <p className="text-[11px] xs:text-xs text-white/45 mt-1 truncate" data-ui="kpi-description">
+              {description}
+            </p>
+          )}
         </div>
         {icon && (
           <div className={`flex-shrink-0 ${iconColorClasses[color]}`} data-ui="kpi-icon">

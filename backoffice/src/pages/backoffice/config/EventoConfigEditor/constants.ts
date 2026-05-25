@@ -10,6 +10,9 @@ export const DEFAULT_EVENTO_CONFIG: EventoConfigFormData = {
   fechaLimitePeakProgram: '',
   maxTicketsPorPersona: 10,
   inscripcionAbierta: true,
+  pagoStripeActivo: false,
+  pagoEfectivoActivo: true,
+  cuponesDescuentoActivo: false,
 } as const;
 
 export const FIELD_CONFIG = [

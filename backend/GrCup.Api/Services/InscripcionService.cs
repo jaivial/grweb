@@ -15,15 +15,214 @@ namespace GrCup.Api.Services;
 /// </summary>
 public class InscripcionService
 {
+    public const string ModalidadCompleta = "completa";
+    public const string ModalidadSoloBanca = "solo_banca";
+    public const string ModalidadSoloPesoMuerto = "solo_peso_muerto";
+    public const string PaymentMethodEfectivo = "efectivo";
+    public const string PaymentMethodStripe = "stripe";
+    public const string PaymentMethodTransferencia = "transferencia";
+    public const string PaymentMethodCupon = "cupon";
+
+    private static readonly HashSet<string> AllowedModalidades = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ModalidadCompleta,
+        ModalidadSoloBanca,
+        ModalidadSoloPesoMuerto
+    };
+
+    private static readonly string[] CompleteLifts = { "Squat", "Bench", "Deadlift" };
+    private static readonly string[] BenchOnlyLifts = { "Bench" };
+    private static readonly string[] DeadliftOnlyLifts = { "Deadlift" };
+
     private readonly GrCupDbContext _context;
     private readonly CompeticionService _competicionService;
     private readonly BunnyCdnService _bunnyCdn;
+    private readonly CuponDescuentoService _cuponDescuentoService;
 
-    public InscripcionService(GrCupDbContext context, CompeticionService competicionService, BunnyCdnService bunnyCdn)
+    public InscripcionService(GrCupDbContext context, CompeticionService competicionService, BunnyCdnService bunnyCdn, CuponDescuentoService cuponDescuentoService)
     {
         _context = context;
         _competicionService = competicionService;
         _bunnyCdn = bunnyCdn;
+        _cuponDescuentoService = cuponDescuentoService;
+    }
+
+    public static string NormalizeModalidad(string? modalidad)
+    {
+        var normalized = string.IsNullOrWhiteSpace(modalidad)
+            ? ModalidadCompleta
+            : modalidad.Trim().ToLowerInvariant();
+
+        if (!AllowedModalidades.Contains(normalized))
+            throw new InvalidOperationException("Modalidad no válida");
+
+        return normalized;
+    }
+
+    public static string GetModalidadLabel(string? modalidad)
+    {
+        return NormalizeModalidad(modalidad) switch
+        {
+            ModalidadSoloBanca => "Solo banca",
+            ModalidadSoloPesoMuerto => "Solo peso muerto",
+            _ => "Competición completa"
+        };
+    }
+
+    public static string? NormalizePaymentMethod(string? paymentMethod)
+    {
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+            return null;
+
+        var normalized = paymentMethod.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            PaymentMethodEfectivo => PaymentMethodEfectivo,
+            PaymentMethodStripe => PaymentMethodStripe,
+            PaymentMethodTransferencia => PaymentMethodTransferencia,
+            PaymentMethodCupon => PaymentMethodCupon,
+            "cash" => PaymentMethodEfectivo,
+            "card" => PaymentMethodStripe,
+            "tarjeta" => PaymentMethodStripe,
+            _ => normalized
+        };
+    }
+
+    public static string GetPaymentMethodLabel(string? paymentMethod)
+    {
+        return NormalizePaymentMethod(paymentMethod) switch
+        {
+            PaymentMethodEfectivo => "Efectivo",
+            PaymentMethodStripe => "Stripe",
+            PaymentMethodTransferencia => "Transferencia",
+            PaymentMethodCupon => "Cupón",
+            _ => "Sin definir"
+        };
+    }
+
+    public static IReadOnlyCollection<string> GetAllowedLiftTypes(string? modalidad)
+    {
+        return NormalizeModalidad(modalidad) switch
+        {
+            ModalidadSoloBanca => BenchOnlyLifts,
+            ModalidadSoloPesoMuerto => DeadliftOnlyLifts,
+            _ => CompleteLifts
+        };
+    }
+
+    public static bool IsLiftAllowed(string? modalidad, string liftType)
+    {
+        return GetAllowedLiftTypes(modalidad).Contains(liftType, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<CouponApplication> ApplyCouponAsync(int competicionId, EventoConfig config, string? codigo, decimal subtotal, int? excludeInscripcionId = null)
+    {
+        return await _cuponDescuentoService.ApplyCouponAsync(competicionId, config, codigo, subtotal, excludeInscripcionId);
+    }
+
+    public async Task<Inscripcion> CreateFromStripeMetadataAsync(
+        int competicionId,
+        Dictionary<string, string> metadata,
+        string stripeSessionId)
+    {
+        var competicion = await _competicionService.GetByIdAsync(competicionId);
+        if (competicion == null)
+            throw new InvalidOperationException($"Competition {competicionId} not found");
+
+        var plazasDisponibles = await _competicionService.GetPlazasDisponiblesAsync(competicionId);
+        if (plazasDisponibles <= 0)
+            throw new InvalidOperationException("No available spots");
+
+        var email = metadata.GetValueOrDefault("email", "").ToLower().Trim();
+        var existing = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.CompeticionId == competicionId && i.Email.ToLower() == email);
+
+        if (existing != null)
+        {
+            if (existing.PagoConfirmado)
+                return existing;
+
+            existing.Nombre = metadata.GetValueOrDefault("nombre", existing.Nombre);
+            existing.Instagram = metadata.GetValueOrDefault("instagram", existing.Instagram);
+            existing.Telefono = metadata.GetValueOrDefault("telefono", existing.Telefono);
+            existing.Sexo = metadata.GetValueOrDefault("sexo", existing.Sexo);
+            existing.CategoriaPeso = metadata.GetValueOrDefault("categoria_peso", existing.CategoriaPeso);
+            existing.Modalidad = NormalizeModalidad(metadata.GetValueOrDefault("modalidad", existing.Modalidad));
+            existing.QuiereHandler = metadata.GetValueOrDefault("quiere_handler") == "1";
+            existing.Experiencia = metadata.GetValueOrDefault("experiencia", existing.Experiencia);
+            existing.TieneEntrenador = metadata.GetValueOrDefault("tiene_entrenador") == "1";
+            existing.QuierePeakProgram = metadata.GetValueOrDefault("peak_program") == "1";
+            existing.PagoConfirmado = true;
+            existing.PaymentMethod = PaymentMethodStripe;
+            existing.StripeSessionId = stripeSessionId;
+            existing.ParticipacionConfirmada = false;
+            existing.AceptaTerminos = metadata.GetValueOrDefault("acepta_terminos") == "1";
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            decimal.TryParse(metadata.GetValueOrDefault("subtotal", "0"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var subtotal);
+            decimal.TryParse(metadata.GetValueOrDefault("importe_descuento", "0"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var descuento);
+            decimal.TryParse(metadata.GetValueOrDefault("total", "0"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var total);
+
+            existing.SubtotalAntesDescuento = subtotal;
+            existing.ImporteDescuento = descuento;
+            existing.TotalPagado = total;
+            existing.CodigoCupon = metadata.GetValueOrDefault("codigo_cupon") is { Length: > 0 } code ? code : null;
+
+            if (int.TryParse(metadata.GetValueOrDefault("cupon_id", ""), out var cuponId))
+                existing.CuponDescuentoId = cuponId;
+            existing.TipoDescuentoCupon = metadata.GetValueOrDefault("tipo_descuento") is { Length: > 0 } td ? td : null;
+            decimal.TryParse(metadata.GetValueOrDefault("valor_descuento", ""), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var vd);
+            if (vd > 0) existing.ValorDescuentoCupon = vd;
+
+            await EnsureQrCodeAsync(existing, competicion);
+            await _context.SaveChangesAsync();
+            return existing;
+        }
+
+        decimal.TryParse(metadata.GetValueOrDefault("subtotal", "0"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var st);
+        decimal.TryParse(metadata.GetValueOrDefault("importe_descuento", "0"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var id);
+        decimal.TryParse(metadata.GetValueOrDefault("total", "0"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var tl);
+
+        var inscripcion = new Inscripcion
+        {
+            CompeticionId = competicionId,
+            Nombre = metadata.GetValueOrDefault("nombre", ""),
+            Email = email,
+            Instagram = metadata.GetValueOrDefault("instagram") is { Length: > 0 } ig ? ig : null,
+            Telefono = metadata.GetValueOrDefault("telefono") is { Length: > 0 } ph ? ph : null,
+            Sexo = metadata.GetValueOrDefault("sexo", "masculino"),
+            CategoriaPeso = metadata.GetValueOrDefault("categoria_peso", ""),
+            Modalidad = NormalizeModalidad(metadata.GetValueOrDefault("modalidad", "completa")),
+            QuiereHandler = metadata.GetValueOrDefault("quiere_handler") == "1",
+            Experiencia = metadata.GetValueOrDefault("experiencia", "principiante"),
+            TieneEntrenador = metadata.GetValueOrDefault("tiene_entrenador") == "1",
+            QuierePeakProgram = metadata.GetValueOrDefault("peak_program") == "1",
+            PagoConfirmado = true,
+            PaymentMethod = PaymentMethodStripe,
+            StripeSessionId = stripeSessionId,
+            ParticipacionConfirmada = false,
+            AceptaTerminos = metadata.GetValueOrDefault("acepta_terminos") == "1",
+            SubtotalAntesDescuento = st,
+            ImporteDescuento = id,
+            TotalPagado = tl,
+            CodigoCupon = metadata.GetValueOrDefault("codigo_cupon") is { Length: > 0 } cc ? cc : null,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        if (int.TryParse(metadata.GetValueOrDefault("cupon_id", ""), out var cid))
+            inscripcion.CuponDescuentoId = cid;
+        inscripcion.TipoDescuentoCupon = metadata.GetValueOrDefault("tipo_descuento") is { Length: > 0 } td2 ? td2 : null;
+        decimal.TryParse(metadata.GetValueOrDefault("valor_descuento", ""), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var vd2);
+        if (vd2 > 0) inscripcion.ValorDescuentoCupon = vd2;
+
+        _context.Inscripciones.Add(inscripcion);
+        await _context.SaveChangesAsync();
+
+        await EnsureQrCodeAsync(inscripcion, competicion);
+        await _context.SaveChangesAsync();
+
+        return inscripcion;
     }
 
     #region Public Registration
@@ -53,10 +252,11 @@ public class InscripcionService
         if (existing)
             throw new InvalidOperationException("Email already registered for this competition");
 
-        // Calculate total (base price + optional peak program)
-        var totalPagado = config.PrecioBase;
-        if (request.PeakProgram)
-            totalPagado += config.PrecioPeakProgram;
+        var modalidad = NormalizeModalidad(request.Modalidad);
+        var paymentMethod = NormalizePaymentMethod(request.PaymentMethod) ?? PaymentMethodEfectivo;
+        var subtotal = CuponDescuentoService.CalculateSubtotal(config, request.PeakProgram);
+        var coupon = await _cuponDescuentoService.ApplyCouponAsync(competicionId, config, request.CodigoCupon, subtotal);
+        var finalPaymentMethod = coupon.Total <= 0 ? PaymentMethodCupon : paymentMethod;
 
         var inscripcion = new Inscripcion
         {
@@ -67,14 +267,22 @@ public class InscripcionService
             Telefono = request.Telefono?.Trim(),
             Sexo = request.Sexo ?? "masculino",
             CategoriaPeso = request.CategoriaPeso ?? "",
+            Modalidad = modalidad,
             QuiereHandler = request.QuiereHandler,
 
             Experiencia = request.Experiencia,
             TieneEntrenador = request.TieneEntrenador,
             QuierePeakProgram = request.PeakProgram,
-            PagoConfirmado = false, // Will be confirmed via QR scan or manual
+            PagoConfirmado = coupon.Total <= 0,
+            PaymentMethod = finalPaymentMethod,
             ParticipacionConfirmada = false,
-            TotalPagado = totalPagado,
+            CuponDescuentoId = coupon.CuponDescuentoId,
+            CodigoCupon = coupon.CodigoCupon,
+            TipoDescuentoCupon = coupon.TipoDescuentoCupon,
+            ValorDescuentoCupon = coupon.ValorDescuentoCupon,
+            SubtotalAntesDescuento = coupon.SubtotalAntesDescuento,
+            ImporteDescuento = coupon.ImporteDescuento,
+            TotalPagado = coupon.Total,
             AceptaTerminos = request.AceptaTerminos,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -102,6 +310,103 @@ public class InscripcionService
         return inscripcion;
     }
 
+    public async Task<(Inscripcion Inscripcion, bool Reused, bool AlreadyPaid)> CreateOrReuseStripePendingAsync(
+        int competicionId,
+        CreateInscripcionRequest request)
+    {
+        var competicion = await _competicionService.GetByIdAsync(competicionId);
+        if (competicion == null)
+            throw new InvalidOperationException($"Competition {competicionId} not found");
+
+        var config = _competicionService.GetEventoConfig(competicion);
+        if (!config.InscripcionAbierta)
+            throw new InvalidOperationException("Registration is closed");
+
+        var email = request.Email.ToLower().Trim();
+        var existing = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.CompeticionId == competicionId && i.Email.ToLower() == email);
+
+        if (existing != null)
+        {
+            if (existing.PagoConfirmado)
+                return (existing, true, true);
+
+            if (!string.Equals(existing.PaymentMethod, PaymentMethodStripe, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Email already registered for this competition");
+
+            var existingSubtotal = CuponDescuentoService.CalculateSubtotal(config, request.PeakProgram);
+            var existingCoupon = await _cuponDescuentoService.ApplyCouponAsync(competicionId, config, request.CodigoCupon, existingSubtotal, existing.Id);
+            ApplyRegistrationData(existing, request, existingCoupon, existingCoupon.Total <= 0 ? PaymentMethodCupon : PaymentMethodStripe);
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            if (string.IsNullOrWhiteSpace(existing.QrCode))
+                await EnsureQrCodeAsync(existing, competicion);
+
+            await _context.SaveChangesAsync();
+            return (existing, true, false);
+        }
+
+        var plazasDisponibles = await _competicionService.GetPlazasDisponiblesAsync(competicionId);
+        if (plazasDisponibles <= 0)
+            throw new InvalidOperationException("No available spots");
+
+        var inscripcion = new Inscripcion
+        {
+            CompeticionId = competicionId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var subtotal = CuponDescuentoService.CalculateSubtotal(config, request.PeakProgram);
+        var coupon = await _cuponDescuentoService.ApplyCouponAsync(competicionId, config, request.CodigoCupon, subtotal);
+        ApplyRegistrationData(inscripcion, request, coupon, coupon.Total <= 0 ? PaymentMethodCupon : PaymentMethodStripe);
+        _context.Inscripciones.Add(inscripcion);
+        await _context.SaveChangesAsync();
+
+        await EnsureQrCodeAsync(inscripcion, competicion);
+        await _context.SaveChangesAsync();
+
+        return (inscripcion, false, false);
+    }
+
+    private static void ApplyRegistrationData(
+        Inscripcion inscripcion,
+        CreateInscripcionRequest request,
+        CouponApplication coupon,
+        string paymentMethod)
+    {
+        inscripcion.Nombre = request.Nombre.Trim();
+        inscripcion.Email = request.Email.ToLower().Trim();
+        inscripcion.Instagram = request.Instagram?.Trim();
+        inscripcion.Telefono = request.Telefono?.Trim();
+        inscripcion.Sexo = request.Sexo ?? "masculino";
+        inscripcion.CategoriaPeso = request.CategoriaPeso ?? "";
+        inscripcion.Modalidad = NormalizeModalidad(request.Modalidad);
+        inscripcion.QuiereHandler = request.QuiereHandler;
+        inscripcion.Experiencia = request.Experiencia;
+        inscripcion.TieneEntrenador = request.TieneEntrenador;
+        inscripcion.QuierePeakProgram = request.PeakProgram;
+        inscripcion.PagoConfirmado = coupon.Total <= 0;
+        inscripcion.PaymentMethod = paymentMethod;
+        inscripcion.ParticipacionConfirmada = false;
+        inscripcion.CuponDescuentoId = coupon.CuponDescuentoId;
+        inscripcion.CodigoCupon = coupon.CodigoCupon;
+        inscripcion.TipoDescuentoCupon = coupon.TipoDescuentoCupon;
+        inscripcion.ValorDescuentoCupon = coupon.ValorDescuentoCupon;
+        inscripcion.SubtotalAntesDescuento = coupon.SubtotalAntesDescuento;
+        inscripcion.ImporteDescuento = coupon.ImporteDescuento;
+        inscripcion.TotalPagado = coupon.Total;
+        inscripcion.AceptaTerminos = request.AceptaTerminos;
+    }
+
+    private async Task EnsureQrCodeAsync(Inscripcion inscripcion, Competicion competicion)
+    {
+        var qrPayload = GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
+        var qrImageResult = await GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
+
+        inscripcion.QrCode = qrImageResult.HasValue ? qrImageResult.Value.Url : qrPayload;
+    }
+
     public async Task<Inscripcion?> AddPeakProgramAsync(int competicionId, int inscripcionId)
     {
         var competicion = await _competicionService.GetByIdAsync(competicionId);
@@ -118,6 +423,7 @@ public class InscripcionService
 
         var config = _competicionService.GetEventoConfig(competicion);
         inscripcion.QuierePeakProgram = true;
+        inscripcion.SubtotalAntesDescuento += config.PrecioPeakProgram;
         inscripcion.TotalPagado += config.PrecioPeakProgram;
         inscripcion.UpdatedAt = DateTime.UtcNow;
 
@@ -199,6 +505,64 @@ public class InscripcionService
         return inscripcion;
     }
 
+    public async Task<Inscripcion?> AttachStripeSessionAsync(int competicionId, int inscripcionId, string sessionId)
+    {
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null)
+            return null;
+
+        inscripcion.StripeSessionId = sessionId;
+        inscripcion.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return inscripcion;
+    }
+
+    public async Task<Inscripcion?> ConfirmStripePaymentAsync(int competicionId, int inscripcionId, string? sessionId = null)
+    {
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null)
+            return null;
+
+        inscripcion.PagoConfirmado = true;
+        inscripcion.PaymentMethod = PaymentMethodStripe;
+        if (!string.IsNullOrWhiteSpace(sessionId))
+            inscripcion.StripeSessionId = sessionId;
+        inscripcion.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return inscripcion;
+    }
+
+    public async Task<Inscripcion?> GetByStripeSessionIdAsync(int competicionId, string sessionId)
+    {
+        return await _context.Inscripciones
+            .Include(i => i.Competicion)
+            .FirstOrDefaultAsync(i => i.CompeticionId == competicionId && i.StripeSessionId == sessionId);
+    }
+
+    public string GeneratePaymentToken(int competicionId, int inscripcionId, string? secret)
+    {
+        var data = $"{competicionId}:{inscripcionId}";
+        var signature = ComputeSignature(data, secret ?? "");
+        return $"{data}:{signature}";
+    }
+
+    public (int CompeticionId, int InscripcionId)? ValidatePaymentToken(string token, string? secret)
+    {
+        var parts = token.Split(':');
+        if (parts.Length != 3)
+            return null;
+
+        if (!int.TryParse(parts[0], out var competicionId) || !int.TryParse(parts[1], out var inscripcionId))
+            return null;
+
+        var data = $"{competicionId}:{inscripcionId}";
+        var expectedSignature = ComputeSignature(data, secret ?? "");
+        return parts[2] == expectedSignature ? (competicionId, inscripcionId) : null;
+    }
+
     /// <summary>
     /// Gets the full inscription state for QR check-in display
     /// </summary>
@@ -245,12 +609,17 @@ public class InscripcionService
             inscripcion.Telefono,
             inscripcion.Sexo,
             inscripcion.CategoriaPeso,
+            inscripcion.Modalidad,
             inscripcion.Experiencia,
             inscripcion.QuiereHandler,
             inscripcion.QuierePeakProgram,
             inscripcion.PagoConfirmado,
             inscripcion.ParticipacionConfirmada,
+            inscripcion.PaymentMethod,
             inscripcion.TotalPagado,
+            inscripcion.SubtotalAntesDescuento,
+            inscripcion.ImporteDescuento,
+            inscripcion.CodigoCupon,
             inscripcion.CheckinAt,
             inscripcion.Competicion.Nombre,
             horarios
@@ -268,7 +637,9 @@ public class InscripcionService
         int pageSize = 15,
         string? search = null,
         bool? pagoConfirmado = null,
-        string? experiencia = null)
+        string? experiencia = null,
+        string? modalidad = null,
+        string? paymentMethod = null)
     {
         var query = _context.Inscripciones
             .Where(i => i.CompeticionId == competicionId)
@@ -288,6 +659,18 @@ public class InscripcionService
 
         if (!string.IsNullOrWhiteSpace(experiencia))
             query = query.Where(i => i.Experiencia == experiencia);
+
+        if (!string.IsNullOrWhiteSpace(modalidad))
+        {
+            var normalizedModalidad = NormalizeModalidad(modalidad);
+            query = query.Where(i => i.Modalidad == normalizedModalidad);
+        }
+
+        if (!string.IsNullOrWhiteSpace(paymentMethod))
+        {
+            var normalizedPaymentMethod = NormalizePaymentMethod(paymentMethod);
+            query = query.Where(i => i.PaymentMethod == normalizedPaymentMethod);
+        }
 
         var total = await query.CountAsync();
 
@@ -384,7 +767,7 @@ public class InscripcionService
             inscripcion.PagoConfirmado = request.PagoConfirmado.Value;
 
         if (request.PaymentMethod != null)
-            inscripcion.PaymentMethod = request.PaymentMethod;
+            inscripcion.PaymentMethod = NormalizePaymentMethod(request.PaymentMethod);
 
         if (request.Telefono != null)
             inscripcion.Telefono = request.Telefono;
@@ -394,6 +777,9 @@ public class InscripcionService
 
         if (request.CategoriaPeso != null)
             inscripcion.CategoriaPeso = request.CategoriaPeso;
+
+        if (request.Modalidad != null)
+            inscripcion.Modalidad = NormalizeModalidad(request.Modalidad);
 
         if (request.QuiereHandler.HasValue)
             inscripcion.QuiereHandler = request.QuiereHandler.Value;
@@ -405,6 +791,8 @@ public class InscripcionService
             inscripcion.Notas = request.Notas;
 
         inscripcion.UpdatedAt = DateTime.UtcNow;
+
+        await RemoveDisallowedAttemptsAsync(inscripcion.Id, inscripcion.Modalidad);
 
         await _context.SaveChangesAsync();
         return inscripcion;
@@ -433,12 +821,23 @@ public class InscripcionService
             .Where(i => i.CompeticionId == competicionId)
             .ToListAsync();
 
+        var paidInscripciones = inscripciones.Where(i => i.PagoConfirmado).ToList();
+        var revenue = paidInscripciones.Sum(i => i.TotalPagado);
+        var cashRevenue = paidInscripciones
+            .Where(i => NormalizePaymentMethod(i.PaymentMethod) == PaymentMethodEfectivo)
+            .Sum(i => i.TotalPagado);
+        var stripeRevenue = paidInscripciones
+            .Where(i => NormalizePaymentMethod(i.PaymentMethod) == PaymentMethodStripe)
+            .Sum(i => i.TotalPagado);
+
         return new InscripcionStats(
             Total: inscripciones.Count,
-            Pagados: inscripciones.Count(i => i.PagoConfirmado),
+            Pagados: paidInscripciones.Count,
             Pendientes: inscripciones.Count(i => !i.PagoConfirmado),
             Checkins: inscripciones.Count(i => i.CheckinAt.HasValue),
-            Revenue: inscripciones.Where(i => i.PagoConfirmado).Sum(i => i.TotalPagado),
+            Revenue: revenue,
+            CashRevenue: cashRevenue,
+            StripeRevenue: stripeRevenue,
             PorExperiencia: new Dictionary<string, int>
             {
                 ["rookie"] = inscripciones.Count(i => i.Experiencia == "rookie"),
@@ -462,11 +861,11 @@ public class InscripcionService
             .ToListAsync();
 
         var csv = new StringBuilder();
-        csv.AppendLine("ID,Nombre,Email,Instagram,Categoría,Experiencia,Handler,PeakProgram,Pagado,Total (€),Check-in,Fecha");
+        csv.AppendLine("ID,Nombre,Email,Instagram,Categoría,Modalidad,Experiencia,Handler,PeakProgram,Pagado,Método Pago,Cupón,Subtotal (€),Descuento (€),Total (€),Check-in,Fecha");
 
         foreach (var i in inscripciones)
         {
-            csv.AppendLine($"{i.Id},\"{i.Nombre}\",\"{i.Email}\",\"{i.Instagram ?? ""}\",{i.CategoriaPeso},{i.Experiencia},{(i.QuiereHandler ? "Sí" : "No")},{(i.QuierePeakProgram ? "Sí" : "No")},{(i.PagoConfirmado ? "Sí" : "No")},{i.TotalPagado},{(i.CheckinAt.HasValue ? i.CheckinAt.Value.ToString("yyyy-MM-dd HH:mm") : "No")},{i.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+            csv.AppendLine($"{i.Id},\"{i.Nombre}\",\"{i.Email}\",\"{i.Instagram ?? ""}\",{i.CategoriaPeso},{GetModalidadLabel(i.Modalidad)},{i.Experiencia},{(i.QuiereHandler ? "Sí" : "No")},{(i.QuierePeakProgram ? "Sí" : "No")},{(i.PagoConfirmado ? "Sí" : "No")},{GetPaymentMethodLabel(i.PaymentMethod)},\"{i.CodigoCupon ?? ""}\",{i.SubtotalAntesDescuento},{i.ImporteDescuento},{i.TotalPagado},{(i.CheckinAt.HasValue ? i.CheckinAt.Value.ToString("yyyy-MM-dd HH:mm") : "No")},{i.CreatedAt:yyyy-MM-dd HH:mm:ss}");
         }
 
         return csv.ToString();
@@ -560,21 +959,30 @@ public class InscripcionService
 
         var now = DateTime.UtcNow;
         var results = new List<LiftEntryInscripcion>();
+        var allowedLifts = GetAllowedLiftTypes(inscripcion.Modalidad).ToArray();
 
-        // Sentadilla
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 1, sentadilla1, updatedBy, now));
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 2, sentadilla2, updatedBy, now));
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 3, sentadilla3, updatedBy, now));
+        await RemoveDisallowedAttemptsAsync(inscripcionId, inscripcion.Modalidad);
 
-        // Press de Banca
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 1, banca1, updatedBy, now));
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 2, banca2, updatedBy, now));
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 3, banca3, updatedBy, now));
+        if (allowedLifts.Contains("Squat"))
+        {
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 1, sentadilla1, updatedBy, now));
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 2, sentadilla2, updatedBy, now));
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Squat", 3, sentadilla3, updatedBy, now));
+        }
 
-        // Peso Muerto
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 1, pesoMuerto1, updatedBy, now));
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 2, pesoMuerto2, updatedBy, now));
-        results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 3, pesoMuerto3, updatedBy, now));
+        if (allowedLifts.Contains("Bench"))
+        {
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 1, banca1, updatedBy, now));
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 2, banca2, updatedBy, now));
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Bench", 3, banca3, updatedBy, now));
+        }
+
+        if (allowedLifts.Contains("Deadlift"))
+        {
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 1, pesoMuerto1, updatedBy, now));
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 2, pesoMuerto2, updatedBy, now));
+            results.Add(await UpsertLiftAttempt(inscripcionId, "Deadlift", 3, pesoMuerto3, updatedBy, now));
+        }
 
         await _context.SaveChangesAsync();
         return results;
@@ -614,11 +1022,30 @@ public class InscripcionService
     /// </summary>
     public async Task<List<LiftEntryInscripcion>> GetAllAttemptsAsync(int competicionId, int inscripcionId)
     {
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null)
+            return new List<LiftEntryInscripcion>();
+
+        var allowedLifts = GetAllowedLiftTypes(inscripcion.Modalidad).ToArray();
+
         return await _context.LiftEntriesInscripcion
             .Where(l => l.InscripcionId == inscripcionId)
+            .Where(l => allowedLifts.Contains(l.LiftType))
             .OrderBy(l => l.LiftType)
             .ThenBy(l => l.AttemptNumber)
             .ToListAsync();
+    }
+
+    private async Task RemoveDisallowedAttemptsAsync(int inscripcionId, string modalidad)
+    {
+        var allowedLifts = GetAllowedLiftTypes(modalidad).ToArray();
+        var disallowed = await _context.LiftEntriesInscripcion
+            .Where(l => l.InscripcionId == inscripcionId && !allowedLifts.Contains(l.LiftType))
+            .ToListAsync();
+
+        if (disallowed.Count > 0)
+            _context.LiftEntriesInscripcion.RemoveRange(disallowed);
     }
 
     #endregion
@@ -634,6 +1061,9 @@ public class InscripcionService
         var inscripcion = await _context.Inscripciones
             .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
         if (inscripcion == null) return null;
+
+        if (!IsLiftAllowed(inscripcion.Modalidad, liftType))
+            throw new InvalidOperationException("La modalidad de la inscripción no permite este levantamiento");
 
         var existing = await _context.LiftEntriesInscripcion
             .FirstOrDefaultAsync(l => l.InscripcionId == inscripcionId &&
@@ -673,6 +1103,8 @@ public class InscripcionService
             .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
         if (inscripcion == null) return null;
 
+        if (!IsLiftAllowed(inscripcion.Modalidad, liftType)) return null;
+
         var entry = await _context.LiftEntriesInscripcion
             .FirstOrDefaultAsync(l => l.InscripcionId == inscripcionId &&
                                       l.LiftType == liftType &&
@@ -702,12 +1134,16 @@ public record CreateInscripcionRequest(
     string? Telefono,
     string? Sexo,
     string? CategoriaPeso,
+    string? Modalidad,
     bool QuiereHandler,
 
     string Experiencia,
     bool TieneEntrenador,
-    bool PeakProgram,
-    bool AceptaTerminos
+            bool PeakProgram,
+            bool AceptaTerminos,
+            string? PaymentMethod = null,
+            bool IncludeOnlinePaymentLink = false,
+            string? CodigoCupon = null
 );
 
 public record UpdateInscripcionRequest(
@@ -717,6 +1153,7 @@ public record UpdateInscripcionRequest(
     string? Telefono = null,
     string? Sexo = null,
     string? CategoriaPeso = null,
+    string? Modalidad = null,
     bool? QuiereHandler = null,
 
     string? Experiencia = null,
@@ -736,12 +1173,17 @@ public record InscripcionEstadoDto(
     string? Telefono,
     string Sexo,
     string? CategoriaPeso,
+    string Modalidad,
     string Experiencia,
     bool QuiereHandler,
     bool QuierePeakProgram,
     bool PagoConfirmado,
     bool ParticipacionConfirmada,
+    string? PaymentMethod,
     decimal TotalPagado,
+    decimal SubtotalAntesDescuento,
+    decimal ImporteDescuento,
+    string? CodigoCupon,
     DateTime? CheckinAt,
     string CompeticionNombre,
     List<object>? Horarios
@@ -753,6 +1195,8 @@ public record InscripcionStats(
     int Pendientes,
     int Checkins,
     decimal Revenue,
+    decimal CashRevenue,
+    decimal StripeRevenue,
     Dictionary<string, int> PorExperiencia,
     int ConEntrenador,
     int SinEntrenador

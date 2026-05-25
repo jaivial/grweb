@@ -11,6 +11,7 @@ const Horarios = lazy(() => import('./pages/backoffice/horarios/Horarios').then(
 const InscripcionConfigPage = lazy(() => import('./pages/backoffice/InscripcionConfig').then((m) => ({ default: m.default })));
 const Configuracion = lazy(() => import('./pages/backoffice/configuracion/Configuracion').then((m) => ({ default: m.Configuracion })));
 const RaffleConfigPage = lazy(() => import('./pages/backoffice/raffle-config/RaffleConfigPage').then((m) => ({ default: m.RaffleConfigPage })));
+const CuponesPage = lazy(() => import('./pages/backoffice/cupones/CuponesPage').then((m) => ({ default: m.CuponesPage })));
 const Participantes = lazy(() => import('./pages/backoffice/participantes/Participantes').then((m) => ({ default: m.default })));
 const Checkin = lazy(() => import('./pages/backoffice/checkin/CheckinPage').then((m) => ({ default: m.CheckinPage })));
 const JudgeTable = lazy(() => import('./pages/backoffice/judge-table/JudgeTablePage').then((m) => ({ default: m.JudgeTablePage })));
@@ -65,6 +66,7 @@ export function App() {
           <Route path="/backoffice/inscripcion-config" component={() => <ProtectedLazyPage><InscripcionConfigPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/configuracion" component={() => <ProtectedLazyPage><Configuracion /></ProtectedLazyPage>} />
           <Route path="/backoffice/raffle-config" component={() => <ProtectedLazyPage><RaffleConfigPage /></ProtectedLazyPage>} />
+          <Route path="/backoffice/cupones" component={() => <ProtectedLazyPage><CuponesPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/participantes" component={() => <ProtectedLazyPage><Participantes /></ProtectedLazyPage>} />
           <Route path="/backoffice/checkin" component={() => <ProtectedLazyPage><Checkin /></ProtectedLazyPage>} />
           <Route path="/backoffice/judge-table" component={() => <ProtectedLazyPage><JudgeTable /></ProtectedLazyPage>} />
@@ -82,6 +84,7 @@ export function App() {
           <Route path="/backoffice/:competicionSlug/inscripcion-config" component={() => <ProtectedLazyPage><InscripcionConfigPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/configuracion" component={() => <ProtectedLazyPage><Configuracion /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/raffle-config" component={() => <ProtectedLazyPage><RaffleConfigPage /></ProtectedLazyPage>} />
+          <Route path="/backoffice/:competicionSlug/cupones" component={() => <ProtectedLazyPage><CuponesPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/participantes" component={() => <ProtectedLazyPage><Participantes /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/checkin" component={() => <ProtectedLazyPage><Checkin /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/judge-table" component={() => <ProtectedLazyPage><JudgeTable /></ProtectedLazyPage>} />

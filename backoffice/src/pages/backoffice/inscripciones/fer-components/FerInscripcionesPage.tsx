@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
 import type { JSX } from 'react';
 import { Tabs, KpiCard, Modal } from '../../../../components/ui';
 import { useInscripciones } from '../hooks/useInscripciones';
@@ -15,8 +15,8 @@ import {
   ferInscripcionesSearchQueryAtom,
   ferInscripcionesPagoConfirmadoFilterAtom,
   ferInscripcionesExperienciaFilterAtom,
-  ferInscripcionesPageAtom,
-  ferClearInscripcionesFiltersAtom,
+  ferInscripcionesModalidadFilterAtom,
+  ferInscripcionesPaymentMethodFilterAtom,
 } from '../../../../stores/ferInscripcionesStore';
 import type { Inscripcion } from '../../../../types/api';
 import { FerFiltersAccordion } from './FerFiltersAccordion';
@@ -29,10 +29,28 @@ const FER_TABS = [
 ];
 
 const FER_EXP_LABELS: Record<string, string> = {
+  rookie: 'Rookie',
   principiante: 'Principiante',
   intermedio: 'Intermedio',
   avanzado: 'Avanzado',
 };
+
+const FER_MODALIDAD_LABELS: Record<string, string> = {
+  completa: 'Completa',
+  solo_banca: 'Solo banca',
+  solo_peso_muerto: 'Solo peso muerto',
+};
+
+const FER_PAYMENT_METHOD_LABELS: Record<string, string> = {
+  efectivo: 'Efectivo',
+  stripe: 'Stripe',
+  transferencia: 'Transferencia',
+  cupon: 'Cupón',
+};
+
+const formatMoney = (value: number): string => `${value.toLocaleString('es-ES', { maximumFractionDigits: 2 })}€`;
+
+const formatPercent = (value: number): string => `${value.toLocaleString('es-ES', { maximumFractionDigits: 1 })}%`;
 
 export function FerInscripcionesPage({ competicionId }: { competicionId: number }): JSX.Element {
   const [activeTab, setActiveTab] = useState('todas');
@@ -66,14 +84,21 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
   const searchQuery = useAtomValue(ferInscripcionesSearchQueryAtom);
   const pagoConfirmadoFilter = useAtomValue(ferInscripcionesPagoConfirmadoFilterAtom);
   const experienciaFilter = useAtomValue(ferInscripcionesExperienciaFilterAtom);
+  const modalidadFilter = useAtomValue(ferInscripcionesModalidadFilterAtom);
+  const paymentMethodFilter = useAtomValue(ferInscripcionesPaymentMethodFilterAtom);
 
   const listFilters = useMemo(() => ({
     search: searchQuery || undefined,
     pagoConfirmado: pagoConfirmadoFilter,
     experiencia: experienciaFilter || undefined,
-  }), [searchQuery, pagoConfirmadoFilter, experienciaFilter]);
+    modalidad: modalidadFilter || undefined,
+    paymentMethod: paymentMethodFilter || undefined,
+  }), [searchQuery, pagoConfirmadoFilter, experienciaFilter, modalidadFilter, paymentMethodFilter]);
 
   const listFiltersKey = useMemo(() => JSON.stringify(listFilters), [listFilters]);
+
+  const cashRevenuePercent = stats.revenue > 0 ? (stats.cashRevenue / stats.revenue) * 100 : 0;
+  const stripeRevenuePercent = stats.revenue > 0 ? (stats.stripeRevenue / stats.revenue) * 100 : 0;
 
   useEffect(() => {
     fetchStats();
@@ -150,8 +175,12 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         { header: 'Teléfono', dataKey: 'phone' },
         { header: 'Sexo', dataKey: 'sex' },
         { header: 'Categoría', dataKey: 'category' },
+        { header: 'Modalidad', dataKey: 'modality' },
         { header: 'Experiencia', dataKey: 'experience' },
         { header: 'Pago', dataKey: 'pago' },
+        { header: 'Método', dataKey: 'paymentMethod' },
+        { header: 'Cupón', dataKey: 'coupon' },
+        { header: 'Descuento', dataKey: 'discount' },
         { header: 'Total', dataKey: 'total' },
         { header: 'Fecha', dataKey: 'date' },
       ];
@@ -161,8 +190,12 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         phone: i.telefono || '-',
         sex: i.sexo,
         category: i.categoriaPeso || '-',
+        modality: FER_MODALIDAD_LABELS[i.modalidad] || i.modalidad || '-',
         experience: FER_EXP_LABELS[i.experiencia] || i.experiencia || '-',
         pago: i.pagoConfirmado ? 'Confirmado' : 'Pendiente',
+        paymentMethod: FER_PAYMENT_METHOD_LABELS[i.paymentMethod || ''] || i.paymentMethod || '-',
+        coupon: i.codigoCupon || '-',
+        discount: i.importeDescuento ? `-${i.importeDescuento}€` : '-',
         total: i.totalPagado ? `${i.totalPagado}€` : '-',
         date: i.createdAt,
       }));
@@ -202,6 +235,11 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
       </span>
     )},
     { key: 'categoriaPeso', header: 'Cat.', render: (i: Inscripcion) => i.categoriaPeso || '-' },
+    { key: 'modalidad', header: 'Modalidad', render: (i: Inscripcion) => (
+      <span className="text-xs px-2 py-1 rounded-xl bg-sky-500/15 text-sky-300" data-ui="fer-modalidad-badge">
+        {FER_MODALIDAD_LABELS[i.modalidad] || i.modalidad || '-'}
+      </span>
+    )},
     { key: 'experiencia', header: 'Exp.', render: (i: Inscripcion) => (
       <span className="text-xs px-2 py-1 rounded-xl bg-white/10 text-white/70" data-ui="fer-exp-badge">
         {FER_EXP_LABELS[i.experiencia] || i.experiencia || '-'}
@@ -223,6 +261,16 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         {i.pagoConfirmado ? 'Confirmado' : 'Pendiente'}
       </span>
     )},
+    { key: 'paymentMethod', header: 'Método', render: (i: Inscripcion) => (
+      <span className={`text-xs px-2 py-1 rounded-xl ${i.paymentMethod === 'stripe' ? 'bg-indigo-500/15 text-indigo-300' : 'bg-amber-500/15 text-amber-300'}`} data-ui="fer-payment-method-badge">
+        {FER_PAYMENT_METHOD_LABELS[i.paymentMethod || ''] || i.paymentMethod || '—'}
+      </span>
+    )},
+    { key: 'codigoCupon', header: 'Cupón', render: (i: Inscripcion) => i.codigoCupon ? (
+      <span className="text-xs px-2 py-1 rounded-xl bg-green-500/15 text-green-300" data-ui="fer-coupon-badge">
+        {i.codigoCupon} · -{i.importeDescuento || 0}€
+      </span>
+    ) : '—' },
     { key: 'participacionConfirmada', header: 'Check-in', render: (i: Inscripcion) => (
       <span className={`text-xs px-2 py-1 rounded-xl ${i.participacionConfirmada ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`} data-ui="fer-checkin-badge">
         {i.participacionConfirmada ? 'Confirmado' : 'Pendiente'}
@@ -274,12 +322,26 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         {activeTab === 'todas' ? (
         <div className="space-y-4 xs:space-y-6 min-w-0" data-ui="fer-todas-tab">
           {/* KPI Section */}
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5 min-w-0" data-ui="fer-kpi-section">
-            <KpiCard label="Total" value={stats.total} className="kpi-compact" />
+          <div className="grid grid-cols-2 xs:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-1.5 min-w-0" data-ui="fer-kpi-section">
+            <KpiCard label="Inscritos" value={stats.total} className="kpi-compact" />
             <KpiCard label="Pagados" value={stats.pagados} color="success" className="kpi-compact" />
             <KpiCard label="Pendientes" value={stats.pendientes} color="warning" className="kpi-compact" />
             <KpiCard label="Check-ins" value={stats.checkins} color="success" className="kpi-compact" />
-            <KpiCard label="Revenue" value={`${stats.revenue}€`} color="success" className="kpi-compact" />
+            <KpiCard label="Total €" value={formatMoney(stats.revenue)} color="success" className="kpi-compact" />
+            <KpiCard
+              label="Efectivo"
+              value={formatMoney(stats.cashRevenue)}
+              description={`${formatPercent(cashRevenuePercent)} del total`}
+              color="success"
+              className="kpi-compact"
+            />
+            <KpiCard
+              label="Online"
+              value={formatMoney(stats.stripeRevenue)}
+              description={`${formatPercent(stripeRevenuePercent)} del total`}
+              color="success"
+              className="kpi-compact"
+            />
           </div>
 
           {/* Filters */}
