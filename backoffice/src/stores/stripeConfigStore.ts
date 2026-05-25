@@ -1,9 +1,10 @@
 import { atom } from 'jotai';
 
 export interface StripeConfigData {
-  secretKey: string | null;
+  hasSecretKey: boolean;
   publishableKey: string | null;
-  webhookSecret: string | null;
+  hasWebhookSecret: boolean;
+  activo: boolean;
 }
 
 export const stripeConfigAtom = atom<StripeConfigData | null>(null);

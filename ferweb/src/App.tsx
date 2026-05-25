@@ -8,6 +8,15 @@ import { Navbar } from './components/navbar';
 const InscripcionPage = lazy(() =>
   import('./pages/inscripcion/InscripcionPage').then((m) => ({ default: m.InscripcionPage }))
 );
+const InscripcionSuccessPage = lazy(() =>
+  import('./pages/inscripcion/InscripcionSuccessPage').then((m) => ({ default: m.InscripcionSuccessPage }))
+);
+const InscripcionPaymentPage = lazy(() =>
+  import('./pages/inscripcion/InscripcionPaymentPage').then((m) => ({ default: m.InscripcionPaymentPage }))
+);
+const ModalidadesPage = lazy(() =>
+  import('./pages/modalidades/ModalidadesPage').then((m) => ({ default: m.ModalidadesPage }))
+);
 const HorariosPage = lazy(() =>
   import('./pages/horarios/HorariosPage').then((m) => ({ default: m.HorariosPage }))
 );
@@ -63,6 +72,9 @@ export function App() {
           <Navbar />
           <Route path="/" component={FerLanding} />
           <Route path="/inscripcion" component={InscripcionPage} />
+          <Route path="/inscripcion/success" component={InscripcionSuccessPage} />
+          <Route path="/inscripcion/pagar" component={InscripcionPaymentPage} />
+          <Route path="/modalidades" component={ModalidadesPage} />
           <Route path="/horarios" component={HorariosPage} />
           <Route path="/ubicacion" component={UbicacionPage} />
           <Route path="/galeria" component={GaleriaPage} />

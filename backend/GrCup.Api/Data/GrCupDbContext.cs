@@ -30,6 +30,7 @@ public class GrCupDbContext : DbContext
     public DbSet<UsuarioCompeticion> UsuariosCompeticiones => Set<UsuarioCompeticion>();
     public DbSet<UsuarioPermission> UsuariosPermissions => Set<UsuarioPermission>();
     public DbSet<Inscripcion> Inscripciones => Set<Inscripcion>();
+    public DbSet<CuponDescuento> CuponesDescuento => Set<CuponDescuento>();
     public DbSet<RifaTicket> RifaTickets => Set<RifaTicket>();
     public DbSet<RifaConfig> RifaConfigs => Set<RifaConfig>();
 
@@ -162,9 +163,33 @@ public class GrCupDbContext : DbContext
             entity.HasIndex(e => new { e.CompeticionId, e.Email });
             entity.HasIndex(e => e.Email);
             entity.HasIndex(e => e.PagoConfirmado);
+            entity.HasIndex(e => e.Modalidad);
+            entity.HasIndex(e => e.StripeSessionId);
+            entity.HasIndex(e => e.CuponDescuentoId);
+            entity.Property(e => e.Modalidad).HasMaxLength(30);
             entity.HasOne(i => i.Competicion)
                 .WithMany(c => c.Inscripciones)
                 .HasForeignKey(i => i.CompeticionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(i => i.CuponDescuento)
+                .WithMany()
+                .HasForeignKey(i => i.CuponDescuentoId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.Property(e => e.SubtotalAntesDescuento).HasPrecision(10, 2);
+            entity.Property(e => e.ImporteDescuento).HasPrecision(10, 2);
+            entity.Property(e => e.ValorDescuentoCupon).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<CuponDescuento>(entity => {
+            entity.HasIndex(e => new { e.CompeticionId, e.CodigoNormalizado }).IsUnique();
+            entity.HasIndex(e => e.Activo);
+            entity.Property(e => e.Codigo).HasMaxLength(200);
+            entity.Property(e => e.CodigoNormalizado).HasMaxLength(200);
+            entity.Property(e => e.TipoDescuento).HasMaxLength(20);
+            entity.Property(e => e.Valor).HasPrecision(10, 2);
+            entity.HasOne(c => c.Competicion)
+                .WithMany(c => c.CuponesDescuento)
+                .HasForeignKey(c => c.CompeticionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

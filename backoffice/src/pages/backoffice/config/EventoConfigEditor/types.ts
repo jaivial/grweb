@@ -8,6 +8,9 @@ export interface EventoConfigFormData {
   fechaLimitePeakProgram: string;
   maxTicketsPorPersona: number;
   inscripcionAbierta: boolean;
+  pagoStripeActivo: boolean;
+  pagoEfectivoActivo: boolean;
+  cuponesDescuentoActivo: boolean;
 }
 
 export interface EventoConfigEditorProps {

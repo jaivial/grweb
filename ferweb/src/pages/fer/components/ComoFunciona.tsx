@@ -33,7 +33,7 @@ const STEPS = [
     number: 3,
     icon: QrCode,
     title: 'Registro el dia del evento',
-    desc: 'Presenta tu QR en la mesa de registro y realiza el pago en efectivo para completar tu inscripcion.',
+    desc: 'Presenta tu QR en la mesa de registro para completar tu inscripción.',
   },
   {
     number: 4,
@@ -50,7 +50,7 @@ const DISCLAIMER_ITEMS = [
   },
   {
     icon: Banknote,
-    text: 'El pago se realiza SOLO en efectivo en la mesa de registro el dia de la competicion, por orden de llamada/llegada.',
+    text: 'Pago online con soporte Apple Pay.',
   },
   {
     icon: Clock,

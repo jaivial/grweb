@@ -213,6 +213,7 @@ public static class PublicEndpoints
             string slug,
             CompeticionService competicionService,
             ScheduleService scheduleService,
+            StripeService stripeService,
             GrCupDbContext db) =>
         {
             var competicion = await competicionService.GetBySlugAsync(slug);
@@ -221,6 +222,7 @@ public static class PublicEndpoints
 
             var config = competicionService.GetEventoConfig(competicion);
             var plazasDisponibles = await competicionService.GetPlazasDisponiblesAsync(competicion.Id);
+            var stripeDisponible = await stripeService.IsInscriptionStripeAvailableAsync(competicion.Id, config);
             
             // Return all standard IPF weight categories (not filtered by schedule availability)
             var categoriasMasculino = new List<string> { "-53", "-59", "-66", "-74", "-83", "-93", "-105", "-120", "+120" };
@@ -237,6 +239,10 @@ public static class PublicEndpoints
                     aforoMaximo = config.AforoMaximo,
                     precioPeakProgram = config.PrecioPeakProgram,
                     fechaLimitePeakProgram = config.FechaLimitePeakProgram,
+                    pagoStripeActivo = config.PagoStripeActivo,
+                    pagoEfectivoActivo = config.PagoEfectivoActivo,
+                    cuponesDescuentoActivo = config.CuponesDescuentoActivo,
+                    stripeDisponible,
                     plazasDisponibles = plazasDisponibles,
                     inscripcionAbierta = config.InscripcionAbierta && plazasDisponibles > 0,
                     categoriasMasculino,

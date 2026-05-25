@@ -27,6 +27,7 @@ const allNavItems: NavItem[] = [
   { subPath: 'judge-table', label: 'Mesa de Jueces', icon: 'judge', ferOnly: true, requiredPermission: 'view_dashboard', moduleKey: 'judge-table' },
   { subPath: 'participantes', label: 'Participantes', icon: 'ticket', grcupOnly: true, requiredPermission: 'view_participantes', moduleKey: 'participantes' },
   { subPath: 'sorteo', label: 'Sorteo', icon: 'dice', grcupOnly: true, requiredPermission: 'manage_raffle', moduleKey: 'sorteo' },
+  { subPath: 'cupones', label: 'Cupones', icon: 'coupon', requiredPermission: 'manage_config', moduleKey: 'cupones' },
   { subPath: 'horarios', label: 'Horarios', icon: 'calendar', requiredPermission: 'view_horarios', moduleKey: 'horarios' },
   { subPath: 'users', label: 'Miembros', icon: 'members', requiredPermission: 'view_users', moduleKey: 'users' },
   { subPath: 'configuracion', label: 'Configuracion', icon: 'settings', requiredPermission: 'manage_config', moduleKey: 'configuracion' },
@@ -62,6 +63,12 @@ function NavIcon({ icon }: { icon: string }) {
       return (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="navicon-svg-dice">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    case 'coupon':
+      return (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="navicon-svg-coupon">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 15L15 9m-5.5.5h.01m5 5h.01M4 7a2 2 0 012-2h3.6a2 2 0 011.4.6l7.4 7.4a2 2 0 010 2.8l-3.6 3.6a2 2 0 01-2.8 0L4.6 12A2 2 0 014 10.6V7z" />
         </svg>
       );
     case 'calendar':

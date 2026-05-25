@@ -31,6 +31,8 @@ import type {
   CompetitionModule,
   UpdateWorkspaceModulesRequest,
   UpdateWorkspaceMemberRequest,
+  CuponDescuento,
+  CuponDescuentoRequest,
 } from '../types/api';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -261,6 +263,35 @@ class ApiClient {
   }
 
 
+  async getCupones(competicionId: number): Promise<ApiResponse<CuponDescuento[]>> {
+    return this.request<CuponDescuento[]>(`/api/admin/competiciones/${competicionId}/cupones`);
+  }
+
+
+  async createCupon(competicionId: number, data: CuponDescuentoRequest): Promise<ApiResponse<CuponDescuento>> {
+    return this.request<CuponDescuento>(`/api/admin/competiciones/${competicionId}/cupones`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+
+  async updateCupon(competicionId: number, cuponId: number, data: CuponDescuentoRequest): Promise<ApiResponse<CuponDescuento>> {
+    return this.request<CuponDescuento>(`/api/admin/competiciones/${competicionId}/cupones/${cuponId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+
+  async setCuponActive(competicionId: number, cuponId: number, activo: boolean): Promise<ApiResponse<CuponDescuento>> {
+    return this.request<CuponDescuento>(`/api/admin/competiciones/${competicionId}/cupones/${cuponId}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ activo }),
+    });
+  }
+
+
   // ─── Inscripciones ───
 
   async createInscripcion(slug: string, data: CreateInscripcionRequest): Promise<ApiResponse<Inscripcion & { qrCode: string; mensaje: string }>> {
@@ -320,7 +351,7 @@ class ApiClient {
   // Admin Inscripciones
   async getAdminInscripciones(
     competicionId: number,
-    params: { page?: number; pageSize?: number; search?: string; pagoConfirmado?: boolean; experiencia?: string } = {}
+    params: { page?: number; pageSize?: number; search?: string; pagoConfirmado?: boolean; experiencia?: string; modalidad?: string; paymentMethod?: string } = {}
   ): Promise<ApiResponse<PaginatedResponse<Inscripcion>>> {
     const queryParams = new URLSearchParams();
     if (params.page) queryParams.set('page', params.page.toString());
@@ -328,6 +359,8 @@ class ApiClient {
     if (params.search) queryParams.set('search', params.search);
     if (params.pagoConfirmado !== undefined) queryParams.set('pagoConfirmado', params.pagoConfirmado.toString());
     if (params.experiencia) queryParams.set('experiencia', params.experiencia);
+    if (params.modalidad) queryParams.set('modalidad', params.modalidad);
+    if (params.paymentMethod) queryParams.set('paymentMethod', params.paymentMethod);
 
     const query = queryParams.toString();
     return this.request<PaginatedResponse<Inscripcion>>(
@@ -628,27 +661,43 @@ class ApiClient {
   // ─── Stripe Config ───
 
   async getStripeAdminConfig(competicionId?: number): Promise<ApiResponse<{
-    secretKey: string | null;
+    hasSecretKey: boolean;
     publishableKey: string | null;
-    webhookSecret: string | null;
+    hasWebhookSecret: boolean;
+    activo: boolean;
   }>> {
     const params = competicionId ? `?competicionId=${competicionId}` : '';
     return this.request(`/api/admin/stripe-config${params}`);
   }
 
   async updateStripeAdminConfig(data: {
-    secretKey: string | null;
-    publishableKey: string | null;
-    webhookSecret: string | null;
+    secretKey?: string | null;
+    publishableKey?: string | null;
+    webhookSecret?: string | null;
+    activo?: boolean;
   }, competicionId?: number): Promise<ApiResponse<{
-    secretKey: string | null;
+    hasSecretKey: boolean;
     publishableKey: string | null;
-    webhookSecret: string | null;
+    hasWebhookSecret: boolean;
+    activo: boolean;
   }>> {
     const params = competicionId ? `?competicionId=${competicionId}` : '';
     return this.request(`/api/admin/stripe-config${params}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  }
+
+  async updateStripeAdminActive(activo: boolean, competicionId?: number): Promise<ApiResponse<{
+    hasSecretKey: boolean;
+    publishableKey: string | null;
+    hasWebhookSecret: boolean;
+    activo: boolean;
+  }>> {
+    const params = competicionId ? `?competicionId=${competicionId}` : '';
+    return this.request(`/api/admin/stripe-config/active${params}`, {
+      method: 'PUT',
+      body: JSON.stringify({ activo }),
     });
   }
 

@@ -8,6 +8,30 @@ namespace GrCup.Api.Endpoints;
 
 public static class InscripcionEndpoints
 {
+    private static string GetFerFrontendBaseUrl()
+    {
+        var baseUrl = Environment.GetEnvironmentVariable("website_fer_url")
+            ?? Environment.GetEnvironmentVariable("FER_FRONTEND_URL")
+            ?? "https://fercup.com";
+
+        if (!baseUrl.StartsWith("http://") && !baseUrl.StartsWith("https://"))
+            baseUrl = $"https://{baseUrl}";
+
+        return baseUrl.TrimEnd('/');
+    }
+
+    private static string BuildOnlinePaymentUrl(InscripcionService service, Competicion competicion, int inscripcionId)
+    {
+        var token = service.GeneratePaymentToken(competicion.Id, inscripcionId, competicion.QrSecret);
+        return $"{GetFerFrontendBaseUrl()}/inscripcion/pagar?token={Uri.EscapeDataString(token)}";
+    }
+
+    private static string BuildFrontendUrl(string frontendUrl, string path)
+    {
+        var baseUrl = string.IsNullOrWhiteSpace(frontendUrl) ? GetFerFrontendBaseUrl() : frontendUrl.TrimEnd('/');
+        return $"{baseUrl}{path}";
+    }
+
     public static void MapInscripcionEndpoints(this IEndpointRouteBuilder app)
     {
         // ─── Public Registration Endpoints ───
@@ -18,6 +42,7 @@ public static class InscripcionEndpoints
             [FromBody] CreateInscripcionRequest request,
             CompeticionService competicionService,
             InscripcionService inscripcionService,
+            StripeService stripeService,
             EmailService emailService,
             ILogger<Program> logger,
             HttpContext httpContext) =>
@@ -30,6 +55,12 @@ public static class InscripcionEndpoints
             {
                 var inscripcion = await inscripcionService.CreateAsync(competicion.Id, request);
                 logger.LogInformation("Inscription created: {Id} for competition {Slug}", inscripcion.Id, slug);
+                var eventConfig = competicionService.GetEventoConfig(competicion);
+                var includeOnlinePaymentLink = request.IncludeOnlinePaymentLink
+                    && await stripeService.IsInscriptionStripeAvailableAsync(competicion.Id, eventConfig);
+                var onlinePaymentUrl = includeOnlinePaymentLink
+                    ? BuildOnlinePaymentUrl(inscripcionService, competicion, inscripcion.Id)
+                    : null;
 
                 // Send confirmation emails (fire-and-forget with new DI scope)
                 _ = Task.Run(async () =>
@@ -55,7 +86,7 @@ public static class InscripcionEndpoints
                                 qrCodeImage = qrResult.Value.Bytes;
                             }
 
-                            await scopedEmailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrCodeImage, inscripcion.QrCode);
+                            await scopedEmailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrCodeImage, inscripcion.QrCode, onlinePaymentUrl);
                             await scopedEmailService.SendFerAdminNotificationAsync(inscripcion, competicion);
 
                             logger.LogInformation("FER email sent for inscription {Id}. QR embedded: {HasQr}",
@@ -78,6 +109,10 @@ public static class InscripcionEndpoints
                         inscripcion.Email,
                         inscripcion.QrCode,
                         inscripcion.TotalPagado,
+                        inscripcion.SubtotalAntesDescuento,
+                        inscripcion.ImporteDescuento,
+                        inscripcion.CodigoCupon,
+                        inscripcion.Modalidad,
                         inscripcion.ParticipacionConfirmada,
                         inscripcion.QuiereHandler,
                         inscripcion.QuierePeakProgram,
@@ -90,6 +125,293 @@ public static class InscripcionEndpoints
                 logger.LogWarning(ex, "Failed to create inscription for {Slug}", slug);
                 return Results.BadRequest(new { success = false, message = ex.Message });
             }
+        });
+
+        // POST /api/competiciones/:slug/inscripcion/stripe-checkout - Create Stripe checkout (deferred or immediate)
+        app.MapPost("/api/competiciones/{slug}/inscripcion/stripe-checkout", async (
+            string slug,
+            [FromBody] StripeInscripcionCheckoutRequest request,
+            CompeticionService competicionService,
+            InscripcionService inscripcionService,
+            StripeService stripeService,
+            EmailService emailService,
+            ILogger<Program> logger) =>
+        {
+            var competicion = await competicionService.GetBySlugAsync(slug);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            var config = competicionService.GetEventoConfig(competicion);
+            if (!await stripeService.IsInscriptionStripeAvailableAsync(competicion.Id, config))
+                return Results.Ok(new { success = true, data = new { status = "stripe_unavailable" } });
+
+            try
+            {
+                var isStripeOnly = config.PagoStripeActivo && !config.PagoEfectivoActivo;
+
+                var subtotal = CuponDescuentoService.CalculateSubtotal(config, request.Inscripcion.PeakProgram);
+                var coupon = await inscripcionService.ApplyCouponAsync(competicion.Id, config, request.Inscripcion.CodigoCupon, subtotal);
+
+                if (coupon.Total <= 0)
+                {
+                    var (inscripcion, _, alreadyPaid) = await inscripcionService.CreateOrReuseStripePendingAsync(competicion.Id, request.Inscripcion);
+                    if (!inscripcion.PagoConfirmado)
+                        inscripcion = await inscripcionService.ConfirmPaymentAsync(inscripcion.Id, InscripcionService.PaymentMethodCupon) ?? inscripcion;
+
+                    if (!alreadyPaid && competicion.Tipo == "fer")
+                    {
+                        var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
+                        var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
+                        await emailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrResult?.Bytes, inscripcion.QrCode);
+                        await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
+                    }
+
+                    return Results.Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "already_paid",
+                            inscripcion.Id,
+                            inscripcion.Nombre,
+                            inscripcion.Email,
+                            inscripcion.QrCode,
+                            inscripcion.TotalPagado,
+                            inscripcion.CodigoCupon,
+                            inscripcion.ImporteDescuento,
+                            inscripcion.SubtotalAntesDescuento
+                        }
+                    });
+                }
+
+                if (isStripeOnly)
+                {
+                    var successUrl = BuildFrontendUrl(request.FrontendUrl, "/inscripcion/success?session_id={CHECKOUT_SESSION_ID}");
+                    var cancelUrl = BuildFrontendUrl(request.FrontendUrl, "/inscripcion?payment_cancelled=1");
+                    var session = await stripeService.CreateDeferredInscriptionCheckoutSessionAsync(
+                        request.Inscripcion, competicion, coupon, coupon.Total, successUrl, cancelUrl);
+
+                    logger.LogInformation("Created deferred FER Stripe checkout session {SessionId} for {Email}", session.Id, request.Inscripcion.Email);
+                    return Results.Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "checkout",
+                            sessionId = session.Id,
+                            url = session.Url
+                        }
+                    });
+                }
+
+                var (existingInscripcion, _, existingAlreadyPaid) = await inscripcionService.CreateOrReuseStripePendingAsync(competicion.Id, request.Inscripcion);
+                if (existingAlreadyPaid || existingInscripcion.PagoConfirmado)
+                {
+                    return Results.Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "already_paid",
+                            existingInscripcion.Id,
+                            existingInscripcion.Nombre,
+                            existingInscripcion.Email,
+                            existingInscripcion.QrCode,
+                            existingInscripcion.TotalPagado,
+                            existingInscripcion.CodigoCupon,
+                            existingInscripcion.ImporteDescuento,
+                            existingInscripcion.SubtotalAntesDescuento
+                        }
+                    });
+                }
+
+                var successUrl2 = BuildFrontendUrl(request.FrontendUrl, "/inscripcion/success?session_id={CHECKOUT_SESSION_ID}");
+                var cancelUrl2 = BuildFrontendUrl(request.FrontendUrl, "/inscripcion?payment_cancelled=1");
+                var session2 = await stripeService.CreateInscriptionCheckoutSessionAsync(existingInscripcion, competicion, successUrl2, cancelUrl2);
+                await inscripcionService.AttachStripeSessionAsync(competicion.Id, existingInscripcion.Id, session2.Id);
+
+                logger.LogInformation("Created FER Stripe checkout session {SessionId} for inscription {InscripcionId}", session2.Id, existingInscripcion.Id);
+                return Results.Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "checkout",
+                        sessionId = session2.Id,
+                        url = session2.Url,
+                        inscripcionId = existingInscripcion.Id
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to create FER Stripe checkout for {Slug}", slug);
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+        });
+
+        // POST /api/competiciones/:slug/inscripcion/pago-online - Resolve email payment link token
+        app.MapPost("/api/competiciones/{slug}/inscripcion/pago-online", async (
+            string slug,
+            [FromBody] OnlinePaymentLinkRequest request,
+            CompeticionService competicionService,
+            InscripcionService inscripcionService,
+            StripeService stripeService,
+            ILogger<Program> logger) =>
+        {
+            var competicion = await competicionService.GetBySlugAsync(slug);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            var tokenData = inscripcionService.ValidatePaymentToken(request.Token, competicion.QrSecret);
+            if (tokenData == null || tokenData.Value.CompeticionId != competicion.Id)
+                return Results.BadRequest(new { success = false, message = "Token de pago inválido" });
+
+            var inscripcion = await inscripcionService.GetByIdAsync(tokenData.Value.InscripcionId);
+            if (inscripcion == null || inscripcion.CompeticionId != competicion.Id)
+                return Results.NotFound(new { success = false, message = "Inscription not found" });
+
+            if (inscripcion.PagoConfirmado)
+                return Results.Ok(new { success = true, data = new { status = "already_paid" } });
+
+            var config = competicionService.GetEventoConfig(competicion);
+            if (!await stripeService.IsInscriptionStripeAvailableAsync(competicion.Id, config))
+                return Results.Ok(new { success = true, data = new { status = "stripe_unavailable" } });
+
+            try
+            {
+                var successUrl = BuildFrontendUrl(request.FrontendUrl, "/inscripcion/success?session_id={CHECKOUT_SESSION_ID}");
+                var cancelUrl = BuildFrontendUrl(request.FrontendUrl, "/inscripcion?payment_cancelled=1");
+                var session = await stripeService.CreateInscriptionCheckoutSessionAsync(inscripcion, competicion, successUrl, cancelUrl);
+                await inscripcionService.AttachStripeSessionAsync(competicion.Id, inscripcion.Id, session.Id);
+
+                logger.LogInformation("Created FER email-link Stripe checkout session {SessionId} for inscription {InscripcionId}", session.Id, inscripcion.Id);
+                return Results.Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "checkout",
+                        sessionId = session.Id,
+                        url = session.Url,
+                        inscripcionId = inscripcion.Id
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to resolve FER online payment link for {Slug}", slug);
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+        });
+
+        // GET /api/competiciones/:slug/inscripcion/stripe-session/:sessionId - Retrieve paid inscription after Stripe return
+        app.MapGet("/api/competiciones/{slug}/inscripcion/stripe-session/{sessionId}", async (
+            string slug,
+            string sessionId,
+            CompeticionService competicionService,
+            InscripcionService inscripcionService,
+            StripeService stripeService,
+            EmailService emailService,
+            ILogger<Program> logger) =>
+        {
+            var competicion = await competicionService.GetBySlugAsync(slug);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            var inscripcion = await inscripcionService.GetByStripeSessionIdAsync(competicion.Id, sessionId);
+            if (inscripcion == null)
+            {
+                try
+                {
+                    var session = await stripeService.GetSessionAsync(sessionId, competicion.Id);
+                    if (session.Metadata != null && session.Metadata.TryGetValue("type", out var type) && type == "fer_inscripcion_deferred"
+                        && string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
+                    {
+                        inscripcion = await inscripcionService.CreateFromStripeMetadataAsync(competicion.Id, session.Metadata, sessionId);
+
+                        if (competicion.Tipo == "fer")
+                        {
+                            var eventConfig = competicionService.GetEventoConfig(competicion);
+                            byte[]? qrCodeImage = null;
+                            var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
+                            var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
+                            if (qrResult.HasValue)
+                                qrCodeImage = qrResult.Value.Bytes;
+
+                            await emailService.SendFerConfirmationAsync(inscripcion, competicion, eventConfig, qrCodeImage, inscripcion.QrCode);
+                            await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
+                        }
+
+                        logger.LogInformation("Created FER inscription {InscripcionId} from deferred session {SessionId} on success page poll", inscripcion.Id, sessionId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to resolve deferred FER Stripe session {SessionId} on success page", sessionId);
+                }
+
+                if (inscripcion == null)
+                    return Results.NotFound(new { success = false, message = "Inscription not found" });
+            }
+
+            if (!inscripcion.PagoConfirmado)
+            {
+                try
+                {
+                    var session = await stripeService.GetSessionAsync(sessionId, competicion.Id);
+                    if (string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var previousPaymentMethod = inscripcion.PaymentMethod;
+                        var confirmedInscripcion = await inscripcionService.ConfirmStripePaymentAsync(competicion.Id, inscripcion.Id, sessionId);
+
+                        if (confirmedInscripcion != null && competicion.Tipo == "fer")
+                        {
+                            if (string.Equals(previousPaymentMethod, InscripcionService.PaymentMethodEfectivo, StringComparison.OrdinalIgnoreCase))
+                            {
+                                await emailService.SendFerPaymentConfirmationAsync(confirmedInscripcion, competicion);
+                            }
+                            else
+                            {
+                                var config = competicionService.GetEventoConfig(competicion);
+                                byte[]? qrCodeImage = null;
+                                var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, confirmedInscripcion.Id, competicion.QrSecret);
+                                var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, confirmedInscripcion.Id);
+                                if (qrResult.HasValue)
+                                    qrCodeImage = qrResult.Value.Bytes;
+
+                                await emailService.SendFerConfirmationAsync(confirmedInscripcion, competicion, config, qrCodeImage, confirmedInscripcion.QrCode);
+                                await emailService.SendFerAdminNotificationAsync(confirmedInscripcion, competicion);
+                            }
+
+                            inscripcion = confirmedInscripcion;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to verify FER Stripe session {SessionId} on success page", sessionId);
+                }
+            }
+
+            return Results.Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    status = inscripcion.PagoConfirmado ? "paid" : "pending",
+                    inscripcion.Id,
+                    inscripcion.Nombre,
+                    inscripcion.Email,
+                    inscripcion.QrCode,
+                    inscripcion.TotalPagado,
+                    inscripcion.SubtotalAntesDescuento,
+                    inscripcion.ImporteDescuento,
+                    inscripcion.CodigoCupon,
+                    inscripcion.PaymentMethod,
+                    inscripcion.PagoConfirmado
+                }
+            });
         });
 
         // POST /api/competiciones/:slug/inscripcion/:id/peak-program - Add GRS Peak Program to an inscription
@@ -185,12 +507,17 @@ public static class InscripcionEndpoints
                     inscripcion.Telefono,
                     inscripcion.Sexo,
                     inscripcion.CategoriaPeso,
+                    inscripcion.Modalidad,
                     inscripcion.Experiencia,
                     inscripcion.PagoConfirmado,
+                    inscripcion.PaymentMethod,
                     inscripcion.ParticipacionConfirmada,
                     inscripcion.QuiereHandler,
                     inscripcion.CheckinAt,
-                    inscripcion.TotalPagado
+                    inscripcion.TotalPagado,
+                    inscripcion.SubtotalAntesDescuento,
+                    inscripcion.ImporteDescuento,
+                    inscripcion.CodigoCupon
                 }
             });
         });
@@ -221,6 +548,8 @@ public static class InscripcionEndpoints
                     i.Nombre,
                     i.Email,
                     i.PagoConfirmado,
+                    i.PaymentMethod,
+                    i.CodigoCupon,
                     i.ParticipacionConfirmada,
                     i.CheckinAt
                 })
@@ -402,10 +731,12 @@ public static class InscripcionEndpoints
             [FromQuery] int pageSize = 15,
             [FromQuery] string? search = null,
             [FromQuery] bool? pagoConfirmado = null,
-            [FromQuery] string? experiencia = null) =>
+            [FromQuery] string? experiencia = null,
+            [FromQuery] string? modalidad = null,
+            [FromQuery] string? paymentMethod = null) =>
         {
             var (items, total) = await service.GetPaginatedAsync(
-                competicionId, page, pageSize, search, pagoConfirmado, experiencia
+                competicionId, page, pageSize, search, pagoConfirmado, experiencia, modalidad, paymentMethod
             );
 
             return Results.Ok(new
@@ -420,6 +751,30 @@ public static class InscripcionEndpoints
                     totalPages = (int)Math.Ceiling(total / (double)pageSize)
                 }
             });
+        });
+
+        // POST /api/admin/competiciones/:id/inscripciones - Create inscription from backoffice
+        adminGroup.MapPost("/", async (
+            int competicionId,
+            [FromBody] CreateInscripcionRequest request,
+            InscripcionService service,
+            ILogger<Program> logger) =>
+        {
+            try
+            {
+                var inscripcion = await service.CreateAsync(competicionId, request);
+                logger.LogInformation("Admin inscription created: {Id}", inscripcion.Id);
+                return Results.Created($"/api/admin/competiciones/{competicionId}/inscripciones/{inscripcion.Id}", new
+                {
+                    success = true,
+                    data = inscripcion
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to create admin inscription for competition {CompeticionId}", competicionId);
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
         });
 
         // GET /api/admin/competiciones/:id/inscripciones/export - Export CSV
@@ -490,5 +845,15 @@ public static class InscripcionEndpoints
         });
     }
 }
+
+public record StripeInscripcionCheckoutRequest(
+    CreateInscripcionRequest Inscripcion,
+    string FrontendUrl
+);
+
+public record OnlinePaymentLinkRequest(
+    string Token,
+    string FrontendUrl
+);
 
 public record ConfirmarPagoRequest(string? PaymentMethod = null);

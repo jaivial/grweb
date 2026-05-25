@@ -63,3 +63,55 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+# Infrastructure (NO DOCKER)
+
+**DO NOT use Docker for anything.** All services run natively via systemd.
+
+## Backend API (ASP.NET Core 8)
+
+- **Service:** `grcup-api.service` — systemd, runs as user `grcup-api`
+- **Binary:** `/opt/grcup-api/current/GrCup.Api.dll`
+- **Env file:** `/etc/grcup-api/grcup-api.env`
+- **Port:** `127.0.0.1:5006`
+- **Nginx proxy:** `fercup.com` → `127.0.0.1:5006` (for `/api/` and `/hubs/`)
+- **Logs:** `journalctl -u grcup-api -f`
+- **Restart:** `systemctl restart grcup-api`
+- **Deploy:** `dotnet publish backend/GrCup.Api -c Release -o /tmp/publish && cp -r /tmp/publish/* /opt/grcup-api/current/ && systemctl restart grcup-api`
+
+## MySQL Database
+
+- **Host:** `127.0.0.1` (TCP, NOT socket)
+- **Port:** `3306`
+- **Database:** `grcup`
+- **User:** `grcup_app`
+- **Password:** `GrCupApp2024!`
+- **Connect:** `mysql -h 127.0.0.1 -P 3306 -ugrcup_app -pGrCupApp2024\! grcup`
+
+## Frontend (fercup.com)
+
+- **Nginx root:** `/var/www/fercup.com/` (serves pre-built SPA)
+- **Build source:** `ferweb/` (React + Vite)
+- **Build command:** `cd ferweb && npm run build`
+- **Deploy:** `cp -r ferweb/dist/* /var/www/fercup.com/ && nginx -s reload`
+
+## Stripe Payments
+
+- Stripe credentials are stored **only in the `StripeConfig` database table**, never in env files
+- Configure via backoffice (Stripe settings page) per competition
+- Backend reads from DB: `StripeConfigService.GetExactConfigAsync(competicionId)`
+- DB has a record for `CompeticionId = 2` (slug `fer`) with valid `sk_live_*` keys
+- To update: `UPDATE StripeConfig SET SecretKey=..., PublishableKey=..., WebhookSecret=... WHERE CompeticionId=2;`
+
+## Frontend Dev Server
+
+- **Service:** `ferweb-dev.service` — Vite dev on port `5180`
+- **URL:** `https://ferdev.menustudioai.com` (via Cloudflare tunnel `cloudflared-ferdev.service`)
+- **Restart:** `systemctl restart ferweb-dev.service`
+- **Logs:** `journalctl -u ferweb-dev.service -f`
+
+## Nginx
+
+- **Config:** `/etc/nginx/sites-available/fercup.com`
+- **Reload:** `nginx -t && nginx -s reload`
+- **Logs:** `/var/log/nginx/fercup.com.access.log` and `.error.log`

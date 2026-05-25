@@ -33,10 +33,17 @@ public class StripeConfigService
             .FirstOrDefaultAsync(s => s.CompeticionId == null);
     }
 
+    public async Task<StripeConfig?> GetExactConfigAsync(int? competicionId = null)
+    {
+        return competicionId.HasValue
+            ? await _context.StripeConfig.FirstOrDefaultAsync(s => s.CompeticionId == competicionId.Value)
+            : await _context.StripeConfig.FirstOrDefaultAsync(s => s.CompeticionId == null);
+    }
+
     /// <summary>
     /// Upserts Stripe config for a specific competition or globally.
     /// </summary>
-    public async Task<StripeConfig> UpsertConfigAsync(StripeConfig config, int? competicionId = null)
+    public async Task<StripeConfig> UpsertConfigAsync(StripeConfig config, int? competicionId = null, bool? activo = null)
     {
         config.CompeticionId = competicionId;
 
@@ -46,20 +53,50 @@ public class StripeConfigService
 
         if (existing == null)
         {
+            config.Activo = activo ?? config.Activo;
             config.CreatedAt = DateTime.UtcNow;
             config.UpdatedAt = DateTime.UtcNow;
             _context.StripeConfig.Add(config);
         }
         else
         {
-            existing.SecretKey = config.SecretKey;
-            existing.PublishableKey = config.PublishableKey;
-            existing.WebhookSecret = config.WebhookSecret;
+            if (!string.IsNullOrEmpty(config.SecretKey) && !config.SecretKey.StartsWith("****"))
+                existing.SecretKey = config.SecretKey;
+            if (!string.IsNullOrEmpty(config.PublishableKey) && !config.PublishableKey.StartsWith("****"))
+                existing.PublishableKey = config.PublishableKey;
+            if (!string.IsNullOrEmpty(config.WebhookSecret) && !config.WebhookSecret.StartsWith("****"))
+                existing.WebhookSecret = config.WebhookSecret;
             existing.CompeticionId = competicionId;
+            if (activo.HasValue)
+                existing.Activo = activo.Value;
             existing.UpdatedAt = DateTime.UtcNow;
         }
         await _context.SaveChangesAsync();
         return existing ?? config;
+    }
+
+    public async Task<StripeConfig> SetActiveAsync(int? competicionId, bool activo)
+    {
+        var existing = await GetExactConfigAsync(competicionId);
+        if (existing == null)
+        {
+            existing = new StripeConfig
+            {
+                CompeticionId = competicionId,
+                Activo = activo,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.StripeConfig.Add(existing);
+        }
+        else
+        {
+            existing.Activo = activo;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return existing;
     }
 
     /// <summary>

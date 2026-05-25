@@ -33,9 +33,10 @@ const DEFAULT_EMAIL_CONFIG = {
 };
 
 const DEFAULT_STRIPE_CONFIG = {
-  secretKey: null,
+  hasSecretKey: false,
   publishableKey: null,
-  webhookSecret: null,
+  hasWebhookSecret: false,
+  activo: false,
 };
 
 export function Configuracion(): JSX.Element {
@@ -43,7 +44,7 @@ export function Configuracion(): JSX.Element {
   const competicionId = useAtomValue(currentCompeticionIdAtom);
   const tabs = useTabs();
   const { config: emailConfig, isLoading: emailLoading, error: emailError, isSaving: emailSaving, fetchConfig: fetchEmailConfig, saveConfig: saveEmailConfig } = useEmailConfig(competicionId ?? undefined);
-  const { config: stripeConfig, isLoading: stripeLoading, error: stripeError, isSaving: stripeSaving, fetchConfig: fetchStripeConfig, saveConfig: saveStripeConfig } = useStripeConfig(competicionId ?? undefined);
+  const { config: stripeConfig, isLoading: stripeLoading, error: stripeError, isSaving: stripeSaving, fetchConfig: fetchStripeConfig, saveConfig: saveStripeConfig, toggleActive: toggleStripeActive } = useStripeConfig(competicionId ?? undefined);
 
   useEffect(() => {
     fetchEmailConfig();
@@ -120,6 +121,7 @@ export function Configuracion(): JSX.Element {
               <StripeSettingsForm
                 initialData={stripeFormData}
                 onSave={saveStripeConfig}
+                onToggleActive={toggleStripeActive}
                 isSaving={stripeSaving}
               />
             )}

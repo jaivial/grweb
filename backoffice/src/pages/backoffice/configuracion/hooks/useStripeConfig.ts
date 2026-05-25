@@ -15,7 +15,13 @@ interface UseStripeConfigReturn {
   error: string | null;
   isSaving: boolean;
   fetchConfig: () => Promise<void>;
-  saveConfig: (data: StripeConfigData) => Promise<boolean>;
+  saveConfig: (data: {
+    secretKey?: string | null;
+    publishableKey?: string | null;
+    webhookSecret?: string | null;
+    activo?: boolean;
+  }) => Promise<boolean>;
+  toggleActive: (active: boolean) => Promise<boolean>;
   deleteConfig: () => Promise<boolean>;
 }
 
@@ -48,7 +54,12 @@ export function useStripeConfig(competicionId?: number): UseStripeConfigReturn {
     }
   }, [competicionId, setConfig, setLoading, setError]);
 
-  const saveConfig = useCallback(async (data: StripeConfigData): Promise<boolean> => {
+  const saveConfig = useCallback(async (data: {
+    secretKey?: string | null;
+    publishableKey?: string | null;
+    webhookSecret?: string | null;
+    activo?: boolean;
+  }): Promise<boolean> => {
     setSaving(true);
     setError(null);
 
@@ -63,6 +74,27 @@ export function useStripeConfig(competicionId?: number): UseStripeConfigReturn {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar la configuración de Stripe');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [competicionId, setConfig, setSaving, setError]);
+
+  const toggleActive = useCallback(async (active: boolean): Promise<boolean> => {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const result = await api.updateStripeAdminActive(active, competicionId);
+      if (result.success) {
+        setConfig(result.data as StripeConfigData);
+        return true;
+      }
+
+      setError(result.message || 'Error al cambiar el estado de Stripe');
+      return false;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cambiar el estado de Stripe');
       return false;
     } finally {
       setSaving(false);
@@ -97,6 +129,7 @@ export function useStripeConfig(competicionId?: number): UseStripeConfigReturn {
     isSaving,
     fetchConfig,
     saveConfig,
+    toggleActive,
     deleteConfig,
   };
 }

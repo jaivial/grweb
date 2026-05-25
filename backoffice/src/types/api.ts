@@ -86,8 +86,13 @@ export interface EventoConfig {
   precioUpsell: number;
   precioRifa: number;
   precioHandler?: number;
+  precioPeakProgram?: number;
+  fechaLimitePeakProgram?: string;
   maxTicketsPorPersona: number;
   inscripcionAbierta: boolean;
+  pagoStripeActivo?: boolean;
+  pagoEfectivoActivo?: boolean;
+  cuponesDescuentoActivo?: boolean;
   stripePriceId?: string;
   stripeUpsellPriceId?: string;
 }
@@ -218,23 +223,29 @@ export interface LoginResponse {
 
 // ─── Inscripcion ───
 
+export type Modalidad = 'completa' | 'solo_banca' | 'solo_peso_muerto';
+
 export interface Inscripcion {
   id: number;
   competicionId: number;
   nombre: string;
   email: string;
   instagram?: string;
-  pesoAprox: number;
-  experiencia: 'principiante' | 'intermedio' | 'avanzado';
+  pesoAprox?: number;
+  experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   quierePeakProgram?: boolean;
   telefono?: string;
   sexo?: string;
   categoriaPeso?: string;
+  modalidad: Modalidad;
   quiereHandler?: boolean;
   participacionConfirmada?: boolean;
   qrCode?: string;
   pagoConfirmado: boolean;
   paymentMethod?: string;
+  codigoCupon?: string;
+  subtotalAntesDescuento?: number;
+  importeDescuento?: number;
   totalPagado: number;
   checkinAt?: string;
   aceptaTerminos: boolean;
@@ -250,11 +261,43 @@ export interface CreateInscripcionRequest {
   telefono?: string;
   sexo?: string;
   categoriaPeso?: string;
-  pesoAprox: number;
-  experiencia: 'principiante' | 'intermedio' | 'avanzado';
+  modalidad?: Modalidad;
+  pesoAprox?: number;
+  experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   quiereHandler?: boolean;
   quierePeakProgram?: boolean;
+  peakProgram?: boolean;
+  paymentMethod?: string;
+  includeOnlinePaymentLink?: boolean;
+  codigoCupon?: string;
   aceptaTerminos: boolean;
+}
+
+export interface CuponDescuento {
+  id: number;
+  competicionId: number;
+  codigo: string;
+  tipoDescuento: 'porcentaje' | 'importe';
+  valor: number;
+  activo: boolean;
+  tieneLimiteUsos: boolean;
+  limiteUsos?: number | null;
+  usosActuales: number;
+  tieneFechaExpiracion: boolean;
+  fechaExpiracion?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CuponDescuentoRequest {
+  codigo: string;
+  tipoDescuento: 'porcentaje' | 'importe';
+  valor: number;
+  tieneLimiteUsos: boolean;
+  limiteUsos?: number | null;
+  tieneFechaExpiracion: boolean;
+  fechaExpiracion?: string | null;
+  activo?: boolean;
 }
 
 export interface InscripcionStats {
@@ -264,6 +307,8 @@ export interface InscripcionStats {
   upsells: number;
   checkins: number;
   revenue: number;
+  cashRevenue: number;
+  stripeRevenue: number;
   porExperiencia: Record<string, number>;
   conEntrenador: number;
   sinEntrenador: number;
@@ -365,8 +410,9 @@ export interface UpdateInscripcionRequest {
   telefono?: string;
   sexo?: string;
   categoriaPeso?: string;
+  modalidad?: Modalidad;
   pesoAprox?: number;
-  experiencia?: 'principiante' | 'intermedio' | 'avanzado';
+  experiencia?: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   quiereHandler?: boolean;
   quierePeakProgram?: boolean;
   participacionConfirmada?: boolean;
@@ -398,6 +444,7 @@ export interface FERInscripcionFormData {
   email: string;
   instagram: string;
   pesoAprox: number;
-  experiencia: 'principiante' | 'intermedio' | 'avanzado';
+  modalidad: Modalidad;
+  experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   aceptaTerminos: boolean;
 }

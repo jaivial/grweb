@@ -75,6 +75,28 @@ export const EXPERIENCE_LABELS: Record<Experiencia, string> = {
   avanzado: 'Avanzado',
 };
 
+export const MODALIDAD_VALUES = ['completa', 'solo_banca', 'solo_peso_muerto'] as const;
+
+export type Modalidad = (typeof MODALIDAD_VALUES)[number];
+
+export const MODALIDAD_LABELS: Record<Modalidad, string> = {
+  completa: 'Competición completa',
+  solo_banca: 'Solo banca',
+  solo_peso_muerto: 'Solo peso muerto',
+};
+
+export const MODALIDAD_DESCRIPTIONS: Record<Modalidad, string> = {
+  completa: 'Sentadilla, press de banca y peso muerto en una misma jornada.',
+  solo_banca: 'Ideal si quieres competir únicamente en press de banca.',
+  solo_peso_muerto: 'Entra directamente al peso muerto y céntrate en tu mejor tirón.',
+};
+
+export const MODALIDAD_LIFTS: Record<Modalidad, string> = {
+  completa: 'Sentadilla + Banca + Peso muerto',
+  solo_banca: 'Press de banca',
+  solo_peso_muerto: 'Peso muerto',
+};
+
 export const SECTION_IDS = {
   hero: 'fer-hero',
   queEs: 'fer-que-es',
@@ -100,6 +122,7 @@ export const POLAROID_START_ROTATION = 20;
 export const NAV_LINKS = [
   { label: 'Inicio', path: '/' },
   { label: 'Inscripción', path: '/inscripcion' },
+  { label: 'Modalidades', path: '/modalidades' },
   { label: 'Horarios', path: '/horarios' },
   { label: 'Ubicación', path: '/ubicacion' },
   { label: 'Galería', path: '/galeria' },

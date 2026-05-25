@@ -55,6 +55,9 @@ export interface EventoConfig {
   precioRifa: number;
   maxTicketsPorPersona: number;
   inscripcionAbierta: boolean;
+  pagoStripeActivo?: boolean;
+  pagoEfectivoActivo?: boolean;
+  cuponesDescuentoActivo?: boolean;
   stripePriceId?: string;
   stripeUpsellPriceId?: string;
 }
@@ -95,6 +98,8 @@ export interface LoginResponse {
 
 // ─── Inscripcion ───
 
+export type Modalidad = 'completa' | 'solo_banca' | 'solo_peso_muerto';
+
 export interface Inscripcion {
   id: number;
   competicionId: number;
@@ -104,21 +109,20 @@ export interface Inscripcion {
   telefono?: string;
   sexo: 'masculino' | 'femenino';
   categoriaPeso: string;
+  modalidad: Modalidad;
   quiereHandler: boolean;
   participacionConfirmada: boolean;
   experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   tieneEntrenador: boolean;
   upsellPreparacion: boolean;
   quierePeakProgram?: boolean;
-  telefono?: string;
-  sexo?: string;
-  categoriaPeso?: string;
-  quiereHandler?: boolean;
-  participacionConfirmada?: boolean;
   qrCode?: string;
   pagoConfirmado: boolean;
   paymentMethod?: string;
   totalPagado: number;
+  subtotalAntesDescuento?: number;
+  importeDescuento?: number;
+  codigoCupon?: string;
   checkinAt?: string;
   aceptaTerminos: boolean;
   notas?: string;
@@ -133,12 +137,54 @@ export interface CreateInscripcionRequest {
   telefono?: string;
   sexo?: string;
   categoriaPeso?: string;
+  modalidad?: Modalidad;
   quiereHandler: boolean;
 
   experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   peakProgram: boolean;
+  paymentMethod?: string;
+  includeOnlinePaymentLink?: boolean;
+  codigoCupon?: string;
   upsellPreparacion?: boolean;
   aceptaTerminos: boolean;
+}
+
+export interface CouponValidationResponse {
+  valid: boolean;
+  message?: string;
+  codigo?: string;
+  tipoDescuento?: string;
+  valor?: number;
+  subtotal: number;
+  importeDescuento: number;
+  total: number;
+}
+
+export interface StripeInscripcionCheckoutResponse {
+  status: 'checkout' | 'already_paid' | 'stripe_unavailable';
+  id?: number;
+  sessionId?: string;
+  url?: string;
+  inscripcionId?: number;
+  qrCode?: string;
+  totalPagado?: number;
+  subtotalAntesDescuento?: number;
+  importeDescuento?: number;
+  codigoCupon?: string;
+}
+
+export interface StripeInscripcionSessionResponse {
+  status: 'paid' | 'pending';
+  id: number;
+  nombre: string;
+  email: string;
+  qrCode?: string;
+  totalPagado: number;
+  subtotalAntesDescuento?: number;
+  importeDescuento?: number;
+  codigoCupon?: string;
+  paymentMethod?: string;
+  pagoConfirmado: boolean;
 }
 
 export interface InscripcionStats {
@@ -249,6 +295,7 @@ export interface UpdateInscripcionRequest {
   telefono?: string;
   sexo?: string;
   categoriaPeso?: string;
+  modalidad?: Modalidad;
   quiereHandler?: boolean;
 
   experiencia?: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
@@ -306,6 +353,7 @@ export interface FERInscripcionFormData {
   telefono: string;
   sexo: 'masculino' | 'femenino';
   categoriaPeso: string;
+  modalidad: Modalidad;
   quiereHandler: boolean;
 
   experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';

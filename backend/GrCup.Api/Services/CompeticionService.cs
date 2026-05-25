@@ -27,6 +27,7 @@ public class CompeticionService
         new("judge-table", "Mesa de Jueces", "Intentos, pesos y votos en competiciones FER.", "judge", "judge-table", "fer"),
         new("participantes", "Participantes", "Participantes y tickets del sorteo GR Cup.", "ticket", "participantes", "grcup"),
         new("sorteo", "Sorteo", "Gestion del sorteo y premios.", "dice", "sorteo", "grcup"),
+        new("cupones", "Cupones", "Cupones de descuento para inscripciones.", "coupon", "cupones", null),
         new("horarios", "Horarios", "Bloques horarios y publicaciones.", "calendar", "horarios", null),
         new("users", "Miembros", "Gestion de miembros del workspace.", "members", "users", null),
         new("configuracion", "Configuracion", "Configuracion general, email y pagos.", "settings", "configuracion", null)
@@ -200,6 +201,8 @@ public class CompeticionService
         if (competicion == null)
             return null;
 
+        EnsureAtLeastOnePaymentMethod(config);
+
         competicion.EventoConfig = JsonSerializer.Serialize(config, new JsonSerializerOptions
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.Never
@@ -318,12 +321,20 @@ public class CompeticionService
 
         try
         {
-            return JsonSerializer.Deserialize<EventoConfig>(competicion.EventoConfig) ?? new EventoConfig();
+            var config = JsonSerializer.Deserialize<EventoConfig>(competicion.EventoConfig) ?? new EventoConfig();
+            EnsureAtLeastOnePaymentMethod(config);
+            return config;
         }
         catch
         {
             return new EventoConfig();
         }
+    }
+
+    private static void EnsureAtLeastOnePaymentMethod(EventoConfig config)
+    {
+        if (!config.PagoStripeActivo && !config.PagoEfectivoActivo)
+            config.PagoEfectivoActivo = true;
     }
 
     /// <summary>

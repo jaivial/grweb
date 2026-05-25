@@ -24,6 +24,18 @@ const EXPERIENCE_DESCRIPTIONS: Record<string, string> = {
   avanzado: 'He competido en más de 10 AEP2 y al menos un AEP1',
 };
 
+const MODALIDAD_VALUES = ['completa', 'solo_banca', 'solo_peso_muerto'] as const;
+const MODALIDAD_LABELS: Record<string, string> = {
+  completa: 'Competición completa',
+  solo_banca: 'Solo banca',
+  solo_peso_muerto: 'Solo peso muerto',
+};
+const MODALIDAD_DESCRIPTIONS: Record<string, string> = {
+  completa: 'Sentadilla, press de banca y peso muerto',
+  solo_banca: 'Solo registra intentos de press de banca',
+  solo_peso_muerto: 'Solo registra intentos de peso muerto',
+};
+
 interface FerInscripcionEditFormProps {
   inscripcion: Inscripcion;
   onSubmit: (data: any) => Promise<void>;
@@ -47,11 +59,13 @@ export function FerInscripcionEditForm({
     telefono: inscripcion.telefono || '',
     sexo: inscripcion.sexo || '',
     categoriaPeso: inscripcion.categoriaPeso || '',
+    modalidad: inscripcion.modalidad || 'completa',
     experiencia: inscripcion.experiencia || 'principiante',
     quiereHandler: inscripcion.quiereHandler ?? false,
     quierePeakProgram: inscripcion.quierePeakProgram ?? false,
     aceptaTerminos: inscripcion.aceptaTerminos ?? false,
     pagoConfirmado: inscripcion.pagoConfirmado ?? false,
+    paymentMethod: inscripcion.paymentMethod || 'efectivo',
     participacionConfirmada: inscripcion.participacionConfirmada ?? false,
     notas: inscripcion.notas || '',
   });
@@ -120,6 +134,10 @@ export function FerInscripcionEditForm({
     handleChange('experiencia', exp);
   }, [handleChange]);
 
+  const setModalidad = useCallback((modalidad: string) => {
+    handleChange('modalidad', modalidad);
+  }, [handleChange]);
+
   const selectCategory = useCallback((cat: string) => {
     handleChange('categoriaPeso', cat);
     setCategoryDropdownOpen(false);
@@ -132,6 +150,10 @@ export function FerInscripcionEditForm({
   const toggleSwitch = useCallback((field: string) => {
     setFormData(prev => ({ ...prev, [field]: !(prev as any)[field] }));
   }, []);
+
+  const showSentadilla = formData.modalidad === 'completa';
+  const showBanca = formData.modalidad === 'completa' || formData.modalidad === 'solo_banca';
+  const showPesoMuerto = formData.modalidad === 'completa' || formData.modalidad === 'solo_peso_muerto';
 
   // Load existing openers on mount
   useEffect(() => {
@@ -354,6 +376,38 @@ export function FerInscripcionEditForm({
         </div>
       </div>
 
+      {/* ── Modalidad ── */}
+      <div data-ui="fer-edit-modalidad">
+        <label className="block text-sm font-semibold text-white/60 mb-2.5">Modalidad</label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-ui="fer-edit-modalidad-grid">
+          {MODALIDAD_VALUES.map((modalidad) => {
+            const isActive = formData.modalidad === modalidad;
+            return (
+              <button
+                key={modalidad}
+                type="button"
+                onClick={() => setModalidad(modalidad)}
+                className={`px-4 py-3 rounded-xl text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-accent/50 ${
+                  isActive
+                    ? 'bg-red-accent/80 text-white shadow-lg scale-[1.02]'
+                    : 'bg-white/5 text-white/50 hover:bg-white/[0.08]'
+                }`}
+                data-ui={`fer-edit-modalidad-btn-${modalidad}`}
+                data-active={isActive ? 'true' : 'false'}
+                aria-pressed={isActive}
+              >
+                <span className="block text-sm font-semibold" data-ui={`fer-edit-modalidad-label-${modalidad}`}>
+                  {MODALIDAD_LABELS[modalidad]}
+                </span>
+                <span className="block text-xs mt-1 opacity-70" data-ui={`fer-edit-modalidad-desc-${modalidad}`}>
+                  {MODALIDAD_DESCRIPTIONS[modalidad]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Experiencia (Buttons) ── */}
       <div data-ui="fer-edit-experiencia">
         <label className="block text-sm font-semibold text-white/60 mb-2.5">Experiencia</label>
@@ -479,6 +533,22 @@ export function FerInscripcionEditForm({
       </div>
 
       {/* ── Pago confirmado toggle ── */}
+      <div data-ui="fer-edit-payment-method">
+        <label className="block text-sm font-semibold text-white/60 mb-1.5" data-ui="fer-edit-payment-method-label">
+          Método de pago
+        </label>
+        <select
+          value={formData.paymentMethod}
+          onChange={(e) => handleChange('paymentMethod', e.target.value)}
+          className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-red-accent/50 focus:border-2 transition-all"
+          data-ui="fer-edit-payment-method-select"
+        >
+          <option value="efectivo" data-ui="fer-edit-payment-method-efectivo">Efectivo</option>
+          <option value="stripe" data-ui="fer-edit-payment-method-stripe">Stripe</option>
+        </select>
+      </div>
+
+      {/* ── Pago confirmado toggle ── */}
       <div className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-xl" data-ui="fer-edit-pago-toggle">
         <button
           type="button"
@@ -548,7 +618,7 @@ export function FerInscripcionEditForm({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Sentadilla */}
-            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-sentadilla">
+            {showSentadilla && <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-sentadilla">
               <p className="text-sm font-bold text-blue-400 mb-3 text-center">Sentadilla</p>
               <div className="space-y-2">
                 {[1, 2, 3].map((n) => (
@@ -566,10 +636,10 @@ export function FerInscripcionEditForm({
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Press de Banca */}
-            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-banca">
+            {showBanca && <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-banca">
               <p className="text-sm font-bold text-purple-400 mb-3 text-center">Press de Banca</p>
               <div className="space-y-2">
                 {[1, 2, 3].map((n) => (
@@ -587,10 +657,10 @@ export function FerInscripcionEditForm({
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Peso Muerto */}
-            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-pesomuerto">
+            {showPesoMuerto && <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl" data-ui="fer-edit-pesomuerto">
               <p className="text-sm font-bold text-orange-400 mb-3 text-center">Peso Muerto</p>
               <div className="space-y-2">
                 {[1, 2, 3].map((n) => (
@@ -608,7 +678,7 @@ export function FerInscripcionEditForm({
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
           </div>
 
           {liftSaving && (

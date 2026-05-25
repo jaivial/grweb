@@ -19,6 +19,8 @@ export const ferInscripcionesStatsAtom = atom<InscripcionStats>({
   upsells: 0,
   checkins: 0,
   revenue: 0,
+  cashRevenue: 0,
+  stripeRevenue: 0,
   porExperiencia: {},
   conEntrenador: 0,
   sinEntrenador: 0,
@@ -28,6 +30,8 @@ export const ferInscripcionesStatsAtom = atom<InscripcionStats>({
 export const ferInscripcionesSearchQueryAtom = atom<string>('');
 export const ferInscripcionesPagoConfirmadoFilterAtom = atom<boolean | undefined>(undefined);
 export const ferInscripcionesExperienciaFilterAtom = atom<string | undefined>(undefined);
+export const ferInscripcionesModalidadFilterAtom = atom<string | undefined>(undefined);
+export const ferInscripcionesPaymentMethodFilterAtom = atom<string | undefined>(undefined);
 
 // Derived atom for total pages
 export const ferInscripcionesTotalPagesAtom = atom((get) =>
@@ -39,7 +43,9 @@ export const ferHasActiveFiltersAtom = atom((get) => {
   return (
     get(ferInscripcionesSearchQueryAtom) !== '' ||
     get(ferInscripcionesPagoConfirmadoFilterAtom) !== undefined ||
-    get(ferInscripcionesExperienciaFilterAtom) !== undefined
+    get(ferInscripcionesExperienciaFilterAtom) !== undefined ||
+    get(ferInscripcionesModalidadFilterAtom) !== undefined ||
+    get(ferInscripcionesPaymentMethodFilterAtom) !== undefined
   );
 });
 
@@ -50,5 +56,7 @@ export const ferClearInscripcionesFiltersAtom = atom(
     set(ferInscripcionesSearchQueryAtom, '');
     set(ferInscripcionesPagoConfirmadoFilterAtom, undefined);
     set(ferInscripcionesExperienciaFilterAtom, undefined);
+    set(ferInscripcionesModalidadFilterAtom, undefined);
+    set(ferInscripcionesPaymentMethodFilterAtom, undefined);
   }
 );

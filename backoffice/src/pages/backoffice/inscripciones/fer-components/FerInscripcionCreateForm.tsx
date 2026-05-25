@@ -20,6 +20,18 @@ const EXPERIENCE_DESCRIPTIONS: Record<string, string> = {
   avanzado: 'He competido en más de 10 AEP2 y al menos un AEP1',
 };
 
+const MODALIDAD_VALUES = ['completa', 'solo_banca', 'solo_peso_muerto'] as const;
+const MODALIDAD_LABELS: Record<string, string> = {
+  completa: 'Competición completa',
+  solo_banca: 'Solo banca',
+  solo_peso_muerto: 'Solo peso muerto',
+};
+const MODALIDAD_DESCRIPTIONS: Record<string, string> = {
+  completa: 'Sentadilla, press de banca y peso muerto',
+  solo_banca: 'Solo registra intentos de press de banca',
+  solo_peso_muerto: 'Solo registra intentos de peso muerto',
+};
+
 interface FerInscripcionCreateFormProps {
   onSubmit: (data: any) => Promise<void>;
   isLoading: boolean;
@@ -36,9 +48,11 @@ export function FerInscripcionCreateForm({
     telefono: '',
     sexo: '',
     categoriaPeso: '',
+    modalidad: 'completa',
     experiencia: 'principiante',
     quiereHandler: false,
     quierePeakProgram: false,
+    paymentMethod: 'efectivo',
     aceptaTerminos: false,
   });
 
@@ -85,7 +99,7 @@ export function FerInscripcionCreateForm({
     if (!formData.sexo || !formData.categoriaPeso) {
       return;
     }
-    onSubmit(formData);
+    onSubmit({ ...formData, peakProgram: formData.quierePeakProgram });
   }, [formData, onSubmit]);
 
   const setSexo = useCallback((sex: string) => {
@@ -95,6 +109,10 @@ export function FerInscripcionCreateForm({
 
   const setExperiencia = useCallback((exp: string) => {
     handleChange('experiencia', exp);
+  }, [handleChange]);
+
+  const setModalidad = useCallback((modalidad: string) => {
+    handleChange('modalidad', modalidad);
   }, [handleChange]);
 
   const selectCategory = useCallback((cat: string) => {
@@ -110,7 +128,7 @@ export function FerInscripcionCreateForm({
     setFormData(prev => ({ ...prev, [field]: !(prev as any)[field] }));
   }, []);
 
-  const isFormValid = formData.nombre && formData.email && formData.sexo && formData.categoriaPeso;
+  const isFormValid = formData.nombre && formData.email && formData.sexo && formData.categoriaPeso && formData.modalidad;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" data-ui="fer-create-form">
@@ -247,6 +265,38 @@ export function FerInscripcionCreateForm({
         </div>
       </div>
 
+      {/* ── Modalidad ── */}
+      <div data-ui="fer-create-modalidad">
+        <label className="block text-sm font-semibold text-white/60 mb-2.5">Modalidad *</label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-ui="fer-create-modalidad-grid">
+          {MODALIDAD_VALUES.map((modalidad) => {
+            const isActive = formData.modalidad === modalidad;
+            return (
+              <button
+                key={modalidad}
+                type="button"
+                onClick={() => setModalidad(modalidad)}
+                className={`px-4 py-3 rounded-xl text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-accent/50 ${
+                  isActive
+                    ? 'bg-red-accent/80 text-white shadow-lg scale-[1.02]'
+                    : 'bg-white/5 text-white/50 hover:bg-white/[0.08]'
+                }`}
+                data-ui={`fer-create-modalidad-btn-${modalidad}`}
+                data-active={isActive ? 'true' : 'false'}
+                aria-pressed={isActive}
+              >
+                <span className="block text-sm font-semibold" data-ui={`fer-create-modalidad-label-${modalidad}`}>
+                  {MODALIDAD_LABELS[modalidad]}
+                </span>
+                <span className="block text-xs mt-1 opacity-70" data-ui={`fer-create-modalidad-desc-${modalidad}`}>
+                  {MODALIDAD_DESCRIPTIONS[modalidad]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Experiencia (Buttons) ── */}
       <div data-ui="fer-create-experiencia">
         <label className="block text-sm font-semibold text-white/60 mb-2.5">Experiencia</label>
@@ -334,6 +384,22 @@ export function FerInscripcionCreateForm({
           </button>
         </div>
 
+      </div>
+
+      {/* ── Acepta Términos (Checkbox) ── */}
+      <div data-ui="fer-create-payment-method">
+        <label className="block text-sm font-semibold text-white/60 mb-1.5" data-ui="fer-create-payment-method-label">
+          Método de pago
+        </label>
+        <select
+          value={formData.paymentMethod}
+          onChange={(e) => handleChange('paymentMethod', e.target.value)}
+          className="w-full px-4 py-3 min-h-[48px] text-base bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-red-accent/50 focus:border-2 transition-all"
+          data-ui="fer-create-payment-method-select"
+        >
+          <option value="efectivo" data-ui="fer-create-payment-method-efectivo">Efectivo</option>
+          <option value="stripe" data-ui="fer-create-payment-method-stripe">Stripe</option>
+        </select>
       </div>
 
       {/* ── Acepta Términos (Checkbox) ── */}

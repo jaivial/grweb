@@ -1,6 +1,9 @@
 import type { EventoConfigFormData } from './types';
 
 export function toFormData(raw: Record<string, unknown>): EventoConfigFormData {
+  const pagoStripeActivo = typeof raw.pagoStripeActivo === 'boolean' ? raw.pagoStripeActivo : false;
+  const pagoEfectivoActivo = typeof raw.pagoEfectivoActivo === 'boolean' ? raw.pagoEfectivoActivo : true;
+
   return {
     aforMaximo: typeof raw.aforMaximo === 'number' ? raw.aforMaximo : 100,
     precioBase: typeof raw.precioBase === 'number' ? raw.precioBase : 35,
@@ -11,5 +14,8 @@ export function toFormData(raw: Record<string, unknown>): EventoConfigFormData {
     fechaLimitePeakProgram: typeof raw.fechaLimitePeakProgram === 'string' ? raw.fechaLimitePeakProgram : '',
     maxTicketsPorPersona: typeof raw.maxTicketsPorPersona === 'number' ? raw.maxTicketsPorPersona : 10,
     inscripcionAbierta: typeof raw.inscripcionAbierta === 'boolean' ? raw.inscripcionAbierta : true,
+    pagoStripeActivo,
+    pagoEfectivoActivo: !pagoStripeActivo && !pagoEfectivoActivo ? true : pagoEfectivoActivo,
+    cuponesDescuentoActivo: typeof raw.cuponesDescuentoActivo === 'boolean' ? raw.cuponesDescuentoActivo : false,
   };
 }

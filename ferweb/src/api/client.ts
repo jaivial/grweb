@@ -23,6 +23,9 @@ import type {
   EventoConfig,
   ScheduleGroupedByDate,
   SchedulePublishedConfig,
+  StripeInscripcionCheckoutResponse,
+  StripeInscripcionSessionResponse,
+  CouponValidationResponse,
 } from '../types/api';
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
@@ -127,6 +130,10 @@ class ApiClient {
     categoriasFemenino: string[];
     plazasDisponibles: number;
     inscripcionAbierta: boolean;
+    pagoStripeActivo: boolean;
+    pagoEfectivoActivo: boolean;
+    cuponesDescuentoActivo: boolean;
+    stripeDisponible: boolean;
   }>> {
     return this.request(`/api/competiciones/${slug}/config`);
   }
@@ -180,6 +187,31 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async createStripeInscripcionCheckout(slug: string, data: CreateInscripcionRequest): Promise<ApiResponse<StripeInscripcionCheckoutResponse>> {
+    return this.request(`/api/competiciones/${slug}/inscripcion/stripe-checkout`, {
+      method: 'POST',
+      body: JSON.stringify({ inscripcion: data, frontendUrl: window.location.origin }),
+    });
+  }
+
+  async validateCoupon(slug: string, codigo: string, peakProgram: boolean, modalidad?: string): Promise<ApiResponse<CouponValidationResponse>> {
+    return this.request(`/api/competiciones/${slug}/cupones/validar`, {
+      method: 'POST',
+      body: JSON.stringify({ codigo, peakProgram, modalidad }),
+    });
+  }
+
+  async resolveInscripcionPaymentLink(slug: string, token: string): Promise<ApiResponse<StripeInscripcionCheckoutResponse>> {
+    return this.request(`/api/competiciones/${slug}/inscripcion/pago-online`, {
+      method: 'POST',
+      body: JSON.stringify({ token, frontendUrl: window.location.origin }),
+    });
+  }
+
+  async getStripeInscripcionSession(slug: string, sessionId: string): Promise<ApiResponse<StripeInscripcionSessionResponse>> {
+    return this.request(`/api/competiciones/${slug}/inscripcion/stripe-session/${encodeURIComponent(sessionId)}`);
   }
 
   async addUpsell(slug: string, inscripcionId: number, quiereUpsell: boolean): Promise<ApiResponse<any>> {

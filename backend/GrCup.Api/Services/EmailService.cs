@@ -927,7 +927,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
     /// </summary>
     public async Task SendFerConfirmationAsync(
         Inscripcion inscripcion, Competicion competicion, EventoConfig config,
-        byte[]? qrCodeImage, string? qrCode)
+        byte[]? qrCodeImage, string? qrCode, string? onlinePaymentUrl = null)
     {
         try
         {
@@ -951,6 +951,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                 _ => inscripcion.Experiencia
             };
             var handlerText = inscripcion.QuiereHandler ? "Sí" : "No";
+            var modalidadLabel = InscripcionService.GetModalidadLabel(inscripcion.Modalidad);
             var peakText = inscripcion.QuierePeakProgram
                 ? $"Sí ({(config.PrecioPeakProgram):F2} EUR){(string.IsNullOrEmpty(config.FechaLimitePeakProgram) ? "" : $" — Fecha límite: {config.FechaLimitePeakProgram}")}"
                 : "No";
@@ -958,6 +959,40 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             var telefonoText = !string.IsNullOrWhiteSpace(inscripcion.Telefono) ? inscripcion.Telefono : "—";
             // Handler is free — only base + peak program
             var precioTotal = config.PrecioBase + (inscripcion.QuierePeakProgram ? config.PrecioPeakProgram : 0);
+            var paymentMethodText = inscripcion.PaymentMethod switch
+            {
+                InscripcionService.PaymentMethodStripe => "Tarjeta (Stripe)",
+                InscripcionService.PaymentMethodTransferencia => "Transferencia bancaria",
+                InscripcionService.PaymentMethodCupon => "Cupón de descuento",
+                _ => "Efectivo"
+            };
+            var subtotalTotal = inscripcion.SubtotalAntesDescuento > 0
+                ? inscripcion.SubtotalAntesDescuento
+                : config.PrecioBase + (inscripcion.QuierePeakProgram ? config.PrecioPeakProgram : 0);
+            var descuentoTotal = inscripcion.ImporteDescuento;
+            var totalFinal = inscripcion.TotalPagado;
+            var couponRowsHtml = !string.IsNullOrWhiteSpace(inscripcion.CodigoCupon)
+                ? $@"<tr><td style=""font-size:13px;color:#8B949E;padding-top:6px;"" colspan=""2"">Cupón aplicado: <strong style=""color:#E6EDF3;"">{WebUtility.HtmlEncode(inscripcion.CodigoCupon)}</strong></td></tr><tr><td style=""font-size:13px;color:#8B949E;padding-top:6px;"" colspan=""2"">Descuento: <strong style=""color:#3FB950;"">-{descuentoTotal:F2} EUR</strong></td></tr>"
+                : "";
+            var couponText = !string.IsNullOrWhiteSpace(inscripcion.CodigoCupon)
+                ? $"\nCupón aplicado: {inscripcion.CodigoCupon}\nDescuento: -{descuentoTotal:F2} EUR"
+                : "";
+            var isPaid = inscripcion.PagoConfirmado;
+            var onlinePaymentButtonHtml = !string.IsNullOrWhiteSpace(onlinePaymentUrl)
+                ? $@"<table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""margin-top:14px;""><tr><td style=""background-color:#3FB950;border-radius:10px;"" bgcolor=""#3FB950""><a href=""{WebUtility.HtmlEncode(onlinePaymentUrl)}"" target=""_blank"" style=""display:inline-block;padding:13px 20px;font-size:14px;font-weight:800;color:#0D1117;text-decoration:none;letter-spacing:0.2px;"">Pagar online ahora</a></td></tr></table>"
+                : "";
+            var paymentIntroText = isPaid
+                ? "El pago ha sido confirmado."
+                : "El pago está pendiente y debe completarse en efectivo en la mesa de registro el día del evento.";
+            var paymentInstructionsHtml = isPaid
+                ? @"<p style=""margin:0;font-size:13px;line-height:20px;color:#E6EDF3;""><strong style=""color:#3FB950;"">Pago confirmado.</strong> No tienes que pagar nada más el día del evento.</p>"
+                : $@"<p style=""margin:0 0 6px 0;font-size:13px;line-height:20px;color:#E6EDF3;""><strong style=""color:#F85149;"">Pago pendiente.</strong> Debes realizar el pago en efectivo en la mesa de registro el día de la competición.</p><p style=""margin:0;font-size:13px;line-height:20px;color:#8B949E;"">Tu inscripción online reserva tu plaza, pero solo quedará finalizada cuando el pago sea confirmado.</p>{onlinePaymentButtonHtml}";
+            var paymentInstructionsText = isPaid
+                ? "Pago confirmado. No tienes que pagar nada más el día del evento."
+                : $"Pago pendiente. Debes realizar el pago en efectivo en la mesa de registro el día de la competición. Tu inscripción online reserva tu plaza, pero solo quedará finalizada cuando el pago sea confirmado.{(string.IsNullOrWhiteSpace(onlinePaymentUrl) ? "" : $"\n\nSi prefieres pagar online ahora: {onlinePaymentUrl}")}";
+            var paymentNextStep = isPaid
+                ? "Acude a la mesa de registro el día del evento con el QR (no hace falta pagar nada más)."
+                : "Acude a la mesa de registro el día de la competición con el QR y el pago en efectivo.";
 
             // ── Build HTML body ──
             var html = $@"<!DOCTYPE html>
@@ -995,7 +1030,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
               </h2>
               <p style=""color:#8B949E;margin:0;font-size:15px;line-height:24px;"">
                 Tu inscripción para la <strong style=""color:#E6EDF3;"">FER CUP II</strong> ha sido registrada correctamente. 
-                {(!inscripcion.PagoConfirmado ? "El pago se realiza en efectivo el día del evento en la mesa de registro." : "El pago ha sido confirmado.")}
+                {paymentIntroText}
               </p>
             </td>
           </tr>
@@ -1038,6 +1073,10 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                         <td style=""padding:5px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{inscripcion.CategoriaPeso}</td>
                       </tr>
                       <tr>
+                        <td style=""padding:5px 0;font-size:13px;color:#8B949E;"">Modalidad</td>
+                        <td style=""padding:5px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{modalidadLabel}</td>
+                      </tr>
+                      <tr>
                         <td style=""padding:5px 0;font-size:13px;color:#8B949E;"">Experiencia</td>
                         <td style=""padding:5px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{expLabel}</td>
                       </tr>
@@ -1074,7 +1113,18 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                       </tr>
                       <tr>
                         <td style=""font-size:13px;color:#8B949E;padding-top:6px;"" colspan=""2"">
-                          Total a pagar: <strong style=""color:#E6EDF3;"">{precioTotal:F2} EUR</strong>
+                          Método de pago: <strong style=""color:#E6EDF3;"">{paymentMethodText}</strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style=""font-size:13px;color:#8B949E;padding-top:6px;"" colspan=""2"">
+                          Subtotal: <strong style=""color:#E6EDF3;"">{subtotalTotal:F2} EUR</strong>
+                        </td>
+                      </tr>
+                      {couponRowsHtml}
+                      <tr>
+                        <td style=""font-size:13px;color:#8B949E;padding-top:6px;"" colspan=""2"">
+                          Total a pagar: <strong style=""color:#E6EDF3;"">{totalFinal:F2} EUR</strong>
                         </td>
                       </tr>
                     </table>
@@ -1092,12 +1142,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                     <p style=""margin:0 0 8px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#F85149;"">
                       COMO PAGAR
                     </p>
-                    <p style=""margin:0 0 6px 0;font-size:13px;line-height:20px;color:#E6EDF3;"">
-                      El pago se realiza <strong style=""color:#F85149;"">SOLO en efectivo</strong> en la mesa de registro el día de la competición, por orden de llamada/llegada.
-                    </p>
-                    <p style=""margin:0;font-size:13px;line-height:20px;color:#8B949E;"">
-                      La inscripción online solo garantiza una plaza reservada debido al límite de participantes.
-                    </p>
+                    {paymentInstructionsHtml}
                   </td>
                 </tr>
               </table>
@@ -1174,7 +1219,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                   <td style=""padding:0 20px 12px 20px;"">
                     <ol style=""margin:0;padding-left:20px;font-size:13px;line-height:22px;color:#8B949E;"">
                       <li style=""margin-bottom:6px;"">Guarda este email o tu código QR para presentarlo el día del evento.</li>
-                      <li style=""margin-bottom:6px;"">Acude a la mesa de registro el día de la competición con el QR y el pago en efectivo.</li>
+                      <li style=""margin-bottom:6px;"">{paymentNextStep}</li>
                       <li style=""margin-bottom:6px;"">
                         {(inscripcion.QuiereHandler ? "Nosotros nos encargamos del handler de forma gratuita." : "Si necesitas handler, infórmanos el día del evento.")}
                       </li>
@@ -1217,17 +1262,18 @@ Teléfono: {telefonoText}
 Instagram: {instagramText}
 Sexo: {sexLabel}
 Categoría de peso: {inscripcion.CategoriaPeso}
+Modalidad: {modalidadLabel}
 Experiencia: {expLabel}
 Handler GR Strength: {handlerText}
 GRS Peak Program: {peakText}
 
 {(inscripcion.PagoConfirmado ? "Pago realizado: SÍ" : "Pago realizado: NO")}
-Total a pagar: {precioTotal:F2} EUR
+Método de pago: {paymentMethodText}
+Subtotal: {subtotalTotal:F2} EUR{couponText}
+Total a pagar: {totalFinal:F2} EUR
 
 COMO PAGAR
-El pago se realiza SOLO en efectivo en la mesa de registro el día de la competición, por orden de llamada/llegada.
-
-La inscripción online solo garantiza una plaza reservada debido al límite de participantes.
+{paymentInstructionsText}
 
 {(qrCode != null ? $@"CODIGO QR
 Presenta tu código QR en la mesa de registro el día del evento.
@@ -1239,7 +1285,7 @@ Lugar: {competicion.Lugar}
 
 PROXIMOS PASOS
 1. Guarda tu código QR para presentarlo el día del evento.
-2. Acude a la mesa de registro el día de la competición con el QR y el pago en efectivo.
+2. {paymentNextStep}
 3. {(inscripcion.QuiereHandler ? "Nosotros nos encargamos del handler de forma gratuita." : "Si necesitas handler, infórmanos el día del evento.")}
 4. ¡Prepárate para dar lo mejor de ti en la plataforma!
 
@@ -1302,6 +1348,7 @@ Este es un mensaje automático. Síguenos en Instagram: @grstrengthclub (https:/
                 _ => inscripcion.Experiencia
             };
             var handlerText = inscripcion.QuiereHandler ? "Sí" : "No";
+            var modalidadLabel = InscripcionService.GetModalidadLabel(inscripcion.Modalidad);
             var peakText = inscripcion.QuierePeakProgram ? "Sí" : "No";
             var instagramText = !string.IsNullOrWhiteSpace(inscripcion.Instagram) ? inscripcion.Instagram : "—";
             var telefonoText = !string.IsNullOrWhiteSpace(inscripcion.Telefono) ? inscripcion.Telefono : "—";
@@ -1310,6 +1357,7 @@ Este es un mensaje automático. Síguenos en Instagram: @grstrengthclub (https:/
                 "efectivo" => "Efectivo (presencial)",
                 "transferencia" => "Transferencia bancaria",
                 "stripe" => "Tarjeta (Stripe)",
+                "cupon" => "Cupón de descuento",
                 _ => inscripcion.PaymentMethod ?? "Efectivo (pendiente)"
             };
 
@@ -1394,6 +1442,10 @@ Este es un mensaje automático. Síguenos en Instagram: @grstrengthclub (https:/
                       <tr>
                         <td style=""padding:5px 0;font-size:13px;color:#8B949E;"">Categoría de peso</td>
                         <td style=""padding:5px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{inscripcion.CategoriaPeso}</td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:5px 0;font-size:13px;color:#8B949E;"">Modalidad</td>
+                        <td style=""padding:5px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{modalidadLabel}</td>
                       </tr>
                       <tr>
                         <td style=""padding:5px 0;font-size:13px;color:#8B949E;"">Experiencia</td>
@@ -1503,6 +1555,7 @@ Teléfono: {telefonoText}
 Instagram: {instagramText}
 Sexo: {sexLabel}
 Categoría de peso: {inscripcion.CategoriaPeso}
+Modalidad: {modalidadLabel}
 Experiencia: {expLabel}
 Handler GR Strength: {handlerText}
 GRS Peak Program: {peakText}
@@ -1552,11 +1605,13 @@ Mensaje automático del sistema de inscripciones de {competicion.Nombre}."
                 _ => inscripcion.Experiencia
             };
             var handlerText = inscripcion.QuiereHandler ? "Sí" : "No";
+            var modalidadLabel = InscripcionService.GetModalidadLabel(inscripcion.Modalidad);
             var paymentMethodText = inscripcion.PaymentMethod switch
             {
                 "efectivo" => "Efectivo (presencial)",
                 "transferencia" => "Transferencia bancaria",
                 "stripe" => "Tarjeta (Stripe)",
+                "cupon" => "Cupón de descuento",
                 _ => inscripcion.PaymentMethod ?? "—"
             };
 
@@ -1630,6 +1685,10 @@ Mensaje automático del sistema de inscripciones de {competicion.Nombre}."
                       <tr>
                         <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Categoría de peso</td>
                         <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{inscripcion.CategoriaPeso}</td>
+                      </tr>
+                      <tr>
+                        <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Modalidad</td>
+                        <td style=""padding:4px 0;font-size:13px;font-weight:600;color:#E6EDF3;"">{modalidadLabel}</td>
                       </tr>
                       <tr>
                         <td style=""padding:4px 0;font-size:13px;color:#8B949E;"">Sexo</td>
@@ -1729,6 +1788,7 @@ PAGO CONFIRMADO
 Total pagado: {inscripcion.TotalPagado:F2} EUR ✓
 Método de pago: {paymentMethodText}
 Categoría de peso: {inscripcion.CategoriaPeso}
+Modalidad: {modalidadLabel}
 Sexo: {sexLabel}
 Experiencia: {expLabel}
 Handler GR Strength: {handlerText}

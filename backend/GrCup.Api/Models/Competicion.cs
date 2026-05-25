@@ -94,6 +94,7 @@ public class Competicion
     // Navigation properties
     public virtual ICollection<Inscripcion> Inscripciones { get; set; } = new List<Inscripcion>();
     public virtual ICollection<RifaTicket> RifaTickets { get; set; } = new List<RifaTicket>();
+    public virtual ICollection<CuponDescuento> CuponesDescuento { get; set; } = new List<CuponDescuento>();
     public virtual ICollection<UsuarioCompeticion> UsuarioCompeticiones { get; set; } = new List<UsuarioCompeticion>();
     public virtual RifaConfig? RifaConfig { get; set; }
 }
@@ -149,6 +150,15 @@ public class EventoConfig
     
     /// Whether registration is open
     public bool InscripcionAbierta { get; set; } = true;
+
+    /// Whether athletes can pay online through Stripe for this event
+    public bool PagoStripeActivo { get; set; } = false;
+
+    /// Whether athletes can choose cash payment at the event registry table
+    public bool PagoEfectivoActivo { get; set; } = true;
+
+    /// Whether athletes can apply discount coupons in the public inscription form
+    public bool CuponesDescuentoActivo { get; set; } = false;
     
     /// Stripe price ID for base registration
     public string? StripePriceId { get; set; }
