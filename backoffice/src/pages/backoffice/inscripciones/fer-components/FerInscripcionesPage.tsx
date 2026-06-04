@@ -22,6 +22,9 @@ import type { Inscripcion } from '../../../../types/api';
 import { FerFiltersAccordion } from './FerFiltersAccordion';
 import { FerInscripcionEditForm } from './FerInscripcionEditForm';
 import { FerInscripcionCreateForm } from './FerInscripcionCreateForm';
+import { SorteoInscritosButton } from '../inscripcionRaffle/SorteoInscritosButton';
+import { SorteoInscritosModal } from '../inscripcionRaffle/SorteoInscritosModal';
+import { ferRaffleStore } from '../../../../stores/inscripcionRaffleStore';
 
 const FER_TABS = [
   { id: 'todas', label: 'Todas las inscripciones' },
@@ -350,23 +353,32 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
           </div>
 
           {/* Actions Bar */}
-          <div className="flex justify-start mb-3 gap-2" data-ui="fer-actions-bar">
-            <button
-              onClick={exportCsv}
-              className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
-              data-ui="fer-export-csv-btn"
-            >
-              Exportar CSV
-            </button>
-            <button
-              onClick={handleExportPdf}
-              disabled={exportingPdf}
-              className={`inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150 ${exportingPdf ? 'opacity-50 cursor-not-allowed' : ''}`}
-              data-ui="fer-export-pdf-btn"
-            >
-              <Download className="w-4 h-4" />
-              {exportingPdf ? 'Exportando...' : 'Exportar PDF'}
-            </button>
+          <div className="flex justify-between items-center mb-3 gap-2" data-ui="fer-actions-bar">
+            <div className="flex gap-2" data-ui="fer-actions-bar-left">
+              <button
+                onClick={exportCsv}
+                className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
+                data-ui="fer-export-csv-btn"
+              >
+                Exportar CSV
+              </button>
+              <button
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+                className={`inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150 ${exportingPdf ? 'opacity-50 cursor-not-allowed' : ''}`}
+                data-ui="fer-export-pdf-btn"
+              >
+                <Download className="w-4 h-4" />
+                {exportingPdf ? 'Exportando...' : 'Exportar PDF'}
+              </button>
+            </div>
+            <div className="flex gap-2" data-ui="fer-actions-bar-right">
+              <SorteoInscritosButton
+                competicionKind="fer"
+                store={ferRaffleStore}
+                dataTestid="fer-sorteo-button"
+              />
+            </div>
           </div>
 
           {/* Table */}
@@ -459,6 +471,14 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
           </div>
         </div>
       )}
+
+      {/* Sorteo Inscritos modal — gated by ferRaffleStore.raffleModalOpenAtom */}
+      <SorteoInscritosModal
+        competicionId={competicionId}
+        competicionKind="fer"
+        store={ferRaffleStore}
+        poolSize={stats.total}
+      />
     </>
   );
 }

@@ -6,6 +6,55 @@ interface RequestOptions {
   token?: string;
 }
 
+export interface InscripcionStatsDTO {
+  total?: number;
+  pagados?: number;
+  pendientes?: number;
+  upsells?: number;
+  checkins?: number;
+  revenue: number;
+  cashRevenue: number;
+  stripeRevenue: number;
+  porExperiencia?: Record<string, number>;
+  conEntrenador?: number;
+  sinEntrenador?: number;
+}
+
+export interface InscripcionFilters {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  pagoConfirmado?: boolean;
+  experiencia?: string;
+  modalidad?: string;
+  paymentMethod?: string;
+  // Phase 1 — 6 new optional filters
+  sexo?: string | null;
+  categoriaPeso?: string | null;
+  quiereHandler?: boolean | null;
+  quierePeakProgram?: boolean | null;
+  participacionConfirmada?: boolean | null;
+  hasCoupon?: boolean | null;
+}
+
+export interface RaffleWinner {
+  id: number;
+  nombre: string;
+  email: string;
+  [key: string]: unknown;
+}
+
+export interface RaffleResult {
+  winners: RaffleWinner[];
+  fallbackReason?: string;
+}
+
+export interface RaffleRequest {
+  filterCriteria: string;
+  numWinners: number;
+  equityMode: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -579,6 +628,102 @@ class ApiClient {
       method: 'PUT',
       body: { weight },
     });
+  }
+
+  // ─── FER Inscripciones (Phase 1) ───
+
+  /**
+   * Build the export CSV URL with token for direct download.
+   * Mirrors the signature in src/api/client.ts.
+   */
+  getExportCsvUrl(competicionId: number): string {
+    const token = document.cookie.split(';').find(c => c.trim().startsWith('gr_token='))?.split('=')[1];
+    return `${this.baseUrl}/api/admin/competiciones/${competicionId}/inscripciones/export?token=${token}`;
+  }
+
+  async createAdminInscripcion(
+    competicionId: number,
+    data: any
+  ): Promise<{ success: boolean; data?: any; message?: string }> {
+    return this.request<any>(
+      `/api/admin/competiciones/${competicionId}/inscripciones`,
+      { method: 'POST', body: data }
+    );
+  }
+
+  async updateAdminInscripcion(
+    competicionId: number,
+    inscripcionId: number,
+    data: any
+  ): Promise<{ success: boolean; data?: any; message?: string }> {
+    return this.request<any>(
+      `/api/admin/competiciones/${competicionId}/inscripciones/${inscripcionId}`,
+      { method: 'PUT', body: data }
+    );
+  }
+
+  async deleteAdminInscripcion(
+    competicionId: number,
+    inscripcionId: number
+  ): Promise<{ success: boolean; data?: any; message?: string }> {
+    return this.request<any>(
+      `/api/admin/competiciones/${competicionId}/inscripciones/${inscripcionId}`,
+      { method: 'DELETE' }
+    );
+  }
+
+  /**
+   * List inscripciones with optional filters. Backed by InscripcionService.GetPaginatedAsync.
+   * All 11 filter keys (5 legacy + 6 Phase 1) are supported.
+   */
+  async getAdminInscripciones(
+    competicionId: number,
+    params: InscripcionFilters = {}
+  ): Promise<{ success: boolean; data?: { items: any[]; total: number; page: number; pageSize: number; totalPages: number }; message?: string }> {
+    const q = new URLSearchParams();
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    if (params.search) q.set('search', params.search);
+    if (params.pagoConfirmado !== undefined) q.set('pagoConfirmado', String(params.pagoConfirmado));
+    if (params.experiencia) q.set('experiencia', params.experiencia);
+    if (params.modalidad) q.set('modalidad', params.modalidad);
+    if (params.paymentMethod) q.set('paymentMethod', params.paymentMethod);
+    // Phase 1: 6 new optional filters
+    if (params.sexo != null) q.set('sexo', params.sexo);
+    if (params.categoriaPeso != null) q.set('categoriaPeso', params.categoriaPeso);
+    if (params.quiereHandler != null) q.set('quiereHandler', String(params.quiereHandler));
+    if (params.quierePeakProgram != null) q.set('quierePeakProgram', String(params.quierePeakProgram));
+    if (params.participacionConfirmada != null) q.set('participacionConfirmada', String(params.participacionConfirmada));
+    if (params.hasCoupon != null) q.set('hasCoupon', String(params.hasCoupon));
+
+    const qs = q.toString();
+    return this.request<any>(
+      `/api/admin/competiciones/${competicionId}/inscripciones${qs ? `?${qs}` : ''}`
+    );
+  }
+
+  /**
+   * Stats for the FER competicion dashboard. Backed by InscripcionService.GetStatsAsync.
+   */
+  async getAdminInscripcionStats(
+    competicionId: number,
+    _filters?: InscripcionFilters
+  ): Promise<{ success: boolean; data?: InscripcionStatsDTO; message?: string }> {
+    return this.request<any>(`/api/admin/competiciones/${competicionId}/inscripciones/stats`);
+  }
+
+  /**
+   * Draw N winners from filtered pool. Backed by InscripcionService.RaffleAsync.
+   * Backend route: POST /api/admin/competiciones/:id/inscripciones/raffle
+   */
+  async drawRaffleInscripciones(
+    competicionId: number,
+    body: RaffleRequest
+  ): Promise<{ success: boolean; data?: RaffleResult; message?: string }> {
+    return this.request<any>(
+      `/api/admin/competiciones/${competicionId}/inscripciones/raffle`,
+      { method: 'POST', body }
+    );
   }
 }
 

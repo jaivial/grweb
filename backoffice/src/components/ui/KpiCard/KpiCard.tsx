@@ -8,6 +8,7 @@ export interface KpiCardProps {
   icon?: ReactNode;
   color?: 'default' | 'success' | 'warning' | 'danger';
   className?: string;
+  'data-testid'?: string;
 }
 
 const colorClasses = {
@@ -31,11 +32,13 @@ export function KpiCard({
   icon,
   color = 'default',
   className = '',
+  'data-testid': dataTestid,
 }: KpiCardProps): JSX.Element {
   return (
     <div
       className={`p-3 xs:p-4 rounded-2xl ${colorClasses[color]} ${className}`}
       data-ui="kpi-card"
+      data-testid={dataTestid}
     >
       <div className="flex items-start justify-between gap-2 xs:gap-3" data-ui="kpi-content">
         <div className="flex-1 min-w-0" data-ui="kpi-text">

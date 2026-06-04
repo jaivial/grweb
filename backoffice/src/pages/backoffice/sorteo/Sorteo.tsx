@@ -4,8 +4,8 @@ import { Plus, Filter, ToggleLeft, ToggleRight, Edit2, Trash2, Gift } from 'luci
 import { api } from '../../../utils/api';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
-import { Icon } from '../../../components/ui/Icon';
 import { CustomSelector } from '../../../components/ui/CustomSelector/CustomSelector';
+import { Counter } from '../../../components/ui/Counter/Counter';
 import { Tabs } from '../../../components/ui/Tabs/Tabs';
 import { KpiCard } from '../../../components/ui/KpiCard/KpiCard';
 import { FallbackImage } from '../../../components/ui/FallbackImage/FallbackImage';
@@ -402,13 +402,8 @@ export function Sorteo(): JSX.Element {
     }
   }, [manualErrors]);
 
-  const incrementTickets = useCallback(() => {
-    setManualFormData(prev => ({ ...prev, ticketCount: Math.min(prev.ticketCount + 1, MAX_TICKETS) }));
-  }, []);
 
-  const decrementTickets = useCallback(() => {
-    setManualFormData(prev => ({ ...prev, ticketCount: Math.max(prev.ticketCount - 1, 1) }));
-  }, []);
+
 
   const validateManualForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
@@ -1370,30 +1365,14 @@ export function Sorteo(): JSX.Element {
                     <span className="text-gray-300 font-medium" data-ui="manual-tickets-label">Número de boletos</span>
                     <span className="text-gray-500 text-sm" data-ui="manual-tickets-price">{TICKET_PRICE} € por boleto</span>
                   </div>
-                  <div className="flex items-center justify-center gap-6" data-ui="manual-ticket-controls">
-                    <button
-                      type="button"
-                      onClick={decrementTickets}
-                      disabled={manualFormData.ticketCount <= 1}
-                      className="w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                      aria-label="Reducir tickets"
-                      data-testid="manual-ticket-minus-btn"
-                    >
-                      <Icon name="minus" size="lg" className="text-white" />
-                    </button>
-                    <div className="text-5xl font-bold text-white min-w-[80px] text-center" data-ui="manual-ticket-count">
-                      {manualFormData.ticketCount}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={incrementTickets}
-                      disabled={manualFormData.ticketCount >= MAX_TICKETS}
-                      className="w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                      aria-label="Aumentar tickets"
-                      data-testid="manual-ticket-plus-btn"
-                    >
-                      <Icon name="plus" size="lg" className="text-white" />
-                    </button>
+                  <div data-ui="manual-ticket-controls">
+                    <Counter
+                      value={manualFormData.ticketCount}
+                      onChange={(n) => setManualFormData(prev => ({ ...prev, ticketCount: n }))}
+                      min={1}
+                      max={MAX_TICKETS}
+                      dataTestid="manual-ticket-counter"
+                    />
                   </div>
                   <div className="flex justify-center gap-2 mt-4" data-ui="manual-ticket-quick-select">
                     {[1, 5, 10, 20].map((num) => (
