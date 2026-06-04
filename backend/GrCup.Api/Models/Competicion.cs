@@ -87,6 +87,9 @@ public class Competicion
     /// Per-competition toggle independent of SchedulePublishedConfig.
     /// </summary>
     public bool HorariosReady { get; set; } = false;
+
+    /// <summary>Referido system master toggle (untracked WIP, stubbed to keep build green).</summary>
+    public bool ReferidosActivo { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -159,6 +162,9 @@ public class EventoConfig
 
     /// Whether athletes can apply discount coupons in the public inscription form
     public bool CuponesDescuentoActivo { get; set; } = false;
+
+    /// <summary>Referido system master toggle on event config (untracked WIP, stubbed to keep build green).</summary>
+    public bool ReferidosActivo { get; set; } = false;
     
     /// Stripe price ID for base registration
     public string? StripePriceId { get; set; }

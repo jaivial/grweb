@@ -299,3 +299,4 @@ export function FerFiltersAccordion(): JSX.Element {
     </Accordion>
   );
 }
+

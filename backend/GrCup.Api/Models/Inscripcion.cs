@@ -109,7 +109,16 @@ public class Inscripcion
     [MaxLength(255)]
     public string? StripeSessionId { get; set; }
 
+    // Referido system (untracked WIP, stubbed to keep build green)
+    [MaxLength(255)]
+    public string? StripePaymentIntentId { get; set; }
+
     public int? CuponDescuentoId { get; set; }
+
+    // Referido system fields (untracked WIP, stubbed to keep build green)
+    [MaxLength(100)]
+    public string? Apellido1 { get; set; }
+    public int? ReferralCodeId { get; set; }
 
     [MaxLength(200)]
     public string? CodigoCupon { get; set; }

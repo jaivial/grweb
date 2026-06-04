@@ -116,6 +116,7 @@ builder.Services.AddScoped<ParticipantService>();
 builder.Services.AddScoped<StripeService>();
 builder.Services.AddScoped<DrawService>();
 builder.Services.AddScoped<AthleteService>();
+builder.Services.AddScoped<AthleteRaffleService>();
 builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddScoped<EmailService>();
@@ -134,6 +135,7 @@ builder.Services.AddScoped<InscripcionService>();
 builder.Services.AddScoped<CuponDescuentoService>();
 builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<SeedService>();
+builder.Services.AddScoped<FerConfigSnapshotService>();
 
 // ─── Swagger ───
 builder.Services.AddEndpointsApiExplorer();

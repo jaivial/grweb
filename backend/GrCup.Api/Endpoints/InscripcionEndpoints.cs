@@ -32,6 +32,30 @@ public static class InscripcionEndpoints
         return $"{baseUrl}{path}";
     }
 
+    private static async Task<IResult?> ValidateFerConfigSnapshotAsync(
+        Competicion competicion,
+        FerConfigSnapshot? requestedSnapshot,
+        FerConfigSnapshotService ferConfigSnapshotService)
+    {
+        if (!string.Equals(competicion.Tipo, "fer", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var currentSnapshot = await ferConfigSnapshotService.BuildAsync(competicion);
+        if (FerConfigSnapshotService.Matches(currentSnapshot, requestedSnapshot))
+            return null;
+
+        return Results.Conflict(new
+        {
+            success = false,
+            code = "stale_config",
+            message = "Ha ocurrido un error, recarga la pagina y vuelvelo a intentar.",
+            data = new
+            {
+                currentConfig = currentSnapshot
+            }
+        });
+    }
+
     public static void MapInscripcionEndpoints(this IEndpointRouteBuilder app)
     {
         // ─── Public Registration Endpoints ───
@@ -42,6 +66,7 @@ public static class InscripcionEndpoints
             [FromBody] CreateInscripcionRequest request,
             CompeticionService competicionService,
             InscripcionService inscripcionService,
+            FerConfigSnapshotService ferConfigSnapshotService,
             StripeService stripeService,
             EmailService emailService,
             ILogger<Program> logger,
@@ -50,6 +75,10 @@ public static class InscripcionEndpoints
             var competicion = await competicionService.GetBySlugAsync(slug);
             if (competicion == null)
                 return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            var staleConfigResult = await ValidateFerConfigSnapshotAsync(competicion, request.ConfigSnapshot, ferConfigSnapshotService);
+            if (staleConfigResult != null)
+                return staleConfigResult;
 
             try
             {
@@ -133,6 +162,7 @@ public static class InscripcionEndpoints
             [FromBody] StripeInscripcionCheckoutRequest request,
             CompeticionService competicionService,
             InscripcionService inscripcionService,
+            FerConfigSnapshotService ferConfigSnapshotService,
             StripeService stripeService,
             EmailService emailService,
             ILogger<Program> logger) =>
@@ -140,6 +170,10 @@ public static class InscripcionEndpoints
             var competicion = await competicionService.GetBySlugAsync(slug);
             if (competicion == null)
                 return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            var staleConfigResult = await ValidateFerConfigSnapshotAsync(competicion, request.Inscripcion.ConfigSnapshot, ferConfigSnapshotService);
+            if (staleConfigResult != null)
+                return staleConfigResult;
 
             var config = competicionService.GetEventoConfig(competicion);
             if (!await stripeService.IsInscriptionStripeAvailableAsync(competicion.Id, config))
@@ -248,6 +282,19 @@ public static class InscripcionEndpoints
                 logger.LogWarning(ex, "Failed to create FER Stripe checkout for {Slug}", slug);
                 return Results.BadRequest(new { success = false, message = ex.Message });
             }
+        });
+
+        app.MapGet("/api/competiciones/{slug}/inscripcion/config-snapshot", async (
+            string slug,
+            CompeticionService competicionService,
+            FerConfigSnapshotService ferConfigSnapshotService) =>
+        {
+            var competicion = await competicionService.GetBySlugAsync(slug);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            var snapshot = await ferConfigSnapshotService.BuildAsync(competicion);
+            return Results.Ok(new { success = true, data = snapshot });
         });
 
         // POST /api/competiciones/:slug/inscripcion/pago-online - Resolve email payment link token
@@ -733,10 +780,17 @@ public static class InscripcionEndpoints
             [FromQuery] bool? pagoConfirmado = null,
             [FromQuery] string? experiencia = null,
             [FromQuery] string? modalidad = null,
-            [FromQuery] string? paymentMethod = null) =>
+            [FromQuery] string? paymentMethod = null,
+            [FromQuery] string? sexo = null,
+            [FromQuery] string? categoriaPeso = null,
+            [FromQuery] bool? quiereHandler = null,
+            [FromQuery] bool? quierePeakProgram = null,
+            [FromQuery] bool? participacionConfirmada = null,
+            [FromQuery] bool? hasCoupon = null) =>
         {
             var (items, total) = await service.GetPaginatedAsync(
-                competicionId, page, pageSize, search, pagoConfirmado, experiencia, modalidad, paymentMethod
+                competicionId, page, pageSize, search, pagoConfirmado, experiencia, modalidad, paymentMethod,
+                sexo, categoriaPeso, quiereHandler, quierePeakProgram, participacionConfirmada, hasCoupon
             );
 
             return Results.Ok(new
@@ -790,10 +844,56 @@ public static class InscripcionEndpoints
         // GET /api/admin/competiciones/:id/inscripciones/stats - Get statistics
         adminGroup.MapGet("/stats", async (
             int competicionId,
-            InscripcionService service) =>
+            InscripcionService service,
+            [FromQuery] string? search = null,
+            [FromQuery] bool? pagoConfirmado = null,
+            [FromQuery] string? experiencia = null,
+            [FromQuery] string? modalidad = null,
+            [FromQuery] string? paymentMethod = null,
+            [FromQuery] string? sexo = null,
+            [FromQuery] string? categoriaPeso = null,
+            [FromQuery] bool? quiereHandler = null,
+            [FromQuery] bool? quierePeakProgram = null,
+            [FromQuery] bool? participacionConfirmada = null,
+            [FromQuery] bool? hasCoupon = null) =>
         {
-            var stats = await service.GetStatsAsync(competicionId);
+            var stats = await service.GetStatsAsync(
+                competicionId, search, pagoConfirmado, experiencia, modalidad, paymentMethod,
+                sexo, categoriaPeso, quiereHandler, quierePeakProgram, participacionConfirmada, hasCoupon);
             return Results.Ok(new { success = true, data = stats });
+        });
+
+        // POST /api/admin/competiciones/:id/inscripciones/raffle - Pick N random winners
+        adminGroup.MapPost("/raffle", async (
+            int competicionId,
+            [FromBody] RaffleRequest body,
+            InscripcionService service,
+            ILogger<Program> logger) =>
+        {
+            try
+            {
+                var result = await service.RaffleAsync(competicionId, body);
+                logger.LogInformation("Raffle draw for competition {CompeticionId}: {Count} winners, fallback={Fallback}",
+                    competicionId, result.Winners.Count, result.FallbackReason ?? "none");
+                return Results.Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        winners = result.Winners,
+                        fallbackReason = result.FallbackReason
+                    }
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to run raffle for competition {CompeticionId}", competicionId);
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
         });
 
         // GET /api/admin/competiciones/:id/inscripciones/:id - Get single inscription
