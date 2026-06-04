@@ -24,7 +24,7 @@
  * (different backend route, unwrapped response). FER uses the default.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import toast from 'react-hot-toast';
@@ -37,9 +37,10 @@ import { Roulette } from './Roulette';
 import { WinnersCard } from './WinnersCard';
 import { RaffleConfigAccordion } from './RaffleConfigAccordion';
 import { useRaffleAnimation } from './useRaffleAnimation';
-import { wheelSegmentFor } from './helpers';
+import { winnerDisplayName } from './helpers';
 import { RAFFLE_WHEEL_HEIGHT, FALLBACK_REASON_MESSAGES } from './constants';
 import type { DrawFn, SorteoInscritosModalProps } from './types';
+import type { RaffleWinner } from '../../../../utils/api';
 
 export function SorteoInscritosModal({
   competicionId,
@@ -69,6 +70,7 @@ export function SorteoInscritosModal({
   const isOpen = useAtomValue(activeStore.raffleModalOpenAtom);
   const setOpen = useSetAtom(activeStore.raffleModalOpenAtom);
   const [winners, setWinners] = useAtom(activeStore.raffleWinnersAtom);
+  const [roulettePool, setRoulettePool] = useState<RaffleWinner[]>([]);
   const [isSpinning, setIsSpinning] = useAtom(activeStore.raffleIsSpinningAtom);
   const [fallbackReason, setFallbackReason] = useAtom(
     activeStore.raffleFallbackReasonAtom
@@ -81,23 +83,27 @@ export function SorteoInscritosModal({
     revealDelayMs: 250,
   });
 
-  const wheelData = useMemo(
-    () => winners.map((w) => wheelSegmentFor(w)),
-    [winners]
+  const rouletteCandidates = useMemo(
+    () => roulettePool.map((winner) => ({ id: winner.id, label: winnerDisplayName(winner) })),
+    [roulettePool]
   );
+
+  const rouletteSelectedLabel = winners[0] ? winnerDisplayName(winners[0]) : undefined;
 
   const hasWinners = winners.length > 0;
   const hasFallback = fallbackReason !== null;
 
   const handleClose = useCallback(() => {
+    setRoulettePool([]);
     reset();
-  }, [reset]);
+  }, [reset, setRoulettePool]);
 
   const handleSortear = useCallback(async () => {
     if (isSpinning) return;
     setIsSpinning(true);
     setFallbackReason(null);
     setWinners([]);
+    setRoulettePool([]);
     animation.reset();
 
     try {
@@ -108,6 +114,7 @@ export function SorteoInscritosModal({
       });
       if (result?.winners) {
         setWinners(result.winners);
+        setRoulettePool(result.pool ?? result.winners);
       }
       if (result?.fallbackReason) {
         const msg =
@@ -131,6 +138,7 @@ export function SorteoInscritosModal({
     setIsSpinning,
     setFallbackReason,
     setWinners,
+    setRoulettePool,
     animation,
     activeDrawFn,
   ]);
@@ -163,10 +171,11 @@ export function SorteoInscritosModal({
         >
           {hasWinners ? (
             <Roulette
-              data={wheelData}
+              candidates={rouletteCandidates}
+              selectedLabel={rouletteSelectedLabel}
               mustStartSpinning={isSpinning}
               onFinishSpinning={handleWheelFinish}
-              dataTestid="sorteo-modal-roulette-wheel"
+              dataTestid="sorteo-modal-roulette-cycler"
               height={RAFFLE_WHEEL_HEIGHT}
             />
           ) : (

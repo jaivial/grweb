@@ -47,6 +47,7 @@ export interface RaffleWinner {
 export interface RaffleResult {
   winners: RaffleWinner[];
   fallbackReason?: string;
+  pool?: RaffleWinner[];
 }
 
 export interface RaffleRequest {

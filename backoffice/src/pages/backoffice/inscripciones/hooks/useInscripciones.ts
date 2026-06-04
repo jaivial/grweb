@@ -174,6 +174,13 @@ export function useInscripciones(competicionId: number) {
     await Promise.all([fetchInscripciones(), fetchStats()]);
   }, [fetchInscripciones, fetchStats]);
 
+  const refreshFirstPage = useCallback(async () => {
+    await Promise.all([
+      fetchInscripciones(1),
+      fetchStats(),
+    ]);
+  }, [fetchInscripciones, fetchStats]);
+
   const exportCsv = useCallback(() => {
     const url = api.getExportCsvUrl(competicionId);
     window.open(url, '_blank');
@@ -198,6 +205,7 @@ export function useInscripciones(competicionId: number) {
     nextPage,
     prevPage,
     refresh,
+    refreshFirstPage,
     exportCsv,
   };
 }

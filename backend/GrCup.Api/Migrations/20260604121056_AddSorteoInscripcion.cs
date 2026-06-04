@@ -12,10 +12,6 @@ namespace GrCup.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Activo",
-                table: "Schedules");
-
             migrationBuilder.AddColumn<bool>(
                 name: "Activo",
                 table: "StripeConfig",

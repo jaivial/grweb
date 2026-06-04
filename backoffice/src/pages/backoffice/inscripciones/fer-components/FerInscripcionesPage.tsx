@@ -7,7 +7,7 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { Pagination } from '../components/Pagination';
 import { ResponsiveTable } from '../../../../components/ui';
 import { IoMaleSharp, IoFemaleSharp } from "react-icons/io5";
-import { Pencil, Trash2, Check, Download } from 'lucide-react';
+import { Pencil, Trash2, Check, Download, RefreshCw } from 'lucide-react';
 
 // Dynamic import for pdfExport to reduce initial bundle size
 const getExportPdf = () => import('../../../../utils/pdfExport').then(m => m.exportPdf);
@@ -82,6 +82,7 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
     nextPage,
     prevPage,
     exportCsv,
+    refreshFirstPage,
   } = useInscripciones(competicionId);
 
   const searchQuery = useAtomValue(ferInscripcionesSearchQueryAtom);
@@ -213,6 +214,20 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
       setExportingPdf(false);
     }
   }, [inscripciones]);
+
+  const handleRefresh = useCallback(async () => {
+    const requestKey = `${competicionId}:1:${listFiltersKey}`;
+    activeListRequestKeyRef.current = requestKey;
+    goToPage(1);
+
+    try {
+      await refreshFirstPage();
+    } finally {
+      if (activeListRequestKeyRef.current === requestKey) {
+        activeListRequestKeyRef.current = null;
+      }
+    }
+  }, [competicionId, goToPage, listFiltersKey, refreshFirstPage]);
 
   const ferTableColumns = useMemo(() => [
     { key: 'nombre', header: 'Nombre', render: (i: Inscripcion) => (
@@ -373,6 +388,16 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
               </button>
             </div>
             <div className="flex gap-2" data-ui="fer-actions-bar-right">
+              <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className={`inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                data-ui="fer-refresh-btn"
+                type="button"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refrescar
+              </button>
               <SorteoInscritosButton
                 competicionKind="fer"
                 store={ferRaffleStore}

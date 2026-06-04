@@ -1,102 +1,63 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
-
-// Mock react-custom-roulette
-vi.mock('react-custom-roulette', () => ({
-  Wheel: (props: {
-    mustStartSpinning: boolean;
-    prizeNumber: number;
-    data: Array<{ option: string }>;
-  }) => (
-    <div
-      data-testid="roulette-wheel"
-      data-must-start-spinning={String(props.mustStartSpinning)}
-      data-prize-number={String(props.prizeNumber)}
-      data-options={props.data.map((d) => d.option).join('|')}
-    />
-  ),
-}));
+import { render, screen, cleanup, act } from '@testing-library/react';
 
 import { Roulette } from './Roulette';
 
 describe('Roulette', () => {
   beforeEach(() => {
     cleanup();
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      return window.setTimeout(() => cb(Date.now()), 16) as unknown as number;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+      window.clearTimeout(id as unknown as number);
+    });
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
-  it('renders the canvas wrapper with the configured data-testid', () => {
+  it('renders the custom cycler with the configured data-testid', () => {
     render(
       <Roulette
-        data={[{ option: 'Ada' }, { option: 'Linus' }]}
+        candidates={[{ label: 'Ada' }, { label: 'Linus' }]}
         mustStartSpinning={false}
         onFinishSpinning={() => {}}
       />
     );
     expect(screen.getByTestId('raffle-roulette')).toBeInTheDocument();
+    expect(screen.getByText('Ada')).toBeInTheDocument();
   });
 
-  it('passes mustStartSpinning through to the wheel', () => {
-    render(
+  it('animates through names and settles on the selected label with confetti', async () => {
+    const onFinishSpinning = vi.fn();
+    const { rerender } = render(
       <Roulette
-        data={[{ option: 'Ada' }]}
+        candidates={[{ label: 'Ada' }, { label: 'Linus' }, { label: 'Grace' }]}
+        mustStartSpinning={false}
+        selectedLabel="Grace"
+        onFinishSpinning={onFinishSpinning}
+      />
+    );
+
+    rerender(
+      <Roulette
+        candidates={[{ label: 'Ada' }, { label: 'Linus' }, { label: 'Grace' }]}
         mustStartSpinning={true}
-        onFinishSpinning={() => {}}
+        selectedLabel="Grace"
+        onFinishSpinning={onFinishSpinning}
       />
     );
-    const wheel = screen.getByTestId('roulette-wheel');
-    expect(wheel.getAttribute('data-must-start-spinning')).toBe('true');
-  });
 
-  it('passes prizeIndex through to the wheel as prizeNumber', () => {
-    render(
-      <Roulette
-        data={[{ option: 'Ada' }, { option: 'Linus' }]}
-        mustStartSpinning={false}
-        onFinishSpinning={() => {}}
-        prizeIndex={1}
-      />
-    );
-    const wheel = screen.getByTestId('roulette-wheel');
-    expect(wheel.getAttribute('data-prize-number')).toBe('1');
-  });
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
 
-  it('defaults prizeIndex to 0', () => {
-    render(
-      <Roulette
-        data={[{ option: 'Ada' }]}
-        mustStartSpinning={false}
-        onFinishSpinning={() => {}}
-      />
-    );
-    const wheel = screen.getByTestId('roulette-wheel');
-    expect(wheel.getAttribute('data-prize-number')).toBe('0');
-  });
-
-  it('forwards the option labels into the wheel data', () => {
-    render(
-      <Roulette
-        data={[{ option: 'Grace' }, { option: 'Alan' }, { option: 'Edsger' }]}
-        mustStartSpinning={false}
-        onFinishSpinning={() => {}}
-      />
-    );
-    const wheel = screen.getByTestId('roulette-wheel');
-    expect(wheel.getAttribute('data-options')).toBe('Grace|Alan|Edsger');
-  });
-
-  it('honors a custom dataTestid', () => {
-    render(
-      <Roulette
-        data={[{ option: 'Ada' }]}
-        mustStartSpinning={false}
-        onFinishSpinning={() => {}}
-        dataTestid="custom-roulette"
-      />
-    );
-    expect(screen.getByTestId('custom-roulette')).toBeInTheDocument();
+    expect(onFinishSpinning).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Grace')).toBeInTheDocument();
+    expect(screen.getByTestId('raffle-roulette-confetti')).toBeInTheDocument();
   });
 });

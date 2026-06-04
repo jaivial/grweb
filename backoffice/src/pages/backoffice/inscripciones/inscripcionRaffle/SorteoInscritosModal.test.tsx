@@ -17,17 +17,6 @@ vi.mock('../../../../utils/api', () => ({
   },
 }));
 
-// Mock react-custom-roulette
-vi.mock('react-custom-roulette', () => ({
-  Wheel: (props: { mustStartSpinning: boolean; data: Array<{ option: string }> }) => (
-    <div
-      data-testid="roulette-wheel"
-      data-must-start-spinning={String(props.mustStartSpinning)}
-      data-options={props.data.map((d) => d.option).join('|')}
-    />
-  ),
-}));
-
 // Stub RAF so useRaffleAnimation.start() does not actually run
 beforeEach(() => {
   vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(0 as unknown as number);
@@ -115,7 +104,7 @@ describe('SorteoInscritosModal', () => {
   it('Sortear click calls api.drawRaffleInscripciones with the config', async () => {
     vi.mocked(api.drawRaffleInscripciones).mockResolvedValue({
       success: true,
-      data: { winners: [sampleInscripcion] },
+      data: { winners: [sampleInscripcion], pool: [sampleInscripcion] },
     });
     store.set(raffle.raffleConfigAtom, {
       filterCriteria: 'onlyPaid',
@@ -136,7 +125,7 @@ describe('SorteoInscritosModal', () => {
   it('Sortear success stores winners in the atom', async () => {
     vi.mocked(api.drawRaffleInscripciones).mockResolvedValue({
       success: true,
-      data: { winners: [sampleInscripcion] },
+      data: { winners: [sampleInscripcion], pool: [sampleInscripcion] },
     });
     renderWithProvider();
     await act(async () => {
@@ -151,6 +140,7 @@ describe('SorteoInscritosModal', () => {
       success: true,
       data: {
         winners: [sampleInscripcion],
+        pool: [sampleInscripcion],
         fallbackReason: 'insufficient_pool_for_equity',
       },
     });
@@ -210,14 +200,14 @@ describe('SorteoInscritosModal', () => {
   it('renders the roulette wheel once winners are present', async () => {
     vi.mocked(api.drawRaffleInscripciones).mockResolvedValue({
       success: true,
-      data: { winners: [sampleInscripcion] },
+      data: { winners: [sampleInscripcion], pool: [sampleInscripcion] },
     });
     renderWithProvider();
     await act(async () => {
       fireEvent.click(screen.getByTestId('sorteo-modal-submit-btn'));
     });
     await waitFor(() => {
-      expect(screen.getByTestId('sorteo-modal-roulette-wheel')).toBeInTheDocument();
+    expect(screen.getByTestId('sorteo-modal-roulette-cycler')).toBeInTheDocument();
     });
   });
 

@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import api from '../../api/client';
-import type { Competicion } from '../../types/api';
+import type { Competicion, FerConfigSnapshot } from '../../types/api';
 import { FER_COLORS } from './constants';
 import { useFerInscripcion } from './hooks/useFerInscripcion';
 import { Hero } from './components/Hero';
@@ -22,6 +22,7 @@ import { HorariosSection } from './components/HorariosSection';
 import { ComoFunciona } from './components/ComoFunciona';
 import { GrHandlerService } from './components/GrHandlerService';
 import { FloatingCtaButton } from './components/FloatingCtaButton';
+import { StaleConfigModal } from './components/StaleConfigModal';
 
 export function FerLanding() {
   const [competicion, setCompeticion] = useState<Competicion | null>(null);
@@ -36,6 +37,8 @@ export function FerLanding() {
   const [stripeDisponible, setStripeDisponible] = useState(false);
   const [cuponesDescuentoActivo, setCuponesDescuentoActivo] = useState(false);
   const [showPaymentChoice, setShowPaymentChoice] = useState(false);
+  const [configSnapshot, setConfigSnapshot] = useState<FerConfigSnapshot | null>(null);
+  const [showStaleConfigModal, setShowStaleConfigModal] = useState(false);
 
   const formRef = useRef<HTMLDivElement>(null);
   const inscripcionHook = useFerInscripcion();
@@ -63,6 +66,7 @@ export function FerLanding() {
         setPagoEfectivoActivo(configResult.data.pagoEfectivoActivo !== false);
         setStripeDisponible(Boolean(configResult.data.stripeDisponible));
         setCuponesDescuentoActivo(Boolean(configResult.data.cuponesDescuentoActivo));
+        setConfigSnapshot(configResult.data.configSnapshot ?? null);
         if (configResult.data.plazasDisponibles !== undefined) {
           setPlazasDisponibles(configResult.data.plazasDisponibles);
         }
@@ -114,8 +118,13 @@ export function FerLanding() {
   // ── Form submit handler ──
   const handleFormSubmit = useCallback(async () => {
     if (totalAmount <= 0) {
-      const success = await inscripcionHook.submitCash('fer', false);
-      if (success) {
+      const result = await inscripcionHook.submitCash('fer', configSnapshot, false);
+      if (result === 'stale_config') {
+        setShowStaleConfigModal(true);
+        return;
+      }
+
+      if (result === 'success') {
         setShowConfirmation(true);
         setPlazasDisponibles((prev) => Math.max(0, prev - 1));
       }
@@ -134,30 +143,49 @@ export function FerLanding() {
       return;
     }
 
-    const success = await inscripcionHook.submitCash('fer', false);
-    if (success) {
+    const result = await inscripcionHook.submitCash('fer', configSnapshot, false);
+    if (result === 'stale_config') {
+      setShowStaleConfigModal(true);
+      return;
+    }
+
+    if (result === 'success') {
       setShowConfirmation(true);
       setPlazasDisponibles((prev) => Math.max(0, prev - 1));
     }
-  }, [inscripcionHook, pagoEfectivoActivo, isStripeAvailable, totalAmount]);
+  }, [configSnapshot, inscripcionHook, pagoEfectivoActivo, isStripeAvailable, totalAmount]);
 
   const handleCashPayment = useCallback(async () => {
     const includeOnlinePaymentLink = pagoStripeActivo && pagoEfectivoActivo;
-    const success = await inscripcionHook.submitCash('fer', includeOnlinePaymentLink);
-    if (success) {
+    const result = await inscripcionHook.submitCash('fer', configSnapshot, includeOnlinePaymentLink);
+    if (result === 'stale_config') {
+      setShowPaymentChoice(false);
+      setShowStaleConfigModal(true);
+      return;
+    }
+
+    if (result === 'success') {
       setShowPaymentChoice(false);
       setShowConfirmation(true);
       setPlazasDisponibles((prev) => Math.max(0, prev - 1));
     }
-  }, [inscripcionHook, pagoEfectivoActivo, pagoStripeActivo]);
+  }, [configSnapshot, inscripcionHook, pagoEfectivoActivo, pagoStripeActivo]);
 
   const handleStripePayment = useCallback(async () => {
-    const result = await inscripcionHook.startStripeCheckout('fer');
+    const result = await inscripcionHook.startStripeCheckout('fer', configSnapshot);
     if (result === 'already_paid') {
       setShowPaymentChoice(false);
       setShowConfirmation(true);
     }
-  }, [inscripcionHook]);
+    if (result === 'stale_config') {
+      setShowPaymentChoice(false);
+      setShowStaleConfigModal(true);
+    }
+  }, [configSnapshot, inscripcionHook]);
+
+  const reloadPage = useCallback(() => {
+    window.location.reload();
+  }, []);
 
   const closePaymentChoice = useCallback(() => {
     if (!inscripcionHook.isSubmitting) {
@@ -318,6 +346,11 @@ export function FerLanding() {
         onClose={closeUpsell}
         precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
         fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
+      />
+
+      <StaleConfigModal
+        isOpen={showStaleConfigModal}
+        onReload={reloadPage}
       />
     </div>
   );

@@ -2,8 +2,9 @@ import { useState, useCallback, useMemo } from 'react';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import api from '../../../api/client';
-import type { CouponValidationResponse, CreateInscripcionRequest } from '../../../types/api';
+import type { CouponValidationResponse, CreateInscripcionRequest, FerConfigSnapshot } from '../../../types/api';
 import { MODALIDAD_VALUES } from '../constants';
+import { isFerConfigSnapshotEqual } from '../utils/configSnapshot';
 
 // ─── Zod Schema ───
 
@@ -68,6 +69,7 @@ export interface UseFerInscripcionReturn {
   appliedCoupon: CouponValidationResponse | null;
   couponError: string | null;
   isValidatingCoupon: boolean;
+  isFormSubmittable: boolean;
   updateField: <K extends keyof FerInscripcionFormData>(
     field: K,
     value: FerInscripcionFormData[K]
@@ -75,9 +77,9 @@ export interface UseFerInscripcionReturn {
   validate: () => boolean;
   applyCoupon: (slug: string) => Promise<boolean>;
   removeCoupon: () => void;
-  submit: (slug: string) => Promise<boolean>;
-  submitCash: (slug: string, includeOnlinePaymentLink?: boolean) => Promise<boolean>;
-  startStripeCheckout: (slug: string) => Promise<'redirecting' | 'already_paid' | 'stripe_unavailable' | 'error'>;
+  submit: (slug: string, configSnapshot: FerConfigSnapshot | null) => Promise<'success' | 'stale_config' | 'error'>;
+  submitCash: (slug: string, configSnapshot: FerConfigSnapshot | null, includeOnlinePaymentLink?: boolean) => Promise<'success' | 'stale_config' | 'error'>;
+  startStripeCheckout: (slug: string, configSnapshot: FerConfigSnapshot | null) => Promise<'redirecting' | 'already_paid' | 'stripe_unavailable' | 'stale_config' | 'error'>;
   reset: () => void;
   setInscripcionResult: (result: { id: number; qrCode: string } | null) => void;
   clearDuplicateEmail: () => void;
@@ -138,8 +140,13 @@ export function useFerInscripcion(): UseFerInscripcionReturn {
     return true;
   }, [formData]);
 
+  const isFormSubmittable = useMemo(
+    () => ferInscripcionSchema.safeParse(formData).success,
+    [formData]
+  );
+
   const buildPayload = useCallback(
-    (paymentMethod: 'efectivo' | 'stripe', includeOnlinePaymentLink = false): CreateInscripcionRequest => ({
+    (paymentMethod: 'efectivo' | 'stripe', configSnapshot: FerConfigSnapshot | null, includeOnlinePaymentLink = false): CreateInscripcionRequest => ({
       nombre: formData.nombre.trim(),
       email: formData.email.trim(),
       instagram: formData.instagram || undefined,
@@ -154,9 +161,23 @@ export function useFerInscripcion(): UseFerInscripcionReturn {
       includeOnlinePaymentLink,
       aceptaTerminos: true,
       codigoCupon: appliedCoupon?.codigo,
+      configSnapshot: configSnapshot ?? undefined,
     }),
     [appliedCoupon?.codigo, formData]
   );
+
+  const detectStaleConfig = useCallback(async (slug: string, configSnapshot: FerConfigSnapshot | null) => {
+    const result = await api.getInscripcionConfigSnapshot(slug);
+    if (!result.success || !result.data) {
+      return { stale: false, hasError: true };
+    }
+
+    return {
+      stale: !isFerConfigSnapshotEqual(configSnapshot, result.data),
+      hasError: false,
+      currentSnapshot: result.data,
+    };
+  }, []);
 
   const applyCoupon = useCallback(
     async (slug: string): Promise<boolean> => {
@@ -219,12 +240,24 @@ export function useFerInscripcion(): UseFerInscripcionReturn {
   }, []);
 
   const submitCash = useCallback(
-    async (slug: string, includeOnlinePaymentLink = false): Promise<boolean> => {
-      if (!validate()) return false;
+    async (slug: string, configSnapshot: FerConfigSnapshot | null, includeOnlinePaymentLink = false): Promise<'success' | 'stale_config' | 'error'> => {
+      if (!validate()) return 'error';
 
       setIsSubmitting(true);
       try {
-        const result = await api.createInscripcion(slug, buildPayload('efectivo', includeOnlinePaymentLink));
+        const staleCheck = await detectStaleConfig(slug, configSnapshot);
+        if (staleCheck.hasError) {
+          toast.error('Error comprobando la configuración. Intenta de nuevo.', {
+            style: { background: '#161B26', color: '#F8FAFC' },
+          });
+          return 'error';
+        }
+
+        if (staleCheck.stale) {
+          return 'stale_config';
+        }
+
+        const result = await api.createInscripcion(slug, buildPayload('efectivo', staleCheck.currentSnapshot ?? configSnapshot, includeOnlinePaymentLink));
 
         if (result.success && result.data) {
           setInscripcionResult({
@@ -235,33 +268,52 @@ export function useFerInscripcion(): UseFerInscripcionReturn {
             icon: '✨',
             style: { background: '#161B26', color: '#F8FAFC' },
           });
-          return true;
+          return 'success';
+        }
+
+        if (result.code === 'stale_config') {
+          return 'stale_config';
         }
 
         handleDuplicateOrError(result.message);
-        return false;
+        return 'error';
       } catch (error) {
         console.error('Submit error:', error);
         toast.error('Error de conexión. Intenta de nuevo.', {
           style: { background: '#161B26', color: '#F8FAFC' },
         });
-        return false;
+        return 'error';
       } finally {
         setIsSubmitting(false);
       }
     },
-    [buildPayload, handleDuplicateOrError, validate]
+    [buildPayload, detectStaleConfig, handleDuplicateOrError, validate]
   );
 
   const startStripeCheckout = useCallback(
-    async (slug: string): Promise<'redirecting' | 'already_paid' | 'stripe_unavailable' | 'error'> => {
+    async (slug: string, configSnapshot: FerConfigSnapshot | null): Promise<'redirecting' | 'already_paid' | 'stripe_unavailable' | 'stale_config' | 'error'> => {
       if (!validate()) return 'error';
 
       setIsSubmitting(true);
       try {
-        const result = await api.createStripeInscripcionCheckout(slug, buildPayload('stripe'));
+        const staleCheck = await detectStaleConfig(slug, configSnapshot);
+        if (staleCheck.hasError) {
+          toast.error('Error comprobando la configuración. Intenta de nuevo.', {
+            style: { background: '#161B26', color: '#F8FAFC' },
+          });
+          return 'error';
+        }
+
+        if (staleCheck.stale) {
+          return 'stale_config';
+        }
+
+        const result = await api.createStripeInscripcionCheckout(slug, buildPayload('stripe', staleCheck.currentSnapshot ?? configSnapshot));
 
         if (!result.success || !result.data) {
+          if (result.code === 'stale_config') {
+            return 'stale_config';
+          }
           handleDuplicateOrError(result.message);
           return 'error';
         }
@@ -306,12 +358,12 @@ export function useFerInscripcion(): UseFerInscripcionReturn {
         setIsSubmitting(false);
       }
     },
-    [buildPayload, handleDuplicateOrError, validate]
+    [buildPayload, detectStaleConfig, handleDuplicateOrError, validate]
   );
 
   const submit = useCallback(
-    async (slug: string): Promise<boolean> => {
-      return submitCash(slug);
+    async (slug: string, configSnapshot: FerConfigSnapshot | null): Promise<'success' | 'stale_config' | 'error'> => {
+      return submitCash(slug, configSnapshot);
     },
     [submitCash]
   );
@@ -343,6 +395,7 @@ export function useFerInscripcion(): UseFerInscripcionReturn {
     appliedCoupon,
     couponError,
     isValidatingCoupon,
+    isFormSubmittable,
     updateField,
     validate,
     applyCoupon,

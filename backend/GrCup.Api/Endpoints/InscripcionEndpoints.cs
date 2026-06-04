@@ -881,7 +881,8 @@ public static class InscripcionEndpoints
                     data = new
                     {
                         winners = result.Winners,
-                        fallbackReason = result.FallbackReason
+                        fallbackReason = result.FallbackReason,
+                        pool = result.Pool
                     }
                 });
             }

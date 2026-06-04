@@ -4,6 +4,7 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
+  code?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -60,6 +61,23 @@ export interface EventoConfig {
   cuponesDescuentoActivo?: boolean;
   stripePriceId?: string;
   stripeUpsellPriceId?: string;
+}
+
+export interface FerConfigSnapshot {
+  precioBase: number;
+  precioHandler: number;
+  precioPeakProgram: number;
+  precioRifa: number;
+  aforoMaximo: number;
+  plazasDisponibles: number;
+  fechaLimitePeakProgram: string | null;
+  inscripcionAbierta: boolean;
+  pagoStripeActivo: boolean;
+  pagoEfectivoActivo: boolean;
+  cuponesDescuentoActivo: boolean;
+  stripeDisponible: boolean;
+  categoriasMasculino: string[];
+  categoriasFemenino: string[];
 }
 
 // ─── Usuario ───
@@ -147,6 +165,7 @@ export interface CreateInscripcionRequest {
   codigoCupon?: string;
   upsellPreparacion?: boolean;
   aceptaTerminos: boolean;
+  configSnapshot?: FerConfigSnapshot;
 }
 
 export interface CouponValidationResponse {

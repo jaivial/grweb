@@ -39,6 +39,7 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
     formData,
     errors,
     isSubmitting,
+    isFormSubmittable,
     isDuplicateEmail,
     couponCode,
     appliedCoupon,
@@ -903,20 +904,20 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
               {/* ── Submit ── */}
               <motion.button
                 type="submit"
-                disabled={isAgotado || isSubmitting}
+                disabled={isAgotado || isSubmitting || !isFormSubmittable}
                 className={clsx(
                   'w-full py-4 rounded-xl font-bold text-lg transition-all duration-300',
                   'flex items-center justify-center gap-2.5',
                   'focus:outline-none focus:ring-2 focus:ring-fer-accent/50',
-                  !isAgotado && !isSubmitting && 'hover:scale-[1.015] active:scale-[0.985]',
-                  isAgotado && 'opacity-50 cursor-not-allowed',
+                  !isAgotado && !isSubmitting && isFormSubmittable && 'hover:scale-[1.015] active:scale-[0.985]',
+                  (isAgotado || !isFormSubmittable) && 'opacity-50 cursor-not-allowed',
                 )}
                 style={{
-                  backgroundColor: !isAgotado ? FER_COLORS.accent : FER_COLORS.bgCard,
-                  color: !isAgotado ? FER_COLORS.text : FER_COLORS.textMuted,
-                  boxShadow: !isAgotado ? `0 0 30px ${FER_COLORS.accent}35` : 'none',
+                  backgroundColor: !isAgotado && isFormSubmittable ? FER_COLORS.accent : FER_COLORS.bgCard,
+                  color: !isAgotado && isFormSubmittable ? FER_COLORS.text : FER_COLORS.textMuted,
+                  boxShadow: !isAgotado && isFormSubmittable ? `0 0 30px ${FER_COLORS.accent}35` : 'none',
                 }}
-                whileTap={!isAgotado && !isSubmitting ? { scale: 0.97 } : undefined}
+                whileTap={!isAgotado && !isSubmitting && isFormSubmittable ? { scale: 0.97 } : undefined}
                 data-ui="fer-form-submit"
               >
                 {isSubmitting ? (
@@ -926,6 +927,8 @@ export function InscripcionForm({ hook, plazasDisponibles, precioBase, categoria
                   </>
                 ) : isAgotado ? (
                   'AGOTADO'
+                ) : !isFormSubmittable ? (
+                  'COMPLETA LOS CAMPOS OBLIGATORIOS'
                 ) : (
                   <>
                     <Zap size={20} data-ui="fer-form-submit-icon" aria-hidden="true" />

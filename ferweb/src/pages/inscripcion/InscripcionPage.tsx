@@ -7,6 +7,7 @@ import { InscripcionForm } from '../fer/components/InscripcionForm';
 import { ConfirmacionModal } from '../fer/components/ConfirmacionModal';
 import { UpsellModal } from '../fer/components/UpsellModal';
 import { PaymentChoiceModal } from '../fer/components/PaymentChoiceModal';
+import { StaleConfigModal } from '../fer/components/StaleConfigModal';
 import { FerFooter } from '../fer/components/FerFooter';
 import { useInscripcionConfig } from './hooks';
 import { InscripcionHero, InscripcionClosed, InscripcionLoading, InscripcionError } from './components';
@@ -20,6 +21,7 @@ export function InscripcionPage() {
   const [showUpsell, setShowUpsell] = useState(false);
   const [showPaymentChoice, setShowPaymentChoice] = useState(false);
   const [localPlazas, setLocalPlazas] = useState<number | null>(null);
+  const [showStaleConfigModal, setShowStaleConfigModal] = useState(false);
 
   // ── Derived state ──
   const plazasDisponibles = useMemo(
@@ -82,8 +84,13 @@ export function InscripcionPage() {
     if (!validate()) return;
 
     if (totalAmount <= 0) {
-      const success = await submitCash('fer', false);
-      if (success) {
+      const result = await submitCash('fer', config.configSnapshot, false);
+      if (result === 'stale_config') {
+        setShowStaleConfigModal(true);
+        return;
+      }
+
+      if (result === 'success') {
         setShowConfirmation(true);
         setLocalPlazas((prev) => Math.max(0, (prev ?? config.plazasDisponibles) - 1));
       }
@@ -102,30 +109,45 @@ export function InscripcionPage() {
       return;
     }
 
-    const success = await submitCash('fer', false);
-    if (success) {
+    const result = await submitCash('fer', config.configSnapshot, false);
+    if (result === 'stale_config') {
+      setShowStaleConfigModal(true);
+      return;
+    }
+
+    if (result === 'success') {
       setShowConfirmation(true);
       setLocalPlazas((prev) => Math.max(0, (prev ?? config.plazasDisponibles) - 1));
     }
-  }, [config.pagoEfectivoActivo, config.plazasDisponibles, isStripeAvailable, submitCash, totalAmount, validate]);
+  }, [config.configSnapshot, config.pagoEfectivoActivo, config.plazasDisponibles, isStripeAvailable, submitCash, totalAmount, validate]);
 
   const handleCashPayment = useCallback(async () => {
     const includeOnlinePaymentLink = config.pagoStripeActivo && config.pagoEfectivoActivo;
-    const success = await submitCash('fer', includeOnlinePaymentLink);
-    if (success) {
+    const result = await submitCash('fer', config.configSnapshot, includeOnlinePaymentLink);
+    if (result === 'stale_config') {
+      setShowPaymentChoice(false);
+      setShowStaleConfigModal(true);
+      return;
+    }
+
+    if (result === 'success') {
       setShowPaymentChoice(false);
       setShowConfirmation(true);
       setLocalPlazas((prev) => Math.max(0, (prev ?? config.plazasDisponibles) - 1));
     }
-  }, [config.pagoEfectivoActivo, config.pagoStripeActivo, config.plazasDisponibles, submitCash]);
+  }, [config.configSnapshot, config.pagoEfectivoActivo, config.pagoStripeActivo, config.plazasDisponibles, submitCash]);
 
   const handleStripePayment = useCallback(async () => {
-    const result = await startStripeCheckout('fer');
+    const result = await startStripeCheckout('fer', config.configSnapshot);
     if (result === 'already_paid') {
       setShowPaymentChoice(false);
       setShowConfirmation(true);
     }
-  }, [startStripeCheckout]);
+    if (result === 'stale_config') {
+      setShowPaymentChoice(false);
+      setShowStaleConfigModal(true);
+    }
+  }, [config.configSnapshot, startStripeCheckout]);
 
   const handleShowUpsell = useCallback(() => {
     if (!inscripcionHook.formData.peakProgram && inscripcionHook.inscripcionResult?.id) {
@@ -146,6 +168,10 @@ export function InscripcionPage() {
       setShowPaymentChoice(false);
     }
   }, [isSubmitting]);
+
+  const reloadPage = useCallback(() => {
+    window.location.reload();
+  }, []);
 
   // ── Page states ──
   if (config.pageState === 'loading') {
@@ -252,6 +278,11 @@ export function InscripcionPage() {
           onClose={closeUpsell}
           precioPeakProgram={config.precioPeakProgram}
           fechaLimitePeakProgram={config.fechaLimitePeakProgram}
+        />
+
+        <StaleConfigModal
+          isOpen={showStaleConfigModal}
+          onReload={reloadPage}
         />
       </div>
     </>

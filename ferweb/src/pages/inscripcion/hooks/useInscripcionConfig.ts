@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../../api/client';
+import type { FerConfigSnapshot } from '../../../types/api';
 import { FER_COLORS } from '../../fer/constants/constants';
 import type { Competicion } from '../../../types/api';
 
@@ -20,6 +21,7 @@ export interface InscripcionConfig {
   pagoEfectivoActivo: boolean;
   stripeDisponible: boolean;
   cuponesDescuentoActivo: boolean;
+  configSnapshot: FerConfigSnapshot | null;
   reload: () => void;
 }
 
@@ -39,6 +41,7 @@ export function useInscripcionConfig(): InscripcionConfig {
   const [pagoEfectivoActivo, setPagoEfectivoActivo] = useState(false);
   const [stripeDisponible, setStripeDisponible] = useState(false);
   const [cuponesDescuentoActivo, setCuponesDescuentoActivo] = useState(false);
+  const [configSnapshot, setConfigSnapshot] = useState<FerConfigSnapshot | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
   const loadConfig = useCallback(async () => {
@@ -66,6 +69,7 @@ export function useInscripcionConfig(): InscripcionConfig {
         setPagoEfectivoActivo(configResult.data.pagoEfectivoActivo !== false);
         setStripeDisponible(Boolean(configResult.data.stripeDisponible));
         setCuponesDescuentoActivo(Boolean(configResult.data.cuponesDescuentoActivo));
+        setConfigSnapshot(configResult.data.configSnapshot ?? null);
         if (configResult.data.plazasDisponibles !== undefined) {
           setPlazasDisponibles(configResult.data.plazasDisponibles);
         }
@@ -137,6 +141,7 @@ export function useInscripcionConfig(): InscripcionConfig {
     pagoEfectivoActivo,
     stripeDisponible,
     cuponesDescuentoActivo,
+    configSnapshot,
     reload,
   };
 }

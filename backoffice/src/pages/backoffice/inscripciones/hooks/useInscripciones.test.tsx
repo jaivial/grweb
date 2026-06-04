@@ -18,12 +18,17 @@ const COMP_ID = 99;
 describe('useInscripciones — Phase 1 filter integration', () => {
   let store: ReturnType<typeof createStore>;
   let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let statsSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     store = createStore();
     fetchSpy = vi.spyOn(apiModule.api, 'getAdminInscripciones').mockResolvedValue({
       success: true,
       data: { items: [], total: 0, page: 1, pageSize: 15, totalPages: 0 },
+    });
+    statsSpy = vi.spyOn(apiModule.api, 'getAdminInscripcionStats').mockResolvedValue({
+      success: true,
+      data: { total: 0, pagados: 0, pendientes: 0, upsells: 0, checkins: 0, porExperiencia: {}, conEntrenador: 0, sinEntrenador: 0 },
     });
   });
 
@@ -73,5 +78,16 @@ describe('useInscripciones — Phase 1 filter integration', () => {
       participacionConfirmada: null,
       hasCoupon: null,
     });
+  });
+
+  it('refreshFirstPage reloads page 1 and stats', async () => {
+    const { result } = renderHook(() => useInscripciones(COMP_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.refreshFirstPage();
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(COMP_ID, expect.objectContaining({ page: 1, pageSize: 15 }));
+    expect(statsSpy).toHaveBeenCalledWith(COMP_ID);
   });
 });
