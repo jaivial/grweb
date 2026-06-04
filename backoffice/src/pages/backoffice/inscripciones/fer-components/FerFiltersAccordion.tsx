@@ -8,6 +8,12 @@ import {
   ferInscripcionesExperienciaFilterAtom,
   ferInscripcionesModalidadFilterAtom,
   ferInscripcionesPaymentMethodFilterAtom,
+  ferInscripcionesSexoFilterAtom,
+  ferInscripcionesCategoriaPesoFilterAtom,
+  ferInscripcionesQuiereHandlerFilterAtom,
+  ferInscripcionesQuierePeakProgramFilterAtom,
+  ferInscripcionesParticipacionConfirmadaFilterAtom,
+  ferInscripcionesHasCouponFilterAtom,
   ferInscripcionesPageAtom,
   ferClearInscripcionesFiltersAtom,
 } from '../../../../stores/ferInscripcionesStore';
@@ -35,18 +41,62 @@ const FER_PAYMENT_METHOD_OPTIONS = [
   { value: 'stripe', label: 'Stripe' },
 ];
 
+// Phase 1: 6 new filter options
+const FER_SEXO_OPTIONS = [
+  { value: 'masculino', label: 'Masculino' },
+  { value: 'femenino', label: 'Femenino' },
+];
+
+const FER_CATEGORIA_PESO_OPTIONS = [
+  { value: '-59kg', label: '-59kg' },
+  { value: '-66kg', label: '-66kg' },
+  { value: '-74kg', label: '-74kg' },
+  { value: '-83kg', label: '-83kg' },
+  { value: '-93kg', label: '-93kg' },
+  { value: '-105kg', label: '-105kg' },
+  { value: '-120kg', label: '-120kg' },
+  { value: '+120kg', label: '+120kg' },
+];
+
+const FER_BOOL_TRUE_FALSE_OPTIONS = [
+  { value: 'true', label: 'Sí' },
+  { value: 'false', label: 'No' },
+];
+
+const FER_BOOL_CONFIRMADO_OPTIONS = [
+  { value: 'true', label: 'Confirmado' },
+  { value: 'false', label: 'Pendiente' },
+];
+
+const FER_BOOL_COUPON_OPTIONS = [
+  { value: 'true', label: 'Con cupón' },
+  { value: 'false', label: 'Sin cupón' },
+];
+
 export function FerFiltersAccordion(): JSX.Element {
   const [search, setSearch] = useState('');
   const [pagoConfirmado, setPagoConfirmado] = useState<string | null>(null);
   const [experiencia, setExperiencia] = useState<string | null>(null);
   const [modalidad, setModalidad] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  const [sexo, setSexo] = useState<string | null>(null);
+  const [categoriaPeso, setCategoriaPeso] = useState<string | null>(null);
+  const [quiereHandler, setQuiereHandler] = useState<string | null>(null);
+  const [quierePeakProgram, setQuierePeakProgram] = useState<string | null>(null);
+  const [participacionConfirmada, setParticipacionConfirmada] = useState<string | null>(null);
+  const [hasCoupon, setHasCoupon] = useState<string | null>(null);
 
   const [, setSearchQuery] = useAtom(ferInscripcionesSearchQueryAtom);
   const [, setPagoFilter] = useAtom(ferInscripcionesPagoConfirmadoFilterAtom);
   const [, setExperienciaFilter] = useAtom(ferInscripcionesExperienciaFilterAtom);
   const [, setModalidadFilter] = useAtom(ferInscripcionesModalidadFilterAtom);
   const [, setPaymentMethodFilter] = useAtom(ferInscripcionesPaymentMethodFilterAtom);
+  const [, setSexoFilter] = useAtom(ferInscripcionesSexoFilterAtom);
+  const [, setCategoriaPesoFilter] = useAtom(ferInscripcionesCategoriaPesoFilterAtom);
+  const [, setQuiereHandlerFilter] = useAtom(ferInscripcionesQuiereHandlerFilterAtom);
+  const [, setQuierePeakProgramFilter] = useAtom(ferInscripcionesQuierePeakProgramFilterAtom);
+  const [, setParticipacionConfirmadaFilter] = useAtom(ferInscripcionesParticipacionConfirmadaFilterAtom);
+  const [, setHasCouponFilter] = useAtom(ferInscripcionesHasCouponFilterAtom);
   const [, setPage] = useAtom(ferInscripcionesPageAtom);
   const [, clearFilters] = useAtom(ferClearInscripcionesFiltersAtom);
 
@@ -80,18 +130,60 @@ export function FerFiltersAccordion(): JSX.Element {
     setPage(1);
   }, [setPaymentMethodFilter, setPage]);
 
+  const handleSexoChange = useCallback((value: string | null) => {
+    setSexo(value);
+    setSexoFilter(value);
+    setPage(1);
+  }, [setSexoFilter, setPage]);
+
+  const handleCategoriaPesoChange = useCallback((value: string | null) => {
+    setCategoriaPeso(value);
+    setCategoriaPesoFilter(value);
+    setPage(1);
+  }, [setCategoriaPesoFilter, setPage]);
+
+  const handleQuiereHandlerChange = useCallback((value: string | null) => {
+    setQuiereHandler(value);
+    setQuiereHandlerFilter(value === 'true' ? true : value === 'false' ? false : null);
+    setPage(1);
+  }, [setQuiereHandlerFilter, setPage]);
+
+  const handleQuierePeakProgramChange = useCallback((value: string | null) => {
+    setQuierePeakProgram(value);
+    setQuierePeakProgramFilter(value === 'true' ? true : value === 'false' ? false : null);
+    setPage(1);
+  }, [setQuierePeakProgramFilter, setPage]);
+
+  const handleParticipacionConfirmadaChange = useCallback((value: string | null) => {
+    setParticipacionConfirmada(value);
+    setParticipacionConfirmadaFilter(value === 'true' ? true : value === 'false' ? false : null);
+    setPage(1);
+  }, [setParticipacionConfirmadaFilter, setPage]);
+
+  const handleHasCouponChange = useCallback((value: string | null) => {
+    setHasCoupon(value);
+    setHasCouponFilter(value === 'true' ? true : value === 'false' ? false : null);
+    setPage(1);
+  }, [setHasCouponFilter, setPage]);
+
   const handleClear = useCallback(() => {
     setSearch('');
     setPagoConfirmado(null);
     setExperiencia(null);
     setModalidad(null);
     setPaymentMethod(null);
+    setSexo(null);
+    setCategoriaPeso(null);
+    setQuiereHandler(null);
+    setQuierePeakProgram(null);
+    setParticipacionConfirmada(null);
+    setHasCoupon(null);
     clearFilters();
   }, [clearFilters]);
 
   return (
     <Accordion title="Filtros" defaultOpen={false}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" data-ui="fer-filters-grid">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4" data-ui="fer-filters-grid">
         <div data-ui="fer-search-filter">
           <label className="block text-sm text-white/60 mb-1.5" data-ui="fer-search-label">Buscar</label>
           <input
@@ -138,6 +230,66 @@ export function FerFiltersAccordion(): JSX.Element {
           onChange={handlePaymentMethodChange}
           placeholder="Todos"
           allowClear
+        />
+
+        <CustomSelector
+          label="Sexo"
+          options={FER_SEXO_OPTIONS}
+          value={sexo}
+          onChange={handleSexoChange}
+          placeholder="Todos"
+          allowClear
+          data-testid="fer-filter-sexo"
+        />
+
+        <CustomSelector
+          label="Categoría de peso"
+          options={FER_CATEGORIA_PESO_OPTIONS}
+          value={categoriaPeso}
+          onChange={handleCategoriaPesoChange}
+          placeholder="Todas"
+          allowClear
+          data-testid="fer-filter-categoria-peso"
+        />
+
+        <CustomSelector
+          label="Quiere Handler"
+          options={FER_BOOL_TRUE_FALSE_OPTIONS}
+          value={quiereHandler}
+          onChange={handleQuiereHandlerChange}
+          placeholder="Todos"
+          allowClear
+          data-testid="fer-filter-quiere-handler"
+        />
+
+        <CustomSelector
+          label="Quiere Peak Program"
+          options={FER_BOOL_TRUE_FALSE_OPTIONS}
+          value={quierePeakProgram}
+          onChange={handleQuierePeakProgramChange}
+          placeholder="Todos"
+          allowClear
+          data-testid="fer-filter-quiere-peak-program"
+        />
+
+        <CustomSelector
+          label="Check-in"
+          options={FER_BOOL_CONFIRMADO_OPTIONS}
+          value={participacionConfirmada}
+          onChange={handleParticipacionConfirmadaChange}
+          placeholder="Todos"
+          allowClear
+          data-testid="fer-filter-participacion-confirmada"
+        />
+
+        <CustomSelector
+          label="Cupón"
+          options={FER_BOOL_COUPON_OPTIONS}
+          value={hasCoupon}
+          onChange={handleHasCouponChange}
+          placeholder="Todos"
+          allowClear
+          data-testid="fer-filter-has-coupon"
         />
 
         <div className="flex items-end gap-3" data-ui="fer-clear-filters">

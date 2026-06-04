@@ -33,6 +33,14 @@ export const ferInscripcionesExperienciaFilterAtom = atom<string | undefined>(un
 export const ferInscripcionesModalidadFilterAtom = atom<string | undefined>(undefined);
 export const ferInscripcionesPaymentMethodFilterAtom = atom<string | undefined>(undefined);
 
+// Phase 1: 6 new optional filter atoms (string | null | boolean | null)
+export const ferInscripcionesSexoFilterAtom = atom<string | null>(null);
+export const ferInscripcionesCategoriaPesoFilterAtom = atom<string | null>(null);
+export const ferInscripcionesQuiereHandlerFilterAtom = atom<boolean | null>(null);
+export const ferInscripcionesQuierePeakProgramFilterAtom = atom<boolean | null>(null);
+export const ferInscripcionesParticipacionConfirmadaFilterAtom = atom<boolean | null>(null);
+export const ferInscripcionesHasCouponFilterAtom = atom<boolean | null>(null);
+
 // Derived atom for total pages
 export const ferInscripcionesTotalPagesAtom = atom((get) =>
   Math.ceil(get(ferInscripcionesTotalCountAtom) / get(ferInscripcionesPageSizeAtom))
@@ -45,7 +53,13 @@ export const ferHasActiveFiltersAtom = atom((get) => {
     get(ferInscripcionesPagoConfirmadoFilterAtom) !== undefined ||
     get(ferInscripcionesExperienciaFilterAtom) !== undefined ||
     get(ferInscripcionesModalidadFilterAtom) !== undefined ||
-    get(ferInscripcionesPaymentMethodFilterAtom) !== undefined
+    get(ferInscripcionesPaymentMethodFilterAtom) !== undefined ||
+    get(ferInscripcionesSexoFilterAtom) !== null ||
+    get(ferInscripcionesCategoriaPesoFilterAtom) !== null ||
+    get(ferInscripcionesQuiereHandlerFilterAtom) !== null ||
+    get(ferInscripcionesQuierePeakProgramFilterAtom) !== null ||
+    get(ferInscripcionesParticipacionConfirmadaFilterAtom) !== null ||
+    get(ferInscripcionesHasCouponFilterAtom) !== null
   );
 });
 
@@ -58,5 +72,11 @@ export const ferClearInscripcionesFiltersAtom = atom(
     set(ferInscripcionesExperienciaFilterAtom, undefined);
     set(ferInscripcionesModalidadFilterAtom, undefined);
     set(ferInscripcionesPaymentMethodFilterAtom, undefined);
+    set(ferInscripcionesSexoFilterAtom, null);
+    set(ferInscripcionesCategoriaPesoFilterAtom, null);
+    set(ferInscripcionesQuiereHandlerFilterAtom, null);
+    set(ferInscripcionesQuierePeakProgramFilterAtom, null);
+    set(ferInscripcionesParticipacionConfirmadaFilterAtom, null);
+    set(ferInscripcionesHasCouponFilterAtom, null);
   }
 );
