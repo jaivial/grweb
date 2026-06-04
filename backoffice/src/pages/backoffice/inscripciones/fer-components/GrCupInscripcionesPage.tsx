@@ -20,6 +20,9 @@ import {
   athletesPageAtom,
   clearAthletesFiltersAtom,
 } from '../../../../stores/athletesStore';
+import { SorteoInscritosButton } from '../inscripcionRaffle/SorteoInscritosButton';
+import { SorteoInscritosModal } from '../inscripcionRaffle/SorteoInscritosModal';
+import { grCupRaffleStore } from '../../../../stores/athleteRaffleStore';
 
 // Dynamic import for pdfExport to reduce initial bundle size
 const getExportPdf = () => import('../../../../utils/pdfExport').then(m => m.exportPdf);
@@ -501,16 +504,26 @@ export function GrCupInscripcionesPage(): JSX.Element {
             </div>
 
             {/* Table */}
-            <div className="flex justify-start mb-3">
-              <button
-                onClick={handleExportPdf}
-                className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Exportar PDF
-              </button>
+            <div className="flex justify-between items-center mb-3 gap-2" data-ui="grcup-actions-bar">
+              <div className="flex gap-2" data-ui="grcup-actions-bar-left">
+                <button
+                  onClick={handleExportPdf}
+                  className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
+                  data-ui="grcup-export-pdf-btn"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Exportar PDF
+                </button>
+              </div>
+              <div className="flex gap-2" data-ui="grcup-actions-bar-right">
+                <SorteoInscritosButton
+                  competicionKind="grCup"
+                  store={grCupRaffleStore}
+                  dataTestid="grcup-sorteo-button"
+                />
+              </div>
             </div>
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl min-w-0 mb-48" data-ui="table-container">
               <div className="overflow-x-auto min-w-0">
@@ -601,6 +614,17 @@ export function GrCupInscripcionesPage(): JSX.Element {
           </div>
         </div>
       )}
+
+      {/* Sorteo Inscritos modal — gated by grCupRaffleStore.raffleModalOpenAtom
+          NOTE: backend RaffleAsync currently operates on Inscripcion (FER) only.
+          This UI is wired to the global grCupRaffleStore and will call the same
+          endpoint. Backend support for Athlete IDs is a known gap; see report. */}
+      <SorteoInscritosModal
+        competicionId={0}
+        competicionKind="grCup"
+        store={grCupRaffleStore}
+        poolSize={stats.total}
+      />
     </>
   );
 }
