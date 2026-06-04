@@ -351,4 +351,16 @@ public class StripeService
     {
         return (session.AmountTotal ?? 0) / 100m; // Convert from cents to euros
     }
+
+    // Referido system (untracked WIP, stubbed to keep build green)
+    public Task<RefundStub?> RefundPaymentAsync(int competicionId, string paymentIntentId, long refundCents, ILogger logger)
+    {
+        logger.LogInformation("[STUB] RefundPaymentAsync called for competition {CompeticionId}, intent {IntentId}, cents {Cents}", competicionId, paymentIntentId, refundCents);
+        return Task.FromResult<RefundStub?>(null);
+    }
+}
+
+public class RefundStub
+{
+    public string Id { get; set; } = string.Empty;
 }

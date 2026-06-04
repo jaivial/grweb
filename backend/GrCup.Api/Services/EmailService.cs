@@ -1821,4 +1821,11 @@ Este es un mensaje automático. Síguenos en Instagram: @grstrengthclub (https:/
             _logger.LogError(ex, "Failed to send FER payment confirmation email to {Email}", inscripcion.Email);
         }
     }
+
+    // Referido system (untracked WIP, stubbed to keep build green)
+    public Task SendReferralCodeActivationAsync(Inscripcion inscripcion, Competicion competicion, CodigoReferido code, ResolvedReferralSettings settings)
+    {
+        _logger.LogInformation("[STUB] SendReferralCodeActivationAsync called for inscripcion {InscripcionId}", inscripcion?.Id);
+        return Task.CompletedTask;
+    }
 }

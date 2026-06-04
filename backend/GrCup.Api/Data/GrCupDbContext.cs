@@ -33,6 +33,13 @@ public class GrCupDbContext : DbContext
     public DbSet<CuponDescuento> CuponesDescuento => Set<CuponDescuento>();
     public DbSet<RifaTicket> RifaTickets => Set<RifaTicket>();
     public DbSet<RifaConfig> RifaConfigs => Set<RifaConfig>();
+    public DbSet<SorteoInscripcion> SorteosInscripcion => Set<SorteoInscripcion>();
+
+    // Referido system (untracked WIP, stubbed to keep build green)
+    public DbSet<ReferidoConfig> ReferidosConfig => Set<ReferidoConfig>();
+    public DbSet<CodigoReferido> CodigosReferido => Set<CodigoReferido>();
+    public DbSet<ReferidoUserSetting> ReferidosUserSetting => Set<ReferidoUserSetting>();
+    public DbSet<NewUserReferral> NewUserReferrals => Set<NewUserReferral>();
 
     // Tutorial interactions (likes & comments)
     public DbSet<TutorialInteraction> TutorialInteractions => Set<TutorialInteraction>();
@@ -216,6 +223,26 @@ public class GrCupDbContext : DbContext
 
         // Rename legacy RaffleConfig to avoid conflict with new one
         modelBuilder.Entity<Models.RaffleConfig>().ToTable("raffle_config_legacy");
+
+        // SorteoInscripcion - raffle draws of Inscripcion/Athlete
+        modelBuilder.Entity<SorteoInscripcion>(entity => {
+            entity.HasIndex(e => new { e.CompeticionId, e.FechaSorteo });
+            entity.HasIndex(e => e.InscripcionId);
+            entity.HasIndex(e => e.AthleteId);
+            entity.HasOne(s => s.Competicion)
+                .WithMany()
+                .HasForeignKey(s => s.CompeticionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.Inscripcion)
+                .WithMany()
+                .HasForeignKey(s => s.InscripcionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(s => s.Athlete)
+                .WithMany()
+                .HasForeignKey(s => s.AthleteId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.Property(e => e.FiltroAplicado).HasColumnType("json");
+        });
 
         // TutorialInteractions
         modelBuilder.Entity<TutorialInteraction>(entity =>

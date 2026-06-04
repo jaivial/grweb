@@ -133,5 +133,40 @@ public static class AthleteEndpoints
             var clubs = await athleteService.GetAllClubsAsync();
             return Results.Ok(clubs);
         });
+
+        // POST /api/admin/competiciones/{competicionId}/athletes/raffle
+        // Pick N random winners from the Athlete pool for a competition.
+        // Mirrors the Inscripcion raffle but operates on the legacy Athlete model.
+        app.MapPost("/api/admin/competiciones/{competicionId:int}/athletes/raffle", [Authorize] async (
+            int competicionId,
+            [FromBody] AthleteRaffleRequest body,
+            AthleteRaffleService service,
+            ILogger<Program> logger) =>
+        {
+            try
+            {
+                var result = await service.RaffleAsync(competicionId, body);
+                logger.LogInformation("Athlete raffle draw for competition {CompeticionId}: {Count} winners, fallback={Fallback}",
+                    competicionId, result.Winners.Count, result.FallbackReason ?? "none");
+                return Results.Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        winners = result.Winners,
+                        fallbackReason = result.FallbackReason
+                    }
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to run athlete raffle for competition {CompeticionId}", competicionId);
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+        });
     }
 }

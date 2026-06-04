@@ -639,38 +639,17 @@ public class InscripcionService
         bool? pagoConfirmado = null,
         string? experiencia = null,
         string? modalidad = null,
-        string? paymentMethod = null)
+        string? paymentMethod = null,
+        string? sexo = null,
+        string? categoriaPeso = null,
+        bool? quiereHandler = null,
+        bool? quierePeakProgram = null,
+        bool? participacionConfirmada = null,
+        bool? hasCoupon = null)
     {
-        var query = _context.Inscripciones
-            .Where(i => i.CompeticionId == competicionId)
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.ToLower();
-            query = query.Where(i =>
-                i.Nombre.ToLower().Contains(term) ||
-                i.Email.ToLower().Contains(term) ||
-                (i.Instagram != null && i.Instagram.ToLower().Contains(term)));
-        }
-
-        if (pagoConfirmado.HasValue)
-            query = query.Where(i => i.PagoConfirmado == pagoConfirmado.Value);
-
-        if (!string.IsNullOrWhiteSpace(experiencia))
-            query = query.Where(i => i.Experiencia == experiencia);
-
-        if (!string.IsNullOrWhiteSpace(modalidad))
-        {
-            var normalizedModalidad = NormalizeModalidad(modalidad);
-            query = query.Where(i => i.Modalidad == normalizedModalidad);
-        }
-
-        if (!string.IsNullOrWhiteSpace(paymentMethod))
-        {
-            var normalizedPaymentMethod = NormalizePaymentMethod(paymentMethod);
-            query = query.Where(i => i.PaymentMethod == normalizedPaymentMethod);
-        }
+        var query = BuildInscripcionQuery(
+            competicionId, search, pagoConfirmado, experiencia, modalidad, paymentMethod,
+            sexo, categoriaPeso, quiereHandler, quierePeakProgram, participacionConfirmada, hasCoupon);
 
         var total = await query.CountAsync();
 
@@ -813,13 +792,104 @@ public class InscripcionService
     }
 
     /// <summary>
-    /// Gets statistics for a competition
+    /// Builds an IQueryable&lt;Inscripcion&gt; with all base + filter predicates applied.
+    /// Shared between GetPaginatedAsync, GetStatsAsync, and RaffleAsync to guarantee
+    /// the same row set is used everywhere.
     /// </summary>
-    public async Task<InscripcionStats> GetStatsAsync(int competicionId)
+    private IQueryable<Inscripcion> BuildInscripcionQuery(
+        int competicionId,
+        string? search = null,
+        bool? pagoConfirmado = null,
+        string? experiencia = null,
+        string? modalidad = null,
+        string? paymentMethod = null,
+        string? sexo = null,
+        string? categoriaPeso = null,
+        bool? quiereHandler = null,
+        bool? quierePeakProgram = null,
+        bool? participacionConfirmada = null,
+        bool? hasCoupon = null)
     {
-        var inscripciones = await _context.Inscripciones
+        var query = _context.Inscripciones
             .Where(i => i.CompeticionId == competicionId)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            query = query.Where(i =>
+                i.Nombre.ToLower().Contains(term) ||
+                i.Email.ToLower().Contains(term) ||
+                (i.Instagram != null && i.Instagram.ToLower().Contains(term)));
+        }
+
+        if (pagoConfirmado.HasValue)
+            query = query.Where(i => i.PagoConfirmado == pagoConfirmado.Value);
+
+        if (!string.IsNullOrWhiteSpace(experiencia))
+            query = query.Where(i => i.Experiencia == experiencia);
+
+        if (!string.IsNullOrWhiteSpace(modalidad))
+        {
+            var normalizedModalidad = NormalizeModalidad(modalidad);
+            query = query.Where(i => i.Modalidad == normalizedModalidad);
+        }
+
+        if (!string.IsNullOrWhiteSpace(paymentMethod))
+        {
+            var normalizedPaymentMethod = NormalizePaymentMethod(paymentMethod);
+            query = query.Where(i => i.PaymentMethod == normalizedPaymentMethod);
+        }
+
+        if (!string.IsNullOrWhiteSpace(sexo))
+            query = query.Where(i => i.Sexo == sexo);
+
+        if (!string.IsNullOrWhiteSpace(categoriaPeso))
+            query = query.Where(i => i.CategoriaPeso == categoriaPeso);
+
+        if (quiereHandler.HasValue)
+            query = query.Where(i => i.QuiereHandler == quiereHandler.Value);
+
+        if (quierePeakProgram.HasValue)
+            query = query.Where(i => i.QuierePeakProgram == quierePeakProgram.Value);
+
+        if (participacionConfirmada.HasValue)
+            query = query.Where(i => i.ParticipacionConfirmada == participacionConfirmada.Value);
+
+        if (hasCoupon.HasValue)
+        {
+            if (hasCoupon.Value)
+                query = query.Where(i => i.CuponDescuentoId != null);
+            else
+                query = query.Where(i => i.CuponDescuentoId == null);
+        }
+
+        return query;
+    }
+
+    /// <summary>
+    /// Gets statistics for a competition, optionally filtered.
+    /// Count, total, revenue and paid count reflect the filtered set.
+    /// </summary>
+    public async Task<InscripcionStats> GetStatsAsync(
+        int competicionId,
+        string? search = null,
+        bool? pagoConfirmado = null,
+        string? experiencia = null,
+        string? modalidad = null,
+        string? paymentMethod = null,
+        string? sexo = null,
+        string? categoriaPeso = null,
+        bool? quiereHandler = null,
+        bool? quierePeakProgram = null,
+        bool? participacionConfirmada = null,
+        bool? hasCoupon = null)
+    {
+        var query = BuildInscripcionQuery(
+            competicionId, search, pagoConfirmado, experiencia, modalidad, paymentMethod,
+            sexo, categoriaPeso, quiereHandler, quierePeakProgram, participacionConfirmada, hasCoupon);
+
+        var inscripciones = await query.ToListAsync();
 
         var paidInscripciones = inscripciones.Where(i => i.PagoConfirmado).ToList();
         var revenue = paidInscripciones.Sum(i => i.TotalPagado);
@@ -848,6 +918,76 @@ public class InscripcionService
             ConEntrenador: inscripciones.Count(i => i.TieneEntrenador),
             SinEntrenador: inscripciones.Count(i => !i.TieneEntrenador)
         );
+    }
+
+    /// <summary>
+    /// Performs a raffle draw for a competition.
+    /// 1. Builds the eligible pool from <paramref name="req"/>.FilterCriteria.
+    /// 2. If equityMode == "sex" and N &gt;= 2, attempts an even split by sex with fallback
+    ///    to fully-random if either sex is short of its target.
+    /// 3. Persists winners to SorteoInscripcion (FechaSorteo, NumeroGanador 1-indexed, FiltroAplicado JSON).
+    /// 4. Returns winners as Inscripcion[] + optional fallbackReason.
+    /// </summary>
+    public async Task<RaffleResultDto> RaffleAsync(int competicionId, RaffleRequest req)
+    {
+        if (req.NumWinners < 1)
+            throw new ArgumentException("NumWinners must be >= 1", nameof(req));
+
+        var query = BuildInscripcionQuery(competicionId);
+        var filterKey = req.FilterCriteria?.ToLowerInvariant();
+        query = filterKey switch
+        {
+            RaffleFilter.OnlyPaid => query.Where(i => i.PagoConfirmado && i.TotalPagado > 0),
+            RaffleFilter.OnlyPaidNoCoupon => query.Where(i => i.PagoConfirmado && i.TotalPagado > 0 && i.CuponDescuentoId == null),
+            _ => query // "all" or unknown
+        };
+
+        var pool = await query.ToListAsync();
+
+        var rng = req.Random ?? Random.Shared;
+        var mode = req.EquityMode?.ToLowerInvariant() ?? RaffleFilter.EquityNone;
+        var winners = new List<Inscripcion>();
+        string? fallbackReason = null;
+
+        if (mode == RaffleFilter.EquitySex && req.NumWinners >= 2)
+        {
+            var (splitWinners, splitFallback) = RaffleEquityHelper.ApplySexEquitySplit(
+                pool,
+                req.NumWinners,
+                i => i.Sexo,
+                rng);
+            winners = splitWinners;
+            fallbackReason = splitFallback;
+        }
+        else
+        {
+            winners = RaffleEquityHelper.DrawN(pool, req.NumWinners, rng);
+        }
+
+        var ahora = DateTime.UtcNow;
+        var filtroJson = JsonSerializer.Serialize(new
+        {
+            filterCriteria = req.FilterCriteria,
+            numWinners = req.NumWinners,
+            equityMode = req.EquityMode
+        });
+
+        for (int i = 0; i < winners.Count; i++)
+        {
+            _context.SorteosInscripcion.Add(new SorteoInscripcion
+            {
+                CompeticionId = competicionId,
+                InscripcionId = winners[i].Id,
+                FechaSorteo = ahora,
+                NumeroGanador = i + 1,
+                FiltroAplicado = filtroJson,
+                CreatedAt = ahora
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return new RaffleResultDto(winners, fallbackReason);
     }
 
     /// <summary>
@@ -1143,7 +1283,8 @@ public record CreateInscripcionRequest(
             bool AceptaTerminos,
             string? PaymentMethod = null,
             bool IncludeOnlinePaymentLink = false,
-            string? CodigoCupon = null
+            string? CodigoCupon = null,
+            FerConfigSnapshot? ConfigSnapshot = null
 );
 
 public record UpdateInscripcionRequest(
@@ -1187,6 +1328,39 @@ public record InscripcionEstadoDto(
     DateTime? CheckinAt,
     string CompeticionNombre,
     List<object>? Horarios
+);
+
+/// <summary>
+/// Performs a raffle draw for a competition, picking N winners from a filtered pool.
+/// </summary>
+public class RaffleFilter
+{
+    public const string All = "all";
+    public const string OnlyPaid = "onlypaid";
+    public const string OnlyPaidNoCoupon = "onlypaidnocoupon";
+
+    public const string EquityNone = "none";
+    public const string EquitySex = "sex";
+
+    public const string FallbackInsufficientPoolForEquity = "insufficient_pool_for_equity";
+}
+
+/// <summary>
+/// Request body for POST /api/admin/competiciones/:id/inscripciones/raffle
+/// </summary>
+public record RaffleRequest(
+    string FilterCriteria,
+    int NumWinners,
+    string EquityMode,
+    Random? Random = null
+);
+
+/// <summary>
+/// Result of a raffle draw: list of winners + optional fallback reason.
+/// </summary>
+public record RaffleResultDto(
+    List<Inscripcion> Winners,
+    string? FallbackReason
 );
 
 public record InscripcionStats(
