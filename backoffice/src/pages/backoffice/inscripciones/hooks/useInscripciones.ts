@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useCallback } from 'react';
-import api from '../../../../api/client';
+import { api } from '../../../../utils/api';
 import type { CreateInscripcionRequest, UpdateInscripcionRequest } from '../../../../types/api';
 import {
   ferInscripcionesAtom,
@@ -16,6 +16,12 @@ import {
   ferInscripcionesExperienciaFilterAtom,
   ferInscripcionesModalidadFilterAtom,
   ferInscripcionesPaymentMethodFilterAtom,
+  ferInscripcionesSexoFilterAtom,
+  ferInscripcionesCategoriaPesoFilterAtom,
+  ferInscripcionesQuiereHandlerFilterAtom,
+  ferInscripcionesQuierePeakProgramFilterAtom,
+  ferInscripcionesParticipacionConfirmadaFilterAtom,
+  ferInscripcionesHasCouponFilterAtom,
   ferHasActiveFiltersAtom,
 } from '../../../../stores/ferInscripcionesStore';
 
@@ -36,6 +42,13 @@ export function useInscripciones(competicionId: number) {
   const experienciaFilter = useAtomValue(ferInscripcionesExperienciaFilterAtom);
   const modalidadFilter = useAtomValue(ferInscripcionesModalidadFilterAtom);
   const paymentMethodFilter = useAtomValue(ferInscripcionesPaymentMethodFilterAtom);
+  // Phase 1: 6 new filter atom values
+  const sexoFilter = useAtomValue(ferInscripcionesSexoFilterAtom);
+  const categoriaPesoFilter = useAtomValue(ferInscripcionesCategoriaPesoFilterAtom);
+  const quiereHandlerFilter = useAtomValue(ferInscripcionesQuiereHandlerFilterAtom);
+  const quierePeakProgramFilter = useAtomValue(ferInscripcionesQuierePeakProgramFilterAtom);
+  const participacionConfirmadaFilter = useAtomValue(ferInscripcionesParticipacionConfirmadaFilterAtom);
+  const hasCouponFilter = useAtomValue(ferInscripcionesHasCouponFilterAtom);
 
   const fetchInscripciones = useCallback(async (
     pageOverride?: number,
@@ -45,6 +58,12 @@ export function useInscripciones(competicionId: number) {
       experiencia?: string;
       modalidad?: string;
       paymentMethod?: string;
+      sexo?: string | null;
+      categoriaPeso?: string | null;
+      quiereHandler?: boolean | null;
+      quierePeakProgram?: boolean | null;
+      participacionConfirmada?: boolean | null;
+      hasCoupon?: boolean | null;
     }
   ) => {
     setIsLoading(true);
@@ -59,6 +78,12 @@ export function useInscripciones(competicionId: number) {
         experiencia: filters?.experiencia || experienciaFilter || undefined,
         modalidad: filters?.modalidad || modalidadFilter || undefined,
         paymentMethod: filters?.paymentMethod || paymentMethodFilter || undefined,
+        sexo: filters?.sexo ?? sexoFilter,
+        categoriaPeso: filters?.categoriaPeso ?? categoriaPesoFilter,
+        quiereHandler: filters?.quiereHandler ?? quiereHandlerFilter,
+        quierePeakProgram: filters?.quierePeakProgram ?? quierePeakProgramFilter,
+        participacionConfirmada: filters?.participacionConfirmada ?? participacionConfirmadaFilter,
+        hasCoupon: filters?.hasCoupon ?? hasCouponFilter,
       });
 
       if (response.success && response.data) {
@@ -72,13 +97,27 @@ export function useInscripciones(competicionId: number) {
     } finally {
       setIsLoading(false);
     }
-  }, [competicionId, currentPage, pageSize, searchQuery, pagoConfirmadoFilter, experienciaFilter, modalidadFilter, paymentMethodFilter, setIsLoading, setError, setInscripciones, setTotalCount]);
+  }, [competicionId, currentPage, pageSize, searchQuery, pagoConfirmadoFilter, experienciaFilter, modalidadFilter, paymentMethodFilter, sexoFilter, categoriaPesoFilter, quiereHandlerFilter, quierePeakProgramFilter, participacionConfirmadaFilter, hasCouponFilter, setIsLoading, setError, setInscripciones, setTotalCount]);
 
   const fetchStats = useCallback(async () => {
     try {
       const result = await api.getAdminInscripcionStats(competicionId);
       if (result.success && result.data) {
-        setStats(result.data);
+        // Normalize to the InscripcionStats atom shape (DTO has all fields optional, atom requires total etc.)
+        const d = result.data;
+        setStats({
+          total: d.total ?? 0,
+          pagados: d.pagados ?? 0,
+          pendientes: d.pendientes ?? 0,
+          upsells: d.upsells ?? 0,
+          checkins: d.checkins ?? 0,
+          revenue: d.revenue,
+          cashRevenue: d.cashRevenue,
+          stripeRevenue: d.stripeRevenue,
+          porExperiencia: d.porExperiencia ?? {},
+          conEntrenador: d.conEntrenador ?? 0,
+          sinEntrenador: d.sinEntrenador ?? 0,
+        });
       }
     } catch (err) {
       console.error('Error loading stats:', err);
