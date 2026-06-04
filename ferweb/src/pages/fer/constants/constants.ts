@@ -120,12 +120,52 @@ export const POLAROID_START_OFFSET_X = 300;
 export const POLAROID_START_ROTATION = 20;
 
 export const NAV_LINKS = [
-  { label: 'Inicio', path: '/' },
-  { label: 'Inscripción', path: '/inscripcion' },
-  { label: 'Modalidades', path: '/modalidades' },
-  { label: 'Horarios', path: '/horarios' },
-  { label: 'Ubicación', path: '/ubicacion' },
-  { label: 'Galería', path: '/galeria' },
-  { label: 'Tutoriales', path: '/tutoriales' },
-  { label: 'Sobre Nosotros', path: '/sobre-nosotros' },
+  {
+    label: 'Inscripción',
+    path: '/inscripcion',
+    icon: 'PenLine',
+    description: 'Reserva tu plaza y completa el registro.',
+  },
+  {
+    label: 'Modalidades',
+    path: '/modalidades',
+    icon: 'Layers',
+    description: 'Elige la división que mejor encaja contigo.',
+  },
+  {
+    label: 'Horarios',
+    path: '/horarios',
+    icon: 'Calendar',
+    description: 'Consulta el planning de la competición.',
+  },
+  {
+    label: 'Ubicación',
+    path: '/ubicacion',
+    icon: 'MapPin',
+    description: 'Encuentra el pabellón y cómo llegar.',
+  },
+  {
+    label: 'Galería',
+    path: '/galeria',
+    icon: 'Image',
+    description: 'Explora imágenes y recuerdos del evento.',
+  },
+  {
+    label: 'Tutoriales',
+    path: '/tutoriales',
+    icon: 'BookOpen',
+    description: 'Aprende cómo funciona la competición.',
+  },
+  {
+    label: 'FAQ',
+    path: '/faq',
+    icon: 'HelpCircle',
+    description: 'Resuelve las dudas más frecuentes.',
+  },
+  {
+    label: 'Sobre Nosotros',
+    path: '/sobre-nosotros',
+    icon: 'Users',
+    description: 'Conoce el equipo detrás de FER CUP.',
+  },
 ] as const;

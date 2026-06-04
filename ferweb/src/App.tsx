@@ -38,6 +38,9 @@ const TerminosPage = lazy(() =>
 const PrivacidadPage = lazy(() =>
   import('./pages/privacidad/PrivacidadPage').then((m) => ({ default: m.PrivacidadPage }))
 );
+const FAQPage = lazy(() =>
+  import('./pages/faq/FAQPage').then((m) => ({ default: m.FAQPage }))
+);
 
 function PageLoader() {
   return (
@@ -79,6 +82,7 @@ export function App() {
           <Route path="/ubicacion" component={UbicacionPage} />
           <Route path="/galeria" component={GaleriaPage} />
           <Route path="/tutoriales" component={TutorialesPage} />
+          <Route path="/faq" component={FAQPage} />
           <Route path="/sobre-nosotros" component={SobreNosotrosPage} />
           <Route path="/terms" component={TerminosPage} />
           <Route path="/privacy" component={PrivacidadPage} />
