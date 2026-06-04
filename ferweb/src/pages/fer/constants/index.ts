@@ -25,6 +25,8 @@ export {
 } from './constants';
 
 export type { Experiencia, Modalidad } from './constants';
+export type { FaqAnswerBlock, FaqItem } from './faq';
+export { FAQ_ITEMS } from './faq';
 
 export { CLUB_PHOTOS } from './clubPhotos';
 export {

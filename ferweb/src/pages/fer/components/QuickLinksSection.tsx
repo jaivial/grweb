@@ -10,6 +10,7 @@ import {
   Image,
   BookOpen,
   Users,
+  HelpCircle,
 } from 'lucide-react';
 import { FER_COLORS, NAV_LINKS } from '../constants';
 
@@ -24,6 +25,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
   Image,
   BookOpen,
   Users,
+  HelpCircle,
 };
 
 /* ── Card accent palette cycled by index ── */
@@ -67,7 +69,7 @@ export function QuickLinksSection() {
 
   const cardClass = useMemo(
     () =>
-      'group relative w-full sm:flex-[1_1_240px] sm:min-w-[240px] sm:max-w-[320px] p-5 rounded-2xl text-left transition-all duration-300 cursor-pointer border hover:-translate-y-1',
+      'group relative w-full aspect-square flex flex-col justify-between overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 cursor-pointer hover:-translate-y-1 sm:p-5',
     []
   );
 
@@ -141,7 +143,7 @@ export function QuickLinksSection() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.1 }}
-          className="flex flex-wrap justify-center gap-4 sm:gap-5"
+          className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
           data-ui="fer-quicklinks-cards"
         >
           {NAV_LINKS.map((link, index) => {
@@ -161,7 +163,6 @@ export function QuickLinksSection() {
                 }}
                 data-ui={`fer-quicklink-card-${pathSlug}`}
               >
-                {/* Hover accent top bar */}
                 <div
                   className="absolute top-0 left-4 right-4 h-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{ backgroundColor: accentColor }}
@@ -169,39 +170,48 @@ export function QuickLinksSection() {
                   data-ui={`fer-quicklink-card-bar-${pathSlug}`}
                 />
 
-                {/* Icon */}
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors duration-300"
-                  style={{
-                    backgroundColor: `${accentColor}15`,
-                    color: accentColor,
-                  }}
-                  data-ui={`fer-quicklink-card-icon-${pathSlug}`}
+                  className="flex flex-1 flex-col items-center justify-center gap-3 text-center"
+                  data-ui={`fer-quicklink-card-copy-${pathSlug}`}
                 >
-                  {IconComponent && <IconComponent size={20} />}
+                  <div
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-colors duration-300"
+                    style={{
+                      backgroundColor: `${accentColor}15`,
+                      color: accentColor,
+                    }}
+                    data-ui={`fer-quicklink-card-icon-${pathSlug}`}
+                  >
+                    {IconComponent && <IconComponent size={20} />}
+                  </div>
+
+                  <div className="w-full" data-ui={`fer-quicklink-card-text-${pathSlug}`}>
+                    <h3
+                      className="text-sm font-semibold leading-tight sm:text-base transition-colors duration-300"
+                      style={{ color: FER_COLORS.text }}
+                      data-ui={`fer-quicklink-card-label-${pathSlug}`}
+                    >
+                      {link.label}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-[11px] leading-snug sm:text-sm"
+                      style={{
+                        color: FER_COLORS.textMuted,
+                        display: '-webkit-box',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 3,
+                        overflow: 'hidden',
+                      }}
+                      data-ui={`fer-quicklink-card-desc-${pathSlug}`}
+                    >
+                      {link.description}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Label */}
-                <h3
-                  className="text-base font-semibold mb-1 transition-colors duration-300"
-                  style={{ color: FER_COLORS.text }}
-                  data-ui={`fer-quicklink-card-label-${pathSlug}`}
-                >
-                  {link.label}
-                </h3>
-
-                {/* Description */}
-                <p
-                  className="text-sm leading-relaxed"
-                  style={{ color: FER_COLORS.textMuted }}
-                  data-ui={`fer-quicklink-card-desc-${pathSlug}`}
-                >
-                  {link.description}
-                </p>
-
-                {/* Arrow indicator (appears on hover) */}
                 <span
-                  className="inline-block mt-3 text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-x-1 group-hover:translate-x-0"
+                  className="inline-flex items-center gap-1 text-xs font-medium opacity-0 transition-all duration-300 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100"
                   style={{ color: accentColor }}
                   aria-hidden="true"
                   data-ui={`fer-quicklink-card-arrow-${pathSlug}`}

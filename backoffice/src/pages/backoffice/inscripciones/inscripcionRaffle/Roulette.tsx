@@ -248,7 +248,6 @@ export function Roulette({
         </div>
 
         <div className="w-full rounded-[2rem] border border-white/10 bg-slate-950/80 px-5 py-6 shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-8 sm:py-8">
-          <div className="text-[11px] uppercase tracking-[0.35em] text-white/40">Nombre en foco</div>
           <div className="relative mt-3 h-36 overflow-hidden sm:h-40">
             {previousLabel && (
               <div
@@ -281,23 +280,10 @@ export function Roulette({
             <span>{candidateLabels.length} inscritos en juego</span>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-full bg-white/5">
-            <div
-              className="h-2 rounded-full bg-gradient-to-r from-amber-300 via-yellow-400 to-white transition-[width] duration-100"
-              style={{ width: `${Math.max(4, progress * 100)}%` }}
-              data-ui="roulette-progress-bar"
-            />
-          </div>
+    
+         
 
-          <div className="mt-4 grid grid-cols-3 gap-3 text-[10px] uppercase tracking-[0.3em] text-white/35">
-            <span>Acelera</span>
-            <span className="text-center">Baraja</span>
-            <span className="text-right">Frena</span>
-          </div>
-
-          <p className="mt-5 text-sm text-white/55">
-            Los nombres pasan por la pantalla con ritmo creciente y se detienen en el seleccionado.
-          </p>
+         
         </div>
       </div>
 

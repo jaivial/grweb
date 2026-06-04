@@ -19,6 +19,8 @@ import { DisciplinasSection } from './components/DisciplinasSection';
 import { ModalidadesHomeSection } from './components/ModalidadesHomeSection';
 import { ParallaxShowcase } from './components/ParallaxShowcase';
 import { HorariosSection } from './components/HorariosSection';
+import { QuickLinksSection } from './components/QuickLinksSection';
+import { FaqSection } from './components/FaqSection';
 import { ComoFunciona } from './components/ComoFunciona';
 import { GrHandlerService } from './components/GrHandlerService';
 import { FloatingCtaButton } from './components/FloatingCtaButton';
@@ -279,6 +281,8 @@ export function FerLanding() {
 
       <DisciplinasSection />
 
+      <QuickLinksSection />
+
       <ModalidadesHomeSection />
 
       <QueIncluye />
@@ -313,6 +317,8 @@ export function FerLanding() {
       </div>
 
       <GrHandlerService />
+
+      <FaqSection />
 
       <FerFooter contactEmail={competicion?.landingConfig?.contactEmail} />
 
