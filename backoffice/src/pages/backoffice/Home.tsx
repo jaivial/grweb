@@ -7,7 +7,7 @@ import { KpiCard } from '../../components/ui/KpiCard/KpiCard';
 import { api } from '../../utils/api';
 import { useSignalR } from '../../hooks/useSignalR';
 import { participantCount } from '../../stores/participants';
-import { currentCompeticionAtom, isCurrentFerAtom } from '../../stores/auth.atoms';
+import { currentCompeticionAtom, currentCompeticionIdAtom, isCurrentFerAtom } from '../../stores/auth.atoms';
 import { Settings, Users, Calendar, QrCode, ClipboardList, Gavel } from 'lucide-react';
 
 interface Statistics {
@@ -20,7 +20,9 @@ export function BackofficeHome(): JSX.Element {
   const [stats, setStats] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ferRevenue, setFerRevenue] = useState<number | null>(null);
   const currentCompeticion = useAtomValue(currentCompeticionAtom);
+  const currentCompeticionId = useAtomValue(currentCompeticionIdAtom);
   const isFer = useAtomValue(isCurrentFerAtom);
 
   useSignalR();
@@ -43,9 +45,29 @@ export function BackofficeHome(): JSX.Element {
     }
   }, []);
 
+  const fetchFerRevenue = useCallback(async (compId: number) => {
+    try {
+      const result = await api.getAdminInscripcionStats(compId);
+      if (result.success && result.data) {
+        setFerRevenue(result.data.revenue);
+      }
+    } catch {
+      setFerRevenue(null);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStatistics();
   }, [fetchStatistics]);
+
+  // Phase 1: FER revenue swap
+  useEffect(() => {
+    if (isFer && currentCompeticionId != null) {
+      fetchFerRevenue(currentCompeticionId);
+    } else {
+      setFerRevenue(null);
+    }
+  }, [isFer, currentCompeticionId, fetchFerRevenue]);
 
   // Refresh when SignalR updates participant count
   useEffect(() => {
@@ -53,6 +75,16 @@ export function BackofficeHome(): JSX.Element {
       fetchStatistics();
     }
   }, [participantCount.value, stats, fetchStatistics]);
+
+  const revenueLabel = useMemo(() => {
+    if (isFer && ferRevenue != null) {
+      return `${ferRevenue.toFixed(2)} €`;
+    }
+    if (stats) {
+      return `${stats.totalRevenue.toFixed(2)} €`;
+    }
+    return '0.00 €';
+  }, [isFer, ferRevenue, stats]);
 
   return (
     <BackofficeLayout>
@@ -91,8 +123,9 @@ export function BackofficeHome(): JSX.Element {
           />
           <KpiCard
             label="Recaudacion"
-            value={stats ? `${stats.totalRevenue.toFixed(2)} EUR` : '0.00 EUR'}
+            value={revenueLabel}
             color="warning"
+            data-testid="kpi-revenue"
             icon={
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
