@@ -27,6 +27,9 @@ export interface RouletteProps {
 
 const DEFAULT_LABEL = 'Pulsa Sortear para empezar';
 const PREPARING_LABEL = 'Preparando sorteo...';
+const LABEL_FADE_MS = 220;
+const LABEL_STEP_GAP_MS = 130;
+const LABEL_CHANGE_MARKER = 0.04;
 
 function easeInOutCubic(t: number): number {
   return t < 0.5
@@ -44,24 +47,63 @@ export function Roulette({
 }: RouletteProps): JSX.Element {
   const animationFrameRef = useRef<number | null>(null);
   const confettiTimerRef = useRef<number | null>(null);
+  const labelTimerRef = useRef<number | null>(null);
   const spinStartRef = useRef<number | null>(null);
   const spinDurationRef = useRef(0);
   const targetStepsRef = useRef(0);
+  const lastLabelIndexRef = useRef<number>(-1);
+  const lastLabelChangeAtRef = useRef<number>(0);
 
-  const [displayLabel, setDisplayLabel] = useState(() => selectedLabel ?? candidates[0]?.label ?? DEFAULT_LABEL);
+  const [currentLabel, setCurrentLabel] = useState(() => selectedLabel ?? candidates[0]?.label ?? DEFAULT_LABEL);
+  const [previousLabel, setPreviousLabel] = useState<string | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'preparing' | 'spinning' | 'settled'>('idle');
   const [progress, setProgress] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const currentLabelRef = useRef<string>(selectedLabel ?? candidates[0]?.label ?? DEFAULT_LABEL);
+
+  useEffect(() => {
+    currentLabelRef.current = currentLabel;
+  }, [currentLabel]);
 
   const candidateLabels = useMemo(() => candidates.map((candidate) => candidate.label), [candidates]);
   const candidateKey = useMemo(() => candidateLabels.join('\u0001'), [candidateLabels]);
+
+  const clearLabelTimer = useCallback(() => {
+    if (labelTimerRef.current !== null) {
+      window.clearTimeout(labelTimerRef.current);
+      labelTimerRef.current = null;
+    }
+  }, []);
+
+  const moveLabel = useCallback((nextLabel: string) => {
+    if (nextLabel === currentLabelRef.current) return;
+
+    clearLabelTimer();
+    setPreviousLabel(currentLabelRef.current);
+    setCurrentLabel(nextLabel);
+    setIsTransitioning(false);
+
+    requestAnimationFrame(() => {
+      setIsTransitioning(true);
+    });
+
+    labelTimerRef.current = window.setTimeout(() => {
+      setPreviousLabel(null);
+      setIsTransitioning(false);
+      labelTimerRef.current = null;
+    }, LABEL_FADE_MS);
+  }, [clearLabelTimer]);
 
   const finishSpin = useCallback((finalLabel: string) => {
     animationFrameRef.current = null;
     spinStartRef.current = null;
     setPhase('settled');
     setProgress(1);
-    setDisplayLabel(finalLabel);
+    clearLabelTimer();
+    setPreviousLabel(null);
+    setCurrentLabel(finalLabel);
+    setIsTransitioning(false);
     setShowConfetti(true);
 
     if (confettiTimerRef.current !== null) {
@@ -73,7 +115,7 @@ export function Roulette({
     }, 2400);
 
     onFinishSpinning();
-  }, [onFinishSpinning]);
+  }, [clearLabelTimer, onFinishSpinning]);
 
   useEffect(() => {
     if (!mustStartSpinning) return;
@@ -88,11 +130,17 @@ export function Roulette({
       confettiTimerRef.current = null;
     }
 
+    clearLabelTimer();
+    lastLabelIndexRef.current = -1;
+    lastLabelChangeAtRef.current = 0;
+
     setPhase('preparing');
     setProgress(0);
-    setDisplayLabel(PREPARING_LABEL);
+    setPreviousLabel(null);
+    setCurrentLabel(PREPARING_LABEL);
+    setIsTransitioning(false);
     setShowConfetti(false);
-  }, [mustStartSpinning]);
+  }, [clearLabelTimer, mustStartSpinning]);
 
   useEffect(() => {
     if (!mustStartSpinning || candidateLabels.length === 0) return;
@@ -118,10 +166,19 @@ export function Roulette({
         targetStepsRef.current,
         Math.floor(easedProgress * targetStepsRef.current)
       );
-      const nextLabel = candidateLabels[traveled % candidateLabels.length] ?? targetLabel;
+      const nextIndex = traveled % candidateLabels.length;
+      const nextLabel = candidateLabels[nextIndex] ?? targetLabel;
 
       setProgress(rawProgress);
-      setDisplayLabel(nextLabel);
+
+      if (
+        nextIndex !== lastLabelIndexRef.current &&
+        (elapsed - lastLabelChangeAtRef.current >= LABEL_STEP_GAP_MS || rawProgress >= 1 - LABEL_CHANGE_MARKER)
+      ) {
+        lastLabelIndexRef.current = nextIndex;
+        lastLabelChangeAtRef.current = elapsed;
+        moveLabel(nextLabel);
+      }
 
       if (rawProgress >= 1) {
         finishSpin(targetLabel);
@@ -139,7 +196,7 @@ export function Roulette({
         animationFrameRef.current = null;
       }
     };
-  }, [mustStartSpinning, candidateKey, selectedLabel, candidateLabels, finishSpin]);
+  }, [mustStartSpinning, candidateKey, selectedLabel, candidateLabels, finishSpin, moveLabel]);
 
   useEffect(() => {
     return () => {
@@ -149,8 +206,9 @@ export function Roulette({
       if (confettiTimerRef.current !== null) {
         window.clearTimeout(confettiTimerRef.current);
       }
+      clearLabelTimer();
     };
-  }, []);
+  }, [clearLabelTimer]);
 
   const speedGlow = Math.sin(Math.PI * progress);
   const subtitle = phase === 'settled'
@@ -191,16 +249,31 @@ export function Roulette({
 
         <div className="w-full rounded-[2rem] border border-white/10 bg-slate-950/80 px-5 py-6 shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-8 sm:py-8">
           <div className="text-[11px] uppercase tracking-[0.35em] text-white/40">Nombre en foco</div>
-          <div
-            className={`mt-3 break-words text-3xl font-black leading-tight tracking-tight text-white transition-all duration-200 sm:text-5xl ${phase === 'spinning' ? 'scale-[1.03]' : ''}`}
-            style={{
-              transform: `translateY(${phase === 'spinning' ? 1 - speedGlow : 0}px) scale(${1 + speedGlow * 0.04})`,
-              filter: `blur(${phase === 'spinning' ? speedGlow * 0.45 : 0}px)`,
-              textShadow: `0 0 ${18 + speedGlow * 16}px rgba(251, 191, 36, ${0.12 + speedGlow * 0.2})`,
-            }}
-            data-ui="roulette-current-label"
-          >
-            {displayLabel}
+          <div className="relative mt-3 h-36 overflow-hidden sm:h-40">
+            {previousLabel && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center px-2 text-3xl font-black leading-tight tracking-tight text-white/35 transition-all duration-200 sm:text-5xl ${isTransitioning ? 'translate-y-3 opacity-0 blur-[2px]' : 'translate-y-0 opacity-100 blur-0'}`}
+                style={{
+                  textShadow: '0 0 14px rgba(255,255,255,0.04)',
+                }}
+                aria-hidden="true"
+                data-ui="roulette-previous-label"
+              >
+                <span className="max-w-full break-words text-center">{previousLabel}</span>
+              </div>
+            )}
+
+            <div
+              className={`absolute inset-0 flex items-center justify-center px-2 text-3xl font-black leading-tight tracking-tight text-white transition-all duration-200 sm:text-5xl ${phase === 'spinning' ? 'scale-[1.02]' : ''} ${isTransitioning ? 'translate-y-0 opacity-100 blur-0' : previousLabel ? 'translate-y-4 opacity-0 blur-[2px]' : 'translate-y-0 opacity-100 blur-0'}`}
+              style={{
+                transform: `scale(${1 + speedGlow * 0.03})`,
+                filter: `blur(${phase === 'spinning' ? speedGlow * 0.25 : 0}px)`,
+                textShadow: `0 0 ${16 + speedGlow * 14}px rgba(251, 191, 36, ${0.12 + speedGlow * 0.18})`,
+              }}
+              data-ui="roulette-current-label"
+            >
+              <span className="max-w-full break-words text-center">{currentLabel}</span>
+            </div>
           </div>
 
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/50">

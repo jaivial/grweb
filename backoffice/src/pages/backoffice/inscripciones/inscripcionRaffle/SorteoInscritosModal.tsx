@@ -185,7 +185,7 @@ export function SorteoInscritosModal({
               data-ui="sorteo-modal-roulette-empty"
               data-testid="sorteo-modal-roulette-empty"
             >
-              Pulsa Sortear para girar la ruleta
+              Pulsa Sortear para iniciar el sorteo
             </div>
           )}
         </div>
