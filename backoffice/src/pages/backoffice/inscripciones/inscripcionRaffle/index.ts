@@ -21,4 +21,5 @@ export type {
   RaffleWinner,
   RaffleFilterCriteria,
   RaffleEquityMode,
+  DrawFn,
 } from './types';

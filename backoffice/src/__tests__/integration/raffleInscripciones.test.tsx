@@ -1,17 +1,15 @@
 /**
- * Integration test: Sorteo Inscritos wired into the FER Inscripciones page.
+ * Integration test: Sorteo Inscritos wired into the FER + GR Cup Inscripciones pages.
  *
- * Scope: this test verifies that the Sorteo Inscritos button is rendered
- * in the FER page action bar, that clicking it flips the ferRaffleStore
- * modal-open atom to true (and unmounts on close). Deep interaction
- * (Sortear -> api -> WinnersCard) is already covered in
- * SorteoInscritosModal.test.tsx; we re-assert a smoke version here.
+ * FER scope: verify the Sorteo Inscritos button is rendered in the FER page
+ * action bar, that clicking it flips the ferRaffleStore modal-open atom to
+ * true (and unmounts on close). Deep interaction (Sortear -> api -> WinnersCard)
+ * is already covered in SorteoInscritosModal.test.tsx; we re-assert a smoke
+ * version here.
  *
- * GR Cup Inscripciones page is excluded from this integration test
- * because the backend RaffleAsync currently operates on Inscripcion only.
- * That is a known gap — see the Phase 3 report. Once the backend supports
- * a polymorphic ID (or an Athletes raffle endpoint), add a parallel
- * test for GrCupInscripcionesPage.
+ * GR Cup scope: GR Cup uses a separate backend route (athletes/raffle) and a
+ * separate raffle store (grCupRaffleStore). The modal is wired with a custom
+ * `drawFn={api.drawRaffleAtletas}` to decouple it from the FER endpoint.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -19,7 +17,10 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { getDefaultStore, Provider } from 'jotai';
 import { Toaster } from 'react-hot-toast';
 import { FerInscripcionesPage } from '../../pages/backoffice/inscripciones/fer-components/FerInscripcionesPage';
+import { GrCupInscripcionesPage } from '../../pages/backoffice/inscripciones/fer-components/GrCupInscripcionesPage';
 import { ferRaffleStore } from '../../stores/inscripcionRaffleStore';
+import { grCupRaffleStore } from '../../stores/athleteRaffleStore';
+import { token } from '../../stores/auth';
 import { api, type RaffleWinner } from '../../utils/api';
 import {
   ferInscripcionesStatsAtom,
@@ -29,6 +30,14 @@ import {
   ferInscripcionesPageAtom,
   ferInscripcionesAtom,
 } from '../../stores/ferInscripcionesStore';
+import {
+  athletesAtom,
+  athletesStatsAtom,
+  athletesLoadingAtom,
+  athletesErrorAtom,
+  athletesPageAtom,
+  athletesTotalCountAtom,
+} from '../../stores/athletesStore';
 
 vi.mock('../../utils/api', async (importOriginal) => {
   const mod = (await importOriginal()) as Record<string, unknown>;
@@ -45,6 +54,34 @@ vi.mock('../../utils/api', async (importOriginal) => {
         data: { total: 0, pagados: 0, pendientes: 0, revenue: 0, cashRevenue: 0, stripeRevenue: 0 },
       }),
       drawRaffleInscripciones: vi.fn(),
+      // GR Cup endpoint
+      drawRaffleAtletas: vi.fn(),
+      // GR Cup page-level dependencies
+      getInscripcionPreparada: vi.fn().mockResolvedValue({
+        dateTime: null,
+        preparadas: false,
+      }),
+      getResponsableUrlInscripciones: vi.fn().mockResolvedValue({
+        value: true,
+        url: null,
+        dateModified: null,
+      }),
+      getClubs: vi.fn().mockResolvedValue([]),
+      getAthletes: vi.fn().mockResolvedValue({
+        athletes: [],
+        totalCount: 0,
+        page: 1,
+        pageSize: 25,
+        totalPages: 0,
+        stats: {
+          total: 0,
+          inscritos: 0,
+          paid: 0,
+          pending: 0,
+          disqualified: 0,
+          missingDocumentation: 0,
+        },
+      }),
     },
   };
 });
@@ -67,12 +104,32 @@ beforeEach(() => {
   // Stub RAF so useRaffleAnimation.start() does not actually run timers.
   vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(0 as unknown as number);
   vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
-  // Reset the global ferRaffleStore between tests so modal state is fresh.
+  // Reset the global ferRaffleStore and grCupRaffleStore between tests so
+  // modal state is fresh.
   getDefaultStore().set(ferRaffleStore.raffleResetAtom);
+  getDefaultStore().set(grCupRaffleStore.raffleResetAtom);
+  // Pre-seed the GR Cup athletes atoms so the page doesn't churn on mount.
+  const ds = getDefaultStore();
+  ds.set(athletesLoadingAtom, false);
+  ds.set(athletesErrorAtom, null);
+  ds.set(athletesAtom, []);
+  ds.set(athletesStatsAtom, {
+    total: 0,
+    inscritos: 0,
+    paid: 0,
+    pending: 0,
+    disqualified: 0,
+    missingDocumentation: 0,
+  });
+  ds.set(athletesPageAtom, 1);
+  ds.set(athletesTotalCountAtom, 0);
+  // Set the auth token so useAthletes fetches in the GR Cup page actually run.
+  token.value = 'authenticated';
 });
 
 afterEach(() => {
   vi.clearAllMocks();
+  token.value = null;
 });
 
 const mockWinner1: RaffleWinner = {
@@ -121,6 +178,20 @@ function renderFerPage() {
     result = render(
       <Provider store={store}>
         <FerInscripcionesPage competicionId={COMP_ID} />
+        <Toaster />
+      </Provider>
+    );
+  });
+  return { store, ...result! };
+}
+
+function renderGrCupPage() {
+  const store = getDefaultStore();
+  let result: ReturnType<typeof render> | undefined;
+  act(() => {
+    result = render(
+      <Provider store={store}>
+        <GrCupInscripcionesPage />
         <Toaster />
       </Provider>
     );
@@ -203,17 +274,77 @@ describe('Sorteo Inscritos — FER Inscripciones page integration', () => {
   });
 });
 
-describe('Sorteo Inscritos — GR Cup Inscripciones page (skipped pending backend)', () => {
-  // The GR Cup Inscripciones page wires the same SorteoInscritosButton +
-  // SorteoInscritosModal into its own action bar, but the backend
-  // RaffleAsync only operates on Inscripcion (FER) — there is no
-  // drawRaffleAtletas endpoint. The button will open the modal
-  // successfully, but the Sortear call will fail at the network layer
-  // until the backend grows Athlete-ID support.
-  //
-  // The smoke test below verifies only that the GR Cup page renders the
-  // button (UI surface exists) without touching the network.
-  it.skip('GR Cup page renders the Sorteo button — re-enable after backend gap is closed', () => {
-    expect(true).toBe(true);
+describe('Sorteo Inscritos — GR Cup Inscripciones page integration', () => {
+  it('renders the Sorteo button in the GR Cup page action bar', () => {
+    renderGrCupPage();
+    const btn = screen.getByTestId('grcup-sorteo-button');
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveTextContent(/Sorteo/);
+  });
+
+  it('clicking the Sorteo button opens the modal (gated by grCupRaffleStore)', () => {
+    renderGrCupPage();
+    fireEvent.click(screen.getByTestId('grcup-sorteo-button'));
+    expect(screen.getByTestId('sorteo-inscritos-modal')).toBeInTheDocument();
+  });
+
+  it('uses data-competicion-kind="grCup" on the modal', () => {
+    renderGrCupPage();
+    fireEvent.click(screen.getByTestId('grcup-sorteo-button'));
+    expect(
+      screen.getByTestId('sorteo-inscritos-modal').getAttribute('data-competicion-kind')
+    ).toBe('grCup');
+  });
+
+  it('Sortear calls api.drawRaffleAtletas (NOT drawRaffleInscripciones) and renders winners', async () => {
+    // Mock the GR Cup endpoint to return 2 winners.
+    vi.mocked(api.drawRaffleAtletas).mockResolvedValue({
+      winners: [mockWinner1, mockWinner2],
+    });
+
+    // Pre-configure the global grCupRaffleStore directly. The page wires
+    // competicionId={0} on the modal, so we expect the call to use 0.
+    const defaultStore = getDefaultStore();
+    defaultStore.set(grCupRaffleStore.raffleModalOpenAtom, true);
+    defaultStore.set(grCupRaffleStore.raffleConfigAtom, {
+      filterCriteria: 'all',
+      numWinners: 2,
+      equityMode: 'sex',
+    });
+
+    renderGrCupPage();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('sorteo-modal-submit-btn'));
+    });
+
+    // The modal used the GR Cup endpoint, not the FER one.
+    expect(api.drawRaffleAtletas).toHaveBeenCalledTimes(1);
+    expect(api.drawRaffleAtletas).toHaveBeenCalledWith(0, {
+      filterCriteria: 'all',
+      numWinners: 2,
+      equityMode: 'sex',
+    });
+    expect(api.drawRaffleInscripciones).not.toHaveBeenCalled();
+
+    // Winners are surfaced in the WinnersCard.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('Linus Torvalds')).toBeInTheDocument();
+  });
+
+  it('closing the modal unmounts the modal body (gated by grCupRaffleStore atom)', () => {
+    renderGrCupPage();
+    fireEvent.click(screen.getByTestId('grcup-sorteo-button'));
+    expect(screen.getByTestId('sorteo-inscritos-modal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('sorteo-modal-close-btn'));
+
+    // The modal body should be gone — its content is rendered only
+    // when the modal-open atom is true.
+    expect(screen.queryByTestId('sorteo-inscritos-modal')).toBeNull();
   });
 });
