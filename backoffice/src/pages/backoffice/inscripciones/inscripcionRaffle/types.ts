@@ -5,7 +5,7 @@
  * factory, and adds component-local types (animation options, etc.).
  */
 
-import type { RaffleWinner } from '../../../../utils/api';
+import type { RaffleRequest, RaffleResult, RaffleWinner } from '../../../../utils/api';
 import type {
   RaffleConfig,
   RaffleFilterCriteria,
@@ -38,10 +38,27 @@ export interface SorteoInscritosButtonProps {
   disabled?: boolean;
 }
 
+/**
+ * Draw-fn contract for the modal: take a competicionId + raffle request
+ * body and return the unwrapped RaffleResult. The default implementation
+ * delegates to `api.drawRaffleInscripciones` (FER Inscripcion endpoint).
+ * GR Cup wires in `api.drawRaffleAtletas` instead.
+ */
+export type DrawFn = (
+  competicionId: number,
+  body: RaffleRequest
+) => Promise<RaffleResult>;
+
 export interface SorteoInscritosModalProps {
   competicionId: number;
   competicionKind?: 'fer' | 'grCup';
   /** Optional size of the eligible pool — controls Counter max. */
   poolSize?: number;
+  /**
+   * Custom draw function. When provided, the modal uses it instead of the
+   * built-in `api.drawRaffleInscripciones` call. Used by GR Cup to call
+   * `api.drawRaffleAtletas` (different backend route).
+   */
+  drawFn?: DrawFn;
 }
 

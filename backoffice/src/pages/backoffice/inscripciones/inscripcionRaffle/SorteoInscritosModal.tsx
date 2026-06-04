@@ -10,7 +10,7 @@
  *
  * Behavior on Sortear:
  * 1. Set isSpinning=true
- * 2. Call api.drawRaffleInscripciones(competicionId, config)
+ * 2. Call drawFn(competicionId, config) — default: api.drawRaffleInscripciones (FER)
  * 3. Set winners, fallbackReason
  * 4. If fallbackReason, show toast
  * 5. Set isSpinning=false after animation completes
@@ -19,6 +19,9 @@
  *
  * The store is taken as a prop (default: ferRaffleStore) so the modal
  * is testable with a fresh Jotai store from the test side.
+ *
+ * The draw function is also a prop. GR Cup passes `api.drawRaffleAtletas`
+ * (different backend route, unwrapped response). FER uses the default.
  */
 
 import { useCallback, useMemo } from 'react';
@@ -36,17 +39,31 @@ import { RaffleConfigAccordion } from './RaffleConfigAccordion';
 import { useRaffleAnimation } from './useRaffleAnimation';
 import { wheelSegmentFor } from './helpers';
 import { RAFFLE_WHEEL_HEIGHT, FALLBACK_REASON_MESSAGES } from './constants';
-import type { SorteoInscritosModalProps } from './types';
+import type { DrawFn, SorteoInscritosModalProps } from './types';
 
 export function SorteoInscritosModal({
   competicionId,
   competicionKind = 'fer',
   poolSize,
   store,
+  drawFn,
 }: SorteoInscritosModalProps & { store?: RaffleStore }): JSX.Element {
   const activeStore = useMemo<RaffleStore>(
     () => store ?? (competicionKind === 'fer' ? ferRaffleStore : grCupRaffleStore),
     [store, competicionKind]
+  );
+
+  // Default drawFn: FER Inscripcion endpoint. The backend wraps the
+  // result in { success, data, message } so we unwrap .data here.
+  // GR Cup passes its own drawFn which returns RaffleResult directly.
+  const activeDrawFn = useMemo<DrawFn>(
+    () =>
+      drawFn ??
+      (async (cid, body) => {
+        const res = await api.drawRaffleInscripciones(cid, body);
+        return res.data ?? { winners: [] };
+      }),
+    [drawFn]
   );
 
   const isOpen = useAtomValue(activeStore.raffleModalOpenAtom);
@@ -84,12 +101,11 @@ export function SorteoInscritosModal({
     animation.reset();
 
     try {
-      const response = await api.drawRaffleInscripciones(competicionId, {
+      const result = await activeDrawFn(competicionId, {
         filterCriteria: config.filterCriteria,
         numWinners: config.numWinners,
         equityMode: config.equityMode,
       });
-      const result = response.data;
       if (result?.winners) {
         setWinners(result.winners);
       }
@@ -116,6 +132,7 @@ export function SorteoInscritosModal({
     setFallbackReason,
     setWinners,
     animation,
+    activeDrawFn,
   ]);
 
   const handleWheelFinish = useCallback(() => {

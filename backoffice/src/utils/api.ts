@@ -725,6 +725,24 @@ class ApiClient {
       { method: 'POST', body }
     );
   }
+
+  /**
+   * Draw N winners from the GR Cup athlete pool.
+   * Backend route: POST /api/admin/competiciones/:id/athletes/raffle
+   * Backed by AthleteRaffleService.
+   *
+   * Unlike `drawRaffleInscripciones`, the athlete endpoint returns the result
+   * envelope directly (no `{ success, data }` wrapper).
+   */
+  async drawRaffleAtletas(
+    competicionId: number,
+    body: RaffleRequest
+  ): Promise<RaffleResult> {
+    return this.request<RaffleResult>(
+      `/api/admin/competiciones/${competicionId}/athletes/raffle`,
+      { method: 'POST', body }
+    );
+  }
 }
 
 export const api = new ApiClient(API_URL);

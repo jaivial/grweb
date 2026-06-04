@@ -235,4 +235,39 @@ describe('SorteoInscritosModal', () => {
       screen.getByTestId('sorteo-inscritos-modal').getAttribute('data-competicion-kind')
     ).toBe('grCup');
   });
+
+  it('uses a custom drawFn when provided (decouples from FER endpoint)', async () => {
+    const customDrawFn = vi.fn().mockResolvedValue({
+      winners: [sampleInscripcion],
+      fallbackReason: undefined,
+    });
+    vi.mocked(api.drawRaffleInscripciones).mockClear();
+    store.set(raffle.raffleConfigAtom, {
+      filterCriteria: 'all',
+      numWinners: 1,
+      equityMode: 'none',
+    });
+    render(
+      <Provider store={store}>
+        <SorteoInscritosModal
+          competicionId={99}
+          competicionKind="fer"
+          store={raffle}
+          drawFn={customDrawFn}
+        />
+        <Toaster />
+      </Provider>
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('sorteo-modal-submit-btn'));
+    });
+    expect(customDrawFn).toHaveBeenCalledTimes(1);
+    expect(customDrawFn).toHaveBeenCalledWith(99, {
+      filterCriteria: 'all',
+      numWinners: 1,
+      equityMode: 'none',
+    });
+    expect(api.drawRaffleInscripciones).not.toHaveBeenCalled();
+    expect(store.get(raffle.raffleWinnersAtom)).toHaveLength(1);
+  });
 });

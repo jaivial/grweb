@@ -615,15 +615,17 @@ export function GrCupInscripcionesPage(): JSX.Element {
         </div>
       )}
 
-      {/* Sorteo Inscritos modal — gated by grCupRaffleStore.raffleModalOpenAtom
-          NOTE: backend RaffleAsync currently operates on Inscripcion (FER) only.
-          This UI is wired to the global grCupRaffleStore and will call the same
-          endpoint. Backend support for Athlete IDs is a known gap; see report. */}
+      {/* Sorteo Inscritos modal — gated by grCupRaffleStore.raffleModalOpenAtom.
+          GR Cup calls the athletes raffle endpoint
+          (POST /api/admin/competiciones/:id/athletes/raffle) via
+          `drawRaffleAtletas` — distinct from the FER Inscripcion endpoint
+          the default modal would use. */}
       <SorteoInscritosModal
         competicionId={0}
         competicionKind="grCup"
         store={grCupRaffleStore}
         poolSize={stats.total}
+        drawFn={api.drawRaffleAtletas}
       />
     </>
   );

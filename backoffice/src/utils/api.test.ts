@@ -126,3 +126,53 @@ describe('api.drawRaffleInscripciones', () => {
     });
   });
 });
+
+describe('api.drawRaffleAtletas', () => {
+  it('POSTs the athlete raffle body to the athletes endpoint', async () => {
+    const mockFetch = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ winners: [], fallbackReason: undefined }),
+    });
+    const { api } = await import('./api');
+    await api.drawRaffleAtletas(13, {
+      filterCriteria: 'onlyPaid',
+      numWinners: 2,
+      equityMode: 'sex',
+    });
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toContain('/api/admin/competiciones/13/athletes/raffle');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({
+      filterCriteria: 'onlyPaid',
+      numWinners: 2,
+      equityMode: 'sex',
+    });
+  });
+
+  it('returns the winners and fallbackReason unwrapped (no success/data envelope)', async () => {
+    const mockFetch = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          winners: [
+            { id: 1, nombre: 'Ada', email: 'ada@example.com' },
+            { id: 2, nombre: 'Linus', email: 'linus@example.com' },
+          ],
+          fallbackReason: 'insufficient_pool_for_equity',
+        }),
+    });
+    const { api } = await import('./api');
+    const result = await api.drawRaffleAtletas(7, {
+      filterCriteria: 'all',
+      numWinners: 2,
+      equityMode: 'sex',
+    });
+    expect(result.winners).toHaveLength(2);
+    expect(result.winners[0].id).toBe(1);
+    expect(result.fallbackReason).toBe('insufficient_pool_for_equity');
+  });
+});
