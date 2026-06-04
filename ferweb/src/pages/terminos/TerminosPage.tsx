@@ -29,7 +29,7 @@ const SECTIONS = [
   {
     title: '5. Cancelaciones y modificaciones',
     content:
-      'Las solicitudes de cancelación deberán comunicarse por escrito a través del correo electrónico indicado por la organización.\n\nEl Organizador se reserva el derecho de modificar horarios, categorías, estructura del evento o cualquier aspecto organizativo cuando resulte necesario para el correcto funcionamiento de la competición.\n\nAsimismo, GR Strength podrá cancelar, aplazar o reprogramar el evento por causas organizativas, técnicas, sanitarias o de fuerza mayor.\n\nEn dichos supuestos, se comunicará oportunamente a los participantes la solución adoptada.',
+      'Las solicitudes de cancelación deberán comunicarse por escrito a través del correo electrónico indicado por la organización.\n\n**No asistencia y no devolución del importe**\nSi el deportista se inscribe en la FER CUP y finalmente no asiste al evento, o no se presenta en el horario asignado, el importe abonado en concepto de inscripción no será reembolsado en ningún caso. La reserva de plaza implica una preparación, organización y bloqueo de recursos por parte del evento desde el momento de la inscripción.\n\nEl Organizador se reserva el derecho de modificar horarios, categorías, estructura del evento o cualquier aspecto organizativo cuando resulte necesario para el correcto funcionamiento de la competición.\n\nAsimismo, GR Strength podrá cancelar, aplazar o reprogramar el evento por causas organizativas, técnicas, sanitarias o de fuerza mayor.\n\nEn dichos supuestos, se comunicará oportunamente a los participantes la solución adoptada.',
   },
   {
     title: '6. Categorías y pesaje',

@@ -987,7 +987,7 @@ public class InscripcionService
 
         await _context.SaveChangesAsync();
 
-        return new RaffleResultDto(winners, fallbackReason);
+        return new RaffleResultDto(winners, fallbackReason, pool);
     }
 
     /// <summary>
@@ -1360,7 +1360,8 @@ public record RaffleRequest(
 /// </summary>
 public record RaffleResultDto(
     List<Inscripcion> Winners,
-    string? FallbackReason
+    string? FallbackReason,
+    List<Inscripcion> Pool
 );
 
 public record InscripcionStats(

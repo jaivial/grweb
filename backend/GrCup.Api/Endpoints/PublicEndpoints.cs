@@ -214,6 +214,7 @@ public static class PublicEndpoints
             CompeticionService competicionService,
             ScheduleService scheduleService,
             StripeService stripeService,
+            FerConfigSnapshotService ferConfigSnapshotService,
             GrCupDbContext db) =>
         {
             var competicion = await competicionService.GetBySlugAsync(slug);
@@ -221,8 +222,9 @@ public static class PublicEndpoints
                 return Results.NotFound(new { success = false, message = "Competicion no encontrada" });
 
             var config = competicionService.GetEventoConfig(competicion);
-            var plazasDisponibles = await competicionService.GetPlazasDisponiblesAsync(competicion.Id);
-            var stripeDisponible = await stripeService.IsInscriptionStripeAvailableAsync(competicion.Id, config);
+            var configSnapshot = await ferConfigSnapshotService.BuildAsync(competicion);
+            var plazasDisponibles = configSnapshot.PlazasDisponibles;
+            var stripeDisponible = configSnapshot.StripeDisponible;
             
             // Return all standard IPF weight categories (not filtered by schedule availability)
             var categoriasMasculino = new List<string> { "-53", "-59", "-66", "-74", "-83", "-93", "-105", "-120", "+120" };
@@ -247,6 +249,7 @@ public static class PublicEndpoints
                     inscripcionAbierta = config.InscripcionAbierta && plazasDisponibles > 0,
                     categoriasMasculino,
                     categoriasFemenino,
+                    configSnapshot,
                     eventName = competicion.Nombre,
                     eventDate = competicion.Fecha.ToString("yyyy-MM-dd"),
                     eventLocation = competicion.Lugar,

@@ -21,6 +21,7 @@ import type {
   SellTicketRequest,
   LandingConfig,
   EventoConfig,
+  FerConfigSnapshot,
   ScheduleGroupedByDate,
   SchedulePublishedConfig,
   StripeInscripcionCheckoutResponse,
@@ -72,6 +73,7 @@ class ApiClient {
       if (!response.ok && !data.success) {
         return {
           success: false,
+          code: data.code,
           message: data.message || `HTTP ${response.status}`,
         };
       }
@@ -134,8 +136,13 @@ class ApiClient {
     pagoEfectivoActivo: boolean;
     cuponesDescuentoActivo: boolean;
     stripeDisponible: boolean;
+    configSnapshot: FerConfigSnapshot;
   }>> {
     return this.request(`/api/competiciones/${slug}/config`);
+  }
+
+  async getInscripcionConfigSnapshot(slug: string): Promise<ApiResponse<FerConfigSnapshot>> {
+    return this.request(`/api/competiciones/${slug}/inscripcion/config-snapshot`);
   }
 
   async getAdminCompeticiones(): Promise<ApiResponse<Competicion[]>> {

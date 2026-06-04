@@ -28,7 +28,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    allowedHosts: ['backoffice.fercup.com', 'localhost'],
+    allowedHosts: true,
     headers: {
       'Permissions-Policy': 'camera=(self)',
     },
@@ -36,7 +36,7 @@ export default defineConfig({
   },
   preview: {
     port: 5173,
-    allowedHosts: ['backoffice.fercup.com', 'localhost'],
+    allowedHosts: true,
     headers: {
       'Permissions-Policy': 'camera=(self)',
     },
