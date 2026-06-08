@@ -424,17 +424,17 @@ export function Inscripciones(): JSX.Element {
     { key: 'totalWeight', header: 'Marca', render: (a: Athlete) => a.totalWeight ? `${a.totalWeight}` : '-' },
     { key: 'squatOpener', header: 'Squat', render: (a: Athlete) => {
       const opener = a.liftEntries?.find(e => e.liftType === 'Squat' && e.attemptNumber === 1);
-      const canEdit = a.status === 'Paid';
+      const canEdit = competicionId === 2 ? a.pagoConfirmado : a.status === 'Paid';
       return <OpenerCell athleteId={a.id} liftType="Squat" value={opener?.weight ?? null} canEdit={canEdit} onSave={handleSaveOpener} />;
     }},
     { key: 'benchOpener', header: 'Bench', render: (a: Athlete) => {
       const opener = a.liftEntries?.find(e => e.liftType === 'Bench' && e.attemptNumber === 1);
-      const canEdit = a.status === 'Paid';
+      const canEdit = competicionId === 2 ? a.pagoConfirmado : a.status === 'Paid';
       return <OpenerCell athleteId={a.id} liftType="Bench" value={opener?.weight ?? null} canEdit={canEdit} onSave={handleSaveOpener} />;
     }},
     { key: 'deadliftOpener', header: 'DL', render: (a: Athlete) => {
       const opener = a.liftEntries?.find(e => e.liftType === 'Deadlift' && e.attemptNumber === 1);
-      const canEdit = a.status === 'Paid';
+      const canEdit = competicionId === 2 ? a.pagoConfirmado : a.status === 'Paid';
       return <OpenerCell athleteId={a.id} liftType="Deadlift" value={opener?.weight ?? null} canEdit={canEdit} onSave={handleSaveOpener} />;
     }},
     { key: 'registrationDate', header: 'Fecha', render: (a: Athlete) => new Date(a.registrationDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) },

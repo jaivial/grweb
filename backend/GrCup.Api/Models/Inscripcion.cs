@@ -94,7 +94,11 @@ public class Inscripcion
     /// QR code data (base64 or JSON with signature)
     /// </summary>
     public string? QrCode { get; set; }
-    
+
+    /// <summary>
+    /// Persisted Bunny CDN URL for the uploaded QR image
+    /// </summary>
+    public string? QrImageUrl { get; set; }
     /// <summary>
     /// Whether payment has been confirmed
     /// </summary>

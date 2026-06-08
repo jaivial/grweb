@@ -7,7 +7,8 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { Pagination } from '../components/Pagination';
 import { ResponsiveTable } from '../../../../components/ui';
 import { IoMaleSharp, IoFemaleSharp } from "react-icons/io5";
-import { Pencil, Trash2, Check, Download, RefreshCw } from 'lucide-react';
+import { Pencil, Trash2, Check, Download, RefreshCw, Send, Loader2 } from 'lucide-react';
+import { api } from '../../../../utils/api';
 
 // Dynamic import for pdfExport to reduce initial bundle size
 const getExportPdf = () => import('../../../../utils/pdfExport').then(m => m.exportPdf);
@@ -61,6 +62,7 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
   const [inscripcionToDelete, setInscripcionToDelete] = useState<Inscripcion | null>(null);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [resendingId, setResendingId] = useState<number | null>(null);
   const previousFiltersKeyRef = useRef<string | null>(null);
   const activeListRequestKeyRef = useRef<string | null>(null);
 
@@ -169,6 +171,23 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
       setInscripcionToDelete(null);
     }
   }, [inscripcionToDelete, deleteInscripcion]);
+
+  const handleResendConfirmation = useCallback(async (inscripcion: Inscripcion) => {
+    if (resendingId === inscripcion.id) return;
+
+    setResendingId(inscripcion.id);
+    try {
+      const result = await api.resendInscripcionConfirmacion(competicionId, inscripcion.id);
+      if (result && result.success === false) {
+        throw new Error(result.message || 'No se pudo reenviar la confirmación.');
+      }
+      window.alert('Email de confirmación reenviado correctamente.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'No se pudo reenviar la confirmación.');
+    } finally {
+      setResendingId(null);
+    }
+  }, [competicionId, resendingId]);
 
   const handleExportPdf = useCallback(async () => {
     setExportingPdf(true);
@@ -314,9 +333,20 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         >
           <Trash2 className="w-4 h-4" />
         </button>
+        <button
+          onClick={() => handleResendConfirmation(i)}
+          disabled={resendingId === i.id}
+          className={`p-1.5 rounded-lg ${resendingId !== i.id
+            ? 'text-green-400/90 hover:text-green-300 hover:bg-white/10'
+            : 'text-white/30 cursor-not-allowed'} transition-colors`}
+          data-ui="fer-resend-confirmation-action"
+          aria-label="Reenviar confirmación"
+        >
+          {resendingId === i.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </button>
       </div>
     )},
-  ], []);
+  ], [handleResendConfirmation, resendingId]);
 
   return (
     <>

@@ -291,20 +291,7 @@ public class InscripcionService
         _context.Inscripciones.Add(inscripcion);
         await _context.SaveChangesAsync();
 
-        // Generate QR code payload and image
-        var qrPayload = GenerateQrCodePayload(competicionId, inscripcion.Id, competicion.QrSecret);
-        var qrImageResult = await GenerateQrImageAsync(qrPayload, competicionId, inscripcion.Id);
-
-        if (qrImageResult.HasValue)
-        {
-            inscripcion.QrCode = qrImageResult.Value.Url;
-        }
-        else
-        {
-            // Fallback: store the text payload if image generation fails
-            inscripcion.QrCode = qrPayload;
-            System.Console.WriteLine($"[WARN] Failed to generate QR image for inscription {inscripcion.Id}, using fallback");
-        }
+        await EnsureQrCodeAsync(inscripcion, competicion);
         await _context.SaveChangesAsync();
 
         return inscripcion;
@@ -404,7 +391,38 @@ public class InscripcionService
         var qrPayload = GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
         var qrImageResult = await GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
 
-        inscripcion.QrCode = qrImageResult.HasValue ? qrImageResult.Value.Url : qrPayload;
+            inscripcion.QrCode = qrImageResult.HasValue ? qrImageResult.Value.Url : qrPayload;
+            inscripcion.QrImageUrl = qrImageResult.HasValue ? qrImageResult.Value.Url : null;
+    }
+
+    /// <summary>
+    /// Regenerates the QR image, uploads it to BunnyCDN and persists the URL.
+    /// </summary>
+    public async Task<(string Url, byte[] Bytes)> RegenerateAndPersistQrImageAsync(int competicionId, int inscripcionId)
+    {
+        var competicion = await _competicionService.GetByIdAsync(competicionId);
+        if (competicion == null)
+            throw new InvalidOperationException($"Competition {competicionId} not found");
+
+        var inscripcion = await _context.Inscripciones
+            .FirstOrDefaultAsync(i => i.Id == inscripcionId && i.CompeticionId == competicionId);
+        if (inscripcion == null)
+            throw new InvalidOperationException("Inscripción no encontrada");
+
+        var qrPayload = !string.IsNullOrWhiteSpace(inscripcion.QrCode)
+            ? inscripcion.QrCode
+            : GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
+
+        var qrImageResult = await GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id)
+            ?? throw new InvalidOperationException("Failed to generate QR image");
+
+        inscripcion.QrCode = qrPayload;
+        inscripcion.QrImageUrl = qrImageResult.Url;
+        inscripcion.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return qrImageResult;
     }
 
     public async Task<Inscripcion?> AddPeakProgramAsync(int competicionId, int inscripcionId)

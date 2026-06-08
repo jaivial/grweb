@@ -537,6 +537,13 @@ class ApiClient {
     });
   }
 
+  async resendInscripcionConfirmacion(competicionId: number, inscripcionId: number) {
+    return this.request<{ success: boolean; message?: string }>(
+      `/api/admin/competiciones/${competicionId}/inscripciones/${inscripcionId}/reenviar-confirmacion`,
+      { method: 'POST' }
+    );
+  }
+
   async confirmCheckin(athleteId: number) {
     return this.request<any>(`/api/admin/checkin/${athleteId}/confirm`, {
       method: 'POST',

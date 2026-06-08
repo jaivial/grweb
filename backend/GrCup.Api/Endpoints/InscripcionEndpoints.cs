@@ -910,6 +910,59 @@ public static class InscripcionEndpoints
             return Results.Ok(new { success = true, data = inscripcion });
         });
 
+        // POST /api/admin/competiciones/:id/inscripciones/:id/reenviar-confirmacion - Resend FER confirmation email using stored QR
+
+        adminGroup.MapPost("/{id:int}/reenviar-confirmacion", async (
+            int competicionId,
+            int id,
+            InscripcionService inscripcionService,
+            CompeticionService competicionService,
+            EmailService emailService,
+            ILogger<Program> logger) =>
+        {
+            var inscripcion = await inscripcionService.GetByIdAsync(id);
+            if (inscripcion == null || inscripcion.CompeticionId != competicionId)
+                return Results.NotFound(new { success = false, message = "Inscription not found" });
+
+            var competicion = await competicionService.GetByIdAsync(competicionId);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            if (!string.Equals(competicion.Tipo, "fer", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { success = false, message = "Esta acción solo está disponible para FER" });
+
+            try
+            {
+                byte[]? qrCodeImage = null;
+                var qrImageUrl = inscripcion.QrImageUrl;
+
+                if (string.IsNullOrWhiteSpace(qrImageUrl) || !Uri.IsWellFormedUriString(qrImageUrl, UriKind.Absolute))
+                {
+                    var regenerated = await inscripcionService.RegenerateAndPersistQrImageAsync(competicionId, id);
+                    qrCodeImage = regenerated.Bytes;
+                    qrImageUrl = regenerated.Url;
+                    inscripcion = await inscripcionService.GetByIdAsync(id);
+                    if (inscripcion == null)
+                        return Results.NotFound(new { success = false, message = "Inscription not found" });
+                }
+
+                var eventConfig = competicionService.GetEventoConfig(competicion);
+                await emailService.SendFerConfirmationAsync(inscripcion, competicion, eventConfig, qrCodeImage, inscripcion.QrCode, qrImageUrl: qrImageUrl);
+                logger.LogInformation("FER confirmation re-sent for inscription {Id}", id);
+
+                return Results.Ok(new { success = true, message = "Email de confirmación reenviado correctamente." });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to resend FER confirmation for inscription {Id}", id);
+                return Results.BadRequest(new
+                {
+                    success = false,
+                    message = "No se pudo reenviar el email de confirmación. Inténtalo de nuevo."
+                });
+            }
+        });
+
         // PUT /api/admin/competiciones/:id/inscripciones/:id - Update inscription
         adminGroup.MapPut("/{id:int}", async (
             int competicionId,
