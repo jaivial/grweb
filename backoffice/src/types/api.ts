@@ -241,6 +241,7 @@ export interface Inscripcion {
   quiereHandler?: boolean;
   participacionConfirmada?: boolean;
   qrCode?: string;
+  qrImageUrl?: string | null;
   pagoConfirmado: boolean;
   paymentMethod?: string;
   codigoCupon?: string;

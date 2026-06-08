@@ -26,32 +26,34 @@ public class EmailService
         var config = await _configService.GetConfigAsync(competicionId)
             ?? throw new InvalidOperationException("No email config found");
 
-        string host, username, password;
+        string host, username, password, fromAddress;
         int port;
+
+        static string ValidateValue(string? value, string label)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException($"{label} not configured");
+            }
+            return value.Trim();
+        }
 
         if (config.MainProvider == EmailProvider.Gmail)
         {
             host = "smtp.gmail.com";
-            username = config.GmailAddress
-                ?? throw new InvalidOperationException("Gmail address not configured");
-            password = config.GmailAppPassword
-                ?? throw new InvalidOperationException("Gmail app password not configured");
+            username = ValidateValue(config.GmailAddress, "Gmail address");
+            password = ValidateValue(config.GmailAppPassword?.Replace(" ", string.Empty), "Gmail app password");
+            fromAddress = username;
             port = 587;
         }
         else
         {
-            host = config.SmtpHost
-                ?? throw new InvalidOperationException("SMTP host not configured");
-            username = config.SmtpUsername
-                ?? throw new InvalidOperationException("SMTP username not configured");
-            password = config.SmtpPassword
-                ?? throw new InvalidOperationException("SMTP password not configured");
+            host = ValidateValue(config.SmtpHost, "SMTP host");
+            username = ValidateValue(config.SmtpUsername, "SMTP username");
+            password = ValidateValue(config.SmtpPassword, "SMTP password");
+            fromAddress = ValidateValue(config.SmtpEmailAddress ?? username, "SMTP from address");
             port = config.SmtpPort > 0 ? config.SmtpPort : 587;
         }
-
-        var fromAddress = config.MainProvider == EmailProvider.Gmail
-            ? config.GmailAddress!
-            : config.SmtpEmailAddress ?? config.SmtpUsername!;
 
         return new SmtpCredentials(host, port, username, password, fromAddress);
     }
@@ -927,7 +929,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
     /// </summary>
     public async Task SendFerConfirmationAsync(
         Inscripcion inscripcion, Competicion competicion, EventoConfig config,
-        byte[]? qrCodeImage, string? qrCode, string? onlinePaymentUrl = null)
+        byte[]? qrCodeImage, string? qrCode, string? onlinePaymentUrl = null, string? qrImageUrl = null)
     {
         try
         {
@@ -993,6 +995,14 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             var paymentNextStep = isPaid
                 ? "Acude a la mesa de registro el día del evento con el QR (no hace falta pagar nada más)."
                 : "Acude a la mesa de registro el día de la competición con el QR y el pago en efectivo.";
+            var qrImageHtml = !string.IsNullOrWhiteSpace(qrImageUrl)
+                ? $"<img src=\"{WebUtility.HtmlEncode(qrImageUrl)}\" alt=\"Código QR\" width=\"280\" style=\"display:block;width:280px;height:280px;border-radius:8px;\" />"
+                : qrCodeImage != null && qrCodeImage.Length > 0
+                    ? $"<img src=\"cid:qr_{inscripcion.Id}\" alt=\"Código QR\" width=\"280\" style=\"display:block;width:280px;height:280px;border-radius:8px;\" />"
+                    : string.Empty;
+            var qrImageUrlText = !string.IsNullOrWhiteSpace(qrImageUrl)
+                ? $"\nImagen QR: {qrImageUrl}"
+                : string.Empty;
 
             // ── Build HTML body ──
             var html = $@"<!DOCTYPE html>
@@ -1149,7 +1159,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
             </td>
           </tr>
 
-          {(qrCodeImage != null && qrCodeImage.Length > 0 ? $@"
+          {((qrCodeImage != null && qrCodeImage.Length > 0) || !string.IsNullOrWhiteSpace(qrImageUrl) ? $@"
           <tr>
             <td style=""padding:16px 32px;"">
               <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""background:linear-gradient(135deg,#1C2128 0%,#1a1a2e 100%);border-radius:16px;border:2px solid rgba(88,166,255,0.2);"">
@@ -1166,10 +1176,7 @@ Este es un mensaje automático. Contacta con nosotros en Instagram @grstrengthcl
                 <tr>
                   <td align=""center"" style=""padding:16px 20px;"">
                     <div style=""display:inline-block;background-color:#FFFFFF;border-radius:12px;padding:12px;"">
-                      <img src=""cid:qr_{inscripcion.Id}""
-                           alt=""Código QR""
-                           width=""280""
-                           style=""display:block;width:280px;height:280px;border-radius:8px;"" />
+                      {qrImageHtml}
                     </div>
                   </td>
                 </tr>
@@ -1277,7 +1284,7 @@ COMO PAGAR
 
 {(qrCode != null ? $@"CODIGO QR
 Presenta tu código QR en la mesa de registro el día del evento.
-Código: {qrCode}" : "")}
+Código: {qrCode}{qrImageUrlText}" : "")}
 
 DETALLES DEL EVENTO
 Fecha: {competicion.Fecha:dddd, dd 'de' MMMM 'de' yyyy}
