@@ -253,6 +253,9 @@ export interface Inscripcion {
   notas?: string;
   createdAt: string;
   updatedAt: string;
+  emailEnviadoStatus?: 'pending' | 'sent' | 'error';
+  emailEnviadoAt?: string;
+  emailEnviadoError?: string;
 }
 
 export interface CreateInscripcionRequest {
@@ -299,6 +302,18 @@ export interface CuponDescuentoRequest {
   tieneFechaExpiracion: boolean;
   fechaExpiracion?: string | null;
   activo?: boolean;
+}
+
+export interface InscripcionCostoResponse {
+  subtotal: number;
+  minimoTotalCobro: number;
+  moneda: string;
+}
+
+export interface InscripcionCostoResponse {
+  subtotal: number;
+  minimoTotalCobro: number;
+  moneda: string;
 }
 
 export interface InscripcionStats {
@@ -448,4 +463,10 @@ export interface FERInscripcionFormData {
   modalidad: Modalidad;
   experiencia: 'rookie' | 'principiante' | 'intermedio' | 'avanzado';
   aceptaTerminos: boolean;
+}
+
+export interface InscripcionCostoResponse {
+  subtotal: number;
+  minimoTotalCobro: number;
+  moneda: string;
 }

@@ -1311,10 +1311,22 @@ Este es un mensaje automático. Síguenos en Instagram: @grstrengthclub (https:/
 
             message.Body = bodyBuilder.ToMessageBody();
             await SendAsync(message, competicion.Id);
+            
+            // Track email success
+            inscripcion.EmailEnviadoStatus = EmailTrackingService.StatusSent;
+            inscripcion.EmailEnviadoAt = DateTime.UtcNow;
+            inscripcion.EmailEnviadoError = null;
+            await _dbContext.SaveChangesAsync();
+            
             _logger.LogInformation("FER confirmation email sent to {Email} for competicion {CompeticionId} (QR embedded)", inscripcion.Email, competicion.Id);
         }
         catch (Exception ex)
         {
+            // Track email failure
+            inscripcion.EmailEnviadoStatus = EmailTrackingService.StatusError;
+            inscripcion.EmailEnviadoError = ex.Message.Length > 500 ? ex.Message[..500] : ex.Message;
+            try { await _dbContext.SaveChangesAsync(); } catch { /* ignore save errors */ }
+            
             _logger.LogError(ex, "Failed to send FER confirmation email to {Email}", inscripcion.Email);
         }
     }

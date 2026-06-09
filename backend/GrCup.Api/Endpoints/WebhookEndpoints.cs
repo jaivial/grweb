@@ -56,17 +56,17 @@ public static class WebhookEndpoints
 
                             try
                             {
-                                var inscripcion = await inscripcionService.CreateFromStripeMetadataAsync(
+                                var (inscripcion, alreadyPaid) = await inscripcionService.CreateFromStripeMetadataAsync(
                                     deferredCompeticionId, session.Metadata, session.Id);
 
-                                if (inscripcion.PagoConfirmado)
+                                if (alreadyPaid)
                                 {
                                     logger.LogInformation("Deferred FER inscription {InscripcionId} already confirmed, skipping session {SessionId}", inscripcion.Id, session.Id);
                                     return Results.Ok();
                                 }
 
                                 var competicion = await competicionService.GetByIdAsync(deferredCompeticionId);
-                                if (competicion != null && competicion.Tipo == "fer")
+                                if (competicion != null && CompeticionHelper.IsFerCompetition(competicion.Tipo))
                                 {
                                     var eventConfig = competicionService.GetEventoConfig(competicion);
                                     byte[]? qrCodeImage = null;
@@ -116,7 +116,7 @@ public static class WebhookEndpoints
                         var inscripcion2 = await inscripcionService.ConfirmStripePaymentAsync(ferCompeticionId, inscripcionId, session.Id);
                         var competicion2 = await competicionService.GetByIdAsync(ferCompeticionId);
 
-                        if (inscripcion2 != null && competicion2 != null && competicion2.Tipo == "fer")
+                        if (inscripcion2 != null && competicion2 != null && CompeticionHelper.IsFerCompetition(competicion2.Tipo))
                         {
                             var config = competicionService.GetEventoConfig(competicion2);
                             if (string.Equals(previousPaymentMethod, InscripcionService.PaymentMethodEfectivo, StringComparison.OrdinalIgnoreCase))
