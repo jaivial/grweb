@@ -440,27 +440,6 @@ public static class InscripcionEndpoints
                     logger.LogWarning(ex, "Failed to verify FER Stripe session {SessionId} on success page", sessionId);
                 }
             }
-            // Send email if paid (fallback for webhook race condition)
-            else if (inscripcion.PagoConfirmado && CompeticionHelper.IsFerCompetition(competicion.Tipo))
-            {
-                try
-                {
-                    var config = competicionService.GetEventoConfig(competicion);
-                    byte[]? qrCodeImage = null;
-                    var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
-                    var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
-                    if (qrResult.HasValue)
-                        qrCodeImage = qrResult.Value.Bytes;
-
-                    await emailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrCodeImage, inscripcion.QrCode);
-                    await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
-                    logger.LogInformation("Sent confirmation email for inscription {InscripcionId} on success page (webhook missed)", inscripcion.Id);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to send confirmation email for inscription {InscripcionId} on success page", inscripcion.Id);
-                }
-            }
 
             return Results.Ok(new
             {
