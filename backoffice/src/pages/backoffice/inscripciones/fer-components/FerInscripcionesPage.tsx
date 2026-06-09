@@ -298,6 +298,17 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
         {i.pagoConfirmado ? 'Confirmado' : 'Pendiente'}
       </span>
     )},
+    { key: 'emailEnviado', header: 'Email', render: (i: Inscripcion) => (
+      <div className="flex gap-1" data-ui="fer-email-status">
+        <span className={`text-xs px-1.5 py-0.5 rounded ${
+          i.emailEnviadoStatus === 'sent' ? 'bg-green-500/15 text-green-400' :
+          i.emailEnviadoStatus === 'error' ? 'bg-red-500/15 text-red-400' :
+          'bg-yellow-500/15 text-yellow-400'
+        }`} data-ui="fer-email-backend-badge" title={i.emailEnviadoError || ''}>
+          {i.emailEnviadoStatus === 'sent' ? '✓' : i.emailEnviadoStatus === 'error' ? '✗' : '⏳'}
+        </span>
+      </div>
+    )},
     { key: 'paymentMethod', header: 'Método', render: (i: Inscripcion) => (
       <span className={`text-xs px-2 py-1 rounded-xl ${i.paymentMethod === 'stripe' ? 'bg-indigo-500/15 text-indigo-300' : 'bg-amber-500/15 text-amber-300'}`} data-ui="fer-payment-method-badge">
         {FER_PAYMENT_METHOD_LABELS[i.paymentMethod || ''] || i.paymentMethod || '—'}

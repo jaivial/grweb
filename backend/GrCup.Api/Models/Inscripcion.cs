@@ -160,6 +160,23 @@ public class Inscripcion
     /// </summary>
     public string? Notas { get; set; }
     
+    /// <summary>
+    /// Email sending status: pending, sent, error
+    /// </summary>
+    [MaxLength(20)]
+    public string EmailEnviadoStatus { get; set; } = "pending";
+
+    /// <summary>
+    /// When the confirmation email was sent
+    /// </summary>
+    public DateTime? EmailEnviadoAt { get; set; }
+
+    /// <summary>
+    /// Error message if email sending failed
+    /// </summary>
+    [MaxLength(500)]
+    public string? EmailEnviadoError { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
@@ -215,7 +232,7 @@ public class RifaTicket
     /// Whether payment has been confirmed
     /// </summary>
     public bool Confirmado { get; set; } = false;
-    
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     // Navigation properties
@@ -282,7 +299,7 @@ public class RifaConfig
     /// Whether the winner has been confirmed/claimed
     /// </summary>
     public bool? GanadorConfirmado { get; set; }
-    
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     

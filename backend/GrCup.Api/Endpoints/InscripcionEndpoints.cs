@@ -96,7 +96,7 @@ public static class InscripcionEndpoints
                 {
                     try
                     {
-                        if (competicion.Tipo == "fer")
+                        if (CompeticionHelper.IsFerCompetition(competicion.Tipo))
                         {
                             // Create a new scope to avoid ObjectDisposedException
                             using var scope = httpContext.RequestServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
@@ -192,7 +192,7 @@ public static class InscripcionEndpoints
                     if (!inscripcion.PagoConfirmado)
                         inscripcion = await inscripcionService.ConfirmPaymentAsync(inscripcion.Id, InscripcionService.PaymentMethodCupon) ?? inscripcion;
 
-                    if (!alreadyPaid && competicion.Tipo == "fer")
+                    if (!alreadyPaid && CompeticionHelper.IsFerCompetition(competicion.Tipo))
                     {
                         var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
                         var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
@@ -375,9 +375,9 @@ public static class InscripcionEndpoints
                     if (session.Metadata != null && session.Metadata.TryGetValue("type", out var type) && type == "fer_inscripcion_deferred"
                         && string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
                     {
-                        inscripcion = await inscripcionService.CreateFromStripeMetadataAsync(competicion.Id, session.Metadata, sessionId);
+                        (inscripcion, var deferredAlreadyPaid) = await inscripcionService.CreateFromStripeMetadataAsync(competicion.Id, session.Metadata, sessionId);
 
-                        if (competicion.Tipo == "fer")
+                        if (!deferredAlreadyPaid && CompeticionHelper.IsFerCompetition(competicion.Tipo))
                         {
                             var eventConfig = competicionService.GetEventoConfig(competicion);
                             byte[]? qrCodeImage = null;
@@ -412,7 +412,7 @@ public static class InscripcionEndpoints
                         var previousPaymentMethod = inscripcion.PaymentMethod;
                         var confirmedInscripcion = await inscripcionService.ConfirmStripePaymentAsync(competicion.Id, inscripcion.Id, sessionId);
 
-                        if (confirmedInscripcion != null && competicion.Tipo == "fer")
+                        if (confirmedInscripcion != null && CompeticionHelper.IsFerCompetition(competicion.Tipo))
                         {
                             if (string.Equals(previousPaymentMethod, InscripcionService.PaymentMethodEfectivo, StringComparison.OrdinalIgnoreCase))
                             {
@@ -438,6 +438,27 @@ public static class InscripcionEndpoints
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "Failed to verify FER Stripe session {SessionId} on success page", sessionId);
+                }
+            }
+            // Send email if paid (fallback for webhook race condition)
+            else if (inscripcion.PagoConfirmado && CompeticionHelper.IsFerCompetition(competicion.Tipo))
+            {
+                try
+                {
+                    var config = competicionService.GetEventoConfig(competicion);
+                    byte[]? qrCodeImage = null;
+                    var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
+                    var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
+                    if (qrResult.HasValue)
+                        qrCodeImage = qrResult.Value.Bytes;
+
+                    await emailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrCodeImage, inscripcion.QrCode);
+                    await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
+                    logger.LogInformation("Sent confirmation email for inscription {InscripcionId} on success page (webhook missed)", inscripcion.Id);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to send confirmation email for inscription {InscripcionId} on success page", inscripcion.Id);
                 }
             }
 
@@ -734,7 +755,7 @@ public static class InscripcionEndpoints
             {
                 try
                 {
-                    if (competicion.Tipo == "fer")
+                    if (CompeticionHelper.IsFerCompetition(competicion.Tipo))
                     {
                         using var scope = httpContext.RequestServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
                         var scopedEmailService = scope.ServiceProvider.GetRequiredService<EmailService>();

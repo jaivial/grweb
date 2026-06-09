@@ -120,7 +120,7 @@ public class InscripcionService
         return await _cuponDescuentoService.ApplyCouponAsync(competicionId, config, codigo, subtotal, excludeInscripcionId);
     }
 
-    public async Task<Inscripcion> CreateFromStripeMetadataAsync(
+    public async Task<(Inscripcion Inscripcion, bool AlreadyPaid)> CreateFromStripeMetadataAsync(
         int competicionId,
         Dictionary<string, string> metadata,
         string stripeSessionId)
@@ -140,7 +140,7 @@ public class InscripcionService
         if (existing != null)
         {
             if (existing.PagoConfirmado)
-                return existing;
+                return (existing, true);
 
             existing.Nombre = metadata.GetValueOrDefault("nombre", existing.Nombre);
             existing.Instagram = metadata.GetValueOrDefault("instagram", existing.Instagram);
@@ -176,7 +176,7 @@ public class InscripcionService
 
             await EnsureQrCodeAsync(existing, competicion);
             await _context.SaveChangesAsync();
-            return existing;
+            return (existing, false);
         }
 
         decimal.TryParse(metadata.GetValueOrDefault("subtotal", "0"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var st);
@@ -222,7 +222,7 @@ public class InscripcionService
         await EnsureQrCodeAsync(inscripcion, competicion);
         await _context.SaveChangesAsync();
 
-        return inscripcion;
+        return (inscripcion, false);
     }
 
     #region Public Registration
