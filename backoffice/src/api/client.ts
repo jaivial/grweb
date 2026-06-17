@@ -33,6 +33,12 @@ import type {
   UpdateWorkspaceMemberRequest,
   CuponDescuento,
   CuponDescuentoRequest,
+  InscripcionCostoResponse,
+  NewsletterListItem,
+  NewsletterDetail,
+  NewsletterProgress,
+  SaveNewsletterRequest,
+  TestNewsletterRequest,
 } from '../types/api';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -791,6 +797,44 @@ class ApiClient {
   async getFerCompetitionAttempts(slug: string, query?: string): Promise<ApiResponse<any>> {
     const url = `/api/competiciones/${slug}/attempts${query || ''}`;
     return this.request(url);
+  }
+
+  // ─── Newsletter ───
+
+  async getNewsletters(competicionId: number): Promise<ApiResponse<NewsletterListItem[]>> {
+    return this.request<NewsletterListItem[]>(`/api/admin/competiciones/${competicionId}/newsletters`);
+  }
+
+  async getNewsletter(competicionId: number, id: number): Promise<ApiResponse<NewsletterDetail>> {
+    return this.request<NewsletterDetail>(`/api/admin/competiciones/${competicionId}/newsletters/${id}`);
+  }
+
+  async createNewsletter(competicionId: number, data: SaveNewsletterRequest): Promise<ApiResponse<NewsletterDetail>> {
+    return this.request<NewsletterDetail>(`/api/admin/competiciones/${competicionId}/newsletters`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async saveNewsletter(competicionId: number, id: number, data: SaveNewsletterRequest): Promise<ApiResponse<NewsletterDetail>> {
+    return this.request<NewsletterDetail>(`/api/admin/competiciones/${competicionId}/newsletters/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async sendNewsletter(competicionId: number, id: number, data: SaveNewsletterRequest): Promise<ApiResponse<NewsletterProgress>> {
+    return this.request<NewsletterProgress>(`/api/admin/competiciones/${competicionId}/newsletters/${id}/send`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async testNewsletter(competicionId: number, id: number, data: TestNewsletterRequest): Promise<ApiResponse<NewsletterDetail>> {
+    return this.request<NewsletterDetail>(`/api/admin/competiciones/${competicionId}/newsletters/${id}/test`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 
