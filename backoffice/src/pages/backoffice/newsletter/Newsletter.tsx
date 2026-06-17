@@ -44,6 +44,8 @@ export function Newsletter() {
   const [progress, setProgress] = useState<NewsletterProgress | null>(null);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>('editor');
 
@@ -182,6 +184,33 @@ export function Newsletter() {
     }
   }, [competicionId, persist, subject, bodyHtml, loadHistory]);
 
+  const handleTest = useCallback(async () => {
+    if (competicionId == null) return;
+    const email = testEmail.trim();
+    if (!email || !email.includes('@')) {
+      toast.error('Introduce un email válido para la prueba');
+      return;
+    }
+    setTesting(true);
+    // Save (and create if needed) first so the test mirrors the real send.
+    const doc = await persist('save');
+    if (!doc) {
+      setTesting(false);
+      return;
+    }
+    const res = await api.testNewsletter(competicionId, doc.id, {
+      subject: subject.trim() || 'Sin asunto',
+      bodyHtml,
+      email,
+    });
+    setTesting(false);
+    if (res.success) {
+      toast.success(res.message || `Email de prueba enviado a ${email}`);
+    } else {
+      toast.error(res.message || 'No se pudo enviar el email de prueba');
+    }
+  }, [competicionId, testEmail, persist, subject, bodyHtml]);
+
   const handleNew = useCallback(() => {
     setLocation(buildPath('newsletter'));
   }, [buildPath, setLocation]);
@@ -242,6 +271,26 @@ export function Newsletter() {
               disabled={readOnly}
             />
             <div className="newsletter-toolbar__actions" data-ui="newsletter-toolbar-actions">
+              <div className="newsletter-test" data-ui="newsletter-test-group">
+                <input
+                  type="email"
+                  className="newsletter-test__input"
+                  data-ui="newsletter-test-email-input"
+                  placeholder="email@prueba.com"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  disabled={testing || readOnly}
+                />
+                <button
+                  type="button"
+                  className="newsletter-btn newsletter-btn--ghost"
+                  data-ui="newsletter-test-btn"
+                  onClick={handleTest}
+                  disabled={testing || readOnly}
+                >
+                  {testing ? 'Enviando…' : 'Enviar prueba'}
+                </button>
+              </div>
               <button
                 type="button"
                 className="newsletter-btn newsletter-btn--ghost"

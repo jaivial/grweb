@@ -511,3 +511,7 @@ export interface SaveNewsletterRequest {
   subject: string;
   bodyHtml: string;
 }
+
+export interface TestNewsletterRequest extends SaveNewsletterRequest {
+  email: string;
+}

@@ -167,6 +167,30 @@
   display: flex;
   gap: 8px;
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.newsletter-test {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.newsletter-test__input {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  color: #e6edf3;
+  font-size: 14px;
+  padding: 9px 12px;
+  width: 180px;
+  min-width: 0;
+}
+
+.newsletter-test__input:focus {
+  outline: none;
+  border-color: #1f6feb;
 }
 
 .newsletter-btn {
