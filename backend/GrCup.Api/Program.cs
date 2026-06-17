@@ -136,6 +136,8 @@ builder.Services.AddScoped<CuponDescuentoService>();
 builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<SeedService>();
 builder.Services.AddScoped<FerConfigSnapshotService>();
+builder.Services.AddScoped<NewsletterService>();
+builder.Services.AddHostedService<NewsletterSendWorker>();
 
 // ─── Swagger ───
 builder.Services.AddEndpointsApiExplorer();
@@ -179,6 +181,7 @@ app.UseAuthorization();
 
 // ─── Map SignalR Hub ───
 app.MapHub<ParticipantsHub>("/hubs/participants");
+app.MapHub<NewsletterHub>("/hubs/newsletter");
 
 // ─── Healthcheck ───
 app.MapGet("/api/health", () => Results.Ok(new { success = true, status = "healthy" }));
@@ -227,6 +230,7 @@ app.MapRifaEndpoints();
 app.MapTutorialEndpoints();
 app.MapFerLiftEndpoints();
 app.MapCuponDescuentoEndpoints();
+app.MapNewsletterEndpoints();
 
 
 app.Run();

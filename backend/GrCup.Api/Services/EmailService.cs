@@ -81,6 +81,24 @@ public class EmailService
         return $"{baseUrl.TrimEnd('/')}/backoffice/login";
     }
 
+    /// <summary>
+    /// Sends a fully-rendered newsletter email (HTML already wrapped in the email shell)
+    /// to a single recipient, using the SMTP credentials configured for the competition.
+    /// Throws on failure so the caller (batch worker) can record per-recipient errors.
+    /// </summary>
+    public async Task SendNewsletterAsync(int competicionId, string toEmail, string? toName, string fromName, string subject, string htmlBody, string textBody)
+    {
+        var creds = await GetCredentialsAsync(competicionId);
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(fromName, creds.FromAddress));
+        message.To.Add(new MailboxAddress(string.IsNullOrWhiteSpace(toName) ? toEmail : toName, toEmail));
+        message.Subject = subject;
+        message.Body = new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody }.ToMessageBody();
+
+        await SendAsync(message, competicionId);
+    }
+
     public async Task SendInscriptionConfirmationAsync(
         string email, string firstName, string surname, string weightCategory,
         string sex, string? club, string? coach)

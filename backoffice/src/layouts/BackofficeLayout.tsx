@@ -30,6 +30,7 @@ const allNavItems: NavItem[] = [
   { subPath: 'cupones', label: 'Cupones', icon: 'coupon', requiredPermission: 'manage_config', moduleKey: 'cupones' },
   { subPath: 'horarios', label: 'Horarios', icon: 'calendar', requiredPermission: 'view_horarios', moduleKey: 'horarios' },
   { subPath: 'users', label: 'Miembros', icon: 'members', requiredPermission: 'view_users', moduleKey: 'users' },
+  { subPath: 'newsletter', label: 'Newsletter', icon: 'newsletter', requiredPermission: 'manage_newsletter' },
   { subPath: 'configuracion', label: 'Configuracion', icon: 'settings', requiredPermission: 'manage_config', moduleKey: 'configuracion' },
 ];
 
@@ -100,6 +101,12 @@ function NavIcon({ icon }: { icon: string }) {
       return (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="navicon-svg-workspaces">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
+        </svg>
+      );
+    case 'newsletter':
+      return (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-ui="navicon-svg-newsletter">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       );
     default:

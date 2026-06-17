@@ -86,4 +86,34 @@ public class ImageProcessorService
         outputStream.Position = 0;
         return outputStream;
     }
+
+    /// <summary>
+    /// Converts a newsletter content image to WebP at high quality, resizing only
+    /// very large images. Unlike <see cref="ProcessToWebpAsync"/> (tuned for tiny logos),
+    /// this preserves visual fidelity for email body imagery.
+    /// </summary>
+    public async Task<Stream> ProcessContentImageToWebpAsync(Stream inputStream)
+    {
+        inputStream.Position = 0;
+        using var image = await Image.LoadAsync(inputStream);
+
+        if (image.Width > 1200)
+        {
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new Size(1200, 0),
+                Mode = ResizeMode.Max
+            }));
+        }
+
+        var outputStream = new MemoryStream();
+        var encoder = new WebpEncoder
+        {
+            Quality = 82,
+            FileFormat = WebpFileFormatType.Lossy
+        };
+        await image.SaveAsWebpAsync(outputStream, encoder);
+        outputStream.Position = 0;
+        return outputStream;
+    }
 }
