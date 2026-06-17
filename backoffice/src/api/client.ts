@@ -38,6 +38,7 @@ import type {
   NewsletterDetail,
   NewsletterProgress,
   SaveNewsletterRequest,
+  TestNewsletterRequest,
 } from '../types/api';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -824,6 +825,13 @@ class ApiClient {
 
   async sendNewsletter(competicionId: number, id: number, data: SaveNewsletterRequest): Promise<ApiResponse<NewsletterProgress>> {
     return this.request<NewsletterProgress>(`/api/admin/competiciones/${competicionId}/newsletters/${id}/send`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async testNewsletter(competicionId: number, id: number, data: TestNewsletterRequest): Promise<ApiResponse<NewsletterDetail>> {
+    return this.request<NewsletterDetail>(`/api/admin/competiciones/${competicionId}/newsletters/${id}/test`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
