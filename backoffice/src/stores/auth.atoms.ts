@@ -41,7 +41,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'view_dashboard', 'view_inscriptos', 'manage_inscriptos',
     'view_stats', 'export_data', 'manage_config', 'manage_raffle',
     'do_checkin', 'sell_tickets', 'view_horarios', 'manage_horarios',
-    'view_participantes', 'view_qr', 'view_users', 'manage_users',
+    'view_participantes', 'view_qr', 'view_users', 'manage_users', 'manage_newsletter',
     // System permissions
     'system:manage_users', 'system:manage_roles', 'system:config',
   ],
@@ -49,7 +49,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'view_dashboard', 'view_inscriptos', 'manage_inscriptos',
     'view_stats', 'export_data', 'manage_config', 'manage_raffle',
     'do_checkin', 'sell_tickets', 'view_horarios', 'manage_horarios',
-    'view_participantes', 'view_qr', 'view_users', 'manage_users',
+    'view_participantes', 'view_qr', 'view_users', 'manage_users', 'manage_newsletter',
   ],
   staff: [
     'view_dashboard', 'view_inscriptos', 'manage_inscriptos',

@@ -470,3 +470,44 @@ export interface InscripcionCostoResponse {
   minimoTotalCobro: number;
   moneda: string;
 }
+
+// ─── Newsletter ───
+
+export type NewsletterStatus = 'draft' | 'sending' | 'sent' | 'failed';
+export type NewsletterSendStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+
+export interface NewsletterProgress {
+  newsletterEmailId: number;
+  competicionId: number;
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  batchSize: number;
+  intervalMinutes: number;
+  status: NewsletterSendStatus;
+  nextBatchAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  lastError: string | null;
+}
+
+export interface NewsletterListItem {
+  id: number;
+  competicionId: number;
+  subject: string;
+  status: NewsletterStatus;
+  createdByEmail: string | null;
+  createdAt: string;
+  updatedAt: string;
+  sentAt: string | null;
+  progress: NewsletterProgress | null;
+}
+
+export interface NewsletterDetail extends NewsletterListItem {
+  bodyHtml: string;
+}
+
+export interface SaveNewsletterRequest {
+  subject: string;
+  bodyHtml: string;
+}

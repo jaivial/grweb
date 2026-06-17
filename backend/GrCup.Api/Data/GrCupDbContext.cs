@@ -44,6 +44,11 @@ public class GrCupDbContext : DbContext
     // Tutorial interactions (likes & comments)
     public DbSet<TutorialInteraction> TutorialInteractions => Set<TutorialInteraction>();
 
+    // Newsletter system
+    public DbSet<NewsletterEmail> NewsletterEmails => Set<NewsletterEmail>();
+    public DbSet<NewsletterEmailMedia> NewsletterEmailMedia => Set<NewsletterEmailMedia>();
+    public DbSet<NewsletterSendProgress> NewsletterSendProgress => Set<NewsletterSendProgress>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Legacy models
@@ -251,6 +256,40 @@ public class GrCupDbContext : DbContext
             entity.HasIndex(e => new { e.VideoId, e.Tipo });
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+        });
+
+        // Newsletter system
+        modelBuilder.Entity<NewsletterEmail>(entity =>
+        {
+            entity.HasIndex(e => e.CompeticionId);
+            entity.HasIndex(e => new { e.CompeticionId, e.Status });
+            entity.HasOne(e => e.Competicion)
+                .WithMany()
+                .HasForeignKey(e => e.CompeticionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NewsletterEmailMedia>(entity =>
+        {
+            entity.HasIndex(e => e.NewsletterEmailId);
+            entity.HasOne(e => e.NewsletterEmail)
+                .WithMany(n => n.Media)
+                .HasForeignKey(e => e.NewsletterEmailId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NewsletterSendProgress>(entity =>
+        {
+            entity.HasIndex(e => e.NewsletterEmailId).IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasOne(e => e.NewsletterEmail)
+                .WithOne(n => n.SendProgress)
+                .HasForeignKey<NewsletterSendProgress>(e => e.NewsletterEmailId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Competicion)
+                .WithMany()
+                .HasForeignKey(e => e.CompeticionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
