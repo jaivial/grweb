@@ -7,7 +7,7 @@ import { AthleteForm } from '../components/AthleteForm';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { Pagination } from '../components/Pagination';
 import { ATHLETE_STATUS_LABELS, ATHLETE_STATUS_COLORS, type Athlete } from '../../../../types/athlete';
-import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../../constants/categories';
+import { WOMEN_CATEGORIES, MEN_CATEGORIES, ALL_CATEGORIES } from '../../../../constants/categories';
 import { api } from '../../../../utils/api';
 import { IoMaleSharp, IoFemaleSharp } from "react-icons/io5";
 import { Lock, Unlock, Pencil, Trash2, Check } from 'lucide-react';
@@ -157,15 +157,18 @@ export function GrCupInscripcionesPage(): JSX.Element {
   const clubFilter = useAtomValue(athletesClubFilterAtom);
 
   useEffect(() => {
-    if (activeTab === 'todas') {
-      fetchAthletes(1, {
-        search: searchQuery || undefined,
-        sex: sexFilter || undefined,
-        weightCategory: weightCategoryFilter || undefined,
-        status: statusFilter || undefined,
-        club: clubFilter || undefined,
-      });
+    if (activeTab !== 'todas') return;
+    if (currentPage !== 1) {
+      goToPage(1);
+      return;
     }
+    fetchAthletes(1, {
+      search: searchQuery || undefined,
+      sex: sexFilter || undefined,
+      weightCategory: weightCategoryFilter || undefined,
+      status: statusFilter || undefined,
+      club: clubFilter || undefined,
+    });
   }, [searchQuery, sexFilter, weightCategoryFilter, statusFilter, clubFilter]);
 
   const handleTogglePreparadas = useCallback(async () => {
@@ -652,7 +655,7 @@ function FiltersAccordion({ clubs }: { clubs: string[] }) {
     } else if (sex === 'Male') {
       return MEN_CATEGORIES.map(c => ({ value: c, label: `${c} kg` }));
     }
-    return [];
+    return ALL_CATEGORIES.map(c => ({ value: c, label: `${c} kg` }));
   }, [sex]);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -724,7 +727,6 @@ function FiltersAccordion({ clubs }: { clubs: string[] }) {
           onChange={handleWeightCategoryChange}
           placeholder="Todas"
           allowClear
-          disabled={!sex}
         />
 
         <CustomSelector

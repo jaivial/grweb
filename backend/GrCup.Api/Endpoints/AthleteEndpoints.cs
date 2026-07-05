@@ -134,6 +134,55 @@ public static class AthleteEndpoints
             return Results.Ok(clubs);
         });
 
+        // GET /api/admin/athletes/export - Export all athletes with filters and ordering
+        app.MapGet("/api/admin/athletes/export", [Authorize] async (
+            AthleteService athleteService,
+            [FromQuery] string? search = null,
+            [FromQuery] Sex? sex = null,
+            [FromQuery] string? weightCategory = null,
+            [FromQuery] AthleteStatus? status = null,
+            [FromQuery] string? club = null,
+            [FromQuery] string? orderBy = null,
+            [FromQuery] string? orderDirection = null) =>
+        {
+            var athletes = await athleteService.ExportAllAsync(
+                search, sex, weightCategory, status, club, orderBy, orderDirection);
+
+            return Results.Ok(new
+            {
+                athletes = athletes.Select(a => new
+                {
+                    a.Id,
+                    a.FirstName,
+                    a.Surname,
+                    a.Email,
+                    a.Phone,
+                    Sex = a.Sex.ToString(),
+                    a.WeightCategory,
+                    a.Club,
+                    a.TotalWeight,
+                    a.RegistrationDate,
+                    a.Coach,
+                    Status = a.Status.ToString(),
+                    a.QrCode,
+                    a.CheckinAt,
+                    a.CreatedAt,
+                    a.UpdatedAt,
+                    LiftEntries = a.LiftEntries.Select(e => new
+                    {
+                        e.Id,
+                        e.AthleteId,
+                        e.LiftType,
+                        e.AttemptNumber,
+                        e.Weight,
+                        e.UpdatedBy,
+                        e.CreatedAt,
+                        e.UpdatedAt
+                    })
+                })
+            });
+        });
+
         // POST /api/admin/competiciones/{competicionId}/athletes/raffle
         // Pick N random winners from the Athlete pool for a competition.
         // Mirrors the Inscripcion raffle but operates on the legacy Athlete model.

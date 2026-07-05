@@ -50,6 +50,25 @@
   background: #1c2128;
 }
 
+.newsletter-history__collapse,
+.newsletter-history__expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b949e;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.newsletter-history__collapse:hover,
+.newsletter-history__expand:hover {
+  color: #e6edf3;
+  background: #1c2128;
+}
+
 .newsletter-history__list {
   list-style: none;
   margin: 0;
@@ -71,7 +90,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 10px 40px 10px 12px;
   margin-bottom: 4px;
   cursor: pointer;
   display: flex;
@@ -86,6 +105,38 @@
 .newsletter-history__item.is-active {
   background: #1c2128;
   border-color: #1f6feb;
+}
+
+.newsletter-history__row {
+  position: relative;
+}
+
+.newsletter-history__delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8b949e;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.newsletter-history__row:hover .newsletter-history__delete,
+.newsletter-history__delete:focus-visible {
+  opacity: 1;
+}
+
+.newsletter-history__delete:hover {
+  background: #2d1418;
+  color: #f85149;
 }
 
 .newsletter-history__subject {
@@ -227,6 +278,83 @@
   background: #388bfd;
 }
 
+.newsletter-btn--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─── Test email modal ─── */
+.newsletter-modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(1, 4, 9, 0.7);
+  padding: 16px;
+}
+
+.newsletter-modal {
+  width: 100%;
+  max-width: 420px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.newsletter-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.newsletter-modal__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e6edf3;
+  margin: 0;
+}
+
+.newsletter-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b949e;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.newsletter-modal__close:hover {
+  color: #e6edf3;
+  background: #1c2128;
+}
+
+.newsletter-modal__hint {
+  font-size: 13px;
+  color: #8b949e;
+  margin: 0 0 14px;
+}
+
+.newsletter-modal .newsletter-test__input {
+  width: 100%;
+  display: block;
+}
+
+.newsletter-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
 /* ─── Send progress ─── */
 .newsletter-progress {
   padding: 10px 16px;
@@ -320,6 +448,13 @@
 .newsletter-pane--editor {
   border-right: 1px solid #30363d;
   padding: 12px;
+}
+
+/* The editor is the single flex child of the pane; make it fill the pane's
+   width instead of shrinking to content. */
+.newsletter-pane--editor > .newsletter-gutenberg {
+  flex: 1 1 auto;
+  width: 100%;
 }
 
 .newsletter-pane--preview {

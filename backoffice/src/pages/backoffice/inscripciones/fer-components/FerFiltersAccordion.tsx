@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAtom } from 'jotai';
 import type { JSX } from 'react';
 import { Accordion, CustomSelector, Button } from '../../../../components/ui';
@@ -47,15 +47,30 @@ const FER_SEXO_OPTIONS = [
   { value: 'femenino', label: 'Femenino' },
 ];
 
+const FER_CATEGORIA_PESO_OPTIONS_MEN = [
+  { value: '-59', label: '-59 kg' },
+  { value: '-66', label: '-66 kg' },
+  { value: '-74', label: '-74 kg' },
+  { value: '-83', label: '-83 kg' },
+  { value: '-93', label: '-93 kg' },
+  { value: '-105', label: '-105 kg' },
+  { value: '-120', label: '-120 kg' },
+  { value: '+120', label: '+120 kg' },
+];
+
+const FER_CATEGORIA_PESO_OPTIONS_WOMEN = [
+  { value: '-47', label: '-47 kg' },
+  { value: '-57', label: '-57 kg' },
+  { value: '-63', label: '-63 kg' },
+  { value: '-69', label: '-69 kg' },
+  { value: '-76', label: '-76 kg' },
+  { value: '-84', label: '-84 kg' },
+  { value: '+84', label: '+84 kg' },
+];
+
 const FER_CATEGORIA_PESO_OPTIONS = [
-  { value: '-59kg', label: '-59kg' },
-  { value: '-66kg', label: '-66kg' },
-  { value: '-74kg', label: '-74kg' },
-  { value: '-83kg', label: '-83kg' },
-  { value: '-93kg', label: '-93kg' },
-  { value: '-105kg', label: '-105kg' },
-  { value: '-120kg', label: '-120kg' },
-  { value: '+120kg', label: '+120kg' },
+  ...FER_CATEGORIA_PESO_OPTIONS_WOMEN,
+  ...FER_CATEGORIA_PESO_OPTIONS_MEN,
 ];
 
 const FER_BOOL_TRUE_FALSE_OPTIONS = [
@@ -99,6 +114,12 @@ export function FerFiltersAccordion(): JSX.Element {
   const [, setHasCouponFilter] = useAtom(ferInscripcionesHasCouponFilterAtom);
   const [, setPage] = useAtom(ferInscripcionesPageAtom);
   const [, clearFilters] = useAtom(ferClearInscripcionesFiltersAtom);
+
+  const categoriaPesoOptions = useMemo(() => {
+    if (sexo === 'femenino') return FER_CATEGORIA_PESO_OPTIONS_WOMEN;
+    if (sexo === 'masculino') return FER_CATEGORIA_PESO_OPTIONS_MEN;
+    return FER_CATEGORIA_PESO_OPTIONS;
+  }, [sexo]);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
@@ -244,7 +265,7 @@ export function FerFiltersAccordion(): JSX.Element {
 
         <CustomSelector
           label="Categoría de peso"
-          options={FER_CATEGORIA_PESO_OPTIONS}
+          options={categoriaPesoOptions}
           value={categoriaPeso}
           onChange={handleCategoriaPesoChange}
           placeholder="Todas"

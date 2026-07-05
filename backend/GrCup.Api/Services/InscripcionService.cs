@@ -1029,6 +1029,59 @@ public class InscripcionService
         return csv.ToString();
     }
 
+    public async Task<List<Inscripcion>> ExportToJsonAsync(
+        int competicionId,
+        string? search = null,
+        bool? pagoConfirmado = null,
+        string? experiencia = null,
+        string? modalidad = null,
+        string? paymentMethod = null,
+        string? sexo = null,
+        string? categoriaPeso = null,
+        bool? quiereHandler = null,
+        bool? quierePeakProgram = null,
+        bool? participacionConfirmada = null,
+        bool? hasCoupon = null,
+        string? orderBy = null,
+        string? orderDirection = null)
+    {
+        var query = BuildInscripcionQuery(
+            competicionId, search, pagoConfirmado, experiencia, modalidad, paymentMethod,
+            sexo, categoriaPeso, quiereHandler, quierePeakProgram, participacionConfirmada, hasCoupon);
+
+        // Apply sorting
+        query = (orderBy?.ToLower()) switch
+        {
+            "nombre" or "name" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.Nombre)
+                : query.OrderBy(i => i.Nombre),
+            "email" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.Email)
+                : query.OrderBy(i => i.Email),
+            "sexo" or "sex" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.Sexo)
+                : query.OrderBy(i => i.Sexo),
+            "categoria" or "categoriapeso" or "weightcategory" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.CategoriaPeso)
+                : query.OrderBy(i => i.CategoriaPeso),
+            "modalidad" or "modality" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.Modalidad)
+                : query.OrderBy(i => i.Modalidad),
+            "experiencia" or "experience" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.Experiencia)
+                : query.OrderBy(i => i.Experiencia),
+            "total" or "totalpagado" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.TotalPagado)
+                : query.OrderBy(i => i.TotalPagado),
+            "fecha" or "date" or "createdat" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(i => i.CreatedAt)
+                : query.OrderBy(i => i.CreatedAt),
+            _ => query.OrderByDescending(i => i.CreatedAt)
+        };
+
+        return await query.ToListAsync();
+    }
+
     #endregion
 
     #region QR Code Generation

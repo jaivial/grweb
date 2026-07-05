@@ -52,8 +52,6 @@ class ApiClient {
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
-
-
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -61,8 +59,6 @@ class ApiClient {
 
     return headers;
   }
-
-
   private buildGetRequestKey(endpoint: string, options: RequestInit): string {
     const headers = new Headers(this.getHeaders());
     new Headers(options.headers).forEach((value, key) => {
@@ -281,7 +277,6 @@ class ApiClient {
     });
   }
 
-
   async updateCupon(competicionId: number, cuponId: number, data: CuponDescuentoRequest): Promise<ApiResponse<CuponDescuento>> {
     return this.request<CuponDescuento>(`/api/admin/competiciones/${competicionId}/cupones/${cuponId}`, {
       method: 'PUT',
@@ -295,6 +290,11 @@ class ApiClient {
       method: 'PATCH',
       body: JSON.stringify({ activo }),
     });
+  }
+
+
+  async getInscripcionCosto(competicionId: number): Promise<ApiResponse<InscripcionCostoResponse>> {
+    return this.request<InscripcionCostoResponse>(`/api/admin/competiciones/${competicionId}/cupones/inscripcion-costo`);
   }
 
 
@@ -835,6 +835,37 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async deleteNewsletter(competicionId: number, id: number): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/admin/competiciones/${competicionId}/newsletters/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Upload an image to BunnyCDN via the backend. Multipart form-data; the
+   * browser sets the Content-Type/boundary, so we bypass the JSON helper.
+   * Returns the public CDN URL on success.
+   */
+  async uploadImage(file: File): Promise<ApiResponse<{ imageUrl: string; fileSize: number }>> {
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const response = await fetch(`${this.baseUrl}/api/admin/upload-image`, {
+        method: 'POST',
+        body: form,
+        credentials: 'include',
+      });
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!response.ok && !data.success) {
+        return { success: false, message: data.message || `HTTP ${response.status}` };
+      }
+      return data;
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : 'Network error' };
+    }
   }
 }
 

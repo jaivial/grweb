@@ -12,6 +12,7 @@ import { Pagination } from './components/Pagination';
 import { InscripcionesFiltersAccordion } from './components/InscripcionesFiltersAccordion';
 import { InscripcionesQrModal } from './components/InscripcionesQrModal';
 import { InscripcionesControls } from './components/InscripcionesControls';
+import { ExportInscripcionesModal } from './components/ExportInscripcionesModal';
 import { useInscripcionesSettings } from './hooks/useInscripcionesSettings';
 import { ATHLETE_STATUS_LABELS, ATHLETE_STATUS_COLORS, type Athlete } from '../../../types/athlete';
 import { api } from '../../../utils/api';
@@ -140,8 +141,8 @@ export function Inscripciones(): JSX.Element {
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [qrModal, setQrModal] = useState<{ id: number; code: string; name: string } | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
-  const [qrCopied, setQrCopied] = useState(false);
-  const [exportingPdf, setExportingPdf] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const {
     athletes,
@@ -228,15 +229,18 @@ export function Inscripciones(): JSX.Element {
   const clubFilter = useAtomValue(athletesClubFilterAtom);
 
   useEffect(() => {
-    if (activeTab === 'todas') {
-      fetchAthletes(1, {
-        search: searchQuery || undefined,
-        sex: sexFilter || undefined,
-        weightCategory: weightCategoryFilter || undefined,
-        status: statusFilter || undefined,
-        club: clubFilter || undefined,
-      });
+    if (activeTab !== 'todas') return;
+    if (currentPage !== 1) {
+      goToPage(1);
+      return;
     }
+    fetchAthletes(1, {
+      search: searchQuery || undefined,
+      sex: sexFilter || undefined,
+      weightCategory: weightCategoryFilter || undefined,
+      status: statusFilter || undefined,
+      club: clubFilter || undefined,
+    });
   }, [searchQuery, sexFilter, weightCategoryFilter, statusFilter, clubFilter]);
 
   const handleTogglePreparadas = useCallback(async () => {
@@ -354,42 +358,86 @@ export function Inscripciones(): JSX.Element {
     }
   }, [qrModal]);
 
-  const handleExportPdf = useCallback(async () => {
-    setExportingPdf(true);
+  const handleExport = useCallback(async (params: {
+    format: 'pdf' | 'csv';
+    search?: string;
+    sex?: string;
+    weightCategory?: string;
+    status?: string;
+    club?: string;
+    orderBy: string;
+    orderDirection: 'asc' | 'desc';
+    selectedColumns: string[];
+    orientation: 'portrait' | 'landscape';
+  }) => {
+    setExporting(true);
+    setShowExportModal(false);
     try {
-      const columns = [
-        { header: 'Nombre', dataKey: 'name' },
-        { header: 'Email', dataKey: 'email' },
-        { header: 'Teléfono', dataKey: 'phone' },
-        { header: 'Sexo', dataKey: 'sex' },
-        { header: 'Categoría', dataKey: 'category' },
-        { header: 'Club', dataKey: 'club' },
-        { header: 'Marca', dataKey: 'weight' },
-        { header: 'Fecha', dataKey: 'date' },
-        { header: 'Estado', dataKey: 'status' },
-      ];
-      const rows = athletes.map(a => ({
+      const data = await api.exportAthletes({
+        search: params.search,
+        sex: params.sex,
+        weightCategory: params.weightCategory,
+        status: params.status,
+        club: params.club,
+        orderBy: params.orderBy,
+        orderDirection: params.orderDirection,
+      });
+
+      const allRows = data.athletes.map((a: Record<string, unknown>) => ({
         name: `${a.firstName} ${a.surname}`,
         email: a.email,
         phone: a.phone || '-',
         sex: a.sex,
         category: `${a.weightCategory} KG`,
         club: a.club || '-',
-        weight: a.totalWeight ? `${a.totalWeight} Kg` : '-',
+        weight: a.totalWeight ? `${a.totalWeight}` : '-',
         date: a.registrationDate,
-        status: ATHLETE_STATUS_LABELS[a.status],
+        status: ATHLETE_STATUS_LABELS[(a.status as keyof typeof ATHLETE_STATUS_LABELS)],
       }));
-      const exportPdf = await getExportPdf();
-      exportPdf({
-        title: 'Inscripciones',
-        columns,
-        rows,
-        filename: 'inscripciones',
-      });
+
+      const colMap: Record<string, { header: string; dataKey: string }> = {
+        name: { header: 'Nombre', dataKey: 'name' },
+        email: { header: 'Email', dataKey: 'email' },
+        phone: { header: 'Teléfono', dataKey: 'phone' },
+        sex: { header: 'Sexo', dataKey: 'sex' },
+        category: { header: 'Categoría', dataKey: 'category' },
+        club: { header: 'Club', dataKey: 'club' },
+        weight: { header: 'Marca', dataKey: 'weight' },
+        date: { header: 'Fecha', dataKey: 'date' },
+        status: { header: 'Estado', dataKey: 'status' },
+      };
+
+      const selectedCols = params.selectedColumns.filter(c => colMap[c]).map(c => colMap[c]);
+      if (selectedCols.length === 0) return;
+
+      if (params.format === 'csv') {
+        const csvHeaders = selectedCols.map(c => c.header).join(';');
+        const csvContent = [csvHeaders].concat(
+          allRows.map((r: Record<string, unknown>) =>
+            selectedCols.map(c => String(r[c.dataKey] ?? '')).join(';')
+          )
+        ).join('\n');
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `inscripciones-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const exportPdf = await getExportPdf();
+        exportPdf({
+          title: 'Inscripciones',
+          columns: selectedCols,
+          rows: allRows,
+          filename: 'inscripciones',
+          orientation: params.orientation,
+        });
+      }
     } finally {
-      setExportingPdf(false);
+      setExporting(false);
     }
-  }, [athletes]);
+  }, []);
 
   const handleSaveOpener = useCallback(async (athleteId: number, liftType: 'Squat' | 'Bench' | 'Deadlift', weight: number) => {
     await api.updateAttempt(athleteId, liftType, 1, weight);
@@ -646,16 +694,15 @@ export function Inscripciones(): JSX.Element {
             </div>
 
             {/* Table */}
-            <div className="flex justify-start mb-3">
+            <div className="flex justify-start mb-3 gap-3">
               <button
-                onClick={handleExportPdf}
-                disabled={exportingPdf}
-                className={`inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150 ${exportingPdf ? 'opacity-50 cursor-not-allowed' : ''}`}
-                data-ui="export-pdf-btn"
+                onClick={() => setShowExportModal(true)}
+                className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
+                data-ui="export-btn"
                 type="button"
               >
                 <Download className="w-4 h-4" />
-                {exportingPdf ? 'Exportando...' : 'Exportar PDF'}
+                Exportar
               </button>
             </div>
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl min-w-0 mb-48" data-ui="table-container">
@@ -755,6 +802,15 @@ export function Inscripciones(): JSX.Element {
           </div>
         </div>
       )}
+
+      {/* Export Modal */}
+      <ExportInscripcionesModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        clubs={clubs}
+        onExport={handleExport}
+        isExporting={exporting}
+      />
     </BackofficeLayout>
       )}
     </>

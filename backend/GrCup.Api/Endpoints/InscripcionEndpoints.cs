@@ -104,22 +104,30 @@ public static class InscripcionEndpoints
                             var scopedCompeticionService = scope.ServiceProvider.GetRequiredService<CompeticionService>();
                             var scopedInscripcionService = scope.ServiceProvider.GetRequiredService<InscripcionService>();
 
+                            // Re-fetch the inscription through the scoped DbContext so email-status
+                            // updates (EmailEnviadoStatus/EmailEnviadoAt) are tracked and persisted.
+                            // The original `inscripcion` belongs to the request scope's DbContext and
+                            // is not tracked here, so saves against it would be silent no-ops.
+                            var trackedInscripcion = await scopedInscripcionService.GetByIdAsync(inscripcion.Id) ?? inscripcion;
+
                             var config = scopedCompeticionService.GetEventoConfig(competicion);
 
                             // Generate QR code bytes for inline embedding in email
                             byte[]? qrCodeImage = null;
-                            var qrPayload = scopedInscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
-                            var qrResult = await scopedInscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
+                            string? qrImageUrl = trackedInscripcion.QrImageUrl;
+                            var qrPayload = scopedInscripcionService.GenerateQrCodePayload(competicion.Id, trackedInscripcion.Id, competicion.QrSecret);
+                            var qrResult = await scopedInscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, trackedInscripcion.Id);
                             if (qrResult.HasValue)
                             {
                                 qrCodeImage = qrResult.Value.Bytes;
+                                qrImageUrl = qrResult.Value.Url;
                             }
 
-                            await scopedEmailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrCodeImage, inscripcion.QrCode, onlinePaymentUrl);
-                            await scopedEmailService.SendFerAdminNotificationAsync(inscripcion, competicion);
+                            await scopedEmailService.SendFerConfirmationAsync(trackedInscripcion, competicion, config, qrCodeImage, trackedInscripcion.QrCode, onlinePaymentUrl, qrImageUrl);
+                            await scopedEmailService.SendFerAdminNotificationAsync(trackedInscripcion, competicion);
 
                             logger.LogInformation("FER email sent for inscription {Id}. QR embedded: {HasQr}",
-                                inscripcion.Id, qrCodeImage != null);
+                                trackedInscripcion.Id, qrCodeImage != null);
                         }
                     }
                     catch (Exception ex)
@@ -137,6 +145,7 @@ public static class InscripcionEndpoints
                         inscripcion.Nombre,
                         inscripcion.Email,
                         inscripcion.QrCode,
+                        inscripcion.QrImageUrl,
                         inscripcion.TotalPagado,
                         inscripcion.SubtotalAntesDescuento,
                         inscripcion.ImporteDescuento,
@@ -196,7 +205,8 @@ public static class InscripcionEndpoints
                     {
                         var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
                         var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
-                        await emailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrResult?.Bytes, inscripcion.QrCode);
+                        var qrImageUrl = qrResult?.Url ?? inscripcion.QrImageUrl;
+                        await emailService.SendFerConfirmationAsync(inscripcion, competicion, config, qrResult?.Bytes, inscripcion.QrCode, qrImageUrl: qrImageUrl);
                         await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
                     }
 
@@ -210,6 +220,7 @@ public static class InscripcionEndpoints
                             inscripcion.Nombre,
                             inscripcion.Email,
                             inscripcion.QrCode,
+                            inscripcion.QrImageUrl,
                             inscripcion.TotalPagado,
                             inscripcion.CodigoCupon,
                             inscripcion.ImporteDescuento,
@@ -381,12 +392,16 @@ public static class InscripcionEndpoints
                         {
                             var eventConfig = competicionService.GetEventoConfig(competicion);
                             byte[]? qrCodeImage = null;
+                            string? qrImageUrl = inscripcion.QrImageUrl;
                             var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
                             var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
                             if (qrResult.HasValue)
+                            {
                                 qrCodeImage = qrResult.Value.Bytes;
+                                qrImageUrl = qrResult.Value.Url;
+                            }
 
-                            await emailService.SendFerConfirmationAsync(inscripcion, competicion, eventConfig, qrCodeImage, inscripcion.QrCode);
+                            await emailService.SendFerConfirmationAsync(inscripcion, competicion, eventConfig, qrCodeImage, inscripcion.QrCode, qrImageUrl: qrImageUrl);
                             await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
                         }
 
@@ -422,12 +437,16 @@ public static class InscripcionEndpoints
                             {
                                 var config = competicionService.GetEventoConfig(competicion);
                                 byte[]? qrCodeImage = null;
+                                string? qrImageUrl = confirmedInscripcion.QrImageUrl;
                                 var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, confirmedInscripcion.Id, competicion.QrSecret);
                                 var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, confirmedInscripcion.Id);
                                 if (qrResult.HasValue)
+                                {
                                     qrCodeImage = qrResult.Value.Bytes;
+                                    qrImageUrl = qrResult.Value.Url;
+                                }
 
-                                await emailService.SendFerConfirmationAsync(confirmedInscripcion, competicion, config, qrCodeImage, confirmedInscripcion.QrCode);
+                                await emailService.SendFerConfirmationAsync(confirmedInscripcion, competicion, config, qrCodeImage, confirmedInscripcion.QrCode, qrImageUrl: qrImageUrl);
                                 await emailService.SendFerAdminNotificationAsync(confirmedInscripcion, competicion);
                             }
 
@@ -451,6 +470,7 @@ public static class InscripcionEndpoints
                     inscripcion.Nombre,
                     inscripcion.Email,
                     inscripcion.QrCode,
+                    inscripcion.QrImageUrl,
                     inscripcion.TotalPagado,
                     inscripcion.SubtotalAntesDescuento,
                     inscripcion.ImporteDescuento,
@@ -490,6 +510,7 @@ public static class InscripcionEndpoints
                         inscripcion.Nombre,
                         inscripcion.Email,
                         inscripcion.QrCode,
+                        inscripcion.QrImageUrl,
                         inscripcion.TotalPagado,
                         inscripcion.QuierePeakProgram,
                         mensaje = "GRS Peak Program añadido correctamente."
@@ -839,6 +860,58 @@ public static class InscripcionEndpoints
             var csv = await service.ExportToCsvAsync(competicionId);
             var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
             return Results.File(bytes, "text/csv", $"inscripciones-{competicionId}-{DateTime.UtcNow:yyyyMMdd}.csv");
+        });
+
+        // GET /api/admin/competiciones/:id/inscripciones/export-json - Export JSON with filters and ordering
+        adminGroup.MapGet("/export-json", async (
+            int competicionId,
+            InscripcionService service,
+            [FromQuery] string? search = null,
+            [FromQuery] bool? pagoConfirmado = null,
+            [FromQuery] string? experiencia = null,
+            [FromQuery] string? modalidad = null,
+            [FromQuery] string? paymentMethod = null,
+            [FromQuery] string? sexo = null,
+            [FromQuery] string? categoriaPeso = null,
+            [FromQuery] bool? quiereHandler = null,
+            [FromQuery] bool? quierePeakProgram = null,
+            [FromQuery] bool? participacionConfirmada = null,
+            [FromQuery] bool? hasCoupon = null,
+            [FromQuery] string? orderBy = null,
+            [FromQuery] string? orderDirection = null) =>
+        {
+            var inscripciones = await service.ExportToJsonAsync(
+                competicionId, search, pagoConfirmado, experiencia, modalidad, paymentMethod,
+                sexo, categoriaPeso, quiereHandler, quierePeakProgram, participacionConfirmada, hasCoupon,
+                orderBy, orderDirection);
+
+            return Results.Ok(new
+            {
+                success = true,
+                data = inscripciones.Select(i => new
+                {
+                    i.Id,
+                    i.Nombre,
+                    i.Email,
+                    i.Instagram,
+                    i.Telefono,
+                    i.Sexo,
+                    i.CategoriaPeso,
+                    i.Modalidad,
+                    i.Experiencia,
+                    i.QuiereHandler,
+                    i.QuierePeakProgram,
+                    i.PagoConfirmado,
+                    i.PaymentMethod,
+                    i.CodigoCupon,
+                    i.ImporteDescuento,
+                    i.SubtotalAntesDescuento,
+                    i.TotalPagado,
+                    i.ParticipacionConfirmada,
+                    i.CheckinAt,
+                    i.CreatedAt
+                })
+            });
         });
 
         // GET /api/admin/competiciones/:id/inscripciones/stats - Get statistics

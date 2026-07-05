@@ -173,8 +173,8 @@ public class CuponDescuentoService
             throw new InvalidOperationException("El texto del cupón es obligatorio.");
         if (cupon.Codigo.Length > 200)
             throw new InvalidOperationException("El texto del cupón no puede superar 200 caracteres.");
-        if (cupon.Valor <= 0)
-            throw new InvalidOperationException("El descuento debe ser mayor que cero.");
+        if (cupon.Valor < 0)
+            throw new InvalidOperationException("El descuento debe ser mayor o igual a 0.");
         if (cupon.TipoDescuento == TipoPorcentaje && cupon.Valor > 100)
             throw new InvalidOperationException("El porcentaje no puede superar el 100%.");
         if (cupon.TieneLimiteUsos && (!cupon.LimiteUsos.HasValue || cupon.LimiteUsos.Value <= 0))

@@ -37,7 +37,8 @@ export function Button({
   onClick,
   key,
   'aria-label': ariaLabel,
-}: ButtonProps): JSX.Element {
+  ...rest
+}: ButtonProps & Record<string, unknown>): JSX.Element {
   // Generate button classes
   const buttonClasses = getButtonClasses(
     variant,
@@ -63,6 +64,7 @@ export function Button({
       key={key}
       aria-label={ariaLabel}
       data-testid="button"
+      {...rest}
     >
       {/* Loading spinner */}
       {isLoading && (

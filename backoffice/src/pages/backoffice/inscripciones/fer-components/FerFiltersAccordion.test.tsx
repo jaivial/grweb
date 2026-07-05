@@ -55,8 +55,8 @@ describe('FerFiltersAccordion — Phase 1 new selectors', () => {
 
   it('changing categoriaPeso writes to ferInscripcionesCategoriaPesoFilterAtom', () => {
     renderWithProvider();
-    selectOption('fer-filter-categoria-peso', 0); // -59kg
-    expect(store.get(ferInscripcionesCategoriaPesoFilterAtom)).toBe('-59kg');
+    selectOption('fer-filter-categoria-peso', 0); // -47
+    expect(store.get(ferInscripcionesCategoriaPesoFilterAtom)).toBe('-47');
   });
 
   it('changing quiereHandler to true writes boolean to atom', () => {
@@ -86,7 +86,7 @@ describe('FerFiltersAccordion — Phase 1 new selectors', () => {
   it('Limpiar resets the 6 new atoms to null', () => {
     renderWithProvider();
     store.set(ferInscripcionesSexoFilterAtom, 'femenino');
-    store.set(ferInscripcionesCategoriaPesoFilterAtom, '-83kg');
+    store.set(ferInscripcionesCategoriaPesoFilterAtom, '-83');
     store.set(ferInscripcionesQuiereHandlerFilterAtom, true);
     store.set(ferInscripcionesQuierePeakProgramFilterAtom, true);
     store.set(ferInscripcionesParticipacionConfirmadaFilterAtom, true);

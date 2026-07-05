@@ -79,8 +79,7 @@ export function App() {
           <Route path="/backoffice/members" component={() => <ProtectedLazyPage><UsersPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/workspaces" component={() => <ProtectedLazyPage><WorkspacesPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/workspaces/:competitionId" component={() => <ProtectedLazyPage><WorkspaceDetailPage /></ProtectedLazyPage>} />
-          <Route path="/backoffice/newsletter/:id" component={() => <ProtectedLazyPage><Newsletter /></ProtectedLazyPage>} />
-          <Route path="/backoffice/newsletter" component={() => <ProtectedLazyPage><Newsletter /></ProtectedLazyPage>} />
+          <Route path="/backoffice/newsletter/:id?" component={() => <ProtectedLazyPage><Newsletter /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/inscripciones" component={() => <ProtectedLazyPage><Inscripciones /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/sorteo" component={() => <ProtectedLazyPage><Sorteo /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/horarios" component={() => <ProtectedLazyPage><Horarios /></ProtectedLazyPage>} />
@@ -97,8 +96,7 @@ export function App() {
           <Route path="/backoffice/:competicionSlug/users/roles/:roleSlug" component={() => <ProtectedLazyPage><RoleDetailPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/users/members/:usuarioId" component={() => <ProtectedLazyPage><MemberDetailPage /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug/members" component={() => <ProtectedLazyPage><UsersPage /></ProtectedLazyPage>} />
-          <Route path="/backoffice/:competicionSlug/newsletter/:id" component={() => <ProtectedLazyPage><Newsletter /></ProtectedLazyPage>} />
-          <Route path="/backoffice/:competicionSlug/newsletter" component={() => <ProtectedLazyPage><Newsletter /></ProtectedLazyPage>} />
+          <Route path="/backoffice/:competicionSlug/newsletter/:id?" component={() => <ProtectedLazyPage><Newsletter /></ProtectedLazyPage>} />
           <Route path="/backoffice/:competicionSlug" component={() => <ProtectedLazyPage><BackofficeHome /></ProtectedLazyPage>} />
           <Route component={() => <Login />} />
         </Switch>

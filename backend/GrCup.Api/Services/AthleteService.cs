@@ -179,6 +179,73 @@ public class AthleteService
             .OrderBy(c => c)
             .ToListAsync();
     }
+
+    public async Task<List<Athlete>> ExportAllAsync(
+        string? searchTerm = null,
+        Sex? sex = null,
+        string? weightCategory = null,
+        AthleteStatus? status = null,
+        string? club = null,
+        string? orderBy = null,
+        string? orderDirection = null)
+    {
+        var query = _context.Athletes
+            .Include(a => a.LiftEntries)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.ToLower();
+            query = query.Where(a =>
+                a.FirstName.ToLower().Contains(term) ||
+                a.Surname.ToLower().Contains(term) ||
+                a.Email.ToLower().Contains(term));
+        }
+
+        if (sex.HasValue)
+            query = query.Where(a => a.Sex == sex.Value);
+
+        if (!string.IsNullOrWhiteSpace(weightCategory))
+            query = query.Where(a => a.WeightCategory == weightCategory);
+
+        if (status.HasValue)
+            query = query.Where(a => a.Status == status.Value);
+
+        if (!string.IsNullOrWhiteSpace(club))
+            query = query.Where(a => a.Club != null && a.Club.ToLower() == club.ToLower());
+
+        // Apply sorting
+        query = (orderBy?.ToLower()) switch
+        {
+            "name" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.FirstName).ThenByDescending(a => a.Surname)
+                : query.OrderBy(a => a.FirstName).ThenBy(a => a.Surname),
+            "email" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.Email)
+                : query.OrderBy(a => a.Email),
+            "sex" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.Sex)
+                : query.OrderBy(a => a.Sex),
+            "weightcategory" or "weight_category" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.WeightCategory)
+                : query.OrderBy(a => a.WeightCategory),
+            "club" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.Club)
+                : query.OrderBy(a => a.Club),
+            "weight" or "totalweight" or "total_weight" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.TotalWeight)
+                : query.OrderBy(a => a.TotalWeight),
+            "status" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.Status)
+                : query.OrderBy(a => a.Status),
+            "date" or "registrationdate" or "registration_date" => orderDirection?.ToLower() == "desc"
+                ? query.OrderByDescending(a => a.RegistrationDate)
+                : query.OrderBy(a => a.RegistrationDate),
+            _ => query.OrderByDescending(a => a.RegistrationDate)
+        };
+
+        return await query.ToListAsync();
+    }
 }
 
 public class AthleteStats
@@ -190,3 +257,4 @@ public class AthleteStats
     public int Disqualified { get; set; }
     public int MissingDocumentation { get; set; }
 }
+

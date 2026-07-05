@@ -14,6 +14,8 @@ export interface ModalProps {
   closeOnEscape?: boolean;
   showCloseButton?: boolean;
   className?: string;
+  bodyClassName?: string;
+  footer?: ReactNode;
   children?: ReactNode;
 }
 

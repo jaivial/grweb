@@ -293,6 +293,29 @@ class ApiClient {
     }>(`/api/admin/athletes?${searchParams}`);
   }
 
+  async exportAthletes(params: {
+    search?: string;
+    sex?: string;
+    weightCategory?: string;
+    status?: string;
+    club?: string;
+    orderBy?: string;
+    orderDirection?: string;
+  } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.append('search', params.search);
+    if (params.sex) searchParams.append('sex', params.sex);
+    if (params.weightCategory) searchParams.append('weightCategory', params.weightCategory);
+    if (params.status) searchParams.append('status', params.status);
+    if (params.club) searchParams.append('club', params.club);
+    if (params.orderBy) searchParams.append('orderBy', params.orderBy);
+    if (params.orderDirection) searchParams.append('orderDirection', params.orderDirection);
+
+    return this.request<{
+      athletes: any[];
+    }>(`/api/admin/athletes/export?${searchParams}`);
+  }
+
   async getAthlete(id: number) {
     return this.request<any>(`/api/admin/athletes/${id}`);
   }
@@ -647,6 +670,33 @@ class ApiClient {
   getExportCsvUrl(competicionId: number): string {
     const token = document.cookie.split(';').find(c => c.trim().startsWith('gr_token='))?.split('=')[1];
     return `${this.baseUrl}/api/admin/competiciones/${competicionId}/inscripciones/export?token=${token}`;
+  }
+
+  async exportInscripcionesJson(competicionId: number, params: {
+    search?: string;
+    pagoConfirmado?: boolean;
+    experiencia?: string;
+    modalidad?: string;
+    paymentMethod?: string;
+    sexo?: string;
+    categoriaPeso?: string;
+    quiereHandler?: boolean;
+    quierePeakProgram?: boolean;
+    participacionConfirmada?: boolean;
+    hasCoupon?: boolean;
+    orderBy?: string;
+    orderDirection?: string;
+  } = {}) {
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
+    }
+    return this.request<{
+      success: boolean;
+      data: Record<string, unknown>[];
+    }>(`/api/admin/competiciones/${competicionId}/inscripciones/export-json?${searchParams}`);
   }
 
   async createAdminInscripcion(

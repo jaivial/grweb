@@ -21,6 +21,7 @@ import {
 } from '../../../../stores/ferInscripcionesStore';
 import type { Inscripcion } from '../../../../types/api';
 import { FerFiltersAccordion } from './FerFiltersAccordion';
+import { FerExportModal } from './FerExportModal';
 import { FerInscripcionEditForm } from './FerInscripcionEditForm';
 import { FerInscripcionCreateForm } from './FerInscripcionCreateForm';
 import { SorteoInscritosButton } from '../inscripcionRaffle/SorteoInscritosButton';
@@ -59,9 +60,10 @@ const formatPercent = (value: number): string => `${value.toLocaleString('es-ES'
 export function FerInscripcionesPage({ competicionId }: { competicionId: number }): JSX.Element {
   const [activeTab, setActiveTab] = useState('todas');
   const [editInscripcion, setEditInscripcion] = useState<Inscripcion | null>(null);
-  const [inscripcionToDelete, setInscripcionToDelete] = useState<Inscripcion | null>(null);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [exportingPdf, setExportingPdf] = useState(false);
+  const [inscripcionToDelete, setInscripcionToDelete] = useState<Inscripcion | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [resendingId, setResendingId] = useState<number | null>(null);
   const previousFiltersKeyRef = useRef<string | null>(null);
   const activeListRequestKeyRef = useRef<string | null>(null);
@@ -189,50 +191,111 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
     }
   }, [competicionId, resendingId]);
 
-  const handleExportPdf = useCallback(async () => {
-    setExportingPdf(true);
+  const handleFerExport = useCallback(async (params: {
+    format: 'pdf' | 'csv';
+    search?: string;
+    pagoConfirmado?: boolean;
+    experiencia?: string;
+    modalidad?: string;
+    paymentMethod?: string;
+    sexo?: string;
+    categoriaPeso?: string;
+    quiereHandler?: boolean;
+    quierePeakProgram?: boolean;
+    participacionConfirmada?: boolean;
+    hasCoupon?: boolean;
+    orderBy: string;
+    orderDirection: 'asc' | 'desc';
+    selectedColumns: string[];
+    orientation: 'portrait' | 'landscape';
+  }) => {
+    setExporting(true);
+    setShowExportModal(false);
     try {
-      const columns = [
-        { header: 'Nombre', dataKey: 'name' },
-        { header: 'Email', dataKey: 'email' },
-        { header: 'Teléfono', dataKey: 'phone' },
-        { header: 'Sexo', dataKey: 'sex' },
-        { header: 'Categoría', dataKey: 'category' },
-        { header: 'Modalidad', dataKey: 'modality' },
-        { header: 'Experiencia', dataKey: 'experience' },
-        { header: 'Pago', dataKey: 'pago' },
-        { header: 'Método', dataKey: 'paymentMethod' },
-        { header: 'Cupón', dataKey: 'coupon' },
-        { header: 'Descuento', dataKey: 'discount' },
-        { header: 'Total', dataKey: 'total' },
-        { header: 'Fecha', dataKey: 'date' },
-      ];
-      const rows = inscripciones.map(i => ({
-        name: i.nombre,
-        email: i.email,
-        phone: i.telefono || '-',
-        sex: i.sexo,
-        category: i.categoriaPeso || '-',
-        modality: FER_MODALIDAD_LABELS[i.modalidad] || i.modalidad || '-',
-        experience: FER_EXP_LABELS[i.experiencia] || i.experiencia || '-',
-        pago: i.pagoConfirmado ? 'Confirmado' : 'Pendiente',
-        paymentMethod: FER_PAYMENT_METHOD_LABELS[i.paymentMethod || ''] || i.paymentMethod || '-',
-        coupon: i.codigoCupon || '-',
-        discount: i.importeDescuento ? `-${i.importeDescuento}€` : '-',
-        total: i.totalPagado ? `${i.totalPagado}€` : '-',
-        date: i.createdAt,
-      }));
-      const exportPdf = await getExportPdf();
-      exportPdf({
-        title: 'Inscripciones FER',
-        columns,
-        rows,
-        filename: 'inscripciones-fer',
+      const result = await api.exportInscripcionesJson(competicionId, {
+        search: params.search,
+        pagoConfirmado: params.pagoConfirmado,
+        experiencia: params.experiencia,
+        modalidad: params.modalidad,
+        paymentMethod: params.paymentMethod,
+        sexo: params.sexo,
+        categoriaPeso: params.categoriaPeso,
+        quiereHandler: params.quiereHandler,
+        quierePeakProgram: params.quierePeakProgram,
+        participacionConfirmada: params.participacionConfirmada,
+        hasCoupon: params.hasCoupon,
+        orderBy: params.orderBy,
+        orderDirection: params.orderDirection,
       });
+
+      const items = result.data;
+      const getStr = (val: unknown, fallback = ''): string => (val ?? fallback) as string;
+      const getBool = (val: unknown): boolean => Boolean(val);
+      const getNum = (val: unknown): number | undefined => typeof val === 'number' ? val : undefined;
+
+      const allRows = items.map((i: Record<string, unknown>) => ({
+        name: getStr(i.nombre),
+        email: getStr(i.email),
+        phone: getStr(i.telefono, '-'),
+        sex: getStr(i.sexo),
+        category: getStr(i.categoriaPeso, '-'),
+        modality: FER_MODALIDAD_LABELS[getStr(i.modalidad)] || getStr(i.modalidad, '-'),
+        experience: FER_EXP_LABELS[getStr(i.experiencia)] || getStr(i.experiencia, '-'),
+        pago: getBool(i.pagoConfirmado) ? 'Confirmado' : 'Pendiente',
+        paymentMethod: FER_PAYMENT_METHOD_LABELS[getStr(i.paymentMethod)] || getStr(i.paymentMethod, '-'),
+        coupon: getStr(i.codigoCupon, '-'),
+        discount: getNum(i.importeDescuento) ? `-${getNum(i.importeDescuento)}€` : '-',
+        total: getNum(i.totalPagado) ? `${getNum(i.totalPagado)}€` : '-',
+        date: getStr(i.createdAt),
+      }));
+
+      const colMap: Record<string, { header: string; dataKey: string }> = {
+        name: { header: 'Nombre', dataKey: 'name' },
+        email: { header: 'Email', dataKey: 'email' },
+        phone: { header: 'Teléfono', dataKey: 'phone' },
+        sex: { header: 'Sexo', dataKey: 'sex' },
+        category: { header: 'Categoría', dataKey: 'category' },
+        modality: { header: 'Modalidad', dataKey: 'modality' },
+        experience: { header: 'Experiencia', dataKey: 'experience' },
+        pago: { header: 'Pago', dataKey: 'pago' },
+        paymentMethod: { header: 'Método Pago', dataKey: 'paymentMethod' },
+        coupon: { header: 'Cupón', dataKey: 'coupon' },
+        discount: { header: 'Descuento', dataKey: 'discount' },
+        total: { header: 'Total', dataKey: 'total' },
+        date: { header: 'Fecha', dataKey: 'date' },
+      };
+
+      const selectedCols = params.selectedColumns.filter((c: string) => colMap[c]).map((c: string) => colMap[c]);
+      if (selectedCols.length === 0) return;
+
+      if (params.format === 'csv') {
+        const csvHeaders = selectedCols.map(c => c.header).join(';');
+        const csvContent = [csvHeaders].concat(
+          allRows.map((r: Record<string, unknown>) =>
+            selectedCols.map(c => String(r[c.dataKey] ?? '')).join(';')
+          )
+        ).join('\n');
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `inscripciones-fer-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const exportPdf = await getExportPdf();
+        exportPdf({
+          title: 'Inscripciones FER',
+          columns: selectedCols,
+          rows: allRows,
+          filename: 'inscripciones-fer',
+          orientation: params.orientation,
+        });
+      }
     } finally {
-      setExportingPdf(false);
+      setExporting(false);
     }
-  }, [inscripciones]);
+  }, [competicionId]);
 
   const handleRefresh = useCallback(async () => {
     const requestKey = `${competicionId}:1:${listFiltersKey}`;
@@ -412,20 +475,13 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
           <div className="flex justify-between items-center mb-3 gap-2" data-ui="fer-actions-bar">
             <div className="flex gap-2" data-ui="fer-actions-bar-left">
               <button
-                onClick={exportCsv}
+                onClick={() => setShowExportModal(true)}
                 className="inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150"
-                data-ui="fer-export-csv-btn"
-              >
-                Exportar CSV
-              </button>
-              <button
-                onClick={handleExportPdf}
-                disabled={exportingPdf}
-                className={`inline-flex items-center gap-2 px-3 xs:px-4 py-2 min-h-[44px] text-sm font-medium text-gray-300 bg-white/5 hover:bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-150 ${exportingPdf ? 'opacity-50 cursor-not-allowed' : ''}`}
-                data-ui="fer-export-pdf-btn"
+                data-ui="fer-export-btn"
+                type="button"
               >
                 <Download className="w-4 h-4" />
-                {exportingPdf ? 'Exportando...' : 'Exportar PDF'}
+                Exportar
               </button>
             </div>
             <div className="flex gap-2" data-ui="fer-actions-bar-right">
@@ -537,6 +593,15 @@ export function FerInscripcionesPage({ competicionId }: { competicionId: number 
           </div>
         </div>
       )}
+
+      {/* Export Modal */}
+      <FerExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        competicionId={competicionId}
+        onExport={handleFerExport}
+        isExporting={exporting}
+      />
 
       {/* Sorteo Inscritos modal — gated by ferRaffleStore.raffleModalOpenAtom */}
       <SorteoInscritosModal

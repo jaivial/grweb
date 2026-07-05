@@ -33,8 +33,66 @@ export function CuponesPage(): JSX.Element {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<CuponDescuento | null>(null);
   const [form, setForm] = useState<CuponDescuentoRequest>(EMPTY_FORM);
+  const [inscripcionSubtotal, setInscripcionSubtotal] = useState<number | null>(null);
+  const [isLoadingInscripcionCosto, setIsLoadingInscripcionCosto] = useState(false);
+  const [inscripcionCostoError, setInscripcionCostoError] = useState<string | null>(null);
 
-  const canSave = useMemo(() => form.codigo.trim().length > 0 && form.codigo.trim().length <= 200 && form.valor > 0, [form.codigo, form.valor]);
+  const valorNum = useMemo(() => Number(form.valor), [form.valor]);
+
+  const descuentoCalculado = useMemo(() => {
+    if (inscripcionSubtotal === null || !Number.isFinite(valorNum) || valorNum < 0) {
+      return null;
+    }
+
+    const calculado =
+      form.tipoDescuento === 'porcentaje'
+        ? inscripcionSubtotal * (valorNum / 100)
+        : valorNum;
+
+    return Math.round(Math.max(0, Math.min(inscripcionSubtotal, calculado)) * 100) / 100;
+  }, [form.tipoDescuento, inscripcionSubtotal, valorNum]);
+
+  const subtotalFinal = useMemo(() => {
+    if (inscripcionSubtotal === null || descuentoCalculado === null) {
+      return null;
+    }
+
+    const total = inscripcionSubtotal - descuentoCalculado;
+    return total > 0 ? Math.round(total * 100) / 100 : 0;
+  }, [descuentoCalculado, inscripcionSubtotal]);
+
+  const invalidTotalMessage = useMemo(() => {
+    if (!competicionId || isLoadingInscripcionCosto) {
+      return 'Calculando precio base de inscripción...';
+    }
+
+    if (inscripcionCostoError) {
+      return inscripcionCostoError;
+    }
+
+    if (inscripcionSubtotal === null || subtotalFinal === null || !Number.isFinite(subtotalFinal)) {
+      return 'No se pudo obtener el costo de inscripción base.';
+    }
+
+    if (valorNum === 0) {
+      return null;
+    }
+
+    if (subtotalFinal > 0 && subtotalFinal < 0.5) {
+      return `Con este descuento, el total sería ${subtotalFinal.toFixed(2)} €. Stripe exige un mínimo de 0.50 € (o 0.00 €).`;
+    }
+
+    return null;
+  }, [competicionId, isLoadingInscripcionCosto, inscripcionCostoError, inscripcionSubtotal, subtotalFinal, valorNum]);
+
+  const canSave = useMemo(() => (
+    form.codigo.trim().length > 0 &&
+    form.codigo.trim().length <= 200 &&
+    valorNum >= 0 &&
+    !invalidTotalMessage &&
+    !isLoadingInscripcionCosto &&
+    inscripcionSubtotal !== null
+  ), [form.codigo, invalidTotalMessage, isLoadingInscripcionCosto, inscripcionSubtotal, valorNum]);
 
   const loadCupones = useCallback(async () => {
     if (!competicionId) return;
@@ -48,9 +106,33 @@ export function CuponesPage(): JSX.Element {
     setLoading(false);
   }, [competicionId]);
 
+  const loadInscripcionSubtotal = useCallback(async () => {
+    if (!competicionId) {
+      setInscripcionSubtotal(null);
+      setInscripcionCostoError(null);
+      return;
+    }
+
+    setIsLoadingInscripcionCosto(true);
+    setInscripcionCostoError(null);
+
+    const result = await api.getInscripcionCosto(competicionId);
+    if (result.success && result.data) {
+      setInscripcionSubtotal(result.data.subtotal);
+      setInscripcionCostoError(null);
+    } else {
+      setInscripcionSubtotal(null);
+      setInscripcionCostoError(result.message || 'No se pudo obtener el coste de inscripción.');
+      toast.error(result.message || 'No se pudo obtener el coste de inscripción.');
+    }
+
+    setIsLoadingInscripcionCosto(false);
+  }, [competicionId]);
+
   useEffect(() => {
     loadCupones();
-  }, [loadCupones]);
+    loadInscripcionSubtotal();
+  }, [loadCupones, loadInscripcionSubtotal]);
 
   const resetForm = useCallback(() => {
     setEditing(null);
@@ -179,6 +261,16 @@ export function CuponesPage(): JSX.Element {
                     className="w-full min-h-[44px] px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-red-accent/60"
                     data-ui="cupones-value-input"
                   />
+                  {invalidTotalMessage && (
+                    <p className="text-xs text-red-400 mt-1.5" data-ui="cupones-value-warning">
+                      {invalidTotalMessage}
+                    </p>
+                  )}
+                  {subtotalFinal !== null && (
+                    <p className="text-xs text-white/45 mt-1.5" data-ui="cupones-value-total">
+                      Total resultante: {subtotalFinal.toFixed(2)} €
+                    </p>
+                  )}
                 </label>
               </div>
 

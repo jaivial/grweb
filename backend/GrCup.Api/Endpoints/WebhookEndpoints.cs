@@ -70,12 +70,16 @@ public static class WebhookEndpoints
                                 {
                                     var eventConfig = competicionService.GetEventoConfig(competicion);
                                     byte[]? qrCodeImage = null;
+                                    string? qrImageUrl = inscripcion.QrImageUrl;
                                     var qrPayload = inscripcionService.GenerateQrCodePayload(competicion.Id, inscripcion.Id, competicion.QrSecret);
                                     var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion.Id, inscripcion.Id);
                                     if (qrResult.HasValue)
+                                    {
                                         qrCodeImage = qrResult.Value.Bytes;
+                                        qrImageUrl = qrResult.Value.Url;
+                                    }
 
-                                    await emailService.SendFerConfirmationAsync(inscripcion, competicion, eventConfig, qrCodeImage, inscripcion.QrCode);
+                                    await emailService.SendFerConfirmationAsync(inscripcion, competicion, eventConfig, qrCodeImage, inscripcion.QrCode, qrImageUrl: qrImageUrl);
                                     await emailService.SendFerAdminNotificationAsync(inscripcion, competicion);
                                 }
 
@@ -126,12 +130,16 @@ public static class WebhookEndpoints
                             else
                             {
                                 byte[]? qrCodeImage = null;
+                                string? qrImageUrl = inscripcion2.QrImageUrl;
                                 var qrPayload = inscripcionService.GenerateQrCodePayload(competicion2.Id, inscripcion2.Id, competicion2.QrSecret);
                                 var qrResult = await inscripcionService.GenerateQrImageAsync(qrPayload, competicion2.Id, inscripcion2.Id);
                                 if (qrResult.HasValue)
+                                {
                                     qrCodeImage = qrResult.Value.Bytes;
+                                    qrImageUrl = qrResult.Value.Url;
+                                }
 
-                                await emailService.SendFerConfirmationAsync(inscripcion2, competicion2, config, qrCodeImage, inscripcion2.QrCode);
+                                await emailService.SendFerConfirmationAsync(inscripcion2, competicion2, config, qrCodeImage, inscripcion2.QrCode, qrImageUrl: qrImageUrl);
                                 await emailService.SendFerAdminNotificationAsync(inscripcion2, competicion2);
                             }
                         }

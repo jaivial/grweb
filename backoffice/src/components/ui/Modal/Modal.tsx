@@ -16,6 +16,8 @@ export function Modal({
   closeOnEscape = true,
   showCloseButton = true,
   className = '',
+  bodyClassName = '',
+  footer,
   children,
 }: ModalProps): ReactNode | null {
   const handleKeyDown = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -72,11 +74,11 @@ export function Modal({
       aria-labelledby={title ? 'modal-title' : undefined}
       data-ui="modal-overlay"
     >
-      <div className={`${modalClasses} max-h-[90vh] overflow-y-auto`} data-ui="modal-content">
+      <div className={`${modalClasses} flex flex-col max-h-[90dvh]`} data-ui="modal-content">
         {/* Header with title */}
         {title && (
-          <div className="flex items-center justify-between px-4 xs:px-6 py-3 xs:py-4 border-b border-white/10" data-ui="modal-header">
-            <h2 id="modal-title" className="text-base xs:text-lg font-semibold text-white" data-ui="modal-title">
+          <div className="shrink-0 flex items-center justify-between px-4 xs:px-6 py-3 xs:py-4 border-b border-white/10" data-ui="modal-header">
+            <h2 id="modal-title" className="text-base xs:text-lg font-semibold text-white pr-8" data-ui="modal-title">
               {title}
             </h2>
           </div>
@@ -86,7 +88,7 @@ export function Modal({
         {showCloseButton && closable && (
           <button
             onClick={onClose}
-            className={title ? "absolute top-3 xs:top-4 right-3 xs:right-4 text-white/60 hover:text-white hover:bg-white/10 transition-colors p-1.5 rounded-xl" : "absolute top-3 xs:top-4 right-3 xs:right-4 text-white/60 hover:text-white hover:bg-white/10 transition-colors p-1.5 rounded-xl"}
+            className="absolute top-3 xs:top-4 right-3 xs:right-4 z-10 text-white/60 hover:text-white hover:bg-white/10 transition-colors p-1.5 rounded-xl"
             aria-label="Close modal"
             data-testid="modal-close-btn"
           >
@@ -97,9 +99,16 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="p-4 xs:p-6" data-ui="modal-body">
+        <div className={`flex-1 min-h-0 overflow-y-auto px-4 xs:px-6 py-6 xs:py-8 ${bodyClassName}`} data-ui="modal-body">
           {children}
         </div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="shrink-0 px-4 xs:px-6 py-4 border-t border-white/10" data-ui="modal-footer">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

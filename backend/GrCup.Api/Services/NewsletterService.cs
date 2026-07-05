@@ -51,6 +51,26 @@ public class NewsletterService
             .FirstOrDefaultAsync(n => n.Id == id && n.CompeticionId == competicionId);
     }
 
+    /// <summary>
+    /// Permanently removes a newsletter (cascades media + send progress).
+    /// Returns false when not found, throws when a send is in progress.
+    /// </summary>
+    public async Task<bool> DeleteAsync(int competicionId, int id)
+    {
+        var entity = await _db.NewsletterEmails
+            .Include(n => n.SendProgress)
+            .FirstOrDefaultAsync(n => n.Id == id && n.CompeticionId == competicionId);
+        if (entity == null) return false;
+
+        if (entity.SendProgress != null
+            && entity.SendProgress.Status is NewsletterSendStatus.Pending or NewsletterSendStatus.InProgress)
+            throw new InvalidOperationException("No se puede eliminar un newsletter que se está enviando.");
+
+        _db.NewsletterEmails.Remove(entity);
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<NewsletterEmail> CreateAsync(int competicionId, string subject, string bodyHtml, string? createdByEmail)
     {
         var entity = new NewsletterEmail

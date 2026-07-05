@@ -101,6 +101,33 @@ public static class NewsletterEndpoints
             }
         });
 
+        // Permanently delete a newsletter (cascades media + send progress).
+        group.MapDelete("/{id:int}", async (
+            int competicionId,
+            int id,
+            HttpContext ctx,
+            UserManagementService userMgmt,
+            NewsletterService service,
+            IHubContext<NewsletterHub> hub) =>
+        {
+            var gate = await GateAsync(ctx, userMgmt, competicionId);
+            if (gate != null) return gate;
+
+            try
+            {
+                var deleted = await service.DeleteAsync(competicionId, id);
+                if (!deleted)
+                    return Results.NotFound(new { success = false, message = "Newsletter not found" });
+
+                await hub.BroadcastHistoryChangedAsync(competicionId);
+                return Results.Ok(new { success = true });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { success = false, message = ex.Message });
+            }
+        });
+
         // Trigger a throttled batch send (saves first, then enqueues all recipients).
         group.MapPost("/{id:int}/send", async (
             int competicionId,

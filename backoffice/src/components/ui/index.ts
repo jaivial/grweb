@@ -6,6 +6,7 @@ export { Badge } from './Badge';
 export { Spinner } from './Spinner';
 export { Icon } from './Icon';
 export { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal';
+export { ConfirmModal } from './ConfirmModal';
 export { Table, TablePagination } from './Table';
 export { CustomSelector } from './CustomSelector';
 export { DatePicker } from './DatePicker';
@@ -28,6 +29,7 @@ export type {
   ModalProps, ModalHeaderProps, ModalBodyProps, ModalFooterProps, ModalSize,
   TableProps, TableColumn, TablePaginationProps,
 } from './types';
+export type { ConfirmModalProps } from './ConfirmModal';
 export type { CustomSelectorProps, SelectOption } from './CustomSelector';
 export type { DatePickerProps } from './DatePicker';
 export type { TimePickerProps } from './TimePicker';

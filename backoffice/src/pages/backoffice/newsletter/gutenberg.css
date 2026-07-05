@@ -14,6 +14,17 @@
   overflow: hidden;
 }
 
+/* Top bar holding the block inserter ("+" add-block button). */
+.newsletter-gutenberg__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
 .newsletter-gutenberg__canvas {
   flex: 1 1 auto;
   min-height: 0;
@@ -33,21 +44,68 @@
   background: #f8f9fa;
 }
 
-/* The inspector floats as a panel when a block is selected. */
+/* Block settings panel — collapsible, floats on top of everything. */
 .newsletter-gutenberg__inspector {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 280px;
+  width: 300px;
   max-height: calc(100% - 16px);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  z-index: 30;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
 }
 
-.newsletter-gutenberg__inspector:empty {
-  display: none;
+.newsletter-gutenberg__inspector-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.newsletter-gutenberg__inspector-close {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #57606a;
+  padding: 0 4px;
+}
+
+.newsletter-gutenberg__inspector-close:hover {
+  color: #1e1e1e;
+}
+
+.newsletter-gutenberg__inspector .block-editor-block-inspector,
+.newsletter-gutenberg__inspector > div:not(.newsletter-gutenberg__inspector-head) {
+  overflow-y: auto;
+}
+
+/* Block settings toggle in the header. */
+.newsletter-gutenberg__inspector-toggle {
+  margin-left: auto;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #1e1e1e;
+}
+
+.newsletter-gutenberg__inspector-toggle[aria-pressed='true'] {
+  background: #1e1e1e;
+  color: #ffffff;
+  border-color: #1e1e1e;
 }

@@ -13,6 +13,7 @@ export interface PdfExportOptions {
   filename: string;
   theme?: 'striped' | 'grid' | 'plain';
   fontSize?: number;
+  orientation?: 'portrait' | 'landscape';
 }
 
 const BRAND_RED = [220, 20, 60] as const;
@@ -46,7 +47,6 @@ function formatSex(value: unknown): string {
 
   return String(value);
 }
-
 export function exportPdf(options: PdfExportOptions): void {
   const {
     title,
@@ -55,10 +55,11 @@ export function exportPdf(options: PdfExportOptions): void {
     filename,
     theme = 'striped',
     fontSize = 9,
+    orientation = 'landscape',
   } = options;
 
   const doc = new jsPDF({
-    orientation: 'landscape',
+    orientation,
     unit: 'mm',
     format: 'a4',
   });

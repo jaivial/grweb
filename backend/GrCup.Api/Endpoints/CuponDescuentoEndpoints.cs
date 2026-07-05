@@ -6,6 +6,8 @@ namespace GrCup.Api.Endpoints;
 
 public static class CuponDescuentoEndpoints
 {
+    private const decimal MinCheckoutTotal = 0.50m;
+
     public static void MapCuponDescuentoEndpoints(this IEndpointRouteBuilder app)
     {
         var adminGroup = app.MapGroup("/api/admin/competiciones/{competicionId:int}/cupones").RequireAuthorization();
@@ -16,14 +18,46 @@ public static class CuponDescuentoEndpoints
             return Results.Ok(new { success = true, data = cupones });
         });
 
+        adminGroup.MapGet("/inscripcion-costo", async (
+            int competicionId,
+            CompeticionService competicionService) =>
+        {
+            var competicion = await competicionService.GetByIdAsync(competicionId);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competición no encontrada" });
+
+            var config = competicionService.GetEventoConfig(competicion);
+            var subtotal = CuponDescuentoService.CalculateSubtotal(config, false);
+
+            return Results.Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    subtotal,
+                    minimoTotalCobro = MinCheckoutTotal,
+                    moneda = "EUR"
+                }
+            });
+        });
+
         adminGroup.MapPost("/", async (
             int competicionId,
             [FromBody] CuponDescuentoRequest request,
             CuponDescuentoService service,
+            CompeticionService competicionService,
             ILogger<Program> logger) =>
         {
             try
             {
+                var competicion = await competicionService.GetByIdAsync(competicionId);
+                if (competicion == null)
+                    return Results.NotFound(new { success = false, message = "Competición no encontrada" });
+
+                var config = competicionService.GetEventoConfig(competicion);
+                var subtotal = CuponDescuentoService.CalculateSubtotal(config, false);
+                EnsureCouponTotalIsValid(request, subtotal);
+
                 var cupon = await service.CreateAsync(competicionId, request);
                 logger.LogInformation("Discount coupon created: {CouponId} for competition {CompeticionId}", cupon.Id, competicionId);
                 return Results.Created($"/api/admin/competiciones/{competicionId}/cupones/{cupon.Id}", new { success = true, data = cupon });
@@ -39,10 +73,19 @@ public static class CuponDescuentoEndpoints
             int id,
             [FromBody] CuponDescuentoRequest request,
             CuponDescuentoService service,
+            CompeticionService competicionService,
             ILogger<Program> logger) =>
         {
             try
             {
+                var competicion = await competicionService.GetByIdAsync(competicionId);
+                if (competicion == null)
+                    return Results.NotFound(new { success = false, message = "Competición no encontrada" });
+
+                var config = competicionService.GetEventoConfig(competicion);
+                var subtotal = CuponDescuentoService.CalculateSubtotal(config, false);
+                EnsureCouponTotalIsValid(request, subtotal);
+
                 var cupon = await service.UpdateAsync(competicionId, id, request);
                 if (cupon == null)
                     return Results.NotFound(new { success = false, message = "Cupón no encontrado" });
@@ -83,6 +126,25 @@ public static class CuponDescuentoEndpoints
             var result = await cuponService.ValidatePublicAsync(competicion.Id, config, request.Codigo, subtotal);
             return Results.Ok(new { success = true, data = result });
         });
+    }
+
+    private static void EnsureCouponTotalIsValid(CuponDescuentoRequest request, decimal subtotal)
+    {
+        if (request.Valor < 0)
+            throw new InvalidOperationException("El descuento no puede ser negativo.");
+
+        var normalizedType = request.TipoDescuento.Trim().ToLowerInvariant();
+        var descuento = normalizedType == CuponDescuentoService.TipoPorcentaje
+            ? Math.Round(subtotal * (request.Valor / 100m), 2, MidpointRounding.AwayFromZero)
+            : Math.Round(request.Valor, 2, MidpointRounding.AwayFromZero);
+
+        if (request.Valor > 0)
+        {
+            var total = Math.Max(0m, subtotal - descuento);
+            if (total > 0m && total < MinCheckoutTotal)
+                throw new InvalidOperationException($"El total final debe ser 0,00 € o >= {MinCheckoutTotal:0.00} €. " +
+                    $"El total con este cupón sería {total:0.00} €.");
+        }
     }
 }
 

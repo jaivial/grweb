@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import type { SelectOption } from '../../../../components/ui/CustomSelector/CustomSelector';
 import { Accordion, CustomSelector, Button } from '../../../../components/ui';
 import { athletesSearchQueryAtom, athletesSexFilterAtom, athletesWeightCategoryFilterAtom, athletesStatusFilterAtom, athletesClubFilterAtom, athletesPageAtom, clearAthletesFiltersAtom } from '../../../../stores/athletesStore';
-import { WOMEN_CATEGORIES, MEN_CATEGORIES } from '../../../../constants/categories';
+import { WOMEN_CATEGORIES, MEN_CATEGORIES, ALL_CATEGORIES } from '../../../../constants/categories';
 
 const STATUS_OPTIONS: SelectOption<string>[] = [
   { value: 'Inscrito', label: 'Inscrito' },
@@ -43,7 +43,7 @@ export function InscripcionesFiltersAccordion({ clubs }: InscripcionesFiltersAcc
     } else if (sex === 'Male') {
       return MEN_CATEGORIES.map(c => ({ value: c, label: `${c} kg` }));
     }
-    return [];
+    return ALL_CATEGORIES.map(c => ({ value: c, label: `${c} kg` }));
   }, [sex]);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -119,7 +119,6 @@ export function InscripcionesFiltersAccordion({ clubs }: InscripcionesFiltersAcc
             onChange={handleWeightCategoryChange}
             placeholder="Todas"
             allowClear
-            disabled={!sex}
           />
         </div>
 

@@ -41,6 +41,24 @@ declare module '@wordpress/block-editor' {
   export const ObserveTyping: ComponentType<{ children?: ReactNode }>;
   export const BlockInspector: ComponentType<Record<string, unknown>>;
   export const BlockBreadcrumb: ComponentType<Record<string, unknown>>;
+  export interface InserterProps {
+    rootClientId?: string;
+    position?: string;
+    isAppender?: boolean;
+    showInserterHelpPanel?: boolean;
+    toggleProps?: Record<string, unknown>;
+  }
+  export const Inserter: ComponentType<InserterProps>;
+}
+
+declare module '@wordpress/components' {
+  import type { ComponentType, ReactNode } from 'react';
+
+  export const SlotFillProvider: ComponentType<{ children?: ReactNode }>;
+  interface PopoverComponent extends ComponentType<Record<string, unknown>> {
+    Slot: ComponentType<{ name?: string }>;
+  }
+  export const Popover: PopoverComponent;
 }
 
 declare module '@wordpress/format-library' {

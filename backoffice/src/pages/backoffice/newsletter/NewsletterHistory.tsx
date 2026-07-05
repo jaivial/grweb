@@ -1,3 +1,4 @@
+import { PanelLeftClose, Trash2 } from 'lucide-react';
 import type { NewsletterListItem, NewsletterStatus } from '../../../types/api';
 
 const STATUS_LABEL: Record<NewsletterStatus, string> = {
@@ -17,12 +18,24 @@ export interface NewsletterHistoryProps {
   currentId: number | null;
   onSelect: (id: number) => void;
   onNew: () => void;
+  onDelete: (id: number) => void;
+  onCollapse: () => void;
 }
 
-export function NewsletterHistory({ items, currentId, onSelect, onNew }: NewsletterHistoryProps) {
+export function NewsletterHistory({ items, currentId, onSelect, onNew, onDelete, onCollapse }: NewsletterHistoryProps) {
   return (
     <aside className="newsletter-history" data-ui="newsletter-history">
       <div className="newsletter-history__header" data-ui="newsletter-history-header">
+        <button
+          type="button"
+          className="newsletter-history__collapse"
+          data-ui="newsletter-history-collapse-btn"
+          aria-label="Ocultar historial"
+          title="Ocultar historial"
+          onClick={onCollapse}
+        >
+          <PanelLeftClose size={18} />
+        </button>
         <span className="newsletter-history__title" data-ui="newsletter-history-title">Historial</span>
         <button
           type="button"
@@ -40,7 +53,7 @@ export function NewsletterHistory({ items, currentId, onSelect, onNew }: Newslet
           </li>
         )}
         {items.map((item) => (
-          <li key={item.id} data-ui="newsletter-history-item">
+          <li key={item.id} className="newsletter-history__row" data-ui="newsletter-history-item">
             <button
               type="button"
               className={`newsletter-history__item ${item.id === currentId ? 'is-active' : ''}`}
@@ -65,6 +78,19 @@ export function NewsletterHistory({ items, currentId, onSelect, onNew }: Newslet
                 </span>
               )}
             </button>
+            {item.status !== 'sending' && (
+              <button
+                type="button"
+                className="newsletter-history__delete"
+                data-ui="newsletter-history-delete-btn"
+                data-newsletter-id={item.id}
+                aria-label="Eliminar newsletter"
+                title="Eliminar"
+                onClick={() => onDelete(item.id)}
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
           </li>
         ))}
       </ul>
