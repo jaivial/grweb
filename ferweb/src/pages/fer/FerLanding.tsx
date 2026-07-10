@@ -25,6 +25,8 @@ import { ComoFunciona } from './components/ComoFunciona';
 import { GrHandlerService } from './components/GrHandlerService';
 import { FloatingCtaButton } from './components/FloatingCtaButton';
 import { StaleConfigModal } from './components/StaleConfigModal';
+import { InscripcionesCerradasSection } from './components/InscripcionesCerradasSection';
+import { areInscripcionesAbiertas, isSoldOut } from './utils/inscripcionesAbiertas';
 
 export function FerLanding() {
   const [competicion, setCompeticion] = useState<Competicion | null>(null);
@@ -302,18 +304,22 @@ export function FerLanding() {
 
       {/* Wrap form section in a div for the ref */}
       <div ref={formRef} data-ui="fer-form-anchor">
-        <InscripcionForm
-          hook={inscripcionHook}
-          plazasDisponibles={plazasDisponibles}
-          precioBase={competicion?.eventoConfig?.precioBase}
-          categoriasMasculino={categoriasMasculino}
-          categoriasFemenino={categoriasFemenino}
-          contactEmail={competicion?.landingConfig?.contactEmail}
-          precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
-          fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
-          cuponesDescuentoActivo={cuponesDescuentoActivo}
-          onSubmit={handleFormSubmit}
-        />
+        {areInscripcionesAbiertas(competicion?.eventoConfig) ? (
+          <InscripcionForm
+            hook={inscripcionHook}
+            plazasDisponibles={plazasDisponibles}
+            precioBase={competicion?.eventoConfig?.precioBase}
+            categoriasMasculino={categoriasMasculino}
+            categoriasFemenino={categoriasFemenino}
+            contactEmail={competicion?.landingConfig?.contactEmail}
+            precioPeakProgram={competicion?.eventoConfig?.precioPeakProgram}
+            fechaLimitePeakProgram={competicion?.eventoConfig?.fechaLimitePeakProgram ?? null}
+            cuponesDescuentoActivo={cuponesDescuentoActivo}
+            onSubmit={handleFormSubmit}
+          />
+        ) : (
+          <InscripcionesCerradasSection soldOut={isSoldOut(competicion?.eventoConfig)} />
+        )}
       </div>
 
       <GrHandlerService />

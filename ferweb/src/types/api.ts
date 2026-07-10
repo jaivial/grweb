@@ -56,6 +56,8 @@ export interface EventoConfig {
   precioRifa: number;
   maxTicketsPorPersona: number;
   inscripcionAbierta: boolean;
+  inscripcionesAbiertas?: boolean;
+  soldOut?: boolean;
   pagoStripeActivo?: boolean;
   pagoEfectivoActivo?: boolean;
   cuponesDescuentoActivo?: boolean;
@@ -72,6 +74,8 @@ export interface FerConfigSnapshot {
   plazasDisponibles: number;
   fechaLimitePeakProgram: string | null;
   inscripcionAbierta: boolean;
+  inscripcionesAbiertas?: boolean;
+  soldOut?: boolean;
   pagoStripeActivo: boolean;
   pagoEfectivoActivo: boolean;
   cuponesDescuentoActivo: boolean;

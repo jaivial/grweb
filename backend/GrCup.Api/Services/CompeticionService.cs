@@ -296,6 +296,63 @@ public class CompeticionService
     }
 
     /// <summary>
+    /// Gets whether inscripciones are open for a competition.
+    /// Defaults to true when no explicit state row exists.
+    /// </summary>
+    public async Task<bool> GetInscripcionesAbiertasAsync(int competicionId)
+    {
+        var estado = await _context.InscripcionEstados
+            .FirstOrDefaultAsync(e => e.CompeticionId == competicionId);
+        return estado?.InscripcionesAbiertas ?? true;
+    }
+
+    /// <summary>
+    /// Gets whether a competition is closed due to being sold out.
+    /// Defaults to false when no explicit state row exists.
+    /// </summary>
+    public async Task<bool> GetSoldOutAsync(int competicionId)
+    {
+        var estado = await _context.InscripcionEstados
+            .FirstOrDefaultAsync(e => e.CompeticionId == competicionId);
+        return estado?.SoldOut ?? false;
+    }
+
+    /// <summary>
+    /// Sets whether inscripciones are open for a competition (upsert).
+    /// When reopening, the sold-out flag is always cleared.
+    /// </summary>
+    public async Task<InscripcionEstado> SetInscripcionesAbiertasAsync(int competicionId, bool abiertas, bool soldOut = false)
+    {
+        // Reopening inscripciones always clears the sold-out flag.
+        var effectiveSoldOut = abiertas ? false : soldOut;
+
+        var estado = await _context.InscripcionEstados
+            .FirstOrDefaultAsync(e => e.CompeticionId == competicionId);
+
+        if (estado == null)
+        {
+            estado = new InscripcionEstado
+            {
+                CompeticionId = competicionId,
+                InscripcionesAbiertas = abiertas,
+                SoldOut = effectiveSoldOut,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+            _context.InscripcionEstados.Add(estado);
+        }
+        else
+        {
+            estado.InscripcionesAbiertas = abiertas;
+            estado.SoldOut = effectiveSoldOut;
+            estado.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return estado;
+    }
+
+    /// <summary>
     /// Gets available spots for a competition
     /// </summary>
     public async Task<int> GetPlazasDisponiblesAsync(int competicionId)

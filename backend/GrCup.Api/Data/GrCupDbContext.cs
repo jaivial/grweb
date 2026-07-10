@@ -34,6 +34,7 @@ public class GrCupDbContext : DbContext
     public DbSet<RifaTicket> RifaTickets => Set<RifaTicket>();
     public DbSet<RifaConfig> RifaConfigs => Set<RifaConfig>();
     public DbSet<SorteoInscripcion> SorteosInscripcion => Set<SorteoInscripcion>();
+    public DbSet<InscripcionEstado> InscripcionEstados => Set<InscripcionEstado>();
 
     // Referido system (untracked WIP, stubbed to keep build green)
     public DbSet<ReferidoConfig> ReferidosConfig => Set<ReferidoConfig>();
@@ -228,6 +229,16 @@ public class GrCupDbContext : DbContext
 
         // Rename legacy RaffleConfig to avoid conflict with new one
         modelBuilder.Entity<Models.RaffleConfig>().ToTable("raffle_config_legacy");
+
+        // Per-competition inscripciones open/closed state
+        modelBuilder.Entity<InscripcionEstado>(entity => {
+            entity.ToTable("inscripcion_estado");
+            entity.HasIndex(e => e.CompeticionId).IsUnique();
+            entity.HasOne(e => e.Competicion)
+                .WithMany()
+                .HasForeignKey(e => e.CompeticionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         // SorteoInscripcion - raffle draws of Inscripcion/Athlete
         modelBuilder.Entity<SorteoInscripcion>(entity => {

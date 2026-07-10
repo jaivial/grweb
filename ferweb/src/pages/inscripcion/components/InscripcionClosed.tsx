@@ -5,6 +5,24 @@ import { useLocation } from 'wouter';
 import { FER_COLORS, FER_EVENT } from '../../fer/constants/constants';
 import { FerFooter } from '../../fer/components/FerFooter';
 
+const INSTAGRAM_HANDLE = '@grstrengthclub';
+const INSTAGRAM_URL = 'https://www.instagram.com/grstrengthclub/';
+
+function InstagramLink() {
+  return (
+    <a
+      href={INSTAGRAM_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+      style={{ color: FER_COLORS.gold }}
+      data-ui="inscripcion-closed-instagram"
+    >
+      {INSTAGRAM_HANDLE}
+    </a>
+  );
+}
+
 interface InscripcionClosedProps {
   reason: 'closed' | 'soldout';
   onRetry?: () => void;
@@ -14,15 +32,24 @@ export function InscripcionClosed({ reason, onRetry }: InscripcionClosedProps) {
   const [, navigate] = useLocation();
 
   const title = useMemo(
-    () => (reason === 'soldout' ? 'Plazas agotadas' : 'Inscripción cerrada'),
+    () => (reason === 'soldout' ? '¡Sold out!' : 'Inscripción cerrada'),
     [reason]
   );
 
   const description = useMemo(
     () =>
-      reason === 'soldout'
-        ? `Todas las plazas para el ${FER_EVENT.name} han sido reservadas. Sigue ${FER_EVENT.instagramHandle} para futuras ediciones.`
-        : `Las inscripciones para el ${FER_EVENT.name} aún no están abiertas. Mantente atento a ${FER_EVENT.instagramHandle} para saber cuándo se abren.`,
+      reason === 'soldout' ? (
+        <>
+          Gracias a todos por vuestro interés en participar. Estamos seguros que va a ser una
+          locura de competición. Permaneced atentos a <InstagramLink /> para más noticias y
+          próximas competiciones. ¡Muchas gracias a tod@s!
+        </>
+      ) : (
+        <>
+          Las inscripciones para el {FER_EVENT.name} aún no están abiertas. Mantente atento a{' '}
+          <InstagramLink /> para saber cuándo se abren.
+        </>
+      ),
     [reason]
   );
 

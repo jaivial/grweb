@@ -4,6 +4,7 @@ import api from '../../../api/client';
 import type { FerConfigSnapshot } from '../../../types/api';
 import { FER_COLORS } from '../../fer/constants/constants';
 import type { Competicion } from '../../../types/api';
+import { areInscripcionesAbiertas, isSoldOut } from '../../fer/utils/inscripcionesAbiertas';
 
 export type InscripcionPageState = 'loading' | 'open' | 'closed' | 'error';
 
@@ -22,6 +23,7 @@ export interface InscripcionConfig {
   stripeDisponible: boolean;
   cuponesDescuentoActivo: boolean;
   configSnapshot: FerConfigSnapshot | null;
+  soldOut: boolean;
   reload: () => void;
 }
 
@@ -42,6 +44,7 @@ export function useInscripcionConfig(): InscripcionConfig {
   const [stripeDisponible, setStripeDisponible] = useState(false);
   const [cuponesDescuentoActivo, setCuponesDescuentoActivo] = useState(false);
   const [configSnapshot, setConfigSnapshot] = useState<FerConfigSnapshot | null>(null);
+  const [soldOut, setSoldOut] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   const loadConfig = useCallback(async () => {
@@ -56,6 +59,11 @@ export function useInscripcionConfig(): InscripcionConfig {
         setCompeticion(compResult.data);
         const plazas = compResult.data.plazasDisponibles ?? 80;
         setPlazasDisponibles(plazas);
+        setSoldOut(isSoldOut(compResult.data.eventoConfig));
+        if (!areInscripcionesAbiertas(compResult.data.eventoConfig)) {
+          setPageState('closed');
+          return;
+        }
       }
 
       if (configResult.success && configResult.data) {
@@ -142,6 +150,7 @@ export function useInscripcionConfig(): InscripcionConfig {
     stripeDisponible,
     cuponesDescuentoActivo,
     configSnapshot,
+    soldOut,
     reload,
   };
 }

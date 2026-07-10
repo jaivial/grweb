@@ -1,17 +1,35 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import type { JSX } from 'react';
 import type { EventoConfigFormData } from '../types';
 import { FIELD_CONFIG } from '../constants';
-import { Users } from 'lucide-react';
+import { Users, Lock, LockOpen } from 'lucide-react';
+import { CerrarInscripcionesModal } from './CerrarInscripcionesModal';
 
 interface EventoCapacityFieldsProps {
   form: EventoConfigFormData;
   disabled: boolean;
   onUpdate: <K extends keyof EventoConfigFormData>(key: K, value: EventoConfigFormData[K]) => void;
+  onCloseInscripciones: (soldOut: boolean) => void;
+  onReopenInscripciones: () => void;
   isFer?: boolean;
 }
 
-export function EventoCapacityFields({ form, disabled, onUpdate, isFer }: EventoCapacityFieldsProps): JSX.Element {
+export function EventoCapacityFields({ form, disabled, onUpdate, onCloseInscripciones, onReopenInscripciones, isFer }: EventoCapacityFieldsProps): JSX.Element {
+  const [showCerrarModal, setShowCerrarModal] = useState(false);
+
+  const handleToggleClick = useCallback(() => {
+    if (form.inscripcionesAbiertas) {
+      setShowCerrarModal(true);
+    } else {
+      onReopenInscripciones();
+    }
+  }, [form.inscripcionesAbiertas, onReopenInscripciones]);
+
+  const handleConfirmClose = useCallback((soldOut: boolean) => {
+    setShowCerrarModal(false);
+    onCloseInscripciones(soldOut);
+  }, [onCloseInscripciones]);
+
   const capacityFields = useMemo(
     () => {
       let fields = FIELD_CONFIG.filter(f => f.suffix === null);
@@ -50,10 +68,65 @@ export function EventoCapacityFields({ form, disabled, onUpdate, isFer }: Evento
             disabled={disabled}
             className="w-full px-4 py-2.5 text-base bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-accent/50 focus:border-red-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             data-ui={`evento-input-${field.key}`}
+            data-testid={`evento-input-${field.key}`}
           />
         </div>
         );
       })}
+
+      {/* Close/open inscripciones for this competition */}
+      <div className="pt-4 border-t border-white/10" data-ui="evento-inscripciones-toggle-section">
+        <div className="flex items-center justify-between gap-3 mb-3" data-ui="evento-inscripciones-toggle-status">
+          <p className="text-sm text-gray-300">Estado de inscripciones</p>
+          {form.inscripcionesAbiertas ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-green-500/20 text-green-400" data-ui="evento-inscripciones-badge-open">
+              Abiertas
+            </span>
+          ) : form.soldOut ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-amber-500/20 text-amber-400" data-ui="evento-inscripciones-badge-soldout">
+              Sold Out
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-red-500/20 text-red-400" data-ui="evento-inscripciones-badge-closed">
+              Cerradas
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleToggleClick}
+          disabled={disabled}
+          className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+            form.inscripcionesAbiertas
+              ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30'
+              : 'text-green-400 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30'
+          }`}
+          data-ui="evento-toggle-inscripciones-btn"
+          data-testid="evento-toggle-inscripciones-btn"
+        >
+          {form.inscripcionesAbiertas ? (
+            <>
+              <Lock size={16} />
+              Cerrar inscripciones
+            </>
+          ) : (
+            <>
+              <LockOpen size={16} />
+              Abrir inscripciones
+            </>
+          )}
+        </button>
+        <p className="mt-2 text-xs text-gray-400">
+          Al cerrar las inscripciones, el formulario público se ocultará y se mostrará un aviso.
+        </p>
+      </div>
+
+      <CerrarInscripcionesModal
+        isOpen={showCerrarModal}
+        onClose={useCallback(() => setShowCerrarModal(false), [])}
+        onConfirm={handleConfirmClose}
+        disabled={disabled}
+      />
 
       {!isFer && (
       <div className="pt-4 border-t border-white/10" data-ui="evento-toggle-section">

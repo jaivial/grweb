@@ -154,6 +154,20 @@ public class EventoConfig
     /// Whether registration is open
     public bool InscripcionAbierta { get; set; } = true;
 
+    /// <summary>
+    /// Whether inscripciones are open for this competition.
+    /// Source of truth is the inscripcion_estado table; this field is populated
+    /// on read and exposed to the public API inside eventoConfig.
+    /// </summary>
+    public bool InscripcionesAbiertas { get; set; } = true;
+
+    /// <summary>
+    /// Whether the competition is closed due to being sold out.
+    /// Source of truth is the inscripcion_estado table; populated on read and
+    /// exposed to the public API inside eventoConfig.
+    /// </summary>
+    public bool SoldOut { get; set; } = false;
+
     /// Whether athletes can pay online through Stripe for this event
     public bool PagoStripeActivo { get; set; } = false;
 

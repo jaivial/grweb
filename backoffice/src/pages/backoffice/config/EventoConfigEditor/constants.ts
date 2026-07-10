@@ -10,6 +10,8 @@ export const DEFAULT_EVENTO_CONFIG: EventoConfigFormData = {
   fechaLimitePeakProgram: '',
   maxTicketsPorPersona: 10,
   inscripcionAbierta: true,
+  inscripcionesAbiertas: true,
+  soldOut: false,
   pagoStripeActivo: false,
   pagoEfectivoActivo: true,
   cuponesDescuentoActivo: false,
@@ -22,6 +24,6 @@ export const FIELD_CONFIG = [
   { key: 'precioRifa' as const, label: 'Precio ticket rifa', suffix: 'EUR', min: 0, step: 0.5 },
   { key: 'precioPeakProgram' as const, label: 'Precio GRS Peak Program', suffix: 'EUR', min: 0, step: 1 },
   { key: 'fechaLimitePeakProgram' as const, label: 'Fecha límite GRS Peak Program', suffix: 'DATE', min: 0, step: 1 },
-  { key: 'aforMaximo' as const, label: 'Aforo máximo', suffix: null, min: 1, step: 1 },
+  { key: 'aforMaximo' as const, label: 'Aforo máximo', suffix: null, min: 0, step: 1 },
   { key: 'maxTicketsPorPersona' as const, label: 'Max tickets por persona', suffix: null, min: 1, step: 1 },
 ] as const;

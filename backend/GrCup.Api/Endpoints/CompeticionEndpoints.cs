@@ -50,6 +50,8 @@ public static class CompeticionEndpoints
                 return Results.NotFound(new { success = false, message = "Competition not found" });
 
             var config = service.GetEventoConfig(competicion);
+            config.InscripcionesAbiertas = await service.GetInscripcionesAbiertasAsync(competicion.Id);
+            config.SoldOut = await service.GetSoldOutAsync(competicion.Id);
             var landingConfig = service.GetLandingConfig(competicion);
             var plazasDisponibles = await service.GetPlazasDisponiblesAsync(competicion.Id);
 
@@ -120,6 +122,8 @@ public static class CompeticionEndpoints
                 return Results.NotFound(new { success = false, message = "Competition not found" });
 
             var config = service.GetEventoConfig(competicion);
+            config.InscripcionesAbiertas = await service.GetInscripcionesAbiertasAsync(competicion.Id);
+            config.SoldOut = await service.GetSoldOutAsync(competicion.Id);
             var landingConfig = service.GetLandingConfig(competicion);
 
             return Results.Ok(new
@@ -232,6 +236,23 @@ public static class CompeticionEndpoints
             return Results.Ok(new { success = true, data = competicion });
         });
 
+        // PUT /api/admin/competiciones/:id/inscripciones-abiertas - Open/close registration
+        adminGroup.MapPut("/{id:int}/inscripciones-abiertas", async (
+            int id,
+            [FromBody] ToggleInscripcionesAbiertasRequest request,
+            CompeticionService service,
+            ILogger<Program> logger) =>
+        {
+            var competicion = await service.GetByIdAsync(id);
+            if (competicion == null)
+                return Results.NotFound(new { success = false, message = "Competition not found" });
+
+            var estado = await service.SetInscripcionesAbiertasAsync(id, request.InscripcionesAbiertas, request.SoldOut);
+
+            logger.LogInformation("Competition inscripciones abiertas toggled: {Id} -> {Value} (soldOut={SoldOut})", id, request.InscripcionesAbiertas, estado.SoldOut);
+            return Results.Ok(new { success = true, data = new { competicion.Id, estado.InscripcionesAbiertas, estado.SoldOut } });
+        });
+
         // PUT /api/admin/competiciones/:id/horarios-ready - Toggle horarios ready
         adminGroup.MapPut("/{id:int}/horarios-ready", async (
             int id,
@@ -325,3 +346,5 @@ public static class CompeticionEndpoints
 }
 
 public record ToggleHorariosReadyRequest(bool HorariosReady);
+
+public record ToggleInscripcionesAbiertasRequest(bool InscripcionesAbiertas, bool SoldOut = false);

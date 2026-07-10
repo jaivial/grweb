@@ -12,7 +12,7 @@ export function EventoConfigEditor(): JSX.Element {
   const competicionId = useAtomValue(currentCompeticionIdAtom);
   const isFer = useAtomValue(isCurrentFerAtom);
   const { canManageConfig } = usePermissions();
-  const { form, loading, saving, loadConfig, updateField, saveConfig } = useEventoConfig(competicionId ?? 0);
+  const { form, loading, saving, loadConfig, updateField, closeInscripciones, reopenInscripciones, saveConfig } = useEventoConfig(competicionId ?? 0);
 
   useEffect(() => {
     if (competicionId) {
@@ -61,6 +61,8 @@ export function EventoConfigEditor(): JSX.Element {
             form={form}
             disabled={!canManageConfig}
             onUpdate={updateField}
+            onCloseInscripciones={closeInscripciones}
+            onReopenInscripciones={reopenInscripciones}
             isFer={isFer}
           />
         </div>

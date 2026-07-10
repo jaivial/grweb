@@ -206,7 +206,7 @@ export function InscripcionPage() {
           description="Las inscripciones al FER CUP 2026 están cerradas."
         />
         <InscripcionClosed
-          reason={isSoldOut ? 'soldout' : 'closed'}
+          reason={isSoldOut || config.soldOut ? 'soldout' : 'closed'}
           onRetry={config.reload}
         />
       </>

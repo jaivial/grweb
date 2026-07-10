@@ -41,6 +41,41 @@ export function useEventoConfig(competicionId: number) {
     [setForm]
   );
 
+  const setInscripcionesEstado = useCallback(async (abiertas: boolean, soldOut: boolean) => {
+    const prevAbiertas = form.inscripcionesAbiertas;
+    const prevSoldOut = form.soldOut;
+    // Optimistic update
+    setForm(prev => ({ ...prev, inscripcionesAbiertas: abiertas, soldOut }));
+    try {
+      const result = await api.updateInscripcionesAbiertas(competicionId, abiertas, soldOut);
+      if (result.success) {
+        toast.success(
+          abiertas
+            ? 'Inscripciones abiertas'
+            : soldOut
+              ? 'Inscripciones cerradas (Sold Out)'
+              : 'Inscripciones cerradas'
+        );
+      } else {
+        setForm(prev => ({ ...prev, inscripcionesAbiertas: prevAbiertas, soldOut: prevSoldOut }));
+        toast.error(result.message ?? 'Error al actualizar las inscripciones');
+      }
+    } catch {
+      setForm(prev => ({ ...prev, inscripcionesAbiertas: prevAbiertas, soldOut: prevSoldOut }));
+      toast.error('Error al actualizar las inscripciones');
+    }
+  }, [competicionId, form.inscripcionesAbiertas, form.soldOut, setForm]);
+
+  const closeInscripciones = useCallback(
+    (soldOut: boolean) => setInscripcionesEstado(false, soldOut),
+    [setInscripcionesEstado]
+  );
+
+  const reopenInscripciones = useCallback(
+    () => setInscripcionesEstado(true, false),
+    [setInscripcionesEstado]
+  );
+
   const saveConfig = useCallback(async () => {
     setSaving(true);
     setError(null);
@@ -71,6 +106,8 @@ export function useEventoConfig(competicionId: number) {
     success,
     loadConfig,
     updateField,
+    closeInscripciones,
+    reopenInscripciones,
     saveConfig,
   } as const;
 }

@@ -14,6 +14,8 @@ export function toFormData(raw: Record<string, unknown>): EventoConfigFormData {
     fechaLimitePeakProgram: typeof raw.fechaLimitePeakProgram === 'string' ? raw.fechaLimitePeakProgram : '',
     maxTicketsPorPersona: typeof raw.maxTicketsPorPersona === 'number' ? raw.maxTicketsPorPersona : 10,
     inscripcionAbierta: typeof raw.inscripcionAbierta === 'boolean' ? raw.inscripcionAbierta : true,
+    inscripcionesAbiertas: typeof raw.inscripcionesAbiertas === 'boolean' ? raw.inscripcionesAbiertas : true,
+    soldOut: typeof raw.soldOut === 'boolean' ? raw.soldOut : false,
     pagoStripeActivo,
     pagoEfectivoActivo: !pagoStripeActivo && !pagoEfectivoActivo ? true : pagoEfectivoActivo,
     cuponesDescuentoActivo: typeof raw.cuponesDescuentoActivo === 'boolean' ? raw.cuponesDescuentoActivo : false,

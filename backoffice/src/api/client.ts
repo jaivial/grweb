@@ -264,6 +264,13 @@ class ApiClient {
     });
   }
 
+  async updateInscripcionesAbiertas(id: number, inscripcionesAbiertas: boolean, soldOut = false): Promise<ApiResponse<{ id: number; inscripcionesAbiertas: boolean; soldOut: boolean }>> {
+    return this.request(`/api/admin/competiciones/${id}/inscripciones-abiertas`, {
+      method: 'PUT',
+      body: JSON.stringify({ inscripcionesAbiertas, soldOut }),
+    });
+  }
+
 
   async getCupones(competicionId: number): Promise<ApiResponse<CuponDescuento[]>> {
     return this.request<CuponDescuento[]>(`/api/admin/competiciones/${competicionId}/cupones`);
