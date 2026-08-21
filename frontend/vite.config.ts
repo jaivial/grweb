@@ -38,15 +38,14 @@ export default defineConfig({
     ],
   },
   server: {
-    allowedHosts: ['fer-backoffice.menustudioai.com'],
+    allowedHosts: ['fer-backoffice.menustudioai.com', 'grscup-frontend-dev.menustudioai.com', 'localhost'],
     headers: {
       'Permissions-Policy': 'camera=(self)',
     },
     hmr: {
-      host: 'fer-backoffice.menustudioai.com',
+      host: 'grscup-frontend-dev.menustudioai.com',
       protocol: 'wss',
       clientPort: 443,
-      path: '/hmr',
       overlay: false,
     },
     proxy: {
