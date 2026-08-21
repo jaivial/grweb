@@ -141,6 +141,7 @@ export function Inscripciones(): JSX.Element {
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [qrModal, setQrModal] = useState<{ id: number; code: string; name: string } | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [qrCopied, setQrCopied] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exporting, setExporting] = useState(false);
 
