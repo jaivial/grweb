@@ -115,3 +115,46 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Config:** `/etc/nginx/sites-available/fercup.com`
 - **Reload:** `nginx -t && nginx -s reload`
 - **Logs:** `/var/log/nginx/fercup.com.access.log` and `.error.log`
+
+---
+
+# Project Structure
+
+Three modules: **frontend**, **backoffice**, **backend**.
+
+- **Frontend** — client-facing apps about the competitions. Multiple frontends live here: `ferweb/` and `frontend/`. They consume endpoints from backend.
+- **Backoffice** — frontend, but in its own module because it manages data shown or received by `ferweb/` and `frontend/`. Talks to backend.
+- **Backend** — single API. Exposes endpoints and websockets to backoffice, ferweb, and frontend.
+
+## Production (backoffice + ferweb + backend)
+
+- Deployment medium: check whether served via **Docker** or **systemd** before assuming.
+- **Backoffice** is served as frontend via **nginx** (separate process).
+- **ferweb** is served as frontend via **nginx** (separate process, different from backoffice).
+- **Backend** runs as an API behind its nginx proxy.
+
+## Development (docker-based)
+
+- New **docker container** per dev environment, isolated from prod.
+- **Database**: duplicated and separated from prod DB.
+- **frontends + backoffice + ferweb**: `npm run dev` (HMR).
+- **backend**: `air` mode (HMR for Go/.NET — match the actual backend stack).
+- **Docker must be configurable**: pick which frontends to start (`backoffice`, `ferweb`, `frontend`, any subset). None mandatory.
+- Frontends served via **nginx** (NOT cloudflare tunnel) inside the dev container.
+- Hosted on a **subdomain** the user provides, or one the user asks to be created in **Cloudflare DNS** using their credentials.
+- **Dev subdomains ≠ prod subdomains**. Different hostnames for each environment.
+
+## Workflow
+
+1. Create a **new worktree** based on the **current branch**.
+2. Work **only inside that worktree**.
+3. When done: **commit + push all WIP**.
+4. Open a **PR against the parent branch**.
+5. **Review loop** in that PR:
+   - Run `pr-review` as a comment.
+   - Fix all **medium** and **important** blockers.
+   - Re-run `pr-review` as a comment.
+   - Repeat until no medium/important blockers remain.
+6. **Merge** the PR.
+7. **Delete** the worktree and the merged branch.
+8. **Refetch + pull** the parent branch.
