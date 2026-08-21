@@ -12,6 +12,7 @@ import { FallbackImage } from '../../../components/ui/FallbackImage/FallbackImag
 import { countryCodeOptions } from '../../../utils/countryCodes';
 import { GiftModal } from './GiftModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 
 // Dynamic import for pdfExport to reduce initial bundle size
 const getExportPdf = () => import('../../../utils/pdfExport').then(m => m.exportPdf);
@@ -678,6 +679,7 @@ export function Sorteo(): JSX.Element {
   ];
 
   return (
+    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8 min-w-0" data-ui="sorteo-page">
         {/* Header */}
         <div className="mb-4 xs:mb-6" data-ui="page-header">
@@ -1697,7 +1699,7 @@ export function Sorteo(): JSX.Element {
           </Fragment>
         )}
       </div>
-
+    </BackofficeLayout>
   );
 }
 
