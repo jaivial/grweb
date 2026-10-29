@@ -91,6 +91,9 @@ func (s *Svc) sessionOut(ctx context.Context, u usuario, tp tokenPair, cliente s
 		return nil, err
 	}
 	out := &sesionOut{Body: sesionBody{AccessToken: tp.Access, TokenType: "Bearer", ExpiresAt: tp.ExpiresAt, Usuario: me}}
+	if tp.Refresh == "" {
+		return out, nil // grace refresh: keep the refresh token the client already has
+	}
 	if cliente == "cli" {
 		out.Body.RefreshToken = tp.Refresh
 	} else {

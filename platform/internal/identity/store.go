@@ -178,43 +178,92 @@ func (s *Svc) startSession(ctx context.Context, u usuario, origin, ua, ip string
 
 var errSesion = problem.Unauthorized("SESION_CADUCADA", "Tu sesión ha caducado. Vuelve a iniciar sesión.")
 
-// rotate validates a refresh token and rotates its secret. Reusing an old secret revokes the session.
-func (s *Svc) rotate(ctx context.Context, refresh string) (tokenPair, usuario, error) {
+// refreshGrace is how long the previous refresh secret stays valid after a rotation, so concurrent
+// refreshes from several tabs (shared cookie) do not look like token reuse.
+const refreshGrace = 30 * time.Second
+
+type sesionRow struct {
+	uid       uuid.UUID
+	hash      []byte
+	prev      []byte
+	rotatedAt *time.Time
+	origin    string
+	revoked   *time.Time
+	expires   time.Time
+}
+
+// secretState classifies a presented refresh secret: "current", "grace" (previous one, within the window) or "" (reuse/invalid).
+func (r sesionRow) secretState(secret string) string {
+	h := hashToken(secret)
+	if subtle.ConstantTimeCompare(r.hash, h) == 1 {
+		return "current"
+	}
+	if r.prev != nil && r.rotatedAt != nil && time.Since(*r.rotatedAt) < refreshGrace && subtle.ConstantTimeCompare(r.prev, h) == 1 {
+		return "grace"
+	}
+	return ""
+}
+
+func (s *Svc) loadSession(ctx context.Context, refresh string) (uuid.UUID, string, sesionRow, bool) {
 	sidStr, secret, ok := strings.Cut(refresh, ".")
 	sid, err := uuid.Parse(sidStr)
 	if !ok || err != nil || secret == "" {
-		return tokenPair{}, usuario{}, errSesion
+		return uuid.Nil, "", sesionRow{}, false
 	}
-	var uid uuid.UUID
-	var hash []byte
-	var origin string
-	var revoked *time.Time
-	var expires time.Time
-	err = s.a.DB.QueryRow(ctx, `SELECT usuario_id, refresh_hash, origen, revoked_at, expires_at FROM sesiones WHERE id = $1`, sid).Scan(&uid, &hash, &origin, &revoked, &expires)
+	var r sesionRow
+	err = s.a.DB.QueryRow(ctx, `SELECT usuario_id, refresh_hash, prev_hash, rotated_at, origen, revoked_at, expires_at FROM sesiones WHERE id = $1`, sid).
+		Scan(&r.uid, &r.hash, &r.prev, &r.rotatedAt, &r.origin, &r.revoked, &r.expires)
 	if err != nil {
+		return uuid.Nil, "", sesionRow{}, false
+	}
+	return sid, secret, r, true
+}
+
+// rotate validates a refresh token and rotates its secret. Within the grace window the previous secret
+// only gets a new access token (Refresh is empty: the client keeps the cookie set by the winning request).
+// Any other mismatch is treated as reuse and revokes the session.
+func (s *Svc) rotate(ctx context.Context, refresh string) (tokenPair, usuario, error) {
+	sid, secret, r, ok := s.loadSession(ctx, refresh)
+	if !ok || r.revoked != nil || time.Now().After(r.expires) {
 		return tokenPair{}, usuario{}, errSesion
 	}
-	if revoked != nil || time.Now().After(expires) {
-		return tokenPair{}, usuario{}, errSesion
-	}
-	if subtle.ConstantTimeCompare(hash, hashToken(secret)) != 1 {
+	state := r.secretState(secret)
+	if state == "" {
 		s.revokeSession(ctx, sid)
 		return tokenPair{}, usuario{}, problem.Unauthorized("SESION_REUTILIZADA", "Se detectó un uso repetido de la sesión y se ha cerrado por seguridad.")
 	}
-	u, err := getUsuario(ctx, s.a.DB, "id", uid)
+	u, err := getUsuario(ctx, s.a.DB, "id", r.uid)
 	if err != nil || u.Estado != "activo" {
 		return tokenPair{}, usuario{}, errSesion
 	}
-	newSecret := randomToken(32)
-	if _, err := s.a.DB.Exec(ctx, `UPDATE sesiones SET refresh_hash = $2, last_used_at = now(), expires_at = $3 WHERE id = $1`, sid, hashToken(newSecret), time.Now().Add(s.cfg.RefreshTTL)); err != nil {
-		return tokenPair{}, usuario{}, err
+	newRefresh := ""
+	if state == "current" {
+		newSecret := randomToken(32)
+		// Optimistic rotation: if a concurrent request rotated first, this one falls back to the grace path.
+		tag, err := s.a.DB.Exec(ctx, `UPDATE sesiones SET prev_hash = refresh_hash, refresh_hash = $3, rotated_at = now(), last_used_at = now(), expires_at = $4
+			WHERE id = $1 AND refresh_hash = $2`, sid, r.hash, hashToken(newSecret), time.Now().Add(s.cfg.RefreshTTL))
+		if err != nil {
+			return tokenPair{}, usuario{}, err
+		}
+		if tag.RowsAffected() == 1 {
+			newRefresh = sid.String() + "." + newSecret
+		}
 	}
-	_, _ = s.a.DB.Exec(ctx, `UPDATE usuarios SET ultimo_acceso = now() WHERE id = $1`, uid)
-	access, exp, err := s.mintAccess(ctx, u, sid.String(), origin, nil)
+	_, _ = s.a.DB.Exec(ctx, `UPDATE usuarios SET ultimo_acceso = now() WHERE id = $1`, r.uid)
+	access, exp, err := s.mintAccess(ctx, u, sid.String(), r.origin, nil)
 	if err != nil {
 		return tokenPair{}, usuario{}, err
 	}
-	return tokenPair{Access: access, ExpiresAt: exp, Refresh: sid.String() + "." + newSecret, SessionID: sid}, u, nil
+	return tokenPair{Access: access, ExpiresAt: exp, Refresh: newRefresh, SessionID: sid}, u, nil
+}
+
+// sessionFor returns the session id of a refresh token whose secret is valid (current or within grace).
+func (s *Svc) sessionFor(ctx context.Context, refresh string) (uuid.UUID, bool) {
+	sid, secret, r, ok := s.loadSession(ctx, refresh)
+	if !ok || r.secretState(secret) == "" {
+		return uuid.Nil, false
+	}
+	return sid, true
 }
 
 // revokeSession revokes a session and blocks its live access tokens until they expire.
