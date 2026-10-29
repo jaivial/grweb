@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { type CanActivateChildFn, type CanActivateFn, Router, type Routes } from '@angular/router';
+import { type ActivatedRouteSnapshot, type CanActivateChildFn, type CanActivateFn, Router, type Routes } from '@angular/router';
 import { Auth } from './core/auth';
 import { Competitions } from './core/competitions';
 import { ALL_ITEMS } from './layout/nav';
@@ -8,6 +8,7 @@ import { DevicePage, InvitationPage } from './pages/access';
 import { InicioPage } from './pages/inicio';
 import { LoginPage, SessionExpiredPage } from './pages/login';
 import { ComingSoonPage, ErrorPage } from './pages/misc';
+import { WebCollectionsTab, WebHomeTab, WebLegalTab, WebPage } from './pages/web';
 
 /** Requires a session (restored from the refresh cookie on first navigation). */
 const authGuard: CanActivateFn = async (_r, state) => {
@@ -38,12 +39,15 @@ const compGuard: CanActivateChildFn = async (child) => {
   const auth = inject(Auth);
   const comps = inject(Competitions);
   const list = await comps.load();
-  const slug = child.parent?.paramMap.get('comp');
+  // Nested routes (e.g. /grcup/web/faq): walk up to the :comp route; the section is its direct child.
+  let r: ActivatedRouteSnapshot | null = child;
+  while (r?.parent && !r.parent.paramMap.has('comp')) r = r.parent;
+  const slug = r?.parent?.paramMap.get('comp');
   const c = list.find((x) => x.slug === slug);
   if (!c) return router.createUrlTree(['/404']);
   comps.slug.set(c.slug);
-  const path = child.routeConfig?.path ?? '';
-  const seccion = path === ':seccion' ? (child.paramMap.get('seccion') ?? '') : path;
+  const path = r?.routeConfig?.path ?? '';
+  const seccion = path === ':seccion' ? (r?.paramMap.get('seccion') ?? '') : path;
   const item = ALL_ITEMS.find((i) => i.path === seccion);
   if (item?.perm && !auth.can(c.id, item.perm)) return router.createUrlTree(['/403']);
   return true;
@@ -66,6 +70,17 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'inicio' },
       { path: 'inicio', component: InicioPage, title: 'Inicio · Backoffice GR Cup' },
+      {
+        path: 'web',
+        component: WebPage,
+        title: 'Web y contenidos · Backoffice GR Cup',
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'home' },
+          { path: 'home', component: WebHomeTab },
+          { path: 'legal', component: WebLegalTab },
+          { path: ':coleccion', component: WebCollectionsTab },
+        ],
+      },
       { path: ':seccion', component: ComingSoonPage, title: 'Backoffice GR Cup' },
     ],
   },

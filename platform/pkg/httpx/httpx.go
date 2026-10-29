@@ -173,11 +173,20 @@ func Recover(log *slog.Logger) Middleware {
 }
 
 // MaxBody limits request bodies (default protection; uploads raise it per route).
-func MaxBody(n int64) Middleware {
+func MaxBody(n int64) Middleware { return MaxBodyFor(n, nil) }
+
+// MaxBodyFor is MaxBody with a per-request override (a non-zero value from fn replaces n).
+func MaxBodyFor(n int64, fn func(*http.Request) int64) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Body != nil {
-				r.Body = http.MaxBytesReader(w, r.Body, n)
+				limit := n
+				if fn != nil {
+					if v := fn(r); v > 0 {
+						limit = v
+					}
+				}
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
 			}
 			next.ServeHTTP(w, r)
 		})

@@ -31,6 +31,7 @@ patches:
 images:
   - { name: grcup/audit, newTag: TAG }
   - { name: grcup/backoffice, newTag: TAG }
+  - { name: grcup/cms, newTag: TAG }
   - { name: grcup/competition, newTag: TAG }
   - { name: grcup/gateway, newTag: TAG }
   - { name: grcup/identity, newTag: TAG }

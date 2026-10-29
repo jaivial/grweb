@@ -117,7 +117,7 @@ kind: Job
 metadata:
   name: competition-seed
 spec:
-  backoffLimit: 4
+  backoffLimit: 6
   ttlSecondsAfterFinished: 3600
   template:
     metadata:

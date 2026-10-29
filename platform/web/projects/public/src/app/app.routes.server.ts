@@ -1,7 +1,5 @@
 import { RenderMode, ServerRoute } from '@angular/ssr';
 
 // Rendered per request (fresh data from the API); the HTTP transfer cache avoids refetching in the browser.
-export const serverRoutes: ServerRoute[] = [
-  { path: '', renderMode: RenderMode.Server },
-  { path: '**', renderMode: RenderMode.Server, status: 404 },
-];
+// Missing pages set HTTP 404 themselves (RESPONSE_INIT in NotFoundPage and ContentPage).
+export const serverRoutes: ServerRoute[] = [{ path: '**', renderMode: RenderMode.Server }];

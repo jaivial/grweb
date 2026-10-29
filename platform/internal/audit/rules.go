@@ -3,6 +3,7 @@ package audit
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/jaivial/grweb/platform/pkg/events"
 )
@@ -27,6 +28,13 @@ var notifRules = map[string]notifRule{
 	},
 	"identity.miembro_anadido": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return str(d["nombre"]) + " se ha unido al equipo", "", "/equipo", "ok", "equipo.gestionar", true
+	},
+	"cms.voluntario_solicitado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		cuerpo := "Revisa la disponibilidad y asígnale un puesto."
+		if d["esMenor"] == true {
+			cuerpo = "Es menor de edad: necesitarás la autorización de su tutor."
+		}
+		return "Nueva solicitud de voluntariado", cuerpo, "/web/voluntarios", "info", "web.editar", true
 	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
@@ -85,8 +93,51 @@ func resumen(e events.Event) string {
 		return "invitó a una persona al equipo"
 	case "identity.sesion_revocada":
 		return "cerró una sesión de un miembro"
+	case "web.publicada":
+		return "publicó cambios de la web"
+	case "legal.publicado":
+		return "publicó la versión " + str(d["version"]) + " de «" + str(d["tipo"]) + "»"
+	case "cms.legal_borrador":
+		return "guardó un borrador de «" + str(d["tipo"]) + "»"
+	case "cms.seccion_actualizada":
+		return "editó una sección de la home"
+	case "cms.secciones_reordenadas":
+		return "reordenó las secciones de la home"
+	case "cms.voluntario_solicitado":
+		return "envió una solicitud de voluntariado"
+	case "cms.medio_subido":
+		return "subió una imagen"
+	case "cms.medio_actualizado":
+		return "editó una imagen"
+	case "cms.medio_eliminado":
+		return "borró una imagen"
+	}
+	if col, accion, ok := cmsCollection(e.Type); ok {
+		return accion + " " + col
 	}
 	return e.Type
+}
+
+// cmsCollection turns "cms.<coleccion>_<accion>" into a Spanish verb and object.
+func cmsCollection(t string) (string, string, bool) {
+	rest, ok := strings.CutPrefix(t, "cms.")
+	if !ok {
+		return "", "", false
+	}
+	i := strings.LastIndex(rest, "_")
+	if i < 0 {
+		return "", "", false
+	}
+	col := map[string]string{"faq": "una pregunta frecuente", "patrocinadores": "un patrocinador", "seo": "el SEO de una ruta", "redirecciones": "una redirección",
+		"paginas": "una página", "blog": "una entrada del blog", "albumes": "un álbum", "voluntarios": "una solicitud de voluntariado"}[rest[:i]]
+	accion := map[string]string{"creado": "creó", "actualizado": "editó", "eliminado": "borró", "reordenado": "reordenó"}[rest[i+1:]]
+	if col == "" || accion == "" {
+		return "", "", false
+	}
+	if accion == "reordenó" {
+		col = "la lista (" + rest[:i] + ")"
+	}
+	return col, accion, true
 }
 
 func str(v any) string {

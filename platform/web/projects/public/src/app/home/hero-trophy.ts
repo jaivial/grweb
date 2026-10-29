@@ -24,7 +24,7 @@ const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/fram
       <div class="pointer-events-none absolute inset-0" style="background: radial-gradient(80% 60% at 50% 40%, transparent 0%, rgb(14 12 13 / 0.55) 70%, rgb(14 12 13 / 0.95) 100%)"></div>
       <div class="absolute inset-x-0 top-[18%] flex flex-col items-center px-5 text-center transition-opacity duration-300 md:top-[22%]" [style.opacity]="titleOpacity()">
         <gr-logo [height]="60" />
-        <h1 class="mt-5 text-display-m text-shadow-[0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl">Los ganadores nunca se rinden</h1>
+        <h1 class="mt-5 text-display-m text-shadow-[0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
         @if (meta()) { <p class="mt-4 text-mono-xs text-text-secondary">{{ meta() }}</p> }
       </div>
       @if (!reduced()) {
@@ -44,6 +44,8 @@ const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/fram
 export class HeroTrophy {
   /** "25 JULIO 2026 · ALMUSSAFES · VALENCIA" */
   readonly meta = input('');
+  /** Title from the CMS (section «hero»). */
+  readonly titulo = input('');
   /** Emits true once the intro has been scrolled through (the navbar shows from then on). */
   readonly done = output<boolean>();
 
