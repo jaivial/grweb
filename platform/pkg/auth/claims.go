@@ -5,6 +5,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -33,15 +34,16 @@ type Claims struct {
 
 // Principal is the authenticated caller of a request.
 type Principal struct {
-	UserID  uuid.UUID
-	Email   string
-	Name    string
-	Root    bool
-	Perms   map[string][]string
-	SID     string
-	Origin  string
-	Service string // set for service tokens
-	Token   string // raw bearer token (forwarded on internal calls on behalf of the user)
+	UserID    uuid.UUID
+	Email     string
+	Name      string
+	Root      bool
+	Perms     map[string][]string
+	SID       string
+	Origin    string
+	Service   string    // set for service tokens
+	Token     string    // raw bearer token (forwarded on internal calls on behalf of the user)
+	ExpiresAt time.Time // token expiry: long-lived connections (SSE) must end by then
 }
 
 // IsService reports a service-to-service call.
@@ -149,6 +151,9 @@ func RequireService(ctx context.Context) (*Principal, error) {
 
 func principalFromClaims(c *Claims, raw string) *Principal {
 	p := &Principal{Email: c.Email, Name: c.Name, Root: c.Root, Perms: c.Comp, SID: c.SID, Origin: c.Origin, Token: raw}
+	if c.ExpiresAt != nil {
+		p.ExpiresAt = c.ExpiresAt.Time
+	}
 	if c.Typ == TypService {
 		p.Service = c.Svc
 		return p

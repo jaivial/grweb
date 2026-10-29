@@ -163,7 +163,8 @@ func (s *Svc) public(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	s.stream(w, r, func(e events.Event) (any, bool) {
+	// Public connections are recycled every 30 min so they spread over the pods after scaling.
+	s.stream(w, r, time.Now().Add(30*time.Minute), "reconectar", func(e events.Event) (any, bool) {
 		if e.CompetitionID != cid || e.Audience != events.Public {
 			return nil, false
 		}
@@ -182,7 +183,13 @@ func (s *Svc) admin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	s.stream(w, r, func(e events.Event) (any, bool) {
+	// The permissions were checked with this token: the stream ends when it expires (the client refreshes
+	// the token and resumes with Last-Event-ID), so revoked sessions or removed members stop receiving events.
+	deadline := p.ExpiresAt
+	if deadline.IsZero() || deadline.After(time.Now().Add(time.Hour)) {
+		deadline = time.Now().Add(time.Hour)
+	}
+	s.stream(w, r, deadline, "reautenticar", func(e events.Event) (any, bool) {
 		if e.CompetitionID != cid {
 			return nil, false
 		}
@@ -220,8 +227,11 @@ func adminView(e events.Event) view {
 	return v
 }
 
-// stream writes SSE: replay since Last-Event-ID (max 1000), then live events, with a heartbeat every 15 s.
-func (s *Svc) stream(w http.ResponseWriter, r *http.Request, filter func(events.Event) (any, bool)) {
+const maxReplay = 1000
+
+// stream writes SSE: replay since Last-Event-ID (max 1000, else `resync`), then live events, with a heartbeat
+// every 15 s, until the deadline (then it sends `endEvent` and closes so the client reconnects).
+func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time, endEvent string, filter func(events.Event) (any, bool)) {
 	if s.conns.Load() >= s.max {
 		writeErr(w, problem.New(http.StatusServiceUnavailable, "SERVICIO_SATURADO", "Demasiadas conexiones en tiempo real. Reintenta en unos segundos."))
 		return
@@ -256,10 +266,22 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, filter func(events.
 		lastSent = id
 		return rc.Flush() == nil
 	}
+	control := func(event, motivo string) bool {
+		_, err := fmt.Fprintf(w, "event: %s\ndata: {\"motivo\":%q}\n\n", event, motivo)
+		return err == nil && rc.Flush() == nil
+	}
 	if from := lastEventID(r); from != "" {
-		msgs, err := s.a.Redis.XRangeN(r.Context(), s.a.Stream(), from, "+", 1000).Result()
-		if err == nil {
+		// The stream is trimmed (MAXLEN ~): if the client's position is gone, it must reload its data.
+		if first, err := s.a.Redis.XRangeN(r.Context(), s.a.Stream(), "-", "+", 1).Result(); err == nil && len(first) == 1 && after(first[0].ID, from) {
+			if !control("resync", "historial_recortado") {
+				return
+			}
+		} else if msgs, err := s.a.Redis.XRangeN(r.Context(), s.a.Stream(), from, "+", maxReplay+1).Result(); err == nil {
 			lastSent = from
+			truncated := len(msgs) > maxReplay
+			if truncated {
+				msgs = msgs[:maxReplay]
+			}
 			for _, m := range msgs {
 				if m.ID == from {
 					continue
@@ -269,13 +291,21 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, filter func(events.
 				}
 				lastSent = m.ID
 			}
+			if truncated && !control("resync", "demasiados_eventos") {
+				return
+			}
 		}
 	}
 	ping := time.NewTicker(15 * time.Second)
 	defer ping.Stop()
+	end := time.NewTimer(time.Until(deadline))
+	defer end.Stop()
 	for {
 		select {
 		case <-r.Context().Done():
+			return
+		case <-end.C:
+			control(endEvent, "fin_de_conexion")
 			return
 		case m, ok := <-ch:
 			if !ok {
