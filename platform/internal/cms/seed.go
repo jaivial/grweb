@@ -109,6 +109,18 @@ var seedClubs = []clubIn{
 	{Nombre: "Valkyria Powerlifting Center", Ciudad: "Por confirmar", Provincia: "Valencia", LogoURL: logoValkyria, Etiquetas: "Powerlifting", Rol: "colaborador", Estado: "publicado"},
 }
 
+// SEO of the routes added after the first seed, inserted when their content is seeded.
+var seedSeoRutas = map[string][3]string{
+	"/publico": {"/publico", "Ver la competición · GR Strength Cup", "Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada en Almussafes."},
+	"/clubs":   {"/clubs", "Clubs de powerlifting en Valencia · GR Strength Cup", "Clubs y gimnasios de la Comunitat Valenciana, Murcia y Baleares donde entrenar powerlifting."},
+	"/en":      {"/en", "GRStrength Cup 2026 · Powerlifting competition in Valencia, Spain", "AEP powerlifting championship in Almussafes, 20 km south of Valencia. Free spectator entry, raffle and travel tips."},
+}
+
+func seedSeo(ctx context.Context, tx pgx.Tx, cid uuid.UUID, r [3]string) error {
+	_, err := tx.Exec(ctx, `INSERT INTO seo (id, competition_id, ruta, title, description, indexable) VALUES ($1,$2,$3,$4,$5,true) ON CONFLICT (competition_id, ruta) DO NOTHING`, newID(), cid, r[0], r[1], r[2])
+	return err
+}
+
 const ejemplo = "> **Datos de ejemplo.** Texto provisional pendiente de revisión por la asesoría legal antes de publicar la web.\n\n"
 
 var seedLegal = map[string][2]string{
@@ -153,6 +165,12 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 			if err := ensureSecciones(ctx, tx, cid, pagina); err != nil {
 				return err
 			}
+			// The SEO entry of a landing is seeded together with its content (only once: a deleted entry stays deleted).
+			if r, ok := seedSeoRutas["/"+pagina]; ok {
+				if err := seedSeo(ctx, tx, cid, r); err != nil {
+					return err
+				}
+			}
 			for k, v := range contenido {
 				b, _ := json.Marshal(v)
 				if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = $4, publicado = $4, publicado_at = now() WHERE competition_id = $1 AND pagina = $2 AND clave = $3`, cid, pagina, k, b); err != nil {
@@ -161,6 +179,9 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 			}
 		}
 		if empty(tx, "clubs") {
+			if err := seedSeo(ctx, tx, cid, seedSeoRutas["/clubs"]); err != nil {
+				return err
+			}
 			for i, c := range seedClubs {
 				if _, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, logo_url, web, etiquetas, rol, afiliado_aep, estado, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
 					newID(), cid, c.Nombre, c.Ciudad, c.Provincia, c.LogoURL, c.Web, c.Etiquetas, c.Rol, c.AfiliadoAEP, c.Estado, i+1); err != nil {
@@ -211,14 +232,11 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 				return err
 			}
 		}
-		{ // per route, so new routes reach existing environments
+		if empty(tx, "seo") {
 			for _, r := range [][3]string{{"/", "GR Strength Cup 2026 · Campeonato de powerlifting en Almussafes", "Campeonato de powerlifting AEP en Almussafes (Valencia). Entradas gratuitas con reserva, atletas, horarios y directo."},
 				{"/preguntas-frecuentes", "Preguntas frecuentes · GR Strength Cup", "Entradas gratuitas, horarios, sorteo y cómo llegar al pabellón de Almussafes."},
-				{"/patrocinadores", "Patrocinadores · GR Strength Cup", "Marcas y entidades que hacen posible la GR Strength Cup."},
-				{"/publico", "Ver la competición · GR Strength Cup", "Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada en Almussafes."},
-				{"/clubs", "Clubs de powerlifting en Valencia · GR Strength Cup", "Clubs y gimnasios de la Comunitat Valenciana, Murcia y Baleares donde entrenar powerlifting."},
-				{"/en", "GRStrength Cup 2026 · Powerlifting competition in Valencia, Spain", "AEP powerlifting championship in Almussafes, 20 km south of Valencia. Free spectator entry, raffle and travel tips."}} {
-				if _, err := tx.Exec(ctx, `INSERT INTO seo (id, competition_id, ruta, title, description, indexable) VALUES ($1,$2,$3,$4,$5,true) ON CONFLICT (competition_id, ruta) DO NOTHING`, newID(), cid, r[0], r[1], r[2]); err != nil {
+				{"/patrocinadores", "Patrocinadores · GR Strength Cup", "Marcas y entidades que hacen posible la GR Strength Cup."}} {
+				if err := seedSeo(ctx, tx, cid, r); err != nil {
 					return err
 				}
 			}

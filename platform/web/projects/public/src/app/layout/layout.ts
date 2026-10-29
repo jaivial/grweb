@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrIconButton, GrLogo } from '@grcup/ui';
+import { Competition, type CompeticionPublica } from '../core/competition';
 
 export interface NavLink {
   label: string;
@@ -139,7 +140,7 @@ export class Navbar {
           <li><a href="/cookies" class="hover:text-text-primary">Cookies</a></li>
           <li><a href="/consentimiento-datos" class="hover:text-text-primary">Consentimiento de imagen</a></li>
           <li><a href="/politica-concurso" class="hover:text-text-primary">Bases del sorteo</a></li>
-          <li><a [href]="instagram" rel="noopener" target="_blank" class="hover:text-text-primary">Instagram</a></li>
+          <li><a [href]="instagram()" rel="noopener" target="_blank" class="hover:text-text-primary">Instagram</a></li>
         </ul>
       </nav>
     </div>
@@ -150,7 +151,19 @@ export class Navbar {
 export class Footer {
   readonly lang = input<Lang>('es');
   protected readonly year = new Date().getFullYear();
-  protected readonly instagram = INSTAGRAM;
+  private readonly comp = inject(Competition);
+  protected readonly instagram = computed(() => instagramOf(this.comp.data()));
+  constructor() {
+    // Same source on every page (cached per render and transferred to the browser): the event's Instagram.
+    void inject(PendingTasks).run(() => this.comp.load());
+  }
+}
+
+/** Instagram of the event («Evento» in the backoffice), with the organiser's account as fallback. */
+export function instagramOf(c: CompeticionPublica | null): string {
+  const v = c?.evento.instagram?.trim() ?? '';
+  if (!v) return INSTAGRAM;
+  return v.startsWith('https://') ? v : 'https://www.instagram.com/' + v.replace(/^@/, '').replace(/\/$/, '') + '/';
 }
 
 /** Official Instagram of the organiser (legacy site footer). */

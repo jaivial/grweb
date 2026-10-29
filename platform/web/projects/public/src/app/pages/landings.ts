@@ -5,7 +5,7 @@ import { Cms, type Club, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { SectionTitle } from '../home/cms-sections';
-import { Footer, INSTAGRAM, Navbar, type Lang } from '../layout/layout';
+import { Footer, Navbar, instagramOf, type Lang } from '../layout/layout';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 
@@ -59,14 +59,15 @@ export class Related {
         <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h2>
         <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, registration, raffle and results first on Instagram.' : 'Fechas, inscripciones, sorteo y resultados primero en Instagram.' }}</p>
       </div>
-      <a grButton icon="camera" class="mt-5 w-full md:mt-0 md:w-auto" [href]="instagram" target="_blank" rel="noopener">{{ en() ? 'Follow on Instagram' : 'Seguir en Instagram' }}</a>
+      <a grButton icon="camera" class="mt-5 w-full md:mt-0 md:w-auto" [href]="instagram()" target="_blank" rel="noopener">{{ en() ? 'Follow on Instagram' : 'Seguir en Instagram' }}</a>
     </section>
   `,
 })
 export class Community {
   readonly lang = input<Lang>('es');
   protected readonly en = computed(() => this.lang() === 'en');
-  protected readonly instagram = INSTAGRAM;
+  private readonly comp = inject(Competition);
+  protected readonly instagram = computed(() => instagramOf(this.comp.data()));
 }
 
 // ============================================================ /publico ===

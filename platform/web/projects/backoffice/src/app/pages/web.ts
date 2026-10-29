@@ -51,13 +51,17 @@ export class WebSections {
   readonly pagina = signal<Pagina>('home');
   private cid = '';
 
+  private seq = 0;
+
   async load(cid: string, pagina = this.pagina()): Promise<void> {
     this.cid = cid;
     if (pagina !== this.pagina()) {
       this.pagina.set(pagina);
       this.items.set(null);
     }
-    this.items.set(await firstValueFrom(this.http.get<Seccion[]>(`/api/admin/competiciones/${cid}/web/secciones`, { params: { pagina } })));
+    const n = ++this.seq;
+    const list = await firstValueFrom(this.http.get<Seccion[]>(`/api/admin/competiciones/${cid}/web/secciones`, { params: { pagina } }));
+    if (n === this.seq) this.items.set(list); // a later load (another page) wins: never show a stale page
   }
   async save(id: string, body: { borrador?: unknown; visible?: boolean }, rev?: number): Promise<Seccion> {
     const headers = rev ? { 'If-Match': `W/"${rev}"` } : undefined;

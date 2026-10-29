@@ -160,7 +160,9 @@ type clubIn struct {
 
 func validClub(in *clubIn) error {
 	trimAll(&in.Nombre, &in.Ciudad, &in.Provincia, &in.LogoURL, &in.Web, &in.Instagram, &in.Etiquetas)
-	https := func(u string) bool { return u == "" || (strings.HasPrefix(u, "https://") && validURL(u, false) && strings.Contains(u[8:], ".")) }
+	https := func(u string) bool {
+		return u == "" || (strings.HasPrefix(u, "https://") && validURL(u, false) && strings.Contains(u[8:], "."))
+	}
 	if !validURL(in.LogoURL, true) || !https(in.Web) || !https(in.Instagram) {
 		return problem.Unprocessable("URL_INVALIDA", "El logo, la web y el Instagram deben ser enlaces https.")
 	}
@@ -342,7 +344,7 @@ func (s *Svc) registerCollections() {
 		},
 	})
 	register(s, collection[clubRow, clubIn]{
-		name: "clubs", path: "/web/clubs", table: "clubs", tag: tagWeb, perm: "web.editar", order: "estado = 'pendiente' DESC, orden, nombre",
+		name: "clubs", path: "/web/clubs", table: "clubs", tag: tagWeb, perm: "web.editar", order: "orden, nombre",
 		cols:     "id, nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep, estado, contacto_email, consentimiento_at, orden, created_at",
 		validate: validClub,
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *clubIn) error {
