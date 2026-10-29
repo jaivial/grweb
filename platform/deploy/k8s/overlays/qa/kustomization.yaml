@@ -19,5 +19,8 @@ patches:
         value: 10.43.240.25
 # The deploy script replaces TAG with the commit being deployed.
 images:
+  - { name: grcup/audit, newTag: TAG }
+  - { name: grcup/competition, newTag: TAG }
   - { name: grcup/gateway, newTag: TAG }
   - { name: grcup/identity, newTag: TAG }
+  - { name: grcup/realtime, newTag: TAG }

@@ -246,7 +246,8 @@ func (s *Svc) registerInternal() {
 	type rolesIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
-			PropietarioID *uuid.UUID `json:"propietarioId,omitempty" doc:"Usuario que pasa a ser Admin"`
+			PropietarioID    *uuid.UUID `json:"propietarioId,omitempty" doc:"Usuario que pasa a ser Admin"`
+			PropietarioEmail string     `json:"propietarioEmail,omitempty" doc:"Alternativa a propietarioId (seed)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "internal-default-roles", Method: http.MethodPost, Path: "/internal/competiciones/{cid}/roles-por-defecto", Summary: "Crear los roles por defecto de una competición (idempotente)", Tags: tags, Hidden: true, DefaultStatus: http.StatusNoContent},
@@ -257,6 +258,13 @@ func (s *Svc) registerInternal() {
 			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				if err := ensureDefaultRoles(ctx, tx, in.CID); err != nil {
 					return err
+				}
+				if in.Body.PropietarioID == nil && in.Body.PropietarioEmail != "" {
+					u, err := getUsuario(ctx, tx, "email", strings.ToLower(strings.TrimSpace(in.Body.PropietarioEmail)))
+					if err != nil {
+						return problem.NotFound("No existe el usuario propietario.")
+					}
+					in.Body.PropietarioID = &u.ID
 				}
 				if in.Body.PropietarioID == nil {
 					return nil

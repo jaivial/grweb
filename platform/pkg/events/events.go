@@ -191,14 +191,18 @@ type Consumer struct {
 	Stream string
 	Group  string
 	Types  []string // optional prefix filter (e.g. "entrada.", "identity.email")
+	Start  string   // where a NEW group starts: "$" (default, only new events) or "0" (whole retained history, e.g. audit)
 	Handle Handler
 	Log    *slog.Logger
 }
 
-// Run consumes until ctx is cancelled. New groups start at the end of the stream ($).
+// Run consumes until ctx is cancelled. A new group starts at c.Start ("$" by default).
 func (c *Consumer) Run(ctx context.Context) {
 	name, _ := os.Hostname()
-	if err := c.Redis.XGroupCreateMkStream(ctx, c.Stream, c.Group, "$").Err(); err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
+	if c.Start == "" {
+		c.Start = "$"
+	}
+	if err := c.Redis.XGroupCreateMkStream(ctx, c.Stream, c.Group, c.Start).Err(); err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		c.Log.Error("xgroup create", "group", c.Group, "err", err)
 	}
 	lastReclaim := time.Now()
@@ -213,7 +217,7 @@ func (c *Consumer) Run(ctx context.Context) {
 				continue
 			}
 			if strings.Contains(err.Error(), "NOGROUP") {
-				_ = c.Redis.XGroupCreateMkStream(ctx, c.Stream, c.Group, "$").Err()
+				_ = c.Redis.XGroupCreateMkStream(ctx, c.Stream, c.Group, c.Start).Err()
 				continue
 			}
 			c.Log.Warn("xreadgroup", "group", c.Group, "err", err)

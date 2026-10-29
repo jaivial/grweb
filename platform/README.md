@@ -18,7 +18,7 @@ Requisitos: Go 1.26 y Docker.
 ```bash
 cd platform
 make verify      # gofmt + go vet + go build de todos los servicios
-make dev-up      # PostgreSQL 17 + Redis 6.0 + Mailpit + identity + gateway
+make dev-up      # PostgreSQL 17 + Redis 6.0 + Mailpit + identity, competition, audit, realtime y gateway (con seed de la GR Cup)
 ```
 
 - **Gateway:** http://127.0.0.1:18300
@@ -37,4 +37,17 @@ Cada servicio es un binario con subcomandos:
 |---|---|
 | `gateway` | Enrutado por prefijo (tabla del inventario), JWT, tokens `grc_` canjeados por JWT, límite por IP, CORS, `/api/health`, OpenAPI agregado |
 | `identity` | Login (contraseña, enlace mágico, dispositivo), refresh rotatorio, tokens personales, roles y permisos (17 claves), equipo, invitaciones, sesiones, usuarios Root |
+| `competition` | Competición (tenant), evento y sede con If-Match, estado programable (worker), módulos con bloqueo, checklist automática, inscripción AEP, cómo llegar, integraciones cifradas (AES-GCM) con prueba SMTP, endpoints internos, `seed-grcup` |
+| `audit` | Consume todos los eventos (grupo desde `0`): auditoría con cursor y filtros, actividad con frases en español, notificaciones por permiso, KPIs y series |
+| `realtime` | SSE público (`/api/competiciones/{slug}/stream`) y admin (`/api/admin/competiciones/{cid}/stream`, filtrado por permisos), `Last-Event-ID` con XRANGE, latidos de 15 s |
 | resto | Pendientes según el roadmap |
+
+## Manifiestos de Kubernetes
+
+Los servicios Go (`identity`, `competition`, `audit`, `realtime`) se generan desde una sola plantilla:
+
+```bash
+cd platform/deploy/k8s && python3 generar.py
+```
+
+El gateway se mantiene a mano. Despliegue y operación de QA: [runbook](docs/runbooks/QA.md).
