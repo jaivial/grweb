@@ -2,6 +2,8 @@ package identity
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/url"
 	"strings"
@@ -113,6 +115,12 @@ func (s *Svc) limit(ctx context.Context, key string, n int64, window time.Durati
 	return nil
 }
 
+// emailKey hashes an email for Redis key names (no personal data in the shared Redis keyspace).
+func emailKey(email string) string {
+	sum := sha256.Sum256([]byte(email))
+	return hex.EncodeToString(sum[:12])
+}
+
 func origin(cliente string) string {
 	if cliente == "cli" {
 		return "cli"
@@ -148,7 +156,7 @@ func (s *Svc) registerAuth() {
 			if err := s.limit(ctx, "login:ip:"+httpx.ClientIPFrom(ctx), 30, 10*time.Minute); err != nil {
 				return nil, err
 			}
-			if err := s.limit(ctx, "login:email:"+email, 8, 15*time.Minute); err != nil {
+			if err := s.limit(ctx, "login:email:"+emailKey(email), 8, 15*time.Minute); err != nil {
 				return nil, err
 			}
 			u, err := getUsuario(ctx, s.a.DB, "email", email)
@@ -162,7 +170,7 @@ func (s *Svc) registerAuth() {
 			if u.Estado != "activo" {
 				return nil, problem.Forbidden("Tu cuenta está suspendida. Habla con un administrador.")
 			}
-			ratelimit.Reset(ctx, s.a.Redis, s.a.Keys.Of("rl", "login:email:"+email))
+			ratelimit.Reset(ctx, s.a.Redis, s.a.Keys.Of("rl", "login:email:"+emailKey(email)))
 			tp, err := s.startSession(ctx, u, origin(in.Body.Cliente), in.UserAgent, httpx.ClientIPFrom(ctx))
 			if err != nil {
 				return nil, err
@@ -265,7 +273,7 @@ func (s *Svc) registerAuth() {
 	huma.Register(api, huma.Operation{OperationID: "auth-magic-link", Method: http.MethodPost, Path: "/api/auth/magic-link", Summary: "Enviar un enlace de acceso por email (responde 202 siempre)", Tags: tagAuth, DefaultStatus: http.StatusAccepted},
 		func(ctx context.Context, in *magicIn) (*struct{}, error) {
 			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
-			if err := s.limit(ctx, "magic:"+email, 3, 15*time.Minute); err != nil {
+			if err := s.limit(ctx, "magic:"+emailKey(email), 3, 15*time.Minute); err != nil {
 				return nil, err
 			}
 			u, err := getUsuario(ctx, s.a.DB, "email", email)
