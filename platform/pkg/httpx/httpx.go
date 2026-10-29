@@ -126,11 +126,32 @@ func Logger(log *slog.Logger) Middleware {
 				lvl = slog.LevelError
 			}
 			log.LogAttrs(r.Context(), lvl, "http",
-				slog.String("method", r.Method), slog.String("path", r.URL.Path), slog.Int("status", sw.status),
+				slog.String("method", r.Method), slog.String("path", RedactPath(r.URL.Path)), slog.Int("status", sw.status),
 				slog.Int("bytes", sw.bytes), slog.Duration("dur", time.Since(start)),
 				slog.String("request_id", RequestIDFrom(r.Context())), slog.String("origin", OriginFrom(r.Context())))
 		})
 	}
+}
+
+// secretPaths carry one-time credentials as their next path segment (magic links, invitations,
+// unsubscribe and ticket links). They are never logged.
+var secretPaths = []string{"/api/auth/magic/", "/api/auth/invitaciones/", "/api/baja/", "/api/mi-entrada/"}
+
+// RedactPath replaces secret path segments with ":token" (keeps fixed segments such as "aceptar").
+func RedactPath(p string) string {
+	for _, prefix := range secretPaths {
+		if rest, ok := strings.CutPrefix(p, prefix); ok && rest != "" {
+			seg, tail, _ := strings.Cut(rest, "/")
+			if seg == "aceptar" {
+				return p
+			}
+			if tail != "" {
+				return prefix + ":token/" + tail
+			}
+			return prefix + ":token"
+		}
+	}
+	return p
 }
 
 // Recover turns panics into 500 problem responses.
