@@ -48,7 +48,7 @@ func ifMatch(h string) int {
 	return v
 }
 
-// emitChange writes the competition change events and invalidates the public cache.
+// afterChange invalidates the public cache of a competition.
 func (s *Svc) afterChange(ctx context.Context, c Competicion) {
 	s.cache.Del(ctx, "pub:"+c.Slug, "list")
 }
@@ -169,15 +169,15 @@ func (s *Svc) registerAdmin() {
 				if err := seedChecklist(ctx, tx, id); err != nil {
 					return err
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "competition.creada", map[string]any{"slug": in.Body.Slug, "nombre": in.Body.Nombre},
+				return events.Enqueue(ctx, tx, events.New(ctx, "competition.creada", map[string]any{"slug": in.Body.Slug, "nombre": in.Body.Nombre, "propietarioId": p.UserID},
 					events.Competition(id.String()), events.Subject("competicion:"+id.String())))
 			})
 			if err != nil {
 				return nil, err
 			}
-			// Default roles; the creator becomes Admin (identity is idempotent, so a retry is safe).
+			// Default roles right away; if identity is down, its consumer of competition.creada retries until done.
 			if err := s.identity.Do(ctx, http.MethodPost, "/internal/competiciones/"+id.String()+"/roles-por-defecto", map[string]any{"propietarioId": p.UserID}, nil); err != nil {
-				s.a.Log.Error("roles por defecto", "competicion", id, "err", err)
+				s.a.Log.Warn("roles por defecto (se reintentará por evento)", "competicion", id, "err", err)
 			}
 			c, err := getComp(ctx, s.a.DB, "id", id)
 			if err != nil {
