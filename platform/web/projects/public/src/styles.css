@@ -1,0 +1,8 @@
+@import "tailwindcss" source(none);
+@source "./";
+@source "../../ui/src";
+@import "../../ui/src/styles/tokens.css";
+
+html {
+  scroll-behavior: smooth;
+}

@@ -1,0 +1,71 @@
+# Backoffice SPA (static files on nginx-unprivileged). /api is routed by the host nginx to the gateway.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backoffice
+  labels: { app.kubernetes.io/name: backoffice, app.kubernetes.io/part-of: grcup, grcup.dev/tier: frontend }
+spec:
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: backoffice }
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: backoffice, app.kubernetes.io/part-of: grcup, grcup.dev/tier: frontend }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: backoffice
+          image: grcup/backoffice
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 300m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backoffice
+  labels: { app.kubernetes.io/name: backoffice, app.kubernetes.io/part-of: grcup }
+spec:
+  selector: { app.kubernetes.io/name: backoffice }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backoffice
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: backoffice }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backoffice
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: backoffice }

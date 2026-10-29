@@ -40,6 +40,8 @@ Cada servicio es un binario con subcomandos:
 | `competition` | Competición (tenant), evento y sede con If-Match, estado programable (worker), módulos con bloqueo, checklist automática, inscripción AEP, cómo llegar, integraciones cifradas (AES-GCM) con prueba SMTP, endpoints internos, `seed-grcup` |
 | `audit` | Consume todos los eventos (grupo desde `0`): auditoría con cursor y filtros, actividad con frases en español, notificaciones por permiso, KPIs y series |
 | `realtime` | SSE público (`/api/competiciones/{slug}/stream`) y admin (`/api/admin/competiciones/{cid}/stream`, filtrado por permisos), `Last-Event-ID` con XRANGE, latidos de 15 s |
+| `web` (Angular SSR) | Web pública: navbar de cristal, hero con la animación del trofeo (313 frames del CDN en canvas, «Saltar intro», movimiento reducido), campeonato con cuenta atrás y datos de la API, patrocinadores, cifras, footer, SEO (title, meta, canonical, Open Graph, JSON-LD `SportsEvent`), 404 real |
+| `backoffice` (Angular SPA) | Acceso (login, enlace mágico, sesión caducada, autorizar dispositivo, invitación), shell (sidebar por permisos, selector de competición, ⌘K, notificaciones en vivo, barra inferior móvil), Inicio (KPIs, puesta en marcha, pendientes, actividad SSE, vista Taquilla), errores 403/404/500 |
 | resto | Pendientes según el roadmap |
 
 ## Manifiestos de Kubernetes
@@ -51,3 +53,17 @@ cd platform/deploy/k8s && python3 generar.py
 ```
 
 El gateway se mantiene a mano. Despliegue y operación de QA: [runbook](docs/runbooks/QA.md).
+
+## Frontend (Angular 22 + Tailwind v4)
+
+```bash
+cd platform/web
+pnpm install
+pnpm ng build public && pnpm ng build backoffice
+pnpm start:backoffice     # http://localhost:4200 (necesita la API en el mismo origen o un proxy)
+```
+
+- `projects/ui`: librería `@grcup/ui` con los tokens de Figma (`styles/tokens.css`: colores, radios, 23 estilos de texto, grano, brillos) y los componentes base (botón, icono, badge, card, field, segmented, KPI, alert, empty, toast…).
+- `projects/public`: web pública con SSR (`node dist/public/server/server.mjs`; `API_INTERNAL_URL`, `NG_ALLOWED_HOSTS`).
+- `projects/backoffice`: SPA servida por nginx-unprivileged.
+- Imágenes: `docker build --target public|backoffice platform/web` (lo hace `deploy/scripts/desplegar-qa.sh`).

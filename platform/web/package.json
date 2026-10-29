@@ -1,0 +1,45 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start:public": "ng serve public",
+    "start:backoffice": "ng serve backoffice",
+    "build": "ng build public && ng build backoffice",
+    "serve:ssr:public": "node dist/public/server/server.mjs"
+  },
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "@angular/cdk": "22.2.5",
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/platform-server": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "@angular/ssr": "^22.2.5",
+    "@fontsource/contrail-one": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "express": "^5.1.0",
+    "lucide": "^1.64.0",
+    "postcss": "^8.5.32",
+    "rxjs": "~7.8.0",
+    "tailwindcss": "^4.3.3",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.5",
+    "@angular/cli": "^22.2.5",
+    "@angular/compiler-cli": "^22.2.0",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.12.0",
+    "ng-packagr": "^22.2.0",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.2"
+  }
+}

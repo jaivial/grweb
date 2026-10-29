@@ -22,7 +22,7 @@ SERVICES = {
     "audit": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
     "realtime": dict(db=False, hpa=(1, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
 }
-EDGE = ["gateway"]  # hand-written manifests in base/<name>/
+EDGE = ["gateway", "web", "backoffice"]  # hand-written manifests in base/<name>/
 
 SEC = """          securityContext:
             allowPrivilegeEscalation: false
