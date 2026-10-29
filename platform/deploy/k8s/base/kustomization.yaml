@@ -14,3 +14,5 @@ resources:
   - audit/audit.yaml
   - realtime/realtime.yaml
   - gateway/gateway.yaml
+  - web/web.yaml
+  - backoffice/backoffice.yaml

@@ -1,0 +1,212 @@
+<a href="#contenido" class="sr-only z-50 rounded-sm bg-bg-raised px-4 py-2 focus:not-sr-only focus:fixed focus:top-2 focus:left-2">Saltar al contenido</a>
+
+<div class="flex min-h-dvh">
+  <!-- ===== Sidebar (desktop) ===== -->
+  <aside class="sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line-subtle bg-bg-deep/60 lg:flex" [class.w-64]="!collapsed()" [class.w-[76px]]="collapsed()" aria-label="Navegación principal">
+    <div class="flex h-16 items-center gap-3 px-6" [class.px-4]="collapsed()">
+      <gr-logo [height]="collapsed() ? 26 : 30" />
+      @if (!collapsed()) { <span class="text-mono-xs text-text-tertiary">Backoffice</span> }
+    </div>
+
+    <!-- Competition switcher -->
+    <div class="relative px-3" (boOutside)="switcher.set(false)">
+      <button type="button" (click)="switcher.update(v => !v)" [attr.aria-expanded]="switcher()" aria-haspopup="listbox"
+        class="flex w-full items-center gap-3 rounded-md border bg-bg-card p-2.5 text-left transition-colors hover:border-line-strong"
+        [class]="switcher() ? 'border-accent-text' : 'border-line-subtle'">
+        <gr-icon-tile icon="trophy" tone="accent" />
+        @if (!collapsed()) {
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-label-s">{{ comp()?.nombreCorto || comp()?.nombre }}</span>
+            <span class="block truncate text-body-xs text-text-tertiary">{{ comp()?.slug }} · {{ auth.rolEn(cid()) }}</span>
+          </span>
+          <gr-icon name="chevrons-up-down" [size]="16" class="text-text-tertiary" />
+        }
+      </button>
+      @if (switcher()) {
+        <div class="absolute inset-x-3 top-full z-40 mt-2 rounded-md border border-line-strong bg-bg-raised p-1.5 shadow-card" role="listbox">
+          @for (c of comps.list(); track c.id) {
+            <button type="button" role="option" [attr.aria-selected]="c.slug === comp()?.slug" (click)="switchTo(c.slug)"
+              class="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left hover:bg-bg-card" [class.bg-accent-deep/30]="c.slug === comp()?.slug">
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-label-s">{{ c.nombre }}</span>
+                <span class="block truncate text-body-xs text-text-tertiary">{{ c.slug }} · {{ auth.rolEn(c.id) }}</span>
+              </span>
+              @if (c.slug === comp()?.slug) { <gr-icon name="check" [size]="16" class="text-accent-text" /> }
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    <nav class="mt-4 flex-1 overflow-y-auto px-3 pb-4">
+      @for (g of nav(); track g.label) {
+        @if (!collapsed()) { <p class="mt-4 mb-1.5 px-3 text-mono-xs text-text-muted first:mt-0">{{ g.label }}</p> } @else { <div class="my-3 h-px bg-line-subtle"></div> }
+        <ul class="flex flex-col gap-0.5">
+          @for (it of g.items; track it.path) {
+            <li>
+              <a [routerLink]="['/', comp()?.slug, it.path]" routerLinkActive #rla="routerLinkActive" [attr.aria-current]="rla.isActive ? 'page' : null"
+                [attr.title]="collapsed() ? it.label : null"
+                class="relative flex h-10 items-center gap-3 rounded-sm px-3 text-label-s transition-colors"
+                [class]="rla.isActive ? 'bg-accent-deep/40 text-text-primary' : 'text-text-secondary hover:bg-bg-card hover:text-text-primary'">
+                @if (rla.isActive) { <span class="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r-2xs bg-accent"></span> }
+                <gr-icon [name]="it.icon" [size]="18" [class]="rla.isActive ? 'text-accent-text' : ''" />
+                @if (!collapsed()) { <span class="truncate">{{ it.label }}</span> }
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </nav>
+
+    <div class="flex items-center gap-3 border-t border-line-subtle p-3">
+      <gr-avatar [name]="auth.user()?.nombre ?? ''" />
+      @if (!collapsed()) {
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-label-s">{{ auth.user()?.nombre }}</p>
+          <p class="truncate text-body-xs text-text-tertiary">{{ auth.rolEn(cid()) }} · {{ comp()?.nombreCorto }}</p>
+        </div>
+      }
+      <button grIconButton icon="panel-left" [label]="collapsed() ? 'Expandir menú' : 'Contraer menú'" (click)="toggleCollapsed()"></button>
+    </div>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col">
+    <!-- ===== Topbar ===== -->
+    <header class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line-subtle bg-bg-base/85 px-4 backdrop-blur-xl lg:h-16 lg:px-8">
+      <button grIconButton icon="menu" label="Abrir menú" class="lg:hidden" (click)="mobileMenu.set(true)"></button>
+      <p class="truncate text-ui-h5 lg:hidden">{{ pageTitle() }}</p>
+
+      <button type="button" (click)="openPalette()" class="hidden h-10 w-full max-w-sm items-center gap-2 rounded-sm border border-line-strong bg-bg-field px-3 text-left text-body-s text-text-muted hover:border-text-muted lg:flex">
+        <gr-icon name="search" [size]="18" />
+        <span class="flex-1">Buscar secciones…</span>
+        <kbd class="rounded-xs border border-line-strong px-1.5 text-mono-xs text-text-tertiary">⌘K</kbd>
+      </button>
+
+      <div class="ml-auto flex items-center gap-2">
+        @if (countdown(); as cd) {
+          <span class="hidden h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s xl:inline-flex"><gr-icon name="calendar" [size]="16" class="text-text-tertiary" />{{ cd }}</span>
+        }
+        <span class="inline-flex h-8 items-center gap-2 rounded-pill border px-3 text-label-s"
+          [class]="live.connected() ? 'border-success/40 bg-success/10 text-success' : 'border-line-strong text-text-tertiary'"
+          [attr.title]="live.connected() ? 'Tiempo real conectado' : 'Reconectando tiempo real…'">
+          <gr-icon [name]="live.connected() ? 'radio' : 'wifi-off'" [size]="16" />
+          <span class="hidden sm:inline">{{ live.connected() ? 'En directo' : 'Sin conexión' }}</span>
+        </span>
+
+        <div class="relative" (boOutside)="notifPanel.set(false)">
+          <button grIconButton icon="bell" [label]="'Notificaciones' + (notifs.unread() ? ' (' + notifs.unread() + ' sin leer)' : '')" (click)="notifPanel.update(v => !v)" [attr.aria-expanded]="notifPanel()">
+            @if (notifs.unread()) { <span class="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white">{{ notifs.unread() > 9 ? '9+' : notifs.unread() }}</span> }
+          </button>
+          @if (notifPanel()) {
+            <section class="fixed inset-x-3 top-16 z-40 max-h-[70dvh] overflow-y-auto rounded-lg border border-line-strong bg-bg-raised p-2 shadow-card sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-[420px]" aria-label="Notificaciones">
+              <header class="flex items-center justify-between px-3 py-2">
+                <h2 class="text-ui-h5">Notificaciones</h2>
+                @if (notifs.unread()) { <button type="button" class="text-label-s text-accent-text hover:underline" (click)="notifs.markAll()">Marcar todo como leído</button> }
+              </header>
+              @for (n of notifs.items(); track n.id) {
+                <button type="button" (click)="openNotif(n)" class="relative flex w-full gap-3 rounded-md px-3 py-3 text-left hover:bg-bg-card">
+                  @if (!n.leida) { <span class="absolute top-3 bottom-3 left-0 w-[2px] rounded-r-2xs bg-accent"></span> }
+                  <gr-icon-tile [icon]="nivelIcon[n.nivel].icon" [tone]="nivelIcon[n.nivel].tone" />
+                  <span class="min-w-0 flex-1">
+                    <span class="flex items-start justify-between gap-3"><span class="text-label-s">{{ n.titulo }}</span><span class="shrink-0 text-mono-xs text-text-muted">{{ ago(n.fecha) }}</span></span>
+                    @if (n.cuerpo) { <span class="mt-1 block text-body-xs text-text-tertiary">{{ n.cuerpo }}</span> }
+                  </span>
+                </button>
+              } @empty {
+                <p class="px-3 py-8 text-center text-body-s text-text-tertiary">No hay notificaciones.</p>
+              }
+            </section>
+          }
+        </div>
+
+        <div class="relative" (boOutside)="userMenu.set(false)">
+          <button type="button" class="rounded-full" (click)="userMenu.update(v => !v)" [attr.aria-expanded]="userMenu()" aria-label="Mi cuenta"><gr-avatar [name]="auth.user()?.nombre ?? ''" /></button>
+          @if (userMenu()) {
+            <div class="absolute top-full right-0 z-40 mt-2 w-64 rounded-md border border-line-strong bg-bg-raised p-1.5 shadow-card" role="menu">
+              <div class="px-3 py-2">
+                <p class="truncate text-label-s">{{ auth.user()?.nombre }}</p>
+                <p class="truncate text-body-xs text-text-tertiary">{{ auth.user()?.email }}</p>
+              </div>
+              <div class="my-1 h-px bg-line-subtle"></div>
+              <button type="button" role="menuitem" class="flex h-10 w-full items-center gap-2 rounded-sm px-3 text-label-s text-text-secondary hover:bg-bg-card hover:text-text-primary" (click)="auth.logout()">
+                <gr-icon name="log-out" [size]="18" />Cerrar sesión
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+
+    <main id="contenido" class="flex-1 px-4 pt-6 pb-28 lg:px-8 lg:pt-8 lg:pb-12" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+</div>
+
+<!-- ===== Mobile tab bar (Figma «BO / Mobile tab bar») ===== -->
+<nav class="fixed inset-x-0 bottom-0 z-30 grid border-t border-line-subtle bg-bg-deep/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" [style.grid-template-columns]="'repeat(' + (tabs().length + 1) + ', minmax(0, 1fr))'" aria-label="Navegación inferior">
+  @for (t of tabs(); track t.path) {
+    <a [routerLink]="['/', comp()?.slug, t.path]" routerLinkActive #ra="routerLinkActive" [attr.aria-current]="ra.isActive ? 'page' : null"
+      class="relative flex h-16 flex-col items-center justify-center gap-1 text-[12px] font-medium" [class]="ra.isActive ? 'text-text-primary' : 'text-text-tertiary'">
+      @if (ra.isActive) { <span class="absolute top-0 h-[3px] w-10 rounded-b-2xs bg-accent"></span> }
+      <gr-icon [name]="t.icon" [size]="22" [class]="ra.isActive ? 'text-accent-text' : ''" />{{ t.label.split(' ')[0] }}
+    </a>
+  }
+  <button type="button" class="flex h-16 flex-col items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary" (click)="mobileMenu.set(true)"><gr-icon name="menu" [size]="22" />Más</button>
+</nav>
+
+<!-- ===== Mobile menu (Figma «Móvil · menú») ===== -->
+@if (mobileMenu()) {
+  <div class="fixed inset-0 z-40 bg-black/60 lg:hidden" (click)="mobileMenu.set(false)"></div>
+  <aside class="fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-sm flex-col bg-bg-deep shadow-card lg:hidden" aria-label="Menú" role="dialog" aria-modal="true">
+    <div class="flex h-14 items-center justify-between px-4">
+      <gr-logo [height]="26" />
+      <button grIconButton icon="x" label="Cerrar menú" (click)="mobileMenu.set(false)"></button>
+    </div>
+    <div class="px-4">
+      <div class="flex items-center gap-3 rounded-md border border-line-subtle bg-bg-card p-2.5">
+        <gr-icon-tile icon="trophy" tone="accent" />
+        <span class="min-w-0"><span class="block truncate text-label-s">{{ comp()?.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ auth.rolEn(cid()) }}</span></span>
+      </div>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-4 py-2">
+      @for (g of nav(); track g.label) {
+        <p class="mt-4 mb-1 px-3 text-mono-xs text-text-muted">{{ g.label }}</p>
+        @for (it of g.items; track it.path) {
+          <a [routerLink]="['/', comp()?.slug, it.path]" routerLinkActive="bg-accent-deep/40 text-text-primary" class="flex h-11 items-center gap-3 rounded-sm px-3 text-label-s text-text-secondary">
+            <gr-icon [name]="it.icon" [size]="20" />{{ it.label }}
+          </a>
+        }
+      }
+    </nav>
+    <div class="flex items-center gap-3 border-t border-line-subtle p-4">
+      <gr-avatar [name]="auth.user()?.nombre ?? ''" />
+      <span class="min-w-0 flex-1 truncate text-label-s">{{ auth.user()?.nombre }}</span>
+      <button grIconButton icon="log-out" label="Cerrar sesión" (click)="auth.logout()"></button>
+    </div>
+  </aside>
+}
+
+<!-- ===== Command palette ⌘K (Figma «Shell · búsqueda ⌘K») ===== -->
+@if (palette()) {
+  <div class="fixed inset-0 z-50 flex items-start justify-center bg-black/60 px-4 pt-[12vh]" (click)="palette.set(false)">
+    <div class="w-full max-w-xl overflow-hidden rounded-lg border border-line-strong bg-bg-raised shadow-card" role="dialog" aria-modal="true" aria-label="Buscar" (click)="$event.stopPropagation()" (boOutside)="palette.set(false)">
+      <div class="flex items-center gap-3 border-b border-line-subtle px-4">
+        <gr-icon name="search" [size]="20" class="text-text-tertiary" />
+        <input id="bo-palette-input" class="h-14 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" placeholder="Ir a… (secciones del backoffice)"
+          [value]="query()" (input)="query.set($any($event.target).value)" (keydown.enter)="paletteEnter()" autocomplete="off" />
+        <kbd class="rounded-xs border border-line-strong px-1.5 text-mono-xs text-text-tertiary">Esc</kbd>
+      </div>
+      <ul class="max-h-80 overflow-y-auto p-2" role="listbox">
+        @for (it of results(); track it.path; let i = $index) {
+          <li><button type="button" (click)="go(it)" class="flex h-11 w-full items-center gap-3 rounded-sm px-3 text-left text-label-s hover:bg-bg-card" [class.bg-bg-card]="i === 0">
+            <gr-icon [name]="it.icon" [size]="18" class="text-text-tertiary" />{{ it.label }}
+            @if (i === 0) { <gr-badge class="ml-auto">Intro</gr-badge> }
+          </button></li>
+        } @empty {
+          <li class="px-3 py-6 text-center text-body-s text-text-tertiary">Sin resultados para «{{ query() }}».</li>
+        }
+      </ul>
+    </div>
+  </div>
+}

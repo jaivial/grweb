@@ -88,3 +88,18 @@ spec:
         - podSelector: { matchLabels: { grcup.dev/tier: service } }
       ports:
         - { port: 1025, protocol: TCP }
+---
+# The public web renders on the server against the gateway (in-cluster).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-from-web
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: gateway }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: web } }
+      ports:
+        - { port: 8080, protocol: TCP }

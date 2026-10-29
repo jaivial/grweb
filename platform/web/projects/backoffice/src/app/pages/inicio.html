@@ -1,0 +1,144 @@
+@let c = comp();
+<div class="mx-auto flex max-w-[1180px] flex-col gap-6">
+  <!-- Header -->
+  <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-3">
+        @if (primerUso()) {
+          <h1 class="text-ui-h3 md:text-[28px]">Bienvenido a la {{ c?.nombreCorto || c?.nombre }}</h1>
+        } @else {
+          <h1 class="text-ui-h3 md:text-[28px]">{{ saludo }}, {{ nombre() }}</h1>
+          <gr-badge [tone]="estado().tone">{{ estado().label }}</gr-badge>
+        }
+      </div>
+      <p class="mt-1 text-body-s text-text-tertiary">{{ primerUso() ? 'Configura lo básico para abrir la web al público' : subtitulo() }}</p>
+    </div>
+    @if (!taquilla()) {
+      <div class="flex gap-2">
+        @if (can('evento.editar') && !(checklist()?.completa ?? true)) {
+          <a grButton variant="primary" [routerLink]="['/', c?.slug, 'evento']">Continuar configuración</a>
+        } @else if (can('entradas.gestionar')) {
+          <a grButton variant="primary" icon="plus" [routerLink]="['/', c?.slug, 'entradas']">Nueva entrada manual</a>
+        }
+      </div>
+    }
+  </header>
+
+  @if (error()) {
+    <gr-alert tone="warning" title="Datos incompletos">{{ error() }} <button type="button" class="ml-1 text-label-s text-accent-text underline" (click)="load(c!.id)">Reintentar</button></gr-alert>
+  }
+
+  @if (taquilla()) {
+    <!-- Figma «Inicio · rol Taquilla» -->
+    <gr-card title="Puerta de acceso" subtitle="Tu rol solo puede escanear entradas">
+      <a grButton variant="primary" size="l" icon="scan" [block]="true" [routerLink]="['/', c?.slug, 'checkin']">Abrir escáner de puerta</a>
+    </gr-card>
+  } @else {
+    <!-- KPIs -->
+    @if (!primerUso()) {
+      <div class="flex items-center gap-3">
+        <gr-segmented [options]="periodos" [(value)]="periodo" label="Periodo" />
+        <span class="hidden text-body-xs text-text-tertiary sm:inline">Comparado con el periodo anterior</span>
+      </div>
+    }
+    <section class="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-5" aria-label="Indicadores">
+      @if (dash() === null) {
+        @for (i of [1, 2, 3, 4, 5]; track i) { <gr-skeleton class="h-[148px] rounded-lg" /> }
+      } @else {
+        @for (k of kpis(); track k.label; let last = $last) { <gr-kpi [label]="k.label" [value]="k.value" [caption]="k.caption" [class.hidden]="last" [class.xl:flex]="last" /> }
+      }
+    </section>
+
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+      <!-- Puesta en marcha -->
+      <gr-card title="Puesta en marcha" [subtitle]="checklist() ? checklist()!.hechos + ' de ' + checklist()!.total + ' pasos · ' + (checklist()!.total ? (100 * checklist()!.hechos / checklist()!.total | number: '1.0-0') : 0) + ' %' : 'Cargando…'">
+        @if (checklist(); as cl) {
+          <div cardActions class="mt-2 h-1.5 w-28 overflow-hidden rounded-pill bg-bg-raised" role="progressbar" [attr.aria-valuenow]="cl.hechos" [attr.aria-valuemax]="cl.total">
+            <div class="h-full rounded-pill bg-accent" [style.width.%]="cl.total ? (100 * cl.hechos) / cl.total : 0"></div>
+          </div>
+        }
+        <ul class="flex flex-col gap-2">
+          @if (!checklist()) { @for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-16" /> } }
+          @for (p of pasos(); track p.clave) {
+            <li class="flex items-center gap-3 rounded-md border border-line-subtle bg-bg-surface p-3 md:p-4">
+              <gr-icon [name]="p.hecho ? 'circle-check' : 'clock'" [size]="22" [class]="p.hecho ? 'text-success' : 'text-text-tertiary'" />
+              <div class="min-w-0 flex-1">
+                <p class="text-label-s" [class.text-text-secondary]="p.hecho">{{ p.titulo }}</p>
+                <p class="mt-0.5 text-body-xs text-text-tertiary">{{ p.ayuda }}{{ p.hecho && p.automatico ? ' · detectado automáticamente' : '' }}</p>
+              </div>
+              @if (!p.hecho && p.accion && p.puede) {
+                <a grButton size="s" [variant]="p.clave === 'datos-evento' ? 'secondary' : 'primary'" [routerLink]="['/', c?.slug, p.accion.path]">{{ p.accion.cta }}</a>
+              }
+            </li>
+          }
+          @if (sorteoBloqueado()) {
+            <li class="flex items-center gap-3 rounded-md border border-line-subtle bg-bg-surface p-3 md:p-4">
+              <gr-icon name="lock" [size]="22" class="text-warning" />
+              <div class="min-w-0 flex-1">
+                <p class="text-label-s">Activar la venta del sorteo</p>
+                <p class="mt-0.5 text-body-xs text-text-tertiary">Pendiente de visto bueno legal</p>
+              </div>
+              @if (can('sorteo.gestionar')) { <a grButton size="s" [routerLink]="['/', c?.slug, 'sorteo']">Ver requisitos</a> }
+            </li>
+          }
+        </ul>
+      </gr-card>
+
+      <!-- Pendiente de revisar -->
+      <gr-card title="Pendiente de revisar" subtitle="Lo que bloquea o puede salir mal, por prioridad">
+        <div class="flex flex-col gap-3">
+          @for (p of pendientes(); track p.title) {
+            <gr-alert [tone]="p.tone" [title]="p.title" [icon]="p.icon">
+              {{ p.text }}
+              @if (p.link) { <a alertAction class="mt-2 inline-flex items-center gap-1 text-label-s text-accent-text hover:underline" [routerLink]="['/', c?.slug, p.link.path]">{{ p.link.label }} <gr-icon name="arrow-right" [size]="14" /></a> }
+            </gr-alert>
+          } @empty {
+            <gr-empty icon="circle-check" title="Nada pendiente" text="Cuando algo falle (emails rebotados, integraciones, legal) aparecerá aquí." />
+          }
+        </div>
+      </gr-card>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+      <!-- Actividad en directo -->
+      <gr-card title="Actividad en directo" subtitle="Eventos de la competición en tiempo real">
+        <span cardActions class="inline-flex h-7 items-center gap-1.5 rounded-pill border px-2.5 text-label-s"
+          [class]="live.connected() ? 'border-success/40 bg-success/10 text-success' : 'border-line-strong text-text-tertiary'">
+          <gr-icon [name]="live.connected() ? 'radio' : 'wifi-off'" [size]="14" />{{ live.connected() ? 'En directo' : 'Reconectando' }}
+        </span>
+        <ul class="flex flex-col">
+          @if (actividad() === null) { @for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="my-2 h-12" /> } }
+          @for (a of actividad() ?? []; track a.id) {
+            <li class="flex gap-3 border-b border-line-subtle py-3 last:border-0">
+              <gr-icon-tile [icon]="iconFor(a.tipo).icon" [tone]="iconFor(a.tipo).tone" />
+              <div class="min-w-0 flex-1">
+                <p class="text-label-s"><span class="text-text-primary">{{ a.actor }}</span> <span class="font-normal text-text-secondary">{{ a.resumen }}</span></p>
+                <p class="mt-0.5 text-body-xs text-text-tertiary">{{ a.origen === 'cli' ? 'desde la CLI' : a.origen === 'mcp' ? 'desde un agente' : a.origen.startsWith('token:') ? 'token ' + a.origen.slice(6) : 'desde el backoffice' }}</p>
+              </div>
+              <span class="shrink-0 text-mono-xs text-text-muted">{{ ago(a.fecha) }}</span>
+            </li>
+          } @empty {
+            <li><gr-empty icon="activity" title="Sin actividad todavía" text="Aquí verás reservas, compras, importaciones y cambios del equipo al momento." /></li>
+          }
+        </ul>
+      </gr-card>
+
+      <!-- Accesos rápidos / Aforo -->
+      <div class="flex flex-col gap-6">
+        <gr-card title="Aforo por sesión" subtitle="Plazas y reservas por sesión">
+          <gr-empty icon="ticket" title="Sin sesiones de entradas" text="Crea las sesiones para ver el aforo y la lista de espera en directo.">
+            @if (can('entradas.gestionar')) { <a grButton size="s" [routerLink]="['/', c?.slug, 'entradas']">Crear sesiones</a> }
+          </gr-empty>
+        </gr-card>
+        <gr-card title="Accesos rápidos">
+          <div class="flex flex-col gap-2">
+            @if (can('checkin.escanear')) { <a grButton [block]="true" [routerLink]="['/', c?.slug, 'checkin']">Abrir escáner de puerta</a> }
+            @if (can('horarios.publicar')) { <a grButton [block]="true" [routerLink]="['/', c?.slug, 'horarios']">Publicar horarios</a> }
+            @if (can('campanas.enviar')) { <a grButton [block]="true" [routerLink]="['/', c?.slug, 'campanas']">Enviar campaña</a> }
+            @if (can('evento.editar')) { <a grButton [block]="true" [routerLink]="['/', c?.slug, 'evento']">Editar el evento</a> }
+          </div>
+        </gr-card>
+      </div>
+    </div>
+  }
+</div>

@@ -148,6 +148,7 @@ func (s *Svc) registerAuth() {
 			Email    string `json:"email" format:"email" maxLength:"254"`
 			Password string `json:"password" minLength:"1" maxLength:"256"`
 			Cliente  string `json:"cliente,omitempty" enum:"web,cli" default:"web" doc:"cli devuelve el refresh token en el cuerpo"`
+			Recordar *bool  `json:"recordar,omitempty" doc:"false: la cookie de sesión se borra al cerrar el navegador (web)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "auth-login", Method: http.MethodPost, Path: "/api/auth/login", Summary: "Iniciar sesión con email y contraseña", Tags: tagAuth},
@@ -175,7 +176,13 @@ func (s *Svc) registerAuth() {
 			if err != nil {
 				return nil, err
 			}
-			return s.sessionOut(ctx, u, tp, in.Body.Cliente)
+			out, err := s.sessionOut(ctx, u, tp, in.Body.Cliente)
+			if err == nil && in.Body.Recordar != nil && !*in.Body.Recordar {
+				for i := range out.SetCookie {
+					out.SetCookie[i].MaxAge = 0 // session cookie: gone when the browser closes
+				}
+			}
+			return out, err
 		})
 
 	type refreshIn struct {

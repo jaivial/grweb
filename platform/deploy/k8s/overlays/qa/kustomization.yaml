@@ -12,6 +12,16 @@ patches:
       - op: add
         path: /spec/clusterIP
         value: 10.43.240.10
+  - target: { kind: Service, name: web }
+    patch: |-
+      - op: add
+        path: /spec/clusterIP
+        value: 10.43.240.11
+  - target: { kind: Service, name: backoffice }
+    patch: |-
+      - op: add
+        path: /spec/clusterIP
+        value: 10.43.240.12
   - target: { kind: Service, name: mailpit }
     patch: |-
       - op: add
@@ -20,7 +30,9 @@ patches:
 # The deploy script replaces TAG with the commit being deployed.
 images:
   - { name: grcup/audit, newTag: TAG }
+  - { name: grcup/backoffice, newTag: TAG }
   - { name: grcup/competition, newTag: TAG }
   - { name: grcup/gateway, newTag: TAG }
   - { name: grcup/identity, newTag: TAG }
   - { name: grcup/realtime, newTag: TAG }
+  - { name: grcup/web, newTag: TAG }

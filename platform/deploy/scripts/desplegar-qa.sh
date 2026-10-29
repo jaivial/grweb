@@ -18,6 +18,15 @@ echo "→ versión $VERSION · servicios: $SERVICES"
 make images SERVICES="$SERVICES" VERSION="$VERSION"
 IMAGES=""
 for s in $SERVICES; do IMAGES="$IMAGES grcup/$s:$VERSION"; done
+# Angular apps (one build stage, two targets).
+for app in web backoffice; do
+  if grep -q "name: grcup/$app," "$OVERLAY/kustomization.yaml"; then
+    target=$app; [ "$app" = web ] && target=public
+    echo "→ grcup/$app:$VERSION"
+    docker build -q --target "$target" -t "grcup/$app:$VERSION" web >/dev/null
+    IMAGES="$IMAGES grcup/$app:$VERSION"
+  fi
+done
 
 echo "→ enviando imágenes a $KRAKEN"
 # shellcheck disable=SC2086
