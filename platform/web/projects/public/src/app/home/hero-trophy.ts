@@ -63,6 +63,8 @@ export class HeroTrophy {
   private drawn = -1;
   private raf = 0;
   private wasDone = false;
+  private step = 1;
+  private io?: IntersectionObserver;
 
   constructor() {
     const destroy = inject(DestroyRef);
@@ -86,6 +88,10 @@ export class HeroTrophy {
         this.load([FRAMES - 1], () => this.draw(ctx, FRAMES - 1));
         this.done.emit(true);
       } else {
+        // Phones and Save-Data connections get one frame in three (~3.7 MB instead of ~11 MB): the nearest
+        // loaded frame is drawn, so the motion stays smooth at small sizes.
+        const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+        this.step = window.innerWidth < 768 || conn?.saveData ? 3 : 1;
         this.preload(() => (this.drawn = -1));
         const loop = () => {
           this.measure();
@@ -94,10 +100,20 @@ export class HeroTrophy {
           this.draw(ctx, idx);
           this.raf = requestAnimationFrame(loop);
         };
-        this.raf = requestAnimationFrame(loop);
+        // The loop only runs while the hero is on screen (no work while reading the rest of the page).
+        this.io = new IntersectionObserver(([entry]) => {
+          cancelAnimationFrame(this.raf);
+          if (entry.isIntersecting) {
+            this.raf = requestAnimationFrame(loop);
+          } else {
+            this.measure(); // settle the intro state (navbar) for the position we left it at
+          }
+        });
+        this.io.observe(this.host.nativeElement);
       }
       destroy.onDestroy(() => {
         cancelAnimationFrame(this.raf);
+        this.io?.disconnect();
         ro.disconnect();
       });
     });
@@ -132,11 +148,12 @@ export class HeroTrophy {
     this.drawn = idx;
   }
 
-  /** First frames → every 8th → the rest, 6 requests at a time. */
+  /** First frames → every 8th → the rest (every `step`-th, plus the last one), 6 requests at a time. */
   private preload(onFrame: () => void): void {
-    const order: number[] = [0, 1, 2, 3, 4];
-    for (let i = 8; i < FRAMES; i += 8) order.push(i);
-    for (let i = 5; i < FRAMES; i++) if (!order.includes(i)) order.push(i);
+    const wanted = (i: number) => i % this.step === 0 || i === FRAMES - 1;
+    const order: number[] = [0, 1, 2, 3, 4].filter(wanted);
+    for (let i = 8; i < FRAMES; i += 8) if (wanted(i)) order.push(i);
+    for (let i = 5; i < FRAMES; i++) if (wanted(i) && !order.includes(i)) order.push(i);
     this.load(order, onFrame);
   }
 
