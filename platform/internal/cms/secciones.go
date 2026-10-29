@@ -28,7 +28,7 @@ type Campo struct {
 	Campos   []Campo `json:"campos,omitempty" doc:"Subcampos de cada elemento (tipo lista)"`
 }
 
-// SeccionDef is a home section of Figma page 03 («Secciones Home»).
+// SeccionDef is a section of a page built from sections (Figma 03 «Secciones Home», 29 «/publico», 35 «/en»).
 type SeccionDef struct {
 	Clave       string  `json:"clave"`
 	Nombre      string  `json:"nombre"`
@@ -65,10 +65,49 @@ var Secciones = []SeccionDef{
 	{Clave: "localizacion", Nombre: "Localización", Descripcion: "Sede y cómo llegar (datos del evento)", Campos: []Campo{cEyebrow, cTitulo, cTexto}},
 }
 
-func seccionDef(clave string) *SeccionDef {
-	for i := range Secciones {
-		if Secciones[i].Clave == clave {
-			return &Secciones[i]
+// Lists of sub-items shared by the landings.
+var (
+	cItemsTituloTexto = func(clave, etiqueta string, max int) Campo {
+		return Campo{Clave: clave, Etiqueta: etiqueta, Tipo: "lista", Max: max, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 60}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 200}}}
+	}
+	cIcono = Campo{Clave: "icono", Etiqueta: "Icono", Tipo: "texto", Max: 20, Ayuda: "ticket · clock · map-pin · users · plane · train · car"}
+)
+
+// SeccionesPublico is /publico («Ven a ver la competición», Figma page 29).
+var SeccionesPublico = []SeccionDef{
+	{Clave: "intro", Nombre: "Cabecera", Descripcion: "Título y entradilla de la página", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto}},
+	{Clave: "datos", Nombre: "Datos clave", Descripcion: "Rejilla de 4 datos (2×2 en móvil)", Campos: []Campo{
+		{Clave: "items", Etiqueta: "Datos", Tipo: "lista", Max: 4, Campos: []Campo{cIcono, {Clave: "etiqueta", Etiqueta: "Etiqueta", Tipo: "texto", Max: 20}, {Clave: "valor", Etiqueta: "Valor", Tipo: "texto", Max: 40}}}}},
+	{Clave: "movimientos", Nombre: "Qué verás", Descripcion: "Los tres movimientos (carrusel en móvil)", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
+		{Clave: "items", Etiqueta: "Movimientos", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Movimiento", Tipo: "texto", Max: 40}, cImagen}}}},
+	{Clave: "juicio", Nombre: "Cómo se juzga", Descripcion: "Un intento paso a paso", Campos: []Campo{cEyebrow, cTitulo, cAcento, cItemsTituloTexto("pasos", "Pasos", 6)}},
+	{Clave: "normas", Nombre: "Normas de la grada", Descripcion: "Lista de normas para el público", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "items", Etiqueta: "Normas", Tipo: "lista", Max: 8, Campos: []Campo{{Clave: "texto", Etiqueta: "Norma", Tipo: "texto", Max: 160}}}}},
+	{Clave: "interesar", Nombre: "Te puede interesar", Descripcion: "Tres enlaces a otras páginas", Campos: []Campo{cTitulo,
+		{Clave: "items", Etiqueta: "Enlaces", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 40}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 60}, {Clave: "ruta", Etiqueta: "Ruta", Tipo: "texto", Max: 120}}}}},
+}
+
+// SeccionesEN is the English landing /en (Figma page 35).
+var SeccionesEN = []SeccionDef{
+	{Clave: "hero", Nombre: "Hero", Descripcion: "Title, intro and key facts (date and venue come from the event)", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
+		{Clave: "plazas", Etiqueta: "Lifters (places)", Tipo: "numero"}, {Clave: "cta", Etiqueta: "Main button", Tipo: "texto", Max: 30}, {Clave: "ctaSorteo", Etiqueta: "Raffle button", Tipo: "texto", Max: 30}}},
+	{Clave: "compete", Nombre: "Compete", Descripcion: "How to register", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto, cItemsTituloTexto("items", "Cards", 4)}},
+	{Clave: "raffle", Nombre: "Raffle", Descripcion: "Raffle card (€1 per ticket, Spanish law)", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "subtitulo", Etiqueta: "Card title", Tipo: "texto", Max: 40}, cTexto, cImagen, {Clave: "cta", Etiqueta: "Button", Tipo: "texto", Max: 30}}},
+	{Clave: "travel", Nombre: "Getting there", Descripcion: "Plane, train and car", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "items", Etiqueta: "Ways", Tipo: "lista", Max: 3, Campos: []Campo{cIcono, {Clave: "titulo", Etiqueta: "Title", Tipo: "texto", Max: 40}, {Clave: "texto", Etiqueta: "Text", Tipo: "texto", Max: 160}, {Clave: "nota", Etiqueta: "Note", Tipo: "texto", Max: 40}}}}},
+	{Clave: "faq", Nombre: "FAQ", Descripcion: "Frequently asked questions in English", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "items", Etiqueta: "Questions", Tipo: "lista", Max: 8, Campos: []Campo{{Clave: "pregunta", Etiqueta: "Question", Tipo: "texto", Max: 120}, {Clave: "respuesta", Etiqueta: "Answer", Tipo: "area", Max: 600}}}}},
+}
+
+// Paginas are the pages built from sections and their public route.
+var Paginas = map[string][]SeccionDef{"home": Secciones, "publico": SeccionesPublico, "en": SeccionesEN}
+
+func seccionDef(pagina, clave string) *SeccionDef {
+	defs := Paginas[pagina]
+	for i := range defs {
+		if defs[i].Clave == clave {
+			return &defs[i]
 		}
 	}
 	return nil
@@ -76,6 +115,7 @@ func seccionDef(clave string) *SeccionDef {
 
 type seccionRow struct {
 	ID          uuid.UUID       `json:"id" db:"id"`
+	Pagina      string          `json:"pagina" db:"pagina"`
 	Clave       string          `json:"clave" db:"clave"`
 	Orden       int             `json:"orden" db:"orden"`
 	Visible     bool            `json:"visible" db:"visible"`
@@ -97,11 +137,11 @@ type seccionView struct {
 	Estado      string  `json:"estado" enum:"publicada,cambios,sin_publicar" doc:"Si el borrador (contenido, visibilidad u orden) difiere de lo publicado"`
 }
 
-const selSeccion = `SELECT id, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at FROM secciones`
+const selSeccion = `SELECT id, pagina, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at FROM secciones`
 
 func view(r seccionRow) seccionView {
 	v := seccionView{seccionRow: r}
-	if d := seccionDef(r.Clave); d != nil {
+	if d := seccionDef(r.Pagina, r.Clave); d != nil {
 		v.Nombre, v.Descripcion, v.Campos = d.Nombre, d.Descripcion, d.Campos
 	}
 	switch {
@@ -139,8 +179,8 @@ func jsonEqual(a, b json.RawMessage) bool {
 
 func (s *Svc) seccionesOf(ctx context.Context, q interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
-}, cid uuid.UUID) ([]seccionView, error) {
-	rows, err := q.Query(ctx, selSeccion+` WHERE competition_id = $1 ORDER BY orden`, cid)
+}, cid uuid.UUID, pagina string) ([]seccionView, error) {
+	rows, err := q.Query(ctx, selSeccion+` WHERE competition_id = $1 AND pagina = $2 ORDER BY orden`, cid, pagina)
 	if err != nil {
 		return nil, err
 	}
@@ -152,10 +192,10 @@ func (s *Svc) seccionesOf(ctx context.Context, q interface {
 	return out, err
 }
 
-// ensureSecciones creates the missing sections of a competition with empty drafts.
-func ensureSecciones(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
-	for i, d := range Secciones {
-		if _, err := tx.Exec(ctx, `INSERT INTO secciones (id, competition_id, clave, orden) VALUES ($1,$2,$3,$4) ON CONFLICT (competition_id, clave) DO NOTHING`, newID(), cid, d.Clave, i+1); err != nil {
+// ensureSecciones creates the missing sections of a page with empty drafts.
+func ensureSecciones(ctx context.Context, tx pgx.Tx, cid uuid.UUID, pagina string) error {
+	for i, d := range Paginas[pagina] {
+		if _, err := tx.Exec(ctx, `INSERT INTO secciones (id, competition_id, pagina, clave, orden, pub_orden) VALUES ($1,$2,$3,$4,$5,$5) ON CONFLICT (competition_id, pagina, clave) DO NOTHING`, newID(), cid, pagina, d.Clave, i+1); err != nil {
 			return err
 		}
 	}
@@ -167,16 +207,20 @@ func (s *Svc) registerSecciones() {
 	tags := []string{"Web y contenidos"}
 	base := "/api/admin/competiciones/{cid}/web/secciones"
 
+	type listIn struct {
+		CID    uuid.UUID `path:"cid"`
+		Pagina string    `query:"pagina" enum:"home,publico,en" default:"home" doc:"home · publico (/publico) · en (/en)"`
+	}
 	type listOut struct{ Body []seccionView }
-	huma.Register(api, huma.Operation{OperationID: "secciones-list", Method: http.MethodGet, Path: base, Summary: "Secciones de la home (borrador y publicado)", Tags: tags, Security: bearer},
-		func(ctx context.Context, in *cidPath) (*listOut, error) {
+	huma.Register(api, huma.Operation{OperationID: "secciones-list", Method: http.MethodGet, Path: base, Summary: "Secciones de una página (borrador y publicado)", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *listIn) (*listOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
 				return nil, err
 			}
-			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return ensureSecciones(ctx, tx, in.CID) }); err != nil {
+			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return ensureSecciones(ctx, tx, in.CID, in.Pagina) }); err != nil {
 				return nil, err
 			}
-			list, err := s.seccionesOf(ctx, s.a.DB, in.CID)
+			list, err := s.seccionesOf(ctx, s.a.DB, in.CID, in.Pagina)
 			return &listOut{Body: list}, err
 		})
 
@@ -244,6 +288,7 @@ func (s *Svc) registerSecciones() {
 	type pubIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
+			Pagina string   `json:"pagina,omitempty" enum:"home,publico,en" default:"home"`
 			Claves []string `json:"claves,omitempty" doc:"Secciones a publicar; vacío = todas las que tienen cambios"`
 		}
 	}
@@ -252,7 +297,7 @@ func (s *Svc) registerSecciones() {
 			Publicadas []string `json:"publicadas"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "web-publish", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/publicar", Summary: "Publicar los borradores de la home", Tags: tags, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "web-publish", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/publicar", Summary: "Publicar los borradores de una página (home, /publico o /en)", Tags: tags, Security: bearer},
 		func(ctx context.Context, in *pubIn) (*pubOut, error) {
 			p, err := auth.Require(ctx, in.CID.String(), "web.publicar")
 			if err != nil {
@@ -265,7 +310,11 @@ func (s *Svc) registerSecciones() {
 				by = &p.UserID
 			}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				rows, err := tx.Query(ctx, selSeccion+` WHERE competition_id = $1 FOR UPDATE`, in.CID)
+				pagina := in.Body.Pagina
+				if pagina == "" {
+					pagina = "home"
+				}
+				rows, err := tx.Query(ctx, selSeccion+` WHERE competition_id = $1 AND pagina = $2 FOR UPDATE`, in.CID, pagina)
 				if err != nil {
 					return err
 				}
@@ -289,7 +338,7 @@ func (s *Svc) registerSecciones() {
 				if len(out.Body.Publicadas) == 0 {
 					return problem.Conflict("SIN_CAMBIOS", "No hay cambios pendientes de publicar.")
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "web.publicada", map[string]any{"secciones": out.Body.Publicadas},
+				return events.Enqueue(ctx, tx, events.New(ctx, "web.publicada", map[string]any{"pagina": pagina, "secciones": out.Body.Publicadas},
 					events.Competition(in.CID.String()), events.Audience(events.Public)))
 			})
 			if err == nil {

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, PendingTasks, RESPONSE_INIT, inject
 import { fmtLongDate } from '@grcup/ui';
 import { Cms, type HomeCms } from '../core/cms';
 import { Competition } from '../core/competition';
-import { Seo } from '../core/seo';
+import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 import { HeroTrophy } from './hero-trophy';
 import { SecCifras, SecEditorial, SecEntradas, SecFaq, SecInscripciones, SecLocalizacion, SecOrganizacion, SecPatrocinadores, SecPremios } from './cms-sections';
@@ -63,6 +63,7 @@ export class HomePage {
         title: `${nombre} · Campeonato de powerlifting en ${c?.sede?.ciudad ?? 'Almussafes'}`,
         description: `${nombre}: campeonato de powerlifting ${c?.evento?.nivel ? '(' + c.evento.nivel + ') ' : ''}el ${c?.fechaInicio ? fmtLongDate(c.fechaInicio) : ''} en ${c?.sede?.nombre ?? 'Almussafes'}. Entradas gratuitas, atletas, horarios y directo.`,
         path: '/',
+        alternates: HOME_ALTERNATES,
         jsonLd: c
           ? {
               '@context': 'https://schema.org',

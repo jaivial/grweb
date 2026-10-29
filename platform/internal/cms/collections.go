@@ -125,6 +125,48 @@ type paginaIn struct {
 	PublicarAt *time.Time `json:"publicarAt,omitempty" doc:"Publicación programada"`
 }
 
+// ---- Clubs (/clubs) ----
+
+type clubRow struct {
+	ID            uuid.UUID  `json:"id" db:"id"`
+	Nombre        string     `json:"nombre" db:"nombre"`
+	Ciudad        string     `json:"ciudad" db:"ciudad"`
+	Provincia     string     `json:"provincia" db:"provincia"`
+	LogoURL       string     `json:"logoUrl" db:"logo_url"`
+	Web           string     `json:"web" db:"web"`
+	Instagram     string     `json:"instagram" db:"instagram"`
+	Etiquetas     string     `json:"etiquetas" db:"etiquetas"`
+	Rol           string     `json:"rol" db:"rol"`
+	AfiliadoAEP   bool       `json:"afiliadoAep" db:"afiliado_aep"`
+	Estado        string     `json:"estado" db:"estado"`
+	ContactoEmail string     `json:"contactoEmail" db:"contacto_email" doc:"Solo si llegó desde el formulario público"`
+	Consentido    *time.Time `json:"consentimientoAt,omitempty" db:"consentimiento_at"`
+	Orden         int        `json:"orden" db:"orden"`
+	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
+}
+
+type clubIn struct {
+	Nombre      string `json:"nombre" minLength:"2" maxLength:"120"`
+	Ciudad      string `json:"ciudad,omitempty" maxLength:"80"`
+	Provincia   string `json:"provincia,omitempty" maxLength:"40"`
+	LogoURL     string `json:"logoUrl,omitempty" maxLength:"500"`
+	Web         string `json:"web,omitempty" maxLength:"300"`
+	Instagram   string `json:"instagram,omitempty" maxLength:"300"`
+	Etiquetas   string `json:"etiquetas,omitempty" maxLength:"120" doc:"Separadas por comas (p. ej. «Powerlifting, AEP»)"`
+	Rol         string `json:"rol,omitempty" enum:"organizador,colaborador,club" default:"club"`
+	AfiliadoAEP bool   `json:"afiliadoAep,omitempty"`
+	Estado      string `json:"estado,omitempty" enum:"publicado,pendiente,oculto" default:"publicado"`
+}
+
+func validClub(in *clubIn) error {
+	trimAll(&in.Nombre, &in.Ciudad, &in.Provincia, &in.LogoURL, &in.Web, &in.Instagram, &in.Etiquetas)
+	https := func(u string) bool { return u == "" || (strings.HasPrefix(u, "https://") && validURL(u, false) && strings.Contains(u[8:], ".")) }
+	if !validURL(in.LogoURL, true) || !https(in.Web) || !https(in.Instagram) {
+		return problem.Unprocessable("URL_INVALIDA", "El logo, la web y el Instagram deben ser enlaces https.")
+	}
+	return nil
+}
+
 // ---- Galería ----
 
 type foto struct {
@@ -296,6 +338,22 @@ func (s *Svc) registerCollections() {
 		},
 		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *albumIn) error {
 			_, err := tx.Exec(ctx, `UPDATE albumes SET titulo=$3, slug=$4, fotos=$5, publicado=$6, updated_at=now() WHERE competition_id=$1 AND id=$2`, cid, id, in.Titulo, in.Slug, in.Fotos, in.Publicado)
+			return err
+		},
+	})
+	register(s, collection[clubRow, clubIn]{
+		name: "clubs", path: "/web/clubs", table: "clubs", tag: tagWeb, perm: "web.editar", order: "estado = 'pendiente' DESC, orden, nombre",
+		cols:     "id, nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep, estado, contacto_email, consentimiento_at, orden, created_at",
+		validate: validClub,
+		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *clubIn) error {
+			_, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep, estado, orden)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
+				id, cid, in.Nombre, in.Ciudad, in.Provincia, in.LogoURL, in.Web, in.Instagram, in.Etiquetas, in.Rol, in.AfiliadoAEP, in.Estado)
+			return err
+		},
+		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *clubIn) error {
+			_, err := tx.Exec(ctx, `UPDATE clubs SET nombre=$3, ciudad=$4, provincia=$5, logo_url=$6, web=$7, instagram=$8, etiquetas=$9, rol=$10, afiliado_aep=$11, estado=$12, updated_at=now()
+				WHERE competition_id=$1 AND id=$2`, cid, id, in.Nombre, in.Ciudad, in.Provincia, in.LogoURL, in.Web, in.Instagram, in.Etiquetas, in.Rol, in.AfiliadoAEP, in.Estado)
 			return err
 		},
 	})

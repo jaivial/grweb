@@ -3,14 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
 import { Cms, renderMarkdown, type Album, type Faq, type Foto, type Heading, type Pagina, type Patrocinador } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
-import { Seo } from '../core/seo';
+import { Seo, type SeoData } from '../core/seo';
 import { Page } from '../layout/page';
 
 /** Applies the SEO of a route: the CMS override when there is one, else the page's own defaults. */
-async function applySeo(cms: Cms, seo: Seo, path: string, title: string, description: string, image?: string): Promise<void> {
+export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, description: string, image?: string, extra: Partial<SeoData> = {}): Promise<void> {
   const map = await cms.seoMap();
   const o = map?.paginas.find((p) => p.ruta === path);
-  seo.set({ title: o?.title || title, description: o?.description || description, path, image: o?.imagenUrl || image });
+  seo.set({ ...extra, title: o?.title || title, description: o?.description || description, path, image: o?.imagenUrl || image });
 }
 
 /** /preguntas-frecuentes (Figma page 24): topics, search and accordions grouped by topic. */

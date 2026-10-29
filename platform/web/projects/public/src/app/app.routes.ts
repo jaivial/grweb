@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
+import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
 import { BlogPage, ComoLlegarPage, ContentPage, FaqPage, GaleriaPage, LegalPage, PatrocinadoresPage, VoluntariosPage } from './pages/content';
 
 export const routes: Routes = [
@@ -9,6 +10,9 @@ export const routes: Routes = [
   { path: 'galeria', component: GaleriaPage },
   { path: 'voluntarios', component: VoluntariosPage },
   { path: 'como-llegar', component: ComoLlegarPage },
+  { path: 'publico', component: PublicoPage },
+  { path: 'clubs', component: ClubsPage },
+  { path: 'en', component: EnPage },
   { path: 'blog', component: BlogPage },
   { path: 'blog/:pslug', component: ContentPage, data: { tipo: 'blog' } },
   { path: 'privacidad', component: LegalPage, data: { tipo: 'privacidad', titulo: 'Política de privacidad' } },

@@ -1,23 +1,23 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
-  Activity, ArrowDown, ArrowRight, ArrowUp, Award, Bell, Calendar, CalendarDays, Check, ChevronDown, ChevronLeft,
+  Activity, ArrowDown, ArrowRight, ArrowUp, Award, Bell, Calendar, CalendarDays, Camera, Car, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, Download, ExternalLink, Gift, Globe,
-  History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Plug,
+  History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Plane, Plug,
   Plus, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Ticket,
-  TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, type IconNode,
+  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, type IconNode,
 } from 'lucide';
 
 /** Icons available in the platform (lucide, stroke 2 — Figma «Icon» / «BO / Nav icon»). */
 export const GR_ICONS = {
   activity: Activity, 'arrow-down': ArrowDown, 'arrow-right': ArrowRight, 'arrow-up': ArrowUp, award: Award, bell: Bell,
-  calendar: Calendar, 'calendar-days': CalendarDays, check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
+  calendar: Calendar, 'calendar-days': CalendarDays, camera: Camera, car: Car, check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight, 'chevrons-up-down': ChevronsUpDown, 'circle-alert': CircleAlert, 'circle-check': CircleCheck,
   help: CircleHelp, 'circle-x': CircleX, clock: Clock, download: Download, 'external-link': ExternalLink, gift: Gift,
   globe: Globe, history: History, home: House, info: Info, key: KeyRound, layout: LayoutTemplate, loader: LoaderCircle,
   lock: Lock, 'log-out': LogOut, mail: Mail, 'map-pin': MapPin, menu: Menu, minus: Minus, 'panel-left': PanelLeft,
-  plug: Plug, plus: Plus, radio: Radio, refresh: RefreshCw, scale: Scale, scan: ScanLine, search: Search, send: Send,
+  plane: Plane, plug: Plug, plus: Plus, radio: Radio, refresh: RefreshCw, scale: Scale, scan: ScanLine, search: Search, send: Send,
   settings: Settings, shield: Shield, 'shield-alert': ShieldAlert, smartphone: Smartphone, sparkles: Sparkles,
-  ticket: Ticket, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
+  ticket: Ticket, train: TrainFront, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
   'wifi-off': WifiOff, x: X, zap: Zap,
 } satisfies Record<string, IconNode>;
 

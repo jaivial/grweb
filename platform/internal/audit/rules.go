@@ -36,6 +36,9 @@ var notifRules = map[string]notifRule{
 		}
 		return "Nueva solicitud de voluntariado", cuerpo, "/web/voluntarios", "info", "web.editar", true
 	},
+	"cms.club_solicitado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Nuevo club propuesto para el directorio", "«" + str(d["nombre"]) + "» espera revisión antes de aparecer en /clubs.", "/web/patrocinadores", "info", "web.editar", true
+	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
 	},
@@ -94,6 +97,12 @@ func resumen(e events.Event) string {
 	case "identity.sesion_revocada":
 		return "cerró una sesión de un miembro"
 	case "web.publicada":
+		switch d["pagina"] {
+		case "publico":
+			return "publicó cambios de /publico"
+		case "en":
+			return "publicó cambios de la versión en inglés"
+		}
 		return "publicó cambios de la web"
 	case "legal.publicado":
 		return "publicó la versión " + str(d["version"]) + " de «" + str(d["tipo"]) + "»"
@@ -105,6 +114,8 @@ func resumen(e events.Event) string {
 		return "reordenó las secciones de la home"
 	case "cms.voluntario_solicitado":
 		return "envió una solicitud de voluntariado"
+	case "cms.club_solicitado":
+		return "propuso el club «" + str(d["nombre"]) + "» para el directorio"
 	case "cms.medio_subido":
 		return "subió una imagen"
 	case "cms.medio_actualizado":
@@ -129,7 +140,7 @@ func cmsCollection(t string) (string, string, bool) {
 		return "", "", false
 	}
 	col := map[string]string{"faq": "una pregunta frecuente", "patrocinadores": "un patrocinador", "seo": "el SEO de una ruta", "redirecciones": "una redirección",
-		"paginas": "una página", "blog": "una entrada del blog", "albumes": "un álbum", "voluntarios": "una solicitud de voluntariado"}[rest[:i]]
+		"paginas": "una página", "blog": "una entrada del blog", "albumes": "un álbum", "voluntarios": "una solicitud de voluntariado", "clubs": "un club"}[rest[:i]]
 	accion := map[string]string{"creado": "creó", "actualizado": "editó", "eliminado": "borró", "reordenado": "reordenó"}[rest[i+1:]]
 	if col == "" || accion == "" {
 		return "", "", false

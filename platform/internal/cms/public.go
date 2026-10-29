@@ -263,7 +263,8 @@ func (s *Svc) registerPublic() {
 				if o.Redirecciones, err = collect[redirRow](rows); err != nil {
 					return o, err
 				}
-				rows, err = s.a.DB.Query(ctx, `SELECT CASE WHEN tipo = 'blog' THEN '/blog/' ELSE '/' END || slug FROM paginas WHERE competition_id = $1 AND `+visible+` ORDER BY 1`, cid)
+				rows, err = s.a.DB.Query(ctx, `SELECT CASE WHEN tipo = 'blog' THEN '/blog/' ELSE '/' END || slug FROM paginas WHERE competition_id = $1 AND `+visible+`
+					UNION SELECT DISTINCT '/' || pagina FROM secciones WHERE competition_id = $1 AND pagina <> 'home' AND publicado IS NOT NULL ORDER BY 1`, cid)
 				if err != nil {
 					return o, err
 				}
@@ -311,6 +312,133 @@ func (s *Svc) registerPublic() {
 		})
 }
 
+// Landing is a page built from sections (/publico, /en): published, visible sections in published order.
+type Landing struct {
+	Version   string                     `json:"version"`
+	Secciones map[string]json.RawMessage `json:"secciones"`
+	Orden     []string                   `json:"orden"`
+}
+
+type clubPub struct {
+	Nombre      string `json:"nombre" db:"nombre"`
+	Ciudad      string `json:"ciudad" db:"ciudad"`
+	Provincia   string `json:"provincia" db:"provincia"`
+	LogoURL     string `json:"logoUrl" db:"logo_url"`
+	Web         string `json:"web" db:"web"`
+	Instagram   string `json:"instagram" db:"instagram"`
+	Etiquetas   string `json:"etiquetas" db:"etiquetas"`
+	Rol         string `json:"rol" db:"rol"`
+	AfiliadoAEP bool   `json:"afiliadoAep" db:"afiliado_aep"`
+}
+
+func (s *Svc) registerPublicExtra() {
+	api := s.a.API
+	pub := "/api/competiciones/{slug}"
+	cacheHdr := "public, max-age=60"
+
+	type landIn struct {
+		Slug   string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Pagina string `path:"pagina" enum:"publico,en"`
+	}
+	type landOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         Landing
+	}
+	huma.Register(api, huma.Operation{OperationID: "landing-public", Method: http.MethodGet, Path: pub + "/web/{pagina}", Summary: "Contenido publicado de /publico o /en", Tags: tagPub},
+		func(ctx context.Context, in *landIn) (*landOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			l, err := cached(ctx, s, cid, "landing:"+in.Pagina, ttlContent, func() (Landing, error) {
+				secs, orden, err := s.publishedSections(ctx, cid, in.Pagina)
+				return Landing{Version: s.version(ctx, cid), Secciones: secs, Orden: orden}, err
+			})
+			return &landOut{CacheControl: cacheHdr, Body: l}, err
+		})
+
+	type clubsOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         []clubPub
+	}
+	huma.Register(api, huma.Operation{OperationID: "clubs-public", Method: http.MethodGet, Path: pub + "/clubs", Summary: "Directorio de clubs publicados", Tags: tagPub},
+		func(ctx context.Context, in *slugIn) (*clubsOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			list, err := cached(ctx, s, cid, "clubs", ttlContent, func() ([]clubPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep FROM clubs
+					WHERE competition_id = $1 AND estado = 'publicado' ORDER BY orden, nombre`, cid)
+				if err != nil {
+					return nil, err
+				}
+				return collect[clubPub](rows)
+			})
+			return &clubsOut{CacheControl: cacheHdr, Body: list}, err
+		})
+
+	type clubSolIn struct {
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Body struct {
+			Nombre           string `json:"nombre" minLength:"2" maxLength:"120"`
+			Ciudad           string `json:"ciudad" minLength:"2" maxLength:"80"`
+			Provincia        string `json:"provincia,omitempty" maxLength:"40"`
+			Web              string `json:"web,omitempty" maxLength:"300"`
+			Instagram        string `json:"instagram,omitempty" maxLength:"300"`
+			AfiliadoAEP      bool   `json:"afiliadoAep,omitempty"`
+			Email            string `json:"email" format:"email" maxLength:"254" doc:"Contacto para verificar el club (no se publica)"`
+			AceptaPrivacidad bool   `json:"aceptaPrivacidad,omitempty" doc:"Obligatorio: casilla sin premarcar (si falta o es false → 422 CONSENTIMIENTO_OBLIGATORIO)"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "clubs-public-solicitud", Method: http.MethodPost, Path: pub + "/clubs", Summary: "Proponer un club para el directorio (queda pendiente de revisión)", Tags: tagPub, DefaultStatus: http.StatusAccepted},
+		func(ctx context.Context, in *clubSolIn) (*struct{}, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "clubs", httpx.ClientIPFrom(ctx)), 3, time.Hour); !r.Allowed {
+				return nil, problem.TooMany("Has enviado varias propuestas seguidas. Inténtalo más tarde.")
+			}
+			if !in.Body.AceptaPrivacidad {
+				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar el club tienes que aceptar la política de privacidad.")
+			}
+			b := clubIn{Nombre: in.Body.Nombre, Ciudad: in.Body.Ciudad, Provincia: in.Body.Provincia, Web: in.Body.Web, Instagram: in.Body.Instagram}
+			if err := validClub(&b); err != nil {
+				return nil, err
+			}
+			var version string
+			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
+			id := newID()
+			return nil, s.change(ctx, cid, "cms.club_solicitado", map[string]any{"id": id, "nombre": b.Nombre}, func(tx pgx.Tx) error {
+				_, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, consentimiento_at, legal_version, orden)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pendiente',$9,now(),$10, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
+					id, cid, b.Nombre, b.Ciudad, b.Provincia, b.Web, b.Instagram, in.Body.AfiliadoAEP, strings.ToLower(strings.TrimSpace(in.Body.Email)), version)
+				return err
+			})
+		})
+}
+
+// publishedSections returns the published, visible sections of a page in published order.
+func (s *Svc) publishedSections(ctx context.Context, cid uuid.UUID, pagina string) (map[string]json.RawMessage, []string, error) {
+	secs, orden := map[string]json.RawMessage{}, []string{}
+	rows, err := s.a.DB.Query(ctx, `SELECT clave, publicado FROM secciones WHERE competition_id = $1 AND pagina = $2 AND pub_visible AND publicado IS NOT NULL ORDER BY pub_orden, orden`, cid, pagina)
+	if err != nil {
+		return secs, orden, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		var v json.RawMessage
+		if err := rows.Scan(&k, &v); err != nil {
+			return secs, orden, err
+		}
+		secs[k] = v
+		orden = append(orden, k)
+	}
+	return secs, orden, rows.Err()
+}
+
 func collect[T any](rows pgx.Rows) ([]T, error) {
 	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[T])
 	if list == nil {
@@ -328,23 +456,12 @@ func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID) ([]patroPub, er
 }
 
 func (s *Svc) home(ctx context.Context, cid uuid.UUID) (Home, error) {
-	h := Home{Version: s.version(ctx, cid), Secciones: map[string]json.RawMessage{}, Orden: []string{}}
-	rows, err := s.a.DB.Query(ctx, `SELECT clave, publicado FROM secciones WHERE competition_id = $1 AND pub_visible AND publicado IS NOT NULL ORDER BY pub_orden, orden`, cid)
-	if err != nil {
+	h := Home{Version: s.version(ctx, cid)}
+	var err error
+	if h.Secciones, h.Orden, err = s.publishedSections(ctx, cid, "home"); err != nil {
 		return h, err
 	}
-	for rows.Next() {
-		var k string
-		var v json.RawMessage
-		if err := rows.Scan(&k, &v); err != nil {
-			rows.Close()
-			return h, err
-		}
-		h.Secciones[k] = v
-		h.Orden = append(h.Orden, k)
-	}
-	rows.Close()
-	rows, err = s.a.DB.Query(ctx, `SELECT categoria, pregunta, respuesta FROM faq WHERE competition_id = $1 AND publicada AND destacada ORDER BY orden LIMIT 8`, cid)
+	rows, err := s.a.DB.Query(ctx, `SELECT categoria, pregunta, respuesta FROM faq WHERE competition_id = $1 AND publicada AND destacada ORDER BY orden LIMIT 8`, cid)
 	if err != nil {
 		return h, err
 	}

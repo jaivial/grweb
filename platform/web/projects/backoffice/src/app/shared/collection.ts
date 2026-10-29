@@ -132,9 +132,16 @@ export class BoCollection {
     const key = this.config().filterBy;
     const items = this.res().items() ?? [];
     if (!key) return [];
-    const counts = new Map<string, number>();
-    for (const r of items) counts.set(String(r[key] ?? ''), (counts.get(String(r[key] ?? '')) ?? 0) + 1);
-    return [{ value: '', label: 'Todas', count: items.length }, ...[...counts].map(([value, count]) => ({ value, label: value, count }))];
+    const counts = new Map<string, { label: string; count: number }>();
+    // Chip labels: the column's display value, else the select option label, else the capitalised raw value.
+    const col = this.config().columns.find((c) => c.key === key);
+    const opt = this.config().fields.find((f) => f.clave === key)?.opciones;
+    for (const r of items) {
+      const v = String(r[key] ?? '');
+      const label = (col?.value ? String(col.value(r)) : opt?.find((o) => o.value === v)?.label) || v.charAt(0).toUpperCase() + v.slice(1);
+      counts.set(v, { label, count: (counts.get(v)?.count ?? 0) + 1 });
+    }
+    return [{ value: '', label: 'Todas', count: items.length }, ...[...counts].map(([value, c]) => ({ value, label: c.label, count: c.count }))];
   });
   protected readonly visible = computed(() => {
     const key = this.config().filterBy;
