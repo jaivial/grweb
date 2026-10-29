@@ -1,0 +1,87 @@
+# Gateway: the only entry point (host nginx → fixed ClusterIP set in the overlay).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  labels: { app.kubernetes.io/name: gateway, app.kubernetes.io/part-of: grcup, grcup.dev/tier: edge }
+spec:
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: gateway }
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: gateway, app.kubernetes.io/part-of: grcup, grcup.dev/tier: edge }
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: gateway
+          image: grcup/gateway
+          imagePullPolicy: IfNotPresent
+          args: ["serve"]
+          ports:
+            - { name: http, containerPort: 8080 }
+          envFrom:
+            - configMapRef: { name: grcup-config }
+          env:
+            - { name: UPSTREAMS, value: identity }
+            - { name: RATE_LIMIT_IP_MIN, value: "600" }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
+            - name: INTERNAL_TOKEN_SECRET
+              valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 50m, memory: 48Mi }
+            limits: { cpu: "1", memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  labels: { app.kubernetes.io/name: gateway, app.kubernetes.io/part-of: grcup }
+spec:
+  selector: { app.kubernetes.io/name: gateway }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: gateway }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 180 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: gateway }

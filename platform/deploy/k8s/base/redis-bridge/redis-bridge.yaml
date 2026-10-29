@@ -1,0 +1,55 @@
+# Reuses kraken's redis-server (127.0.0.1:6379) without reconfiguring it: a hostNetwork socat listens on the
+# cni0 address (10.42.0.1, reachable only from pods) and forwards to the loopback. Pods use the Service "redis".
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: redis-puente
+  labels: { app.kubernetes.io/name: redis-puente, app.kubernetes.io/part-of: grcup }
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/name: redis-puente }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: redis-puente, app.kubernetes.io/part-of: grcup }
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      automountServiceAccountToken: false
+      containers:
+        - name: socat
+          image: alpine/socat:1.8.0.0
+          args: ["-d", "TCP-LISTEN:16379,bind=10.42.0.1,fork,reuseaddr,max-children=512", "TCP:127.0.0.1:6379"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          readinessProbe:
+            tcpSocket: { host: 10.42.0.1, port: 16379 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels: { app.kubernetes.io/name: redis-puente, app.kubernetes.io/part-of: grcup }
+spec:
+  ports:
+    - { name: redis, port: 16379, targetPort: 16379, protocol: TCP }
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: redis-host
+  labels:
+    kubernetes.io/service-name: redis
+    endpointslice.kubernetes.io/managed-by: grcup-deploy
+addressType: IPv4
+ports:
+  - { name: redis, port: 16379, protocol: TCP }
+endpoints:
+  - addresses: ["10.42.0.1"]

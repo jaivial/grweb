@@ -1,0 +1,90 @@
+# Namespace-wide guard rails: defaults for containers without resources, quota, and network policies.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: grcup-defaults
+spec:
+  limits:
+    - type: Container
+      defaultRequest: { cpu: 25m, memory: 32Mi }
+      default: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: grcup-quota
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 6Gi
+    limits.cpu: "16"
+    limits.memory: 16Gi
+    pods: "80"
+---
+# Default deny: nothing reaches a pod unless a policy below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# The node itself (host nginx → ClusterIP, kubelet probes) reaches every pod. Host traffic to local pods
+# leaves through cni0 (10.42.0.1); the public and tailnet node IPs are listed for completeness.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-node
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: 10.42.0.1/32 }
+        - ipBlock: { cidr: 65.109.100.94/32 }
+        - ipBlock: { cidr: 100.66.235.72/32 }
+---
+# Services accept traffic from the gateway and from other services (service-to-service calls).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-services
+spec:
+  podSelector:
+    matchLabels: { grcup.dev/tier: service }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+        - podSelector: { matchLabels: { grcup.dev/tier: service } }
+      ports:
+        - { port: 8080, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { grcup.dev/db: "true" } }
+      ports:
+        - { port: 5432, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mailpit-smtp
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: mailpit }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { grcup.dev/tier: service } }
+      ports:
+        - { port: 1025, protocol: TCP }
