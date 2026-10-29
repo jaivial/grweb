@@ -4,7 +4,7 @@ _29/10/2026 · sustituye progresivamente a `backend/` (.NET 8 + MySQL), `fronten
 
 Lo que hay que construir sale de tres fuentes:
 
-- el inventario de [`INVENTARIO.md`](INVENTARIO.md): 174 endpoints actuales, 33 entidades, y 70 tablas, 172 endpoints y 28 eventos del diseño v7;
+- el inventario de [`INVENTARIO.md`](INVENTARIO.md): 174 endpoints actuales (118 migran, 43 se retiran y 13 están por decidir), 33 entidades, y 70 tablas, 150 endpoints únicos (172 filas de anotación) y 28 eventos del diseño v7;
 - el diseño de Figma «GRSCup 2026 - UI Kit & Rutas»: 66 páginas, 47 de web pública y 19 de backoffice;
 - el plan de CLI (`PLAN-CLI-BACKOFFICE.md`).
 
