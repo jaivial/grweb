@@ -46,6 +46,7 @@ func Service() app.Service {
 		Setup:      s.setup,
 		Commands: map[string]func(context.Context, *app.App, []string) error{
 			"bootstrap-root": s.bootstrapRoot,
+			"enlace-acceso":  s.loginLink,
 			"genkey":         genKey,
 		},
 	}

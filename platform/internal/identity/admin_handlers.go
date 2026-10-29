@@ -3,7 +3,9 @@ package identity
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -349,4 +351,38 @@ func (s *Svc) bootstrapRoot(ctx context.Context, a *app.App, _ []string) error {
 		a.Log.Info("usuario Root creado", "email", email)
 	}
 	return nil
+}
+
+// loginLink prints a one-time magic link (15 min) for an existing user. Operators use it to open a QA session
+// in a browser (or in cu) without typing a password: kubectl exec deploy/identity -- /app enlace-acceso <email> [ruta].
+func (s *Svc) loginLink(ctx context.Context, a *app.App, args []string) error {
+	if len(args) < 1 {
+		return errors.New("uso: enlace-acceso <email> [ruta del backoffice]")
+	}
+	bo := config.Str("BACKOFFICE_URL", "http://localhost:4201")
+	u, err := getUsuario(ctx, a.DB, "email", strings.ToLower(strings.TrimSpace(args[0])))
+	if err != nil || u.Estado != "activo" {
+		return errors.New("no hay ningún usuario activo con ese email")
+	}
+	next := ""
+	if len(args) > 1 {
+		next = safeNext(args[1])
+	}
+	tok := randomToken(32)
+	host, _ := os.Hostname()
+	ev := events.New(ctx, "identity.enlace_acceso_emitido", map[string]any{"usuarioId": u.ID, "ruta": next, "caducaEn": "15m"}, events.Subject("usuario:"+u.ID.String()))
+	ev.Actor = &events.Actor{Name: "operador (kubectl exec " + host + ")", Origin: "cli", Service: "identity"}
+	err = db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO enlaces_magicos (id, usuario_id, token_hash, siguiente, expires_at) VALUES ($1,$2,$3,$4,$5)`,
+			uuid.Must(uuid.NewV7()), u.ID, hashToken(tok), next, time.Now().Add(15*time.Minute)); err != nil {
+			return err
+		}
+		// Audited like any other mutation: someone can open a session on behalf of this user.
+		return events.Enqueue(ctx, tx, ev)
+	})
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(os.Stdout, bo+"/api/auth/magic/"+tok)
+	return err
 }

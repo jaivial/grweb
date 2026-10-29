@@ -1,0 +1,46 @@
+# Mailpit catches every email sent in QA (UI on grcup-qa-mail.menustudioai.com, tailnet only).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+  labels: { app.kubernetes.io/name: mailpit, app.kubernetes.io/part-of: grcup }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: mailpit }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: mailpit, app.kubernetes.io/part-of: grcup }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.27
+          env:
+            - { name: MP_MAX_MESSAGES, value: "3000" }
+            - { name: MP_SMTP_AUTH_ACCEPT_ANY, value: "true" }
+            - { name: MP_SMTP_AUTH_ALLOW_INSECURE, value: "true" }
+          ports:
+            - { name: smtp, containerPort: 1025 }
+            - { name: http, containerPort: 8025 }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          readinessProbe:
+            httpGet: { path: /livez, port: http }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 300m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit
+  labels: { app.kubernetes.io/name: mailpit, app.kubernetes.io/part-of: grcup }
+spec:
+  selector: { app.kubernetes.io/name: mailpit }
+  ports:
+    - { name: smtp, port: 1025, targetPort: smtp }
+    - { name: http, port: 8025, targetPort: http }

@@ -1,0 +1,13 @@
+# Base manifests of the GR Cup platform. Environments are overlays (overlays/qa).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs: { app.kubernetes.io/part-of: grcup }
+resources:
+  - common/config.yaml
+  - common/guardrails.yaml
+  - postgres/postgres.yaml
+  - redis-bridge/redis-bridge.yaml
+  - mailpit/mailpit.yaml
+  - identity/identity.yaml
+  - gateway/gateway.yaml

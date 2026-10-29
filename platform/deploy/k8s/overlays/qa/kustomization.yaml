@@ -1,0 +1,23 @@
+# QA on kraken (k3s): namespace grcup-qa, tailnet-only subdomains *.menustudioai.com.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: grcup-qa
+resources:
+  - namespace.yaml
+  - ../../base
+# Fixed ClusterIPs that the host nginx proxies to (no NodePorts: kraken has no firewall).
+patches:
+  - target: { kind: Service, name: gateway }
+    patch: |-
+      - op: add
+        path: /spec/clusterIP
+        value: 10.43.240.10
+  - target: { kind: Service, name: mailpit }
+    patch: |-
+      - op: add
+        path: /spec/clusterIP
+        value: 10.43.240.25
+# The deploy script replaces TAG with the commit being deployed.
+images:
+  - { name: grcup/gateway, newTag: TAG }
+  - { name: grcup/identity, newTag: TAG }

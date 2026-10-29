@@ -1,0 +1,79 @@
+# PostgreSQL 17 for the platform (one database and role per service). The host PostgreSQL of kraken is not used.
+# Data lives on the node (single-node k3s without StorageClass): /var/lib/grcup-qa/postgres.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-initdb
+data:
+  01-databases.sh: |
+    #!/bin/sh
+    # Runs once on an empty data directory. Passwords come from the grcup-db Secret (PW_<SERVICE>).
+    set -eu
+    for svc in identity competition cms athletes schedule live ticketing raffle crm messaging ai audit; do
+      var="PW_$(echo "$svc" | tr '[:lower:]' '[:upper:]')"
+      pw="$(printenv "$var")"
+      psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres -v role="grcup_$svc" -v pw="$pw" <<'SQL'
+    CREATE ROLE :"role" LOGIN PASSWORD :'pw';
+    CREATE DATABASE :"role" OWNER :"role";
+    REVOKE ALL ON DATABASE :"role" FROM PUBLIC;
+    SQL
+      psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "grcup_$svc" -c "CREATE EXTENSION IF NOT EXISTS citext;"
+    done
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels: { app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: grcup }
+spec:
+  selector: { app.kubernetes.io/name: postgres }
+  ports:
+    - { name: postgres, port: 5432, targetPort: 5432 }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels: { app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: grcup }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: postgres }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: grcup }
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          args: ["-c", "max_connections=300", "-c", "shared_buffers=256MB", "-c", "log_min_duration_statement=500"]
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          env:
+            - { name: POSTGRES_USER, value: postgres }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-db, key: POSTGRES_PASSWORD } }
+          envFrom:
+            - secretRef: { name: grcup-db }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: initdb, mountPath: /docker-entrypoint-initdb.d, readOnly: true }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "2", memory: 1Gi }
+      volumes:
+        - name: data
+          hostPath: { path: /var/lib/grcup-qa/postgres, type: DirectoryOrCreate }
+        - name: initdb
+          configMap: { name: postgres-initdb, defaultMode: 0555 }

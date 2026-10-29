@@ -1,0 +1,18 @@
+# Common, non-secret configuration of every service (overlays replace values per environment).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grcup-config
+data:
+  SERVICE_ENV: qa
+  KEY_PREFIX: "grcup:qa:"
+  REDIS_ADDR: redis:16379
+  REDIS_USERNAME: grcup
+  JWKS_URL: http://identity:8080/.well-known/jwks.json
+  JWT_ISSUER: grcup-identity
+  LOG_LEVEL: info
+  BACKOFFICE_URL: https://grcup-qa-bo.menustudioai.com
+  PUBLIC_WEB_URL: https://grcup-qa.menustudioai.com
+  CORS_ORIGINS: https://grcup-qa.menustudioai.com,https://grcup-qa-bo.menustudioai.com
+  # Each pod keeps few connections: 13 services × up to 4 replicas must fit in max_connections.
+  DB_POOL: pool_max_conns=5
