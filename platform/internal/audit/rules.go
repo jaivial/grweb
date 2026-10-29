@@ -39,6 +39,9 @@ var notifRules = map[string]notifRule{
 	"cms.club_solicitado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Nuevo club propuesto para el directorio", "«" + str(d["nombre"]) + "» espera revisión antes de aparecer en /clubs.", "/web/patrocinadores", "info", "web.editar", true
 	},
+	"athletes.importacion_confirmada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Acta de la AEP importada", fmt.Sprintf("%v nuevos · %v con cambios · %v bajas · %v filas con errores omitidas", d["nuevos"], d["cambios"], d["bajas"], d["errores"]), "/atletas", "success", "atletas.editar", true
+	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
 	},
@@ -114,6 +117,36 @@ func resumen(e events.Event) string {
 		return "reordenó las secciones de la home"
 	case "cms.voluntario_solicitado":
 		return "envió una solicitud de voluntariado"
+	case "athletes.atleta_creado":
+		return "añadió a " + str(d["nombre"]) + " a los atletas"
+	case "athletes.atleta_actualizado":
+		return "editó los datos de competición de un atleta"
+	case "athletes.perfil_actualizado":
+		if d["origen"] == "area" {
+			return "editó su perfil desde el área del atleta"
+		}
+		return "editó el perfil público de un atleta"
+	case "athletes.foto_subida":
+		return "subió su foto desde el área del atleta"
+	case "athletes.previa_pesaje":
+		return "guardó sus alturas de rack y primeros intentos"
+	case "athletes.promocionado":
+		return "pasó a un atleta de reserva a confirmado"
+	case "athletes.pesaje_registrado":
+		return "registró un pesaje"
+	case "athletes.pesaje_decidido":
+		if d["accion"] == "cambiar_categoria" {
+			return "cambió de categoría a un atleta tras el pesaje"
+		}
+		return "marcó que un atleta no compite tras el pesaje"
+	case "athletes.enlace_area_enviado":
+		return "envió a un atleta el enlace a su área"
+	case "athletes.atleta_borrado":
+		return "borró a un atleta y sus datos"
+	case "athletes.importacion_confirmada":
+		return "importó el acta de la AEP «" + str(d["archivo"]) + "»"
+	case "athletes.seguimiento_confirmado":
+		return "confirmó un aviso de «Avísame cuando compita»"
 	case "cms.club_solicitado":
 		return "propuso el club «" + str(d["nombre"]) + "» para el directorio"
 	case "cms.medio_subido":

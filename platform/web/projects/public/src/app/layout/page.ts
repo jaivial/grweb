@@ -20,9 +20,10 @@ import { Footer, Navbar, type Lang } from './layout';
             <gr-icon name="chevron-right" [size]="12" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
           </nav>
           @if (eyebrow()) { <p class="mt-6 flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>{{ eyebrow() }}</p> }
-          <h1 class="mt-3 text-display-m md:text-display-l">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }</h1>
+          <h1 class="mt-3 text-display-m md:text-display-l" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
           @if (subtitle()) { <p class="mt-4 text-body-m text-text-secondary md:text-body-l">{{ subtitle() }}</p> }
           @if (stamp()) { <p class="mt-5 inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ stamp() }}</p> }
+          <ng-content select="[pageStamps]" />
         </header>
         @if (cms.failed()) {
           <gr-alert class="mt-10 md:mt-14" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
@@ -37,6 +38,10 @@ export class Page {
   protected readonly cms = inject(Cms);
   readonly title = input.required<string>();
   readonly accent = input('');
+  /** Keep the h1 for SEO / screen readers but hide it (the page shows the name in its own hero). */
+  readonly hideTitle = input(false);
+  /** Text after the red accent («Los 150 atletas de la GR Cup»). */
+  readonly suffix = input('');
   readonly eyebrow = input('');
   readonly subtitle = input('');
   readonly crumb = input('');

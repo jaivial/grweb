@@ -67,7 +67,11 @@
             },
             "ssr": {
               "entry": "projects/public/src/server.ts"
-            }
+            },
+            "allowedCommonJsDependencies": [
+              "dijkstrajs",
+              "qrcode"
+            ]
           },
           "configurations": {
             "production": {

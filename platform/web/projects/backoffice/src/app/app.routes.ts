@@ -9,6 +9,10 @@ import { InicioPage } from './pages/inicio';
 import { LoginPage, SessionExpiredPage } from './pages/login';
 import { ComingSoonPage, ErrorPage } from './pages/misc';
 import { WebCollectionsTab, WebHomeTab, WebLegalTab, WebPage } from './pages/web';
+import { AtletaFichaPage } from './pages/atletas/ficha';
+import { AtletasImportarPage } from './pages/atletas/importar';
+import { AtletasPage } from './pages/atletas/list';
+import { PesajePage } from './pages/atletas/pesaje';
 
 /** Requires a session (restored from the refresh cookie on first navigation). */
 const authGuard: CanActivateFn = async (_r, state) => {
@@ -81,6 +85,10 @@ export const routes: Routes = [
           { path: ':coleccion', component: WebCollectionsTab },
         ],
       },
+      { path: 'atletas', component: AtletasPage, title: 'Atletas · Backoffice GR Cup' },
+      { path: 'atletas/importar', component: AtletasImportarPage, title: 'Importar acta AEP · Backoffice GR Cup' },
+      { path: 'atletas/pesaje', component: PesajePage, title: 'Pesaje · Backoffice GR Cup' },
+      { path: 'atletas/:id', component: AtletaFichaPage, title: 'Atleta · Backoffice GR Cup' },
       { path: ':seccion', component: ComingSoonPage, title: 'Backoffice GR Cup' },
     ],
   },

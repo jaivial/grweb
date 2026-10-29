@@ -321,6 +321,32 @@ func (s *Svc) registerInternal() {
 			Motivo    string `json:"motivo,omitempty"`
 		}
 	}
+	type plazasIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Plazas int `json:"plazas" minimum:"0" maximum:"5000"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "internal-inscripcion-plazas", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/inscripcion/plazas", Summary: "Plazas de atleta (seed de athletes)", Tags: tags, Hidden: true, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *plazasIn) (*struct{}, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			var c Competicion
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				var err error
+				if c, err = lockComp(ctx, tx, in.CID); err != nil {
+					return err
+				}
+				c.Inscripcion.Plazas = in.Body.Plazas
+				_, err = tx.Exec(ctx, `UPDATE competiciones SET inscripcion = $2, updated_at = now(), version = version + 1 WHERE id = $1`, in.CID, c.Inscripcion)
+				return err
+			})
+			if err == nil {
+				s.afterChange(ctx, c)
+			}
+			return nil, err
+		})
 	huma.Register(api, huma.Operation{OperationID: "internal-module-lock", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/modulos/{modulo}/bloqueo", Summary: "Bloquear o desbloquear un módulo (p. ej. sorteo hasta completar la checklist legal)", Tags: tags, Hidden: true, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *lockIn) (*struct{}, error) {
 			if _, err := auth.RequireService(ctx); err != nil {

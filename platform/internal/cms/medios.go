@@ -85,79 +85,36 @@ func (s *Svc) registerMedios() {
 			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
 				return nil, err
 			}
-			files := in.RawBody.File["file"]
-			if len(files) != 1 {
-				return nil, problem.Unprocessable("ARCHIVO_OBLIGATORIO", "Adjunta un archivo en el campo «file».")
-			}
-			fh := files[0]
-			if fh.Size > 10<<20 {
-				return nil, problem.Unprocessable("ARCHIVO_GRANDE", "El archivo supera los 10 MB.")
-			}
-			f, err := fh.Open()
+			m, err := s.upload(ctx, in.CID, &in.RawBody)
 			if err != nil {
 				return nil, err
 			}
-			defer f.Close()
-			head := make([]byte, 512)
-			n, _ := io.ReadFull(f, head)
-			tipo := http.DetectContentType(head[:n])
-			if strings.HasPrefix(tipo, "text/xml") || tipo == "application/octet-stream" { // webp is detected as image/webp; reject unknown
-				return nil, problem.Unprocessable("TIPO_NO_PERMITIDO", "Solo imágenes JPG, PNG, WebP, GIF o PDF.")
-			}
-			if _, ok := tiposMedio[tipo]; !ok {
-				return nil, problem.Unprocessable("TIPO_NO_PERMITIDO", "Solo imágenes JPG, PNG, WebP, GIF o PDF.")
-			}
-			if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return &oneOut{Body: m}, nil
+		})
+
+	// Internal upload for other services (e.g. athletes: photos from the athlete area), field «competicion» = id.
+	type upInt struct {
+		RawBody multipart.Form
+	}
+	huma.Register(api, huma.Operation{OperationID: "medios-upload-internal", Method: http.MethodPost, Path: "/internal/medios", Summary: "Subir un medio en nombre de otro servicio", Tags: []string{"Interno"}, Hidden: true,
+		DefaultStatus: http.StatusCreated, MaxBodyBytes: maxUpload, BodyReadTimeout: time.Minute},
+		func(ctx context.Context, in *upInt) (*oneOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err
 			}
-			var ancho, alto int
-			if strings.HasPrefix(tipo, "image/") {
-				cfg, _, err := image.DecodeConfig(f)
-				if err != nil {
-					return nil, problem.Unprocessable("IMAGEN_INVALIDA", "No se pudo leer la imagen.")
-				}
-				ancho, alto = cfg.Width, cfg.Height
-				if _, err := f.Seek(0, io.SeekStart); err != nil {
-					return nil, err
-				}
+			v := in.RawBody.Value["competicion"]
+			if len(v) == 0 {
+				return nil, problem.Unprocessable("COMPETICION_OBLIGATORIA", "Falta el campo «competicion».")
 			}
-			id := newID()
-			dst := s.path(in.CID, id, tipo)
-			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-				return nil, err
+			cid, err := uuid.Parse(v[0])
+			if err != nil {
+				return nil, problem.Unprocessable("COMPETICION_OBLIGATORIA", "«competicion» no es un id válido.")
 			}
-			out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
+			m, err := s.upload(ctx, cid, &in.RawBody)
 			if err != nil {
 				return nil, err
 			}
-			written, err := io.Copy(out, f)
-			out.Close()
-			if err != nil {
-				_ = os.Remove(dst)
-				return nil, err
-			}
-			alt := ""
-			if v := in.RawBody.Value["alt"]; len(v) > 0 {
-				alt = strings.TrimSpace(v[0])
-			}
-			var m medio
-			err = s.change(ctx, in.CID, "cms.medio_subido", map[string]any{"id": id, "tipo": tipo, "bytes": written}, func(tx pgx.Tx) error {
-				if _, err := tx.Exec(ctx, `INSERT INTO medios (id, competition_id, nombre, tipo, bytes, ancho, alto, alt) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-					id, in.CID, filepath.Base(fh.Filename), tipo, written, ancho, alto, alt); err != nil {
-					return err
-				}
-				rows, err := tx.Query(ctx, selMedio+` WHERE id = $1`, id)
-				if err != nil {
-					return err
-				}
-				m, err = pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[medio])
-				return err
-			})
-			if err != nil {
-				_ = os.Remove(dst)
-				return nil, err
-			}
-			return &oneOut{Body: *m.withURL()}, nil
+			return &oneOut{Body: m}, nil
 		})
 
 	type patchIn struct {
@@ -235,4 +192,81 @@ func (s *Svc) registerMedios() {
 		}
 		http.ServeFile(w, r, s.path(cid, id, tipo))
 	})
+}
+
+// upload stores a multipart file («file», optional «alt») in the media library of competition cid.
+func (s *Svc) upload(ctx context.Context, cid uuid.UUID, form *multipart.Form) (medio, error) {
+	files := form.File["file"]
+	if len(files) != 1 {
+		return medio{}, problem.Unprocessable("ARCHIVO_OBLIGATORIO", "Adjunta un archivo en el campo «file».")
+	}
+	fh := files[0]
+	if fh.Size > 10<<20 {
+		return medio{}, problem.Unprocessable("ARCHIVO_GRANDE", "El archivo supera los 10 MB.")
+	}
+	f, err := fh.Open()
+	if err != nil {
+		return medio{}, err
+	}
+	defer f.Close()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(f, head)
+	tipo := http.DetectContentType(head[:n])
+	if strings.HasPrefix(tipo, "text/xml") || tipo == "application/octet-stream" { // webp is detected as image/webp; reject unknown
+		return medio{}, problem.Unprocessable("TIPO_NO_PERMITIDO", "Solo imágenes JPG, PNG, WebP, GIF o PDF.")
+	}
+	if _, ok := tiposMedio[tipo]; !ok {
+		return medio{}, problem.Unprocessable("TIPO_NO_PERMITIDO", "Solo imágenes JPG, PNG, WebP, GIF o PDF.")
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return medio{}, err
+	}
+	var ancho, alto int
+	if strings.HasPrefix(tipo, "image/") {
+		cfg, _, err := image.DecodeConfig(f)
+		if err != nil {
+			return medio{}, problem.Unprocessable("IMAGEN_INVALIDA", "No se pudo leer la imagen.")
+		}
+		ancho, alto = cfg.Width, cfg.Height
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return medio{}, err
+		}
+	}
+	id := newID()
+	dst := s.path(cid, id, tipo)
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return medio{}, err
+	}
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
+	if err != nil {
+		return medio{}, err
+	}
+	written, err := io.Copy(out, f)
+	out.Close()
+	if err != nil {
+		_ = os.Remove(dst)
+		return medio{}, err
+	}
+	alt := ""
+	if v := form.Value["alt"]; len(v) > 0 {
+		alt = strings.TrimSpace(v[0])
+	}
+	var m medio
+	err = s.change(ctx, cid, "cms.medio_subido", map[string]any{"id": id, "tipo": tipo, "bytes": written}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO medios (id, competition_id, nombre, tipo, bytes, ancho, alto, alt) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			id, cid, filepath.Base(fh.Filename), tipo, written, ancho, alto, alt); err != nil {
+			return err
+		}
+		rows, err := tx.Query(ctx, selMedio+` WHERE id = $1`, id)
+		if err != nil {
+			return err
+		}
+		m, err = pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[medio])
+		return err
+	})
+	if err != nil {
+		_ = os.Remove(dst)
+		return medio{}, err
+	}
+	return *m.withURL(), nil
 }

@@ -12,6 +12,8 @@ export interface SeoData {
   lang?: 'es' | 'en';
   /** hreflang alternates, e.g. [{ hreflang: 'es', path: '/' }, { hreflang: 'en', path: '/en' }, { hreflang: 'x-default', path: '/' }]. */
   alternates?: { hreflang: string; path: string }[];
+  /** «noindex» for private pages (athlete area). */
+  robots?: string;
 }
 
 /** hreflang pair of the home and its English landing. */
@@ -45,6 +47,8 @@ export class Seo {
       ['name', 'twitter:image', image],
     ];
     for (const [attr, key, content] of tags) this.meta.updateTag({ [attr]: key, content }, `${attr}="${key}"`);
+    if (d.robots) this.meta.updateTag({ name: 'robots', content: d.robots }, 'name="robots"');
+    else this.meta.removeTag('name="robots"');
     let link = this.doc.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (!link) {
       link = this.doc.createElement('link');

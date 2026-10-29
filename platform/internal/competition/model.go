@@ -90,6 +90,7 @@ type Inscripcion struct {
 	Modo        string      `json:"modo" enum:"externa,cerrada"`
 	URL         string      `json:"url"`
 	Estado      string      `json:"estado" enum:"proximamente,abierta,completa,cerrada"`
+	Plazas      int         `json:"plazas,omitempty" minimum:"0" maximum:"5000" doc:"Plazas de atleta (cupo de la AEP)"`
 	Responsable Responsable `json:"responsable"`
 	Nota        string      `json:"nota"`
 }
@@ -144,6 +145,7 @@ type Publica struct {
 		Modo   string `json:"modo"`
 		URL    string `json:"url"`
 		Estado string `json:"estado"`
+		Plazas int    `json:"plazas,omitempty"`
 	} `json:"inscripcion"`
 	ComoLlegar []ComoLlegar `json:"comoLlegar"`
 	LogoURL    string       `json:"logoUrl"`
@@ -157,7 +159,7 @@ func (c Competicion) publica() Publica {
 			p.Modulos[k] = m.Activo && !m.Bloqueado
 		}
 	}
-	p.Inscripcion.Modo, p.Inscripcion.URL, p.Inscripcion.Estado = c.Inscripcion.Modo, c.Inscripcion.URL, c.Inscripcion.Estado
+	p.Inscripcion.Modo, p.Inscripcion.URL, p.Inscripcion.Estado, p.Inscripcion.Plazas = c.Inscripcion.Modo, c.Inscripcion.URL, c.Inscripcion.Estado, c.Inscripcion.Plazas
 	if p.ComoLlegar == nil {
 		p.ComoLlegar = []ComoLlegar{}
 	}

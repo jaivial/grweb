@@ -23,7 +23,7 @@ export interface CompeticionPublica {
   sede: { nombre: string; direccion: string; cp: string; ciudad: string; provincia: string; mapsUrl: string; lat?: number; lng?: number };
   evento: { descripcion: string; nivel: string; organizador: string; emailContacto: string; puertas: string; aforoPabellon: number; instagram: string };
   modulos: Record<string, boolean>;
-  inscripcion: { modo: string; url: string; estado: string };
+  inscripcion: { modo: string; url: string; estado: string; plazas?: number };
   comoLlegar: { tipo: string; titulo: string; detalle: string; estado: string }[];
 }
 

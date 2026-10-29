@@ -6,13 +6,10 @@ package cms
 import (
 	"context"
 	"embed"
-	"errors"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,10 +17,10 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/app"
 	"github.com/jaivial/grweb/platform/pkg/cache"
+	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
-	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
 )
 
@@ -47,23 +44,17 @@ type Svc struct {
 	cache    *cache.Cache
 	mediaDir string
 
-	slugMu sync.Mutex
-	slugs  map[string]slugEntry
-}
-
-type slugEntry struct {
-	id  uuid.UUID
-	exp time.Time
+	comps *compref.Resolver
 }
 
 // Service returns the cms service definition.
 func Service() app.Service {
-	s := &Svc{slugs: map[string]slugEntry{}}
+	s := &Svc{}
 	return app.Service{
 		Name: "cms", Title: "GR Cup · cms", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
 		// 1 MiB for every request except media uploads (10 MB files + multipart overhead).
 		BodyLimitFor: func(r *http.Request) int64 {
-			if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/competiciones/") && strings.HasSuffix(r.URL.Path, "/medios") {
+			if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, "/api/admin/competiciones/") && strings.HasSuffix(r.URL.Path, "/medios") || r.URL.Path == "/internal/medios") {
 				return maxUpload
 			}
 			return 0
@@ -75,6 +66,7 @@ func Service() app.Service {
 func (s *Svc) init(a *app.App) {
 	s.a = a
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "cms", "competition", a.Cfg.InternalToken)
+	s.comps = compref.New(s.comp, a.Log)
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "cms", "")}
 	s.mediaDir = config.Str("MEDIA_DIR", "/data/medios")
 }
@@ -93,37 +85,9 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 // maxUpload is the request limit of a media upload (10 MB file + multipart overhead).
 const maxUpload = 11 << 20
 
-// cidFor resolves a public slug to the competition id (cached 5 min; drafts and archived ones are not public).
-// Only an upstream 404 becomes 404: timeouts and 5xx answer 503 so crawlers do not drop the pages.
+// cidFor resolves a public slug to the competition id (see compref: 404 for drafts/archived, 503 when competition fails).
 func (s *Svc) cidFor(ctx context.Context, slug string) (uuid.UUID, error) {
-	if !slugRe.MatchString(slug) {
-		return uuid.Nil, problem.NotFound("Competición no encontrada.")
-	}
-	s.slugMu.Lock()
-	if e, ok := s.slugs[slug]; ok && time.Now().Before(e.exp) {
-		s.slugMu.Unlock()
-		return e.id, nil
-	}
-	s.slugMu.Unlock()
-	var c struct {
-		ID     uuid.UUID `json:"id"`
-		Estado string    `json:"estado"`
-	}
-	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/slug/"+url.PathEscape(slug), nil, &c); err != nil {
-		var p *problem.Error
-		if errors.As(err, &p) && p.Status == http.StatusNotFound {
-			return uuid.Nil, problem.NotFound("Competición no encontrada.")
-		}
-		s.a.Log.Warn("competition no disponible", "err", err)
-		return uuid.Nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No podemos cargar la competición ahora mismo. Inténtalo en unos segundos.")
-	}
-	if c.Estado == "borrador" || c.Estado == "archivada" {
-		return uuid.Nil, problem.NotFound("Competición no encontrada.")
-	}
-	s.slugMu.Lock()
-	s.slugs[slug] = slugEntry{id: c.ID, exp: time.Now().Add(5 * time.Minute)}
-	s.slugMu.Unlock()
-	return c.ID, nil
+	return s.comps.ID(ctx, slug)
 }
 
 // version is the content version of a competition: public caches are keyed by it, so a bump invalidates them all.
