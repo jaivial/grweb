@@ -55,7 +55,7 @@ export class Countdown {
     <div class="relative mx-auto flex max-w-[1440px] flex-col items-center px-5 pt-32 pb-18 text-center md:px-8 md:pt-40 md:pb-24 xl:px-[120px] xl:pb-32">
       <gr-logo [height]="96" />
       <h2 class="mt-8 text-display-s md:text-display-l">Campeonato de powerlifting</h2>
-      @if (c?.evento?.nivel) { <p class="mt-2 text-display-2xs text-text-secondary md:text-display-xs">{{ c!.evento.nivel }}</p> }
+      @if (subtitulo() || c?.evento?.nivel) { <p class="mt-2 text-display-2xs text-text-secondary md:text-display-xs">{{ subtitulo() || c!.evento.nivel }}</p> }
       <dl class="mt-10 flex flex-col gap-4 text-left sm:flex-row sm:flex-wrap sm:justify-center sm:gap-8">
         @for (m of meta(); track m.label) {
           <div class="flex items-center gap-3">
@@ -75,6 +75,7 @@ export class Countdown {
 })
 export class Campeonato {
   readonly comp = input<CompeticionPublica | null>(null);
+  readonly subtitulo = input('');
   protected readonly dias = computed(() => {
     const f = this.comp()?.fechaInicio;
     return f ? Math.round((new Date(f).getTime() - Date.now()) / 86_400_000) : -1;

@@ -31,7 +31,7 @@ spec:
           envFrom:
             - configMapRef: { name: grcup-config }
           env:
-            - { name: UPSTREAMS, value: "identity,competition,audit,realtime" }
+            - { name: UPSTREAMS, value: "identity,competition,audit,realtime,cms" }
             - { name: RATE_LIMIT_IP_MIN, value: "600" }
             - name: REDIS_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }

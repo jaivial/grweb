@@ -46,7 +46,7 @@ var routeTable = func() []route {
 		{`^/api/pantalla/`, "realtime"},
 		{c + `(auditoria|actividad|dashboard|notificaciones|exportaciones|trabajos|webhooks)(/|$)`, "audit"},
 		{c + `(web|legal|voluntarios|medios)(/|$)`, "cms"},
-		{p + `(web|faq|patrocinadores|legal|blog|galeria|voluntarios|seo)(/|$)`, "cms"},
+		{p + `(web|faq|patrocinadores|legal|blog|galeria|voluntarios|seo|paginas)(/|$)`, "cms"},
 		{`^/api/(sitemap|ayuda|medios)(/|$)`, "cms"},
 		{c + `(directo|resultados)(/|$)`, "live"},
 		{p + `(directo|resultados|jueces)(/|$)`, "live"},

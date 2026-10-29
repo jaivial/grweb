@@ -118,7 +118,7 @@ kind: Job
 metadata:
   name: identity-bootstrap
 spec:
-  backoffLimit: 4
+  backoffLimit: 6
   ttlSecondsAfterFinished: 3600
   template:
     metadata:

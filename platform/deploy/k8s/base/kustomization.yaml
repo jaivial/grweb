@@ -12,6 +12,7 @@ resources:
   - identity/identity.yaml
   - competition/competition.yaml
   - audit/audit.yaml
+  - cms/cms.yaml
   - realtime/realtime.yaml
   - gateway/gateway.yaml
   - web/web.yaml
