@@ -75,11 +75,21 @@ func userCode() string {
 	return string(out)
 }
 
+// argonSlots bounds concurrent argon2id runs: each one allocates 19 MiB, so a login burst cannot exhaust
+// the pod's memory (the container limit and GOMEMLIMIT are sized for this bound).
+var argonSlots = make(chan struct{}, 4)
+
+func argonKey(pw, salt []byte, t, m uint32, p uint8, n uint32) []byte {
+	argonSlots <- struct{}{}
+	defer func() { <-argonSlots }()
+	return argon2.IDKey(pw, salt, t, m, p, n)
+}
+
 // argon2id with OWASP parameters (m=19 MiB, t=2, p=1), PHC string.
 func hashPassword(pw string) string {
 	salt := make([]byte, 16)
 	_, _ = rand.Read(salt)
-	key := argon2.IDKey([]byte(pw), salt, 2, 19*1024, 1, 32)
+	key := argonKey([]byte(pw), salt, 2, 19*1024, 1, 32)
 	return fmt.Sprintf("$argon2id$v=19$m=19456,t=2,p=1$%s$%s", b64.EncodeToString(salt), b64.EncodeToString(key))
 }
 
@@ -98,7 +108,7 @@ func checkPassword(hash, pw string) bool {
 	if err1 != nil || err2 != nil {
 		return false
 	}
-	got := argon2.IDKey([]byte(pw), salt, t, m, p, uint32(len(want)))
+	got := argonKey([]byte(pw), salt, t, m, p, uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1
 }
 

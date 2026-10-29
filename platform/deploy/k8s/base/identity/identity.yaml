@@ -58,6 +58,8 @@ spec:
               valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
             - name: JWT_PRIVATE_KEY
               valueFrom: { secretKeyRef: { name: grcup-jwt, key: private.pem } }
+            # 4 concurrent argon2id runs × 19 MiB + baseline: the GC must act well before the cgroup limit.
+            - { name: GOMEMLIMIT, value: 400MiB }
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 5
@@ -69,8 +71,8 @@ spec:
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
           resources:
-            requests: { cpu: 50m, memory: 64Mi }
-            limits: { cpu: "1", memory: 256Mi }
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: "1", memory: 512Mi }
 ---
 apiVersion: v1
 kind: Service
