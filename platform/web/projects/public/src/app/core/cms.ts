@@ -1,5 +1,5 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { marked } from 'marked';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
@@ -62,7 +62,15 @@ const base = `/api/competiciones/${COMPETITION_SLUG}`;
 @Injectable({ providedIn: 'root' })
 export class Cms {
   private readonly http = inject(HttpClient);
+  private readonly res = inject(RESPONSE_INIT, { optional: true });
   private seo?: Promise<SeoMap | null>;
+  /** True when the API failed (not a 404): pages show a retry message and SSR answers 503, never a false 404. */
+  readonly failed = signal(false);
+
+  /** Marks a missing page as a real 404, unless the content could not be loaded at all. */
+  notFound(): void {
+    if (this.res && !this.failed()) this.res.status = 404;
+  }
 
   home(): Promise<HomeCms | null> { return this.get<HomeCms>('/web'); }
   faq(): Promise<Faq[] | null> { return this.get<Faq[]>('/faq'); }
@@ -81,7 +89,13 @@ export class Cms {
   private async get<T>(path: string): Promise<T | null> {
     try {
       return await firstValueFrom(this.http.get<T>(base + path));
-    } catch {
+    } catch (e) {
+      if (e instanceof HttpErrorResponse && e.status === 404) return null;
+      this.failed.set(true);
+      if (this.res) {
+        this.res.status = 503;
+        this.res.headers = { ...(this.res.headers as Record<string, string> | undefined), 'Retry-After': '30', 'Cache-Control': 'no-store' };
+      }
       return null;
     }
   }

@@ -2,11 +2,13 @@ package cms
 
 import (
 	"context"
+	"errors"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -77,7 +79,8 @@ func (s *Svc) registerMedios() {
 		RawBody multipart.Form
 	}
 	type oneOut struct{ Body medio }
-	huma.Register(api, huma.Operation{OperationID: "medios-upload", Method: http.MethodPost, Path: base, Summary: "Subir una imagen o PDF (máx. 10 MB)", Tags: tags, Security: bearer, DefaultStatus: http.StatusCreated},
+	huma.Register(api, huma.Operation{OperationID: "medios-upload", Method: http.MethodPost, Path: base, Summary: "Subir una imagen o PDF (máx. 10 MB)", Tags: tags, Security: bearer, DefaultStatus: http.StatusCreated,
+		MaxBodyBytes: maxUpload, BodyReadTimeout: time.Minute},
 		func(ctx context.Context, in *upIn) (*oneOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
 				return nil, err
@@ -197,10 +200,14 @@ func (s *Svc) registerMedios() {
 			}
 			var tipo string
 			err := s.change(ctx, in.CID, "cms.medio_eliminado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
-				return tx.QueryRow(ctx, `DELETE FROM medios WHERE competition_id = $1 AND id = $2 RETURNING tipo`, in.CID, in.ID).Scan(&tipo)
+				err := tx.QueryRow(ctx, `DELETE FROM medios WHERE competition_id = $1 AND id = $2 RETURNING tipo`, in.CID, in.ID).Scan(&tipo)
+				if errors.Is(err, pgx.ErrNoRows) {
+					return problem.NotFound("Medio no encontrado.")
+				}
+				return err
 			})
 			if err != nil {
-				return nil, problem.NotFound("Medio no encontrado.")
+				return nil, err
 			}
 			_ = os.Remove(s.path(in.CID, in.ID, tipo))
 			return nil, nil
@@ -223,7 +230,8 @@ func (s *Svc) registerMedios() {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if tipo == "application/pdf" {
-			w.Header().Set("Content-Disposition", `inline; filename="`+strings.ReplaceAll(nombre, `"`, "")+`"`)
+			// RFC 6266 / 2231: non-ASCII names are sent as filename*=utf-8''…
+			w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": nombre}))
 		}
 		http.ServeFile(w, r, s.path(cid, id, tipo))
 	})

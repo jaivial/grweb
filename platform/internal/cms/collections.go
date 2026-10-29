@@ -230,7 +230,12 @@ func (s *Svc) registerCollections() {
 		name: "redirecciones", path: "/web/redirecciones", table: "redirecciones", tag: tagWeb, perm: "web.editar", order: "desde",
 		cols: "id, desde, hacia, codigo, orden",
 		validate: func(in *redirIn) error {
-			if !validURL(in.Hacia, true) || in.Desde == in.Hacia {
+			trimAll(&in.Desde, &in.Hacia)
+			// The SSR server applies redirects to page routes only (not "/", "/api/…" or files with an extension).
+			if in.Desde == "/" || strings.HasPrefix(in.Desde, "/api/") || strings.HasPrefix(in.Desde, "//") || strings.Contains(in.Desde, ".") {
+				return problem.Unprocessable("ORIGEN_INVALIDO", "El origen debe ser una ruta de página, distinta de «/» y sin extensión.")
+			}
+			if in.Hacia == "" || !validURL(in.Hacia, true) || in.Desde == in.Hacia {
 				return problem.Unprocessable("DESTINO_INVALIDO", "El destino debe ser una ruta (/…) o una URL https distinta del origen.")
 			}
 			return nil

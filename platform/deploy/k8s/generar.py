@@ -21,7 +21,9 @@ SERVICES = {
                         jobs=[("competition-seed", ["seed-grcup"], ["grcup-root"])]),
     "audit": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
     "cms": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), env={"MEDIA_DIR": "/data/medios"},
-                volumes=[("medios", "/var/lib/grcup-qa/medios", "/data/medios")],
+                # hostPath volumes (name, host path, mount path) and emptyDirs (name, size, mount path):
+                # /tmp holds multipart spool files of uploads (the root filesystem is read-only).
+                volumes=[("medios", "/var/lib/grcup-qa/medios", "/data/medios")], tmp=[("tmp", "64Mi", "/tmp")],
                 jobs=[("cms-seed", ["seed-grcup"], [])]),
     "realtime": dict(db=False, hpa=(1, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
 }
@@ -52,17 +54,19 @@ def env_block(name, spec, indent="          "):
 
 
 def volume_mounts(spec):
-    vols = spec.get("volumes", [])
+    vols = spec.get("volumes", []) + spec.get("tmp", [])
     if not vols:
         return ""
     return "\n          volumeMounts:" + "".join(f"\n            - {{ name: {v[0]}, mountPath: {v[2]} }}" for v in vols)
 
 
 def volumes(spec):
-    vols = spec.get("volumes", [])
-    if not vols:
+    host, tmp = spec.get("volumes", []), spec.get("tmp", [])
+    if not host and not tmp:
         return ""
-    return "\n      volumes:" + "".join(f"\n        - name: {v[0]}\n          hostPath: {{ path: {v[1]}, type: DirectoryOrCreate }}" for v in vols)
+    return ("\n      volumes:"
+            + "".join(f"\n        - name: {v[0]}\n          hostPath: {{ path: {v[1]}, type: DirectoryOrCreate }}" for v in host)
+            + "".join(f"\n        - name: {v[0]}\n          emptyDir: {{ sizeLimit: {v[1]} }}" for v in tmp))
 
 
 def manifest(name, spec):

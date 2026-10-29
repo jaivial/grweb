@@ -1,11 +1,12 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { GrIcon } from '@grcup/ui';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { GrAlert, GrIcon } from '@grcup/ui';
+import { Cms } from '../core/cms';
 import { Footer, Navbar } from './layout';
 
 /** Standard inner page (Figma pages 11–34): navbar, header with breadcrumbs / eyebrow / title with accent, content, footer. */
 @Component({
   selector: 'gr-page',
-  imports: [Navbar, Footer, GrIcon],
+  imports: [Navbar, Footer, GrIcon, GrAlert],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-navbar />
@@ -21,6 +22,9 @@ import { Footer, Navbar } from './layout';
           @if (subtitle()) { <p class="mt-4 text-body-m text-text-secondary md:text-body-l">{{ subtitle() }}</p> }
           @if (stamp()) { <p class="mt-5 inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ stamp() }}</p> }
         </header>
+        @if (cms.failed()) {
+          <gr-alert class="mt-10 md:mt-14" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
+        }
         <div class="mt-10 md:mt-14"><ng-content /></div>
       </div>
     </main>
@@ -28,6 +32,7 @@ import { Footer, Navbar } from './layout';
   `,
 })
 export class Page {
+  protected readonly cms = inject(Cms);
   readonly title = input.required<string>();
   readonly accent = input('');
   readonly eyebrow = input('');

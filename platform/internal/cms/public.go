@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,6 +19,10 @@ import (
 )
 
 var tagPub = []string{"Web pública"}
+
+const slugPattern = "^[a-z0-9-]{2,41}$"
+
+var slugRe = regexp.MustCompile(slugPattern)
 
 type slugIn struct {
 	Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
@@ -86,7 +91,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			h, err := cached(ctx, s, cid, "home", func() (Home, error) { return s.home(ctx, cid) })
+			h, err := cached(ctx, s, cid, "home", ttlContent, func() (Home, error) { return s.home(ctx, cid) })
 			return &homeOut{CacheControl: cacheHdr, Body: h}, err
 		})
 
@@ -100,7 +105,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "faq", func() ([]faqPub, error) {
+			list, err := cached(ctx, s, cid, "faq", ttlContent, func() ([]faqPub, error) {
 				rows, err := s.a.DB.Query(ctx, `SELECT categoria, pregunta, respuesta FROM faq WHERE competition_id = $1 AND publicada ORDER BY categoria, orden`, cid)
 				if err != nil {
 					return nil, err
@@ -120,12 +125,12 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "patrocinadores", func() ([]patroPub, error) { return s.patrocinadores(ctx, cid) })
+			list, err := cached(ctx, s, cid, "patrocinadores", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid) })
 			return &patroOut{CacheControl: cacheHdr, Body: list}, err
 		})
 
 	type legalIn struct {
-		Slug string `path:"slug"`
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Tipo string `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,bases-sorteo"`
 	}
 	type legalOut struct {
@@ -138,7 +143,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			l, err := cached(ctx, s, cid, "legal:"+in.Tipo, func() (legalPub, error) {
+			l, err := cached(ctx, s, cid, "legal:"+in.Tipo, ttlContent, func() (legalPub, error) {
 				rows, err := s.a.DB.Query(ctx, `SELECT tipo, version, titulo, contenido, hash, publicado_at FROM legal WHERE competition_id = $1 AND tipo = $2 AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid, in.Tipo)
 				if err != nil {
 					return legalPub{}, err
@@ -153,8 +158,8 @@ func (s *Svc) registerPublic() {
 		})
 
 	type pagIn struct {
-		Slug  string `path:"slug"`
-		PSlug string `path:"pslug"`
+		Slug  string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		PSlug string `path:"pslug" pattern:"^[a-z0-9-]{1,120}$"`
 	}
 	type pagOut struct {
 		CacheControl string `header:"Cache-Control"`
@@ -171,7 +176,7 @@ func (s *Svc) registerPublic() {
 				if err != nil {
 					return nil, err
 				}
-				p, err := cached(ctx, s, cid, seg+":"+in.PSlug, func() (paginaPub, error) {
+				p, err := cached(ctx, s, cid, seg+":"+in.PSlug, ttlTimed, func() (paginaPub, error) {
 					rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado FROM paginas
 						WHERE competition_id = $1 AND tipo = $2 AND slug = $3 AND `+visible, cid, tipo, in.PSlug)
 					if err != nil {
@@ -196,7 +201,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "blog", func() ([]paginaPub, error) {
+			list, err := cached(ctx, s, cid, "blog", ttlTimed, func() ([]paginaPub, error) {
 				rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado FROM paginas
 					WHERE competition_id = $1 AND tipo = 'blog' AND `+visible+` ORDER BY publicado DESC LIMIT 50`, cid)
 				if err != nil {
@@ -222,7 +227,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "galeria", func() ([]albumPub, error) {
+			list, err := cached(ctx, s, cid, "galeria", ttlContent, func() ([]albumPub, error) {
 				rows, err := s.a.DB.Query(ctx, `SELECT titulo, slug, fotos FROM albumes WHERE competition_id = $1 AND publicado ORDER BY orden`, cid)
 				if err != nil {
 					return nil, err
@@ -242,7 +247,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			out, err := cached(ctx, s, cid, "seo", func() (seoPub, error) {
+			out, err := cached(ctx, s, cid, "seo", ttlTimed, func() (seoPub, error) {
 				var o seoPub
 				rows, err := s.a.DB.Query(ctx, `SELECT id, ruta, title, description, imagen_url, indexable, orden FROM seo WHERE competition_id = $1 ORDER BY ruta`, cid)
 				if err != nil {
@@ -269,7 +274,7 @@ func (s *Svc) registerPublic() {
 		})
 
 	type volIn struct {
-		Slug string `path:"slug"`
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Body struct {
 			Nombre           string `json:"nombre" minLength:"2" maxLength:"120"`
 			Email            string `json:"email" format:"email" maxLength:"254"`
@@ -324,7 +329,7 @@ func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID) ([]patroPub, er
 
 func (s *Svc) home(ctx context.Context, cid uuid.UUID) (Home, error) {
 	h := Home{Version: s.version(ctx, cid), Secciones: map[string]json.RawMessage{}, Orden: []string{}}
-	rows, err := s.a.DB.Query(ctx, `SELECT clave, publicado FROM secciones WHERE competition_id = $1 AND visible AND publicado IS NOT NULL ORDER BY orden`, cid)
+	rows, err := s.a.DB.Query(ctx, `SELECT clave, publicado FROM secciones WHERE competition_id = $1 AND pub_visible AND publicado IS NOT NULL ORDER BY pub_orden, orden`, cid)
 	if err != nil {
 		return h, err
 	}

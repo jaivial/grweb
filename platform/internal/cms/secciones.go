@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -79,8 +81,11 @@ type seccionRow struct {
 	Visible     bool            `json:"visible" db:"visible"`
 	Borrador    json.RawMessage `json:"borrador" db:"borrador"`
 	Publicado   json.RawMessage `json:"publicado" db:"publicado"`
+	PubVisible  bool            `json:"publicadoVisible" db:"pub_visible" doc:"Visibilidad que ve la web pública"`
+	PubOrden    int             `json:"publicadoOrden" db:"pub_orden"`
 	PublicadoAt *time.Time      `json:"publicadoAt,omitempty" db:"publicado_at"`
 	Version     int             `json:"version" db:"version"`
+	Rev         int             `json:"rev" db:"rev" doc:"Revisión del borrador (ETag / If-Match)"`
 	UpdatedAt   time.Time       `json:"updatedAt" db:"updated_at"`
 }
 
@@ -89,10 +94,10 @@ type seccionView struct {
 	Nombre      string  `json:"nombre"`
 	Descripcion string  `json:"descripcion"`
 	Campos      []Campo `json:"campos"`
-	Estado      string  `json:"estado" enum:"publicada,cambios,sin_publicar" doc:"Si el borrador difiere de lo publicado"`
+	Estado      string  `json:"estado" enum:"publicada,cambios,sin_publicar" doc:"Si el borrador (contenido, visibilidad u orden) difiere de lo publicado"`
 }
 
-const selSeccion = `SELECT id, clave, orden, visible, borrador, publicado, publicado_at, version, updated_at FROM secciones`
+const selSeccion = `SELECT id, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at FROM secciones`
 
 func view(r seccionRow) seccionView {
 	v := seccionView{seccionRow: r}
@@ -102,11 +107,23 @@ func view(r seccionRow) seccionView {
 	switch {
 	case r.Publicado == nil:
 		v.Estado = "sin_publicar"
-	case !jsonEqual(r.Borrador, r.Publicado):
+	case pending(r):
 		v.Estado = "cambios"
 	default:
 		v.Estado = "publicada"
 	}
+	return v
+}
+
+// pending reports whether publishing would change what the public home shows.
+func pending(r seccionRow) bool {
+	return r.Publicado == nil || !jsonEqual(r.Borrador, r.Publicado) || r.Visible != r.PubVisible || r.Orden != r.PubOrden
+}
+
+func etag(rev int) string { return `W/"` + strconv.Itoa(rev) + `"` }
+
+func ifMatch(h string) int {
+	v, _ := strconv.Atoi(strings.Trim(strings.TrimPrefix(strings.TrimSpace(h), "W/"), `"`))
 	return v
 }
 
@@ -164,15 +181,19 @@ func (s *Svc) registerSecciones() {
 		})
 
 	type putIn struct {
-		CID  uuid.UUID `path:"cid"`
-		ID   uuid.UUID `path:"id"`
-		Body struct {
+		CID     uuid.UUID `path:"cid"`
+		ID      uuid.UUID `path:"id"`
+		IfMatch string    `header:"If-Match" doc:"ETag de la revisión editada; si otra persona guardó antes → 409 CONFLICTO_EDICION"`
+		Body    struct {
 			Borrador json.RawMessage `json:"borrador,omitempty" doc:"Contenido (objeto JSON según los campos de la sección)"`
 			Visible  *bool           `json:"visible,omitempty"`
 		}
 	}
-	type oneOut struct{ Body seccionView }
-	huma.Register(api, huma.Operation{OperationID: "secciones-update", Method: http.MethodPut, Path: base + "/{id}", Summary: "Guardar el borrador o la visibilidad de una sección (autoguardado)", Tags: tags, Security: bearer},
+	type oneOut struct {
+		ETag string `header:"ETag"`
+		Body seccionView
+	}
+	huma.Register(api, huma.Operation{OperationID: "secciones-update", Method: http.MethodPut, Path: base + "/{id}", Summary: "Guardar el borrador o la visibilidad de una sección (no cambia la web hasta publicar)", Tags: tags, Security: bearer},
 		func(ctx context.Context, in *putIn) (*oneOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
 				return nil, err
@@ -185,13 +206,18 @@ func (s *Svc) registerSecciones() {
 			}
 			var out seccionView
 			err := s.change(ctx, in.CID, "cms.seccion_actualizada", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE($3, borrador), visible = COALESCE($4, visible), updated_at = now() WHERE competition_id = $1 AND id = $2`,
-					in.CID, in.ID, nullRaw(in.Body.Borrador), in.Body.Visible)
-				if err != nil {
-					return err
-				}
-				if tag.RowsAffected() == 0 {
+				var rev int
+				if err := tx.QueryRow(ctx, `SELECT rev FROM secciones WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).Scan(&rev); err != nil {
 					return problem.NotFound("Sección no encontrada.")
+				}
+				// Only content edits are guarded: a visibility switch in the list must not invalidate an open editor.
+				if in.Body.Borrador != nil && in.IfMatch != "" && ifMatch(in.IfMatch) != rev {
+					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta sección mientras la editabas. Recarga para ver sus cambios.")
+				}
+				if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE($3, borrador), visible = COALESCE($4, visible),
+					rev = rev + CASE WHEN $3::jsonb IS NULL THEN 0 ELSE 1 END, updated_at = now() WHERE id = $1 AND competition_id = $2`,
+					in.ID, in.CID, nullRaw(in.Body.Borrador), in.Body.Visible); err != nil {
+					return err
 				}
 				rows, err := tx.Query(ctx, selSeccion+` WHERE id = $1`, in.ID)
 				if err != nil {
@@ -201,10 +227,10 @@ func (s *Svc) registerSecciones() {
 				out = view(r)
 				return err
 			})
-			return &oneOut{Body: out}, err
+			return &oneOut{ETag: etag(out.Rev), Body: out}, err
 		})
 
-	huma.Register(api, huma.Operation{OperationID: "secciones-reorder", Method: http.MethodPut, Path: base + "/orden", Summary: "Reordenar las secciones", Tags: tags, Security: bearer, DefaultStatus: http.StatusNoContent},
+	huma.Register(api, huma.Operation{OperationID: "secciones-reorder", Method: http.MethodPut, Path: base + "/orden", Summary: "Reordenar las secciones (borrador: la web cambia al publicar)", Tags: tags, Security: bearer, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *orderIn) (*struct{}, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
 				return nil, err
@@ -249,10 +275,10 @@ func (s *Svc) registerSecciones() {
 				}
 				for _, r := range list {
 					want := len(in.Body.Claves) == 0 || contains(in.Body.Claves, r.Clave)
-					if !want || (r.Publicado != nil && jsonEqual(r.Borrador, r.Publicado)) {
+					if !want || !pending(r) {
 						continue
 					}
-					if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
+					if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, pub_visible = visible, pub_orden = orden, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
 						return err
 					}
 					if _, err := tx.Exec(ctx, `INSERT INTO secciones_versiones (id, seccion_id, datos, publicado_por) VALUES ($1,$2,$3,$4)`, newID(), r.ID, r.Borrador, by); err != nil {

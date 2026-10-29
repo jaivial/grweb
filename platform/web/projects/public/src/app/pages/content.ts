@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, PendingTasks, RESPONSE_INIT, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
 import { Cms, renderMarkdown, type Album, type Faq, type Foto, type Heading, type Pagina, type Patrocinador } from '../core/cms';
@@ -104,7 +104,7 @@ export class FaqPage {
       @if (doc() === undefined) {
         <gr-skeleton class="h-96 rounded-lg" />
       } @else if (doc() === null) {
-        <p class="text-body-m text-text-tertiary">Este texto todavía no está publicado.</p>
+        @if (!cms.failed()) { <p class="text-body-m text-text-tertiary">Este texto todavía no está publicado.</p> }
       } @else {
         <div class="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[260px_minmax(0,1fr)]">
           @if (toc().length) {
@@ -124,12 +124,11 @@ export class FaqPage {
 export class LegalPage {
   readonly tipo = input.required<string>();
   readonly titulo = input('Texto legal');
-  private readonly cms = inject(Cms);
+  protected readonly cms = inject(Cms);
   protected readonly doc = signal<{ titulo: string; version: string; publicadoAt: string } | null | undefined>(undefined);
   protected readonly html = signal('');
   protected readonly toc = signal<Heading[]>([]);
   protected fecha = fmtLongDate;
-  private readonly res = inject(RESPONSE_INIT, { optional: true });
   constructor() {
     const seo = inject(Seo);
     void inject(PendingTasks).run(async () => {
@@ -137,7 +136,7 @@ export class LegalPage {
       const d = await this.cms.legal(this.tipo());
       if (!d) {
         this.doc.set(null);
-        if (this.res) this.res.status = 404;
+        this.cms.notFound();
         return;
       }
       const r = renderMarkdown(d.contenido);
@@ -158,10 +157,10 @@ const location0 = (tipo: string) => LEGAL_PATHS[tipo] ?? '/';
   imports: [Page, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page [title]="p()?.titulo ?? (p() === null ? 'Página no encontrada' : '')" [eyebrow]="tipo() === 'blog' ? 'Blog' : 'Competición'" [subtitle]="p()?.resumen ?? ''"
+    <gr-page [title]="p()?.titulo ?? (p() === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="tipo() === 'blog' ? 'Blog' : 'Competición'" [subtitle]="p()?.resumen ?? ''"
       [stamp]="tipo() === 'blog' && p()?.publicadoAt ? fecha(p()!.publicadoAt!) : ''">
       @if (p() === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else if (p() === null) { <p class="text-body-m text-text-tertiary">Esta página no existe o todavía no está publicada. <a href="/" class="text-accent-text underline">Volver al inicio</a></p> }
+      @else if (p() === null) { @if (!cms.failed()) { <p class="text-body-m text-text-tertiary">Esta página no existe o todavía no está publicada. <a href="/" class="text-accent-text underline">Volver al inicio</a></p> } }
       @else {
         @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl" alt="" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
         <article class="prose-gr max-w-3xl text-body-m" [innerHTML]="html()"></article>
@@ -173,11 +172,10 @@ export class ContentPage {
   readonly slug = input('');
   readonly pslug = input('');
   readonly tipo = input<'pagina' | 'blog'>('pagina');
-  private readonly cms = inject(Cms);
+  protected readonly cms = inject(Cms);
   protected readonly p = signal<Pagina | null | undefined>(undefined);
   protected readonly html = signal('');
   protected fecha = fmtLongDate;
-  private readonly res = inject(RESPONSE_INIT, { optional: true });
   constructor() {
     const seo = inject(Seo);
     void inject(PendingTasks).run(async () => {
@@ -187,7 +185,7 @@ export class ContentPage {
       const p = blog ? await this.cms.post(slug) : await this.cms.pagina(slug);
       if (!p) {
         this.p.set(null);
-        if (this.res) this.res.status = 404;
+        this.cms.notFound();
         seo.set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página no existe.', path: '/' + slug });
         return;
       }

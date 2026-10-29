@@ -38,16 +38,18 @@ var Version = "dev"
 
 // Service describes one microservice.
 type Service struct {
-	Name        string
-	Title       string                                                            // OpenAPI title
-	Migrations  fs.FS                                                             // service migrations (nil = only platform tables)
-	NeedsDB     bool                                                              // connect to PostgreSQL
-	NeedsRedis  bool                                                              // connect to Redis (required if NeedsDB: outbox relay)
-	Setup       func(ctx context.Context, a *App) error                           // register routes and background workers
-	Commands    map[string]func(ctx context.Context, a *App, args []string) error // extra subcommands
-	Offline     []string                                                          // subcommands that need neither PostgreSQL nor Redis
-	BodyLimit   int64                                                             // default 1 MiB
-	Middlewares []httpx.Middleware                                                // service-specific, inside the common chain
+	Name       string
+	Title      string                                                            // OpenAPI title
+	Migrations fs.FS                                                             // service migrations (nil = only platform tables)
+	NeedsDB    bool                                                              // connect to PostgreSQL
+	NeedsRedis bool                                                              // connect to Redis (required if NeedsDB: outbox relay)
+	Setup      func(ctx context.Context, a *App) error                           // register routes and background workers
+	Commands   map[string]func(ctx context.Context, a *App, args []string) error // extra subcommands
+	Offline    []string                                                          // subcommands that need neither PostgreSQL nor Redis
+	BodyLimit  int64                                                             // default 1 MiB
+	// BodyLimitFor raises the limit for specific requests (e.g. media uploads); 0 keeps BodyLimit.
+	BodyLimitFor func(*http.Request) int64
+	Middlewares  []httpx.Middleware // service-specific, inside the common chain
 }
 
 // App is what a service receives in Setup.
@@ -202,7 +204,7 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	if limit == 0 {
 		limit = 1 << 20
 	}
-	mws := []httpx.Middleware{httpx.RequestID, httpx.Recover(a.Log), httpx.Logger(a.Log), httpx.MaxBody(limit), auth.Middleware(a.Verifier)}
+	mws := []httpx.Middleware{httpx.RequestID, httpx.Recover(a.Log), httpx.Logger(a.Log), httpx.MaxBodyFor(limit, s.BodyLimitFor), auth.Middleware(a.Verifier)}
 	mws = append(mws, s.Middlewares...)
 	srv := &http.Server{
 		Addr:              a.Cfg.HTTPAddr,

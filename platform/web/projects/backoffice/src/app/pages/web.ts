@@ -1,5 +1,5 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, Injectable, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -23,6 +23,8 @@ export interface Seccion {
   version: number;
   updatedAt: string;
   estado: 'publicada' | 'cambios' | 'sin_publicar';
+  /** Draft revision: sent as If-Match so two editors do not overwrite each other. */
+  rev: number;
   campos: FieldDef[];
 }
 
@@ -44,15 +46,20 @@ export class WebSections {
     this.cid = cid;
     this.items.set(await firstValueFrom(this.http.get<Seccion[]>(`/api/admin/competiciones/${cid}/web/secciones`)));
   }
-  async save(id: string, body: { borrador?: unknown; visible?: boolean }): Promise<Seccion> {
-    const s = await firstValueFrom(this.http.put<Seccion>(`/api/admin/competiciones/${this.cid}/web/secciones/${id}`, body));
+  async save(id: string, body: { borrador?: unknown; visible?: boolean }, rev?: number): Promise<Seccion> {
+    const headers = rev ? { 'If-Match': `W/"${rev}"` } : undefined;
+    const s = await firstValueFrom(this.http.put<Seccion>(`/api/admin/competiciones/${this.cid}/web/secciones/${id}`, body, { headers }));
     this.items.update((l) => (l ?? []).map((x) => (x.id === id ? s : x)));
     return s;
   }
   async reorder(ids: string[]): Promise<void> {
     const byId = new Map((this.items() ?? []).map((x) => [x.id, x]));
     this.items.set(ids.map((id) => byId.get(id)!));
-    await firstValueFrom(this.http.put(`/api/admin/competiciones/${this.cid}/web/secciones/orden`, { ids }));
+    try {
+      await firstValueFrom(this.http.put(`/api/admin/competiciones/${this.cid}/web/secciones/orden`, { ids }));
+    } finally {
+      await this.load(this.cid); // order is part of the draft: refresh the «cambios» badges (or undo on error)
+    }
   }
   async publish(claves: string[] = []): Promise<string[]> {
     const r = await firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${this.cid}/web/publicar`, { claves }));
@@ -133,7 +140,7 @@ export class WebPage {
     <section class="rounded-lg border border-line-subtle bg-bg-card">
       <header class="border-b border-line-subtle px-5 py-4">
         <h2 class="text-ui-h5">Secciones de la home</h2>
-        <p class="mt-0.5 text-body-xs text-text-tertiary">{{ secs.items()?.length ?? 0 }} secciones · {{ visibles() }} visibles · arrastra para cambiar el orden</p>
+        <p class="mt-0.5 text-body-xs text-text-tertiary">{{ secs.items()?.length ?? 0 }} secciones · {{ visibles() }} visibles · arrastra para cambiar el orden · el orden y la visibilidad se aplican al publicar</p>
       </header>
       @if (secs.items() === null) {
         <div class="flex flex-col gap-2 p-5">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16" /> }</div>
@@ -156,7 +163,12 @@ export class WebPage {
     </section>
 
     <bo-drawer [(open)]="drawer" [title]="current()?.nombre ?? ''" [badge]="current() && current()!.estado !== 'publicada' ? estado[current()!.estado].label : ''">
-      @if (error()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ error() }}</gr-alert> }
+      @if (error()) {
+        <gr-alert class="mb-4" tone="danger" [title]="conflict() ? 'Otra persona ha guardado antes' : 'No se pudo guardar'">
+          {{ error() }}
+          @if (conflict()) { <button grButton size="s" class="mt-3" (click)="reload()">Recargar sus cambios</button> }
+        </gr-alert>
+      }
       @if (current(); as s) {
         <p class="mb-4 text-body-s text-text-tertiary">{{ s.descripcion }}. Se guarda como borrador; la web no cambia hasta publicar.</p>
         <bo-schema-form [fields]="s.campos" [(value)]="draft" [prefix]="s.clave + '-'" />
@@ -185,11 +197,22 @@ export class WebHomeTab {
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'web.editar'));
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
 
+  protected readonly conflict = signal(false);
+
   protected open(s: Seccion): void {
     this.current.set(s);
     this.draft.set(structuredClone(s.borrador ?? {}));
     this.error.set('');
+    this.conflict.set(false);
     this.drawer.set(true);
+  }
+
+  /** After a 409: load the other editor's version into the drawer (local edits are discarded). */
+  protected async reload(): Promise<void> {
+    const id = this.current()?.id;
+    await this.secs.load(this.comps.current()!.id);
+    const s = (this.secs.items() ?? []).find((x) => x.id === id);
+    if (s) this.open(s);
   }
 
   protected async save(publish: boolean): Promise<void> {
@@ -197,12 +220,15 @@ export class WebHomeTab {
     if (!s) return;
     this.saving.set(true);
     this.error.set('');
+    this.conflict.set(false);
     try {
-      await this.secs.save(s.id, { borrador: this.draft() });
+      const saved = await this.secs.save(s.id, { borrador: this.draft() }, s.rev);
+      this.current.set(saved);
       if (publish) await this.secs.publish([s.clave]);
       this.drawer.set(false);
       this.toasts.success(publish ? 'Sección publicada' : 'Borrador guardado', publish ? 'Ya se ve en la web.' : 'La web no cambia hasta publicar.');
     } catch (e) {
+      this.conflict.set(e instanceof HttpErrorResponse && e.error?.code === 'CONFLICTO_EDICION');
       this.error.set(errText(e));
     } finally {
       this.saving.set(false);
@@ -212,6 +238,7 @@ export class WebHomeTab {
   protected async visible(s: Seccion, v: boolean): Promise<void> {
     try {
       await this.secs.save(s.id, { visible: v });
+      this.toasts.success(v ? 'Sección visible en el borrador' : 'Sección oculta en el borrador', 'Se aplica a la web al publicar.');
     } catch (e) {
       this.toasts.error('No se pudo cambiar', errText(e));
     }

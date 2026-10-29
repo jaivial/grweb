@@ -6,9 +6,12 @@ package cms
 import (
 	"context"
 	"embed"
+	"errors"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,8 +61,14 @@ func Service() app.Service {
 	s := &Svc{slugs: map[string]slugEntry{}}
 	return app.Service{
 		Name: "cms", Title: "GR Cup · cms", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
-		BodyLimit: 12 << 20, // media uploads (10 MB images)
-		Commands:  map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup},
+		// 1 MiB for every request except media uploads (10 MB files + multipart overhead).
+		BodyLimitFor: func(r *http.Request) int64 {
+			if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/competiciones/") && strings.HasSuffix(r.URL.Path, "/medios") {
+				return maxUpload
+			}
+			return 0
+		},
+		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup},
 	}
 }
 
@@ -80,8 +89,15 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	return nil
 }
 
+// maxUpload is the request limit of a media upload (10 MB file + multipart overhead).
+const maxUpload = 11 << 20
+
 // cidFor resolves a public slug to the competition id (cached 5 min; drafts and archived ones are not public).
+// Only an upstream 404 becomes 404: timeouts and 5xx answer 503 so crawlers do not drop the pages.
 func (s *Svc) cidFor(ctx context.Context, slug string) (uuid.UUID, error) {
+	if !slugRe.MatchString(slug) {
+		return uuid.Nil, problem.NotFound("Competición no encontrada.")
+	}
 	s.slugMu.Lock()
 	if e, ok := s.slugs[slug]; ok && time.Now().Before(e.exp) {
 		s.slugMu.Unlock()
@@ -92,8 +108,13 @@ func (s *Svc) cidFor(ctx context.Context, slug string) (uuid.UUID, error) {
 		ID     uuid.UUID `json:"id"`
 		Estado string    `json:"estado"`
 	}
-	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/slug/"+slug, nil, &c); err != nil {
-		return uuid.Nil, problem.NotFound("Competición no encontrada.")
+	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/slug/"+url.PathEscape(slug), nil, &c); err != nil {
+		var p *problem.Error
+		if errors.As(err, &p) && p.Status == http.StatusNotFound {
+			return uuid.Nil, problem.NotFound("Competición no encontrada.")
+		}
+		s.a.Log.Warn("competition no disponible", "err", err)
+		return uuid.Nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No podemos cargar la competición ahora mismo. Inténtalo en unos segundos.")
 	}
 	if c.Estado == "borrador" || c.Estado == "archivada" {
 		return uuid.Nil, problem.NotFound("Competición no encontrada.")
@@ -117,8 +138,15 @@ func (s *Svc) bump(ctx context.Context, cid uuid.UUID) {
 	_ = s.a.Redis.Incr(ctx, s.a.Keys.Of("cms", "ver", cid.String())).Err()
 }
 
+// Cache lifetimes: content only changes through a version bump, but scheduled pages and posts
+// (publicar_at) become visible with time, so their read models expire quickly.
+const (
+	ttlContent = 10 * time.Minute
+	ttlTimed   = time.Minute
+)
+
 // cached serves a public read model from Redis (keyed by content version) or builds it.
-func cached[T any](ctx context.Context, s *Svc, cid uuid.UUID, key string, build func() (T, error)) (T, error) {
+func cached[T any](ctx context.Context, s *Svc, cid uuid.UUID, key string, ttl time.Duration, build func() (T, error)) (T, error) {
 	full := cid.String() + ":" + s.version(ctx, cid) + ":" + key
 	var v T
 	if s.cache.Get(ctx, full, &v) {
@@ -126,7 +154,7 @@ func cached[T any](ctx context.Context, s *Svc, cid uuid.UUID, key string, build
 	}
 	v, err := build()
 	if err == nil {
-		s.cache.Set(ctx, full, v, 10*time.Minute)
+		s.cache.Set(ctx, full, v, ttl)
 	}
 	return v, err
 }
