@@ -1,5 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
+import { NavigationStart, Router } from '@angular/router';
 import { marked } from 'marked';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
@@ -66,6 +67,13 @@ export class Cms {
   private seo?: Promise<SeoMap | null>;
   /** True when the API failed (not a 404): pages show a retry message and SSR answers 503, never a false 404. */
   readonly failed = signal(false);
+
+  constructor() {
+    // In the browser this service outlives pages: a transient error must not mark the next page as failed.
+    inject(Router).events.subscribe((e) => {
+      if (e instanceof NavigationStart) this.failed.set(false);
+    });
+  }
 
   /** Marks a missing page as a real 404, unless the content could not be loaded at all. */
   notFound(): void {
