@@ -1,0 +1,81 @@
+# Local development stack. Mirrors QA: PostgreSQL 17 (one DB per service), Redis 6.0 (same major as kraken), Mailpit.
+# make dev-up  → gateway on http://127.0.0.1:18300, Mailpit on http://127.0.0.1:18325
+name: grcup-dev
+
+x-svc: &svc
+  restart: unless-stopped
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+x-env: &env
+  SERVICE_ENV: dev
+  AUTO_MIGRATE: "true"
+  REDIS_ADDR: redis:6379
+  REDIS_PASSWORD: dev-redis
+  JWKS_URL: http://identity:8080/.well-known/jwks.json
+  INTERNAL_TOKEN_SECRET: dev-internal-secret-change-me
+  LOG_LEVEL: info
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev-postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro,z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:6.0-alpine
+    command: ["redis-server", "--requirepass", "dev-redis", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "dev-redis", "ping"]
+      interval: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:18325:8025"
+
+  identity:
+    <<: *svc
+    build: { context: ../.., args: { SVC: identity, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_identity:dev_identity@postgres:5432/grcup_identity?sslmode=disable
+      BACKOFFICE_URL: http://127.0.0.1:4201
+      COOKIE_SECURE: "false"
+
+  identity-bootstrap:
+    build: { context: ../.., args: { SVC: identity, VERSION: "${VERSION:-dev}" } }
+    command: ["bootstrap-root"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_identity:dev_identity@postgres:5432/grcup_identity?sslmode=disable
+      ROOT_EMAIL: root@grcup.local
+      ROOT_PASSWORD: root-dev-password
+      ROOT_NOMBRE: Root (dev)
+
+  gateway:
+    <<: *svc
+    build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      UPSTREAMS: identity
+      CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
+    ports:
+      - "127.0.0.1:18300:8080"
+
+volumes:
+  pgdata:
