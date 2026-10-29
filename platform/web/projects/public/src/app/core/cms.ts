@@ -51,6 +51,23 @@ export interface Album {
   slug: string;
   fotos: Foto[];
 }
+export interface Landing {
+  version: string;
+  secciones: Record<string, Seccion>;
+  orden: string[];
+}
+export interface Club {
+  nombre: string;
+  ciudad: string;
+  provincia: string;
+  logoUrl: string;
+  web: string;
+  instagram: string;
+  etiquetas: string;
+  rol: 'organizador' | 'colaborador' | 'club';
+  afiliadoAep: boolean;
+}
+
 export interface SeoMap {
   paginas: { ruta: string; title: string; description: string; imagenUrl: string; indexable: boolean }[];
   redirecciones: { desde: string; hacia: string; codigo: number }[];
@@ -89,6 +106,12 @@ export class Cms {
   blog(): Promise<Pagina[] | null> { return this.get<Pagina[]>('/blog'); }
   galeria(): Promise<Album[] | null> { return this.get<Album[]>('/galeria'); }
   seoMap(): Promise<SeoMap | null> { return (this.seo ??= this.get<SeoMap>('/seo')); }
+
+  landing(pagina: 'publico' | 'en'): Promise<Landing | null> { return this.get<Landing>(`/web/${pagina}`); }
+  clubs(): Promise<Club[] | null> { return this.get<Club[]>('/clubs'); }
+  async proponerClub(body: unknown): Promise<void> {
+    await firstValueFrom(this.http.post(`${base}/clubs`, body));
+  }
 
   async voluntario(body: unknown): Promise<void> {
     await firstValueFrom(this.http.post(`${base}/voluntarios`, body));

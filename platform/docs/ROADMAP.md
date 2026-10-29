@@ -15,12 +15,12 @@
 | 03 | Kubernetes QA | Kustomize (namespace, Postgres, puente Redis + ACL, Mailpit, gateway e identity con HPA, PDB y NetworkPolicy), scripts de imágenes y despliegue, DNS de Cloudflare, nginx y certificados | `https://grcup-qa-api…/api/health` y login desde la tailnet |
 | 04 | Núcleo de eventos | `competition`, `audit`, `realtime` (bus, SSE con `Last-Event-ID`), seed de la GR Cup 2026 («Datos de ejemplo») | Eventos que llegan por SSE, auditoría |
 | 05 | Frontend base | Workspace Angular + Tailwind v4 + tokens de Figma, librería `ui` (componentes base), backoffice (shell, login, ⌘K, notificaciones, errores, Inicio) y web pública (navbar, footer, home con hero animado), imágenes y despliegue | `cu` en `grcup-qa` y `grcup-qa-bo` (D/T/M) |
-| 06 | Web y contenidos | `cms` + backoffice 54 + páginas públicas de contenido (FAQ, legales, patrocinadores, reglamento, categorías, marcas mínimas, galería, blog, voluntarios, cómo llegar, ediciones, público, clubs, `/en`, SEO, sitemap) | `cu` + SEO (title, meta, sitemap) |
+| 06 | Web y contenidos | `cms` + backoffice 54 + páginas públicas de contenido (FAQ, legales, patrocinadores, reglamento, categorías, marcas mínimas, galería, blog, voluntarios, cómo llegar, público, clubs, `/en` con hreflang, SEO, sitemap). `/ediciones/2025` pasa al paso 11 (es el histórico de resultados) | `cu` + SEO (title, meta, sitemap) |
 | 07 | Atletas | `athletes` + backoffice 55 (importar AEP, ficha, pesaje) + `/atletas`, `/atletas/:slug`, `/participantes`, `/area-atleta` | `cu` |
 | 08 | Horarios | `schedule` + backoffice 56 (planificador con drag & drop, generar, diff, publicar) + `/horarios` | `cu` |
 | 09 | Contactos y emails | `crm` + `messaging` transaccional (plantillas, outbox, SMTP → Mailpit, automatizaciones) + backoffice 61 (contactos) y 62 | `cu` + Mailpit |
 | 10 | Entradas y check-in | `ticketing` + backoffice 58 y 59 (PWA, cámara, cola sin red) + `/entradas`, confirmación, `/mi-entrada` | `cu` (reserva → email → escaneo) |
-| 11 | Directo y resultados | `live` + backoffice 57 (mesa, corrección, pantalla) + `/en-directo`, `/resultados` | `cu` con SSE |
+| 11 | Directo y resultados | `live` + backoffice 57 (mesa, corrección, pantalla) + `/en-directo`, `/resultados`, `/ediciones/2025` | `cu` con SSE |
 | 12 | Campañas e IA | `ai` (MiniMax-M3.1-Flash) + campañas email+WhatsApp (editor tipo Figma, IA, previsualización, envío) + backoffice 61 (campañas) y 62 (WhatsApp) | `cu` + Mailpit + IA real |
 | 13 | Sorteo | `raffle` + backoffice 60 + `/sorteo`, `/checkout`, `/success` (Stripe en modo test o simulado) | `cu` |
 | 14 | Backoffice completo | Backoffice 53, 63 y 64 (evento y módulos, equipo, permisos y auditoría, sistema, integraciones y salud), búsqueda federada | `cu` en todas las rutas del backoffice |

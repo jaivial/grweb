@@ -34,17 +34,34 @@ const ESTADO: Record<Seccion['estado'], { label: string; tone: GrTone }> = {
   sin_publicar: { label: 'Sin publicar', tone: 'neutral' },
 };
 
-/** Home sections of the current competition, shared by the layout (publish button) and the Home tab. */
+export type Pagina = 'home' | 'publico' | 'en';
+export const PAGINAS: { value: Pagina; label: string; ruta: string }[] = [
+  { value: 'home', label: 'Home', ruta: '/' },
+  { value: 'publico', label: 'Ven a verlo', ruta: '/publico' },
+  { value: 'en', label: 'English', ruta: '/en' },
+];
+
+/** Sections of the page being edited (home, /publico or /en), shared by the layout (publish button) and the Home tab. */
 @Injectable({ providedIn: 'root' })
 export class WebSections {
   private readonly http = inject(HttpClient);
   readonly items = signal<Seccion[] | null>(null);
   readonly pending = computed(() => (this.items() ?? []).filter((s) => s.estado !== 'publicada').length);
+  /** Page being edited: the home or one of the landings built from sections. */
+  readonly pagina = signal<Pagina>('home');
   private cid = '';
 
-  async load(cid: string): Promise<void> {
+  private seq = 0;
+
+  async load(cid: string, pagina = this.pagina()): Promise<void> {
     this.cid = cid;
-    this.items.set(await firstValueFrom(this.http.get<Seccion[]>(`/api/admin/competiciones/${cid}/web/secciones`)));
+    if (pagina !== this.pagina()) {
+      this.pagina.set(pagina);
+      this.items.set(null);
+    }
+    const n = ++this.seq;
+    const list = await firstValueFrom(this.http.get<Seccion[]>(`/api/admin/competiciones/${cid}/web/secciones`, { params: { pagina } }));
+    if (n === this.seq) this.items.set(list); // a later load (another page) wins: never show a stale page
   }
   async save(id: string, body: { borrador?: unknown; visible?: boolean }, rev?: number): Promise<Seccion> {
     const headers = rev ? { 'If-Match': `W/"${rev}"` } : undefined;
@@ -62,7 +79,7 @@ export class WebSections {
     }
   }
   async publish(claves: string[] = []): Promise<string[]> {
-    const r = await firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${this.cid}/web/publicar`, { claves }));
+    const r = await firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${this.cid}/web/publicar`, { pagina: this.pagina(), claves }));
     await this.load(this.cid);
     return r.publicadas;
   }
@@ -77,7 +94,7 @@ export class WebSections {
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6">
       <bo-page-header title="Web y contenidos" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Web y contenidos']"
         [badge]="secs.pending() ? 'Cambios sin publicar' : ''">
-        <a actions grButton icon="external-link" [href]="publicUrl" target="_blank" rel="noopener">Vista previa</a>
+        <a actions grButton icon="external-link" [href]="previewUrl()" target="_blank" rel="noopener">Vista previa</a>
         @if (canPublish()) {
           <button actions grButton variant="primary" [disabled]="!secs.pending()" [loading]="publishing()" (click)="publish()">
             {{ secs.pending() ? 'Publicar ' + secs.pending() + (secs.pending() === 1 ? ' cambio' : ' cambios') : 'Todo publicado' }}
@@ -96,12 +113,12 @@ export class WebPage {
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
   protected readonly publishing = signal(false);
-  protected readonly publicUrl = 'https://grcup-qa.menustudioai.com/';
+  protected readonly previewUrl = computed(() => 'https://grcup-qa.menustudioai.com' + (PAGINAS.find((p) => p.value === this.secs.pagina())?.ruta ?? '/'));
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
   protected readonly tabs = [
-    { label: 'Home', path: 'home' },
+    { label: 'Home y landings', path: 'home' },
     { label: 'FAQ', path: 'faq' },
-    { label: 'Patrocinadores', path: 'patrocinadores' },
+    { label: 'Patrocinadores y clubs', path: 'patrocinadores' },
     { label: 'Páginas y SEO', path: 'seo' },
     { label: 'Blog y galería', path: 'blog' },
     { label: 'Textos legales', path: 'legal' },
@@ -117,7 +134,8 @@ export class WebPage {
 
   protected async publish(): Promise<void> {
     const n = this.secs.pending();
-    const ok = await this.confirm.ask({ title: `¿Publicar ${n} ${n === 1 ? 'cambio' : 'cambios'}?`, text: 'La web pública mostrará los borradores al momento (la caché se renueva sola).', confirm: 'Publicar' });
+    const ruta = PAGINAS.find((p) => p.value === this.secs.pagina())?.ruta ?? '/';
+    const ok = await this.confirm.ask({ title: `¿Publicar ${n} ${n === 1 ? 'cambio' : 'cambios'} en ${ruta}?`, text: 'La web pública mostrará los borradores al momento (la caché se renueva sola).', confirm: 'Publicar' });
     if (!ok) return;
     this.publishing.set(true);
     try {
@@ -138,8 +156,16 @@ export class WebPage {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="rounded-lg border border-line-subtle bg-bg-card">
+      <div class="flex flex-wrap gap-2 border-b border-line-subtle px-5 py-3" role="group" aria-label="Página">
+        @for (p of paginas; track p.value) {
+          <button type="button" (click)="cambiar(p.value)" [attr.aria-pressed]="secs.pagina() === p.value" class="inline-flex h-9 items-center gap-1.5 rounded-pill border px-3 text-label-s"
+            [class]="secs.pagina() === p.value ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">
+            {{ p.label }} <span class="text-mono-xs text-text-tertiary">{{ p.ruta }}</span>
+          </button>
+        }
+      </div>
       <header class="border-b border-line-subtle px-5 py-4">
-        <h2 class="text-ui-h5">Secciones de la home</h2>
+        <h2 class="text-ui-h5">Secciones de {{ paginaLabel() }}</h2>
         <p class="mt-0.5 text-body-xs text-text-tertiary">{{ secs.items()?.length ?? 0 }} secciones · {{ visibles() }} visibles · arrastra para cambiar el orden · el orden y la visibilidad se aplican al publicar</p>
       </header>
       @if (secs.items() === null) {
@@ -198,6 +224,13 @@ export class WebHomeTab {
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
 
   protected readonly conflict = signal(false);
+  protected readonly paginas = PAGINAS;
+  protected readonly paginaLabel = computed(() => ({ home: 'la home', publico: '/publico', en: '/en (inglés)' })[this.secs.pagina()]);
+
+  protected cambiar(p: Pagina): void {
+    const cid = this.comps.current()?.id;
+    if (cid && p !== this.secs.pagina()) void this.secs.load(cid, p);
+  }
 
   protected open(s: Seccion): void {
     this.current.set(s);
@@ -210,7 +243,7 @@ export class WebHomeTab {
   /** After a 409: load the other editor's version into the drawer (local edits are discarded). */
   protected async reload(): Promise<void> {
     const id = this.current()?.id;
-    await this.secs.load(this.comps.current()!.id);
+    await this.secs.load(this.comps.current()!.id, this.secs.pagina());
     const s = (this.secs.items() ?? []).find((x) => x.id === id);
     if (s) this.open(s);
   }
@@ -415,6 +448,23 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       { clave: 'url', etiqueta: 'Web', tipo: 'url', ancho: 'mitad' }, { clave: 'logoUrl', etiqueta: 'Logo', tipo: 'imagen', ayuda: 'PNG o WebP con fondo transparente' }, { clave: 'activo', etiqueta: 'Mostrar en la web', tipo: 'bool' }],
     defaults: { nivel: 'colaborador', activo: true },
     empty: { title: 'Sin patrocinadores', text: 'Añade marcas y entidades con su logo y enlace.' },
+  }, {
+    title: 'Clubs', subtitle: 'Directorio de /clubs · las propuestas del formulario público llegan como «Pendiente»', path: '/web/clubs', item: 'club', reorder: true, filterBy: 'estado',
+    columns: [{ key: 'logoUrl', label: 'Logo', kind: 'image' }, { key: 'nombre', label: 'Club' }, { key: 'ciudad', label: 'Ciudad', hideMobile: true, value: (r) => [r['ciudad'], r['provincia']].filter(Boolean).join(' · ') },
+      { key: 'contactoEmail', label: 'Contacto', hideMobile: true },
+      { key: 'estado', label: 'Estado', kind: 'badge', value: (r) => ({ publicado: 'Publicado', pendiente: 'Pendiente', oculto: 'Oculto' })[r['estado'] as string] ?? String(r['estado']),
+        tone: (r) => (r['estado'] === 'publicado' ? 'success' : r['estado'] === 'pendiente' ? 'warning' : 'neutral') }],
+    fields: [{ clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto', max: 120 },
+      { clave: 'ciudad', etiqueta: 'Ciudad', tipo: 'texto', max: 80, ancho: 'mitad' },
+      { clave: 'provincia', etiqueta: 'Provincia', tipo: 'select', ancho: 'mitad', opciones: ['Valencia', 'Alicante', 'Castellón', 'Murcia', 'Baleares', 'Otra'].map((v) => ({ value: v, label: v })) },
+      { clave: 'rol', etiqueta: 'Papel', tipo: 'select', ancho: 'mitad', opciones: [['organizador', 'Club organizador'], ['colaborador', 'Club colaborador'], ['club', 'Club']].map(([value, label]) => ({ value, label })) },
+      { clave: 'estado', etiqueta: 'Estado', tipo: 'select', ancho: 'mitad', opciones: [['publicado', 'Publicado'], ['pendiente', 'Pendiente de revisar'], ['oculto', 'Oculto']].map(([value, label]) => ({ value, label })) },
+      { clave: 'etiquetas', etiqueta: 'Etiquetas', tipo: 'texto', max: 120, ayuda: 'Separadas por comas: «Powerlifting, AEP»' },
+      { clave: 'logoUrl', etiqueta: 'Logo', tipo: 'imagen' },
+      { clave: 'web', etiqueta: 'Web', tipo: 'url', ancho: 'mitad' }, { clave: 'instagram', etiqueta: 'Instagram', tipo: 'url', ancho: 'mitad' },
+      { clave: 'afiliadoAep', etiqueta: 'Afiliado a la AEP', tipo: 'bool' }],
+    defaults: { rol: 'club', estado: 'publicado', provincia: 'Valencia' },
+    empty: { title: 'Sin clubs', text: 'Añade clubs a mano o espera propuestas desde /clubs.' },
   }],
   seo: [
     {

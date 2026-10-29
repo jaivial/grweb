@@ -52,10 +52,73 @@ var seedFAQ = []faqIn{
 
 var seedPatro = []patroIn{
 	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://aep-powerlifting.com/", true},
-	{"Patrocinador 1", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", true},
-	{"Patrocinador 2", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", true},
-	{"Patrocinador 3", "plata", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp", "", true},
-	{"Patrocinador 4", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", true},
+	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", true},
+	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", true},
+	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", true},
+	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", true},
+}
+
+const logoValkyria = bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp"
+
+// /publico (Figma page 29).
+var seedPublico = map[string]any{
+	"intro": map[string]any{"eyebrow": "Ven a verlo", "titulo": "Ven a ver", "tituloAcento": "la competición",
+		"texto": "La plataforma está abierta al público. Te contamos qué vas a ver, cómo se juzga un intento y cómo seguirlo desde la grada."},
+	"datos": map[string]any{"items": []map[string]string{{"icono": "ticket", "etiqueta": "Entrada", "valor": "Gratis con reserva"}, {"icono": "clock", "etiqueta": "Horario", "valor": "Según los bloques"},
+		{"icono": "map-pin", "etiqueta": "Sede", "valor": "Almussafes"}, {"icono": "users", "etiqueta": "Aforo", "valor": "600 por sesión (ejemplo)"}}},
+	"movimientos": map[string]any{"eyebrow": "01 · Qué verás", "titulo": "Tres", "tituloAcento": "movimientos",
+		"texto": "Cada bloque compite en sentadilla, después en press de banca y por último en peso muerto, con tres intentos por atleta.",
+		"items": []map[string]string{{"titulo": "Sentadilla", "imagen": op + "alfonso-fernandez--img-3276.jpg"}, {"titulo": "Press de banca", "imagen": op + "alfonso-fernandez--img-3363.jpg"}, {"titulo": "Peso muerto", "imagen": op + "alfonso-fernandez--img-3364.jpg"}}},
+	"juicio": map[string]any{"eyebrow": "02 · Cómo se juzga", "titulo": "Sigue un intento", "tituloAcento": "paso a paso",
+		"pasos": []map[string]string{{"titulo": "El atleta pide su peso", "texto": "Se anuncia el nombre, el intento y los kilos en el marcador."}, {"titulo": "Los cargadores preparan la barra", "texto": "Comprueban el peso y los cierres."},
+			{"titulo": "Órdenes del juez", "texto": "«Squat», «Press», «Down»… el atleta espera cada voz."}, {"titulo": "Luces", "texto": "Válido con al menos 2 de 3 luces blancas."}}},
+	"normas": map[string]any{"eyebrow": "03 · Normas", "titulo": "En la", "tituloAcento": "grada",
+		"items": []map[string]string{{"texto": "Anima todo lo que quieras, pero guarda silencio cuando el atleta prepara el intento."}, {"texto": "No accedas a la zona de calentamiento ni a la plataforma."},
+			{"texto": "Foto y vídeo sin flash."}, {"texto": "Respeta los pasillos y salidas de emergencia."}}},
+	"interesar": map[string]any{"titulo": "Te puede interesar", "items": []map[string]string{{"titulo": "Cómo llegar", "texto": "Pabellón de Almussafes", "ruta": "/como-llegar"},
+		{"titulo": "Horarios", "texto": "Bloques por categoría", "ruta": "/horarios"}, {"titulo": "En directo", "texto": "Si no puedes venir", "ruta": "/en-directo"}}},
+}
+
+// /en (Figma page 35). The raffle follows the user decision: Spanish law, €1 per ticket (no «open worldwide»).
+var seedEN = map[string]any{
+	"hero": map[string]any{"eyebrow": "Powerlifting · Valencia, Spain", "titulo": "GRStrength Cup", "tituloAcento": "2026",
+		"texto":  "A regional powerlifting championship of the Spanish Powerlifting Association (AEP), held in Almussafes, 20 km south of Valencia.",
+		"plazas": 150, "cta": "Register", "ctaSorteo": "Enter the raffle"},
+	"compete": map[string]any{"eyebrow": "01 · Compete", "titulo": "How to", "tituloAcento": "register",
+		"texto": "Registration is managed by the Spanish Powerlifting Association (AEP). A valid AEP licence is required to compete.",
+		"items": []map[string]string{{"titulo": "Weight classes", "texto": "Men 59 kg to +120 kg · Women 47 kg to +84 kg (IPF open classes)."},
+			{"titulo": "Equipment", "texto": "Classic (raw): IPF-approved belt, wrist wraps and knee sleeves."}, {"titulo": "Weigh-in", "texto": "Starts 2 hours before your session and lasts 1.5 hours."}}},
+	"raffle": map[string]any{"eyebrow": "02 · Raffle", "titulo": "Win an", "tituloAcento": "SBD belt", "subtitulo": "Charity raffle",
+		"texto":  "€1 per ticket. The winner is drawn live at the venue on the last day of competition. Who can take part is set out in the raffle terms, under Spanish law.",
+		"imagen": bcdn + "frames/belt_output_webp/frame_000001.webp", "cta": "Buy tickets"},
+	"travel": map[string]any{"eyebrow": "03 · Travel", "titulo": "Getting", "tituloAcento": "there",
+		"items": []map[string]string{{"icono": "plane", "titulo": "By plane", "texto": "Valencia Airport (VLC) is about 35 km away.", "nota": "≈ 35 min by car"},
+			{"icono": "train", "titulo": "By train", "texto": "Cercanías line C-2, Benifaió-Almussafes station.", "nota": "Check Renfe timetables"},
+			{"icono": "car", "titulo": "By car", "texto": "About 20 km south of Valencia via the V-31.", "nota": "≈ 25 min"}}},
+	"faq": map[string]any{"eyebrow": "04 · FAQ", "titulo": "Frequently asked", "tituloAcento": "questions",
+		"items": []map[string]string{{"pregunta": "Can international lifters compete?", "respuesta": "Registration goes through the AEP and requires a valid AEP licence. Write to us and we will help you with the process."},
+			{"pregunta": "Is the event open to spectators?", "respuesta": "Yes. Entry is free with a booking: you get a QR code by email for you and up to 3 companions."},
+			{"pregunta": "Can I enter the raffle from abroad?", "respuesta": "The raffle follows Spanish law. Check who can take part in the raffle terms before buying a ticket."}}},
+}
+
+// Club directory (Figma page 32): clubs on the 2025 poster; locations to be confirmed («Datos de ejemplo»).
+var seedClubs = []clubIn{
+	{Nombre: "GRStrength", Ciudad: "Valencia", Provincia: "Valencia", LogoURL: bcdn + "logos/grcuplogo.png", Web: "https://www.instagram.com/grstrengthclub/", Etiquetas: "Powerlifting, Organizador", Rol: "organizador", AfiliadoAEP: true, Estado: "publicado"},
+	{Nombre: "CF Isabel Atlas", Ciudad: "Valencia · por confirmar", Provincia: "Valencia", Etiquetas: "Powerlifting, AEP", Rol: "colaborador", AfiliadoAEP: true, Estado: "publicado"},
+	{Nombre: "Gym Mediterrani", Ciudad: "Alcoy", Provincia: "Alicante", Etiquetas: "Powerlifting, Fuerza", Rol: "colaborador", Estado: "publicado"},
+	{Nombre: "Valkyria Powerlifting Center", Ciudad: "Por confirmar", Provincia: "Valencia", LogoURL: logoValkyria, Etiquetas: "Powerlifting", Rol: "colaborador", Estado: "publicado"},
+}
+
+// SEO of the routes added after the first seed, inserted when their content is seeded.
+var seedSeoRutas = map[string][3]string{
+	"/publico": {"/publico", "Ver la competición · GR Strength Cup", "Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada en Almussafes."},
+	"/clubs":   {"/clubs", "Clubs de powerlifting en Valencia · GR Strength Cup", "Clubs y gimnasios de la Comunitat Valenciana, Murcia y Baleares donde entrenar powerlifting."},
+	"/en":      {"/en", "GRStrength Cup 2026 · Powerlifting competition in Valencia, Spain", "AEP powerlifting championship in Almussafes, 20 km south of Valencia. Free spectator entry, raffle and travel tips."},
+}
+
+func seedSeo(ctx context.Context, tx pgx.Tx, cid uuid.UUID, r [3]string) error {
+	_, err := tx.Exec(ctx, `INSERT INTO seo (id, competition_id, ruta, title, description, indexable) VALUES ($1,$2,$3,$4,$5,true) ON CONFLICT (competition_id, ruta) DO NOTHING`, newID(), cid, r[0], r[1], r[2])
+	return err
 }
 
 const ejemplo = "> **Datos de ejemplo.** Texto provisional pendiente de revisión por la asesoría legal antes de publicar la web.\n\n"
@@ -93,13 +156,35 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		return n == 0
 	}
 	err := db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
-		if empty(tx, "secciones") {
-			if err := ensureSecciones(ctx, tx, cid); err != nil {
+		for pagina, contenido := range map[string]map[string]any{"home": seedSecciones, "publico": seedPublico, "en": seedEN} {
+			var n int
+			_ = tx.QueryRow(ctx, `SELECT count(*) FROM secciones WHERE competition_id = $1 AND pagina = $2`, cid, pagina).Scan(&n)
+			if n > 0 {
+				continue
+			}
+			if err := ensureSecciones(ctx, tx, cid, pagina); err != nil {
 				return err
 			}
-			for k, v := range seedSecciones {
+			// The SEO entry of a landing is seeded together with its content (only once: a deleted entry stays deleted).
+			if r, ok := seedSeoRutas["/"+pagina]; ok {
+				if err := seedSeo(ctx, tx, cid, r); err != nil {
+					return err
+				}
+			}
+			for k, v := range contenido {
 				b, _ := json.Marshal(v)
-				if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = $3, publicado = $3, publicado_at = now() WHERE competition_id = $1 AND clave = $2`, cid, k, b); err != nil {
+				if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = $4, publicado = $4, publicado_at = now() WHERE competition_id = $1 AND pagina = $2 AND clave = $3`, cid, pagina, k, b); err != nil {
+					return err
+				}
+			}
+		}
+		if empty(tx, "clubs") {
+			if err := seedSeo(ctx, tx, cid, seedSeoRutas["/clubs"]); err != nil {
+				return err
+			}
+			for i, c := range seedClubs {
+				if _, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, logo_url, web, etiquetas, rol, afiliado_aep, estado, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+					newID(), cid, c.Nombre, c.Ciudad, c.Provincia, c.LogoURL, c.Web, c.Etiquetas, c.Rol, c.AfiliadoAEP, c.Estado, i+1); err != nil {
 					return err
 				}
 			}
@@ -151,7 +236,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 			for _, r := range [][3]string{{"/", "GR Strength Cup 2026 · Campeonato de powerlifting en Almussafes", "Campeonato de powerlifting AEP en Almussafes (Valencia). Entradas gratuitas con reserva, atletas, horarios y directo."},
 				{"/preguntas-frecuentes", "Preguntas frecuentes · GR Strength Cup", "Entradas gratuitas, horarios, sorteo y cómo llegar al pabellón de Almussafes."},
 				{"/patrocinadores", "Patrocinadores · GR Strength Cup", "Marcas y entidades que hacen posible la GR Strength Cup."}} {
-				if _, err := tx.Exec(ctx, `INSERT INTO seo (id, competition_id, ruta, title, description, indexable) VALUES ($1,$2,$3,$4,$5,true)`, newID(), cid, r[0], r[1], r[2]); err != nil {
+				if err := seedSeo(ctx, tx, cid, r); err != nil {
 					return err
 				}
 			}

@@ -8,7 +8,14 @@ export interface SeoData {
   path: string;
   image?: string;
   jsonLd?: Record<string, unknown>;
+  /** Page language (sets <html lang> and og:locale). Default «es». */
+  lang?: 'es' | 'en';
+  /** hreflang alternates, e.g. [{ hreflang: 'es', path: '/' }, { hreflang: 'en', path: '/en' }, { hreflang: 'x-default', path: '/' }]. */
+  alternates?: { hreflang: string; path: string }[];
 }
+
+/** hreflang pair of the home and its English landing. */
+export const HOME_ALTERNATES = [{ hreflang: 'es', path: '/' }, { hreflang: 'en', path: '/en' }, { hreflang: 'x-default', path: '/' }];
 
 /** Title, description, canonical, Open Graph / Twitter and JSON-LD per page (SEO plan of the design). */
 @Injectable({ providedIn: 'root' })
@@ -27,7 +34,7 @@ export class Seo {
       ['name', 'description', d.description],
       ['property', 'og:type', 'website'],
       ['property', 'og:site_name', 'GR Strength Cup'],
-      ['property', 'og:locale', 'es_ES'],
+      ['property', 'og:locale', d.lang === 'en' ? 'en_GB' : 'es_ES'],
       ['property', 'og:title', d.title],
       ['property', 'og:description', d.description],
       ['property', 'og:url', url],
@@ -45,6 +52,15 @@ export class Seo {
       this.doc.head.appendChild(link);
     }
     link.href = url;
+    this.doc.documentElement.lang = d.lang ?? 'es';
+    this.doc.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach((l) => l.remove());
+    for (const a of d.alternates ?? []) {
+      const l = this.doc.createElement('link');
+      l.rel = 'alternate';
+      l.setAttribute('hreflang', a.hreflang);
+      l.href = this.origin + a.path;
+      this.doc.head.appendChild(l);
+    }
     this.doc.head.querySelectorAll('script[data-seo="jsonld"]').forEach((s) => s.remove());
     if (d.jsonLd) {
       const s = this.doc.createElement('script');
