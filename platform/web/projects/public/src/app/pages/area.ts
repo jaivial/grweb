@@ -162,7 +162,7 @@ const api = '/api/area-atleta';
                     </div>
                   </fieldset>
                   <div class="flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
-                    <span><span class="block text-label-m">Mostrar mi perfil público</span><span class="block text-body-xs text-text-tertiary">Foto, bio, Instagram y marcas. Nombre, club, categoría, horario y resultados son públicos siempre.</span></span>
+                    <span><span class="block text-label-m">Mostrar mi perfil público</span><span class="block text-body-xs text-text-tertiary">Tu ficha en /atletas con foto, bio, Instagram y marcas. Tu nombre, club, categoría, horario y resultados son públicos siempre en participantes y resultados.</span></span>
                     <button type="button" role="switch" [attr.aria-checked]="f.visible" (click)="f.visible = !f.visible" class="flex h-11 w-12 shrink-0 items-center justify-center" aria-label="Mostrar mi perfil público">
                       <span class="relative h-6 w-10 rounded-pill" [class]="f.visible ? 'bg-accent' : 'bg-line-strong'"><span class="absolute top-0.5 size-5 rounded-full bg-white transition-[left]" [style.left.px]="f.visible ? 18 : 2"></span></span>
                     </button>

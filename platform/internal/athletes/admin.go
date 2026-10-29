@@ -126,7 +126,7 @@ func (s *Svc) registerAdmin() {
 			out := Lista{Pagina: in.Pagina, Por: in.Por, Pestanas: map[string]int{"todos": 0, "confirmados": 0, "reserva": 0, "bajas": 0, "incidencias": 0}, Items: []ItemLista{}}
 			cats, flights := map[string]bool{}, map[string]bool{}
 			var filtered []row
-			q := strings.ToLower(strings.TrimSpace(in.Q))
+			q := fold(in.Q)
 			for _, r := range all {
 				inc := len(r.incidencias(d))
 				out.Pestanas["todos"]++
@@ -195,7 +195,7 @@ func (s *Svc) registerAdmin() {
 				if in.Perfil == "incompleto" && r.completo() >= 70 || in.Perfil == "sin_foto" && r.FotoURL != "" {
 					continue
 				}
-				if q != "" && !strings.Contains(strings.ToLower(r.nombreCompleto()+" "+r.Club+" "+r.Licencia), q) {
+				if q != "" && !strings.Contains(fold(r.nombreCompleto()+" "+r.Club+" "+r.Licencia), q) {
 					continue
 				}
 				filtered = append(filtered, r)
@@ -233,6 +233,10 @@ func (s *Svc) registerAdmin() {
 			f, err := s.ficha(ctx, in.CID, in.ID)
 			if err != nil {
 				return nil, err
+			}
+			// Data minimisation: weigh-in desk, judges and schedulers do not need contact data.
+			if p, _ := auth.FromContext(ctx); !p.Can(in.CID.String(), "atletas.editar") {
+				f.Email, f.Telefono = "", ""
 			}
 			return &fichaOut{ETag: etag(f.Version), Body: f}, nil
 		})
@@ -591,18 +595,32 @@ func (s *Svc) registerAdmin() {
 		}
 		_ = cw.Write(head)
 		for _, a := range list {
-			rec := []string{a.Licencia, a.Nombre, a.Apellidos, a.Sexo, a.Categoria, DivisionNombre(a.Division), a.Club, a.Estado, a.Flight, kg(a.PesoCorporal), strconv.Itoa(a.completo())}
+			// Free-text columns (typed in the AEP list or by athletes) are neutralised against formulas.
+			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Flight, kg(a.PesoCorporal), strconv.Itoa(a.completo())}
 			if personal {
 				e := ""
 				if a.Email != nil {
 					e = *a.Email
 				}
-				rec = append(rec, e, a.Telefono)
+				rec = append(rec, csvSafe(e), csvSafe(a.Telefono))
 			}
 			_ = cw.Write(rec)
 		}
 		cw.Flush()
 	})
+}
+
+// csvSafe neutralises spreadsheet formulas (CSV injection): club and city can be typed by athletes.
+func csvSafe(v string) string {
+	if v != "" && strings.ContainsRune("=+-@\t\r", rune(v[0])) {
+		return "'" + v
+	}
+	return v
+}
+
+// validMedio accepts media of the library (/api/medios/…) or https URLs.
+func validMedio(u string) bool {
+	return u == "" || strings.HasPrefix(u, "/api/medios/") || strings.HasPrefix(u, "https://") && len(u) > len("https://x.y")
 }
 
 func keys(m map[string]bool) []string {
@@ -750,6 +768,9 @@ type PerfilIn struct {
 
 func (p *PerfilIn) validate() error {
 	p.Instagram = normInstagram(p.Instagram)
+	if !validMedio(p.FotoURL) || !validMedio(p.AutorizacionURL) {
+		return problem.Unprocessable("URL_INVALIDA", "La foto y la autorización deben subirse a la biblioteca de medios (o ser un enlace https).")
+	}
 	for _, v := range []*float64{p.Marcas.SQ, p.Marcas.BP, p.Marcas.DL} {
 		if v != nil && (*v < 0 || *v > 600) {
 			return problem.Unprocessable("MARCA_INVALIDA", "Las marcas deben estar entre 0 y 600 kg.")

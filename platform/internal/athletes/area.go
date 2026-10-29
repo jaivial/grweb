@@ -154,18 +154,27 @@ func (s *Svc) registerArea() {
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "area-email", hashToken(e)[:16]), 3, 15*time.Minute); !r.Allowed {
 				return nil, nil // silently: the same 202 as always
 			}
-			var aid uuid.UUID
-			var nombre string
-			if err := s.a.DB.QueryRow(ctx, `SELECT id, nombre FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY created_at LIMIT 1`, cid, e).Scan(&aid, &nombre); err != nil {
-				return nil, nil
-			}
-			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				link, err := s.newAreaLink(ctx, tx, aid)
-				if err != nil {
-					return err
+			// Answer first: the lookup and the email happen in the background, so the response time does not reveal
+			// whether the email is registered.
+			bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+			go func() {
+				defer cancel()
+				var aid uuid.UUID
+				var nombre string
+				if err := s.a.DB.QueryRow(bg, `SELECT id, nombre FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY created_at LIMIT 1`, cid, e).Scan(&aid, &nombre); err != nil {
+					return
 				}
-				return email(ctx, tx, cid, e, "atleta-enlace-area", map[string]string{"nombre": nombre, "enlace": link})
-			})
+				if err := db.Tx(bg, s.a.DB, func(tx pgx.Tx) error {
+					link, err := s.newAreaLink(bg, tx, aid)
+					if err != nil {
+						return err
+					}
+					return email(bg, tx, cid, e, "atleta-enlace-area", map[string]string{"nombre": nombre, "enlace": link})
+				}); err != nil {
+					s.a.Log.Warn("enlace del área no enviado", "err", err)
+				}
+			}()
+			return nil, nil
 		})
 
 	type sesionIn struct {
@@ -261,6 +270,9 @@ func (s *Svc) registerArea() {
 					}
 				case b.AceptaUsoDeImagen && r.ImagenAt == nil:
 					v, h := s.legalVigente(ctx, r.CompetitionID, "consentimiento")
+					if v == "" {
+						return problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "Ahora no podemos registrar tu consentimiento. Inténtalo en unos minutos (el resto del perfil no se ha guardado).")
+					}
 					if _, err := tx.Exec(ctx, `UPDATE perfiles SET imagen_at = now(), imagen_version = $2, imagen_hash = $3, imagen_origen = 'área del atleta', imagen_ip = $4 WHERE atleta_id = $1`,
 						r.ID, v, h, anonIP(httpx.ClientIPFrom(ctx))); err != nil {
 						return err

@@ -49,9 +49,7 @@ type AtletaPub struct {
 func (r row) pub(d time.Time) AtletaPub {
 	a := AtletaPub{Slug: r.Slug, Nombre: r.Nombre, Apellidos: r.Apellidos, Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria, Division: r.Division,
 		DivisionNombre: DivisionNombre(r.Division), Flight: r.Flight, Plataforma: r.Plataforma, HoraInicio: r.HoraInicio, FotoURL: r.fotoPublica(d), FocalX: r.FocalX, FocalY: r.FocalY}
-	if r.extrasPublicos(d) {
-		a.Ciudad = r.Ciudad
-	}
+	a.Ciudad = r.Ciudad
 	a.Destacado = a.FotoURL != "" && r.MarcaSQ != nil && r.MostrarMarcas
 	return a
 }
@@ -85,7 +83,7 @@ type FichaPub struct {
 	PesajeFin        *time.Time  `json:"pesajeFin,omitempty"`
 	Seguidores       int         `json:"seguidores"`
 	PermiteSeguir    bool        `json:"permiteSeguir"`
-	PerfilMinimo     bool        `json:"perfilMinimo" doc:"Solo datos básicos (perfil oculto, sin consentimiento o menor sin autorización)"`
+	PerfilMinimo     bool        `json:"perfilMinimo" doc:"Sin foto, marcas ni texto todavía"`
 	Tambien          []AtletaPub `json:"tambien" doc:"Otros atletas de su categoría"`
 }
 
@@ -145,7 +143,9 @@ func (s *Svc) registerPublic() {
 				o.Atletas = make([]AtletaPub, 0, len(list))
 				clubs, flights, plats := map[string]bool{}, map[string]bool{}, map[int]bool{}
 				for _, r := range list {
-					o.Atletas = append(o.Atletas, r.pub(d))
+					if r.publico(d) {
+						o.Atletas = append(o.Atletas, r.pub(d))
+					}
 					if r.Sexo == "F" {
 						o.Resumen.Mujeres++
 					} else {
@@ -191,29 +191,28 @@ func (s *Svc) registerPublic() {
 				if err != nil {
 					return FichaPub{}, err
 				}
-				if len(list) == 0 {
+				if len(list) == 0 || !list[0].publico(d) {
 					return FichaPub{}, problem.NotFound("Atleta no encontrado.")
 				}
 				r := list[0]
 				f := FichaPub{AtletaPub: r.pub(d), PrimerosIntentos: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, PesajeInicio: r.PesajeInicio, PesajeFin: r.PesajeFin,
 					Seguidores: r.Seguidores, PermiteSeguir: r.PermiteSeguir, Tambien: []AtletaPub{}}
-				if r.extrasPublicos(d) {
-					f.Frase, f.Bio, f.Instagram, f.Entrenador, f.Historial = r.Frase, r.Bio, r.Instagram, r.Entrenador, r.Historial
-					if r.MostrarMarcas && (r.MarcaSQ != nil || r.MarcaBP != nil || r.MarcaDL != nil) {
-						f.Marcas = &Marcas{r.MarcaSQ, r.MarcaBP, r.MarcaDL}
-						f.TotalPrevisto = r.totalPrevisto()
-					}
-				} else {
-					f.PerfilMinimo = true
-					f.PermiteSeguir = r.PermiteSeguir && !r.menor(d)
+				f.Frase, f.Bio, f.Instagram, f.Entrenador, f.Historial = r.Frase, r.Bio, r.Instagram, r.Entrenador, r.Historial
+				if r.MostrarMarcas && (r.MarcaSQ != nil || r.MarcaBP != nil || r.MarcaDL != nil) {
+					f.Marcas = &Marcas{r.MarcaSQ, r.MarcaBP, r.MarcaDL}
+					f.TotalPrevisto = r.totalPrevisto()
 				}
+				f.PerfilMinimo = f.FotoURL == "" && f.Marcas == nil && f.Bio == "" && f.Frase == ""
+				f.PermiteSeguir = r.PermiteSeguir && !r.menor(d)
 				others, err := listRows(ctx, s.a.DB, `a.competition_id = $1 AND a.estado = 'confirmado' AND a.sexo = $2 AND a.categoria = $3 AND a.id <> $4 ORDER BY a.hora_inicio NULLS LAST, a.apellidos LIMIT 6`,
 					c.ID, r.Sexo, r.Categoria, r.ID)
 				if err != nil {
 					return f, err
 				}
 				for _, o := range others {
-					f.Tambien = append(f.Tambien, o.pub(d))
+					if o.publico(d) {
+						f.Tambien = append(f.Tambien, o.pub(d))
+					}
 				}
 				return f, nil
 			})
@@ -265,7 +264,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			if len(list) == 0 {
+			if len(list) == 0 || !list[0].publico(d) {
 				return nil, problem.NotFound("Atleta no encontrado.")
 			}
 			r := list[0]

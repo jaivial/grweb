@@ -125,18 +125,23 @@ func (r row) edad(compDate time.Time) *int {
 	return &e
 }
 
+// menor: under 18 on the first day of the competition. Without a birth date, a sub-junior (14–18) is treated as a
+// possible minor, so the protections apply until the date is known.
 func (r row) menor(compDate time.Time) bool {
-	e := r.edad(compDate)
-	return e != nil && *e < 18
+	if e := r.edad(compDate); e != nil {
+		return *e < 18
+	}
+	return r.Division == "subjunior"
 }
 
-// extrasPublicos: photo, bio, social links and best lifts may be shown (visible, and authorised if a minor).
-func (r row) extrasPublicos(compDate time.Time) bool {
-	return r.Visible && (!r.menor(compDate) || r.AutorizacionURL != "")
+// publico: the athlete has a page in /atletas (confirmed, profile visible and, for minors, the guardian's
+// authorisation). Name, club and class of everyone else stay public only in the start list (/participantes).
+func (r row) publico(compDate time.Time) bool {
+	return r.Estado == "confirmado" && r.Visible && (!r.menor(compDate) || r.AutorizacionURL != "")
 }
 
 func (r row) fotoPublica(compDate time.Time) string {
-	if r.extrasPublicos(compDate) && r.FotoURL != "" && r.ImagenAt != nil {
+	if r.publico(compDate) && r.FotoURL != "" && r.ImagenAt != nil {
 		return r.FotoURL
 	}
 	return ""

@@ -240,3 +240,14 @@ func ParseFecha(s string) (time.Time, bool) {
 	}
 	return time.Time{}, false
 }
+
+// fold lowercases and strips accents for searching («Lucía» matches «lucia»).
+func fold(s string) string {
+	var b strings.Builder
+	for _, r := range norm.NFD.String(strings.ToLower(strings.TrimSpace(s))) {
+		if !unicode.Is(unicode.Mn, r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
