@@ -49,9 +49,12 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	return nil
 }
 
+// noAudit are progress or delivery events: they are for live screens and other services, not the activity log.
+var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitado": true, "cms.email_solicitado": true}
+
 // handle stores the event, then applies notification and KPI rules (its own events are ignored to avoid loops).
 func (s *Svc) handle(ctx context.Context, e events.Event) error {
-	if e.Source == "audit" {
+	if e.Source == "audit" || noAudit[e.Type] {
 		return nil
 	}
 	var cid *uuid.UUID

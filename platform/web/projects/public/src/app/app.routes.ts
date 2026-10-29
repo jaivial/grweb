@@ -1,6 +1,8 @@
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
 import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
+import { AreaAtletaPage } from './pages/area';
+import { AtletaPage, AtletasPage, ParticipantesPage } from './pages/atletas';
 import { BlogPage, ComoLlegarPage, ContentPage, FaqPage, GaleriaPage, LegalPage, PatrocinadoresPage, VoluntariosPage } from './pages/content';
 
 export const routes: Routes = [
@@ -10,6 +12,10 @@ export const routes: Routes = [
   { path: 'galeria', component: GaleriaPage },
   { path: 'voluntarios', component: VoluntariosPage },
   { path: 'como-llegar', component: ComoLlegarPage },
+  { path: 'atletas', component: AtletasPage },
+  { path: 'atletas/:slug', component: AtletaPage },
+  { path: 'participantes', component: ParticipantesPage },
+  { path: 'area-atleta', component: AreaAtletaPage },
   { path: 'publico', component: PublicoPage },
   { path: 'clubs', component: ClubsPage },
   { path: 'en', component: EnPage },

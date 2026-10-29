@@ -39,6 +39,11 @@ func (c *Client) Do(ctx context.Context, method, path string, in, out any) error
 		}
 		body = bytes.NewReader(b)
 	}
+	return c.Raw(ctx, method, path, "application/json", body, out)
+}
+
+// Raw sends a body of any content type (e.g. multipart uploads) and decodes a JSON response into out.
+func (c *Client) Raw(ctx context.Context, method, path, contentType string, body io.Reader, out any) error {
 	req, err := http.NewRequestWithContext(ctx, method, c.Base+path, body)
 	if err != nil {
 		return err
@@ -48,7 +53,7 @@ func (c *Client) Do(ctx context.Context, method, path string, in, out any) error
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 	if id := httpx.RequestIDFrom(ctx); id != "" {
 		req.Header.Set("X-Request-Id", id)
 	}

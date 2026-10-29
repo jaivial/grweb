@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -19,10 +18,6 @@ import (
 )
 
 var tagPub = []string{"Web pública"}
-
-const slugPattern = "^[a-z0-9-]{2,41}$"
-
-var slugRe = regexp.MustCompile(slugPattern)
 
 type slugIn struct {
 	Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`

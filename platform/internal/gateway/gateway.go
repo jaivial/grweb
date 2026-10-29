@@ -51,7 +51,7 @@ var routeTable = func() []route {
 		{c + `(directo|resultados)(/|$)`, "live"},
 		{p + `(directo|resultados|jueces)(/|$)`, "live"},
 		{c + `atletas(/|$)`, "athletes"},
-		{p + `atletas(/|$)`, "athletes"},
+		{p + `(atletas|participantes|seguimientos)(/|$)`, "athletes"},
 		{`^/api/area-atleta(/|$)`, "athletes"},
 		{c + `(horarios|flights)(/|$)`, "schedule"},
 		{p + `horarios(/|$)`, "schedule"},

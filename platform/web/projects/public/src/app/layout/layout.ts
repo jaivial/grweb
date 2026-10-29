@@ -122,6 +122,8 @@ export class Navbar {
         <p class="text-mono-xs text-text-muted">Competición</p>
         <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
           <li><a href="/#campeonato" class="hover:text-text-primary">El campeonato</a></li>
+          <li><a href="/atletas" class="hover:text-text-primary">Atletas</a> · <a href="/participantes" class="hover:text-text-primary">Participantes</a></li>
+          <li><a href="/area-atleta" class="hover:text-text-primary">Área de atleta</a></li>
           <li><a href="/reglamento" class="hover:text-text-primary">Reglamento</a></li>
           <li><a href="/categorias-de-peso" class="hover:text-text-primary">Categorías de peso</a></li>
           <li><a href="/preguntas-frecuentes" class="hover:text-text-primary">Preguntas frecuentes</a></li>
