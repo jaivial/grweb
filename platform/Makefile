@@ -1,5 +1,5 @@
 # GR Cup Platform · tareas habituales (ejecutar desde platform/)
-SERVICES ?= gateway identity
+SERVICES ?= gateway identity competition audit realtime
 VERSION  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 COMPOSE  := docker compose -f deploy/dev/compose.yml
 

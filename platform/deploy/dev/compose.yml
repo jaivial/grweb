@@ -67,12 +67,44 @@ services:
       ROOT_PASSWORD: root-dev-password
       ROOT_NOMBRE: Root (dev)
 
+  competition:
+    <<: *svc
+    build: { context: ../.., args: { SVC: competition, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_competition:dev_competition@postgres:5432/grcup_competition?sslmode=disable
+
+  competition-seed:
+    build: { context: ../.., args: { SVC: competition, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    depends_on:
+      identity-bootstrap: { condition: service_completed_successfully }
+      identity: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_competition:dev_competition@postgres:5432/grcup_competition?sslmode=disable
+      ROOT_EMAIL: root@grcup.local
+
+  audit:
+    <<: *svc
+    build: { context: ../.., args: { SVC: audit, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_audit:dev_audit@postgres:5432/grcup_audit?sslmode=disable
+
+  realtime:
+    <<: *svc
+    build: { context: ../.., args: { SVC: realtime, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+
   gateway:
     <<: *svc
     build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
-      UPSTREAMS: identity
+      UPSTREAMS: identity,competition,audit,realtime
       CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
     ports:
       - "127.0.0.1:18300:8080"

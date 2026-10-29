@@ -5,15 +5,21 @@ package identity
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
 	"github.com/jaivial/grweb/platform/pkg/app"
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/config"
+	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/events"
 )
 
 //go:embed migrations/*.sql
@@ -76,6 +82,11 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	// identity verifies its own tokens with its own key (no JWKS round trip).
 	a.Verifier = auth.NewVerifier("", a.Cfg.JWTIssuer, "identity", a.Cfg.InternalToken, signer.Keys()).WithRevocation(a.Redis, a.Keys)
 
+	// Every competition gets its default roles (and its creator as Admin) even if the synchronous call failed:
+	// this consumer retries until it succeeds; ensureDefaultRoles is idempotent.
+	a.Go((&events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "identity-competiciones", Start: "0",
+		Types: []string{"competition.creada"}, Handle: s.onCompetitionCreated, Log: a.Log}).Run)
+
 	s.registerAuth()
 	s.registerMe()
 	s.registerTeam()
@@ -105,6 +116,32 @@ func loadSigner(a *app.App) (*auth.Signer, error) {
 		pem = k
 	}
 	return auth.NewSigner(pem, a.Cfg.JWTIssuer)
+}
+
+func (s *Svc) onCompetitionCreated(ctx context.Context, e events.Event) error {
+	cid, err := uuid.Parse(e.CompetitionID)
+	if err != nil {
+		return nil // malformed: nothing to do
+	}
+	var d struct {
+		PropietarioID *uuid.UUID `json:"propietarioId"`
+	}
+	_ = json.Unmarshal(e.Data, &d)
+	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		if err := ensureDefaultRoles(ctx, tx, cid); err != nil {
+			return err
+		}
+		if d.PropietarioID == nil || *d.PropietarioID == uuid.Nil {
+			return nil
+		}
+		rid, err := roleID(ctx, tx, cid, "admin")
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO membresias (usuario_id, competition_id, rol_id) SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM usuarios WHERE id = $1)
+			ON CONFLICT DO NOTHING`, *d.PropietarioID, cid, rid)
+		return err
+	})
 }
 
 // genKey prints a new ES256 private key (PEM) to stdout.
