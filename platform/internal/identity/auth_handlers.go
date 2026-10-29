@@ -203,10 +203,9 @@ func (s *Svc) registerAuth() {
 			if in.Body != nil && in.Body.RefreshToken != "" {
 				refresh = in.Body.RefreshToken
 			}
-			if sidStr, _, ok := strings.Cut(refresh, "."); ok {
-				if sid, err := uuid.Parse(sidStr); err == nil {
-					s.revokeSession(ctx, sid)
-				}
+			// Only a valid secret (or the caller's own access token) can end a session: session ids are not secrets.
+			if sid, ok := s.sessionFor(ctx, refresh); ok {
+				s.revokeSession(ctx, sid)
 			} else if p, ok := auth.FromContext(ctx); ok && p.SID != "" {
 				if sid, err := uuid.Parse(p.SID); err == nil {
 					s.revokeSession(ctx, sid)
