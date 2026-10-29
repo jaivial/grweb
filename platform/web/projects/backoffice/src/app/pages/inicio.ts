@@ -9,7 +9,6 @@ import {
 } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
-import { Notifications } from '../core/notifications';
 import { Realtime } from '../core/realtime';
 import type { Actividad, Checklist, Competicion, Dashboard, Integracion } from '../core/api';
 
@@ -56,7 +55,6 @@ export class InicioPage {
   protected readonly auth = inject(Auth);
   protected readonly comps = inject(Competitions);
   protected readonly live = inject(Realtime);
-  private readonly notifs = inject(Notifications);
 
   protected readonly comp = this.comps.current;
   protected readonly checklist = signal<Checklist | null>(null);
@@ -105,9 +103,7 @@ export class InicioPage {
       if (i.estado === 'error') out.push({ tone: 'danger', icon: 'circle-x', title: `La integración «${i.tipo}» falla`, text: i.error || 'Revisa la configuración y vuelve a probarla.', link: { label: 'Revisar integración', path: 'sistema' } });
     }
     if (this.sorteoBloqueado()) out.push({ tone: 'info', icon: 'scale', title: 'Sorteo de pago pendiente de visto bueno', text: 'La venta sigue desactivada hasta completar la checklist legal.', link: { label: 'Ver checklist', path: 'sorteo' } });
-    for (const n of this.notifs.items().filter((n) => !n.leida && (n.nivel === 'error' || n.nivel === 'aviso')).slice(0, 3)) {
-      out.push({ tone: n.nivel === 'error' ? 'danger' : 'warning', icon: n.nivel === 'error' ? 'circle-x' : 'triangle-alert', title: n.titulo, text: n.cuerpo });
-    }
+    // Only current state: notifications are history and live in the bell (a fixed integration must not show here).
     return out;
   });
   protected readonly ago = fmtAgo;
