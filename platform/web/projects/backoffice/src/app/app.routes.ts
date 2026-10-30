@@ -117,6 +117,7 @@ export const routes: Routes = [
       { path: 'campanas', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.CampanasPage), title: 'Campañas · Backoffice GR Cup' },
       { path: 'campanas/whatsapp', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.WhatsAppPage), title: 'WhatsApp · Backoffice GR Cup' },
       { path: 'campanas/:id', loadComponent: () => import('./pages/campanas/editor').then((m) => m.CampanaEditorPage), title: 'Campaña · Backoffice GR Cup' },
+      { path: 'sorteo', loadComponent: () => import('./pages/sorteo/sorteo').then((m) => m.SorteoPage), title: 'Sorteo · Backoffice GR Cup' },
       { path: ':seccion', component: ComingSoonPage, title: 'Backoffice GR Cup' },
     ],
   },

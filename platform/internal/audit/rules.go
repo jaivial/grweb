@@ -67,6 +67,9 @@ var notifRules = map[string]notifRule{
 	"campana.error": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Una campaña programada no salió", str(d["error"]), "/campanas", "error", "campanas.enviar", true
 	},
+	"sorteo.confirmado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Ganador del sorteo: boleto " + str(d["numero"]), "Publicado en /sorteo", "/sorteo", "ok", "sorteo.gestionar", true
+	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
 	},
@@ -253,6 +256,29 @@ func resumen(e events.Event) string {
 		return "una campaña programada no pudo salir: " + str(d["error"])
 	case "ia.diseno":
 		return "pidió a la IA en «" + str(d["campana"]) + "»: «" + str(d["instruccion"]) + "»"
+	case "sorteo.configuracion":
+		return "cambió la configuración del sorteo"
+	case "sorteo.venta_abierta":
+		return "abrió la venta de boletos del sorteo"
+	case "sorteo.venta_cerrada":
+		if m := str(d["motivo"]); m != "" {
+			return "se cerró la venta del sorteo (" + m + ")"
+		}
+		return "cerró la venta de boletos del sorteo"
+	case "sorteo.checklist":
+		return "marcó «" + str(d["punto"]) + "» como " + map[string]string{"hecho": "hecho", "no_aplica": "no aplica", "pendiente": "pendiente"}[str(d["estado"])]
+	case "sorteo.reembolso":
+		return fmt.Sprintf("reembolsó una compra de %v boletos (%s)", d["boletos"], str(d["motivo"]))
+	case "sorteo.exportado":
+		return fmt.Sprintf("exportó %v compras del sorteo a CSV", d["filas"])
+	case "sorteo.congelado":
+		return fmt.Sprintf("congeló la lista del sorteo (%v boletos)", d["total"])
+	case "sorteo.ejecutado":
+		return "sorteó: salió el boleto " + str(d["numero"])
+	case "sorteo.confirmado":
+		return "confirmó el boleto ganador " + str(d["numero"])
+	case "sorteo.repetido":
+		return "repitió el sorteo (" + str(d["motivo"]) + ")"
 	case "athletes.plaza_ofrecida":
 		return "ofreció una plaza libre a un atleta de la reserva (enlace de pago)"
 	case "athletes.inscripcion_pagada":
