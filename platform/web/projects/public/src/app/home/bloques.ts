@@ -77,7 +77,7 @@ export class GrEyebrow {
   template: `
     @if (eyebrow()) { <gr-eyebrow [texto]="eyebrow()" /> }
     <h2 [class]="tam() === 'm' ? 'text-display-s md:text-display-m' : 'text-display-s md:text-display-l'"><gr-titulo [titulo]="titulo()" [acento]="acento()" /></h2>
-    @if (texto()) { <p class="text-body-m text-text-tertiary md:text-body-l">{{ texto() }}</p> }
+    @if (texto()) { <p class="text-body-m text-text-tertiary md:block md:text-body-l" [class.hidden]="!textoMovil()">{{ texto() }}</p> }
   `,
 })
 export class GrCabecera {
@@ -87,6 +87,8 @@ export class GrCabecera {
   readonly texto = input('');
   readonly centro = input(true);
   readonly tam = input<'l' | 'm'>('l');
+  /** Figma hides some intros on mobile (e.g. «Categorías»). */
+  readonly textoMovil = input(true);
 }
 
 /** Section frame: background tone, Figma paddings (128/80 desktop · 72/20 mobile) and the 1200 px content width. */

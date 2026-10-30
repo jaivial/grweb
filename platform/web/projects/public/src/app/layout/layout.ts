@@ -179,21 +179,21 @@ export class Navbar {
     } @else {
     <div class="mx-auto flex max-w-[1440px] flex-col gap-12 px-5 pt-14 pb-28 md:px-8 md:pb-10 xl:px-[120px]">
       <gr-newsletter />
-      <div class="grid gap-8 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))]">
+      <div class="grid gap-8 lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
         <div class="flex flex-col gap-4">
-          <gr-logo [height]="44" />
-          <p class="max-w-sm text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo benéfico de material SBD para la comunidad.</p>
-          <div class="flex flex-wrap gap-2">
-            <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-md border border-line-strong text-text-secondary hover:text-text-primary"><gr-icon name="camera" [size]="18" /></a>
-            @if (contacto()) { <a [href]="'mailto:' + contacto()" aria-label="Email" class="flex size-11 items-center justify-center rounded-md border border-line-strong text-text-secondary hover:text-text-primary"><gr-icon name="mail" [size]="18" /></a> }
-            <a href="/en" hreflang="en" class="flex h-11 items-center gap-2 rounded-md border border-line-strong px-3 text-label-s text-text-secondary hover:text-text-primary"><gr-icon name="globe" [size]="16" />Español · English</a>
+          <gr-logo [height]="56" />
+          <p class="max-w-[300px] text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo benéfico de material SBD para la comunidad.</p>
+          <div class="flex gap-2">
+            <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="camera" [size]="18" /></a>
+            @if (contacto()) { <a [href]="'mailto:' + contacto()" aria-label="Email" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="mail" [size]="18" /></a> }
+            <a href="/en" hreflang="en" class="flex h-11 shrink-0 items-center gap-2 rounded-sm border border-line-subtle px-3 text-body-s text-text-secondary hover:text-text-primary"><gr-icon name="globe" [size]="16" class="text-text-tertiary" />Español · English</a>
           </div>
-          <p class="text-body-xs text-text-tertiary">{{ contacto() }}{{ contacto() ? ' · ' : '' }}{{ handle() }}</p>
+          <p class="text-body-s text-text-tertiary">{{ contacto() }}{{ contacto() ? ' · ' : '' }}{{ handle() }}</p>
         </div>
         @for (col of columnas; track col.titulo) {
           <!-- Desktop: open column. Mobile: accordion. -->
           <nav class="hidden lg:block" [attr.aria-label]="col.titulo">
-            <p class="text-mono-xs text-text-muted uppercase">{{ col.titulo }}</p>
+            <p class="text-label-xs text-text-muted">{{ col.titulo }}</p>
             <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
           </nav>
           <details class="group border-b border-line-subtle lg:hidden">
@@ -203,10 +203,10 @@ export class Navbar {
         }
       </div>
       @if (logos().length) {
-        <ul class="flex flex-wrap items-center justify-center gap-x-10 gap-y-6" aria-label="Patrocinadores">
+        <ul class="flex flex-wrap items-center justify-center gap-x-10 gap-y-5 py-2" aria-label="Patrocinadores">
           @for (p of logos(); track p.nombre) {
             <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="block opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
-              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-8 w-auto max-w-32 object-contain md:h-9" loading="lazy" /></a></li>
+              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[22px] w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
           }
         </ul>
       }
@@ -247,7 +247,7 @@ export class Footer {
   protected readonly barra = computed(() => this.scrolled() && !this.footerVisible() && this.comp.data()?.modulos?.['entradas'] !== false &&
     !/^\/(inscripcion|pago|entradas|area-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
-    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Inscripción', href: '/inscripcion' }] },
+    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Inscripción (AEP)', href: '/inscripcion' }] },
     { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
     { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
     { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },

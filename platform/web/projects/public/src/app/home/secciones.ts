@@ -10,7 +10,8 @@ import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, textoTitulo } fr
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
-const num = (n: number) => n.toLocaleString('es-ES');
+/** «1.248» (Spanish grouping also for four digits, as in Figma). */
+const num = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const euros = (c: number) => (c % 100 ? (c / 100).toLocaleString('es-ES', { minimumFractionDigits: 2 }) : String(c / 100)) + ' €';
 /** Responsive image of the home assets: «/img/home/x-l.webp» → srcset with the «-s» variant (640 px). */
 const srcset = (src: string) => (/-l\.webp$/.test(src) ? `${src.replace(/-l\.webp$/, '-s.webp')} 640w, ${src} 1200w` : null);
@@ -196,7 +197,9 @@ export class SecEntradas {
     const out: { i: GrIconName; t: string }[] = [];
     if (s) {
       const d = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(',', '').replace('.', '');
-      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${s.nombre}` });
+      // «Sábado mañana» → «Sesión de mañana» (the day is already in the date)
+      const sesion = s.nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '');
+      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion === s.nombre ? s.nombre : 'Sesión de ' + sesion}` });
       out.push({ i: 'clock', t: `Puertas ${hora(s.puertas)} · hasta las ${hora(s.fin)}` });
     }
     if (c?.sede?.nombre) out.push({ i: 'map-pin', t: c.sede.nombre });
@@ -373,7 +376,7 @@ export class SecOrganizacion {
         }
       </ul>
       @if (t('titulo2')) {
-        <gr-cabecera class="mt-1 md:mt-4" [eyebrow]="t('eyebrow2')" [titulo]="t('titulo2')" [texto]="t('texto2')" tam="m" />
+        <gr-cabecera class="mt-1 max-w-[640px]! md:mt-14" [eyebrow]="t('eyebrow2')" [titulo]="t('titulo2')" [texto]="t('texto2')" tam="m" />
         <ul class="flex gap-4">
           @for (m of marcas(); track m.nombre) {
             <li class="flex h-[88px] w-[164px] items-center justify-center rounded-lg border border-line-subtle bg-bg-card md:h-[104px] md:w-[200px]">
@@ -403,28 +406,28 @@ export class SecAfiliaciones {
     @let r = sorteo();
     <div class="relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 py-14 md:flex-row md:gap-12 md:rounded-2xl md:border md:border-accent/35 md:p-[72px]">
       <div [class]="glow + ' -top-30 right-[-60px] size-[520px] bg-[radial-gradient(closest-side,rgb(196_43_62/0.25),transparent)]!'"></div>
-      <div class="relative flex w-full flex-col gap-4 md:max-w-[520px]">
+      <img [src]="t('imagen') || 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000090.webp'" [alt]="r?.premio || 'Cinturón SBD'"
+        class="relative aspect-[350/230] w-full rounded-xl border border-white/8 object-cover md:order-last md:aspect-[488/380] md:w-[488px] md:shrink-0" loading="lazy" />
+      <div class="relative flex w-full flex-col items-center gap-4 text-center md:max-w-[520px] md:items-start md:text-left">
         <gr-eyebrow [texto]="t('eyebrow') || 'Sorteo benéfico'" tono="claro" />
         <h2 class="text-display-l [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">{{ t('titulo') || 'Sorteo' }}</h2>
-        <p class="text-display-s md:text-display-m">{{ t('subtitulo') || 'Entra en el sorteo de un ' + (r?.premio || 'cinturón SBD') }}</p>
+        <p class="text-display-xs md:text-display-m">{{ t('subtitulo') || 'Entra en el sorteo de un ' + (r?.premio || 'cinturón SBD') }}</p>
         <p class="text-body-m text-text-secondary md:text-body-l">{{ t('texto') }}</p>
         @if (r) {
           <div class="flex flex-wrap items-center gap-3">
             <span class="inline-flex h-[35px] items-center gap-2 rounded-pill border border-white/15 bg-black/25 px-4 text-label-s"><gr-icon name="ticket" [size]="16" />{{ euros(r.precio) }} por boleto</span>
             <span class="text-body-s text-text-tertiary">{{ r.maxPorPersona ? 'Hasta ' + r.maxPorPersona + ' por persona' : 'Boletos ilimitados' }}</span>
           </div>
-          <div class="flex max-w-[360px] flex-col gap-2">
+          <div class="flex w-full max-w-[360px] flex-col gap-2">
             <div class="flex justify-between"><span class="text-label-s text-text-secondary">Boletos vendidos</span><span class="text-mono-s">{{ num(r.vendidos) }}{{ r.totalMax ? ' / ' + num(r.totalMax) : '' }}</span></div>
             @if (r.totalMax) { <div class="h-2 overflow-hidden rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-[linear-gradient(120deg,#c42b3e,#6e1420)]" [style.width.%]="(r.vendidos / r.totalMax) * 100"></div></div> }
           </div>
         }
-        <div class="flex flex-col gap-3 sm:flex-row">
+        <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <a grButton variant="display" size="l" href="/sorteo">{{ cta() }}</a>
           <a grButton variant="glass" size="l" href="/politica-concurso" iconRight="arrow-right">Ver normas</a>
         </div>
       </div>
-      <img [src]="t('imagen') || 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000090.webp'" [alt]="r?.premio || 'Cinturón SBD'"
-        class="relative aspect-[488/380] w-full rounded-xl border border-white/8 object-cover md:w-[488px] md:shrink-0" loading="lazy" />
     </div>
   `,
 })
@@ -450,18 +453,18 @@ export class SecSorteo {
       <div class="absolute inset-0 bg-[radial-gradient(closest-side,transparent_20%,#0e0c0d)]"></div>
     </div>
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
-      <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
+      <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" [textoMovil]="false" />
       <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 md:hidden" role="tablist" aria-label="Sexo">
         @for (g of generos; track g.k) {
-          <button type="button" role="tab" [attr.aria-selected]="sel() === g.k" (click)="sel.set(g.k)" class="h-11 rounded-sm text-label-m" [class]="sel() === g.k ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'">{{ g.l }}</button>
+          <button type="button" role="tab" [attr.aria-selected]="sel() === g.k" (click)="sel.set(g.k)" class="h-11 rounded-sm text-label-m" [class]="sel() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-secondary'">{{ g.l }}</button>
         }
       </div>
       <div class="flex w-full flex-col justify-center gap-6 md:flex-row">
         @for (g of generos; track g.k) {
           <div class="w-full flex-col gap-4 rounded-xl border border-line-subtle bg-[#221d1f]/85 px-4 py-5 md:flex md:w-[400px] md:p-7" [class.flex]="sel() === g.k" [class.hidden]="sel() !== g.k">
-            <div class="flex items-center justify-between"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted">{{ cats[g.k].length }} categorías</span></div>
-            <ul class="grid grid-cols-3 gap-2">
-              @for (c of cats[g.k]; track c) { <li class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body">{{ kg(c) }}</li> }
+            <div class="hidden items-center justify-between md:flex"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted">{{ cats[g.k].length }} categorías</span></div>
+            <ul class="grid grid-cols-2 gap-2 md:grid-cols-3">
+              @for (c of cats[g.k]; track c; let last = $last) { <li class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body" [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] md:col-span-1 md:mx-0 md:w-auto' : ''">{{ kg(c) }}</li> }
             </ul>
           </div>
         }
@@ -492,7 +495,7 @@ interface Bloque { sexo: 'M' | 'F'; pesos: string[]; inicio: string; fin: string
  */
 @Component({
   selector: 'gr-sec-horarios',
-  imports: [GrButton, GrCabecera],
+  imports: [GrButton, GrCabecera, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
@@ -518,7 +521,7 @@ interface Bloque { sexo: 'M' | 'F'; pesos: string[]; inicio: string; fin: string
             @for (b of d.bloques; track $index) {
               <div class="grid grid-cols-[140px_1fr_auto] items-center gap-4 border-t border-line-subtle bg-white/2 px-4 py-4">
                 <span class="text-display-label text-accent-text">{{ b.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                <span class="text-display-body">{{ b.pesos.join(', ') }} KG</span>
+                <span class="text-display-body">{{ b.pesos.join(' KG, ') }} KG</span>
                 <span class="text-display-body tabular-nums">{{ b.inicio }} – {{ b.fin }}</span>
               </div>
             }
@@ -529,7 +532,7 @@ interface Bloque { sexo: 'M' | 'F'; pesos: string[]; inicio: string; fin: string
               <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-[#221d1f]/90 p-4">
                 <span class="flex items-center justify-between">
                   <span class="inline-flex h-[22px] items-center rounded-pill px-2.5 text-label-xs" [class]="b.sexo === 'F' ? 'bg-warning/14 text-warning' : 'bg-accent/14 text-accent-text'">{{ b.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                  <span class="text-mono-s tabular-nums">{{ b.inicio }} – {{ b.fin }}</span>
+                  <span class="flex items-center gap-1.5 text-mono-s tabular-nums"><gr-icon name="clock" [size]="14" class="text-text-tertiary" />{{ b.inicio }} – {{ b.fin }}</span>
                 </span>
                 <span class="text-display-body">{{ b.pesos.join(' · ') }} KG</span>
               </li>

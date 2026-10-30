@@ -72,7 +72,7 @@ export class Countdown {
     @let c = comp();
     <div class="relative mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-5 pt-18 pb-18 text-center md:gap-8 md:px-20 md:pt-32 md:pb-32">
       <img [src]="logo" alt="GR Strength Cup" class="h-[97px] w-auto select-none md:h-[145px]" draggable="false" />
-      <h2 class="max-w-[1024px] text-display-s md:text-display-l">
+      <h2 class="max-w-[1024px] text-display-xs md:text-display-l">
         <gr-titulo [titulo]="titulo() + (nivel() ? '|' + nivel() : '')" />
       </h2>
       <div class="h-px w-full max-w-[560px] bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.7),transparent)]" aria-hidden="true"></div>
