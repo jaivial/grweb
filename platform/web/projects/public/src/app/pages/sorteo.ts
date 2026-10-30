@@ -344,7 +344,7 @@ export class SorteoPage {
           </div>
         } @else if (c === null || c.estado === 'fallida' || c.estado === 'caducada') {
           <!-- Figma 09 «Error» -->
-          <div class="flex flex-col items-center gap-4 py-6">
+          <div class="flex min-h-[40vh] flex-col items-center justify-center gap-4 py-6">
             <span class="flex size-12 items-center justify-center rounded-full bg-accent/15 text-accent-text"><gr-icon name="x" [size]="22" /></span>
             <h1 class="text-ui-h4">{{ c === null ? 'No encontramos esta compra' : 'Algo salió mal' }}</h1>
             <p class="max-w-[440px] text-body-s text-text-tertiary">{{ c === null ? 'Revisa el enlace del email. Si has pagado y no te llega, escríbenos.' : 'El pago no se completó y no se ha cobrado nada. Si crees que es un error, escríbenos.' }}</p>
@@ -382,7 +382,7 @@ export class SorteoPage {
           </section>
           <section class="flex w-full flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6 text-left">
             <h2 class="text-ui-h5">Siguientes pasos</h2>
-            @for (p of siguientes(); track p) { <p class="flex gap-2.5 text-body-s text-text-secondary"><gr-icon name="check" [size]="16" class="mt-0.5 shrink-0 text-success" />{{ p }}</p> }
+            @for (p of siguientes(); track p) { <p class="flex gap-2.5 text-body-s text-text-secondary"><gr-icon name="check" [size]="16" class="mt-0.5 shrink-0 text-accent-text" />{{ p }}</p> }
           </section>
           <div class="flex flex-col items-center gap-4">
             <p class="text-label-s text-text-tertiary">Comparte con tus amigos</p>
