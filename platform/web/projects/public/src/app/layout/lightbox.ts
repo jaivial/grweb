@@ -15,15 +15,15 @@ export interface FotoLightbox { imagen: string; alt: string }
   host: { '(document:keydown)': 'tecla($event)' },
   template: `
     @if (indice() >= 0 && fotos()[indice()]; as f) {
-      <div class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/92 px-4 py-16 md:px-24" role="dialog" aria-modal="true" [attr.aria-label]="'Foto ' + (indice() + 1) + ' de ' + fotos().length" (click)="cerrar()">
+      <div class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 px-4 py-16 md:px-28" role="dialog" aria-modal="true" [attr.aria-label]="'Foto ' + (indice() + 1) + ' de ' + fotos().length" (click)="cerrar()">
         <button type="button" #cerrarBtn class="absolute top-4 right-4 flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:top-6 md:right-6" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="20" /></button>
-        <figure class="flex w-full max-w-[1060px] flex-col gap-4" (click)="$event.stopPropagation()">
-          <img [src]="grande(f.imagen)" [alt]="f.alt" class="max-h-[72vh] w-full rounded-2xl object-contain" />
+        <figure class="flex max-w-[1060px] flex-col gap-4" (click)="$event.stopPropagation()">
+          <img [src]="grande(f.imagen)" [alt]="f.alt" class="max-h-[72vh] w-auto max-w-full rounded-2xl object-contain" />
           <figcaption class="text-body-s text-text-secondary">{{ f.alt }} · {{ indice() + 1 }} / {{ fotos().length }}</figcaption>
         </figure>
         @if (fotos().length > 1) {
-          <button type="button" class="absolute top-1/2 left-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:left-8" aria-label="Foto anterior" (click)="$event.stopPropagation(); mover(-1)"><gr-icon name="arrow-left" [size]="20" /></button>
-          <button type="button" class="absolute top-1/2 right-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:right-8" aria-label="Foto siguiente" (click)="$event.stopPropagation(); mover(1)"><gr-icon name="arrow-right" [size]="20" /></button>
+          <button type="button" class="absolute top-1/2 left-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:left-12 xl:left-24" aria-label="Foto anterior" (click)="$event.stopPropagation(); mover(-1)"><gr-icon name="arrow-left" [size]="20" /></button>
+          <button type="button" class="absolute top-1/2 right-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:right-12 xl:right-24" aria-label="Foto siguiente" (click)="$event.stopPropagation(); mover(1)"><gr-icon name="arrow-right" [size]="20" /></button>
         }
       </div>
     }
