@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/db"
 )
 
 // Asignacion is the published flight of an athlete (written by schedule).
@@ -215,4 +216,128 @@ func (s *Svc) validBaja(tok string) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 	return id, hmac.Equal([]byte(s.bajaToken(id)), []byte(tok))
+}
+
+// avisosSalida emails the confirmed followers of every athlete whose flight starts in about 30 minutes (published
+// time; the live delay of step 11 is not applied yet). Runs every minute; each start time is notified once.
+func (s *Svc) avisosSalida(ctx context.Context) {
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		if err := s.avisarSalidas(ctx); err != nil && ctx.Err() == nil {
+			s.a.Log.Warn("avisos de salida", "err", err)
+		}
+	}
+}
+
+func (s *Svc) avisarSalidas(ctx context.Context) error {
+	rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.competition_id, a.nombre || ' ' || a.apellidos, a.flight, a.hora_inicio, COALESCE(p.slug, '') FROM atletas a
+		LEFT JOIN perfiles p ON p.atleta_id = a.id
+		WHERE a.estado = 'confirmado' AND a.hora_inicio BETWEEN now() + interval '20 minutes' AND now() + interval '31 minutes'
+		AND NOT EXISTS (SELECT 1 FROM avisos_salida x WHERE x.atleta_id = a.id AND x.hora_inicio = a.hora_inicio)
+		AND EXISTS (SELECT 1 FROM seguimientos f WHERE f.atleta_id = a.id AND f.confirmado_at IS NOT NULL AND f.baja_at IS NULL) LIMIT 200`)
+	if err != nil {
+		return err
+	}
+	type sal struct {
+		id, cid              uuid.UUID
+		nombre, flight, slug string
+		hora                 time.Time
+	}
+	var list []sal
+	for rows.Next() {
+		var x sal
+		if err := rows.Scan(&x.id, &x.cid, &x.nombre, &x.flight, &x.hora, &x.slug); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, x)
+	}
+	rows.Close()
+	for _, x := range list {
+		err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			tag, err := tx.Exec(ctx, `INSERT INTO avisos_salida (atleta_id, hora_inicio) VALUES ($1,$2) ON CONFLICT DO NOTHING`, x.id, x.hora)
+			if err != nil || tag.RowsAffected() == 0 {
+				return err
+			}
+			segs, err := tx.Query(ctx, `SELECT id, email::text FROM seguimientos WHERE atleta_id = $1 AND confirmado_at IS NOT NULL AND baja_at IS NULL`, x.id)
+			if err != nil {
+				return err
+			}
+			type seg struct {
+				id   uuid.UUID
+				mail string
+			}
+			var ss []seg
+			for segs.Next() {
+				var g seg
+				if err := segs.Scan(&g.id, &g.mail); err != nil {
+					segs.Close()
+					return err
+				}
+				ss = append(ss, g)
+			}
+			segs.Close()
+			hora := x.hora.In(madrid).Format("15:04")
+			for _, g := range ss {
+				v := map[string]string{"atleta": x.nombre, "flight": x.flight, "hora": hora, "horarios": s.webURL + "/horarios", "baja": s.webURL + "/atletas/" + x.slug + "?baja=" + s.bajaToken(g.id)}
+				if x.slug != "" {
+					v["enlace"] = s.webURL + "/atletas/" + x.slug
+				}
+				if err := email(ctx, tx, x.cid, g.mail, "atleta-sale-30min", v); err != nil {
+					return err
+				}
+			}
+			_, err = tx.Exec(ctx, `UPDATE avisos_salida SET enviados = $3 WHERE atleta_id = $1 AND hora_inicio = $2`, x.id, x.hora, len(ss))
+			return err
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// registerRGPD: crm forwards the right to erasure of a contact. Follows of that address are deleted (their notices
+// stop at once). A registered athlete keeps the record (managed in «Atletas», with its own erasure and the legal
+// retention of registrations and payments): crm is told so it can say it.
+func (s *Svc) registerRGPD() {
+	type in struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Email    string `json:"email,omitempty" maxLength:"254"`
+			Telefono string `json:"telefono,omitempty" maxLength:"30"`
+		}
+	}
+	type out struct {
+		Body struct {
+			Seguimientos int  `json:"seguimientos"`
+			Atleta       bool `json:"atleta" doc:"Es atleta inscrito: su ficha se gestiona en «Atletas»"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-rgpd-supresion", Method: http.MethodPost, Path: "/internal/competiciones/{cid}/rgpd/supresion", Summary: "Derecho de supresión (solo crm)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *in) (*out, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			o := &out{}
+			e := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			if e == "" {
+				return o, nil
+			}
+			err := s.change(ctx, in.CID, "", nil, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `DELETE FROM seguimientos WHERE competition_id = $1 AND email = $2`, in.CID, e)
+				if err != nil {
+					return err
+				}
+				o.Body.Seguimientos = int(tag.RowsAffected())
+				return tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM atletas WHERE competition_id = $1 AND email = $2)`, in.CID, e).Scan(&o.Body.Atleta)
+			})
+			return o, err
+		})
 }

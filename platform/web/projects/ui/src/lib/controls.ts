@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Directive, computed, input, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Directive, ElementRef, computed, inject, input, model } from '@angular/core';
 import { GrIcon, type GrIconName } from './icon';
 import { GrSparkline } from './primitives';
 
@@ -10,7 +10,12 @@ let fieldSeq = 0;
   host: {
     class:
       'w-full rounded-sm border bg-bg-field px-3 text-body-s text-text-primary placeholder:text-text-muted transition-[border-color,box-shadow] ' +
-      'h-11 md:h-10 focus:outline-none focus:border-accent-text focus:ring-2 focus:ring-accent/30 disabled:opacity-50',
+      'focus:outline-none focus:border-accent-text focus:ring-2 focus:ring-accent/30 disabled:opacity-50',
+    // Fixed height for inputs and selects; textareas grow with their rows.
+    '[class.h-11]': '!area',
+    '[class.md:h-10]': '!area',
+    '[class.py-2]': 'area',
+    '[class.min-h-24]': 'area',
     '[class.border-line-strong]': '!invalid()',
     '[class.border-accent-text]': 'invalid()',
     '[attr.aria-invalid]': 'invalid() || null',
@@ -18,6 +23,7 @@ let fieldSeq = 0;
 })
 export class GrInput {
   readonly invalid = input(false);
+  protected readonly area = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.tagName === 'TEXTAREA';
 }
 
 /** Label + control + hint/error. Pass the control's id with `for`. */

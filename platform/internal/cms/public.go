@@ -301,6 +301,13 @@ func (s *Svc) registerPublic() {
 					VALUES ($1,$2,$3,$4,$5,$6,$7,now(),$8)`, id, cid, strings.TrimSpace(in.Body.Nombre), email, in.Body.Telefono, in.Body.Disponibilidad, in.Body.EsMenor, version); err != nil {
 					return err
 				}
+				if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.contacto", map[string]any{"email": email, "telefono": in.Body.Telefono, "nombre": strings.TrimSpace(in.Body.Nombre),
+					"origen": "voluntarios", "relacion": map[string]any{"voluntario": true},
+					"consentimientos": []map[string]any{{"finalidad": "privacidad", "estado": "confirmado", "version": version, "origen": "/voluntarios · formulario", "ip": httpx.ClientIPFrom(ctx)}},
+					"actividad":       map[string]any{"tipo": "voluntario", "titulo": "Se ofreció como voluntario", "detalle": in.Body.Disponibilidad}},
+					events.Competition(cid.String()), events.Audience(events.Internal))); err != nil {
+					return err
+				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "cms.email_solicitado", map[string]any{"para": email, "plantilla": "voluntario-recibido",
 					"vars": map[string]string{"nombre": in.Body.Nombre}}, events.Competition(cid.String()), events.Audience(events.Internal)))
 			})

@@ -14,7 +14,6 @@ import { AtletasImportarPage } from './pages/atletas/importar';
 import { AtletasPage } from './pages/atletas/list';
 import { PesajePage } from './pages/atletas/pesaje';
 import { InscripcionPage } from './pages/atletas/inscripcion';
-import { HorariosPage } from './pages/horarios/horarios';
 
 // Guards inject everything before the first await: inject() only works synchronously in the injection context
 // (after an await it throws NG0203 and the redirect to /login never happens).
@@ -98,7 +97,15 @@ export const routes: Routes = [
       { path: 'atletas/pesaje', component: PesajePage, title: 'Pesaje · Backoffice GR Cup' },
       { path: 'atletas/inscripcion', component: InscripcionPage, title: 'Inscripción · Backoffice GR Cup' },
       { path: 'atletas/:id', component: AtletaFichaPage, title: 'Atleta · Backoffice GR Cup' },
-      { path: 'horarios', component: HorariosPage, title: 'Horarios y flights · Backoffice GR Cup' },
+      { path: 'horarios', loadComponent: () => import('./pages/horarios/horarios').then((m) => m.HorariosPage), title: 'Horarios y flights · Backoffice GR Cup' },
+      { path: 'contactos', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'contactos' }, title: 'Contactos · Backoffice GR Cup' },
+      { path: 'contactos/segmentos', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'segmentos' }, title: 'Segmentos · Backoffice GR Cup' },
+      { path: 'contactos/bajas', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'bajas' }, title: 'Bajas y supresiones · Backoffice GR Cup' },
+      { path: 'contactos/:id', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactoFichaPage), title: 'Contacto · Backoffice GR Cup' },
+      { path: 'emails', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'plantillas' }, title: 'Emails y avisos · Backoffice GR Cup' },
+      { path: 'emails/salida', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'salida' }, title: 'Bandeja de salida · Backoffice GR Cup' },
+      { path: 'emails/automatizaciones', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'automatizaciones' }, title: 'Automatizaciones · Backoffice GR Cup' },
+      { path: 'emails/plantillas/:clave', loadComponent: () => import('./pages/emails/emails').then((m) => m.PlantillaEditorPage), title: 'Plantilla · Backoffice GR Cup' },
       { path: ':seccion', component: ComingSoonPage, title: 'Backoffice GR Cup' },
     ],
   },

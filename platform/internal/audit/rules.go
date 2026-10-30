@@ -46,6 +46,12 @@ var notifRules = map[string]notifRule{
 	"athletes.cupon_agotado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Cupón agotado", "«" + str(d["codigo"]) + "» ha llegado a su límite de usos.", "/atletas/inscripcion", "aviso", "atletas.editar", true
 	},
+	"smtp.estado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		if d["ok"] == true {
+			return "El email vuelve a funcionar", "Los mensajes en cola salen ya.", "/emails/salida", "ok", "campanas.enviar", true
+		}
+		return "El servidor de email no responde", str(d["servidor"]) + ": " + str(d["error"]) + ". Los mensajes esperan en la cola.", "/emails/salida", "error", "campanas.enviar", true
+	},
 	"horarios.publicados": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return fmt.Sprintf("Horarios v%v publicados", d["version"]), fmt.Sprintf("%v cambios · %v avisos por email", d["cambios"], d["avisos"]), "/horarios", "ok", "horarios.publicar", true
 	},
@@ -124,6 +130,30 @@ func resumen(e events.Event) string {
 		return "reordenó las secciones de la home"
 	case "cms.voluntario_solicitado":
 		return "envió una solicitud de voluntariado"
+	case "messaging.plantilla_guardada":
+		return "editó la plantilla de email «" + str(d["nombre"]) + "»"
+	case "messaging.automatizacion":
+		if d["activa"] == true {
+			return "activó la automatización «" + str(d["nombre"]) + "»"
+		}
+		return "desactivó la automatización «" + str(d["nombre"]) + "»"
+	case "smtp.estado":
+		if d["ok"] == true {
+			return "el servidor de email vuelve a funcionar"
+		}
+		return "el servidor de email ha dejado de responder"
+	case "crm.contacto_rectificado":
+		return "rectificó los datos de un contacto"
+	case "crm.rgpd_acceso":
+		return "exportó los datos de un contacto (derecho de acceso)"
+	case "crm.rgpd_supresion":
+		return "suprimió un contacto (derecho de supresión)"
+	case "crm.exportado":
+		return fmt.Sprintf("exportó %v contactos a CSV", d["filas"])
+	case "crm.segmento_guardado":
+		return "guardó el segmento «" + str(d["nombre"]) + "»"
+	case "crm.baja_manual":
+		return "añadió una baja a mano"
 	case "horarios.borrador":
 		if a := str(d["accion"]); a != "" {
 			return a
