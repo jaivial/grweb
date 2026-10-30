@@ -1,0 +1,58 @@
+# Production runs no «Datos de ejemplo» and has no Mailpit. Only identity-bootstrap (Root) stays as a deploy Job:
+# the editions come from the ETL of the previous web (competition and cms seeds would create placeholder editions
+# that the ETL then keeps), and the initial web content is loaded on purpose afterwards
+# (deploy/scripts/tarea.sh cms seed-grcup).
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: competition-seed }
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: cms-seed }
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: athletes-seed }
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: schedule-seed }
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: crm-seed }
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: ticketing-seed }
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: live-seed }
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata: { name: raffle-seed }
+---
+$patch: delete
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: mailpit }
+---
+$patch: delete
+apiVersion: v1
+kind: Service
+metadata: { name: mailpit }
+---
+$patch: delete
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-mailpit-smtp }

@@ -181,8 +181,8 @@ export class SistemaPage {
   protected readonly estComp = ESTADO_COMP;
   protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'competiciones', l: 'Competiciones' }, { v: 'integraciones', l: 'Integraciones' }, { v: 'email', l: 'Email' }, { v: 'salud', l: 'Salud' }, { v: 'peligro', l: 'Zona peligrosa' }];
   protected readonly pendientes = [
-    { t: 'Anonimizar datos personales', d: 'Borrar contactos, entradas y atletas de una edición terminada manteniendo resultados y estadísticas.', b: 'Paso 15' },
-    { t: 'Exportación completa', d: 'ZIP con los CSV de todas las tablas de la competición.', b: 'Paso 15' },
+    { t: 'Anonimizar datos personales', d: 'Borrar contactos, entradas y atletas de una edición terminada manteniendo resultados y estadísticas. Se activa cuando la organización fije el plazo de conservación (propuesta: 12 meses).', b: 'Pendiente de decidir' },
+    { t: 'Exportación completa', d: 'ZIP con los CSV de todas las tablas de la competición. Mientras tanto: la exportación de cada sección (atletas, contactos, entradas, sorteo, acta) y las copias nocturnas.', b: 'Pendiente' },
     { t: 'Eliminar competición', d: 'Solo Root, solo sin datos: ahora se archiva.', b: 'No disponible' },
   ];
   protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || 'competiciones');

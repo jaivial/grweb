@@ -110,7 +110,7 @@ platform/
   pkg/                       # compartido: app, httpx, problem, db, redisx, events, auth, idem, ratelimit, sse, crypto, mailer
   web/                       # workspace Angular (pnpm)
   deploy/k8s/                # kustomize: base/ + overlays/qa/
-  deploy/scripts/            # build-imagenes, desplegar-qa, dns-cloudflare, nginx-qa
+  deploy/scripts/            # desplegar (qa|prod), secretos, redis-acl, copias-remotas, tarea, migrar-legado, nginx-qa, nginx-prod
   docs/                      # este documento, INVENTARIO, ROADMAP, runbooks
   Dockerfile                 # multi-stage; ARG SVC → imagen distroless por servicio
   Makefile                   # verify (vet + build + ng build), images, deploy-qa

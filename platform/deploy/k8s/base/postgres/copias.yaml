@@ -1,5 +1,8 @@
 # Nightly logical backups of every grcup_* database (pg_dump custom format), kept 7 days on the node
-# (/var/lib/grcup-qa/copias/<fecha>/<base>.dump). Restore: docs/runbooks/PRODUCCION.md › «Copias y restauración».
+# (/var/lib/grcup-qa/copias/<fecha>/<base>.dump; production: /var/lib/grcup/copias) and, when the Secret
+# grcup-copias-remotas exists, also copied OFF the node, encrypted (rclone crypt over any S3-compatible storage or
+# other rclone remote): the dumps kept 30 days there, and the uploaded media (cms) copied incrementally, never
+# deleted. Restore: docs/runbooks/PRODUCCION.md › «Copias y restauración».
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -24,8 +27,8 @@ spec:
           automountServiceAccountToken: false
           securityContext:
             seccompProfile: { type: RuntimeDefault }
-          containers:
-            - name: copias
+          initContainers:
+            - name: volcado
               image: postgres:17-alpine
               imagePullPolicy: IfNotPresent
               command: ["sh", "-c"]
@@ -42,6 +45,7 @@ spec:
                     echo "copia $db $(du -h "$d/$db.dump" | cut -f1)"
                   done
                   pg_dumpall -h postgres -U postgres --globals-only > "$d/globals.sql"
+                  sha256sum "$d"/*.dump "$d/globals.sql" | sed "s|$d/||" > "$d/SHA256SUMS"
                   find /copias -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
                   echo "copias completas en $d"
               env:
@@ -57,8 +61,49 @@ spec:
               resources:
                 requests: { cpu: 20m, memory: 64Mi }
                 limits: { cpu: 500m, memory: 256Mi }
+          containers:
+            # Off the node: the day's folder, encrypted client-side by the «cifrado» crypt remote (names too). The
+            # remote is configured only by the Secret (RCLONE_CONFIG_REMOTO_* for the storage, RCLONE_CONFIG_CIFRADO_*
+            # for the encryption: deploy/scripts/copias-remotas.sh). Without it, nothing leaves the node.
+            - name: fuera-del-nodo
+              image: rclone/rclone:1.69.1
+              imagePullPolicy: IfNotPresent
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  if [ -z "${RCLONE_CONFIG_CIFRADO_TYPE:-}" ]; then
+                    echo "sin copia fuera del nodo (no hay Secret grcup-copias-remotas)"; exit 0
+                  fi
+                  d=$(date +%Y-%m-%d)
+                  rclone copy "/copias/$d" "cifrado:$d" --transfers 2 --stats-one-line --stats 30s
+                  # cryptcheck: the encrypted copies against the local files, through the storage's own hashes
+                  rclone cryptcheck "/copias/$d" "cifrado:$d" --one-way
+                  # uploaded media (photos, posters): incremental, nothing is ever deleted off the node
+                  rclone copy /medios cifrado:medios --transfers 4 --stats-one-line --stats 60s
+                  rclone cryptcheck /medios cifrado:medios --one-way
+                  rclone delete cifrado: --min-age 30d --rmdirs --exclude "/medios/**"
+                  echo "copia fuera del nodo: $d ($(rclone size "cifrado:$d" | tr '\n' ' ')) · medios ($(rclone size cifrado:medios | tr '\n' ' '))"
+              envFrom:
+                - secretRef: { name: grcup-copias-remotas, optional: true }
+              env:
+                - { name: RCLONE_CONFIG, value: /tmp/rclone.conf }
+                - { name: RCLONE_CACHE_DIR, value: /tmp/rclone }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: copias, mountPath: /copias, readOnly: true }
+                - { name: medios, mountPath: /medios, readOnly: true }
+                - { name: tmp, mountPath: /tmp }
+              resources:
+                requests: { cpu: 20m, memory: 64Mi }
+                limits: { cpu: 500m, memory: 256Mi }
           volumes:
             - name: copias
               hostPath: { path: /var/lib/grcup-qa/copias, type: DirectoryOrCreate }
             - name: tmp
               emptyDir: { sizeLimit: 64Mi }
+            - name: medios
+              hostPath: { path: /var/lib/grcup-qa/medios, type: DirectoryOrCreate }

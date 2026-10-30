@@ -12,7 +12,7 @@ organizador**; hasta entonces la web anterior sigue sirviendo sin cambios.
 > fercup.com y backoffice.fercup.com (`Competiciones.Tipo = 'fer'`). El corte **solo mueve GR Cup**:
 > - el backend y la MySQL anteriores **siguen en marcha** para FER;
 > - el ETL no migra competiciones de FER ni usuarios que solo pertenecen a FER;
-> - el webhook de Stripe que entra por el dominio de GR Cup sigue llegando al backend anterior (sección 5).
+> - el webhook de Stripe que entra por el dominio de GR Cup sigue llegando al backend anterior (sección 6).
 
 ## 1. Qué se migra
 
@@ -74,21 +74,21 @@ deploy/scripts/legado-qa.sh --borrar                          # al terminar
 - `3=-` excluye la competición de pruebas.
 - `--etiqueta "Datos de ejemplo"` mantiene el aviso de ejemplo en `/resultados/2025`.
 
-Resultado del ensayo: ver la sección 7.
+Resultado del ensayo: ver la sección 8.
 
 ## 4. Requisitos antes del corte (bloqueantes)
 
 1. **Aprobación expresa del organizador**, y fecha fuera de un plazo de inscripción abierto y lejos del evento.
-2. **Namespace de producción** con su overlay:
-   - dominios definitivos y secretos propios (`secretos-qa.sh` como modelo);
-   - **sin los Jobs `seed-*`**: siembran «Datos de ejemplo» y no deben correr en producción;
-   - copias nocturnas fuera del nodo (hoy se guardan en el mismo nodo).
+2. **Producción preparada** (docs/runbooks/PRODUCCION.md › 10):
+   - `overlays/prod` con los dominios y el SMTP confirmados;
+   - `secretos.sh prod`, `redis-acl.sh prod` y `copias-remotas.sh prod`;
+   - `desplegar.sh prod --confirmo-produccion`. No ejecuta ningún seed de «Datos de ejemplo»; solo crea el Root.
 3. **Integraciones reales** probadas desde «Sistema»:
    - SMTP con SPF, DKIM y DMARC correctos;
    - Stripe en modo live, con los webhooks de inscripción, entradas y sorteo apuntando a la API nueva;
    - en el panel de Stripe, la lista de endpoints que usan `https://grcup.jaimedigitalstudio.com/api/webhooks/stripe`:
      - los de FER se pasan a `https://fercup.com/api/webhooks/stripe` (fercup.com ya envía `/api/` al backend anterior);
-     - o se mantiene la excepción de nginx de la sección 5;
+     - o se mantiene la excepción de nginx de la sección 6;
    - WhatsApp (evo-weai), si se usa.
 4. **Usuarios Root revisados**: el informe de identity lista quién pasa a Root. En la web anterior lo eran del sistema
    entero (GR Cup y FER); quien no deba administrar GR Cup se baja de rol en «Equipo y permisos» antes de abrir.
@@ -97,26 +97,50 @@ Resultado del ensayo: ver la sección 7.
    - FER no cambia nada más.
 6. **Asesoría:** textos legales, sorteo, consentimientos y menores. Checklist legal del sorteo hecho por el organizador.
 7. **Ensayo general (T-7)** con una copia real de producción, en el namespace de producción antes de abrirlo (nunca en QA):
-   - ejecutar `--dry-run`, después el ETL real y la conciliación (sección 6);
+   - ejecutar `--dry-run`, después el ETL real y la conciliación (sección 7);
    - borrar las bases y volver a empezar limpio.
 
-## 5. Plan de corte
+## 5. Dominio, DNS y CDN (comprobado el 30/10/2026)
+
+- **`grcup.jaimedigitalstudio.com` pasa hoy por BunnyCDN.**
+  - El DNS de `jaimedigitalstudio.com` está en Bunny DNS (`kiki`/`coco.bunny.net`).
+  - El registro apunta a un borde de Bunny (37.19.215.33), que pide al origen kraken (65.109.100.94).
+  - El borde sirve su propio certificado.
+  - El certificado comodín que usa el origen (`jaimedigitalstudio.com-0001`) caducó el 18/04/2026: su renovación DNS-01 usa Cloudflare, pero el dominio ya no está allí.
+- **La plataforma no debe ir detrás del CDN** en el host de la web, porque:
+  - el directo, los horarios y el sorteo usan SSE (respuestas largas sin búfer);
+  - los límites por IP necesitan la IP real del cliente.
+
+  **Propuesta:**
+  - en el corte, el registro A de la web pasa a kraken, con TTL 60, y deja de pasar por la pull zone;
+  - el certificado se saca por HTTP-01 (`certbot --webroot`), como hace `nginx-prod.sh`;
+  - las imágenes siguen en `jaimedigitalstudio.b-cdn.net`.
+- **Backoffice y API** necesitan sus registros en Bunny DNS hacia kraken antes del corte. `nginx-prod.sh mantenimiento` pide sus certificados.
+- **Dominio por decidir:**
+  - `overlays/prod/config.yaml` propone seguir en `grcup.jaimedigitalstudio.com`, con `grcup-bo.` y `grcup-api.`;
+  - el sitemap antiguo habla de `grcup.es`, que hoy no resuelve;
+  - si se elige otro, se cambia en ese fichero y el resto lo sigue.
+- **nginx del dominio:** `deploy/scripts/nginx-prod.sh`.
+  - `probar` comprueba la configuración en local.
+  - `mantenimiento`, `plataforma` y `anterior` la cambian en kraken. Guardan el server block anterior y, si `nginx -t` falla, vuelven al fichero previo sin recargar.
+
+## 6. Plan de corte
 
 | Momento | Paso |
 |---|---|
 | T-1 | Congelar cambios en la web anterior. Bajar el TTL de los registros DNS a 60 s. Avisar al equipo de la ventana. |
-| T0 · 0′ | **Web de GR Cup en mantenimiento**: el server de `grcup.jaimedigitalstudio.com` sirve una página 503 a todo, salvo a la IP del operador y a `location /api/webhooks/stripe` (sigue yendo a 127.0.0.1:5006, por FER). fercup.com y backoffice.fercup.com no se tocan. Stripe reintenta sus webhooks hasta 3 días: no se pierden. |
+| T0 · 0′ | **Web de GR Cup en mantenimiento** (`nginx-prod.sh mantenimiento --confirmo-produccion`): el server de `grcup.jaimedigitalstudio.com` sirve una página 503 a todo, salvo a la IP del operador y a `location /api/webhooks/stripe` (sigue yendo a 127.0.0.1:5006, por FER). fercup.com y backoffice.fercup.com no se tocan. Stripe reintenta sus webhooks hasta 3 días: no se pierden. |
 | T0 · 5′ | **Copia final**: `mysqldump --single-transaction --routines grcup` (como `scripts/db-backup.sh`), con su `sha256sum`. |
 | T0 · 10′ | **Restaurar la copia en una MySQL aislada**: un pod efímero como `legado-mysql` en el namespace de producción, con un usuario de solo `SELECT`. **Nunca** apuntar el ETL a la MySQL en marcha. |
-| T0 · 15′ | `migrar-legado.sh --dry-run`: leer el informe completo (omitidos y notas). Si algo no cuadra, **parar** y volver atrás (sección 8). |
+| T0 · 15′ | `migrar-legado.sh --dry-run`: leer el informe completo (omitidos y notas). Si algo no cuadra, **parar** y volver atrás (sección 9). |
 | T0 · 20′ | `migrar-legado.sh` (real). Guardar la salida con el informe. |
-| T0 · 30′ | **Conciliación** (sección 6). Si no cuadra: vuelta atrás. |
+| T0 · 30′ | **Conciliación** (sección 7). Si no cuadra: vuelta atrás. |
 | T0 · 40′ | **Pruebas de humo**: home, inscripción hasta el pago (Stripe live con importe mínimo y devolución), sorteo, entradas, `/resultados/2025`, login de un usuario migrado con su contraseña antigua, Salud 12/12. |
-| T0 · 50′ | **Cambio de tráfico**: el server del dominio de GR Cup pasa a la web y al gateway nuevos. Se mantiene la excepción `location /api/webhooks/stripe` → 127.0.0.1:5006 mientras FER tenga allí su endpoint. `/backoffice*` redirige al dominio del backoffice nuevo. Los webhooks de GR Cup en Stripe pasan a la API nueva. |
+| T0 · 50′ | **Cambio de tráfico** (`nginx-prod.sh plataforma --confirmo-produccion`; DNS de la web → kraken, sin CDN): el server del dominio de GR Cup pasa a la web y al gateway nuevos. Se mantiene la excepción `location /api/webhooks/stripe` → 127.0.0.1:5006 mientras FER tenga allí su endpoint. `/backoffice*` redirige al dominio del backoffice nuevo. Los webhooks de GR Cup en Stripe pasan a la API nueva. |
 | T0 · 60′ | Abrir. Vigilar Salud (p95, errores) y Mailpit/SMTP. |
 | T+1…T+7 | Revisión diaria: pagos de Stripe frente a inscripciones y compras, rebotes, incidencias. **T+7: punto de no retorno.** |
 
-## 6. Conciliación (antes de abrir)
+## 7. Conciliación (antes de abrir)
 
 Cada cifra de la web anterior (consulta sobre la copia) debe coincidir con la nueva. Solo cuentan las
 competiciones de GR Cup, las del mapa; las de FER quedan fuera:
@@ -132,7 +156,7 @@ competiciones de GR Cup, las del mapa; las de FER quedan fuera:
 El informe de cada paso ya da leídos, escritos y omitidos con su motivo. La conciliación lo comprueba con
 consultas independientes.
 
-## 7. Resultado del ensayo en QA
+## 8. Resultado del ensayo en QA
 
 **30/10/2026 · base sintética** (3 competiciones, 5 usuarios, 74 inscripciones, 342 intentos, 92 boletos):
 
@@ -176,7 +200,7 @@ Nada más cambia.
 - **Resultados:** `/resultados/2025` muestra las 12 categorías importadas. Sin peso corporal no hay puntos GL, así que se ocultan «Mejor levantador/a» y el orden por GL.
 - **Backoffice:** la edición importada se ve completa (atletas, fichas, cupones, referidos, pagos, sorteo, contactos y equipo). «Resultados» de 2025 aparece como archivo de solo lectura.
 
-## 8. Vuelta atrás
+## 9. Vuelta atrás
 
 | Cuándo | Cómo | Datos |
 |---|---|---|
