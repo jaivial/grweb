@@ -32,6 +32,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
     @let l = lista();
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6">
       <bo-page-header title="Atletas" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas']">
+        @if (canEdit()) { <a actions grButton icon="ticket" routerLink="inscripcion">Inscripción</a> }
         @if (canWeigh()) { <a actions grButton icon="scale" routerLink="pesaje">Pesaje</a> }
         @if (canEdit() && l?.pestanas?.todos) { <button actions grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar</button> }
         @if (canEdit()) { <a actions grButton variant="primary" routerLink="importar">Importar acta AEP</a> }

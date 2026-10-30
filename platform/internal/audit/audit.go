@@ -84,6 +84,9 @@ func (s *Svc) handle(ctx context.Context, e events.Event) error {
 		}
 		if rule, ok := notifRules[e.Type]; ok {
 			if titulo, cuerpo, enlace, nivel, permiso, ok := rule(e, d); ok {
+				if nivel != "ok" && nivel != "aviso" && nivel != "error" {
+					nivel = "info" // a wrong level must not turn the event into a poison message
+				}
 				nid := uuid.Must(uuid.NewV7())
 				if _, err := tx.Exec(ctx, `INSERT INTO notificaciones (id, competition_id, permiso, titulo, cuerpo, enlace, nivel, evento_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (evento_id) DO NOTHING`,
 					nid, *cid, permiso, titulo, cuerpo, enlace, nivel, e.ID); err != nil {

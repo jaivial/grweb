@@ -19,7 +19,7 @@ interface Panel {
   competicion: { slug: string; nombre: string };
   atleta: {
     id: string; nombre: string; apellidos: string; nombreCompleto: string; sexo: 'F' | 'M'; categoria: string; divisionNombre: string; club: string; ciudad: string; menor: boolean;
-    estado: 'confirmado' | 'reserva' | 'baja'; flight: string; plataforma?: number; horaInicio?: string; pesajeInicio?: string; pesajeFin?: string; completo: number;
+    estado: 'confirmado' | 'reserva' | 'baja'; origen: string; flight: string; plataforma?: number; horaInicio?: string; pesajeInicio?: string; pesajeFin?: string; completo: number;
     pesaje: { rackSq?: number; rackBp: string; segurosBp?: number; intentos: Marcas; estado: string; at?: string };
     perfil: { slug: string; fotoUrl: string; focalX: number; focalY: number; frase: string; bio: string; instagram: string; marcas: Marcas; visible: boolean; imagen?: { at: string; version: string } };
   };
@@ -27,6 +27,7 @@ interface Panel {
   checklist: { clave: string; texto: string; hecho: boolean; accion?: 'pesaje' | 'perfil' }[];
   pesajeAbierto: boolean;
   avisos: string[];
+  referido?: { codigo: string; invitados: number; maxUsos: number; devuelto: number; pendiente: number; pagado: number; descuento: string; recompensa: string; tope: boolean };
 }
 type Vista = 'cargando' | 'acceso' | 'enviado' | 'panel' | 'perfil' | 'pesaje';
 
@@ -87,7 +88,7 @@ const api = '/api/area-atleta';
                 <section class="rounded-lg border border-accent/40 bg-[linear-gradient(160deg,#2a0d12,#171213)] p-5">
                   <h2 class="text-ui-h5">Tu competición</h2>
                   <p class="mt-2 inline-flex h-7 items-center gap-1.5 rounded-pill border px-2.5 text-mono-xs" [class]="p.atleta.estado === 'confirmado' ? 'border-success/40 bg-success/10 text-success' : 'border-info/40 bg-info/10 text-info'">
-                    <gr-icon [name]="p.atleta.estado === 'confirmado' ? 'check' : 'clock'" [size]="12" />{{ p.atleta.estado === 'confirmado' ? 'Inscripción AEP confirmada' : 'En la reserva' }}</p>
+                    <gr-icon [name]="p.atleta.estado === 'confirmado' ? 'check' : 'clock'" [size]="12" />{{ p.atleta.estado === 'confirmado' ? (p.atleta.origen === 'propia' ? 'Inscripción confirmada' : 'Inscripción AEP confirmada') : 'En la reserva' }}</p>
                   <dl class="mt-4 grid grid-cols-2 gap-2">
                     @for (d of datos(); track d.k) { <div class="rounded-md bg-black/25 p-3"><dt class="text-mono-xs text-text-tertiary">{{ d.k }}</dt><dd class="mt-0.5 text-label-m">{{ d.v }}</dd></div> }
                   </dl>
@@ -111,6 +112,18 @@ const api = '/api/area-atleta';
                       }
                     </ul>
                   </section>
+                  @if (p.referido; as r) {
+                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                      <div class="flex items-center gap-3"><span class="flex size-10 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="trophy" [size]="18" /></span>
+                        <span><span class="block text-label-m">Invita y ahorra</span><span class="block text-body-xs text-text-tertiary">{{ r.tope ? 'Has recuperado toda tu cuota' : r.descuento + ' para tus invitados · ' + r.recompensa + ' para ti por cada uno' }}</span></span></div>
+                      <div class="mt-3 flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><span class="flex-1 py-3 text-mono-s">{{ r.codigo }}</span><button type="button" class="h-11 text-label-s text-accent-text" (click)="compartir(r.codigo)">{{ copiado() ? 'Copiado' : 'Copiar enlace' }}</button></div>
+                      <dl class="mt-3 text-body-s">
+                        <div class="flex justify-between border-b border-line-subtle py-2"><dt class="text-text-tertiary">Invitados</dt><dd>{{ r.invitados }}{{ r.maxUsos ? ' / ' + r.maxUsos : '' }}</dd></div>
+                        <div class="flex justify-between py-2" [class.border-b]="r.pendiente" [class.border-line-subtle]="r.pendiente"><dt class="text-text-tertiary">Devuelto a tu tarjeta</dt><dd>{{ euros(r.devuelto) }}{{ r.tope ? ' (tope)' : '' }}</dd></div>
+                        @if (r.pendiente) { <div class="flex justify-between py-2"><dt class="text-text-tertiary">Pendiente</dt><dd>{{ euros(r.pendiente) }}</dd></div> }
+                      </dl>
+                    </section>
+                  }
                   <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                     <div class="flex items-center justify-between"><h2 class="text-ui-h5">Perfil público</h2><span class="text-mono-s text-accent-text">{{ p.atleta.completo }} %</span></div>
                     <div class="mt-3 h-1.5 rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="p.atleta.completo"></div></div>
@@ -387,6 +400,21 @@ export class AreaAtletaPage {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  protected readonly copiado = signal(false);
+  protected euros(c: number): string {
+    return (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  }
+  protected async compartir(code: string): Promise<void> {
+    const url = `${location.origin}/inscripcion?ref=${code}`;
+    if (navigator.share) {
+      await navigator.share({ title: 'GR Strength Cup', text: `Inscríbete con mi código ${code}`, url }).catch(() => undefined);
+      return;
+    }
+    await navigator.clipboard?.writeText(url);
+    this.copiado.set(true);
+    setTimeout(() => this.copiado.set(false), 2500);
   }
 
   protected async salir(): Promise<void> {

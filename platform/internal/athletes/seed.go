@@ -2,6 +2,7 @@ package athletes
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/app"
@@ -85,6 +87,9 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		if err := s.comp.Do(ctx, http.MethodPut, "/internal/competiciones/"+c.ID.String()+"/inscripcion/plazas", map[string]int{"plazas": 150}, nil); err != nil {
 			return fmt.Errorf("plazas de la competición: %w", err)
 		}
+	}
+	if err := s.seedInscripcion(ctx, c.ID); err != nil {
+		return err
 	}
 	var n int
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM atletas WHERE competition_id = $1`, c.ID).Scan(&n); err != nil {
@@ -222,4 +227,39 @@ func nz(f float64) *float64 {
 		return nil
 	}
 	return &f
+}
+
+// seedInscripcion configures the own registration of QA (Figma 66): 35 €, coupons and referrals («Datos de ejemplo»).
+func (s *Svc) seedInscripcion(ctx context.Context, cid uuid.UUID) error {
+	var n int
+	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM inscripcion_config WHERE competition_id = $1`, cid).Scan(&n); err != nil || n > 0 {
+		return err
+	}
+	cierra := time.Date(2026, 12, 31, 23, 59, 0, 0, madrid)
+	ref, _ := json.Marshal(ReferidosCfg{Activo: true, Modo: "basico", DescTipo: "porcentaje", DescValor: 10, Recompensa: 500, MaxUsos: 10, AcumModo: "basica", Multiplicador: 1.5})
+	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO inscripcion_config (competition_id, modo, cuota, cierra, reserva, cupones, referidos) VALUES ($1,'propia',3500,$2,true,true,$3)`, cid, cierra, ref); err != nil {
+			return err
+		}
+		lim := func(n int) *int { return &n }
+		caducado := time.Date(2026, 5, 15, 23, 59, 0, 0, madrid)
+		for _, c := range []struct {
+			codigo, tipo string
+			valor        int
+			limite       *int
+			caduca       *time.Time
+			activo       bool
+		}{
+			{"GRSTRENGTH25", "porcentaje", 25, lim(50), &cierra, true},
+			{"CLUBPATERNA", "importe", 1000, lim(20), nil, true},
+			{"EARLYBIRD", "porcentaje", 20, lim(21), &caducado, true},
+			{"VOLUNTARIOS", "porcentaje", 100, lim(10), nil, false},
+		} {
+			if _, err := tx.Exec(ctx, `INSERT INTO cupones (id, competition_id, codigo, tipo, valor, limite, caduca, activo) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+				newID(), cid, c.codigo, c.tipo, c.valor, c.limite, c.caduca, c.activo); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

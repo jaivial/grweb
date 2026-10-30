@@ -42,7 +42,8 @@ const shell = 'mx-auto max-w-[1440px] px-5 md:px-8 xl:px-[120px]';
         <p class="mt-5 text-body-m text-text-secondary">{{ s()?.['texto'] }}</p>
         <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
           @if (c?.modulos?.['atletas']) { <a grButton variant="primary" href="/atletas">Ver atletas inscritos</a> }
-          @if (c?.inscripcion?.url) { <a grButton [href]="c!.inscripcion.url" target="_blank" rel="noopener" iconRight="external-link">Inscripción en la AEP</a> }
+          @if (propia()) { <a grButton variant="primary" href="/inscripcion" iconRight="arrow-right">Inscríbete</a> }
+          @else if (c?.inscripcion?.url) { <a grButton [href]="c!.inscripcion.url" target="_blank" rel="noopener" iconRight="external-link">Inscripción en la AEP</a> }
         </div>
       </div>
     </div>
@@ -51,6 +52,8 @@ const shell = 'mx-auto max-w-[1440px] px-5 md:px-8 xl:px-[120px]';
 export class SecInscripciones {
   readonly s = input<Seccion | undefined>();
   readonly comp = input<CompeticionPublica | null>(null);
+  /** Own registration with payment (athletes service): links to /inscripcion instead of the AEP. */
+  readonly propia = input(false);
   protected readonly shell = shell;
   protected readonly estado = computed(() => ({ abierta: 'Inscripciones abiertas', completa: 'Inscripciones completas', cerrada: 'Inscripciones cerradas', proximamente: 'Próximamente' })[this.comp()?.inscripcion?.estado ?? 'proximamente'] ?? 'Próximamente');
 }

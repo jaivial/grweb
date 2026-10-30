@@ -2,6 +2,7 @@ import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
 import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
 import { AreaAtletaPage } from './pages/area';
+import { InscripcionEstadoPage, InscripcionPage, PagoSimuladoPage } from './pages/inscripcion';
 import { AtletaPage, AtletasPage, ParticipantesPage } from './pages/atletas';
 import { BlogPage, ComoLlegarPage, ContentPage, FaqPage, GaleriaPage, LegalPage, PatrocinadoresPage, VoluntariosPage } from './pages/content';
 
@@ -16,6 +17,9 @@ export const routes: Routes = [
   { path: 'atletas/:slug', component: AtletaPage },
   { path: 'participantes', component: ParticipantesPage },
   { path: 'area-atleta', component: AreaAtletaPage },
+  { path: 'inscripcion', component: InscripcionPage },
+  { path: 'inscripcion/estado', component: InscripcionEstadoPage },
+  { path: 'pago/simulado', component: PagoSimuladoPage },
   { path: 'publico', component: PublicoPage },
   { path: 'clubs', component: ClubsPage },
   { path: 'en', component: EnPage },
