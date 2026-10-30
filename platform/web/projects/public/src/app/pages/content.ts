@@ -123,7 +123,7 @@ export class FaqPage {
               <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
               <ol class="flex flex-col gap-1 text-body-s">
                 @for (h of toc(); track h.id; let i = $index) {
-                  <li><a [href]="'#' + h.id" class="relative flex rounded-sm py-1 pr-2 pl-[18px] lg:py-2" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">
+                  <li><a [href]="'#' + h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-1 pr-2 pl-[18px] lg:py-2" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">
                     <span class="absolute top-1/2 left-2 h-4 w-0.5 -translate-y-1/2 rounded-full" [class]="activo() === h.id ? 'bg-accent' : ''"></span>{{ i + 1 }}. {{ h.text }}</a></li>
                 }
               </ol>
@@ -149,7 +149,7 @@ export class LegalPage {
   constructor() {
     const seo = inject(Seo);
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
-      const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) this.activo.set(e.target.id); }, { rootMargin: '-15% 0px -70% 0px' });
+      const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) this.activo.set(e.target.id); }, { rootMargin: '-10% 0px -60% 0px' });
       const t = setInterval(() => {
         const hs = document.querySelectorAll('.prose-legal h2[id]');
         if (!hs.length) return;
