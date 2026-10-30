@@ -163,8 +163,8 @@ var seedLegal = map[string][2]string{
 
 var seedPaginas = []paginaIn{
 	{Slug: "reglamento", Titulo: "Reglamento", Resumen: "Normas de competición (IPF/AEP).", Publicada: true, Cuerpo: "La competición sigue el reglamento técnico de la **IPF** adaptado por la **AEP**.\n\n- Tres intentos por movimiento: sentadilla, press de banca y peso muerto.\n- Tres jueces por intento; dos luces blancas validan el intento.\n- Clasificación por puntos IPF GL.\n\n*Datos de ejemplo: consulta el reglamento oficial de la AEP.*"},
-	{Slug: "categorias-de-peso", Titulo: "Categorías de peso", Resumen: "Categorías IPF por sexo.", Publicada: true, Cuerpo: "| Mujeres | Hombres |\n|---|---|\n| 47 kg | 59 kg |\n| 52 kg | 66 kg |\n| 57 kg | 74 kg |\n| 63 kg | 83 kg |\n| 69 kg | 93 kg |\n| 76 kg | 105 kg |\n| 84 kg | 120 kg |\n| +84 kg | +120 kg |"},
-	{Slug: "marcas-minimas", Titulo: "Marcas mínimas", Resumen: "Totales mínimos por categoría.", Publicada: true, Cuerpo: "Las marcas mínimas de participación las fija la AEP para cada temporada. *Datos de ejemplo: pendiente de publicar las de 2026.*"},
+	{Slug: "categorias-de-peso", Titulo: "Categorías de peso y edad", Resumen: "Las 18 categorías de peso de la AEP, las divisiones por edad y el pesaje.", Publicada: true, Cuerpo: "Página con diseño propio (Figma 21–22): el contenido lo pone la web. Aquí solo se usan el título, el resumen y el SEO."},
+	{Slug: "marcas-minimas", Titulo: "Marcas mínimas AEP-1", Resumen: "Totales mínimos AEP-1 por categoría y división, y cómo se acreditan.", Publicada: true, Cuerpo: "Página con diseño propio (Figma 21–22): el contenido lo pone la web. Aquí solo se usan el título, el resumen y el SEO."},
 }
 
 // seedGRCup fills the GR Cup content (idempotent: only collections that are still empty). With «--home-v2» it also
