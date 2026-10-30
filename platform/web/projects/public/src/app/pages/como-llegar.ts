@@ -163,8 +163,8 @@ export class ComoLlegarPage {
   protected readonly transporte = computed(() => (this.comp()?.comoLlegar ?? []).filter((t) => !PRACTICA.includes(t.tipo)));
   protected readonly practica = computed(() => {
     const l = (this.comp()?.comoLlegar ?? []).filter((t) => PRACTICA.includes(t.tipo));
-    if (!l.some((t) => t.tipo === 'parking')) l.unshift({ tipo: 'parking', titulo: 'Aparcamiento', detalle: 'Plazas en las calles del entorno del pabellón. Te confirmaremos si habrá zona reservada.', estado: 'por_confirmar' });
-    if (!l.some((t) => t.tipo === 'accesibilidad')) l.push({ tipo: 'accesibilidad', titulo: 'Accesibilidad', detalle: 'Confirmaremos accesos adaptados, aseos y zona reservada en grada para personas con movilidad reducida.', estado: 'por_confirmar' });
+    if (!l.some((t) => t.tipo === 'parking')) l.unshift({ tipo: 'parking', titulo: 'Aparcamiento', detalle: 'Te confirmaremos dónde aparcar cerca del pabellón.', estado: 'por_confirmar' });
+    if (!l.some((t) => t.tipo === 'accesibilidad')) l.push({ tipo: 'accesibilidad', titulo: 'Accesibilidad', detalle: 'Te confirmaremos los accesos y las zonas para personas con movilidad reducida.', estado: 'por_confirmar' });
     return l;
   });
   protected readonly hoteles = computed(() => {
