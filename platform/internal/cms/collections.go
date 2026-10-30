@@ -55,6 +55,8 @@ type patroRow struct {
 	URL     string    `json:"url" db:"url"`
 	Orden   int       `json:"orden" db:"orden"`
 	Activo  bool      `json:"activo" db:"activo"`
+	// One line under the name on /patrocinadores.
+	Descripcion string `json:"descripcion" db:"descripcion"`
 }
 
 type patroIn struct {
@@ -63,6 +65,8 @@ type patroIn struct {
 	LogoURL string `json:"logoUrl,omitempty" maxLength:"500"`
 	URL     string `json:"url,omitempty" maxLength:"500"`
 	Activo  bool   `json:"activo,omitempty"`
+	// One line under the name on /patrocinadores (optional).
+	Descripcion string `json:"descripcion,omitempty" maxLength:"200"`
 }
 
 // ---- SEO and redirects ----
@@ -241,22 +245,22 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[patroRow, patroIn]{
 		name: "patrocinadores", path: "/web/patrocinadores", table: "patrocinadores", tag: tagWeb, perm: "web.editar", order: "orden, nombre",
-		cols: "id, nombre, nivel, logo_url, url, orden, activo",
+		cols: "id, nombre, nivel, logo_url, url, orden, activo, descripcion",
 		validate: func(in *patroIn) error {
-			trimAll(&in.Nombre, &in.LogoURL, &in.URL)
+			trimAll(&in.Nombre, &in.LogoURL, &in.URL, &in.Descripcion)
 			if !validURL(in.URL, false) || !validURL(in.LogoURL, true) {
 				return problem.Unprocessable("URL_INVALIDA", "Revisa los enlaces (https://…).")
 			}
 			return nil
 		},
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *patroIn) error {
-			_, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, orden)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,(SELECT COALESCE(max(orden),0)+1 FROM patrocinadores WHERE competition_id = $2))`, id, cid, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo)
+			_, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, descripcion, orden)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,(SELECT COALESCE(max(orden),0)+1 FROM patrocinadores WHERE competition_id = $2))`, id, cid, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion)
 			return err
 		},
 		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *patroIn) error {
-			_, err := tx.Exec(ctx, `UPDATE patrocinadores SET nombre=$3, nivel=$4, logo_url=$5, url=$6, activo=$7, updated_at=now() WHERE competition_id=$1 AND id=$2`,
-				cid, id, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo)
+			_, err := tx.Exec(ctx, `UPDATE patrocinadores SET nombre=$3, nivel=$4, logo_url=$5, url=$6, activo=$7, descripcion=$8, updated_at=now() WHERE competition_id=$1 AND id=$2`,
+				cid, id, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion)
 			return err
 		},
 	})

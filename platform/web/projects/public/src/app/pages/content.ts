@@ -1,10 +1,10 @@
 import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, inject, input, signal } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrField, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
-import { Cms, renderMarkdown, type Heading, type Pagina, type Patrocinador } from '../core/cms';
+import { Cms, renderMarkdown, type Heading, type Pagina } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo, type SeoData } from '../core/seo';
 import { NoEncontrada } from '../layout/no-encontrada';
@@ -194,45 +194,6 @@ export class BlogPage {
     void inject(PendingTasks).run(async () => {
       this.posts.set((await cms.blog()) ?? []);
       await applySeo(cms, seo, '/blog', 'Blog · GR Strength Cup', 'Noticias de la GR Strength Cup.');
-    });
-  }
-}
-
-/** /patrocinadores (Figma page 31). */
-@Component({
-  selector: 'gr-patrocinadores-page',
-  imports: [Page],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <gr-page title="Patrocinadores" eyebrow="Gracias" subtitle="Marcas y entidades que hacen posible la GR Strength Cup.">
-      @for (g of niveles(); track g.nivel) {
-        <h2 class="mt-2 mb-5 text-mono-xs text-text-tertiary">{{ g.titulo }}</h2>
-        <ul class="mb-12 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-          @for (p of g.items; track p.nombre) {
-            <li>
-              <a [attr.href]="p.url || null" target="_blank" rel="noopener sponsored" class="flex h-32 items-center justify-center rounded-lg border border-line-subtle bg-bg-card p-6 transition-colors hover:border-line-strong">
-                @if (p.logoUrl) { <img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-16 w-auto object-contain" loading="lazy" /> } @else { <span class="text-label-m">{{ p.nombre }}</span> }
-              </a>
-            </li>
-          }
-        </ul>
-      }
-    </gr-page>
-  `,
-})
-export class PatrocinadoresPage {
-  private readonly items = signal<Patrocinador[]>([]);
-  protected readonly niveles = computed(() =>
-    [['principal', 'Patrocinador principal'], ['oro', 'Oro'], ['plata', 'Plata'], ['colaborador', 'Colaboradores'], ['institucional', 'Instituciones']]
-      .map(([nivel, titulo]) => ({ nivel, titulo, items: this.items().filter((p) => p.nivel === nivel) }))
-      .filter((g) => g.items.length),
-  );
-  constructor() {
-    const cms = inject(Cms);
-    const seo = inject(Seo);
-    void inject(PendingTasks).run(async () => {
-      this.items.set((await cms.patrocinadores()) ?? []);
-      await applySeo(cms, seo, '/patrocinadores', 'Patrocinadores · GR Strength Cup', 'Marcas y entidades que hacen posible la GR Strength Cup.');
     });
   }
 }

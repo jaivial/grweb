@@ -43,6 +43,8 @@ type patroPub struct {
 	Nivel   string `json:"nivel" db:"nivel"`
 	LogoURL string `json:"logoUrl" db:"logo_url"`
 	URL     string `json:"url" db:"url"`
+	// One line under the name on /patrocinadores.
+	Descripcion string `json:"descripcion" db:"descripcion"`
 }
 
 type paginaPub struct {
@@ -449,7 +451,7 @@ func collect[T any](rows pgx.Rows) ([]T, error) {
 }
 
 func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID) ([]patroPub, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
+	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
 	if err != nil {
 		return nil, err
 	}

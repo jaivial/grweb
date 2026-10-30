@@ -79,13 +79,13 @@ var seedFAQ = []faqIn{
 }
 
 var seedPatro = []patroIn{
-	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://aep-powerlifting.com/", true},
-	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", true},
-	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", true},
-	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", true},
-	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", true},
-	{"CFI", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", true},
-	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", true},
+	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", true, "Asociación Española de Powerlifting: avala la competición y aporta los jueces."},
+	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", true, ""},
+	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", true, ""},
+	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", true, ""},
+	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", true, ""},
+	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", true, ""},
+	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", true, ""},
 }
 
 const logoValkyria = bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp"
@@ -240,8 +240,8 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 		}
 		if empty(tx, "patrocinadores") {
 			for i, p := range seedPatro {
-				if _, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-					newID(), cid, p.Nombre, p.Nivel, p.LogoURL, p.URL, p.Activo, i+1); err != nil {
+				if _, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, descripcion, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+					newID(), cid, p.Nombre, p.Nivel, p.LogoURL, p.URL, p.Activo, p.Descripcion, i+1); err != nil {
 					return err
 				}
 			}

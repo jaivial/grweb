@@ -24,6 +24,7 @@ export interface Patrocinador {
   nivel: string;
   logoUrl: string;
   url: string;
+  descripcion?: string;
 }
 export interface Legal {
   tipo: string;
