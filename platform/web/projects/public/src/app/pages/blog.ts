@@ -178,7 +178,7 @@ export class BlogPage {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = p();
-    <gr-page [title]="a?.titulo ?? (a === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="a ? (et(a.categoria) || 'Blog') : ''" section="Blog" [crumb]="a?.titulo ?? ''"
+    <gr-page [title]="a?.titulo ?? (a === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="a ? (et(a.categoria) || 'Blog') : ''" section="Blog" [crumb]="a ? (et(a.categoria) || 'Artículo') : ''"
       [subtitle]="a?.resumen ?? ''" [stamp]="a?.fuente ? 'Fuente: ' + a.fuente : ''" [cabecera]="a !== null || cms.failed()">
       @if (a === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (a === null) { @if (!cms.failed()) { <gr-no-encontrada class="-mt-[92px] md:-mt-[148px]" /> } }
@@ -196,7 +196,7 @@ export class BlogPage {
                 <nav class="rounded-lg border border-line-subtle bg-bg-card p-4 lg:hidden" aria-label="Contenido">
                   <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
                   <ol class="flex flex-col gap-1 text-body-s">
-                    @for (h of toc(); track h.id) { <li><a routerLink="." [fragment]="h.id" class="flex min-h-9 items-center text-text-secondary hover:text-text-primary">{{ h.text }}</a></li> }
+                    @for (h of toc(); track h.id; let i = $index) { <li><a routerLink="." [fragment]="h.id" class="flex min-h-11 items-center text-text-secondary hover:text-text-primary">{{ i + 1 }}. {{ h.text }}</a></li> }
                   </ol>
                 </nav>
               }
@@ -227,13 +227,13 @@ export class BlogPage {
                 <!-- Figma «Edition card»: the next edition with its date and level -->
                 <div class="overflow-hidden rounded-xl border border-line-subtle bg-bg-card">
                   <div class="relative h-40 overflow-hidden bg-bg-deep md:h-[200px]">
-                    <img src="/img/home/trofeo.webp" alt="" class="absolute inset-0 size-full object-cover opacity-80" loading="lazy" />
+                    <img src="/img/blog/trofeo-edicion.webp" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
                     <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgb(14_12_13/0.9))]" aria-hidden="true"></span>
-                    <span class="absolute bottom-4 left-5 text-display-l text-white">{{ c.edicion }}</span>
+                    @if (c.fechaInicio) { <span class="absolute bottom-4 left-5 text-display-l text-white">{{ c.fechaInicio.slice(0, 4) }}</span> }
                   </div>
                   <div class="flex flex-col items-start gap-3 p-5">
                     <span class="inline-flex h-6 items-center rounded-full border border-info/40 bg-info/10 px-2.5 text-label-xs text-info uppercase">{{ c.fechaInicio ? fechaLarga(c.fechaInicio) : 'Fecha por confirmar' }}</span>
-                    <p class="text-display-xs">{{ c.nombre }} {{ c.edicion }}</p>
+                    <p class="text-display-xs">{{ c.nombre }}</p>
                     <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="14" class="text-accent-text" />{{ c.sede.ciudad }}@if (c.sede.provincia) { ({{ c.sede.provincia }}) }</p>
                     @if (c.evento.nivel) { <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="trophy" [size]="14" class="text-accent-text" />Nivel {{ c.evento.nivel }}</p> }
                     <a grButton variant="primary" href="/" class="mt-1">Más información</a>
