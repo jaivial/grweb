@@ -297,8 +297,7 @@ export class EnDirectoPage {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly dir = signal<Directo | null | undefined>(undefined);
   protected readonly tab = signal<'plataforma' | 'clasificacion' | 'horario'>('clasificacion');
-  // mobile opens on «Plataforma» (Figma 27); switched after hydration so the server HTML and the first render match
-  private readonly tabMovil = afterNextRender(() => { if (window.matchMedia('(max-width: 1023px)').matches) this.tab.set('plataforma'); });
+
   protected readonly cat = signal('');
   private readonly ahora = signal(Date.now());
   protected readonly tabs = [{ v: 'plataforma' as const, l: 'Plataforma' }, { v: 'clasificacion' as const, l: 'Clasificación' }, { v: 'horario' as const, l: 'Horario' }];
@@ -354,6 +353,8 @@ export class EnDirectoPage {
   protected readonly anio = computed(() => (this.dir()?.proximo?.inicio ?? new Date().toISOString()).slice(0, 4));
 
   constructor() {
+    // mobile opens on «Plataforma» (Figma 27); switched after hydration so the server HTML and the first render match
+    afterNextRender(() => { if (window.matchMedia('(max-width: 1023px)').matches) this.tab.set('plataforma'); });
     const seo = inject(Seo);
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
