@@ -58,7 +58,7 @@ var routeTable = func() []route {
 		{p + `(atletas|participantes|seguimientos)(/|$)`, "athletes"},
 		{`^/api/area-atleta(/|$)`, "athletes"},
 		{c + `(horarios|flights)(/|$)`, "schedule"},
-		{p + `horarios(/|$)`, "schedule"},
+		{p + `horarios(/|$|\.ics$)`, "schedule"},
 		{c + `(entradas|checkin)(/|$)`, "ticketing"},
 		{p + `entradas(/|$)`, "ticketing"},
 		{`^/api/mi-entrada(/|$)`, "ticketing"},

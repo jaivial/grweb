@@ -31,7 +31,13 @@ type Comp struct {
 	Nombre      string    `json:"nombre"`
 	Estado      string    `json:"estado"`
 	FechaInicio string    `json:"fechaInicio,omitempty"`
+	FechaFin    string    `json:"fechaFin,omitempty"`
 	ZonaHoraria string    `json:"zonaHoraria"`
+	Sede        struct {
+		Nombre    string `json:"nombre"`
+		Direccion string `json:"direccion"`
+		Ciudad    string `json:"ciudad"`
+	} `json:"sede"`
 	Inscripcion struct {
 		Modo   string `json:"modo"`
 		Estado string `json:"estado"`

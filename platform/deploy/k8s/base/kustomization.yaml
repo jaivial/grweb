@@ -14,6 +14,7 @@ resources:
   - audit/audit.yaml
   - cms/cms.yaml
   - athletes/athletes.yaml
+  - schedule/schedule.yaml
   - realtime/realtime.yaml
   - gateway/gateway.yaml
   - web/web.yaml

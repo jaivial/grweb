@@ -27,6 +27,7 @@ SERVICES = {
                 jobs=[("cms-seed", ["seed-grcup"], [])]),
     "athletes": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), tmp=[("tmp", "64Mi", "/tmp")],  # multipart spool (AEP list, photos)
                      jobs=[("athletes-seed", ["seed-grcup"], [])]),
+    "schedule": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("schedule-seed", ["seed-grcup"], [])]),
     "realtime": dict(db=False, hpa=(1, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
 }
 EDGE = ["gateway", "web", "backoffice"]  # hand-written manifests in base/<name>/

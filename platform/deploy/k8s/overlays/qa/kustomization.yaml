@@ -37,4 +37,5 @@ images:
   - { name: grcup/gateway, newTag: TAG }
   - { name: grcup/identity, newTag: TAG }
   - { name: grcup/realtime, newTag: TAG }
+  - { name: grcup/schedule, newTag: TAG }
   - { name: grcup/web, newTag: TAG }
