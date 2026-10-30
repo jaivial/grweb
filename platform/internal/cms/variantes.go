@@ -21,6 +21,10 @@ var anchosVariante = map[int]bool{480: true, 960: true, 1600: true}
 // At most two images are decoded and scaled at the same time (memory and CPU stay bounded on the first visit).
 var semVariantes = make(chan struct{}, 2)
 
+// Images above this many pixels are served as they are: decoding them could take gigabytes (the upload limit is on
+// the file size, and a 10 MB PNG of a flat colour can be 20 000 × 20 000 px).
+const maxPixelesVariante = 50_000_000
+
 func rutaVariante(orig string, w int) string { return fmt.Sprintf("%s.w%d.jpg", orig, w) }
 
 // variante returns the path of the w-wide JPEG copy of orig, creating it if needed. It returns orig itself when the
@@ -49,18 +53,31 @@ func variante(orig, tipo string, w int) (string, error) {
 	if orient == 2 || orient == 4 || orient == 5 || orient == 7 { // mirrored: rare, serve the original as it is
 		return orig, nil
 	}
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	girada := orient == 6 || orient == 8 // stored sideways: the displayed width is the stored height
+	visible := cfg.Width
+	if girada {
+		visible = cfg.Height
+	}
+	if visible <= w || cfg.Width*cfg.Height > maxPixelesVariante {
+		return orig, nil
+	}
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
-	src = rotar(src, orient)
+	// scale first and rotate the small copy (rotating pixel by pixel at full size takes seconds and a second image)
 	b := src.Bounds()
-	if b.Dx() <= w {
-		return orig, nil
+	tw, th := w, b.Dy()*w/b.Dx()
+	if girada {
+		tw, th = b.Dx()*w/b.Dy(), w
 	}
-	h := b.Dy() * w / b.Dx()
-	out := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.CatmullRom.Scale(out, out.Bounds(), src, b, draw.Src, nil)
+	small := image.NewRGBA(image.Rect(0, 0, tw, th))
+	draw.CatmullRom.Scale(small, small.Bounds(), src, b, draw.Src, nil)
+	out := rotar(small, orient)
 	tmp, err := os.CreateTemp(filepath.Dir(dst), ".variante-*")
 	if err != nil {
 		return "", err

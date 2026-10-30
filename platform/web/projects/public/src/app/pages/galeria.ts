@@ -69,12 +69,12 @@ function nombreAlbum(a: Album): string {
               @if (paginas() > 1) {
                 <!-- desktop: ‹ 1 2 3 … 8 › (crawlable links); mobile: «Cargar más (24 de 96)» -->
                 <nav class="hidden items-center justify-center gap-2 md:flex" aria-label="Páginas de la galería">
-                  <a [routerLink]="[]" [queryParams]="{ pagina: pagina() > 2 ? pagina() - 1 : null }" [class]="paso(false, pagina() === 1)" [attr.aria-disabled]="pagina() === 1 || null" aria-label="Página anterior" (click)="irA()"><gr-icon name="chevron-left" [size]="18" /></a>
+                  <a [routerLink]="[]" [queryParams]="{ pagina: pagina() > 2 ? pagina() - 1 : null }" [class]="paso(false, pagina() === 1)" [attr.aria-disabled]="pagina() === 1 || null" [attr.tabindex]="pagina() === 1 ? -1 : null" aria-label="Página anterior" (click)="irA()"><gr-icon name="chevron-left" [size]="18" /></a>
                   @for (n of numeros(); track $index) {
                     @if (n === 0) { <span class="flex size-11 items-center justify-center text-text-tertiary" aria-hidden="true">…</span> }
                     @else { <a [routerLink]="[]" [queryParams]="{ pagina: n > 1 ? n : null }" [class]="paso(n === pagina(), false)" [attr.aria-current]="n === pagina() ? 'page' : null" (click)="irA()">{{ n }}</a> }
                   }
-                  <a [routerLink]="[]" [queryParams]="{ pagina: pagina() < paginas() ? pagina() + 1 : paginas() }" [class]="paso(false, pagina() === paginas())" [attr.aria-disabled]="pagina() === paginas() || null" aria-label="Página siguiente" (click)="irA()"><gr-icon name="chevron-right" [size]="18" /></a>
+                  <a [routerLink]="[]" [queryParams]="{ pagina: pagina() < paginas() ? pagina() + 1 : paginas() }" [class]="paso(false, pagina() === paginas())" [attr.aria-disabled]="pagina() === paginas() || null" [attr.tabindex]="pagina() === paginas() ? -1 : null" aria-label="Página siguiente" (click)="irA()"><gr-icon name="chevron-right" [size]="18" /></a>
                 </nav>
                 @if (mostradas() < filtradas().length) {
                   <button type="button" class="flex h-12 w-full items-center justify-center rounded-xl border border-line-strong text-label-m md:hidden" (click)="cargarMas()">Cargar más ({{ mostradas() }} de {{ filtradas().length }})</button>
