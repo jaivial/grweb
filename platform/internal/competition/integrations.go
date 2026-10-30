@@ -416,9 +416,9 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		lat, lng := 39.3253, -0.4127
 		sede := Sede{Nombre: "Pavelló Poliesportiu d'Almussafes", Direccion: "Avda. Laura Méndez, s/n", CP: "46440", Ciudad: "Almussafes", Provincia: "Valencia", Lat: &lat, Lng: &lng,
 			MapsURL: "https://www.google.com/maps?daddr=Avda+Laura+M%C3%A9ndez,+s/n,+46440+Almussafes,+Valencia"}
-		evento := Evento{Descripcion: "La competición de powerlifting más esperada del año", Nivel: "AEP · por confirmar", Organizador: "GR Strength",
+		evento := Evento{Descripcion: "La competición de powerlifting más esperada del año", Nivel: "AEP-2 · AEP-3", Organizador: "GR Strength",
 			EmailContacto: "admin@grstrength.com", Puertas: "08:30", AforoPabellon: 1200, Instagram: "https://instagram.com/grstrength"}
-		insc := Inscripcion{Modo: "externa", URL: "https://aep-powerlifting.com/", Estado: "proximamente", Nota: "Datos de ejemplo: enlace de la AEP por confirmar"}
+		insc := Inscripcion{Modo: "externa", URL: "https://powerliftingspain.es/aep-2-gr-strength-cup-ii-almussafes-valencia-2026/", Estado: "abierta", Nota: "Plazo de la AEP: hasta el 11/11/2026 a las 12:00."}
 		llegar := comoLlegarEjemplo()
 		mods := defaultModulos()
 		for _, k := range []string{"directo", "areaAtleta", "galeria", "blog", "campanas"} {
