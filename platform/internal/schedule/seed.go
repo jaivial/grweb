@@ -64,9 +64,9 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 			cfg.Dias[i].Fin = "21:00"
 		}
 		if len(cfg.Dias) == 1 && cfg.Plataformas < 2 {
-			cfg.Plataformas = 2
+			cfg.Plataformas, cfg.MesasPesaje = 2, 2 // one weigh-in table per platform
 		}
-		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2, plataformas = $3 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta, cfg.Plataformas); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2, plataformas = $3, mesas_pesaje = $4 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta, cfg.Plataformas, cfg.MesasPesaje); err != nil {
 			return err
 		}
 		notas := []string{"Pesaje en la Sala 2 (planta baja).", "Entrada de público por la puerta principal con tu QR.", "Sorteo en directo tras la entrega de premios."}
