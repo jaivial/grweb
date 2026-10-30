@@ -335,7 +335,7 @@ func (s *Svc) registerAdmin() {
 			if in.Body.Datos != nil {
 				datos = in.Body.Datos
 			}
-			r, err := renderizar(c, datos, e.Variables, s.marca(ctx, in.CID), e.Esencial)
+			r, err := renderizar(c, datos, e.Variables, s.marca(ctx, in.CID), e.Esencial, e.QR)
 			if err != nil {
 				return nil, problem.Unprocessable("VARIABLE_INEXISTENTE", err.Error())
 			}
@@ -472,7 +472,7 @@ func (s *Svc) registerAdmin() {
 			o := &verOut{}
 			o.Body.Mensaje = m
 			if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil {
-				if r, err := renderizar(e.Contenido, vars, e.Variables, s.marca(ctx, in.CID), e.Esencial); err == nil {
+				if r, err := renderizar(e.Contenido, vars, e.Variables, s.marca(ctx, in.CID), e.Esencial, e.QR); err == nil {
 					o.Body.HTML, o.Body.Texto = r.HTML, r.Texto
 				}
 			}

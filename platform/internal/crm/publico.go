@@ -84,21 +84,7 @@ func (s *Svc) registerPublico() {
 				if err != nil {
 					return err
 				}
-				var estado string
-				err = tx.QueryRow(ctx, `SELECT estado FROM consentimientos WHERE contacto_id = $1 AND finalidad = 'novedades_email'`, id).Scan(&estado)
-				if err == nil && estado == "confirmado" {
-					return nil // already subscribed: nothing to confirm
-				}
-				tok := randomToken()
-				if err := s.consentir(ctx, tx, id, ConsentIn{Finalidad: "novedades_email", Canal: "email", Estado: "pendiente", Version: VersionNovedades, Hash: hashNovedades,
-					Origen: origen + " · formulario de novedades", IP: ip}, time.Now()); err != nil {
-					return err
-				}
-				if _, err := tx.Exec(ctx, `UPDATE consentimientos SET token_hash = $2, recordado_at = NULL WHERE contacto_id = $1 AND finalidad = 'novedades_email'`, id, hashToken(tok)); err != nil {
-					return err
-				}
-				// A previous unsubscribe of this address is lifted only when the new subscription is confirmed.
-				return email(ctx, tx, c.ID, e, "novedades-confirmar", s.enlacesNovedades(id, tok))
+				return s.iniciarNovedades(ctx, tx, c.ID, id, e, origen, ip)
 			})
 		})
 
@@ -231,4 +217,23 @@ func (s *Svc) recordatorios(ctx context.Context) {
 			})
 		}
 	}
+}
+
+// iniciarNovedades starts the double opt-in of the news for a contact (pending consent with the exact text, token,
+// confirmation email). Nothing to do when already confirmed.
+func (s *Svc) iniciarNovedades(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e, origen, ip string) error {
+	var estado string
+	err := tx.QueryRow(ctx, `SELECT estado FROM consentimientos WHERE contacto_id = $1 AND finalidad = 'novedades_email'`, id).Scan(&estado)
+	if err == nil && estado == "confirmado" {
+		return nil
+	}
+	tok := randomToken()
+	if err := s.consentir(ctx, tx, id, ConsentIn{Finalidad: "novedades_email", Canal: "email", Estado: "pendiente", Version: VersionNovedades, Hash: hashNovedades,
+		Origen: origen + " · casilla de novedades", IP: ip}, time.Now()); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE consentimientos SET token_hash = $2, recordado_at = NULL WHERE contacto_id = $1 AND finalidad = 'novedades_email'`, id, hashToken(tok)); err != nil {
+		return err
+	}
+	return email(ctx, tx, cid, e, "novedades-confirmar", s.enlacesNovedades(id, tok))
 }

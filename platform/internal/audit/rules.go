@@ -46,6 +46,9 @@ var notifRules = map[string]notifRule{
 	"athletes.cupon_agotado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Cupón agotado", "«" + str(d["codigo"]) + "» ha llegado a su límite de usos.", "/atletas/inscripcion", "aviso", "atletas.editar", true
 	},
+	"checkin.duplicado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Entrada usada en dos puertas", "«" + str(d["codigo"]) + "» entró por dos puestos en menos de 2 minutos: revísalo en Taquilla.", "/checkin", "aviso", "checkin.escanear", true
+	},
 	"smtp.estado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		if d["ok"] == true {
 			return "El email vuelve a funcionar", "Los mensajes en cola salen ya.", "/emails/salida", "ok", "campanas.enviar", true
@@ -130,6 +133,22 @@ func resumen(e events.Event) string {
 		return "reordenó las secciones de la home"
 	case "cms.voluntario_solicitado":
 		return "envió una solicitud de voluntariado"
+	case "entrada.creada":
+		return fmt.Sprintf("hizo una reserva manual de %v persona(s)", d["personas"])
+	case "entrada.anulada":
+		return "anuló la entrada " + str(d["codigo"])
+	case "entrada.cambiada":
+		return fmt.Sprintf("cambió una entrada de %v a %v personas", d["antes"], d["personas"])
+	case "entradas.bulk":
+		return fmt.Sprintf("aplicó «%s» a %v reservas", str(d["accion"]), d["afectadas"])
+	case "entradas.sesion_guardada":
+		return "guardó la sesión «" + str(d["nombre"]) + "»"
+	case "entradas.exportadas":
+		return fmt.Sprintf("exportó %v reservas a CSV", d["filas"])
+	case "espera.oferta":
+		return fmt.Sprintf("ofreció %v plaza(s) a la lista de espera", d["personas"])
+	case "checkin.duplicado":
+		return "la entrada " + str(d["codigo"]) + " se usó en dos puertas"
 	case "messaging.plantilla_guardada":
 		return "editó la plantilla de email «" + str(d["nombre"]) + "»"
 	case "messaging.automatizacion":

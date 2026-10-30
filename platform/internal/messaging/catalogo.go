@@ -10,6 +10,7 @@ type Plantilla struct {
 	Esencial   bool              `json:"esencial" doc:"Operativo: no se pausa durante el evento"`
 	Auto       string            `json:"automatizacion" doc:"Automatización a la que pertenece"`
 	Variables  []string          `json:"variables"`
+	QR         bool              `json:"qr" doc:"Incluye la imagen del QR ({{qr}}) bajo el título"`
 	Ejemplo    map[string]string `json:"ejemplo" doc:"Datos de prueba para la vista previa"`
 	Contenido
 }
@@ -43,12 +44,19 @@ var automatizaciones = []Automatizacion{
 	{Clave: "salida30", Nombre: "Tu atleta sale en 30 min", Cuando: "−30 min del flight", Publico: "Seguidores con aviso confirmado", Canales: []string{"email"}},
 	{Clave: "plaza", Nombre: "Plaza libre en la reserva", Cuando: "al liberarse plaza", Publico: "Lista de reserva", Canales: []string{"email"}},
 	{Clave: "novedades", Nombre: "Novedades: doble opt-in", Cuando: "al suscribirse · recordatorio a las 48 h", Publico: "Suscripciones pendientes", Canales: []string{"email"}},
+	{Clave: "entradas", Nombre: "Entradas: confirmación, cambios y anulación", Cuando: "al reservar o cambiar", Publico: "Reservas", Canales: []string{"email"}, Esencial: true},
+	{Clave: "espera", Nombre: "Lista de espera: alta y oferta de plaza", Cuando: "al apuntarse · al liberarse plaza", Publico: "Lista de espera", Canales: []string{"email"}, Esencial: true},
+	{Clave: "recordatorios", Nombre: "Recordatorios de la entrada", Cuando: "T−7 · T−1 (con QR)", Publico: "Reservas activas", Canales: []string{"email"}},
 	{Clave: "voluntarios", Nombre: "Voluntariado recibido", Cuando: "al enviar la solicitud", Publico: "Voluntarios", Canales: []string{"email"}},
 }
 
 func p(clave, nombre, disparador, servicio, auto string, esencial bool, vars []string, ej map[string]string, c Contenido) Plantilla {
 	return Plantilla{Clave: clave, Nombre: nombre, Disparador: disparador, Servicio: servicio, Auto: auto, Esencial: esencial, Variables: vars, Ejemplo: ej, Contenido: c}
 }
+
+var ejEntrada = map[string]string{"nombre": "Laura", "titular": "Laura Gómez Ruiz + 2 acompañantes", "sesion": "Sábado mañana", "dia": "sábado 25 jul", "puertas": "08:30", "hasta": "14:00",
+	"personas": "3", "codigo": "GRC-7K3P", "qr": "https://grcup.example/api/competiciones/grcup/entradas/GRC-7K3P/qr.png?s=…", "enlace": "https://grcup.example/mi-entrada?t=…",
+	"lugar": "Pavelló Poliesportiu d'Almussafes, Almussafes", "cuando": "mañana", "caduca": "domingo 26 jul a las 10:00", "entradas": "https://grcup.example/entradas"}
 
 var ejHorario = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "flight": "B", "plataforma": "1", "dia": "sábado 25/7", "hora": "10:30", "pesaje": "08:30–10:00",
 	"enlace": "https://grcup.example/area-atleta", "horarios": "https://grcup.example/horarios", "version": "2", "baja": "https://grcup.example/atletas/laura-gomez-ruiz?baja=…"}
@@ -99,6 +107,18 @@ var catalogo = []Plantilla{
 	p("voluntario-recibido", "Solicitud de voluntariado recibida", "Al enviar el formulario de voluntarios", "cms", "voluntarios", true, []string{"nombre"},
 		map[string]string{"nombre": "Pablo"},
 		Contenido{Asunto: "Hemos recibido tu solicitud de voluntariado", Titulo: "¡Gracias, {{nombre}}!", Cuerpo: "Hemos recibido tu solicitud para ser voluntario en la GR Strength Cup. Te escribiremos en unos días con el puesto y los turnos."}),
+	withQR(p("entrada-confirmada", "Tu entrada", "Al reservar (y al reenviarla)", "ticketing", "entradas", true, []string{"nombre", "titular", "sesion", "dia", "puertas", "hasta", "personas", "codigo", "qr", "enlace", "lugar"}, ejEntrada,
+		Contenido{Asunto: "Tu entrada · {{sesion}} · {{codigo}}", Preheader: "Enseña el QR en la puerta", Titulo: "¡Tienes entrada, {{nombre}}!", Cuerpo: "**{{titular}}** · {{sesion}}, {{dia}}. Puertas a las **{{puertas}}** (hasta las {{hasta}}).\n\n{{lugar}}\n\nEnseña este QR en la puerta desde el móvil: no hace falta imprimirlo. Si cambia algo, gestiona tu entrada con el botón.", BotonTexto: "Gestionar mi entrada", BotonURL: "{{enlace}}"})),
+	p("entrada-enlace", "Enlace de «Mi entrada»", "Al pedir de nuevo el enlace", "ticketing", "entradas", true, []string{"nombre", "codigo", "sesion", "enlace"}, ejEntrada,
+		Contenido{Asunto: "Tu enlace para gestionar la entrada {{codigo}}", Titulo: "Gestiona tu entrada", Cuerpo: "Hola {{nombre}}, aquí tienes el enlace de tu entrada {{codigo}} ({{sesion}}): ver el QR, cambiar cuántas personas venís o anularla.", BotonTexto: "Ver mi entrada", BotonURL: "{{enlace}}"}),
+	p("entrada-anulada", "Entrada anulada", "Al anularla (titular u organización)", "ticketing", "entradas", true, []string{"nombre", "codigo", "sesion", "entradas"}, ejEntrada,
+		Contenido{Asunto: "Entrada {{codigo}} anulada", Titulo: "Tu entrada está anulada", Cuerpo: "Hola {{nombre}}, la entrada {{codigo}} ({{sesion}}) está anulada y su QR ya no vale.\n\nSi fue un error, reserva de nuevo mientras queden plazas.", BotonTexto: "Ver entradas", BotonURL: "{{entradas}}"}),
+	p("entrada-espera", "En la lista de espera", "Al apuntarse a la lista de espera", "ticketing", "espera", true, []string{"sesion", "personas"}, ejEntrada,
+		Contenido{Asunto: "Estás en la lista de espera · {{sesion}}", Titulo: "Te avisamos si se libera plaza", Cuerpo: "Te hemos apuntado a la lista de espera de **{{sesion}}** para {{personas}} persona(s).\n\nSi alguien anula, te enviaremos un enlace y tendrás un plazo para confirmar tu entrada."}),
+	p("entrada-oferta", "Plaza libre en la lista de espera", "Al liberarse plaza", "ticketing", "espera", true, []string{"nombre", "sesion", "dia", "personas", "caduca", "enlace"}, ejEntrada,
+		Contenido{Asunto: "Hay plaza para ti · {{sesion}}", Titulo: "¡Se ha liberado una plaza!", Cuerpo: "Tienes **{{personas}} plaza(s)** para {{sesion}} ({{dia}}).\n\nConfírmala antes del **{{caduca}}**; después pasará a la siguiente persona.", BotonTexto: "Confirmar mi entrada", BotonURL: "{{enlace}}"}),
+	withQR(p("entrada-recordatorio", "Recordatorio de la entrada", "Una semana y un día antes", "ticketing", "recordatorios", false, []string{"nombre", "titular", "sesion", "dia", "puertas", "hasta", "personas", "codigo", "qr", "enlace", "lugar", "cuando"}, ejEntrada,
+		Contenido{Asunto: "{{sesion}} es {{cuando}} · tu entrada {{codigo}}", Titulo: "Nos vemos {{cuando}}, {{nombre}}", Cuerpo: "{{sesion}}, {{dia}}. Puertas a las **{{puertas}}**.\n\n{{lugar}}\n\nTen a mano este QR (o el email de tu entrada) para entrar sin colas.", BotonTexto: "Gestionar mi entrada", BotonURL: "{{enlace}}"})),
 	p("novedades-confirmar", "Confirma tu suscripción", "Al suscribirse a las novedades (doble opt-in)", "crm", "novedades", true, []string{"enlace", "baja"},
 		map[string]string{"enlace": "https://grcup.example/novedades/confirmar?t=…", "baja": "https://grcup.example/baja?t=…"},
 		Contenido{Asunto: "Confirma que quieres recibir novedades", Titulo: "Confirma tu suscripción", Cuerpo: "Has pedido recibir las novedades de la GRStrength Cup: fechas, horarios, sorteo y próximas competiciones. Un email al mes como mucho.\n\nConfirma con el botón. Si no lo has pedido tú, ignora este email.", BotonTexto: "Confirmar suscripción", BotonURL: "{{enlace}}"}),
@@ -122,4 +142,9 @@ func autoDe(clave string) (Automatizacion, bool) {
 		}
 	}
 	return Automatizacion{}, false
+}
+
+func withQR(t Plantilla) Plantilla {
+	t.QR = true
+	return t
 }

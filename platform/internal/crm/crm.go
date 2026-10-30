@@ -47,12 +47,13 @@ var bearer = []map[string][]string{{"bearer": {}}}
 
 // Svc holds the service dependencies.
 type Svc struct {
-	a        *app.App
-	comps    *compref.Resolver
-	athletes *svcclient.Client
-	cms      *svcclient.Client
-	key      []byte
-	webURL   string
+	a         *app.App
+	comps     *compref.Resolver
+	athletes  *svcclient.Client
+	cms       *svcclient.Client
+	ticketing *svcclient.Client
+	key       []byte
+	webURL    string
 }
 
 // Service returns the crm service definition.
@@ -68,6 +69,7 @@ func (s *Svc) init(a *app.App) {
 	s.comps = compref.New(comp, a.Log)
 	s.athletes = svcclient.New(config.Str("UPSTREAM_ATHLETES", "http://athletes:8080"), "crm", "athletes", a.Cfg.InternalToken)
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "crm", "cms", a.Cfg.InternalToken)
+	s.ticketing = svcclient.New(config.Str("UPSTREAM_TICKETING", "http://ticketing:8080"), "crm", "ticketing", a.Cfg.InternalToken)
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/crm/v1"))
 	s.key = m.Sum(nil)
@@ -109,6 +111,8 @@ type ContactoIn struct {
 	Relacion        map[string]any `json:"relacion"`
 	Consentimientos []ConsentIn    `json:"consentimientos"`
 	Revocar         []string       `json:"revocar" doc:"Finalidades que la persona retira"`
+	Novedades       bool           `json:"novedades" doc:"Marcó la casilla de novedades: empieza el doble opt-in"`
+	IP              string         `json:"ip"`
 	Actividad       *struct {
 		Tipo    string `json:"tipo"`
 		Titulo  string `json:"titulo"`
@@ -230,6 +234,11 @@ func (s *Svc) ingest(ctx context.Context, tx pgx.Tx, cid uuid.UUID, in ContactoI
 	}
 	for _, f := range in.Revocar {
 		if _, err := tx.Exec(ctx, `UPDATE consentimientos SET estado = 'revocado', revocado_at = $3, revocado_motivo = 'Retirado por la persona' WHERE contacto_id = $1 AND finalidad = $2 AND estado <> 'revocado'`, id, f, at); err != nil {
+			return id, err
+		}
+	}
+	if in.Novedades && email != "" {
+		if err := s.iniciarNovedades(ctx, tx, cid, id, email, in.Origen, in.IP); err != nil {
 			return id, err
 		}
 	}

@@ -136,7 +136,7 @@ func vacia(s string, vars map[string]string) bool {
 
 // renderizar builds subject, HTML and plain text. Paragraphs with an empty variable are left out (e.g. the referral
 // code of a registration in the reserve list). Errors list the variables the producer did not send.
-func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marca, operativo bool) (Render, error) {
+func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marca, operativo bool, conQR ...bool) (Render, error) {
 	ok := map[string]bool{}
 	for _, v := range permitidas {
 		ok[v] = true
@@ -169,6 +169,12 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 		t, _ := sustituir(par, full, false)
 		parrafosTxt = append(parrafosTxt, reBold.ReplaceAllString(t, "$1"))
 	}
+	qr := ""
+	if len(conQR) > 0 && conQR[0] && strings.HasPrefix(full["qr"], "http") {
+		qr = `<p style="margin:0 0 20px;text-align:center"><img src="` + html.EscapeString(full["qr"]) + `" width="200" height="200" alt="Código QR de tu entrada" style="display:inline-block;width:200px;height:200px;border:0">` +
+			`<br><span style="font-family:Menlo,Consolas,monospace;font-size:14px;letter-spacing:2px;color:#141011">` + html.EscapeString(full["codigo"]) + `</span></p>`
+		parrafosTxt = append([]string{"Código de tu entrada: " + full["codigo"]}, parrafosTxt...)
+	}
 	boton := ""
 	btnURL, _ := sustituir(c.BotonURL, full, false)
 	btnTxt, _ := sustituir(c.BotonTexto, full, true)
@@ -199,7 +205,7 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">` +
 		`<tr><td style="background:#141011;padding:20px 32px">` + logo + `</td></tr>` +
 		`<tr><td style="padding:32px 32px 16px"><h1 style="margin:0 0 20px;font-size:24px;line-height:30px;color:#141011">` + titulo + `</h1>` +
-		strings.Join(parrafosHTML, "") + boton + pie + `</td></tr>` +
+		qr + strings.Join(parrafosHTML, "") + boton + pie + `</td></tr>` +
 		`<tr><td style="padding:16px 32px 28px;border-top:1px solid #eee6e7;font-size:12px;line-height:18px;color:#9a8f91">` + html.EscapeString(nota) +
 		` <a href="` + html.EscapeString(m.Web) + `" style="color:#9a8f91">` + html.EscapeString(strings.TrimPrefix(strings.TrimPrefix(m.Web, "https://"), "http://")) + `</a></td></tr>` +
 		`</table></td></tr></table></body></html>`
