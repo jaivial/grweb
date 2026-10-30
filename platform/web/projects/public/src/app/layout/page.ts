@@ -18,7 +18,8 @@ import { Footer, Navbar, type Lang } from './layout';
     <ng-template #contenido><ng-content /></ng-template>
     <gr-navbar [lang]="lang()" />
     <main class="relative">
-      @if (!centrado()) { <div class="pointer-events-none absolute inset-x-0 top-0 h-[520px]" style="background: radial-gradient(60% 70% at 15% 0%, rgb(110 20 32 / 0.35), transparent 70%)"></div> }
+      <!-- Figma «Cabecera» (SEO pages): 640 px glow at the top right (360 on mobile) -->
+      @if (!centrado()) { <div class="pointer-events-none absolute -top-20 left-[55%] size-[360px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.42),transparent)] md:left-[55%] md:size-[640px]" aria-hidden="true"></div> }
       @if (centrado()) {
         <div class="relative mx-auto flex max-w-[800px] flex-col gap-5 px-5 pt-[120px] pb-18 md:gap-7 md:pt-40 md:pb-30">
           @if (cabecera()) {
@@ -31,23 +32,27 @@ import { Footer, Navbar, type Lang } from './layout';
           <ng-container [ngTemplateOutlet]="contenido" />
         </div>
       } @else {
-      <div class="relative mx-auto max-w-[1440px] px-5 pt-28 pb-18 md:px-8 md:pt-36 xl:px-[120px] xl:pb-24">
-        <header class="max-w-3xl">
-          <nav class="flex flex-wrap items-center gap-1.5 text-body-xs text-text-tertiary" aria-label="Migas">
+      <!-- Figma «Cabecera» v2: 92 (mobile) / 148 (desktop) from the top, breadcrumbs Body/S, eyebrow Label/XS with
+           the dash, Display/M → Display/XL title, tertiary Body/M → Body/L intro, «Updated stamp» -->
+      <div class="relative mx-auto max-w-[1440px] px-5 pt-[92px] pb-18 md:px-8 md:pt-[148px] xl:px-[120px] xl:pb-26">
+        <header class="flex max-w-[900px] flex-col gap-3 md:gap-4">
+          <nav class="flex flex-wrap items-center gap-1.5 text-body-s text-text-tertiary" aria-label="Migas">
             <a href="/" class="hover:text-text-primary">Inicio</a>
-            @if (section()) { <gr-icon name="chevron-right" [size]="12" /><span>{{ section() }}</span> }
-            <gr-icon name="chevron-right" [size]="12" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
+            @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
+            <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
           </nav>
-          @if (eyebrow()) { <p class="mt-6 flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>{{ eyebrow() }}</p> }
-          <h1 class="mt-3 text-display-m md:text-display-l" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
-          @if (subtitle()) { <p class="mt-4 text-body-m text-text-secondary md:text-body-l">{{ subtitle() }}</p> }
-          @if (stamp()) { <p class="mt-5 inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ stamp() }}</p> }
+          <div class="flex flex-col gap-3 md:gap-4">
+            @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>{{ eyebrow() }}</p> }
+            <h1 class="text-display-m [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
+            @if (subtitle()) { <p class="text-body-m text-text-tertiary md:text-body-l">{{ subtitle() }}</p> }
+          </div>
+          @if (stamp()) { <p class="inline-flex items-center gap-2 self-start rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" class="shrink-0" />{{ stamp() }}</p> }
           <ng-content select="[pageStamps]" />
         </header>
         @if (cms.failed()) {
-          <gr-alert class="mt-10 md:mt-14" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
+          <gr-alert class="mt-10 md:mt-16" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
         }
-        <div class="mt-10 md:mt-14"><ng-container [ngTemplateOutlet]="contenido" /></div>
+        <div class="mt-10 md:mt-16"><ng-container [ngTemplateOutlet]="contenido" /></div>
       </div>
       }
     </main>

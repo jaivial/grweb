@@ -15,7 +15,7 @@ interface Sede { nombre: string; direccion: string; cp: string; ciudad: string; 
 interface Evento { descripcion: string; nivel: string; organizador: string; emailContacto: string; telefono: string; puertas: string; aforoPabellon: number; instagram: string; web: string }
 interface Modulo { activo: boolean; bloqueado: boolean; motivo?: string }
 interface Inscripcion { modo: 'externa' | 'cerrada'; url: string; estado: 'proximamente' | 'abierta' | 'completa' | 'cerrada'; plazas?: number; responsable: { nombre: string; email: string }; nota: string }
-interface ComoLlegar { tipo: string; titulo: string; detalle: string; estado: 'confirmado' | 'por_confirmar' }
+interface ComoLlegar { tipo: string; titulo: string; detalle: string; nota?: string; estado: 'confirmado' | 'por_confirmar' }
 interface Comp {
   id: string; slug: string; nombre: string; nombreCorto: string; edicion: number; estado: string; fechaInicio?: string; fechaFin?: string; zonaHoraria: string; sede: Sede; evento: Evento;
   modulos: Record<string, Modulo>; inscripcion: Inscripcion; comoLlegar: ComoLlegar[]; logoUrl: string; version: number;
@@ -29,7 +29,7 @@ const ESTADOS = [
   { v: 'completas', l: 'Inscripciones completas · campaña', d: 'CTA «Reserva tu entrada gratis»' }, { v: 'hoy', l: 'Hoy se compite', d: 'Directo, horarios y mapa de acceso' },
   { v: 'finalizado', l: 'Finalizado', d: 'Resultados, galería y «Nos vemos en…»' },
 ];
-const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion', 'otro'];
+const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion', 'accesibilidad', 'otro'];
 
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
@@ -171,6 +171,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
                       <button type="button" class="h-9 rounded-sm px-2 text-mono-xs uppercase" [class]="x.estado === 'confirmado' ? 'text-success' : 'text-warning'" (click)="x.estado = x.estado === 'confirmado' ? 'por_confirmar' : 'confirmado'; tocar()" [disabled]="!puede()">{{ x.estado === 'confirmado' ? 'Confirmado' : 'Por confirmar' }}</button>
                       @if (puede()) { <button type="button" class="flex size-9 items-center justify-center rounded-sm text-accent-text hover:bg-bg-raised" (click)="quitarTransporte(i)" aria-label="Quitar"><gr-icon name="trash" [size]="14" /></button> }</div>
                     <textarea grInput rows="2" class="mt-2" [(ngModel)]="x.detalle" (ngModelChange)="tocar()" [disabled]="!puede()"></textarea>
+                    <input grInput class="mt-2" [(ngModel)]="x.nota" (ngModelChange)="tocar()" maxlength="80" placeholder="Nota corta (opcional): «≈ 25 min desde Valencia»" [disabled]="!puede()" />
                   </div>
                 }
                 @if (puede()) { <button grButton icon="plus" class="self-start" (click)="anadirTransporte()">Añadir medio de transporte</button> }

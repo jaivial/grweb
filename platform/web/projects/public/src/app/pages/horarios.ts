@@ -36,7 +36,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
     @let h = data();
     <gr-page title="Horarios" accent="en directo" [eyebrow]="eyebrow()" crumb="Horarios"
       subtitle="Cuándo compite cada atleta, en qué plataforma y si va con retraso. Se actualiza solo: no hace falta recargar.">
-      <p pageStamps class="mt-5 flex flex-wrap gap-2">
+      <p pageStamps class="flex flex-wrap gap-2">
         @if (h?.publicado) { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ actualizado() }} · retrasos incluidos</span> }
         <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span>
       </p>

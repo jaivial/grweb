@@ -419,11 +419,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		evento := Evento{Descripcion: "La competición de powerlifting más esperada del año", Nivel: "AEP · por confirmar", Organizador: "GR Strength",
 			EmailContacto: "admin@grstrength.com", Puertas: "08:30", AforoPabellon: 1200, Instagram: "https://instagram.com/grstrength"}
 		insc := Inscripcion{Modo: "externa", URL: "https://aep-powerlifting.com/", Estado: "proximamente", Nota: "Datos de ejemplo: enlace de la AEP por confirmar"}
-		llegar := []ComoLlegar{
-			{Tipo: "coche", Titulo: "En coche", Detalle: "A-7 / CV-42, salida Almussafes. Datos de ejemplo.", Estado: "por_confirmar"},
-			{Tipo: "parking", Titulo: "Aparcamiento", Detalle: "Aparcamiento junto al pabellón. Datos de ejemplo.", Estado: "por_confirmar"},
-			{Tipo: "bus", Titulo: "Autobús", Detalle: "Línea interurbana Valencia – Almussafes. Datos de ejemplo.", Estado: "por_confirmar"},
-		}
+		llegar := comoLlegarEjemplo()
 		mods := defaultModulos()
 		for _, k := range []string{"directo", "areaAtleta", "galeria", "blog", "campanas"} {
 			mods[k] = Modulo{Activo: true}
@@ -521,4 +517,16 @@ func firstLine(s string) string {
 		return s[:160]
 	}
 	return s
+}
+
+// comoLlegarEjemplo is the example «Cómo llegar» of a new competition (Figma 11), every item «por confirmar».
+func comoLlegarEjemplo() []ComoLlegar {
+	return []ComoLlegar{
+		{Tipo: "coche", Titulo: "En coche", Detalle: "Unos 20 km al sur de Valencia por la V-31 dirección Silla. Datos de ejemplo.", Nota: "≈ 25 min desde Valencia", Estado: "por_confirmar"},
+		{Tipo: "tren", Titulo: "En tren", Detalle: "Cercanías C-2, estación Benifaió-Almussafes. Datos de ejemplo.", Nota: "Comprueba horarios en Renfe", Estado: "por_confirmar"},
+		{Tipo: "avion", Titulo: "En avión", Detalle: "Aeropuerto de Valencia (Manises), a unos 35 km. Datos de ejemplo.", Nota: "≈ 35 min en coche", Estado: "por_confirmar"},
+		{Tipo: "bus", Titulo: "En autobús", Detalle: "Líneas interurbanas desde Valencia. Datos de ejemplo.", Nota: "Horarios por confirmar", Estado: "por_confirmar"},
+		{Tipo: "parking", Titulo: "Aparcamiento", Detalle: "Plazas en las calles del entorno del pabellón. Pendiente de confirmar con el Ayuntamiento si habrá zona reservada. Datos de ejemplo.", Estado: "por_confirmar"},
+		{Tipo: "accesibilidad", Titulo: "Accesibilidad", Detalle: "Confirmaremos accesos adaptados, aseos y zona reservada en grada para personas con movilidad reducida.", Estado: "por_confirmar"},
+	}
 }

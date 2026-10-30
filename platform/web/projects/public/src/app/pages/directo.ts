@@ -454,7 +454,7 @@ export class ResultadosIndexPage {
     <gr-page title="Resultados" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" section="Resultados" [crumb]="anio()" [eyebrow]="r ? (r.competicion.sede + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
       [subtitle]="r?.publicado ? ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
       @if (r?.publicado) {
-        <div pageStamps class="mt-5 flex flex-wrap gap-2">
+        <div pageStamps class="flex flex-wrap gap-2">
           @if (r!.ejemplo) { <span class="inline-flex h-8 items-center rounded-pill border border-info/50 px-3 text-mono-xs text-info">Datos de ejemplo</span> }
           @else { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="info" [size]="14" />Clasificación publicada · el acta oficial la valida la AEP</span> }
         </div>
@@ -608,7 +608,7 @@ export class ResultadosEdicionPage {
     @let c = comp();
     <gr-page title="GRStrength Cup" [accent]="anio()" eyebrow="Edición anterior" section="Ediciones" [crumb]="anio()" [subtitle]="c?.evento?.descripcion ?? ''">
       @if (c) {
-        <div pageStamps class="mt-5 flex flex-wrap gap-2">
+        <div pageStamps class="flex flex-wrap gap-2">
           <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="info" [size]="14" />Fuente: cartel oficial de la edición {{ anio() }}</span>
           <span class="inline-flex h-8 items-center rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary">Celebrada</span>
         </div>

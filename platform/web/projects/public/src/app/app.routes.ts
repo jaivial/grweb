@@ -9,7 +9,8 @@ import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
 import { AreaAtletaPage } from './pages/area';
 import { InscripcionEstadoPage, InscripcionPage, PagoSimuladoPage } from './pages/inscripcion';
 import { AtletaPage, AtletasPage, ParticipantesPage } from './pages/atletas';
-import { BlogPage, ComoLlegarPage, ContentPage, FaqPage, GaleriaPage, LegalPage, PatrocinadoresPage, VoluntariosPage } from './pages/content';
+import { BlogPage, ContentPage, FaqPage, GaleriaPage, LegalPage, PatrocinadoresPage, VoluntariosPage } from './pages/content';
+import { ComoLlegarPage } from './pages/como-llegar';
 
 export const routes: Routes = [
   { path: '', component: HomePage },
