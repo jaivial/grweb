@@ -40,6 +40,10 @@ export interface Pagina {
   cuerpo?: string;
   portadaUrl: string;
   publicadoAt?: string;
+  /** Blog: category, source line and reading time in minutes. */
+  categoria?: string;
+  fuente?: string;
+  minutos?: number;
 }
 export interface Foto {
   url: string;
@@ -147,13 +151,20 @@ const slugify = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /** Markdown → HTML with ids on h2 (for the table of contents). Angular sanitizes the result when bound. */
+const TITULO_CAJA: Record<string, string> = { dato: 'Dato', consejo: 'Consejo', aviso: 'Aviso', importante: 'Importante', resumen: 'En resumen' };
+
 export function renderMarkdown(src: string): { html: string; headings: Heading[] } {
   const headings: Heading[] = [];
-  const html = (marked.parse(src ?? '', { async: false }) as string).replace(/<h2>(.*?)<\/h2>/g, (_m, inner: string) => {
-    const text = inner.replace(/<[^>]+>/g, '');
-    const id = slugify(text) || `seccion-${headings.length + 1}`;
-    headings.push({ id, text });
-    return `<h2 id="${id}">${inner}</h2>`;
-  });
+  const html = (marked.parse(src ?? '', { async: false }) as string)
+    .replace(/<h2>(.*?)<\/h2>/g, (_m, inner: string) => {
+      const text = inner.replace(/<[^>]+>/g, '');
+      const id = slugify(text) || `seccion-${headings.length + 1}`;
+      headings.push({ id, text });
+      return `<h2 id="${id}">${inner}</h2>`;
+    })
+    // Boxes of the blog (Figma 34): «> [!dato] Título» (also consejo, aviso, importante) and «> [!resumen]» + a list.
+    .replace(/<blockquote>\s*<p>\[!(dato|consejo|aviso|importante|resumen)\][ \t]*([^\n<]*)(\n|<\/p>)([\s\S]*?)<\/blockquote>/g,
+      (_m, tipo: string, titulo: string, sep: string, resto: string) =>
+        `<aside class="caja caja-${tipo}"><p class="caja-titulo">${titulo.trim() || TITULO_CAJA[tipo]}</p>${sep === '\n' ? '<p>' : ''}${resto.trim()}</aside>`);
   return { html, headings };
 }

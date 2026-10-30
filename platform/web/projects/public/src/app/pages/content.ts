@@ -159,43 +159,6 @@ export class ContentPage {
   }
 }
 
-/** /blog (Figma page 34). */
-@Component({
-  selector: 'gr-blog-page',
-  imports: [Page, GrSkeleton],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <gr-page title="Blog" eyebrow="Noticias" subtitle="Novedades de la competición: reservas, horarios, atletas y resultados.">
-      @if (posts() === null) { <div class="grid gap-6 md:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-72 rounded-lg" /> }</div> }
-      @else {
-        <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          @for (p of posts(); track p.slug) {
-            <a [href]="'/blog/' + p.slug" class="group flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
-              @if (p.portadaUrl) { <img [src]="p.portadaUrl" alt="" class="aspect-[16/9] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> }
-              <div class="flex flex-1 flex-col gap-2 p-5">
-                @if (p.publicadoAt) { <p class="text-mono-xs text-text-tertiary">{{ fecha(p.publicadoAt) }}</p> }
-                <h2 class="text-ui-h4">{{ p.titulo }}</h2>
-                <p class="text-body-s text-text-secondary">{{ p.resumen }}</p>
-              </div>
-            </a>
-          } @empty { <p class="text-body-m text-text-tertiary">Todavía no hay noticias.</p> }
-        </div>
-      }
-    </gr-page>
-  `,
-})
-export class BlogPage {
-  protected readonly posts = signal<Pagina[] | null>(null);
-  protected fecha = fmtLongDate;
-  constructor() {
-    const cms = inject(Cms);
-    const seo = inject(Seo);
-    void inject(PendingTasks).run(async () => {
-      this.posts.set((await cms.blog()) ?? []);
-      await applySeo(cms, seo, '/blog', 'Blog · GR Strength Cup', 'Noticias de la GR Strength Cup.');
-    });
-  }
-}
 
 
 
