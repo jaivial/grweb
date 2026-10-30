@@ -3,8 +3,8 @@ import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, computed, inject, input, signal } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
-import { Cms, renderMarkdown, type Album, type Foto, type Heading, type Pagina, type Patrocinador } from '../core/cms';
+import { GrAlert, GrButton, GrField, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
+import { Cms, renderMarkdown, type Heading, type Pagina, type Patrocinador } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo, type SeoData } from '../core/seo';
 import { NoEncontrada } from '../layout/no-encontrada';
@@ -195,67 +195,6 @@ export class BlogPage {
       this.posts.set((await cms.blog()) ?? []);
       await applySeo(cms, seo, '/blog', 'Blog · GR Strength Cup', 'Noticias de la GR Strength Cup.');
     });
-  }
-}
-
-/** /galeria (Figma page 30): albums and a lightbox with keyboard navigation. */
-@Component({
-  selector: 'gr-galeria-page',
-  imports: [Page, GrIcon, GrSkeleton],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown)': 'key($event)' },
-  template: `
-    <gr-page title="Galería" eyebrow="Fotos" subtitle="Las mejores imágenes de cada edición.">
-      @if (albums() === null) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @for (a of albums() ?? []; track a.slug) {
-        <h2 class="mt-2 mb-5 text-display-xs">{{ a.titulo }}</h2>
-        <ul class="mb-12 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-          @for (f of a.fotos; track f.url; let i = $index) {
-            <li><button type="button" class="block w-full overflow-hidden rounded-md" (click)="open(a, i)" [attr.aria-label]="'Ampliar: ' + f.alt">
-              <img [src]="f.url" [alt]="f.alt" class="aspect-[4/3] w-full object-cover transition-transform duration-500 hover:scale-[1.03]" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" loading="lazy" />
-            </button></li>
-          }
-        </ul>
-      } @empty { @if (albums() !== null) { <p class="text-body-m text-text-tertiary">Pronto publicaremos fotos.</p> } }
-    </gr-page>
-    @if (viewer(); as v) {
-      <div class="fixed inset-0 z-50 flex flex-col bg-black/95" role="dialog" aria-modal="true" [attr.aria-label]="v.foto.alt">
-        <div class="flex h-14 items-center justify-between px-4 text-body-s text-text-secondary">
-          <span>{{ v.i + 1 }} / {{ v.album.fotos.length }}</span>
-          <button type="button" class="flex size-11 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="viewer.set(null)"><gr-icon name="x" [size]="22" /></button>
-        </div>
-        <div class="flex flex-1 items-center justify-center gap-2 px-2 pb-6">
-          <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10" aria-label="Anterior" (click)="step(-1)"><gr-icon name="chevron-left" [size]="24" /></button>
-          <img [src]="v.foto.url" [alt]="v.foto.alt" class="max-h-full max-w-full rounded-sm object-contain" />
-          <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10" aria-label="Siguiente" (click)="step(1)"><gr-icon name="chevron-right" [size]="24" /></button>
-        </div>
-      </div>
-    }
-  `,
-})
-export class GaleriaPage {
-  protected readonly albums = signal<Album[] | null>(null);
-  protected readonly viewer = signal<{ album: Album; i: number; foto: Foto } | null>(null);
-  constructor() {
-    const cms = inject(Cms);
-    const seo = inject(Seo);
-    void inject(PendingTasks).run(async () => {
-      this.albums.set((await cms.galeria()) ?? []);
-      await applySeo(cms, seo, '/galeria', 'Galería · GR Strength Cup', 'Fotos de la GR Strength Cup.');
-    });
-  }
-  protected open(album: Album, i: number): void { this.viewer.set({ album, i, foto: album.fotos[i] }); }
-  protected step(d: number): void {
-    const v = this.viewer();
-    if (!v) return;
-    const i = (v.i + d + v.album.fotos.length) % v.album.fotos.length;
-    this.viewer.set({ album: v.album, i, foto: v.album.fotos[i] });
-  }
-  protected key(e: KeyboardEvent): void {
-    if (!this.viewer()) return;
-    if (e.key === 'Escape') this.viewer.set(null);
-    if (e.key === 'ArrowRight') this.step(1);
-    if (e.key === 'ArrowLeft') this.step(-1);
   }
 }
 

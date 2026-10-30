@@ -689,7 +689,7 @@ export class ResultadosEdicionPage {
               @for (f of galeria(); track f.url; let i = $index) {
                 <!-- mobile shows six (Figma 28 mobile), desktop eight -->
                 <button type="button" class="group relative aspect-[285/379] overflow-hidden rounded-2xl border border-white/8 cursor-zoom-in" [class.max-md:hidden]="i >= 6" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
-                  <img [src]="f.url" [alt]="f.alt" loading="lazy" class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" />
+                  <img [src]="mini(f.url)" [alt]="f.alt" loading="lazy" class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" />
                 </button>
               }
             </div>
@@ -730,9 +730,12 @@ export class EdicionPage {
   /** The design photos of the 2025 edition (Figma 28) until the album has at least eight of its own. */
   protected readonly galeria = computed(() => {
     const f = this.fotos();
-    if (f.length >= 8 || this.anio() !== '2025') return f;
+    // eight at most (Figma 28): the whole album is in /galeria
+    if (f.length >= 8 || this.anio() !== '2025') return f.slice(0, 8);
     return FOTOS_2025.map(([f, alt]) => ({ url: `/img/edicion-2025/${f}.webp`, alt, focalX: 50, focalY: 35 })) as Album['fotos'];
   });
+  /** Media library photos at 480 px (the tiles are 285 px wide). */
+  protected mini = (url: string) => (url.startsWith('/api/medios/') ? url + '?w=480' : url);
   protected readonly fotosLightbox = computed(() => this.galeria().map((f) => ({ imagen: f.url, alt: f.alt })));
   /** Figma: «Campeonato de powerlifting AEP-2 Regional…, celebrado los días 1 y 2 de marzo de 2025 en Llíria (Valencia).» */
   protected readonly resumen = computed(() => {

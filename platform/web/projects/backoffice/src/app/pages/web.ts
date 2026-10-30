@@ -507,6 +507,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       columns: [{ key: 'titulo', label: 'Álbum' }, { key: 'fotos', label: 'Fotos', kind: 'mono', value: (r) => String((r['fotos'] as unknown[] | null)?.length ?? 0) + ' fotos' }, { key: 'publicado', label: 'Estado', kind: 'badge', value: (r) => (r['publicado'] ? 'Publicado' : 'Borrador'), tone: (r) => (r['publicado'] ? 'success' : 'neutral') }],
       fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 120, ancho: 'mitad' }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ancho: 'mitad' },
         { clave: 'fotos', etiqueta: 'Fotos', tipo: 'lista', max: 300, campos: [{ clave: 'url', etiqueta: 'Foto', tipo: 'imagen' }, { clave: 'alt', etiqueta: 'Texto alternativo', tipo: 'texto', max: 200 },
+          { clave: 'etiqueta', etiqueta: 'Filtro en /galeria', tipo: 'select', opciones: [['', 'Sin filtro'], ['plataforma', 'Plataforma'], ['calentamiento', 'Calentamiento'], ['podio', 'Podios'], ['ambiente', 'Ambiente']].map(([value, label]) => ({ value, label })) },
           { clave: 'focalX', etiqueta: 'Punto focal X (%)', tipo: 'numero', ancho: 'mitad' }, { clave: 'focalY', etiqueta: 'Punto focal Y (%)', tipo: 'numero', ancho: 'mitad' }] },
         { clave: 'publicado', etiqueta: 'Publicado', tipo: 'bool' }],
       defaults: { publicado: false, fotos: [] },

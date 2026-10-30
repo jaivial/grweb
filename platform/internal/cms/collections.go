@@ -176,7 +176,12 @@ type foto struct {
 	Alt    string `json:"alt,omitempty" maxLength:"200"`
 	FocalX int    `json:"focalX" minimum:"0" maximum:"100" default:"50"`
 	FocalY int    `json:"focalY" minimum:"0" maximum:"100" default:"50"`
+	// Filter of /galeria: plataforma · calentamiento · podio · ambiente (empty: only «Todas» and the album).
+	Etiqueta string `json:"etiqueta,omitempty" maxLength:"20"`
 }
+
+// etiquetasFoto are the /galeria filters a photo can have.
+var etiquetasFoto = map[string]bool{"": true, "plataforma": true, "calentamiento": true, "podio": true, "ambiente": true}
 
 type albumRow struct {
 	ID        uuid.UUID       `json:"id" db:"id"`
@@ -327,6 +332,9 @@ func (s *Svc) registerCollections() {
 			for _, f := range in.Fotos {
 				if !validURL(f.URL, true) {
 					return problem.Unprocessable("URL_INVALIDA", "Foto con URL no válida: "+f.URL)
+				}
+				if !etiquetasFoto[f.Etiqueta] {
+					return problem.Unprocessable("ETIQUETA_INVALIDA", "Etiqueta de foto no válida: "+f.Etiqueta+" (plataforma, calentamiento, podio o ambiente).")
 				}
 			}
 			if in.Fotos == nil {

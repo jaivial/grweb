@@ -45,6 +45,11 @@ export interface Foto {
   alt: string;
   focalX: number;
   focalY: number;
+  /** /galeria filter. */
+  etiqueta?: 'plataforma' | 'calentamiento' | 'podio' | 'ambiente' | '';
+  /** Pixel size, for media library photos (lays out the mosaic before the images load). */
+  ancho?: number;
+  alto?: number;
 }
 export interface Album {
   titulo: string;

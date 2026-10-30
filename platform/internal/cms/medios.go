@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -167,10 +168,11 @@ func (s *Svc) registerMedios() {
 				return nil, err
 			}
 			_ = os.Remove(s.path(in.CID, in.ID, tipo))
+			borrarVariantes(s.path(in.CID, in.ID, tipo))
 			return nil, nil
 		})
 
-	// Public file: immutable (a new upload gets a new id).
+	// Public file: immutable (a new upload gets a new id). «?w=480|960|1600» serves a resized JPEG copy (variantes.go).
 	s.a.Mux.HandleFunc("GET /api/medios/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {
@@ -183,6 +185,20 @@ func (s *Svc) registerMedios() {
 			http.NotFound(w, r)
 			return
 		}
+		ruta := s.path(cid, id, tipo)
+		if q := r.URL.Query().Get("w"); q != "" {
+			ancho, err := strconv.Atoi(q)
+			if err != nil || !anchosVariante[ancho] {
+				http.Error(w, "w: 480, 960 o 1600", http.StatusBadRequest)
+				return
+			}
+			v, err := variante(ruta, tipo, ancho)
+			if err != nil {
+				s.a.Log.Warn("variante de medio", "id", id, "w", ancho, "err", err)
+			} else if v != ruta {
+				ruta, tipo = v, "image/jpeg"
+			}
+		}
 		w.Header().Set("Content-Type", tipo)
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -190,7 +206,7 @@ func (s *Svc) registerMedios() {
 			// RFC 6266 / 2231: non-ASCII names are sent as filename*=utf-8''…
 			w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": nombre}))
 		}
-		http.ServeFile(w, r, s.path(cid, id, tipo))
+		http.ServeFile(w, r, ruta)
 	})
 }
 
@@ -228,6 +244,16 @@ func (s *Svc) upload(ctx context.Context, cid uuid.UUID, form *multipart.Form) (
 			return medio{}, problem.Unprocessable("IMAGEN_INVALIDA", "No se pudo leer la imagen.")
 		}
 		ancho, alto = cfg.Width, cfg.Height
+		if tipo == "image/jpeg" { // phones store portraits as landscape + EXIF orientation 5–8: record the size as shown
+			if _, err := f.Seek(0, io.SeekStart); err != nil {
+				return medio{}, err
+			}
+			cab := make([]byte, 128<<10)
+			k, _ := io.ReadFull(f, cab)
+			if o := orientacionExif(cab[:k]); o >= 5 {
+				ancho, alto = alto, ancho
+			}
+		}
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
 			return medio{}, err
 		}

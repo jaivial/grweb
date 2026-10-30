@@ -267,8 +267,17 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 			}
 		}
 		if empty(tx, "albumes") {
-			fotos := []foto{{URL: op + "alfonso-fernandez--img-3276.jpg", Alt: "Sentadilla", FocalX: 50, FocalY: 40}, {URL: op + "alfonso-fernandez--img-3363.jpg", Alt: "Press de banca", FocalX: 50, FocalY: 50},
-				{URL: op + "alfonso-fernandez--img-3364.jpg", Alt: "Peso muerto", FocalX: 50, FocalY: 45}, {URL: op + "30--central-pavello-almussafes-2.jpg", Alt: "El pabellón", FocalX: 50, FocalY: 50}}
+			// The 2025 photos served by the public web (Figma 28); the real album is uploaded from the backoffice.
+			fotos := []foto{
+				{URL: "/img/edicion-2025/foto-1.webp", Alt: "Atleta delante de la barra antes de su peso muerto", FocalX: 50, FocalY: 35, Etiqueta: "plataforma"},
+				{URL: "/img/edicion-2025/foto-2.webp", Alt: "Atleta concentrada con cascos antes de su intento", FocalX: 50, FocalY: 35, Etiqueta: "calentamiento"},
+				{URL: "/img/edicion-2025/foto-3.webp", Alt: "Sentadilla en la plataforma, con los cargadores a los lados", FocalX: 50, FocalY: 35, Etiqueta: "plataforma"},
+				{URL: "/img/edicion-2025/foto-4.webp", Alt: "Atleta en el press de banca bajo el cartel de la competición", FocalX: 50, FocalY: 35, Etiqueta: "plataforma"},
+				{URL: "/img/edicion-2025/foto-5.webp", Alt: "Peso muerto bloqueado bajo los focos del escenario", FocalX: 50, FocalY: 35, Etiqueta: "plataforma"},
+				{URL: "/img/edicion-2025/foto-6.webp", Alt: "Cinturón y muñequeras colgados de una barra en la zona de calentamiento", FocalX: 50, FocalY: 35, Etiqueta: "calentamiento"},
+				{URL: "/img/edicion-2025/foto-7.webp", Alt: "Un compañero ajusta el cinturón de un atleta antes de salir", FocalX: 50, FocalY: 35, Etiqueta: "calentamiento"},
+				{URL: "/img/edicion-2025/foto-8.webp", Alt: "Atleta concentrado antes de salir a la plataforma", FocalX: 50, FocalY: 35, Etiqueta: "ambiente"},
+			}
 			if _, err := tx.Exec(ctx, `INSERT INTO albumes (id, competition_id, titulo, slug, fotos, publicado) VALUES ($1,$2,'GR Cup 2025','gr-cup-2025',$3,true)`, newID(), cid, fotos); err != nil {
 				return err
 			}
