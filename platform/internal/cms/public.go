@@ -54,6 +54,10 @@ type paginaPub struct {
 	Cuerpo      string     `json:"cuerpo,omitempty" db:"cuerpo"`
 	PortadaURL  string     `json:"portadaUrl" db:"portada_url"`
 	PublicadoAt *time.Time `json:"publicadoAt,omitempty" db:"publicado"`
+	// Blog: category, source line and reading time (200 words a minute, at least 1).
+	Categoria string `json:"categoria" db:"categoria"`
+	Fuente    string `json:"fuente" db:"fuente"`
+	Minutos   int    `json:"minutos" db:"minutos"`
 }
 
 type legalPub struct {
@@ -174,7 +178,7 @@ func (s *Svc) registerPublic() {
 					return nil, err
 				}
 				p, err := cached(ctx, s, cid, seg+":"+in.PSlug, ttlTimed, func() (paginaPub, error) {
-					rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado FROM paginas
+					rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
 						WHERE competition_id = $1 AND tipo = $2 AND slug = $3 AND `+visible, cid, tipo, in.PSlug)
 					if err != nil {
 						return paginaPub{}, err
@@ -199,7 +203,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			list, err := cached(ctx, s, cid, "blog", ttlTimed, func() ([]paginaPub, error) {
-				rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado FROM paginas
+				rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
 					WHERE competition_id = $1 AND tipo = 'blog' AND `+visible+` ORDER BY publicado DESC LIMIT 50`, cid)
 				if err != nil {
 					return nil, err
@@ -549,3 +553,6 @@ func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([
 
 // rolesVoluntario are the roles of /voluntarios (Figma 33) and their names (CRM activity, as in the backoffice list).
 var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Cargadores", "mesa": "Mesa técnica", "foto": "Foto y vídeo", "acreditaciones": "Acreditaciones"}
+
+// minutosLectura is the reading time of a page in whole minutes (200 words a minute, at least 1).
+const minutosLectura = `GREATEST(1, ceil(cardinality(regexp_split_to_array(btrim(cuerpo), '\s+')) / 200.0))::int AS minutos`

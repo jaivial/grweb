@@ -117,6 +117,8 @@ type paginaRow struct {
 	PublicarAt *time.Time `json:"publicarAt,omitempty" db:"publicar_at"`
 	Orden      int        `json:"orden" db:"orden"`
 	UpdatedAt  time.Time  `json:"updatedAt" db:"updated_at"`
+	Categoria  string     `json:"categoria" db:"categoria"`
+	Fuente     string     `json:"fuente" db:"fuente"`
 }
 
 type paginaIn struct {
@@ -127,7 +129,13 @@ type paginaIn struct {
 	PortadaURL string     `json:"portadaUrl,omitempty" maxLength:"500"`
 	Publicada  bool       `json:"publicada,omitempty"`
 	PublicarAt *time.Time `json:"publicarAt,omitempty" doc:"Publicación programada"`
+	// Blog only: category (filters of /blog) and the source line under the header.
+	Categoria string `json:"categoria,omitempty" maxLength:"20"`
+	Fuente    string `json:"fuente,omitempty" maxLength:"200"`
 }
+
+// categoriasBlog are the categories of /blog (Figma 34).
+var categoriasBlog = map[string]bool{"": true, "calendario": true, "guia": true, "normativa": true, "marcas": true, "cronica": true, "entrenamiento": true, "noticias": true}
 
 // ---- Clubs (/clubs) ----
 
@@ -311,22 +319,27 @@ func (s *Svc) registerCollections() {
 		}
 		register(s, collection[paginaRow, paginaIn]{
 			name: name, path: path, table: "paginas", scope: "tipo = '" + tipo + "'", tag: tagWeb, perm: "web.editar", order: "orden, created_at DESC",
-			cols: "id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, publicar_at, orden, updated_at",
+			cols: "id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, publicar_at, orden, updated_at, categoria, fuente",
 			validate: func(in *paginaIn) error {
-				trimAll(&in.Titulo, &in.Resumen, &in.PortadaURL)
+				trimAll(&in.Titulo, &in.Resumen, &in.PortadaURL, &in.Fuente)
 				if !validURL(in.PortadaURL, true) {
 					return problem.Unprocessable("URL_INVALIDA", "La portada debe ser una URL https o una ruta /api/medios/…")
+				}
+				if !categoriasBlog[in.Categoria] {
+					return problem.Unprocessable("CATEGORIA_INVALIDA", "Categoría no válida: "+in.Categoria)
 				}
 				return nil
 			},
 			insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *paginaIn) error {
-				_, err := tx.Exec(ctx, `INSERT INTO paginas (id, competition_id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, publicar_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-					id, cid, tipo, in.Slug, in.Titulo, in.Resumen, in.Cuerpo, in.PortadaURL, in.Publicada, in.PublicarAt)
+				_, err := tx.Exec(ctx, `INSERT INTO paginas (id, competition_id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, publicar_at, categoria, fuente)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+					id, cid, tipo, in.Slug, in.Titulo, in.Resumen, in.Cuerpo, in.PortadaURL, in.Publicada, in.PublicarAt, in.Categoria, in.Fuente)
 				return err
 			},
 			update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *paginaIn) error {
-				_, err := tx.Exec(ctx, `UPDATE paginas SET slug=$3, titulo=$4, resumen=$5, cuerpo=$6, portada_url=$7, publicada=$8, publicar_at=$9, updated_at=now() WHERE competition_id=$1 AND id=$2`,
-					cid, id, in.Slug, in.Titulo, in.Resumen, in.Cuerpo, in.PortadaURL, in.Publicada, in.PublicarAt)
+				_, err := tx.Exec(ctx, `UPDATE paginas SET slug=$3, titulo=$4, resumen=$5, cuerpo=$6, portada_url=$7, publicada=$8, publicar_at=$9, categoria=$10, fuente=$11, updated_at=now()
+					WHERE competition_id=$1 AND id=$2`,
+					cid, id, in.Slug, in.Titulo, in.Resumen, in.Cuerpo, in.PortadaURL, in.Publicada, in.PublicarAt, in.Categoria, in.Fuente)
 				return err
 			},
 		})

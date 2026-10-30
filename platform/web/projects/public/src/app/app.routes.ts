@@ -9,7 +9,8 @@ import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
 import { AreaAtletaPage } from './pages/area';
 import { InscripcionEstadoPage, InscripcionPage, PagoSimuladoPage } from './pages/inscripcion';
 import { AtletaPage, AtletasPage, ParticipantesPage } from './pages/atletas';
-import { BlogPage, ContentPage, LegalPage } from './pages/content';
+import { ContentPage, LegalPage } from './pages/content';
+import { BlogPage, BlogPostPage } from './pages/blog';
 import { VoluntariosPage } from './pages/voluntarios';
 import { PatrocinadoresPage } from './pages/patrocinadores';
 import { GaleriaPage } from './pages/galeria';
@@ -55,7 +56,7 @@ export const routes: Routes = [
   { path: 'clubs', component: ClubsPage },
   { path: 'en', component: EnPage },
   { path: 'blog', component: BlogPage },
-  { path: 'blog/:pslug', component: ContentPage, data: { tipo: 'blog' } },
+  { path: 'blog/:pslug', component: BlogPostPage },
   { path: 'privacidad', component: LegalPage, data: { tipo: 'privacidad', titulo: 'Política de privacidad' } },
   { path: 'terminos', component: LegalPage, data: { tipo: 'terminos', titulo: 'Términos y condiciones' } },
   { path: 'cookies', component: LegalPage, data: { tipo: 'cookies', titulo: 'Política de cookies' } },

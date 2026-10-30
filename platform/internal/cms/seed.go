@@ -13,7 +13,6 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/db"
 )
 
-const op = "https://openpencil.menustudioai.com/grscup/"
 const bcdn = "https://jaimedigitalstudio.b-cdn.net/grcup/"
 
 // Seed content of the GR Cup home: the texts and photos of Figma page 05 («Datos de ejemplo» where the organiser must
@@ -261,8 +260,8 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 					return err
 				}
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO paginas (id, competition_id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada) VALUES ($1,$2,'blog','abren-las-reservas',$3,$4,$5,$6,true)`,
-				newID(), cid, "Abren las reservas de entradas", "La entrada es gratuita con reserva: así funciona.", "Ya puedes reservar tu entrada gratuita para la GR Strength Cup. *Datos de ejemplo.*", op+"30--central-pavello-almussafes-2.jpg"); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO paginas (id, competition_id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, categoria) VALUES ($1,$2,'blog','abren-las-reservas',$3,$4,$5,$6,true,'noticias')`,
+				newID(), cid, "Abren las reservas de entradas", "La entrada es gratuita con reserva: así funciona.", "Ya puedes reservar tu entrada gratuita para la GR Strength Cup. *Datos de ejemplo.*", "/img/home/sede-exterior-l.webp"); err != nil {
 				return err
 			}
 		}
