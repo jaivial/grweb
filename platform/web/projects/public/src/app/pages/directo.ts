@@ -11,7 +11,6 @@ import { COMPETITION_SLUG, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Mov, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
 import { Seo } from '../core/seo';
-import { SectionTitle } from '../home/cms-sections';
 import { GrCabecera } from '../home/bloques';
 import { Lightbox } from '../layout/lightbox';
 import { Page } from '../layout/page';
@@ -22,7 +21,17 @@ const TZ = 'Europe/Madrid';
 const PABELLON = 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp';
 const FOTO_2025 = 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfonso-fernandez/img-3364.webp';
 const CARTEL_2025 = '/img/cartel-2025.jpg';
-const FOTOS_2025 = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `/img/edicion-2025/foto-${n}.webp`);
+/** The eight photos of Figma 28 (2025 edition), in the design's order. */
+const FOTOS_2025: [string, string][] = [
+  ['foto-1', 'Atleta preparado para la sentadilla delante del photocall de la GR Strength Cup 2025'],
+  ['foto-2', 'Atleta concentrada con cascos antes de su intento'],
+  ['foto-3', 'Press de banca en la plataforma, con los cargadores al lado'],
+  ['foto-4', 'Atleta en el press de banca bajo el cartel de la competición'],
+  ['foto-5', 'Atleta con la barra cargada bajo los focos del escenario'],
+  ['foto-6', 'Barra cargada con discos y magnesio sobre la plataforma'],
+  ['foto-7', 'Entrenador ajustando las rodilleras de un atleta en el calentamiento'],
+  ['foto-8', 'Atleta concentrado antes de salir a la plataforma'],
+];
 const MOVS: Mov[] = ['sq', 'bp', 'dl'];
 const diaHora = (iso: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)).replace(',', ' ·');
 const fechas = (a?: string, b?: string) => {
@@ -722,7 +731,7 @@ export class EdicionPage {
   protected readonly galeria = computed(() => {
     const f = this.fotos();
     if (f.length >= 8 || this.anio() !== '2025') return f;
-    return FOTOS_2025.map((url, i) => ({ url, alt: `GR Strength Cup 2025 · foto ${i + 1}`, focalX: 50, focalY: 35 })) as Album['fotos'];
+    return FOTOS_2025.map(([f, alt]) => ({ url: `/img/edicion-2025/${f}.webp`, alt, focalX: 50, focalY: 35 })) as Album['fotos'];
   });
   protected readonly fotosLightbox = computed(() => this.galeria().map((f) => ({ imagen: f.url, alt: f.alt })));
   /** Figma: «Campeonato de powerlifting AEP-2 Regional…, celebrado los días 1 y 2 de marzo de 2025 en Llíria (Valencia).» */
