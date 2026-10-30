@@ -44,12 +44,14 @@ const logoURL = "https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png"
 
 // Svc holds the service dependencies.
 type Svc struct {
-	a      *app.App
-	comp   *svcclient.Client
-	comps  *compref.Resolver
-	webURL string
-	smtpMu sync.Mutex
-	smtp   map[uuid.UUID]smtpEntry
+	a        *app.App
+	comp     *svcclient.Client
+	comps    *compref.Resolver
+	crm      *svcclient.Client
+	schedule *svcclient.Client
+	webURL   string
+	smtpMu   sync.Mutex
+	smtp     map[uuid.UUID]smtpEntry
 }
 
 type smtpEntry struct {
@@ -67,13 +69,19 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.a = a
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "messaging", "competition", a.Cfg.InternalToken)
 	s.comps = compref.New(s.comp, a.Log)
+	s.crm = svcclient.New(config.Str("UPSTREAM_CRM", "http://crm:8080"), "messaging", "crm", a.Cfg.InternalToken)
+	s.schedule = svcclient.New(config.Str("UPSTREAM_SCHEDULE", "http://schedule:8080"), "messaging", "schedule", a.Cfg.InternalToken)
 	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
 	// History is never re-sent: a new consumer group starts at the end of the stream.
 	c := &events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "messaging", Start: "$",
 		Types: []string{"identity.email_", "athletes.email_", "cms.email_", "crm.email_", "ticketing.email_"}, Handle: s.handle, Log: a.Log}
 	a.Go(c.Run)
 	a.Go(s.worker)
+	a.Go(s.campanasWorker)
 	s.registerAdmin()
+	s.registerCampanas()
+	s.registerWhatsApp()
+	s.registerRGPD()
 	return nil
 }
 

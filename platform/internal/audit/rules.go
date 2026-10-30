@@ -61,6 +61,12 @@ var notifRules = map[string]notifRule{
 	"resultados.publicacion": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Resultados publicados", strings.Join(strs(d["categorias"]), " · "), "/resultados", "ok", "resultados.publicar", true
 	},
+	"campana.enviada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Campaña enviada: «" + str(d["nombre"]) + "»", resumenCanales(d), "/campanas", "ok", "campanas.enviar", true
+	},
+	"campana.error": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Una campaña programada no salió", str(d["error"]), "/campanas", "error", "campanas.enviar", true
+	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
 	},
@@ -225,6 +231,28 @@ func resumen(e events.Event) string {
 		return "publicó los resultados de " + strings.Join(strs(d["categorias"]), ", ")
 	case "resultados.retirada":
 		return "retiró de /resultados la categoría " + str(d["categoria"])
+	case "campana.creada":
+		return "creó la campaña «" + str(d["nombre"]) + "»"
+	case "campana.borrada":
+		return "borró la campaña «" + str(d["nombre"]) + "»"
+	case "campana.programada":
+		return "programó la campaña «" + str(d["nombre"]) + "»"
+	case "campana.desprogramada":
+		return "quitó la programación de «" + str(d["nombre"]) + "»"
+	case "campana.iniciada":
+		return fmt.Sprintf("empezó a enviar «%s» a %v destinos", str(d["nombre"]), d["destinatarios"])
+	case "campana.pausada":
+		return "pausó el envío de «" + str(d["nombre"]) + "»"
+	case "campana.reanudada":
+		return "reanudó el envío de «" + str(d["nombre"]) + "»"
+	case "campana.cancelada":
+		return "canceló la campaña «" + str(d["nombre"]) + "»"
+	case "campana.enviada":
+		return "terminó de enviarse «" + str(d["nombre"]) + "» (" + resumenCanales(d) + ")"
+	case "campana.error":
+		return "una campaña programada no pudo salir: " + str(d["error"])
+	case "ia.diseno":
+		return "pidió a la IA en «" + str(d["campana"]) + "»: «" + str(d["instruccion"]) + "»"
 	case "athletes.plaza_ofrecida":
 		return "ofreció una plaza libre a un atleta de la reserva (enlace de pago)"
 	case "athletes.inscripcion_pagada":
@@ -329,4 +357,22 @@ func strs(v any) []string {
 		out = append(out, str(x))
 	}
 	return out
+}
+
+// resumenCanales: «1.388 emails · 612 WhatsApp · 3 fallidos» from the progress of a campaign event.
+func resumenCanales(d map[string]any) string {
+	var out []string
+	fall := 0.0
+	for _, c := range []struct{ k, l string }{{"email", "emails"}, {"whatsapp", "WhatsApp"}} {
+		if m, ok := d[c.k].(map[string]any); ok {
+			n, _ := m["enviados"].(float64)
+			f, _ := m["fallidos"].(float64)
+			fall += f
+			out = append(out, fmt.Sprintf("%v %s", n, c.l))
+		}
+	}
+	if fall > 0 {
+		out = append(out, fmt.Sprintf("%v fallidos", fall))
+	}
+	return strings.Join(out, " · ")
 }

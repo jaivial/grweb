@@ -52,6 +52,7 @@ type Svc struct {
 	athletes  *svcclient.Client
 	cms       *svcclient.Client
 	ticketing *svcclient.Client
+	messaging *svcclient.Client
 	key       []byte
 	webURL    string
 }
@@ -70,6 +71,7 @@ func (s *Svc) init(a *app.App) {
 	s.athletes = svcclient.New(config.Str("UPSTREAM_ATHLETES", "http://athletes:8080"), "crm", "athletes", a.Cfg.InternalToken)
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "crm", "cms", a.Cfg.InternalToken)
 	s.ticketing = svcclient.New(config.Str("UPSTREAM_TICKETING", "http://ticketing:8080"), "crm", "ticketing", a.Cfg.InternalToken)
+	s.messaging = svcclient.New(config.Str("UPSTREAM_MESSAGING", "http://messaging:8080"), "crm", "messaging", a.Cfg.InternalToken)
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/crm/v1"))
 	s.key = m.Sum(nil)
@@ -85,6 +87,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerSegmentos()
 	s.registerSupresiones()
 	s.registerPublico()
+	s.registerAudiencia()
 	return nil
 }
 
@@ -136,21 +139,42 @@ func (s *Svc) handle(ctx context.Context, e events.Event) error {
 			return err
 		})
 	case e.Type == "messaging.enviado":
-		var d struct{ Para, Plantilla, Asunto string }
+		var d struct{ Para, Plantilla, Asunto, Canal string }
 		if json.Unmarshal(e.Data, &d) != nil {
 			return nil
 		}
-		_, err := s.a.DB.Exec(ctx, `WITH c AS (UPDATE contactos SET actividad_at = $4 WHERE competition_id = $1 AND email = $2 RETURNING id)
-			INSERT INTO actividad (id, contacto_id, tipo, titulo, detalle, at) SELECT $5, id, 'email', $3, 'Email · enviado', $4 FROM c`,
-			cid, d.Para, "Recibió «"+d.Asunto+"»", e.OccurredAt, newID())
+		col, tipo, det := "email", "email", "Email · enviado"
+		if d.Canal == "whatsapp" {
+			col, tipo, det, d.Para = "telefono", "whatsapp", "WhatsApp · enviado", normTel(d.Para)
+		}
+		_, err := s.a.DB.Exec(ctx, `WITH c AS (UPDATE contactos SET actividad_at = $4 WHERE competition_id = $1 AND `+col+` = $2 RETURNING id)
+			INSERT INTO actividad (id, contacto_id, tipo, titulo, detalle, at) SELECT $5, id, $6, $3, $7, $4 FROM c`,
+			cid, d.Para, "Recibió «"+d.Asunto+"»", e.OccurredAt, newID(), tipo, det)
 		return err
 	case e.Type == "messaging.rebote":
-		var d struct{ Para, Tipo, Motivo string }
+		var d struct{ Para, Tipo, Motivo, Canal string }
 		if json.Unmarshal(e.Data, &d) != nil {
+			return nil
+		}
+		if d.Canal == "" {
+			d.Canal = "email"
+		}
+		return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			return s.suprimir(ctx, tx, cid, d.Canal, d.Para, d.Tipo, d.Motivo, "messaging")
+		})
+	case e.Type == "messaging.baja":
+		// «BAJA» answered on WhatsApp: suppression + the WhatsApp consent revoked (proof kept in the activity).
+		var d struct{ Para, Motivo, Canal string }
+		if json.Unmarshal(e.Data, &d) != nil || d.Canal != "whatsapp" {
 			return nil
 		}
 		return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-			return s.suprimir(ctx, tx, cid, "email", d.Para, d.Tipo, d.Motivo, "messaging")
+			if err := s.suprimir(ctx, tx, cid, "whatsapp", d.Para, "baja", d.Motivo, "whatsapp"); err != nil {
+				return err
+			}
+			_, err := tx.Exec(ctx, `UPDATE consentimientos k SET estado = 'revocado', revocado_at = now() FROM contactos c
+				WHERE k.contacto_id = c.id AND c.competition_id = $1 AND c.telefono = $2 AND k.finalidad = 'avisos_whatsapp' AND k.estado <> 'revocado'`, cid, normTel(d.Para))
+			return err
 		})
 	}
 	return nil

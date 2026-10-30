@@ -19,6 +19,7 @@ resources:
   - messaging/messaging.yaml
   - ticketing/ticketing.yaml
   - live/live.yaml
+  - ai/ai.yaml
   - realtime/realtime.yaml
   - gateway/gateway.yaml
   - web/web.yaml
