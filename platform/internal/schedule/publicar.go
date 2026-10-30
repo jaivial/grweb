@@ -327,6 +327,7 @@ type aplicarIn struct {
 	Afectados        []uuid.UUID  `json:"afectados"`
 	AvisarAtletas    bool         `json:"avisarAtletas"`
 	AvisarSeguidores bool         `json:"avisarSeguidores"`
+	Primera          bool         `json:"primera" doc:"Primera publicación (plantilla «Tu horario»)"`
 }
 
 type aplicarOut struct {
@@ -379,7 +380,7 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm string, avisarAtl
 	if prev != nil && len(d.Cambios) == 0 {
 		return Publicado{}, problem.Conflict("SIN_CAMBIOS", "No hay cambios respecto a la versión publicada.")
 	}
-	in := aplicarIn{Version: sn.Numero, Asignaciones: []asignacion{}, Afectados: d.afectados, AvisarAtletas: avisarAtletas, AvisarSeguidores: avisarSeguidores}
+	in := aplicarIn{Version: sn.Numero, Asignaciones: []asignacion{}, Afectados: d.afectados, AvisarAtletas: avisarAtletas, AvisarSeguidores: avisarSeguidores, Primera: d.Primera}
 	if in.Afectados == nil {
 		in.Afectados = []uuid.UUID{}
 	}
@@ -403,6 +404,14 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm string, avisarAtl
 		}
 		if rev != b.Rev {
 			return errConflicto
+		}
+		// Someone else may have published since the diff was built (publishing does not change the revision).
+		var n int
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(max(numero), 0) + 1 FROM versiones WHERE competition_id = $1`, cid).Scan(&n); err != nil {
+			return err
+		}
+		if n != sn.Numero {
+			return problem.Conflict("PUBLICACION_EN_CURSO", "Otra persona acaba de publicar los horarios. Recarga para ver la versión nueva.")
 		}
 		if err := s.athletes.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/horarios", in, &res); err != nil {
 			s.a.Log.Warn("athletes horarios", "err", err)

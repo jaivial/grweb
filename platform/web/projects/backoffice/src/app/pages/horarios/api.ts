@@ -11,7 +11,7 @@ export interface FlightAtleta { id: string; nombre: string; sexo: 'F' | 'M'; cat
 export interface Directo { estado: 'programado' | 'en_curso' | 'finalizado'; retrasoMin?: number }
 export interface Flight {
   id: string; codigo: string; dia: string; plataforma: number; inicio: string; fin: string; duracionMin: number; pesajeInicio: string; pesajeFin: string;
-  titulo: string; sexo: 'F' | 'M' | 'X' | ''; atletas: FlightAtleta[]; directo: Directo; avisos: string[];
+  titulo: string; sexo: 'F' | 'M' | 'X' | ''; atletas: FlightAtleta[]; directo: Directo; publicado: boolean; avisos: string[];
 }
 export interface AgendaItem { dia: string; hora: string; titulo: string; icono?: string }
 export interface Conflicto {

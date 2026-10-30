@@ -39,6 +39,7 @@ func (s *Svc) registerHorarios() {
 			Afectados        []uuid.UUID  `json:"afectados" maxItems:"2000"`
 			AvisarAtletas    bool         `json:"avisarAtletas"`
 			AvisarSeguidores bool         `json:"avisarSeguidores"`
+			Primera          bool         `json:"primera,omitempty"`
 		}
 	}
 	type out struct {
@@ -119,6 +120,9 @@ func (s *Svc) registerHorarios() {
 					a, tiene := nueva[r.ID]
 					vars := map[string]string{"nombre": r.Nombre, "atleta": r.nombreCompleto(), "horarios": s.webURL + "/horarios", "version": fmt.Sprint(b.Version)}
 					plantilla, plantillaSeg := "horario-cambio", "horario-seguidor"
+					if b.Primera {
+						plantilla = "horario-publicado" // «Tu horario»: first publication
+					}
 					if tiene {
 						vars["flight"], vars["plataforma"], vars["dia"], vars["hora"] = a.Flight, fmt.Sprint(a.Plataforma), dia(a.Inicio), hm(a.Inicio)
 						vars["pesaje"] = hm(a.PesajeInicio) + "–" + hm(a.PesajeFin)

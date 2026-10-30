@@ -588,7 +588,7 @@ export class HorariosPage {
     return (this.data()?.conflictos ?? []).some((c) => c.tipo === 'solape_pesaje' && c.flightId === f.id);
   }
   protected enPublicada(f: Flight): boolean {
-    return !!this.data()?.publicado && !!f.id;
+    return !!this.data()?.publicado && f.publicado;
   }
   protected icono(i?: string): GrIconName {
     return (ICONOS.some((x) => x.v === i) ? i : 'clock') as GrIconName;
@@ -619,7 +619,11 @@ export class HorariosPage {
   protected async ajustar(p: Partial<Config>): Promise<void> {
     const b = this.data();
     if (!b) return;
-    await this.run(() => this.api.config(this.cid(), { ...b.config, ...p }), 'Ajuste guardado · pulsa «Generar» para aplicarlo a todos los flights');
+    // More platforms than weigh-in tables would serialise the flights: raise the tables with them.
+    const mesas = p.plataformas && p.plataformas > b.config.mesasPesaje ? p.plataformas : undefined;
+    const cfg = { ...b.config, ...p, ...(mesas ? { mesasPesaje: mesas } : {}) };
+    await this.run(() => this.api.config(this.cid(), cfg),
+      mesas ? `Ajuste guardado · también ${mesas} mesas de pesaje (cámbialo en «Ajustes del día»). Pulsa «Generar» para aplicarlo.` : 'Ajuste guardado · pulsa «Generar» para aplicarlo a todos los flights');
   }
 
   protected async generar(): Promise<void> {
@@ -646,6 +650,7 @@ export class HorariosPage {
     const from = e.previousContainer.data;
     const to = e.container.data;
     if (from === to && e.previousIndex === e.currentIndex) return;
+    if (from.id === null && to.id === null) return; // «Sin flight» has no order to keep
     const a = e.item.data;
     const antesFrom = from.atletas.map((x) => x.id);
     const antesTo = to.atletas.map((x) => x.id);

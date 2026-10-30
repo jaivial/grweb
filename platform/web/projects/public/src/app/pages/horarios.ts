@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Favoritos, cat } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
@@ -26,7 +26,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
 /** /horarios (Figma page 41 · «Horarios v2 interactivo»): flights by day with live state, «Mi horario» with .ics, search. */
 @Component({
   selector: 'gr-horarios-page',
-  imports: [Page, FormsModule, GrIcon, GrSkeleton, Fav, Related, Community],
+  imports: [Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = data();
@@ -58,6 +58,8 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               </ul>
             </section>
           </div>
+        } @else {
+          <gr-alert tone="warning" title="No hemos podido cargar los horarios">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos; los horarios no han cambiado.</gr-alert>
         }
       } @else {
         @if (enDirecto(); as d) {

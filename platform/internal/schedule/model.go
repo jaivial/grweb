@@ -90,6 +90,7 @@ type Flight struct {
 	Sexo         string         `json:"sexo" doc:"F, M, X (mixto) o vacío"`
 	Atletas      []FlightAtleta `json:"atletas"`
 	Directo      Directo        `json:"directo"`
+	Publicado    bool           `json:"publicado" doc:"Está en la versión publicada (admite estado en directo)"`
 	Avisos       []string       `json:"avisos" doc:"Conflictos que afectan a este flight (texto corto)"`
 }
 
@@ -288,6 +289,9 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 	}
 	if v != nil {
 		b.Publicada = &v.VersionInfo
+		for i := range b.Flights {
+			b.Flights[i].Publicado = v.Snapshot.flight(b.Flights[i].ID) != nil
+		}
 		b.CambiosSinPublicar = len(diff(&v.Snapshot, snapshot(b, byID, v.Numero+1), byID, loc).Cambios) > 0
 	} else {
 		b.CambiosSinPublicar = len(b.Flights) > 0
