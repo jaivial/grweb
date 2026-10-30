@@ -217,18 +217,18 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
   template: `
     <gr-page title="Clubs de powerlifting" accent="en Valencia" eyebrow="Comunidad" section="Comunidad" crumb="Clubs"
       subtitle="Clubs y gimnasios de la Comunitat Valenciana, Murcia y Baleares donde entrenar powerlifting y prepararte para competir.">
-      <span class="-mt-6 mb-8 inline-flex h-7 items-center rounded-2xs border border-info/30 bg-info/10 px-2.5 text-mono-xs text-info md:-mt-8">Directorio en construcción</span>
+      <span pageStamps class="inline-flex h-7 items-center rounded-full border border-info/40 bg-info/10 px-3 text-label-xs text-info uppercase">Directorio en construcción</span>
       <div class="flex flex-col gap-4">
         <label class="relative block max-w-sm">
           <span class="sr-only">Buscar un club</span>
           <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
           <input type="search" placeholder="Busca un club o una ciudad…" [value]="q()" (input)="q.set($any($event.target).value)"
-            class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
+            class="h-11 w-full rounded-xl border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
         </label>
         <div class="flex flex-wrap gap-2" role="group" aria-label="Provincia">
           @for (p of provincias; track p) {
-            <button type="button" (click)="prov.set(p)" [attr.aria-pressed]="prov() === p" class="inline-flex h-10 items-center gap-1.5 rounded-pill border px-3.5 text-label-s"
-              [class]="prov() === p ? 'border-accent-text bg-accent-deep/40 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">
+            <button type="button" (click)="prov.set(p)" [attr.aria-pressed]="prov() === p" class="inline-flex h-10 items-center gap-2 rounded-full border px-4 text-label-s transition-colors"
+              [class]="prov() === p ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary'">
               <gr-icon [name]="prov() === p ? 'check' : 'plus'" [size]="14" />{{ p }}
             </button>
           }
@@ -236,24 +236,25 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
       </div>
 
       @if (clubs() === null) {
-        <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-40 rounded-lg" /> }</div>
+        <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-40 rounded-2xl" /> }</div>
       } @else {
         <ul class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           @for (c of visibles(); track c.nombre) {
-            <li class="flex flex-col rounded-lg border border-line-subtle bg-bg-card p-5">
+            <!-- Figma 32 «Club card»: 44 px logo tile, name and place, pill tags, role and «Ver club» -->
+            <li class="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-bg-card p-4 md:p-5">
               <div class="flex items-center gap-3">
-                <span class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line-subtle bg-bg-deep">
-                  @if (c.logoUrl) { <img [src]="c.logoUrl" alt="" class="max-h-10 max-w-10 object-contain" loading="lazy" /> } @else { <span class="text-label-s text-text-tertiary">{{ initials(c.nombre) }}</span> }
+                <span class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/8 p-1">
+                  @if (c.logoUrl) { <img [src]="c.logoUrl" alt="" class="max-h-full max-w-full object-contain" loading="lazy" /> } @else { <span class="text-label-s text-text-tertiary">{{ initials(c.nombre) }}</span> }
                 </span>
                 <div class="min-w-0">
-                  <h2 class="truncate text-label-l">{{ c.nombre }}</h2>
+                  <h2 class="truncate text-label-m">{{ c.nombre }}</h2>
                   <p class="flex items-center gap-1 text-body-xs text-text-tertiary"><gr-icon name="map-pin" [size]="12" />{{ c.ciudad || 'Por confirmar' }}@if (c.provincia && c.ciudad && !c.ciudad.includes(c.provincia)) { ({{ c.provincia }}) }</p>
                 </div>
               </div>
               @if (tags(c).length) {
-                <p class="mt-4 flex flex-wrap gap-1.5">@for (t of tags(c); track t) { <span class="inline-flex h-6 items-center rounded-2xs border border-line-strong px-2 text-mono-xs text-text-secondary">{{ t }}</span> }</p>
+                <p class="flex flex-wrap gap-1.5">@for (t of tags(c); track t) { <span class="inline-flex h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-secondary uppercase">{{ t }}</span> }</p>
               }
-              <div class="mt-auto flex items-center justify-between gap-3 border-t border-line-subtle pt-4" [class.mt-5]="true">
+              <div class="mt-auto flex min-h-11 items-center justify-between gap-3 border-t border-line-subtle pt-2">
                 <span class="text-body-xs text-text-tertiary">{{ rol[c.rol] }}{{ c.afiliadoAep ? ' · AEP' : '' }}</span>
                 @if (c.web || c.instagram) {
                   <a [href]="c.web || c.instagram" target="_blank" rel="noopener" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Ver club <gr-icon name="external-link" [size]="14" /></a>
@@ -261,14 +262,15 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
               </div>
             </li>
           } @empty {
-            <li class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-tertiary md:col-span-2 lg:col-span-3">No hay clubs que coincidan con la búsqueda.</li>
+            <li class="rounded-2xl border border-line-subtle bg-bg-card p-6 text-body-m text-text-tertiary md:col-span-2 lg:col-span-3">No hay clubs que coincidan con la búsqueda.</li>
           }
-          <li class="flex flex-col rounded-lg border border-dashed border-line-strong p-5">
+          <li class="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-bg-card p-4 md:p-5">
             <div class="flex items-center gap-3">
-              <span class="flex size-12 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="plus" [size]="18" /></span>
-              <div><p class="text-label-l">Tu club aquí</p><p class="text-body-xs text-text-tertiary">Comunitat Valenciana</p></div>
+              <span class="flex size-11 items-center justify-center rounded-lg bg-accent/12 text-accent-text"><gr-icon name="plus" [size]="18" /></span>
+              <div><p class="text-label-m">Tu club aquí</p><p class="flex items-center gap-1 text-body-xs text-text-tertiary"><gr-icon name="map-pin" [size]="12" />Comunitat Valenciana</p></div>
             </div>
-            <div class="mt-auto flex items-center justify-between gap-3 border-t border-line-subtle pt-4 mt-5">
+            <p class="flex"><span class="inline-flex h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-secondary uppercase">Añade tu club</span></p>
+            <div class="mt-auto flex min-h-11 items-center justify-between gap-3 border-t border-line-subtle pt-2">
               <span class="text-body-xs text-text-tertiary">Directorio abierto</span>
               <button type="button" (click)="openForm()" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Añadir mi club <gr-icon name="arrow-right" [size]="14" /></button>
             </div>
@@ -276,13 +278,13 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
         </ul>
       }
 
-      <section id="anadir" class="mt-12 scroll-mt-32 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
+      <section id="anadir" class="mt-12 scroll-mt-32 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
         <div class="md:flex md:items-center md:justify-between md:gap-6">
           <div>
             <h2 class="text-ui-h4">¿Entrenas powerlifting en un club?</h2>
             <p class="mt-1 text-body-s text-text-tertiary">Añádelo gratis al directorio: nombre, ciudad, web y si está afiliado a la AEP. Lo revisamos antes de publicarlo.</p>
           </div>
-          @if (!form()) { <button grButton variant="primary" class="mt-4 w-full md:mt-0 md:w-auto" (click)="openForm()">Añadir mi club</button> }
+          @if (!form()) { <button grButton variant="primary" size="l" class="mt-4 w-full shrink-0 md:mt-0 md:w-auto" (click)="openForm()">Añadir mi club</button> }
         </div>
         @if (form()) {
           @if (sent()) {
@@ -321,8 +323,9 @@ export class ClubsPage {
   protected readonly provincias = ['Todas', ...PROVINCIAS];
   protected readonly rol = ROL;
   protected readonly relacionados: RelatedLink[] = [
-    { titulo: 'Tu primera competición', texto: 'Guía paso a paso', ruta: '/blog' },
-    { titulo: 'Calendario 2026', texto: 'Competiciones de la zona', ruta: '/blog' },
+    // Figma's «Tu primera competición» / «Calendario 2026» pages do not exist: closest real pages
+    { titulo: 'Tu primera competición', texto: 'Preguntas frecuentes', ruta: '/preguntas-frecuentes' },
+    { titulo: 'Categorías de peso', texto: '¿En cuál compites?', ruta: '/categorias-de-peso' },
     { titulo: 'Patrocinadores', texto: 'Marcas colaboradoras', ruta: '/patrocinadores' },
   ];
   protected readonly visibles = computed(() => {
