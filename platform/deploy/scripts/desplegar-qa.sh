@@ -36,7 +36,8 @@ echo "→ aplicando $OVERLAY"
 tar -C deploy/k8s -cf - . | ssh "$KRAKEN" "set -e
 tmp=\$(mktemp -d /tmp/grcup-qa-deploy.XXXXXX)
 tar -C \$tmp -xf -
-sed -i 's/newTag: TAG/newTag: $VERSION/' \$tmp/overlays/qa/kustomization.yaml
+# quoted: a hash like 70637e9 is a number in YAML (scientific notation)
+sed -i 's/newTag: TAG/newTag: \"$VERSION\"/' \$tmp/overlays/qa/kustomization.yaml
 sudo k3s kubectl -n $NS delete job -l app.kubernetes.io/part-of=grcup --ignore-not-found >/dev/null
 sudo k3s kubectl apply -k \$tmp/overlays/qa
 sudo k3s kubectl -n $NS rollout status statefulset/postgres --timeout=180s
