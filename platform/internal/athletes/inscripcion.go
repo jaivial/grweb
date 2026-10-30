@@ -393,7 +393,7 @@ type EstadoInscripcion struct {
 	CodigoRef   string    `json:"codigoReferido,omitempty"`
 	CheckoutURL string    `json:"checkoutUrl,omitempty" doc:"Página de pago, mientras la plaza siga reservada"`
 	Categoria   string    `json:"categoria"`
-	Division    string    `json:"division,omitempty" doc:"Open, Junior… (por la edad en el año de la competición)"`
+	Division    string    `json:"division,omitempty" doc:"Nombre de la división: Open, Junior… (por la edad en el año de la competición)"`
 }
 
 func maskEmail(e string) string {
@@ -525,7 +525,7 @@ func (s *Svc) estado(ctx context.Context, cid, id uuid.UUID) (EstadoInscripcion,
 	e.Email = maskEmail(email)
 	e.Categoria = datos["sexo"] + " " + datos["categoria"]
 	if nac, ok := ParseFecha(datos["fechaNacimiento"]); ok {
-		e.Division = DivisionPorEdad(nac, s.compYear(ctx, cid))
+		e.Division = DivisionNombre(DivisionPorEdad(nac, s.compYear(ctx, cid)))
 	}
 	if e.Estado == "pendiente_pago" && vigente {
 		e.CheckoutURL = checkout
