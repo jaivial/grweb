@@ -40,6 +40,8 @@ tar -C \$tmp -xf -
 sed -i 's/newTag: TAG/newTag: \"$VERSION\"/' \$tmp/overlays/qa/kustomization.yaml
 sudo k3s kubectl -n $NS delete job -l app.kubernetes.io/part-of=grcup --ignore-not-found >/dev/null
 sudo k3s kubectl apply -k \$tmp/overlays/qa
+# Kustomize does not prune: the generic allow-services policy was replaced by allow-<servicio> (step 15).
+sudo k3s kubectl -n $NS delete networkpolicy allow-services --ignore-not-found >/dev/null
 sudo k3s kubectl -n $NS rollout status statefulset/postgres --timeout=180s
 for d in \$(sudo k3s kubectl -n $NS get deploy -o name); do sudo k3s kubectl -n $NS rollout status \$d --timeout=240s; done
 sudo k3s kubectl -n $NS wait --for=condition=complete job --all --timeout=240s
