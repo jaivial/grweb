@@ -129,9 +129,7 @@ Producción vive en el mismo nodo que QA. Se distingue de QA en `deploy/k8s/over
 
 Puesta en marcha, una vez y con la aprobación del organizador:
 
-1. Confirmar en `overlays/prod/config.yaml`:
-   - los dominios, y poner `DOMINIOS_CONFIRMADOS: "si"`;
-   - el SMTP (`SMTP_HOST`, remitente).
+1. Confirmar el SMTP en `overlays/prod/config.yaml` (`SMTP_HOST`, remitente). Los dominios ya están decididos: subdominios de menustudioai.com.
 2. Secretos:
    - `ROOT_EMAIL=… ROOT_NOMBRE=… deploy/scripts/secretos.sh prod`. Esto crea `~/.config/grcup-prod/`; rellenar ahí `SMTP_USER` y `SMTP_PASSWORD` y repetir.
    - **Guardar una copia de esa carpeta fuera de la máquina:** `CRYPTO_KEY` cifra los secretos de las integraciones.
@@ -143,6 +141,8 @@ Puesta en marcha, una vez y con la aprobación del organizador:
    - sin migración: crearlas en «Sistema › Competiciones».
    - Contenido inicial de la web: `deploy/scripts/tarea.sh --entorno prod cms seed-grcup`. Lo que lleva «Datos de ejemplo» se revisa en «Web y contenidos» antes de abrir.
 7. Integraciones (Stripe live, SMTP de la competición, WhatsApp): en «Sistema e integraciones», con su prueba.
-8. nginx y DNS: `deploy/scripts/nginx-prod.sh probar`, y en el corte `mantenimiento` → `plataforma` (`anterior` para volver).
+8. nginx y DNS:
+   - `deploy/scripts/nginx-prod.sh instalar --confirmo-produccion` publica `grcup.menustudioai.com`, `grcup-bo.` y `grcup-api.` (certificado, site propio y DNS en Cloudflare);
+   - en el corte, el dominio anterior: `mantenimiento` → `redirigir` (`anterior` para volver).
 
 **Tareas sueltas de un servicio** (seed, enlace de acceso, ETL): `deploy/scripts/tarea.sh [--entorno prod] <servicio> <comando…>`. Lanza un Job con la imagen, la base y la red del propio servicio.

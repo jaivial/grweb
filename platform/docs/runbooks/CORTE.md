@@ -100,43 +100,45 @@ Resultado del ensayo: ver la sección 8.
    - ejecutar `--dry-run`, después el ETL real y la conciliación (sección 7);
    - borrar las bases y volver a empezar limpio.
 
-## 5. Dominio, DNS y CDN (comprobado el 30/10/2026)
+## 5. Dominios, DNS y CDN
 
-- **`grcup.jaimedigitalstudio.com` pasa hoy por BunnyCDN.**
-  - El DNS de `jaimedigitalstudio.com` está en Bunny DNS (`kiki`/`coco.bunny.net`).
-  - El registro apunta a un borde de Bunny (37.19.215.33), que pide al origen kraken (65.109.100.94).
-  - El borde sirve su propio certificado.
-  - El certificado comodín que usa el origen (`jaimedigitalstudio.com-0001`) caducó el 18/04/2026: su renovación DNS-01 usa Cloudflare, pero el dominio ya no está allí.
-- **La plataforma no debe ir detrás del CDN** en el host de la web, porque:
-  - el directo, los horarios y el sorteo usan SSE (respuestas largas sin búfer);
-  - los límites por IP necesitan la IP real del cliente.
+**Decidido el 30/10/2026:** la plataforma vive en subdominios de `menustudioai.com`, como QA:
 
-  **Propuesta:**
-  - en el corte, el registro A de la web pasa a kraken, con TTL 60, y deja de pasar por la pull zone;
-  - el certificado se saca por HTTP-01 (`certbot --webroot`), como hace `nginx-prod.sh`;
-  - las imágenes siguen en `jaimedigitalstudio.b-cdn.net`.
-- **Backoffice y API** necesitan sus registros en Bunny DNS hacia kraken antes del corte. `nginx-prod.sh mantenimiento` pide sus certificados.
-- **Dominio por decidir:**
-  - `overlays/prod/config.yaml` propone seguir en `grcup.jaimedigitalstudio.com`, con `grcup-bo.` y `grcup-api.`;
-  - el sitemap antiguo habla de `grcup.es`, que hoy no resuelve;
-  - si se elige otro, se cambia en ese fichero y el resto lo sigue.
-- **nginx del dominio:** `deploy/scripts/nginx-prod.sh`.
-  - `probar` comprueba la configuración en local.
-  - `mantenimiento`, `plataforma` y `anterior` la cambian en kraken. Guardan el server block anterior y, si `nginx -t` falla, vuelven al fichero previo sin recargar.
+| Host | Uso |
+|---|---|
+| `grcup.menustudioai.com` | web pública |
+| `grcup-bo.menustudioai.com` | backoffice |
+| `grcup-api.menustudioai.com` | API: webhooks de la plataforma, CLI |
+
+- **DNS en Cloudflare**, solo DNS (sin proxy): A → IP pública de kraken (65.109.100.94).
+- **Un certificado** de Let's Encrypt para los tres (DNS-01 con Cloudflare, como QA).
+- **Sin CDN delante:** el directo, los horarios y el sorteo usan SSE, y los límites por IP necesitan la IP real.
+- **`deploy/scripts/nginx-prod.sh instalar --confirmo-produccion`** hace todo en orden: certificado, site propio (`/etc/nginx/sites-available/grcup.menustudioai.com.conf`), `nginx -t`, recarga y, al final, los registros DNS (`dns-cloudflare.sh prod`).
+  - Necesita la plataforma desplegada en `grcup`.
+  - No toca el dominio anterior.
+
+**El dominio anterior, `grcup.jaimedigitalstudio.com`, pasa a redirigir con 301 a la web nueva** (misma ruta; la plataforma ya redirige las rutas antiguas que cambiaron).
+- `/backoffice` va al backoffice nuevo.
+- `= /api/webhooks/stripe` sigue en el backend anterior por FER.
+- **CDN:** el dominio pasa por BunnyCDN (DNS en Bunny DNS, borde 37.19.215.33 → origen kraken), así que no hace falta tocar su DNS. Tras cada cambio de su server block hay que **purgar la caché de la pull zone** en el panel de Bunny.
+- **Certificado del origen:** el comodín `jaimedigitalstudio.com-0001` caducó el 18/04/2026 (su renovación DNS-01 usaba Cloudflare y el dominio ya no está allí). El borde de Bunny tiene el suyo y hoy funciona igual. Si Bunny pasara a verificar el origen, habría que renovarlo por HTTP-01.
+- **Modos de `nginx-prod.sh`** para el dominio anterior: `mantenimiento` (503), `redirigir` (301) y `anterior` (su server block original, guardado la primera vez).
+  - Si `nginx -t` falla, se vuelve al fichero previo sin recargar.
+  - `probar` comprueba en local los dos ficheros juntos: el site nuevo y el dominio anterior con su QUIC.
 
 ## 6. Plan de corte
 
 | Momento | Paso |
 |---|---|
-| T-1 | Congelar cambios en la web anterior. Bajar el TTL de los registros DNS a 60 s. Avisar al equipo de la ventana. |
-| T0 · 0′ | **Web de GR Cup en mantenimiento** (`nginx-prod.sh mantenimiento --confirmo-produccion`): el server de `grcup.jaimedigitalstudio.com` sirve una página 503 a todo, salvo a la IP del operador y a `location /api/webhooks/stripe` (sigue yendo a 127.0.0.1:5006, por FER). fercup.com y backoffice.fercup.com no se tocan. Stripe reintenta sus webhooks hasta 3 días: no se pierden. |
+| T-1 | La plataforma ya está desplegada en `grcup` y publicada en sus subdominios (`nginx-prod.sh instalar`), todavía sin anunciar. Congelar cambios en la web anterior. Avisar al equipo de la ventana. |
+| T0 · 0′ | **Web de GR Cup en mantenimiento** (`nginx-prod.sh mantenimiento --confirmo-produccion` y purgar Bunny): el server de `grcup.jaimedigitalstudio.com` sirve una página 503 a todo, salvo a la IP del operador y a `location /api/webhooks/stripe` (sigue yendo a 127.0.0.1:5006, por FER). fercup.com y backoffice.fercup.com no se tocan. Stripe reintenta sus webhooks hasta 3 días: no se pierden. |
 | T0 · 5′ | **Copia final**: `mysqldump --single-transaction --routines grcup` (como `scripts/db-backup.sh`), con su `sha256sum`. |
 | T0 · 10′ | **Restaurar la copia en una MySQL aislada**: un pod efímero como `legado-mysql` en el namespace de producción, con un usuario de solo `SELECT`. **Nunca** apuntar el ETL a la MySQL en marcha. |
 | T0 · 15′ | `migrar-legado.sh --dry-run`: leer el informe completo (omitidos y notas). Si algo no cuadra, **parar** y volver atrás (sección 9). |
 | T0 · 20′ | `migrar-legado.sh` (real). Guardar la salida con el informe. |
 | T0 · 30′ | **Conciliación** (sección 7). Si no cuadra: vuelta atrás. |
 | T0 · 40′ | **Pruebas de humo**: home, inscripción hasta el pago (Stripe live con importe mínimo y devolución), sorteo, entradas, `/resultados/2025`, login de un usuario migrado con su contraseña antigua, Salud 12/12. |
-| T0 · 50′ | **Cambio de tráfico** (`nginx-prod.sh plataforma --confirmo-produccion`; DNS de la web → kraken, sin CDN): el server del dominio de GR Cup pasa a la web y al gateway nuevos. Se mantiene la excepción `location /api/webhooks/stripe` → 127.0.0.1:5006 mientras FER tenga allí su endpoint. `/backoffice*` redirige al dominio del backoffice nuevo. Los webhooks de GR Cup en Stripe pasan a la API nueva. |
+| T0 · 50′ | **Cambio de tráfico** (`nginx-prod.sh redirigir --confirmo-produccion` y purgar Bunny): `grcup.jaimedigitalstudio.com` responde 301 a `https://grcup.menustudioai.com` con la misma ruta (`/backoffice` → backoffice nuevo); `= /api/webhooks/stripe` sigue en 127.0.0.1:5006 mientras FER tenga allí su endpoint. Los webhooks de GR Cup en Stripe pasan a `https://grcup-api.menustudioai.com`. |
 | T0 · 60′ | Abrir. Vigilar Salud (p95, errores) y Mailpit/SMTP. |
 | T+1…T+7 | Revisión diaria: pagos de Stripe frente a inscripciones y compras, rebotes, incidencias. **T+7: punto de no retorno.** |
 
@@ -204,7 +206,7 @@ Nada más cambia.
 
 | Cuándo | Cómo | Datos |
 |---|---|---|
-| **Antes de abrir** (hasta T0 · 60′) | El server del dominio de GR Cup vuelve a su configuración anterior (copia guardada en T0 · 0′) y se quita el mantenimiento. FER no se ve afectado en ningún tramo. | Nada se perdió: MySQL no se tocó y la plataforma aún no recibió a nadie. Las bases nuevas se vacían antes del siguiente intento. |
+| **Antes de abrir** (hasta T0 · 60′) | `nginx-prod.sh anterior --confirmo-produccion` y purgar Bunny: el dominio anterior vuelve a su server block original (guardado en T0 · 0′). FER no se ve afectado en ningún tramo. | Nada se perdió: MySQL no se tocó y la plataforma aún no recibió a nadie. Las bases nuevas se vacían antes del siguiente intento. |
 | **Después de abrir, antes de T+7** | Solo ante un incidente bloqueante (pagos que fallan, pérdida de datos). nginx → web anterior; webhooks de Stripe → API antigua. | Lo creado en la plataforma desde la apertura se exporta en CSV desde el backoffice: atletas e inscripciones, compras del sorteo, entradas, contactos. Se da de alta a mano en la web anterior, conciliando con los pagos de Stripe del periodo. |
 | **Después de T+7** | Sin vuelta atrás: se corrige hacia delante (`rollout undo` de un servicio, restaurar una base desde la copia nocturna). | La copia final de MySQL queda archivada, cifrada, el plazo de retención. |
 
