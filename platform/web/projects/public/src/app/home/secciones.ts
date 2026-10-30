@@ -19,7 +19,7 @@ const srcset = (src: string) => (/-l\.webp$/.test(src) ? `${src.replace(/-l\.web
 const FOTO = 'border border-white/8';
 
 /** Public raffle (GET /api/competiciones/{slug}/sorteo), the fields the home uses. */
-export interface SorteoHome { estado: string; premio: string; precio: number; vendidos: number; totalMax?: number; maxPorPersona: number }
+export interface SorteoHome { estado: string; premio: string; precio: number; vendidos: number; totalMax?: number; maxPorPersona: number; premioImagen?: string }
 
 /** «Stats band» (Figma): four headline numbers between hairlines. */
 @Component({
@@ -404,15 +404,17 @@ export class SecAfiliaciones {
   host: { class: 'relative block bg-bg-base md:px-20 md:py-24' },
   template: `
     @let r = sorteo();
+    @let p = pagina();
     <div class="relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 py-14 md:rounded-2xl md:border md:border-accent/35 md:p-12 lg:flex-row lg:gap-12 lg:p-[72px]">
       <div [class]="glow + ' -top-30 right-[-60px] size-[520px] bg-[radial-gradient(closest-side,rgb(196_43_62/0.25),transparent)]!'"></div>
-      <img [src]="t('imagen') || 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000090.webp'" [alt]="r?.premio || 'Cinturón SBD'"
-        class="relative aspect-[350/230] w-full rounded-xl border border-white/8 object-cover lg:order-last lg:aspect-[488/380] lg:w-[488px] lg:shrink-0" loading="lazy" />
+      <img [src]="t('imagen') || (p && r?.premioImagen) || 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000090.webp'" [alt]="r?.premio || 'Cinturón SBD'"
+        class="relative aspect-[350/230] w-full rounded-xl border border-white/8 object-cover lg:order-last lg:aspect-[488/380] lg:w-[488px] lg:shrink-0" [attr.loading]="p ? null : 'lazy'" [attr.fetchpriority]="p ? 'high' : null" />
       <div class="relative flex w-full flex-col items-center gap-4 text-center lg:max-w-[520px] lg:items-start lg:text-left">
         <gr-eyebrow [texto]="t('eyebrow') || 'Sorteo benéfico'" tono="claro" />
-        <h2 class="text-display-l [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">{{ t('titulo') || 'Sorteo' }}</h2>
+        @if (p) { <h1 class="text-display-l [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">Sorteo</h1> }
+        @else { <h2 class="text-display-l [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">{{ t('titulo') || 'Sorteo' }}</h2> }
         <p class="text-display-xs md:text-display-m">{{ t('subtitulo') || 'Entra en el sorteo de un ' + (r?.premio || 'cinturón SBD') }}</p>
-        <p class="text-body-m text-text-secondary md:text-body-l">{{ t('texto') }}</p>
+        <p class="text-body-m text-text-secondary md:text-body-l">{{ texto() || t('texto') }}</p>
         @if (r) {
           <div class="flex flex-wrap items-center gap-3">
             <span class="inline-flex h-[35px] items-center gap-2 rounded-pill border border-white/15 bg-black/25 px-4 text-label-s"><gr-icon name="ticket" [size]="16" />{{ euros(r.precio) }} por boleto</span>
@@ -424,8 +426,9 @@ export class SecAfiliaciones {
           </div>
         }
         <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <a grButton variant="display" size="l" href="/sorteo">{{ cta() }}</a>
-          <a grButton variant="glass" size="l" href="/politica-concurso" iconRight="arrow-right">Ver normas</a>
+          @if (!p) { <a grButton variant="display" size="l" href="/sorteo">{{ cta() }}</a> }
+          @else if (r?.estado === 'en_venta') { <a grButton variant="primary" size="l" href="#participa" class="rounded-pill!">Compra ya</a> }
+          <a grButton variant="glass" size="l" [href]="p ? '#normas' : '/politica-concurso'" iconRight="arrow-right">Ver normas</a>
         </div>
       </div>
     </div>
@@ -434,6 +437,9 @@ export class SecAfiliaciones {
 export class SecSorteo {
   readonly s = input<Seccion | undefined>();
   readonly sorteo = input<SorteoHome | null>(null);
+  /** On /sorteo itself: the page's h1, «Compra ya» to the form and «Ver normas» to the rules (Figma 07 «Section / Sorteo»). */
+  readonly pagina = input(false);
+  readonly texto = input('');
   protected readonly glow = GLOW;
   protected readonly num = num;
   protected readonly euros = euros;

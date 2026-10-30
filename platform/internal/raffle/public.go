@@ -319,7 +319,8 @@ func (s *Svc) registerPublic() {
 			}
 			co, err := prov.CreateCheckout(ctx, pagos.CheckoutIn{Amount: importe, Description: fmt.Sprintf("%d %s · Sorteo %s", b.Cantidad, nb, c.Nombre), Email: em,
 				SuccessURL: s.webURL + "/sorteo/confirmacion?compra=" + id.String() + "&t=" + tok, CancelURL: s.webURL + "/sorteo?cancelado=1#participa",
-				Metadata: map[string]string{"competicion": c.ID.String(), "compra": id.String()}, ExpiresAt: time.Now().Add(30 * time.Minute)})
+				Metadata: map[string]string{"competicion": c.ID.String(), "compra": id.String()}, ExpiresAt: time.Now().Add(30 * time.Minute),
+				Lines: []pagos.Line{{Label: fmt.Sprintf("%d %s × %s", b.Cantidad, nb, pagos.Euros(importe/b.Cantidad)), Amount: importe}}})
 			if err != nil {
 				_, _ = s.a.DB.Exec(ctx, `UPDATE compras SET estado = 'fallida', motivo = 'No se pudo abrir el pago', updated_at = now() WHERE id = $1`, id)
 				s.a.Log.Warn("checkout del sorteo", "err", err)
