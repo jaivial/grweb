@@ -37,7 +37,7 @@ import { Footer, Navbar, type Lang } from './layout';
            the dash, Display/M → Display/XL title, tertiary Body/M → Body/L intro, «Updated stamp» -->
       <div class="relative mx-auto max-w-[1440px] px-5 pt-[92px] pb-18 md:px-8 md:pt-[148px] xl:px-[120px] xl:pb-26">
 @if (cabecera()) {
-                <header class="flex max-w-[900px] flex-col gap-3 md:gap-4">
+                <header class="max-w-[900px] flex-col gap-3 md:flex md:gap-4" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
           <nav class="flex flex-wrap items-center gap-1.5 text-body-s text-text-tertiary" aria-label="Migas">
             <a href="/" class="hover:text-text-primary">Inicio</a>
             @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
@@ -82,4 +82,6 @@ export class Page {
   readonly stamp = input('');
   readonly centrado = input(false);
   readonly cabecera = input(true);
+  /** false: the header only shows from tablet (the page brings its own mobile title, e.g. /en-directo under the video). */
+  readonly cabeceraMovil = input(true);
 }
