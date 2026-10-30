@@ -2,8 +2,7 @@ import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, inject, input, signal } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
-import { GrAlert, GrButton, GrField, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
+import { GrSkeleton, fmtLongDate } from '@grcup/ui';
 import { Cms, renderMarkdown, type Heading, type Pagina } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo, type SeoData } from '../core/seo';
@@ -198,60 +197,5 @@ export class BlogPage {
   }
 }
 
-/** /voluntarios (Figma page 33): form with a separate, unticked privacy consent. */
-@Component({
-  selector: 'gr-voluntarios-page',
-  imports: [Page, FormsModule, GrField, GrInput, GrButton, GrAlert],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <gr-page title="Hazte" accent="voluntario" eyebrow="Equipo" subtitle="Ayúdanos en la mesa, la puerta, el calentamiento o la carga de discos. Te escribimos para organizar los turnos.">
-      @if (sent()) {
-        <gr-alert tone="success" title="¡Solicitud recibida!" class="max-w-xl">Gracias, {{ nombre }}. Te escribiremos a {{ email }} con los turnos disponibles.</gr-alert>
-      } @else {
-        <form class="grid max-w-xl gap-5" (ngSubmit)="send()" novalidate>
-          <gr-field label="Nombre y apellidos" for="v-nombre"><input grInput id="v-nombre" name="nombre" autocomplete="name" required [(ngModel)]="nombre" /></gr-field>
-          <gr-field label="Email" for="v-email"><input grInput id="v-email" name="email" type="email" autocomplete="email" required [(ngModel)]="email" /></gr-field>
-          <gr-field label="Teléfono" for="v-tel" [optional]="true"><input grInput id="v-tel" name="telefono" type="tel" autocomplete="tel" [(ngModel)]="telefono" /></gr-field>
-          <gr-field label="Disponibilidad" for="v-disp" hint="Mañana, tarde o todo el día…"><input grInput id="v-disp" name="disp" [(ngModel)]="disponibilidad" /></gr-field>
-          <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="menor" [(ngModel)]="esMenor" class="mt-1 size-5 accent-[#C42B3E]" />Soy menor de edad (pediremos la autorización de mi madre, padre o tutor)</label>
-          <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="priv" [(ngModel)]="acepta" class="mt-1 size-5 accent-[#C42B3E]" />He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de privacidad</a></label>
-          @if (error()) { <gr-alert tone="danger" title="No se pudo enviar">{{ error() }}</gr-alert> }
-          <button grButton variant="primary" size="l" type="submit" [loading]="busy()">Enviar solicitud</button>
-        </form>
-      }
-    </gr-page>
-  `,
-})
-export class VoluntariosPage {
-  private readonly cms = inject(Cms);
-  protected nombre = '';
-  protected email = '';
-  protected telefono = '';
-  protected disponibilidad = '';
-  protected esMenor = false;
-  protected acepta = false;
-  protected readonly busy = signal(false);
-  protected readonly sent = signal(false);
-  protected readonly error = signal('');
-  constructor() {
-    const seo = inject(Seo);
-    void inject(PendingTasks).run(() => applySeo(this.cms, seo, '/voluntarios', 'Voluntarios · GR Strength Cup', 'Apúntate como voluntario en la GR Strength Cup.'));
-  }
-  protected async send(): Promise<void> {
-    this.error.set('');
-    if (!this.nombre.trim() || !this.email.includes('@')) return this.error.set('Escribe tu nombre y un email válido.');
-    if (!this.acepta) return this.error.set('Tienes que aceptar la política de privacidad para enviar la solicitud.');
-    this.busy.set(true);
-    try {
-      await this.cms.voluntario({ nombre: this.nombre, email: this.email, telefono: this.telefono, disponibilidad: this.disponibilidad, esMenor: this.esMenor, aceptaPrivacidad: this.acepta });
-      this.sent.set(true);
-    } catch (e) {
-      const d = (e as { error?: { detail?: string } }).error?.detail;
-      this.error.set(d ?? 'Inténtalo de nuevo en unos minutos.');
-    } finally {
-      this.busy.set(false);
-    }
-  }
-}
 
 
