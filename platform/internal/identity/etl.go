@@ -89,12 +89,24 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 
 	inf := legacy.NuevoInforme("identity", o.DryRun)
 	ids := map[int]uuid.UUID{}
+	// only the people of the migrated editions (and the old Roots): users of another web of the same backend (FER)
+	// stay there
+	conMembresia := map[int]bool{}
+	for _, m := range ms {
+		if _, ok := mapa[m.comp]; ok && m.aceptada {
+			conMembresia[m.usuario] = true
+		}
+	}
 	err = db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
 		for _, u := range us {
 			inf.Leidos["usuarios"]++
 			email := strings.ToLower(strings.TrimSpace(u.email))
 			if !strings.Contains(email, "@") {
 				inf.Omitir("usuario sin email válido")
+				continue
+			}
+			if !conMembresia[u.id] && !u.root && !u.superadmin {
+				inf.Omitir("usuario sin membresía en las ediciones migradas (p. ej. solo FER)")
 				continue
 			}
 			var id uuid.UUID

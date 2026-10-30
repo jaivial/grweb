@@ -8,6 +8,12 @@ organizador**; hasta entonces la web anterior sigue sirviendo sin cambios.
 > siempre una **copia restaurada**, nunca la base en marcha. QA **nunca** recibe datos personales de producción: se
 > ensaya con la base sintética (`deploy/scripts/legado-qa.sh`).
 
+> **El sistema anterior también es el de FER.** `grcup-api.service` (127.0.0.1:5006) y su MySQL atienden también a
+> fercup.com y backoffice.fercup.com (`Competiciones.Tipo = 'fer'`). El corte **solo mueve GR Cup**:
+> - el backend y la MySQL anteriores **siguen en marcha** para FER;
+> - el ETL no migra competiciones de FER ni usuarios que solo pertenecen a FER;
+> - el webhook de Stripe que entra por el dominio de GR Cup sigue llegando al backend anterior (sección 5).
+
 ## 1. Qué se migra
 
 Un comando `etl-mysql` por servicio, ejecutado como Job con la imagen, la base y los secretos del propio servicio
@@ -21,8 +27,8 @@ Un comando `etl-mysql` por servicio, ejecutado como Job con la imagen, la base y
 
 | Web anterior (MySQL) | Plataforma | Regla |
 |---|---|---|
-| `Competiciones` | competition · `competiciones` | GR Cup 2025 → `grcup-2025`, GR Cup 2026 → `grcup`, otra → su slug; `--mapa id=slug` (o `id=-`) manda. Una edición que ya existe conserva sus datos. Las celebradas quedan `finalizado`. Al final deja el mapa de ediciones en Redis (`legado:ediciones`, 30 días) para los demás pasos. |
-| `Usuarios` | identity · `usuarios` | Misma contraseña: el hash PBKDF2-SHA256 se guarda como `$pbkdf2-sha256$…` y pasa a argon2id en el primer acceso. `IsRoot`/`IsSuperadmin` → Root; `IsActive = 0` → suspendido. Un email que ya existe conserva su cuenta. |
+| `Competiciones` | competition · `competiciones` | Solo `Tipo = 'grcup'`: GR Cup 2025 → `grcup-2025`, GR Cup 2026 → `grcup`, otra de GR Cup → su slug; las de FER, no. `--mapa id=slug` (o `id=-`) manda. Una edición que ya existe conserva sus datos. Las celebradas quedan `finalizado`. Al final deja el mapa de ediciones en Redis (`legado:ediciones`, 30 días) para los demás pasos. |
+| `Usuarios` | identity · `usuarios` | Solo quien tiene una membresía aceptada en una edición migrada, más los Root antiguos. Misma contraseña: el hash PBKDF2-SHA256 se guarda como `$pbkdf2-sha256$…` y pasa a argon2id en el primer acceso. `IsRoot`/`IsSuperadmin` → Root; `IsActive = 0` → suspendido. Un email que ya existe conserva su cuenta. |
 | `UsuariosCompeticiones` | identity · `membresias` | root/admin → Admin, staff → Staff, registrador → Taquilla. Las invitaciones sin aceptar no se migran (se reinvita desde Equipo). |
 | `UsuariosPermissions` | — | Aquí los permisos van por rol: el informe los cuenta para revisarlos en «Equipo y permisos». |
 | `Inscripciones` | athletes · `inscripciones`, `atletas`, `perfiles`, `historial` | Pagada o confirmada → atleta `confirmado` (origen `propia`) con perfil y la inscripción `pagada`/`gratuita`. Un pago abandonado → inscripción `cancelada`, sin atleta ni contacto. Importes en céntimos; el cupón y el referido, con su descuento. |
@@ -42,6 +48,7 @@ Un comando `etl-mysql` por servicio, ejecutado como Job con la imagen, la base y
 | `InscripcionConfig`, `ReferidosConfig`, `ReferidosUserSetting` | Cuota, plazos y recompensas se revisan para la edición. | «Atletas › Inscripción». |
 | `EmailConfig`, `StripeConfig` | Son secretos. | Configurarlos en «Sistema e integraciones» (SMTP, Stripe), con su prueba. |
 | `NewsletterEmails*`, `NewsletterSendProgress` | Historial de envíos sin destinatarios con consentimiento. | Queda en la copia de MySQL. |
+| Competiciones de FER (`Tipo = 'fer'`), sus inscripciones, cupones, sorteo y los usuarios que solo son de FER | Son de otra web que sigue en el sistema anterior. | Nada: el ETL las deja fuera por defecto y lo dice en el informe. |
 | `Participants`, `Draws`, `Athletes`, `LiftEntries` | Tablas de la primera versión, sin competición. Vacías en la copia del 03/06/2026. | El informe las cuenta. |
 | `TutorialInteractions`, `InscripcionesPreparadas`, `ResponsableInscripcion`, `UrlInscripcion` | Estado de la interfaz antigua. | — |
 | QR y hora de check-in de `Inscripciones` | Las entradas y el check-in son nuevos. | El informe cuenta los check-ins. |
@@ -79,9 +86,15 @@ Resultado del ensayo: ver la sección 7.
 3. **Integraciones reales** probadas desde «Sistema»:
    - SMTP con SPF, DKIM y DMARC correctos;
    - Stripe en modo live, con los webhooks de inscripción, entradas y sorteo apuntando a la API nueva;
+   - en el panel de Stripe, la lista de endpoints que usan `https://grcup.jaimedigitalstudio.com/api/webhooks/stripe`:
+     - los de FER se pasan a `https://fercup.com/api/webhooks/stripe` (fercup.com ya envía `/api/` al backend anterior);
+     - o se mantiene la excepción de nginx de la sección 5;
    - WhatsApp (evo-weai), si se usa.
-4. **Asesoría:** textos legales, sorteo, consentimientos y menores. Checklist legal del sorteo hecho por el organizador.
-5. **Ensayo general (T-7)** con una copia real de producción, en el namespace de producción antes de abrirlo (nunca en QA):
+4. **FER avisado**:
+   - su backoffice es `backoffice.fercup.com`; `grcup.jaimedigitalstudio.com/backoffice` deja de existir con el corte;
+   - FER no cambia nada más.
+5. **Asesoría:** textos legales, sorteo, consentimientos y menores. Checklist legal del sorteo hecho por el organizador.
+6. **Ensayo general (T-7)** con una copia real de producción, en el namespace de producción antes de abrirlo (nunca en QA):
    - ejecutar `--dry-run`, después el ETL real y la conciliación (sección 6);
    - borrar las bases y volver a empezar limpio.
 
@@ -90,27 +103,28 @@ Resultado del ensayo: ver la sección 7.
 | Momento | Paso |
 |---|---|
 | T-1 | Congelar cambios en la web anterior. Bajar el TTL de los registros DNS a 60 s. Avisar al equipo de la ventana. |
-| T0 · 0′ | **Web anterior en mantenimiento**: nginx sirve una página 503 a todo salvo a la IP del operador. Stripe reintenta sus webhooks hasta 3 días: no se pierden. |
+| T0 · 0′ | **Web de GR Cup en mantenimiento**: el server de `grcup.jaimedigitalstudio.com` sirve una página 503 a todo, salvo a la IP del operador y a `location /api/webhooks/stripe` (sigue yendo a 127.0.0.1:5006, por FER). fercup.com y backoffice.fercup.com no se tocan. Stripe reintenta sus webhooks hasta 3 días: no se pierden. |
 | T0 · 5′ | **Copia final**: `mysqldump --single-transaction --routines grcup` (como `scripts/db-backup.sh`), con su `sha256sum`. |
 | T0 · 10′ | **Restaurar la copia en una MySQL aislada**: un pod efímero como `legado-mysql` en el namespace de producción, con un usuario de solo `SELECT`. **Nunca** apuntar el ETL a la MySQL en marcha. |
 | T0 · 15′ | `migrar-legado.sh --dry-run`: leer el informe completo (omitidos y notas). Si algo no cuadra, **parar** y volver atrás (sección 8). |
 | T0 · 20′ | `migrar-legado.sh` (real). Guardar la salida con el informe. |
 | T0 · 30′ | **Conciliación** (sección 6). Si no cuadra: vuelta atrás. |
 | T0 · 40′ | **Pruebas de humo**: home, inscripción hasta el pago (Stripe live con importe mínimo y devolución), sorteo, entradas, `/resultados/2025`, login de un usuario migrado con su contraseña antigua, Salud 12/12. |
-| T0 · 50′ | **Cambio de tráfico**: nginx del dominio → gateway y web nuevos (la web anterior sigue en un host interno). Redirección `/backoffice*` → dominio del backoffice. Webhooks de Stripe → API nueva. |
+| T0 · 50′ | **Cambio de tráfico**: el server del dominio de GR Cup pasa a la web y al gateway nuevos. Se mantiene la excepción `location /api/webhooks/stripe` → 127.0.0.1:5006 mientras FER tenga allí su endpoint. `/backoffice*` redirige al dominio del backoffice nuevo. Los webhooks de GR Cup en Stripe pasan a la API nueva. |
 | T0 · 60′ | Abrir. Vigilar Salud (p95, errores) y Mailpit/SMTP. |
 | T+1…T+7 | Revisión diaria: pagos de Stripe frente a inscripciones y compras, rebotes, incidencias. **T+7: punto de no retorno.** |
 
 ## 6. Conciliación (antes de abrir)
 
-Cada cifra de la web anterior (consulta sobre la copia) debe coincidir con la nueva:
+Cada cifra de la web anterior (consulta sobre la copia) debe coincidir con la nueva. Solo cuentan las
+competiciones de GR Cup, las del mapa; las de FER quedan fuera:
 
 | Qué | Web anterior (MySQL) | Plataforma (PostgreSQL) |
 |---|---|---|
 | Atletas por edición | `SELECT CompeticionId, count(*) FROM Inscripciones WHERE PagoConfirmado OR ParticipacionConfirmada GROUP BY 1` | `SELECT competition_id, count(*) FROM atletas WHERE origen = 'propia' GROUP BY 1` |
 | Cobrado en inscripciones | `SELECT CompeticionId, sum(TotalPagado) FROM Inscripciones WHERE PagoConfirmado GROUP BY 1` | `SELECT competition_id, sum(total) / 100.0 FROM inscripciones WHERE estado = 'pagada' GROUP BY 1` |
 | Boletos vendidos | `SELECT CompeticionId, count(*) FROM RifaTickets WHERE Confirmado GROUP BY 1` | `SELECT competition_id, count(*) FROM boletos GROUP BY 1` |
-| Usuarios | `SELECT count(*) FROM Usuarios` | `SELECT count(*) FROM usuarios` (menos los que ya existían) |
+| Usuarios de GR Cup | `SELECT count(DISTINCT u.Id) FROM Usuarios u LEFT JOIN UsuariosCompeticiones uc ON uc.UsuarioId = u.Id AND uc.InvitationAccepted LEFT JOIN Competiciones c ON c.Id = uc.CompeticionId AND c.Tipo = 'grcup' WHERE u.IsRoot OR u.IsSuperadmin OR c.Id IS NOT NULL` | `SELECT count(*) FROM usuarios` (menos los que ya existían) |
 | Intentos de ediciones celebradas | `SELECT count(*) FROM LiftEntriesInscripcion` | `SELECT count(*) FROM intentos` (más las renuncias añadidas del informe) |
 
 El informe de cada paso ya da leídos, escritos y omitidos con su motivo. La conciliación lo comprueba con
@@ -155,9 +169,11 @@ consultas independientes.
 
 | Cuándo | Cómo | Datos |
 |---|---|---|
-| **Antes de abrir** (hasta T0 · 60′) | nginx vuelve a la web anterior y se quita el mantenimiento. | Nada se perdió: MySQL no se tocó y la plataforma aún no recibió a nadie. Las bases nuevas se vacían antes del siguiente intento. |
+| **Antes de abrir** (hasta T0 · 60′) | El server del dominio de GR Cup vuelve a su configuración anterior (copia guardada en T0 · 0′) y se quita el mantenimiento. FER no se ve afectado en ningún tramo. | Nada se perdió: MySQL no se tocó y la plataforma aún no recibió a nadie. Las bases nuevas se vacían antes del siguiente intento. |
 | **Después de abrir, antes de T+7** | Solo ante un incidente bloqueante (pagos que fallan, pérdida de datos). nginx → web anterior; webhooks de Stripe → API antigua. | Lo creado en la plataforma desde la apertura se exporta en CSV desde el backoffice: atletas e inscripciones, compras del sorteo, entradas, contactos. Se da de alta a mano en la web anterior, conciliando con los pagos de Stripe del periodo. |
 | **Después de T+7** | Sin vuelta atrás: se corrige hacia delante (`rollout undo` de un servicio, restaurar una base desde la copia nocturna). | La copia final de MySQL queda archivada, cifrada, el plazo de retención. |
 
-Después del corte, la web anterior (`grcup-api.service`, `/var/www/grweb`) se detiene, pero no se borra hasta el
-punto de no retorno.
+Después del corte, el frontend antiguo de GR Cup (`/var/www/grweb/frontend/dist`) deja de servirse en su dominio.
+**`grcup-api.service` y la MySQL no se detienen**: siguen atendiendo a FER. Las competiciones de GR Cup del
+backoffice antiguo las marca el organizador como inactivas en T+7, para que nadie las edite por error. No se
+borra nada del sistema anterior.

@@ -6,6 +6,9 @@
 // Order: competition first (it maps the old competitions to editions and leaves the map in Redis, so the other
 // ETLs need no new network path), then identity, athletes, raffle and live. crm receives the contacts through the
 // usual internal events of athletes and raffle.
+//
+// The old backend and database are shared with the FER web (fercup.com, Competiciones.Tipo = 'fer'): only GR Cup
+// competitions are migrated unless --mapa names another one, and FER keeps running on the old system.
 package legacy
 
 import (
@@ -115,6 +118,7 @@ type Competicion struct {
 	Descripcion string    `json:"-"`
 	Email       string    `json:"-"`
 	Telefono    string    `json:"-"`
+	Tipo        string    `json:"tipo"`       // grcup | fer (the old backend serves both webs)
 	Nueva       string    `json:"nueva"`      // slug in the new platform ("-" = not migrated)
 	NuevaID     uuid.UUID `json:"nuevaId"`    // id in the new platform
 	Existe      bool      `json:"existe"`     // the edition exists (a dry run maps without creating)
@@ -122,10 +126,11 @@ type Competicion struct {
 }
 
 // Ediciones reads the old competitions and maps them to editions: a GR Cup of 2025 → grcup-2025, of 2026 →
-// grcup, any other keeps its slug; --mapa overrides the rule.
+// grcup, another GR Cup one keeps its slug, and a competition of another web (FER) is not migrated ("-");
+// --mapa overrides the rule.
 func Ediciones(ctx context.Context, db *sql.DB, mapa map[int]string) ([]Competicion, error) {
-	rows, err := db.QueryContext(ctx, `SELECT Id, Nombre, Slug, Fecha, COALESCE(Lugar, ''), COALESCE(Descripcion, ''), COALESCE(EmailContacto, ''), COALESCE(Telefono, '')
-		FROM Competiciones ORDER BY Id`)
+	rows, err := db.QueryContext(ctx, `SELECT Id, Nombre, Slug, Fecha, COALESCE(Lugar, ''), COALESCE(Descripcion, ''), COALESCE(EmailContacto, ''), COALESCE(Telefono, ''),
+		LOWER(COALESCE(NULLIF(Tipo, ''), 'grcup')) FROM Competiciones ORDER BY Id`)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +138,15 @@ func Ediciones(ctx context.Context, db *sql.DB, mapa map[int]string) ([]Competic
 	var out []Competicion
 	for rows.Next() {
 		var c Competicion
-		if err := rows.Scan(&c.ID, &c.Nombre, &c.Slug, &c.Fecha, &c.Lugar, &c.Descripcion, &c.Email, &c.Telefono); err != nil {
+		if err := rows.Scan(&c.ID, &c.Nombre, &c.Slug, &c.Fecha, &c.Lugar, &c.Descripcion, &c.Email, &c.Telefono, &c.Tipo); err != nil {
 			return nil, err
 		}
 		gr := strings.Contains(strings.ToLower(c.Slug+" "+c.Nombre), "grcup") || strings.Contains(strings.ToLower(c.Nombre), "gr strength")
 		switch {
 		case mapa[c.ID] != "":
 			c.Nueva = mapa[c.ID]
+		case c.Tipo != "grcup":
+			c.Nueva = "-" // another web of the same old backend (FER): it stays there
 		case gr && c.Fecha.Year() == 2025:
 			c.Nueva = "grcup-2025"
 		case gr && c.Fecha.Year() == 2026:
