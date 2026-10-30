@@ -94,7 +94,7 @@ export class Community {
               <ul id="info" class="grid scroll-mt-32 grid-cols-2 gap-3 md:grid-cols-4">
                 @for (d of items(s, 'items'); track d['etiqueta']) {
                   <li class="flex flex-col gap-1.5 rounded-2xl border border-line-subtle bg-bg-card p-4 md:p-5">
-                    <gr-icon [name]="ic(d['icono'])" [size]="18" class="mb-1.5 text-accent-text" />
+                    <gr-icon [name]="ic(d['icono'])" [size]="18" class="mb-1.5 self-start text-accent-text" />
                     <p class="text-label-xs text-text-muted uppercase">{{ d['etiqueta'] }}</p>
                     <p class="text-label-m">{{ d['valor'] }}</p>
                   </li>
@@ -105,7 +105,7 @@ export class Community {
               <section id="que-veras" class="flex scroll-mt-32 flex-col gap-5 md:gap-7">
                 <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
                 <!-- Figma 29: three 300 × 420 cards on desktop; a swipe row with dots on mobile -->
-                <ul #fila class="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[940px] md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
+                <ul #fila class="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[940px] md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
                   @for (m of items(s, 'items'); track m['titulo']; let i = $index) {
                     <li class="relative w-[66%] shrink-0 snap-start overflow-hidden rounded-2xl border border-line-subtle shadow-card md:w-auto">
                       <img [src]="m['imagen']" [alt]="m['alt'] || m['titulo']" class="aspect-[300/420] w-full object-cover" loading="lazy" />
