@@ -411,6 +411,9 @@ func (s *Svc) registerContactos() {
 				if err != nil {
 					return err
 				}
+				if err := s.vincular(ctx, tx, in.CID, in.ID, em, tel); err != nil {
+					return err
+				}
 				if _, err := tx.Exec(ctx, `INSERT INTO actividad (id, contacto_id, tipo, titulo, detalle) VALUES ($1,$2,'rgpd','Datos rectificados',$3)`, newID(), in.ID, "Por "+actor(ctx)); err != nil {
 					return err
 				}
@@ -445,12 +448,48 @@ func (s *Svc) registerContactos() {
 			return &accesoOut{Disposition: `attachment; filename="contacto-` + in.ID.String()[:8] + `.json"`, Body: f}, nil
 		})
 
-	huma.Register(api, huma.Operation{OperationID: "contactos-rgpd-supresion", Method: http.MethodPost, Path: baseC + "/contactos/{id}/rgpd/supresion", Summary: "Suprimir (derecho de supresión): anonimiza y bloquea sus canales", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusNoContent},
-		func(ctx context.Context, in *idIn) (*struct{}, error) {
+	type supOut struct {
+		Body struct {
+			Seguimientos int  `json:"seguimientos" doc:"Avisos de atletas borrados (athletes)"`
+			Voluntarios  int  `json:"voluntarios" doc:"Solicitudes de voluntariado borradas (cms)"`
+			Atleta       bool `json:"atleta" doc:"Es atleta inscrito: su ficha se gestiona en «Atletas»"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "contactos-rgpd-supresion", Method: http.MethodPost, Path: baseC + "/contactos/{id}/rgpd/supresion", Summary: "Suprimir (derecho de supresión): también en atletas y voluntarios; anonimiza y bloquea sus canales", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *idIn) (*supOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "contactos.exportar"); err != nil {
 				return nil, err
 			}
-			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			o := &supOut{}
+			var em0, tel0 *string
+			if err := s.a.DB.QueryRow(ctx, `SELECT email::text, telefono FROM contactos WHERE competition_id = $1 AND id = $2 AND anonimizado_at IS NULL`, in.CID, in.ID).Scan(&em0, &tel0); err != nil {
+				if db.IsNoRows(err) {
+					return nil, problem.NotFound("Ese contacto no existe o ya se suprimió.")
+				}
+				return nil, err
+			}
+			// The services that collected the data erase it first; if one is down nothing changes (the request can be retried).
+			body := map[string]string{}
+			if em0 != nil {
+				body["email"] = *em0
+			}
+			if tel0 != nil {
+				body["telefono"] = *tel0
+			}
+			path := "/internal/competiciones/" + in.CID.String() + "/rgpd/supresion"
+			if err := s.athletes.Do(ctx, http.MethodPost, path, body, &o.Body); err != nil {
+				s.a.Log.Warn("supresión en athletes", "err", err)
+				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido borrar sus avisos de atletas. No se ha cambiado nada: inténtalo en unos segundos.")
+			}
+			var vol struct {
+				Voluntarios int `json:"voluntarios"`
+			}
+			if err := s.cms.Do(ctx, http.MethodPost, path, body, &vol); err != nil {
+				s.a.Log.Warn("supresión en cms", "err", err)
+				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido borrar su solicitud de voluntariado. Inténtalo en unos segundos.")
+			}
+			o.Body.Voluntarios = vol.Voluntarios
+			return o, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				var em, tel *string
 				if err := tx.QueryRow(ctx, `SELECT email::text, telefono FROM contactos WHERE competition_id = $1 AND id = $2 AND anonimizado_at IS NULL FOR UPDATE`, in.CID, in.ID).Scan(&em, &tel); err != nil {
 					if db.IsNoRows(err) {
@@ -476,7 +515,8 @@ func (s *Svc) registerContactos() {
 						return err
 					}
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "crm.rgpd_supresion", map[string]any{"id": in.ID}, events.Competition(in.CID.String()), events.ForPermission("contactos.exportar")))
+				return events.Enqueue(ctx, tx, events.New(ctx, "crm.rgpd_supresion", map[string]any{"id": in.ID, "seguimientos": o.Body.Seguimientos, "voluntarios": o.Body.Voluntarios},
+					events.Competition(in.CID.String()), events.ForPermission("contactos.exportar")))
 			})
 		})
 

@@ -302,3 +302,42 @@ func (s *Svc) avisarSalidas(ctx context.Context) error {
 	}
 	return nil
 }
+
+// registerRGPD: crm forwards the right to erasure of a contact. Follows of that address are deleted (their notices
+// stop at once). A registered athlete keeps the record (managed in «Atletas», with its own erasure and the legal
+// retention of registrations and payments): crm is told so it can say it.
+func (s *Svc) registerRGPD() {
+	type in struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Email    string `json:"email,omitempty" maxLength:"254"`
+			Telefono string `json:"telefono,omitempty" maxLength:"30"`
+		}
+	}
+	type out struct {
+		Body struct {
+			Seguimientos int  `json:"seguimientos"`
+			Atleta       bool `json:"atleta" doc:"Es atleta inscrito: su ficha se gestiona en «Atletas»"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-rgpd-supresion", Method: http.MethodPost, Path: "/internal/competiciones/{cid}/rgpd/supresion", Summary: "Derecho de supresión (solo crm)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *in) (*out, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			o := &out{}
+			e := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			if e == "" {
+				return o, nil
+			}
+			err := s.change(ctx, in.CID, "", nil, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `DELETE FROM seguimientos WHERE competition_id = $1 AND email = $2`, in.CID, e)
+				if err != nil {
+					return err
+				}
+				o.Body.Seguimientos = int(tag.RowsAffected())
+				return tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM atletas WHERE competition_id = $1 AND email = $2)`, in.CID, e).Scan(&o.Body.Atleta)
+			})
+			return o, err
+		})
+}

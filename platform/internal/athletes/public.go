@@ -469,4 +469,5 @@ func (s *Svc) registerInternal() {
 			return o, nil
 		})
 	s.registerHorarios()
+	s.registerRGPD()
 }

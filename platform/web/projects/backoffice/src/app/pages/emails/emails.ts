@@ -195,7 +195,10 @@ export class EmailsPage {
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly fechasEvento = computed(() => {
     const c = this.comps.current() as { fechaInicio?: string; fechaFin?: string } | null;
-    return c?.fechaInicio ? `Días de competición (${c.fechaInicio}${c.fechaFin && c.fechaFin !== c.fechaInicio ? ' a ' + c.fechaFin : ''})` : 'Días de competición';
+    if (!c?.fechaInicio) return 'Días de competición';
+    const f = (d: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('es-ES', { ...o, timeZone: 'UTC' }).format(new Date(d + 'T12:00:00Z')).replace('.', '');
+    const fin = c.fechaFin && c.fechaFin !== c.fechaInicio ? c.fechaFin : '';
+    return fin ? `${f(c.fechaInicio, { day: 'numeric' })}–${f(fin, { day: 'numeric', month: 'short' })}` : f(c.fechaInicio, { day: 'numeric', month: 'short' });
   });
   private t?: ReturnType<typeof setTimeout>;
 

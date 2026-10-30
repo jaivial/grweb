@@ -519,10 +519,11 @@ export class ContactoFichaPage {
     }
   }
   protected async suprimir(c: Ficha): Promise<void> {
-    if (!(await this.confirm.ask({ title: `Suprimir a ${c.nombre || 'este contacto'}`, text: 'Se borran sus datos, consentimientos y actividad, y sus canales quedan bloqueados (solo guardamos un hash para no volver a escribirle). No se puede deshacer.', confirm: 'Suprimir', danger: true }))) return;
+    if (!(await this.confirm.ask({ title: `Suprimir a ${c.nombre || c.email || 'este contacto'}`, text: 'Se borran sus datos, consentimientos y actividad, también sus avisos de atletas y su solicitud de voluntariado, y sus canales quedan bloqueados (solo guardamos un hash para no volver a escribirle). No se puede deshacer.', confirm: 'Suprimir', danger: true }))) return;
     try {
-      await this.api.suprimir(this.cid(), c.id);
-      this.toasts.success('Contacto suprimido');
+      const r = await this.api.suprimir(this.cid(), c.id);
+      const extra = [r.seguimientos ? `${r.seguimientos} aviso(s) de atletas borrados` : '', r.voluntarios ? `${r.voluntarios} solicitud(es) de voluntariado borradas` : '', r.atleta ? 'Es atleta inscrito: su ficha se gestiona en Atletas' : ''].filter(Boolean).join(' · ');
+      this.toasts.success('Contacto suprimido', extra || undefined);
       void this.router.navigate(['..'], { relativeTo: this.route });
     } catch (e) {
       this.toasts.error('No se pudo suprimir', errText(e));

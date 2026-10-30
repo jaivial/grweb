@@ -47,10 +47,12 @@ var bearer = []map[string][]string{{"bearer": {}}}
 
 // Svc holds the service dependencies.
 type Svc struct {
-	a      *app.App
-	comps  *compref.Resolver
-	key    []byte
-	webURL string
+	a        *app.App
+	comps    *compref.Resolver
+	athletes *svcclient.Client
+	cms      *svcclient.Client
+	key      []byte
+	webURL   string
 }
 
 // Service returns the crm service definition.
@@ -64,6 +66,8 @@ func (s *Svc) init(a *app.App) {
 	s.a = a
 	comp := svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "crm", "competition", a.Cfg.InternalToken)
 	s.comps = compref.New(comp, a.Log)
+	s.athletes = svcclient.New(config.Str("UPSTREAM_ATHLETES", "http://athletes:8080"), "crm", "athletes", a.Cfg.InternalToken)
+	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "crm", "cms", a.Cfg.InternalToken)
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/crm/v1"))
 	s.key = m.Sum(nil)
@@ -214,6 +218,9 @@ func (s *Svc) ingest(ctx context.Context, tx pgx.Tx, cid uuid.UUID, in ContactoI
 	if _, err := tx.Exec(ctx, `UPDATE contactos SET relacion = $2, nombre = CASE WHEN nombre = '' THEN $3 ELSE nombre END,
 		email = COALESCE(email, NULLIF($4,'')), telefono = COALESCE(telefono, NULLIF($5,'')), actividad_at = GREATEST(actividad_at, $6) WHERE id = $1`,
 		id, rel, strings.TrimSpace(in.Nombre), email, tel, at); err != nil {
+		return id, err
+	}
+	if err := s.vincular(ctx, tx, cid, id, email, tel); err != nil {
 		return id, err
 	}
 	for _, c := range in.Consentimientos {
@@ -402,4 +409,19 @@ func requireAny(ctx context.Context, cid uuid.UUID, perms ...string) (*auth.Prin
 func email(ctx context.Context, tx pgx.Tx, cid uuid.UUID, para, plantilla string, vars map[string]string) error {
 	return events.Enqueue(ctx, tx, events.New(ctx, "crm.email_solicitado", map[string]any{"para": para, "plantilla": plantilla, "vars": vars},
 		events.Competition(cid.String()), events.Audience(events.Internal)))
+}
+
+// vincular links the suppressions recorded for these destinations before the contact existed (a bounce, an earlier
+// erasure…), so lists, records and segment audiences see them.
+func (s *Svc) vincular(ctx context.Context, tx pgx.Tx, cid, contacto uuid.UUID, email, tel string) error {
+	for canal, d := range map[string]string{"email": email, "whatsapp": tel} {
+		if d == "" {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `UPDATE supresiones SET contacto_id = $4 WHERE competition_id = $1 AND canal = $2 AND destino_hash = $3 AND contacto_id IS NULL`,
+			cid, canal, s.hashDestino(d), contacto); err != nil {
+			return err
+		}
+	}
+	return nil
 }

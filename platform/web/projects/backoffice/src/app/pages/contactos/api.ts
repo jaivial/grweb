@@ -51,8 +51,8 @@ export class ContactosApi {
   acceso(cid: string, id: string): Promise<Blob> {
     return firstValueFrom(this.http.get(`${this.b(cid)}/contactos/${id}/rgpd/acceso`, { responseType: 'blob' }));
   }
-  suprimir(cid: string, id: string): Promise<void> {
-    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/contactos/${id}/rgpd/supresion`, {}));
+  suprimir(cid: string, id: string): Promise<{ seguimientos: number; voluntarios: number; atleta: boolean }> {
+    return firstValueFrom(this.http.post<{ seguimientos: number; voluntarios: number; atleta: boolean }>(`${this.b(cid)}/contactos/${id}/rgpd/supresion`, {}));
   }
   segmentos(cid: string): Promise<Segmento[]> {
     return firstValueFrom(this.http.get<Segmento[]>(`${this.b(cid)}/segmentos`));
