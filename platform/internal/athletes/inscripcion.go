@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
@@ -223,6 +224,10 @@ func (s *Svc) precio(ctx context.Context, q querier, cid uuid.UUID, cfg Config, 
 				ref = &r
 				d.Valido, d.Importe, d.Texto = true, aplicar(rc.DescTipo, rc.DescValor, p.Total), descTexto(rc.DescTipo, rc.DescValor)
 				d.InvitadoPor = r.Nombre + " " + firstRune(r.Apellidos) + "."
+				var menor bool
+				if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(fecha_nacimiento > ($2::date - interval '18 years'), division = 'subjunior') FROM atletas WHERE id = $1`, r.AtletaID, s.compDate(ctx, cid)).Scan(&menor); err == nil && menor {
+					d.InvitadoPor = "un atleta inscrito" // never reveal a minor's name
+				}
 				p.Total -= d.Importe
 			}
 		}
@@ -246,11 +251,16 @@ type provEntry struct {
 
 var provCache sync.Map // cid → provEntry
 
+// proveedor returns the gateway of a competition: Stripe with its keys, else the simulated gateway where it is
+// enabled (PAGOS_SIMULADOS, never in production), else nil (no payments possible).
 func (s *Svc) proveedor(ctx context.Context, cid uuid.UUID) pagos.Provider {
 	if e, ok := provCache.Load(cid); ok && time.Now().Before(e.(provEntry).exp) {
 		return e.(provEntry).p
 	}
-	var p pagos.Provider = s.sim
+	var p pagos.Provider
+	if s.sim != nil {
+		p = s.sim
+	}
 	var out struct {
 		Config  map[string]string `json:"config"`
 		Secreto string            `json:"secreto"`
@@ -270,6 +280,9 @@ func (s *Svc) proveedor(ctx context.Context, cid uuid.UUID) pagos.Provider {
 }
 
 func (s *Svc) initPagos() {
+	if !config.Bool("PAGOS_SIMULADOS", s.a.Cfg.Env == "dev") {
+		return // production: only real gateways
+	}
 	m := hmac.New(sha256.New, []byte(s.a.Cfg.InternalToken))
 	m.Write([]byte("grcup/pagos/simulado/v1"))
 	s.sim = &pagos.Simulado{Redis: s.a.Redis, Prefix: s.a.Keys.Of("pagos", "sim", "athletes", ""), Secret: hex.EncodeToString(m.Sum(nil)), Service: "athletes", WebURL: s.webURL}
@@ -294,7 +307,7 @@ type ConfigPub struct {
 	Cupones     bool       `json:"cupones"`
 	Referidos   bool       `json:"referidos"`
 	ReferidoTxt string     `json:"referidoTexto,omitempty" doc:"«10 % de descuento; a quien te invita le devolvemos 5,00 €»"`
-	Pasarela    string     `json:"pasarela" enum:"stripe,simulado"`
+	Pasarela    string     `json:"pasarela" enum:"stripe,simulado,ninguna" doc:"ninguna: sin claves de Stripe (solo inscripciones gratis o en reserva)"`
 	Pruebas     bool       `json:"pruebas" doc:"Pasarela simulada o Stripe en modo test: no se cobra"`
 }
 
@@ -306,12 +319,16 @@ func (s *Svc) ocupadas(ctx context.Context, cid uuid.UUID) (int, error) {
 	return n, err
 }
 
-func (s *Svc) configPub(ctx context.Context, cid uuid.UUID) (ConfigPub, Config, error) {
+func (s *Svc) configPub(ctx context.Context, cid uuid.UUID, fresh ...bool) (ConfigPub, Config, error) {
 	cfg, err := s.config(ctx, s.a.DB, cid)
 	if err != nil {
 		return ConfigPub{}, cfg, err
 	}
-	c, err := s.comps.ByID(ctx, cid)
+	get := s.comps.ByID
+	if len(fresh) > 0 && fresh[0] {
+		get = s.comps.ByIDFresh // places may have just changed in the backoffice
+	}
+	c, err := get(ctx, cid)
 	if err != nil {
 		return ConfigPub{}, cfg, err
 	}
@@ -321,7 +338,10 @@ func (s *Svc) configPub(ctx context.Context, cid uuid.UUID) (ConfigPub, Config, 
 	}
 	p := s.proveedor(ctx, cid)
 	out := ConfigPub{Modo: cfg.Modo, Cuota: cfg.Cuota, Plazas: c.Inscripcion.Plazas, Ocupadas: n, Abre: cfg.Abre, Cierra: cfg.Cierra, Reserva: cfg.Reserva,
-		Cupones: cfg.Cupones, Referidos: cfg.Referidos.Activo, Pasarela: p.Name(), Pruebas: p.Name() == "simulado"}
+		Cupones: cfg.Cupones, Referidos: cfg.Referidos.Activo, Pasarela: "ninguna"}
+	if p != nil {
+		out.Pasarela, out.Pruebas = p.Name(), p.Name() == "simulado"
+	}
 	if st, ok := p.(*pagos.Stripe); ok {
 		out.Pruebas = st.Test()
 	}
@@ -459,7 +479,9 @@ func (s *Svc) registerInscripcion() {
 			if err == nil && e.Estado == "pendiente_pago" {
 				var ses string
 				_ = s.a.DB.QueryRow(ctx, `SELECT sesion FROM inscripciones WHERE id = $1`, in.ID).Scan(&ses)
-				s.sim.Redeliver(ctx, ses)
+				if s.sim != nil {
+					s.sim.Redeliver(ctx, ses)
+				}
 				e, err = s.estado(ctx, c.ID, in.ID)
 			}
 			return &estadoOut{Body: e}, err
@@ -506,7 +528,7 @@ func (s *Svc) estado(ctx context.Context, cid, id uuid.UUID) (EstadoInscripcion,
 
 // crearInscripcion validates the form, reserves the place and starts the payment (or confirms free / reserve).
 func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b InscripcionIn) (EstadoInscripcion, error) {
-	pub, cfg, err := s.configPub(ctx, cid)
+	pub, cfg, err := s.configPub(ctx, cid, true)
 	if err != nil {
 		return EstadoInscripcion{}, err
 	}
@@ -611,7 +633,7 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 		dj, _ := json.Marshal(datos)
 		cj, _ := json.Marshal(cons)
 		if _, err := tx.Exec(ctx, `INSERT INTO inscripciones (id, competition_id, datos, email, licencia, cuota, desc_cupon, desc_referido, total, cupon_id, cupon_codigo, referido_id, estado, proveedor, consentimientos, expira_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, id, cid, dj, d.Email, d.Licencia, precio.Cuota, dcup, dref, precio.Total, cupID, cupCode, refID, estado, prov.Name(), cj, expira); err != nil {
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, id, cid, dj, d.Email, d.Licencia, precio.Cuota, dcup, dref, precio.Total, cupID, cupCode, refID, estado, provName(prov), cj, expira); err != nil {
 			if strings.Contains(err.Error(), "inscripciones_licencia_viva") {
 				return problem.Conflict("YA_INSCRITO", "Ya hay una inscripción en curso con esa licencia. Si no terminaste el pago, espera 30 minutos o escríbenos.")
 			}
@@ -627,6 +649,9 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 		checkout = pagos.CheckoutIn{Amount: precio.Total, Description: "Inscripción · " + s.nombreComp(ctx, cid), Email: d.Email,
 			SuccessURL: s.webURL + "/inscripcion/estado?id=" + id.String(), CancelURL: s.webURL + "/inscripcion?cancelado=" + id.String(),
 			Metadata: map[string]string{"inscripcion": id.String(), "competicion": cid.String(), "idempotencia": id.String()}, ExpiresAt: *expira}
+		if prov == nil { // rolls back the registration: nothing is held without a way to pay
+			return problem.New(http.StatusServiceUnavailable, "PASARELA_NO_CONFIGURADA", "Los pagos todavía no están activados. Inténtalo más adelante.")
+		}
 		return nil
 	})
 	if err != nil {
@@ -673,8 +698,12 @@ func (s *Svc) webhook(ctx context.Context, payload []byte, h http.Header) error 
 	if err != nil {
 		return pagos.ErrSignature
 	}
-	ev, err := s.proveedor(ctx, cid).VerifyWebhook(payload, h)
-	if err != nil && s.sim != nil {
+	prov := s.proveedor(ctx, cid)
+	if prov == nil {
+		return pagos.ErrSignature
+	}
+	ev, err := prov.VerifyWebhook(payload, h)
+	if err != nil && s.sim != nil && prov != pagos.Provider(s.sim) {
 		// A competition may switch from the simulated gateway to Stripe with simulated payments still open.
 		ev, err = s.sim.VerifyWebhook(payload, h)
 	}
@@ -880,7 +909,12 @@ func (s *Svc) recompensaReferido(ctx context.Context, tx pgx.Tx, cid, iid uuid.U
 	if refIns != nil {
 		_ = tx.QueryRow(ctx, `SELECT total, devuelto, pago, proveedor FROM inscripciones WHERE id = $1 AND estado = 'pagada'`, *refIns).Scan(&pagado, &devuelto, &pago, &prov)
 	}
-	if room := pagado - devuelto; reward > room {
+	// Rewards still being refunded count against the cap (two invitees may pay at the same time).
+	var pendiente int
+	if err := tx.QueryRow(ctx, `SELECT COALESCE(sum(recompensa), 0) FROM referido_usos WHERE codigo_id = $1 AND estado IN ('pendiente', 'fallida')`, *refID).Scan(&pendiente); err != nil {
+		return nil, err
+	}
+	if room := pagado - devuelto - pendiente; reward > room {
 		reward = max(0, room)
 	}
 	uid := newID()
@@ -899,14 +933,18 @@ func (s *Svc) recompensaReferido(ctx context.Context, tx pgx.Tx, cid, iid uuid.U
 }
 
 func (s *Svc) devolverReferido(ctx context.Context, cid, uid, ins, atleta uuid.UUID, pago string, importe int) {
-	ref, err := s.proveedor(ctx, cid).Refund(ctx, pago, importe, "referido")
+	var ref string
+	err := errors.New("sin pasarela de pago")
+	if prov := s.proveedor(ctx, cid); prov != nil {
+		ref, err = prov.Refund(ctx, pago, importe, "referido")
+	}
 	if err != nil && s.sim != nil && strings.HasPrefix(pago, "sim_") {
 		ref, err = s.sim.Refund(ctx, pago, importe, "referido")
 	}
 	_ = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		if err != nil {
 			s.a.Log.Error("devolución de referido", "err", err)
-			_, e := tx.Exec(ctx, `UPDATE referido_usos SET estado = 'fallida' WHERE id = $1`, uid)
+			_, e := tx.Exec(ctx, `UPDATE referido_usos SET estado = 'fallida', intentos = intentos + 1, siguiente_at = now() + make_interval(mins => power(2, intentos + 1)::int) WHERE id = $1`, uid)
 			return e
 		}
 		if _, e := tx.Exec(ctx, `UPDATE referido_usos SET estado = 'devuelta', devolucion = $2, devuelto_at = now() WHERE id = $1`, uid, ref); e != nil {
@@ -941,6 +979,92 @@ func (s *Svc) expirador(ctx context.Context) {
 			if _, err := s.a.DB.Exec(ctx, `UPDATE inscripciones SET estado = 'cancelada', updated_at = now() WHERE estado = 'pendiente_pago' AND expira_at < now() - interval '5 minutes'`); err != nil && ctx.Err() == nil {
 				s.a.Log.Warn("expirador de pagos", "err", err)
 			}
+			s.reintentarDevoluciones(ctx)
 		}
 	}
+}
+
+// reintentarDevoluciones retries failed referral refunds (2, 4, 8, 16 min… up to 5 attempts). The row is claimed
+// by moving it back to «pendiente», so two replicas never refund the same reward.
+func (s *Svc) reintentarDevoluciones(ctx context.Context) {
+	rows, err := s.a.DB.Query(ctx, `UPDATE referido_usos u SET estado = 'pendiente' FROM referido_codigos c JOIN inscripciones i ON i.id = c.inscripcion_id
+		WHERE u.codigo_id = c.id AND u.estado = 'fallida' AND u.intentos < 5 AND u.siguiente_at < now()
+		RETURNING u.id, c.competition_id, i.id, c.atleta_id, i.pago, u.recompensa`)
+	if err != nil {
+		return
+	}
+	type job struct {
+		uid, cid, ins, atleta uuid.UUID
+		pago                  string
+		importe               int
+	}
+	var jobs []job
+	for rows.Next() {
+		var j job
+		if rows.Scan(&j.uid, &j.cid, &j.ins, &j.atleta, &j.pago, &j.importe) == nil {
+			jobs = append(jobs, j)
+		}
+	}
+	rows.Close()
+	for _, j := range jobs {
+		s.devolverReferido(ctx, j.cid, j.uid, j.ins, j.atleta, j.pago, j.importe)
+	}
+}
+
+func provName(p pagos.Provider) string {
+	if p == nil {
+		return ""
+	}
+	return p.Name()
+}
+
+// ofrecerPlaza offers a free place to an own-mode reserve: the registration goes back to «pendiente_pago» with a
+// 24-hour hold and the athlete gets the payment link by email. It reports false for AEP athletes (direct promotion)
+// and for registrations already paid.
+func (s *Svc) ofrecerPlaza(ctx context.Context, cid, aid uuid.UUID) (bool, error) {
+	var origen string
+	if err := s.a.DB.QueryRow(ctx, `SELECT origen FROM atletas WHERE competition_id = $1 AND id = $2`, cid, aid).Scan(&origen); err != nil || origen != "propia" {
+		return false, nil
+	}
+	var iid uuid.UUID
+	var estado, mail, nombre string
+	var total int
+	if err := s.a.DB.QueryRow(ctx, `SELECT id, estado, total, email::text, COALESCE(datos->>'nombre', '') FROM inscripciones WHERE competition_id = $1 AND atleta_id = $2 ORDER BY created_at DESC LIMIT 1`,
+		cid, aid).Scan(&iid, &estado, &total, &mail, &nombre); err != nil {
+		return false, nil
+	}
+	switch estado {
+	case "pagada", "gratuita":
+		return false, nil // already paid: a normal promotion
+	case "pendiente_pago":
+		return false, problem.Conflict("OFERTA_EN_CURSO", "Ya tiene un enlace de pago pendiente (caduca a las 24 h de enviarlo).")
+	}
+	if total == 0 {
+		return true, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return s.confirmarPago(ctx, tx, cid, iid, pagos.Event{}) })
+	}
+	prov := s.proveedor(ctx, cid)
+	if prov == nil {
+		return false, problem.New(http.StatusServiceUnavailable, "PASARELA_NO_CONFIGURADA", "Los pagos no están activados: no se puede enviar el enlace de pago.")
+	}
+	exp := time.Now().Add(23*time.Hour + 50*time.Minute) // Stripe allows at most 24 h
+	tag, err := s.a.DB.Exec(ctx, `UPDATE inscripciones SET estado = 'pendiente_pago', expira_at = $2, updated_at = now() WHERE id = $1 AND estado IN ('reserva', 'cancelada', 'fallida')`, iid, exp)
+	if err != nil || tag.RowsAffected() == 0 {
+		return false, problem.Conflict("OFERTA_EN_CURSO", "La inscripción ha cambiado mientras tanto. Recarga la ficha.")
+	}
+	co, err := prov.CreateCheckout(ctx, pagos.CheckoutIn{Amount: total, Description: "Inscripción · " + s.nombreComp(ctx, cid), Email: mail,
+		SuccessURL: s.webURL + "/inscripcion/estado?id=" + iid.String(), CancelURL: s.webURL + "/inscripcion?cancelado=" + iid.String(),
+		Metadata: map[string]string{"inscripcion": iid.String(), "competicion": cid.String(), "idempotencia": iid.String() + "-plaza"}, ExpiresAt: exp})
+	if err != nil {
+		_, _ = s.a.DB.Exec(ctx, `UPDATE inscripciones SET estado = 'reserva', expira_at = NULL WHERE id = $1`, iid)
+		return false, problem.New(http.StatusServiceUnavailable, "PASARELA_NO_DISPONIBLE", "No hemos podido crear el enlace de pago. Inténtalo en unos minutos.")
+	}
+	return true, s.change(ctx, cid, "athletes.plaza_ofrecida", map[string]any{"id": aid}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE inscripciones SET sesion = $2, proveedor = $3 WHERE id = $1`, iid, co.ID, prov.Name()); err != nil {
+			return err
+		}
+		if err := email(ctx, tx, cid, mail, "inscripcion-plaza-libre", map[string]string{"nombre": nombre, "enlace": co.URL, "total": pagos.Euros(total)}); err != nil {
+			return err
+		}
+		return hist(ctx, tx, aid, "Plaza ofrecida", "Enlace de pago enviado ("+pagos.Euros(total)+", caduca en 24 h)")
+	})
 }

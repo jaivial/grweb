@@ -5,6 +5,7 @@ metadata:
   name: grcup-config
 data:
   SERVICE_ENV: qa
+  PAGOS_SIMULADOS: "true"   # test gateway (no real charges); never in production
   KEY_PREFIX: "grcup:qa:"
   REDIS_ADDR: redis:16379
   REDIS_USERNAME: grcup

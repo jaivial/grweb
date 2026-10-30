@@ -12,7 +12,7 @@ import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared
 interface Referidos { activo: boolean; modo: 'basico' | 'acumulativo'; descTipo: 'porcentaje' | 'importe'; descValor: number; recompensa: number; maxUsos: number; acumModo: 'basica' | 'multiplicador'; multiplicador: number }
 interface Config { modo: 'externa' | 'propia'; cuota: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: Referidos; version: number }
 interface Cupon { id: string; codigo: string; tipo: 'porcentaje' | 'importe'; valor: number; limite?: number; caduca?: string; activo: boolean; usos: number; ahorro: number; estado: 'activo' | 'pausado' | 'agotado' | 'caducado' }
-interface CodigoRef { id: string; codigo: string; atleta: string; club: string; pagado: number; invitados: number; descuento: number; devuelto: number; ajustes?: Referidos }
+interface CodigoRef { id: string; codigo: string; atleta: string; club: string; pagado: number; invitados: number; descuento: number; devuelto: number; fallidas: number; ajustes?: Referidos }
 interface Pago {
   id: string; fecha: string; atleta: string; email: string; atletaId?: string; cuota: number; descCupon: number; descReferido: number; total: number; devuelto: number; cupon: string; referido: string;
   estado: 'pendiente_pago' | 'pagada' | 'gratuita' | 'reserva' | 'cancelada' | 'fallida'; proveedor: string; referencia: string; tarjeta: string; pagadaAt?: string;
@@ -83,6 +83,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                     <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-mono-xs">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
                     <div class="flex justify-between gap-3 py-2"><dt class="text-text-tertiary">Reembolsos</dt><dd>Totales o parciales desde Pagos</dd></div>
                   </dl>
+                  @if (pagos()?.pasarela === 'ninguna') { <gr-alert class="mt-3" tone="warning" title="Pagos sin configurar">Añade las claves de Stripe en Sistema → Integraciones. Sin ellas solo se aceptan inscripciones gratuitas (cupón del 100 %) o en reserva.</gr-alert> }
                   @if (pagos()?.pruebas) { <gr-alert class="mt-3" tone="info" title="Modo pruebas: no se cobra nada">La pasarela simulada reproduce Stripe Checkout (tarjetas de prueba, pago rechazado, 3D Secure) y envía el mismo webhook firmado. Al añadir claves de Stripe se usa Stripe sin cambiar nada más.</gr-alert> }
                 </section>
               </div>
@@ -183,6 +184,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                     <span class="hidden w-28 text-mono-s md:block">{{ r.codigo }}</span>
                     <span class="w-20 text-right text-mono-s">{{ r.invitados }} inv.</span>
                     <span class="hidden w-28 text-right text-mono-s md:block">{{ euros(r.devuelto) }}</span>
+                    @if (r.fallidas) { <gr-badge tone="danger">{{ r.fallidas }} devolución{{ r.fallidas === 1 ? '' : 'es' }} fallida{{ r.fallidas === 1 ? '' : 's' }}</gr-badge> }
                     <gr-badge [tone]="r.ajustes ? 'accent' : 'neutral'">{{ r.ajustes ? 'Propios' : 'General' }}</gr-badge>
                   </button></li>
                 }

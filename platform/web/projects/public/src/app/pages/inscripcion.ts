@@ -10,7 +10,7 @@ import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/
 import { Seo } from '../core/seo';
 import { Page } from '../layout/page';
 
-interface ConfigPub { modo: 'externa' | 'propia'; estado: 'abierta' | 'proximamente' | 'cerrada' | 'completa'; cuota: number; plazas: number; ocupadas: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: boolean; referidoTexto?: string; pasarela: string; pruebas: boolean }
+interface ConfigPub { modo: 'externa' | 'propia'; estado: 'abierta' | 'proximamente' | 'cerrada' | 'completa'; cuota: number; plazas: number; ocupadas: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: boolean; referidoTexto?: string; pasarela: 'stripe' | 'simulado' | 'ninguna'; pruebas: boolean }
 interface Descuento { codigo: string; valido: boolean; importe: number; texto: string; motivo?: string; invitadoPor?: string }
 interface Precio { cuota: number; cupon?: Descuento; referido?: Descuento; total: number }
 interface Estado { id: string; estado: 'pendiente_pago' | 'pagada' | 'gratuita' | 'reserva' | 'cancelada' | 'fallida'; total: number; email: string; tarjeta?: string; referencia?: string; codigoReferido?: string; checkoutUrl?: string; categoria: string }
@@ -51,6 +51,7 @@ const fechaLarga = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
           } @else if (c.estado === 'cerrada') {
             <gr-alert tone="warning" title="La inscripción está cerrada">Si tienes una duda sobre tu inscripción, escríbenos{{ comp?.evento?.emailContacto ? ' a ' + comp!.evento.emailContacto : '' }}.</gr-alert>
           } @else {
+            @if (c.pasarela === 'ninguna' && c.estado !== 'completa') { <gr-alert class="mb-6" tone="info" title="Pagos en preparación">Todavía no podemos cobrar la inscripción online. Solo se aceptan códigos que la dejan gratis.</gr-alert> }
             @if (c.estado === 'completa') { <gr-alert class="mb-6" tone="warning" title="Las {{ c.plazas }} plazas están cubiertas">Puedes apuntarte a la lista de reserva: no se cobra nada hasta que haya plaza, y entonces te enviamos el enlace de pago.</gr-alert> }
             <form class="flex flex-col gap-6 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-7" (ngSubmit)="enviar(c)" novalidate>
               <div class="grid gap-4 md:grid-cols-2">

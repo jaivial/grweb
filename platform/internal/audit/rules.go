@@ -121,6 +121,8 @@ func resumen(e events.Event) string {
 		return "reordenó las secciones de la home"
 	case "cms.voluntario_solicitado":
 		return "envió una solicitud de voluntariado"
+	case "athletes.plaza_ofrecida":
+		return "ofreció una plaza libre a un atleta de la reserva (enlace de pago)"
 	case "athletes.inscripcion_pagada":
 		return "se inscribió y pagó la cuota"
 	case "athletes.inscripcion_reserva":

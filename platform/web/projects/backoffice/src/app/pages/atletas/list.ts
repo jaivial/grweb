@@ -358,8 +358,9 @@ export class AtletasPage {
     if (!cid) return;
     this.promoBusy.set(true);
     try {
-      await this.api.promocionar(cid, a.id, this.avisar());
-      this.toasts.success(`${a.nombreCompleto} ya está confirmado`, this.avisar() ? 'Le hemos enviado el email «Tienes plaza».' : 'Sin aviso por email.');
+      const r = await this.api.promocionar(cid, a.id, this.avisar());
+      if (r.estado === 'reserva') this.toasts.success(`Plaza ofrecida a ${a.nombreCompleto}`, 'Se inscribió con pago: le hemos enviado el enlace para pagar (caduca en 24 h).');
+      else this.toasts.success(`${a.nombreCompleto} ya está confirmado`, this.avisar() ? 'Le hemos enviado el email «Tienes plaza».' : 'Sin aviso por email.');
       this.promo.set(null);
       await this.recargar(1, true);
     } catch (e) {

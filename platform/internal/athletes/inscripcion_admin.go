@@ -3,6 +3,7 @@ package athletes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -68,6 +69,7 @@ type CodigoRef struct {
 	Invitados int           `json:"invitados" db:"invitados"`
 	Descuento int           `json:"descuento" db:"descuento" doc:"Céntimos descontados a sus invitados"`
 	Devuelto  int           `json:"devuelto" db:"devuelto"`
+	Fallidas  int           `json:"fallidas" db:"fallidas" doc:"Devoluciones que la pasarela rechazó (se reintentan hasta 5 veces)"`
 	Ajustes   *ReferidosCfg `json:"ajustes,omitempty" db:"ajustes" doc:"Ajustes propios (si no, los generales)"`
 }
 
@@ -290,7 +292,8 @@ func (s *Svc) registerInscripcionAdmin() {
 			COALESCE((SELECT total FROM inscripciones WHERE id = r.inscripcion_id AND estado = 'pagada'), 0)::int AS pagado,
 			(SELECT count(*) FROM referido_usos u WHERE u.codigo_id = r.id AND u.estado <> 'anulada')::int AS invitados,
 			COALESCE((SELECT sum(i.desc_referido) FROM inscripciones i WHERE i.referido_id = r.id AND i.estado IN ('pagada', 'gratuita')), 0)::int AS descuento,
-			COALESCE((SELECT sum(u.recompensa) FROM referido_usos u WHERE u.codigo_id = r.id AND u.estado = 'devuelta'), 0)::int AS devuelto
+			COALESCE((SELECT sum(u.recompensa) FROM referido_usos u WHERE u.codigo_id = r.id AND u.estado = 'devuelta'), 0)::int AS devuelto,
+			(SELECT count(*) FROM referido_usos u WHERE u.codigo_id = r.id AND u.estado = 'fallida')::int AS fallidas
 			FROM referido_codigos r JOIN atletas a ON a.id = r.atleta_id WHERE r.competition_id = $1 `+extra+` ORDER BY invitados DESC, r.created_at DESC LIMIT 500`, append([]any{cid}, args...)...)
 		if err != nil {
 			return nil, err
@@ -393,7 +396,10 @@ func (s *Svc) registerInscripcionAdmin() {
 				count(*) FILTER (WHERE estado = 'pendiente_pago' AND expira_at > now()), count(*) FILTER (WHERE estado = 'fallida') FROM inscripciones WHERE competition_id = $1`, in.CID).
 				Scan(&out.Body.Recaudado, &out.Body.Devuelto, &out.Body.Pendientes, &out.Body.Rechazados)
 			p := s.proveedor(ctx, in.CID)
-			out.Body.Pasarela, out.Body.Pruebas = p.Name(), p.Name() == "simulado"
+			out.Body.Pasarela = "ninguna"
+			if p != nil {
+				out.Body.Pasarela, out.Body.Pruebas = p.Name(), p.Name() == "simulado"
+			}
 			if st, ok := p.(*pagos.Stripe); ok {
 				out.Body.Pruebas = st.Test()
 			}
@@ -456,9 +462,12 @@ func (s *Svc) registerInscripcionAdmin() {
 				return nil, problem.Conflict("REEMBOLSO_EN_CURSO", "Ya hay un reembolso en curso para este pago.")
 			}
 			defer s.a.Redis.Del(ctx, s.a.Keys.Of("lock", "reembolso", in.ID.String()))
-			prov := s.proveedor(ctx, in.CID)
-			ref, err := prov.Refund(ctx, pago, in.Body.Importe, "manual")
-			if err != nil && strings.HasPrefix(pago, "sim_") {
+			var ref string
+			err := errors.New("sin pasarela de pago")
+			if prov := s.proveedor(ctx, in.CID); prov != nil {
+				ref, err = prov.Refund(ctx, pago, in.Body.Importe, "manual")
+			}
+			if err != nil && s.sim != nil && strings.HasPrefix(pago, "sim_") {
 				ref, err = s.sim.Refund(ctx, pago, in.Body.Importe, "manual")
 			}
 			if err != nil {
