@@ -227,7 +227,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
         </label>
         <div class="flex flex-wrap gap-2" role="group" aria-label="Provincia">
           @for (p of provincias; track p) {
-            <button type="button" (click)="prov.set(p)" [attr.aria-pressed]="prov() === p" class="inline-flex h-10 items-center gap-2 rounded-full border px-4 text-label-s transition-colors"
+            <button type="button" (click)="prov.set(p)" [attr.aria-pressed]="prov() === p" class="inline-flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors md:h-10"
               [class]="prov() === p ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary'">
               <gr-icon [name]="prov() === p ? 'check' : 'plus'" [size]="14" />{{ p }}
             </button>
