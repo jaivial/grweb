@@ -116,9 +116,11 @@ export class Community {
                     </li>
                   }
                 </ul>
-                <p class="flex gap-1.5 md:hidden" aria-hidden="true">
-                  @for (m of items(s, 'items'); track m['titulo']; let i = $index) { <span class="h-1.5 rounded-full transition-all" [class]="i === tarjeta() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
-                </p>
+                @if (items(s, 'items').length > 1) {
+                  <p class="flex gap-1.5 md:hidden" aria-hidden="true">
+                    @for (m of items(s, 'items'); track m['titulo']; let i = $index) { <span class="h-1.5 rounded-full transition-all" [class]="i === tarjeta() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
+                  </p>
+                }
               </section>
             }
             @case ('juicio') {
