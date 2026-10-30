@@ -184,7 +184,10 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 			}
 			var caduca *time.Time
 			if c.Cad && c.Caduca.Valid {
-				caduca = &c.Caduca.Time
+				// the old site accepted a coupon through the whole day of its date (Date < UtcNow.Date)
+				d := c.Caduca.Time
+				fin := time.Date(d.Year(), d.Month(), d.Day(), 23, 59, 59, 0, madrid)
+				caduca = &fin
 			}
 			usosCupon := 0
 			for _, r := range ins {

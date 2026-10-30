@@ -66,7 +66,7 @@ for l in sys.stdin:
             if extra.get(k):
                 print(f"  {k:9} {extra[k]}")
     elif d.get("level") in ("WARN", "ERROR"):
-        print(f"  {d.get(\"level\")}: {d.get(\"msg\")} {extra}")
+        print("  %s: %s %s" % (d.get("level"), d.get("msg"), extra))
 '
   case "$estado" in
     1/*) echo "  ✓ $svc" ;;

@@ -118,7 +118,38 @@ consultas independientes.
 
 ## 7. Resultado del ensayo en QA
 
-_(se completa con cada ensayo)_
+**30/10/2026 · base sintética** (3 competiciones, 5 usuarios, 74 inscripciones, 342 intentos, 92 boletos):
+
+**Informe del ETL:**
+
+| Paso | Escritos | Omitidos y notas |
+|---|---|---|
+| competition | `grcup-etl` creada (borrador) | `grcup-2025` ya existía (se conservan sus datos); la competición de pruebas, excluida con `--mapa`. |
+| identity | 5 usuarios (1 Root, 1 suspendido); 5 membresías: 2 Admin, 2 Staff, 1 Taquilla | 1 invitación sin aceptar; 1 membresía de la competición excluida; 3 permisos individuales a revisar. |
+| athletes | 66 atletas con perfil; 74 inscripciones (64 pagadas, 2 gratuitas, 8 canceladas); 3 cupones; 5 códigos de referido; 3 usos (1 devuelto, 2 sin devolución); 66 contactos enviados a crm | 4 franjas de horario y la configuración de referidos, a rehacer en el backoffice. |
+| raffle | 2 configuraciones (venta cerrada); 26 compras (23 pagadas, 3 caducadas); 85 boletos con su número; 23 contactos | El ganador antiguo (boleto 0042), solo en el informe. |
+| live | 351 intentos: 287 válidos, 53 nulos, 11 renuncias (9 no registrados y 2 sin decisión); 12 categorías publicadas; 2025 en `finalizado` | — |
+| cms | 5 redirecciones 301 | — |
+
+**Segunda pasada:** no escribe nada. Todo sale como «ya importado» o «sin cambios».
+
+**Conciliación:** coinciden todas las cifras:
+- atletas: 40 y 26;
+- cobrado: 1800,00 € y 1150,00 €;
+- boletos: 64 y 21;
+- usuarios: 5;
+- intentos: 342 más 9 renuncias, 351;
+- contactos en crm: 56 en 2025 (40 atletas y 16 compradores) y 33 en 2026 (26 atletas y 7 compradores).
+
+**Comprobaciones:**
+- **Emails:** Mailpit no recibe ninguno (125 antes y después): el ETL no avisa a nadie.
+- **Contraseñas:**
+  - un usuario migrado entra con su contraseña antigua y su hash pasa a argon2id;
+  - una contraseña errónea da 401; el usuario suspendido, 403.
+- **Base heredada:** el usuario `etl` no puede escribir: `DELETE` → `ERROR 1142`.
+- **Rutas:** `/raffle`, `/checkout` y `/success` → 301 a `/sorteo`; `/privacy` → `/privacidad`; `/terms` → `/terminos`.
+- **Resultados:** `/resultados/2025` muestra las 12 categorías importadas. Sin peso corporal no hay puntos GL, así que se ocultan «Mejor levantador/a» y el orden por GL.
+- **Backoffice:** la edición importada se ve completa (atletas, fichas, cupones, referidos, pagos, sorteo, contactos y equipo). «Resultados» de 2025 aparece como archivo de solo lectura.
 
 ## 8. Vuelta atrás
 

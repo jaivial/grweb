@@ -109,7 +109,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
               <gr-kpi label="Cupones activos" [value]="activos() + ''" [caption]="'de ' + l.length" />
               <gr-kpi label="Inscripciones con cupón" [value]="usosTotales() + ''" caption="pagadas o gratuitas" />
               <gr-kpi label="Descuento aplicado" [value]="euros(ahorroTotal())" caption="en inscripciones confirmadas" />
-              <gr-kpi label="Inscritos gratis" [value]="gratis() + ''" caption="cupones del 100 %" />
+              <gr-kpi label="Inscritos gratis" [value]="gratis() + ''" caption="cupón del 100 % o sin pago" />
             </div>
           }
           <section class="rounded-lg border border-line-subtle bg-bg-card">
@@ -213,7 +213,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                       <span class="hidden w-28 text-mono-xs text-text-tertiary md:block">{{ fechaHora(x.fecha) }}</span>
                       <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary">Inscripción{{ x.cupon ? ' · cupón ' + x.cupon : '' }}{{ x.referido ? ' · referido ' + x.referido : '' }}</span></span>
                       <span class="w-24 text-right text-mono-s">{{ euros(x.total) }}</span>
-                      <gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : estadoPago[x.estado].label }}</gr-badge>
+                      <gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge>
                       <span class="hidden w-32 truncate text-mono-xs text-text-tertiary lg:block">{{ x.referencia }}</span>
                     </button></li>
                   }
@@ -306,6 +306,8 @@ export class InscripcionPage {
   private readonly confirm = inject(Confirm);
   protected readonly euros = euros;
   protected readonly estadoPago = ESTADO_PAGO;
+  /** «Gratis (cupón)» only with a coupon: registrations confirmed without payment (e.g. imported) are just «Gratis». */
+  protected etiquetaPago(x: Pago): string { return x.estado === 'gratuita' && !x.cupon ? 'Gratis' : ESTADO_PAGO[x.estado].label; }
   protected readonly estadoCupon = ESTADO_CUPON;
   protected readonly tabs: { key: Tab; label: string }[] = [{ key: 'config', label: 'Configuración' }, { key: 'cupones', label: 'Cupones' }, { key: 'referidos', label: 'Referidos' }, { key: 'pagos', label: 'Pagos' }];
   protected readonly modos = [{ value: 'externa', label: 'Externa (AEP)' }, { value: 'propia', label: 'Propia con pago' }];
@@ -496,7 +498,7 @@ export class InscripcionPage {
   }
   protected datosPago(x: Pago): [string, string][] {
     return [
-      ['Estado', this.estadoPago[x.estado].label], ['Proveedor', x.proveedor === 'simulado' ? 'Pasarela simulada' : 'Stripe'], ['Tarjeta', x.tarjeta || '—'],
+      ['Estado', this.etiquetaPago(x)], ['Proveedor', x.proveedor === 'simulado' ? 'Pasarela simulada' : 'Stripe'], ['Tarjeta', x.tarjeta || '—'],
       ['Creado', this.fechaHora(x.fecha)], ['Pagado', x.pagadaAt ? this.fechaHora(x.pagadaAt) : '—'], ['Email', x.email],
     ];
   }

@@ -18,12 +18,13 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
   template: `
     @let r = res();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="Resultados" [badge]="r?.publicarAuto ? 'Publicación automática' : ''" badgeTone="info" [subtitle]="r ? r.cerrados + ' de ' + r.flights + ' flights cerrados · ' + totalAtletas() + ' atletas en ' + r.categorias.length + ' categorías' : ''"
+      <bo-page-header title="Resultados" [badge]="r?.archivo ? 'Archivo' : r?.publicarAuto ? 'Publicación automática' : ''" badgeTone="info"
+        [subtitle]="r ? (r.archivo ? 'Edición celebrada · ' : r.cerrados + ' de ' + r.flights + ' flights cerrados · ') + totalAtletas() + ' atletas en ' + r.categorias.length + ' categorías' : ''"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Resultados']">
         @if (r?.categorias?.length) {
           <ng-container actions>
             <button grButton icon="download" (click)="acta()">Exportar acta</button>
-            @if (puedePublicar() && sel() !== 'absoluta') { <button grButton variant="primary" icon="send" [loading]="publicando()" (click)="publicar()">{{ actual()?.publicado ? 'Publicar cambios' : 'Publicar resultados' }}</button> }
+            @if (puedePublicar() && sel() !== 'absoluta' && !r?.archivo) { <button grButton variant="primary" icon="send" [loading]="publicando()" (click)="publicar()">{{ actual()?.publicado ? 'Publicar cambios' : 'Publicar resultados' }}</button> }
           </ng-container>
         }
       </bo-page-header>
@@ -67,7 +68,8 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
               <p class="flex flex-wrap items-center gap-2 text-body-s text-text-secondary">
                 <gr-badge [tone]="a.cambios ? 'warning' : 'success'">{{ a.cambios ? 'Cambios sin publicar' : 'Publicada' }}</gr-badge>
                 v{{ a.publicado.version }} · {{ fecha(a.publicado.at) }} · {{ a.publicado.por }}
-                @if (puedePublicar()) { <button type="button" class="ml-auto text-label-s text-text-tertiary hover:text-accent-text" (click)="retirar()">Retirar de /resultados</button> }
+                @if (puedePublicar() && !r.archivo) { <button type="button" class="ml-auto text-label-s text-text-tertiary hover:text-accent-text" (click)="retirar()">Retirar de /resultados</button> }
+                @if (r.archivo) { <span class="ml-auto text-body-xs text-text-tertiary">Edición sin horarios en la plataforma: solo lectura</span> }
               </p>
             }
           }
