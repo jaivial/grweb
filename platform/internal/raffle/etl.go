@@ -172,6 +172,12 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 				pagada = pagada && b.Confirmado
 			}
 			cantidad := min(len(bs), 100)
+			if len(bs) > cantidad {
+				inf.Notas = append(inf.Notas, fmt.Sprintf("compra %s: %d boletos, se importan 100 (máximo por compra)", k, len(bs)))
+				for range len(bs) - cantidad {
+					inf.Omitir("boleto por encima de 100 en una compra")
+				}
+			}
 			precio := precioDe[ed.NuevaID]
 			if precio == 0 {
 				precio = 100

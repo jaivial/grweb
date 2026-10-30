@@ -115,10 +115,14 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 					continue
 				}
 				nombre := strings.Join(strings.Fields(r.Nombre+" "+r.Ap1+" "+r.Ap2), " ")
+				if nombre == "" {
+					inf.Omitir("atleta sin nombre (tampoco está en athletes)")
+					continue
+				}
 				aid := legacy.ID("Inscripciones/atleta", iid)
 				sexo, cat := legacy.Sexo(r.Sexo), legacy.Categoria(r.Cat)
 				if cat == "" {
-					inf.Omitir("atleta sin categoría (no entra en la clasificación)")
+					inf.Omitir("atleta sin categoría reconocible (no entra en la clasificación)")
 					continue
 				}
 				p.Atletas[aid] = &atleta{ID: aid, Nombre: nombre, Publico: true, Sexo: sexo, Categoria: cat, DivisionNombre: "Open"}

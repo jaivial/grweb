@@ -225,16 +225,23 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 				inf.Omitir("inscripción ya importada")
 				continue
 			}
+			sexo, cat := legacy.Sexo(r.Sexo), legacy.Categoria(r.Categoria)
 			nombre, apellidos := strings.TrimSpace(r.Nombre), strings.TrimSpace(strings.Join(strings.Fields(r.Ap1+" "+r.Ap2), " "))
 			if apellidos == "" {
 				nombre, apellidos = legacy.Partir(nombre)
 			}
 			email := strings.ToLower(strings.TrimSpace(r.Email))
-			if nombre == "" || !strings.Contains(email, "@") {
-				inf.Omitir("inscripción sin nombre o email")
+			if nombre == "" {
+				inf.Omitir("inscripción sin nombre")
 				continue
 			}
-			sexo, cat := legacy.Sexo(r.Sexo), legacy.Categoria(r.Categoria)
+			conEmail := strings.Contains(email, "@")
+			if !conEmail {
+				email = "" // still an athlete (they may be in the results); no contact without an email
+			}
+			if cat == "" && r.Categoria != "" {
+				inf.Omitir("categoría antigua no reconocida (el atleta queda sin categoría)")
+			}
 			confirmada := r.Pagada || r.Confirmada
 			total := legacy.Centimos(r.Total)
 			cuota := legacy.Centimos(r.Subtotal)
@@ -278,8 +285,12 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 			var aid *uuid.UUID
 			if confirmada {
 				id := legacy.ID("Inscripciones/atleta", r.ID)
+				var em *string
+				if conEmail {
+					em = &email
+				}
 				if _, err := tx.Exec(ctx, `INSERT INTO atletas (id, competition_id, nombre, apellidos, email, telefono, sexo, categoria, division, estado, origen, created_at)
-					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'open','confirmado','propia',$9)`, id, ed.NuevaID, nombre, apellidos, email, datos["telefono"], sexo, cat, r.Creada); err != nil {
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'open','confirmado','propia',$9)`, id, ed.NuevaID, nombre, apellidos, em, datos["telefono"], sexo, cat, r.Creada); err != nil {
 					return fmt.Errorf("inscripción %d (atleta): %w", r.ID, err)
 				}
 				if err := createPerfil(ctx, tx, ed.NuevaID, id, nombre+" "+apellidos); err != nil {
@@ -309,6 +320,10 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 			inf.Escritos["inscripciones "+estado]++
 			if aid == nil {
 				continue // an abandoned payment: no athlete and no contact (data minimisation)
+			}
+			if !conEmail {
+				inf.Omitir("atleta sin email (sin contacto en crm)")
+				continue
 			}
 			consents := []map[string]any{}
 			if r.Acepta {

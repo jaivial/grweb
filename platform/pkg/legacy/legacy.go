@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -78,20 +79,27 @@ func Abrir(ctx context.Context, dsn string) (*sql.DB, error) {
 	if dsn == "" {
 		return nil, fmt.Errorf("falta --mysql (o MYSQL_DSN)")
 	}
-	if !strings.Contains(dsn, "parseTime") {
-		sep := "?"
-		if strings.Contains(dsn, "?") {
-			sep = "&"
-		}
-		dsn += sep + "parseTime=true&loc=UTC&charset=utf8mb4"
+	sep := "?"
+	if strings.Contains(dsn, "?") {
+		sep = "&"
 	}
+	if !strings.Contains(dsn, "parseTime") {
+		dsn += sep + "parseTime=true&loc=UTC&charset=utf8mb4"
+		sep = "&"
+	}
+	// a system variable in the DSN is set by the driver on every connection it opens (also after a reconnect)
+	dsn += sep + "transaction_read_only=1"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1) // one session, so SET SESSION applies to every query
-	if _, err := db.ExecContext(ctx, "SET SESSION TRANSACTION READ ONLY"); err != nil {
+	db.SetMaxOpenConns(1)
+	var ro int
+	if err := db.QueryRowContext(ctx, "SELECT @@SESSION.transaction_read_only").Scan(&ro); err != nil || ro != 1 {
 		_ = db.Close()
+		if err == nil {
+			err = errors.New("la sesión no quedó en solo lectura")
+		}
 		return nil, fmt.Errorf("mysql: %w", err)
 	}
 	return db, nil
@@ -236,18 +244,25 @@ func Partir(n string) (string, string) {
 	return f[0], strings.Join(f[1:], " ")
 }
 
-// Categoria normalises an old weight class («63», «-63kg», «+84 kg») to the new format («-63», «+84»).
+// Categoria normalises an old weight class («63», «-63kg», «+84 kg», «52,5») to the new format («-63», «+84»,
+// «-52.5»); anything else («Open», «Sin categoría») is "" (no class: reported, never a made-up key).
 func Categoria(c string) string {
 	c = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(c), " ", ""))
-	c = strings.TrimSuffix(c, "kg")
-	if c == "" {
+	c = strings.ReplaceAll(strings.TrimSuffix(c, "kg"), ",", ".")
+	signo := "-"
+	if strings.HasPrefix(c, "+") || strings.HasPrefix(c, "-") {
+		signo, c = c[:1], c[1:]
+	}
+	if !reClase.MatchString(c) {
 		return ""
 	}
-	if c[0] != '-' && c[0] != '+' {
-		c = "-" + c
+	if v, _ := strconv.ParseFloat(c, 64); v < 30 || v > 200 {
+		return ""
 	}
-	return c
+	return signo + c
 }
+
+var reClase = regexp.MustCompile(`^[0-9]{2,3}(\.[0-9]+)?$`)
 
 // Sexo maps «femenino»/«masculino»/1/2 to F/M.
 func Sexo(s string) string {
