@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
 // The campaign sender: every 5 s, for each campaign being sent, each channel takes its share of the pace (per
@@ -68,7 +69,15 @@ func (s *Svc) campanasTick(ctx context.Context) error {
 	}
 	rows.Close()
 	for _, p := range ps {
+		// Several pods tick at once: one claims the start (the others skip it).
+		if ok, err := s.a.Redis.SetNX(ctx, s.a.Keys.Of("messaging", "campana-inicio", p.id.String()), 1, 2*time.Minute).Result(); err != nil || !ok {
+			continue
+		}
 		if _, err := s.iniciar(ctx, p.cid, p.id, p.canales, "Programada"); err != nil {
+			var pe *problem.Error
+			if errors.As(err, &pe) && pe.Code == "CAMPANA_YA_ENVIADA" {
+				continue
+			}
 			s.a.Log.Warn("campaña programada", "campana", p.id, "err", err)
 			// back to draft with the reason in the audit log, so it does not retry forever
 			_ = s.tx(ctx, func(tx pgx.Tx) error {
@@ -111,8 +120,13 @@ type pendienteCamp struct {
 }
 
 // enviarLote sends this tick's share of a channel: at most porMin in any 60 s window (counted in the database, so it
-// holds with several pods), spread over the ticks of the minute.
+// holds with several pods), spread over the ticks of the minute. While the channel's server is down (SMTP or
+// evo-weai) the competition's channel waits a minute and the recipients keep their tries.
 func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin int) {
+	caido := s.a.Keys.Of("messaging", "canal-caido", c.cid.String(), canal)
+	if n, _ := s.a.Redis.Exists(ctx, caido).Result(); n > 0 {
+		return
+	}
 	var recientes int
 	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM campana_destinatarios WHERE campana_id = $1 AND canal = $2 AND (estado = 'enviando' OR enviado_at > now() - interval '60 seconds')`, c.id, canal).Scan(&recientes); err != nil {
 		return
@@ -156,7 +170,7 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 		smtpc = s.smtpDe(ctx, c.cid)
 		texto = textoPlano(c.diseno, s.contexto(ctx, c.cid, c.asunto, c.preheader, c.diseno, "email", slugCampana(c.nombre)))
 	}
-	for _, p := range lote {
+	for i, p := range lote {
 		baja, bajaPost, _ := strings.Cut(p.baja, "\n")
 		nombre := strings.Fields(p.nombre)
 		pila := ""
@@ -175,6 +189,27 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 			id, err = enviarSMTP(ctx, smtpc, p.destino, r, cab)
 		} else {
 			id, err = s.enviarWA(ctx, wa, p.destino, WhatsApp{Texto: personalizar(c.waTexto, pila, baja, false), Imagen: c.waImagen})
+		}
+		var ee *errEnvio
+		var ew *errWA
+		if err != nil && ((errors.As(err, &ee) && ee.servidor) || (errors.As(err, &ew) && ew.servidor)) {
+			_ = s.a.Redis.Set(ctx, caido, err.Error(), time.Minute).Err()
+			rest := make([]uuid.UUID, 0, len(lote)-i)
+			for _, q := range lote[i:] {
+				rest = append(rest, q.id)
+			}
+			det := "Servidor de email no disponible: "
+			if canal == "whatsapp" {
+				det = "WhatsApp (evo-weai) no disponible: "
+			}
+			msg := err.Error()
+			if len(msg) > 150 {
+				msg = msg[:150]
+			}
+			_, _ = s.a.DB.Exec(ctx, `UPDATE campana_destinatarios SET estado = 'pendiente', intentos = greatest(intentos - 1, 0), proximo_at = now() + interval '1 minute', detalle = $2, updated_at = now() WHERE id = ANY($1)`,
+				rest, det+msg)
+			s.a.Log.Warn("canal de campaña caído", "campana", c.id, "canal", canal, "err", err)
+			return
 		}
 		s.resultado(ctx, c, canal, p, id, err, wa.Modo == "simulado")
 	}

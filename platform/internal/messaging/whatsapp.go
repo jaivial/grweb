@@ -60,6 +60,7 @@ func (s *Svc) waDe(ctx context.Context, cid uuid.UUID) waCfg {
 type errWA struct {
 	msg        string
 	permanente bool
+	servidor   bool // evo-weai itself is down (connection, 5xx): the batch waits, no try is spent
 }
 
 func (e *errWA) Error() string { return e.msg }
@@ -80,7 +81,7 @@ func (s *Svc) evo(ctx context.Context, c waCfg, method, path string, in, out any
 	req.Header.Set("Content-Type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return &errWA{msg: "evo-weai no responde: " + err.Error()}
+		return &errWA{msg: "evo-weai no responde: " + err.Error(), servidor: true}
 	}
 	defer res.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
@@ -91,7 +92,7 @@ func (s *Svc) evo(ctx context.Context, c waCfg, method, path string, in, out any
 		}
 		low := strings.ToLower(m)
 		perm := res.StatusCode == http.StatusBadRequest && (strings.Contains(low, "exists") || strings.Contains(low, "not on whatsapp") || strings.Contains(low, "invalid number"))
-		return &errWA{msg: fmt.Sprintf("evo-weai %d: %s", res.StatusCode, m), permanente: perm}
+		return &errWA{msg: fmt.Sprintf("evo-weai %d: %s", res.StatusCode, m), permanente: perm, servidor: res.StatusCode >= 500}
 	}
 	if out != nil {
 		return json.Unmarshal(raw, out)

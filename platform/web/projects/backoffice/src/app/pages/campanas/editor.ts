@@ -273,7 +273,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
                   <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
                     <p class="flex items-center justify-between"><span class="flex items-center gap-2 text-label-m"><gr-icon [name]="ch === 'email' ? 'mail' : 'smartphone'" [size]="16" />{{ ch === 'email' ? 'Email' : 'WhatsApp' }}</span><span class="font-mono text-mono-s">{{ n(p.enviados + p.fallidos) }} / {{ n(p.total) }}</span></p>
                     <div class="mt-2 h-2 overflow-hidden rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="(p.enviados + p.fallidos) * 100 / (p.total || 1)"></div></div>
-                    <p class="mt-2 text-body-xs text-text-tertiary">{{ p.pendientes ? 'Quedan ' + n(p.pendientes) + ' · ' + (ch === 'email' ? f().emailPorMin : f().waPorMin) + '/min' : 'Terminado' }} · {{ n(p.entregados) }} entregados · {{ n(p.leidos) }} leídos · {{ n(p.fallidos) }} fallidos</p>
+                    <p class="mt-2 text-body-xs text-text-tertiary">{{ p.pendientes ? 'Quedan ' + n(p.pendientes) + ' · ' + (ch === 'email' ? f().emailPorMin : f().waPorMin) + '/min' : 'Terminado' }} @if (ch === 'whatsapp') { · {{ n(p.entregados) }} entregados · {{ n(p.leidos) }} leídos } · {{ n(p.fallidos) }} fallidos</p>
                   </section>
                 }
               }
