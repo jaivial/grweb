@@ -3,7 +3,7 @@ import {
   Activity, ArrowDown, ArrowRight, ArrowUp, Award, Bell, Calendar, CalendarDays, Camera, Car, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
   GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
-  Plus, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
+  Plus, Pause, Play, Monitor, Copy, Maximize2, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
   TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, type IconNode,
 } from 'lucide';
 
@@ -19,7 +19,7 @@ export const GR_ICONS = {
   settings: Settings, shield: Shield, 'shield-alert': ShieldAlert, smartphone: Smartphone, sparkles: Sparkles,
   ticket: Ticket, train: TrainFront, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
   'wifi-off': WifiOff, x: X, zap: Zap, door: DoorOpen, eye: Eye, grip: GripVertical, pencil: Pencil, star: Star, trash: Trash2, undo: Undo2,
-  'calendar-plus': CalendarPlus,
+  'calendar-plus': CalendarPlus, pause: Pause, play: Play, monitor: Monitor, copy: Copy, maximize: Maximize2,
 } satisfies Record<string, IconNode>;
 
 export type GrIconName = keyof typeof GR_ICONS;

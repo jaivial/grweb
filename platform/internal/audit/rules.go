@@ -58,6 +58,9 @@ var notifRules = map[string]notifRule{
 	"horarios.publicados": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return fmt.Sprintf("Horarios v%v publicados", d["version"]), fmt.Sprintf("%v cambios · %v avisos por email", d["cambios"], d["avisos"]), "/horarios", "ok", "horarios.publicar", true
 	},
+	"resultados.publicacion": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Resultados publicados", strings.Join(strs(d["categorias"]), " · "), "/resultados", "ok", "resultados.publicar", true
+	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
 	},
@@ -195,6 +198,33 @@ func resumen(e events.Event) string {
 			return fmt.Sprintf("marcó %v min de retraso en el flight %s", r, str(d["codigo"]))
 		}
 		return "devolvió el flight " + str(d["codigo"]) + " a programado"
+	case "directo.cambio":
+		a, _ := d["antes"].(map[string]any)
+		b, _ := d["despues"].(map[string]any)
+		switch {
+		case str(b["fase"]) == "finalizado" && str(a["fase"]) != "finalizado":
+			return "dio por terminada la competición en directo"
+		case str(b["fase"]) == "en_directo" && str(a["fase"]) != "en_directo":
+			return "empezó el directo con el flight " + str(b["flight"])
+		case b["pausa"] == true && a["pausa"] != true:
+			return "activó la pausa técnica"
+		case b["pausa"] != true && a["pausa"] == true:
+			return "reanudó el directo tras la pausa"
+		case fmt.Sprint(a["retrasoMin"]) != fmt.Sprint(b["retrasoMin"]):
+			return fmt.Sprintf("cambió el retraso del directo a %v min", b["retrasoMin"])
+		}
+		return "pasó la mesa al flight " + str(b["flight"])
+	case "directo.correccion_registrada":
+		a, _ := d["antes"].(map[string]any)
+		b, _ := d["despues"].(map[string]any)
+		res := map[string]string{"valido": "válido", "nulo": "nulo", "renuncia": "renuncia"}
+		return fmt.Sprintf("corrigió el %v.º intento de %s: %s → %s (%s)", d["numero"], strings.ToLower(str(d["movimiento"])), res[str(a["resultado"])], res[str(b["resultado"])], str(d["motivo"]))
+	case "directo.pantalla_rotada":
+		return "generó un nuevo enlace para la pantalla del pabellón"
+	case "resultados.publicacion":
+		return "publicó los resultados de " + strings.Join(strs(d["categorias"]), ", ")
+	case "resultados.retirada":
+		return "retiró de /resultados la categoría " + str(d["categoria"])
 	case "athletes.plaza_ofrecida":
 		return "ofreció una plaza libre a un atleta de la reserva (enlace de pago)"
 	case "athletes.inscripcion_pagada":
@@ -290,4 +320,13 @@ func str(v any) string {
 		return s
 	}
 	return fmt.Sprint(v)
+}
+
+func strs(v any) []string {
+	l, _ := v.([]any)
+	out := make([]string, 0, len(l))
+	for _, x := range l {
+		out = append(out, str(x))
+	}
+	return out
 }

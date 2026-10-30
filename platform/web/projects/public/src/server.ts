@@ -35,7 +35,7 @@ async function seoMap(): Promise<SeoMap | null> {
   return seoCache.data;
 }
 
-const STATIC_ROUTES = ['/', '/en', '/atletas', '/participantes', '/horarios', '/entradas', '/publico', '/clubs', '/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos', '/politica-concurso'];
+const STATIC_ROUTES = ['/', '/en', '/atletas', '/participantes', '/horarios', '/entradas', '/en-directo', '/resultados', '/resultados/2025', '/ediciones/2025', '/publico', '/clubs', '/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos', '/politica-concurso'];
 
 /** Redirects managed from the backoffice («Páginas y SEO · Redirecciones»). */
 app.use(async (req, res, next) => {
@@ -47,7 +47,7 @@ app.use(async (req, res, next) => {
 });
 
 app.get('/robots.txt', (_req, res) => {
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${ORIGIN}/sitemap.xml\n`);
+  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /pantalla/\nSitemap: ${ORIGIN}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml', async (_req, res) => {

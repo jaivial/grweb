@@ -53,7 +53,10 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 // Internal events carrying personal data (email requests, contact facts, deliveries) are not kept in the log either.
 var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitado": true, "cms.email_solicitado": true, "identity.email_solicitado": true,
 	"crm.email_solicitado": true, "athletes.contacto": true, "cms.contacto": true, "messaging.enviado": true, "messaging.rebote": true, "mensaje.estado": true,
-	"ticketing.email_solicitado": true, "ticketing.contacto": true, "checkin.escaneo": true, "aforo.actualizado": true}
+	"ticketing.email_solicitado": true, "ticketing.contacto": true, "checkin.escaneo": true, "aforo.actualizado": true,
+	// live: the public mirrors of the desk (every weight and light); the log keeps directo.cambio, the corrections and
+	// the publications.
+	"directo.intento": true, "directo.veredicto": true, "directo.estado": true, "directo.correccion": true, "resultados.publicados": true, "resultados.retirados": true}
 
 // handle stores the event, then applies notification and KPI rules (its own events are ignored to avoid loops).
 func (s *Svc) handle(ctx context.Context, e events.Event) error {

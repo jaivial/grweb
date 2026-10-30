@@ -42,6 +42,7 @@ var automatizaciones = []Automatizacion{
 	{Clave: "horarios", Nombre: "Tu flight y horario", Cuando: "al publicar horarios", Publico: "Atletas afectados", Canales: []string{"email"}, Esencial: true},
 	{Clave: "seguidores", Nombre: "Avisos a seguidores", Cuando: "al publicar horarios", Publico: "Seguidores con aviso confirmado", Canales: []string{"email"}},
 	{Clave: "salida30", Nombre: "Tu atleta sale en 30 min", Cuando: "−30 min del flight", Publico: "Seguidores con aviso confirmado", Canales: []string{"email"}},
+	{Clave: "resultados", Nombre: "Resultados publicados", Cuando: "al publicar cada categoría", Publico: "Atletas de la categoría y sus seguidores", Canales: []string{"email"}},
 	{Clave: "plaza", Nombre: "Plaza libre en la reserva", Cuando: "al liberarse plaza", Publico: "Lista de reserva", Canales: []string{"email"}},
 	{Clave: "novedades", Nombre: "Novedades: doble opt-in", Cuando: "al suscribirse · recordatorio a las 48 h", Publico: "Suscripciones pendientes", Canales: []string{"email"}},
 	{Clave: "entradas", Nombre: "Entradas: confirmación, cambios y anulación", Cuando: "al reservar o cambiar", Publico: "Reservas", Canales: []string{"email"}, Esencial: true},
@@ -57,6 +58,9 @@ func p(clave, nombre, disparador, servicio, auto string, esencial bool, vars []s
 var ejEntrada = map[string]string{"nombre": "Laura", "titular": "Laura Gómez Ruiz + 2 acompañantes", "sesion": "Sábado mañana", "dia": "sábado 25 jul", "puertas": "08:30", "hasta": "14:00",
 	"personas": "3", "codigo": "GRC-7K3P", "qr": "https://grcup.example/api/competiciones/grcup/entradas/GRC-7K3P/qr.png?s=…", "enlace": "https://grcup.example/mi-entrada?t=…",
 	"lugar": "Pavelló Poliesportiu d'Almussafes, Almussafes", "cuando": "mañana", "caduca": "domingo 26 jul a las 10:00", "entradas": "https://grcup.example/entradas"}
+
+var ejResultado = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "categoria": "Femenino −63 kg", "puesto": "2.ª", "total": "367,5 kg",
+	"resultado": "2.ª con 367,5 kg", "enlace": "https://grcup.example/resultados/2026", "baja": "https://grcup.example/atletas/laura-gomez-ruiz?baja=…"}
 
 var ejHorario = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "flight": "B", "plataforma": "1", "dia": "sábado 25/7", "hora": "10:30", "pesaje": "08:30–10:00",
 	"enlace": "https://grcup.example/area-atleta", "horarios": "https://grcup.example/horarios", "version": "2", "baja": "https://grcup.example/atletas/laura-gomez-ruiz?baja=…"}
@@ -104,6 +108,10 @@ var catalogo = []Plantilla{
 		Contenido{Asunto: "{{atleta}} compite el {{dia}} a las {{hora}}", Titulo: "{{atleta}} ya tiene horario", Cuerpo: "**{{atleta}}** compite en el **Flight {{flight}}** el {{dia}} a las **{{hora}}**.\n\nTe escribiremos también 30 minutos antes de que salga.", BotonTexto: "Ver los horarios", BotonURL: "{{horarios}}", Pie: "Recibes este email porque activaste el aviso de {{atleta}}. Desactívalo aquí: {{baja}}"}),
 	p("atleta-sale-30min", "Tu atleta sale en 30 min", "30 minutos antes de su flight", "athletes", "salida30", false, []string{"atleta", "flight", "hora", "enlace", "horarios", "baja"}, ejHorario,
 		Contenido{Asunto: "{{atleta}} sale en 30 minutos", Titulo: "¡{{atleta}} sale en 30 minutos!", Cuerpo: "El **Flight {{flight}}** empieza a las **{{hora}}**. Si vas a verlo, ya es hora de ir al pabellón; si no, síguelo en directo.", BotonTexto: "Horarios en directo", BotonURL: "{{horarios}}", Pie: "Recibes este email porque activaste el aviso de {{atleta}}. Desactívalo aquí: {{baja}}"}),
+	p("resultados-atleta", "Tus resultados", "Al publicar los resultados de su categoría", "athletes", "resultados", false, []string{"nombre", "atleta", "categoria", "puesto", "total", "resultado", "enlace"}, ejResultado,
+		Contenido{Asunto: "Tus resultados · {{categoria}}", Preheader: "{{resultado}}", Titulo: "¡Gracias por competir, {{nombre}}!", Cuerpo: "Ya están publicados los resultados de **{{categoria}}**: terminaste **{{resultado}}**.\n\nEl acta oficial la valida la AEP. En unos días subiremos las fotos a la galería.", BotonTexto: "Ver la clasificación", BotonURL: "{{enlace}}"}),
+	p("resultados-seguidor", "Resultados de un atleta que sigues", "Al publicar los resultados de su categoría", "athletes", "resultados", false, []string{"atleta", "categoria", "puesto", "total", "resultado", "enlace", "baja"}, ejResultado,
+		Contenido{Asunto: "Resultados de {{atleta}} · {{categoria}}", Titulo: "{{atleta}}: {{resultado}}", Cuerpo: "Ya están publicados los resultados de **{{categoria}}**. **{{atleta}}** terminó **{{resultado}}**.", BotonTexto: "Ver la clasificación", BotonURL: "{{enlace}}", Pie: "Recibes este email porque activaste el aviso de {{atleta}}. Desactívalo aquí: {{baja}}"}),
 	p("voluntario-recibido", "Solicitud de voluntariado recibida", "Al enviar el formulario de voluntarios", "cms", "voluntarios", true, []string{"nombre"},
 		map[string]string{"nombre": "Pablo"},
 		Contenido{Asunto: "Hemos recibido tu solicitud de voluntariado", Titulo: "¡Gracias, {{nombre}}!", Cuerpo: "Hemos recibido tu solicitud para ser voluntario en la GR Strength Cup. Te escribiremos en unos días con el puesto y los turnos."}),

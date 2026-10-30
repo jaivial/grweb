@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -80,6 +81,10 @@ type Svc struct {
 	max    int64
 	slugMu sync.Mutex
 	slugs  map[string]slugEntry
+	// public connections per competition on this pod (the «espectadores» of the live desk)
+	pubMu sync.Mutex
+	pub   map[string]int
+	pod   string
 }
 
 type slugEntry struct {
@@ -89,7 +94,7 @@ type slugEntry struct {
 
 // Service returns the realtime service definition.
 func Service() app.Service {
-	s := &Svc{hub: &hub{subs: map[chan msg]struct{}{}}, slugs: map[string]slugEntry{}}
+	s := &Svc{hub: &hub{subs: map[chan msg]struct{}{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
 	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, Setup: s.setup}
 }
 
@@ -97,10 +102,38 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.a = a
 	s.max = int64(config.Int("SSE_MAX_CONEXIONES", 10000))
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "realtime", "competition", a.Cfg.InternalToken)
+	s.pod, _ = os.Hostname()
 	a.Go(s.reader)
+	a.Go(s.contar)
 	a.Mux.HandleFunc("GET /api/competiciones/{slug}/stream", s.public)
 	a.Mux.HandleFunc("GET /api/admin/competiciones/{cid}/stream", s.admin)
 	return nil
+}
+
+// contar reports the public connections of this pod every 20 s (one key per competition and pod, 60 s expiry: a
+// pod that dies stops counting). live sums them for the desk and /en-directo.
+func (s *Svc) contar(ctx context.Context) {
+	t := time.NewTicker(20 * time.Second)
+	defer t.Stop()
+	for {
+		s.pubMu.Lock()
+		snap := make(map[string]int, len(s.pub))
+		for k, v := range s.pub {
+			snap[k] = v
+			if v <= 0 {
+				delete(s.pub, k)
+			}
+		}
+		s.pubMu.Unlock()
+		for cid, n := range snap {
+			_ = s.a.Redis.Set(ctx, s.a.Keys.Of("rt", "conexiones", cid, s.pod), n, time.Minute).Err()
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
 }
 
 // reader tails the stream (XREAD from the newest entry) and publishes to the hub.
@@ -163,6 +196,14 @@ func (s *Svc) public(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
+	s.pubMu.Lock()
+	s.pub[cid]++
+	s.pubMu.Unlock()
+	defer func() {
+		s.pubMu.Lock()
+		s.pub[cid]-- // kept at 0 until the next report writes it
+		s.pubMu.Unlock()
+	}()
 	// Public connections are recycled every 30 min so they spread over the pods after scaling.
 	s.stream(w, r, time.Now().Add(30*time.Minute), "reconectar", func(e events.Event) (any, bool) {
 		if e.CompetitionID != cid || e.Audience != events.Public {
