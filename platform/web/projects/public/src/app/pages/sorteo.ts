@@ -65,7 +65,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
       @else if (s === null) {
         <div class="mx-auto flex max-w-[640px] flex-col items-center gap-4 px-5 pt-[120px] pb-24 text-center md:pt-40">
           <h1 class="text-display-m md:text-display-l">Sorteo</h1>
-          <p class="flex items-start gap-3 rounded-xl border border-warning bg-warning/8 p-4 text-left text-body-s text-text-secondary" role="alert"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />No hemos podido cargar el sorteo. Vuelve a intentarlo en unos minutos.</p>
+          <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-left text-body-s text-text-secondary" role="alert"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />No hemos podido cargar el sorteo. Vuelve a intentarlo en unos minutos.</p>
         </div>
       } @else {
         <!-- Figma «Section / Sorteo» (the same panel as the home, as the page's hero) -->
@@ -77,13 +77,13 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
           <gr-sorteo-titulo titulo="Normas" acento="del sorteo" texto="Simple, justo y transparente. Aquí tienes lo que necesitas saber; las bases completas están en la política del concurso." />
           <div class="grid w-full max-w-[1104px] gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
             @for (r of normas(); track r.t) {
-              <div class="flex flex-col gap-2 rounded-2xl border border-line-subtle bg-bg-card p-6">
+              <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <span class="flex size-10 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="r.i" [size]="20" /></span>
                 <p class="mt-2 text-ui-h5">{{ r.t }}</p><p class="text-body-s text-text-tertiary">{{ r.d }}</p>
               </div>
             }
           </div>
-          <div class="flex w-full max-w-[420px] flex-col items-center gap-2 rounded-xl border border-accent bg-accent/8 p-6 text-center">
+          <div class="flex w-full max-w-[420px] flex-col items-center gap-2 rounded-md border border-accent bg-accent/8 p-6 text-center">
             <p class="text-body-s text-text-tertiary">¿Cuánto cuesta?</p>
             <p class="text-ui-h2 text-accent-text">{{ euros(s.precio) }} por boleto</p>
             <p class="text-body-xs text-text-tertiary">Más boletos, más posibilidades · máx. {{ s.maxPorPersona }} por persona</p>
@@ -98,7 +98,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
             <span class="absolute top-5 bottom-5 left-[19px] w-0.5 bg-[linear-gradient(180deg,#c42b3e,rgb(196_43_62/0.15))] md:left-1/2 md:-translate-x-1/2" aria-hidden="true"></span>
             @for (p of pasos(); track p.t; let i = $index; let par = $even) {
               <li class="relative flex items-center gap-4 md:gap-8" [class.md:flex-row-reverse]="!par">
-                <div class="order-2 flex min-w-0 flex-1 flex-col gap-2 rounded-xl border border-line-subtle bg-bg-card p-6 md:order-none md:max-w-[428px]">
+                <div class="order-2 flex min-w-0 flex-1 flex-col gap-2 rounded-md border border-line-subtle bg-bg-card p-6 md:order-none md:max-w-[428px]">
                   <span class="flex size-7 items-center justify-center rounded-full bg-accent text-label-xs">{{ i + 1 }}</span>
                   <h3 class="mt-1 text-ui-h4">{{ p.t }}</h3><p class="text-body-s text-text-tertiary">{{ p.d }}</p>
                 </div>
@@ -112,7 +112,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
         <!-- Resultados -->
         <section [class]="seccion">
           <gr-sorteo-titulo titulo="Resultados" />
-          <div class="flex w-full max-w-[520px] flex-col items-center gap-3 rounded-2xl border p-7 text-center" [class]="s.ganador ? 'border-accent/50 bg-[linear-gradient(150deg,#4a121c,#1b1112_70%)]' : 'border-line-subtle bg-bg-card'">
+          <div class="flex w-full max-w-[520px] flex-col items-center gap-3 rounded-lg border p-7 text-center" [class]="s.ganador ? 'border-accent/50 bg-[linear-gradient(150deg,#4a121c,#1b1112_70%)]' : 'border-line-subtle bg-bg-card'">
             @if (s.ganador; as g) {
               <p class="text-mono-xs tracking-[0.2em] text-text-tertiary">BOLETO GANADOR</p>
               <p class="font-display text-[72px] leading-none text-accent-text italic">{{ g.numero }}</p>
@@ -136,7 +136,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
             }
           </div>
           @if (s.estado === 'en_venta') {
-            <p class="w-full max-w-[520px] rounded-xl border border-accent bg-accent/8 p-6 text-left text-body-s">Cuantos más boletos compres, más oportunidades tienes de ganar.</p>
+            <p class="w-full max-w-[520px] rounded-md border border-accent bg-accent/8 p-6 text-left text-body-s">Cuantos más boletos compres, más oportunidades tienes de ganar.</p>
             <div class="flex flex-col items-center gap-10">
               <p class="text-body-s text-text-tertiary">¿Quieres ser nuestro próximo ganador?</p>
               <a grButton variant="primary" size="l" routerLink="." fragment="participa">Participa ahora</a>
@@ -147,7 +147,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
         <!-- Premio -->
         <section [class]="seccion + ' md:pt-0'">
           <gr-sorteo-titulo eyebrow="Premio del sorteo" titulo="Participa para ganar" acento="este premio" />
-          <article class="flex w-full max-w-[360px] flex-col overflow-hidden rounded-2xl border border-line-subtle bg-bg-card">
+          <article class="flex w-full max-w-[360px] flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
             <div class="relative h-[200px] bg-[radial-gradient(60%_60%_at_50%_45%,#4a121c,#1b1112)]">
               @if (s.premioImagen) { <img [src]="s.premioImagen" [alt]="s.premio" class="size-full object-cover" loading="lazy" /> }
             </div>
@@ -176,16 +176,16 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
                 <a href="#novedades" (click)="irNovedades($event)" class="text-label-s text-accent-text hover:underline">Avísame por email →</a></div>
             } @else {
               <form class="flex flex-col gap-5" (ngSubmit)="comprar()" novalidate>
-                @if (cancelado) { <p class="flex items-start gap-3 rounded-xl border border-line-strong bg-bg-field p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-info" />Pago cancelado: no se ha cobrado nada. Puedes intentarlo de nuevo cuando quieras.</p> }
-                @if (s.pasarela === 'simulado') { <p class="flex items-start gap-3 rounded-xl border border-warning bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-warning" />Modo pruebas: la pasarela es de pruebas y no se cobra nada.</p> }
-                @if (error()) { <p class="flex items-start gap-3 rounded-xl border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
+                @if (cancelado) { <p class="flex items-start gap-3 rounded-md border border-line-strong bg-bg-field p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-info" />Pago cancelado: no se ha cobrado nada. Puedes intentarlo de nuevo cuando quieras.</p> }
+                @if (s.pasarela === 'simulado') { <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-warning" />Modo pruebas: la pasarela es de pruebas y no se cobra nada.</p> }
+                @if (error()) { <p class="flex items-start gap-3 rounded-md border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
                 <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Nombre completo</span><input name="nombre" [(ngModel)]="f.nombre" autocomplete="name" required maxlength="120" placeholder="Tu nombre y apellidos" [class]="campo + (tocado() && f.nombre.trim().length < 2 ? ' border-accent-text' : ' border-line-strong')" /></label>
                 <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Correo electrónico</span><input name="email" type="email" [(ngModel)]="f.email" autocomplete="email" required placeholder="tu@email.com" [class]="campo + (tocado() && !emailOk() ? ' border-accent-text' : ' border-line-strong')" /></label>
                 <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Teléfono <span class="text-text-muted">(opcional)</span></span>
                   <span class="flex h-12 items-center rounded-sm border border-line-strong bg-bg-field focus-within:border-accent-text"><span class="pl-3 text-body-m text-text-secondary">+34</span><span class="mx-2 h-6 w-px bg-line-strong"></span><input name="tel" type="tel" [(ngModel)]="f.telefono" autocomplete="tel-national" placeholder="600 000 000" class="h-full w-0 min-w-0 flex-1 bg-transparent pr-3 text-body-m outline-none placeholder:text-text-muted" /></span></label>
 
                 <!-- Figma «Ticket stepper» -->
-                <div class="flex flex-col items-center gap-3 rounded-xl border border-line-subtle bg-bg-field p-5">
+                <div class="flex flex-col items-center gap-3 rounded-md border border-line-subtle bg-bg-field p-5">
                   <p class="flex w-full justify-between"><span class="text-label-s text-text-secondary">Número de boletos</span><span class="text-body-xs text-text-muted">{{ euros(s.precio) }} por boleto · máx. {{ s.maxPorPersona }}</span></p>
                   <div class="flex items-center gap-7">
                     <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-card disabled:opacity-40" [disabled]="cantidad() <= 1" (click)="cantidad.set(cantidad() - 1)" aria-label="Menos boletos"><gr-icon name="minus" [size]="16" /></button>
@@ -371,7 +371,7 @@ export class SorteoPage {
             <h1 class="text-ui-h3 md:text-ui-h2">Pago completado</h1>
             <p class="text-body-m text-text-tertiary">Tu participación en el sorteo ha sido confirmada.@if (c.pruebas) { {{ ' ' }}Modo pruebas: no se ha cobrado nada. }</p>
           </div>
-          <section class="flex w-full flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6 text-left">
+          <section class="flex w-full flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6 text-left">
             <h2 class="text-ui-h5">Resumen</h2>
             <p class="flex justify-between gap-4 text-body-s"><span class="text-text-tertiary">Nombre</span><span>{{ c.nombre }}</span></p>
             <p class="flex justify-between gap-4 text-body-s"><span class="text-text-tertiary">Email</span><span class="truncate">{{ c.email }}</span></p>
@@ -383,15 +383,15 @@ export class SorteoPage {
               <div class="flex flex-wrap gap-2">@for (b of c.boletos; track b) { <span class="rounded-md border border-accent/50 bg-bg-base/60 px-3 py-1.5 font-display text-[24px] leading-none italic">{{ b }}</span> }</div>
             </div>
           </section>
-          <section class="flex w-full flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6 text-left">
+          <section class="flex w-full flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6 text-left">
             <h2 class="text-ui-h5">Siguientes pasos</h2>
             @for (p of siguientes(); track p) { <p class="flex gap-2.5 text-body-s text-text-secondary"><gr-icon name="check" [size]="16" class="mt-0.5 shrink-0 text-accent-text" />{{ p }}</p> }
           </section>
           <div class="flex flex-col items-center gap-4">
             <p class="text-label-s text-text-tertiary">Comparte con tus amigos</p>
             <div class="flex flex-wrap justify-center gap-2">
-              @for (r of redes; track r.n) { <a [href]="r.url" target="_blank" rel="noopener" class="flex h-11 items-center gap-2 rounded-xl border border-line-strong px-4 text-label-s hover:border-white"><gr-icon name="send" [size]="16" />{{ r.n }}</a> }
-              <button type="button" class="flex h-11 items-center gap-2 rounded-xl border border-line-strong px-4 text-label-s hover:border-white" (click)="copiar()"><gr-icon name="copy" [size]="16" />{{ copiado() ? 'Copiado' : 'Copiar enlace' }}</button>
+              @for (r of redes; track r.n) { <a [href]="r.url" target="_blank" rel="noopener" class="flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:border-white"><gr-icon name="send" [size]="16" />{{ r.n }}</a> }
+              <button type="button" class="flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:border-white" (click)="copiar()"><gr-icon name="copy" [size]="16" />{{ copiado() ? 'Copiado' : 'Copiar enlace' }}</button>
             </div>
           </div>
           <a grButton variant="primary" size="l" href="/">Volver al inicio</a>

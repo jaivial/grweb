@@ -25,7 +25,7 @@ export interface FotoLightbox { imagen: string; alt: string; pie?: string }
           <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="20" /></button>
         </div>
         <figure class="flex w-full max-w-[1060px] flex-col items-center gap-4 md:w-auto" (click)="$event.stopPropagation()" (touchstart)="tocar($event)" (touchend)="soltar($event)">
-          <img [src]="grande(f.imagen)" [alt]="f.alt" class="max-h-[72vh] w-full object-contain md:w-auto md:max-w-full md:rounded-2xl" />
+          <img [src]="grande(f.imagen)" [alt]="f.alt" class="max-h-[72vh] w-full object-contain md:w-auto md:max-w-full md:rounded-lg" />
           <figcaption class="px-4 text-center text-body-s text-text-secondary md:px-0">{{ f.pie || f.alt }}<span class="ml-3 whitespace-nowrap">{{ indice() + 1 }} / {{ fotos().length }}</span></figcaption>
         </figure>
         <p class="sr-only" aria-live="polite">{{ aviso() }}</p>

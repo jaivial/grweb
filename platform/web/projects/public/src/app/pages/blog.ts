@@ -49,7 +49,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
             @if (destacado(); as d) {
               <div class="grid gap-6 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)] lg:gap-8">
                 <!-- Figma «Destacado»: 760 × 420 (350 × 420 on mobile), 24 px corners, title over the photo -->
-                <a [href]="'/blog/' + d.slug" class="group relative flex aspect-[350/420] flex-col justify-end overflow-hidden rounded-2xl border border-line-subtle md:aspect-[760/420]">
+                <a [href]="'/blog/' + d.slug" class="group relative flex aspect-[350/420] flex-col justify-end overflow-hidden rounded-xl md:rounded-2xl border border-line-subtle md:aspect-[760/420]">
                   @if (d.portadaUrl) { <img [src]="d.portadaUrl" alt="" class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> }
                   <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_25%,rgb(14_12_13/0.95))]" aria-hidden="true"></span>
                   <span class="relative flex flex-col items-start gap-3 p-5 md:p-6">

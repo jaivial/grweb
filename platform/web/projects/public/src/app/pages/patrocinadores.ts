@@ -27,15 +27,15 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
     <gr-page title="Patrocinadores" accent="y colaboradores" eyebrow="Comunidad" section="Comunidad" crumb="Patrocinadores" subtitle="Las marcas, clubs y entidades que hacen posible la GRStrength Cup.">
       <div class="flex flex-col gap-16 md:gap-20">
         @if (items() === null) {
-          <div class="grid gap-4 md:grid-cols-2">@for (i of [1, 2]; track i) { <gr-skeleton class="h-56 rounded-2xl" /> }</div>
+          <div class="grid gap-4 md:grid-cols-2">@for (i of [1, 2]; track i) { <gr-skeleton class="h-56 rounded-lg" /> }</div>
         } @else {
           <section class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera eyebrow="01 · Avala y organiza" titulo="Federación *y organización*" [centro]="false" tam="m" />
             <ul class="grid gap-4 md:grid-cols-2">
               @for (t of federacion(); track t.nombre) {
                 <li>
-                  <a [attr.href]="t.url || null" [attr.target]="t.url ? '_blank' : null" rel="noopener" class="flex h-full flex-col gap-4 rounded-2xl border border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)] bg-bg-card p-4 transition-colors md:p-5" [class.hover:border-accent]="!!t.url">
-                    <span class="flex h-24 items-center justify-center rounded-xl bg-white/4 p-4 md:h-[120px]"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[70%] object-contain" loading="lazy" /></span>
+                  <a [attr.href]="t.url || null" [attr.target]="t.url ? '_blank' : null" rel="noopener" class="flex h-full flex-col gap-4 rounded-lg border border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)] bg-bg-card p-4 transition-colors md:p-5" [class.hover:border-accent]="!!t.url">
+                    <span class="flex h-24 items-center justify-center rounded-md bg-white/4 p-4 md:h-[120px]"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[70%] object-contain" loading="lazy" /></span>
                     <span class="flex items-center justify-between gap-3"><span class="text-label-m">{{ t.nombre }}</span><span class="text-label-xs text-accent-text uppercase">{{ t.insignia }}</span></span>
                     @if (t.texto) { <span class="text-body-s text-text-tertiary">{{ t.texto }}</span> }
                   </a>
@@ -50,8 +50,8 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
               <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
                 @for (t of marcas(); track t.nombre) {
                   <li>
-                    <a [attr.href]="t.url || null" target="_blank" rel="noopener sponsored" class="flex h-full flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-3 transition-colors md:gap-4 md:p-4" [class.hover:border-line-strong]="!!t.url">
-                      <span class="flex h-[104px] items-center justify-center rounded-xl bg-white/4 p-3 md:h-[88px] md:p-4"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
+                    <a [attr.href]="t.url || null" target="_blank" rel="noopener sponsored" class="flex h-full flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-3 transition-colors md:gap-4 md:p-4" [class.hover:border-line-strong]="!!t.url">
+                      <span class="flex h-[104px] items-center justify-center rounded-md bg-white/4 p-3 md:h-[88px] md:p-4"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
                       <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <span class="text-label-m">{{ t.nombre }}</span>
                         <span class="hidden h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-tertiary uppercase md:inline-flex">{{ t.insignia }}</span>
@@ -68,13 +68,13 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
         <section class="flex flex-col gap-5 md:gap-7">
           <gr-cabecera eyebrow="03 · Patrocina" titulo="Hazte *patrocinador*" texto="Llega a atletas, entrenadores y aficionados a la fuerza de toda la Comunitat Valenciana." [centro]="false" tam="m" />
           <div class="grid gap-4 md:grid-cols-2">
-            <div class="rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
+            <div class="rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
               <h3 class="text-label-m">Qué ofrecemos</h3>
               <ul class="mt-4 flex flex-col gap-3">
                 @for (o of ofrecemos; track o) { <li class="flex gap-3 text-body-m text-text-secondary"><span class="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ o }}</li> }
               </ul>
             </div>
-            <div class="flex flex-col gap-4 rounded-2xl border border-accent/40 bg-[linear-gradient(135deg,#3a0f17,#1b1112_70%)] p-5 md:p-6">
+            <div class="flex flex-col gap-4 rounded-lg border border-accent/40 bg-[linear-gradient(135deg,#3a0f17,#1b1112_70%)] p-5 md:p-6">
               <h3 class="text-display-xs">Hablemos</h3>
               <p class="text-body-m text-text-secondary">Te enviamos el dossier con las opciones de patrocinio.</p>
               <div class="mt-auto flex flex-col gap-3">

@@ -17,7 +17,7 @@ import { Community, Related, type RelatedLink } from './landings';
     <gr-page title="Preguntas" accent="frecuentes" eyebrow="Ayuda" subtitle="Todo lo que necesitas saber sobre la inscripción, la competición, el sorteo y cómo venir a Almussafes.">
       <!-- Figma 24: «Temas» card (260, sticky) next to the questions -->
       <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-10">
-        <nav class="h-fit min-w-0 rounded-2xl border border-line-subtle bg-bg-card p-3 lg:sticky lg:top-28 lg:p-4" aria-label="Temas">
+        <nav class="h-fit min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3 lg:sticky lg:top-28 lg:p-4" aria-label="Temas">
           <p class="px-2 pb-2 text-label-xs text-text-muted uppercase">Temas</p>
           <ul class="flex gap-1 overflow-x-auto [scrollbar-width:none] lg:flex-col">
             @for (t of temas(); track t.nombre) {
@@ -31,15 +31,15 @@ import { Community, Related, type RelatedLink } from './landings';
             <span class="sr-only">Buscar una pregunta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input type="search" placeholder="Busca una pregunta…" [value]="q()" (input)="q.set($any($event.target).value)"
-              class="h-12 w-full rounded-xl border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
+              class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
-          @if (faq() === null) { <div class="flex flex-col gap-3">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-2xl" /> }</div> }
+          @if (faq() === null) { <div class="flex flex-col gap-3">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-lg" /> }</div> }
           @for (g of grupos(); track g.nombre; let gi = $index) {
             <section class="flex flex-col gap-3">
               <h2><gr-eyebrow [texto]="(gi + 1) + ' · ' + g.nombre" /></h2>
               @for (f of g.items; track f.pregunta; let fi = $index) {
                 <!-- Figma «FAQ item»: 16 radius, Label/L question, ± in a disc; the first one open -->
-                <details class="group rounded-2xl border border-line-subtle bg-bg-card open:border-accent/60" [attr.open]="gi === 0 && fi === 0 && !q() ? '' : null">
+                <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [attr.open]="gi === 0 && fi === 0 && !q() ? '' : null">
                   <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-l">{{ f.pregunta }}
                     <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span>
                   </summary>
@@ -49,7 +49,7 @@ import { Community, Related, type RelatedLink } from './landings';
             </section>
           } @empty {
             @if (faq() !== null) {
-              <div class="flex flex-col items-center gap-2 rounded-2xl border border-line-subtle bg-bg-card px-6 py-10 text-center">
+              <div class="flex flex-col items-center gap-2 rounded-md border border-line-subtle bg-bg-card px-6 py-10 text-center">
                 <gr-icon name="search" [size]="22" class="text-text-tertiary" />
                 <p class="text-label-l">No hay preguntas con «{{ q() }}»</p>
                 <p class="text-body-s text-text-tertiary">Prueba con otra palabra o escríbenos.</p>
@@ -57,7 +57,7 @@ import { Community, Related, type RelatedLink } from './landings';
             }
           }
           <!-- «¿No encuentras tu respuesta?» -->
-          <div class="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
             <div><p class="text-label-l">¿No encuentras tu respuesta?</p><p class="text-body-s text-text-tertiary">Escríbenos y te contestamos en menos de 48 h.</p></div>
             <div class="flex gap-2">
               @if (contacto()) { <a [href]="'mailto:' + contacto()" class="flex h-11 flex-1 items-center justify-center rounded-sm border border-line-strong px-4 text-label-s hover:border-white sm:flex-none">Email</a> }

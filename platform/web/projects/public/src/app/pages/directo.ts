@@ -88,7 +88,7 @@ export class Luces {
     </div>
     <ul class="flex flex-col gap-2 md:hidden">
       @for (f of c().filas; track $index; let i = $index) {
-        <li class="rounded-2xl border bg-bg-card" [class]="abierto() === i ? 'border-accent/60' : 'border-line-subtle'">
+        <li class="rounded-lg border bg-bg-card" [class]="abierto() === i ? 'border-accent/60' : 'border-line-subtle'">
           <button type="button" class="flex w-full items-center gap-3 px-4 py-4 text-left" (click)="abierto.set(abierto() === i ? -1 : i)" [attr.aria-expanded]="abierto() === i">
             <span class="flex size-9 shrink-0 items-center justify-center rounded-full border text-label-s" [class]="f.medalla ? med[f.medalla] : 'border-line-strong'">{{ f.puesto || '–' }}</span>
             <span class="min-w-0 flex-1"><span class="block truncate text-label-l">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }} · {{ c().titulo.replace(/^(Femenino|Masculino)\s*/, '') }}</span></span>
@@ -158,7 +158,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
           <!-- Video -->
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
-          <section class="relative -mx-5 -mt-4 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-2xl md:border" aria-label="Retransmisión">
+          <section class="relative -mx-5 -mt-4 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border" aria-label="Retransmisión">
             @if (video(); as v) {
               <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GR Strength Cup" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {
@@ -406,13 +406,13 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
       <div class="flex flex-col gap-12 md:gap-20">
         <section class="flex flex-col gap-5 md:gap-7">
           <gr-cabecera eyebrow="Ediciones" titulo="Todas las *ediciones*" [centro]="false" tam="m" />
-          @if (cards() === undefined) { <div class="grid gap-6 md:grid-cols-2"><gr-skeleton class="h-[420px] rounded-2xl" /><gr-skeleton class="h-[420px] rounded-2xl" /></div> }
+          @if (cards() === undefined) { <div class="grid gap-6 md:grid-cols-2"><gr-skeleton class="h-[420px] rounded-xl" /><gr-skeleton class="h-[420px] rounded-xl" /></div> }
           @else {
             <div class="grid gap-6 md:grid-cols-2">
               @for (x of cards(); track x.e.slug) {
                 @let fin = x.e.estado === 'finalizado';
                 <!-- Figma «Edition card»: 260 px photo with the year, badge, name, meta with icons and the action -->
-                <article class="flex flex-col overflow-hidden rounded-2xl border border-line-subtle bg-bg-card">
+                <article class="flex flex-col overflow-hidden rounded-xl border border-line-subtle bg-bg-card">
                   <div class="relative h-[220px] overflow-hidden md:h-[260px]">
                     <img [src]="fin ? '/img/home/edicion-2025.webp' : '/img/home/edicion-2026.webp'" [alt]="x.e.nombre" class="size-full object-cover" [class]="fin ? 'object-[50%_42%]' : 'object-[50%_30%]'" loading="lazy" />
                     <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgb(20_17_18/0.85))]"></span>
@@ -439,7 +439,7 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
         <section class="flex flex-col gap-5 md:gap-7">
           <gr-cabecera eyebrow="Cómo se clasifica" titulo="Total y *puntos GL*" [centro]="false" tam="m" />
           <div class="grid gap-4 md:grid-cols-3">
-            @for (c of como; track c.t) { <div class="flex flex-col gap-2 rounded-2xl border border-line-subtle bg-bg-card p-6"><p class="text-label-l">{{ c.t }}</p><p class="text-body-s text-text-tertiary">{{ c.d }}</p></div> }
+            @for (c of como; track c.t) { <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6"><p class="text-label-l">{{ c.t }}</p><p class="text-body-s text-text-tertiary">{{ c.d }}</p></div> }
           </div>
         </section>
         <gr-related [items]="rel" />
@@ -514,7 +514,7 @@ export class ResultadosIndexPage {
           <button type="button" class="relative flex size-11 items-center justify-center rounded-md border border-line-strong md:hidden" aria-label="Filtros" aria-controls="filtros-resultados" [attr.aria-expanded]="filtros()" (click)="filtros.set(!filtros())"><gr-icon name="sliders" [size]="18" />
             @if ((cat() ? 1 : 0) + (orden() !== 'puesto' ? 1 : 0); as n) { <span class="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-label-xs text-white">{{ n }}</span> }</button>
           <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
-          @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s md:h-10" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.l }}</button> }
+          @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.l }}</button> }
           </div>
           <div id="filtros-resultados" class="w-full flex-col gap-2 md:contents" [class.flex]="filtros()" [class.hidden]="!filtros()">
           <select class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:h-10" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Categoría</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</select>
@@ -541,7 +541,7 @@ export class ResultadosIndexPage {
           <gr-cabecera [class]="conGL ? 'mt-14' : 'mt-12'" [eyebrow]="(conGL ? '02' : '01') + ' · Podios'" titulo="Podio por *categoría*" [centro]="false" tam="m" />
           <div class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
             @for (c of r.categorias; track c.clave) {
-              <section class="w-[86%] shrink-0 snap-center rounded-2xl border border-line-subtle bg-bg-card p-5 md:w-auto">
+              <section class="w-[86%] shrink-0 snap-center rounded-xl border border-line-subtle bg-bg-card p-5 md:w-auto">
                 <header class="flex items-baseline justify-between"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} atletas</span></header>
                 <div class="mt-4 grid grid-cols-3 items-end gap-2">
                   @for (p of podio(c); track $index) {
@@ -665,11 +665,11 @@ export class ResultadosEdicionPage {
         <!-- Figma «Ficha»: the poster (360 × 480) and the facts in one column, the story and the actions -->
         <div class="flex flex-col gap-12 md:gap-20">
         <div class="grid gap-6 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)] md:gap-10">
-          @if (cartel()) { <img [src]="cartel()" [alt]="'Cartel de la ' + c.nombre" class="mx-auto w-full max-w-[360px] rounded-2xl border border-line-subtle" width="360" height="480" /> }
+          @if (cartel()) { <img [src]="cartel()" [alt]="'Cartel de la ' + c.nombre" class="mx-auto w-full max-w-[360px] rounded-lg border border-line-subtle" width="360" height="480" /> }
           <div class="flex flex-col gap-5">
             <dl class="flex flex-col gap-4">
               @for (x of datos(); track x.l) {
-                <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/12 text-accent-text"><gr-icon [name]="x.i" [size]="18" /></span>
+                <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-md border border-accent/30 bg-accent/12 text-accent-text"><gr-icon [name]="x.i" [size]="18" /></span>
                   <div><dt class="text-label-xs text-text-muted uppercase">{{ x.l }}</dt><dd class="text-label-m">{{ x.v }}</dd></div></div>
               }
             </dl>
@@ -688,7 +688,7 @@ export class ResultadosEdicionPage {
             <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
               @for (f of galeria(); track f.url; let i = $index) {
                 <!-- mobile shows six (Figma 28 mobile), desktop eight -->
-                <button type="button" class="group relative aspect-[285/379] overflow-hidden rounded-2xl border border-white/8 cursor-zoom-in" [class.max-md:hidden]="i >= 6" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
+                <button type="button" class="group relative aspect-[285/379] overflow-hidden rounded-md border border-white/8 cursor-zoom-in" [class.max-md:hidden]="i >= 6" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
                   <img [src]="mini(f.url)" [alt]="f.alt" loading="lazy" class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" />
                 </button>
               }
@@ -700,7 +700,7 @@ export class ResultadosEdicionPage {
           <section class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="'02 · Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:flex md:flex-wrap md:gap-4">
-              @for (p of sponsors(); track p.nombre) { <li class="flex h-20 items-center justify-center rounded-2xl border border-line-subtle bg-bg-card px-5 py-4 md:w-[200px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" loading="lazy" /></li> }
+              @for (p of sponsors(); track p.nombre) { <li class="flex h-20 items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-5 py-4 md:w-[200px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" loading="lazy" /></li> }
             </ul>
             <p class="text-body-xs text-text-tertiary">Logos del cartel de la edición {{ anio() }}.</p>
           </section>

@@ -13,7 +13,7 @@ import { GrIcon, type GrIconName } from '@grcup/ui';
   selector: 'gr-callout',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': "'relative flex gap-3 overflow-hidden rounded-2xl p-4 ' + estilo[tono()].caja" },
+  host: { '[class]': "'relative flex gap-3 overflow-hidden rounded-lg p-4 ' + estilo[tono()].caja" },
   template: `
     <span class="absolute top-3.5 bottom-3.5 left-0 w-[3px] rounded-full" [class]="estilo[tono()].barra" aria-hidden="true"></span>
     <gr-icon [name]="estilo[tono()].icono" [size]="20" class="ml-2 shrink-0 self-start" [class]="estilo[tono()].texto" />
@@ -39,7 +39,7 @@ export class GrCallout {
   selector: 'gr-hechos',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-3 rounded-2xl border border-accent bg-bg-card/40 p-6' },
+  host: { class: 'flex flex-col gap-3 rounded-lg border border-accent bg-bg-card/40 p-6' },
   template: `
     <p class="text-label-xs text-accent-text uppercase">{{ titulo() }}</p>
     <ul class="flex flex-col gap-3">

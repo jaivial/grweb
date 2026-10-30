@@ -46,7 +46,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
       } @else if (!h?.publicado) {
         @if (!api.failed()) {
           <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <section class="flex flex-col items-center gap-3 rounded-xl border border-line-subtle bg-bg-card px-6 py-14 text-center">
+            <section class="flex flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-14 text-center">
               <span class="flex size-14 items-center justify-center rounded-full border border-accent/40 bg-accent-deep/30 text-accent-text"><gr-icon name="clock" [size]="24" /></span>
               <h2 class="text-display-xs md:text-display-s">Próximamente</h2>
               <p class="max-w-md text-body-m text-text-secondary">Publicaremos los flights cuando cerremos el listado de la AEP (unas 2 semanas antes). Mientras, puedes ver quién compite y seguir a tus atletas.</p>
@@ -89,7 +89,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
           <div class="flex flex-col gap-3">
             @if (mio() && !misAtletas().length) {
               <!-- Figma 41 «Mi horario vacío» -->
-              <section class="flex flex-col gap-3 rounded-xl border border-line-subtle bg-bg-card p-5">
+              <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="flex items-center gap-2 text-ui-h5"><gr-icon name="star" [size]="18" class="text-accent-text" />Mi horario<span class="ml-auto text-body-xs text-text-muted">0 atletas</span></h2>
                 <p class="text-body-s text-text-secondary">Sigue a atletas (☆) y aquí verás cuándo compiten, con los retrasos ya aplicados. Se guarda en este navegador, sin registrarte.</p>
                 <a href="/atletas" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong bg-bg-raised text-label-s hover:border-white">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
@@ -99,7 +99,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               @if (r.flight; as f) {
                 @let abierto = abiertos().has(f.id) || q().length > 1 || mio();
                 @let fin = f.estado === 'finalizado';
-                <article [id]="'flight-' + f.codigo" class="relative overflow-hidden rounded-2xl border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent' : 'border-line-subtle'">
+                <article [id]="'flight-' + f.codigo" class="relative overflow-hidden rounded-lg border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent' : 'border-line-subtle'">
                   @if (f.estado === 'en_curso') { <span class="absolute inset-y-0 left-0 w-1 bg-accent" aria-hidden="true"></span> }
                   <!-- Figma «Flight block»: one row on desktop; time + pill on top and the title below on mobile -->
                   <button type="button" class="grid w-full grid-cols-[minmax(0,1fr)_auto_18px] items-center gap-x-2.5 gap-y-2 p-4 text-left md:grid-cols-[72px_minmax(0,1fr)_auto_18px] md:gap-x-4 md:p-5" (click)="toggle(f.id)" [attr.aria-expanded]="abierto">
@@ -159,7 +159,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
 
           <!-- «Mi horario» tab on mobile: the followed athletes come first (Figma 41) -->
           <aside class="flex flex-col gap-4" [class.order-first]="mio() && misAtletas().length" [class.lg:order-none]="true">
-            <section class="rounded-xl border border-line-subtle bg-bg-card p-5">
+            <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
               <h2 class="flex items-center gap-2 text-ui-h5"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="text-accent-text" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>Mi horario<span class="ml-auto text-body-xs text-text-muted">{{ misAtletas().length }} {{ misAtletas().length === 1 ? 'atleta' : 'atletas' }}</span></h2>
               @if (misAtletas().length) {
                 <ul class="mt-3 flex flex-col">
@@ -183,14 +183,14 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               }
             </section>
             @if (diaSel()?.notas?.length) {
-              <section class="rounded-xl border border-line-subtle bg-bg-card p-5">
+              <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="text-ui-h5">Info del día</h2>
                 <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
                   @for (n of diaSel()!.notas; track n) { <li class="flex gap-2"><gr-icon name="chevron-right" [size]="16" class="mt-0.5 shrink-0 text-accent-text" />{{ n }}</li> }
                 </ul>
               </section>
             }
-            <a [href]="icsTodos" class="flex items-center gap-3 rounded-xl border border-line-subtle bg-bg-card p-4 text-body-s text-text-secondary hover:border-line-strong">
+            <a [href]="icsTodos" class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 text-body-s text-text-secondary hover:border-line-strong">
               <gr-icon name="calendar-days" [size]="18" class="text-accent-text" /><span class="flex-1">Todos los flights en tu calendario</span><gr-icon name="download" [size]="16" />
             </a>
           </aside>

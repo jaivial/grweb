@@ -40,8 +40,8 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
             <ul class="flex flex-col gap-3" role="group" aria-label="Roles de voluntariado">
               @for (r of roles; track r.id) {
                 <li>
-                  <label class="flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition-colors md:p-5" [class]="elegido(r.id) ? 'border-accent/60 bg-accent/8' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent-text"><gr-icon [name]="r.icono" [size]="18" /></span>
+                  <label class="flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-colors md:p-5" [class]="elegido(r.id) ? 'border-accent/60 bg-accent/8' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
+                    <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="r.icono" [size]="18" /></span>
                     <span class="flex min-w-0 flex-1 flex-col items-start gap-1">
                       <span class="text-label-m">{{ r.t }}</span>
                       <span class="text-body-s text-text-tertiary">{{ r.d }}</span>
@@ -52,7 +52,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                 </li>
               }
             </ul>
-            <div class="rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
+            <div class="rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
               <div class="flex items-center justify-between gap-3">
                 <h2 class="text-label-m">Qué te llevas</h2>
                 <span class="inline-flex h-6 items-center rounded-full border border-info/40 bg-info/10 px-2.5 text-label-xs text-info uppercase">A definir</span>
@@ -63,7 +63,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
             </div>
           </section>
 
-          <section id="apuntate" class="scroll-mt-28 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6 lg:sticky lg:top-28" aria-labelledby="apuntate-t">
+          <section id="apuntate" class="scroll-mt-28 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6 lg:sticky lg:top-28" aria-labelledby="apuntate-t">
             <h2 id="apuntate-t" class="text-ui-h3">Apúntate</h2>
             @if (enviado()) {
               <div class="flex flex-col items-center gap-4 py-8 text-center" role="status">
@@ -87,7 +87,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                   <legend class="mb-1.5 text-label-s">Disponibilidad</legend>
                   <div class="flex flex-wrap gap-2">
                     @for (d of dias(); track d) {
-                      <button type="button" class="inline-flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors md:h-10" [attr.aria-pressed]="disponible().has(d)" (click)="alternarDia(d)"
+                      <button type="button" class="inline-flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors" [attr.aria-pressed]="disponible().has(d)" (click)="alternarDia(d)"
                         [class]="disponible().has(d) ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary'">
                         <gr-icon [name]="disponible().has(d) ? 'check' : 'plus'" [size]="14" />{{ d }}
                       </button>

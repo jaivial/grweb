@@ -40,7 +40,7 @@ export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, 
           @else { <p class="text-body-m text-text-tertiary lg:col-start-2">No hemos podido cargar el texto. Vuelve a intentarlo en unos minutos.</p> }
         } @else {
           @if (toc().length) {
-            <nav class="flex h-fit flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:col-start-1 lg:row-span-2 lg:row-start-1" aria-label="Contenido">
+            <nav class="flex h-fit flex-col gap-1 rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:col-start-1 lg:row-span-2 lg:row-start-1" aria-label="Contenido">
               <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
               <ol class="flex flex-col gap-1 text-body-s">
                 @for (h of toc(); track h.id; let i = $index) {

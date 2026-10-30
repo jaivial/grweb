@@ -55,7 +55,7 @@ export class Related {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <section class="relative overflow-hidden rounded-xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-8 md:p-10">
+    <section class="relative overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-8 md:p-10">
       <div>
         <p class="flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>{{ en() ? 'Community' : 'Comunidad' }}</p>
         <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h2>
@@ -93,7 +93,7 @@ export class Community {
             @case ('datos') {
               <ul id="info" class="grid scroll-mt-32 grid-cols-2 gap-3 md:grid-cols-4">
                 @for (d of items(s, 'items'); track d['etiqueta']) {
-                  <li class="flex flex-col gap-1.5 rounded-2xl border border-line-subtle bg-bg-card p-4 md:p-5">
+                  <li class="flex flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
                     <gr-icon [name]="ic(d['icono'])" [size]="18" class="mb-1.5 self-start text-accent-text" />
                     <p class="text-label-xs text-text-muted uppercase">{{ d['etiqueta'] }}</p>
                     <p class="text-label-m">{{ d['valor'] }}</p>
@@ -107,7 +107,7 @@ export class Community {
                 <!-- Figma 29: three 300 × 420 cards on desktop; a swipe row with dots on mobile -->
                 <ul #fila class="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[940px] md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
                   @for (m of items(s, 'items'); track m['titulo']; let i = $index) {
-                    <li class="relative w-[66%] shrink-0 snap-start overflow-hidden rounded-2xl border border-line-subtle shadow-card md:w-auto">
+                    <li class="relative w-[66%] shrink-0 snap-start overflow-hidden rounded-lg border border-line-subtle shadow-card md:w-auto">
                       <img [src]="m['imagen']" [alt]="m['alt'] || m['titulo']" class="aspect-[300/420] w-full object-cover" loading="lazy" />
                       <div class="absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5">
                         <span class="inline-flex h-6 items-center rounded-full bg-accent px-2.5 text-label-xs text-white uppercase">Movimiento · {{ (i + 1).toString().padStart(2, '0') }}</span>
@@ -128,7 +128,7 @@ export class Community {
                 <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
                 <ol class="grid gap-3 md:grid-cols-4 md:gap-4">
                   @for (p of items(s, 'pasos'); track p['titulo']; let i = $index, last = $last) {
-                    <li class="rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
+                    <li class="rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
                       <span class="flex size-7 items-center justify-center rounded-full bg-accent text-label-s text-white">{{ i + 1 }}</span>
                       <p class="mt-4 text-label-m">{{ p['titulo'] }}</p>
                       <p class="mt-1.5 text-body-s text-text-tertiary">{{ p['texto'] }}</p>
@@ -145,7 +145,7 @@ export class Community {
             @case ('normas') {
               <section id="normas" class="flex scroll-mt-32 flex-col gap-5 md:gap-7">
                 <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
-                <ul class="flex flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
+                <ul class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
                   @for (n of items(s, 'items'); track n['texto']) {
                     <li class="flex gap-3 text-body-m text-text-secondary"><span class="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ n['texto'] }}</li>
                   }
@@ -223,11 +223,11 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
           <span class="sr-only">Buscar un club</span>
           <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
           <input type="search" placeholder="Busca un club o una ciudad…" [value]="q()" (input)="q.set($any($event.target).value)"
-            class="h-11 w-full rounded-xl border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
+            class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
         </label>
         <div class="flex flex-wrap gap-2" role="group" aria-label="Provincia">
           @for (p of provincias; track p) {
-            <button type="button" (click)="prov.set(p)" [attr.aria-pressed]="prov() === p" class="inline-flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors md:h-10"
+            <button type="button" (click)="prov.set(p)" [attr.aria-pressed]="prov() === p" class="inline-flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors"
               [class]="prov() === p ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary'">
               <gr-icon [name]="prov() === p ? 'check' : 'plus'" [size]="14" />{{ p }}
             </button>
@@ -236,12 +236,12 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
       </div>
 
       @if (clubs() === null) {
-        <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-40 rounded-2xl" /> }</div>
+        <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-40 rounded-lg" /> }</div>
       } @else {
         <ul class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           @for (c of visibles(); track c.nombre) {
             <!-- Figma 32 «Club card»: 44 px logo tile, name and place, pill tags, role and «Ver club» -->
-            <li class="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-bg-card p-4 md:p-5">
+            <li class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
               <div class="flex items-center gap-3">
                 <span class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/8 p-1">
                   @if (c.logoUrl) { <img [src]="c.logoUrl" alt="" class="max-h-full max-w-full object-contain" loading="lazy" /> } @else { <span class="text-label-s text-text-tertiary">{{ initials(c.nombre) }}</span> }
@@ -262,9 +262,9 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
               </div>
             </li>
           } @empty {
-            <li class="rounded-2xl border border-line-subtle bg-bg-card p-6 text-body-m text-text-tertiary md:col-span-2 lg:col-span-3">No hay clubs que coincidan con la búsqueda.</li>
+            <li class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-tertiary md:col-span-2 lg:col-span-3">No hay clubs que coincidan con la búsqueda.</li>
           }
-          <li class="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-bg-card p-4 md:p-5">
+          <li class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
             <div class="flex items-center gap-3">
               <span class="flex size-11 items-center justify-center rounded-lg bg-accent/12 text-accent-text"><gr-icon name="plus" [size]="18" /></span>
               <div><p class="text-label-m">Tu club aquí</p><p class="flex items-center gap-1 text-body-xs text-text-tertiary"><gr-icon name="map-pin" [size]="12" />Comunitat Valenciana</p></div>
@@ -278,7 +278,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
         </ul>
       }
 
-      <section id="anadir" class="mt-12 scroll-mt-32 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
+      <section id="anadir" class="mt-12 scroll-mt-32 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
         <div class="md:flex md:items-center md:justify-between md:gap-6">
           <div>
             <h2 class="text-ui-h4">¿Entrenas powerlifting en un club?</h2>

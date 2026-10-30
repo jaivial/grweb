@@ -38,7 +38,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
           <gr-cabecera eyebrow="01 · Tabla oficial" titulo="Totales mínimos *por categoría*" texto="Total = sentadilla + press de banca + peso muerto, en kg. JUN = júnior · ABS = absoluto · M1 = máster 1." [centro]="false" tam="m" />
           <!-- mobile: sex tabs and one division at a time -->
           <div class="flex flex-col gap-3 md:hidden">
-            <div class="grid grid-cols-2 gap-1 rounded-xl border border-line-subtle p-1" role="tablist" aria-label="Sexo">
+            <div class="grid grid-cols-2 gap-1 rounded-md border border-line-subtle p-1" role="tablist" aria-label="Sexo">
               @for (g of generos; track g.k) { <button type="button" role="tab" [attr.aria-selected]="sexoTabla() === g.k" (click)="sexoTabla.set(g.k)" class="h-11 rounded-md text-label-s" [class]="sexoTabla() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-tertiary'">{{ g.l }}</button> }
             </div>
             <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="División">
@@ -46,7 +46,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
                 <button type="button" role="radio" [attr.aria-checked]="divTabla() === d.k" (click)="divTabla.set(d.k)" class="flex h-11 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="divTabla() === d.k ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'"><gr-icon [name]="divTabla() === d.k ? 'check' : 'plus'" [size]="14" />{{ d.l }}</button>
               }
             </div>
-            <ul class="rounded-2xl border border-line-subtle bg-bg-card px-4">
+            <ul class="rounded-lg border border-line-subtle bg-bg-card px-4">
               @for (r of totales[sexoTabla()]; track r[0]) {
                 <li class="flex h-[60px] items-center justify-between border-b border-line-subtle last:border-0"><span class="font-display text-[18px] uppercase italic">{{ nombre(r[0]) }}</span>
                   <span class="text-label-m" [class.text-text-muted]="r[divIdx()] === null">{{ r[divIdx()] === null ? '— (solo JUN)' : kg(r[divIdx()]!) + ' kg' }}</span></li>
@@ -57,7 +57,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
             @for (g of generos; track g.k) {
               <div class="flex flex-col gap-3">
                 <h3 class="text-display-xs">{{ g.k === 'M' ? 'Masculino' : 'Femenino' }}</h3>
-                <table class="w-full overflow-hidden rounded-2xl border border-line-subtle bg-bg-card text-left">
+                <table class="w-full overflow-hidden rounded-lg border border-line-subtle bg-bg-card text-left">
                   <thead><tr class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><th class="px-4 py-3 font-medium">Categoría</th>@for (d of divs; track d.k) { <th class="px-4 py-3 font-medium">{{ d.l }}</th> }</tr></thead>
                   <tbody>
                     @for (r of totales[g.k]; track r[0]) {
@@ -78,7 +78,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
         <!-- 02 · ¿Tienes la marca? -->
         <section id="comprobar" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
           <gr-cabecera eyebrow="02 · Herramienta" titulo="¿Tienes *la marca?*" [centro]="false" tam="m" />
-          <div class="flex w-full flex-col gap-4 rounded-2xl border border-line-subtle bg-bg-card p-5 lg:max-w-[588px]">
+          <div class="flex w-full flex-col gap-4 rounded-xl border border-line-subtle bg-bg-card p-5 lg:max-w-[588px]">
             <h3 class="text-ui-h5">¿Tienes la marca mínima?</h3>
             <div class="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
               <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Categoría</span>
@@ -99,7 +99,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
         <!-- 03 · Cómo se acredita -->
         <section id="normas" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
           <gr-cabecera eyebrow="03 · Normas" titulo="Cómo se *acredita*" [centro]="false" tam="m" />
-          <ul class="flex flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6">
+          <ul class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
             @for (n of normas; track n) { <li class="flex gap-3 text-body-s text-text-secondary md:text-body-m"><span class="mt-2 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ n }}</li> }
           </ul>
           <div id="pdf" class="flex scroll-mt-36 flex-col items-start gap-3 sm:flex-row sm:items-center">
@@ -113,7 +113,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
           <gr-cabecera eyebrow="04 · Dudas" titulo="Preguntas *frecuentes*" [centro]="false" tam="m" />
           <div class="flex max-w-[720px] flex-col gap-3">
             @for (f of faq; track f.q; let i = $index) {
-              <div class="rounded-2xl border bg-bg-card" [class]="abierta() === i ? 'border-accent/60' : 'border-line-subtle'">
+              <div class="rounded-lg border bg-bg-card" [class]="abierta() === i ? 'border-accent/60' : 'border-line-subtle'">
                 <button type="button" class="flex min-h-16 w-full items-center justify-between gap-4 px-5 py-4 text-left text-label-l" [attr.aria-expanded]="abierta() === i" (click)="abierta.set(abierta() === i ? -1 : i)">
                   {{ f.q }}<span class="flex size-7 shrink-0 items-center justify-center rounded-full" [class]="abierta() === i ? 'bg-accent/20 text-accent-text' : 'bg-white/8'"><gr-icon [name]="abierta() === i ? 'minus' : 'plus'" [size]="14" /></span>
                 </button>
