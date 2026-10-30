@@ -84,7 +84,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
                       <div class="min-w-0"><p class="text-label-s">{{ f.nombre }}</p><p class="text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }} · {{ f.division }}</p></div></div></td>
                     <td class="px-3 py-2.5 text-right font-mono text-text-secondary">{{ kg(f.pesoCorporal) }}</td>
                     @for (m of movs; track m) { <td class="px-3 py-2.5 text-right font-mono" [title]="intentos(f, m)">{{ kg(f[m]) }}</td> }
-                    <td class="px-3 py-2.5 text-right font-mono text-label-s">{{ kg(f.total) }}</td>
+                    <td class="px-3 py-2.5 text-right font-mono text-label-s">@if (f.total) { {{ kg(f.total) }} } @else if (f.subtotal) { <span class="text-text-tertiary" title="Subtotal provisional">{{ kg(f.subtotal) }}</span> } @else { – }</td>
                     <td class="px-3 py-2.5 text-right font-mono text-text-secondary">{{ gl(f.gl) }}</td>
                     <td class="px-4 py-2.5"><div class="flex flex-wrap justify-end gap-1.5">
                       @if (f.medalla) { <span class="rounded-2xs border px-1.5 py-0.5 text-mono-xs uppercase" [class]="med[f.medalla].c">{{ med[f.medalla].l }}</span> }

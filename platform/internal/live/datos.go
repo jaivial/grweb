@@ -328,6 +328,7 @@ type Fila struct {
 	BP           *float64            `json:"bp,omitempty"`
 	DL           *float64            `json:"dl,omitempty"`
 	Total        *float64            `json:"total,omitempty"`
+	Subtotal     *float64            `json:"subtotal,omitempty" doc:"Sin total todavía: suma de los mejores intentos válidos hasta ahora (clasificación provisional)"`
 	GL           *float64            `json:"gl,omitempty"`
 	Intentos     map[string][3]Celda `json:"intentos"`
 	Medalla      string              `json:"medalla,omitempty" enum:"oro,plata,bronce"`
@@ -456,6 +457,10 @@ func clasificar(p *plan, t tabla, recs []record, k string, publico bool) Categor
 				}
 			}
 		}
+		if !todos && total > 0 && !f.SinTotal {
+			sub := total
+			f.Subtotal = &sub
+		}
 		if todos {
 			f.Total = &total
 			if a.PesoCorporal != nil {
@@ -483,6 +488,13 @@ func clasificar(p *plan, t tabla, recs []record, k string, publico bool) Categor
 		}
 		if a.Total != nil && *a.Total != *b.Total {
 			return *a.Total > *b.Total
+		}
+		// without totals yet (live): the provisional subtotal, the bombed-out athletes last
+		if a.Total == nil && !eqF(a.Subtotal, b.Subtotal) {
+			if (a.Subtotal == nil) != (b.Subtotal == nil) {
+				return a.Subtotal != nil
+			}
+			return *a.Subtotal > *b.Subtotal
 		}
 		// IPF tie-break: the lighter athlete first, then the lot drawn
 		ab, bb := bwOr(p.Atletas[a.AtletaID]), bwOr(p.Atletas[b.AtletaID])

@@ -357,7 +357,8 @@ func (s *Svc) sincronizarHorarios(ctx context.Context, cid uuid.UUID, p *plan, e
 			retraso = e.RetrasoMin
 		}
 		v := estado + "|" + itoa(retraso)
-		if old, _ := s.a.Redis.HGet(ctx, key, f.ID.String()).Result(); old == v {
+		old, _ := s.a.Redis.HGet(ctx, key, f.ID.String()).Result()
+		if old == v || (old == "" && v == "programado|0") { // a flight never touched is already «programado» on time
 			continue
 		}
 		if err := s.schedule.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/horarios/flights/"+f.ID.String()+"/directo",

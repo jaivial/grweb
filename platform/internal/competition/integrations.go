@@ -477,7 +477,7 @@ func (s *Svc) seed2025(ctx context.Context, a *app.App) (uuid.UUID, error) {
 		return id, nil
 	}
 	id = newID()
-	sede := Sede{Nombre: "Pabellón de Llíria", Ciudad: "Llíria", Provincia: "Valencia"}
+	sede := Sede{Ciudad: "Llíria", Provincia: "Valencia"} // the 2025 poster names only the town
 	evento := Evento{Descripcion: "La primera edición reunió a atletas de la Comunitat Valenciana, Murcia y Baleares en una competición regional de nivel AEP-2, con jueces y cargadores certificados.",
 		Nivel: "AEP-2 Regional Valencia, Murcia y Baleares", Organizador: "GR Strength", EmailContacto: "admin@grstrength.com", Instagram: "https://instagram.com/grstrengthclub"}
 	insc := Inscripcion{Modo: "externa", Estado: "cerrada"}

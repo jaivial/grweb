@@ -46,7 +46,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
 
       @if (cola().length || offlineDesde()) {
         <gr-alert tone="danger" [title]="offlineDesde() ? 'Sin conexión desde hace ' + segundos(offlineDesde()!) : 'Decisiones pendientes de enviar'">
-          {{ cola().length }} {{ cola().length === 1 ? 'decisión guardada' : 'decisiones guardadas' }} en este dispositivo @if (cola().length) { (#{{ cola()[0].n }}@if (cola().length > 1) {–#{{ cola()[cola().length - 1].n }}}) }.
+          {{ resumenCola() }}
           Se enviarán en orden al reconectar. No cierres esta pestaña.
           <button type="button" class="mt-1 block text-label-s text-accent-text hover:underline" (click)="vaciarCola()">Reintentar ahora →</button>
         </gr-alert>
@@ -60,7 +60,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
       } @else {
         <!-- Controls: flight, lift, delay -->
         <section class="flex flex-wrap items-end gap-3">
-          <gr-field label="Flight" class="w-full sm:w-64">
+          <gr-field label="Flight" class="w-full sm:w-80">
             <select grInput [ngModel]="m.estado.flightId ?? ''" (ngModelChange)="elegirFlight($event)" [disabled]="!puedeOperar() || !!guardando()">
               <option value="" disabled>Elige el flight</option>
               @for (f of m.flights; track f.id) { <option [value]="f.id">{{ f.codigo }} · {{ f.titulo }} · {{ estadoFlight[f.estado] }}</option> }
@@ -323,6 +323,11 @@ export class DirectoPage {
     if (!m?.flight) return undefined;
     const i = m.flights.findIndex((f) => f.id === m.flight!.id);
     return m.flights.slice(i + 1).find((f) => f.estado !== 'finalizado');
+  });
+  protected readonly resumenCola = computed(() => {
+    const c = this.cola();
+    const rango = c.length ? ` (#${c[0].n}${c.length > 1 ? '–#' + c[c.length - 1].n : ''})` : '';
+    return `${c.length} ${c.length === 1 ? 'decisión guardada' : 'decisiones guardadas'} en este dispositivo${rango}.`;
   });
   private readonly claveCola = computed(() => `gr-directo-cola-${this.cid()}`);
 

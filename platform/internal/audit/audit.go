@@ -81,6 +81,9 @@ func (s *Svc) handle(ctx context.Context, e events.Event) error {
 	}
 	var d map[string]any
 	_ = json.Unmarshal(data, &d)
+	if e.Type == "horarios.flight" && d["origen"] == "directo" {
+		return nil // the desk already logs directo.cambio (one line, not one per flight of the day)
+	}
 	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `INSERT INTO auditoria (id, competition_id, tipo, source, subject, audience, permiso, actor_usuario_id, actor_nombre, actor_origen, actor_servicio, datos, diff, request_id, occurred_at)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT (id) DO NOTHING`,

@@ -450,7 +450,7 @@ func (s *Svc) registerAdmin() {
 			if in.Body.RetrasoMin < 0 || in.Body.RetrasoMin > 600 {
 				return nil, problem.Unprocessable("RETRASO_INVALIDO", "El retraso va de 0 a 600 minutos.")
 			}
-			if err := s.setDirecto(ctx, in.CID, in.ID, in.Body); err != nil {
+			if err := s.setDirecto(ctx, in.CID, in.ID, in.Body, "horarios"); err != nil {
 				return nil, err
 			}
 			s.bump(ctx, in.CID)
@@ -459,7 +459,7 @@ func (s *Svc) registerAdmin() {
 }
 
 // setDirecto stores the live state of a published flight and announces it (public: no personal data).
-func (s *Svc) setDirecto(ctx context.Context, cid, id uuid.UUID, d Directo) error {
+func (s *Svc) setDirecto(ctx context.Context, cid, id uuid.UUID, d Directo, origen string) error {
 	v, err := s.versionPublicada(ctx, s.a.DB, cid)
 	if err != nil {
 		return err
@@ -478,7 +478,7 @@ func (s *Svc) setDirecto(ctx context.Context, cid, id uuid.UUID, d Directo) erro
 			return err
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "horarios.flight", map[string]any{"flightId": id, "codigo": f.Codigo, "estado": d.Estado,
-			"retrasoMin": d.RetrasoMin, "inicioEstimado": hhmm(f.Inicio.Add(time.Duration(d.RetrasoMin)*time.Minute), loc)},
+			"retrasoMin": d.RetrasoMin, "inicioEstimado": hhmm(f.Inicio.Add(time.Duration(d.RetrasoMin)*time.Minute), loc), "origen": origen},
 			events.Competition(cid.String()), events.Audience(events.Public), events.Subject(f.Codigo)))
 	})
 	if err == nil {
@@ -516,7 +516,7 @@ func (s *Svc) registerInternal() {
 			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err
 			}
-			return nil, s.setDirecto(ctx, in.CID, in.ID, in.Body)
+			return nil, s.setDirecto(ctx, in.CID, in.ID, in.Body, "directo")
 		})
 }
 

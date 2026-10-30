@@ -16,7 +16,7 @@ import (
 // registerResultados: the live service publishes a category and asks for the notices (the athlete and the
 // followers of a public profile), once per athlete; the competition desk's delay reaches the 30-minute notice.
 func (s *Svc) registerResultados() {
-	type fila struct {
+	type filaAviso struct {
 		AtletaID uuid.UUID `json:"atletaId"`
 		Puesto   int       `json:"puesto"`
 		Total    *float64  `json:"total,omitempty"`
@@ -25,8 +25,8 @@ func (s *Svc) registerResultados() {
 	type resIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
-			Titulo string `json:"titulo" maxLength:"60"`
-			Filas  []fila `json:"filas" maxItems:"300"`
+			Titulo string      `json:"titulo" maxLength:"60"`
+			Filas  []filaAviso `json:"filas" maxItems:"300"`
 		}
 	}
 	type resOut struct {
@@ -48,7 +48,7 @@ func (s *Svc) registerResultados() {
 			d := s.compDate(ctx, in.CID)
 			enlace := s.webURL + "/resultados/" + itoa(c.Year())
 			ids := make([]uuid.UUID, 0, len(in.Body.Filas))
-			byID := map[uuid.UUID]fila{}
+			byID := map[uuid.UUID]filaAviso{}
 			for _, f := range in.Body.Filas {
 				if f.Puesto > 0 || f.SinTotal {
 					ids = append(ids, f.AtletaID)

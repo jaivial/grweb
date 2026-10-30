@@ -18,7 +18,7 @@ import { Community, Related, type RelatedLink } from './landings';
 
 const TZ = 'Europe/Madrid';
 const PABELLON = 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp';
-const FOTO_2025 = 'https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/f7efa2c624614a66b35f6ab01980e09e.webp';
+const FOTO_2025 = 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfonso-fernandez/img-3364.webp';
 const TROFEO = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0060.webp';
 const CARTEL_2025 = '/img/cartel-2025.jpg';
 const MOVS: Mov[] = ['sq', 'bp', 'dl'];
@@ -68,7 +68,7 @@ export class Luces {
               <td class="px-3 py-3 text-text-secondary">{{ c().categoria.replace('-', '−') }}</td>
               <td class="px-3 py-3 text-right font-mono text-text-secondary">{{ kg(f.pesoCorporal) }}</td>
               @for (m of movs; track m) { <td class="px-3 py-3 text-right font-mono" [title]="intentos(f, m)">{{ kg(f[m]) }}</td> }
-              <td class="px-3 py-3 text-right font-display text-[20px] text-accent-text italic">{{ f.sinTotal ? 'Sin total' : kg(f.total) }}</td>
+              <td class="px-3 py-3 text-right">@if (f.total) { <span class="font-display text-[20px] text-accent-text italic">{{ kg(f.total) }}</span> } @else if (f.sinTotal) { <span class="text-label-s text-text-tertiary">Sin total</span> } @else if (f.subtotal) { <span class="font-mono text-text-secondary" title="Subtotal provisional">{{ kg(f.subtotal) }}</span> } @else { <span class="text-text-muted">–</span> }</td>
               <td class="px-4 py-3 text-right font-mono text-text-secondary">{{ gl(f.gl) }}</td>
             </tr>
           }
@@ -81,7 +81,8 @@ export class Luces {
           <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left" (click)="abierto.set(abierto() === i ? -1 : i)" [attr.aria-expanded]="abierto() === i">
             <span class="flex size-7 shrink-0 items-center justify-center rounded-pill border text-mono-xs" [class]="f.medalla ? med[f.medalla] : 'border-line-strong'">{{ f.puesto || '–' }}</span>
             <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }}</span></span>
-            <span class="text-right"><span class="block font-display text-[20px] text-accent-text italic">{{ f.sinTotal ? '—' : kg(f.total) }}</span><span class="block text-mono-xs text-text-tertiary">{{ gl(f.gl) }} GL</span></span>
+            <span class="text-right">@if (f.total) { <span class="block font-display text-[20px] text-accent-text italic">{{ kg(f.total) }}</span><span class="block text-mono-xs text-text-tertiary">{{ gl(f.gl) }} GL</span> }
+              @else { <span class="block font-mono text-mono-s text-text-secondary">{{ f.sinTotal ? 'Sin total' : f.subtotal ? kg(f.subtotal) : '–' }}</span>@if (f.subtotal) { <span class="block text-mono-xs text-text-tertiary">parcial</span> } }</span>
             <gr-icon name="chevron-down" [size]="16" class="text-text-tertiary transition-transform" [class.rotate-180]="abierto() === i" />
           </button>
           @if (abierto() === i) {
@@ -749,7 +750,7 @@ export class EdicionPage {
           @if (podio(); as c) {
             <section class="rounded-[24px] border border-white/10 bg-white/[0.04] p-8">
               <p class="font-display text-[28px] text-white/70 uppercase italic">Clasificación {{ c.corto }} kg</p>
-              @for (f of c.filas.slice(0, 3); track $index) { <p class="mt-5 flex justify-between font-display text-[34px] uppercase italic"><span class="truncate pr-4"><span class="text-accent-text">{{ f.puesto || '–' }}</span>  {{ f.nombre }}</span><span>{{ kg(f.total) }}</span></p> }
+              @for (f of c.filas.slice(0, 3); track $index) { <p class="mt-5 flex justify-between font-display text-[34px] uppercase italic"><span class="truncate pr-4"><span class="text-accent-text">{{ $index + 1 }}</span>  {{ f.nombre }}</span><span [class.text-white/60]="!f.total">{{ kg(f.total ?? f.subtotal) }}</span></p> }
             </section>
           }
         </aside>

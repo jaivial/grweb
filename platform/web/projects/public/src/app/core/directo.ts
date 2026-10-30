@@ -11,7 +11,7 @@ export interface EnPlataforma {
 export interface Celda { peso: number; resultado: 'pendiente' | 'valido' | 'nulo' | 'renuncia'; votos?: string }
 export interface Fila {
   puesto?: number; nombre: string; slug?: string; club?: string; division?: string; iniciales: string; pesoCorporal?: number; sq?: number; bp?: number; dl?: number;
-  total?: number; gl?: number; intentos: Record<Mov, Celda[]>; medalla?: 'oro' | 'plata' | 'bronce'; records?: string[]; sinTotal?: boolean; completo: boolean;
+  total?: number; subtotal?: number; gl?: number; intentos: Record<Mov, Celda[]>; medalla?: 'oro' | 'plata' | 'bronce'; records?: string[]; sinTotal?: boolean; completo: boolean;
 }
 export interface Categoria { clave: string; sexo: 'F' | 'M'; categoria: string; titulo: string; corto: string; atletas: number; completos: number; filas: Fila[] }
 export interface Directo {
