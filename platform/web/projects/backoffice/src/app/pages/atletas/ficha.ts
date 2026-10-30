@@ -437,8 +437,10 @@ export class AtletaFichaPage {
     if (!cid || !a) return;
     this.guardando.set(true);
     try {
-      this.set(await this.api.promocionar(cid, a.id, true));
-      this.toasts.success(`${a.nombreCompleto} ya está confirmado`, 'Le hemos enviado el email «Tienes plaza».');
+      const r = await this.api.promocionar(cid, a.id, true);
+      this.set(r);
+      if (r.estado === 'reserva') this.toasts.success(`Plaza ofrecida a ${a.nombreCompleto}`, 'Se inscribió con pago: le hemos enviado el enlace para pagar (caduca en 24 h).');
+      else this.toasts.success(`${a.nombreCompleto} ya está confirmado`, 'Le hemos enviado el email «Tienes plaza».');
     } catch (e) {
       this.toasts.error('No se pudo promocionar', errText(e));
     } finally {

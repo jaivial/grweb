@@ -378,6 +378,13 @@ func (s *Svc) registerAdmin() {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
 				return nil, err
 			}
+			// Own registrations in reserve have not paid: promoting them offers the place with a payment link.
+			if ofrecida, err := s.ofrecerPlaza(ctx, in.CID, in.ID); err != nil {
+				return nil, err
+			} else if ofrecida {
+				f, err := s.ficha(ctx, in.CID, in.ID)
+				return &fichaOut{ETag: etag(f.Version), Body: f}, err
+			}
 			err := s.change(ctx, in.CID, "athletes.promocionado", map[string]any{"id": in.ID, "avisado": in.Body.Avisar}, func(tx pgx.Tx) error {
 				r, err := s.lock(ctx, tx, in.CID, in.ID, "")
 				if err != nil {

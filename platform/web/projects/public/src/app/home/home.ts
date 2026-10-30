@@ -1,7 +1,9 @@
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { ChangeDetectionStrategy, Component, PendingTasks, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { fmtLongDate } from '@grcup/ui';
 import { Cms, type HomeCms } from '../core/cms';
-import { Competition } from '../core/competition';
+import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 import { HeroTrophy } from './hero-trophy';
@@ -24,7 +26,7 @@ import { Campeonato, Sponsors, Stats } from './sections';
         <!-- Sections in the order and visibility published from the backoffice («Web · home»). -->
         @for (k of h.orden; track k) {
           @switch (k) {
-            @case ('inscripciones') { <gr-sec-inscripciones [s]="h.secciones[k]" [comp]="c" /> }
+            @case ('inscripciones') { <gr-sec-inscripciones [s]="h.secciones[k]" [comp]="c" [propia]="propia()" /> }
             @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" /> } }
             @case ('atletas') { <gr-sec-editorial [s]="h.secciones[k]" /> }
             @case ('dia') { <gr-sec-editorial [s]="h.secciones[k]" [reverse]="true" /> }
@@ -50,12 +52,16 @@ export class HomePage {
   protected readonly introDone = signal(false);
   protected readonly cms = signal<HomeCms | null>(null);
   protected heroMeta = signal('');
+  protected readonly propia = signal(false);
 
   constructor() {
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
     const cmsApi = inject(Cms);
-    void inject(PendingTasks).run(() => Promise.all([this.comp.load(), cmsApi.home()]).then(([c, h]) => {
+    const http = inject(HttpClient);
+    const modo = firstValueFrom(http.get<{ modo: string }>(`/api/competiciones/${COMPETITION_SLUG}/inscripcion`)).then((r) => r.modo === 'propia').catch(() => false);
+    void inject(PendingTasks).run(() => Promise.all([this.comp.load(), cmsApi.home(), modo]).then(([c, h, propia]) => {
       this.cms.set(h);
+      this.propia.set(propia);
       const fecha = c?.fechaInicio ? fmtLongDate(c.fechaInicio).replace(/ de /g, ' ').toUpperCase() : '';
       this.heroMeta.set([fecha, c?.sede?.ciudad?.toUpperCase(), c?.sede?.provincia?.toUpperCase()].filter(Boolean).join(' · '));
       const nombre = c?.nombre ?? 'GR Strength Cup';

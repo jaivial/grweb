@@ -9,6 +9,7 @@ import (
 )
 
 // notifRule turns an event into a team notification (Figma page 49 · "Shell · notificaciones").
+// nivel is one of info · ok · aviso · error (anything else is stored as info).
 type notifRule func(e events.Event, d map[string]any) (titulo, cuerpo, enlace, nivel, permiso string, ok bool)
 
 var estados = map[string]string{"borrador": "Borrador", "proximamente": "Próximamente", "inscripciones": "Inscripciones abiertas", "completas": "Completas", "hoy": "Hoy", "finalizado": "Finalizado", "archivada": "Archivada"}
@@ -40,7 +41,10 @@ var notifRules = map[string]notifRule{
 		return "Nuevo club propuesto para el directorio", "«" + str(d["nombre"]) + "» espera revisión antes de aparecer en /clubs.", "/web/patrocinadores", "info", "web.editar", true
 	},
 	"athletes.importacion_confirmada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
-		return "Acta de la AEP importada", fmt.Sprintf("%v nuevos · %v con cambios · %v bajas · %v filas con errores omitidas", d["nuevos"], d["cambios"], d["bajas"], d["errores"]), "/atletas", "success", "atletas.editar", true
+		return "Acta de la AEP importada", fmt.Sprintf("%v nuevos · %v con cambios · %v bajas · %v filas con errores omitidas", d["nuevos"], d["cambios"], d["bajas"], d["errores"]), "/atletas", "ok", "atletas.editar", true
+	},
+	"athletes.cupon_agotado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return "Cupón agotado", "«" + str(d["codigo"]) + "» ha llegado a su límite de usos.", "/atletas/inscripcion", "aviso", "atletas.editar", true
 	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
@@ -117,6 +121,26 @@ func resumen(e events.Event) string {
 		return "reordenó las secciones de la home"
 	case "cms.voluntario_solicitado":
 		return "envió una solicitud de voluntariado"
+	case "athletes.plaza_ofrecida":
+		return "ofreció una plaza libre a un atleta de la reserva (enlace de pago)"
+	case "athletes.inscripcion_pagada":
+		return "se inscribió y pagó la cuota"
+	case "athletes.inscripcion_reserva":
+		return "se apuntó a la lista de reserva"
+	case "athletes.devolucion_referido":
+		return "recibió una devolución por invitar a otro atleta"
+	case "athletes.reembolso":
+		return "reembolsó un pago de inscripción"
+	case "athletes.cupon_guardado":
+		return "guardó el cupón «" + str(d["codigo"]) + "»"
+	case "athletes.cupon_borrado":
+		return "borró un cupón"
+	case "athletes.cupon_agotado":
+		return "agotó el cupón «" + str(d["codigo"]) + "»"
+	case "athletes.referido_ajustado":
+		return "cambió los ajustes de un código de referido"
+	case "athletes.inscripcion_configurada":
+		return "cambió la configuración de la inscripción"
 	case "athletes.atleta_creado":
 		return "añadió a " + str(d["nombre"]) + " a los atletas"
 	case "athletes.atleta_actualizado":

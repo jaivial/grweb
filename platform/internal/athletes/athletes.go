@@ -27,6 +27,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/pagos"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
 )
@@ -60,6 +61,7 @@ type Svc struct {
 	qrKey        []byte
 	webURL       string
 	cookieSecure bool
+	sim          *pagos.Simulado
 }
 
 // Service returns the athletes service definition.
@@ -104,6 +106,10 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublic()
 	s.registerArea()
 	s.registerInternal()
+	s.initPagos()
+	s.registerInscripcion()
+	s.registerInscripcionAdmin()
+	a.Go(s.expirador)
 	return nil
 }
 

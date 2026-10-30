@@ -32,6 +32,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
     @let l = lista();
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6">
       <bo-page-header title="Atletas" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas']">
+        @if (canEdit()) { <a actions grButton icon="ticket" routerLink="inscripcion">Inscripción</a> }
         @if (canWeigh()) { <a actions grButton icon="scale" routerLink="pesaje">Pesaje</a> }
         @if (canEdit() && l?.pestanas?.todos) { <button actions grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar</button> }
         @if (canEdit()) { <a actions grButton variant="primary" routerLink="importar">Importar acta AEP</a> }
@@ -357,8 +358,9 @@ export class AtletasPage {
     if (!cid) return;
     this.promoBusy.set(true);
     try {
-      await this.api.promocionar(cid, a.id, this.avisar());
-      this.toasts.success(`${a.nombreCompleto} ya está confirmado`, this.avisar() ? 'Le hemos enviado el email «Tienes plaza».' : 'Sin aviso por email.');
+      const r = await this.api.promocionar(cid, a.id, this.avisar());
+      if (r.estado === 'reserva') this.toasts.success(`Plaza ofrecida a ${a.nombreCompleto}`, 'Se inscribió con pago: le hemos enviado el enlace para pagar (caduca en 24 h).');
+      else this.toasts.success(`${a.nombreCompleto} ya está confirmado`, this.avisar() ? 'Le hemos enviado el email «Tienes plaza».' : 'Sin aviso por email.');
       this.promo.set(null);
       await this.recargar(1, true);
     } catch (e) {

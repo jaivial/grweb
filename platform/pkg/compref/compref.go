@@ -102,9 +102,18 @@ func (r *Resolver) ID(ctx context.Context, slug string) (uuid.UUID, error) {
 
 // ByID returns a competition by id (any state; used by admin endpoints that need its date or time zone).
 func (r *Resolver) ByID(ctx context.Context, id uuid.UUID) (Comp, error) {
+	return r.byID(ctx, id, false)
+}
+
+// ByIDFresh skips the cache (decisions that must see the latest data, e.g. the places left when registering).
+func (r *Resolver) ByIDFresh(ctx context.Context, id uuid.UUID) (Comp, error) {
+	return r.byID(ctx, id, true)
+}
+
+func (r *Resolver) byID(ctx context.Context, id uuid.UUID, fresh bool) (Comp, error) {
 	key := "id:" + id.String()
 	r.mu.Lock()
-	if e, ok := r.m[key]; ok && time.Now().Before(e.exp) {
+	if e, ok := r.m[key]; ok && time.Now().Before(e.exp) && !fresh {
 		r.mu.Unlock()
 		return e.c, nil
 	}

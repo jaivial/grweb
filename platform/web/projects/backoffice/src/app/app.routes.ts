@@ -13,6 +13,7 @@ import { AtletaFichaPage } from './pages/atletas/ficha';
 import { AtletasImportarPage } from './pages/atletas/importar';
 import { AtletasPage } from './pages/atletas/list';
 import { PesajePage } from './pages/atletas/pesaje';
+import { InscripcionPage } from './pages/atletas/inscripcion';
 
 /** Requires a session (restored from the refresh cookie on first navigation). */
 const authGuard: CanActivateFn = async (_r, state) => {
@@ -88,6 +89,7 @@ export const routes: Routes = [
       { path: 'atletas', component: AtletasPage, title: 'Atletas · Backoffice GR Cup' },
       { path: 'atletas/importar', component: AtletasImportarPage, title: 'Importar acta AEP · Backoffice GR Cup' },
       { path: 'atletas/pesaje', component: PesajePage, title: 'Pesaje · Backoffice GR Cup' },
+      { path: 'atletas/inscripcion', component: InscripcionPage, title: 'Inscripción · Backoffice GR Cup' },
       { path: 'atletas/:id', component: AtletaFichaPage, title: 'Atleta · Backoffice GR Cup' },
       { path: ':seccion', component: ComingSoonPage, title: 'Backoffice GR Cup' },
     ],

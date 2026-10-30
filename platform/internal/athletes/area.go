@@ -21,6 +21,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
+	"github.com/jaivial/grweb/platform/pkg/pagos"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
 )
@@ -72,11 +73,25 @@ type Panel struct {
 		Slug   string `json:"slug"`
 		Nombre string `json:"nombre"`
 	} `json:"competicion"`
-	Atleta        Atleta   `json:"atleta"`
-	Acreditacion  string   `json:"acreditacion" doc:"Contenido del QR de la inscripción (se enseña en el pesaje)"`
-	Checklist     []Check  `json:"checklist"`
-	PesajeAbierto bool     `json:"pesajeAbierto" doc:"Las alturas y primeros intentos se pueden cambiar hasta el pesaje"`
-	Avisos        []string `json:"avisos"`
+	Atleta        Atleta        `json:"atleta"`
+	Acreditacion  string        `json:"acreditacion" doc:"Contenido del QR de la inscripción (se enseña en el pesaje)"`
+	Checklist     []Check       `json:"checklist"`
+	PesajeAbierto bool          `json:"pesajeAbierto" doc:"Las alturas y primeros intentos se pueden cambiar hasta el pesaje"`
+	Avisos        []string      `json:"avisos"`
+	Referido      *ReferidoArea `json:"referido,omitempty" doc:"Invita y ahorra (inscripción propia con referidos)"`
+}
+
+// ReferidoArea is the «Invita y ahorra» card of the athlete area.
+type ReferidoArea struct {
+	Codigo     string `json:"codigo"`
+	Invitados  int    `json:"invitados"`
+	MaxUsos    int    `json:"maxUsos"`
+	Devuelto   int    `json:"devuelto"`
+	Pendiente  int    `json:"pendiente"`
+	Pagado     int    `json:"pagado"`
+	Descuento  string `json:"descuento" doc:"Lo que obtienen sus invitados («10 %»)"`
+	Recompensa string `json:"recompensa" doc:"Lo que recupera por invitado («5,00 €»)"`
+	Tope       bool   `json:"tope" doc:"Ya ha recuperado todo lo que pagó"`
 }
 
 // Check is an item of «Prepara tu día».
@@ -105,6 +120,9 @@ func (s *Svc) panel(ctx context.Context, r row) (Panel, error) {
 	}
 	if r.menor(d) && r.AutorizacionURL == "" {
 		p.Avisos = append(p.Avisos, "Eres menor de edad: tu perfil público y tu foto no se mostrarán hasta que la organización reciba la autorización firmada de tu madre, padre o tutor.")
+	}
+	if ra, err := s.referidoArea(ctx, r); err == nil && ra != nil {
+		p.Referido = ra
 	}
 	if r.Estado == "reserva" {
 		p.Avisos = append(p.Avisos, fmt.Sprintf("Estás en la lista de reserva (puesto %d). Te avisaremos por email si queda una plaza libre.", deref(r.OrdenReserva)))
@@ -467,4 +485,28 @@ func (s *Svc) cmdEnlaceArea(ctx context.Context, a *app.App, args []string) erro
 		}
 		return err
 	})
+}
+
+func (s *Svc) referidoArea(ctx context.Context, r row) (*ReferidoArea, error) {
+	cfg, err := s.config(ctx, s.a.DB, r.CompetitionID)
+	if err != nil || !cfg.Referidos.Activo {
+		return nil, err
+	}
+	var id uuid.UUID
+	var aj *ReferidosCfg
+	out := &ReferidoArea{}
+	err = s.a.DB.QueryRow(ctx, `SELECT c.id, c.codigo, c.ajustes, COALESCE(i.total, 0), COALESCE(i.devuelto, 0),
+		(SELECT count(*) FROM referido_usos u WHERE u.codigo_id = c.id AND u.estado <> 'anulada'),
+		COALESCE((SELECT sum(recompensa) FROM referido_usos u WHERE u.codigo_id = c.id AND u.estado = 'pendiente'), 0)
+		FROM referido_codigos c LEFT JOIN inscripciones i ON i.id = c.inscripcion_id AND i.estado = 'pagada' WHERE c.atleta_id = $1`, r.ID).
+		Scan(&id, &out.Codigo, &aj, &out.Pagado, &out.Devuelto, &out.Invitados, &out.Pendiente)
+	if err != nil {
+		return nil, nil // no code (AEP registration or not paid yet)
+	}
+	rc := refRow{Ajustes: aj}.cfg(cfg.Referidos)
+	out.MaxUsos = rc.MaxUsos
+	out.Descuento = strings.TrimPrefix(descTexto(rc.DescTipo, rc.DescValor), "−")
+	out.Recompensa = pagos.Euros(rc.Recompensa)
+	out.Tope = out.Pagado > 0 && out.Devuelto >= out.Pagado
+	return out, nil
 }

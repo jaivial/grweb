@@ -121,3 +121,9 @@ export const cat = (c: string) => c.replace('-', '−');
 export const kg = (n?: number | null) => (n === undefined || n === null ? '–' : n.toLocaleString('es-ES', { maximumFractionDigits: 2 }));
 export const hora = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '');
 export const iniciales = (a: { nombre: string; apellidos: string }) => ((a.nombre[0] ?? '') + (a.apellidos[0] ?? '')).toUpperCase();
+
+/** IPF weight classes by sex (the lightest class is only for sub-juniors and juniors; the API validates it). */
+export const CATEGORIAS_IPF: Record<'F' | 'M', string[]> = {
+  F: ['-43', '-47', '-52', '-57', '-63', '-69', '-76', '-84', '+84'],
+  M: ['-53', '-59', '-66', '-74', '-83', '-93', '-105', '-120', '+120'],
+};
