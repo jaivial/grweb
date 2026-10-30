@@ -98,7 +98,10 @@ var seedPublico = map[string]any{
 		{"icono": "map-pin", "etiqueta": "Sede", "valor": "Almussafes"}, {"icono": "users", "etiqueta": "Aforo", "valor": "600 por sesión (ejemplo)"}}},
 	"movimientos": map[string]any{"eyebrow": "01 · Qué verás", "titulo": "Tres", "tituloAcento": "movimientos",
 		"texto": "Cada bloque compite en sentadilla, después en press de banca y por último en peso muerto, con tres intentos por atleta.",
-		"items": []map[string]string{{"titulo": "Sentadilla", "imagen": op + "alfonso-fernandez--img-3276.jpg"}, {"titulo": "Press de banca", "imagen": op + "alfonso-fernandez--img-3363.jpg"}, {"titulo": "Peso muerto", "imagen": op + "alfonso-fernandez--img-3364.jpg"}}},
+		// Figma 29: the 2025 photos, served by the public web (/img/edicion-2025)
+		"items": []map[string]string{{"titulo": "Sentadilla", "imagen": "/img/edicion-2025/foto-3.webp", "alt": "Sentadilla en la plataforma, con los cargadores a los lados"},
+			{"titulo": "Press de banca", "imagen": "/img/edicion-2025/foto-4.webp", "alt": "Atleta en el press de banca bajo el cartel de la competición"},
+			{"titulo": "Peso muerto", "imagen": "/img/edicion-2025/foto-5.webp", "alt": "Peso muerto bloqueado bajo los focos del escenario"}}},
 	"juicio": map[string]any{"eyebrow": "02 · Cómo se juzga", "titulo": "Sigue un intento", "tituloAcento": "paso a paso",
 		"pasos": []map[string]string{{"titulo": "El atleta pide su peso", "texto": "Se anuncia el nombre, el intento y los kilos en el marcador."}, {"titulo": "Los cargadores preparan la barra", "texto": "Comprueban el peso y los cierres."},
 			{"titulo": "Órdenes del juez", "texto": "«Squat», «Press», «Down»… el atleta espera cada voz."}, {"titulo": "Luces", "texto": "Válido con al menos 2 de 3 luces blancas."}}},
