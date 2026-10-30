@@ -207,11 +207,6 @@ func (s *Svc) registerPublic() {
 			return &blogOut{CacheControl: cacheHdr, Body: list}, err
 		})
 
-	type albumPub struct {
-		Titulo string          `json:"titulo" db:"titulo"`
-		Slug   string          `json:"slug" db:"slug"`
-		Fotos  json.RawMessage `json:"fotos" db:"fotos"`
-	}
 	type galOut struct {
 		CacheControl string `header:"Cache-Control"`
 		Body         []albumPub
@@ -227,7 +222,11 @@ func (s *Svc) registerPublic() {
 				if err != nil {
 					return nil, err
 				}
-				return collect[albumPub](rows)
+				list, err := collect[albumPub](rows)
+				if err != nil {
+					return nil, err
+				}
+				return s.conMedidas(ctx, cid, list)
 			})
 			return &galOut{CacheControl: cacheHdr, Body: list}, err
 		})
@@ -472,4 +471,64 @@ func (s *Svc) home(ctx context.Context, cid uuid.UUID) (Home, error) {
 	}
 	h.Patrocinadores, err = s.patrocinadores(ctx, cid)
 	return h, err
+}
+
+// albumPub is a published album of /galeria.
+type albumPub struct {
+	Titulo string          `json:"titulo" db:"titulo"`
+	Slug   string          `json:"slug" db:"slug"`
+	Fotos  json.RawMessage `json:"fotos" db:"fotos"`
+}
+
+// conMedidas adds «ancho» and «alto» to the photos that come from the media library, so /galeria can lay out its
+// mosaic before the images load (no layout shift). Photos with other URLs keep their JSON as it is.
+func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([]albumPub, error) {
+	ids := []uuid.UUID{}
+	fotos := make([][]map[string]any, len(list))
+	for i, a := range list {
+		if err := json.Unmarshal(a.Fotos, &fotos[i]); err != nil {
+			return nil, err
+		}
+		for _, f := range fotos[i] {
+			u, _ := f["url"].(string)
+			if id, err := uuid.Parse(strings.TrimPrefix(u, "/api/medios/")); err == nil && strings.HasPrefix(u, "/api/medios/") {
+				ids = append(ids, id)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return list, nil
+	}
+	medidas := map[string][2]int{}
+	rows, err := s.a.DB.Query(ctx, `SELECT id, ancho, alto FROM medios WHERE competition_id = $1 AND id = ANY($2) AND ancho > 0 AND alto > 0`, cid, ids)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id uuid.UUID
+		var w, h int
+		if err := rows.Scan(&id, &w, &h); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		medidas["/api/medios/"+id.String()] = [2]int{w, h}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range list {
+		for _, f := range fotos[i] {
+			u, _ := f["url"].(string)
+			if m, ok := medidas[u]; ok {
+				f["ancho"], f["alto"] = m[0], m[1]
+			}
+		}
+		b, err := json.Marshal(fotos[i])
+		if err != nil {
+			return nil, err
+		}
+		list[i].Fotos = b
+	}
+	return list, nil
 }

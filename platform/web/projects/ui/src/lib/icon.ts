@@ -4,7 +4,7 @@ import {
   ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
   GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
   Plus, Pause, Play, Monitor, Copy, Maximize2, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
-  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, Bus, Bike, SquareParking, Accessibility, SlidersHorizontal, type IconNode,
+  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, Bus, Bike, SquareParking, Accessibility, SlidersHorizontal, Share2, type IconNode,
 } from 'lucide';
 
 /** Instagram glyph (lucide 1.x dropped brand icons; same geometry as the old lucide «instagram»). */
@@ -22,7 +22,7 @@ export const GR_ICONS = {
   help: CircleHelp, 'circle-x': CircleX, clock: Clock, download: Download, 'external-link': ExternalLink, gift: Gift,
   globe: Globe, history: History, home: House, info: Info, key: KeyRound, layout: LayoutTemplate, loader: LoaderCircle,
   lock: Lock, 'log-out': LogOut, mail: Mail, 'map-pin': MapPin, menu: Menu, minus: Minus, 'panel-left': PanelLeft,
-  plane: Plane, plug: Plug, plus: Plus, radio: Radio, refresh: RefreshCw, scale: Scale, scan: ScanLine, search: Search, send: Send,
+  plane: Plane, plug: Plug, plus: Plus, radio: Radio, refresh: RefreshCw, scale: Scale, scan: ScanLine, search: Search, send: Send, share: Share2,
   settings: Settings, shield: Shield, 'shield-alert': ShieldAlert, smartphone: Smartphone, sparkles: Sparkles,
   ticket: Ticket, train: TrainFront, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
   'wifi-off': WifiOff, x: X, zap: Zap, door: DoorOpen, eye: Eye, grip: GripVertical, pencil: Pencil, star: Star, trash: Trash2, undo: Undo2,
