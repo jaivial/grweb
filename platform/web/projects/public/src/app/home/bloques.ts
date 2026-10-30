@@ -76,7 +76,7 @@ export class GrEyebrow {
   host: { class: 'flex flex-col gap-3 md:gap-4', '[class.items-center]': 'centro()', '[class.text-center]': 'centro()', '[class.mx-auto]': 'centro()', '[class.max-w-[880px]]': 'centro()' },
   template: `
     @if (eyebrow()) { <gr-eyebrow [texto]="eyebrow()" /> }
-    <h2 [class]="tam() === 'm' ? 'text-display-s md:text-display-m' : 'text-display-s md:text-display-l'"><gr-titulo [titulo]="titulo()" [acento]="acento()" /></h2>
+    <h2 [class]="tam() === 'm' ? 'text-display-xs md:text-display-m' : 'text-display-s md:text-display-l'"><gr-titulo [titulo]="titulo()" [acento]="acento()" /></h2>
     @if (texto()) { <p class="text-body-m text-text-tertiary md:block md:text-body-l" [class.hidden]="!textoMovil()">{{ texto() }}</p> }
   `,
 })

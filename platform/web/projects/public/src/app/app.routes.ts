@@ -11,6 +11,8 @@ import { InscripcionEstadoPage, InscripcionPage, PagoSimuladoPage } from './page
 import { AtletaPage, AtletasPage, ParticipantesPage } from './pages/atletas';
 import { BlogPage, ContentPage, FaqPage, GaleriaPage, LegalPage, PatrocinadoresPage, VoluntariosPage } from './pages/content';
 import { ComoLlegarPage } from './pages/como-llegar';
+import { CategoriasPage } from './pages/categorias';
+import { MarcasPage } from './pages/marcas';
 
 export const routes: Routes = [
   { path: '', component: HomePage },
@@ -19,6 +21,8 @@ export const routes: Routes = [
   { path: 'galeria', component: GaleriaPage },
   { path: 'voluntarios', component: VoluntariosPage },
   { path: 'como-llegar', component: ComoLlegarPage },
+  { path: 'categorias-de-peso', component: CategoriasPage },
+  { path: 'marcas-minimas', component: MarcasPage },
   { path: 'atletas', component: AtletasPage },
   { path: 'atletas/:slug', component: AtletaPage },
   { path: 'participantes', component: ParticipantesPage },

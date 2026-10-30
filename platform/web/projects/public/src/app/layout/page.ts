@@ -48,8 +48,11 @@ import { Footer, Navbar, type Lang } from './layout';
             <h1 class="text-display-m [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
             @if (subtitle()) { <p class="text-body-m text-text-tertiary md:text-body-l">{{ subtitle() }}</p> }
           </div>
-          @if (stamp()) { <p class="inline-flex items-center gap-2 self-start rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" class="shrink-0" />{{ stamp() }}</p> }
-          <ng-content select="[pageStamps]" />
+          <!-- Figma «Meta»: the updated stamp and the badges in one row -->
+          <div class="flex flex-wrap items-center gap-3 empty:hidden">
+            @if (stamp()) { <p class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" class="shrink-0" />{{ stamp() }}</p> }
+            <ng-content select="[pageStamps]" />
+          </div>
         </header>
         }
         @if (cms.failed()) {
