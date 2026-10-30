@@ -76,7 +76,8 @@ spec:
                   fi
                   d=$(date +%Y-%m-%d)
                   rclone copy "/copias/$d" "cifrado:$d" --transfers 2 --stats-one-line --stats 30s
-                  rclone check "/copias/$d" "cifrado:$d" --one-way
+                  # cryptcheck: the encrypted copies against the local files, through the storage's own hashes
+                  rclone cryptcheck "/copias/$d" "cifrado:$d" --one-way
                   rclone delete cifrado: --min-age 30d --rmdirs
                   echo "copia fuera del nodo: $d ($(rclone size "cifrado:$d" | tr '\n' ' '))"
               envFrom:

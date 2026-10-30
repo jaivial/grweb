@@ -30,7 +30,8 @@ K="sudo k3s kubectl -n $NS"
 ARGS_JSON=$(python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' "$@")
 SEC_JSON=$(python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' "${SECRETOS[@]+"${SECRETOS[@]}"}")
 
-ssh "$KRAKEN" "$K get deploy/$SVC -o json" | python3 -c '
+DEPLOY=$(ssh "$KRAKEN" "$K get deploy/$SVC -o json" 2>/dev/null) || { echo "✗ no existe el Deployment «$SVC» en $NS" >&2; exit 1; }
+printf '%s' "$DEPLOY" | python3 -c '
 import json, sys
 svc, nombre, parte, args, secretos = sys.argv[1], sys.argv[2], sys.argv[3], json.loads(sys.argv[4]), json.loads(sys.argv[5])
 d = json.load(sys.stdin)
