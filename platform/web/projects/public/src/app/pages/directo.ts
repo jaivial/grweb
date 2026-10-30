@@ -77,22 +77,22 @@ export class Luces {
     </div>
     <ul class="flex flex-col gap-2 md:hidden">
       @for (f of c().filas; track $index; let i = $index) {
-        <li class="rounded-lg border border-line-subtle bg-bg-card">
-          <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left" (click)="abierto.set(abierto() === i ? -1 : i)" [attr.aria-expanded]="abierto() === i">
-            <span class="flex size-7 shrink-0 items-center justify-center rounded-pill border text-mono-xs" [class]="f.medalla ? med[f.medalla] : 'border-line-strong'">{{ f.puesto || '–' }}</span>
-            <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }}</span></span>
-            <span class="text-right">@if (f.total) { <span class="block font-display text-[20px] text-accent-text italic">{{ kg(f.total) }}</span><span class="block text-mono-xs text-text-tertiary">{{ gl(f.gl) }} GL</span> }
+        <li class="rounded-2xl border bg-bg-card" [class]="abierto() === i ? 'border-accent/60' : 'border-line-subtle'">
+          <button type="button" class="flex w-full items-center gap-3 px-4 py-4 text-left" (click)="abierto.set(abierto() === i ? -1 : i)" [attr.aria-expanded]="abierto() === i">
+            <span class="flex size-9 shrink-0 items-center justify-center rounded-full border text-label-s" [class]="f.medalla ? med[f.medalla] : 'border-line-strong'">{{ f.puesto || '–' }}</span>
+            <span class="min-w-0 flex-1"><span class="block truncate text-label-l">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }} · {{ c().titulo.replace(/^(Femenino|Masculino)\s*/, '') }}</span></span>
+            <span class="text-right">@if (f.total) { <span class="block font-display text-[26px] leading-none text-accent-text italic">{{ kg(f.total) }}</span><span class="block text-body-xs text-text-tertiary">kg total</span> }
               @else { <span class="block font-mono text-mono-s text-text-secondary">{{ f.sinTotal ? 'Sin total' : f.subtotal ? kg(f.subtotal) : '–' }}</span>@if (f.subtotal) { <span class="block text-mono-xs text-text-tertiary">parcial</span> } }</span>
-            <gr-icon name="chevron-down" [size]="16" class="text-text-tertiary transition-transform" [class.rotate-180]="abierto() === i" />
+            <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/8"><gr-icon name="chevron-down" [size]="16" class="text-text-secondary transition-transform" [class.rotate-180]="abierto() === i" /></span>
           </button>
           @if (abierto() === i) {
-            <div class="grid grid-cols-3 gap-2 border-t border-line-subtle px-4 py-3 text-center">
+            <div class="flex flex-col gap-2.5 px-4 pb-4">
               @for (m of movs; track m) {
-                <div><p class="text-mono-xs text-text-tertiary">{{ MOVN[m] }}</p>
-                  @for (x of f.intentos[m]; track $index) { <p class="font-mono text-mono-s" [class]="x.resultado === 'valido' ? 'text-success' : x.resultado === 'nulo' ? 'text-accent-text line-through' : 'text-text-muted'">{{ x.resultado === 'pendiente' ? '·' : x.resultado === 'renuncia' ? '—' : kg(x.peso) }}</p> }</div>
+                <div class="flex items-center gap-2"><p class="w-28 shrink-0 text-body-s text-text-secondary">{{ MOVN[m] }}</p>
+                  @for (x of f.intentos[m]; track $index) { <span class="flex h-9 flex-1 items-center justify-center rounded-sm text-mono-s" [class]="x.resultado === 'valido' ? 'bg-success/12 text-success' : x.resultado === 'nulo' ? 'bg-accent/12 text-accent-text line-through' : 'bg-white/5 text-text-muted'">{{ x.resultado === 'pendiente' ? '·' : x.resultado === 'renuncia' ? '—' : kg(x.peso) }}</span> }</div>
               }
+              @if (f.pesoCorporal || f.gl) { <p class="mt-1 flex justify-between border-t border-line-subtle pt-3 text-body-xs text-text-tertiary"><span>@if (f.pesoCorporal) { Peso corporal {{ kg(f.pesoCorporal) }} kg }@if (f.division) { · {{ f.division }} }</span>@if (f.gl) { <span>{{ gl(f.gl) }} puntos GL</span> }</p> }
             </div>
-            @if (f.pesoCorporal) { <p class="px-4 pb-3 text-body-xs text-text-tertiary">Peso corporal {{ kg(f.pesoCorporal) }} kg@if (f.division) { · {{ f.division }} }</p> }
           }
         </li>
       }
@@ -462,8 +462,8 @@ export class ResultadosIndexPage {
       [subtitle]="r?.publicado ? ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
       @if (r?.publicado) {
         <div pageStamps class="flex flex-wrap gap-2">
-          @if (r!.ejemplo) { <span class="inline-flex h-8 items-center rounded-pill border border-info/50 px-3 text-mono-xs text-info">Datos de ejemplo</span> }
-          @else { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="info" [size]="14" />Clasificación publicada · el acta oficial la valida la AEP</span> }
+          @if (r!.ejemplo) { <span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span> }
+          @else { <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="info" [size]="14" />Clasificación publicada · el acta oficial la valida la AEP</span> }
         </div>
       }
       @if (r === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
@@ -480,10 +480,16 @@ export class ResultadosIndexPage {
         <!-- Filters -->
         <div class="flex flex-wrap items-center gap-2">
           <label class="relative min-w-0 flex-1 basis-56 md:max-w-xs"><span class="sr-only">Buscar atleta o club</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-            <input class="h-10 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
-          @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.l }}</button> }
-          <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Categoría</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</select>
-          <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:ml-auto" aria-label="Ordenar" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">Ordenar: posición</option><option value="total">Ordenar: total</option>@if (conGL) { <option value="gl">Ordenar: puntos GL</option> }</select>
+            <input class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s md:h-10" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
+          <button type="button" class="relative flex size-11 items-center justify-center rounded-md border border-line-strong md:hidden" aria-label="Filtros" [attr.aria-expanded]="filtros()" (click)="filtros.set(!filtros())"><gr-icon name="settings" [size]="18" />
+            @if ((cat() ? 1 : 0) + (orden() !== 'puesto' ? 1 : 0); as n) { <span class="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-label-xs text-white">{{ n }}</span> }</button>
+          <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
+          @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s md:h-10" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.l }}</button> }
+          </div>
+          <div class="w-full flex-col gap-2 md:contents" [class.flex]="filtros()" [class.hidden]="!filtros()">
+          <select class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:h-10" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Categoría</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</select>
+          <select class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:ml-auto md:h-10" aria-label="Ordenar" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">Ordenar: posición</option><option value="total">Ordenar: total</option>@if (conGL) { <option value="gl">Ordenar: puntos GL</option> }</select>
+          </div>
         </div>
 
         @if (!q() && !cat()) {
@@ -503,9 +509,9 @@ export class ResultadosIndexPage {
 
           }
           <gr-cabecera [class]="conGL ? 'mt-14' : 'mt-12'" [eyebrow]="(conGL ? '02' : '01') + ' · Podios'" titulo="Podio por *categoría*" [centro]="false" tam="m" />
-          <div class="mt-5 grid gap-4 md:mt-7 md:grid-cols-2">
+          <div class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
             @for (c of r.categorias; track c.clave) {
-              <section class="rounded-2xl border border-line-subtle bg-bg-card p-5">
+              <section class="w-[86%] shrink-0 snap-center rounded-2xl border border-line-subtle bg-bg-card p-5 md:w-auto">
                 <header class="flex items-baseline justify-between"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} atletas</span></header>
                 <div class="mt-4 grid grid-cols-3 items-end gap-2">
                   @for (p of podio(c); track $index) {
@@ -519,6 +525,7 @@ export class ResultadosIndexPage {
               </section>
             }
           </div>
+          @if (r.categorias.length > 1) { <p class="mt-3 text-body-xs text-text-muted md:hidden">Desliza para ver las {{ r.categorias.length }} categorías →</p> }
         }
 
         <gr-cabecera class="mt-14" [eyebrow]="(conGL ? '03' : '02') + ' · Clasificación'" [titulo]="cat() ? tituloCat().replace(/(\S+ kg)$/, '*$1*') : 'Clasificación *completa*'" [centro]="false" tam="m" />
@@ -544,6 +551,8 @@ export class ResultadosEdicionPage {
   protected readonly res = signal<ResultadosPublicos | null | undefined>(undefined);
   protected readonly q = signal('');
   protected readonly sexo = signal<'' | 'F' | 'M'>('');
+  /** Mobile: the «Filtros» panel (category and order). */
+  protected readonly filtros = signal(false);
   protected readonly cat = signal('');
   protected readonly orden = signal<'puesto' | 'total' | 'gl'>('puesto');
   protected readonly copiado = signal(false);
