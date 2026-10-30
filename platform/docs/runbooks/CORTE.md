@@ -147,6 +147,15 @@ consultas independientes.
 
 **Segunda pasada:** no escribe nada. Todo sale como «ya importado» o «sin cambios».
 
+**30/10/2026 · con una competición de FER en la base sintética** (Tipo `fer`: 3 inscripciones, 8 boletos y un
+usuario que solo es de FER). El ETL la deja fuera en todos los pasos:
+- **competition:** «de otra web del mismo backend: sigue en la web anterior».
+- **identity:** 2 usuarios sin membresía en las ediciones migradas (el de FER y la invitación sin aceptar); 3 membresías de competiciones no migradas.
+- **athletes:** 3 inscripciones de una competición no migrada.
+- **raffle:** 2 compras de una competición no migrada.
+
+Nada más cambia.
+
 **Conciliación:** coinciden todas las cifras:
 - atletas: 40 y 26;
 - cobrado: 1800,00 € y 1150,00 €;

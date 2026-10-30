@@ -151,13 +151,13 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 				inf.Omitir("membresía de una competición no migrada")
 				continue
 			}
+			if !m.aceptada {
+				inf.Omitir("invitación sin aceptar (se vuelve a invitar desde Equipo)")
+				continue
+			}
 			uid, ok := ids[m.usuario]
 			if !ok {
 				inf.Omitir("membresía de un usuario no migrado")
-				continue
-			}
-			if !m.aceptada {
-				inf.Omitir("invitación sin aceptar (se vuelve a invitar desde Equipo)")
 				continue
 			}
 			slug, ok := rolLegado[strings.ToLower(strings.TrimSpace(m.rol))]
