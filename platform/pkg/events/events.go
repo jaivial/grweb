@@ -308,3 +308,13 @@ func sleep(ctx context.Context, d time.Duration) {
 	case <-t.C:
 	}
 }
+
+// Publish adds one event straight to the stream, for services without a database (no outbox). Delivery is
+// at-most-once: use it only for facts that may be lost (e.g. the audit line of an AI request).
+func Publish(ctx context.Context, rdb *redis.Client, stream string, e Event) error {
+	b, err := json.Marshal(e)
+	if err != nil {
+		return err
+	}
+	return rdb.XAdd(ctx, &redis.XAddArgs{Stream: stream, Values: map[string]any{"e": string(b)}}).Err()
+}

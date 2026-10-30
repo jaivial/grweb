@@ -498,6 +498,10 @@ func (s *Svc) registerContactos() {
 				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido anonimizar sus entradas. Inténtalo en unos segundos.")
 			}
 			o.Body.Entradas = ent.Entradas
+			if err := s.messaging.Do(ctx, http.MethodPost, path, body, nil); err != nil {
+				s.a.Log.Warn("supresión en messaging", "err", err)
+				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido borrar sus envíos de campañas. Inténtalo en unos segundos.")
+			}
 			return o, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				var em, tel *string
 				if err := tx.QueryRow(ctx, `SELECT email::text, telefono FROM contactos WHERE competition_id = $1 AND id = $2 AND anonimizado_at IS NULL FOR UPDATE`, in.CID, in.ID).Scan(&em, &tel); err != nil {

@@ -32,6 +32,7 @@ SERVICES = {
     "messaging": dict(db=True, hpa=(1, 2), mem=("64Mi", "256Mi")),
     "ticketing": dict(db=True, hpa=(1, 4), mem=("64Mi", "256Mi"), jobs=[("ticketing-seed", ["seed-grcup"], [])]),
     "live": dict(db=True, hpa=(1, 4), mem=("64Mi", "256Mi"), jobs=[("live-seed", ["seed-grcup"], [])]),
+    "ai": dict(db=False, hpa=(1, 2), mem=("32Mi", "128Mi"), secrets={"MINIMAX_API_KEY": ("grcup-ai", "MINIMAX_API_KEY")}),
     "realtime": dict(db=False, hpa=(1, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
 }
 EDGE = ["gateway", "web", "backoffice"]  # hand-written manifests in base/<name>/

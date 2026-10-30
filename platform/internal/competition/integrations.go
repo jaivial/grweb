@@ -32,7 +32,7 @@ var tagInt = []string{"Integraciones"}
 var TiposIntegracion = map[string][]string{
 	"smtp":     {"host", "puerto", "usuario", "remitente", "nombreRemitente", "tls"},
 	"stripe":   {"modo", "clavePublica"},
-	"whatsapp": {"proveedor", "telefonoId", "cuentaId", "numero"},
+	"whatsapp": {"proveedor", "url", "instancia", "numero"}, // proveedor evo-weai (Evolution API v2); secret = its API key
 	"bunny":    {"zona", "cdnUrl"},
 	"aep":      {"urlActa"},
 }

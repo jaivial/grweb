@@ -56,7 +56,9 @@ var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitad
 	"ticketing.email_solicitado": true, "ticketing.contacto": true, "checkin.escaneo": true, "aforo.actualizado": true,
 	// live: the public mirrors of the desk (every weight and light); the log keeps directo.cambio, the corrections and
 	// the publications.
-	"directo.intento": true, "directo.veredicto": true, "directo.estado": true, "directo.correccion": true, "resultados.publicados": true, "resultados.retirados": true}
+	"directo.intento": true, "directo.veredicto": true, "directo.estado": true, "directo.correccion": true, "resultados.publicados": true, "resultados.retirados": true,
+	// campaigns: progress ticks and the WhatsApp opt-outs (they carry the phone number)
+	"campana.progreso": true, "messaging.baja": true}
 
 // handle stores the event, then applies notification and KPI rules (its own events are ignored to avoid loops).
 func (s *Svc) handle(ctx context.Context, e events.Event) error {
