@@ -9,7 +9,9 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="preconnect" href="https://jaimedigitalstudio.b-cdn.net" crossorigin />
     <link rel="preload" as="image" href="https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0001.webp" fetchpriority="high" />
-  </head>
+    <!-- without JS the hero preload overlay would only leave after its 4 s CSS fallback -->
+  <noscript><style>.gr-precarga { display: none !important; }</style></noscript>
+</head>
   <body class="min-h-dvh">
     <gr-root></gr-root>
   </body>

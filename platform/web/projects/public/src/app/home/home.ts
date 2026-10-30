@@ -78,7 +78,7 @@ export class HomePage {
     const opt = <T,>(p: string) => firstValueFrom(http.get<T>(api(p))).catch(() => null);
     const modo = opt<{ modo: string }>('/inscripcion').then((r) => r?.modo === 'propia');
     void inject(PendingTasks).run(() => Promise.all([
-      this.comp.load(), cmsApi.home(), modo, opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios'),
+      this.comp.load(), cmsApi.home(), modo, opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
       opt<{ resumen: { total: number } }>('/atletas?resumen=true'),
     ]).then(([c, h, propia, sorteo, entradas, horarios, atletas]) => {
       this.cms.set(h);

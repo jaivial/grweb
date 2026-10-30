@@ -98,7 +98,6 @@ const PUFFS = [
         }
       }
     </div>
-    <noscript><style>.gr-precarga { display: none !important; }</style></noscript>
   `,
   styles: [`
     .gr-precarga { animation: gr-precarga-fuera 0.5s ease 4s forwards; }
