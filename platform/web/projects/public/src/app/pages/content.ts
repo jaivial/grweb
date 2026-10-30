@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
-import { Cms, renderMarkdown, type Album, type Faq, type Foto, type Heading, type Pagina, type Patrocinador } from '../core/cms';
+import { Cms, renderMarkdown, type Album, type Foto, type Heading, type Pagina, type Patrocinador } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo, type SeoData } from '../core/seo';
 import { NoEncontrada } from '../layout/no-encontrada';
