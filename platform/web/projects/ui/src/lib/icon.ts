@@ -4,8 +4,15 @@ import {
   ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
   GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
   Plus, Pause, Play, Monitor, Copy, Maximize2, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
-  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, type IconNode,
+  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, type IconNode,
 } from 'lucide';
+
+/** Instagram glyph (lucide 1.x dropped brand icons; same geometry as the old lucide «instagram»). */
+const Instagram: IconNode = [
+  ['rect', { width: '20', height: '20', x: '2', y: '2', rx: '5', ry: '5' }],
+  ['path', { d: 'M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z' }],
+  ['line', { x1: '17.5', x2: '17.51', y1: '6.5', y2: '6.5' }],
+];
 
 /** Icons available in the platform (lucide, stroke 2 — Figma «Icon» / «BO / Nav icon»). */
 export const GR_ICONS = {
@@ -20,6 +27,7 @@ export const GR_ICONS = {
   ticket: Ticket, train: TrainFront, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
   'wifi-off': WifiOff, x: X, zap: Zap, door: DoorOpen, eye: Eye, grip: GripVertical, pencil: Pencil, star: Star, trash: Trash2, undo: Undo2,
   'calendar-plus': CalendarPlus, pause: Pause, play: Play, monitor: Monitor, copy: Copy, maximize: Maximize2,
+  instagram: Instagram, link: Link, 'credit-card': CreditCard,
 } satisfies Record<string, IconNode>;
 
 export type GrIconName = keyof typeof GR_ICONS;

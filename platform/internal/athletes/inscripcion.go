@@ -391,8 +391,9 @@ type EstadoInscripcion struct {
 	Tarjeta     string    `json:"tarjeta,omitempty"`
 	Referencia  string    `json:"referencia,omitempty"`
 	CodigoRef   string    `json:"codigoReferido,omitempty"`
-	CheckoutURL string    `json:"checkoutUrl,omitempty"`
+	CheckoutURL string    `json:"checkoutUrl,omitempty" doc:"Página de pago, mientras la plaza siga reservada"`
 	Categoria   string    `json:"categoria"`
+	Division    string    `json:"division,omitempty" doc:"Open, Junior… (por la edad en el año de la competición)"`
 }
 
 func maskEmail(e string) string {
@@ -513,13 +514,22 @@ func (s *Svc) estado(ctx context.Context, cid, id uuid.UUID) (EstadoInscripcion,
 	var email string
 	var atleta *uuid.UUID
 	var datos map[string]string
-	err := s.a.DB.QueryRow(ctx, `SELECT id, estado, total, email::text, tarjeta, pago, atleta_id, datos FROM inscripciones WHERE competition_id = $1 AND id = $2`, cid, id).
-		Scan(&e.ID, &e.Estado, &e.Total, &email, &e.Tarjeta, &e.Referencia, &atleta, &datos)
+	var checkout string
+	var vigente bool
+	err := s.a.DB.QueryRow(ctx, `SELECT id, estado, total, email::text, tarjeta, pago, atleta_id, datos, checkout_url, coalesce(expira_at > now(), false)
+		FROM inscripciones WHERE competition_id = $1 AND id = $2`, cid, id).
+		Scan(&e.ID, &e.Estado, &e.Total, &email, &e.Tarjeta, &e.Referencia, &atleta, &datos, &checkout, &vigente)
 	if err != nil {
 		return e, problem.NotFound("Inscripción no encontrada.")
 	}
 	e.Email = maskEmail(email)
 	e.Categoria = datos["sexo"] + " " + datos["categoria"]
+	if nac, ok := ParseFecha(datos["fechaNacimiento"]); ok {
+		e.Division = DivisionPorEdad(nac, s.compYear(ctx, cid))
+	}
+	if e.Estado == "pendiente_pago" && vigente {
+		e.CheckoutURL = checkout
+	}
 	if atleta != nil {
 		_ = s.a.DB.QueryRow(ctx, `SELECT codigo FROM referido_codigos WHERE atleta_id = $1`, *atleta).Scan(&e.CodigoRef)
 	}
@@ -667,7 +677,7 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 		_, _ = s.a.DB.Exec(ctx, `UPDATE inscripciones SET estado = 'fallida', updated_at = now() WHERE id = $1`, id)
 		return out, problem.New(http.StatusServiceUnavailable, "PASARELA_NO_DISPONIBLE", "No hemos podido abrir el pago. Inténtalo en unos minutos.")
 	}
-	if _, err := s.a.DB.Exec(ctx, `UPDATE inscripciones SET sesion = $2, updated_at = now() WHERE id = $1`, id, co.ID); err != nil {
+	if _, err := s.a.DB.Exec(ctx, `UPDATE inscripciones SET sesion = $2, checkout_url = $3, updated_at = now() WHERE id = $1`, id, co.ID, co.URL); err != nil {
 		return out, err
 	}
 	out.CheckoutURL = co.URL
@@ -1072,7 +1082,7 @@ func (s *Svc) ofrecerPlaza(ctx context.Context, cid, aid uuid.UUID) (bool, error
 		return false, problem.New(http.StatusServiceUnavailable, "PASARELA_NO_DISPONIBLE", "No hemos podido crear el enlace de pago. Inténtalo en unos minutos.")
 	}
 	return true, s.change(ctx, cid, "athletes.plaza_ofrecida", map[string]any{"id": aid}, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE inscripciones SET sesion = $2, proveedor = $3 WHERE id = $1`, iid, co.ID, prov.Name()); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE inscripciones SET sesion = $2, proveedor = $3, checkout_url = $4 WHERE id = $1`, iid, co.ID, prov.Name(), co.URL); err != nil {
 			return err
 		}
 		if err := email(ctx, tx, cid, mail, "inscripcion-plaza-libre", map[string]string{"nombre": nombre, "enlace": co.URL, "total": pagos.Euros(total)}); err != nil {
