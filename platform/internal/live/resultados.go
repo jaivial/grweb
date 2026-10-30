@@ -487,8 +487,24 @@ func (s *Svc) registerResultados() {
 				}
 				return kg(*v)
 			}
+			var cats []Categoria
 			for _, k := range p.categorias() {
-				c := clasificar(p, t, recs, k, false)
+				cats = append(cats, clasificar(p, t, recs, k, false))
+			}
+			if len(p.Flights) == 0 {
+				// archive (a held edition without a published schedule, e.g. imported): its published results
+				pubs, err := cargarPublicados(ctx, s.a.DB, in.CID)
+				if err != nil {
+					return nil, err
+				}
+				for k, pb := range pubs {
+					c := pb.datos
+					c.Clave = k
+					cats = append(cats, c)
+				}
+				ordenarCategorias(cats)
+			}
+			for _, c := range cats {
 				for _, f := range c.Filas {
 					puesto := "—"
 					if f.Puesto > 0 {
