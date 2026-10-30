@@ -273,12 +273,14 @@ func (s *Svc) registerPublic() {
 	type volIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Body struct {
-			Nombre           string `json:"nombre" minLength:"2" maxLength:"120"`
-			Email            string `json:"email" format:"email" maxLength:"254"`
-			Telefono         string `json:"telefono,omitempty" maxLength:"30"`
-			Disponibilidad   string `json:"disponibilidad,omitempty" maxLength:"200"`
-			EsMenor          bool   `json:"esMenor,omitempty"`
-			AceptaPrivacidad bool   `json:"aceptaPrivacidad,omitempty" doc:"Obligatorio: casilla sin premarcar (si falta o es false → 422 CONSENTIMIENTO_OBLIGATORIO)"`
+			Nombre           string   `json:"nombre" minLength:"2" maxLength:"120"`
+			Email            string   `json:"email" format:"email" maxLength:"254"`
+			Telefono         string   `json:"telefono,omitempty" maxLength:"30"`
+			Disponibilidad   string   `json:"disponibilidad,omitempty" maxLength:"200"`
+			Roles            []string `json:"roles,omitempty" maxItems:"5" uniqueItems:"true" doc:"jueces · cargadores · mesa · foto · acreditaciones"`
+			Experiencia      string   `json:"experiencia,omitempty" maxLength:"1000"`
+			EsMenor          bool     `json:"esMenor,omitempty"`
+			AceptaPrivacidad bool     `json:"aceptaPrivacidad,omitempty" doc:"Obligatorio: casilla sin premarcar (si falta o es false → 422 CONSENTIMIENTO_OBLIGATORIO)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "voluntarios-public", Method: http.MethodPost, Path: pub + "/voluntarios", Summary: "Enviar una solicitud de voluntariado", Tags: tagPub, DefaultStatus: http.StatusAccepted},
@@ -293,19 +295,28 @@ func (s *Svc) registerPublic() {
 			if !in.Body.AceptaPrivacidad {
 				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar la solicitud tienes que aceptar la política de privacidad.")
 			}
+			roles := []string{}
+			for _, r := range in.Body.Roles {
+				if !rolesVoluntario[r] {
+					return nil, problem.Unprocessable("ROL_INVALIDO", "Rol de voluntario no válido: "+r)
+				}
+				roles = append(roles, r)
+			}
+			detalle := strings.TrimSpace(strings.Join(append(append([]string{}, roles...), in.Body.Disponibilidad), " · "))
 			var version string
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
 			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
 			return nil, s.change(ctx, cid, "cms.voluntario_solicitado", map[string]any{"id": id, "esMenor": in.Body.EsMenor}, func(tx pgx.Tx) error {
-				if _, err := tx.Exec(ctx, `INSERT INTO voluntarios (id, competition_id, nombre, email, telefono, disponibilidad, es_menor, consentimiento_at, legal_version)
-					VALUES ($1,$2,$3,$4,$5,$6,$7,now(),$8)`, id, cid, strings.TrimSpace(in.Body.Nombre), email, in.Body.Telefono, in.Body.Disponibilidad, in.Body.EsMenor, version); err != nil {
+				if _, err := tx.Exec(ctx, `INSERT INTO voluntarios (id, competition_id, nombre, email, telefono, disponibilidad, roles, experiencia, es_menor, consentimiento_at, legal_version)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10)`, id, cid, strings.TrimSpace(in.Body.Nombre), email, in.Body.Telefono, in.Body.Disponibilidad, roles,
+					strings.TrimSpace(in.Body.Experiencia), in.Body.EsMenor, version); err != nil {
 					return err
 				}
 				if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.contacto", map[string]any{"email": email, "telefono": in.Body.Telefono, "nombre": strings.TrimSpace(in.Body.Nombre),
 					"origen": "voluntarios", "relacion": map[string]any{"voluntario": true},
 					"consentimientos": []map[string]any{{"finalidad": "privacidad", "estado": "confirmado", "version": version, "origen": "/voluntarios · formulario", "ip": httpx.ClientIPFrom(ctx)}},
-					"actividad":       map[string]any{"tipo": "voluntario", "titulo": "Se ofreció como voluntario", "detalle": in.Body.Disponibilidad}},
+					"actividad":       map[string]any{"tipo": "voluntario", "titulo": "Se ofreció como voluntario", "detalle": strings.Trim(detalle, " ·")}},
 					events.Competition(cid.String()), events.Audience(events.Internal))); err != nil {
 					return err
 				}
@@ -534,3 +545,6 @@ func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([
 	}
 	return list, nil
 }
+
+// rolesVoluntario are the roles of /voluntarios (Figma 33).
+var rolesVoluntario = map[string]bool{"jueces": true, "cargadores": true, "mesa": true, "foto": true, "acreditaciones": true}

@@ -36,6 +36,9 @@ const ESTADO: Record<Seccion['estado'], { label: string; tone: GrTone }> = {
 };
 
 export type Pagina = 'home' | 'publico' | 'en';
+/** Roles of the /voluntarios form (Figma 33). */
+const ROLES_VOLUNTARIO: Record<string, string> = { jueces: 'Jueces', cargadores: 'Cargadores', mesa: 'Mesa técnica', foto: 'Foto y vídeo', acreditaciones: 'Acreditaciones' };
+
 export const PAGINAS: { value: Pagina; label: string; ruta: string }[] = [
   { value: 'home', label: 'Home', ruta: '/' },
   { value: 'publico', label: 'Ven a verlo', ruta: '/publico' },
@@ -517,7 +520,9 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   ],
   voluntarios: [{
     title: 'Solicitudes de voluntariado', subtitle: 'Llegan desde /voluntarios · los menores necesitan autorización del tutor', path: '/voluntarios', item: 'voluntario', noCreate: true, noDelete: false, filterBy: 'estado',
-    columns: [{ key: 'nombre', label: 'Nombre' }, { key: 'email', label: 'Email', hideMobile: true }, { key: 'disponibilidad', label: 'Disponibilidad', hideMobile: true },
+    columns: [{ key: 'nombre', label: 'Nombre' }, { key: 'email', label: 'Email', hideMobile: true },
+      { key: 'roles', label: 'Quiere ayudar en', hideMobile: true, value: (r) => ((r['roles'] as string[] | null) ?? []).map((x) => ROLES_VOLUNTARIO[x] ?? x).join(', ') || '—' },
+      { key: 'disponibilidad', label: 'Disponibilidad', hideMobile: true }, { key: 'experiencia', label: 'Experiencia', hideMobile: true },
       { key: 'esMenor', label: 'Edad', kind: 'badge', value: (r) => (r['esMenor'] ? 'Menor' : 'Adulto'), tone: (r) => (r['esMenor'] ? 'warning' : 'neutral'), hideMobile: true },
       { key: 'estado', label: 'Estado', kind: 'badge', tone: (r) => (r['estado'] === 'confirmado' ? 'success' : r['estado'] === 'descartado' ? 'neutral' : 'warning') }],
     fields: [{ clave: 'puesto', etiqueta: 'Puesto', tipo: 'texto', max: 80, ancho: 'mitad' }, { clave: 'estado', etiqueta: 'Estado', tipo: 'select', ancho: 'mitad', opciones: [['pendiente', 'Pendiente'], ['confirmado', 'Confirmado'], ['descartado', 'Descartado']].map(([value, label]) => ({ value, label })) },
