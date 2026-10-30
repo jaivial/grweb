@@ -14,6 +14,10 @@ decision, an athlete who did not lift), an upcoming edition (paid, free, abandon
 codes and uses, one refunded), an internal test competition, team members of every old role (one invitation not
 accepted, one inactive user, individual permission grants), raffle tickets (paid and never paid) and the old
 winner, and schedule rows (not migrated).
+
+The old backend also serves the FER web: competition 4 (Tipo «fer») with registrations, tickets, a FER-only user
+and a user shared by both webs must stay out of the migration. FER rows come from their own random generator (RF),
+so the GR Cup rows are identical to those of earlier versions of this script (re-imports stay idempotent).
 """
 import base64
 import hashlib

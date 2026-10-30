@@ -90,11 +90,13 @@ Resultado del ensayo: ver la sección 7.
      - los de FER se pasan a `https://fercup.com/api/webhooks/stripe` (fercup.com ya envía `/api/` al backend anterior);
      - o se mantiene la excepción de nginx de la sección 5;
    - WhatsApp (evo-weai), si se usa.
-4. **FER avisado**:
+4. **Usuarios Root revisados**: el informe de identity lista quién pasa a Root. En la web anterior lo eran del sistema
+   entero (GR Cup y FER); quien no deba administrar GR Cup se baja de rol en «Equipo y permisos» antes de abrir.
+5. **FER avisado**:
    - su backoffice es `backoffice.fercup.com`; `grcup.jaimedigitalstudio.com/backoffice` deja de existir con el corte;
    - FER no cambia nada más.
-5. **Asesoría:** textos legales, sorteo, consentimientos y menores. Checklist legal del sorteo hecho por el organizador.
-6. **Ensayo general (T-7)** con una copia real de producción, en el namespace de producción antes de abrirlo (nunca en QA):
+6. **Asesoría:** textos legales, sorteo, consentimientos y menores. Checklist legal del sorteo hecho por el organizador.
+7. **Ensayo general (T-7)** con una copia real de producción, en el namespace de producción antes de abrirlo (nunca en QA):
    - ejecutar `--dry-run`, después el ETL real y la conciliación (sección 6);
    - borrar las bases y volver a empezar limpio.
 

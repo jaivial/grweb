@@ -89,6 +89,7 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 
 	inf := legacy.NuevoInforme("identity", o.DryRun)
 	ids := map[int]uuid.UUID{}
+	var roots []string
 	// only the people of the migrated editions (and the old Roots): users of another web of the same backend (FER)
 	// stay there
 	conMembresia := map[int]bool{}
@@ -141,6 +142,7 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 			inf.Escritos["usuarios"]++
 			if u.root || u.superadmin {
 				inf.Escritos["usuarios root"]++
+				roots = append(roots, email)
 			}
 		}
 		roles := map[uuid.UUID]bool{}
@@ -184,6 +186,10 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 				continue
 			}
 			inf.Escritos["membresias "+slug]++
+		}
+		if len(roots) > 0 {
+			// Root was system-wide in the old backend (GR Cup and FER): confirm each one before opening
+			inf.Notas = append(inf.Notas, fmt.Sprintf("pasan a Root (confirmar antes de abrir; en la web anterior lo eran de GR Cup y FER): %s", strings.Join(roots, ", ")))
 		}
 		if permisos > 0 {
 			inf.Notas = append(inf.Notas, fmt.Sprintf("%d permisos individuales de %d usuarios no se migran (aquí los permisos van por rol): revisar en «Equipo y permisos»", permisos, conPermisos))
