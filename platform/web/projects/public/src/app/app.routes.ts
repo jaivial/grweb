@@ -1,5 +1,6 @@
 import { HorariosPage } from './pages/horarios';
 import { BajaPage, NovedadesConfirmarPage } from './pages/novedades';
+import { ConfirmacionPage, EntradasPage, MiEntradaPage, OfertaPage } from './pages/entradas';
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
 import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
@@ -20,6 +21,10 @@ export const routes: Routes = [
   { path: 'participantes', component: ParticipantesPage },
   { path: 'horarios', component: HorariosPage },
   { path: 'novedades/confirmar', component: NovedadesConfirmarPage },
+  { path: 'entradas', component: EntradasPage },
+  { path: 'entradas/confirmacion', component: ConfirmacionPage },
+  { path: 'entradas/oferta', component: OfertaPage },
+  { path: 'mi-entrada', component: MiEntradaPage },
   { path: 'baja', component: BajaPage },
   { path: 'area-atleta', component: AreaAtletaPage },
   { path: 'inscripcion', component: InscripcionPage },

@@ -17,6 +17,7 @@ resources:
   - schedule/schedule.yaml
   - crm/crm.yaml
   - messaging/messaging.yaml
+  - ticketing/ticketing.yaml
   - realtime/realtime.yaml
   - gateway/gateway.yaml
   - web/web.yaml

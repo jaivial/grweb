@@ -40,4 +40,5 @@ images:
   - { name: grcup/messaging, newTag: TAG }
   - { name: grcup/realtime, newTag: TAG }
   - { name: grcup/schedule, newTag: TAG }
+  - { name: grcup/ticketing, newTag: TAG }
   - { name: grcup/web, newTag: TAG }
