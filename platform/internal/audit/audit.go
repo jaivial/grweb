@@ -46,6 +46,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	c := &events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "audit", Start: "0", Handle: s.handle, Log: a.Log} // the audit log must include the retained history
 	a.Go(c.Run)
 	s.register()
+	s.registerSalud()
 	return nil
 }
 

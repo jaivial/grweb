@@ -381,6 +381,7 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
+			s.sincronizarModulo(ctx, in.CID, p.ChecklistCompleta)
 			return &panelOut{ETag: fmt.Sprintf(`"%d"`, p.Config.Version), Body: p}, nil
 		})
 
@@ -607,3 +608,15 @@ func (s *Svc) registerRGPD() {
 }
 
 var _ = errors.New
+
+// sincronizarModulo keeps the «sorteo» module of «Evento y módulos» locked while the legal checklist is pending
+// (best effort: the checklist itself already gates the sale).
+func (s *Svc) sincronizarModulo(ctx context.Context, cid uuid.UUID, completa bool) {
+	motivo := ""
+	if !completa {
+		motivo = "Checklist legal del sorteo pendiente (Sorteo › Configuración)"
+	}
+	if err := s.comp.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/modulos/sorteo/bloqueo", map[string]any{"bloqueado": !completa, "motivo": motivo}, nil); err != nil {
+		s.a.Log.Warn("bloqueo del módulo sorteo", "err", err)
+	}
+}
