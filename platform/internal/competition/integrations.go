@@ -458,8 +458,45 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	if err := s.identity.Do(ctx, http.MethodPost, "/internal/competiciones/"+id.String()+"/roles-por-defecto", map[string]any{"propietarioEmail": owner}, nil); err != nil {
 		return fmt.Errorf("roles por defecto: %w", err)
 	}
-	s.cache.Del(ctx, "pub:grcup", "list")
+	id25, err := s.seed2025(ctx, a)
+	if err != nil {
+		return err
+	}
+	if err := s.identity.Do(ctx, http.MethodPost, "/internal/competiciones/"+id25.String()+"/roles-por-defecto", map[string]any{"propietarioEmail": owner}, nil); err != nil {
+		return fmt.Errorf("roles por defecto 2025: %w", err)
+	}
+	s.cache.Del(ctx, "pub:grcup", "pub:grcup-2025", "list")
 	return nil
+}
+
+// seed2025 creates the archived first edition (/ediciones/2025, /resultados/2025): finished, with the facts of the
+// 2025 poster. Its results are seeded by live («Datos de ejemplo» until the MySQL import of step 16).
+func (s *Svc) seed2025(ctx context.Context, a *app.App) (uuid.UUID, error) {
+	var id uuid.UUID
+	if err := a.DB.QueryRow(ctx, `SELECT id FROM competiciones WHERE slug = 'grcup-2025'`).Scan(&id); err == nil {
+		return id, nil
+	}
+	id = newID()
+	sede := Sede{Ciudad: "Llíria", Provincia: "Valencia"} // the 2025 poster names only the town
+	evento := Evento{Descripcion: "La primera edición reunió a atletas de la Comunitat Valenciana, Murcia y Baleares en una competición regional de nivel AEP-2, con jueces y cargadores certificados.",
+		Nivel: "AEP-2 Regional Valencia, Murcia y Baleares", Organizador: "GR Strength", EmailContacto: "admin@grstrength.com", Instagram: "https://instagram.com/grstrengthclub"}
+	insc := Inscripcion{Modo: "externa", Estado: "cerrada"}
+	err := db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, nombre_corto, edicion, estado, fecha_inicio, fecha_fin, sede, evento, modulos, inscripcion, como_llegar)
+			VALUES ($1,'grcup-2025','GR Strength Cup 2025','GR Cup 2025',1,'finalizado','2025-03-01','2025-03-02',$2,$3,$4,$5,'[]')`, id, sede, evento, defaultModulos(), insc); err != nil {
+			return err
+		}
+		if err := seedChecklist(ctx, tx, id); err != nil {
+			return err
+		}
+		return events.Enqueue(ctx, tx, events.New(ctx, "competition.creada", map[string]any{"slug": "grcup-2025", "nombre": "GR Strength Cup 2025", "seed": true},
+			events.Competition(id.String()), events.Subject("competicion:"+id.String())))
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("edición 2025: %w", err)
+	}
+	a.Log.Info("edición 2025 creada (Datos de ejemplo)", "id", id)
+	return id, nil
 }
 
 // insecurePlain is AUTH PLAIN without net/smtp's TLS requirement; only used when the integration says tls=no.

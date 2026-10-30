@@ -1,6 +1,7 @@
 import { HorariosPage } from './pages/horarios';
 import { BajaPage, NovedadesConfirmarPage } from './pages/novedades';
 import { ConfirmacionPage, EntradasPage, MiEntradaPage, OfertaPage } from './pages/entradas';
+import { EdicionPage, EnDirectoPage, PantallaPublicaPage, ResultadosEdicionPage, ResultadosIndexPage } from './pages/directo';
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
 import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
@@ -26,6 +27,12 @@ export const routes: Routes = [
   { path: 'entradas/oferta', component: OfertaPage },
   { path: 'mi-entrada', component: MiEntradaPage },
   { path: 'baja', component: BajaPage },
+  { path: 'en-directo', component: EnDirectoPage },
+  { path: 'directo', pathMatch: 'full', redirectTo: 'en-directo' },
+  { path: 'resultados', component: ResultadosIndexPage },
+  { path: 'resultados/:anio', component: ResultadosEdicionPage },
+  { path: 'ediciones/:anio', component: EdicionPage },
+  { path: 'pantalla/:slug', component: PantallaPublicaPage },
   { path: 'area-atleta', component: AreaAtletaPage },
   { path: 'inscripcion', component: InscripcionPage },
   { path: 'inscripcion/estado', component: InscripcionEstadoPage },

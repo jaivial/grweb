@@ -97,7 +97,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	}
 	if n > 0 {
 		a.Log.Info("atletas ya sembrados", "total", n)
-		return nil
+		return seedPesaje(ctx, a, c.ID)
 	}
 	year := c.Year()
 	rng := rand.New(rand.NewPCG(2026, 7))
@@ -262,4 +262,32 @@ func (s *Svc) seedInscripcion(ctx context.Context, cid uuid.UUID) error {
 		}
 		return nil
 	})
+}
+
+// seedPesaje fills an example weigh-in (body weight inside the category, rack heights and openers) for the example
+// athletes not weighed yet, so the competition desk of step 11 has openers to run the flights. Idempotent: weighed
+// athletes, and anyone outside the «.test» example addresses, are left alone.
+func seedPesaje(ctx context.Context, a *app.App, cid uuid.UUID) error {
+	tag, err := a.DB.Exec(ctx, `
+		WITH x AS (
+			SELECT a.id, a.sexo,
+				CASE WHEN a.categoria LIKE '+%' THEN substr(a.categoria, 2)::numeric + 2 + (abs(hashtext(a.id::text)) % 140) / 10.0
+				     ELSE substr(a.categoria, 2)::numeric - 0.2 - (abs(hashtext(a.id::text)) % 38) / 10.0 END AS bw,
+				COALESCE(p.marca_sq, CASE a.sexo WHEN 'F' THEN 95 ELSE 160 END + (abs(hashtext(a.id::text || 's')) % 60)) AS sq,
+				COALESCE(p.marca_bp, CASE a.sexo WHEN 'F' THEN 57.5 ELSE 100 END + (abs(hashtext(a.id::text || 'b')) % 36)) AS bp,
+				COALESCE(p.marca_dl, CASE a.sexo WHEN 'F' THEN 115 ELSE 190 END + (abs(hashtext(a.id::text || 'd')) % 70)) AS dl
+			FROM atletas a LEFT JOIN perfiles p ON p.atleta_id = a.id
+			WHERE a.competition_id = $1 AND a.estado = 'confirmado' AND a.peso_corporal IS NULL AND (a.email IS NULL OR a.email::text LIKE '%@ejemplo.test'))
+		UPDATE atletas a SET peso_corporal = round(x.bw, 1),
+			intento_sq = round(x.sq * 0.9 / 2.5) * 2.5, intento_bp = round(x.bp * 0.9 / 2.5) * 2.5, intento_dl = round(x.dl * 0.9 / 2.5) * 2.5,
+			rack_sq = COALESCE(a.rack_sq, 8 + abs(hashtext(a.id::text)) % 8), rack_bp = CASE WHEN a.rack_bp = '' THEN (4 + abs(hashtext(a.id::text)) % 5)::text || '/' || (abs(hashtext(a.id::text)) % 3)::text ELSE a.rack_bp END,
+			pesaje_estado = 'ok', pesado_at = now(), pesado_por = 'Datos de ejemplo', version = a.version + 1, updated_at = now()
+		FROM x WHERE a.id = x.id`, cid)
+	if err != nil {
+		return fmt.Errorf("pesaje de ejemplo: %w", err)
+	}
+	if tag.RowsAffected() > 0 {
+		a.Log.Info("pesaje de ejemplo", "atletas", tag.RowsAffected())
+	}
+	return nil
 }

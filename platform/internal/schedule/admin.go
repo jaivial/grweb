@@ -450,33 +450,73 @@ func (s *Svc) registerAdmin() {
 			if in.Body.RetrasoMin < 0 || in.Body.RetrasoMin > 600 {
 				return nil, problem.Unprocessable("RETRASO_INVALIDO", "El retraso va de 0 a 600 minutos.")
 			}
-			v, err := s.versionPublicada(ctx, s.a.DB, in.CID)
-			if err != nil {
-				return nil, err
-			}
-			var f *SnapFlight
-			if v != nil {
-				f = v.Snapshot.flight(in.ID)
-			}
-			if f == nil {
-				return nil, problem.NotFound("Ese flight no está en los horarios publicados.")
-			}
-			loc := s.loc(ctx, in.CID)
-			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				if _, err := tx.Exec(ctx, `INSERT INTO directo (flight_id, competition_id, estado, retraso_min) VALUES ($1,$2,$3,$4)
-					ON CONFLICT (flight_id) DO UPDATE SET estado = EXCLUDED.estado, retraso_min = EXCLUDED.retraso_min, updated_at = now()`,
-					in.ID, in.CID, in.Body.Estado, in.Body.RetrasoMin); err != nil {
-					return err
-				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "horarios.flight", map[string]any{"flightId": in.ID, "codigo": f.Codigo, "estado": in.Body.Estado,
-					"retrasoMin": in.Body.RetrasoMin, "inicioEstimado": hhmm(f.Inicio.Add(time.Duration(in.Body.RetrasoMin)*time.Minute), loc)},
-					events.Competition(in.CID.String()), events.Audience(events.Public), events.Subject(f.Codigo)))
-			})
-			if err != nil {
+			if err := s.setDirecto(ctx, in.CID, in.ID, in.Body, "horarios"); err != nil {
 				return nil, err
 			}
 			s.bump(ctx, in.CID)
 			return &struct{ Body Directo }{in.Body}, nil
+		})
+}
+
+// setDirecto stores the live state of a published flight and announces it (public: no personal data).
+func (s *Svc) setDirecto(ctx context.Context, cid, id uuid.UUID, d Directo, origen string) error {
+	v, err := s.versionPublicada(ctx, s.a.DB, cid)
+	if err != nil {
+		return err
+	}
+	var f *SnapFlight
+	if v != nil {
+		f = v.Snapshot.flight(id)
+	}
+	if f == nil {
+		return problem.NotFound("Ese flight no está en los horarios publicados.")
+	}
+	loc := s.loc(ctx, cid)
+	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO directo (flight_id, competition_id, estado, retraso_min) VALUES ($1,$2,$3,$4)
+			ON CONFLICT (flight_id) DO UPDATE SET estado = EXCLUDED.estado, retraso_min = EXCLUDED.retraso_min, updated_at = now()`, id, cid, d.Estado, d.RetrasoMin); err != nil {
+			return err
+		}
+		return events.Enqueue(ctx, tx, events.New(ctx, "horarios.flight", map[string]any{"flightId": id, "codigo": f.Codigo, "estado": d.Estado,
+			"retrasoMin": d.RetrasoMin, "inicioEstimado": hhmm(f.Inicio.Add(time.Duration(d.RetrasoMin)*time.Minute), loc), "origen": origen},
+			events.Competition(cid.String()), events.Audience(events.Public), events.Subject(f.Codigo)))
+	})
+	if err == nil {
+		s.bump(ctx, cid)
+		if e := s.athletes.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/flights/"+f.Codigo+"/retraso", map[string]int{"retrasoMin": d.RetrasoMin}, nil); e != nil {
+			s.a.Log.Warn("retraso del flight en athletes", "flight", f.Codigo, "err", e)
+		}
+	}
+	return err
+}
+
+// registerInternal: live reads the published flights (athletes in lot order) and drives their live state.
+func (s *Svc) registerInternal() {
+	type cidOnly struct {
+		CID uuid.UUID `path:"cid"`
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-horarios-publicados", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/horarios/publicados", Summary: "Versión publicada (solo servicios)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *cidOnly) (*struct{ Body *Snapshot }, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			v, err := s.versionPublicada(ctx, s.a.DB, in.CID)
+			if err != nil || v == nil {
+				return &struct{ Body *Snapshot }{nil}, err
+			}
+			return &struct{ Body *Snapshot }{&v.Snapshot}, nil
+		})
+	type dirIn struct {
+		CID  uuid.UUID `path:"cid"`
+		ID   uuid.UUID `path:"id"`
+		Body Directo
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-horarios-directo", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/horarios/flights/{id}/directo", Summary: "Estado en directo de un flight (solo live)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *dirIn) (*struct{}, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			return nil, s.setDirecto(ctx, in.CID, in.ID, in.Body, "directo")
 		})
 }
 

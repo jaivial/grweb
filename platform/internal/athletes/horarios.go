@@ -219,7 +219,8 @@ func (s *Svc) validBaja(tok string) (uuid.UUID, bool) {
 }
 
 // avisosSalida emails the confirmed followers of every athlete whose flight starts in about 30 minutes (published
-// time; the live delay of step 11 is not applied yet). Runs every minute; each start time is notified once.
+// time plus the live delay of the flight set at the competition desk). Runs every minute; each published start
+// time is notified once.
 func (s *Svc) avisosSalida(ctx context.Context) {
 	t := time.NewTicker(time.Minute)
 	defer t.Stop()
@@ -236,9 +237,10 @@ func (s *Svc) avisosSalida(ctx context.Context) {
 }
 
 func (s *Svc) avisarSalidas(ctx context.Context) error {
-	rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.competition_id, a.nombre || ' ' || a.apellidos, a.flight, a.hora_inicio, COALESCE(p.slug, '') FROM atletas a
+	rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.competition_id, a.nombre || ' ' || a.apellidos, a.flight, a.hora_inicio, COALESCE(r.retraso_min, 0), COALESCE(p.slug, '') FROM atletas a
 		LEFT JOIN perfiles p ON p.atleta_id = a.id
-		WHERE a.estado = 'confirmado' AND a.hora_inicio BETWEEN now() + interval '20 minutes' AND now() + interval '31 minutes'
+		LEFT JOIN retrasos r ON r.competition_id = a.competition_id AND r.flight = a.flight
+		WHERE a.estado = 'confirmado' AND a.hora_inicio + make_interval(mins => COALESCE(r.retraso_min, 0)) BETWEEN now() + interval '20 minutes' AND now() + interval '31 minutes'
 		AND NOT EXISTS (SELECT 1 FROM avisos_salida x WHERE x.atleta_id = a.id AND x.hora_inicio = a.hora_inicio)
 		AND EXISTS (SELECT 1 FROM seguimientos f WHERE f.atleta_id = a.id AND f.confirmado_at IS NOT NULL AND f.baja_at IS NULL) LIMIT 200`)
 	if err != nil {
@@ -248,11 +250,12 @@ func (s *Svc) avisarSalidas(ctx context.Context) error {
 		id, cid              uuid.UUID
 		nombre, flight, slug string
 		hora                 time.Time
+		retraso              int
 	}
 	var list []sal
 	for rows.Next() {
 		var x sal
-		if err := rows.Scan(&x.id, &x.cid, &x.nombre, &x.flight, &x.hora, &x.slug); err != nil {
+		if err := rows.Scan(&x.id, &x.cid, &x.nombre, &x.flight, &x.hora, &x.retraso, &x.slug); err != nil {
 			rows.Close()
 			return err
 		}
@@ -283,7 +286,7 @@ func (s *Svc) avisarSalidas(ctx context.Context) error {
 				ss = append(ss, g)
 			}
 			segs.Close()
-			hora := x.hora.In(madrid).Format("15:04")
+			hora := x.hora.Add(time.Duration(x.retraso) * time.Minute).In(madrid).Format("15:04")
 			for _, g := range ss {
 				v := map[string]string{"atleta": x.nombre, "flight": x.flight, "hora": hora, "horarios": s.webURL + "/horarios", "baja": s.webURL + "/atletas/" + x.slug + "?baja=" + s.bajaToken(g.id)}
 				if x.slug != "" {

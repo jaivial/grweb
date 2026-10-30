@@ -440,6 +440,14 @@ type AtletaPlan struct {
 	Club           string    `json:"club"`
 	TotalPrevisto  *float64  `json:"totalPrevisto,omitempty"`
 	Seguidores     int       `json:"seguidores"`
+	// Competition desk (live): weigh-in data.
+	PesoCorporal *float64 `json:"pesoCorporal,omitempty"`
+	Primeros     Marcas   `json:"primeros" doc:"Primeros intentos declarados en el pesaje"`
+	RackSQ       *int     `json:"rackSq,omitempty"`
+	RackBP       string   `json:"rackBp,omitempty"`
+	Licencia     string   `json:"licencia"`
+	// Public profile only: the sentence the speaker can read («Cuarta competición · objetivo 360 kg»).
+	Frase string `json:"frase,omitempty"`
 }
 
 // registerInternal exposes the confirmed athletes to other services and lets schedule write the published times.
@@ -460,14 +468,16 @@ func (s *Svc) registerInternal() {
 			o := &out{Body: make([]AtletaPlan, 0, len(list))}
 			for _, r := range list {
 				a := AtletaPlan{ID: r.ID, Nombre: r.nombreCompleto(), Publico: r.publico(d), ConEmail: r.Email != nil && *r.Email != "", Sexo: r.Sexo, Categoria: r.Categoria,
-					DivisionNombre: DivisionNombre(r.Division), Club: r.Club, TotalPrevisto: r.totalPrevisto(), Seguidores: r.Seguidores}
+					DivisionNombre: DivisionNombre(r.Division), Club: r.Club, TotalPrevisto: r.totalPrevisto(), Seguidores: r.Seguidores,
+					PesoCorporal: r.PesoCorporal, Primeros: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, RackSQ: r.RackSQ, RackBP: r.RackBP, Licencia: r.Licencia}
 				if a.Publico {
-					a.Slug = r.Slug
+					a.Slug, a.Frase = r.Slug, r.Frase
 				}
 				o.Body = append(o.Body, a)
 			}
 			return o, nil
 		})
 	s.registerHorarios()
+	s.registerResultados()
 	s.registerRGPD()
 }

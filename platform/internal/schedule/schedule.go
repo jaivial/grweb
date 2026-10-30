@@ -73,6 +73,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAdmin()
 	s.registerPublicar()
 	s.registerPublic()
+	s.registerInternal()
 	return nil
 }
 
