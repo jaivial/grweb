@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, computed, inject, input, signal } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
@@ -99,7 +100,7 @@ export class FaqPage {
 /** Legal texts (Figma page 12): sticky table of contents, numbered sections, version stamp. */
 @Component({
   selector: 'gr-legal-page',
-  imports: [Page, GrSkeleton],
+  imports: [RouterLink, Page, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = doc();
@@ -123,7 +124,7 @@ export class FaqPage {
               <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
               <ol class="flex flex-col gap-1 text-body-s">
                 @for (h of toc(); track h.id; let i = $index) {
-                  <li><a [href]="'#' + h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-1 pr-2 pl-[18px] lg:py-2" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">
+                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-1 pr-2 pl-[18px] lg:py-2" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">
                     <span class="absolute top-1/2 left-2 h-4 w-0.5 -translate-y-1/2 rounded-full" [class]="activo() === h.id ? 'bg-accent' : ''"></span>{{ i + 1 }}. {{ h.text }}</a></li>
                 }
               </ol>

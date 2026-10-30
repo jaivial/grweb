@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ViewportScroller } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
@@ -7,4 +8,9 @@ import { RouterOutlet } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<router-outlet />`,
 })
-export class App {}
+export class App {
+  constructor() {
+    // In-page links («routerLink="." fragment="…"»): leave room for the floating navbar (88 px) above the target.
+    inject(ViewportScroller).setOffset([0, 104]);
+  }
+}

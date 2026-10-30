@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
@@ -12,7 +13,7 @@ import { Community, Related, type RelatedLink } from './landings';
 /** /como-llegar (Figma page 11, «ampliada»): address and map, transport, parking and accessibility, venue photos, where to stay. */
 @Component({
   selector: 'gr-como-llegar-page',
-  imports: [Page, GrIcon, GrButton, GrCabecera, Related, Community],
+  imports: [RouterLink, Page, GrIcon, GrButton, GrCabecera, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -22,7 +23,7 @@ import { Community, Related, type RelatedLink } from './landings';
         <!-- Figma «Anchor chips» (mobile) -->
         <nav class="sticky top-[76px] z-20 -mx-5 -mt-4 mb-6 flex gap-2 overflow-x-auto border-b border-line-subtle bg-bg-base/95 px-5 py-3 backdrop-blur [scrollbar-width:none] md:hidden" aria-label="Secciones">
           @for (s of anclas; track s.id) {
-            <a [href]="'#' + s.id" class="flex h-9 shrink-0 items-center rounded-full border px-4 text-label-s" [class]="activa() === s.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ s.t }}</a>
+            <a routerLink="." [fragment]="s.id" class="flex h-9 shrink-0 items-center rounded-full border px-4 text-label-s" [class]="activa() === s.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ s.t }}</a>
           }
         </nav>
         <div class="flex flex-col gap-12 md:gap-20">

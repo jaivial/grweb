@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, RESPONSE_INIT, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
@@ -55,7 +55,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
 /** /sorteo (Figma page 07): the prize, the rules, how to take part, the result (with its verification) and the purchase form. */
 @Component({
   selector: 'gr-sorteo',
-  imports: [Navbar, Footer, FormsModule, GrButton, GrIcon, GrSkeleton, SecSorteo, SorteoTitulo],
+  imports: [RouterLink, Navbar, Footer, FormsModule, GrButton, GrIcon, GrSkeleton, SecSorteo, SorteoTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let s = data();
@@ -139,7 +139,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
             <p class="w-full max-w-[520px] rounded-xl border border-accent bg-accent/8 p-6 text-left text-body-s">Cuantos más boletos compres, más oportunidades tienes de ganar.</p>
             <div class="flex flex-col items-center gap-10">
               <p class="text-body-s text-text-tertiary">¿Quieres ser nuestro próximo ganador?</p>
-              <a grButton variant="primary" size="l" href="#participa">Participa ahora</a>
+              <a grButton variant="primary" size="l" routerLink="." fragment="participa">Participa ahora</a>
             </div>
           }
         </section>

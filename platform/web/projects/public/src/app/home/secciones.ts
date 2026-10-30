@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
@@ -399,7 +400,7 @@ export class SecAfiliaciones {
 /** «Section / Sorteo»: the raffle panel (title, price, sold counter and CTAs) with the belt photo. */
 @Component({
   selector: 'gr-sec-sorteo',
-  imports: [GrButton, GrIcon, GrEyebrow],
+  imports: [RouterLink, GrButton, GrIcon, GrEyebrow],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block bg-bg-base md:px-20 md:py-24' },
   template: `
@@ -427,8 +428,9 @@ export class SecAfiliaciones {
         }
         <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           @if (!p) { <a grButton variant="display" size="l" href="/sorteo">{{ cta() }}</a> }
-          @else if (r?.estado === 'en_venta') { <a grButton variant="primary" size="l" href="#participa" class="rounded-pill!">Compra ya</a> }
-          <a grButton variant="glass" size="l" [href]="p ? '#normas' : '/politica-concurso'" iconRight="arrow-right">Ver normas</a>
+          @else if (r?.estado === 'en_venta') { <a grButton variant="primary" size="l" routerLink="." fragment="participa" class="rounded-pill!">Compra ya</a> }
+          @if (p) { <a grButton variant="glass" size="l" routerLink="." fragment="normas" iconRight="arrow-right">Ver normas</a> }
+          @else { <a grButton variant="glass" size="l" href="/politica-concurso" iconRight="arrow-right">Ver normas</a> }
         </div>
       </div>
     </div>
