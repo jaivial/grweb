@@ -243,7 +243,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
             <!-- Figma 32 «Club card»: 44 px logo tile, name and place, pill tags, role and «Ver club» -->
             <li class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
               <div class="flex items-center gap-3">
-                <span class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/8 p-1">
+                <span class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/8 p-1.5">
                   @if (c.logoUrl) { <img [src]="c.logoUrl" alt="" class="max-h-full max-w-full object-contain" loading="lazy" /> } @else { <span class="text-label-s text-text-tertiary">{{ initials(c.nombre) }}</span> }
                 </span>
                 <div class="min-w-0">
@@ -266,7 +266,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
           }
           <li class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
             <div class="flex items-center gap-3">
-              <span class="flex size-11 items-center justify-center rounded-lg bg-accent/12 text-accent-text"><gr-icon name="plus" [size]="18" /></span>
+              <span class="flex size-14 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="plus" [size]="20" /></span>
               <div><p class="text-label-m">Tu club aquí</p><p class="flex items-center gap-1 text-body-xs text-text-tertiary"><gr-icon name="map-pin" [size]="12" />Comunitat Valenciana</p></div>
             </div>
             <p class="flex"><span class="inline-flex h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-secondary uppercase">Añade tu club</span></p>
