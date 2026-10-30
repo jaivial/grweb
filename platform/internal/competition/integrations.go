@@ -426,7 +426,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		}
 		err = db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, nombre_corto, edicion, estado, fecha_inicio, fecha_fin, sede, evento, modulos, inscripcion, como_llegar)
-				VALUES ($1,'grcup','GR Strength Cup 2026','GR Cup',2,'proximamente','2026-07-25','2026-07-26',$2,$3,$4,$5,$6)`, id, sede, evento, mods, insc, llegar); err != nil {
+				VALUES ($1,'grcup','GR Strength Cup 2026','GR Cup',2,'proximamente','2026-12-19','2026-12-19',$2,$3,$4,$5,$6)`, id, sede, evento, mods, insc, llegar); err != nil {
 				return err
 			}
 			if err := seedChecklist(ctx, tx, id); err != nil {

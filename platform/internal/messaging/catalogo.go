@@ -58,15 +58,15 @@ func p(clave, nombre, disparador, servicio, auto string, esencial bool, vars []s
 
 var ejEntrada = map[string]string{"nombre": "Laura", "titular": "Laura Gómez Ruiz + 2 acompañantes", "sesion": "Sábado mañana", "dia": "sábado 25 jul", "puertas": "08:30", "hasta": "14:00",
 	"personas": "3", "codigo": "GRC-7K3P", "qr": "https://grcup.example/api/competiciones/grcup/entradas/GRC-7K3P/qr.png?s=…", "enlace": "https://grcup.example/mi-entrada?t=…",
-	"lugar": "Pavelló Poliesportiu d'Almussafes, Almussafes", "cuando": "mañana", "caduca": "domingo 26 jul a las 10:00", "entradas": "https://grcup.example/entradas"}
+	"lugar": "Pavelló Poliesportiu d'Almussafes, Almussafes", "cuando": "mañana", "caduca": "sábado 19 dic a las 10:00", "entradas": "https://grcup.example/entradas"}
 
 var ejResultado = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "categoria": "Femenino −63 kg", "puesto": "2.ª", "total": "367,5 kg",
 	"resultado": "2.ª con 367,5 kg", "enlace": "https://grcup.example/resultados/2026", "baja": "https://grcup.example/atletas/laura-gomez-ruiz?baja=…"}
 
-var ejSorteo = map[string]string{"nombre": "Laura", "boletos": "0427, 0428", "cantidad": "2", "importe": "2,00 €", "premio": "Cinturón SBD 13 mm", "fechaSorteo": "26/07 19:00",
+var ejSorteo = map[string]string{"nombre": "Laura", "boletos": "0427, 0428", "cantidad": "2", "importe": "2,00 €", "premio": "Cinturón SBD 13 mm", "fechaSorteo": "19/12 21:00",
 	"enlace": "https://grcup.example/sorteo/confirmacion?compra=…", "destino": "Asociación local", "numero": "0427", "motivo": "Compra duplicada"}
 
-var ejHorario = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "flight": "B", "plataforma": "1", "dia": "sábado 25/7", "hora": "10:30", "pesaje": "08:30–10:00",
+var ejHorario = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "flight": "B", "plataforma": "1", "dia": "sábado 19/12", "hora": "10:30", "pesaje": "08:30–10:00",
 	"enlace": "https://grcup.example/area-atleta", "horarios": "https://grcup.example/horarios", "version": "2", "baja": "https://grcup.example/atletas/laura-gomez-ruiz?baja=…"}
 
 // catalogo has every template the services queue today (key → default design). Platform templates (identity)

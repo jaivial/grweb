@@ -22,9 +22,13 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	}
 	var desde, hasta, sorteo *time.Time
 	if t, err := time.ParseInLocation("2006-01-02", c.FechaInicio, madrid); err == nil {
+		fin := t
+		if f, err := time.ParseInLocation("2006-01-02", c.FechaFin, madrid); err == nil && f.After(t) {
+			fin = f
+		}
 		d := t.AddDate(0, -2, 0)
-		h := t.Add(26*time.Hour + 18*time.Hour) // second day, 18:00
-		so := t.Add(24*time.Hour + 19*time.Hour)
+		h := fin.Add(18 * time.Hour)  // last day, 18:00
+		so := fin.Add(21 * time.Hour) // last day, after the awards
 		desde, hasta, sorteo = &d, &h, &so
 	}
 	tag, err := a.DB.Exec(ctx, `INSERT INTO config (competition_id, premio, premio_detalle, premio_imagen, premio_valor, destino, precio, max_por_persona, presets, venta_desde, venta_hasta, fecha_sorteo, activa, updated_por)

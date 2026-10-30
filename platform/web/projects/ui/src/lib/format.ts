@@ -12,7 +12,7 @@ export function fmtShortDate(iso: string | null | undefined): string {
   return new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ }).format(d).replace(/[.,]/g, '');
 }
 
-/** "25 de julio de 2026" */
+/** "19 de diciembre de 2026" */
 export function fmtLongDate(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso.length === 10 ? iso + 'T12:00:00Z' : iso);
