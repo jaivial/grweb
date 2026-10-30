@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ChangeDetectionStrategy, Component, PendingTasks, RESPONSE_INIT, inject, signal } from '@angular/core';
-import { GrButton, GrIcon, fmtLongDate } from '@grcup/ui';
+import { fmtLongDate } from '@grcup/ui';
 import { Cms, type HomeCms } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import type { Entradas } from '../core/entradas';
@@ -22,7 +22,7 @@ import {
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, HeroTrophy, Campeonato, GrButton, GrIcon, SecCifras, SecInscripciones, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, HeroTrophy, Campeonato, SecCifras, SecInscripciones, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -56,16 +56,6 @@ import {
       }
     </main>
     <gr-footer />
-    <!-- Mobile: fixed booking bar (Figma «Bottom CTA bar / Entrada») and «Back to top», once past the intro -->
-    @if (introDone() && c?.modulos?.['entradas']) {
-      <div class="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-7 shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[20px] md:hidden">
-        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Aforo limitado · 1 minuto</span></span>
-        <a grButton variant="primary" size="l" href="/entradas">Reservar</a>
-      </div>
-      <button type="button" (click)="arriba()" aria-label="Volver arriba"
-        class="fixed right-4 bottom-[104px] z-30 flex size-12 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card md:hidden"><gr-icon name="arrow-up" [size]="20" /></button>
-      <div class="h-[89px] md:hidden" aria-hidden="true"></div>
-    }
   `,
 })
 export class HomePage {
@@ -128,9 +118,6 @@ export class HomePage {
     }));
   }
 
-  protected arriba(): void {
-    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  }
 }
 
 /** 404 of the public site. */

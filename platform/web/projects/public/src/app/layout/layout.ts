@@ -216,10 +216,12 @@ export class Navbar {
       </div>
     </div>
     @if (barra()) {
-      <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-strong bg-bg-base/95 px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-        <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ edicion() }}</p>
-        <a href="/entradas" class="mt-2 flex h-12 items-center justify-center rounded-sm bg-accent-grain text-label-m text-white">Reserva tu entrada gratis</a>
+      <!-- Figma «Bottom CTA bar / Entrada» (mobile) and «Back to top» -->
+      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[20px] md:hidden">
+        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Aforo limitado · 1 minuto</span></span>
+        <a href="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
+      <button type="button" (click)="arriba()" aria-label="Volver arriba" class="fixed right-4 bottom-[104px] z-40 flex size-12 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card md:hidden"><gr-icon name="arrow-up" [size]="20" /></button>
     }
     }
   `,
@@ -235,11 +237,7 @@ export class Footer {
   protected readonly contacto = computed(() => this.comp.data()?.evento.emailContacto ?? '');
   protected readonly handle = computed(() => '@' + this.instagram().replace(/\/$/, '').split('/').pop());
   protected readonly logos = signal<Patrocinador[]>([]);
-  protected readonly edicion = computed(() => {
-    const c = this.comp.data();
-    const f = c?.fechaInicio ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(c.fechaInicio + 'T12:00:00Z')).replace('.', '') : 'fecha por confirmar';
-    return `Edición ${c?.edicion ? new Date((c.fechaInicio ?? '2026') + 'T12:00:00Z').getUTCFullYear() : 2026} · ${f} · ${c?.sede.ciudad || 'Almussafes'}`;
-  });
+  protected arriba(): void { window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
   private readonly scrolled = signal(false);
   private readonly footerVisible = signal(false);
   private readonly url = signal('');
@@ -260,7 +258,11 @@ export class Footer {
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       this.url.set(this.router.url);
       const sub = this.router.events.subscribe(() => this.url.set(this.router.url));
-      const onScroll = () => this.scrolled.set(window.scrollY > 480);
+      // after the first screen — and on the home, once the trophy intro is over (the bar would cover it)
+      const onScroll = () => {
+        const hero = document.querySelector('gr-hero-trophy')?.getBoundingClientRect();
+        this.scrolled.set(window.scrollY > 480 && (!hero || hero.bottom < window.innerHeight * 0.5));
+      };
       window.addEventListener('scroll', onScroll, { passive: true });
       const io = new IntersectionObserver(([e]) => this.footerVisible.set(e.isIntersecting), { rootMargin: '0px 0px -40px 0px' });
       io.observe(this.el.nativeElement);
