@@ -150,7 +150,13 @@ export class LegalPage {
   constructor() {
     const seo = inject(Seo);
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
-      const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) this.activo.set(e.target.id); }, { rootMargin: '-10% 0px -60% 0px' });
+      // the first heading inside the band below the navbar wins (short sections can put two in it)
+      const vistos = new Set<string>();
+      const io = new IntersectionObserver((es) => {
+        for (const e of es) e.isIntersecting ? vistos.add(e.target.id) : vistos.delete(e.target.id);
+        const primero = this.toc().find((h) => vistos.has(h.id));
+        if (primero) this.activo.set(primero.id);
+      }, { rootMargin: '-10% 0px -60% 0px' });
       const t = setInterval(() => {
         const hs = document.querySelectorAll('.prose-legal h2[id]');
         if (!hs.length) return;
