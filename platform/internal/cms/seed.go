@@ -162,7 +162,7 @@ var seedLegal = map[string][2]string{
 }
 
 var seedPaginas = []paginaIn{
-	{Slug: "reglamento", Titulo: "Reglamento", Resumen: "Normas de competición (IPF/AEP).", Publicada: true, Cuerpo: "La competición sigue el reglamento técnico de la **IPF** adaptado por la **AEP**.\n\n- Tres intentos por movimiento: sentadilla, press de banca y peso muerto.\n- Tres jueces por intento; dos luces blancas validan el intento.\n- Clasificación por puntos IPF GL.\n\n*Datos de ejemplo: consulta el reglamento oficial de la AEP.*"},
+	{Slug: "reglamento", Titulo: "Reglamento de powerlifting", Resumen: "Niveles AEP, intentos y jueces, los tres movimientos y el equipamiento raw.", Publicada: true, Cuerpo: "Página con diseño propio (Figma 23): el contenido lo pone la web. Aquí solo se usan el título, el resumen y el SEO."},
 	{Slug: "categorias-de-peso", Titulo: "Categorías de peso y edad", Resumen: "Las 18 categorías de peso de la AEP, las divisiones por edad y el pesaje.", Publicada: true, Cuerpo: "Página con diseño propio (Figma 21–22): el contenido lo pone la web. Aquí solo se usan el título, el resumen y el SEO."},
 	{Slug: "marcas-minimas", Titulo: "Marcas mínimas AEP-1", Resumen: "Totales mínimos AEP-1 por categoría y división, y cómo se acreditan.", Publicada: true, Cuerpo: "Página con diseño propio (Figma 21–22): el contenido lo pone la web. Aquí solo se usan el título, el resumen y el SEO."},
 }
