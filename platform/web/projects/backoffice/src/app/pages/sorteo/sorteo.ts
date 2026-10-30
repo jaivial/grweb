@@ -129,7 +129,7 @@ const deLocal = (v: string) => (v ? new Date(v).toISOString() : null);
                         <td class="px-3 py-2.5 text-right font-mono">{{ euros(x.importe) }}</td>
                         <td class="px-3 py-2.5"><gr-badge [tone]="estC[x.estado].tone">{{ estC[x.estado].l }}</gr-badge></td>
                         <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fecha(x.createdAt) }}</td>
-                        <td class="px-4 py-2.5 text-right">@if (x.estado === 'pagada' && puede()) {
+                        <td class="px-4 py-2.5 text-right">@if (x.estado === 'pagada' && puede() && !p.actual) {
                           <button type="button" class="rounded-sm px-2 py-1 text-label-s text-text-tertiary hover:bg-bg-raised hover:text-text-primary" (click)="reenviar(x)">Reenviar</button>
                           <button type="button" class="rounded-sm px-2 py-1 text-label-s text-accent-text hover:bg-bg-raised" (click)="abrirReembolso(x)">Reembolsar</button> }</td>
                       </tr>

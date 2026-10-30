@@ -33,7 +33,7 @@ const BASE = `/api/competiciones/${COMPETITION_SLUG}/sorteo`;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let s = data();
-    <gr-page title="Sorteo" eyebrow="Sorteo benéfico" [hideTitle]="true">
+    <gr-page title="Sorteo" [hideTitle]="true">
       @if (s === undefined) { <gr-skeleton class="h-96 rounded-xl" /> }
       @else if (s === null) { <gr-alert tone="warning" title="No hemos podido cargar el sorteo">Vuelve a intentarlo en unos minutos.</gr-alert> }
       @else {
