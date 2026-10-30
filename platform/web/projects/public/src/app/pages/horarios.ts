@@ -303,13 +303,14 @@ export class HorariosPage {
         t = setTimeout(async () => this.aplicar(await this.api.get()), 400);
       };
       for (const ev of ['horarios.publicados', 'horarios.retirados', 'horarios.flight']) es.addEventListener(ev, recargar);
-      // the «Ahora» line follows the competition desk
-      void this.cargarVivo();
+      // the «Ahora» line follows the competition desk — only while a flight of the schedule is on the platform
       let tv: ReturnType<typeof setTimeout> | undefined;
       const vivo = () => {
         clearTimeout(tv);
-        tv = setTimeout(() => void this.cargarVivo(), 300);
+        if (this.hayEnCurso()) tv = setTimeout(() => void this.cargarVivo(), 300);
+        else this.vivo.set(null);
       };
+      this.alAplicar = vivo;
       for (const ev of ['directo.estado', 'directo.intento', 'directo.veredicto', 'directo.correccion']) es.addEventListener(ev, vivo);
       inject(DestroyRef).onDestroy(() => clearTimeout(tv));
       inject(DestroyRef).onDestroy(() => {
@@ -337,9 +338,16 @@ export class HorariosPage {
     }
   }
 
+  /** Called after each (re)load of the schedule: starts or stops the «Ahora» line. */
+  private alAplicar: () => void = () => undefined;
+  private hayEnCurso(): boolean {
+    return (this.data()?.dias ?? []).some((d) => d.flights.some((f) => f.estado === 'en_curso'));
+  }
+
   private aplicar(h: Horarios | null): void {
     if (h === null && this.data()) return; // keep what we had if a reload fails
     this.data.set(h);
+    this.alAplicar();
     this.cargadoAt.set(Date.now());
     this.ahora.set(Date.now());
     if (!h?.publicado) return;
