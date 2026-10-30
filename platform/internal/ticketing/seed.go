@@ -63,8 +63,14 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	ss := []ses{
 		{newID(), "Sábado mañana", "Bloques 1–3 · femenino", at(d1, 9, 0), at(d1, 14, 0), at(d1, 8, 30), 600, 412, true},
 		{newID(), "Sábado tarde", "Bloques 4–5 · masculino", at(d1, 16, 0), at(d1, 20, 30), at(d1, 15, 30), 600, 562, true},
-		{newID(), "Domingo mañana", "Bloques 6–8 · masculino", at(d2, 9, 0), at(d2, 14, 0), at(d2, 8, 30), 600, 600, true},
-		{newID(), "Domingo tarde (finales)", "Premios y sorteo en directo", at(d2, 16, 0), at(d2, 19, 0), at(d2, 15, 30), 400, 0, false},
+	}
+	if d2.After(d1) {
+		ss = append(ss,
+			ses{newID(), "Domingo mañana", "Bloques 6–8 · masculino", at(d2, 9, 0), at(d2, 14, 0), at(d2, 8, 30), 600, 600, true},
+			ses{newID(), "Domingo tarde (finales)", "Premios y sorteo en directo", at(d2, 16, 0), at(d2, 19, 0), at(d2, 15, 30), 400, 0, false})
+	} else {
+		// one-day event (GR Cup 2026: Saturday 19 December): the afternoon closes with the awards and the raffle
+		ss[1].detalle = "Bloques 4–5 · masculino · premios y sorteo en directo"
 	}
 	r := rand.New(rand.NewPCG(2026, 58))
 	nombres := []string{"Lucía", "Hugo", "Paula", "Álvaro", "Carmen", "Sergio", "Irene", "Adrián", "Alba", "Daniel", "Nerea", "Jorge", "Claudia", "Rubén", "Sara", "Víctor", "Julia", "Mario", "Noelia", "Iker"}

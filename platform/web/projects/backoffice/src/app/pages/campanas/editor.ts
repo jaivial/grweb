@@ -25,9 +25,9 @@ function nuevo(tipo: TipoBloque, id: string): Bloque {
     case 'boton': return { ...b, texto: 'Reserva tu entrada', url: '/entradas' };
     case 'portada': case 'imagen': return { ...b, imagen: 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfonso-fernandez/img-3363.webp', alt: '' };
     case 'lista': return { ...b, items: ['Primer punto', 'Segundo punto'] };
-    case 'dos_columnas': return { ...b, texto: '**Sábado**\nFlights A–F', texto2: '**Domingo**\nFlights G–K' };
-    case 'cuenta_atras': return { ...b, fecha: '2026-07-25T08:30', texto: 'Faltan' };
-    case 'horario': return { ...b, fecha: '2026-07-25', canal: 'email' };
+    case 'dos_columnas': return { ...b, texto: '**Plataforma 1**\nFlights A–G', texto2: '**Plataforma 2**\nFlights H–K' };
+    case 'cuenta_atras': return { ...b, fecha: '2026-12-19T08:30', texto: 'Faltan' };
+    case 'horario': return { ...b, fecha: '2026-12-19', canal: 'email' };
     case 'espacio': return { ...b, alto: 24 };
     default: return b;
   }
@@ -469,7 +469,7 @@ export class CampanaEditorPage {
         d.setUTCDate(d.getUTCDate() + 1);
       }
     }
-    return out.length ? out : ['2026-07-25', '2026-07-26'];
+    return out.length ? out : ['2026-12-19'];
   });
   protected readonly nodos = computed(() => {
     const f = this.f();

@@ -312,7 +312,7 @@ export class PatrocinadoresPage {
           <gr-field label="Nombre y apellidos" for="v-nombre"><input grInput id="v-nombre" name="nombre" autocomplete="name" required [(ngModel)]="nombre" /></gr-field>
           <gr-field label="Email" for="v-email"><input grInput id="v-email" name="email" type="email" autocomplete="email" required [(ngModel)]="email" /></gr-field>
           <gr-field label="Teléfono" for="v-tel" [optional]="true"><input grInput id="v-tel" name="telefono" type="tel" autocomplete="tel" [(ngModel)]="telefono" /></gr-field>
-          <gr-field label="Disponibilidad" for="v-disp" hint="Sábado mañana, tarde, domingo…"><input grInput id="v-disp" name="disp" [(ngModel)]="disponibilidad" /></gr-field>
+          <gr-field label="Disponibilidad" for="v-disp" hint="Mañana, tarde o todo el día…"><input grInput id="v-disp" name="disp" [(ngModel)]="disponibilidad" /></gr-field>
           <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="menor" [(ngModel)]="esMenor" class="mt-1 size-5 accent-[#C42B3E]" />Soy menor de edad (pediremos la autorización de mi madre, padre o tutor)</label>
           <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="priv" [(ngModel)]="acepta" class="mt-1 size-5 accent-[#C42B3E]" />He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de privacidad</a></label>
           @if (error()) { <gr-alert tone="danger" title="No se pudo enviar">{{ error() }}</gr-alert> }

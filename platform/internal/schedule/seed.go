@@ -58,12 +58,15 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		if err != nil {
 			return err
 		}
-		// Example day: 6 min per athlete and flights until 21:00, so the 11 flights fit in the two days.
+		// Example day: 6 min per athlete and flights until 21:00, so the 11 flights fit (two platforms on a one-day event).
 		cfg.MinPorAtleta = 6
 		for i := range cfg.Dias {
 			cfg.Dias[i].Fin = "21:00"
 		}
-		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta); err != nil {
+		if len(cfg.Dias) == 1 && cfg.Plataformas < 2 {
+			cfg.Plataformas = 2
+		}
+		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2, plataformas = $3 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta, cfg.Plataformas); err != nil {
 			return err
 		}
 		notas := []string{"Pesaje en la Sala 2 (planta baja).", "Entrada de público por la puerta principal con tu QR.", "Sorteo en directo tras la entrega de premios."}

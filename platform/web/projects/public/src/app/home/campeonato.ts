@@ -6,7 +6,7 @@ import type { CompeticionPublica } from '../core/competition';
 import { GLOW, GrEyebrow, GrTitulo } from './bloques';
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-/** «25 julio 2026» (Figma event meta). */
+/** «19 diciembre 2026» (Figma event meta). */
 export const fechaCorta = (iso?: string | null) => {
   if (!iso) return '';
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
