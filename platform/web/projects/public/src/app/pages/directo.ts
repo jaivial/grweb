@@ -669,7 +669,7 @@ export class ResultadosEdicionPage {
           <div class="flex flex-col gap-5">
             <dl class="flex flex-col gap-4">
               @for (x of datos(); track x.l) {
-                <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-md border border-accent/30 bg-accent/12 text-accent-text"><gr-icon [name]="x.i" [size]="18" /></span>
+                <div class="flex items-center gap-3"><span class="flex size-11 shrink-0 items-center justify-center rounded-md border border-accent/30 bg-accent/12 text-accent-text"><gr-icon [name]="x.i" [size]="20" /></span>
                   <div><dt class="text-label-xs text-text-muted uppercase">{{ x.l }}</dt><dd class="text-label-m">{{ x.v }}</dd></div></div>
               }
             </dl>

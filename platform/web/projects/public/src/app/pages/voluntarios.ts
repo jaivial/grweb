@@ -41,7 +41,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
               @for (r of roles; track r.id) {
                 <li>
                   <label class="flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-colors md:p-5" [class]="elegido(r.id) ? 'border-accent/60 bg-accent/8' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="r.icono" [size]="18" /></span>
+                    <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="r.icono" [size]="20" /></span>
                     <span class="flex min-w-0 flex-1 flex-col items-start gap-1">
                       <span class="text-label-m">{{ r.t }}</span>
                       <span class="text-body-s text-text-tertiary">{{ r.d }}</span>
