@@ -295,14 +295,15 @@ func (s *Svc) registerPublic() {
 			if !in.Body.AceptaPrivacidad {
 				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar la solicitud tienes que aceptar la política de privacidad.")
 			}
-			roles := []string{}
+			roles, nombres := []string{}, []string{}
 			for _, r := range in.Body.Roles {
-				if !rolesVoluntario[r] {
+				nombre, ok := rolesVoluntario[r]
+				if !ok {
 					return nil, problem.Unprocessable("ROL_INVALIDO", "Rol de voluntario no válido: "+r)
 				}
-				roles = append(roles, r)
+				roles, nombres = append(roles, r), append(nombres, nombre)
 			}
-			detalle := strings.TrimSpace(strings.Join(append(append([]string{}, roles...), in.Body.Disponibilidad), " · "))
+			detalle := strings.Join(append(nombres, in.Body.Disponibilidad), " · ")
 			var version string
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
@@ -546,5 +547,5 @@ func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([
 	return list, nil
 }
 
-// rolesVoluntario are the roles of /voluntarios (Figma 33).
-var rolesVoluntario = map[string]bool{"jueces": true, "cargadores": true, "mesa": true, "foto": true, "acreditaciones": true}
+// rolesVoluntario are the roles of /voluntarios (Figma 33) and their names (CRM activity, as in the backoffice list).
+var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Cargadores", "mesa": "Mesa técnica", "foto": "Foto y vídeo", "acreditaciones": "Acreditaciones"}
