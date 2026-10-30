@@ -18,9 +18,10 @@ spec:
     requests.cpu: "4"
     requests.memory: 6Gi
     # Limits are burst caps (every service pod allows 1 CPU); 32 leaves room for the rolling-update surge of all
-    # 14 services. Real reservations are bounded by requests.cpu.
-    limits.cpu: "32"
-    limits.memory: 16Gi
+    # Sized for every HPA at its maximum (services 500m each, gateway and web 1 CPU) plus the extra pod of a
+    # rolling update. Limits are ceilings, not reservations: real reservations are bounded by requests.cpu.
+    limits.cpu: "40"
+    limits.memory: 20Gi
     pods: "80"
 ---
 # Default deny: nothing reaches a pod unless a policy below allows it.

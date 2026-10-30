@@ -89,7 +89,7 @@ spec:
             capabilities: { drop: [ALL] }
           resources:
             requests: { cpu: 30m, memory: 64Mi }
-            limits: { cpu: "1", memory: 256Mi }
+            limits: { cpu: 500m, memory: 256Mi }
           volumeMounts:
             - { name: medios, mountPath: /data/medios }
             - { name: tmp, mountPath: /tmp }

@@ -43,7 +43,9 @@ corrección urgente.
 - Ver el estado: `k get hpa` · `k top pods`.
 - Antes del evento (opcional): subir mínimos a mano, p. ej. `k patch hpa ticketing -p '{"spec":{"minReplicas":3}}'`,
   y volver a dejarlo después.
-- Cuota del namespace: `k describe resourcequota` (límite de CPU y memoria de todos los pods).
+- Cuota del namespace: `k describe resourcequota`. Está dimensionada para todos los HPA en su máximo más el pod extra
+  de un despliegue (servicios a 500m de CPU, gateway y web a 1). Si sube un máximo de HPA o el límite de un pod, subir
+  la cuota: si no, el despliegue se queda esperando con `exceeded quota` en los eventos.
 
 ## 4. Red
 

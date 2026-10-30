@@ -197,7 +197,7 @@ spec:
 {SEC}
           resources:
             requests: {{ cpu: 30m, memory: {req} }}
-            limits: {{ cpu: "1", memory: {lim} }}{volume_mounts(spec)}{volumes(spec)}
+            limits: {{ cpu: 500m, memory: {lim} }}{volume_mounts(spec)}{volumes(spec)}
 ---
 apiVersion: v1
 kind: Service
