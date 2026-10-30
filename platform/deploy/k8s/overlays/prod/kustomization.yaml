@@ -1,0 +1,106 @@
+# Production on kraken (k3s): namespace grcup, next to QA (grcup-qa) and the previous web, which keeps serving FER.
+# Differences from QA, all here (the base stays the QA-tested manifests):
+#   · configuration: SERVICE_ENV=prod, no simulated payments or WhatsApp, its own Redis user and key prefix, the
+#     public domains of config.yaml, real SMTP (credentials in the Secret grcup-smtp);
+#   · data on the node under /var/lib/grcup (not grcup-qa), its own Redis bridge port (16380) and ClusterIPs;
+#   · no Mailpit and no «Datos de ejemplo»: only the Root bootstrap runs on deploy. Editions come from the ETL of the
+#     previous web (or «Nueva competición»); initial web content: deploy/scripts/tarea.sh cms seed-grcup.
+# Deploy: deploy/scripts/desplegar.sh prod --confirmo-produccion (refuses while config.yaml says
+# DOMINIOS_CONFIRMADOS: "no" or a Secret is missing). Runbook: docs/runbooks/CORTE.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: grcup
+resources:
+  - namespace.yaml
+  - ../../base
+patches:
+  - path: config.yaml
+  - path: sin-ejemplos.yaml
+  # Data of production on the node.
+  - target: { kind: StatefulSet, name: postgres }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/postgres
+  - target: { kind: Deployment, name: cms }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/medios
+  - target: { kind: CronJob, name: copias-postgres }
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/copias
+  # QA's bridge already listens on 10.42.0.1:16379: production uses 16380 (same host Redis, its own ACL user).
+  - target: { kind: DaemonSet, name: redis-puente }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args/1
+        value: TCP-LISTEN:16380,bind=10.42.0.1,fork,reuseaddr,max-children=512
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/tcpSocket/port
+        value: 16380
+  - target: { kind: Service, name: redis }
+    patch: |-
+      - op: replace
+        path: /spec/ports/0/port
+        value: 16380
+      - op: replace
+        path: /spec/ports/0/targetPort
+        value: 16380
+  - target: { kind: EndpointSlice, name: redis-host }
+    patch: |-
+      - op: replace
+        path: /ports/0/port
+        value: 16380
+  # Real SMTP credentials for every service that sends (optional: without it, mail fails loudly in «Salud»).
+  - target: { kind: Deployment, labelSelector: "grcup.dev/tier=service" }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value: { secretRef: { name: grcup-smtp, optional: true } }
+  # Fixed ClusterIPs for the host nginx (QA uses 10.43.240.x).
+  - target: { kind: Service, name: gateway }
+    patch: |-
+      - op: add
+        path: /spec/clusterIP
+        value: 10.43.241.10
+  - target: { kind: Service, name: web }
+    patch: |-
+      - op: add
+        path: /spec/clusterIP
+        value: 10.43.241.11
+  - target: { kind: Service, name: backoffice }
+    patch: |-
+      - op: add
+        path: /spec/clusterIP
+        value: 10.43.241.12
+# The public web's host and origin come from the configuration (one place for the domains).
+replacements:
+  - source: { kind: ConfigMap, name: grcup-config, fieldPath: data.WEB_HOST }
+    targets:
+      - select: { kind: Deployment, name: web }
+        fieldPaths: ["spec.template.spec.containers.[name=web].env.[name=NG_ALLOWED_HOSTS].value"]
+  - source: { kind: ConfigMap, name: grcup-config, fieldPath: data.PUBLIC_WEB_URL }
+    targets:
+      - select: { kind: Deployment, name: web }
+        fieldPaths: ["spec.template.spec.containers.[name=web].env.[name=PUBLIC_ORIGIN].value"]
+# The deploy script replaces TAG with the commit being deployed.
+images:
+  - { name: grcup/ai, newTag: TAG }
+  - { name: grcup/athletes, newTag: TAG }
+  - { name: grcup/audit, newTag: TAG }
+  - { name: grcup/backoffice, newTag: TAG }
+  - { name: grcup/cms, newTag: TAG }
+  - { name: grcup/competition, newTag: TAG }
+  - { name: grcup/crm, newTag: TAG }
+  - { name: grcup/gateway, newTag: TAG }
+  - { name: grcup/identity, newTag: TAG }
+  - { name: grcup/live, newTag: TAG }
+  - { name: grcup/messaging, newTag: TAG }
+  - { name: grcup/raffle, newTag: TAG }
+  - { name: grcup/realtime, newTag: TAG }
+  - { name: grcup/schedule, newTag: TAG }
+  - { name: grcup/ticketing, newTag: TAG }
+  - { name: grcup/web, newTag: TAG }

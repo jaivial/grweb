@@ -10,7 +10,7 @@ Operación diaria y respuesta a incidentes de la plataforma (`platform/`). QA vi
 
 | Acción | Cómo |
 |---|---|
-| Desplegar un commit | `cd platform && make verify && deploy/scripts/desplegar-qa.sh` (construye las imágenes con el hash del commit, las importa en k3s, aplica Kustomize y espera a que todo esté listo y los seeds terminen). |
+| Desplegar un commit | `cd platform && make verify && deploy/scripts/desplegar.sh qa` (o `desplegar-qa.sh`); en producción, `desplegar.sh prod --confirmo-produccion` (sección 10). Construye las imágenes con el hash del commit, las importa en k3s, aplica Kustomize y espera a que todo esté listo y los seeds terminen). |
 | Ver qué versión corre | `k get deploy -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image` |
 | Volver a la versión anterior de un servicio | `k rollout undo deploy/<servicio>` (guarda 3 revisiones). Para todo: volver a desplegar el commit anterior. |
 | Migraciones | Se aplican solas en el init container `migrate` de cada servicio (goose). Son siempre aditivas: una vuelta atrás de código no necesita revertir esquema. |
@@ -30,8 +30,18 @@ corrección urgente.
   3. `k scale deploy/ticketing --replicas=1` y revisar `/readyz`.
 - **Probar una copia sin tocar nada**: restaurar en una base temporal (`createdb grcup_restore_test`, `pg_restore -d
   grcup_restore_test …`, contar filas, `dropdb`).
-- Las copias del nodo no sustituyen una copia fuera de él: en producción, sincronizar `/var/lib/<ns>/copias` a un
-  almacenamiento externo (pendiente de decidir proveedor).
+- **Fuera del nodo**: el contenedor `fuera-del-nodo` del mismo CronJob sube la carpeta del día cifrada y la guarda
+  30 días fuera. Usa rclone crypt, que cifra contenido y nombres, y sirve cualquier almacenamiento S3: Cloudflare R2,
+  Backblaze B2, Wasabi o AWS.
+  - **Configurar:** `deploy/scripts/copias-remotas.sh <qa|prod>`. La primera vez crea la plantilla
+    `~/.config/grcup-<entorno>/copias-remotas.env`; se rellena con el bucket y las claves, y se vuelve a ejecutar.
+    Genera las dos contraseñas de cifrado y aplica el Secret `grcup-copias-remotas`.
+  - **Guardar una copia de ese fichero fuera de esta máquina:** sin sus `CIFRADO_*` las copias no se pueden descifrar.
+  - Sin ese Secret el contenedor no hace nada y las copias se quedan solo en el nodo.
+  - **Listar:** `copias-remotas.sh <entorno> --listar`.
+  - **Traer un día:** `copias-remotas.sh <entorno> --traer AAAA-MM-DD`. Lo deja descifrado en
+    `<datos>/copias/remota-AAAA-MM-DD/`, comprobado con `cryptcheck` y `SHA256SUMS`, y desde ahí se restaura como
+    arriba.
 
 ## 3. Escalado
 
@@ -96,9 +106,42 @@ corrección urgente.
 3. Directo: mesa abierta en el portátil con red cableada si es posible; la mesa guarda las decisiones sin conexión y
    las envía en orden.
 4. Cierre: «Dar por terminada» en Directo, publicar resultados pendientes, copia manual.
+5. QA y producción comparten el nodo: el día del evento QA se apaga para dejar la CPU a producción:
+   `k -n grcup-qa scale deploy --all --replicas=0`. El HPA de QA no las vuelve a subir por debajo de su mínimo; para
+   restaurar QA, `desplegar.sh qa`.
 
 ## 9. Datos personales
 
 - Supresión de un contacto: Contactos › ficha › RGPD (borra en todos los servicios y deja solo los hashes de baja).
 - La anonimización de una edición entera depende de la decisión de retención (propuesta: 12 meses) y se hará desde
   Sistema › Zona peligrosa cuando se apruebe.
+
+## 10. Producción (namespace `grcup`)
+
+Producción vive en el mismo nodo que QA. Se distingue de QA en `deploy/k8s/overlays/prod/`:
+- `SERVICE_ENV=prod`, sin pagos ni WhatsApp simulados. Un servicio se niega a arrancar si en prod ve `PAGOS_SIMULADOS` o `WHATSAPP_SIMULADO`.
+- Usuario de Redis `grcup-prod` con solo `grcup:prod:*`; QA tiene `grcup` con solo `grcup:qa:*`, así que ninguno lee las claves del otro.
+- Puente de Redis en el puerto 16380.
+- Datos en `/var/lib/grcup/`.
+- ClusterIPs `10.43.241.x`.
+- Sin Mailpit ni «Datos de ejemplo»: solo corre el Job que crea el Root.
+
+Puesta en marcha, una vez y con la aprobación del organizador:
+
+1. Confirmar en `overlays/prod/config.yaml`:
+   - los dominios, y poner `DOMINIOS_CONFIRMADOS: "si"`;
+   - el SMTP (`SMTP_HOST`, remitente).
+2. Secretos:
+   - `ROOT_EMAIL=… ROOT_NOMBRE=… deploy/scripts/secretos.sh prod`. Esto crea `~/.config/grcup-prod/`; rellenar ahí `SMTP_USER` y `SMTP_PASSWORD` y repetir.
+   - **Guardar una copia de esa carpeta fuera de la máquina:** `CRYPTO_KEY` cifra los secretos de las integraciones.
+3. `deploy/scripts/redis-acl.sh prod`.
+4. `deploy/scripts/copias-remotas.sh prod`: copias fuera del nodo desde el primer día.
+5. `deploy/scripts/desplegar.sh prod --confirmo-produccion`. Se niega sin dominios confirmados, sin SMTP real o si falta algún Secret.
+6. Ediciones y contenido:
+   - con migración: `NS=grcup deploy/scripts/migrar-legado.sh …` (docs/runbooks/CORTE.md);
+   - sin migración: crearlas en «Sistema › Competiciones».
+   - Contenido inicial de la web: `deploy/scripts/tarea.sh --entorno prod cms seed-grcup`. Lo que lleva «Datos de ejemplo» se revisa en «Web y contenidos» antes de abrir.
+7. Integraciones (Stripe live, SMTP de la competición, WhatsApp): en «Sistema e integraciones», con su prueba.
+8. nginx y DNS: `deploy/scripts/nginx-prod.sh probar`, y en el corte `mantenimiento` → `plataforma` (`anterior` para volver).
+
+**Tareas sueltas de un servicio** (seed, enlace de acceso, ETL): `deploy/scripts/tarea.sh [--entorno prod] <servicio> <comando…>`. Lanza un Job con la imagen, la base y la red del propio servicio.

@@ -1,0 +1,28 @@
+# Production values over base/common/config.yaml (QA). The domains are a PROPOSAL until the organiser confirms them:
+# the deploy script refuses production while DOMINIOS_CONFIRMADOS is "no". The GR Cup web keeps its current domain
+# (grcup.jaimedigitalstudio.com, whose nginx server block moves to the platform at the cutover); the backoffice and
+# the API get their own subdomains (webPublica() derives the web from «<x>-bo.» or «bo.»).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grcup-config
+data:
+  DOMINIOS_CONFIRMADOS: "no"
+  SERVICE_ENV: prod
+  PAGOS_SIMULADOS: "false"
+  WHATSAPP_SIMULADO: "false"
+  KEY_PREFIX: "grcup:prod:"
+  REDIS_ADDR: redis:16380
+  REDIS_USERNAME: grcup-prod
+  WEB_HOST: grcup.jaimedigitalstudio.com
+  PUBLIC_WEB_URL: https://grcup.jaimedigitalstudio.com
+  BACKOFFICE_URL: https://grcup-bo.jaimedigitalstudio.com
+  API_URL: https://grcup-api.jaimedigitalstudio.com
+  CORS_ORIGINS: https://grcup.jaimedigitalstudio.com,https://grcup-bo.jaimedigitalstudio.com
+  # Platform SMTP (backoffice access, invitations, competitions without their own SMTP). Host here, user and
+  # password in the Secret grcup-smtp (SMTP_USER, SMTP_PASSWORD). The sender domain needs SPF, DKIM and DMARC.
+  SMTP_HOST: smtp.por-confirmar.invalid
+  SMTP_PORT: "587"
+  SMTP_TLS: auto
+  MAIL_FROM: no-responder@grcup.jaimedigitalstudio.com
+  MAIL_FROM_NAME: GR Strength Cup

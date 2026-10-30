@@ -82,6 +82,11 @@ func Run(s Service) {
 	slog.SetDefault(log)
 	problem.Install()
 	events.SetSource(s.Name)
+	// QA simulations are never allowed in production: a copied QA configuration must not take fake payments.
+	if cfg.Env == "prod" && (config.Bool("PAGOS_SIMULADOS", false) || config.Bool("WHATSAPP_SIMULADO", false)) {
+		log.Error("arranque", "err", "PAGOS_SIMULADOS o WHATSAPP_SIMULADO activos con SERVICE_ENV=prod: configuración de QA en producción")
+		os.Exit(1)
+	}
 
 	cmd := "serve"
 	args := os.Args[1:]

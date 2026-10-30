@@ -1,5 +1,7 @@
 # Nightly logical backups of every grcup_* database (pg_dump custom format), kept 7 days on the node
-# (/var/lib/grcup-qa/copias/<fecha>/<base>.dump). Restore: docs/runbooks/PRODUCCION.md › «Copias y restauración».
+# (/var/lib/grcup-qa/copias/<fecha>/<base>.dump; production: /var/lib/grcup/copias) and, when the Secret
+# grcup-copias-remotas exists, also copied OFF the node, encrypted (rclone crypt over any S3-compatible storage or
+# other rclone remote), and kept 30 days there. Restore: docs/runbooks/PRODUCCION.md › «Copias y restauración».
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -24,8 +26,8 @@ spec:
           automountServiceAccountToken: false
           securityContext:
             seccompProfile: { type: RuntimeDefault }
-          containers:
-            - name: copias
+          initContainers:
+            - name: volcado
               image: postgres:17-alpine
               imagePullPolicy: IfNotPresent
               command: ["sh", "-c"]
@@ -42,6 +44,7 @@ spec:
                     echo "copia $db $(du -h "$d/$db.dump" | cut -f1)"
                   done
                   pg_dumpall -h postgres -U postgres --globals-only > "$d/globals.sql"
+                  sha256sum "$d"/*.dump "$d/globals.sql" | sed "s|$d/||" > "$d/SHA256SUMS"
                   find /copias -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
                   echo "copias completas en $d"
               env:
@@ -53,6 +56,40 @@ spec:
                 capabilities: { drop: [ALL] }
               volumeMounts:
                 - { name: copias, mountPath: /copias }
+                - { name: tmp, mountPath: /tmp }
+              resources:
+                requests: { cpu: 20m, memory: 64Mi }
+                limits: { cpu: 500m, memory: 256Mi }
+          containers:
+            # Off the node: the day's folder, encrypted client-side by the «cifrado» crypt remote (names too). The
+            # remote is configured only by the Secret (RCLONE_CONFIG_REMOTO_* for the storage, RCLONE_CONFIG_CIFRADO_*
+            # for the encryption: deploy/scripts/copias-remotas.sh). Without it, nothing leaves the node.
+            - name: fuera-del-nodo
+              image: rclone/rclone:1.69.1
+              imagePullPolicy: IfNotPresent
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  if [ -z "${RCLONE_CONFIG_CIFRADO_TYPE:-}" ]; then
+                    echo "sin copia fuera del nodo (no hay Secret grcup-copias-remotas)"; exit 0
+                  fi
+                  d=$(date +%Y-%m-%d)
+                  rclone copy "/copias/$d" "cifrado:$d" --transfers 2 --stats-one-line --stats 30s
+                  rclone check "/copias/$d" "cifrado:$d" --one-way
+                  rclone delete cifrado: --min-age 30d --rmdirs
+                  echo "copia fuera del nodo: $d ($(rclone size "cifrado:$d" | tr '\n' ' '))"
+              envFrom:
+                - secretRef: { name: grcup-copias-remotas, optional: true }
+              env:
+                - { name: RCLONE_CONFIG, value: /tmp/rclone.conf }
+                - { name: RCLONE_CACHE_DIR, value: /tmp/rclone }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: copias, mountPath: /copias, readOnly: true }
                 - { name: tmp, mountPath: /tmp }
               resources:
                 requests: { cpu: 20m, memory: 64Mi }
