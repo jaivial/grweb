@@ -12,7 +12,7 @@ interface Integracion { tipo: 'smtp' | 'stripe' | 'whatsapp' | 'bunny' | 'aep'; 
 interface Registro { estado: 'correcto' | 'falta' | 'revisar'; valor?: string; ayuda: string }
 interface Dominio { dominio: string; spf: Registro; dkim: Registro; dmarc: Registro }
 interface Salud {
-  servicios: { nombre: string; ok: boolean; ms: number; error?: string }[]; grupos: { nombre: string; pendientes: number; retraso: number; consumers: number }[];
+  servicios: { nombre: string; ok: boolean; ms: number; error?: string; p95: number; peticiones: number }[]; grupos: { nombre: string; pendientes: number; retraso: number; consumers: number }[];
   eventos: number; espectadores: number; generado: string;
 }
 interface CompItem { id: string; slug: string; nombre: string; nombreCorto: string; estado: string; fechaInicio?: string; fechaFin?: string; sede?: { ciudad?: string }; archivedAt?: string }
@@ -106,14 +106,14 @@ const ESTADO_COMP: Record<string, string> = { borrador: 'Borrador', proximamente
           @if (salud(); as s) {
             <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <gr-kpi label="Servicios" [value]="ok(s) + ' / ' + s.servicios.length" [caption]="ok(s) === s.servicios.length ? 'todos operativos' : 'revisa los marcados'" />
-              <gr-kpi label="Latencia media" [value]="media(s) + ' ms'" caption="comprobación /readyz" />
+              <gr-kpi label="API p95" [value]="p95(s) + ' ms'" [caption]="n(peticiones(s)) + ' peticiones desde el último arranque'" />
               <gr-kpi label="Conexiones SSE" [value]="s.espectadores + ''" caption="público de esta competición" />
               <gr-kpi label="Bus de eventos" [value]="n(s.eventos)" [caption]="retraso(s) ? retraso(s) + ' eventos por procesar' : 'al día'" />
             </div>
             <div class="grid gap-5 lg:grid-cols-2">
               <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card"><h2 class="border-b border-line-subtle px-4 py-3 text-ui-h5">Servicios</h2>
                 <table class="w-full text-left text-body-s"><tbody>@for (v of s.servicios; track v.nombre) {
-                  <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-2 font-mono text-mono-s">{{ v.nombre }}</td><td class="px-3 py-2 text-right font-mono text-mono-xs text-text-tertiary">{{ v.ms }} ms</td>
+                  <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-2 font-mono text-mono-s">{{ v.nombre }}</td><td class="px-3 py-2 text-right font-mono text-mono-xs text-text-tertiary" title="p95 de las peticiones · comprobación /readyz">p95 {{ v.p95 * 1000 }} ms · {{ n(v.peticiones) }}</td>
                     <td class="px-4 py-2 text-right"><gr-badge [tone]="v.ok ? 'success' : 'danger'">{{ v.ok ? 'OK' : (v.error || 'error') }}</gr-badge></td></tr> }</tbody></table></section>
               <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card"><h2 class="border-b border-line-subtle px-4 py-3 text-ui-h5">Trabajos en segundo plano</h2>
                 <table class="w-full text-left text-body-s"><thead class="text-mono-xs text-text-tertiary"><tr><th class="px-4 py-2">Consumidor</th><th class="px-3 py-2 text-right">Pendientes</th><th class="px-4 py-2 text-right">Por leer</th></tr></thead>
@@ -236,7 +236,8 @@ export class SistemaPage {
   protected fecha(iso: string): string { return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)); }
   protected n(v: number): string { return new Intl.NumberFormat('es-ES').format(v); }
   protected ok(s: Salud): number { return s.servicios.filter((x) => x.ok).length; }
-  protected media(s: Salud): number { return Math.round(s.servicios.reduce((a, x) => a + x.ms, 0) / Math.max(1, s.servicios.length)); }
+  protected p95(s: Salud): number { return Math.round(Math.max(0, ...s.servicios.map((x) => x.p95)) * 1000); }
+  protected peticiones(s: Salud): number { return s.servicios.reduce((a, x) => a + x.peticiones, 0); }
   protected retraso(s: Salud): number { return s.grupos.reduce((a, g) => a + (g.retraso || 0), 0); }
   protected entrar(slug: string): void { void this.router.navigate(['/', slug, 'inicio']); }
   protected configurar(x: Integracion): void {

@@ -7,6 +7,7 @@ resources:
   - common/config.yaml
   - common/guardrails.yaml
   - postgres/postgres.yaml
+  - postgres/copias.yaml
   - redis-bridge/redis-bridge.yaml
   - mailpit/mailpit.yaml
   - identity/identity.yaml

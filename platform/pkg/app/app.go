@@ -62,6 +62,7 @@ type App struct {
 	Mux      *http.ServeMux
 	API      huma.API
 	Verifier *auth.Verifier // replace in Setup (identity uses its own keys)
+	Metrics  *httpx.Metrics
 	Ready    []func(ctx context.Context) error
 
 	wg      sync.WaitGroup
@@ -189,6 +190,14 @@ func (a *App) serve(ctx context.Context, s Service) error {
 
 	a.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	a.Mux.HandleFunc("GET /readyz", a.readyz)
+	// Observability (internal port only: the gateway proxies /api): Prometheus text and a summary for «Salud».
+	a.Metrics = httpx.NewMetrics()
+	a.Mux.Handle("GET /metrics", a.Metrics.Handler(s.Name))
+	a.Mux.HandleFunc("GET /metrics/resumen", func(w http.ResponseWriter, _ *http.Request) {
+		p95, n := a.Metrics.P95()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"p95":%g,"peticiones":%d}`, p95, n)
+	})
 
 	if s.Setup != nil {
 		if err := s.Setup(ctx, a); err != nil {
@@ -206,6 +215,7 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	}
 	mws := []httpx.Middleware{httpx.RequestID, httpx.Recover(a.Log), httpx.Logger(a.Log), httpx.MaxBodyFor(limit, s.BodyLimitFor), auth.Middleware(a.Verifier)}
 	mws = append(mws, s.Middlewares...)
+	mws = append(mws, a.Metrics.Middleware) // innermost: it sees the route pattern the mux matched
 	srv := &http.Server{
 		Addr:              a.Cfg.HTTPAddr,
 		Handler:           httpx.Chain(a.Mux, mws...),

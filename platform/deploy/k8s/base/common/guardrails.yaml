@@ -47,21 +47,8 @@ spec:
         - ipBlock: { cidr: 65.109.100.94/32 }
         - ipBlock: { cidr: 100.66.235.72/32 }
 ---
-# Services accept traffic from the gateway and from other services (service-to-service calls).
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-services
-spec:
-  podSelector:
-    matchLabels: { grcup.dev/tier: service }
-  policyTypes: [Ingress]
-  ingress:
-    - from:
-        - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
-        - podSelector: { matchLabels: { grcup.dev/tier: service } }
-      ports:
-        - { port: 8080, protocol: TCP }
+# Each service has its own policy (allow-<service>, generated from LLAMADAS in deploy/k8s/generar.py): the gateway,
+# audit (health checks) and only the services that call it.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

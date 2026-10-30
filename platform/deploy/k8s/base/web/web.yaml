@@ -38,6 +38,8 @@ spec:
           livenessProbe:
             tcpSocket: { port: http }
             periodSeconds: 15
+          lifecycle:
+            preStop: { sleep: { seconds: 5 } }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

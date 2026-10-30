@@ -12,7 +12,7 @@ spec:
     rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: realtime, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service }
+      labels: { app.kubernetes.io/name: realtime, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: realtime }
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
@@ -42,6 +42,9 @@ spec:
           livenessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10
+          # The endpoint leaves the Service before SIGTERM: in-flight requests finish, new ones go elsewhere.
+          lifecycle:
+            preStop: { sleep: { seconds: 5 } }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -66,15 +69,15 @@ metadata:
   name: realtime
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: realtime }
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 4
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
-    - type: Resource
-      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+  # CPU only: Go's heap stays high after a spike and a memory target would keep pods that are idle.
   behavior:
-    scaleDown: { stabilizationWindowSeconds: 180 }
+    scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 2, periodSeconds: 30 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Pods, value: 1, periodSeconds: 60 }] }
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -84,3 +87,18 @@ spec:
   maxUnavailable: 1
   selector:
     matchLabels: { app.kubernetes.io/name: realtime }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-realtime
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: realtime }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { grcup.dev/servicio: gateway } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
+      ports:
+        - { port: 8080, protocol: TCP }

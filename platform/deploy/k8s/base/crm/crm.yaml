@@ -12,7 +12,7 @@ spec:
     rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: crm, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/db: "true" }
+      labels: { app.kubernetes.io/name: crm, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: crm, grcup.dev/db: "true" }
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
@@ -66,6 +66,9 @@ spec:
           livenessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10
+          # The endpoint leaves the Service before SIGTERM: in-flight requests finish, new ones go elsewhere.
+          lifecycle:
+            preStop: { sleep: { seconds: 5 } }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -95,10 +98,10 @@ spec:
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
-    - type: Resource
-      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+  # CPU only: Go's heap stays high after a spike and a memory target would keep pods that are idle.
   behavior:
-    scaleDown: { stabilizationWindowSeconds: 180 }
+    scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 2, periodSeconds: 30 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Pods, value: 1, periodSeconds: 60 }] }
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -119,7 +122,7 @@ spec:
   ttlSecondsAfterFinished: 3600
   template:
     metadata:
-      labels: { app.kubernetes.io/name: crm-seed, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/db: "true" }
+      labels: { app.kubernetes.io/name: crm-seed, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: crm, grcup.dev/db: "true" }
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
@@ -146,3 +149,19 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-crm
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: crm }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { grcup.dev/servicio: gateway } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: messaging } }
+      ports:
+        - { port: 8080, protocol: TCP }
