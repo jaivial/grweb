@@ -11,8 +11,8 @@ import { COMPETITION_SLUG, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Mov, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
 import { Seo } from '../core/seo';
-import { SectionTitle } from '../home/cms-sections';
 import { GrCabecera } from '../home/bloques';
+import { Lightbox } from '../layout/lightbox';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
@@ -21,6 +21,17 @@ const TZ = 'Europe/Madrid';
 const PABELLON = 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp';
 const FOTO_2025 = 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfonso-fernandez/img-3364.webp';
 const CARTEL_2025 = '/img/cartel-2025.jpg';
+/** The eight photos of Figma 28 (2025 edition), in the design's order. */
+const FOTOS_2025: [string, string][] = [
+  ['foto-1', 'Atleta preparado para la sentadilla delante del photocall de la GR Strength Cup 2025'],
+  ['foto-2', 'Atleta concentrada con cascos antes de su intento'],
+  ['foto-3', 'Press de banca en la plataforma, con los cargadores al lado'],
+  ['foto-4', 'Atleta en el press de banca bajo el cartel de la competición'],
+  ['foto-5', 'Atleta con la barra cargada bajo los focos del escenario'],
+  ['foto-6', 'Barra cargada con discos y magnesio sobre la plataforma'],
+  ['foto-7', 'Entrenador ajustando las rodilleras de un atleta en el calentamiento'],
+  ['foto-8', 'Atleta concentrado antes de salir a la plataforma'],
+];
 const MOVS: Mov[] = ['sq', 'bp', 'dl'];
 const diaHora = (iso: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)).replace(',', ' ·');
 const fechas = (a?: string, b?: string) => {
@@ -638,54 +649,69 @@ export class ResultadosEdicionPage {
 /** /ediciones/:anio (Figma page 28): the archive of a past edition: poster, facts, gallery and sponsors. */
 @Component({
   selector: 'gr-edicion',
-  imports: [Page, GrSkeleton, GrIcon, SectionTitle, Related],
+  imports: [Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
-    <gr-page title="GRStrength Cup" [accent]="anio()" eyebrow="Edición anterior" section="Ediciones" [crumb]="anio()" [subtitle]="c?.evento?.descripcion ?? ''">
+    <gr-page title="GRStrength Cup" [accent]="anio()" eyebrow="Edición anterior" section="Ediciones" [crumb]="anio()" [subtitle]="resumen()">
       @if (c) {
         <div pageStamps class="flex flex-wrap gap-2">
-          <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="info" [size]="14" />Fuente: cartel oficial de la edición {{ anio() }}</span>
-          <span class="inline-flex h-8 items-center rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary">Celebrada</span>
+          <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Fuente: cartel oficial de la edición {{ anio() }}</span>
+          <span class="inline-flex h-7 items-center rounded-full border border-text-muted bg-text-muted/12 px-3 text-label-xs text-text-tertiary uppercase">Celebrada</span>
         </div>
       }
       @if (c === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (c) {
-        <div class="grid gap-8 md:grid-cols-[300px_minmax(0,1fr)]">
-          @if (cartel()) { <img [src]="cartel()" [alt]="'Cartel de la ' + c.nombre" class="w-full rounded-lg border border-line-subtle" width="300" height="400" /> }
-          <div>
-            <dl class="grid gap-4 sm:grid-cols-2">
+        <!-- Figma «Ficha»: the poster (360 × 480) and the facts in one column, the story and the actions -->
+        <div class="flex flex-col gap-12 md:gap-20">
+        <div class="grid gap-6 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)] md:gap-10">
+          @if (cartel()) { <img [src]="cartel()" [alt]="'Cartel de la ' + c.nombre" class="mx-auto w-full max-w-[360px] rounded-2xl border border-line-subtle" width="360" height="480" /> }
+          <div class="flex flex-col gap-5">
+            <dl class="flex flex-col gap-4">
               @for (x of datos(); track x.l) {
-                <div class="flex gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon [name]="x.i" [size]="18" /></span>
-                  <div><dt class="text-mono-xs text-text-tertiary">{{ x.l }}</dt><dd class="text-label-m">{{ x.v }}</dd></div></div>
+                <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/12 text-accent-text"><gr-icon [name]="x.i" [size]="18" /></span>
+                  <div><dt class="text-label-xs text-text-muted uppercase">{{ x.l }}</dt><dd class="text-label-m">{{ x.v }}</dd></div></div>
               }
             </dl>
-            <div class="mt-6 flex flex-wrap gap-2">
-              <a [href]="'/resultados/' + anio()" class="inline-flex h-10 items-center rounded-md bg-accent px-4 text-label-s text-white hover:bg-accent-hover">Ver resultados</a>
-              <a href="/galeria" class="inline-flex h-10 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:border-white">Ver galería <gr-icon name="arrow-right" [size]="14" /></a>
+            @if (historia()) { <p class="text-body-m text-text-secondary">{{ historia() }}</p> }
+            <!-- full-width stacked buttons on mobile (Figma 28 mobile) -->
+            <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-2">
+              <a grButton variant="primary" class="max-sm:h-12 max-sm:w-full" [href]="'/resultados/' + anio()">Ver resultados</a>
+              <a grButton variant="outline" class="max-sm:h-12 max-sm:w-full" href="/galeria" iconRight="arrow-right">Ver galería</a>
             </div>
           </div>
         </div>
 
-        @if (fotos().length) {
-          <gr-section-title class="mt-16 block" eyebrow="Galería" titulo="Así fue" [acento]="'la edición ' + anio()" />
-          <div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-            @for (f of fotos(); track f.url) { <img [src]="f.url" [alt]="f.alt" loading="lazy" class="aspect-[4/5] w-full rounded-md object-cover" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" /> }
-          </div>
+        @if (galeria().length) {
+          <section class="flex flex-col gap-5 md:gap-7">
+            <gr-cabecera eyebrow="01 · Galería" [titulo]="'Así fue *la edición ' + anio() + '*'" [centro]="false" tam="m" />
+            <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+              @for (f of galeria(); track f.url; let i = $index) {
+                <!-- mobile shows six (Figma 28 mobile), desktop eight -->
+                <button type="button" class="group relative aspect-[285/379] overflow-hidden rounded-2xl border border-white/8 cursor-zoom-in" [class.max-md:hidden]="i >= 6" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
+                  <img [src]="f.url" [alt]="f.alt" loading="lazy" class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" />
+                </button>
+              }
+            </div>
+            <gr-lightbox [fotos]="fotosLightbox()" [(indice)]="ver" />
+          </section>
         }
         @if (sponsors().length) {
-          <gr-section-title class="mt-16 block" eyebrow="Patrocinadores" titulo="Gracias a" acento="nuestros colaboradores" />
-          <ul class="mt-6 flex flex-wrap gap-3">
-            @for (p of sponsors(); track p.nombre) { <li class="flex h-16 w-36 items-center justify-center rounded-md border border-line-subtle bg-bg-card p-3"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" loading="lazy" /></li> }
-          </ul>
-          <p class="mt-3 text-body-xs text-text-tertiary">Logos del cartel de la edición {{ anio() }}.</p>
+          <section class="flex flex-col gap-5 md:gap-7">
+            <gr-cabecera [eyebrow]="'02 · Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
+            <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:flex md:flex-wrap md:gap-4">
+              @for (p of sponsors(); track p.nombre) { <li class="flex h-20 items-center justify-center rounded-2xl border border-line-subtle bg-bg-card px-5 py-4 md:w-[200px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" loading="lazy" /></li> }
+            </ul>
+            <p class="text-body-xs text-text-tertiary">Logos del cartel de la edición {{ anio() }}.</p>
+          </section>
         }
-        <gr-related class="mt-16 block" [items]="rel()" />
-        <section class="mt-14 overflow-hidden rounded-xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 md:flex md:items-center md:justify-between md:p-10">
-          <div><p class="flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>Edición {{ siguiente() }}</p>
+        <gr-related [items]="rel()" />
+        <section class="overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 md:flex md:items-center md:justify-between md:p-10">
+          <div><p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>Edición {{ siguiente() }}</p>
             <h2 class="mt-3 text-display-xs md:text-display-m">Compite en la GRStrength Cup</h2><p class="mt-2 text-body-s text-text-secondary">Plazas limitadas. La inscripción se hace a través de la AEP.</p></div>
-          <a href="/inscripcion" class="mt-5 inline-flex h-11 items-center rounded-md bg-accent px-5 text-label-m text-white hover:bg-accent-hover md:mt-0">Inscribirse</a>
+          <a grButton variant="primary" size="l" href="/inscripcion" class="mt-5 max-sm:w-full md:mt-0">Inscribirse</a>
         </section>
+        </div>
       }
     </gr-page>
   `,
@@ -700,14 +726,31 @@ export class EdicionPage {
   protected readonly sponsors = signal<Patrocinador[]>([]);
   protected readonly siguiente = computed(() => Number(this.anio()) + 1);
   protected readonly cartel = computed(() => (this.anio() === '2025' ? CARTEL_2025 : ''));
+  protected readonly ver = signal(-1);
+  /** The design photos of the 2025 edition (Figma 28) until the album has at least eight of its own. */
+  protected readonly galeria = computed(() => {
+    const f = this.fotos();
+    if (f.length >= 8 || this.anio() !== '2025') return f;
+    return FOTOS_2025.map(([f, alt]) => ({ url: `/img/edicion-2025/${f}.webp`, alt, focalX: 50, focalY: 35 })) as Album['fotos'];
+  });
+  protected readonly fotosLightbox = computed(() => this.galeria().map((f) => ({ imagen: f.url, alt: f.alt })));
+  /** Figma: «Campeonato de powerlifting AEP-2 Regional…, celebrado los días 1 y 2 de marzo de 2025 en Llíria (Valencia).» */
+  protected readonly resumen = computed(() => {
+    const c = this.comp();
+    if (!c) return '';
+    const dos = c.fechaFin && c.fechaFin !== c.fechaInicio;
+    const cuando = dos ? 'los días ' + fechas(c.fechaInicio, c.fechaFin).replace('–', ' y ') : 'el ' + fechas(c.fechaInicio, c.fechaFin);
+    return `Campeonato de powerlifting ${c.evento.nivel || ''}, celebrado ${cuando} en ${c.sede.ciudad}${c.sede.provincia ? ' (' + c.sede.provincia + ')' : ''}.`.replace(/\s+,/g, ',');
+  });
+  protected readonly historia = computed(() => this.comp()?.evento?.descripcion ?? '');
   protected readonly datos = computed(() => {
     const c = this.comp();
     if (!c) return [];
     return [
       { l: 'Fecha', v: fechas(c.fechaInicio, c.fechaFin), i: 'calendar' as const },
       { l: 'Sede', v: [c.sede.ciudad, c.sede.provincia].filter(Boolean).join(' (') + (c.sede.provincia ? ')' : ''), i: 'map-pin' as const },
-      { l: 'Nivel', v: c.evento.nivel, i: 'award' as const },
-      { l: 'Organiza', v: c.evento.organizador, i: 'users' as const },
+      { l: 'Nivel', v: c.evento.nivel, i: 'trophy' as const },
+      { l: 'Organiza', v: c.evento.organizador, i: 'user' as const },
     ];
   });
   protected readonly rel = computed<RelatedLink[]>(() => [
