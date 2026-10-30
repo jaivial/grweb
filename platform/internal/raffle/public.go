@@ -2,6 +2,7 @@ package raffle
 
 import (
 	"context"
+	"crypto/hmac"
 	"errors"
 	"fmt"
 	"io"
@@ -343,7 +344,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			if s.tokenCompra(in.ID) != in.T {
+			if !hmac.Equal([]byte(s.tokenCompra(in.ID)), []byte(in.T)) {
 				return nil, problem.NotFound("Compra no encontrada.")
 			}
 			e, err := s.estadoCompra(ctx, c.ID, in.ID)
@@ -476,21 +477,13 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 		return nil, nil
 	}
 	if x, _ := s.sorteoActual(ctx, tx, cid); x != nil {
-		if _, err := tx.Exec(ctx, `UPDATE compras SET estado = 'reembolsada', pago = $2, tarjeta = $3, motivo = 'Pago recibido con la lista del sorteo ya cerrada', pagada_at = now(), reembolsada_at = now(), updated_at = now() WHERE id = $1`,
-			id, ev.PaymentID, ev.Card); err != nil {
+		// Refund pending (reembolso = ''): the worker sends it to the gateway, retries until it is confirmed and then
+		// tells the buyer.
+		if _, err := tx.Exec(ctx, `UPDATE compras SET estado = 'reembolsada', pago = $2, tarjeta = $3, motivo = 'Pago recibido con la lista del sorteo ya cerrada', pagada_at = now(),
+			reembolso = '', updated_at = now() - interval '1 hour' WHERE id = $1`, id, ev.PaymentID, ev.Card); err != nil {
 			return nil, err
 		}
-		prov := s.proveedor(ctx, cid)
-		return func() {
-			if prov == nil {
-				return
-			}
-			if ref, err := prov.Refund(context.WithoutCancel(ctx), ev.PaymentID, importe, "requested_by_customer"); err != nil {
-				s.a.Log.Error("reembolso automático del sorteo", "compra", id, "err", err)
-			} else {
-				_, _ = s.a.DB.Exec(context.WithoutCancel(ctx), `UPDATE compras SET reembolso = $2 WHERE id = $1`, id, ref)
-			}
-		}, nil
+		return func() { s.reembolsosPendientes(context.WithoutCancel(ctx)) }, nil
 	}
 	var ultimo int
 	if err := tx.QueryRow(ctx, `SELECT COALESCE(max(numero), 0) FROM boletos WHERE competition_id = $1`, cid).Scan(&ultimo); err != nil {
@@ -533,7 +526,8 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 		events.Competition(cid.String()), events.ForPermission("sorteo.gestionar")))
 }
 
-// caducar marks abandoned checkouts (no webhook after 2 h) as expired so they stop holding the per-person limit.
+// caducar marks abandoned checkouts (no webhook after 2 h) as expired so they stop holding the per-person limit,
+// and pushes the pending automatic refunds.
 func (s *Svc) caducar(ctx context.Context) {
 	t := time.NewTicker(time.Minute)
 	defer t.Stop()
@@ -544,6 +538,59 @@ func (s *Svc) caducar(ctx context.Context) {
 		case <-t.C:
 		}
 		_, _ = s.a.DB.Exec(ctx, `UPDATE compras SET estado = 'caducada', updated_at = now() WHERE estado = 'pendiente' AND created_at < now() - interval '2 hours'`)
+		s.reembolsosPendientes(ctx)
+	}
+}
+
+// reembolsosPendientes refunds the automatic refunds not confirmed yet (one try per purchase every 5 minutes); on
+// success the buyer gets the «Te hemos devuelto…» email with the reason.
+func (s *Svc) reembolsosPendientes(ctx context.Context) {
+	// Claim atomically (the bump of updated_at keeps other pods away for 5 minutes): no double refunds.
+	rows, err := s.a.DB.Query(ctx, `UPDATE compras SET updated_at = now() WHERE id IN (SELECT id FROM compras
+		WHERE estado = 'reembolsada' AND reembolso = '' AND pago <> '' AND updated_at < now() - interval '5 minutes' ORDER BY updated_at LIMIT 10 FOR UPDATE SKIP LOCKED)
+		RETURNING id, competition_id, pago, importe, pasarela, nombre, email::text, motivo`)
+	if err != nil {
+		return
+	}
+	type pend struct {
+		id, cid                   uuid.UUID
+		pago, pas, nombre, motivo string
+		importe                   int
+		em                        *string
+	}
+	var ps []pend
+	for rows.Next() {
+		var p pend
+		if rows.Scan(&p.id, &p.cid, &p.pago, &p.importe, &p.pas, &p.nombre, &p.em, &p.motivo) == nil {
+			ps = append(ps, p)
+		}
+	}
+	rows.Close()
+	for _, p := range ps {
+		var prov pagos.Provider
+		if p.pas == "simulado" && s.sim != nil {
+			prov = s.sim
+		} else if pr := s.proveedor(ctx, p.cid); pr != nil && pr.Name() == p.pas {
+			prov = pr
+		}
+		if prov == nil {
+			s.a.Log.Warn("reembolso automático sin pasarela", "compra", p.id)
+			continue
+		}
+		ref, err := prov.Refund(ctx, p.pago, p.importe, "requested_by_customer")
+		if err != nil {
+			s.a.Log.Error("reembolso automático del sorteo", "compra", p.id, "err", err)
+			continue
+		}
+		_ = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `UPDATE compras SET reembolso = $2, reembolsada_at = now(), updated_at = now() WHERE id = $1`, p.id, ref); err != nil {
+				return err
+			}
+			if p.em == nil {
+				return nil
+			}
+			return email(ctx, tx, p.cid, *p.em, "sorteo-reembolso", map[string]string{"nombre": strings.Fields(p.nombre + " ")[0], "importe": pagos.Euros(p.importe), "boletos": "pedidos", "motivo": p.motivo})
+		})
 	}
 }
 
