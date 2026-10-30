@@ -1,5 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, computed, inject, input, signal } from '@angular/core';
+import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, fmtLongDate } from '@grcup/ui';
 import { Cms, renderMarkdown, type Album, type Faq, type Foto, type Heading, type Pagina, type Patrocinador } from '../core/cms';
@@ -139,7 +140,8 @@ export class LegalPage {
   readonly titulo = input('Texto legal');
   protected readonly cms = inject(Cms);
   protected readonly doc = signal<{ titulo: string; version: string; publicadoAt: string } | null | undefined>(undefined);
-  protected readonly html = signal('');
+  protected readonly html = signal<SafeHtml>('');
+  private readonly sanitizer = inject(DomSanitizer);
   protected readonly toc = signal<Heading[]>([]);
   /** Section on screen (highlighted in the contents card). */
   protected readonly activo = signal('');
@@ -166,7 +168,11 @@ export class LegalPage {
         return;
       }
       const r = renderMarkdown(d.contenido);
-      this.html.set(r.html);
+      // Angular's sanitizer drops «id» (anti-clobbering), which broke the contents links: sanitize first, then put
+      // back our own slug ids (only [a-z0-9-]) on the h2 in order.
+      let n = 0;
+      const limpio = (this.sanitizer.sanitize(SecurityContext.HTML, r.html) ?? '').replace(/<h2>/g, () => `<h2 id="${r.headings[n++]?.id ?? 'seccion-' + n}">`);
+      this.html.set(this.sanitizer.bypassSecurityTrustHtml(limpio));
       this.toc.set(r.headings);
       this.doc.set(d);
       seo.set({ title: `${d.titulo} · GR Strength Cup`, description: `${d.titulo} de la GR Strength Cup (versión ${d.version}).`, path: location0(this.tipo()) });
