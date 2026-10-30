@@ -46,6 +46,9 @@ var notifRules = map[string]notifRule{
 	"athletes.cupon_agotado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Cupón agotado", "«" + str(d["codigo"]) + "» ha llegado a su límite de usos.", "/atletas/inscripcion", "aviso", "atletas.editar", true
 	},
+	"horarios.publicados": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return fmt.Sprintf("Horarios v%v publicados", d["version"]), fmt.Sprintf("%v cambios · %v avisos por email", d["cambios"], d["avisos"]), "/horarios", "ok", "horarios.publicar", true
+	},
 	"identity.invitacion_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Invitación enviada", str(d["email"]), "/equipo", "info", "equipo.gestionar", true
 	},
@@ -121,6 +124,28 @@ func resumen(e events.Event) string {
 		return "reordenó las secciones de la home"
 	case "cms.voluntario_solicitado":
 		return "envió una solicitud de voluntariado"
+	case "horarios.borrador":
+		if a := str(d["accion"]); a != "" {
+			return a
+		}
+		return "editó el borrador de los horarios"
+	case "horarios.generados":
+		return fmt.Sprintf("generó %v flights para %v atletas", d["flights"], d["atletas"])
+	case "horarios.publicados":
+		return fmt.Sprintf("publicó la versión v%v de los horarios", d["version"])
+	case "horarios.retirados":
+		return "retiró los horarios publicados"
+	case "horarios.flight":
+		switch str(d["estado"]) {
+		case "en_curso":
+			return "puso el flight " + str(d["codigo"]) + " en la plataforma"
+		case "finalizado":
+			return "dio por terminado el flight " + str(d["codigo"])
+		}
+		if r, _ := d["retrasoMin"].(float64); r > 0 {
+			return fmt.Sprintf("marcó %v min de retraso en el flight %s", r, str(d["codigo"]))
+		}
+		return "devolvió el flight " + str(d["codigo"]) + " a programado"
 	case "athletes.plaza_ofrecida":
 		return "ofreció una plaza libre a un atleta de la reserva (enlace de pago)"
 	case "athletes.inscripcion_pagada":

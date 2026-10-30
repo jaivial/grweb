@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -346,6 +347,29 @@ func (s *Svc) registerInternal() {
 				s.afterChange(ctx, c)
 			}
 			return nil, err
+		})
+	type pasoIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Paso string    `path:"paso"`
+		Body struct {
+			Hecho bool `json:"hecho"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "internal-checklist", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/checklist/{paso}", Summary: "Marcar un paso de la checklist que otro servicio comprueba (p. ej. horarios publicados)", Tags: tags, Hidden: true, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *pasoIn) (*struct{}, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			if !slices.ContainsFunc(ChecklistPasos, func(p struct{ Clave, Titulo, Ayuda string }) bool { return p.Clave == in.Paso }) {
+				return nil, problem.NotFound("Paso desconocido.")
+			}
+			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if err := markStep(ctx, tx, in.CID, in.Paso, in.Body.Hecho); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "competition.checklist_actualizado", map[string]any{"paso": in.Paso, "hecho": in.Body.Hecho},
+					events.Competition(in.CID.String()), events.ForPermission("evento.editar")))
+			})
 		})
 	huma.Register(api, huma.Operation{OperationID: "internal-module-lock", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/modulos/{modulo}/bloqueo", Summary: "Bloquear o desbloquear un módulo (p. ej. sorteo hasta completar la checklist legal)", Tags: tags, Hidden: true, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *lockIn) (*struct{}, error) {

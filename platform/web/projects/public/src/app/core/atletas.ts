@@ -73,6 +73,9 @@ export class AtletasPublic {
   async seguir(slug: string, email: string): Promise<void> {
     await firstValueFrom(this.http.post(`${base}/atletas/${slug}/seguir`, { email, aceptaAviso: true }));
   }
+  async bajaAviso(token: string): Promise<void> {
+    await firstValueFrom(this.http.post(`${base}/seguimientos/baja`, { token }));
+  }
   async confirmarAviso(token: string): Promise<string> {
     return (await firstValueFrom(this.http.post<{ atleta: string }>(`${base}/seguimientos/confirmar`, { token }))).atleta;
   }

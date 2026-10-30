@@ -323,7 +323,12 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			return nil, s.change(ctx, c.ID, "", nil, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE seguimientos SET baja_at = now() WHERE competition_id = $1 AND token_hash = $2`, c.ID, hashToken(in.Body.Token))
+				q, arg := `UPDATE seguimientos SET baja_at = now() WHERE competition_id = $1 AND token_hash = $2`, any(hashToken(in.Body.Token))
+				if id, ok := s.validBaja(in.Body.Token); ok {
+					// Signed link of the schedule notices (stable, does not need the confirmation token).
+					q, arg = `UPDATE seguimientos SET baja_at = now() WHERE competition_id = $1 AND id = $2`, id
+				}
+				tag, err := tx.Exec(ctx, q, c.ID, arg)
 				if err == nil && tag.RowsAffected() == 0 {
 					return problem.NotFound("El enlace no es válido o ya no existe.")
 				}
@@ -402,10 +407,26 @@ var madrid = func() *time.Location {
 	return l
 }()
 
-// registerInternal exposes the confirmed athletes to other services (schedule plans flights from them).
+// AtletaPlan is a confirmed athlete as other services see it (schedule plans flights with it): no contact data,
+// and name details for the public pages only when the profile is public.
+type AtletaPlan struct {
+	ID             uuid.UUID `json:"id"`
+	Nombre         string    `json:"nombre" doc:"Nombre completo (uso interno del backoffice)"`
+	Slug           string    `json:"slug" doc:"Solo si el perfil es público"`
+	Publico        bool      `json:"publico"`
+	ConEmail       bool      `json:"conEmail"`
+	Sexo           string    `json:"sexo"`
+	Categoria      string    `json:"categoria"`
+	DivisionNombre string    `json:"divisionNombre"`
+	Club           string    `json:"club"`
+	TotalPrevisto  *float64  `json:"totalPrevisto,omitempty"`
+	Seguidores     int       `json:"seguidores"`
+}
+
+// registerInternal exposes the confirmed athletes to other services and lets schedule write the published times.
 func (s *Svc) registerInternal() {
 	type out struct {
-		Body []Atleta
+		Body []AtletaPlan
 	}
 	huma.Register(s.a.API, huma.Operation{OperationID: "internal-atletas", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/atletas", Summary: "Atletas confirmados (solo servicios)", Tags: []string{"Interno"}, Hidden: true},
 		func(ctx context.Context, in *cidIn) (*out, error) {
@@ -417,12 +438,16 @@ func (s *Svc) registerInternal() {
 			if err != nil {
 				return nil, err
 			}
-			o := &out{Body: make([]Atleta, 0, len(list))}
+			o := &out{Body: make([]AtletaPlan, 0, len(list))}
 			for _, r := range list {
-				a := r.admin(d)
-				a.Email, a.Telefono = "", ""
+				a := AtletaPlan{ID: r.ID, Nombre: r.nombreCompleto(), Publico: r.publico(d), ConEmail: r.Email != nil && *r.Email != "", Sexo: r.Sexo, Categoria: r.Categoria,
+					DivisionNombre: DivisionNombre(r.Division), Club: r.Club, TotalPrevisto: r.totalPrevisto(), Seguidores: r.Seguidores}
+				if a.Publico {
+					a.Slug = r.Slug
+				}
 				o.Body = append(o.Body, a)
 			}
 			return o, nil
 		})
+	s.registerHorarios()
 }

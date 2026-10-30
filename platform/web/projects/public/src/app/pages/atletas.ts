@@ -266,6 +266,8 @@ function catSort(a: string, b: string): number {
     @let a = ficha();
     <gr-page [title]="a ? a.nombre + ' ' + a.apellidos : a === null ? 'Atleta no encontrado' : ''" [hideTitle]="!!a" section="Atletas" [crumb]="a ? a.nombre + ' ' + a.apellidos : 'Atleta'">
       @if (avisoConfirmado()) { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso confirmado">Te escribiremos 30 minutos antes de que {{ avisoConfirmado() }} salga a la plataforma.</gr-alert> }
+      @if (baja() === 'ok') { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso desactivado">Ya no te escribiremos sobre {{ a?.nombre || 'este atleta' }}. Puedes volver a activarlo cuando quieras.</gr-alert> }
+      @if (baja() === 'error') { <gr-alert tone="warning" class="-mt-4 mb-8" title="No hemos podido desactivar el aviso">El enlace no es válido o ya se usó. Si sigues recibiendo emails, responde a cualquiera de ellos.</gr-alert> }
       @if (a === undefined) {
         <div class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"><gr-skeleton class="h-[520px] rounded-lg" /><gr-skeleton class="h-96 rounded-lg" /></div>
       } @else if (a === null) {
@@ -410,6 +412,7 @@ export class AtletaPage {
   protected readonly avisoEnviado = signal(false);
   protected readonly avisoError = signal('');
   protected readonly avisoConfirmado = signal('');
+  protected readonly baja = signal<'' | 'ok' | 'error'>('');
 
   constructor() {
     const seo = inject(Seo);
@@ -432,6 +435,15 @@ export class AtletaPage {
         path: '/atletas/' + f.slug, image: f.fotoUrl || undefined,
         jsonLd: { '@context': 'https://schema.org', '@type': 'Person', name: nombre, ...(f.club ? { memberOf: { '@type': 'SportsTeam', name: f.club } } : {}), knowsAbout: 'Powerlifting' },
       });
+      const bajaTok = route.snapshot.queryParamMap.get('baja');
+      if (bajaTok && this.browser) {
+        try {
+          await this.api.bajaAviso(bajaTok);
+          this.baja.set('ok');
+        } catch {
+          this.baja.set('error');
+        }
+      }
       const token = route.snapshot.queryParamMap.get('aviso');
       if (token && this.browser) {
         try {

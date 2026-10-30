@@ -14,27 +14,34 @@ import { AtletasImportarPage } from './pages/atletas/importar';
 import { AtletasPage } from './pages/atletas/list';
 import { PesajePage } from './pages/atletas/pesaje';
 import { InscripcionPage } from './pages/atletas/inscripcion';
+import { HorariosPage } from './pages/horarios/horarios';
+
+// Guards inject everything before the first await: inject() only works synchronously in the injection context
+// (after an await it throws NG0203 and the redirect to /login never happens).
 
 /** Requires a session (restored from the refresh cookie on first navigation). */
 const authGuard: CanActivateFn = async (_r, state) => {
   const auth = inject(Auth);
+  const router = inject(Router);
   await auth.bootstrap();
-  return auth.isLoggedIn() ? true : inject(Router).createUrlTree(['/login'], { queryParams: { siguiente: state.url } });
+  return auth.isLoggedIn() ? true : router.createUrlTree(['/login'], { queryParams: { siguiente: state.url } });
 };
 
 const guestGuard: CanActivateFn = async () => {
   const auth = inject(Auth);
+  const router = inject(Router);
   await auth.bootstrap();
-  return auth.isLoggedIn() ? inject(Router).createUrlTree(['/']) : true;
+  return auth.isLoggedIn() ? router.createUrlTree(['/']) : true;
 };
 
 /** `/` → login, or the first competition of the user (guards of one route run in parallel: one guard, in order). */
 const homeRedirect: CanActivateFn = async () => {
   const router = inject(Router);
   const auth = inject(Auth);
+  const comps = inject(Competitions);
   await auth.bootstrap();
   if (!auth.isLoggedIn()) return router.createUrlTree(['/login']);
-  const list = await inject(Competitions).load();
+  const list = await comps.load();
   return list.length ? router.createUrlTree(['/', list[0].slug, 'inicio']) : router.createUrlTree(['/404']);
 };
 
@@ -91,6 +98,7 @@ export const routes: Routes = [
       { path: 'atletas/pesaje', component: PesajePage, title: 'Pesaje · Backoffice GR Cup' },
       { path: 'atletas/inscripcion', component: InscripcionPage, title: 'Inscripción · Backoffice GR Cup' },
       { path: 'atletas/:id', component: AtletaFichaPage, title: 'Atleta · Backoffice GR Cup' },
+      { path: 'horarios', component: HorariosPage, title: 'Horarios y flights · Backoffice GR Cup' },
       { path: ':seccion', component: ComingSoonPage, title: 'Backoffice GR Cup' },
     ],
   },

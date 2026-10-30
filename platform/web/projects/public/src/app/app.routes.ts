@@ -1,3 +1,4 @@
+import { HorariosPage } from './pages/horarios';
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
 import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
@@ -16,6 +17,7 @@ export const routes: Routes = [
   { path: 'atletas', component: AtletasPage },
   { path: 'atletas/:slug', component: AtletaPage },
   { path: 'participantes', component: ParticipantesPage },
+  { path: 'horarios', component: HorariosPage },
   { path: 'area-atleta', component: AreaAtletaPage },
   { path: 'inscripcion', component: InscripcionPage },
   { path: 'inscripcion/estado', component: InscripcionEstadoPage },

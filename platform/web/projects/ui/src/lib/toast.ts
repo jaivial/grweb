@@ -20,6 +20,7 @@ export class GrToasts {
   }
   success(title: string, text?: string): void { this.show({ tone: 'success', title, text }); }
   error(title: string, text?: string): void { this.show({ tone: 'error', title, text }, 8000); }
+  info(title: string, text?: string): void { this.show({ tone: 'info', title, text }); }
   dismiss(id: number): void { this.items.update((l) => l.filter((x) => x.id !== id)); }
 }
 

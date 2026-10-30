@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   Activity, ArrowDown, ArrowRight, ArrowUp, Award, Bell, Calendar, CalendarDays, Camera, Car, Check, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, Download, ExternalLink, Gift, Globe,
-  History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Plane, Plug,
-  Plus, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Ticket,
+  ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
+  GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
+  Plus, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
   TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, type IconNode,
 } from 'lucide';
 
@@ -18,7 +18,8 @@ export const GR_ICONS = {
   plane: Plane, plug: Plug, plus: Plus, radio: Radio, refresh: RefreshCw, scale: Scale, scan: ScanLine, search: Search, send: Send,
   settings: Settings, shield: Shield, 'shield-alert': ShieldAlert, smartphone: Smartphone, sparkles: Sparkles,
   ticket: Ticket, train: TrainFront, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
-  'wifi-off': WifiOff, x: X, zap: Zap,
+  'wifi-off': WifiOff, x: X, zap: Zap, door: DoorOpen, eye: Eye, grip: GripVertical, pencil: Pencil, star: Star, trash: Trash2, undo: Undo2,
+  'calendar-plus': CalendarPlus,
 } satisfies Record<string, IconNode>;
 
 export type GrIconName = keyof typeof GR_ICONS;

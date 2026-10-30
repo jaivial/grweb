@@ -17,7 +17,9 @@ spec:
   hard:
     requests.cpu: "4"
     requests.memory: 6Gi
-    limits.cpu: "16"
+    # Limits are burst caps (every service pod allows 1 CPU); 32 leaves room for the rolling-update surge of all
+    # 14 services. Real reservations are bounded by requests.cpu.
+    limits.cpu: "32"
     limits.memory: 16Gi
     pods: "80"
 ---
