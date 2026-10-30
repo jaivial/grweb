@@ -40,6 +40,7 @@ type simSession struct {
 	Card        string            `json:"card,omitempty"`
 	Refunded    int               `json:"refunded"`
 	ExpiresAt   time.Time         `json:"expiresAt"`
+	Lines       []Line            `json:"lines,omitempty"`
 }
 
 func rnd(n int) string {
@@ -73,7 +74,7 @@ func (s *Simulado) CreateCheckout(ctx context.Context, in CheckoutIn) (CheckoutO
 		exp = time.Now().Add(30 * time.Minute)
 	}
 	ss := simSession{ID: "sim_cs_" + rnd(10), Amount: in.Amount, Description: in.Description, Email: in.Email, SuccessURL: in.SuccessURL,
-		CancelURL: in.CancelURL, Metadata: in.Metadata, Status: "open", ExpiresAt: exp}
+		CancelURL: in.CancelURL, Metadata: in.Metadata, Status: "open", ExpiresAt: exp, Lines: in.Lines}
 	if err := s.save(ctx, ss); err != nil {
 		return CheckoutOut{}, err
 	}
@@ -125,7 +126,7 @@ func (s *Simulado) Mount(mux *http.ServeMux, base string) {
 			estado = "caducada"
 		}
 		write(w, http.StatusOK, map[string]any{"id": ss.ID, "descripcion": ss.Description, "importe": ss.Amount, "email": ss.Email, "estado": estado,
-			"cancelUrl": ss.CancelURL, "pruebas": true, "tarjetas": [][2]string{{"4242 4242 4242 4242", "pago correcto"}, {"4000 0000 0000 0002", "tarjeta rechazada"}, {"4000 0000 0000 3220", "pide 3D Secure"}}})
+			"cancelUrl": ss.CancelURL, "lineas": ss.Lines, "pruebas": true, "tarjetas": [][2]string{{"4242 4242 4242 4242", "pago correcto"}, {"4000 0000 0000 0002", "tarjeta rechazada"}, {"4000 0000 0000 3220", "pide 3D Secure"}}})
 	})
 	mux.HandleFunc("POST "+base+"/{id}/pagar", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {

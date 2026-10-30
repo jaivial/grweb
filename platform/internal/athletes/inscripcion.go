@@ -658,7 +658,8 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 		}
 		checkout = pagos.CheckoutIn{Amount: precio.Total, Description: "Inscripción · " + s.nombreComp(ctx, cid), Email: d.Email,
 			SuccessURL: s.webURL + "/inscripcion/estado?id=" + id.String(), CancelURL: s.webURL + "/inscripcion?cancelado=" + id.String(),
-			Metadata: map[string]string{"inscripcion": id.String(), "competicion": cid.String(), "idempotencia": id.String()}, ExpiresAt: *expira}
+			Metadata: map[string]string{"inscripcion": id.String(), "competicion": cid.String(), "idempotencia": id.String()}, ExpiresAt: *expira,
+			Lines: lineasPago(precio)}
 		if prov == nil { // rolls back the registration: nothing is held without a way to pay
 			return problem.New(http.StatusServiceUnavailable, "PASARELA_NO_CONFIGURADA", "Los pagos todavía no están activados. Inténtalo más adelante.")
 		}
@@ -682,6 +683,18 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 	}
 	out.CheckoutURL = co.URL
 	return out, nil
+}
+
+// lineasPago is the breakdown shown on the payment page: fee, then each discount (Figma 06b «Pasarela simulada»).
+func lineasPago(p Precio) []pagos.Line {
+	l := []pagos.Line{{Label: "Cuota de inscripción", Amount: p.Cuota}}
+	if p.Cupon != nil && p.Cupon.Valido && p.Cupon.Importe > 0 {
+		l = append(l, pagos.Line{Label: "Cupón " + p.Cupon.Codigo, Amount: -p.Cupon.Importe})
+	}
+	if p.Referido != nil && p.Referido.Valido && p.Referido.Importe > 0 {
+		l = append(l, pagos.Line{Label: "Código " + p.Referido.Codigo, Amount: -p.Referido.Importe})
+	}
+	return l
 }
 
 func (s *Svc) nombreComp(ctx context.Context, cid uuid.UUID) string {

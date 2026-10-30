@@ -121,10 +121,12 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
 
         @if (pagoCancelado(); as pc) {
           <!-- Figma 06b «Pago rechazado»: the place stays held while the payment page is valid -->
-          <div class="flex items-center gap-3 rounded-xl border border-accent bg-accent/8 p-4" role="alert">
+          <div class="flex items-start gap-3 rounded-xl border border-accent bg-accent/8 p-4 md:items-center" role="alert">
             <gr-icon name="circle-alert" [size]="20" class="shrink-0 text-accent-text" />
-            <p class="min-w-0 flex-1 text-body-s">El pago no se ha completado y no se ha cobrado nada.{{ pc.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>
-            @if (pc.checkoutUrl) { <a [href]="pc.checkoutUrl" class="flex h-9 shrink-0 items-center rounded-sm bg-accent/15 px-2.5 text-label-s text-accent-text hover:bg-accent/25">Reintentar el pago</a> }
+            <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center">
+              <p class="flex-1 text-body-s">El pago no se ha completado y no se ha cobrado nada.{{ pc.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>
+              @if (pc.checkoutUrl) { <a [href]="pc.checkoutUrl" class="flex h-9 shrink-0 items-center rounded-sm bg-accent/15 px-2.5 text-label-s text-accent-text hover:bg-accent/25">Reintentar el pago</a> }
+            </div>
             <button type="button" class="flex size-8 shrink-0 items-center justify-center text-text-tertiary hover:text-text-primary" aria-label="Cerrar aviso" (click)="pagoCancelado.set(null)"><gr-icon name="x" [size]="16" /></button>
           </div>
         }
@@ -146,7 +148,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
         <form class="flex flex-col gap-5 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" (ngSubmit)="enviar()" novalidate>
           <div class="grid gap-4 md:grid-cols-2">
             @for (f of campos; track f.k) {
-              <div class="flex flex-col gap-2">
+              <div class="flex min-w-0 flex-col gap-2">
                 <label class="text-label-s" [for]="'i-' + f.k">{{ f.label }}{{ f.req ? ' *' : '' }}</label>
                 @switch (f.k) {
                   @case ('sexo') {
@@ -168,24 +170,24 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
           </div>
 
           @if (c.cupones || c.referidos) {
-            <fieldset class="flex flex-col gap-3">
+            <fieldset class="flex min-w-0 flex-col gap-3">
               <legend class="mb-3 text-ui-h5">Descuentos</legend>
               <div class="grid gap-3 md:grid-cols-2">
                 @if (c.cupones) {
-                  <div class="flex flex-col gap-2">
+                  <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-cupon">Código de descuento</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.cupon && !precio()!.cupon!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-cupon" name="cupon" class="h-full min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-cupon" name="cupon" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.cupon?.valido ? quitar('cupon') : calcular()">{{ precio()?.cupon?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
                     @if (precio()?.cupon; as x) { <p class="flex items-center gap-1.5 text-body-xs" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
                   </div>
                 }
                 @if (c.referidos) {
-                  <div class="flex flex-col gap-2">
+                  <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-ref">¿Te ha invitado alguien?</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.referido && !precio()!.referido!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-ref" name="referido" placeholder="Código de referido" class="h-full min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-ref" name="referido" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.referido?.valido ? quitar('referido') : calcular()">{{ precio()?.referido?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
                     @if (precio()?.referido; as x) { <p class="flex items-center gap-1.5 text-body-xs" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
@@ -210,7 +212,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
               <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="k.req ? 'text-text-primary' : 'text-text-secondary'">
                 <span class="relative mt-px flex size-5 shrink-0 items-center justify-center">
                   <input type="checkbox" [name]="k.k" [(ngModel)]="acepta[k.k]" (ngModelChange)="revalidar()" class="peer size-[18px] appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" [class]="k.req && err()['terminos'] && !acepta[k.k] ? 'border-accent-text' : 'border-line-strong'" />
-                  <gr-icon name="check" [size]="12" class="pointer-events-none absolute hidden text-white peer-checked:block" />
+                  @if (acepta[k.k]) { <gr-icon name="check" [size]="12" class="pointer-events-none absolute text-white" /> }
                 </span>
                 <span>
                   @switch (k.k) {
@@ -226,10 +228,10 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
           @if (error()) { <p class="flex items-start gap-2 rounded-xl border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
           <div class="flex flex-col gap-3">
             <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="enviando()">{{ c.estado === 'completa' ? 'Apuntarme a la reserva' : total() === 0 ? 'Confirmar inscripción' : 'Pagar ' + eur(total()) }}</button>
-            <p class="flex items-center justify-center gap-1.5 text-center text-body-xs text-text-muted">
+            <p class="text-center text-body-xs text-text-muted">
               @if (c.estado === 'completa') { No se cobra nada hasta que haya plaza. }
               @else if (total() === 0) { Sin pago: te inscribimos al confirmar. }
-              @else { <gr-icon name="lock" [size]="13" class="shrink-0" />{{ c.pasarela === 'stripe' ? 'Pago seguro con Stripe' : 'Pago seguro' }}{{ c.pruebas ? ' · ahora en modo pruebas, no se cobra nada' : '' }} }
+              @else { <gr-icon name="lock" [size]="13" class="mr-1.5 inline-block align-[-2px]" />{{ c.pasarela === 'stripe' ? 'Pago seguro con Stripe' : 'Pago seguro' }}{{ c.pruebas ? ' · ahora en modo pruebas, no se cobra nada' : '' }} }
             </p>
           </div>
         </form>
@@ -452,10 +454,12 @@ export class InscripcionPage {
           <a grButton variant="outline" size="l" [block]="true" href="/">Volver al inicio</a>
         } @else {
           <!-- Figma 06b «Pago rechazado» -->
-          <div class="flex items-center gap-3 rounded-xl border border-accent bg-accent/8 p-4" role="alert">
+          <div class="flex items-start gap-3 rounded-xl border border-accent bg-accent/8 p-4 md:items-center" role="alert">
             <gr-icon name="circle-alert" [size]="20" class="shrink-0 text-accent-text" />
-            <p class="min-w-0 flex-1 text-body-s">{{ e.estado === 'pendiente_pago' ? 'Aún no hemos recibido la confirmación del pago. Si has pagado, te llegará un email en unos minutos.' : 'El pago no se ha completado y no se ha cobrado nada.' }}{{ e.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>
-            @if (e.checkoutUrl) { <a [href]="e.checkoutUrl" class="flex h-9 shrink-0 items-center rounded-sm bg-accent/15 px-2.5 text-label-s text-accent-text hover:bg-accent/25">Reintentar el pago</a> }
+            <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center">
+              <p class="flex-1 text-body-s">{{ e.estado === 'pendiente_pago' ? 'Aún no hemos recibido la confirmación del pago. Si has pagado, te llegará un email en unos minutos.' : 'El pago no se ha completado y no se ha cobrado nada.' }}{{ e.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>
+              @if (e.checkoutUrl) { <a [href]="e.checkoutUrl" class="flex h-9 shrink-0 items-center rounded-sm bg-accent/15 px-2.5 text-label-s text-accent-text hover:bg-accent/25">Reintentar el pago</a> }
+            </div>
           </div>
           <a href="/inscripcion" class="self-center py-2 text-label-s text-text-secondary hover:text-text-primary">{{ e.estado === 'pendiente_pago' ? 'Volver a la inscripción' : 'Cambiar los datos' }}</a>
         }
@@ -504,7 +508,7 @@ export class InscripcionEstadoPage {
   }
 }
 
-interface SesionSim { id: string; descripcion: string; importe: number; email: string; estado: string; cancelUrl: string; pruebas: boolean; tarjetas: [string, string][] }
+interface SesionSim { id: string; descripcion: string; importe: number; email: string; estado: string; cancelUrl: string; pruebas: boolean; tarjetas: [string, string][]; lineas?: { concepto: string; importe: number }[] }
 
 /** /pago/simulado?s=<service>:<session> — test gateway that imitates Stripe Checkout (Figma 06b). */
 @Component({
@@ -519,21 +523,31 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
     @else if (s === null || s.estado === 'caducada') {
       <div class="mx-auto max-w-md p-8"><gr-alert tone="warning" title="Este pago ha caducado">Vuelve a la web y empieza de nuevo la inscripción.</gr-alert><a grButton class="mt-4" href="/inscripcion">Volver a la inscripción</a></div>
     } @else {
-      <div class="mx-auto grid max-w-5xl md:min-h-[calc(100vh-36px)] md:grid-cols-2">
-        <section class="flex flex-col gap-3 px-5 pt-8 md:bg-bg-surface md:px-12 md:pt-24">
-          <a [href]="s.cancelUrl" class="flex h-11 items-center gap-1.5 text-label-s text-text-secondary"><gr-icon name="chevron-left" [size]="16" />GR Strength Cup</a>
-          <p class="text-body-m text-text-secondary">{{ s.descripcion }}</p>
-          <p class="font-display text-[48px] leading-none">{{ eur(s.importe) }}</p>
+      <!-- Figma 06b «Pasarela simulada»: summary half (surface) and payment half, 420 px columns -->
+      <div class="grid md:min-h-[calc(100vh-36px)] md:grid-cols-2">
+        <section class="flex flex-col gap-4 px-5 pt-6 md:bg-bg-surface md:px-16 md:pt-24 md:pb-16 xl:pl-[120px]">
+          <div class="flex w-full flex-col gap-4 md:max-w-[420px]">
+            <a [href]="s.cancelUrl" class="-my-2.5 flex h-11 items-center gap-1.5 self-start text-label-s text-text-secondary hover:text-text-primary"><gr-icon name="arrow-left" [size]="16" />GR Strength Cup</a>
+            <p class="text-body-m text-text-secondary">{{ s.descripcion }}</p>
+            <p class="text-display-m md:text-display-l">{{ eur(s.importe) }}</p>
+            @if (s.lineas?.length) {
+              <dl class="hidden md:block">
+                @for (l of s.lineas; track l.concepto) { <div class="flex justify-between border-b border-line-subtle py-2.5"><dt class="text-body-s text-text-tertiary">{{ l.concepto }}</dt><dd class="text-label-s">{{ l.importe < 0 ? '−' + eur(-l.importe) : eur(l.importe) }}</dd></div> }
+                <div class="flex justify-between border-b border-line-subtle py-2.5"><dt class="text-body-s text-text-tertiary">Total</dt><dd class="text-label-s">{{ eur(s.importe) }}</dd></div>
+              </dl>
+            }
+          </div>
         </section>
-        <section class="flex flex-col gap-4 px-5 py-8 md:px-12 md:pt-24">
+        <section class="flex flex-col gap-4 px-5 pt-6 pb-10 md:px-16 md:pt-24 md:pb-16">
+          <div class="flex w-full flex-col gap-4 md:max-w-[420px]">
           <h1 class="text-ui-h5">Pagar con tarjeta</h1>
-          <label class="flex flex-col gap-1.5"><span class="text-label-s">Email</span><input class="h-12 rounded-md border border-line-strong bg-bg-field px-3 text-body-m" name="email" [(ngModel)]="email" autocomplete="email" /></label>
-          <label class="flex flex-col gap-1.5"><span class="text-label-s">Datos de la tarjeta</span>
-            <span class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="ticket" [size]="16" class="text-text-tertiary" /><input class="h-12 min-w-0 flex-1 bg-transparent text-body-m outline-none" name="tarjeta" inputmode="numeric" autocomplete="cc-number" placeholder="1234 1234 1234 1234" [(ngModel)]="tarjeta" /><span class="text-mono-xs text-text-tertiary">12/34 · 123</span></span></label>
-          <label class="flex flex-col gap-1.5"><span class="text-label-s">Nombre en la tarjeta</span><input class="h-12 rounded-md border border-line-strong bg-bg-field px-3 text-body-m" name="nombre" autocomplete="cc-name" [(ngModel)]="nombre" /></label>
-          <div class="rounded-md bg-bg-raised p-3">
-            <p class="text-label-xs text-text-tertiary">Tarjetas de prueba</p>
-            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between py-1.5 text-left" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-xs text-text-tertiary">{{ t[1] }}</span></button> }
+          <label class="flex flex-col gap-2"><span class="text-label-s">Email</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="email" [(ngModel)]="email" autocomplete="email" /></label>
+          <label class="flex flex-col gap-2"><span class="text-label-s">Datos de la tarjeta</span>
+            <span class="flex items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field px-3.5 focus-within:border-accent-text"><gr-icon name="credit-card" [size]="16" class="text-text-tertiary" /><input class="h-12 w-0 min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" name="tarjeta" inputmode="numeric" autocomplete="cc-number" placeholder="1234 1234 1234 1234" [(ngModel)]="tarjeta" /><span class="text-label-s text-accent-text">12/34 · 123</span></span></label>
+          <label class="flex flex-col gap-2"><span class="text-label-s">Nombre en la tarjeta</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="nombre" autocomplete="cc-name" [(ngModel)]="nombre" /></label>
+          <div class="flex flex-col gap-1.5 rounded-[10px] bg-bg-raised p-3">
+            <p class="text-label-xs text-text-tertiary uppercase">Tarjetas de prueba</p>
+            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between py-0.5 text-left hover:text-accent-text" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-xs text-text-tertiary">{{ t[1] }}</span></button> }
           </div>
           @if (mensaje()) { <gr-alert [tone]="tresDS() ? 'info' : 'danger'" [title]="tresDS() ? '3D Secure' : 'Pago no completado'">{{ mensaje() }}</gr-alert> }
           @if (tresDS()) {
@@ -541,6 +555,7 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
           } @else {
             <button grButton variant="primary" size="l" [loading]="pagando()" (click)="pagar('')">Pagar {{ eur(s.importe) }}</button>
           }
+          </div>
         </section>
       </div>
     }
