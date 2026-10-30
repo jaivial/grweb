@@ -77,7 +77,7 @@ const UI = {
   selector: 'gr-navbar',
   imports: [RouterLink, GrLogo, GrButton, GrIcon, GrIconButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false)', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
+  host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
   template: `
     <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-6 overflow-hidden rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[20px] md:h-[70px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
@@ -127,7 +127,7 @@ const UI = {
           <div class="flex items-center gap-2">
             <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
               <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
-            <button type="button" class="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5" [attr.aria-label]="ui().close" (click)="open.set(false)"><gr-icon name="x" [size]="22" /></button>
+            <button type="button" data-cerrar-menu class="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5" [attr.aria-label]="ui().close" (click)="open.set(false)"><gr-icon name="x" [size]="22" /></button>
           </div>
         </div>
         <ul class="flex flex-col">
@@ -190,7 +190,15 @@ export class Navbar {
   constructor() {
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       // the menu is a modal: no page scroll behind it, and it closes on navigation
-      effect(() => { document.body.style.overflow = this.open() ? 'hidden' : ''; });
+      // focus goes into the menu when it opens (to «close») and back to the hamburger when it closes; Esc closes it
+      let estaba = false;
+      effect(() => {
+        const abierto = this.open();
+        document.body.style.overflow = abierto ? 'hidden' : '';
+        if (abierto) setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-cerrar-menu]')?.focus());
+        else if (estaba) (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[icon="menu"]')?.focus();
+        estaba = abierto;
+      });
       const sub = this.router.events.subscribe(() => { this.open.set(false); this.actual.set(this.router.url.split(/[?#]/)[0]); });
       this.actual.set(this.router.url.split(/[?#]/)[0]);
       inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); document.body.style.overflow = ''; });
