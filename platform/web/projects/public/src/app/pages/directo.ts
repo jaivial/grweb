@@ -481,12 +481,12 @@ export class ResultadosIndexPage {
         <div class="flex flex-wrap items-center gap-2">
           <label class="relative min-w-0 flex-1 basis-56 md:max-w-xs"><span class="sr-only">Buscar atleta o club</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s md:h-10" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
-          <button type="button" class="relative flex size-11 items-center justify-center rounded-md border border-line-strong md:hidden" aria-label="Filtros" [attr.aria-expanded]="filtros()" (click)="filtros.set(!filtros())"><gr-icon name="settings" [size]="18" />
+          <button type="button" class="relative flex size-11 items-center justify-center rounded-md border border-line-strong md:hidden" aria-label="Filtros" aria-controls="filtros-resultados" [attr.aria-expanded]="filtros()" (click)="filtros.set(!filtros())"><gr-icon name="sliders" [size]="18" />
             @if ((cat() ? 1 : 0) + (orden() !== 'puesto' ? 1 : 0); as n) { <span class="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-label-xs text-white">{{ n }}</span> }</button>
           <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
           @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s md:h-10" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.l }}</button> }
           </div>
-          <div class="w-full flex-col gap-2 md:contents" [class.flex]="filtros()" [class.hidden]="!filtros()">
+          <div id="filtros-resultados" class="w-full flex-col gap-2 md:contents" [class.flex]="filtros()" [class.hidden]="!filtros()">
           <select class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:h-10" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Categoría</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</select>
           <select class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:ml-auto md:h-10" aria-label="Ordenar" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">Ordenar: posición</option><option value="total">Ordenar: total</option>@if (conGL) { <option value="gl">Ordenar: puntos GL</option> }</select>
           </div>
