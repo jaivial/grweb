@@ -31,7 +31,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Shared look of the form controls (Figma 06b «Input»: 48 px, radius 10, padding 14). */
 const CAMPO = 'h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none';
 
-type Vista = 'cargando' | 'formulario' | 'proximamente' | 'aep' | 'completas' | 'cerrada';
+type Vista = 'cargando' | 'error' | 'formulario' | 'proximamente' | 'aep' | 'completas' | 'cerrada';
 interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; type?: string; ac?: string; ph?: string; error?: string; corto?: string }
 
 /** /inscripcion (Figma pages 06 and 06b): AEP link (external mode) or own registration with payment, coupon and referral. */
@@ -45,6 +45,12 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
     <gr-page title="¡Inscríbete a la" [accent]="tituloComp() + '!'" eyebrow="Inscripción" [centrado]="true" [cabecera]="v === 'formulario' || v === 'cargando'"
       subtitle="Rellena tus datos y paga tu plaza en un minuto. Te confirmamos por email.">
       @if (v === 'cargando') { <gr-skeleton class="h-96 rounded-[18px]" /> }
+      @if (v === 'error') {
+        <section class="flex flex-col items-center gap-4 pt-2 text-center md:pt-8">
+          <h1 class="text-display-m md:text-display-l">Inscripción</h1>
+          <p class="flex max-w-[560px] items-start gap-3 rounded-xl border border-warning bg-warning/8 p-4 text-left text-body-s text-text-secondary" role="alert"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />No hemos podido cargar la inscripción. Es un problema temporal: vuelve a intentarlo en unos minutos.</p>
+        </section>
+      }
 
       <!-- Figma 06 «Próximamente»: own registration not open yet, or the AEP has not opened it -->
       @if (v === 'proximamente') {
@@ -278,7 +284,11 @@ export class InscripcionPage {
     const c = this.cfg();
     const comp = this.competicion();
     if (c === undefined) return 'cargando';
-    if (c?.modo === 'propia') return c.estado === 'proximamente' ? 'proximamente' : c.estado === 'cerrada' ? 'cerrada' : 'formulario';
+    if (c === null) return 'error';
+    if (c.modo === 'propia') {
+      if (c.estado === 'completa' && !c.reserva) return 'completas'; // no reserve list: nothing to sign up for
+      return c.estado === 'proximamente' ? 'proximamente' : c.estado === 'cerrada' ? 'cerrada' : 'formulario';
+    }
     // external (AEP) registration: the state the organiser set in «Evento»
     switch (comp?.inscripcion?.estado) {
       case 'proximamente': return 'proximamente';
