@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
@@ -138,7 +138,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
   imports: [Page, GrAlert, GrIcon, GrSkeleton, Luces, Clasificacion, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo">
+    <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabeceraMovil]="false">
       @let d = dir();
       @if (d === undefined) { <gr-skeleton class="h-[480px] rounded-lg" /> }
       @else if (d === null) { <gr-alert tone="warning" title="No hemos podido cargar el directo">Vuelve a intentarlo en unos segundos.</gr-alert> }
@@ -146,12 +146,14 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
         @if (d.pausa && d.fase === 'en_directo') { <gr-alert class="mb-5" tone="warning" title="Pausa técnica">Volvemos enseguida.@if (d.retrasoMin) { Vamos con {{ d.retrasoMin }} min de retraso. }</gr-alert> }
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
           <!-- Video -->
-          <section class="relative aspect-video overflow-hidden rounded-lg border border-line-subtle bg-black" aria-label="Retransmisión">
+          <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
+          <section class="relative -mx-5 -mt-4 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-2xl md:border" aria-label="Retransmisión">
             @if (video(); as v) {
               <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GR Strength Cup" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {
-              <img [src]="d.fase === 'finalizado' ? foto2025 : pabellon" alt="" class="absolute inset-0 size-full object-cover opacity-50" />
-              <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(20_16_18/0.2),rgb(20_16_18/0.85))]"></div>
+              <!-- Figma «Video»: the full venue as the poster (bright while live, dimmed before and after) -->
+              <img [src]="poster" [attr.srcset]="poster + ' 640w, ' + posterL + ' 1300w'" sizes="(min-width: 1024px) 800px, 100vw" alt="" class="absolute inset-0 size-full object-cover" [class.opacity-50]="d.fase !== 'en_directo'" />
+              <div class="absolute inset-0" [class]="d.fase === 'en_directo' ? 'bg-[linear-gradient(180deg,transparent_55%,rgb(20_16_18/0.75))]' : 'bg-[linear-gradient(180deg,rgb(20_16_18/0.2),rgb(20_16_18/0.85))]'"></div>
               @if (d.fase === 'antes') {
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
                   <p class="text-mono-xs text-text-secondary">{{ futuro() ? 'La retransmisión empieza en' : 'La retransmisión empezará con el primer flight' }}</p>
@@ -162,12 +164,12 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                 @if (d.replayUrl) { <a [href]="d.replayUrl" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center" aria-label="Ver la repetición"><span class="flex size-16 items-center justify-center rounded-pill bg-accent shadow-glow"><gr-icon name="play" [size]="28" /></span></a> }
                 <p class="absolute bottom-4 left-4 text-label-s">{{ d.replayUrl ? 'Repetición completa' : 'La repetición estará disponible en breve' }}</p>
               } @else {
-                <p class="absolute inset-0 flex items-center justify-center px-6 text-center text-body-m text-text-secondary">La emisión en vídeo empieza en breve. Sigue los intentos aquí al momento.</p>
+                <p class="absolute top-3 right-3 left-36 hidden text-right text-body-xs text-text-secondary [text-shadow:0_1px_8px_rgb(0_0_0/0.9)] md:block">El vídeo empieza en breve · sigue los intentos aquí</p>
               }
             }
             @if (d.fase === 'en_directo') {
-              <span class="absolute top-3 left-3 inline-flex h-7 items-center gap-1.5 rounded-pill bg-accent px-2.5 text-mono-xs text-white"><gr-icon name="radio" [size]="12" />En directo</span>
-              @if (d.espectadores) { <span class="absolute top-3 right-3 inline-flex h-7 items-center gap-1.5 rounded-pill bg-black/60 px-2.5 text-mono-xs"><gr-icon name="eye" [size]="12" />{{ d.espectadores }}</span> }
+              <span class="absolute top-3 left-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-accent px-2.5 text-label-xs text-white uppercase"><gr-icon name="radio" [size]="12" />En directo</span>
+              @if (d.espectadores) { <span class="absolute top-3 right-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-black/60 px-2.5 text-label-xs"><gr-icon name="eye" [size]="12" />{{ d.espectadores.toLocaleString('es-ES') }}</span> }
               @if (d.actual; as a) {
                 <div class="absolute bottom-3 left-3 flex items-end gap-3 rounded-md bg-black/70 px-3 py-2">
                   <div><p class="text-label-s">{{ a.nombre }} · {{ a.categoria.replace('-', '−') }} kg</p><p class="text-body-xs text-text-tertiary">{{ MOVN[a.movimiento] }} · {{ ORD[a.numero] }} intento</p></div>
@@ -177,13 +179,14 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
             }
           </section>
 
+          <h1 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h1>
           <!-- Side panel -->
           <aside class="flex flex-col gap-4">
             @switch (d.fase) {
               @case ('en_directo') {
                 @if (enPlataforma(); as a) {
                   <section class="rounded-lg border border-accent/40 bg-[linear-gradient(150deg,#3a0f17,#1b1112_70%)] p-5" aria-live="polite">
-                    <p class="flex justify-between text-mono-xs text-text-tertiary"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
+                    <p class="flex justify-between text-label-xs text-text-tertiary uppercase"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
                     <p class="mt-3 font-display text-[30px] leading-none uppercase italic">@if (a.slug) { <a [href]="'/atletas/' + a.slug" class="hover:text-accent-text">{{ a.nombre }}</a> } @else { {{ a.nombre }} }</p>
                     <p class="mt-1 text-body-s text-text-secondary">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}</p>
                     <div class="mt-4 flex items-end justify-between gap-3">
@@ -196,8 +199,9 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                 } @else {
                   <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.flight ? 'Cambio de movimiento' : 'Preparando el siguiente flight' }}</p><p class="mt-1 text-body-s text-text-tertiary">En unos minutos sale el siguiente atleta.</p></section>
                 }
-                <section>
-                  <p class="text-mono-xs text-text-tertiary">Siguientes</p>
+                <!-- on mobile «Siguientes» lives in the «Plataforma» tab (Figma 27) -->
+                <section class="hidden lg:block">
+                  <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
                   <ul class="mt-2 divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card">
                     @for (s of d.siguientes; track $index) {
                       <li class="flex items-center gap-3 px-4 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill border border-line-strong text-mono-xs">{{ s.numero }}</span>
@@ -255,6 +259,16 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                 @if (categoria(); as c) { <gr-clasificacion [c]="c" /> <p class="mt-2 text-body-xs text-text-tertiary">Clasificación provisional: la oficial se publica en /resultados al terminar la categoría.</p> }
               }
               @case ('plataforma') {
+                <section class="mb-4 lg:hidden">
+                  <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
+                  <ul class="mt-2 divide-y divide-line-subtle">
+                    @for (s of d.siguientes; track $index) {
+                      <li class="flex items-center gap-3 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong text-label-xs">{{ s.numero }}</span>
+                        <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
+                        <span class="text-mono-s">{{ kg(s.peso) }} kg</span></li>
+                    } @empty { <li class="py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
+                  </ul>
+                </section>
                 <div class="grid gap-3 md:grid-cols-3">
                   <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Flight</p><p class="mt-1 text-label-m">{{ d.flight?.codigo }} · {{ d.flight?.titulo }}</p><p class="text-body-xs text-text-tertiary">Plataforma {{ d.flight?.plataforma }}</p></div>
                   <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Movimiento</p><p class="mt-1 text-label-m">{{ MOVN[d.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ d.ronda <= 3 ? 'Ronda ' + d.ronda + ' de 3' : 'Terminado' }}</p></div>
@@ -283,6 +297,7 @@ export class EnDirectoPage {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly dir = signal<Directo | null | undefined>(undefined);
   protected readonly tab = signal<'plataforma' | 'clasificacion' | 'horario'>('clasificacion');
+
   protected readonly cat = signal('');
   private readonly ahora = signal(Date.now());
   protected readonly tabs = [{ v: 'plataforma' as const, l: 'Plataforma' }, { v: 'clasificacion' as const, l: 'Clasificación' }, { v: 'horario' as const, l: 'Horario' }];
@@ -298,6 +313,8 @@ export class EnDirectoPage {
   protected readonly diaHora = diaHora;
   protected readonly ics = ICS_URL;
   protected readonly pabellon = PABELLON;
+  protected readonly poster = '/img/home/org-publico-s.webp';
+  protected readonly posterL = '/img/home/org-publico-l.webp';
   protected readonly foto2025 = FOTO_2025;
   private readonly san = inject(DomSanitizer);
 
@@ -336,6 +353,8 @@ export class EnDirectoPage {
   protected readonly anio = computed(() => (this.dir()?.proximo?.inicio ?? new Date().toISOString()).slice(0, 4));
 
   constructor() {
+    // mobile opens on «Plataforma» (Figma 27); switched after hydration so the server HTML and the first render match
+    afterNextRender(() => { if (window.matchMedia('(max-width: 1023px)').matches) this.tab.set('plataforma'); });
     const seo = inject(Seo);
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
