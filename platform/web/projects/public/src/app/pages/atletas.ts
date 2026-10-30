@@ -19,14 +19,16 @@ const sexoTxt = { F: 'Femenino', M: 'Masculino' };
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button type="button" (click)="$event.preventDefault(); $event.stopPropagation(); fav.toggle(slug())" [attr.aria-pressed]="on()" [attr.aria-label]="(on() ? 'Dejar de seguir a ' : 'Seguir a ') + nombre()"
-      class="flex size-11 items-center justify-center rounded-full transition-colors" [class]="on() ? 'bg-accent text-white shadow-glow' : 'bg-black/40 text-white backdrop-blur hover:bg-black/60'">
-      <svg viewBox="0 0 24 24" width="18" height="18" [attr.fill]="on() ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
+      class="flex size-11 items-center justify-center rounded-full transition-colors" [class]="plano() ? (on() ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary') : on() ? 'bg-accent text-white shadow-glow' : 'bg-black/40 text-white backdrop-blur hover:bg-black/60'">
+      <svg viewBox="0 0 24 24" [attr.width]="plano() ? 16 : 18" [attr.height]="plano() ? 16 : 18" [attr.fill]="on() ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
     </button>
   `,
 })
 export class Fav {
   readonly slug = input.required<string>();
   readonly nombre = input('');
+  /** Bare star (Figma flight lists): no disc, 16 px, the 44 px hit area stays. */
+  readonly plano = input(false);
   protected readonly fav = inject(Favoritos);
   protected readonly on = computed(() => this.fav.slugs().includes(this.slug()));
 }
