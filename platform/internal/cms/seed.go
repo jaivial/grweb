@@ -16,37 +16,65 @@ import (
 const op = "https://openpencil.menustudioai.com/grscup/"
 const bcdn = "https://jaimedigitalstudio.b-cdn.net/grcup/"
 
-// Seed content of the GR Cup home (texts from the Figma design, «Datos de ejemplo» where the organiser must confirm).
+// Seed content of the GR Cup home: the texts and photos of Figma page 05 («Datos de ejemplo» where the organiser must
+// confirm). Photos are optimised copies under the public web (/img/home); logos and the belt come from the CDN.
+const img = "/img/home/"
+
 var seedSecciones = map[string]any{
 	"hero":       map[string]any{"titulo": "Los ganadores nunca se rinden"},
-	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": ""},
+	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": "Fecha por confirmar"},
+	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas inscritos"}, {"valor": "18", "etiqueta": "Categorías de peso"},
+		{"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},
 	"inscripciones": map[string]any{"titulo": "Inscripciones", "plazas": 150,
 		"texto": "La inscripción y la lista de espera las gestiona la AEP. Mientras, conoce a quienes compiten y consulta su horario."},
-	"entradas": map[string]any{"eyebrow": "Entrada gratuita · aforo limitado", "titulo": "Ven a vivirlo", "tituloAcento": "en directo",
+	"entradas": map[string]any{"eyebrow": "Entrada gratuita · aforo limitado", "titulo": "Ven a vivirlo *en directo*", "tituloAcento": "",
 		"texto": "La entrada es gratis, pero hay que reservarla: te llega un QR al email y entras sin colas. Una reserva sirve para ti y hasta 3 acompañantes.",
 		"puntos": []map[string]string{{"titulo": "Gratis con reserva", "texto": "Tu QR llega al momento por email y lo tienes siempre en «Mi entrada»."},
 			{"titulo": "Hasta 4 personas", "texto": "Una sola reserva para ti y tus acompañantes. Los menores entran con ella."},
-			{"titulo": "Sorteo opcional · 1 € por boleto", "texto": "Súmate al sorteo benéfico al reservar. Se sortea en directo."}}},
-	"atletas": map[string]any{"eyebrow": "01 · Los atletas", "titulo": "Una competición", "tituloAcento": "hecha para los atletas", "imagen": bcdn + "atheltephotos/f7efa2c624614a66b35f6ab01980e09e.webp"},
-	"dia":     map[string]any{"eyebrow": "02 · El día de la competición", "titulo": "El día en el que", "tituloAcento": "todo el esfuerzo da sus frutos", "imagen": op + "atheltephotos--t-image-22-mar-2026-23-40-58.jpg"},
-	"premios": map[string]any{"eyebrow": "03 · Premios", "titulo": "Premio para los mejores en", "tituloAcento": "cada movimiento", "lema": "¡Demuestra quién manda en cada movimiento!",
-		"items": []map[string]string{{"titulo": "Sentadilla", "imagen": op + "alfonso-fernandez--img-3276.jpg"}, {"titulo": "Press de banca", "imagen": op + "alfonso-fernandez--img-3363.jpg"}, {"titulo": "Peso muerto", "imagen": op + "alfonso-fernandez--img-3364.jpg"}}},
-	"organizacion": map[string]any{"eyebrow": "04 · La competición", "titulo": "Organización", "tituloAcento": "y equipamiento",
-		"texto":    "Una competición diseñada para ofrecer la mejor experiencia tanto a atletas como a entrenadores, con jueces certificados y equipamiento de primera categoría.",
-		"imagenes": []map[string]string{{"imagen": op + "30--central-pavello-almussafes-2.jpg", "alt": "Pabellón de Almussafes durante la competición"}, {"imagen": op + "alfonso-fernandez--img-3365.jpg", "alt": "Atletas celebrando"}}},
-	"cifras":         map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas inscritos"}, {"valor": "16", "etiqueta": "Categorías de peso IPF"}, {"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},
+			{"titulo": "Sorteo opcional · 1 € por boleto", "texto": "Súmate al sorteo del cinturón SBD al reservar. Se sortea en directo."}}},
+	"atletas": map[string]any{"eyebrow": "01 · Los atletas", "titulo": "*Una competición*|hecha para|los atletas", "tituloAcento": "",
+		"imagen": img + "atletas-1-l.webp", "alt": "Atleta compitiendo en powerlifting"},
+	"dia": map[string]any{"eyebrow": "02 · El día de la competición", "titulo": "El día en el que|*todo el esfuerzo*|da sus frutos", "tituloAcento": "",
+		"imagen": img + "atletas-2-l.webp", "alt": "Atleta concentrada antes de su intento"},
+	"premios": map[string]any{"eyebrow": "02 · Premios", "titulo": "Premio para los mejores en *cada movimiento*", "tituloAcento": "", "lema": "¡Demuestra quién manda en cada movimiento!",
+		"items": []map[string]string{{"titulo": "Sentadilla", "imagen": img + "premio-sentadilla.webp"}, {"titulo": "Press de banca", "imagen": img + "premio-banca.webp"},
+			{"titulo": "Peso muerto", "imagen": img + "premio-muerto.webp"}}},
+	"organizacion": map[string]any{"eyebrow": "03 · La competición", "titulo": "*Organización* y equipamiento", "tituloAcento": "",
+		"texto": "Una competición diseñada para ofrecer la mejor experiencia tanto a atletas como a entrenadores, con jueces certificados y equipamiento de primera categoría.",
+		"imagenes": []map[string]string{
+			{"imagen": img + "org-aep-l.webp", "titulo": "Profesionalidad AEP", "texto": "Jueces y cargadores certificados AEP con equipamiento profesional de élite", "alt": "Plataforma de competición con público"},
+			{"imagen": img + "org-entrenadores-l.webp", "titulo": "Entrenadores y atletas", "texto": "Estructura pensada para que cada entrenador pueda seguir de cerca a sus atletas", "alt": "Entrenador abrazando a su atleta"},
+			{"imagen": img + "org-publico-l.webp", "titulo": "Abierto al público", "texto": "Plataforma y rack de competición con acceso para todo el público", "alt": "Grada llena durante la competición"},
+			{"imagen": img + "org-carga-l.webp", "titulo": "Sesiones de carga", "texto": "Sesiones de carga donde la relación entrenador-atleta es fundamental", "alt": "Atleta concentrada en la sesión de carga"}}},
+	"afiliaciones": map[string]any{"eyebrow": "04 · Organiza y avala", "titulo": "*Organizadores* y afiliaciones", "tituloAcento": "",
+		"tarjetas": []map[string]string{
+			{"tipo": "logo", "imagen": bcdn + "sponsors/compressedAEP.webp", "titulo": "AEP", "texto": "Afiliada a la Asociación Española de Powerlifting. Jueces oficiales garantizan el cumplimiento de las reglas en cada intento."},
+			{"tipo": "foto", "imagen": img + "organizador.webp", "titulo": "GRStrength", "texto": "Organizado por el club GRStrength, reúne a la comunidad de powerlifting en un evento de alto nivel competitivo."}},
+		"eyebrow2": "Material", "titulo2": "*Equipamiento* de competición",
+		"texto2":   "Equipamiento profesional de SBD y A7, marcas líderes en powerlifting con homologación internacional.",
+		"marcas":   []map[string]string{{"nombre": "SBD", "logo": ""}, {"nombre": "A7", "logo": bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp"}}},
+	"sorteo": map[string]any{"eyebrow": "Sorteo benéfico", "titulo": "Sorteo", "subtitulo": "Entra en el sorteo de un cinturón SBD",
+		"texto": "Cuantos más boletos, más oportunidades de ganar. Se sortea en directo durante la competición.", "imagen": bcdn + "frames/belt_output_webp/frame_000090.webp"},
+	"categorias": map[string]any{"eyebrow": "05 · Competición", "titulo": "Categorías *de peso*", "tituloAcento": "", "texto": "Categorías oficiales de la AEP para hombres y mujeres.",
+		"imagen": img + "categorias.webp", "ctaTitulo": "Consulta las marcas mínimas", "ctaTexto": "Para clasificar para otras competiciones AEP (PDF oficial)."},
+	"horarios": map[string]any{"eyebrow": "06 · Programa", "titulo": "Horarios", "tituloAcento": "", "imagen": img + "horarios.webp"},
+	"localizacion": map[string]any{"eyebrow": "07 · Sede", "titulo": "Localización", "tituloAcento": "", "texto": "Pabellón Municipal de Almussafes (Valencia).",
+		"imagenes": []map[string]string{{"imagen": img + "sede-exterior-l.webp", "alt": "Entrada del pabellón de Almussafes"}, {"imagen": img + "sede-grada.webp", "alt": "Grada del pabellón"},
+			{"imagen": img + "sede-instalaciones.webp", "alt": "Instalaciones del pabellón"}, {"imagen": img + "sede-pista.webp", "alt": "Pista central del pabellón"}},
+		"mapa": img + "mapa.webp"},
+	"faq":            map[string]any{"eyebrow": "08 · Preguntas frecuentes", "titulo": "Todo lo que *necesitas saber*", "tituloAcento": ""},
 	"patrocinadores": map[string]any{"titulo": "Patrocinadores y colaboradores"},
-	"faq":            map[string]any{"eyebrow": "Dudas", "titulo": "Preguntas frecuentes", "texto": "Lo que más nos preguntáis sobre entradas, horarios y la competición."},
-	"localizacion":   map[string]any{"eyebrow": "Localización", "titulo": "Cómo llegar", "texto": "Pabellón con aparcamiento cercano. Revisa los avisos antes de venir."},
 }
 
 var seedFAQ = []faqIn{
-	{"Entradas", "¿La entrada es gratuita?", "Sí. La entrada es gratuita, pero hay que **reservarla** para controlar el aforo. Recibirás un QR por email.", true, true},
-	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", true, true},
+	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true},
+	{"Competición", "¿Cómo me inscribo?", "La inscripción y la lista de espera las gestiona la **AEP** desde su web. Desde aquí te enlazamos a su formulario.", true, true},
+	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true},
+	{"Competición", "¿Necesito una marca mínima?", "Para esta competición no hace falta marca mínima. Las [marcas mínimas](/marcas-minimas) sirven para clasificar a otras competiciones AEP.", true, true},
+	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true},
+	{"Sorteo", "¿Cómo funciona el sorteo?", "1 € por boleto. El sorteo es benéfico y se celebra en directo con lista cerrada y semilla publicada: cualquiera puede comprobar el resultado.", true, true},
+	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", false, true},
 	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta. *Datos de ejemplo: pendiente de confirmar por la organización.*", false, true},
-	{"Competición", "¿Cómo me inscribo como atleta?", "La inscripción y la lista de espera las gestiona la **AEP** desde su web. Desde aquí te enlazamos a su formulario.", true, true},
-	{"Competición", "¿Qué categorías de peso hay?", "Las categorías IPF masculinas y femeninas. Consulta la página de categorías de peso.", false, true},
-	{"Sorteo", "¿Cuánto cuesta un boleto del sorteo?", "1 € por boleto. El sorteo es benéfico y se celebra en directo con lista cerrada y semilla publicada.", true, true},
 	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón. *Datos de ejemplo.*", false, true},
 }
 
@@ -56,6 +84,8 @@ var seedPatro = []patroIn{
 	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", true},
 	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", true},
 	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", true},
+	{"CFI", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", true},
+	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", true},
 }
 
 const logoValkyria = bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp"
@@ -137,8 +167,10 @@ var seedPaginas = []paginaIn{
 	{Slug: "marcas-minimas", Titulo: "Marcas mínimas", Resumen: "Totales mínimos por categoría.", Publicada: true, Cuerpo: "Las marcas mínimas de participación las fija la AEP para cada temporada. *Datos de ejemplo: pendiente de publicar las de 2026.*"},
 }
 
-// seedGRCup fills the GR Cup content (idempotent: only collections that are still empty).
-func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
+// seedGRCup fills the GR Cup content (idempotent: only collections that are still empty). With «--home-v2» it also
+// rewrites the home of an existing edition with the Figma content (sections, order and visibility, the featured
+// FAQ and the missing sponsors): used once to bring an edition seeded before the fidelity review up to date.
+func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 	if err := db.Migrate(ctx, a.DB, mustMigrations(), a.Log); err != nil {
 		return err
 	}
@@ -177,6 +209,12 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 					return err
 				}
 			}
+		}
+		if len(args) > 0 && args[0] == "--home-v2" {
+			if err := homeV2(ctx, tx, cid); err != nil {
+				return err
+			}
+			a.Log.Info("home reescrita con el contenido de Figma (v2)", "competicion", cid)
 		}
 		if empty(tx, "clubs") {
 			if err := seedSeo(ctx, tx, cid, seedSeoRutas["/clubs"]); err != nil {
@@ -248,4 +286,46 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		a.Log.Info("contenido de la GR Cup listo (Datos de ejemplo)", "competicion", cid)
 	}
 	return err
+}
+
+// homeV2 rewrites the home of an edition with the content of Figma page 05: every section (draft and published),
+// the default order and visibility, the six featured questions and the sponsors that are missing.
+func homeV2(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
+	if err := ensureSecciones(ctx, tx, cid, "home"); err != nil {
+		return err
+	}
+	for i, d := range Secciones {
+		b, _ := json.Marshal(seedSecciones[d.Clave])
+		if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = $4, publicado = $4, orden = $5, pub_orden = $5, visible = true, pub_visible = true, publicado_at = now(), version = version + 1
+			WHERE competition_id = $1 AND pagina = $2 AND clave = $3`, cid, "home", d.Clave, b, i+1); err != nil {
+			return err
+		}
+	}
+	// FAQ: the featured ones are exactly those of Figma (added when missing); the rest stay but are not featured
+	if _, err := tx.Exec(ctx, `UPDATE faq SET destacada = false WHERE competition_id = $1`, cid); err != nil {
+		return err
+	}
+	for i, f := range seedFAQ {
+		tag, err := tx.Exec(ctx, `UPDATE faq SET destacada = $3, publicada = true, orden = $4 WHERE competition_id = $1 AND pregunta = $2`, cid, f.Pregunta, f.Destacada, i+1)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			if _, err := tx.Exec(ctx, `INSERT INTO faq (id, competition_id, categoria, pregunta, respuesta, destacada, publicada, orden) VALUES ($1,$2,$3,$4,$5,$6,true,$7)`,
+				newID(), cid, f.Categoria, f.Pregunta, f.Respuesta, f.Destacada, i+1); err != nil {
+				return err
+			}
+		}
+	}
+	for i, p := range seedPatro {
+		if _, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, orden)
+			SELECT $1,$2,$3,$4,$5,$6,$7,$8 WHERE NOT EXISTS (SELECT 1 FROM patrocinadores WHERE competition_id = $2 AND nombre = $3)`,
+			newID(), cid, p.Nombre, p.Nivel, p.LogoURL, p.URL, p.Activo, i+1); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE patrocinadores SET orden = $3 WHERE competition_id = $1 AND nombre = $2`, cid, p.Nombre, i+1); err != nil {
+			return err
+		}
+	}
+	return nil
 }

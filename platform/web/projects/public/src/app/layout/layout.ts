@@ -31,6 +31,32 @@ const LINKS: Record<Lang, NavLink[]> = {
     { label: 'Getting there', href: '/en#travel' },
   ],
 };
+/** «Navbar / Mega menú» of Figma: the three columns of «Competición ▾» and the highlighted booking card. */
+interface MegaItem { label: string; desc: string; href: string }
+const MEGA: { titulo: string; items: MegaItem[] }[] = [
+  { titulo: 'Competición', items: [
+    { label: 'Categorías de peso', desc: 'Pesos y divisiones de edad', href: '/categorias-de-peso' },
+    { label: 'Marcas mínimas', desc: 'Totales AEP-1 por categoría', href: '/marcas-minimas' },
+    { label: 'Reglamento', desc: 'Intentos, jueces y equipamiento', href: '/reglamento' },
+    { label: 'Inscripción', desc: 'La gestiona la AEP', href: '/inscripcion' },
+    { label: 'Resultados', desc: 'Clasificaciones por edición', href: '/resultados' },
+  ] },
+  { titulo: 'El evento', items: [
+    { label: 'Atletas', desc: 'Perfiles y su horario', href: '/atletas' },
+    { label: 'Horarios', desc: 'Flights y plataforma, en directo', href: '/horarios' },
+    { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
+    { label: 'Sorteo', desc: '1 € por boleto', href: '/sorteo' },
+    { label: 'Galería', desc: 'Fotos de la competición', href: '/galeria' },
+  ] },
+  { titulo: 'Visita y comunidad', items: [
+    { label: 'Entradas', desc: 'Gratis con reserva', href: '/entradas' },
+    { label: 'Cómo llegar', desc: 'Pabellón de Almussafes', href: '/como-llegar' },
+    { label: 'Público', desc: 'Normas y servicios', href: '/publico' },
+    { label: 'Preguntas frecuentes', desc: 'Resolvemos tus dudas', href: '/preguntas-frecuentes' },
+    { label: 'Edición 2025', desc: 'Llíria · 1–2 marzo 2025', href: '/ediciones/2025' },
+  ] },
+];
+
 const UI = {
   es: { cta: 'Entrada gratis', ctaMenu: 'Reserva tu entrada gratis', open: 'Abrir menú', close: 'Cerrar menú', otherLang: 'EN', otherHref: '/en', otherLabel: 'English version', home: 'GR Strength Cup · inicio' },
   en: { cta: 'Free ticket', ctaMenu: 'Book your free ticket', open: 'Open menu', close: 'Close menu', otherLang: 'ES', otherHref: '/', otherLabel: 'Versión en español', home: 'GR Strength Cup · home' },
@@ -44,19 +70,47 @@ const UI = {
   selector: 'gr-navbar',
   imports: [RouterLink, GrLogo, GrButton, GrIcon, GrIconButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 xl:px-[120px]', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
+  host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false)', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
   template: `
-    <nav class="flex h-14 items-center gap-6 rounded-lg border border-line-subtle bg-bg-base/70 px-3 shadow-card backdrop-blur-[20px] md:h-16 md:px-6" aria-label="Principal">
-      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="shrink-0" [attr.aria-label]="ui().home"><gr-logo [height]="32" /></a>
-      <ul class="ml-auto hidden items-center gap-1 lg:flex">
-        @for (l of links(); track l.href) {
-          <li><a [href]="l.href" class="inline-flex h-10 items-center rounded-sm px-3 text-label-s text-text-secondary transition-colors hover:text-text-primary">{{ l.label }}</a></li>
+    <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-6 overflow-hidden rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[20px] md:h-[70px] md:px-6" aria-label="Principal">
+      <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
+      <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
+      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-auto md:h-10" /></a>
+      <ul class="relative ml-auto hidden items-center gap-6 lg:flex">
+        @for (l of links(); track l.href; let i = $index) {
+          <li>
+            @if (i === 0 && lang() === 'es') {
+              <button type="button" class="inline-flex h-10 items-center gap-1 text-label-s text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+                {{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" />
+              </button>
+            } @else {
+              <a [href]="l.href" class="inline-flex h-10 items-center text-label-s text-text-secondary transition-colors hover:text-text-primary">{{ l.label }}</a>
+            }
+          </li>
         }
       </ul>
-      <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="hidden h-8 items-center gap-1.5 rounded-pill border border-line-strong px-2.5 text-mono-xs text-text-secondary hover:text-text-primary lg:inline-flex"><gr-icon name="globe" [size]="14" />{{ lang() === 'en' ? 'EN' : 'ES' }}<span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
-      <a grButton variant="primary" size="s" href="/entradas" class="ml-auto lg:ml-0">{{ ui().cta }}</a>
-      <button grIconButton icon="menu" [label]="ui().open" class="lg:hidden" (click)="open.set(true)"></button>
+      <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary lg:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
+      <a grButton variant="primary" href="/entradas" class="relative ml-auto lg:ml-0">{{ ui().cta }}</a>
+      <button grIconButton icon="menu" [label]="ui().open" class="relative lg:hidden" (click)="open.set(true)"></button>
     </nav>
+    @if (mega()) {
+      <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card lg:flex" (keydown.escape)="mega.set(false)">
+        @for (col of megaCols; track col.titulo) {
+          <div class="flex w-[250px] flex-col gap-1">
+            <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
+            @for (it of col.items; track it.href) {
+              <a [href]="it.href" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
+            }
+          </div>
+        }
+        <div class="ml-auto flex w-[240px] flex-col gap-2 self-start rounded-lg border border-accent/60 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] p-5">
+          <p class="text-label-xs text-text-secondary">Entrada gratuita</p>
+          <p class="text-display-2xs">Vive la GR Cup en directo</p>
+          <p class="text-body-s text-text-secondary">Reserva gratis y súmate al sorteo por 1 €.</p>
+          <a grButton variant="primary" href="/entradas" class="mt-2 self-start">Reservar</a>
+        </div>
+      </div>
+    }
     @if (open()) {
       <div class="fixed inset-0 z-50 flex flex-col bg-bg-base/98 px-5 pt-3 backdrop-blur-xl lg:hidden" role="dialog" aria-modal="true" aria-label="Menú">
         <div class="flex h-14 items-center justify-between">
@@ -78,6 +132,12 @@ export class Navbar {
   readonly hidden = input(false);
   readonly lang = input<Lang>('es');
   protected readonly open = signal(false);
+  protected readonly mega = signal(false);
+  private readonly el = inject(ElementRef<HTMLElement>);
+  /** The mega menu closes with a click outside the navbar (and with Esc). */
+  protected fuera(e: Event): void { if (this.mega() && !this.el.nativeElement.contains(e.target as Node)) this.mega.set(false); }
+  protected readonly megaCols = MEGA;
+  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
   protected readonly links = computed(() => LINKS[this.lang()]);
   protected readonly ui = computed(() => UI[this.lang()]);
   protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
