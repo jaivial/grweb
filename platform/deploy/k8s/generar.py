@@ -11,12 +11,13 @@ HERE = Path(__file__).parent
 
 # name: db (own database), hpa (min, max), mem (request, limit), env (plain), secrets (env ← secret/key),
 #       jobs [(name, args, envFrom secrets)]
+# Event-day services (identity, competition, ticketing, live, realtime) keep 2 replicas: losing a pod is not an outage.
 SERVICES = {
-    "identity": dict(db=True, hpa=(1, 4), mem=("96Mi", "512Mi"),
+    "identity": dict(db=True, hpa=(2, 4), mem=("96Mi", "512Mi"),
                      env={"GOMEMLIMIT": "400MiB"},  # 4 concurrent argon2id runs × 19 MiB + baseline
                      secrets={"JWT_PRIVATE_KEY": ("grcup-jwt", "private.pem")},
                      jobs=[("identity-bootstrap", ["bootstrap-root"], ["grcup-root"])]),
-    "competition": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"),
+    "competition": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"),
                         secrets={"CRYPTO_KEY": ("grcup-crypto", "CRYPTO_KEY")},
                         jobs=[("competition-seed", ["seed-grcup"], ["grcup-root"])]),
     "audit": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
@@ -30,13 +31,51 @@ SERVICES = {
     "schedule": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("schedule-seed", ["seed-grcup"], [])]),
     "crm": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("crm-seed", ["seed-grcup"], [])]),
     "messaging": dict(db=True, hpa=(1, 2), mem=("64Mi", "256Mi")),
-    "ticketing": dict(db=True, hpa=(1, 4), mem=("64Mi", "256Mi"), jobs=[("ticketing-seed", ["seed-grcup"], [])]),
-    "live": dict(db=True, hpa=(1, 4), mem=("64Mi", "256Mi"), jobs=[("live-seed", ["seed-grcup"], [])]),
+    "ticketing": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("ticketing-seed", ["seed-grcup"], [])]),
+    "live": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("live-seed", ["seed-grcup"], [])]),
     "raffle": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("raffle-seed", ["seed-grcup"], [])]),
     "ai": dict(db=False, hpa=(1, 2), mem=("32Mi", "128Mi"), secrets={"MINIMAX_API_KEY": ("grcup-ai", "MINIMAX_API_KEY")}),
-    "realtime": dict(db=False, hpa=(1, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
+    "realtime": dict(db=False, hpa=(2, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
 }
-EDGE = ["gateway", "web", "backoffice"]  # hand-written manifests in base/<name>/
+EDGE = ["gateway", "web", "backoffice"]
+
+# Who calls whom (svcclient.New(…, from, to, …)). Each service only accepts its callers, the gateway and audit (the
+# /readyz of «Sistema › Salud»); identity accepts every service (JWKS). Update it when a service starts calling another.
+LLAMADAS = {
+    "identity": ["*"],
+    "competition": ["ai", "athletes", "cms", "crm", "live", "messaging", "raffle", "realtime", "schedule", "ticketing"],
+    "athletes": ["crm", "live", "schedule"],
+    "cms": ["athletes", "crm", "ticketing"],
+    "crm": ["messaging"],
+    "messaging": ["crm"],
+    "raffle": ["crm"],
+    "schedule": ["live", "messaging"],
+    "ticketing": ["crm"],
+}
+
+
+def politica(name):
+    """Strict ingress of a service: the gateway, audit and its callers (their pods and jobs, by grcup.dev/servicio)."""
+    llamadores = LLAMADAS.get(name, [])
+    if "*" in llamadores:
+        desde = "        - podSelector: { matchLabels: { grcup.dev/tier: service } }\n        - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }"
+    else:
+        desde = "\n".join(f"        - podSelector: {{ matchLabels: {{ grcup.dev/servicio: {c} }} }}" for c in ["gateway", "audit"] + llamadores)
+    return f"""---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-{name}
+spec:
+  podSelector:
+    matchLabels: {{ app.kubernetes.io/name: {name} }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+{desde}
+      ports:
+        - {{ port: 8080, protocol: TCP }}
+"""  # hand-written manifests in base/<name>/
 
 SEC = """          securityContext:
             allowPrivilegeEscalation: false
@@ -80,7 +119,7 @@ def volumes(spec):
 
 def manifest(name, spec):
     labels = f"app.kubernetes.io/name: {name}, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service"
-    pod_labels = labels + (', grcup.dev/db: "true"' if spec["db"] else "")
+    pod_labels = labels + f", grcup.dev/servicio: {name}" + (', grcup.dev/db: "true"' if spec["db"] else "")
     req, lim = spec["mem"]
     mn, mx = spec["hpa"]
     init = ""
@@ -152,10 +191,13 @@ spec:
           livenessProbe:
             httpGet: {{ path: /healthz, port: http }}
             periodSeconds: 10
+          # The endpoint leaves the Service before SIGTERM: in-flight requests finish, new ones go elsewhere.
+          lifecycle:
+            preStop: {{ sleep: {{ seconds: 5 }} }}
 {SEC}
           resources:
             requests: {{ cpu: 30m, memory: {req} }}
-            limits: {{ cpu: "1", memory: {lim} }}{volume_mounts(spec)}{volumes(spec)}
+            limits: {{ cpu: 500m, memory: {lim} }}{volume_mounts(spec)}{volumes(spec)}
 ---
 apiVersion: v1
 kind: Service
@@ -178,10 +220,10 @@ spec:
   metrics:
     - type: Resource
       resource: {{ name: cpu, target: {{ type: Utilization, averageUtilization: 70 }} }}
-    - type: Resource
-      resource: {{ name: memory, target: {{ type: Utilization, averageUtilization: 80 }} }}
+  # CPU only: Go's heap stays high after a spike and a memory target would keep pods that are idle.
   behavior:
-    scaleDown: {{ stabilizationWindowSeconds: 180 }}
+    scaleUp: {{ stabilizationWindowSeconds: 0, policies: [{{ type: Pods, value: 2, periodSeconds: 30 }}] }}
+    scaleDown: {{ stabilizationWindowSeconds: 300, policies: [{{ type: Pods, value: 1, periodSeconds: 60 }}] }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -208,7 +250,7 @@ spec:
   ttlSecondsAfterFinished: 3600
   template:
     metadata:
-      labels: {{ app.kubernetes.io/name: {job}, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/db: "true" }}
+      labels: {{ app.kubernetes.io/name: {job}, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: {name}, grcup.dev/db: "true" }}
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
@@ -224,7 +266,7 @@ spec:
 {block}
 {SEC}
 """
-    return out
+    return out + politica(name)
 
 
 def main():
@@ -232,7 +274,7 @@ def main():
         d = HERE / "base" / name
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{name}.yaml").write_text(manifest(name, spec).replace("args: ['", 'args: ["').replace("']", '"]').replace("', '", '", "'))
-    res = ["common/config.yaml", "common/guardrails.yaml", "postgres/postgres.yaml", "redis-bridge/redis-bridge.yaml", "mailpit/mailpit.yaml"]
+    res = ["common/config.yaml", "common/guardrails.yaml", "postgres/postgres.yaml", "postgres/copias.yaml", "redis-bridge/redis-bridge.yaml", "mailpit/mailpit.yaml"]
     res += [f"{n}/{n}.yaml" for n in list(SERVICES) + EDGE]
     (HERE / "base" / "kustomization.yaml").write_text(
         "# GENERATED by deploy/k8s/generar.py.\napiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nlabels:\n"

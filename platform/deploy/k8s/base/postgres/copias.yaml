@@ -1,0 +1,64 @@
+# Nightly logical backups of every grcup_* database (pg_dump custom format), kept 7 days on the node
+# (/var/lib/grcup-qa/copias/<fecha>/<base>.dump). Restore: docs/runbooks/PRODUCCION.md › «Copias y restauración».
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: copias-postgres
+  labels: { app.kubernetes.io/name: copias-postgres, app.kubernetes.io/part-of: grcup }
+spec:
+  schedule: "30 3 * * *"
+  timeZone: Europe/Madrid
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          # grcup.dev/db: the postgres NetworkPolicy only admits pods with a database
+          labels: { app.kubernetes.io/name: copias-postgres, app.kubernetes.io/part-of: grcup, grcup.dev/db: "true" }
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext:
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: copias
+              image: postgres:17-alpine
+              imagePullPolicy: IfNotPresent
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  # the dumps hold personal data: only root on the node can read them
+                  umask 077
+                  chmod 700 /copias
+                  d=/copias/$(date +%Y-%m-%d)
+                  mkdir -p "$d"
+                  for db in $(psql -h postgres -U postgres -tAc "SELECT datname FROM pg_database WHERE datname LIKE 'grcup_%' ORDER BY 1"); do
+                    pg_dump -h postgres -U postgres -Fc -Z 6 -f "$d/$db.dump.tmp" "$db" && mv "$d/$db.dump.tmp" "$d/$db.dump"
+                    echo "copia $db $(du -h "$d/$db.dump" | cut -f1)"
+                  done
+                  pg_dumpall -h postgres -U postgres --globals-only > "$d/globals.sql"
+                  find /copias -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
+                  echo "copias completas en $d"
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: grcup-db, key: POSTGRES_PASSWORD } }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: copias, mountPath: /copias }
+                - { name: tmp, mountPath: /tmp }
+              resources:
+                requests: { cpu: 20m, memory: 64Mi }
+                limits: { cpu: 500m, memory: 256Mi }
+          volumes:
+            - name: copias
+              hostPath: { path: /var/lib/grcup-qa/copias, type: DirectoryOrCreate }
+            - name: tmp
+              emptyDir: { sizeLimit: 64Mi }

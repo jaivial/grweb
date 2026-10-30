@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sort"
 	"strconv"
@@ -19,10 +20,12 @@ import (
 
 // Servicio is the state of a service of the platform (its /readyz: database and Redis reachable).
 type Servicio struct {
-	Nombre string `json:"nombre"`
-	OK     bool   `json:"ok"`
-	Ms     int64  `json:"ms"`
-	Error  string `json:"error,omitempty"`
+	Nombre     string  `json:"nombre"`
+	OK         bool    `json:"ok"`
+	Ms         int64   `json:"ms"`
+	Error      string  `json:"error,omitempty"`
+	P95        float64 `json:"p95" doc:"Segundos (límite del cubo), desde que arrancó el pod"`
+	Peticiones uint64  `json:"peticiones"`
 }
 
 // Grupo is a consumer group of the event stream: how far behind it is.
@@ -68,6 +71,16 @@ func (s *Svc) salud(ctx context.Context, cid uuid.UUID) Salud {
 			default:
 				sv.OK = true
 				res.Body.Close()
+				base := strings.TrimSuffix(url, "/readyz")
+				if r2, err := cli.Get(base + "/metrics/resumen"); err == nil {
+					var m struct {
+						P95        float64 `json:"p95"`
+						Peticiones uint64  `json:"peticiones"`
+					}
+					_ = json.NewDecoder(r2.Body).Decode(&m)
+					r2.Body.Close()
+					sv.P95, sv.Peticiones = m.P95, m.Peticiones
+				}
 			}
 			o.Servicios[i] = sv
 		}(i, n)
