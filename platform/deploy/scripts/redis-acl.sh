@@ -13,6 +13,7 @@ case "${1:-}" in
   *) echo "uso: $0 <qa|prod>" >&2; exit 2 ;;
 esac
 KRAKEN="${KRAKEN:-kraken}"
+[ -f "$F" ] || { echo "falta $F: ejecuta antes deploy/scripts/secretos.sh $1" >&2; exit 1; }
 pw=$(grep -E '^REDIS_PASSWORD=' "$F" | cut -d= -f2-)
 [ -n "$pw" ] || { echo "falta REDIS_PASSWORD en $F" >&2; exit 1; }
 hash=$(printf '%s' "$pw" | sha256sum | cut -d' ' -f1)
