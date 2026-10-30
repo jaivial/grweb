@@ -24,7 +24,7 @@ export interface CompeticionPublica {
   evento: { descripcion: string; nivel: string; organizador: string; emailContacto: string; puertas: string; aforoPabellon: number; instagram: string };
   modulos: Record<string, boolean>;
   inscripcion: { modo: string; url: string; estado: string; plazas?: number };
-  comoLlegar: { tipo: string; titulo: string; detalle: string; estado: string }[];
+  comoLlegar: { tipo: string; titulo: string; detalle: string; nota?: string; estado: string }[];
 }
 
 /** Slug of the competition this site serves (one public site per competition). */

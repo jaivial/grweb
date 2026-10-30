@@ -78,7 +78,7 @@ const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
     @let d = data();
     <gr-page title="Vive la GRStrength Cup" accent="en directo" eyebrow="Entrada gratuita · aforo limitado" crumb="Entradas"
       subtitle="150 atletas, jueces AEP y tres movimientos al límite en Almussafes. La entrada es gratis: resérvala en un minuto y entra sin colas.">
-      <div pageStamps class="mt-5 flex flex-col gap-2 text-body-s text-text-secondary">
+      <div pageStamps class="flex flex-col gap-2 text-body-s text-text-secondary">
         <p class="flex items-center gap-2"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ fechas() }}</p>
         <p class="flex items-center gap-2"><gr-icon name="map-pin" [size]="16" class="text-accent-text" />{{ comp.data()?.sede?.nombre || 'Almussafes' }}</p>
         @if (d?.personas) { <p class="flex items-center gap-2"><gr-icon name="users" [size]="16" class="text-accent-text" /><b class="text-text-primary">{{ n(d!.personas) }} personas</b> ya tienen entrada</p> }

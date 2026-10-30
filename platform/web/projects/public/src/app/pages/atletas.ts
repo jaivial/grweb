@@ -44,7 +44,7 @@ export class Fav {
     @let l = lista();
     <gr-page title="Los" [accent]="(plazas() || l?.resumen?.total || '') + ' atletas'" suffix="de la GR Cup" eyebrow="Competición 2026" crumb="Atletas"
       subtitle="Busca a quien vienes a animar, mira su categoría y a qué hora compite. Sigue a tus atletas y tendrás tu propio horario.">
-      <p pageStamps class="mt-5 flex flex-wrap gap-2">
+      <p pageStamps class="flex flex-wrap gap-2">
         @if (l?.actualizado) { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado el {{ fecha(l!.actualizado) }} · Fuente: inscritos AEP</span> }
         <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-mono-xs text-info">Datos de ejemplo</span>
         @if (inscripcion(); as i) { <span class="inline-flex h-8 items-center rounded-pill border border-line-strong px-3 text-mono-xs text-text-secondary">{{ i }}</span> }
@@ -495,7 +495,7 @@ export class AtletaPage {
     @let p = data();
     <gr-page title="Participantes" accent="y flights" eyebrow="Inscritos" section="El evento" crumb="Participantes"
       subtitle="Lista de atletas inscritos por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
-      <p pageStamps class="mt-5 flex flex-wrap gap-2">
+      <p pageStamps class="flex flex-wrap gap-2">
         <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde las inscripciones</span>
         <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-mono-xs text-info">Datos de ejemplo</span>
       </p>

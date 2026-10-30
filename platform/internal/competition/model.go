@@ -96,9 +96,10 @@ type Inscripcion struct {
 }
 
 type ComoLlegar struct {
-	Tipo    string `json:"tipo" enum:"coche,parking,bus,tren,metro,bici,avion,otro"`
+	Tipo    string `json:"tipo" enum:"coche,parking,bus,tren,metro,bici,avion,accesibilidad,otro" doc:"parking y accesibilidad van en «Aparcamiento y accesibilidad»; el resto, en «Cómo llegar»"`
 	Titulo  string `json:"titulo" maxLength:"80"`
 	Detalle string `json:"detalle" maxLength:"600"`
+	Nota    string `json:"nota,omitempty" maxLength:"80" doc:"Línea corta bajo el texto: «≈ 25 min desde Valencia»"`
 	Estado  string `json:"estado" enum:"confirmado,por_confirmar"`
 }
 
