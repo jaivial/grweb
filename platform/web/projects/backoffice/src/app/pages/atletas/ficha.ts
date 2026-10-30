@@ -1,3 +1,4 @@
+import { webPublica } from '../../core/web';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +13,7 @@ import { ESTADO } from './list';
 
 type Tab = 'perfil' | 'competicion' | 'comunicaciones' | 'historial';
 
-const PUBLIC_WEB = 'https://grcup-qa.menustudioai.com';
+const PUBLIC_WEB = webPublica();
 
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({

@@ -205,11 +205,15 @@ func (c *Consumer) Run(ctx context.Context) {
 	if err := c.Redis.XGroupCreateMkStream(ctx, c.Stream, c.Group, c.Start).Err(); err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		c.Log.Error("xgroup create", "group", c.Group, "err", err)
 	}
-	lastReclaim := time.Now()
+	lastReclaim, lastClean := time.Now(), time.Time{}
 	for ctx.Err() == nil {
 		if time.Since(lastReclaim) > 30*time.Second {
 			c.reclaim(ctx, name)
 			lastReclaim = time.Now()
+		}
+		if time.Since(lastClean) > 10*time.Minute {
+			c.limpiar(ctx, name)
+			lastClean = time.Now()
 		}
 		res, err := c.Redis.XReadGroup(ctx, &redis.XReadGroupArgs{Group: c.Group, Consumer: name, Streams: []string{c.Stream, ">"}, Count: 50, Block: 5 * time.Second}).Result()
 		if err != nil {
@@ -297,6 +301,20 @@ func (c *Consumer) reclaim(ctx context.Context, name string) {
 	}
 	for _, m := range msgs {
 		c.process(ctx, m)
+	}
+}
+
+// limpiar removes the consumers of pods that are gone (idle for more than an hour and nothing pending: their
+// messages were already reclaimed), so the group does not grow with every deploy.
+func (c *Consumer) limpiar(ctx context.Context, name string) {
+	cs, err := c.Redis.XInfoConsumers(ctx, c.Stream, c.Group).Result()
+	if err != nil {
+		return
+	}
+	for _, x := range cs {
+		if x.Name != name && x.Pending == 0 && x.Idle > time.Hour {
+			_ = c.Redis.XGroupDelConsumer(ctx, c.Stream, c.Group, x.Name).Err()
+		}
 	}
 }
 

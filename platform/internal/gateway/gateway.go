@@ -43,7 +43,7 @@ var routeTable = func() []route {
 		{c + `equipo(/|$)`, "identity"},
 		{c + `stream$`, "realtime"},
 		{p + `stream$`, "realtime"},
-		{c + `(auditoria|actividad|dashboard|notificaciones|exportaciones|trabajos|webhooks)(/|$)`, "audit"},
+		{c + `(auditoria|actividad|dashboard|notificaciones|exportaciones|trabajos|webhooks|sistema)(/|$)`, "audit"},
 		{c + `(web|legal|voluntarios|medios)(/|$)`, "cms"},
 		{p + `(web|faq|patrocinadores|legal|blog|galeria|voluntarios|seo|paginas|clubs)(/|$)`, "cms"},
 		{`^/api/(sitemap|ayuda|medios)(/|$)`, "cms"},
