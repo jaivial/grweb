@@ -446,7 +446,8 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
     title: 'Patrocinadores', subtitle: 'Logos de la home y de /patrocinadores, en este orden', path: '/web/patrocinadores', item: 'patrocinador', reorder: true, filterBy: 'nivel',
     columns: [{ key: 'logoUrl', label: 'Logo', kind: 'image' }, { key: 'nombre', label: 'Nombre' }, { key: 'nivel', label: 'Nivel', kind: 'badge', hideMobile: true }, { key: 'activo', label: 'Activo', kind: 'bool' }],
     fields: [{ clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto', max: 120 }, { clave: 'nivel', etiqueta: 'Nivel', tipo: 'select', ancho: 'mitad', opciones: [['principal', 'Principal'], ['oro', 'Oro'], ['plata', 'Plata'], ['colaborador', 'Colaborador'], ['institucional', 'Institucional']].map(([value, label]) => ({ value, label })) },
-      { clave: 'url', etiqueta: 'Web', tipo: 'url', ancho: 'mitad' }, { clave: 'logoUrl', etiqueta: 'Logo', tipo: 'imagen', ayuda: 'PNG o WebP con fondo transparente' }, { clave: 'activo', etiqueta: 'Mostrar en la web', tipo: 'bool' }],
+      { clave: 'url', etiqueta: 'Web', tipo: 'url', ancho: 'mitad' }, { clave: 'logoUrl', etiqueta: 'Logo', tipo: 'imagen', ayuda: 'PNG o WebP con fondo transparente' },
+      { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'texto', max: 200, ayuda: 'Una línea bajo el nombre en /patrocinadores (opcional)' }, { clave: 'activo', etiqueta: 'Mostrar en la web', tipo: 'bool' }],
     defaults: { nivel: 'colaborador', activo: true },
     empty: { title: 'Sin patrocinadores', text: 'Añade marcas y entidades con su logo y enlace.' },
   }, {
