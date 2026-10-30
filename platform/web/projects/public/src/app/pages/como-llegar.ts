@@ -6,6 +6,7 @@ import { Cms } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
+import { Lightbox } from '../layout/lightbox';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
@@ -13,7 +14,7 @@ import { Community, Related, type RelatedLink } from './landings';
 /** /como-llegar (Figma page 11, «ampliada»): address and map, transport, parking and accessibility, venue photos, where to stay. */
 @Component({
   selector: 'gr-como-llegar-page',
-  imports: [RouterLink, Page, GrIcon, GrButton, GrCabecera, Related, Community],
+  imports: [RouterLink, Page, GrIcon, GrButton, GrCabecera, Related, Community, Lightbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -101,12 +102,15 @@ import { Community, Related, type RelatedLink } from './landings';
           <section id="fotos" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
             <gr-cabecera eyebrow="04 · La sede" titulo="Fotos del *pabellón*" [centro]="false" tam="m" />
             <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
-              @for (f of fotos(); track f.imagen) {
+              @for (f of fotos(); track f.imagen; let i = $index) {
                 <li class="relative aspect-[300/220] w-[300px] shrink-0 snap-center overflow-hidden rounded-2xl border border-white/8 md:aspect-[288/190] md:w-auto">
-                  <img [src]="f.imagen" [alt]="f.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
+                  <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
+                    <img [src]="f.imagen" [alt]="f.alt" class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+                  </button>
                 </li>
               }
             </ul>
+            <gr-lightbox [fotos]="fotos()" [(indice)]="ver" />
             <div class="flex items-center gap-1.5 md:hidden" aria-hidden="true">
               @for (f of fotos(); track f.imagen; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === foto() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
             </div>
@@ -135,6 +139,8 @@ export class ComoLlegarPage {
   protected readonly comp = signal<CompeticionPublica | null>(null);
   protected readonly copiado = signal(false);
   protected readonly foto = signal(0);
+  /** Photo open in the lightbox (−1: closed). */
+  protected readonly ver = signal(-1);
   protected readonly activa = signal('mapa');
   protected readonly enc = encodeURIComponent;
   protected readonly anclas = [{ id: 'mapa', t: 'Mapa' }, { id: 'transporte', t: 'Transporte' }, { id: 'aparcamiento', t: 'Aparcamiento' }, { id: 'fotos', t: 'Fotos' }, { id: 'alojamiento', t: 'Alojamiento' }];

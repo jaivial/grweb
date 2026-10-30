@@ -7,6 +7,7 @@ import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, fmtLongDate } 
 import { Cms, renderMarkdown, type Album, type Faq, type Foto, type Heading, type Pagina, type Patrocinador } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo, type SeoData } from '../core/seo';
+import { NoEncontrada } from '../layout/no-encontrada';
 import { Page } from '../layout/page';
 
 /** Applies the SEO of a route: the CMS override when there is one, else the page's own defaults. */
@@ -196,13 +197,13 @@ const location0 = (tipo: string) => LEGAL_PATHS[tipo] ?? '/';
 /** Generic CMS page (reglamento, categorías de peso, marcas mínimas…) and blog post. */
 @Component({
   selector: 'gr-content-page',
-  imports: [Page, GrSkeleton],
+  imports: [Page, GrSkeleton, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="p()?.titulo ?? (p() === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="tipo() === 'blog' ? 'Blog' : 'Competición'" [subtitle]="p()?.resumen ?? ''"
-      [stamp]="tipo() === 'blog' && p()?.publicadoAt ? fecha(p()!.publicadoAt!) : ''">
+      [stamp]="tipo() === 'blog' && p()?.publicadoAt ? fecha(p()!.publicadoAt!) : ''" [cabecera]="p() !== null || cms.failed()">
       @if (p() === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else if (p() === null) { @if (!cms.failed()) { <p class="text-body-m text-text-tertiary">Esta página no existe o todavía no está publicada. <a href="/" class="text-accent-text underline">Volver al inicio</a></p> } }
+      @else if (p() === null) { @if (!cms.failed()) { <gr-no-encontrada class="-mt-[92px] md:-mt-[148px]" /> } }
       @else {
         @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl" alt="" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
         <article class="prose-gr max-w-3xl text-body-m" [innerHTML]="html()"></article>

@@ -10,7 +10,7 @@ import { problemOf } from '../core/api';
   selector: 'bo-access-layout',
   imports: [GrLogo],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'grid min-h-dvh lg:grid-cols-2' },
+  host: { class: 'grid min-h-dvh grid-cols-[minmax(0,1fr)] lg:grid-cols-2' },
   template: `
     <section class="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-center lg:px-24" style="background: radial-gradient(120% 90% at 0% 0%, #5a1520 0%, #2a0d12 45%, #160b0d 100%)">
       <div class="grain-acento absolute inset-0 opacity-60"></div>
@@ -60,7 +60,7 @@ export class AccessLayout {}
               <input grInput id="password" name="password" type="password" autocomplete="current-password" required [(ngModel)]="password" [invalid]="!!fieldError()" />
             </gr-field>
             <!-- Figma 51 (mobile): the link drops under the box when there is no room -->
-            <div class="flex flex-wrap items-center justify-between gap-x-3">
+            <div class="flex flex-wrap items-center justify-between gap-x-2">
               <label class="flex min-h-11 items-center gap-2 text-body-s whitespace-nowrap text-text-secondary md:min-h-0">
                 <input type="checkbox" name="recordar" [(ngModel)]="recordar" class="size-5 rounded-2xs accent-[#C42B3E]" />Recordarme 30 días
               </label>
@@ -68,7 +68,7 @@ export class AccessLayout {}
             </div>
             <button grButton variant="primary" type="submit" [block]="true" [loading]="busy()">Entrar</button>
             <div class="flex items-center gap-3 text-body-xs text-text-muted"><span class="h-px flex-1 bg-line-subtle"></span>o<span class="h-px flex-1 bg-line-subtle"></span></div>
-            <button grButton type="button" [block]="true" (click)="setMode('magic')">Recibir enlace mágico por email</button>
+            <button grButton type="button" [block]="true" class="h-auto! min-h-11 py-2 whitespace-normal! md:min-h-10" (click)="setMode('magic')">Recibir enlace mágico por email</button>
           } @else {
             <button grButton variant="primary" type="submit" [block]="true" [loading]="busy()" icon="mail">Enviar enlace</button>
             <button grButton variant="ghost" type="button" [block]="true" (click)="setMode('password')">Entrar con contraseña</button>

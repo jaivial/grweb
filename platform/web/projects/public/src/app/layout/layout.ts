@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrIconButton, GrLogo } from '@grcup/ui';
@@ -57,6 +57,13 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
   ] },
 ];
 
+/** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
+const GRUPOS_MOVIL: { titulo: string; items: NavLink[] }[] = [
+  { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Inscripción (AEP)', href: '/inscripcion' }] },
+  { titulo: 'El evento', items: [{ label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
+  { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Blog', href: '/blog' }] },
+];
+
 const UI = {
   es: { cta: 'Entrada gratis', ctaMenu: 'Reserva tu entrada gratis', open: 'Abrir menú', close: 'Cerrar menú', otherLang: 'EN', otherHref: '/en', otherLabel: 'English version', home: 'GR Strength Cup · inicio' },
   en: { cta: 'Free ticket', ctaMenu: 'Book your free ticket', open: 'Open menu', close: 'Close menu', otherLang: 'ES', otherHref: '/', otherLabel: 'Versión en español', home: 'GR Strength Cup · home' },
@@ -112,18 +119,44 @@ const UI = {
       </div>
     }
     @if (open()) {
-      <div class="fixed inset-0 z-50 flex flex-col bg-bg-base/98 px-5 pt-3 backdrop-blur-xl lg:hidden" role="dialog" aria-modal="true" aria-label="Menú">
-        <div class="flex h-14 items-center justify-between">
-          <gr-logo [height]="32" />
-          <button grIconButton icon="x" [label]="ui().close" (click)="open.set(false)"></button>
+      <!-- Figma «Mobile menu v3»: logo, ES / EN and close; the four main links; the groups as an accordion (the first one
+           open); the edition line and the booking button at the bottom -->
+      <div class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base px-5 pt-3 lg:hidden" role="dialog" aria-modal="true" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
+        <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
+          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-auto" /></a>
+          <div class="flex items-center gap-2">
+            <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
+              <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
+            <button type="button" class="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5" [attr.aria-label]="ui().close" (click)="open.set(false)"><gr-icon name="x" [size]="22" /></button>
+          </div>
         </div>
-        <ul class="mt-8 flex flex-col gap-1">
-          @for (l of links(); track l.href) {
-            <li><a [href]="l.href" (click)="open.set(false)" class="flex h-14 items-center justify-between border-b border-line-subtle text-display-xs">{{ l.label }}<gr-icon name="chevron-right" [size]="20" class="text-text-tertiary" /></a></li>
+        <ul class="flex flex-col">
+          @for (l of accesos(); track l.href) {
+            <li><a [href]="l.href" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs" [class.text-accent-text]="l.destacado">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" [class.text-accent-text!]="l.destacado" /></a></li>
           }
-          <li><a [href]="ui().otherHref" (click)="open.set(false)" class="flex h-14 items-center justify-between border-b border-line-subtle text-display-xs">{{ ui().otherLabel }}<gr-icon name="globe" [size]="20" class="text-text-tertiary" /></a></li>
         </ul>
-        <a grButton variant="primary" size="l" href="/entradas" [block]="true" class="mt-auto mb-8">{{ ui().ctaMenu }}</a>
+        @if (lang() === 'es') {
+          <div class="flex flex-col pt-2">
+            @for (g of grupos; track g.titulo; let gi = $index) {
+              <div class="border-b border-line-subtle" [class.pb-3]="grupo() === gi">
+                <button type="button" class="flex h-[52px] w-full items-center justify-between text-label-m" [class]="grupo() === gi ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-expanded]="grupo() === gi" (click)="grupo.set(grupo() === gi ? -1 : gi)">
+                  {{ g.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform" [class.rotate-180]="grupo() === gi" [class.text-accent-text]="grupo() === gi" />
+                </button>
+                @if (grupo() === gi) {
+                  <ul class="flex flex-col gap-1">
+                    @for (it of g.items; track it.href) {
+                      <li><a [href]="it.href" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="actual() === it.href">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
+          </div>
+        }
+        <div class="-mx-5 mt-auto flex shrink-0 flex-col gap-3 border-t border-line-subtle px-5 pt-4 pb-[max(28px,env(safe-area-inset-bottom))]">
+          @if (lang() === 'es') { <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ edicion() }}</p> }
+          <a grButton variant="primary" size="l" href="/entradas" [block]="true" (click)="open.set(false)">{{ ui().ctaMenu }}</a>
+        </div>
       </div>
     }
   `,
@@ -139,6 +172,30 @@ export class Navbar {
   protected readonly megaCols = MEGA;
   protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
   protected readonly links = computed(() => LINKS[this.lang()]);
+  private readonly comp = inject(Competition);
+  private readonly router = inject(Router);
+  /** Open group of the mobile menu (Figma: «Competición» open). */
+  protected readonly grupo = signal(0);
+  protected readonly actual = signal('');
+  protected readonly grupos = GRUPOS_MOVIL;
+  /** The four main links of the mobile menu (the booking one in red). */
+  protected readonly accesos = computed(() => this.lang() === 'en'
+    ? [{ label: 'Home', href: '/en', destacado: false }, { label: 'Free tickets', href: '/entradas', destacado: true }, ...LINKS.en.slice(1, 3).map((l) => ({ ...l, destacado: false }))]
+    : [{ label: 'Inicio', href: '/', destacado: false }, { label: 'Entradas', href: '/entradas', destacado: true }, { label: 'Atletas', href: '/atletas', destacado: false }, { label: 'Horarios', href: '/horarios', destacado: false }]);
+  protected readonly edicion = computed(() => {
+    const c = this.comp.data();
+    const f = c?.fechaInicio ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(c.fechaInicio + 'T12:00:00Z')) : 'fecha por confirmar';
+    return `Edición ${(c?.fechaInicio ?? '2026').slice(0, 4)} · ${f} · ${c?.sede?.ciudad || 'Almussafes'}`;
+  });
+  constructor() {
+    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      // the menu is a modal: no page scroll behind it, and it closes on navigation
+      effect(() => { document.body.style.overflow = this.open() ? 'hidden' : ''; });
+      const sub = this.router.events.subscribe(() => { this.open.set(false); this.actual.set(this.router.url.split(/[?#]/)[0]); });
+      this.actual.set(this.router.url.split(/[?#]/)[0]);
+      inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); document.body.style.overflow = ''; });
+    }
+  }
   protected readonly ui = computed(() => UI[this.lang()]);
   protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 }

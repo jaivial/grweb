@@ -17,7 +17,8 @@ import { Footer, Navbar, type Lang } from './layout';
     <!-- one projection point, shown by either layout -->
     <ng-template #contenido><ng-content /></ng-template>
     <gr-navbar [lang]="lang()" />
-    <main class="relative">
+    <!-- overflow-x-clip: the header glow must not widen the page on phones (clip keeps «sticky» working) -->
+    <main class="relative overflow-x-clip">
       <!-- Figma «Cabecera» (SEO pages): 640 px glow at the top right (360 on mobile) -->
       @if (!centrado()) { <div class="pointer-events-none absolute -top-20 left-[55%] size-[360px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.42),transparent)] md:left-[55%] md:size-[640px]" aria-hidden="true"></div> }
       @if (centrado()) {
