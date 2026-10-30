@@ -137,8 +137,8 @@ var seedEN = map[string]any{
 // Club directory (Figma page 32): clubs on the 2025 poster; locations to be confirmed («Datos de ejemplo»).
 var seedClubs = []clubIn{
 	{Nombre: "GRStrength", Ciudad: "Valencia", Provincia: "Valencia", LogoURL: bcdn + "logos/grcuplogo.png", Web: "https://www.instagram.com/grstrengthclub/", Etiquetas: "Powerlifting, Organizador", Rol: "organizador", AfiliadoAEP: true, Estado: "publicado"},
-	{Nombre: "CF Isabel Atlas", Ciudad: "Valencia · por confirmar", Provincia: "Valencia", Etiquetas: "Powerlifting, AEP", Rol: "colaborador", AfiliadoAEP: true, Estado: "publicado"},
-	{Nombre: "Gym Mediterrani", Ciudad: "Alcoy", Provincia: "Alicante", Etiquetas: "Powerlifting, Fuerza", Rol: "colaborador", Estado: "publicado"},
+	{Nombre: "CF Isabel Atlas", Ciudad: "Valencia · por confirmar", Provincia: "Valencia", LogoURL: bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", Etiquetas: "Powerlifting, AEP", Rol: "colaborador", AfiliadoAEP: true, Estado: "publicado"},
+	{Nombre: "Gym Mediterrani", Ciudad: "Alcoy", Provincia: "Alicante", LogoURL: bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", Etiquetas: "Powerlifting, Fuerza", Rol: "colaborador", Estado: "publicado"},
 	{Nombre: "Valkyria Powerlifting Center", Ciudad: "Por confirmar", Provincia: "Valencia", LogoURL: logoValkyria, Etiquetas: "Powerlifting", Rol: "colaborador", Estado: "publicado"},
 }
 

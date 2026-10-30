@@ -166,7 +166,7 @@ export class GaleriaPage {
   }
 
   protected chip(activo: boolean): string {
-    return 'flex h-10 items-center gap-2 rounded-full border px-4 text-label-s transition-colors ' +
+    return 'flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors md:h-10 ' +
       (activo ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary');
   }
   protected paso(actual: boolean, desactivado: boolean): string {
