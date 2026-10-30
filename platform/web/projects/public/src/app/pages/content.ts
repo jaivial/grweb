@@ -159,7 +159,10 @@ export class LegalPage {
       }, { rootMargin: '-10% 0px -60% 0px' });
       const t = setInterval(() => {
         const hs = document.querySelectorAll('.prose-legal h2[id]');
-        if (!hs.length) return;
+        if (!hs.length) {
+          if (this.doc() !== undefined && !this.toc().length) clearInterval(t); // loaded without sections, not published or failed
+          return;
+        }
         clearInterval(t);
         hs.forEach((h) => io.observe(h));
         this.activo.set(hs[0].id);
