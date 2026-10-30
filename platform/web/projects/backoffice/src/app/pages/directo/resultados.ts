@@ -56,7 +56,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
                     @for (f of r.absoluta[s.k]; track f.atletaId) {
                       <tr class="border-t border-line-subtle"><td class="px-4 py-2.5 font-mono">{{ f.puesto }}</td><td class="px-2 py-2.5"><p class="text-label-s">{{ f.nombre }}</p><p class="text-body-xs text-text-tertiary">{{ f.club }}</p></td>
                         <td class="px-2 py-2.5 text-right font-mono">{{ kg(f.total) }}</td><td class="px-4 py-2.5 text-right font-mono text-accent-text">{{ gl(f.gl) }}</td></tr>
-                    } @empty { <tr><td colspan="4" class="px-4 py-8 text-center text-text-tertiary">Nadie con total todavía.</td></tr> }
+                    } @empty { <tr><td colspan="4" class="px-4 py-8 text-center text-text-tertiary">{{ r.archivo ? 'Sin peso corporal no hay puntos GL.' : 'Nadie con total todavía.' }}</td></tr> }
                   </tbody>
                 </table>
               </section>
@@ -98,9 +98,11 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
               </tbody>
             </table>
           </section>
+          @if (!r.archivo) {
           <gr-alert tone="info" [title]="r.publicarAuto ? 'Publicación programada al cerrar el flight' : 'Publicación manual'">
             {{ r.publicarAuto ? 'Cuando terminen todos los atletas de la categoría se publicará en /resultados y se avisará a los seguidores de cada atleta.' : 'Publica cada categoría cuando la revises; la primera vez se avisa a los atletas y a sus seguidores.' }} El acta oficial la valida la AEP.
           </gr-alert>
+          }
         }
       }
     </div>

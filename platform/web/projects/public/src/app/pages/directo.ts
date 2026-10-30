@@ -452,7 +452,7 @@ export class ResultadosIndexPage {
   template: `
     @let r = res();
     <gr-page title="Resultados" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" section="Resultados" [crumb]="anio()" [eyebrow]="r ? (r.competicion.sede + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
-      [subtitle]="r?.publicado ? 'Podios, mejores levantadores y clasificación completa por categoría.' : ''">
+      [subtitle]="r?.publicado ? ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
       @if (r?.publicado) {
         <div pageStamps class="mt-5 flex flex-wrap gap-2">
           @if (r!.ejemplo) { <span class="inline-flex h-8 items-center rounded-pill border border-info/50 px-3 text-mono-xs text-info">Datos de ejemplo</span> }
