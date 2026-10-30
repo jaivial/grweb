@@ -35,7 +35,8 @@ import { Footer, Navbar, type Lang } from './layout';
       <!-- Figma «Cabecera» v2: 92 (mobile) / 148 (desktop) from the top, breadcrumbs Body/S, eyebrow Label/XS with
            the dash, Display/M → Display/XL title, tertiary Body/M → Body/L intro, «Updated stamp» -->
       <div class="relative mx-auto max-w-[1440px] px-5 pt-[92px] pb-18 md:px-8 md:pt-[148px] xl:px-[120px] xl:pb-26">
-        <header class="flex max-w-[900px] flex-col gap-3 md:gap-4">
+@if (cabecera()) {
+                <header class="flex max-w-[900px] flex-col gap-3 md:gap-4">
           <nav class="flex flex-wrap items-center gap-1.5 text-body-s text-text-tertiary" aria-label="Migas">
             <a href="/" class="hover:text-text-primary">Inicio</a>
             @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
@@ -49,10 +50,11 @@ import { Footer, Navbar, type Lang } from './layout';
           @if (stamp()) { <p class="inline-flex items-center gap-2 self-start rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" class="shrink-0" />{{ stamp() }}</p> }
           <ng-content select="[pageStamps]" />
         </header>
+        }
         @if (cms.failed()) {
           <gr-alert class="mt-10 md:mt-16" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
         }
-        <div class="mt-10 md:mt-16"><ng-container [ngTemplateOutlet]="contenido" /></div>
+        <div [class]="cabecera() ? 'mt-10 md:mt-16' : ''"><ng-container [ngTemplateOutlet]="contenido" /></div>
       </div>
       }
     </main>

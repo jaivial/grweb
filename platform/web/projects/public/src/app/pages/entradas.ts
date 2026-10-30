@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrIcon, GrLogo, GrSkeleton } from '@grcup/ui';
 import { Cms, type Faq } from '../core/cms';
 import { Competition } from '../core/competition';
@@ -72,7 +72,7 @@ const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
 /** /entradas (Figma page 37): free tickets per session, waiting list when sold out. */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [Page, FormsModule, GrAlert, GrIcon, GrSkeleton, TicketCard, Community],
+  imports: [RouterLink, Page, FormsModule, GrAlert, GrIcon, GrSkeleton, TicketCard, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
@@ -90,7 +90,7 @@ const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
             <gr-ticket class="w-80 shrink-0 -rotate-2" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" />
             <div><p class="text-mono-xs text-text-tertiary">Ejemplo</p><h2 class="mt-2 text-display-2xs">Así es tu entrada</h2>
               <p class="mt-2 text-body-m text-text-secondary">Te llega por email y la tienes siempre en «Mi entrada». Un solo QR para todo tu grupo: lo escaneamos en la puerta y entráis juntos.</p>
-              <a href="#como-funciona" class="mt-4 inline-flex h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-label-s">Cómo funciona<gr-icon name="arrow-right" [size]="14" /></a></div>
+              <a routerLink="." fragment="como-funciona" class="mt-4 inline-flex h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-label-s">Cómo funciona<gr-icon name="arrow-right" [size]="14" /></a></div>
           </section>
           <section>
             <p class="flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>El día</p>
