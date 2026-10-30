@@ -26,6 +26,13 @@ type CheckoutIn struct {
 	CancelURL   string
 	Metadata    map[string]string // echoed back in the webhook
 	ExpiresAt   time.Time         // Stripe: 30 min to 24 h
+	Lines       []Line            // optional breakdown (fee, discounts) shown by the simulated gateway; Stripe shows its own summary
+}
+
+// Line is one row of the breakdown on the payment page («Cupón GR25», −875).
+type Line struct {
+	Label  string `json:"concepto"`
+	Amount int    `json:"importe"`
 }
 
 // CheckoutOut is the created session.

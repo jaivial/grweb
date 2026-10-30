@@ -177,10 +177,11 @@ export class Navbar {
       </div>
       <p class="border-t border-line-subtle px-5 py-5 text-center text-body-xs text-text-muted">© {{ year }} GR Strength · All rights reserved</p>
     } @else {
-    <div class="mx-auto flex max-w-[1440px] flex-col gap-12 px-5 pt-14 pb-28 md:px-8 md:pb-10 xl:px-[120px]">
+    <!-- Figma «Footer»: mobile 48/20/32 with 28 between blocks, desktop 72/80/32 with 48 -->
+    <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-28 md:gap-12 md:px-8 md:pt-[72px] md:pb-10 xl:px-[120px]">
       <gr-newsletter />
-      <div class="grid gap-8 lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
-        <div class="flex flex-col gap-4">
+      <div class="grid lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
+        <div class="mb-6 flex flex-col gap-4 lg:mb-0">
           <gr-logo [height]="56" />
           <p class="max-w-[300px] text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo benéfico de material SBD para la comunidad.</p>
           <div class="flex gap-2">
@@ -197,22 +198,22 @@ export class Navbar {
             <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
           </nav>
           <details class="group border-b border-line-subtle lg:hidden">
-            <summary class="flex h-12 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="16" class="transition-transform group-open:rotate-180" /></summary>
+            <summary class="flex h-15 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform group-open:rotate-180" /></summary>
             <ul class="flex flex-col gap-3 pb-4 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
           </details>
         }
       </div>
       @if (logos().length) {
-        <ul class="flex flex-wrap items-center justify-center gap-x-10 gap-y-5 py-2" aria-label="Patrocinadores">
+        <ul class="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 md:gap-x-10 md:gap-y-5 md:py-2" aria-label="Patrocinadores">
           @for (p of logos(); track p.nombre) {
             <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="block opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
               <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[22px] w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
           }
         </ul>
       }
-      <div class="flex flex-col items-center gap-3 border-t border-line-subtle pt-6 text-body-xs text-text-muted md:flex-row md:justify-between">
+      <div class="flex flex-col items-center gap-3 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:text-left">
         <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a href="/cookies" class="hover:text-text-secondary">Cookies</a></p>
-        <p class="inline-flex h-8 items-center gap-1.5 rounded-pill border border-line-subtle px-3"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p>
+        <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p>
       </div>
     </div>
     @if (barra()) {
