@@ -171,8 +171,9 @@ export class ResultadosPage {
     const incompleta = a.completos < a.atletas;
     const ok = await this.confirm.ask({
       title: `¿Publicar ${a.titulo}?`,
-      text: (incompleta ? `Aún faltan ${a.atletas - a.completos} atletas por terminar: se publicará la clasificación provisional. ` : '') +
-        (a.publicado ? 'Se actualiza la clasificación de /resultados (sin nuevos avisos).' : 'Sale en /resultados y se avisa por email a los atletas y a sus seguidores.'),
+      text: incompleta
+        ? `Aún faltan ${a.atletas - a.completos} atletas por terminar: se publicará la clasificación provisional, sin avisos (se envían cuando termine la categoría).`
+        : a.publicado ? 'Se actualiza la clasificación de /resultados. Solo se avisa a quien aún no recibió sus resultados.' : 'Sale en /resultados y se avisa por email a los atletas y a sus seguidores.',
       confirm: 'Publicar',
     });
     if (!ok) return;

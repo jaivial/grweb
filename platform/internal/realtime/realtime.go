@@ -126,7 +126,14 @@ func (s *Svc) contar(ctx context.Context) {
 		}
 		s.pubMu.Unlock()
 		for cid, n := range snap {
-			_ = s.a.Redis.Set(ctx, s.a.Keys.Of("rt", "conexiones", cid, s.pod), n, time.Minute).Err()
+			// one counter per pod plus the set of pods of the competition: readers do SMEMBERS + MGET, never SCAN
+			// (the Redis is shared with other apps).
+			pods := s.a.Keys.Of("rt", "pods", cid)
+			p := s.a.Redis.TxPipeline()
+			p.Set(ctx, s.a.Keys.Of("rt", "conexiones", cid, s.pod), n, time.Minute)
+			p.SAdd(ctx, pods, s.pod)
+			p.Expire(ctx, pods, 10*time.Minute)
+			_, _ = p.Exec(ctx)
 		}
 		select {
 		case <-ctx.Done():

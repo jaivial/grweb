@@ -189,17 +189,20 @@ func (s *Svc) mesa(ctx context.Context, cid uuid.UUID) (*Mesa, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A late weigh-in (openers entered after the flight started) is picked up here.
-	if e.FlightID != nil && e.Fase == "en_directo" {
-		if f := p.flight(*e.FlightID); f != nil {
-			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return abrir(ctx, tx, cid, p, f, e.Movimiento) }); err != nil {
-				return nil, err
-			}
-		}
-	}
 	t, err := cargarIntentos(ctx, s.a.DB, cid)
 	if err != nil {
 		return nil, err
+	}
+	// A late weigh-in (openers entered after the flight started) is picked up here, only when one is missing.
+	if e.FlightID != nil && e.Fase == "en_directo" {
+		if f := p.flight(*e.FlightID); f != nil && faltaApertura(p, f, t, e.Movimiento) {
+			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return abrir(ctx, tx, cid, p, f, e.Movimiento) }); err != nil {
+				return nil, err
+			}
+			if t, err = cargarIntentos(ctx, s.a.DB, cid); err != nil {
+				return nil, err
+			}
+		}
 	}
 	m := &Mesa{Estado: e, HorariosPublicados: len(p.Flights) > 0, Espectadores: s.espectadores(ctx, cid), Flights: []FlightMesa{}, Atletas: []FilaMesa{}, Siguientes: []Turno{}}
 	if v, err := s.a.Redis.Get(ctx, s.a.Keys.Of("live", "pantalla-ping", cid.String())).Int64(); err == nil {
@@ -284,6 +287,16 @@ func (s *Svc) mesa(ctx context.Context, cid uuid.UUID) (*Mesa, error) {
 	return m, nil
 }
 
+// faltaApertura: an athlete of the flight has an opener for the lift but no first attempt yet.
+func faltaApertura(p *plan, f *flight, t tabla, mov string) bool {
+	for _, x := range f.Atletas {
+		if a := p.Atletas[x.ID]; a != nil && a.Primeros.de(mov) != nil && t.get(x.ID, mov, 1) == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // abrir creates the first attempts of a lift from the openers declared at the weigh-in (idempotent).
 func abrir(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p *plan, f *flight, mov string) error {
 	for _, x := range f.Atletas {
@@ -341,11 +354,10 @@ func (s *Svc) sincronizarHorarios(ctx context.Context, cid uuid.UUID, p *plan, e
 		return
 	}
 	key := s.a.Keys.Of("live", "horarios", cid.String())
+	// Every flight (also other days: a flight left «en curso» on Sunday goes back to «programado» if the desk returns
+	// to Saturday); the delay only moves the current flight and the later ones of its day.
 	for i := range p.Flights {
 		f := &p.Flights[i]
-		if f.Dia != cur.Dia {
-			continue
-		}
 		estado, retraso := "programado", 0
 		switch {
 		case flightCompleto(f, t) || (f.ID == cur.ID && e.Fase == "finalizado"):
@@ -353,7 +365,7 @@ func (s *Svc) sincronizarHorarios(ctx context.Context, cid uuid.UUID, p *plan, e
 		case f.ID == cur.ID && e.Fase == "en_directo":
 			estado = "en_curso"
 		}
-		if !f.Inicio.Before(cur.Inicio) && estado != "finalizado" {
+		if f.Dia == cur.Dia && !f.Inicio.Before(cur.Inicio) && estado != "finalizado" {
 			retraso = e.RetrasoMin
 		}
 		v := estado + "|" + itoa(retraso)
@@ -475,6 +487,12 @@ func (s *Svc) registerMesa() {
 					fase = "en_directo" // choosing a flight starts the live
 				}
 				cambiaTurno := !eqID(e.FlightID, b.FlightID) || e.Movimiento != b.Movimiento || (e.Pausa && !b.Pausa)
+				// A new day starts on time: the delay of the previous day must not move Sunday's schedule and notices.
+				if f != nil && e.FlightID != nil && b.RetrasoMin == e.RetrasoMin {
+					if prev := p.flight(*e.FlightID); prev != nil && prev.Dia != f.Dia {
+						b.RetrasoMin = 0
+					}
+				}
 				if f != nil && (cambiaTurno || fase == "en_directo") {
 					if err := abrir(ctx, tx, in.CID, p, f, b.Movimiento); err != nil {
 						return err

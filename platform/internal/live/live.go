@@ -11,7 +11,9 @@ import (
 	"embed"
 	"encoding/base64"
 	"io/fs"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,11 +51,18 @@ type Svc struct {
 	cache    *cache.Cache
 	panKey   []byte
 	webURL   string
+	espMu    sync.Mutex
+	esp      map[uuid.UUID]espCache
+}
+
+type espCache struct {
+	n  int
+	at time.Time
 }
 
 // Service returns the live service definition.
 func Service() app.Service {
-	s := &Svc{}
+	s := &Svc{esp: map[uuid.UUID]espCache{}}
 	return app.Service{Name: "live", Title: "GR Cup · live", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
 		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup}}
 }
@@ -126,17 +135,35 @@ func (s *Svc) bump(ctx context.Context, cid uuid.UUID) {
 	s.cache.Del(ctx, "plan:"+cid.String())
 }
 
-// espectadores sums the public SSE connections that the realtime pods report (one key per pod, refreshed every
-// 20 s with a 60 s expiry, so a crashed pod stops counting).
+// espectadores sums the public SSE connections that the realtime pods report: the set of pods of the competition
+// and one counter per pod (refreshed every 20 s with a 60 s expiry, so a crashed pod stops counting). No SCAN: the
+// Redis is shared. Cached 5 s in the process.
 func (s *Svc) espectadores(ctx context.Context, cid uuid.UUID) int {
+	s.espMu.Lock()
+	if c, ok := s.esp[cid]; ok && time.Since(c.at) < 5*time.Second {
+		s.espMu.Unlock()
+		return c.n
+	}
+	s.espMu.Unlock()
+	pods, err := s.a.Redis.SMembers(ctx, s.a.Keys.Of("rt", "pods", cid.String())).Result()
 	var total int
-	iter := s.a.Redis.Scan(ctx, 0, s.a.Keys.Of("rt", "conexiones", cid.String(), "*"), 100).Iterator()
-	for iter.Next(ctx) {
-		n, err := s.a.Redis.Get(ctx, iter.Val()).Int()
-		if err == nil {
-			total += n
+	if err == nil && len(pods) > 0 {
+		keys := make([]string, len(pods))
+		for i, p := range pods {
+			keys[i] = s.a.Keys.Of("rt", "conexiones", cid.String(), p)
+		}
+		vals, _ := s.a.Redis.MGet(ctx, keys...).Result()
+		for _, v := range vals {
+			if str, ok := v.(string); ok {
+				if n, err := strconv.Atoi(str); err == nil {
+					total += n
+				}
+			}
 		}
 	}
+	s.espMu.Lock()
+	s.esp[cid] = espCache{n: total, at: time.Now()}
+	s.espMu.Unlock()
 	return total
 }
 

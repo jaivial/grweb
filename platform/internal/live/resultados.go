@@ -123,15 +123,15 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, p *plan, t tabla, cla
 			if old, ok := pubs[k]; ok && mismaClasificacion(old.datos, pub) {
 				continue
 			}
-			var ver int
-			if err := tx.QueryRow(ctx, `INSERT INTO resultados (competition_id, categoria, datos, publicado_por) VALUES ($1,$2,$3,$4)
-				ON CONFLICT (competition_id, categoria) DO UPDATE SET datos = EXCLUDED.datos, version = resultados.version + 1, publicado_por = EXCLUDED.publicado_por, publicado_at = now()
-				RETURNING version`, cid, k, pub, por).Scan(&ver); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO resultados (competition_id, categoria, datos, publicado_por) VALUES ($1,$2,$3,$4)
+				ON CONFLICT (competition_id, categoria) DO UPDATE SET datos = EXCLUDED.datos, version = resultados.version + 1, publicado_por = EXCLUDED.publicado_por, publicado_at = now()`,
+				cid, k, pub, por); err != nil {
 				return err
 			}
 			hechas = append(hechas, k)
-			if ver == 1 && avisar {
-				adm := clasificar(p, t, recs, k, false)
+			// Places are only final when everyone in the category has finished: provisional publications send
+			// nothing, and athletes dedupes per athlete (a republication after corrections emails nobody twice).
+			if adm := clasificar(p, t, recs, k, false); avisar && adm.Completos == adm.Atletas {
 				av := aviso{Titulo: adm.Titulo}
 				for _, f := range adm.Filas {
 					av.Filas = append(av.Filas, avisoAtleta{AtletaID: f.AtletaID, Puesto: f.Puesto, Total: f.Total, SinTotal: f.SinTotal})
@@ -173,8 +173,9 @@ type avisoAtleta struct {
 	SinTotal bool      `json:"sinTotal,omitempty"`
 }
 
-// publicarAuto: «Publicación programada al cerrar el flight». When every athlete of a category has finished, it
-// is published once (corrections after that are published by hand from «Resultados»).
+// publicarAuto: «Publicación programada al cerrar el flight». When every athlete of a category has finished, it is
+// published (also over a provisional publication made by hand); corrections after that are published by hand from
+// «Resultados».
 func (s *Svc) publicarAuto(ctx context.Context, cid uuid.UUID, p *plan, t tabla, e Estado) {
 	if !e.PublicarAuto {
 		return
@@ -185,8 +186,8 @@ func (s *Svc) publicarAuto(ctx context.Context, cid uuid.UUID, p *plan, t tabla,
 	}
 	var claves []string
 	for _, k := range p.categorias() {
-		if _, ok := pubs[k]; ok {
-			continue
+		if pb, ok := pubs[k]; ok && pb.datos.Completos == pb.datos.Atletas {
+			continue // already published complete
 		}
 		completa := true
 		for _, a := range p.porCat[k] {
