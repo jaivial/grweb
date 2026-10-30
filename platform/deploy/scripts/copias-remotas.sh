@@ -51,7 +51,7 @@ case "$ACCION" in
     ssh "$KRAKEN" "$K delete secret grcup-copias-remotas --ignore-not-found"
     exit 0 ;;
   --listar)
-    pod copias-remotas-listar 'rclone lsf --dirs-only cifrado: && echo "---" && rclone size cifrado:'
+    pod copias-remotas-listar 'rclone lsf --dirs-only cifrado: && echo "--- medios" && rclone size cifrado:medios && echo "--- total" && rclone size cifrado:'
     exit 0 ;;
   --traer)
     [[ "$FECHA" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "falta la fecha (AAAA-MM-DD)" >&2; exit 2; }

@@ -30,8 +30,8 @@ corrección urgente.
   3. `k scale deploy/ticketing --replicas=1` y revisar `/readyz`.
 - **Probar una copia sin tocar nada**: restaurar en una base temporal (`createdb grcup_restore_test`, `pg_restore -d
   grcup_restore_test …`, contar filas, `dropdb`).
-- **Fuera del nodo**: el contenedor `fuera-del-nodo` del mismo CronJob sube la carpeta del día cifrada y la guarda
-  30 días fuera. Usa rclone crypt, que cifra contenido y nombres, y sirve cualquier almacenamiento S3: Cloudflare R2,
+- **Fuera del nodo**: el contenedor `fuera-del-nodo` del mismo CronJob sube cifrados la carpeta del día, que se guarda
+  30 días fuera, y los medios subidos al backoffice (`<datos>/medios`), en copia incremental que nunca borra. Usa rclone crypt, que cifra contenido y nombres, y sirve cualquier almacenamiento S3: Cloudflare R2,
   Backblaze B2, Wasabi o AWS.
   - **Configurar:** `deploy/scripts/copias-remotas.sh <qa|prod>`. La primera vez crea la plantilla
     `~/.config/grcup-<entorno>/copias-remotas.env`; se rellena con el bucket y las claves, y se vuelve a ejecutar.
@@ -42,6 +42,7 @@ corrección urgente.
   - **Traer un día:** `copias-remotas.sh <entorno> --traer AAAA-MM-DD`. Lo deja descifrado en
     `<datos>/copias/remota-AAAA-MM-DD/`, comprobado con `cryptcheck` y `SHA256SUMS`, y desde ahí se restaura como
     arriba.
+  - **Medios:** con el mismo Secret, `rclone copy cifrado:medios <datos>/medios` desde un pod efímero, como el de `--traer`.
 
 ## 3. Escalado
 

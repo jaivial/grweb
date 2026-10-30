@@ -1,7 +1,8 @@
 # Nightly logical backups of every grcup_* database (pg_dump custom format), kept 7 days on the node
 # (/var/lib/grcup-qa/copias/<fecha>/<base>.dump; production: /var/lib/grcup/copias) and, when the Secret
 # grcup-copias-remotas exists, also copied OFF the node, encrypted (rclone crypt over any S3-compatible storage or
-# other rclone remote), and kept 30 days there. Restore: docs/runbooks/PRODUCCION.md › «Copias y restauración».
+# other rclone remote): the dumps kept 30 days there, and the uploaded media (cms) copied incrementally, never
+# deleted. Restore: docs/runbooks/PRODUCCION.md › «Copias y restauración».
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -78,8 +79,11 @@ spec:
                   rclone copy "/copias/$d" "cifrado:$d" --transfers 2 --stats-one-line --stats 30s
                   # cryptcheck: the encrypted copies against the local files, through the storage's own hashes
                   rclone cryptcheck "/copias/$d" "cifrado:$d" --one-way
-                  rclone delete cifrado: --min-age 30d --rmdirs
-                  echo "copia fuera del nodo: $d ($(rclone size "cifrado:$d" | tr '\n' ' '))"
+                  # uploaded media (photos, posters): incremental, nothing is ever deleted off the node
+                  rclone copy /medios cifrado:medios --transfers 4 --stats-one-line --stats 60s
+                  rclone cryptcheck /medios cifrado:medios --one-way
+                  rclone delete cifrado: --min-age 30d --rmdirs --exclude "/medios/**"
+                  echo "copia fuera del nodo: $d ($(rclone size "cifrado:$d" | tr '\n' ' ')) · medios ($(rclone size cifrado:medios | tr '\n' ' '))"
               envFrom:
                 - secretRef: { name: grcup-copias-remotas, optional: true }
               env:
@@ -91,6 +95,7 @@ spec:
                 capabilities: { drop: [ALL] }
               volumeMounts:
                 - { name: copias, mountPath: /copias, readOnly: true }
+                - { name: medios, mountPath: /medios, readOnly: true }
                 - { name: tmp, mountPath: /tmp }
               resources:
                 requests: { cpu: 20m, memory: 64Mi }
@@ -100,3 +105,5 @@ spec:
               hostPath: { path: /var/lib/grcup-qa/copias, type: DirectoryOrCreate }
             - name: tmp
               emptyDir: { sizeLimit: 64Mi }
+            - name: medios
+              hostPath: { path: /var/lib/grcup-qa/medios, type: DirectoryOrCreate }

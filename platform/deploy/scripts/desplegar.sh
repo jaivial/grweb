@@ -61,6 +61,8 @@ sudo k3s kubectl apply -k \$tmp/overlays/$ENTORNO
 sudo k3s kubectl -n $NS delete networkpolicy allow-services --ignore-not-found >/dev/null
 sudo k3s kubectl -n $NS rollout status statefulset/postgres --timeout=180s
 for d in \$(sudo k3s kubectl -n $NS get deploy -o name); do sudo k3s kubectl -n $NS rollout status \$d --timeout=240s; done
-sudo k3s kubectl -n $NS wait --for=condition=complete job --all --timeout=240s
+# only the deploy's own Jobs (the backup CronJob's Jobs do not carry the label: a failing off-node copy must not
+# block a deploy)
+sudo k3s kubectl -n $NS wait --for=condition=complete job -l app.kubernetes.io/part-of=grcup --timeout=240s
 rm -rf \$tmp"
 echo "✓ desplegado $VERSION en $NS"

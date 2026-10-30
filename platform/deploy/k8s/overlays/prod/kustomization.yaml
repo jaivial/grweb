@@ -32,6 +32,9 @@ patches:
       - op: replace
         path: /spec/jobTemplate/spec/template/spec/volumes/0/hostPath/path
         value: /var/lib/grcup/copias
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/2/hostPath/path
+        value: /var/lib/grcup/medios
   # QA's bridge already listens on 10.42.0.1:16379: production uses 16380 (same host Redis, its own ACL user).
   - target: { kind: DaemonSet, name: redis-puente }
     patch: |-
