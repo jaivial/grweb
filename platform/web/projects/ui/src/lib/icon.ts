@@ -4,7 +4,7 @@ import {
   ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
   GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
   Plus, Pause, Play, Monitor, Copy, Maximize2, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
-  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, Bus, Bike, SquareParking, Accessibility, type IconNode,
+  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, Bus, Bike, SquareParking, Accessibility, SlidersHorizontal, type IconNode,
 } from 'lucide';
 
 /** Instagram glyph (lucide 1.x dropped brand icons; same geometry as the old lucide «instagram»). */
@@ -27,7 +27,7 @@ export const GR_ICONS = {
   ticket: Ticket, train: TrainFront, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
   'wifi-off': WifiOff, x: X, zap: Zap, door: DoorOpen, eye: Eye, grip: GripVertical, pencil: Pencil, star: Star, trash: Trash2, undo: Undo2,
   'calendar-plus': CalendarPlus, pause: Pause, play: Play, monitor: Monitor, copy: Copy, maximize: Maximize2,
-  instagram: Instagram, link: Link, 'credit-card': CreditCard, bus: Bus, bike: Bike, parking: SquareParking, accessibility: Accessibility,
+  instagram: Instagram, link: Link, 'credit-card': CreditCard, bus: Bus, bike: Bike, parking: SquareParking, accessibility: Accessibility, sliders: SlidersHorizontal,
 } satisfies Record<string, IconNode>;
 
 export type GrIconName = keyof typeof GR_ICONS;
