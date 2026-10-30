@@ -308,7 +308,16 @@ export class BlogPostPage {
       this.toc.set(r.headings);
       this.p.set(p);
       this.url = seo.origin + '/blog/' + slug;
-      await applySeo(this.cms, seo, '/blog/' + slug, `${p.titulo} · GR Strength Cup`, p.resumen || p.titulo, p.portadaUrl || undefined);
+      const abs = (u: string) => (u.startsWith('/') ? seo.origin + u : u);
+      const org = { '@type': 'Organization', name: this.comp.data()?.evento.organizador || 'GR Strength', url: seo.origin };
+      await applySeo(this.cms, seo, '/blog/' + slug, `${p.titulo} · GR Strength Cup`, p.resumen || p.titulo, p.portadaUrl || undefined, {
+        jsonLd: {
+          '@context': 'https://schema.org', '@type': 'BlogPosting', headline: p.titulo, description: p.resumen || p.titulo, inLanguage: 'es',
+          mainEntityOfPage: seo.origin + '/blog/' + slug, ...(p.portadaUrl ? { image: abs(p.portadaUrl) } : {}),
+          ...(p.publicadoAt ? { datePublished: p.publicadoAt } : {}), ...(p.categoria ? { articleSection: etiqueta(p.categoria) } : {}),
+          author: org, publisher: org,
+        },
+      });
     });
   }
 
