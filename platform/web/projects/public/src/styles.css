@@ -6,3 +6,6 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* Hero preload overlay: only when JS runs (index.html adds «js» to <html>). */
+html:not(.js) .gr-precarga { display: none !important; }

@@ -9,7 +9,9 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="preconnect" href="https://jaimedigitalstudio.b-cdn.net" crossorigin />
     <link rel="preload" as="image" href="https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0001.webp" fetchpriority="high" />
-  </head>
+    <!-- «js» on <html>: without it (no JS) the hero preload overlay is never shown (styles.css) -->
+  <script>document.documentElement.classList.add('js')</script>
+</head>
   <body class="min-h-dvh">
     <gr-root></gr-root>
   </body>

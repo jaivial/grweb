@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, model, signal } from '@angular/core';
 import { marked } from 'marked';
 import { GrButton, GrField, GrIcon, GrIconButton, GrInput, GrToasts } from '@grcup/ui';
+import { webPublica } from '../core/web';
 import { BoCount, BoToggle, Media } from './ui';
 
 export interface FieldDef {
@@ -89,7 +90,7 @@ type Obj = Record<string, unknown>;
                         <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="sr-only" (change)="upload(f.clave, $event)" />
                       </label>
                     </div>
-                    @if (str(f.clave)) { <img [src]="str(f.clave)" alt="" class="max-h-40 w-auto self-start rounded-sm border border-line-subtle object-cover" /> }
+                    @if (str(f.clave)) { <img [src]="vista(str(f.clave))" alt="" class="max-h-40 w-auto self-start rounded-sm border border-line-subtle object-cover" /> }
                   </div>
                 }
                 @default { <input grInput [id]="id" [type]="f.tipo === 'url' ? 'url' : 'text'" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)" /> }
@@ -111,6 +112,8 @@ export class BoSchemaForm {
   protected readonly uploading = signal(false);
 
   protected get(k: string): unknown { return this.value()?.[k]; }
+  /** Preview of an image field: design assets of the public web («/img/…») live on the web host, not on the backoffice. */
+  protected vista(u: string): string { return u.startsWith('/') && !u.startsWith('//') ? webPublica() + u : u; }
   protected str(k: string): string { const v = this.get(k); return v === null || v === undefined ? '' : String(v); }
   protected list(k: string): Obj[] { const v = this.get(k); return Array.isArray(v) ? (v as Obj[]) : []; }
   protected set(k: string, v: unknown): void { this.value.update((o) => ({ ...(o ?? {}), [k]: v })); }

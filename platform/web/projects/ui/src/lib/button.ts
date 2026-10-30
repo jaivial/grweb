@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input } from '@angular/core';
 import { GrIcon, type GrIconName } from './icon';
 
-export type GrButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
+export type GrButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link' | 'glass' | 'outline' | 'display' | 'display-gradient';
 export type GrButtonSize = 's' | 'm' | 'l';
 
 const base =
@@ -14,6 +14,14 @@ const variants: Record<GrButtonVariant, string> = {
   ghost: 'text-text-secondary hover:bg-bg-raised hover:text-text-primary',
   danger: 'border border-accent/60 bg-accent-deep/40 text-accent-text hover:bg-accent-deep/70',
   link: 'h-auto! px-0! text-accent-text hover:underline underline-offset-4',
+  /* Figma «Button / Glass»: translucent white over photos and gradients. */
+  glass: 'border border-white/12 bg-white/5 text-text-primary backdrop-blur-[20px] hover:border-white/25 hover:bg-white/10',
+  /* Figma «Button / Outline»: secondary action without fill. */
+  outline: 'border border-line-strong text-text-secondary hover:border-text-muted hover:text-text-primary',
+  /* Figma «Button / Display»: deep accent with the display typeface (big calls to action). */
+  display: 'rounded-md! bg-accent-deep/85 font-display! font-normal! uppercase tracking-[0.02em] text-white shadow-glow-deep hover:bg-accent-deep',
+  /* Figma «Button / DisplayGradient»: brand gradient with the display typeface. */
+  'display-gradient': 'bg-accent-grain font-display! font-normal! uppercase tracking-[0.02em] text-white shadow-glow-deep hover:shadow-glow',
 };
 
 /* Heights: S 32 · M 40 (44 on touch/mobile, Figma v7 «Button M 44») · L 48; padding X S 12 · M 20 · L 24. */
@@ -52,7 +60,12 @@ export class GrButton {
   readonly icon = input<GrIconName | null>(null);
   readonly iconRight = input<GrIconName | null>(null);
   protected readonly isButton = (inject(ElementRef).nativeElement as HTMLElement).tagName === 'BUTTON';
-  protected readonly classes = computed(() => [base, variants[this.variant()], this.variant() === 'link' ? '' : sizes[this.size()], this.block() ? 'w-full' : ''].join(' '));
+  protected readonly classes = computed(() => {
+    const v = this.variant();
+    // display variants use the display type scale (Figma: Display/XS 24 on L, Display/2XS 20 on M)
+    const size = v === 'link' ? '' : sizes[this.size()] + (v === 'display' || v === 'display-gradient' ? (this.size() === 'l' ? ' text-[24px]! leading-none!' : ' text-[20px]! leading-none!') : '');
+    return [base, variants[v], size, this.block() ? 'w-full' : ''].join(' ');
+  });
 }
 
 /** Square icon-only button (44 on mobile, 40 desktop) with mandatory accessible label. */

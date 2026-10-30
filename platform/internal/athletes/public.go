@@ -127,8 +127,12 @@ func (s *Svc) registerPublic() {
 		CacheControl string `header:"Cache-Control"`
 		Body         ListaPub
 	}
+	type listIn struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Resumen bool   `query:"resumen" doc:"Solo el resumen (la home: número de inscritos), sin la lista"`
+	}
 	huma.Register(api, huma.Operation{OperationID: "atletas-public", Method: http.MethodGet, Path: pub + "/atletas", Summary: "Atletas confirmados", Tags: tagPub},
-		func(ctx context.Context, in *slugIn) (*listOut, error) {
+		func(ctx context.Context, in *listIn) (*listOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -168,6 +172,9 @@ func (s *Svc) registerPublic() {
 				sortPub(o.Atletas)
 				return o, nil
 			})
+			if in.Resumen {
+				out.Atletas = []AtletaPub{}
+			}
 			return &listOut{CacheControl: cache, Body: out}, err
 		})
 

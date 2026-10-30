@@ -67,6 +67,22 @@ type Horarios struct {
 	Dias          []PubDia  `json:"dias"`
 }
 
+// sinAtletas copies h without the per-flight athlete lists (h comes from the cache and is never modified).
+func sinAtletas(h Horarios) Horarios {
+	dias := make([]PubDia, len(h.Dias))
+	for i, d := range h.Dias {
+		fl := make([]PubFlight, len(d.Flights))
+		for j, f := range d.Flights {
+			f.Atletas = []PubAtleta{}
+			fl[j] = f
+		}
+		d.Flights = fl
+		dias[i] = d
+	}
+	h.Dias = dias
+	return h
+}
+
 // publicos returns the ids of the athletes whose profile is public right now (cached 60 s). ok is false when the
 // athletes service is down: the published names are then served as they were frozen.
 func (s *Svc) publicos(ctx context.Context, cid uuid.UUID) (map[uuid.UUID]bool, bool) {
@@ -149,8 +165,12 @@ func (s *Svc) registerPublic() {
 		CacheControl string `header:"Cache-Control"`
 		Body         Horarios
 	}
+	type hIn struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Resumen bool   `query:"resumen" doc:"Sin las listas de atletas de cada flight (la home solo enseña categorías y horas)"`
+	}
 	huma.Register(api, huma.Operation{OperationID: "horarios-publicos", Method: http.MethodGet, Path: "/api/competiciones/{slug}/horarios", Summary: "Horarios publicados con el estado en directo de cada flight", Tags: tagPub},
-		func(ctx context.Context, in *slugIn) (*hOut, error) {
+		func(ctx context.Context, in *hIn) (*hOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -159,7 +179,11 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			return &hOut{ETag: fmt.Sprintf(`W/"%d-%s"`, h.Version, s.version(ctx, c.ID)), CacheControl: "public, max-age=15", Body: h}, nil
+			etag := fmt.Sprintf(`W/"%d-%s"`, h.Version, s.version(ctx, c.ID))
+			if in.Resumen {
+				h, etag = sinAtletas(h), etag[:len(etag)-1]+`-r"`
+			}
+			return &hOut{ETag: etag, CacheControl: "public, max-age=15", Body: h}, nil
 		})
 
 	type icsIn struct {

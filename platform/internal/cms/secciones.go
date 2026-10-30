@@ -44,26 +44,50 @@ var (
 	cImagen  = Campo{Clave: "imagen", Etiqueta: "Imagen", Tipo: "imagen"}
 )
 
-// Secciones lists the sections the public home can show, in default order.
+// Secciones lists the sections the public home can show, in the default order of Figma page 05.
 var Secciones = []SeccionDef{
 	{Clave: "hero", Nombre: "Hero", Descripcion: "Intro con la animación del trofeo", Campos: []Campo{cTitulo}},
-	{Clave: "campeonato", Nombre: "Campeonato", Descripcion: "Título, nivel, datos y cuenta atrás", Campos: []Campo{cTitulo, {Clave: "subtitulo", Etiqueta: "Subtítulo (nivel)", Tipo: "texto", Max: 120}}},
-	{Clave: "inscripciones", Nombre: "Inscripciones", Descripcion: "Estado de la inscripción de la AEP", Campos: []Campo{cTitulo, cTexto, {Clave: "plazas", Etiqueta: "Plazas de atleta", Tipo: "numero"}}},
-	{Clave: "entradas", Nombre: "Entradas", Descripcion: "Ven a vivirlo en directo", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
-		{Clave: "puntos", Etiqueta: "Puntos", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 60}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 140}}}}},
-	{Clave: "atletas", Nombre: "Los atletas", Descripcion: "Editorial con foto", Campos: []Campo{cEyebrow, cTitulo, cAcento, cImagen}},
-	{Clave: "dia", Nombre: "El día de la competición", Descripcion: "Editorial con foto", Campos: []Campo{cEyebrow, cTitulo, cAcento, cImagen}},
-	{Clave: "premios", Nombre: "Premios", Descripcion: "Premio por movimiento", Campos: []Campo{cEyebrow, cTitulo, cAcento,
-		{Clave: "items", Etiqueta: "Premios", Tipo: "lista", Max: 6, Campos: []Campo{{Clave: "titulo", Etiqueta: "Movimiento", Tipo: "texto", Max: 40}, {Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}}},
-		{Clave: "lema", Etiqueta: "Lema", Tipo: "texto", Max: 80}}},
-	{Clave: "organizacion", Nombre: "Organización y equipamiento", Descripcion: "Texto y fotos", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
-		{Clave: "imagenes", Etiqueta: "Fotos", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}, {Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120}}}}},
-	{Clave: "cifras", Nombre: "Cifras", Descripcion: "Franja de cifras", Campos: []Campo{
+	{Clave: "campeonato", Nombre: "Campeonato", Descripcion: "Título, nivel, datos, aviso, cuenta atrás y cinta de patrocinadores", Campos: []Campo{cTitulo,
+		{Clave: "subtitulo", Etiqueta: "Segunda línea del título (nivel)", Tipo: "texto", Max: 120, Ayuda: "Vacío: el nivel del evento"},
+		{Clave: "aviso", Etiqueta: "Aviso bajo los datos", Tipo: "texto", Max: 40, Ayuda: "p. ej. «Fecha por confirmar». Vacío: sin aviso"}}},
+	{Clave: "cifras", Nombre: "Cifras", Descripcion: "Franja de cuatro cifras", Campos: []Campo{
 		{Clave: "items", Etiqueta: "Cifras", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "valor", Etiqueta: "Valor", Tipo: "texto", Max: 12}, {Clave: "etiqueta", Etiqueta: "Etiqueta", Tipo: "texto", Max: 40}}}}},
-	{Clave: "patrocinadores", Nombre: "Patrocinadores", Descripcion: "Logos (se gestionan en Patrocinadores)", Campos: []Campo{cTitulo}},
-	{Clave: "faq", Nombre: "Preguntas frecuentes", Descripcion: "Muestra las FAQ destacadas", Campos: []Campo{cEyebrow, cTitulo, cTexto}},
-	{Clave: "localizacion", Nombre: "Localización", Descripcion: "Sede y cómo llegar (datos del evento)", Campos: []Campo{cEyebrow, cTitulo, cTexto}},
+	{Clave: "inscripciones", Nombre: "Inscripciones", Descripcion: "Estado de la inscripción (plazas ocupadas en directo)", Campos: []Campo{cTitulo, cTexto, {Clave: "plazas", Etiqueta: "Plazas de atleta", Tipo: "numero"}}},
+	{Clave: "entradas", Nombre: "Entradas", Descripcion: "Ven a vivirlo en directo, con la entrada de ejemplo y el aforo en directo", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto,
+		{Clave: "puntos", Etiqueta: "Puntos", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 60}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 140}}}}},
+	{Clave: "atletas", Nombre: "Los atletas", Descripcion: "Editorial con foto (primera fila)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen, cAlt}},
+	{Clave: "dia", Nombre: "El día de la competición", Descripcion: "Editorial con foto (segunda fila, foto a la izquierda)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen, cAlt}},
+	{Clave: "premios", Nombre: "Premios", Descripcion: "Premio por movimiento", Campos: []Campo{cEyebrow, cTituloRico, cAcento,
+		{Clave: "items", Etiqueta: "Premios", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Movimiento", Tipo: "texto", Max: 40}, {Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}}},
+		{Clave: "lema", Etiqueta: "Lema", Tipo: "texto", Max: 80}}},
+	{Clave: "organizacion", Nombre: "Organización y equipamiento", Descripcion: "Texto y cuatro fotos con pie", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto,
+		{Clave: "imagenes", Etiqueta: "Fotos", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}, {Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 40},
+			{Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 120}, {Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120}}}}},
+	{Clave: "afiliaciones", Nombre: "Organizadores y afiliaciones", Descripcion: "Quién organiza y avala, y las marcas del material", Campos: []Campo{cEyebrow, cTituloRico, cAcento,
+		{Clave: "tarjetas", Etiqueta: "Tarjetas", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "tipo", Etiqueta: "Tipo", Tipo: "texto", Max: 10, Ayuda: "logo · foto"}, {Clave: "imagen", Etiqueta: "Logo o foto", Tipo: "imagen"},
+			{Clave: "titulo", Etiqueta: "Nombre", Tipo: "texto", Max: 40}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 200}}},
+		{Clave: "eyebrow2", Etiqueta: "Antetítulo del material", Tipo: "texto", Max: 40}, {Clave: "titulo2", Etiqueta: "Título del material", Tipo: "texto", Max: 90, Ayuda: ayudaTitulo},
+		{Clave: "texto2", Etiqueta: "Texto del material", Tipo: "area", Max: 300},
+		{Clave: "marcas", Etiqueta: "Marcas", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "nombre", Etiqueta: "Marca", Tipo: "texto", Max: 30}, {Clave: "logo", Etiqueta: "Logo (opcional)", Tipo: "imagen"}}}}},
+	{Clave: "sorteo", Nombre: "Sorteo", Descripcion: "Panel del sorteo (precio y boletos vendidos en directo)", Campos: []Campo{cEyebrow, cTitulo,
+		{Clave: "subtitulo", Etiqueta: "Subtítulo", Tipo: "texto", Max: 80}, cTexto, cImagen}},
+	{Clave: "categorias", Nombre: "Categorías de peso", Descripcion: "Categorías por sexo y enlace a las marcas mínimas", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto, cImagen,
+		{Clave: "ctaTitulo", Etiqueta: "Título del aviso", Tipo: "texto", Max: 60}, {Clave: "ctaTexto", Etiqueta: "Texto del aviso", Tipo: "texto", Max: 120}}},
+	{Clave: "horarios", Nombre: "Horarios", Descripcion: "Horario publicado por día (se oculta si no hay)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen}},
+	{Clave: "localizacion", Nombre: "Localización", Descripcion: "Fotos de la sede y mapa (dirección del evento)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto,
+		{Clave: "imagenes", Etiqueta: "Fotos (la primera, grande)", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}, {Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120}}},
+		{Clave: "mapa", Etiqueta: "Imagen del mapa", Tipo: "imagen"}}},
+	{Clave: "faq", Nombre: "Preguntas frecuentes", Descripcion: "Muestra las FAQ destacadas", Campos: []Campo{cEyebrow, cTituloRico, cAcento}},
+	{Clave: "patrocinadores", Nombre: "Patrocinadores", Descripcion: "Cinta de logos bajo «Campeonato» (se gestionan en Patrocinadores)", Campos: []Campo{cTitulo}},
 }
+
+// ayudaTitulo explains the markup of home titles (rendered by the public web).
+const ayudaTitulo = "*texto* en rojo · | salto de línea"
+
+var (
+	cTituloRico = Campo{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 120, Ayuda: ayudaTitulo}
+	cAlt        = Campo{Clave: "alt", Etiqueta: "Pie de la foto (móvil) y texto alternativo", Tipo: "texto", Max: 120}
+)
 
 // Lists of sub-items shared by the landings.
 var (

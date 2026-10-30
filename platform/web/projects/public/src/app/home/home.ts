@@ -4,16 +4,26 @@ import { ChangeDetectionStrategy, Component, PendingTasks, RESPONSE_INIT, inject
 import { fmtLongDate } from '@grcup/ui';
 import { Cms, type HomeCms } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
+import type { Entradas } from '../core/entradas';
+import type { Horarios } from '../core/horarios';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
+import { Campeonato, fechaCorta } from './campeonato';
 import { HeroTrophy } from './hero-trophy';
-import { SecCifras, SecEditorial, SecEntradas, SecFaq, SecInscripciones, SecLocalizacion, SecOrganizacion, SecPatrocinadores, SecPremios } from './cms-sections';
-import { Campeonato, Sponsors, Stats } from './sections';
+import {
+  SecAfiliaciones, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecInscripciones, SecLocalizacion, SecOrganizacion, SecPremios, SecSorteo,
+  type SorteoHome,
+} from './secciones';
 
-/** «/ — Home» (Figma page 05). Data from GET /api/competiciones/grcup, rendered on the server. */
+/**
+ * «/ — Home» (Figma page 05, desktop · tablet · mobile). Data from the competition and the CMS («Web · home»: order,
+ * visibility and texts of every section) plus the live numbers of tickets, raffle, schedule and athletes; all of it
+ * rendered on the server. A section whose service fails is left out instead of showing wrong numbers.
+ */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, HeroTrophy, Campeonato, Sponsors, Stats, SecInscripciones, SecEntradas, SecEditorial, SecPremios, SecOrganizacion, SecCifras, SecPatrocinadores, SecFaq, SecLocalizacion],
+  imports: [Navbar, Footer, HeroTrophy, Campeonato, SecCifras, SecInscripciones, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+    SecSorteo, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = cms();
@@ -21,26 +31,28 @@ import { Campeonato, Sponsors, Stats } from './sections';
     <gr-navbar [hidden]="!introDone()" />
     <main>
       <gr-hero-trophy [meta]="heroMeta()" [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" (done)="introDone.set($event)" />
-      <gr-campeonato [comp]="c" [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" />
+      <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || 'Campeonato de powerlifting'"
+        [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''"
+        [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
       @if (h) {
         <!-- Sections in the order and visibility published from the backoffice («Web · home»). -->
         @for (k of h.orden; track k) {
           @switch (k) {
-            @case ('inscripciones') { <gr-sec-inscripciones [s]="h.secciones[k]" [comp]="c" [propia]="propia()" /> }
-            @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" /> } }
-            @case ('atletas') { <gr-sec-editorial [s]="h.secciones[k]" /> }
-            @case ('dia') { <gr-sec-editorial [s]="h.secciones[k]" [reverse]="true" /> }
+            @case ('cifras') { <gr-sec-cifras [s]="h.secciones[k]" /> }
+            @case ('inscripciones') { <gr-sec-inscripciones [s]="h.secciones[k]" [comp]="c" [propia]="propia()" [inscritos]="inscritos()" /> }
+            @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" [sorteo]="c?.modulos?.['sorteo'] ? sorteo() : null" /> } }
+            @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
+            @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
             @case ('premios') { <gr-sec-premios [s]="h.secciones[k]" /> }
             @case ('organizacion') { <gr-sec-organizacion [s]="h.secciones[k]" /> }
-            @case ('cifras') { <gr-sec-cifras [s]="h.secciones[k]" /> }
-            @case ('patrocinadores') { <gr-sec-patrocinadores [titulo]="$any(h.secciones[k]['titulo'])" [items]="h.patrocinadores" /> }
-            @case ('faq') { @if (h.faqDestacadas.length) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" /> } }
+            @case ('afiliaciones') { <gr-sec-afiliaciones [s]="h.secciones[k]" /> }
+            @case ('sorteo') { @if (c?.modulos?.['sorteo'] && sorteo()) { <gr-sec-sorteo [s]="h.secciones[k]" [sorteo]="sorteo()" /> } }
+            @case ('categorias') { <gr-sec-categorias [s]="h.secciones[k]" /> }
+            @case ('horarios') { @if (horarios()?.publicado) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } }
             @case ('localizacion') { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> }
+            @case ('faq') { @if (h.faqDestacadas.length) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } }
           }
         }
-      } @else {
-        <gr-sponsors />
-        <gr-stats />
       }
     </main>
     <gr-footer />
@@ -53,17 +65,29 @@ export class HomePage {
   protected readonly cms = signal<HomeCms | null>(null);
   protected heroMeta = signal('');
   protected readonly propia = signal(false);
+  protected readonly sorteo = signal<SorteoHome | null>(null);
+  protected readonly entradas = signal<Entradas | null>(null);
+  protected readonly horarios = signal<Horarios | null>(null);
+  protected readonly inscritos = signal<number | null>(null);
 
   constructor() {
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
     const cmsApi = inject(Cms);
     const http = inject(HttpClient);
-    const modo = firstValueFrom(http.get<{ modo: string }>(`/api/competiciones/${COMPETITION_SLUG}/inscripcion`)).then((r) => r.modo === 'propia').catch(() => false);
-    void inject(PendingTasks).run(() => Promise.all([this.comp.load(), cmsApi.home(), modo]).then(([c, h, propia]) => {
+    const api = (p: string) => `/api/competiciones/${COMPETITION_SLUG}${p}`;
+    const opt = <T,>(p: string) => firstValueFrom(http.get<T>(api(p))).catch(() => null);
+    const modo = opt<{ modo: string }>('/inscripcion').then((r) => r?.modo === 'propia');
+    void inject(PendingTasks).run(() => Promise.all([
+      this.comp.load(), cmsApi.home(), modo, opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
+      opt<{ resumen: { total: number } }>('/atletas?resumen=true'),
+    ]).then(([c, h, propia, sorteo, entradas, horarios, atletas]) => {
       this.cms.set(h);
       this.propia.set(propia);
-      const fecha = c?.fechaInicio ? fmtLongDate(c.fechaInicio).replace(/ de /g, ' ').toUpperCase() : '';
-      this.heroMeta.set([fecha, c?.sede?.ciudad?.toUpperCase(), c?.sede?.provincia?.toUpperCase()].filter(Boolean).join(' · '));
+      this.sorteo.set(sorteo);
+      this.entradas.set(entradas);
+      this.horarios.set(horarios);
+      this.inscritos.set(atletas?.resumen?.total ?? null);
+      this.heroMeta.set([fechaCorta(c?.fechaInicio), c?.sede?.ciudad, c?.sede?.provincia].filter(Boolean).join(' · '));
       const nombre = c?.nombre ?? 'GR Strength Cup';
       this.seo.set({
         title: `${nombre} · Campeonato de powerlifting en ${c?.sede?.ciudad ?? 'Almussafes'}`,
@@ -93,6 +117,7 @@ export class HomePage {
       });
     }));
   }
+
 }
 
 /** 404 of the public site. */
