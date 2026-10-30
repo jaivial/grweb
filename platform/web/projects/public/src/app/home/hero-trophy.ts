@@ -88,7 +88,8 @@ const PUFFS = [
         </button>
         <!-- «Hero preload»: trophy icon, bar and percentage while the first frames arrive -->
         @if (precarga()) {
-          <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : 1"
+          <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
+          <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
             role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="criticoPct()" aria-valuemin="0" aria-valuemax="100">
             <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
             <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [style.width.%]="criticoPct()"></div></div>
@@ -97,7 +98,12 @@ const PUFFS = [
         }
       }
     </div>
+    <noscript><style>.gr-precarga { display: none !important; }</style></noscript>
   `,
+  styles: [`
+    .gr-precarga { animation: gr-precarga-fuera 0.5s ease 4s forwards; }
+    @keyframes gr-precarga-fuera { to { opacity: 0; visibility: hidden; } }
+  `],
 })
 export class HeroTrophy {
   /** "25 JULIO 2026 · ALMUSSAFES · VALENCIA" */
@@ -120,7 +126,8 @@ export class HeroTrophy {
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);
   private readonly p = signal(0);
-  private readonly aparecido = signal(false);
+  /** The intro text is visible from the first paint (server HTML too: it is the page's h1). */
+  private readonly aparecido = signal(true);
   protected readonly metaPartes = computed(() => (this.meta() || '').split(' · ').filter(Boolean));
   // values of the timeline for the current (smoothed) progress
   protected readonly texto = computed(() => (this.aparecido() ? 1 - ease(tramo(this.p(), T.textoFuera)) : 0));
@@ -144,7 +151,6 @@ export class HeroTrophy {
     const destroy = inject(DestroyRef);
     afterNextRender(() => {
       if (!this.browser) return;
-      setTimeout(() => this.aparecido.set(true), 300);
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.reduced.set(reduced);
       const ctx = this.canvas().nativeElement.getContext('2d');
