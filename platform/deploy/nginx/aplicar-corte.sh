@@ -26,9 +26,18 @@ aplicar() {
 
 case "$MODO" in
   instalar)
-    # one certificate for the three hosts (DNS-01: works before their DNS records exist)
-    if [ ! -f "$LE_DIR/$WEB_HOST/fullchain.pem" ]; then
-      certbot certonly --non-interactive --agree-tos --dns-cloudflare --dns-cloudflare-credentials "$CF_INI" \
+    # one certificate for the three hosts (DNS-01: works before their DNS records exist); an existing one is
+    # re-issued (--expand) when it does not cover all of them
+    falta=""
+    if [ -f "$LE_DIR/$WEB_HOST/fullchain.pem" ]; then
+      sans=$(openssl x509 -in "$LE_DIR/$WEB_HOST/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | tr ',' '\n' | sed -n 's/.*DNS://p')
+      for h in "$WEB_HOST" "$BO_HOST" "$API_HOST"; do printf '%s\n' "$sans" | grep -qx "$h" || falta="$falta $h"; done
+    else
+      falta=" (sin certificado)"
+    fi
+    if [ -n "$falta" ]; then
+      echo "certificado para$falta"
+      certbot certonly --non-interactive --agree-tos --expand --dns-cloudflare --dns-cloudflare-credentials "$CF_INI" \
         --dns-cloudflare-propagation-seconds 30 --cert-name "$WEB_HOST" -d "$WEB_HOST" -d "$BO_HOST" -d "$API_HOST"
     fi
     sitio="$NGINX_DIR/sites-available/$WEB_HOST.conf"
