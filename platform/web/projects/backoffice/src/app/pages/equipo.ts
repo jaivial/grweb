@@ -180,7 +180,7 @@ export class EquipoPage {
   private u(): string { return `/api/competition/${this.cid()}`; }
   async cargar(): Promise<void> {
     const [m, r, i] = await Promise.all([
-      firstValueFrom(this.http.get<Miembro[]>(`${this.u()}/users`)), firstValueFrom(this.http.get<Rol[]>(`${this.u()}/roles`)),
+      firstValueFrom(this.http.get<Miembro[]>(`${this.u()}/users`)), firstValueFrom(this.http.get<{ roles: Rol[] }>(`${this.u()}/roles`)).then((x) => x.roles),
       firstValueFrom(this.http.get<Invitacion[]>(`/api/admin/competiciones/${this.cid()}/equipo/invitaciones`)).catch(() => [] as Invitacion[]),
     ]);
     this.miembros.set(m);

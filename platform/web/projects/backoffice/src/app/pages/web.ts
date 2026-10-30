@@ -1,3 +1,4 @@
+import { webPublica } from '../core/web';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, Injectable, computed, effect, inject, input, signal } from '@angular/core';
@@ -113,7 +114,7 @@ export class WebPage {
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
   protected readonly publishing = signal(false);
-  protected readonly previewUrl = computed(() => 'https://grcup-qa.menustudioai.com' + (PAGINAS.find((p) => p.value === this.secs.pagina())?.ruta ?? '/'));
+  protected readonly previewUrl = computed(() => webPublica() + (PAGINAS.find((p) => p.value === this.secs.pagina())?.ruta ?? '/'));
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
   protected readonly tabs = [
     { label: 'Home y landings', path: 'home' },

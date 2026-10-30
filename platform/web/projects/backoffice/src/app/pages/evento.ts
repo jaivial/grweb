@@ -1,3 +1,4 @@
+import { webPublica } from '../core/web';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -204,7 +205,7 @@ export class EventoPage {
   protected readonly estados = ESTADOS;
   protected readonly estadosInsc = [{ v: 'proximamente' as const, l: 'Próximamente' }, { v: 'abierta' as const, l: 'Abiertas' }, { v: 'completa' as const, l: 'Completas' }, { v: 'cerrada' as const, l: 'Cerradas' }];
   protected readonly transportes = TRANSPORTES;
-  protected readonly web = 'https://grcup-qa.menustudioai.com/';
+  protected readonly web = webPublica() + '/';
   protected readonly comp = signal<Comp | null>(null);
   protected readonly mods = signal<ModItem[]>([]);
   protected readonly est = signal<EstadoInfo | null>(null);

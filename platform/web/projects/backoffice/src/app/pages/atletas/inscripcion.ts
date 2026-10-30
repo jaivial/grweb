@@ -1,3 +1,4 @@
+import { webPublica } from '../../core/web';
 import { TitleCasePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -36,7 +37,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
   template: `
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6 pb-24">
       <bo-page-header title="Inscripción" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas', 'Inscripción']">
-        @if (tab() === 'config') { <a actions grButton icon="external-link" href="https://grcup-qa.menustudioai.com/inscripcion" target="_blank" rel="noopener">Ver formulario</a> }
+        @if (tab() === 'config') { <a actions grButton icon="external-link" [href]="web + '/inscripcion'" target="_blank" rel="noopener">Ver formulario</a> }
         @if (tab() === 'config' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
         @if (tab() === 'cupones' && canEdit()) { <button actions grButton variant="primary" icon="plus" (click)="editarCupon(null)">Nuevo cupón</button> }
         @if (tab() === 'referidos' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
@@ -297,6 +298,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
   `,
 })
 export class InscripcionPage {
+  protected readonly web = webPublica();
   protected readonly comps = inject(Competitions);
   private readonly http = inject(HttpClient);
   private readonly auth = inject(Auth);
