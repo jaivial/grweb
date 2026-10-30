@@ -53,6 +53,7 @@ type Svc struct {
 	cms       *svcclient.Client
 	ticketing *svcclient.Client
 	messaging *svcclient.Client
+	raffle    *svcclient.Client
 	key       []byte
 	webURL    string
 }
@@ -72,6 +73,7 @@ func (s *Svc) init(a *app.App) {
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "crm", "cms", a.Cfg.InternalToken)
 	s.ticketing = svcclient.New(config.Str("UPSTREAM_TICKETING", "http://ticketing:8080"), "crm", "ticketing", a.Cfg.InternalToken)
 	s.messaging = svcclient.New(config.Str("UPSTREAM_MESSAGING", "http://messaging:8080"), "crm", "messaging", a.Cfg.InternalToken)
+	s.raffle = svcclient.New(config.Str("UPSTREAM_RAFFLE", "http://raffle:8080"), "crm", "raffle", a.Cfg.InternalToken)
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/crm/v1"))
 	s.key = m.Sum(nil)

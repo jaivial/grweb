@@ -74,7 +74,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
 	// History is never re-sent: a new consumer group starts at the end of the stream.
 	c := &events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "messaging", Start: "$",
-		Types: []string{"identity.email_", "athletes.email_", "cms.email_", "crm.email_", "ticketing.email_"}, Handle: s.handle, Log: a.Log}
+		Types: []string{"identity.email_", "athletes.email_", "cms.email_", "crm.email_", "ticketing.email_", "raffle.email_"}, Handle: s.handle, Log: a.Log}
 	a.Go(c.Run)
 	a.Go(s.worker)
 	a.Go(s.campanasWorker)

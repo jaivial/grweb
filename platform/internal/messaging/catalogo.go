@@ -43,6 +43,7 @@ var automatizaciones = []Automatizacion{
 	{Clave: "seguidores", Nombre: "Avisos a seguidores", Cuando: "al publicar horarios", Publico: "Seguidores con aviso confirmado", Canales: []string{"email"}},
 	{Clave: "salida30", Nombre: "Tu atleta sale en 30 min", Cuando: "−30 min del flight", Publico: "Seguidores con aviso confirmado", Canales: []string{"email"}},
 	{Clave: "resultados", Nombre: "Resultados publicados", Cuando: "al publicar cada categoría", Publico: "Atletas de la categoría y sus seguidores", Canales: []string{"email"}},
+	{Clave: "sorteo", Nombre: "Sorteo: boletos, reembolsos y ganador", Cuando: "al pagar · reembolsar · confirmar el ganador", Publico: "Compradores de boletos", Canales: []string{"email"}, Esencial: true},
 	{Clave: "plaza", Nombre: "Plaza libre en la reserva", Cuando: "al liberarse plaza", Publico: "Lista de reserva", Canales: []string{"email"}},
 	{Clave: "novedades", Nombre: "Novedades: doble opt-in", Cuando: "al suscribirse · recordatorio a las 48 h", Publico: "Suscripciones pendientes", Canales: []string{"email"}},
 	{Clave: "entradas", Nombre: "Entradas: confirmación, cambios y anulación", Cuando: "al reservar o cambiar", Publico: "Reservas", Canales: []string{"email"}, Esencial: true},
@@ -61,6 +62,9 @@ var ejEntrada = map[string]string{"nombre": "Laura", "titular": "Laura Gómez Ru
 
 var ejResultado = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "categoria": "Femenino −63 kg", "puesto": "2.ª", "total": "367,5 kg",
 	"resultado": "2.ª con 367,5 kg", "enlace": "https://grcup.example/resultados/2026", "baja": "https://grcup.example/atletas/laura-gomez-ruiz?baja=…"}
+
+var ejSorteo = map[string]string{"nombre": "Laura", "boletos": "0427, 0428", "cantidad": "2", "importe": "2,00 €", "premio": "Cinturón SBD 13 mm", "fechaSorteo": "26/07 19:00",
+	"enlace": "https://grcup.example/sorteo/confirmacion?compra=…", "destino": "Asociación local", "numero": "0427", "motivo": "Compra duplicada"}
 
 var ejHorario = map[string]string{"nombre": "Laura", "atleta": "Laura Gómez Ruiz", "flight": "B", "plataforma": "1", "dia": "sábado 25/7", "hora": "10:30", "pesaje": "08:30–10:00",
 	"enlace": "https://grcup.example/area-atleta", "horarios": "https://grcup.example/horarios", "version": "2", "baja": "https://grcup.example/atletas/laura-gomez-ruiz?baja=…"}
@@ -112,6 +116,12 @@ var catalogo = []Plantilla{
 		Contenido{Asunto: "Tus resultados · {{categoria}}", Preheader: "{{resultado}}", Titulo: "¡Gracias por competir, {{nombre}}!", Cuerpo: "Ya están publicados los resultados de **{{categoria}}**: terminaste **{{resultado}}**.\n\nEl acta oficial la valida la AEP. En unos días subiremos las fotos a la galería.", BotonTexto: "Ver la clasificación", BotonURL: "{{enlace}}"}),
 	p("resultados-seguidor", "Resultados de un atleta que sigues", "Al publicar los resultados de su categoría", "athletes", "resultados", false, []string{"atleta", "categoria", "puesto", "total", "resultado", "enlace", "baja"}, ejResultado,
 		Contenido{Asunto: "Resultados de {{atleta}} · {{categoria}}", Titulo: "{{atleta}}: {{resultado}}", Cuerpo: "Ya están publicados los resultados de **{{categoria}}**. **{{atleta}}** terminó **{{resultado}}**.", BotonTexto: "Ver la clasificación", BotonURL: "{{enlace}}", Pie: "Recibes este email porque activaste el aviso de {{atleta}}. Desactívalo aquí: {{baja}}"}),
+	p("sorteo-boletos", "Tus boletos del sorteo", "Al pagar los boletos (y al reenviarlos)", "raffle", "sorteo", true, []string{"nombre", "boletos", "cantidad", "importe", "premio", "fechaSorteo", "enlace", "destino"}, ejSorteo,
+		Contenido{Asunto: "Tus boletos del sorteo: {{boletos}}", Preheader: "Guarda este email: el número es tu boleto", Titulo: "¡Ya participas, {{nombre}}!", Cuerpo: "Tus boletos: **{{boletos}}** ({{cantidad}} · {{importe}}).\n\nEl sorteo del **{{premio}}** es el {{fechaSorteo}}, en directo. Lo recaudado va a {{destino}}.\n\nGuarda este email: el número es tu boleto.", BotonTexto: "Ver mis boletos", BotonURL: "{{enlace}}"}),
+	p("sorteo-reembolso", "Reembolso del sorteo", "Al reembolsar una compra", "raffle", "sorteo", true, []string{"nombre", "importe", "boletos", "motivo"}, ejSorteo,
+		Contenido{Asunto: "Te hemos devuelto {{importe}}", Titulo: "Reembolso del sorteo", Cuerpo: "Hola {{nombre}}, te hemos devuelto **{{importe}}** de los boletos {{boletos}}, que quedan anulados.\n\nMotivo: {{motivo}}\n\nEl banco puede tardar de 5 a 10 días en mostrarlo."}),
+	p("sorteo-ganador", "Has ganado el sorteo", "Al confirmar el ganador", "raffle", "sorteo", true, []string{"nombre", "numero", "premio", "enlace"}, ejSorteo,
+		Contenido{Asunto: "¡Has ganado el {{premio}}!", Titulo: "¡Enhorabuena, {{nombre}}!", Cuerpo: "Tu boleto **{{numero}}** ha ganado el **{{premio}}** en el sorteo de la GR Strength Cup.\n\nTe escribiremos para la entrega. Si estás en el pabellón, pásate por la mesa de la organización.", BotonTexto: "Ver el sorteo", BotonURL: "{{enlace}}"}),
 	p("voluntario-recibido", "Solicitud de voluntariado recibida", "Al enviar el formulario de voluntarios", "cms", "voluntarios", true, []string{"nombre"},
 		map[string]string{"nombre": "Pablo"},
 		Contenido{Asunto: "Hemos recibido tu solicitud de voluntariado", Titulo: "¡Gracias, {{nombre}}!", Cuerpo: "Hemos recibido tu solicitud para ser voluntario en la GR Strength Cup. Te escribiremos en unos días con el puesto y los turnos."}),

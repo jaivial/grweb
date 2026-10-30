@@ -1,6 +1,7 @@
 import { HorariosPage } from './pages/horarios';
 import { BajaPage, NovedadesConfirmarPage } from './pages/novedades';
 import { ConfirmacionPage, EntradasPage, MiEntradaPage, OfertaPage } from './pages/entradas';
+import { SorteoConfirmacionPage, SorteoPage } from './pages/sorteo';
 import { EdicionPage, EnDirectoPage, PantallaPublicaPage, ResultadosEdicionPage, ResultadosIndexPage } from './pages/directo';
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
@@ -27,6 +28,8 @@ export const routes: Routes = [
   { path: 'entradas/oferta', component: OfertaPage },
   { path: 'mi-entrada', component: MiEntradaPage },
   { path: 'baja', component: BajaPage },
+  { path: 'sorteo', component: SorteoPage },
+  { path: 'sorteo/confirmacion', component: SorteoConfirmacionPage },
   { path: 'en-directo', component: EnDirectoPage },
   { path: 'directo', pathMatch: 'full', redirectTo: 'en-directo' },
   { path: 'resultados', component: ResultadosIndexPage },

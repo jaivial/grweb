@@ -498,6 +498,10 @@ func (s *Svc) registerContactos() {
 				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido anonimizar sus entradas. Inténtalo en unos segundos.")
 			}
 			o.Body.Entradas = ent.Entradas
+			if err := s.raffle.Do(ctx, http.MethodPost, path, body, nil); err != nil {
+				s.a.Log.Warn("supresión en raffle", "err", err)
+				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido anonimizar sus compras del sorteo. Inténtalo en unos segundos.")
+			}
 			if err := s.messaging.Do(ctx, http.MethodPost, path, body, nil); err != nil {
 				s.a.Log.Warn("supresión en messaging", "err", err)
 				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido borrar sus envíos de campañas. Inténtalo en unos segundos.")

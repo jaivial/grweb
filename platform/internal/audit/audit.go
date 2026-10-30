@@ -58,7 +58,10 @@ var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitad
 	// the publications.
 	"directo.intento": true, "directo.veredicto": true, "directo.estado": true, "directo.correccion": true, "resultados.publicados": true, "resultados.retirados": true,
 	// campaigns: progress ticks and the WhatsApp opt-outs (they carry the phone number)
-	"campana.progreso": true, "messaging.baja": true}
+	"campana.progreso": true, "messaging.baja": true,
+	// raffle: emails and contact facts (personal data), each purchase (a counter, not an action of the team) and the
+	// public mirrors of the draw (the log keeps sorteo.congelado/ejecutado/confirmado/repetido)
+	"raffle.email_solicitado": true, "raffle.contacto": true, "sorteo.compra": true, "sorteo.estado": true, "sorteo.ganador": true}
 
 // handle stores the event, then applies notification and KPI rules (its own events are ignored to avoid loops).
 func (s *Svc) handle(ctx context.Context, e events.Event) error {
