@@ -59,7 +59,7 @@ func Service() app.Service {
 			}
 			return 0
 		},
-		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup},
+		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "etl-mysql": s.etlMySQL},
 	}
 }
 

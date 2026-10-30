@@ -452,7 +452,7 @@ export class ResultadosIndexPage {
   template: `
     @let r = res();
     <gr-page title="Resultados" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" section="Resultados" [crumb]="anio()" [eyebrow]="r ? (r.competicion.sede + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
-      [subtitle]="r?.publicado ? 'Podios, mejores levantadores y clasificación completa por categoría.' : ''">
+      [subtitle]="r?.publicado ? ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
       @if (r?.publicado) {
         <div pageStamps class="mt-5 flex flex-wrap gap-2">
           @if (r!.ejemplo) { <span class="inline-flex h-8 items-center rounded-pill border border-info/50 px-3 text-mono-xs text-info">Datos de ejemplo</span> }
@@ -468,16 +468,19 @@ export class ResultadosIndexPage {
           <a href="/en-directo" class="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-label-s text-white hover:bg-accent-hover"><gr-icon name="radio" [size]="16" />Ver en directo</a>
         </div>
       } @else {
+        <!-- GL points need the body weight: editions imported from the previous web have none -->
+        @let conGL = !!(r.mejores['F'] || r.mejores['M']);
         <!-- Filters -->
         <div class="flex flex-wrap items-center gap-2">
           <label class="relative min-w-0 flex-1 basis-56 md:max-w-xs"><span class="sr-only">Buscar atleta o club</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input class="h-10 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
           @for (s of sexos; track s.v) { <button type="button" class="h-10 rounded-pill border px-4 text-label-s" [class]="sexo() === s.v ? 'border-accent bg-accent-deep/40' : 'border-line-strong text-text-secondary hover:text-text-primary'" (click)="sexo.set(s.v)">{{ s.l }}</button> }
           <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Categoría</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</select>
-          <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:ml-auto" aria-label="Ordenar" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">Ordenar: posición</option><option value="total">Ordenar: total</option><option value="gl">Ordenar: puntos GL</option></select>
+          <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:ml-auto" aria-label="Ordenar" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">Ordenar: posición</option><option value="total">Ordenar: total</option>@if (conGL) { <option value="gl">Ordenar: puntos GL</option> }</select>
         </div>
 
         @if (!q() && !cat()) {
+          @if (conGL) {
           <gr-section-title class="mt-12 block" eyebrow="01 · Mejores levantadores" titulo="Mejor" acento="levantador/a" />
           <p class="mt-2 text-body-s text-text-tertiary">Por puntos GL de la IPF.</p>
           <div class="mt-5 grid gap-3 md:grid-cols-2">
@@ -492,7 +495,8 @@ export class ResultadosIndexPage {
             }
           </div>
 
-          <gr-section-title class="mt-14 block" eyebrow="02 · Podios" titulo="Podio por" acento="categoría" />
+          }
+          <gr-section-title class="block" [class]="conGL ? 'mt-14' : 'mt-12'" [eyebrow]="(conGL ? '02' : '01') + ' · Podios'" titulo="Podio por" acento="categoría" />
           <div class="mt-5 grid gap-3 md:grid-cols-2">
             @for (c of r.categorias; track c.clave) {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
@@ -511,7 +515,7 @@ export class ResultadosIndexPage {
           </div>
         }
 
-        <gr-section-title class="mt-14 block" eyebrow="03 · Clasificación" [titulo]="cat() ? '' : 'Clasificación'" [acento]="cat() ? tituloCat() : 'completa'" />
+        <gr-section-title class="mt-14 block" [eyebrow]="(conGL ? '03' : '02') + ' · Clasificación'" [titulo]="cat() ? '' : 'Clasificación'" [acento]="cat() ? tituloCat() : 'completa'" />
         @for (c of filtradas(); track c.clave) {
           @if (!cat()) { <h3 class="mt-8 font-display text-[22px] uppercase italic">{{ c.titulo }}</h3> }
           <gr-clasificacion class="mt-3 block" [c]="c" />

@@ -32,7 +32,7 @@ export interface Fila {
 }
 export interface Categoria { clave: string; sexo: 'F' | 'M'; categoria: string; titulo: string; corto: string; atletas: number; completos: number; filas: Fila[] }
 export interface CategoriaResumen { clave: string; titulo: string; corto: string; atletas: number; completos: number; publicado?: { version: number; at: string; por: string }; cambios: boolean }
-export interface ResultadosAdmin { categorias: CategoriaResumen[]; categoria?: Categoria; absoluta: Record<'F' | 'M', Fila[]>; publicarAuto: boolean; flights: number; cerrados: number }
+export interface ResultadosAdmin { categorias: CategoriaResumen[]; categoria?: Categoria; absoluta: Record<'F' | 'M', Fila[]>; publicarAuto: boolean; flights: number; cerrados: number; archivo?: boolean }
 
 export const MOV: Record<Mov, string> = { sq: 'Sentadilla', bp: 'Press banca', dl: 'Peso muerto' };
 export const MOV_CORTO: Record<Mov, string> = { sq: 'SQ', bp: 'BP', dl: 'DL' };

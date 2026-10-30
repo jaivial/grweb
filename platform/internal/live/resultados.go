@@ -95,6 +95,7 @@ type ResultadosAdmin struct {
 	PublicarAuto bool               `json:"publicarAuto"`
 	Flights      int                `json:"flights"`
 	Cerrados     int                `json:"cerrados"`
+	Archivo      bool               `json:"archivo,omitempty" doc:"Edición celebrada sin horarios publicados (p. ej. importada de la web anterior): solo sus resultados publicados, de lectura"`
 }
 
 // publicar freezes the public ranking of some categories and tells athletes (followers' notices on the first
@@ -233,6 +234,27 @@ func (s *Svc) resultadosAdmin(ctx context.Context, cid uuid.UUID, sel string) (*
 		return nil, err
 	}
 	o := &ResultadosAdmin{Categorias: []CategoriaResumen{}, Absoluta: map[string][]Fila{"F": {}, "M": {}}, PublicarAuto: e.PublicarAuto, Flights: len(p.Flights)}
+	if len(p.Flights) == 0 && len(pubs) > 0 {
+		// a held edition without a published schedule (imported from the previous web): what was published
+		o.Archivo = true
+		cats := make([]Categoria, 0, len(pubs))
+		for k, pb := range pubs {
+			c := pb.datos
+			c.Clave = k
+			cats = append(cats, c)
+		}
+		ordenarCategorias(cats)
+		for _, c := range cats {
+			pp := pubs[c.Clave].pub
+			o.Categorias = append(o.Categorias, CategoriaResumen{Clave: c.Clave, Titulo: c.Titulo, Corto: c.Corto, Atletas: c.Atletas, Completos: c.Completos, Publicado: &pp})
+			if c.Clave == sel || (sel == "" && o.Categoria == nil) {
+				cc := c
+				o.Categoria = &cc
+			}
+		}
+		o.Absoluta["F"], o.Absoluta["M"] = absoluta(cats, "F", 10), absoluta(cats, "M", 10)
+		return o, nil
+	}
 	for i := range p.Flights {
 		if flightCompleto(&p.Flights[i], t) {
 			o.Cerrados++
@@ -465,8 +487,24 @@ func (s *Svc) registerResultados() {
 				}
 				return kg(*v)
 			}
+			var cats []Categoria
 			for _, k := range p.categorias() {
-				c := clasificar(p, t, recs, k, false)
+				cats = append(cats, clasificar(p, t, recs, k, false))
+			}
+			if len(p.Flights) == 0 {
+				// archive (a held edition without a published schedule, e.g. imported): its published results
+				pubs, err := cargarPublicados(ctx, s.a.DB, in.CID)
+				if err != nil {
+					return nil, err
+				}
+				for k, pb := range pubs {
+					c := pb.datos
+					c.Clave = k
+					cats = append(cats, c)
+				}
+				ordenarCategorias(cats)
+			}
+			for _, c := range cats {
 				for _, f := range c.Filas {
 					puesto := "—"
 					if f.Puesto > 0 {

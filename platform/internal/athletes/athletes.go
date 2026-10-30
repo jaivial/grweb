@@ -81,7 +81,7 @@ func Service() app.Service {
 			}
 			return 0
 		},
-		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "enlace-area": s.cmdEnlaceArea},
+		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "enlace-area": s.cmdEnlaceArea, "etl-mysql": s.etlMySQL},
 	}
 }
 

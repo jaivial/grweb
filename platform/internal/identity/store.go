@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -97,6 +98,9 @@ func checkPassword(hash, pw string) bool {
 	var m, t uint32
 	var p uint8
 	parts := strings.Split(hash, "$")
+	if len(parts) == 5 && parts[1] == legacyScheme {
+		return checkLegacy(parts, pw)
+	}
 	if len(parts) != 6 || parts[1] != "argon2id" {
 		return false
 	}
@@ -111,6 +115,41 @@ func checkPassword(hash, pw string) bool {
 	got := argonKey([]byte(pw), salt, t, m, p, uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1
 }
+
+// legacyScheme marks a password hash imported from the previous web (step 16): ASP.NET KeyDerivation.Pbkdf2 with
+// HMAC-SHA256, 100 000 iterations, 16-byte salt and 32-byte key, stored there as «salt:key» in standard base64.
+// The first login with it replaces the hash with argon2id (needsRehash), so users keep their password.
+const legacyScheme = "pbkdf2-sha256"
+
+// legacyHash converts the old «salt:key» to «$pbkdf2-sha256$i=100000$salt$key» ("" if it is not that format).
+func legacyHash(old string) string {
+	salt, key, ok := strings.Cut(strings.TrimSpace(old), ":")
+	s, err1 := base64.StdEncoding.DecodeString(salt)
+	k, err2 := base64.StdEncoding.DecodeString(key)
+	if !ok || err1 != nil || err2 != nil || len(s) < 8 || len(k) != 32 {
+		return ""
+	}
+	return fmt.Sprintf("$%s$i=100000$%s$%s", legacyScheme, salt, key)
+}
+
+func checkLegacy(parts []string, pw string) bool {
+	var iter int
+	if _, err := fmt.Sscanf(parts[2], "i=%d", &iter); err != nil || iter < 10000 || iter > 1000000 {
+		return false
+	}
+	salt, err1 := base64.StdEncoding.DecodeString(parts[3])
+	want, err2 := base64.StdEncoding.DecodeString(parts[4])
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	argonSlots <- struct{}{} // same concurrency bound as argon2id
+	got, err := pbkdf2.Key(sha256.New, pw, salt, iter, len(want))
+	<-argonSlots
+	return err == nil && subtle.ConstantTimeCompare(got, want) == 1
+}
+
+// needsRehash says whether a verified hash should be replaced with argon2id.
+func needsRehash(hash string) bool { return strings.HasPrefix(hash, "$"+legacyScheme+"$") }
 
 // dummyHash keeps login timing similar for unknown emails.
 var dummyHash = hashPassword(randomToken(16))
