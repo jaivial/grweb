@@ -110,6 +110,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerInscripcion()
 	s.registerInscripcionAdmin()
 	a.Go(s.expirador)
+	a.Go(s.avisosSalida)
 	return nil
 }
 
@@ -190,6 +191,11 @@ func (s *Svc) change(ctx context.Context, cid uuid.UUID, ev string, data any, fn
 func email(ctx context.Context, tx pgx.Tx, cid uuid.UUID, para, plantilla string, vars map[string]string) error {
 	return events.Enqueue(ctx, tx, events.New(ctx, "athletes.email_solicitado", map[string]any{"para": para, "plantilla": plantilla, "vars": vars},
 		events.Competition(cid.String()), events.Audience(events.Internal)))
+}
+
+// contacto tells crm about a person (internal event: personal data never reaches the public or admin streams).
+func contacto(ctx context.Context, tx pgx.Tx, cid uuid.UUID, data map[string]any) error {
+	return events.Enqueue(ctx, tx, events.New(ctx, "athletes.contacto", data, events.Competition(cid.String()), events.Audience(events.Internal)))
 }
 
 func hist(ctx context.Context, tx pgx.Tx, atleta uuid.UUID, accion, detalle string) error {

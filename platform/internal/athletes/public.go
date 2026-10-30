@@ -308,11 +308,18 @@ func (s *Svc) registerPublic() {
 			out := &confOut{}
 			err = s.change(ctx, c.ID, "athletes.seguimiento_confirmado", map[string]any{}, func(tx pgx.Tx) error {
 				var aid uuid.UUID
-				if err := tx.QueryRow(ctx, `UPDATE seguimientos SET confirmado_at = COALESCE(confirmado_at, now()), baja_at = NULL WHERE competition_id = $1 AND token_hash = $2 RETURNING atleta_id`,
-					c.ID, hashToken(in.Body.Token)).Scan(&aid); err != nil {
+				var mail, version, slug string
+				if err := tx.QueryRow(ctx, `UPDATE seguimientos SET confirmado_at = COALESCE(confirmado_at, now()), baja_at = NULL WHERE competition_id = $1 AND token_hash = $2 RETURNING atleta_id, email::text, legal_version`,
+					c.ID, hashToken(in.Body.Token)).Scan(&aid, &mail, &version); err != nil {
 					return problem.NotFound("El enlace no es válido o ya no existe.")
 				}
-				return tx.QueryRow(ctx, `SELECT nombre || ' ' || apellidos FROM atletas WHERE id = $1`, aid).Scan(&out.Body.Atleta)
+				if err := tx.QueryRow(ctx, `SELECT a.nombre || ' ' || a.apellidos, COALESCE(p.slug, '') FROM atletas a LEFT JOIN perfiles p ON p.atleta_id = a.id WHERE a.id = $1`, aid).Scan(&out.Body.Atleta, &slug); err != nil {
+					return err
+				}
+				// crm keeps the contact with the proof of the (double opt-in) consent.
+				return contacto(ctx, tx, c.ID, map[string]any{"email": mail, "origen": "avisame", "relacion": map[string]any{"sigue": out.Body.Atleta},
+					"consentimientos": []map[string]any{{"finalidad": "avisos_atleta", "canal": "email", "estado": "confirmado", "version": version, "origen": "/atletas/" + slug + " · Avísame", "doi": true}},
+					"actividad":       map[string]any{"tipo": "seguimiento", "titulo": "Sigue a " + out.Body.Atleta, "detalle": "Aviso 30 min antes de que salga (doble opt-in)"}})
 			})
 			return out, err
 		})
@@ -328,11 +335,23 @@ func (s *Svc) registerPublic() {
 					// Signed link of the schedule notices (stable, does not need the confirmation token).
 					q, arg = `UPDATE seguimientos SET baja_at = now() WHERE competition_id = $1 AND id = $2`, id
 				}
-				tag, err := tx.Exec(ctx, q, c.ID, arg)
-				if err == nil && tag.RowsAffected() == 0 {
+				var mail, nombre string
+				err := tx.QueryRow(ctx, q+` RETURNING email::text, (SELECT a.nombre || ' ' || a.apellidos FROM atletas a WHERE a.id = seguimientos.atleta_id)`, c.ID, arg).Scan(&mail, &nombre)
+				if db.IsNoRows(err) {
 					return problem.NotFound("El enlace no es válido o ya no existe.")
 				}
-				return err
+				if err != nil {
+					return err
+				}
+				var activos int
+				if err := tx.QueryRow(ctx, `SELECT count(*) FROM seguimientos WHERE competition_id = $1 AND email = $2 AND confirmado_at IS NOT NULL AND baja_at IS NULL`, c.ID, mail).Scan(&activos); err != nil {
+					return err
+				}
+				ev := map[string]any{"email": mail, "actividad": map[string]any{"tipo": "seguimiento", "titulo": "Dejó de seguir a " + nombre, "detalle": "Enlace de baja del aviso"}}
+				if activos == 0 {
+					ev["revocar"] = []string{"avisos_atleta"} // no athlete followed any more
+				}
+				return contacto(ctx, tx, c.ID, ev)
 			})
 		})
 }

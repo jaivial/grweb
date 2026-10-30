@@ -1,8 +1,12 @@
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrIconButton, GrLogo } from '@grcup/ui';
-import { Competition, type CompeticionPublica } from '../core/competition';
+import { firstValueFrom } from 'rxjs';
+import type { Patrocinador } from '../core/cms';
+import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
+import { Newsletter } from './newsletter';
 
 export interface NavLink {
   label: string;
@@ -82,7 +86,7 @@ export class Navbar {
 /** Footer (Figma «Footer»). */
 @Component({
   selector: 'gr-footer',
-  imports: [GrLogo],
+  imports: [GrLogo, GrIcon, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block border-t border-line-subtle bg-bg-deep' },
   template: `
@@ -113,40 +117,50 @@ export class Navbar {
       </div>
       <p class="border-t border-line-subtle px-5 py-5 text-center text-body-xs text-text-muted">© {{ year }} GR Strength · All rights reserved</p>
     } @else {
-    <div class="mx-auto grid max-w-[1440px] gap-10 px-5 py-14 md:grid-cols-[1.4fr_1fr_1fr] md:px-8 xl:px-[120px]">
-      <div>
-        <gr-logo [height]="44" />
-        <p class="mt-4 max-w-sm text-body-s text-text-tertiary">Campeonato de powerlifting en Almussafes (Valencia). Organiza GR Strength.</p>
+    <div class="mx-auto flex max-w-[1440px] flex-col gap-12 px-5 pt-14 pb-28 md:px-8 md:pb-10 xl:px-[120px]">
+      <gr-newsletter />
+      <div class="grid gap-8 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))]">
+        <div class="flex flex-col gap-4">
+          <gr-logo [height]="44" />
+          <p class="max-w-sm text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo benéfico de material SBD para la comunidad.</p>
+          <div class="flex flex-wrap gap-2">
+            <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-md border border-line-strong text-text-secondary hover:text-text-primary"><gr-icon name="camera" [size]="18" /></a>
+            @if (contacto()) { <a [href]="'mailto:' + contacto()" aria-label="Email" class="flex size-11 items-center justify-center rounded-md border border-line-strong text-text-secondary hover:text-text-primary"><gr-icon name="mail" [size]="18" /></a> }
+            <a href="/en" hreflang="en" class="flex h-11 items-center gap-2 rounded-md border border-line-strong px-3 text-label-s text-text-secondary hover:text-text-primary"><gr-icon name="globe" [size]="16" />Español · English</a>
+          </div>
+          <p class="text-body-xs text-text-tertiary">{{ contacto() }}{{ contacto() ? ' · ' : '' }}{{ handle() }}</p>
+        </div>
+        @for (col of columnas; track col.titulo) {
+          <!-- Desktop: open column. Mobile: accordion. -->
+          <nav class="hidden lg:block" [attr.aria-label]="col.titulo">
+            <p class="text-mono-xs text-text-muted uppercase">{{ col.titulo }}</p>
+            <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+          </nav>
+          <details class="group border-b border-line-subtle lg:hidden">
+            <summary class="flex h-12 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="16" class="transition-transform group-open:rotate-180" /></summary>
+            <ul class="flex flex-col gap-3 pb-4 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+          </details>
+        }
       </div>
-      <nav aria-label="Competición">
-        <p class="text-mono-xs text-text-muted">Competición</p>
-        <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
-          <li><a href="/#campeonato" class="hover:text-text-primary">El campeonato</a></li>
-          <li><a href="/atletas" class="hover:text-text-primary">Atletas</a> · <a href="/participantes" class="hover:text-text-primary">Participantes</a></li>
-          <li><a href="/area-atleta" class="hover:text-text-primary">Área de atleta</a></li>
-          <li><a href="/reglamento" class="hover:text-text-primary">Reglamento</a></li>
-          <li><a href="/categorias-de-peso" class="hover:text-text-primary">Categorías de peso</a></li>
-          <li><a href="/preguntas-frecuentes" class="hover:text-text-primary">Preguntas frecuentes</a></li>
-          <li><a href="/como-llegar" class="hover:text-text-primary">Cómo llegar</a></li>
-          <li><a href="/blog" class="hover:text-text-primary">Blog</a> · <a href="/galeria" class="hover:text-text-primary">Galería</a></li>
-          <li><a href="/publico" class="hover:text-text-primary">Ven a verlo</a> · <a href="/clubs" class="hover:text-text-primary">Clubs</a></li>
-          <li><a href="/patrocinadores" class="hover:text-text-primary">Patrocinadores</a> · <a href="/voluntarios" class="hover:text-text-primary">Voluntarios</a></li>
-          <li><a href="/en" hreflang="en" class="hover:text-text-primary">English</a></li>
+      @if (logos().length) {
+        <ul class="flex flex-wrap items-center justify-center gap-x-10 gap-y-6" aria-label="Patrocinadores">
+          @for (p of logos(); track p.nombre) {
+            <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="block opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
+              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-8 w-auto max-w-32 object-contain md:h-9" loading="lazy" /></a></li>
+          }
         </ul>
-      </nav>
-      <nav aria-label="Legal">
-        <p class="text-mono-xs text-text-muted">Legal</p>
-        <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
-          <li><a href="/privacidad" class="hover:text-text-primary">Privacidad</a></li>
-          <li><a href="/terminos" class="hover:text-text-primary">Términos</a></li>
-          <li><a href="/cookies" class="hover:text-text-primary">Cookies</a></li>
-          <li><a href="/consentimiento-datos" class="hover:text-text-primary">Consentimiento de imagen</a></li>
-          <li><a href="/politica-concurso" class="hover:text-text-primary">Bases del sorteo</a></li>
-          <li><a [href]="instagram()" rel="noopener" target="_blank" class="hover:text-text-primary">Instagram</a></li>
-        </ul>
-      </nav>
+      }
+      <div class="flex flex-col items-center gap-3 border-t border-line-subtle pt-6 text-body-xs text-text-muted md:flex-row md:justify-between">
+        <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a href="/cookies" class="hover:text-text-secondary">Cookies</a></p>
+        <p class="inline-flex h-8 items-center gap-1.5 rounded-pill border border-line-subtle px-3"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p>
+      </div>
     </div>
-    <p class="border-t border-line-subtle px-5 py-5 text-center text-body-xs text-text-muted">© {{ year }} GR Strength · Todos los derechos reservados</p>
+    @if (barra()) {
+      <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-strong bg-bg-base/95 px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
+        <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ edicion() }}</p>
+        <a href="/entradas" class="mt-2 flex h-12 items-center justify-center rounded-sm bg-accent-grain text-label-m text-white">Reserva tu entrada gratis</a>
+      </div>
+    }
     }
   `,
 })
@@ -154,10 +168,48 @@ export class Footer {
   readonly lang = input<Lang>('es');
   protected readonly year = new Date().getFullYear();
   private readonly comp = inject(Competition);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  private readonly el = inject(ElementRef<HTMLElement>);
   protected readonly instagram = computed(() => instagramOf(this.comp.data()));
+  protected readonly contacto = computed(() => this.comp.data()?.evento.emailContacto ?? '');
+  protected readonly handle = computed(() => '@' + this.instagram().replace(/\/$/, '').split('/').pop());
+  protected readonly logos = signal<Patrocinador[]>([]);
+  protected readonly edicion = computed(() => {
+    const c = this.comp.data();
+    const f = c?.fechaInicio ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(c.fechaInicio + 'T12:00:00Z')).replace('.', '') : 'fecha por confirmar';
+    return `Edición ${c?.edicion ? new Date((c.fechaInicio ?? '2026') + 'T12:00:00Z').getUTCFullYear() : 2026} · ${f} · ${c?.sede.ciudad || 'Almussafes'}`;
+  });
+  private readonly scrolled = signal(false);
+  private readonly footerVisible = signal(false);
+  private readonly url = signal('');
+  /** Mobile CTA bar: after the first screen, not over the footer, not on flows with their own bottom action. */
+  protected readonly barra = computed(() => this.scrolled() && !this.footerVisible() && this.comp.data()?.modulos?.['entradas'] !== false &&
+    !/^\/(inscripcion|pago|entradas|area-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
+  protected readonly columnas = [
+    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Inscripción', href: '/inscripcion' }] },
+    { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
+    { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
+    { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },
+  ];
   constructor() {
-    // Same source on every page (cached per render and transferred to the browser): the event's Instagram.
+    // Same source on every page (cached per render and transferred to the browser): the event's data.
     void inject(PendingTasks).run(() => this.comp.load());
+    // Sponsor logos are decoration: a failure must never turn the page into an error.
+    void firstValueFrom(this.http.get<Patrocinador[]>(`/api/competiciones/${COMPETITION_SLUG}/patrocinadores`)).then((l) => this.logos.set((l ?? []).filter((p) => p.logoUrl).slice(0, 10)), () => undefined);
+    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      this.url.set(this.router.url);
+      const sub = this.router.events.subscribe(() => this.url.set(this.router.url));
+      const onScroll = () => this.scrolled.set(window.scrollY > 480);
+      window.addEventListener('scroll', onScroll, { passive: true });
+      const io = new IntersectionObserver(([e]) => this.footerVisible.set(e.isIntersecting), { rootMargin: '0px 0px -40px 0px' });
+      io.observe(this.el.nativeElement);
+      inject(DestroyRef).onDestroy(() => {
+        sub.unsubscribe();
+        window.removeEventListener('scroll', onScroll);
+        io.disconnect();
+      });
+    }
   }
 }
 

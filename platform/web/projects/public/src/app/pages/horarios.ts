@@ -7,6 +7,7 @@ import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
 import { Seo } from '../core/seo';
+import { Newsletter } from '../layout/newsletter';
 import { Page } from '../layout/page';
 import { Fav } from './atletas';
 import { applySeo } from './content';
@@ -26,7 +27,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
 /** /horarios (Figma page 41 · «Horarios v2 interactivo»): flights by day with live state, «Mi horario» with .ics, search. */
 @Component({
   selector: 'gr-horarios-page',
-  imports: [Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community],
+  imports: [Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = data();
@@ -48,15 +49,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               <p class="max-w-md text-body-m text-text-secondary">Publicaremos los flights cuando cerremos el listado de la AEP (unas 2 semanas antes). Mientras, puedes ver quién compite y seguir a tus atletas.</p>
               <a href="/atletas" class="mt-2 inline-flex h-11 items-center gap-2 rounded-sm bg-accent-grain px-5 text-label-s text-white">Ver los atletas<gr-icon name="arrow-right" [size]="16" /></a>
             </section>
-            <section class="rounded-xl border border-line-subtle bg-bg-card p-5">
-              <h2 class="text-ui-h5">Qué verás aquí</h2>
-              <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
-                <li class="flex gap-2"><gr-icon name="chevron-right" [size]="16" class="mt-0.5 text-accent-text" />La hora de cada flight y su plataforma.</li>
-                <li class="flex gap-2"><gr-icon name="chevron-right" [size]="16" class="mt-0.5 text-accent-text" />El pesaje de cada atleta.</li>
-                <li class="flex gap-2"><gr-icon name="chevron-right" [size]="16" class="mt-0.5 text-accent-text" />Retrasos en directo el día de la competición.</li>
-                <li class="flex gap-2"><gr-icon name="chevron-right" [size]="16" class="mt-0.5 text-accent-text" />«Mi horario»: tus atletas en tu calendario.</li>
-              </ul>
-            </section>
+            <gr-newsletter titulo="Te avisamos de lo importante" texto="Horarios, sorteo y próximas competiciones de GRStrength. Como mucho un email al mes." origen="/horarios" [compacta]="true" />
           </div>
         } @else {
           <gr-alert tone="warning" title="No hemos podido cargar los horarios">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos; los horarios no han cambiado.</gr-alert>

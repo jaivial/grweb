@@ -839,6 +839,19 @@ func (s *Svc) alta(ctx context.Context, tx pgx.Tx, cid, iid uuid.UUID, estado st
 	if err := email(ctx, tx, cid, mail, plantilla, map[string]string{"nombre": datos["nombre"], "total": pagos.Euros(total), "codigoReferido": codigo}); err != nil {
 		return err
 	}
+	privV, _ := cons["privacidad"].(string)
+	ip, _ := cons["ip"].(string)
+	consents := []map[string]any{{"finalidad": "privacidad", "estado": "confirmado", "version": privV, "origen": "/inscripcion · formulario", "ip": ip}}
+	if img, _ := cons["imagen"].(bool); img {
+		v, h := s.legalVigente(ctx, cid, "consentimiento")
+		consents = append(consents, map[string]any{"finalidad": "imagen", "estado": "confirmado", "version": v, "hash": h, "origen": "/inscripcion · formulario", "ip": ip})
+	}
+	titulo := map[string]string{"confirmado": "Se inscribió en la competición", "reserva": "Entró en la lista de reserva"}[estado]
+	if err := contacto(ctx, tx, cid, map[string]any{"email": mail, "telefono": datos["telefono"], "nombre": strings.TrimSpace(datos["nombre"] + " " + datos["apellidos"]), "origen": "inscripcion",
+		"relacion": map[string]any{"atleta": estado == "confirmado", "reserva": estado == "reserva"}, "consentimientos": consents,
+		"actividad": map[string]any{"tipo": "inscripcion", "titulo": titulo, "detalle": pagos.Euros(total)}}); err != nil {
+		return err
+	}
 	return events.Enqueue(ctx, tx, events.New(ctx, "athletes.inscripcion_"+map[string]string{"confirmado": "pagada", "reserva": "reserva"}[estado],
 		map[string]any{"id": iid, "atleta": aid, "total": total}, events.Competition(cid.String()), events.ForPermission("atletas.editar")))
 }
