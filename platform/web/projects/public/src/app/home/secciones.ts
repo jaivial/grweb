@@ -235,13 +235,13 @@ export class SecEntradas {
     <div [class]="ancho + ' flex flex-col gap-5 md:gap-24'">
       @for (r of filas(); track $index; let i = $index) {
         <!-- desktop: text + photo; mobile: one card with the title over the photo -->
-        <div class="relative flex items-center justify-center md:gap-20" [class.md:flex-row-reverse]="i % 2 === 1">
-          <div class="hidden w-full max-w-[600px] flex-col gap-4 md:flex" [class.items-end]="i % 2 === 1" [class.text-right]="i % 2 === 1">
+        <div class="relative flex items-center justify-center md:gap-10 lg:gap-20" [class.md:flex-row-reverse]="i % 2 === 1">
+          <div class="hidden w-full max-w-[600px] min-w-0 flex-1 flex-col gap-4 md:flex" [class.items-end]="i % 2 === 1" [class.text-right]="i % 2 === 1">
             <gr-eyebrow [texto]="r.eyebrow" />
-            <h2 class="text-display-xl"><gr-titulo [titulo]="r.titulo" [acento]="r.acento" /></h2>
+            <h2 class="text-display-m lg:text-display-xl"><gr-titulo [titulo]="r.titulo" [acento]="r.acento" /></h2>
             <span class="h-0.5 w-24" [class]="i % 2 === 1 ? 'bg-[linear-gradient(270deg,#c42b3e,transparent)]' : 'bg-[linear-gradient(90deg,#c42b3e,transparent)]'"></span>
           </div>
-          <figure class="relative aspect-[350/440] w-full overflow-hidden rounded-lg md:aspect-[4/5] md:w-[520px] md:shrink-0" [class]="foto">
+          <figure class="relative aspect-[350/440] w-full overflow-hidden rounded-lg md:aspect-[4/5] md:w-[320px] md:shrink-0 lg:w-[520px]" [class]="foto">
             <img [src]="r.imagen" [attr.srcset]="srcset(r.imagen)" sizes="(min-width: 768px) 520px, 100vw" [alt]="r.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
             <figcaption class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_45%,rgb(14_12_13/0.92))] p-5 md:hidden">
               <span class="text-display-m"><gr-titulo [titulo]="r.titulo" [acento]="r.acento" /></span>
@@ -276,10 +276,10 @@ export class SecAtletas {
     <div [class]="ancho + ' flex flex-col items-center gap-7 md:gap-12'">
       <img src="/img/home/trofeo.webp" alt="" class="h-[82px] w-24 object-contain md:h-[129px] md:w-[150px]" loading="lazy" />
       <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
-      <ul class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:mx-0 md:w-auto md:justify-center md:gap-10 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
+      <ul class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 lg:flex lg:w-auto lg:justify-center lg:gap-10" (scroll)="alDesplazar($event)">
         @for (p of items(); track p.titulo; let i = $index) {
-          <li class="w-[258px] shrink-0 snap-center md:flex md:h-[480px] md:w-[340px] md:items-center md:justify-center">
-            <div class="relative aspect-[300/420] w-full overflow-hidden rounded-lg shadow-card transition-transform duration-300 md:w-[300px]"
+          <li class="w-[258px] shrink-0 snap-center md:w-auto lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
+            <div class="relative aspect-[300/420] w-full overflow-hidden rounded-lg shadow-card transition-transform duration-300 lg:w-[300px]"
               [class]="(i === 1 ? 'border border-accent shadow-glow-deep md:-translate-y-0' : foto) + ' ' + giro[i % 3]">
               <img [src]="p.imagen" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
               <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_55%,rgb(14_12_13/0.92))] p-5">
@@ -303,7 +303,7 @@ export class SecPremios {
   protected readonly ancho = ANCHO;
   protected readonly foto = FOTO;
   /** Figma: −4° · 0 · +4° (with their vertical offsets inside the 340 × 480 holders). */
-  protected readonly giro = ['md:-rotate-4 md:-translate-y-2.5', 'md:translate-y-0', 'md:rotate-4 md:translate-y-2.5'];
+  protected readonly giro = ['lg:-rotate-4 lg:-translate-y-2.5', 'lg:translate-y-0', 'lg:rotate-4 lg:translate-y-2.5'];
   protected readonly activa = signal(0);
   protected t = (k: string) => str(this.s(), k);
   protected readonly items = computed(() => list<{ titulo: string; imagen: string }>(this.s(), 'items'));
@@ -404,11 +404,11 @@ export class SecAfiliaciones {
   host: { class: 'relative block bg-bg-base md:px-20 md:py-24' },
   template: `
     @let r = sorteo();
-    <div class="relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 py-14 md:flex-row md:gap-12 md:rounded-2xl md:border md:border-accent/35 md:p-[72px]">
+    <div class="relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 py-14 md:rounded-2xl md:border md:border-accent/35 md:p-12 lg:flex-row lg:gap-12 lg:p-[72px]">
       <div [class]="glow + ' -top-30 right-[-60px] size-[520px] bg-[radial-gradient(closest-side,rgb(196_43_62/0.25),transparent)]!'"></div>
       <img [src]="t('imagen') || 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000090.webp'" [alt]="r?.premio || 'Cinturón SBD'"
-        class="relative aspect-[350/230] w-full rounded-xl border border-white/8 object-cover md:order-last md:aspect-[488/380] md:w-[488px] md:shrink-0" loading="lazy" />
-      <div class="relative flex w-full flex-col items-center gap-4 text-center md:max-w-[520px] md:items-start md:text-left">
+        class="relative aspect-[350/230] w-full rounded-xl border border-white/8 object-cover lg:order-last lg:aspect-[488/380] lg:w-[488px] lg:shrink-0" loading="lazy" />
+      <div class="relative flex w-full flex-col items-center gap-4 text-center lg:max-w-[520px] lg:items-start lg:text-left">
         <gr-eyebrow [texto]="t('eyebrow') || 'Sorteo benéfico'" tono="claro" />
         <h2 class="text-display-l [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">{{ t('titulo') || 'Sorteo' }}</h2>
         <p class="text-display-xs md:text-display-m">{{ t('subtitulo') || 'Entra en el sorteo de un ' + (r?.premio || 'cinturón SBD') }}</p>
@@ -461,10 +461,10 @@ export class SecSorteo {
       </div>
       <div class="flex w-full flex-col justify-center gap-6 md:flex-row">
         @for (g of generos; track g.k) {
-          <div class="w-full flex-col gap-4 rounded-xl border border-line-subtle bg-[#221d1f]/85 px-4 py-5 md:flex md:w-[400px] md:p-7" [class.flex]="sel() === g.k" [class.hidden]="sel() !== g.k">
+          <div class="w-full flex-col gap-4 rounded-xl border border-line-subtle bg-[#221d1f]/85 px-4 py-5 md:flex md:w-auto md:flex-1 md:p-6 lg:w-[400px] lg:flex-none lg:p-7" [class.flex]="sel() === g.k" [class.hidden]="sel() !== g.k">
             <div class="hidden items-center justify-between md:flex"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted">{{ cats[g.k].length }} categorías</span></div>
-            <ul class="grid grid-cols-2 gap-2 md:grid-cols-3">
-              @for (c of cats[g.k]; track c; let last = $last) { <li class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body" [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] md:col-span-1 md:mx-0 md:w-auto' : ''">{{ kg(c) }}</li> }
+            <ul class="grid grid-cols-2 gap-2 lg:grid-cols-3">
+              @for (c of cats[g.k]; track c; let last = $last) { <li class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body" [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''">{{ kg(c) }}</li> }
             </ul>
           </div>
         }
@@ -581,11 +581,11 @@ export class SecHorarios {
     @let c = comp();
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-12'">
       <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
-      <div class="flex w-full flex-col-reverse gap-6 md:flex-row md:gap-8">
-        <div class="flex w-full flex-col gap-4 md:w-[648px] md:shrink-0">
-          <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
+      <div class="flex w-full flex-col-reverse gap-6 lg:flex-row lg:gap-8">
+        <div class="flex w-full flex-col gap-4 lg:w-[648px] lg:shrink-0">
+          <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3" (scroll)="alDesplazar($event)">
             @for (f of fotos(); track f.imagen; let i = $index) {
-              <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto" [class]="(i === 0 ? 'md:col-span-3 md:aspect-[648/380] md:rounded-xl ' : 'md:aspect-[205/140] ') + foto">
+              <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto md:aspect-[4/3]" [class]="(i === 0 ? 'lg:col-span-3 lg:aspect-[648/380] lg:rounded-xl ' : 'lg:aspect-[205/140] ') + foto">
                 <img [src]="f.imagen" [attr.srcset]="srcset(f.imagen)" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
               </li>
             }
@@ -595,7 +595,7 @@ export class SecHorarios {
           </div>
         </div>
         @if (c) {
-          <div class="flex w-full flex-col self-start overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:w-[520px]">
+          <div class="flex w-full flex-col self-start overflow-hidden rounded-lg border border-line-subtle bg-bg-card lg:w-[520px]">
             <div class="relative aspect-[348/200] md:aspect-[518/300]">
               <img [src]="t('mapa') || '/img/home/mapa.webp'" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
               <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>

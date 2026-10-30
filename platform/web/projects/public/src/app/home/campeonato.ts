@@ -77,7 +77,7 @@ export class Countdown {
       </h2>
       <div class="h-px w-full max-w-[560px] bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.7),transparent)]" aria-hidden="true"></div>
       @if (meta().length) {
-        <dl class="flex w-full flex-col gap-3 rounded-lg border border-line-subtle px-4 py-5 text-left md:w-auto md:flex-row md:justify-center md:gap-10 md:rounded-none md:border-0 md:p-0">
+        <dl class="flex w-full flex-col gap-3 rounded-lg border border-line-subtle px-4 py-5 text-left md:w-auto md:flex-row md:flex-wrap md:justify-center md:gap-x-10 md:gap-y-4 md:rounded-none md:border-0 md:p-0">
           @for (m of meta(); track m.label) {
             <div class="flex items-center gap-3">
               <span class="flex size-11 shrink-0 items-center justify-center rounded-md border border-accent bg-accent/10 text-accent-text"><gr-icon [name]="m.icon" [size]="20" /></span>
