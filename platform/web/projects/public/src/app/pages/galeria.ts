@@ -40,7 +40,7 @@ function nombreAlbum(a: Album): string {
       <div class="flex flex-col gap-12 md:gap-16">
         @if (albums() === null) {
           <div class="columns-2 gap-3 md:columns-3 md:gap-4 xl:columns-4">
-            @for (h of [300, 220, 260, 340, 240, 280, 320, 230]; track $index) { <gr-skeleton class="mb-3 block rounded-2xl md:mb-4" [style.height.px]="h" /> }
+            @for (h of [300, 220, 260, 340, 240, 280, 320, 230]; track $index) { <gr-skeleton class="mb-3 block rounded-md md:mb-4" [style.height.px]="h" /> }
           </div>
         } @else if (todas().length) {
           <div class="flex flex-col gap-6 md:gap-8">
@@ -55,7 +55,7 @@ function nombreAlbum(a: Album): string {
               <ul class="columns-2 gap-3 md:columns-3 md:gap-4 xl:columns-4">
                 @for (f of visibles(); track f.url + f.album) {
                   <li class="mb-3 break-inside-avoid md:mb-4">
-                    <button type="button" class="group relative block w-full cursor-zoom-in overflow-hidden rounded-2xl border border-white/8" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="abrir(f)">
+                    <button type="button" class="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border border-white/8" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="abrir(f)">
                       <img [src]="mini(f.url)" [attr.srcset]="srcset(f.url)" sizes="(min-width: 1280px) 288px, (min-width: 768px) 33vw, 50vw" [alt]="f.alt"
                         [attr.width]="f.ancho || null" [attr.height]="f.alto || null" [style.aspect-ratio]="f.ancho && f.alto ? f.ancho + ' / ' + f.alto : '3 / 4'"
                         class="block h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" loading="lazy" />
@@ -77,16 +77,16 @@ function nombreAlbum(a: Album): string {
                   <a [routerLink]="[]" [queryParams]="{ pagina: pagina() < paginas() ? pagina() + 1 : paginas() }" [class]="paso(false, pagina() === paginas())" [attr.aria-disabled]="pagina() === paginas() || null" [attr.tabindex]="pagina() === paginas() ? -1 : null" aria-label="Página siguiente" (click)="irA()"><gr-icon name="chevron-right" [size]="18" /></a>
                 </nav>
                 @if (mostradas() < filtradas().length) {
-                  <button type="button" class="flex h-12 w-full items-center justify-center rounded-xl border border-line-strong text-label-m md:hidden" (click)="cargarMas()">Cargar más ({{ mostradas() }} de {{ filtradas().length }})</button>
+                  <button type="button" class="flex h-12 w-full items-center justify-center rounded-sm border border-line-strong text-label-m md:hidden" (click)="cargarMas()">Cargar más ({{ mostradas() }} de {{ filtradas().length }})</button>
                 }
               }
             } @else {
-              <p class="rounded-2xl border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">No hay fotos con estos filtros. <button type="button" class="text-accent-text underline" (click)="limpiar()">Ver todas</button></p>
+              <p class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">No hay fotos con estos filtros. <button type="button" class="text-accent-text underline" (click)="limpiar()">Ver todas</button></p>
             }
           </div>
           <gr-callout tono="dato" titulo="Comparte">¿Tienes fotos de la competición? Etiqueta a <a [href]="instagram()" target="_blank" rel="noopener" class="text-text-primary underline">@grstrengthclub</a> con #GRStrengthCup y las añadiremos a la galería.</gr-callout>
         } @else {
-          <p class="rounded-2xl border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">Pronto publicaremos las fotos de la competición.</p>
+          <p class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">Pronto publicaremos las fotos de la competición.</p>
         }
         <gr-related [items]="rel" />
         <gr-community />
@@ -166,11 +166,11 @@ export class GaleriaPage {
   }
 
   protected chip(activo: boolean): string {
-    return 'flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors md:h-10 ' +
+    return 'flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors ' +
       (activo ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary');
   }
   protected paso(actual: boolean, desactivado: boolean): string {
-    return 'flex size-11 items-center justify-center rounded-xl border text-label-m transition-colors ' +
+    return 'flex size-11 items-center justify-center rounded-md border text-label-m transition-colors ' +
       (actual ? 'border-accent bg-accent text-white' : desactivado ? 'pointer-events-none border-line-subtle text-text-muted' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary');
   }
   /** Media library photos get the 480 / 960 px copies; other URLs are used as they are. */

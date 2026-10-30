@@ -11,7 +11,7 @@ import { Novedades, mensajeError } from '../core/novedades';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <section class="grid gap-5 rounded-xl border border-accent/40 bg-[linear-gradient(110deg,#3a0f17,#1d1214_70%)] p-5 md:p-6" [class]="compacta() ? '' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center lg:p-8'"
+    <section class="grid gap-5 rounded-lg border border-accent/40 bg-[linear-gradient(110deg,#3a0f17,#1d1214_70%)] p-5 md:p-6" [class]="compacta() ? '' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center lg:p-8'"
       [attr.aria-labelledby]="id + '-t'">
       <div>
         <h2 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2>

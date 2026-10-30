@@ -48,7 +48,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
       @if (v === 'error') {
         <section class="flex flex-col items-center gap-4 pt-2 text-center md:pt-8">
           <h1 class="text-display-m md:text-display-l">Inscripción</h1>
-          <p class="flex max-w-[560px] items-start gap-3 rounded-xl border border-warning bg-warning/8 p-4 text-left text-body-s text-text-secondary" role="alert"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />No hemos podido cargar la inscripción. Es un problema temporal: vuelve a intentarlo en unos minutos.</p>
+          <p class="flex max-w-[560px] items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-left text-body-s text-text-secondary" role="alert"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />No hemos podido cargar la inscripción. Es un problema temporal: vuelve a intentarlo en unos minutos.</p>
         </section>
       }
 
@@ -73,7 +73,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
           <p class="max-w-[560px] text-body-m text-text-secondary md:text-body-l">La inscripción al campeonato se realiza en la web oficial de la Asociación Española de Powerlifting.</p>
           @if (urlAep()) { <a grButton variant="primary" size="l" [href]="urlAep()" target="_blank" rel="noopener" iconRight="external-link" class="w-full md:w-auto">Ir a la inscripción oficial AEP</a> }
           @else {
-            <p class="flex w-full max-w-[560px] items-center gap-2 rounded-xl border border-warning bg-warning/8 px-4 py-3 text-left text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="shrink-0 text-warning" />Todavía no se ha publicado la URL de las inscripciones de la AEP. Próximamente…</p>
+            <p class="flex w-full max-w-[560px] items-center gap-2 rounded-md border border-warning bg-warning/8 px-4 py-3 text-left text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="shrink-0 text-warning" />Todavía no se ha publicado la URL de las inscripciones de la AEP. Próximamente…</p>
           }
         </section>
       }
@@ -96,15 +96,15 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
             @if (v === 'completas' && c?.modo !== 'propia' && urlAep()) { <a grButton variant="outline" size="l" [href]="urlAep()" target="_blank" rel="noopener">Lista de espera en la AEP</a> }
           </div>
           <div class="grid w-full gap-4 pt-6 text-left md:max-w-[960px] md:grid-cols-2">
-            <article class="flex flex-col items-start gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6">
-              <span class="flex size-11 items-center justify-center rounded-xl bg-accent/12 text-accent-text"><gr-icon name="user" [size]="20" /></span>
+            <article class="flex flex-col items-start gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
+              <span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="user" [size]="20" /></span>
               <h2 class="text-ui-h5">¿Ya estás inscrito/a?</h2>
               <p class="text-body-s text-text-tertiary">Entra en tu área de atleta con el email {{ c?.modo === 'propia' ? 'de tu inscripción' : 'de la AEP' }}: completa tu perfil, revisa tu flight y deja tus alturas de rack.</p>
               <a grButton variant="glass" href="/area-atleta" iconRight="arrow-right" class="mt-auto">Área de atleta</a>
             </article>
             @if (entradas()) {
-              <article class="flex flex-col items-start gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6">
-                <span class="flex size-11 items-center justify-center rounded-xl bg-accent/12 text-accent-text"><gr-icon name="ticket" [size]="20" /></span>
+              <article class="flex flex-col items-start gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
+                <span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="ticket" [size]="20" /></span>
                 <h2 class="text-ui-h5">¿Vienes a animar?</h2>
                 <p class="text-body-s text-text-tertiary">La entrada es gratuita con reserva. Te llega un QR por email{{ sorteo() ? ' y puedes sumarte al sorteo benéfico' : '' }}.</p>
                 <a grButton variant="glass" href="/entradas" iconRight="arrow-right" class="mt-auto">Reservar entrada</a>
@@ -119,7 +119,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
         <dl class="flex flex-col gap-3 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:flex-row md:justify-center md:gap-8 md:px-6">
           @for (m of meta(); track m.k) {
             <div class="flex items-center gap-3">
-              <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent-text"><gr-icon [name]="m.icon" [size]="16" /></span>
+              <span class="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="m.icon" [size]="16" /></span>
               <span class="flex flex-col gap-0.5"><dt class="text-mono-xs text-text-muted">{{ m.k }}</dt><dd class="text-label-s">{{ m.v }}</dd></span>
             </div>
           }
@@ -127,7 +127,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
 
         @if (pagoCancelado(); as pc) {
           <!-- Figma 06b «Pago rechazado»: the place stays held while the payment page is valid -->
-          <div class="flex items-start gap-3 rounded-xl border border-accent bg-accent/8 p-4 md:items-center" role="alert">
+          <div class="flex items-start gap-3 rounded-md border border-accent bg-accent/8 p-4 md:items-center" role="alert">
             <gr-icon name="circle-alert" [size]="20" class="shrink-0 text-accent-text" />
             <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center">
               <p class="flex-1 text-body-s">El pago no se ha completado y no se ha cobrado nada.{{ pc.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>
@@ -137,15 +137,15 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
           </div>
         }
         @if (c.pasarela === 'ninguna' && c.estado !== 'completa') {
-          <p class="flex items-start gap-3 rounded-xl border border-line-strong bg-bg-card p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-text-tertiary" />Todavía no podemos cobrar la inscripción online. Solo se aceptan códigos que la dejan gratis.</p>
+          <p class="flex items-start gap-3 rounded-md border border-line-strong bg-bg-card p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-text-tertiary" />Todavía no podemos cobrar la inscripción online. Solo se aceptan códigos que la dejan gratis.</p>
         }
         @if (c.estado === 'completa') {
           <!-- Figma 06b «Plazas completas → reserva» -->
-          <p class="flex items-start gap-3 rounded-xl border border-warning bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Las {{ c.plazas }} plazas están cubiertas. Puedes apuntarte a la lista de reserva: no se cobra nada hasta que haya plaza, y entonces te enviamos el enlace de pago.</p>
+          <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Las {{ c.plazas }} plazas están cubiertas. Puedes apuntarte a la lista de reserva: no se cobra nada hasta que haya plaza, y entonces te enviamos el enlace de pago.</p>
         }
         @if (resumenErrores().length) {
           <!-- Figma 06 «Errores de validación» -->
-          <div #errores tabindex="-1" class="rounded-xl border border-accent bg-accent/8 p-4 outline-none" role="alert">
+          <div #errores tabindex="-1" class="rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
             <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />Revisa {{ resumenErrores().length === 1 ? 'un campo' : resumenErrores().length + ' campos' }} antes de enviar</p>
             <ul class="mt-2 flex flex-col gap-1 pl-1 text-body-s text-text-secondary">@for (e of resumenErrores(); track e) { <li>• {{ e }}</li> }</ul>
           </div>
@@ -231,7 +231,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
             }
             @if (err()['terminos']; as e) { <p class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
           </div>
-          @if (error()) { <p class="flex items-start gap-2 rounded-xl border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
+          @if (error()) { <p class="flex items-start gap-2 rounded-md border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
           <div class="flex flex-col gap-3">
             <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="enviando()">{{ c.estado === 'completa' ? 'Apuntarme a la reserva' : total() === 0 ? 'Confirmar inscripción' : 'Pagar ' + eur(total()) }}</button>
             <p class="text-center text-body-xs text-text-muted">
@@ -464,7 +464,7 @@ export class InscripcionPage {
           <a grButton variant="outline" size="l" [block]="true" href="/">Volver al inicio</a>
         } @else {
           <!-- Figma 06b «Pago rechazado» -->
-          <div class="flex items-start gap-3 rounded-xl border border-accent bg-accent/8 p-4 md:items-center" role="alert">
+          <div class="flex items-start gap-3 rounded-md border border-accent bg-accent/8 p-4 md:items-center" role="alert">
             <gr-icon name="circle-alert" [size]="20" class="shrink-0 text-accent-text" />
             <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center">
               <p class="flex-1 text-body-s">{{ e.estado === 'pendiente_pago' ? 'Aún no hemos recibido la confirmación del pago. Si has pagado, te llegará un email en unos minutos.' : 'El pago no se ha completado y no se ha cobrado nada.' }}{{ e.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>

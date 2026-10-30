@@ -48,7 +48,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
                 <span class="flex size-9 items-center justify-center rounded-sm bg-accent/14 text-accent-text"><gr-icon name="scale" [size]="18" /></span>
                 <h3 class="text-ui-h5 md:text-ui-h4">¿En qué categoría compito?</h3>
               </div>
-              <div class="grid grid-cols-2 gap-1 rounded-xl border border-line-subtle p-1" role="radiogroup" aria-label="Sexo">
+              <div class="grid grid-cols-2 gap-1 rounded-md border border-line-subtle p-1" role="radiogroup" aria-label="Sexo">
                 @for (g of generos; track g.k) {
                   <button type="button" role="radio" [attr.aria-checked]="sexo() === g.k" (click)="sexo.set(g.k)" class="h-11 rounded-md text-label-s" [class]="sexo() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-tertiary hover:text-text-primary'">{{ g.l }}</button>
                 }
@@ -58,9 +58,9 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
               <div aria-live="polite">
                 @if (resultado(); as r) {
                   @if (r.reservada) {
-                    <p class="flex gap-3 rounded-2xl bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />Con {{ kgTxt(r.peso, 0) }} kg compites en {{ r.nombre }}, categoría reservada a sub-júnior y júnior. Si eres open, consulta con la organización.</p>
+                    <p class="flex gap-3 rounded-md bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />Con {{ kgTxt(r.peso, 0) }} kg compites en {{ r.nombre }}, categoría reservada a sub-júnior y júnior. Si eres open, consulta con la organización.</p>
                   } @else {
-                    <div class="flex flex-col gap-2 rounded-2xl bg-[linear-gradient(135deg,#4c111b,#280d12_60%,#1b1112)] px-4 py-5">
+                    <div class="flex flex-col gap-2 rounded-lg bg-[linear-gradient(135deg,#4c111b,#280d12_60%,#1b1112)] px-4 py-5">
                       <p class="text-label-xs text-text-secondary uppercase">Compites en</p>
                       <p class="text-display-s md:text-display-l">{{ sexo() === 'M' ? 'Masculino' : 'Femenino' }} {{ r.nombre }}</p>
                       <p class="text-body-s text-text-secondary">{{ r.margen }}</p>
@@ -74,7 +74,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
                 }
               </div>
             </div>
-            <div class="flex flex-col gap-3 self-start rounded-2xl border border-line-subtle bg-bg-card p-6">
+            <div class="flex flex-col gap-3 self-start rounded-lg border border-line-subtle bg-bg-card p-6">
               <h3 class="text-ui-h5">Cómo funciona</h3>
               <ul class="flex flex-col gap-2">
                 @for (c of comoFunciona; track c) { <li class="flex gap-3 text-body-s text-text-secondary"><span class="mt-2 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ c }}</li> }
@@ -86,7 +86,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
         <!-- 02 · 18 categorías -->
         <section id="categorias" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
           <gr-cabecera eyebrow="02 · Categorías AEP" titulo="18 categorías de *peso corporal*" texto="9 masculinas y 9 femeninas. Los rangos indican el peso del pesaje con el que entras en cada categoría." [centro]="false" tam="m" />
-          <div class="grid grid-cols-2 gap-1 rounded-xl border border-line-subtle p-1 md:hidden" role="tablist" aria-label="Sexo">
+          <div class="grid grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 md:hidden" role="tablist" aria-label="Sexo">
             @for (g of generos; track g.k) {
               <button type="button" role="tab" [attr.aria-selected]="tabla() === g.k" (click)="tabla.set(g.k)" class="h-11 rounded-md text-label-s" [class]="tabla() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-tertiary'">{{ g.l }}</button>
             }
@@ -95,7 +95,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
             @for (g of generos; track g.k) {
               <div [id]="g.id" class="scroll-mt-36 flex-col gap-3 md:flex" [class.flex]="tabla() === g.k" [class.hidden]="tabla() !== g.k">
                 <h3 class="hidden text-display-xs md:block">{{ g.l }}</h3>
-                <table class="w-full overflow-hidden rounded-2xl border border-line-subtle text-left">
+                <table class="w-full overflow-hidden rounded-lg border border-line-subtle text-left">
                   <thead class="hidden md:table-header-group"><tr class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><th class="px-4 py-3 font-medium">Categoría</th><th class="px-4 py-3 font-medium">Peso en el pesaje</th><th class="px-4 py-3 font-medium">Nota</th></tr></thead>
                   <tbody>
                     @for (c of clases[g.k]; track c.k; let i = $index) {
@@ -118,7 +118,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
           <gr-cabecera eyebrow="03 · Divisiones por edad" titulo="Compite con los de *tu edad*" texto="Además de la categoría de peso, cada atleta compite en su división de edad (según el calendario oficial de la AEP)." [centro]="false" tam="m" />
           <div class="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
             @for (d of divisiones; track d.t) {
-              <div class="flex flex-col gap-2 rounded-2xl border bg-bg-card p-4 md:p-5" [class]="d.destacada ? 'border-accent' : 'border-line-subtle'">
+              <div class="flex flex-col gap-2 rounded-lg border bg-bg-card p-4 md:p-5" [class]="d.destacada ? 'border-accent' : 'border-line-subtle'">
                 <p class="text-display-2xs" [class.text-accent-text]="d.destacada">{{ d.t }}</p>
                 <p class="text-label-s">{{ d.edad }}</p>
                 <p class="text-body-xs text-text-tertiary">{{ d.nota }}</p>

@@ -32,7 +32,7 @@ import { Community, Related, type RelatedLink } from './landings';
           <section id="mapa" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
             <gr-cabecera eyebrow="01 · Ubicación" titulo="Dirección y *mapa*" [centro]="false" tam="m" />
             <div class="grid gap-6 lg:grid-cols-2">
-              <article class="flex flex-col overflow-hidden rounded-2xl border border-line-subtle bg-bg-card">
+              <article class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
                 <div class="relative aspect-[348/220] md:aspect-auto md:h-[300px]">
                   <img src="/img/home/mapa.webp" [alt]="'Mapa de ' + c.sede.nombre" class="absolute inset-0 size-full object-cover" loading="lazy" />
                   <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
@@ -46,7 +46,7 @@ import { Community, Related, type RelatedLink } from './landings';
                   </div>
                 </div>
               </article>
-              <dl class="flex flex-col gap-3 self-start rounded-2xl border border-line-subtle bg-bg-card p-6 lg:self-stretch">
+              <dl class="flex flex-col gap-3 self-start rounded-lg border border-line-subtle bg-bg-card p-6 lg:self-stretch">
                 <div class="flex flex-col gap-1"><dt class="text-label-xs text-text-muted uppercase">Dirección</dt><dd class="text-label-m">{{ direccion() }}</dd></div>
                 @if (c.sede.lat && c.sede.lng) { <div class="flex flex-col gap-1"><dt class="text-label-xs text-text-muted uppercase">Coordenadas</dt><dd class="text-label-m tabular-nums">{{ coord(c.sede.lat) }}, {{ coord(c.sede.lng) }}</dd></div> }
                 @if (distancia()) { <div class="flex flex-col gap-1"><dt class="text-label-xs text-text-muted uppercase">Distancia</dt><dd class="text-label-m">{{ distancia() }}</dd></div> }
@@ -67,8 +67,8 @@ import { Community, Related, type RelatedLink } from './landings';
               <gr-cabecera eyebrow="02 · Transporte" titulo="Cómo *llegar*" [centro]="false" tam="m" />
               <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @for (t of transporte(); track $index) {
-                  <article class="flex flex-col gap-2 rounded-2xl border border-line-subtle bg-bg-card p-5">
-                    <span class="mb-1 flex size-11 items-center justify-center rounded-xl bg-accent/12 text-accent-text"><gr-icon [name]="icono(t.tipo)" [size]="22" /></span>
+                  <article class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
+                    <span class="mb-1 flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="icono(t.tipo)" [size]="22" /></span>
                     <h3 class="text-label-m">{{ t.titulo }}</h3>
                     <p class="text-body-s text-text-tertiary">{{ t.detalle }}</p>
                     @if (t.nota || t.estado === 'por_confirmar') {
@@ -85,9 +85,9 @@ import { Community, Related, type RelatedLink } from './landings';
             <gr-cabecera eyebrow="03 · Información práctica" titulo="Aparcamiento *y accesibilidad*" [centro]="false" tam="m" />
             <div class="grid gap-4 lg:grid-cols-2">
               @for (t of practica(); track $index) {
-                <article class="flex flex-col gap-2 rounded-2xl border border-line-subtle bg-bg-card p-6">
+                <article class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="flex size-10 items-center justify-center rounded-xl bg-accent/12 text-accent-text"><gr-icon [name]="icono(t.tipo)" [size]="20" /></span>
+                    <span class="flex size-10 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="icono(t.tipo)" [size]="20" /></span>
                     <h3 class="text-ui-h5">{{ t.titulo }}</h3>
                     @if (t.estado === 'por_confirmar') { <span class="ml-auto inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Por confirmar</span> }
                   </div>
@@ -103,7 +103,7 @@ import { Community, Related, type RelatedLink } from './landings';
             <gr-cabecera eyebrow="04 · La sede" titulo="Fotos del *pabellón*" [centro]="false" tam="m" />
             <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
               @for (f of fotos(); track f.imagen; let i = $index) {
-                <li class="relative aspect-[300/220] w-[300px] shrink-0 snap-center overflow-hidden rounded-2xl border border-white/8 md:aspect-[288/190] md:w-auto">
+                <li class="relative aspect-[300/220] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg border border-white/8 md:aspect-[288/190] md:w-auto">
                   <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
                     <img [src]="f.imagen" [alt]="f.alt" class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
                   </button>
@@ -119,7 +119,7 @@ import { Community, Related, type RelatedLink } from './landings';
           <!-- 05 · Dónde dormir y comer -->
           <section id="alojamiento" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
             <gr-cabecera eyebrow="05 · Alojamiento" titulo="Dónde *dormir y comer*" [centro]="false" tam="m" />
-            <div class="relative flex gap-3 overflow-hidden rounded-2xl bg-success/8 p-4">
+            <div class="relative flex gap-3 overflow-hidden rounded-lg bg-success/8 p-4">
               <span class="absolute top-3.5 bottom-3.5 left-0 w-[3px] rounded-full bg-success" aria-hidden="true"></span>
               <gr-icon name="circle-check" [size]="20" class="ml-2 shrink-0 text-success" />
               <div class="flex flex-col gap-1"><p class="text-label-s text-success">Consejo</p>

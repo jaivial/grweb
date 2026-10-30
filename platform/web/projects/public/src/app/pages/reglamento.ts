@@ -43,7 +43,7 @@ const MOVIMIENTOS = [
       <gr-chips-ancla [anclas]="anclas" />
       <div class="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[260px_minmax(0,860px)] lg:gap-12">
         <!-- Figma «Legal TOC» -->
-        <nav class="hidden h-fit flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:flex" aria-label="Contenido">
+        <nav class="hidden h-fit flex-col gap-1 rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:flex" aria-label="Contenido">
           <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
           <ol class="flex flex-col gap-1 text-body-s">
             @for (a of anclas; track a.id; let i = $index) {
@@ -59,7 +59,7 @@ const MOVIMIENTOS = [
             <gr-cabecera eyebrow="01 · Niveles AEP" titulo="AEP-1, AEP-2 *y AEP-3*" [centro]="false" tam="m" />
             <div class="grid gap-3 sm:grid-cols-2">
               @for (n of niveles; track n.t) {
-                <div class="flex flex-col gap-2 rounded-2xl border bg-bg-card px-4 py-5" [class]="n.nuestro ? 'border-accent' : 'border-line-subtle'">
+                <div class="flex flex-col gap-2 rounded-lg border bg-bg-card px-4 py-5" [class]="n.nuestro ? 'border-accent' : 'border-line-subtle'">
                   <p class="flex items-baseline gap-2"><span class="text-display-2xs" [class.text-accent-text]="n.nuestro">{{ n.t }}</span><span class="text-label-xs text-text-muted uppercase">{{ n.tipo }}</span>@if (n.nuestro) { <span class="ml-auto text-label-xs text-accent-text">GR Strength Cup</span> }</p>
                   <p class="text-body-s text-text-tertiary">{{ n.d }}</p>
                 </div>
@@ -72,7 +72,7 @@ const MOVIMIENTOS = [
             <p class="text-body-m text-text-secondary md:text-body-l">Cada atleta hace 3 intentos por movimiento. Cada nuevo intento debe ser de al menos 2,5 kg más que el anterior y no se puede bajar el peso. Cuenta el mejor intento válido de cada movimiento.</p>
             <ul class="grid gap-3 sm:grid-cols-3">
               @for (x of luces; track x.t) {
-                <li class="flex items-center gap-3 rounded-2xl border border-line-subtle bg-bg-card px-3 py-4">
+                <li class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-3 py-4">
                   <span class="flex gap-1.5" aria-hidden="true">@for (c of x.l; track $index) { <span class="size-5 rounded-full" [class]="c === 'b' ? 'bg-white' : 'bg-accent'"></span> }</span>
                   <span class="text-label-s">{{ x.t }}</span>
                 </li>
@@ -84,7 +84,7 @@ const MOVIMIENTOS = [
             <gr-cabecera eyebrow="03 · Los tres movimientos" titulo="Ejecución y *voces del juez*" [centro]="false" tam="m" />
             @for (m of movimientos; track m.t) {
               <div class="flex flex-col gap-5 rounded-[20px] border border-line-subtle bg-bg-card p-5 sm:flex-row sm:gap-6">
-                <img [src]="m.foto" [alt]="m.t" class="aspect-[350/200] w-full rounded-xl border border-white/8 object-cover sm:aspect-[200/260] sm:w-[200px] sm:shrink-0" loading="lazy" />
+                <img [src]="m.foto" [alt]="m.t" class="aspect-[350/200] w-full rounded-md border border-white/8 object-cover sm:aspect-[200/260] sm:w-[200px] sm:shrink-0" loading="lazy" />
                 <div class="flex flex-col gap-3">
                   <h3 class="text-display-xs">{{ m.t }}</h3>
                   <p class="flex flex-wrap gap-2">@for (v of m.voces; track v) { <span class="rounded-sm border border-accent/50 bg-accent/10 px-2 py-0.5 text-mono-xs text-accent-text">{{ v }}</span> }</p>
@@ -97,11 +97,11 @@ const MOVIMIENTOS = [
           <section id="equipamiento" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
             <gr-cabecera eyebrow="04 · Equipamiento" titulo="Modalidad *raw (clásica)*" texto="Sin equipamiento soportivo. Todo el material debe estar homologado por la IPF." [centro]="false" tam="m" />
             <div class="grid gap-4 sm:grid-cols-2">
-              <div class="flex flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6">
+              <div class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <p class="text-label-s text-success">Permitido</p>
                 <ul class="flex flex-col gap-2">@for (x of permitido; track x) { <li class="flex gap-3 text-body-s text-text-secondary"><span class="mt-2 size-1.5 shrink-0 rounded-full bg-success"></span>{{ x }}</li> }</ul>
               </div>
-              <div class="flex flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-6">
+              <div class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <p class="text-label-s text-accent-text">No permitido en raw</p>
                 <ul class="flex flex-col gap-2">@for (x of prohibido; track x) { <li class="flex gap-3 text-body-s text-text-secondary"><span class="mt-2 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ x }}</li> }</ul>
               </div>
