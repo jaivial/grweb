@@ -518,10 +518,13 @@ export class AtletaPage {
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input type="search" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
+          <!-- mobile: the chips in one sideways row under the search (Figma 26) -->
+          <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
           @for (s of sexos; track s.v) {
-            <button type="button" (click)="sexo.set(s.v)" [attr.aria-pressed]="sexo() === s.v" class="inline-flex h-11 items-center gap-1.5 rounded-full border px-4 text-label-s md:h-10"
+            <button type="button" (click)="sexo.set(s.v)" [attr.aria-pressed]="sexo() === s.v" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s md:h-10"
               [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.label }}</button>
           }
+          </div>
         </div>
 
         <div class="mt-8 flex flex-col gap-10">
