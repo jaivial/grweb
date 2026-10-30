@@ -1,0 +1,81 @@
+# Synthetic MySQL of the previous web («Datos de ejemplo»), only for trying the step-16 ETL in QA. It is NOT part of
+# the kustomize base: deploy/scripts/legado-qa.sh applies it (with its ConfigMap and Secret) and removes it with
+# «--borrar». Ephemeral storage: it rebuilds itself from the init scripts when the pod restarts.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legado-mysql
+  labels: { app.kubernetes.io/name: legado-mysql, app.kubernetes.io/part-of: grcup-legado }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: legado-mysql }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: legado-mysql, app.kubernetes.io/part-of: grcup-legado }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          args: ["--skip-log-bin", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+          env:
+            - { name: MYSQL_DATABASE, value: grcup }
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-legado, key: MYSQL_ROOT_PASSWORD } }
+            - name: ETL_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-legado, key: ETL_PASSWORD } }
+          ports: [{ name: mysql, containerPort: 3306 }]
+          readinessProbe:
+            exec: { command: ["sh", "-c", "mysql -uetl -p\"$ETL_PASSWORD\" -h 127.0.0.1 -e 'SELECT 1 FROM grcup.Competiciones LIMIT 1'"] }
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 50m, memory: 384Mi }
+            limits: { cpu: "1", memory: 1Gi }
+          volumeMounts:
+            - { name: datos, mountPath: /var/lib/mysql }
+            - { name: run, mountPath: /var/run/mysqld }
+            - { name: tmp, mountPath: /tmp }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d, readOnly: true }
+      volumes:
+        - { name: datos, emptyDir: { sizeLimit: 2Gi } }
+        - { name: run, emptyDir: {} }
+        - { name: tmp, emptyDir: {} }
+        - { name: init, configMap: { name: legado-mysql-init } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legado-mysql
+  labels: { app.kubernetes.io/name: legado-mysql, app.kubernetes.io/part-of: grcup-legado }
+spec:
+  selector: { app.kubernetes.io/name: legado-mysql }
+  ports: [{ name: mysql, port: 3306, targetPort: mysql }]
+---
+# Only the ETL jobs of the services that import (their pods carry grcup.dev/servicio) reach the legacy database.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-legado-mysql
+  labels: { app.kubernetes.io/part-of: grcup-legado }
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: legado-mysql }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: grcup.dev/servicio, operator: In, values: [competition, identity, athletes, raffle, live] }
+      ports: [{ port: 3306 }]

@@ -64,7 +64,7 @@ type espCache struct {
 func Service() app.Service {
 	s := &Svc{esp: map[uuid.UUID]espCache{}}
 	return app.Service{Name: "live", Title: "GR Cup · live", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
-		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup}}
+		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "etl-mysql": s.etlMySQL}}
 }
 
 func (s *Svc) init(a *app.App) {

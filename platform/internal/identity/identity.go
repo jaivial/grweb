@@ -54,6 +54,7 @@ func Service() app.Service {
 			"bootstrap-root": s.bootstrapRoot,
 			"enlace-acceso":  s.loginLink,
 			"genkey":         genKey,
+			"etl-mysql":      s.etlMySQL,
 		},
 	}
 }

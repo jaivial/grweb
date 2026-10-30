@@ -44,6 +44,7 @@ func Service() app.Service {
 		Setup: s.setup,
 		Commands: map[string]func(context.Context, *app.App, []string) error{
 			"seed-grcup": s.seedGRCup,
+			"etl-mysql":  s.etlMySQL,
 		},
 	}
 }

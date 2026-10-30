@@ -172,6 +172,12 @@ func (s *Svc) registerAuth() {
 				return nil, problem.Forbidden("Tu cuenta está suspendida. Habla con un administrador.")
 			}
 			ratelimit.Reset(ctx, s.a.Redis, s.a.Keys.Of("rl", "login:email:"+emailKey(email)))
+			if needsRehash(*u.PasswordHash) {
+				// imported from the previous web: the first good login moves the password to argon2id
+				if _, err := s.a.DB.Exec(ctx, `UPDATE usuarios SET password_hash = $3, updated_at = now() WHERE id = $1 AND password_hash = $2`, u.ID, *u.PasswordHash, hashPassword(in.Body.Password)); err != nil {
+					s.a.Log.Warn("rehash de contraseña importada", "err", err)
+				}
+			}
 			tp, err := s.startSession(ctx, u, origin(in.Body.Cliente), in.UserAgent, httpx.ClientIPFrom(ctx))
 			if err != nil {
 				return nil, err
