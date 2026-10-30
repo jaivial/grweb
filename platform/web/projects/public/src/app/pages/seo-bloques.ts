@@ -16,7 +16,7 @@ import { GrIcon, type GrIconName } from '@grcup/ui';
   host: { '[class]': "'relative flex gap-3 overflow-hidden rounded-2xl p-4 ' + estilo[tono()].caja" },
   template: `
     <span class="absolute top-3.5 bottom-3.5 left-0 w-[3px] rounded-full" [class]="estilo[tono()].barra" aria-hidden="true"></span>
-    <gr-icon [name]="estilo[tono()].icono" [size]="20" class="ml-2 shrink-0" [class]="estilo[tono()].texto" />
+    <gr-icon [name]="estilo[tono()].icono" [size]="20" class="ml-2 shrink-0 self-start" [class]="estilo[tono()].texto" />
     <div class="flex flex-col gap-1">
       <p class="text-label-s" [class]="estilo[tono()].texto">{{ titulo() || estilo[tono()].titulo }}</p>
       <div class="text-body-m text-text-secondary"><ng-content /></div>

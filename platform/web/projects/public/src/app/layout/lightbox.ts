@@ -17,7 +17,7 @@ export interface FotoLightbox { imagen: string; alt: string; pie?: string }
   host: { '(document:keydown)': 'tecla($event)' },
   template: `
     @if (indice() >= 0 && fotos()[indice()]; as f) {
-      <div class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 py-16 md:px-28" role="dialog" aria-modal="true" [attr.aria-label]="'Foto ' + (indice() + 1) + ' de ' + fotos().length" (click)="cerrar()">
+      <div class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black py-16 md:bg-black/95 md:px-28" role="dialog" aria-modal="true" [attr.aria-label]="'Foto ' + (indice() + 1) + ' de ' + fotos().length" (click)="cerrar()">
         <div class="absolute top-4 right-4 flex gap-2 md:top-6 md:right-6">
           @if (compartir()) {
             <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Compartir" (click)="$event.stopPropagation(); compartirFoto()"><gr-icon name="share" [size]="18" /></button>
