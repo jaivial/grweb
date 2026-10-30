@@ -5,9 +5,11 @@ import { Cms, type Club, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { SectionTitle } from '../home/cms-sections';
+import { GrCabecera } from '../home/bloques';
 import { Footer, Navbar, instagramOf, type Lang } from '../layout/layout';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
+import { GrChipsAncla } from './seo-bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -75,16 +77,12 @@ export class Community {
 /** /publico (Figma page 29): what spectators will see, how an attempt is judged and the stand rules. All sections come from the CMS. */
 @Component({
   selector: 'gr-publico-page',
-  imports: [Page, GrIcon, GrSkeleton, SectionTitle, Related, Community],
+  imports: [Page, GrIcon, GrSkeleton, GrCabecera, GrChipsAncla, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = land();
     <gr-page [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="t('intro', 'texto')" section="Visita" crumb="Público">
-      <nav class="sticky top-[72px] z-30 -mx-5 mb-8 flex gap-2 overflow-x-auto bg-bg-base/85 px-5 py-3 backdrop-blur md:hidden" aria-label="En esta página">
-        @for (a of anchors; track a.id) {
-          <a [href]="'/publico#' + a.id" class="inline-flex h-9 shrink-0 items-center rounded-pill border border-line-strong px-3 text-label-s text-text-secondary">{{ a.label }}</a>
-        }
-      </nav>
+      <gr-chips-ancla [anclas]="anchors" />
       @if (l === undefined) {
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-24 rounded-md" /> }</div>
       }
@@ -95,40 +93,43 @@ export class Community {
             @case ('datos') {
               <ul id="info" class="grid scroll-mt-32 grid-cols-2 gap-3 md:grid-cols-4">
                 @for (d of items(s, 'items'); track d['etiqueta']) {
-                  <li class="rounded-md border border-line-subtle bg-bg-card p-4 md:p-5">
-                    <gr-icon [name]="ic(d['icono'])" [size]="18" class="text-accent-text" />
-                    <p class="mt-3 text-mono-xs text-text-tertiary">{{ d['etiqueta'] }}</p>
-                    <p class="mt-1 text-label-m">{{ d['valor'] }}</p>
+                  <li class="flex flex-col gap-1.5 rounded-2xl border border-line-subtle bg-bg-card p-4 md:p-5">
+                    <gr-icon [name]="ic(d['icono'])" [size]="18" class="mb-1.5 text-accent-text" />
+                    <p class="text-label-xs text-text-muted uppercase">{{ d['etiqueta'] }}</p>
+                    <p class="text-label-m">{{ d['valor'] }}</p>
                   </li>
                 }
               </ul>
             }
             @case ('movimientos') {
-              <section id="que-veras" class="scroll-mt-32">
-                <gr-section-title [eyebrow]="str(s, 'eyebrow')" [titulo]="str(s, 'titulo')" [acento]="str(s, 'tituloAcento')" />
-                <p class="mt-4 max-w-2xl text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>
-                <ul class="-mx-5 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
+              <section id="que-veras" class="flex scroll-mt-32 flex-col gap-5 md:gap-7">
+                <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
+                <!-- Figma 29: three 300 × 420 cards on desktop; a swipe row with dots on mobile -->
+                <ul #fila class="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[940px] md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
                   @for (m of items(s, 'items'); track m['titulo']; let i = $index) {
-                    <li class="relative w-[78%] shrink-0 snap-start overflow-hidden rounded-lg border border-line-subtle shadow-card md:w-auto">
-                      <img [src]="m['imagen']" [alt]="m['titulo']" class="aspect-[3/4] w-full object-cover" loading="lazy" />
-                      <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5">
-                        <span class="inline-flex h-6 items-center rounded-pill bg-accent px-2 text-mono-xs">Movimiento · {{ (i + 1).toString().padStart(2, '0') }}</span>
-                        <p class="mt-2 text-display-xs">{{ m['titulo'] }}</p>
+                    <li class="relative w-[66%] shrink-0 snap-start overflow-hidden rounded-2xl border border-line-subtle shadow-card md:w-auto">
+                      <img [src]="m['imagen']" [alt]="m['alt'] || m['titulo']" class="aspect-[300/420] w-full object-cover" loading="lazy" />
+                      <div class="absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5">
+                        <span class="inline-flex h-6 items-center rounded-full bg-accent px-2.5 text-label-xs text-white uppercase">Movimiento · {{ (i + 1).toString().padStart(2, '0') }}</span>
+                        <p class="text-display-xs">{{ m['titulo'] }}</p>
                       </div>
                     </li>
                   }
                 </ul>
+                <p class="flex gap-1.5 md:hidden" aria-hidden="true">
+                  @for (m of items(s, 'items'); track m['titulo']; let i = $index) { <span class="h-1.5 rounded-full transition-all" [class]="i === tarjeta() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
+                </p>
               </section>
             }
             @case ('juicio') {
-              <section id="como-se-juzga" class="scroll-mt-32">
-                <gr-section-title [eyebrow]="str(s, 'eyebrow')" [titulo]="str(s, 'titulo')" [acento]="str(s, 'tituloAcento')" />
-                <ol class="mt-8 grid gap-3 md:grid-cols-4">
+              <section id="como-se-juzga" class="flex scroll-mt-32 flex-col gap-5 md:gap-7">
+                <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
+                <ol class="grid gap-3 md:grid-cols-4 md:gap-4">
                   @for (p of items(s, 'pasos'); track p['titulo']; let i = $index, last = $last) {
-                    <li class="rounded-md border border-line-subtle bg-bg-card p-5">
-                      <span class="flex size-7 items-center justify-center rounded-full bg-accent text-label-s">{{ i + 1 }}</span>
+                    <li class="rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
+                      <span class="flex size-7 items-center justify-center rounded-full bg-accent text-label-s text-white">{{ i + 1 }}</span>
                       <p class="mt-4 text-label-m">{{ p['titulo'] }}</p>
-                      <p class="mt-1 text-body-s text-text-tertiary">{{ p['texto'] }}</p>
+                      <p class="mt-1.5 text-body-s text-text-tertiary">{{ p['texto'] }}</p>
                       @if (last) {
                         <p class="mt-4 flex gap-2" aria-label="Ejemplo: dos luces blancas y una roja, intento válido">
                           <span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-accent"></span>
@@ -140,9 +141,9 @@ export class Community {
               </section>
             }
             @case ('normas') {
-              <section id="normas" class="scroll-mt-32">
-                <gr-section-title [eyebrow]="str(s, 'eyebrow')" [titulo]="str(s, 'titulo')" [acento]="str(s, 'tituloAcento')" />
-                <ul class="mt-8 flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
+              <section id="normas" class="flex scroll-mt-32 flex-col gap-5 md:gap-7">
+                <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
+                <ul class="flex flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-6">
                   @for (n of items(s, 'items'); track n['texto']) {
                     <li class="flex gap-3 text-body-m text-text-secondary"><span class="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ n['texto'] }}</li>
                   }
@@ -161,7 +162,15 @@ export class Community {
 })
 export class PublicoPage {
   protected readonly land = signal<Landing | null | undefined>(undefined);
-  protected readonly anchors = [{ id: 'info', label: 'Info' }, { id: 'que-veras', label: 'Qué verás' }, { id: 'como-se-juzga', label: 'Cómo se juzga' }, { id: 'normas', label: 'Normas' }];
+  protected readonly anchors = [{ id: 'info', t: 'Info' }, { id: 'que-veras', t: 'Qué verás' }, { id: 'como-se-juzga', t: 'Cómo se juzga' }, { id: 'normas', t: 'Normas' }];
+  /** Card in view in the mobile swipe row (dots). */
+  protected readonly tarjeta = signal(0);
+  protected alDeslizar(el: HTMLElement) {
+    const li = el.firstElementChild as HTMLElement | null;
+    if (li) this.tarjeta.set(Math.round(el.scrollLeft / (li.offsetWidth + 16)));
+  }
+  /** «Título *acento*» markup of gr-cabecera from the CMS fields. */
+  protected tit = (s: Seccion | undefined) => [str(s, 'titulo'), str(s, 'tituloAcento') && '*' + str(s, 'tituloAcento') + '*'].filter(Boolean).join(' ');
   protected str = str;
   protected ic = icon;
   protected items = (s: Seccion | undefined, k: string) => list<Record<string, string>>(s, k);

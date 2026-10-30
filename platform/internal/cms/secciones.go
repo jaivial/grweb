@@ -103,7 +103,8 @@ var SeccionesPublico = []SeccionDef{
 	{Clave: "datos", Nombre: "Datos clave", Descripcion: "Rejilla de 4 datos (2×2 en móvil)", Campos: []Campo{
 		{Clave: "items", Etiqueta: "Datos", Tipo: "lista", Max: 4, Campos: []Campo{cIcono, {Clave: "etiqueta", Etiqueta: "Etiqueta", Tipo: "texto", Max: 20}, {Clave: "valor", Etiqueta: "Valor", Tipo: "texto", Max: 40}}}}},
 	{Clave: "movimientos", Nombre: "Qué verás", Descripcion: "Los tres movimientos (carrusel en móvil)", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
-		{Clave: "items", Etiqueta: "Movimientos", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Movimiento", Tipo: "texto", Max: 40}, cImagen}}}},
+		{Clave: "items", Etiqueta: "Movimientos", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Movimiento", Tipo: "texto", Max: 40}, cImagen,
+			{Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120, Ayuda: "Vacío: el nombre del movimiento"}}}}},
 	{Clave: "juicio", Nombre: "Cómo se juzga", Descripcion: "Un intento paso a paso", Campos: []Campo{cEyebrow, cTitulo, cAcento, cItemsTituloTexto("pasos", "Pasos", 6)}},
 	{Clave: "normas", Nombre: "Normas de la grada", Descripcion: "Lista de normas para el público", Campos: []Campo{cEyebrow, cTitulo, cAcento,
 		{Clave: "items", Etiqueta: "Normas", Tipo: "lista", Max: 8, Campos: []Campo{{Clave: "texto", Etiqueta: "Norma", Tipo: "texto", Max: 160}}}}},

@@ -23,13 +23,13 @@ const FOTO_2025 = 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfons
 const CARTEL_2025 = '/img/cartel-2025.jpg';
 /** The eight photos of Figma 28 (2025 edition), in the design's order. */
 const FOTOS_2025: [string, string][] = [
-  ['foto-1', 'Atleta preparado para la sentadilla delante del photocall de la GR Strength Cup 2025'],
+  ['foto-1', 'Atleta delante de la barra antes de su peso muerto, con 275 kg en el marcador'],
   ['foto-2', 'Atleta concentrada con cascos antes de su intento'],
-  ['foto-3', 'Press de banca en la plataforma, con los cargadores al lado'],
+  ['foto-3', 'Sentadilla en la plataforma, con los cargadores a los lados'],
   ['foto-4', 'Atleta en el press de banca bajo el cartel de la competición'],
-  ['foto-5', 'Atleta con la barra cargada bajo los focos del escenario'],
-  ['foto-6', 'Barra cargada con discos y magnesio sobre la plataforma'],
-  ['foto-7', 'Entrenador ajustando las rodilleras de un atleta en el calentamiento'],
+  ['foto-5', 'Peso muerto bloqueado bajo los focos del escenario'],
+  ['foto-6', 'Cinturón y muñequeras colgados de una barra en la zona de calentamiento'],
+  ['foto-7', 'Un compañero ajusta el cinturón de un atleta antes de salir'],
   ['foto-8', 'Atleta concentrado antes de salir a la plataforma'],
 ];
 const MOVS: Mov[] = ['sq', 'bp', 'dl'];
