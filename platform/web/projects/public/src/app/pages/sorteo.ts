@@ -25,6 +25,8 @@ const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' 
 const euros = (c: number) => eur.format(c / 100).replace(',00', '');
 const fechaLarga = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : 'por confirmar');
 const BASE = `/api/competiciones/${COMPETITION_SLUG}/sorteo`;
+/** «Se hace en directo el viernes, 20 de noviembre, 06:45.» — or, without a date yet, where it will be announced. */
+const cuando = (iso?: string) => (iso ? `Se hace en directo el ${fechaLarga(iso)}.` : 'Se hace en directo; anunciaremos la fecha en la web y en Instagram.');
 
 /** Section heading of /sorteo (Figma 07): display title with its red part, a soft shadow and a short gradient rule. */
 @Component({
@@ -118,7 +120,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
             } @else {
               <span class="flex size-16 items-center justify-center rounded-full bg-[radial-gradient(circle,rgb(196_43_62/0.25),transparent_70%)] text-accent-text"><gr-icon name="trophy" [size]="28" /></span>
               <p class="mt-1 text-display-xs">Ganador pendiente</p>
-              <p class="text-body-s text-text-tertiary">Se hace en directo el {{ fechaLarga(s.fechaSorteo) }}. Publicaremos aquí el boleto ganador.</p>
+              <p class="text-body-s text-text-tertiary">{{ cuando(s.fechaSorteo) }} Publicaremos aquí el boleto ganador.</p>
             }
             @if (s.verificacion; as v) {
               <details class="mt-2 w-full rounded-md border border-line-subtle bg-bg-base/40 p-4 text-left text-body-xs text-text-secondary">
@@ -299,6 +301,7 @@ export class SorteoPage {
       inject(DestroyRef).onDestroy(() => es.close());
     }
   }
+  protected readonly cuando = cuando;
   protected n(v: number): string { return new Intl.NumberFormat('es-ES').format(v); }
   protected emailOk(): boolean { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.f.email.trim()); }
   protected irNovedades(e: Event): void {
@@ -410,7 +413,7 @@ export class SorteoConfirmacionPage {
     const ig = this.comp.data() ? instagramOf(this.comp.data()).replace(/\/$/, '').split('/').pop() : 'grstrengthclub';
     return [
       `Te hemos enviado tus números a ${c?.email ?? 'tu email'}. Guarda el email: el número es tu boleto.`,
-      `El sorteo se hace en directo el ${fechaLarga(this.fechaSorteo())}, con la lista y la semilla publicadas para que cualquiera lo compruebe.`,
+      `${cuando(this.fechaSorteo())} La lista y la semilla se publican para que cualquiera lo compruebe.`,
       `Sigue @${ig} en Instagram para estar al día.`,
     ];
   });
