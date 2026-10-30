@@ -32,6 +32,9 @@ spec:
               args:
                 - |
                   set -eu
+                  # the dumps hold personal data: only root on the node can read them
+                  umask 077
+                  chmod 700 /copias
                   d=/copias/$(date +%Y-%m-%d)
                   mkdir -p "$d"
                   for db in $(psql -h postgres -U postgres -tAc "SELECT datname FROM pg_database WHERE datname LIKE 'grcup_%' ORDER BY 1"); do

@@ -192,12 +192,12 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	a.Mux.HandleFunc("GET /readyz", a.readyz)
 	// Observability (internal port only: the gateway proxies /api): Prometheus text and a summary for «Salud».
 	a.Metrics = httpx.NewMetrics()
-	a.Mux.Handle("GET /metrics", a.Metrics.Handler(s.Name))
-	a.Mux.HandleFunc("GET /metrics/resumen", func(w http.ResponseWriter, _ *http.Request) {
+	a.Mux.Handle("GET /metrics", interno(a.Metrics.Handler(s.Name)))
+	a.Mux.Handle("GET /metrics/resumen", interno(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		p95, n := a.Metrics.P95()
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprintf(w, `{"p95":%g,"peticiones":%d}`, p95, n)
-	})
+	})))
 
 	if s.Setup != nil {
 		if err := s.Setup(ctx, a); err != nil {
@@ -248,6 +248,18 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	}
 	a.wg.Wait()
 	return nil
+}
+
+// interno only serves in-cluster callers: the host nginx in front of the gateway always adds X-Forwarded-For and
+// X-Real-IP, so a request carrying them came from the internet (the gateway runs on this same package).
+func interno(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Forwarded-For") != "" || r.Header.Get("X-Real-IP") != "" {
+			http.NotFound(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 func (a *App) readyz(w http.ResponseWriter, r *http.Request) {
