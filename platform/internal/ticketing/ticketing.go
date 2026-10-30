@@ -50,6 +50,7 @@ type Svc struct {
 	comps  *compref.Resolver
 	cache  *cache.Cache
 	qrKey  []byte
+	tokKey []byte
 	webURL string
 }
 
@@ -69,6 +70,9 @@ func (s *Svc) init(a *app.App) {
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/ticketing/qr/v1"))
 	s.qrKey = m.Sum(nil)
+	m = hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
+	m.Write([]byte("grcup/ticketing/mi-entrada/v1"))
+	s.tokKey = m.Sum(nil)
 	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
 }
 
@@ -120,6 +124,22 @@ func (s *Svc) leerQR(cid uuid.UUID, v string) (string, bool) {
 
 func (s *Svc) qrURL(slug string, cid uuid.UUID, codigo string) string {
 	return s.webURL + "/api/competiciones/" + slug + "/entradas/" + codigo + "/qr.png?s=" + s.firma(cid, codigo)
+}
+
+// tokenEntrada is the «Mi entrada» key of a ticket, derived from its id: stable, so the confirmation, the resends
+// and the reminders all carry the same valid link (rotating would mean a new key version).
+func (s *Svc) tokenEntrada(id uuid.UUID) string {
+	m := hmac.New(sha256.New, s.tokKey)
+	m.Write([]byte("mi-entrada:" + id.String()))
+	return base64.RawURLEncoding.EncodeToString(m.Sum(nil)[:24])
+}
+
+// enlaceEntrada makes sure the stored hash matches the derived token (tickets created before it, or seeded,
+// get it on their first email) and returns the token. Anonymised tickets keep no token.
+func (s *Svc) enlaceEntrada(ctx context.Context, tx pgx.Tx, id uuid.UUID) (string, error) {
+	tok := s.tokenEntrada(id)
+	_, err := tx.Exec(ctx, `UPDATE entradas SET token_hash = $2 WHERE id = $1 AND token_hash <> $2 AND email IS NOT NULL`, id, hashToken(tok))
+	return tok, err
 }
 
 func randomToken() string {

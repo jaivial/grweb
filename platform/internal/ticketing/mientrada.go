@@ -231,9 +231,9 @@ func (s *Svc) reenviar(ctx context.Context, tx pgx.Tx, c compref.Comp, id uuid.U
 		return problem.Conflict("SIN_EMAIL", "Esta entrada no tiene email.")
 	}
 	if tok == "" {
-		// From the backoffice: a fresh link (the person may have lost the old one).
-		tok = randomToken()
-		if _, err := tx.Exec(ctx, `UPDATE entradas SET token_hash = $2 WHERE id = $1`, id, hashToken(tok)); err != nil {
+		// From the backoffice: the ticket's link (the same as in its other emails).
+		var err error
+		if tok, err = s.enlaceEntrada(ctx, tx, id); err != nil {
 			return err
 		}
 	}

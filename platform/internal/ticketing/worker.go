@@ -148,8 +148,8 @@ func (s *Svc) recordatorios(ctx context.Context) error {
 					Scan(&cod, &nombre, &ape, &mail, &personas, &sid); err != nil {
 					return nil // another pod took it
 				}
-				tok := randomToken()
-				if _, err := tx.Exec(ctx, `UPDATE entradas SET token_hash = $2 WHERE id = $1`, p.id, hashToken(tok)); err != nil {
+				tok, err := s.enlaceEntrada(ctx, tx, p.id)
+				if err != nil {
 					return err
 				}
 				rs, err := tx.Query(ctx, selSesion+` WHERE s.id = $1`, sid)

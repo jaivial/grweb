@@ -180,8 +180,12 @@ func (s *Svc) registerPublic() {
 				return nil, problem.Unprocessable("EMAIL_INVALIDO", "Revisa el email: ahí te enviamos la entrada.")
 			}
 			ip := httpx.ClientIPFrom(ctx)
-			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "entradas", ip), 8, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Has hecho varias reservas seguidas. Inténtalo más tarde.")
+			// Many people book from the pavilion Wi-Fi or a carrier NAT (one IP): the per-address limit stops abuse.
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "entradas", ip), 30, time.Hour); !r.Allowed {
+				return nil, problem.TooMany("Se han hecho muchas reservas desde esta conexión. Inténtalo en un rato.")
+			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "entradas-email", hashToken(e)), 5, time.Hour); !r.Allowed {
+				return nil, problem.TooMany("Has hecho varias reservas seguidas con este email. Inténtalo más tarde.")
 			}
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -484,7 +488,8 @@ type nuevaEntrada struct {
 
 // crearEntrada stores a ticket with a unique code and a «Mi entrada» token and queues its confirmation email.
 func (s *Svc) crearEntrada(ctx context.Context, tx pgx.Tx, c compref.Comp, x sesionRow, n nuevaEntrada) (uuid.UUID, string, string, error) {
-	id, tok := newID(), randomToken()
+	id := newID()
+	tok := s.tokenEntrada(id)
 	if n.utm == nil {
 		n.utm = map[string]string{}
 	}
@@ -527,12 +532,14 @@ func (s *Svc) varsEntrada(c compref.Comp, x sesionRow, cod, tok, nombre, apellid
 		"enlace": s.webURL + "/mi-entrada?t=" + tok, "lugar": strings.TrimSpace(strings.Join(nonEmpty(c.Sede.Nombre, c.Sede.Ciudad), ", "))}
 }
 
-// enviarEnlace rotates the «Mi entrada» token of a ticket and emails the new link.
+// enviarEnlace emails the «Mi entrada» link of a ticket (the same link as its other emails).
 func (s *Svc) enviarEnlace(ctx context.Context, tx pgx.Tx, c compref.Comp, id uuid.UUID, para string) error {
-	tok := randomToken()
+	tok, err := s.enlaceEntrada(ctx, tx, id)
+	if err != nil {
+		return err
+	}
 	var cod, nombre, sesion string
-	if err := tx.QueryRow(ctx, `UPDATE entradas e SET token_hash = $2, updated_at = now() FROM sesiones s WHERE e.id = $1 AND s.id = e.sesion_id RETURNING e.codigo, e.nombre, s.nombre`, id, hashToken(tok)).
-		Scan(&cod, &nombre, &sesion); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT e.codigo, e.nombre, s.nombre FROM entradas e JOIN sesiones s ON s.id = e.sesion_id WHERE e.id = $1`, id).Scan(&cod, &nombre, &sesion); err != nil {
 		return err
 	}
 	return email(ctx, tx, c.ID, para, "entrada-enlace", map[string]string{"nombre": nombre, "codigo": cod, "sesion": sesion, "enlace": s.webURL + "/mi-entrada?t=" + tok})

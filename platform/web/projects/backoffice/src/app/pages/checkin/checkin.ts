@@ -140,7 +140,8 @@ export class TaquillaPage {
   }
 }
 
-interface Cola extends EscaneoIn { clave: string; nombre: string }
+/** A queued offline scan: codes only (no names), kept until it can be sent even across logouts. */
+interface Cola extends EscaneoIn { clave: string }
 type LectorQR = (d: Uint8ClampedArray, w: number, h: number) => { data: string } | null;
 type Vista = 'puesto' | 'escaner' | 'buscar';
 
@@ -327,9 +328,11 @@ export class EscanerPage {
       localStorage.setItem(this.clave('lista'), JSON.stringify(b));
       this.boot.set(b);
     } catch {
-      // Offline reload: the last list downloaded on this device.
-      const b = localStorage.getItem(this.clave('lista'));
-      if (b) this.boot.set(JSON.parse(b) as Bootstrap);
+      // Offline reload: the last list downloaded on this device, if it is recent (it holds names).
+      const raw = localStorage.getItem(this.clave('lista'));
+      const b = raw ? (JSON.parse(raw) as Bootstrap) : null;
+      if (b && Date.now() - new Date(b.generado).getTime() < 48 * 3600_000) this.boot.set(b);
+      else localStorage.removeItem(this.clave('lista'));
       this.online.set(false);
     }
     if (silencioso) return;
@@ -429,7 +432,7 @@ export class EscanerPage {
       this.actualizarLocal(x.codigo, r.dentro);
     } catch {
       // No network: queue it (kept on this device until it can be sent).
-      const c = [...this.cola(), { ...b, clave, nombre: x.nombre }];
+      const c = [...this.cola(), { ...b, clave }];
       this.cola.set(c);
       localStorage.setItem(this.clave('cola'), JSON.stringify(c));
       this.actualizarLocal(x.codigo, x.dentro + this.personas());
@@ -450,7 +453,7 @@ export class EscanerPage {
     const c = this.cola();
     if (!c.length || !navigator.onLine) return;
     try {
-      const r = await this.api.lote(this.cid(), c.map(({ nombre: _n, ...b }) => b));
+      const r = await this.api.lote(this.cid(), c);
       this.cola.set([]);
       localStorage.setItem(this.clave('cola'), '[]');
       this.online.set(true);

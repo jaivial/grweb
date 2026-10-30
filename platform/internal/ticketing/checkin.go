@@ -272,7 +272,9 @@ func (s *Svc) registerCheckin() {
 					o.Body.Actual = &id
 				}
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT codigo, sesion_id, trim(nombre || ' ' || apellidos), personas, dentro, estado FROM entradas WHERE competition_id = $1 AND estado <> 'anulada'`, in.CID)
+			// Only what a door needs offline: tickets of sessions that have not ended, first name + surname initial.
+			rows, err := s.a.DB.Query(ctx, `SELECT e.codigo, e.sesion_id, trim(e.nombre || ' ' || COALESCE(NULLIF(left(e.apellidos, 1), '') || '.', '')), e.personas, e.dentro, e.estado
+				FROM entradas e JOIN sesiones s ON s.id = e.sesion_id WHERE e.competition_id = $1 AND e.estado <> 'anulada' AND s.fin > now()`, in.CID)
 			if err != nil {
 				return nil, err
 			}

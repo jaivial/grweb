@@ -89,6 +89,10 @@ export class Auth {
     this.token.set(null);
     this.user.set(null);
     this.expiresAt = 0;
+    // The offline ticket list of the door scanner holds names: it never outlives the session on this device.
+    if (typeof localStorage !== 'undefined') {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('gr-checkin-lista-')) localStorage.removeItem(k);
+    }
   }
 }
 
