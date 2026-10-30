@@ -10,7 +10,7 @@ import { problemOf } from '../core/api';
   selector: 'bo-access-layout',
   imports: [GrLogo],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'grid min-h-dvh lg:grid-cols-2' },
+  host: { class: 'grid min-h-dvh grid-cols-[minmax(0,1fr)] lg:grid-cols-2' },
   template: `
     <section class="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-center lg:px-24" style="background: radial-gradient(120% 90% at 0% 0%, #5a1520 0%, #2a0d12 45%, #160b0d 100%)">
       <div class="grain-acento absolute inset-0 opacity-60"></div>
@@ -19,7 +19,7 @@ import { problemOf } from '../core/api';
         <p class="mt-6 text-mono-xs text-text-secondary">Backoffice</p>
         <h1 class="mt-4 text-display-l italic">Todo el evento en un solo sitio</h1>
         <p class="mt-6 text-body-l text-text-secondary">Atletas y horarios, entradas gratuitas, sorteo, directo, web y comunicación. Con permisos por rol y registro de cada cambio.</p>
-        <img src="https://openpencil.menustudioai.com/grscup/logos--trofeo-acento.png" alt="" class="mt-10 h-48 w-auto select-none" draggable="false" />
+        <img src="/img/trofeo-acento.webp" alt="" class="mt-10 h-48 w-auto select-none" draggable="false" />
       </div>
     </section>
     <section class="flex flex-col items-center justify-center px-5 py-10 sm:px-10">
@@ -59,15 +59,16 @@ export class AccessLayout {}
             <gr-field label="Contraseña" for="password" [error]="fieldError()">
               <input grInput id="password" name="password" type="password" autocomplete="current-password" required [(ngModel)]="password" [invalid]="!!fieldError()" />
             </gr-field>
-            <div class="flex items-center justify-between gap-2">
+            <!-- Figma 51 (mobile): the link drops under the box when there is no room -->
+            <div class="flex flex-wrap items-center justify-between gap-x-2">
               <label class="flex min-h-11 items-center gap-2 text-body-s whitespace-nowrap text-text-secondary md:min-h-0">
                 <input type="checkbox" name="recordar" [(ngModel)]="recordar" class="size-5 rounded-2xs accent-[#C42B3E]" />Recordarme 30 días
               </label>
-              <button type="button" class="min-h-11 text-label-s whitespace-nowrap text-accent-text hover:underline md:min-h-0" (click)="setMode('magic')">¿Olvidaste la contraseña?</button>
+              <button type="button" class="min-h-11 text-left text-label-s text-accent-text hover:underline md:min-h-0" (click)="setMode('magic')">¿Olvidaste la contraseña?</button>
             </div>
             <button grButton variant="primary" type="submit" [block]="true" [loading]="busy()">Entrar</button>
             <div class="flex items-center gap-3 text-body-xs text-text-muted"><span class="h-px flex-1 bg-line-subtle"></span>o<span class="h-px flex-1 bg-line-subtle"></span></div>
-            <button grButton type="button" [block]="true" (click)="setMode('magic')">Recibir enlace mágico por email</button>
+            <button grButton type="button" [block]="true" class="h-auto! min-h-11 py-2 whitespace-normal! md:min-h-10" (click)="setMode('magic')">Recibir enlace mágico por email</button>
           } @else {
             <button grButton variant="primary" type="submit" [block]="true" [loading]="busy()" icon="mail">Enviar enlace</button>
             <button grButton variant="ghost" type="button" [block]="true" (click)="setMode('password')">Entrar con contraseña</button>

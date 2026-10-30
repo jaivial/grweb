@@ -7,6 +7,7 @@ import type { CompeticionPublica } from '../core/competition';
 import { CATEGORIAS_IPF } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
+import { Lightbox } from '../layout/lightbox';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, textoTitulo } from './bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
@@ -582,7 +583,7 @@ export class SecHorarios {
 /** «Section / Localización»: exterior photo and three small ones, and the map card with the address and actions. */
 @Component({
   selector: 'gr-sec-localizacion',
-  imports: [GrButton, GrIcon, GrCabecera],
+  imports: [GrButton, GrIcon, GrCabecera, Lightbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -594,13 +595,16 @@ export class SecHorarios {
           <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3" (scroll)="alDesplazar($event)">
             @for (f of fotos(); track f.imagen; let i = $index) {
               <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto md:aspect-[4/3]" [class]="(i === 0 ? 'lg:col-span-3 lg:aspect-[648/380] lg:rounded-xl ' : 'lg:aspect-[205/140] ') + foto">
-                <img [src]="f.imagen" [attr.srcset]="srcset(f.imagen)" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
+                <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
+                  <img [src]="f.imagen" [attr.srcset]="srcset(f.imagen)" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+                </button>
               </li>
             }
           </ul>
           <div class="flex items-center justify-center gap-1.5 md:hidden" aria-hidden="true">
             @for (f of fotos(); track f.imagen; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
           </div>
+          <gr-lightbox [fotos]="fotos()" [(indice)]="ver" />
         </div>
         @if (c) {
           <div class="flex w-full flex-col self-start overflow-hidden rounded-lg border border-line-subtle bg-bg-card lg:w-[520px]">
@@ -632,6 +636,8 @@ export class SecLocalizacion {
   protected readonly copiado = signal(false);
   protected t = (k: string) => str(this.s(), k);
   protected readonly fotos = computed(() => list<{ imagen: string; alt: string }>(this.s(), 'imagenes'));
+  /** Photo open in the lightbox (−1: closed). */
+  protected readonly ver = signal(-1);
   protected readonly direccion = computed(() => {
     const s = this.comp()?.sede;
     return s ? [s.direccion, [s.cp, s.ciudad].filter(Boolean).join(' ') + (s.provincia ? ` (${s.provincia})` : '')].filter(Boolean).join(' · ') : '';

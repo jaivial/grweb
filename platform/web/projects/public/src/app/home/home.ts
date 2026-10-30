@@ -8,6 +8,7 @@ import type { Entradas } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
+import { NoEncontrada } from '../layout/no-encontrada';
 import { Campeonato, fechaCorta } from './campeonato';
 import { HeroTrophy } from './hero-trophy';
 import {
@@ -120,19 +121,15 @@ export class HomePage {
 
 }
 
+
 /** 404 of the public site. */
 @Component({
   selector: 'gr-not-found',
-  imports: [Navbar, Footer],
+  imports: [Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-navbar />
-    <main class="flex min-h-[80dvh] flex-col items-center justify-center px-5 pt-24 text-center">
-      <p class="text-display-xl text-accent-text">404</p>
-      <h1 class="mt-4 text-display-s">Esta página no existe</h1>
-      <p class="mt-3 max-w-md text-body-m text-text-tertiary">Puede que el enlace esté mal o que la sección todavía no esté publicada.</p>
-      <a href="/" class="mt-8 inline-flex h-12 items-center rounded-sm bg-accent-grain px-6 text-label-m">Volver al inicio</a>
-    </main>
+    <main><gr-no-encontrada /></main>
     <gr-footer />
   `,
 })
