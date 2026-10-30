@@ -496,19 +496,20 @@ export class AtletaPage {
     <gr-page title="Participantes" accent="y flights" eyebrow="Inscritos" section="El evento" crumb="Participantes"
       subtitle="Lista de atletas inscritos por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
       <p pageStamps class="flex flex-wrap gap-2">
-        <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde las inscripciones</span>
-        <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-mono-xs text-info">Datos de ejemplo</span>
+        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde las inscripciones</span>
+        <span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span>
       </p>
       @if (p === undefined) { <gr-skeleton class="h-40 rounded-lg" /> }
       @else if (p) {
-        <div class="grid gap-3 md:grid-cols-3">
-          <div class="rounded-lg border border-line-subtle bg-bg-card p-5">
+        <!-- Figma «Resumen»: places with the bar, then women and men with the big number under the label -->
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+          <div class="col-span-2 rounded-2xl border border-line-subtle bg-bg-card p-5 md:col-span-1">
             <p class="flex items-center justify-between text-label-s">Plazas ocupadas @if (p.plazas) { <span class="text-mono-xs text-accent-text">{{ p.ocupadas }} / {{ p.plazas }}</span> }</p>
             @if (p.plazas) { <div class="mt-3 h-1.5 rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="pct()"></div></div> }
             <p class="mt-2 text-body-xs text-text-tertiary">{{ p.plazas && p.ocupadas >= p.plazas ? 'Completo · lista de espera en la AEP' : (p.reserva ? p.reserva + ' en reserva' : 'Inscripción en la AEP') }}</p>
           </div>
-          <div class="flex items-center justify-between rounded-lg border border-line-subtle bg-bg-card p-5"><span class="text-label-s">Mujeres</span><span class="font-display text-[40px] italic">{{ p.mujeres }}</span></div>
-          <div class="flex items-center justify-between rounded-lg border border-line-subtle bg-bg-card p-5"><span class="text-label-s">Hombres</span><span class="font-display text-[40px] italic">{{ p.hombres }}</span></div>
+          <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Mujeres</span><span class="font-display text-[44px] leading-none italic">{{ p.mujeres }}</span></div>
+          <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Hombres</span><span class="font-display text-[44px] leading-none italic">{{ p.hombres }}</span></div>
         </div>
 
         <div class="mt-8 flex flex-wrap items-center gap-2">
@@ -517,29 +518,32 @@ export class AtletaPage {
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input type="search" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
+          <!-- mobile: the chips in one sideways row under the search (Figma 26) -->
+          <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
           @for (s of sexos; track s.v) {
-            <button type="button" (click)="sexo.set(s.v)" [attr.aria-pressed]="sexo() === s.v" class="inline-flex h-11 items-center gap-1.5 rounded-pill border px-3.5 text-label-s"
-              [class]="sexo() === s.v ? 'border-accent-text bg-accent-deep/40 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.label }}</button>
+            <button type="button" (click)="sexo.set(s.v)" [attr.aria-pressed]="sexo() === s.v" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s md:h-10"
+              [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.label }}</button>
           }
+          </div>
         </div>
 
         <div class="mt-8 flex flex-col gap-10">
           @for (g of grupos(); track g.titulo) {
             <section>
-              <h2 class="text-display-2xs md:text-display-xs">{{ g.titulo }}</h2>
-              <p class="mt-1 flex items-center gap-1.5 text-body-s text-text-secondary"><gr-icon name="clock" [size]="14" class="text-accent-text" />{{ g.subtitulo }}</p>
-              <div class="mt-4 hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:block">
+              <h2 class="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span class="text-display-2xs md:text-display-xs">{{ g.titulo }}</span>
+                <span class="flex items-center gap-1.5 text-body-s text-text-secondary"><gr-icon name="clock" [size]="14" class="text-accent-text" />{{ g.subtitulo }}</span></h2>
+              <div class="mt-3 hidden overflow-hidden rounded-2xl border border-line-subtle bg-bg-card md:block">
                 <table class="w-full table-fixed text-left">
-                  <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3 font-normal">Atleta</th><th class="px-4 py-3 font-normal">Club</th><th class="w-28 px-4 py-3 font-normal">Categoría</th><th class="w-20 px-4 py-3 font-normal">Flight</th><th class="w-36 px-4 py-3 font-normal">Pesaje</th></tr></thead>
+                  <thead class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><tr><th class="px-4 py-3 font-medium">Atleta</th><th class="px-4 py-3 font-medium">Club</th><th class="w-28 px-4 py-3 font-medium">Categoría</th><th class="w-20 px-4 py-3 font-medium">Flight</th><th class="w-36 px-4 py-3 font-medium">Pesaje</th></tr></thead>
                   <tbody>
                     @for (f of g.filas; track f.slug) {
-                      <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3"><a [href]="'/atletas/' + f.slug" class="text-label-m hover:text-accent-text">{{ f.nombre }}</a></td><td class="truncate px-4 py-3 text-body-s text-text-secondary">{{ f.club || 'Independiente' }}</td>
-                        <td class="px-4 py-3 text-mono-s text-accent-text">{{ cat(f.categoria) }} kg</td><td class="px-4 py-3 text-mono-s">{{ f.flight || '–' }}</td><td class="px-4 py-3 text-mono-s">{{ f.pesajeInicio ? hora(f.pesajeInicio) + ' – ' + hora(f.pesajeFin) : 'Por publicar' }}</td></tr>
+                      <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3.5"><a [href]="'/atletas/' + f.slug" class="text-label-m hover:text-accent-text">{{ f.nombre }}</a></td><td class="truncate px-4 py-3 text-body-s text-text-secondary">{{ f.club || 'Independiente' }}</td>
+                        <td class="px-4 py-3 text-label-s text-accent-text">{{ cat(f.categoria) }} kg</td><td class="px-4 py-3 text-mono-s">{{ f.flight || '–' }}</td><td class="px-4 py-3 text-mono-s">{{ f.pesajeInicio ? hora(f.pesajeInicio) + ' – ' + hora(f.pesajeFin) : 'Por publicar' }}</td></tr>
                     }
                   </tbody>
                 </table>
               </div>
-              <ul class="mt-3 overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:hidden">
+              <ul class="mt-3 overflow-hidden rounded-2xl border border-line-subtle bg-bg-card md:hidden">
                 @for (f of g.filas; track f.slug) {
                   <li class="border-b border-line-subtle last:border-0"><a [href]="'/atletas/' + f.slug" class="flex min-h-14 items-center gap-3 px-4 py-2">
                     <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }}</span></span>
@@ -552,10 +556,10 @@ export class AtletaPage {
         </div>
 
         @if (contacto()) {
-          <div class="mt-10 flex flex-col gap-3 rounded-md border border-info/30 bg-info/5 p-4 md:flex-row md:items-center">
+          <div class="mt-10 flex flex-col gap-3 rounded-xl border border-info/40 bg-info/8 p-4 md:flex-row md:items-center">
             <gr-icon name="info" [size]="18" class="text-info" />
             <p class="flex-1 text-body-s text-text-secondary">¿No apareces en la lista o hay un error en tus datos? Escríbenos antes del cierre de inscripciones.</p>
-            <a [href]="'mailto:' + contacto()" class="inline-flex h-10 items-center justify-center rounded-sm border border-info/40 px-3 text-label-s text-info">Contactar</a>
+            <a [href]="'mailto:' + contacto()" class="inline-flex h-10 items-center justify-center rounded-sm bg-info/15 px-3 text-label-s text-info hover:bg-info/25">Contactar</a>
           </div>
         }
       }
