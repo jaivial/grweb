@@ -42,7 +42,12 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 			c := &comps[i]
 			inf.Leidos["competiciones"]++
 			if c.Nueva == "-" {
-				inf.Omitir("competición excluida con --mapa")
+				if o.Mapa[c.ID] == "" && c.Tipo != "grcup" {
+					inf.Omitir("competición de otra web del mismo backend (" + c.Tipo + "): sigue en la web anterior")
+					inf.Notas = append(inf.Notas, fmt.Sprintf("«%s» (%d, %s) no se migra: es de otra web y sigue en el sistema anterior", c.Nombre, c.ID, c.Tipo))
+				} else {
+					inf.Omitir("competición excluida con --mapa")
+				}
 				continue
 			}
 			if !slugValido(c.Nueva) {
