@@ -140,12 +140,17 @@ func (s *Svc) webhookToken(cid uuid.UUID) string {
 	return base64.RawURLEncoding.EncodeToString(m.Sum(nil)[:18])
 }
 
+func (s *Svc) webhookURL(cid uuid.UUID) string {
+	return strings.TrimRight(config.Str("PUBLIC_API_URL", s.webURL), "/") + "/api/webhooks/whatsapp?c=" + cid.String() + "&t=" + s.webhookToken(cid)
+}
+
 // WAEstado is the WhatsApp channel state (campaign settings, «Emails y avisos»).
 type WAEstado struct {
 	Modo     string `json:"modo" enum:"evo-weai,simulado,ninguno"`
 	Numero   string `json:"numero,omitempty"`
 	Conexion string `json:"conexion" enum:"open,connecting,close,simulado,ninguno" doc:"Estado de la sesión de WhatsApp"`
 	Detalle  string `json:"detalle,omitempty"`
+	Webhook  string `json:"webhook,omitempty" doc:"URL firmada del webhook para evo-weai (solo con integraciones.config)"`
 }
 
 func (s *Svc) waEstado(ctx context.Context, cid uuid.UUID) WAEstado {
@@ -178,10 +183,15 @@ func (s *Svc) registerWhatsApp() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "whatsapp-estado", Method: http.MethodGet, Path: base, Summary: "Estado del canal de WhatsApp (evo-weai)", Tags: tagCamp, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*struct{ Body WAEstado }, error) {
-			if _, err := requirePerm(ctx, in.CID); err != nil {
+			p, err := requirePerm(ctx, in.CID)
+			if err != nil {
 				return nil, err
 			}
-			return &struct{ Body WAEstado }{s.waEstado(ctx, in.CID)}, nil
+			e := s.waEstado(ctx, in.CID)
+			if p.Can(in.CID.String(), "integraciones.config") {
+				e.Webhook = s.webhookURL(in.CID)
+			}
+			return &struct{ Body WAEstado }{e}, nil
 		})
 
 	type conIn struct {
@@ -214,7 +224,7 @@ func (s *Svc) registerWhatsApp() {
 			if err := s.evo(ctx, c, http.MethodGet, "/instance/connect/"+c.Instancia+"?number="+num, nil, &r); err != nil {
 				return nil, problem.New(http.StatusBadGateway, "WHATSAPP_NO_RESPONDE", err.Error())
 			}
-			hook := strings.TrimRight(config.Str("PUBLIC_API_URL", s.webURL), "/") + "/api/webhooks/whatsapp?c=" + in.CID.String() + "&t=" + s.webhookToken(in.CID)
+			hook := s.webhookURL(in.CID)
 			if err := s.evo(ctx, c, http.MethodPost, "/webhook/set/"+c.Instancia, map[string]any{"webhook": map[string]any{"enabled": true, "url": hook, "events": []string{"MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"}}}, nil); err != nil {
 				s.a.Log.Warn("webhook de whatsapp", "err", err)
 			}

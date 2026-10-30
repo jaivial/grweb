@@ -96,8 +96,8 @@ func (s *Svc) campanasTick(ctx context.Context) error {
 	}
 	rows.Close()
 	for _, c := range cs {
-		s.enviarLote(ctx, c, "email", (c.emailMin+11)/12)
-		s.enviarLote(ctx, c, "whatsapp", (c.waMin+11)/12)
+		s.enviarLote(ctx, c, "email", c.emailMin)
+		s.enviarLote(ctx, c, "whatsapp", c.waMin)
 		s.cerrarSiTermino(ctx, c)
 	}
 	return nil
@@ -110,7 +110,17 @@ type pendienteCamp struct {
 	intentos        int
 }
 
-func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, n int) {
+// enviarLote sends this tick's share of a channel: at most porMin in any 60 s window (counted in the database, so it
+// holds with several pods), spread over the ticks of the minute.
+func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin int) {
+	var recientes int
+	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM campana_destinatarios WHERE campana_id = $1 AND canal = $2 AND (estado = 'enviando' OR enviado_at > now() - interval '60 seconds')`, c.id, canal).Scan(&recientes); err != nil {
+		return
+	}
+	n := min((porMin+11)/12, porMin-recientes)
+	if n <= 0 {
+		return
+	}
 	var lote []pendienteCamp
 	err := s.tx(ctx, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT id, contacto_id, destino, nombre, baja_url, intentos FROM campana_destinatarios WHERE campana_id = $1 AND canal = $2 AND estado = 'pendiente' AND proximo_at <= now()

@@ -304,11 +304,11 @@ func derivarWhatsApp(d []Bloque, c Contexto) WhatsApp {
 			parts = append(parts, strings.Join(l, "\n"))
 		case "cuenta_atras":
 			dias, horas := cuenta(b, c.Ahora)
-			t := fmt.Sprintf("⏳ Faltan *%d días y %d horas*", dias, horas)
-			if b.Texto != "" {
-				t = bold(b.Texto) + "\n" + t
+			pre := "Faltan"
+			if strings.TrimSpace(b.Texto) != "" {
+				pre = bold(b.Texto)
 			}
-			parts = append(parts, t)
+			parts = append(parts, fmt.Sprintf("%s *%d días y %d horas*", pre, dias, horas))
 		case "horario":
 			l := []string{"*" + strings.ToUpper(diaLargo(b.Fecha)) + "*"}
 			for _, f := range c.Flights[b.Fecha] {
