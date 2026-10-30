@@ -34,7 +34,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
             <ul class="grid gap-4 md:grid-cols-2">
               @for (t of federacion(); track t.nombre) {
                 <li>
-                  <a [attr.href]="t.url || null" [attr.target]="t.url.startsWith('http') ? '_blank' : null" rel="noopener" class="flex h-full flex-col gap-4 rounded-2xl border border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)] bg-bg-card p-4 transition-colors md:p-5" [class.hover:border-accent]="!!t.url">
+                  <a [attr.href]="t.url || null" [attr.target]="t.url ? '_blank' : null" rel="noopener" class="flex h-full flex-col gap-4 rounded-2xl border border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)] bg-bg-card p-4 transition-colors md:p-5" [class.hover:border-accent]="!!t.url">
                     <span class="flex h-24 items-center justify-center rounded-xl bg-white/4 p-4 md:h-[120px]"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[70%] object-contain" loading="lazy" /></span>
                     <span class="flex items-center justify-between gap-3"><span class="text-label-m">{{ t.nombre }}</span><span class="text-label-xs text-accent-text uppercase">{{ t.insignia }}</span></span>
                     @if (t.texto) { <span class="text-body-s text-text-tertiary">{{ t.texto }}</span> }
@@ -51,7 +51,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
                 @for (t of marcas(); track t.nombre) {
                   <li>
                     <a [attr.href]="t.url || null" target="_blank" rel="noopener sponsored" class="flex h-full flex-col gap-3 rounded-2xl border border-line-subtle bg-bg-card p-3 transition-colors md:gap-4 md:p-4" [class.hover:border-line-strong]="!!t.url">
-                      <span class="flex h-20 items-center justify-center rounded-xl bg-white/4 p-3 md:h-[88px] md:p-4"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
+                      <span class="flex h-[104px] items-center justify-center rounded-xl bg-white/4 p-3 md:h-[88px] md:p-4"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
                       <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <span class="text-label-m">{{ t.nombre }}</span>
                         <span class="hidden h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-tertiary uppercase md:inline-flex">{{ t.insignia }}</span>
@@ -114,7 +114,7 @@ export class PatrocinadoresPage {
   protected readonly federacion = computed<Tarjeta[]>(() => {
     const inst = (this.items() ?? []).filter((p) => p.nivel === 'institucional').map((p) => this.tarjeta(p));
     const org = this.comp.data()?.evento.organizador || 'GR Strength';
-    return [...inst, { nombre: org, insignia: 'Organizador', logo: LOGO_GR, url: '/', texto: `Club organizador de la ${this.comp.data()?.nombre ?? 'GR Strength Cup'}.` }];
+    return [...inst, { nombre: org, insignia: 'Organizador', logo: LOGO_GR, url: '', texto: `Club organizador de la ${this.comp.data()?.nombre ?? 'GR Strength Cup'}.` }];
   });
   protected readonly marcas = computed<Tarjeta[]>(() =>
     (this.items() ?? []).filter((p) => p.nivel !== 'institucional').sort((a, b) => ORDEN.indexOf(a.nivel) - ORDEN.indexOf(b.nivel)).map((p) => this.tarjeta(p)),
