@@ -40,7 +40,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6 pb-24">
       <bo-page-header title="Inscripción" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas', 'Inscripción']">
         @if (tab() === 'config') { <a actions grButton icon="external-link" [href]="web + '/inscripcion'" target="_blank" rel="noopener">Ver /inscripcion</a> }
-        @if (tab() === 'config' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
+        @if (tab() === 'config' && (canEdit() || canEditAep())) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
         @if (tab() === 'cupones' && canEdit()) { <button actions grButton variant="primary" icon="plus" (click)="editarCupon(null)">Nuevo cupón</button> }
         @if (tab() === 'referidos' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
       </bo-page-header>
@@ -466,16 +466,20 @@ export class InscripcionPage {
     if (!c) return;
     if (this.urlMal()) { this.toasts.error('Revisa el enlace de la AEP', 'Debe empezar por https://'); return; }
     this.guardando.set(true);
+    let aepGuardada = false;
     try {
-      // AEP data first (competition service, optimistic lock on its version), then the mode
+      // AEP data first (competition service, optimistic lock on its version; needs evento.editar), then the mode
+      // (athletes; needs atletas.editar). Each part only with its permission.
       const a = this.aep();
       if (a && this.canEditAep() && JSON.stringify(a) !== this.aepOriginal) {
         const body = { ...a, url: a.url.trim(), plazas: Math.max(0, Math.round(+(a.plazas ?? 0))) };
         const comp = await firstValueFrom(this.http.put<{ version: number }>(`${this.base}/inscripcion`, body, { headers: new HttpHeaders({ 'If-Match': `W/"${this.compVersion}"` }) }));
         this.compVersion = comp.version;
         this.aepOriginal = JSON.stringify(body);
+        aepGuardada = true;
         void this.comps.load(true);
       }
+      if (!this.canEdit()) { this.tocado.set(false); this.toasts.success('Datos de la AEP guardados'); return; }
       const r = await firstValueFrom(this.http.put<Config>(`${this.base}/inscripcion/config`, c, { observe: 'response', headers: new HttpHeaders(this.etagCfg ? { 'If-Match': this.etagCfg } : {}) }));
       this.etagCfg = r.headers.get('ETag') ?? '';
       this.cfg.set(r.body);
@@ -484,6 +488,7 @@ export class InscripcionPage {
       this.toasts.success('Inscripción guardada', c.modo === 'propia' ? 'El formulario /inscripcion acepta inscripciones con pago.' : 'La web enlaza a la inscripción de la AEP.');
     } catch (e) {
       if (e instanceof HttpErrorResponse && e.error?.code === 'CONFLICTO_EDICION') this.conflicto.set(true);
+      else if (aepGuardada) this.toasts.error('Datos de la AEP guardados; el modo no', errText(e));
       else this.toasts.error('No se pudo guardar', errText(e));
     } finally {
       this.guardando.set(false);
