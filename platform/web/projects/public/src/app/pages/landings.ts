@@ -414,7 +414,7 @@ export class ClubsPage {
               </ul>
               <div class="mt-8 flex flex-col gap-3 sm:flex-row">
                 @if (c?.inscripcion?.url) { <a grButton variant="primary" size="l" [href]="c!.inscripcion.url" target="_blank" rel="noopener" iconRight="external-link">{{ str(h, 'cta') || 'Register' }}</a> }
-                <a grButton size="l" href="/sorteo" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'Enter the raffle' }}</a>
+                <a grButton size="l" href="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'Enter the raffle' }}</a>
               </div>
             }
           </div>
@@ -444,9 +444,9 @@ export class ClubsPage {
                     @if (str(s, 'imagen')) { <img [src]="str(s, 'imagen')" alt="SBD belt" class="aspect-[360/230] w-full rounded-lg object-cover" loading="lazy" /> }
                     <div class="flex flex-col gap-3">
                       <p class="text-display-xs md:text-display-s">{{ str(s, 'subtitulo') }}</p>
-                      <p class="text-body-m text-text-secondary">{{ texto(s) }}</p>
+                      <p class="text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>
                       <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <a grButton variant="display-gradient" size="l" href="/sorteo">{{ str(s, 'cta') || 'Buy tickets' }}</a>
+                        <a grButton variant="display-gradient" size="l" href="/sorteo" hreflang="es">{{ str(s, 'cta') || 'Buy tickets' }}</a>
                         <a grButton variant="ghost" href="/politica-concurso" hreflang="es">Raffle terms (Spanish)</a>
                       </div>
                     </div>
@@ -495,8 +495,6 @@ export class ClubsPage {
 export class EnPage {
   /** «Título *acento*» markup of gr-cabecera from the CMS fields. */
   protected tit = (s: Seccion | undefined) => [str(s, 'titulo'), str(s, 'tituloAcento') && '*' + str(s, 'tituloAcento') + '*'].filter(Boolean).join(' ');
-  /** The raffle text keeps its own paragraph (not the header intro). */
-  protected texto = (s: Seccion | undefined) => str(s, 'texto');
   protected readonly land = signal<Landing | null | undefined>(undefined);
   protected readonly comp = signal<CompeticionPublica | null>(null);
   protected str = str;
