@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"strings"
 	"time"
 
@@ -243,6 +244,8 @@ func (s *Svc) registerPublic() {
 			AceptaPrivacidad bool   `json:"aceptaPrivacidad"`
 			Novedades        bool   `json:"novedades,omitempty" doc:"Casilla separada y sin marcar"`
 			Origen           string `json:"origen,omitempty" maxLength:"60"`
+			// Bought together with a free ticket (/entradas): the payment returns to that ticket's confirmation.
+			Entrada string `json:"entrada,omitempty" pattern:"^[A-Za-z0-9_-]{32}$" doc:"Clave «Mi entrada» de la entrada reservada a la vez (opcional)"`
 		}
 	}
 	type compraOut struct {
@@ -317,8 +320,13 @@ func (s *Svc) registerPublic() {
 			if b.Cantidad == 1 {
 				nb = "boleto"
 			}
+			exito, cancelar := s.webURL+"/sorteo/confirmacion?compra="+id.String()+"&t="+tok, s.webURL+"/sorteo?cancelado=1#participa"
+			if b.Entrada != "" { // fixed path; the ticket key only goes in the query, so it cannot redirect elsewhere
+				vuelta := s.webURL + "/entradas/confirmacion?t=" + url.QueryEscape(b.Entrada) + "&compra=" + id.String() + "&ct=" + tok
+				exito, cancelar = vuelta, vuelta+"&cancelado=1"
+			}
 			co, err := prov.CreateCheckout(ctx, pagos.CheckoutIn{Amount: importe, Description: fmt.Sprintf("%d %s · Sorteo %s", b.Cantidad, nb, c.Nombre), Email: em,
-				SuccessURL: s.webURL + "/sorteo/confirmacion?compra=" + id.String() + "&t=" + tok, CancelURL: s.webURL + "/sorteo?cancelado=1#participa",
+				SuccessURL: exito, CancelURL: cancelar,
 				Metadata: map[string]string{"competicion": c.ID.String(), "compra": id.String()}, ExpiresAt: time.Now().Add(30 * time.Minute),
 				Lines: []pagos.Line{{Label: fmt.Sprintf("%d %s × %s", b.Cantidad, nb, pagos.Euros(importe/b.Cantidad)), Amount: importe}}})
 			if err != nil {
