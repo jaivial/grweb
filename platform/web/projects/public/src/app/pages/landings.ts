@@ -4,7 +4,6 @@ import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, type GrIconNam
 import { Cms, type Club, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
-import { SectionTitle } from '../home/cms-sections';
 import { GrCabecera } from '../home/bloques';
 import { Footer, Navbar, instagramOf, type Lang } from '../layout/layout';
 import { Page } from '../layout/page';
@@ -380,7 +379,7 @@ export class ClubsPage {
 /** /en (Figma page 35): English landing for international lifters and visitors (hreflang es/en + x-default). */
 @Component({
   selector: 'gr-en-page',
-  imports: [Navbar, Footer, GrButton, GrIcon, GrSkeleton, SectionTitle, Community],
+  imports: [Navbar, Footer, GrButton, GrIcon, GrSkeleton, GrCabecera, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = land();
@@ -392,24 +391,25 @@ export class ClubsPage {
         @let h = l?.secciones?.['hero'];
         <section class="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div>
-            <p class="inline-flex rounded-pill border border-line-strong p-1 text-mono-xs" aria-label="Language">
-              <a href="/" hreflang="es" class="inline-flex h-8 items-center rounded-pill px-3 text-text-tertiary hover:text-text-primary">ES</a>
-              <span class="inline-flex h-8 items-center rounded-pill bg-accent-deep px-3 text-text-primary" aria-current="page">EN</span>
+            <!-- Figma «Language switch»: 111 × 46 pill, the active language in red -->
+            <p class="inline-flex rounded-full border border-line-strong p-1 text-label-xs" aria-label="Language">
+              <a href="/" hreflang="es" class="inline-flex h-9 items-center rounded-full px-3.5 text-text-tertiary hover:text-text-primary">ES</a>
+              <span class="inline-flex h-9 items-center rounded-full bg-accent/20 px-3.5 text-text-primary" aria-current="page">EN</span>
             </p>
             @if (l === undefined) {
               <gr-skeleton class="mt-6 h-40 rounded-lg" />
             } @else {
-              @if (str(h, 'eyebrow')) { <p class="mt-6 flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>{{ str(h, 'eyebrow') }}</p> }
+              @if (str(h, 'eyebrow')) { <p class="mt-6 flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>{{ str(h, 'eyebrow') }}</p> }
               <h1 class="mt-3 text-display-l md:text-display-xl">{{ str(h, 'titulo') || 'GRStrength Cup' }} <span class="text-accent-text">{{ str(h, 'tituloAcento') }}</span></h1>
               <p class="mt-4 max-w-xl text-body-m text-text-secondary md:text-body-l">{{ str(h, 'texto') }}</p>
               <ul class="mt-6 grid gap-3 sm:grid-cols-3">
-                <li class="flex items-center gap-3"><span class="flex size-10 items-center justify-center rounded-sm border border-accent/40 bg-accent-deep/40 text-accent-text"><gr-icon name="calendar" [size]="16" /></span>
-                  <span><span class="block text-mono-xs text-text-tertiary">Date</span><span class="block text-label-s">{{ fecha() }}</span></span></li>
-                <li class="flex items-center gap-3"><span class="flex size-10 items-center justify-center rounded-sm border border-accent/40 bg-accent-deep/40 text-accent-text"><gr-icon name="map-pin" [size]="16" /></span>
-                  <span><span class="block text-mono-xs text-text-tertiary">Venue</span><span class="block text-label-s">{{ c ? c.sede.ciudad + ' · Valencia' : 'Almussafes · Valencia' }}</span></span></li>
+                <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="calendar" [size]="18" /></span>
+                  <span><span class="block text-label-xs text-text-muted uppercase">Date</span><span class="block text-label-m">{{ fecha() }}</span></span></li>
+                <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="map-pin" [size]="18" /></span>
+                  <span><span class="block text-label-xs text-text-muted uppercase">Venue</span><span class="block text-label-m">{{ c ? c.sede.ciudad + ' · Valencia' : 'Almussafes · Valencia' }}</span></span></li>
                 @if (h?.['plazas']) {
-                  <li class="flex items-center gap-3"><span class="flex size-10 items-center justify-center rounded-sm border border-accent/40 bg-accent-deep/40 text-accent-text"><gr-icon name="users" [size]="16" /></span>
-                    <span><span class="block text-mono-xs text-text-tertiary">Lifters</span><span class="block text-label-s">{{ h?.['plazas'] }} places</span></span></li>
+                  <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="users" [size]="18" /></span>
+                    <span><span class="block text-label-xs text-text-muted uppercase">Lifters</span><span class="block text-label-m">{{ h?.['plazas'] }} places</span></span></li>
                 }
               </ul>
               <div class="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -427,26 +427,26 @@ export class ClubsPage {
             @let s = l!.secciones[k];
             @switch (k) {
               @case ('compete') {
-                <section id="compete" class="scroll-mt-28">
-                  <gr-section-title [eyebrow]="str(s, 'eyebrow')" [titulo]="str(s, 'titulo')" [acento]="str(s, 'tituloAcento')" />
-                  <p class="mt-4 max-w-2xl text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>
-                  <ul class="mt-8 grid gap-3 md:grid-cols-3">
+                <section id="compete" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
+                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
+                  <ul class="grid gap-3 md:grid-cols-3 md:gap-4">
                     @for (i of items(s, 'items'); track i['titulo']) {
-                      <li class="rounded-md border border-line-subtle bg-bg-card p-5"><p class="text-label-l">{{ i['titulo'] }}</p><p class="mt-1 text-body-s text-text-tertiary">{{ i['texto'] }}</p></li>
+                      <li class="flex flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ i['titulo'] }}</p><p class="text-body-s text-text-tertiary">{{ i['texto'] }}</p></li>
                     }
                   </ul>
                 </section>
               }
               @case ('raffle') {
-                <section id="raffle" class="scroll-mt-28">
-                  <gr-section-title [eyebrow]="str(s, 'eyebrow')" [titulo]="str(s, 'titulo')" [acento]="str(s, 'tituloAcento')" />
-                  <div class="mt-8 grid items-center gap-6 rounded-xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-5 shadow-glow-deep md:grid-cols-[300px_minmax(0,1fr)] md:p-6">
-                    @if (str(s, 'imagen')) { <img [src]="str(s, 'imagen')" alt="SBD belt" class="aspect-[4/3] w-full rounded-md object-cover" loading="lazy" /> }
-                    <div>
-                      <p class="text-display-xs">{{ str(s, 'subtitulo') }}</p>
-                      <p class="mt-2 text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>
-                      <div class="mt-5 flex flex-col gap-3 sm:flex-row">
-                        <a grButton variant="primary" href="/sorteo">{{ str(s, 'cta') || 'Buy tickets' }}</a>
+                <section id="raffle" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
+                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
+                  <!-- Figma «Panel» (24 px): the 360 × 230 belt photo, the title in Display, the display-style button -->
+                  <div class="grid items-center gap-6 rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-4 shadow-glow-deep md:grid-cols-[360px_minmax(0,1fr)] md:gap-8 md:p-5">
+                    @if (str(s, 'imagen')) { <img [src]="str(s, 'imagen')" alt="SBD belt" class="aspect-[360/230] w-full rounded-lg object-cover" loading="lazy" /> }
+                    <div class="flex flex-col gap-3">
+                      <p class="text-display-xs md:text-display-s">{{ str(s, 'subtitulo') }}</p>
+                      <p class="text-body-m text-text-secondary">{{ texto(s) }}</p>
+                      <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <a grButton variant="display-gradient" size="l" href="/sorteo">{{ str(s, 'cta') || 'Buy tickets' }}</a>
                         <a grButton variant="ghost" href="/politica-concurso" hreflang="es">Raffle terms (Spanish)</a>
                       </div>
                     </div>
@@ -454,13 +454,13 @@ export class ClubsPage {
                 </section>
               }
               @case ('travel') {
-                <section id="travel" class="scroll-mt-28">
-                  <gr-section-title [eyebrow]="str(s, 'eyebrow')" [titulo]="str(s, 'titulo')" [acento]="str(s, 'tituloAcento')" />
-                  <ul class="mt-8 grid gap-3 md:grid-cols-3">
+                <section id="travel" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
+                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
+                  <ul class="grid gap-3 md:grid-cols-3 md:gap-4">
                     @for (i of items(s, 'items'); track i['titulo']) {
-                      <li class="rounded-md border border-line-subtle bg-bg-card p-5">
-                        <span class="flex size-10 items-center justify-center rounded-sm border border-accent/40 bg-accent-deep/40 text-accent-text"><gr-icon [name]="ic(i['icono'])" [size]="18" /></span>
-                        <p class="mt-4 text-label-l">{{ i['titulo'] }}</p>
+                      <li class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                        <span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="ic(i['icono'])" [size]="20" /></span>
+                        <p class="mt-4 text-label-m">{{ i['titulo'] }}</p>
                         <p class="mt-1 text-body-s text-text-secondary">{{ i['texto'] }}</p>
                         @if (i['nota']) { <p class="mt-3 flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="12" />{{ i['nota'] }}</p> }
                       </li>
@@ -469,15 +469,15 @@ export class ClubsPage {
                 </section>
               }
               @case ('faq') {
-                <section id="faq" class="scroll-mt-28">
-                  <gr-section-title [eyebrow]="str(s, 'eyebrow')" [titulo]="str(s, 'titulo')" [acento]="str(s, 'tituloAcento')" />
-                  <div class="mt-8 flex flex-col gap-2">
+                <section id="faq" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
+                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
+                  <div class="flex flex-col gap-3">
                     @for (q of items(s, 'items'); track q['pregunta']; let first = $first) {
-                      <details class="group rounded-md border border-line-subtle bg-bg-card open:border-line-strong" [open]="first">
-                        <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 text-label-m">{{ q['pregunta'] }}
-                          <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-bg-raised text-text-secondary group-open:bg-accent-deep group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span>
+                      <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [open]="first">
+                        <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-m md:text-ui-h4">{{ q['pregunta'] }}
+                          <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span>
                         </summary>
-                        <p class="px-5 pb-5 text-body-s text-text-secondary">{{ q['respuesta'] }}</p>
+                        <p class="px-5 pb-5 text-body-m text-text-secondary">{{ q['respuesta'] }}</p>
                       </details>
                     }
                   </div>
@@ -493,6 +493,10 @@ export class ClubsPage {
   `,
 })
 export class EnPage {
+  /** «Título *acento*» markup of gr-cabecera from the CMS fields. */
+  protected tit = (s: Seccion | undefined) => [str(s, 'titulo'), str(s, 'tituloAcento') && '*' + str(s, 'tituloAcento') + '*'].filter(Boolean).join(' ');
+  /** The raffle text keeps its own paragraph (not the header intro). */
+  protected texto = (s: Seccion | undefined) => str(s, 'texto');
   protected readonly land = signal<Landing | null | undefined>(undefined);
   protected readonly comp = signal<CompeticionPublica | null>(null);
   protected str = str;

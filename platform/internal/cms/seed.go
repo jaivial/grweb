@@ -118,7 +118,7 @@ var seedEN = map[string]any{
 		"plazas": 150, "cta": "Register", "ctaSorteo": "Enter the raffle"},
 	"compete": map[string]any{"eyebrow": "01 · Compete", "titulo": "How to", "tituloAcento": "register",
 		"texto": "Registration is managed by the Spanish Powerlifting Association (AEP). A valid AEP licence is required to compete.",
-		"items": []map[string]string{{"titulo": "Weight classes", "texto": "Men 59 kg to +120 kg · Women 47 kg to +84 kg (IPF open classes)."},
+		"items": []map[string]string{{"titulo": "Weight classes", "texto": "Men −53 to +120 kg · Women −43 to +84 kg (IPF classes, −53 and −43 for sub-juniors and juniors)."},
 			{"titulo": "Equipment", "texto": "Classic (raw): IPF-approved belt, wrist wraps and knee sleeves."}, {"titulo": "Weigh-in", "texto": "Starts 2 hours before your session and lasts 1.5 hours."}}},
 	"raffle": map[string]any{"eyebrow": "02 · Raffle", "titulo": "Win an", "tituloAcento": "SBD belt", "subtitulo": "Charity raffle",
 		"texto":  "€1 per ticket. The winner is drawn live at the venue on the last day of competition. Who can take part is set out in the raffle terms, under Spanish law.",
