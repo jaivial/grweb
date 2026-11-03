@@ -13,7 +13,7 @@ import { GLOW, GrTitulo } from './bloques';
 /** Public raffle data used by the panel (GET /api/competiciones/{slug}/sorteo). */
 export interface SorteoHome {
   estado: string; motivo?: string; premio: string; precio: number; vendidos: number; totalMax?: number; maxPorPersona: number; presets?: number[];
-  premioImagen?: string; fechaSorteo?: string; ganador?: { numero: string; nombre: string };
+  premioImagen?: string; fechaSorteo?: string; ganador?: { numero: string; nombre: string; at?: string } | null;
 }
 
 const BELT_FRAMES = 169;
@@ -232,7 +232,10 @@ export class SecSorteo {
   protected readonly linea = computed(() => {
     const r = this.sorteo();
     if (!r) return '';
-    if (r.estado === 'sorteado') return 'Sorteo cerrado' + (r.fechaSorteo ? ' · se celebró ' + diaHora(r.fechaSorteo) : '');
+    if (r.estado === 'sorteado') {
+      const cuando = r.ganador?.at || r.fechaSorteo; // when it was drawn, not when it was scheduled
+      return 'Sorteo cerrado' + (cuando ? ' · se celebró ' + diaHora(cuando) : '');
+    }
     if (r.estado === 'proximamente') return 'Sorteo · ' + (r.motivo ? r.motivo.charAt(0).toLowerCase() + r.motivo.slice(1).replace(/\.$/, '') : 'la venta abre pronto');
     if (r.estado === 'en_venta') return 'Sorteo · ' + (r.fechaSorteo ? 'en directo ' + diaHora(r.fechaSorteo) : 'en directo durante la competición');
     return 'Sorteo · ' + (TITULO_ESTADO[r.estado] || 'cerrado').toLowerCase();
