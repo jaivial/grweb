@@ -21,6 +21,8 @@ interface Pago {
 }
 interface Pagos { items: Pago[]; recaudado: number; devuelto: number; pendientes: number; rechazados: number; pasarela: string; pruebas: boolean }
 type Tab = 'config' | 'cupones' | 'referidos' | 'pagos';
+/** The AEP registration of the competition (competition service: link, state, places, contact, internal note). */
+interface Aep { modo: string; url: string; estado: 'proximamente' | 'abierta' | 'completa' | 'cerrada'; plazas?: number; responsable: { nombre: string; email: string }; nota: string }
 
 export const euros = (c?: number | null) => ((c ?? 0) / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const ESTADO_PAGO: Record<Pago['estado'], { label: string; tone: GrTone }> = {
@@ -37,14 +39,16 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
   template: `
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6 pb-24">
       <bo-page-header title="Inscripción" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas', 'Inscripción']">
-        @if (tab() === 'config') { <a actions grButton icon="external-link" [href]="web + '/inscripcion'" target="_blank" rel="noopener">Ver formulario</a> }
-        @if (tab() === 'config' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
+        @if (tab() === 'config') { <a actions grButton icon="external-link" [href]="web + '/inscripcion'" target="_blank" rel="noopener">Ver /inscripcion</a> }
+        @if (tab() === 'config' && (canEdit() || canEditAep())) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
         @if (tab() === 'cupones' && canEdit()) { <button actions grButton variant="primary" icon="plus" (click)="editarCupon(null)">Nuevo cupón</button> }
         @if (tab() === 'referidos' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
       </bo-page-header>
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Inscripción">
         @for (t of tabs; track t.key) {
-          <button type="button" (click)="cambiar(t.key)" [attr.aria-current]="tab() === t.key ? 'page' : null" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.key ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
+          <button type="button" (click)="cambiar(t.key)" [attr.aria-current]="tab() === t.key ? 'page' : null" [disabled]="t.key !== 'config' && modoGuardado() !== 'propia'"
+            [attr.title]="t.key !== 'config' && modoGuardado() !== 'propia' ? 'Solo con la inscripción propia con pago' : null"
+            class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s disabled:cursor-not-allowed disabled:opacity-40" [class]="tab() === t.key ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
             {{ t.label }}
             @if (t.key === 'cupones' && cupones()) { <span class="rounded-2xs bg-bg-raised px-1.5 text-mono-xs">{{ cupones()!.length }}</span> }
             @if (t.key === 'pagos' && pagos()) { <span class="rounded-2xs bg-bg-raised px-1.5 text-mono-xs">{{ pagos()!.items.length }}</span> }
@@ -60,42 +64,88 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
           @if (!c) { <gr-skeleton class="h-96 rounded-lg" /> } @else {
             <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
               <div class="flex min-w-0 flex-col gap-6">
+                <!-- Figma 66 «Inscripción · modo AEP (por defecto)»: the mode as two cards, then the data of that mode -->
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                   <h2 class="text-ui-h5">Modo de inscripción</h2>
-                  <p class="mt-0.5 text-body-xs text-text-tertiary">«Externa» mantiene el enlace a la AEP; «Propia con pago» abre /inscripcion con pago, cupones y referidos.</p>
-                  <gr-segmented class="mt-4" label="Modo" [options]="modos" [(value)]="c.modo" />
-                  <div class="mt-5 grid gap-4 md:grid-cols-2">
-                    <gr-field label="Cuota de inscripción (€)" for="i-cuota" hint="IVA incluido"><input grInput id="i-cuota" type="number" min="0" step="0.5" [ngModel]="c.cuota / 100" (ngModelChange)="c.cuota = round($event)" [disabled]="!canEdit()" /></gr-field>
-                    <gr-field label="Plazas" for="i-plazas" hint="Se editan en Evento → Inscripción (cupo de la AEP)"><input grInput id="i-plazas" [value]="plazas()" disabled /></gr-field>
-                    <gr-field label="Abre" for="i-abre" [optional]="true"><input grInput id="i-abre" type="datetime-local" [ngModel]="local(c.abre)" (ngModelChange)="c.abre = iso($event)" [disabled]="!canEdit()" /></gr-field>
-                    <gr-field label="Cierra" for="i-cierra" [optional]="true"><input grInput id="i-cierra" type="datetime-local" [ngModel]="local(c.cierra)" (ngModelChange)="c.cierra = iso($event)" [disabled]="!canEdit()" /></gr-field>
+                  <p class="mt-0.5 text-body-xs text-text-tertiary">Se puede cambiar mientras no haya pagos en curso</p>
+                  <div class="mt-4 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Modo de inscripción">
+                    @for (m of modos; track m.value) {
+                      <button type="button" role="radio" [attr.aria-checked]="c.modo === m.value" [disabled]="!canEdit()" (click)="c.modo = m.value; tocado.set(true)"
+                        class="flex items-start gap-3.5 rounded-md border p-4 text-left transition-colors disabled:cursor-not-allowed" [class]="c.modo === m.value ? 'border-accent bg-accent/8' : 'border-line-subtle bg-bg-surface hover:border-line-strong'">
+                        <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="c.modo === m.value ? 'border-accent' : 'border-line-strong'">@if (c.modo === m.value) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
+                        <span class="flex flex-col gap-1"><span class="flex flex-wrap items-center gap-2 text-label-m">{{ m.label }}@if (m.value === 'externa') { <gr-badge tone="success">Por defecto</gr-badge> }</span><span class="text-body-s text-text-tertiary">{{ m.desc }}</span></span>
+                      </button>
+                    }
                   </div>
-                  <ul class="mt-4">
-                    <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Lista de reserva al completarse</span><span class="block text-body-xs text-text-tertiary">Las inscripciones de más quedan en reserva, sin cobrar, hasta que haya plaza</span></span><bo-toggle [(value)]="c.reserva" label="Lista de reserva" [disabled]="!canEdit()" /></li>
-                    <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Aceptar cupones de descuento</span><span class="block text-body-xs text-text-tertiary">{{ cupones()?.length ?? 0 }} cupones · se gestionan en la pestaña Cupones</span></span><bo-toggle [(value)]="c.cupones" label="Aceptar cupones" [disabled]="!canEdit()" /></li>
-                    <li class="flex items-center justify-between gap-4 py-2"><span><span class="block text-label-s">Programa de referidos</span><span class="block text-body-xs text-text-tertiary">Cada inscrito recibe su código para invitar</span></span><bo-toggle [(value)]="c.referidos.activo" label="Programa de referidos" [disabled]="!canEdit()" /></li>
-                  </ul>
                 </section>
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                  <h2 class="text-ui-h5">Pasarela de pago</h2>
-                  <p class="mt-0.5 text-body-xs text-text-tertiary">Sistema → Integraciones → Stripe</p>
-                  <dl class="mt-3 text-body-s">
-                    <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Proveedor</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Stripe' + (pagos()?.pruebas ? ' (modo test)' : '') : 'Pasarela simulada (modo pruebas)' }}</dd></div>
-                    <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-mono-xs">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
-                    <div class="flex justify-between gap-3 py-2"><dt class="text-text-tertiary">Reembolsos</dt><dd>Totales o parciales desde Pagos</dd></div>
-                  </dl>
-                  @if (pagos()?.pasarela === 'ninguna') { <gr-alert class="mt-3" tone="warning" title="Pagos sin configurar">Añade las claves de Stripe en Sistema → Integraciones. Sin ellas solo se aceptan inscripciones gratuitas (cupón del 100 %) o en reserva.</gr-alert> }
-                  @if (pagos()?.pruebas) { <gr-alert class="mt-3" tone="info" title="Modo pruebas: no se cobra nada">La pasarela simulada reproduce Stripe Checkout (tarjetas de prueba, pago rechazado, 3D Secure) y envía el mismo webhook firmado. Al añadir claves de Stripe se usa Stripe sin cambiar nada más.</gr-alert> }
-                </section>
+                @if (c.modo === 'externa') {
+                  @let a = aep();
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                    <h2 class="text-ui-h5">Inscripción en la AEP</h2>
+                    <p class="mt-0.5 text-body-xs text-text-tertiary">Lo que ve el atleta en /inscripcion</p>
+                    @if (!a) { <gr-skeleton class="mt-4 h-40" /> } @else {
+                      <div class="mt-4 grid gap-4 md:grid-cols-2">
+                        <gr-field label="Enlace de inscripción de la AEP" for="a-url" class="md:col-span-2" hint="Se abre en una pestaña nueva" [error]="urlMal() ? 'Debe empezar por https://' : ''"><input grInput id="a-url" type="url" placeholder="https://powerliftingspain.es/…" [(ngModel)]="a.url" (ngModelChange)="tocado.set(true)" [invalid]="urlMal()" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Estado" for="a-estado"><gr-select id="a-estado" [(ngModel)]="a.estado" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()">@for (e of estadosAep; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select></gr-field>
+                        <gr-field label="Plazas (cupo AEP)" for="a-plazas"><input grInput id="a-plazas" type="number" min="0" max="5000" [(ngModel)]="a.plazas" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Responsable" for="a-resp"><input grInput id="a-resp" [(ngModel)]="a.responsable.nombre" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Email de dudas" for="a-email"><input grInput id="a-email" type="email" [(ngModel)]="a.responsable.email" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Nota interna" for="a-nota" class="md:col-span-2" hint="No se publica"><input grInput id="a-nota" [(ngModel)]="a.nota" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                      </div>
+                      @if (!canEditAep()) { <p class="mt-3 text-body-xs text-text-tertiary">Editar los datos de la AEP requiere el permiso «evento.editar».</p> }
+                      <gr-alert class="mt-4" tone="info" title="Cupones, referidos y pagos no se usan">Con la inscripción en la AEP el pago lo gestiona la federación. Esas pestañas se activan al elegir «Inscripción propia con pago» y guardar.</gr-alert>
+                    }
+                  </section>
+                } @else {
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                    <h2 class="text-ui-h5">Inscripción propia con pago</h2>
+                    <p class="mt-0.5 text-body-xs text-text-tertiary">Formulario en /inscripcion con cuota, plazas, cupones y referidos</p>
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                      <gr-field label="Cuota de inscripción (€)" for="i-cuota" hint="IVA incluido"><input grInput id="i-cuota" type="number" min="0" step="0.5" [ngModel]="c.cuota / 100" (ngModelChange)="c.cuota = round($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
+                      <gr-field label="Plazas" for="i-plazas" hint="El cupo de atletas del evento"><input grInput id="i-plazas" type="number" min="0" max="5000" [ngModel]="aep()?.plazas ?? plazas()" (ngModelChange)="ponerPlazas($event)" [disabled]="!canEditAep()" /></gr-field>
+                      <gr-field label="Abre" for="i-abre" [optional]="true"><input grInput id="i-abre" type="datetime-local" [ngModel]="local(c.abre)" (ngModelChange)="c.abre = iso($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
+                      <gr-field label="Cierra" for="i-cierra" [optional]="true"><input grInput id="i-cierra" type="datetime-local" [ngModel]="local(c.cierra)" (ngModelChange)="c.cierra = iso($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
+                    </div>
+                    <ul class="mt-4">
+                      <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Lista de reserva al completarse</span><span class="block text-body-xs text-text-tertiary">Las inscripciones de más quedan en reserva, sin cobrar, hasta que haya plaza</span></span><bo-toggle [(value)]="c.reserva" label="Lista de reserva" [disabled]="!canEdit()" /></li>
+                      <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Aceptar cupones de descuento</span><span class="block text-body-xs text-text-tertiary">{{ cupones()?.length ?? 0 }} cupones · se gestionan en la pestaña Cupones</span></span><bo-toggle [(value)]="c.cupones" label="Aceptar cupones" [disabled]="!canEdit()" /></li>
+                      <li class="flex items-center justify-between gap-4 py-2"><span><span class="block text-label-s">Programa de referidos</span><span class="block text-body-xs text-text-tertiary">Cada inscrito recibe su código para invitar</span></span><bo-toggle [(value)]="c.referidos.activo" label="Programa de referidos" [disabled]="!canEdit()" /></li>
+                    </ul>
+                  </section>
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                    <h2 class="text-ui-h5">Pasarela de pago</h2>
+                    <p class="mt-0.5 text-body-xs text-text-tertiary">Sistema → Integraciones → Stripe</p>
+                    <dl class="mt-3 text-body-s">
+                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Proveedor</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Stripe' + (pagos()?.pruebas ? ' (modo test)' : '') : 'Pasarela simulada (modo pruebas)' }}</dd></div>
+                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-mono-xs">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
+                      <div class="flex justify-between gap-3 py-2"><dt class="text-text-tertiary">Reembolsos</dt><dd>Totales o parciales desde Pagos</dd></div>
+                    </dl>
+                    @if (pagos()?.pasarela === 'ninguna') { <gr-alert class="mt-3" tone="warning" title="Pagos sin configurar">Añade las claves de Stripe en Sistema → Integraciones. Sin ellas solo se aceptan inscripciones gratuitas (cupón del 100 %) o en reserva.</gr-alert> }
+                    @if (pagos()?.pruebas) { <gr-alert class="mt-3" tone="info" title="Modo pruebas: no se cobra nada">La pasarela simulada reproduce Stripe Checkout (tarjetas de prueba, pago rechazado, 3D Secure) y envía el mismo webhook firmado. Al añadir claves de Stripe se usa Stripe sin cambiar nada más.</gr-alert> }
+                  </section>
+                }
               </div>
-              <aside class="h-fit rounded-lg border border-line-subtle bg-bg-card p-5">
+              <!-- what /inscripcion shows with these settings -->
+              <aside class="flex h-fit flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="text-label-m">Así lo ve el atleta</h2>
-                <p class="mt-1 text-body-xs text-text-tertiary">{{ c.modo === 'propia' ? 'Formulario con pago en /inscripcion' : 'Enlace a la inscripción de la AEP' }}</p>
-                <div class="mt-4 rounded-md bg-bg-surface p-4">
-                  <p class="text-label-s">Inscripción</p>
-                  <p class="mt-1 text-display-xs">{{ euros(c.cuota) }}</p>
-                  <p class="text-body-xs text-text-tertiary">{{ plazas() ? plazas() + ' plazas' : '' }}{{ c.cierra ? ' · cierra el ' + fecha(c.cierra) : '' }}</p>
-                  @if (c.referidos.activo) { <p class="mt-3 text-body-xs text-success">Con código de un amigo: {{ c.referidos.descTipo === 'porcentaje' ? '−' + c.referidos.descValor + ' %' : '−' + euros(c.referidos.descValor) }}</p> }
+                <p class="-mt-2 text-body-xs text-text-tertiary">/inscripcion</p>
+                <div class="flex flex-col items-center gap-3 rounded-md bg-bg-surface p-5 text-center">
+                  @if (c.modo === 'externa') {
+                    @let a = aep();
+                    @if (a?.estado === 'proximamente') { <gr-badge tone="warning">Próximamente</gr-badge><p class="font-display text-[22px] uppercase italic">Próximamente…</p><p class="text-body-xs text-text-tertiary">Las inscripciones todavía no están abiertas.</p> }
+                    @else if (a?.estado === 'completa' || a?.estado === 'cerrada') { <gr-badge tone="neutral">{{ a?.estado === 'completa' ? 'Inscripciones completas' : 'Inscripciones cerradas' }}</gr-badge><p class="font-display text-[22px] uppercase italic">{{ a?.estado === 'completa' ? 'Plazas completas' : 'Inscripción cerrada' }}</p>@if (a?.estado === 'completa' && a?.url) { <p class="text-body-xs text-text-tertiary">Con el botón «Lista de espera en la AEP»</p> } }
+                    @else {
+                      <p class="font-display text-[22px] uppercase italic">Inscripciones AEP</p>
+                      <p class="text-body-xs text-text-tertiary">La inscripción al campeonato se realiza en la web oficial de la Asociación Española de Powerlifting.</p>
+                      @if (a?.url && !urlMal()) { <span class="inline-flex h-9 items-center gap-1.5 rounded-sm bg-accent px-3 text-label-s text-white">Ir a la inscripción oficial AEP<gr-icon name="external-link" [size]="14" /></span> }
+                      @else { <p class="rounded-sm border border-warning bg-warning/8 px-3 py-2 text-left text-body-xs text-text-secondary">Sin enlace: la web dice que la URL de la AEP se publicará próximamente.</p> }
+                    }
+                  } @else {
+                    <p class="text-label-s">Inscripción</p>
+                    <p class="text-display-xs">{{ euros(c.cuota) }}</p>
+                    <p class="text-body-xs text-text-tertiary">{{ plazas() ? plazas() + ' plazas' : '' }}{{ c.cierra ? ' · cierra el ' + fecha(c.cierra) : '' }}</p>
+                    @if (c.referidos.activo) { <p class="text-body-xs text-success">Con código de un amigo: {{ c.referidos.descTipo === 'porcentaje' ? '−' + c.referidos.descValor + ' %' : '−' + euros(c.referidos.descValor) }}</p> }
+                  }
                 </div>
               </aside>
             </div>
@@ -310,12 +360,23 @@ export class InscripcionPage {
   protected etiquetaPago(x: Pago): string { return x.estado === 'gratuita' && !x.cupon ? 'Gratis' : ESTADO_PAGO[x.estado].label; }
   protected readonly estadoCupon = ESTADO_CUPON;
   protected readonly tabs: { key: Tab; label: string }[] = [{ key: 'config', label: 'Configuración' }, { key: 'cupones', label: 'Cupones' }, { key: 'referidos', label: 'Referidos' }, { key: 'pagos', label: 'Pagos' }];
-  protected readonly modos = [{ value: 'externa', label: 'Externa (AEP)' }, { value: 'propia', label: 'Propia con pago' }];
+  protected readonly modos: { value: 'externa' | 'propia'; label: string; desc: string }[] = [
+    { value: 'externa', label: 'Inscripción en la AEP', desc: 'Los atletas se inscriben en la web de la federación con su licencia. /inscripcion explica el paso y enlaza a la AEP.' },
+    { value: 'propia', label: 'Inscripción propia con pago', desc: 'Formulario en /inscripcion con cuota, plazas, cupones, referidos y pago con tarjeta.' },
+  ];
+  protected readonly estadosAep = [{ v: 'proximamente', l: 'Próximamente' }, { v: 'abierta', l: 'Abierta' }, { v: 'completa', l: 'Completa' }, { v: 'cerrada', l: 'Cerrada' }];
   protected readonly modosRef = [{ value: 'basico', label: 'Básico' }, { value: 'acumulativo', label: 'Acumulativo' }];
   protected readonly acumModos = [{ value: 'basica', label: 'Recompensa básica' }, { value: 'multiplicador', label: 'Multiplicador' }];
   protected readonly tiposCupon = [{ value: 'porcentaje', label: 'Porcentaje' }, { value: 'importe', label: 'Importe fijo' }];
   protected readonly tab = signal<Tab>('config');
   protected readonly cfg = signal<Config | null>(null);
+  /** AEP data of the competition, edited here (competition service, its own version). */
+  protected readonly aep = signal<Aep | null>(null);
+  /** Mode as saved: the payment tabs follow it, not the unsaved choice. */
+  protected readonly modoGuardado = signal<'externa' | 'propia'>('externa');
+  protected readonly tocado = signal(false);
+  private aepOriginal = '';
+  private compVersion = 0;
   protected readonly cupones = signal<Cupon[] | null>(null);
   protected readonly refs = signal<CodigoRef[] | null>(null);
   protected readonly pagos = signal<Pagos | null>(null);
@@ -336,11 +397,14 @@ export class InscripcionPage {
 
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'atletas.editar'));
   protected readonly canRefund = computed(() => this.auth.can(this.comps.current()?.id, 'evento.editar'));
+  protected readonly canEditAep = computed(() => this.auth.can(this.comps.current()?.id, 'evento.editar'));
+  protected ponerPlazas(v: unknown): void { const a = this.aep(); if (a) a.plazas = Math.max(0, Math.round(+(v as number) || 0)); this.tocado.set(true); }
+  protected urlMal(): boolean { const u = this.aep()?.url?.trim(); return !!u && !/^https:\/\/\S+$/.test(u); }
   protected readonly plazas = computed(() => (this.comps.current() as { inscripcion?: { plazas?: number } } | null)?.inscripcion?.plazas ?? 0);
   protected readonly subtitulo = computed(() => {
     const c = this.cfg();
     if (!c) return '';
-    return c.modo === 'propia' ? `Inscripción propia · ${euros(c.cuota)} · ${this.plazas()} plazas` : 'Inscripción externa en la AEP';
+    return this.modoGuardado() === 'propia' ? `Inscripción propia · ${euros(c.cuota)} · ${this.plazas()} plazas` : 'Inscripción en la AEP (por defecto)';
   });
   protected readonly activos = computed(() => (this.cupones() ?? []).filter((c) => c.estado === 'activo').length);
   protected readonly usosTotales = computed(() => (this.cupones() ?? []).reduce((a, c) => a + c.usos, 0));
@@ -364,7 +428,11 @@ export class InscripcionPage {
       const r = await firstValueFrom(this.http.get<Config>(`${this.base}/inscripcion/config`, { observe: 'response' }));
       this.etagCfg = r.headers.get('ETag') ?? '';
       this.cfg.set(r.body);
+      this.modoGuardado.set(r.body?.modo ?? 'externa');
+      if (r.body?.modo !== 'propia' && this.tab() !== 'config') this.tab.set('config');
       this.conflicto.set(false);
+      this.tocado.set(false);
+      await this.cargarAep();
       const [c, refs, p] = await Promise.all([
         firstValueFrom(this.http.get<Cupon[]>(`${this.base}/cupones`)),
         firstValueFrom(this.http.get<CodigoRef[]>(`${this.base}/referidos/codigos`)),
@@ -378,21 +446,49 @@ export class InscripcionPage {
     }
   }
 
+  /** The AEP block comes from the competition (GET /api/admin/competiciones/{id}). */
+  private async cargarAep(): Promise<void> {
+    const comp = await firstValueFrom(this.http.get<{ version: number; inscripcion?: Partial<Aep> }>(this.base));
+    const i = comp.inscripcion ?? {};
+    const a: Aep = { modo: i.modo || 'externa', url: i.url ?? '', estado: i.estado ?? 'proximamente', plazas: i.plazas ?? 0, responsable: { nombre: i.responsable?.nombre ?? '', email: i.responsable?.email ?? '' }, nota: i.nota ?? '' };
+    this.compVersion = comp.version;
+    this.aepOriginal = JSON.stringify(a);
+    this.aep.set(a);
+  }
+
   protected cambiar(t: Tab): void {
+    if (t !== 'config' && this.modoGuardado() !== 'propia') return;
     this.tab.set(t);
   }
 
   protected async guardarConfig(): Promise<void> {
     const c = this.cfg();
     if (!c) return;
+    if (this.urlMal()) { this.toasts.error('Revisa el enlace de la AEP', 'Debe empezar por https://'); return; }
     this.guardando.set(true);
+    let aepGuardada = false;
     try {
+      // AEP data first (competition service, optimistic lock on its version; needs evento.editar), then the mode
+      // (athletes; needs atletas.editar). Each part only with its permission.
+      const a = this.aep();
+      if (a && this.canEditAep() && JSON.stringify(a) !== this.aepOriginal) {
+        const body = { ...a, url: a.url.trim(), plazas: Math.max(0, Math.round(+(a.plazas ?? 0))) };
+        const comp = await firstValueFrom(this.http.put<{ version: number }>(`${this.base}/inscripcion`, body, { headers: new HttpHeaders({ 'If-Match': `W/"${this.compVersion}"` }) }));
+        this.compVersion = comp.version;
+        this.aepOriginal = JSON.stringify(body);
+        aepGuardada = true;
+        void this.comps.load(true);
+      }
+      if (!this.canEdit()) { this.tocado.set(false); this.toasts.success('Datos de la AEP guardados'); return; }
       const r = await firstValueFrom(this.http.put<Config>(`${this.base}/inscripcion/config`, c, { observe: 'response', headers: new HttpHeaders(this.etagCfg ? { 'If-Match': this.etagCfg } : {}) }));
       this.etagCfg = r.headers.get('ETag') ?? '';
       this.cfg.set(r.body);
+      this.modoGuardado.set(r.body?.modo ?? 'externa');
+      this.tocado.set(false);
       this.toasts.success('Inscripción guardada', c.modo === 'propia' ? 'El formulario /inscripcion acepta inscripciones con pago.' : 'La web enlaza a la inscripción de la AEP.');
     } catch (e) {
       if (e instanceof HttpErrorResponse && e.error?.code === 'CONFLICTO_EDICION') this.conflicto.set(true);
+      else if (aepGuardada) this.toasts.error('Datos de la AEP guardados; el modo no', errText(e));
       else this.toasts.error('No se pudo guardar', errText(e));
     } finally {
       this.guardando.set(false);

@@ -22,7 +22,7 @@ interface Comp {
 }
 interface ModItem extends Modulo { clave: string; nombre: string; descripcion: string }
 interface EstadoInfo { estado: string; programados: { id: string; estado: string; en: string }[] }
-type Tab = 'datos' | 'estado' | 'modulos' | 'inscripcion' | 'llegar';
+type Tab = 'datos' | 'estado' | 'modulos' | 'llegar';
 
 const ESTADOS = [
   { v: 'proximamente', l: 'Próximamente', d: 'Cuenta atrás + «Avísame» (newsletter)' }, { v: 'inscripciones', l: 'Inscripciones abiertas', d: 'CTA a la inscripción de la AEP' },
@@ -143,24 +143,6 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
             </section>
             @if (bloqueoSorteo(); as m) { <gr-alert tone="warning" title="Sorteo de pago pendiente de asesoría">{{ m.motivo }} · Completa la checklist en Sorteo › Configuración para poder activarlo.</gr-alert> }
           }
-          @case ('inscripcion') {
-            <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><h2 class="text-ui-h5">Estado de la inscripción</h2><p class="text-body-xs text-text-tertiary">Se muestra en la sección «Inscripciones» y en /inscripcion</p>
-                <div class="mt-4 flex gap-1 rounded-md border border-line-strong p-1">@for (e of estadosInsc; track e.v) { <button type="button" class="h-9 flex-1 rounded-sm text-label-s" [class]="d.inscripcion.estado === e.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" [disabled]="!puede()" (click)="d.inscripcion.estado = e.v; tocar()">{{ e.l }}</button> }</div>
-                <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                  <gr-field label="Plazas de atletas (cupo AEP)"><input grInput type="number" min="0" [(ngModel)]="d.inscripcion.plazas" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                  <gr-field label="Modo"><gr-select [(ngModel)]="d.inscripcion.modo" (ngModelChange)="tocar()" [disabled]="!puede()"><option value="externa">Inscripción en la web de la AEP</option><option value="cerrada">Sin inscripción</option></gr-select></gr-field>
-                  <gr-field label="URL de inscripción AEP" class="sm:col-span-2" [error]="err('url')"><input grInput [(ngModel)]="d.inscripcion.url" (ngModelChange)="tocar()" placeholder="https://aep-powerlifting.com/…" [disabled]="!puede()" /></gr-field>
-                  <gr-field label="Responsable"><input grInput [(ngModel)]="d.inscripcion.responsable.nombre" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                  <gr-field label="Email de dudas"><input grInput type="email" [(ngModel)]="d.inscripcion.responsable.email" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                  <gr-field label="Nota interna" class="sm:col-span-2"><input grInput [(ngModel)]="d.inscripcion.nota" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                </div></section>
-              <aside class="flex flex-col gap-3"><section class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-label-s">Así se ve en la home</p>
-                <div class="mt-3 rounded-md border border-line-strong bg-[#1b1112] p-4"><gr-badge [tone]="d.inscripcion.estado === 'abierta' ? 'success' : 'neutral'">{{ nombreInsc(d.inscripcion.estado) }}</gr-badge>
-                  <p class="mt-2 font-display text-[22px] uppercase italic">{{ d.inscripcion.plazas || '—' }} atletas</p><p class="text-body-xs text-text-tertiary">{{ d.inscripcion.estado === 'completa' ? 'Ven a verlo: la entrada es gratis' : 'Inscripción a través de la AEP' }}</p></div></section>
-                <gr-alert tone="info" title="Inscripción propia con pago">Se configura en Atletas › Inscripción (cupones, referidos y pasarela).</gr-alert></aside>
-            </div>
-          }
           @case ('llegar') {
             <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
               <section class="flex flex-col gap-3">
@@ -202,15 +184,14 @@ export class EventoPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly san = inject(DomSanitizerRef);
-  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'datos', l: 'Datos' }, { v: 'estado', l: 'Estado del evento' }, { v: 'modulos', l: 'Módulos' }, { v: 'inscripcion', l: 'Inscripción AEP' }, { v: 'llegar', l: 'Cómo llegar' }];
+  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'datos', l: 'Datos' }, { v: 'estado', l: 'Estado del evento' }, { v: 'modulos', l: 'Módulos' }, { v: 'llegar', l: 'Cómo llegar' }];
   protected readonly estados = ESTADOS;
-  protected readonly estadosInsc = [{ v: 'proximamente' as const, l: 'Próximamente' }, { v: 'abierta' as const, l: 'Abiertas' }, { v: 'completa' as const, l: 'Completas' }, { v: 'cerrada' as const, l: 'Cerradas' }];
   protected readonly transportes = TRANSPORTES;
   protected readonly web = webPublica() + '/';
   protected readonly comp = signal<Comp | null>(null);
   protected readonly mods = signal<ModItem[]>([]);
   protected readonly est = signal<EstadoInfo | null>(null);
-  protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || 'datos');
+  protected readonly tab = signal<Tab>(((t) => (t === 'inscripcion' ? 'datos' : t))(this.route.snapshot.queryParamMap.get('tab') as Tab | 'inscripcion' | null) || 'datos');
   protected readonly cambios = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errores = signal<string[]>([]);
@@ -222,6 +203,8 @@ export class EventoPage {
   protected readonly bloqueoSorteo = computed(() => this.mods().find((m) => m.clave === 'sorteo' && m.bloqueado));
 
   constructor() {
+    // the AEP registration moved to Atletas › Inscripción (one screen for the mode and the AEP data)
+    if (this.route.snapshot.queryParamMap.get('tab') === 'inscripcion') void this.router.navigate(['../atletas/inscripcion'], { relativeTo: this.route, replaceUrl: true });
     effect(() => {
       if (!this.cid()) return;
       untracked(() => void this.cargar());
@@ -270,7 +253,6 @@ export class EventoPage {
     return '';
   }
   protected nombreEstado(v: string): string { return ESTADOS.find((e) => e.v === v)?.l ?? v; }
-  protected nombreInsc(v: string): string { return this.estadosInsc.find((e) => e.v === v)?.l ?? v; }
   protected fechaHora(iso: string): string { return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)); }
   protected anadirTransporte(): void { this.d.comoLlegar.push({ tipo: 'coche', titulo: '', detalle: '', estado: 'por_confirmar' }); this.tocar(); }
   protected quitarTransporte(i: number): void { this.d.comoLlegar.splice(i, 1); this.tocar(); }
