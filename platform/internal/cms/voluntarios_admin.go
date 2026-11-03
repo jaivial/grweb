@@ -2,8 +2,14 @@ package cms
 
 import (
 	"context"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -213,5 +219,102 @@ func (s *Svc) registerVoluntariosAdmin() {
 			}
 			p, err := s.puestos(ctx, in.CID)
 			return &puestosOut{Body: p}, err
+		})
+}
+
+// ---- guardian's authorisation (minors): private file, never in the public media library ----
+
+// tiposAutorizacion are the files accepted for the signed authorisation (photo or PDF).
+var tiposAutorizacion = map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "application/pdf": ".pdf"}
+
+// autorizacionBase is the private path of a volunteer's authorisation without extension (mediaDir/privado/…, not served
+// by GET /api/medios).
+func (s *Svc) autorizacionBase(cid, id uuid.UUID) string {
+	return filepath.Join(s.mediaDir, "privado", cid.String(), "autorizacion-"+id.String())
+}
+
+// borrarAutorizacion removes the authorisation file of a volunteer (any extension).
+func (s *Svc) borrarAutorizacion(cid, id uuid.UUID) {
+	for _, ext := range tiposAutorizacion {
+		_ = os.Remove(s.autorizacionBase(cid, id) + ext)
+	}
+}
+
+func (s *Svc) registerAutorizacion() {
+	api := s.a.API
+	tags := []string{"Web y contenidos"}
+	path := "/api/admin/competiciones/{cid}/voluntarios/{id}/autorizacion"
+	type subirIn struct {
+		CID     uuid.UUID `path:"cid"`
+		ID      uuid.UUID `path:"id"`
+		RawBody multipart.Form
+	}
+	huma.Register(api, huma.Operation{OperationID: "voluntarios-autorizacion-subir", Method: http.MethodPost, Path: path, Summary: "Subir la autorización firmada del tutor (privada)", Tags: tags, Security: bearer,
+		MaxBodyBytes: maxUpload, BodyReadTimeout: time.Minute, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *subirIn) (*struct{}, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			files := in.RawBody.File["file"]
+			if len(files) != 1 {
+				return nil, problem.Unprocessable("ARCHIVO_OBLIGATORIO", "Adjunta un archivo en el campo «file».")
+			}
+			if files[0].Size > 10<<20 {
+				return nil, problem.Unprocessable("ARCHIVO_GRANDE", "El archivo supera los 10 MB.")
+			}
+			f, err := files[0].Open()
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+			datos, err := io.ReadAll(io.LimitReader(f, 10<<20+1))
+			if err != nil {
+				return nil, err
+			}
+			ext, ok := tiposAutorizacion[http.DetectContentType(datos)]
+			if !ok {
+				return nil, problem.Unprocessable("TIPO_NO_PERMITIDO", "Sube una foto (JPG, PNG, WebP) o un PDF.")
+			}
+			url := strings.Replace(strings.Replace(path, "{cid}", in.CID.String(), 1), "{id}", in.ID.String(), 1)
+			return nil, s.change(ctx, in.CID, "cms.voluntario_autorizacion", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+				var menor bool
+				if err := tx.QueryRow(ctx, `SELECT es_menor FROM voluntarios WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).Scan(&menor); err != nil {
+					if err == pgx.ErrNoRows {
+						return problem.NotFound("Esa solicitud no existe.")
+					}
+					return err
+				}
+				if err := os.MkdirAll(filepath.Dir(s.autorizacionBase(in.CID, in.ID)), 0o700); err != nil {
+					return err
+				}
+				s.borrarAutorizacion(in.CID, in.ID)
+				if err := os.WriteFile(s.autorizacionBase(in.CID, in.ID)+ext, datos, 0o600); err != nil {
+					return err
+				}
+				_, err := tx.Exec(ctx, `UPDATE voluntarios SET autorizacion_url = $3, updated_at = now() WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, url)
+				return err
+			})
+		})
+
+	type verOut struct {
+		ContentType  string `header:"Content-Type"`
+		Disposition  string `header:"Content-Disposition"`
+		CacheControl string `header:"Cache-Control"`
+		Nosniff      string `header:"X-Content-Type-Options"`
+		Body         []byte
+	}
+	huma.Register(api, huma.Operation{OperationID: "voluntarios-autorizacion-ver", Method: http.MethodGet, Path: path, Summary: "Ver la autorización del tutor (solo el equipo)", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *idPath) (*verOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			for tipo, ext := range tiposAutorizacion {
+				b, err := os.ReadFile(s.autorizacionBase(in.CID, in.ID) + ext)
+				if err != nil {
+					continue
+				}
+				return &verOut{ContentType: tipo, Disposition: mime.FormatMediaType("inline", map[string]string{"filename": "autorizacion" + ext}), CacheControl: "private, no-store", Nosniff: "nosniff", Body: b}, nil
+			}
+			return nil, problem.NotFound("No hay autorización subida.")
 		})
 }

@@ -82,6 +82,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublic()
 	s.registerClubsAdmin()
 	s.registerVoluntariosAdmin()
+	s.registerAutorizacion()
 	s.registerRGPD()
 	s.registerPublicExtra()
 	return nil

@@ -60,6 +60,8 @@ type collection[R any, I any] struct {
 	validate func(in *I) error
 	insert   func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *I) error
 	update   func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *I) error
+	// afterDelete runs once a row is deleted (files that live outside the database)
+	afterDelete func(cid, id uuid.UUID)
 }
 
 func (c collection[R, I]) where() string {
@@ -158,13 +160,17 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 			if _, err := auth.Require(ctx, in.CID.String(), c.perm); err != nil {
 				return nil, err
 			}
-			return nil, s.change(ctx, in.CID, "cms."+c.name+"_eliminado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+			err := s.change(ctx, in.CID, "cms."+c.name+"_eliminado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
 				tag, err := tx.Exec(ctx, `DELETE FROM `+c.table+` WHERE `+c.where()+` AND id = $2`, in.CID, in.ID)
 				if err == nil && tag.RowsAffected() == 0 {
 					return problem.NotFound("No encontrado.")
 				}
 				return err
 			})
+			if err == nil && c.afterDelete != nil {
+				c.afterDelete(in.CID, in.ID)
+			}
+			return nil, err
 		})
 
 	huma.Register(api, huma.Operation{OperationID: c.name + "-reorder", Method: http.MethodPut, Path: base + "/orden", Summary: "Reordenar", Tags: tags, Security: bearer, DefaultStatus: http.StatusNoContent},

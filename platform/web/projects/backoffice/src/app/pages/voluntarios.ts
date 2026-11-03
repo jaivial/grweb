@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts, type GrTone, fmtAgo } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, Media, errText } from '../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../shared/ui';
 
 /** A row of the «voluntarios» collection (cms): requests sent from /voluntarios and the team. */
 interface Voluntario {
@@ -155,11 +155,15 @@ const TURNOS = ['Montaje (la víspera)', 'Mañana', 'Tarde', 'Todo el día'];
           @if (v.esMenor) {
             <section class="flex flex-col gap-3"><h3 class="text-label-xs text-text-muted uppercase">Menor de edad</h3>
               @if (!asig.autorizacionUrl) { <gr-alert tone="warning" title="Falta la autorización del tutor">No se puede aceptar hasta subir la autorización firmada.</gr-alert> }
-              <label class="flex h-11 cursor-pointer items-center gap-2 rounded-sm border border-dashed border-line-strong px-3 text-body-s text-text-secondary hover:border-text-muted md:h-10">
-                <gr-icon [name]="asig.autorizacionUrl ? 'circle-check' : 'download'" [size]="16" [class.text-success]="!!asig.autorizacionUrl" />
-                <span class="truncate">{{ subiendo() ? 'Subiendo…' : asig.autorizacionUrl ? 'Autorización subida · cambiar' : 'Subir la autorización firmada (foto)' }}</span>
-                <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="subirAutorizacion($event)" />
-              </label>
+              <div class="flex flex-wrap items-center gap-2">
+                <label class="flex h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-sm border border-dashed border-line-strong px-3 text-body-s text-text-secondary hover:border-text-muted md:h-10">
+                  <gr-icon [name]="asig.autorizacionUrl ? 'circle-check' : 'download'" [size]="16" [class.text-success]="!!asig.autorizacionUrl" />
+                  <span class="truncate">{{ subiendo() ? 'Subiendo…' : asig.autorizacionUrl ? 'Autorización subida · cambiar' : 'Subir la autorización firmada (foto o PDF)' }}</span>
+                  <input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" class="sr-only" (change)="subirAutorizacion($event)" />
+                </label>
+                @if (asig.autorizacionUrl) { <button grButton size="s" icon="eye" (click)="verAutorizacion()">Ver</button> }
+              </div>
+              <p class="text-body-xs text-text-tertiary">Se guarda de forma privada: solo la ve el equipo con permiso de web.</p>
             </section>
           }
           @if (modo() === 'aceptar') {
@@ -202,7 +206,6 @@ export class VoluntariosPage {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(Auth);
   private readonly toasts = inject(GrToasts);
-  private readonly media = inject(Media);
   private readonly confirm = inject(Confirm);
   protected readonly lista = signal<Voluntario[] | null | undefined>(undefined);
   protected readonly puestos = signal<Puesto[]>([]);
@@ -291,9 +294,11 @@ export class VoluntariosPage {
     if (!v || !f) return;
     this.subiendo.set(true);
     try {
-      const url = await this.media.upload(f, 'Autorización del tutor de ' + v.nombre);
-      await firstValueFrom(this.http.put(`${this.base}/${v.id}`, { puesto: v.puesto, estado: v.estado === 'descartado' ? 'pendiente' : v.estado, notas: v.notas, autorizacionUrl: url }));
-      this.asig.autorizacionUrl = url;
+      // private file in cms (not the public media library): it holds a minor's and their guardian's data
+      const fd = new FormData();
+      fd.append('file', f);
+      await firstValueFrom(this.http.post(`${this.base}/${v.id}/autorizacion`, fd));
+      this.asig.autorizacionUrl = `${this.base}/${v.id}/autorizacion`;
       this.toasts.success('Autorización subida');
       await this.cargar();
       this.sel.set(this.lista()?.find((x) => x.id === v.id) ?? v);
@@ -301,6 +306,22 @@ export class VoluntariosPage {
       this.toasts.error('No se pudo subir la autorización', errText(e));
     } finally {
       this.subiendo.set(false);
+    }
+  }
+
+  /** Opens the private authorisation (fetched with the session, shown from a blob URL). */
+  protected async verAutorizacion(): Promise<void> {
+    const v = this.sel();
+    if (!v) return;
+    const ventana = window.open('', '_blank');
+    try {
+      const blob = await firstValueFrom(this.http.get(`${this.base}/${v.id}/autorizacion`, { responseType: 'blob' }));
+      const url = URL.createObjectURL(blob);
+      if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      ventana?.close();
+      this.toasts.error('No se pudo abrir la autorización', errText(e));
     }
   }
 

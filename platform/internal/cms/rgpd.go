@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 )
@@ -36,9 +37,16 @@ func (s *Svc) registerRGPD() {
 			if e == "" {
 				return o, nil
 			}
-			tag, err := s.a.DB.Exec(ctx, `DELETE FROM voluntarios WHERE competition_id = $1 AND email = $2`, in.CID, e)
-			if err == nil {
-				o.Body.Voluntarios = int(tag.RowsAffected())
+			rows, err := s.a.DB.Query(ctx, `DELETE FROM voluntarios WHERE competition_id = $1 AND email = $2 RETURNING id`, in.CID, e)
+			if err != nil {
+				return o, err
+			}
+			ids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+			for _, id := range ids {
+				s.borrarAutorizacion(in.CID, id) // and their guardian's authorisation, if any
+			}
+			o.Body.Voluntarios = len(ids)
+			if len(ids) > 0 {
 				s.bump(ctx, in.CID)
 			}
 			return o, err

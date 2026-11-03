@@ -349,6 +349,8 @@ func resumen(e events.Event) string {
 		return "propuso el club «" + str(d["nombre"]) + "» para el directorio"
 	case "cms.voluntario_aceptado":
 		return "aceptó a un voluntario en " + str(d["puesto"]) + " (" + str(d["turno"]) + ")"
+	case "cms.voluntario_autorizacion":
+		return "subió la autorización del tutor de un voluntario menor"
 	case "cms.voluntario_rechazado":
 		return "rechazó una solicitud de voluntariado"
 	case "cms.voluntario_estado":

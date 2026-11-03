@@ -398,7 +398,8 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[volRow, volIn]{
 		name: "voluntarios", path: "/voluntarios", table: "voluntarios", tag: tagWeb, perm: "web.editar", order: "created_at DESC", noCreate: true,
-		cols: "id, nombre, email::text AS email, telefono, disponibilidad, roles, experiencia, puesto, es_menor, autorizacion_url, notas, estado, turno, responsable, motivo_rechazo, revisado_at, revisado_por, created_at",
+		afterDelete: s.borrarAutorizacion, // the guardian's authorisation is a private file
+		cols:        "id, nombre, email::text AS email, telefono, disponibilidad, roles, experiencia, puesto, es_menor, autorizacion_url, notas, estado, turno, responsable, motivo_rechazo, revisado_at, revisado_por, created_at",
 		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *volIn) error {
 			var menor bool
 			if err := tx.QueryRow(ctx, `SELECT es_menor FROM voluntarios WHERE competition_id=$1 AND id=$2`, cid, id).Scan(&menor); err != nil {
