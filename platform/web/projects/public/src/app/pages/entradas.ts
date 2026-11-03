@@ -301,7 +301,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               <div class="flex flex-col gap-3">
                 @for (f of faq(); track f.pregunta; let first = $first) {
                   <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [open]="first">
-                    <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-m md:text-ui-h4">{{ f.pregunta }}
+                    <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-ui-h5 md:text-ui-h4">{{ f.pregunta }}
                       <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span></summary>
                     <div class="prose-gr px-5 pb-5 text-body-m text-text-secondary" [innerHTML]="md(f.respuesta)"></div>
                   </details>
