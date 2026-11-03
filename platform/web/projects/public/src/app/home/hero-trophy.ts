@@ -40,11 +40,11 @@ const PUFFS = [
     <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base">
       <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later -->
       <div class="absolute inset-0 bg-[linear-gradient(180deg,#3a3435_0%,#252021_65%,#141112_100%)]" [style.opacity]="humo()"></div>
-      <!-- Trophy: 2:3 box, 80 % of the height, red glow behind and the radial vignette of the storyboard -->
+      <!-- Trophy: 2:3 box, 80 % of the height, red glow behind. The frames' near-black lightens into whatever is behind
+           (blend «lighten», as in Figma) and every edge fades out (mask), so the box never shows on wide screens. -->
       <div class="pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" [style.opacity]="trofeo()"></div>
-      <div class="absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2" [style.opacity]="trofeo()">
+      <div class="gr-trofeo-fundido absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 mix-blend-lighten" [style.opacity]="trofeo()">
         <canvas #canvas class="size-full" aria-hidden="true"></canvas>
-        <div class="absolute inset-0 bg-[radial-gradient(closest-side,transparent_42%,#141112_100%)]"></div>
       </div>
       <!-- Smoke of the intro (clears and drifts away) -->
       <div class="pointer-events-none absolute inset-0" aria-hidden="true" [style.opacity]="humo()">
@@ -100,6 +100,13 @@ const PUFFS = [
     </div>
   `,
   styles: [`
+    /* Figma «Fundido · arriba/abajo/izquierda/derecha»: 20 % at the top and bottom, 24 % at the sides */
+    .gr-trofeo-fundido {
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+      -webkit-mask-composite: source-in;
+      mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+      mask-composite: intersect;
+    }
     .gr-precarga { animation: gr-precarga-fuera 0.5s ease 4s forwards; }
     @keyframes gr-precarga-fuera { to { opacity: 0; visibility: hidden; } }
   `],

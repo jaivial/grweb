@@ -213,6 +213,14 @@
   .prose-legal { counter-reset: legal; font-size: 14px; }
   /* endless right-to-left strip (home sponsors): the track holds two equal halves and moves by one */
   @keyframes gr-marquesina { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  /* raffle panel: the «1 €» sticker floats and the main button gets a shine every 4 s (none with reduced motion) */
+  .gr-flotar { transform: rotate(-10deg); animation: gr-flotar 4s ease-in-out infinite; }
+  @keyframes gr-flotar { 0%, 100% { transform: translateY(0) rotate(-10deg); } 50% { transform: translateY(-8px) rotate(-7deg); } }
+  .gr-brillo { overflow: hidden; }
+  .gr-brillo::after { content: ''; position: absolute; inset: 0; pointer-events: none; transform: translateX(-120%);
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.28) 50%, transparent 65%); animation: gr-brillo 4s ease-in-out infinite; }
+  @keyframes gr-brillo { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+  @media (prefers-reduced-motion: reduce) { .gr-flotar, .gr-brillo::after { animation: none; } }
   .prose-legal > * + * { margin-top: 12px; }
   .prose-legal h2 { counter-increment: legal; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 600; line-height: 1.25; margin-top: 36px; }
   @media (min-width: 768px) { .prose-legal { font-size: 16px; } .prose-legal h2 { font-size: 24px; } }

@@ -47,8 +47,9 @@ var (
 // Secciones lists the sections the public home can show, in the default order of Figma page 05.
 var Secciones = []SeccionDef{
 	{Clave: "hero", Nombre: "Hero", Descripcion: "Intro con la animación del trofeo", Campos: []Campo{cTitulo}},
-	{Clave: "campeonato", Nombre: "Campeonato", Descripcion: "Título, nivel, datos, aviso, cuenta atrás y cinta de patrocinadores", Campos: []Campo{cTitulo,
-		{Clave: "subtitulo", Etiqueta: "Segunda línea del título (nivel)", Tipo: "texto", Max: 120, Ayuda: "Vacío: el nivel del evento"},
+	{Clave: "campeonato", Nombre: "Campeonato", Descripcion: "Nivel, datos, aviso, cuenta atrás y cinta de patrocinadores", Campos: []Campo{
+		{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 90, Ayuda: "Lo leen los lectores de pantalla; en pantalla se ve el nivel (el hero ya dice «Campeonato de powerlifting»)"},
+		{Clave: "subtitulo", Etiqueta: "Nivel (título visible)", Tipo: "texto", Max: 120, Ayuda: "Vacío: el nivel del evento"},
 		{Clave: "aviso", Etiqueta: "Aviso bajo los datos", Tipo: "texto", Max: 40, Ayuda: "p. ej. «Fecha por confirmar». Vacío: sin aviso"}}},
 	{Clave: "cifras", Nombre: "Cifras", Descripcion: "Franja de cuatro cifras", Campos: []Campo{
 		{Clave: "items", Etiqueta: "Cifras", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "valor", Etiqueta: "Valor", Tipo: "texto", Max: 12}, {Clave: "etiqueta", Etiqueta: "Etiqueta", Tipo: "texto", Max: 40}}}}},
@@ -69,8 +70,10 @@ var Secciones = []SeccionDef{
 		{Clave: "eyebrow2", Etiqueta: "Antetítulo del material", Tipo: "texto", Max: 40}, {Clave: "titulo2", Etiqueta: "Título del material", Tipo: "texto", Max: 90, Ayuda: ayudaTitulo},
 		{Clave: "texto2", Etiqueta: "Texto del material", Tipo: "area", Max: 300},
 		{Clave: "marcas", Etiqueta: "Marcas", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "nombre", Etiqueta: "Marca", Tipo: "texto", Max: 30}, {Clave: "logo", Etiqueta: "Logo (opcional)", Tipo: "imagen"}}}}},
-	{Clave: "sorteo", Nombre: "Sorteo", Descripcion: "Panel del sorteo (precio y boletos vendidos en directo)", Campos: []Campo{cEyebrow, cTitulo,
-		{Clave: "subtitulo", Etiqueta: "Subtítulo", Tipo: "texto", Max: 80}, cTexto, cImagen}},
+	{Clave: "sorteo", Nombre: "Sorteo", Descripcion: "Panel del sorteo: elegir boletos, precio, vendidos y cuenta atrás en directo (también es la cabecera de /sorteo)", Campos: []Campo{
+		{Clave: "titulo", Etiqueta: "Título con el sorteo abierto", Tipo: "texto", Max: 120, Ayuda: ayudaTitulo + " · vacío: «Gana un *premio*». Cerrado: «Sorteo de un premio»"},
+		{Clave: "texto", Etiqueta: "Texto con el sorteo abierto", Tipo: "area", Max: 240},
+		{Clave: "imagen", Etiqueta: "Imagen del premio", Tipo: "imagen", Ayuda: "Vacío: la del sorteo. El cinturón del CDN gira con el scroll"}}},
 	{Clave: "categorias", Nombre: "Categorías de peso", Descripcion: "Categorías por sexo y enlace a las marcas mínimas", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto, cImagen,
 		{Clave: "ctaTitulo", Etiqueta: "Título del aviso", Tipo: "texto", Max: 60}, {Clave: "ctaTexto", Etiqueta: "Texto del aviso", Tipo: "texto", Max: 120}}},
 	{Clave: "horarios", Nombre: "Horarios", Descripcion: "Horario publicado por día (se oculta si no hay)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen}},
