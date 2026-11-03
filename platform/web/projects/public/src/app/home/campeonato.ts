@@ -99,7 +99,7 @@ export class Countdown {
           <div class="flex w-max animate-[gr-marquesina_linear_infinite] items-center hover:[animation-play-state:paused] motion-reduce:animate-none" [style.animation-duration.s]="duracion()">
             @for (p of cinta(); track $index) {
               <a role="listitem" class="shrink-0 pr-9 md:pr-[72px]" [attr.href]="p.url || null" target="_blank" rel="noopener sponsored" [attr.aria-hidden]="$index >= patrocinadores().length || null" [attr.tabindex]="$index >= patrocinadores().length ? -1 : null">
-                <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" loading="lazy" />
+                <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" />
               </a>
             }
           </div>
@@ -123,8 +123,9 @@ export class Campeonato {
   protected readonly glow = GLOW;
   protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
   protected readonly nivel = computed(() => this.subtitulo() || this.comp()?.evento?.nivel || '');
-  /** Times the logos repeat in each half: enough for a half wider than a 1440 px screen (logos ≈ 200 px with the gap). */
-  private readonly veces = computed(() => Math.max(1, Math.ceil(8 / Math.max(1, this.patrocinadores().length))));
+  /** Times the logos repeat in each half: at least 16 logos per half (≥ 2 500 px with the 72 px gap), wider than the
+   *  1200 px strip, so the loop never shows an empty end. */
+  private readonly veces = computed(() => Math.max(1, Math.ceil(16 / Math.max(1, this.patrocinadores().length))));
   /** Two equal halves: the track scrolls one half and starts again without a jump. */
   protected readonly cinta = computed(() => { const mitad = Array.from({ length: this.veces() }, () => this.patrocinadores()).flat(); return [...mitad, ...mitad]; });
   /** ~5 s per logo of a half: the same speed whatever the number of sponsors. */
