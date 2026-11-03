@@ -35,7 +35,7 @@ var notifRules = map[string]notifRule{
 		if d["esMenor"] == true {
 			cuerpo = "Es menor de edad: necesitarás la autorización de su tutor."
 		}
-		return "Nueva solicitud de voluntariado", cuerpo, "/web/voluntarios", "info", "web.editar", true
+		return "Nueva solicitud de voluntariado", cuerpo, "/voluntarios", "info", "web.editar", true
 	},
 	"cms.club_solicitado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Nueva solicitud de club", "«" + str(d["nombre"]) + "» espera revisión antes de aparecer en /clubs.", "/clubs", "info", "web.editar", true
@@ -347,6 +347,19 @@ func resumen(e events.Event) string {
 		return "confirmó un aviso de «Avísame cuando compita»"
 	case "cms.club_solicitado":
 		return "propuso el club «" + str(d["nombre"]) + "» para el directorio"
+	case "cms.voluntario_aceptado":
+		return "aceptó a un voluntario en " + str(d["puesto"]) + " (" + str(d["turno"]) + ")"
+	case "cms.voluntario_autorizacion":
+		return "subió la autorización del tutor de un voluntario menor"
+	case "cms.voluntario_rechazado":
+		return "rechazó una solicitud de voluntariado"
+	case "cms.voluntario_estado":
+		if str(d["estado"]) == "revision" {
+			return "marcó una solicitud de voluntariado como en revisión"
+		}
+		return "devolvió una solicitud de voluntariado a nuevas"
+	case "cms.voluntario_puesto":
+		return fmt.Sprintf("cambió a %v las personas que necesita «%s»", d["objetivo"], str(d["rol"]))
 	case "cms.club_aprobado":
 		return "aprobó el club «" + str(d["nombre"]) + "» y lo publicó en /clubs"
 	case "cms.club_rechazado":

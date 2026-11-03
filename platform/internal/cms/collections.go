@@ -219,24 +219,29 @@ type albumIn struct {
 // ---- Voluntarios (admin side; they are created from the public form) ----
 
 type volRow struct {
-	ID              uuid.UUID `json:"id" db:"id"`
-	Nombre          string    `json:"nombre" db:"nombre"`
-	Email           string    `json:"email" db:"email"`
-	Telefono        string    `json:"telefono" db:"telefono"`
-	Disponibilidad  string    `json:"disponibilidad" db:"disponibilidad"`
-	Roles           []string  `json:"roles" db:"roles"`
-	Experiencia     string    `json:"experiencia" db:"experiencia"`
-	Puesto          string    `json:"puesto" db:"puesto"`
-	EsMenor         bool      `json:"esMenor" db:"es_menor"`
-	AutorizacionURL string    `json:"autorizacionUrl" db:"autorizacion_url"`
-	Notas           string    `json:"notas" db:"notas"`
-	Estado          string    `json:"estado" db:"estado"`
-	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
+	ID              uuid.UUID  `json:"id" db:"id"`
+	Nombre          string     `json:"nombre" db:"nombre"`
+	Email           string     `json:"email" db:"email"`
+	Telefono        string     `json:"telefono" db:"telefono"`
+	Disponibilidad  string     `json:"disponibilidad" db:"disponibilidad"`
+	Roles           []string   `json:"roles" db:"roles"`
+	Experiencia     string     `json:"experiencia" db:"experiencia"`
+	Puesto          string     `json:"puesto" db:"puesto"`
+	EsMenor         bool       `json:"esMenor" db:"es_menor"`
+	AutorizacionURL string     `json:"autorizacionUrl" db:"autorizacion_url"`
+	Notas           string     `json:"notas" db:"notas"`
+	Estado          string     `json:"estado" db:"estado"`
+	Turno           string     `json:"turno" db:"turno"`
+	Responsable     string     `json:"responsable" db:"responsable"`
+	MotivoRechazo   string     `json:"motivoRechazo" db:"motivo_rechazo"`
+	RevisadoAt      *time.Time `json:"revisadoAt,omitempty" db:"revisado_at"`
+	RevisadoPor     string     `json:"revisadoPor" db:"revisado_por"`
+	CreatedAt       time.Time  `json:"createdAt" db:"created_at"`
 }
 
 type volIn struct {
 	Puesto          string `json:"puesto,omitempty" maxLength:"80"`
-	Estado          string `json:"estado" enum:"pendiente,confirmado,descartado"`
+	Estado          string `json:"estado" enum:"pendiente,revision,confirmado,descartado"`
 	Notas           string `json:"notas,omitempty" maxLength:"1000"`
 	AutorizacionURL string `json:"autorizacionUrl,omitempty" maxLength:"500" doc:"Autorización firmada del tutor (menores)"`
 }
@@ -393,7 +398,8 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[volRow, volIn]{
 		name: "voluntarios", path: "/voluntarios", table: "voluntarios", tag: tagWeb, perm: "web.editar", order: "created_at DESC", noCreate: true,
-		cols: "id, nombre, email::text AS email, telefono, disponibilidad, roles, experiencia, puesto, es_menor, autorizacion_url, notas, estado, created_at",
+		afterDelete: s.borrarAutorizacion, // the guardian's authorisation is a private file
+		cols:        "id, nombre, email::text AS email, telefono, disponibilidad, roles, experiencia, puesto, es_menor, autorizacion_url, notas, estado, turno, responsable, motivo_rechazo, revisado_at, revisado_por, created_at",
 		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *volIn) error {
 			var menor bool
 			if err := tx.QueryRow(ctx, `SELECT es_menor FROM voluntarios WHERE competition_id=$1 AND id=$2`, cid, id).Scan(&menor); err != nil {

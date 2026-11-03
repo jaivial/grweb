@@ -81,6 +81,8 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'inicio' },
       { path: 'inicio', component: InicioPage, title: 'Inicio · Backoffice GR Cup' },
+      // the volunteers moved from Web › Voluntarios to their own page (Figma 68)
+      { path: 'web/voluntarios', pathMatch: 'full', redirectTo: 'voluntarios' },
       {
         path: 'web',
         component: WebPage,
@@ -113,6 +115,7 @@ export const routes: Routes = [
       { path: 'checkin/escaner', loadComponent: () => import('./pages/checkin/checkin').then((m) => m.EscanerPage), title: 'Escáner · Backoffice GR Cup' },
       { path: 'directo', loadComponent: () => import('./pages/directo/directo').then((m) => m.DirectoPage), title: 'Directo · Backoffice GR Cup' },
       { path: 'directo/pantalla', loadComponent: () => import('./pages/directo/pantalla').then((m) => m.PantallaPage), title: 'Pantalla del pabellón · Backoffice GR Cup' },
+      { path: 'voluntarios', loadComponent: () => import('./pages/voluntarios').then((m) => m.VoluntariosPage), title: 'Voluntarios · Backoffice GR Cup' },
       { path: 'clubs', loadComponent: () => import('./pages/clubs').then((m) => m.ClubsPage), title: 'Clubs · Backoffice GR Cup' },
       { path: 'directo/retransmision', loadComponent: () => import('./pages/directo/retransmision').then((m) => m.RetransmisionPage), title: 'Retransmisión · Backoffice GR Cup' },
       { path: 'resultados', loadComponent: () => import('./pages/directo/resultados').then((m) => m.ResultadosPage), title: 'Resultados · Backoffice GR Cup' },
