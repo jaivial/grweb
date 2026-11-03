@@ -509,28 +509,38 @@ export class EntradasPage {
     const tel = this.f.telefono.trim();
     const telefono = tel ? (tel.startsWith('+') ? tel : '+34 ' + tel) : undefined;
     let token = '';
+    let yaTenia = false;
     try {
       const r = await this.api.reservar({ sesionId: this.sesion(), nombre: this.f.nombre.trim(), apellidos: this.f.apellidos.trim(), email: this.f.email.trim(), telefono,
         personas: this.f.personas, origen: this.f.origen || undefined, utm, aceptaPrivacidad: true, novedades: this.f.novedades });
       token = r.token;
     } catch (e) {
       const x = errorDe(e);
-      if (x.code === 'AGOTADA') this.data.set(await this.api.sesiones());
-      this.errores.set([x.detail]);
-      this.enviando.set(false);
-      return;
+      // back from the payment (or a retry): the ticket exists and its link was re-sent; the raffle tickets can still be bought
+      yaTenia = x.code === 'YA_TIENES_ENTRADA' && this.boletos() > 0;
+      if (!yaTenia) {
+        if (x.code === 'AGOTADA') this.data.set(await this.api.sesiones());
+        this.errores.set([x.detail]);
+        this.enviando.set(false);
+        return;
+      }
     }
     // the ticket is reserved; the raffle tickets are an extra step (payment), which returns to the ticket's confirmation
     if (this.boletos()) {
       try {
         const c = await firstValueFrom(this.http.post<{ checkoutUrl: string }>(`/api/competiciones/${COMPETITION_SLUG}/sorteo/compras`, {
           nombre: `${this.f.nombre.trim()} ${this.f.apellidos.trim()}`, email: this.f.email.trim(), telefono, cantidad: this.boletos(),
-          mayorEdad: true, aceptaBases: true, aceptaPrivacidad: true, novedades: this.f.novedades, origen: 'entradas', entrada: token,
+          mayorEdad: true, aceptaBases: true, aceptaPrivacidad: true, novedades: this.f.novedades, origen: 'entradas', ...(token ? { entrada: token } : {}),
         }));
         location.href = c.checkoutUrl;
         return;
-      } catch {
-        // the ticket is valid anyway: show it (the confirmation offers the raffle again)
+      } catch (e) {
+        if (yaTenia) {
+          this.errores.set([errorDe(e).detail]);
+          this.enviando.set(false);
+          return;
+        }
+        // the ticket is valid anyway: show it, with a notice about the raffle
         void this.router.navigate(['/entradas/confirmacion'], { queryParams: { t: token, sorteo: 'error' } });
         return;
       }
@@ -558,7 +568,7 @@ export class EntradasPage {
 /** /entradas/confirmacion (Figma 38): «¡Tienes entrada!», QR, calendar, news and «Invita a tu gente». */
 @Component({
   selector: 'gr-entrada-confirmacion',
-  imports: [Page, GrIcon, GrSkeleton, TicketCard, Newsletter],
+  imports: [Page, GrAlert, GrIcon, GrSkeleton, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="¡Tienes entrada!" crumb="Confirmación" [hideTitle]="true">
@@ -569,6 +579,7 @@ export class EntradasPage {
         @else {
           <div class="flex flex-col items-center text-center"><span class="flex size-12 items-center justify-center rounded-full border border-success/50 text-success"><gr-icon name="check" [size]="22" /></span>
             <h1 class="mt-3 text-display-s">¡Tienes entrada!</h1><p class="mt-2 text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p></div>
+          @if (aviso(); as a) { <gr-alert tone="warning" [title]="a.t">{{ a.d }} <a href="/sorteo" class="text-accent-text underline">Ir al sorteo</a></gr-alert> }
           <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" />
           <div class="grid grid-cols-2 gap-2">
             <a [href]="ics()" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong text-label-s"><gr-icon name="calendar-plus" [size]="16" />Al calendario</a>
@@ -597,11 +608,16 @@ export class ConfirmacionPage {
   protected readonly tit = titular;
   protected readonly mia = signal<MiEntrada | null | undefined>(undefined);
   protected readonly copiado = signal(false);
+  protected readonly aviso = signal<{ t: string; d: string } | null>(null);
   protected readonly token: string;
   protected readonly ics = computed(() => this.api.ics(this.token));
   constructor() {
     inject(Seo).set({ title: 'Tu entrada · GR Strength Cup', description: 'Tu entrada gratuita con su QR.', path: '/entradas/confirmacion', robots: 'noindex' });
-    this.token = inject(ActivatedRoute).snapshot.queryParamMap.get('t') ?? '';
+    const q = inject(ActivatedRoute).snapshot.queryParamMap;
+    this.token = q.get('t') ?? '';
+    // raffle tickets bought with the ticket (/entradas step 4) that were not completed
+    if (q.get('sorteo') === 'error') this.aviso.set({ t: 'No hemos podido abrir el pago del sorteo', d: 'Tu entrada está reservada. Puedes comprar los boletos desde la página del sorteo.' });
+    else if (q.get('compra') && q.get('cancelado')) this.aviso.set({ t: 'No has completado el pago del sorteo', d: 'Tu entrada está reservada; los boletos no. Puedes comprarlos cuando quieras.' });
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     void this.api.mia(this.token).then((m) => this.mia.set(m), () => this.mia.set(null));
   }
