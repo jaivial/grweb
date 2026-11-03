@@ -36,8 +36,6 @@ const ESTADO: Record<Seccion['estado'], { label: string; tone: GrTone }> = {
 };
 
 export type Pagina = 'home' | 'publico' | 'en';
-/** Roles of the /voluntarios form (Figma 33). */
-const ROLES_VOLUNTARIO: Record<string, string> = { jueces: 'Jueces', cargadores: 'Cargadores', mesa: 'Mesa técnica', foto: 'Foto y vídeo', acreditaciones: 'Acreditaciones' };
 
 export const PAGINAS: { value: Pagina; label: string; ruta: string }[] = [
   { value: 'home', label: 'Home', ruta: '/' },
@@ -126,7 +124,6 @@ export class WebPage {
     { label: 'Páginas y SEO', path: 'seo' },
     { label: 'Blog y galería', path: 'blog' },
     { label: 'Textos legales', path: 'legal' },
-    { label: 'Voluntarios', path: 'voluntarios' },
   ];
 
   constructor() {
@@ -433,7 +430,7 @@ export class WebLegalTab {
 
 const si = (v: unknown) => (v ? 'Sí' : 'No');
 
-/** Collections configured from the CMS API (Figma «Web · FAQ», «patrocinadores», «SEO», «blog y galería», «voluntarios»). */
+/** Collections configured from the CMS API (Figma «Web · FAQ», «patrocinadores», «SEO», «blog y galería»). */
 export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   faq: [{
     title: 'Preguntas frecuentes', subtitle: 'Las destacadas aparecen en la home', path: '/web/faq', item: 'pregunta', reorder: true, filterBy: 'categoria',
@@ -520,17 +517,6 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       empty: { title: 'Sin álbumes', text: 'Sube las fotos de la competición.' },
     },
   ],
-  voluntarios: [{
-    title: 'Solicitudes de voluntariado', subtitle: 'Llegan desde /voluntarios · los menores necesitan autorización del tutor', path: '/voluntarios', item: 'voluntario', noCreate: true, noDelete: false, filterBy: 'estado',
-    columns: [{ key: 'nombre', label: 'Nombre' }, { key: 'email', label: 'Email', hideMobile: true },
-      { key: 'roles', label: 'Quiere ayudar en', hideMobile: true, value: (r) => ((r['roles'] as string[] | null) ?? []).map((x) => ROLES_VOLUNTARIO[x] ?? x).join(', ') || '—' },
-      { key: 'disponibilidad', label: 'Disponibilidad', hideMobile: true }, { key: 'experiencia', label: 'Experiencia', hideMobile: true },
-      { key: 'esMenor', label: 'Edad', kind: 'badge', value: (r) => (r['esMenor'] ? 'Menor' : 'Adulto'), tone: (r) => (r['esMenor'] ? 'warning' : 'neutral'), hideMobile: true },
-      { key: 'estado', label: 'Estado', kind: 'badge', tone: (r) => (r['estado'] === 'confirmado' ? 'success' : r['estado'] === 'descartado' ? 'neutral' : 'warning') }],
-    fields: [{ clave: 'puesto', etiqueta: 'Puesto', tipo: 'texto', max: 80, ancho: 'mitad' }, { clave: 'estado', etiqueta: 'Estado', tipo: 'select', ancho: 'mitad', opciones: [['pendiente', 'Pendiente'], ['confirmado', 'Confirmado'], ['descartado', 'Descartado']].map(([value, label]) => ({ value, label })) },
-      { clave: 'autorizacionUrl', etiqueta: 'Autorización del tutor (menores)', tipo: 'imagen', ayuda: 'Foto o PDF firmado' }, { clave: 'notas', etiqueta: 'Notas internas', tipo: 'area', max: 1000 }],
-    empty: { title: 'Sin solicitudes', text: 'Cuando alguien se apunte desde /voluntarios aparecerá aquí.' },
-  }],
 };
 
 /** A tab made of one or more collections (route param `coleccion`). */

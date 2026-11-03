@@ -40,6 +40,7 @@ export const NAV: NavGroup[] = [
       { label: 'Sorteo', path: 'sorteo', icon: 'gift', perm: 'sorteo.gestionar' },
       { label: 'Contactos', path: 'contactos', icon: 'users', perm: 'contactos.ver' },
       { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar' },
+      { label: 'Voluntarios', path: 'voluntarios', icon: 'heart', perm: 'web.editar' },
       { label: 'Campañas', path: 'campanas', icon: 'send', perm: 'campanas.enviar' },
       { label: 'Emails y avisos', path: 'emails', icon: 'mail', perm: 'campanas.enviar' },
     ],
