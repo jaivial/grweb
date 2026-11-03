@@ -8,6 +8,7 @@ export function embedVideo(url: string | undefined, host: string, autoplay = fal
   const yt = (id: string) => `https://www.youtube-nocookie.com/embed/${id}${id.includes('?') ? '&' : '?'}rel=0&modestbranding=1${autoplay ? '&autoplay=1&mute=1' : ''}`;
   try {
     const u = new URL(url);
+    if (u.protocol !== 'https:') return null; // the backend accepts https links only
     const h = u.hostname.replace(/^(www|m)\./, '');
     const partes = u.pathname.split('/').filter(Boolean);
     if (h === 'youtube.com' || h === 'youtube-nocookie.com') {
