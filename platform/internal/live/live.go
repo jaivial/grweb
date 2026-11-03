@@ -83,6 +83,7 @@ func (s *Svc) init(a *app.App) {
 func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
 	s.registerMesa()
+	s.registerRetransmision()
 	s.registerResultados()
 	s.registerPublic()
 	return nil

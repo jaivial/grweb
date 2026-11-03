@@ -39,6 +39,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
               <button grButton [icon]="m.estado.pausa ? 'play' : 'pause'" [loading]="guardando() === 'pausa'" (click)="cambiar({ pausa: !m.estado.pausa }, 'pausa')">{{ m.estado.pausa ? 'Reanudar' : 'Pausa técnica' }}</button>
             }
             <a grButton icon="monitor" [routerLink]="['/', comps.current()?.slug, 'directo', 'pantalla']">Pantalla del pabellón</a>
+            <a grButton icon="play" [routerLink]="['/', comps.current()?.slug, 'directo', 'retransmision']">Retransmisión</a>
             @if (puedeOperar()) { <button grButton variant="ghost" icon="settings" (click)="abrirAjustes()" aria-label="Ajustes del directo"></button> }
           </ng-container>
         }
@@ -240,8 +241,8 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
     <!-- Live settings -->
     <bo-drawer [(open)]="ajustesOpen" title="Ajustes del directo">
       <div class="flex flex-col gap-5">
-        <gr-field label="Emisión en directo" hint="Enlace https de YouTube o Twitch; /en-directo lo incrusta."><input grInput [(ngModel)]="aj.streamUrl" placeholder="https://www.youtube.com/live/…" /></gr-field>
-        <gr-field label="Repetición" hint="Se muestra cuando termina la competición."><input grInput [(ngModel)]="aj.replayUrl" placeholder="https://www.youtube.com/watch?v=…" /></gr-field>
+        <a [routerLink]="['/', comps.current()?.slug, 'directo', 'retransmision']" class="flex items-center justify-between gap-3 rounded-md border border-line-subtle p-4 hover:border-line-strong">
+          <span><span class="block text-label-s">Retransmisión de YouTube</span><span class="block text-body-xs text-text-tertiary">{{ aj.streamUrl ? 'Emisión configurada' : 'Sin emisión' }} · se configura en Directo › Retransmisión</span></span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a>
         <div class="flex items-center gap-3"><div class="flex-1"><p class="text-label-s">Publicar cada categoría al terminar</p><p class="text-body-xs text-text-tertiary">En /resultados, con aviso a los atletas y sus seguidores. Las correcciones posteriores se publican a mano.</p></div>
           <bo-toggle [(value)]="aj.publicarAuto" label="Publicar cada categoría al terminar" /></div>
         @if (mesa()?.estado?.fase !== 'finalizado') {

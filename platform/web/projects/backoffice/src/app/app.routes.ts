@@ -113,6 +113,7 @@ export const routes: Routes = [
       { path: 'checkin/escaner', loadComponent: () => import('./pages/checkin/checkin').then((m) => m.EscanerPage), title: 'Escáner · Backoffice GR Cup' },
       { path: 'directo', loadComponent: () => import('./pages/directo/directo').then((m) => m.DirectoPage), title: 'Directo · Backoffice GR Cup' },
       { path: 'directo/pantalla', loadComponent: () => import('./pages/directo/pantalla').then((m) => m.PantallaPage), title: 'Pantalla del pabellón · Backoffice GR Cup' },
+      { path: 'directo/retransmision', loadComponent: () => import('./pages/directo/retransmision').then((m) => m.RetransmisionPage), title: 'Retransmisión · Backoffice GR Cup' },
       { path: 'resultados', loadComponent: () => import('./pages/directo/resultados').then((m) => m.ResultadosPage), title: 'Resultados · Backoffice GR Cup' },
       { path: 'campanas', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.CampanasPage), title: 'Campañas · Backoffice GR Cup' },
       { path: 'campanas/whatsapp', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.WhatsAppPage), title: 'WhatsApp · Backoffice GR Cup' },

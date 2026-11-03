@@ -228,6 +228,22 @@ func resumen(e events.Event) string {
 		b, _ := d["despues"].(map[string]any)
 		res := map[string]string{"valido": "válido", "nulo": "nulo", "renuncia": "renuncia"}
 		return fmt.Sprintf("corrigió el %v.º intento de %s: %s → %s (%s)", d["numero"], strings.ToLower(str(d["movimiento"])), res[str(a["resultado"])], res[str(b["resultado"])], str(d["motivo"]))
+	case "directo.retransmision":
+		a, _ := d["antes"].(map[string]any)
+		b, _ := d["despues"].(map[string]any)
+		switch {
+		case a["visible"] == true && b["visible"] != true:
+			return "ocultó el vídeo de /en-directo"
+		case a["visible"] != true && b["visible"] == true:
+			return "volvió a mostrar el vídeo de /en-directo"
+		case str(a["streamUrl"]) != str(b["streamUrl"]) && str(b["streamUrl"]) == "":
+			return "quitó la emisión de /en-directo (antes: " + str(a["streamUrl"]) + ")"
+		case str(a["streamUrl"]) != str(b["streamUrl"]) && str(a["streamUrl"]) == "":
+			return "puso la emisión de /en-directo: " + str(b["streamUrl"])
+		case str(a["streamUrl"]) != str(b["streamUrl"]):
+			return "cambió la emisión de /en-directo: " + str(b["streamUrl"]) + " (antes: " + str(a["streamUrl"]) + ")"
+		}
+		return "cambió la repetición de /en-directo: " + firstNonEmpty(str(b["replayUrl"]), "la misma emisión")
 	case "directo.pantalla_rotada":
 		return "generó un nuevo enlace para la pantalla del pabellón"
 	case "resultados.publicacion":
@@ -401,4 +417,14 @@ func resumenCanales(d map[string]any) string {
 		out = append(out, fmt.Sprintf("%v fallidos", fall))
 	}
 	return strings.Join(out, " · ")
+}
+
+// firstNonEmpty returns the first non-empty string.
+func firstNonEmpty(v ...string) string {
+	for _, x := range v {
+		if x != "" {
+			return x
+		}
+	}
+	return ""
 }

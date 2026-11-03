@@ -178,7 +178,8 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                 <p class="absolute top-3 right-3 left-36 hidden text-right text-body-xs text-text-secondary [text-shadow:0_1px_8px_rgb(0_0_0/0.9)] md:block">El vídeo empieza en breve · sigue los intentos aquí</p>
               }
             }
-            @if (d.fase === 'en_directo') {
+            <!-- over the poster only: on top of the player they would hide YouTube's controls (volume, since it starts muted) -->
+            @if (d.fase === 'en_directo' && !video()) {
               <span class="absolute top-3 left-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-accent px-2.5 text-label-xs text-white uppercase"><gr-icon name="radio" [size]="12" />En directo</span>
               @if (d.espectadores) { <span class="absolute top-3 right-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-black/60 px-2.5 text-label-xs"><gr-icon name="eye" [size]="12" />{{ d.espectadores.toLocaleString('es-ES') }}</span> }
               @if (d.actual; as a) {
@@ -332,7 +333,9 @@ export class EnDirectoPage {
   protected readonly video = computed(() => {
     const d = this.dir();
     if (!d || !this.browser) return null;
-    const u = embed(d.fase === 'finalizado' ? d.replayUrl : d.fase === 'en_directo' ? d.streamUrl : undefined, location.hostname);
+    // Figma «Live player» (YouTube): the scheduled broadcast before (YouTube shows its waiting room and «Notify me»),
+    // the live muted during, the replay (or the same broadcast) after.
+    const u = embed(d.fase === 'finalizado' ? d.replayUrl || d.streamUrl : d.streamUrl, location.hostname, d.fase === 'en_directo');
     return u ? this.san.bypassSecurityTrustResourceUrl(u) : null;
   });
   /** After the lights, the judged attempt stays on screen for 8 s. */
