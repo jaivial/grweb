@@ -152,6 +152,11 @@ type clubRow struct {
 	AfiliadoAEP   bool       `json:"afiliadoAep" db:"afiliado_aep"`
 	Estado        string     `json:"estado" db:"estado"`
 	ContactoEmail string     `json:"contactoEmail" db:"contacto_email" doc:"Solo si llegó desde el formulario público"`
+	ContactoNom   string     `json:"contactoNombre" db:"contacto_nombre"`
+	Mensaje       string     `json:"mensaje" db:"mensaje"`
+	MotivoRechazo string     `json:"motivoRechazo" db:"motivo_rechazo"`
+	RevisadoAt    *time.Time `json:"revisadoAt,omitempty" db:"revisado_at"`
+	RevisadoPor   string     `json:"revisadoPor" db:"revisado_por"`
 	Consentido    *time.Time `json:"consentimientoAt,omitempty" db:"consentimiento_at"`
 	Orden         int        `json:"orden" db:"orden"`
 	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
@@ -372,7 +377,7 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[clubRow, clubIn]{
 		name: "clubs", path: "/web/clubs", table: "clubs", tag: tagWeb, perm: "web.editar", order: "orden, nombre",
-		cols:     "id, nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep, estado, contacto_email, consentimiento_at, orden, created_at",
+		cols:     "id, nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, motivo_rechazo, revisado_at, revisado_por, consentimiento_at, orden, created_at",
 		validate: validClub,
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *clubIn) error {
 			_, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep, estado, orden)

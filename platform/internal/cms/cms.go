@@ -43,6 +43,7 @@ type Svc struct {
 	comp     *svcclient.Client
 	cache    *cache.Cache
 	mediaDir string
+	webURL   string // public web (links in emails)
 
 	comps *compref.Resolver
 }
@@ -69,6 +70,7 @@ func (s *Svc) init(a *app.App) {
 	s.comps = compref.New(s.comp, a.Log)
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "cms", "")}
 	s.mediaDir = config.Str("MEDIA_DIR", "/data/medios")
+	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
 }
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {
@@ -78,6 +80,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerLegal()
 	s.registerMedios()
 	s.registerPublic()
+	s.registerClubsAdmin()
 	s.registerRGPD()
 	s.registerPublicExtra()
 	return nil

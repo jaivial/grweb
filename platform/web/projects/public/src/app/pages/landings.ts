@@ -278,33 +278,49 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
         </ul>
       }
 
-      <section id="anadir" class="mt-12 scroll-mt-32 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
-        <div class="md:flex md:items-center md:justify-between md:gap-6">
-          <div>
-            <h2 class="text-ui-h4">¿Entrenas powerlifting en un club?</h2>
-            <p class="mt-1 text-body-s text-text-tertiary">Añádelo gratis al directorio: nombre, ciudad, web y si está afiliado a la AEP. Lo revisamos antes de publicarlo.</p>
+      <!-- Figma 32 «Solicitud de club»: always visible; the backoffice reviews it (Clubs › Solicitudes) -->
+      <section id="anadir" class="mt-12 scroll-mt-32 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-8" aria-labelledby="anadir-titulo">
+        @if (sent()) {
+          <div class="mx-auto flex max-w-[520px] flex-col items-center gap-3 rounded-xl border border-success/50 bg-success/6 px-6 py-8 text-center" role="status">
+            <span class="flex size-11 items-center justify-center rounded-full bg-success/14 text-success"><gr-icon name="circle-check" [size]="22" /></span>
+            <h2 id="anadir-titulo" class="text-display-xs md:text-display-s">¡Solicitud enviada!</h2>
+            <p class="text-body-s text-text-secondary">Hemos recibido «{{ enviado.nombre }}». La revisamos en 2–3 días y te escribimos a {{ enviado.email }} cuando esté publicada.</p>
           </div>
-          @if (!form()) { <button grButton variant="primary" size="l" class="mt-4 w-full shrink-0 md:mt-0 md:w-auto" (click)="openForm()">Añadir mi club</button> }
-        </div>
-        @if (form()) {
-          @if (sent()) {
-            <gr-alert class="mt-6" tone="success" title="¡Gracias!">Hemos recibido «{{ f.nombre }}». Lo revisaremos y te escribiremos a {{ f.email }} si necesitamos algo más.</gr-alert>
-          } @else {
-            <form class="mt-6 grid gap-5 md:grid-cols-2" (ngSubmit)="send()" novalidate>
-              <gr-field label="Nombre del club" for="c-nombre"><input grInput id="c-nombre" name="nombre" required [(ngModel)]="f.nombre" /></gr-field>
-              <gr-field label="Ciudad" for="c-ciudad"><input grInput id="c-ciudad" name="ciudad" autocomplete="address-level2" required [(ngModel)]="f.ciudad" /></gr-field>
-              <gr-field label="Provincia" for="c-prov">
-                <gr-select id="c-prov" name="provincia" [(ngModel)]="f.provincia">@for (p of provincias.slice(1); track p) { <option [value]="p">{{ p }}</option> }<option value="Otra">Otra</option></gr-select>
+        } @else {
+          <div class="grid gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:gap-12">
+            <div class="flex flex-col gap-4">
+              <p class="text-label-xs text-text-tertiary uppercase">Añade tu club</p>
+              <h2 id="anadir-titulo" class="text-display-s md:text-display-m">¿Entrenas en un <span class="text-accent-text">club</span>?</h2>
+              <p class="text-body-m text-text-secondary">Envía la solicitud y lo añadimos al directorio de clubs de powerlifting de la Comunitat Valenciana, Murcia y Baleares.</p>
+              <ul class="flex flex-col gap-2.5">
+                @for (t of ventajas; track t) { <li class="flex items-start gap-2.5 text-body-s text-text-secondary"><gr-icon name="check" [size]="16" class="mt-0.5 shrink-0 text-accent-text" />{{ t }}</li> }
+              </ul>
+            </div>
+            <form class="grid gap-x-4 gap-y-5 md:grid-cols-2" (ngSubmit)="send()" novalidate>
+              <gr-field label="Nombre del club *" for="c-nombre" [error]="err('nombre')"><input grInput id="c-nombre" name="nombre" required maxlength="120" placeholder="p. ej. Fuerza Isabel" [(ngModel)]="f.nombre" [invalid]="!!err('nombre')" /></gr-field>
+              <gr-field label="Ciudad *" for="c-ciudad" [error]="err('ciudad')"><input grInput id="c-ciudad" name="ciudad" autocomplete="address-level2" required maxlength="80" placeholder="p. ej. Chiva" [(ngModel)]="f.ciudad" [invalid]="!!err('ciudad')" /></gr-field>
+              <gr-field label="Provincia *" for="c-prov" [error]="err('provincia')">
+                <gr-select id="c-prov" name="provincia" [(ngModel)]="f.provincia" [invalido]="!!err('provincia')"><option value="" hidden>Elige la provincia</option>@for (p of provincias.slice(1); track p) { <option [value]="p">{{ p }}</option> }<option value="Otra">Otra</option></gr-select>
               </gr-field>
-              <gr-field label="Web" for="c-web" [optional]="true" hint="https://…"><input grInput id="c-web" name="web" type="url" inputmode="url" [(ngModel)]="f.web" /></gr-field>
-              <gr-field label="Instagram" for="c-ig" [optional]="true" hint="https://instagram.com/…"><input grInput id="c-ig" name="instagram" type="url" inputmode="url" [(ngModel)]="f.instagram" /></gr-field>
-              <gr-field label="Email de contacto" for="c-email" hint="Solo para verificar el club; no se publica"><input grInput id="c-email" name="email" type="email" autocomplete="email" required [(ngModel)]="f.email" /></gr-field>
-              <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary md:col-span-2"><input type="checkbox" name="aep" [(ngModel)]="f.afiliadoAep" class="mt-1 size-5 accent-[#C42B3E]" />El club está afiliado a la AEP</label>
-              <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary md:col-span-2"><input type="checkbox" name="priv" [(ngModel)]="f.acepta" class="mt-1 size-5 accent-[#C42B3E]" />He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de privacidad</a></label>
+              <gr-field label="¿Afiliado a la AEP?" for="c-aep">
+                <gr-select id="c-aep" name="aep" [(ngModel)]="f.aep"><option value="" hidden>Elige una opción</option><option value="si">Sí</option><option value="no">No</option></gr-select>
+              </gr-field>
+              <gr-field label="Web" for="c-web" [error]="err('web')"><input grInput id="c-web" name="web" type="url" inputmode="url" maxlength="300" placeholder="https://…" [(ngModel)]="f.web" [invalid]="!!err('web')" /></gr-field>
+              <gr-field label="Instagram" for="c-ig" [error]="err('instagram')"><input grInput id="c-ig" name="instagram" maxlength="300" placeholder="@tuclub" [(ngModel)]="f.instagram" [invalid]="!!err('instagram')" /></gr-field>
+              <gr-field label="Persona de contacto *" for="c-contacto" [error]="err('contacto')"><input grInput id="c-contacto" name="contacto" autocomplete="name" required maxlength="120" placeholder="Nombre y apellidos" [(ngModel)]="f.contacto" [invalid]="!!err('contacto')" /></gr-field>
+              <gr-field label="Email de contacto *" for="c-email" [error]="err('email')"><input grInput id="c-email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="email@club.com" [(ngModel)]="f.email" [invalid]="!!err('email')" /></gr-field>
+              <gr-field label="Mensaje" for="c-mensaje" [optional]="true" class="md:col-span-2"><textarea grInput id="c-mensaje" name="mensaje" rows="4" maxlength="1000" placeholder="Horarios, especialidad, si buscáis atletas…" [(ngModel)]="f.mensaje"></textarea></gr-field>
+              <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary md:col-span-2">
+                <input type="checkbox" name="priv" [(ngModel)]="f.acepta" class="mt-1 size-5 shrink-0 accent-[#C42B3E]" [attr.aria-invalid]="!!err('acepta') || null" />
+                <span>He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de privacidad</a> *</span>
+              </label>
               @if (error()) { <gr-alert class="md:col-span-2" tone="danger" title="No se pudo enviar">{{ error() }}</gr-alert> }
-              <div class="md:col-span-2"><button grButton variant="primary" size="l" type="submit" [loading]="busy()">Enviar club</button></div>
+              <div class="flex flex-col gap-3 md:col-span-2 md:flex-row md:items-center md:gap-4">
+                <button grButton variant="primary" size="l" type="submit" [loading]="busy()" class="w-full md:w-auto">Enviar solicitud</button>
+                <p class="text-body-xs text-text-tertiary">Solo usamos tu email para responderte sobre la solicitud.</p>
+              </div>
             </form>
-          }
+          </div>
         }
       </section>
 
@@ -332,11 +348,14 @@ export class ClubsPage {
     const q = this.q().trim().toLowerCase();
     return (this.clubs() ?? []).filter((c) => (this.prov() === 'Todas' || c.provincia === this.prov()) && (!q || `${c.nombre} ${c.ciudad} ${c.provincia}`.toLowerCase().includes(q)));
   });
-  protected readonly form = signal(false);
   protected readonly busy = signal(false);
   protected readonly sent = signal(false);
   protected readonly error = signal('');
-  protected f = { nombre: '', ciudad: '', provincia: 'Valencia', web: '', instagram: '', email: '', afiliadoAep: false, acepta: false };
+  protected f = { nombre: '', ciudad: '', provincia: '', aep: '', web: '', instagram: '', contacto: '', email: '', mensaje: '', acepta: false };
+  protected enviado = { nombre: '', email: '' };
+  protected readonly errores = signal<Record<string, string>>({});
+  protected err = (k: string) => this.errores()[k] ?? '';
+  protected readonly ventajas = ['La revisamos en 2–3 días', 'Te avisamos por email cuando esté publicada', 'Gratis: nombre, ciudad, web, redes y si está afiliado a la AEP'];
   protected tags = (c: Club) => c.etiquetas.split(',').map((t) => t.trim()).filter(Boolean);
   protected initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
 
@@ -353,20 +372,35 @@ export class ClubsPage {
   }
 
   protected openForm(): void {
-    this.form.set(true);
-    queueMicrotask(() => document.getElementById('anadir')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    document.getElementById('anadir')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => document.getElementById('c-nombre')?.focus({ preventScroll: true }), 400);
   }
 
   protected async send(): Promise<void> {
     this.error.set('');
     const f = this.f;
-    if (f.nombre.trim().length < 2 || f.ciudad.trim().length < 2 || !f.email.includes('@')) return this.error.set('Escribe el nombre del club, la ciudad y un email válido.');
-    if ((f.web && !f.web.startsWith('https://')) || (f.instagram && !f.instagram.startsWith('https://'))) return this.error.set('La web y el Instagram deben empezar por https://');
-    if (!f.acepta) return this.error.set('Tienes que aceptar la política de privacidad para enviar el club.');
+    const e: Record<string, string> = {};
+    if (f.nombre.trim().length < 2) e['nombre'] = 'Escribe el nombre del club';
+    if (f.ciudad.trim().length < 2) e['ciudad'] = 'Escribe la ciudad';
+    if (!f.provincia) e['provincia'] = 'Elige la provincia';
+    if (f.web.trim() && !/^https:\/\/\S+\.\S+/.test(f.web.trim())) e['web'] = 'Debe empezar por https://';
+    if (f.instagram.trim() && !/^(@?[A-Za-z0-9._]{1,30}|https:\/\/(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?)$/.test(f.instagram.trim())) e['instagram'] = 'Escribe @usuario o el enlace de Instagram';
+    if (f.contacto.trim().length < 2) e['contacto'] = 'Escribe tu nombre';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) e['email'] = 'Introduce un email válido';
+    if (!f.acepta) e['acepta'] = 'Acepta la política de privacidad';
+    this.errores.set(e);
+    if (Object.keys(e).length) {
+      this.error.set(e['acepta'] && Object.keys(e).length === 1 ? 'Tienes que aceptar la política de privacidad para enviar la solicitud.' : 'Revisa los campos marcados.');
+      document.getElementById(({ nombre: 'c-nombre', ciudad: 'c-ciudad', provincia: 'c-prov', web: 'c-web', instagram: 'c-ig', contacto: 'c-contacto', email: 'c-email' } as Record<string, string>)[Object.keys(e)[0]] ?? '')?.focus();
+      return;
+    }
     this.busy.set(true);
     try {
-      await this.cms.proponerClub({ nombre: f.nombre, ciudad: f.ciudad, provincia: f.provincia, web: f.web, instagram: f.instagram, email: f.email, afiliadoAep: f.afiliadoAep, aceptaPrivacidad: f.acepta });
+      await this.cms.proponerClub({ nombre: f.nombre.trim(), ciudad: f.ciudad.trim(), provincia: f.provincia, web: f.web.trim(), instagram: f.instagram.trim(), email: f.email.trim(),
+        contactoNombre: f.contacto.trim(), mensaje: f.mensaje.trim(), afiliadoAep: f.aep === 'si', aceptaPrivacidad: f.acepta });
+      this.enviado = { nombre: f.nombre.trim(), email: f.email.trim() };
       this.sent.set(true);
+      document.getElementById('anadir')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
       this.error.set((e as { error?: { detail?: string } }).error?.detail ?? 'Inténtalo de nuevo en unos minutos.');
     } finally {
