@@ -47,8 +47,7 @@ const MOVIMIENTOS = [
           <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
           <ol class="flex flex-col gap-1 text-body-s">
             @for (a of anclas; track a.id; let i = $index) {
-              <li><a routerLink="." [fragment]="a.id" (click)="activo.set(a.id)" class="relative flex rounded-sm py-2 pr-2 pl-[18px]" [class]="activo() === a.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === a.id ? 'location' : null">
-                <span class="absolute top-1/2 left-2 h-4 w-0.5 -translate-y-1/2 rounded-full" [class.bg-accent]="activo() === a.id"></span>{{ i + 1 }}. {{ a.toc }}</a></li>
+              <li><a routerLink="." [fragment]="a.id" (click)="activo.set(a.id)" class="relative flex rounded-sm py-2 px-2.5" [class]="activo() === a.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === a.id ? 'location' : null">{{ i + 1 }}. {{ a.toc }}</a></li>
             }
           </ol>
         </nav>
@@ -56,7 +55,7 @@ const MOVIMIENTOS = [
           <gr-hechos id="resumen" class="scroll-mt-36 md:scroll-mt-28" [items]="resumen" />
 
           <section id="niveles" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="01 · Niveles AEP" titulo="AEP-1, AEP-2 *y AEP-3*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Niveles AEP" titulo="AEP-1, AEP-2 *y AEP-3*" [centro]="false" tam="m" />
             <div class="grid gap-3 sm:grid-cols-2">
               @for (n of niveles; track n.t) {
                 <div class="flex flex-col gap-2 rounded-lg border bg-bg-card px-4 py-5" [class]="n.nuestro ? 'border-accent' : 'border-line-subtle'">
@@ -68,7 +67,7 @@ const MOVIMIENTOS = [
           </section>
 
           <section id="intentos" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="02 · Intentos y jueces" titulo="Tres intentos, *tres jueces*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Intentos y jueces" titulo="Tres intentos, *tres jueces*" [centro]="false" tam="m" />
             <p class="text-body-m text-text-secondary md:text-body-l">Cada atleta hace 3 intentos por movimiento. Cada nuevo intento debe ser de al menos 2,5 kg más que el anterior y no se puede bajar el peso. Cuenta el mejor intento válido de cada movimiento.</p>
             <ul class="grid gap-3 sm:grid-cols-3">
               @for (x of luces; track x.t) {
@@ -81,7 +80,7 @@ const MOVIMIENTOS = [
           </section>
 
           <section id="movimientos" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="03 · Los tres movimientos" titulo="Ejecución y *voces del juez*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Los tres movimientos" titulo="Ejecución y *voces del juez*" [centro]="false" tam="m" />
             @for (m of movimientos; track m.t) {
               <div class="flex flex-col gap-5 rounded-[20px] border border-line-subtle bg-bg-card p-5 sm:flex-row sm:gap-6">
                 <img [src]="m.foto" [alt]="m.t" class="aspect-[350/200] w-full rounded-md border border-white/8 object-cover sm:aspect-[200/260] sm:w-[200px] sm:shrink-0" loading="lazy" />
@@ -95,7 +94,7 @@ const MOVIMIENTOS = [
           </section>
 
           <section id="equipamiento" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="04 · Equipamiento" titulo="Modalidad *raw (clásica)*" texto="Sin equipamiento soportivo. Todo el material debe estar homologado por la IPF." [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Equipamiento" titulo="Modalidad *raw (clásica)*" texto="Sin equipamiento soportivo. Todo el material debe estar homologado por la IPF." [centro]="false" tam="m" />
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <p class="text-label-s text-success">Permitido</p>

@@ -8,7 +8,7 @@ import { CATEGORIAS_IPF } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
-import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, textoTitulo } from './bloques';
+import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, textoTitulo, sinNumero } from './bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -412,7 +412,7 @@ export class SecAfiliaciones {
       <img [src]="t('imagen') || (p && r?.premioImagen) || 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000090.webp'" [alt]="r?.premio || 'Cinturón SBD'"
         class="relative aspect-[350/230] w-full rounded-xl border border-white/8 object-cover lg:order-last lg:aspect-[488/380] lg:w-[488px] lg:shrink-0" [attr.loading]="p ? null : 'lazy'" [attr.fetchpriority]="p ? 'high' : null" />
       <div class="relative flex w-full flex-col items-center gap-4 text-center lg:max-w-[520px] lg:items-start lg:text-left">
-        <gr-eyebrow [texto]="t('eyebrow') || 'Sorteo benéfico'" tono="claro" />
+        <gr-eyebrow [texto]="sinNumero(t('eyebrow')) || 'Sorteo'" tono="claro" />
         @if (p) { <h1 class="text-display-l [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">Sorteo</h1> }
         @else { <h2 class="text-display-l [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">{{ t('titulo') || 'Sorteo' }}</h2> }
         <p class="text-display-xs md:text-display-m">{{ t('subtitulo') || 'Entra en el sorteo de un ' + (r?.premio || 'cinturón SBD') }}</p>
@@ -438,6 +438,7 @@ export class SecAfiliaciones {
   `,
 })
 export class SecSorteo {
+  protected readonly sinNumero = sinNumero;
   readonly s = input<Seccion | undefined>();
   readonly sorteo = input<SorteoHome | null>(null);
   /** On /sorteo itself: the page's h1, «Compra ya» to the form and «Ver normas» to the rules (Figma 07 «Section / Sorteo»). */

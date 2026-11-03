@@ -58,7 +58,7 @@ const deLocal = (v: string) => (v ? new Date(v).toISOString() : null);
                       <gr-field label="Nombre del premio"><input grInput [(ngModel)]="cfg.premio" maxlength="160" [disabled]="!puede()" /></gr-field>
                       <div class="grid gap-3 sm:grid-cols-2">
                         <gr-field label="Valor aproximado (€)"><input grInput type="number" min="0" [ngModel]="cfg.premioValor / 100" (ngModelChange)="cfg.premioValor = toCents($event)" [disabled]="!puede()" /></gr-field>
-                        <gr-field label="Destino de la recaudación" [error]="!cfg.destino ? 'Obligatorio antes de abrir la venta' : ''"><input grInput [(ngModel)]="cfg.destino" maxlength="200" [disabled]="!puede()" /></gr-field>
+                        <gr-field label="Destino de la recaudación (opcional)" hint="Uso interno: no se muestra en la web"><input grInput [(ngModel)]="cfg.destino" maxlength="200" [disabled]="!puede()" /></gr-field>
                       </div>
                       <gr-field label="Descripción"><textarea grInput rows="2" [(ngModel)]="cfg.premioDetalle" maxlength="600" [disabled]="!puede()"></textarea></gr-field>
                     </div>

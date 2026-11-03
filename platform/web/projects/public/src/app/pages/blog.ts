@@ -217,8 +217,7 @@ export class BlogPage {
                   <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
                   <ol class="flex flex-col gap-1 text-body-s">
                     @for (h of toc(); track h.id; let i = $index) {
-                      <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-2 pr-2 pl-[18px]" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">
-                        <span class="absolute top-1/2 left-2 h-4 w-0.5 -translate-y-1/2 rounded-full" [class]="activo() === h.id ? 'bg-accent' : ''"></span>{{ i + 1 }}. {{ h.text }}</a></li>
+                      <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-2 px-2.5" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">{{ i + 1 }}. {{ h.text }}</a></li>
                     }
                   </ol>
                 </nav>

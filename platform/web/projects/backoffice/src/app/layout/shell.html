@@ -48,7 +48,6 @@
                 [attr.title]="collapsed() ? it.label : null"
                 class="relative flex h-10 items-center gap-3 rounded-sm px-3 text-label-s transition-colors"
                 [class]="rla.isActive ? 'bg-accent-deep/40 text-text-primary' : 'text-text-secondary hover:bg-bg-card hover:text-text-primary'">
-                @if (rla.isActive) { <span class="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r-2xs bg-accent"></span> }
                 <gr-icon [name]="it.icon" [size]="18" [class]="rla.isActive ? 'text-accent-text' : ''" />
                 @if (!collapsed()) { <span class="truncate">{{ it.label }}</span> }
               </a>

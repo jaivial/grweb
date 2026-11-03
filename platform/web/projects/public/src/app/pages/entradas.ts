@@ -143,7 +143,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
         </div>
       </section>
 
-      <div class="relative mx-auto grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-16 px-5 pb-18 md:px-8 md:pb-24 lg:grid-cols-[minmax(0,616px)_minmax(0,520px)] lg:justify-between lg:gap-10 xl:px-0">
+      <div class="relative mx-auto mt-12 grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-16 px-5 pb-18 md:mt-20 md:px-8 md:pb-24 lg:grid-cols-[minmax(0,616px)_minmax(0,520px)] lg:justify-between lg:gap-10 xl:px-0">
         <!-- the form: right column (sticky) on desktop, right after the hero on phones -->
         <aside id="reservar" #reservarEl class="scroll-mt-24 lg:col-start-2 lg:row-start-1">
           <div class="lg:sticky lg:top-28">
@@ -229,7 +229,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                       <div class="flex items-start gap-4">
                         @if (so.premioImagen) { <img [src]="so.premioImagen" alt="" class="size-16 shrink-0 rounded-md object-cover" loading="lazy" /> }
                         <div class="flex flex-col items-start gap-1">
-                          <p class="text-label-m">Súmate al sorteo benéfico</p>
+                          <p class="text-label-m">Súmate al sorteo</p>
                           <p class="text-body-xs text-text-tertiary">{{ so.premio }}{{ so.premioDetalle ? ' · ' + so.premioDetalle : '' }}</p>
                           <span class="mt-1 inline-flex h-6 items-center rounded-full border border-accent/50 px-2.5 text-label-xs text-accent-text uppercase">{{ euros(so.precio) }} por boleto</span>
                         </div>

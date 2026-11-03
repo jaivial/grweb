@@ -30,7 +30,7 @@ import { Community, Related, type RelatedLink } from './landings';
         <div class="flex flex-col gap-12 md:gap-20">
           <!-- 01 · Dirección y mapa -->
           <section id="mapa" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="01 · Ubicación" titulo="Dirección y *mapa*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Ubicación" titulo="Dirección y *mapa*" [centro]="false" tam="m" />
             <div class="grid gap-6 lg:grid-cols-2">
               <article class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
                 <div class="relative aspect-[348/220] md:aspect-auto md:h-[300px]">
@@ -64,7 +64,7 @@ import { Community, Related, type RelatedLink } from './landings';
           <!-- 02 · Cómo llegar -->
           @if (transporte().length) {
             <section id="transporte" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-              <gr-cabecera eyebrow="02 · Transporte" titulo="Cómo *llegar*" [centro]="false" tam="m" />
+              <gr-cabecera eyebrow="Transporte" titulo="Cómo *llegar*" [centro]="false" tam="m" />
               <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @for (t of transporte(); track $index) {
                   <article class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
@@ -82,7 +82,7 @@ import { Community, Related, type RelatedLink } from './landings';
 
           <!-- 03 · Aparcamiento y accesibilidad -->
           <section id="aparcamiento" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="03 · Información práctica" titulo="Aparcamiento *y accesibilidad*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Información práctica" titulo="Aparcamiento *y accesibilidad*" [centro]="false" tam="m" />
             <div class="grid gap-4 lg:grid-cols-2">
               @for (t of practica(); track $index) {
                 <article class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
@@ -100,7 +100,7 @@ import { Community, Related, type RelatedLink } from './landings';
 
           <!-- 04 · Fotos del pabellón -->
           <section id="fotos" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="04 · La sede" titulo="Fotos del *pabellón*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="La sede" titulo="Fotos del *pabellón*" [centro]="false" tam="m" />
             <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
               @for (f of fotos(); track f.imagen; let i = $index) {
                 <li class="relative aspect-[300/220] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg border border-white/8 md:aspect-[288/190] md:w-auto">
@@ -118,9 +118,9 @@ import { Community, Related, type RelatedLink } from './landings';
 
           <!-- 05 · Dónde dormir y comer -->
           <section id="alojamiento" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-            <gr-cabecera eyebrow="05 · Alojamiento" titulo="Dónde *dormir y comer*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Alojamiento" titulo="Dónde *dormir y comer*" [centro]="false" tam="m" />
             <div class="relative flex gap-3 overflow-hidden rounded-lg bg-success/8 p-4">
-              <span class="absolute top-3.5 bottom-3.5 left-0 w-[3px] rounded-full bg-success" aria-hidden="true"></span>
+              
               <gr-icon name="circle-check" [size]="20" class="ml-2 shrink-0 text-success" />
               <div class="flex flex-col gap-1"><p class="text-label-s text-success">Consejo</p>
                 <p class="text-body-m text-text-secondary">Si vienes de fuera, alójate en Valencia o en la Ribera Baixa ({{ c.sede.ciudad }}, Benifaió, Silla). Publicaremos aquí los acuerdos con alojamientos cercanos.</p></div>

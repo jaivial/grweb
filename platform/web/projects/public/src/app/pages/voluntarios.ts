@@ -36,7 +36,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
       <div class="flex flex-col gap-16 md:gap-20">
         <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)] lg:gap-6">
           <section class="flex flex-col gap-5 md:gap-6">
-            <gr-cabecera eyebrow="01 · Elige tu rol" titulo="¿Cómo quieres *ayudar?*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Elige tu rol" titulo="¿Cómo quieres *ayudar?*" [centro]="false" tam="m" />
             <ul class="flex flex-col gap-3" role="group" aria-label="Roles de voluntariado">
               @for (r of roles; track r.id) {
                 <li>

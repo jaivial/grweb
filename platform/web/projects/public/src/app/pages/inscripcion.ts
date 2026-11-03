@@ -106,7 +106,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
               <article class="flex flex-col items-start gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="ticket" [size]="20" /></span>
                 <h2 class="text-ui-h5">¿Vienes a animar?</h2>
-                <p class="text-body-s text-text-tertiary">La entrada es gratuita con reserva. Te llega un QR por email{{ sorteo() ? ' y puedes sumarte al sorteo benéfico' : '' }}.</p>
+                <p class="text-body-s text-text-tertiary">La entrada es gratuita con reserva. Te llega un QR por email{{ sorteo() ? ' y puedes sumarte al sorteo' : '' }}.</p>
                 <a grButton variant="glass" href="/entradas" iconRight="arrow-right" class="mt-auto">Reservar entrada</a>
               </article>
             }

@@ -29,12 +29,13 @@ export interface RelatedLink {
   host: { class: 'block' },
   template: `
     <h2 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2>
-    <ul class="mt-5 grid gap-3 md:grid-cols-3">
+    <!-- every card the same size: equal columns, one fixed height, one line per text -->
+    <ul class="mt-5 grid auto-rows-fr gap-3 md:grid-cols-3 md:gap-4">
       @for (l of items(); track l.ruta; let i = $index) {
-        <li>
-          <a [href]="l.ruta" class="flex min-h-16 items-center gap-4 rounded-md border border-line-subtle bg-bg-card px-4 py-3 transition-colors hover:border-line-strong">
-            <span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-display-2xs text-accent-text">{{ (i + 1).toString().padStart(2, '0') }}</span>
-            <span class="min-w-0 flex-1"><span class="block text-label-m">{{ l.titulo }}</span><span class="block text-body-xs text-text-tertiary">{{ l.texto }}</span></span>
+        <li class="min-w-0">
+          <a [href]="l.ruta" [attr.title]="l.titulo + ' · ' + l.texto" class="flex h-[84px] items-center gap-4 rounded-lg border border-line-subtle bg-bg-card px-4 transition-colors hover:border-line-strong">
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/12 text-display-2xs text-accent-text">{{ (i + 1).toString().padStart(2, '0') }}</span>
+            <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ l.titulo }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ l.texto }}</span></span>
             <gr-icon name="arrow-right" [size]="16" class="text-text-tertiary" />
           </a>
         </li>
@@ -56,7 +57,7 @@ export class Related {
   template: `
     <section class="relative overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-8 md:p-10">
       <div>
-        <p class="flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>{{ en() ? 'Community' : 'Comunidad' }}</p>
+        <p class="flex items-center gap-3 text-mono-xs text-text-tertiary">{{ en() ? 'Community' : 'Comunidad' }}</p>
         <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h2>
         <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, registration, raffle and results first on Instagram.' : 'Fechas, inscripciones, sorteo y resultados primero en Instagram.' }}</p>
       </div>
@@ -399,7 +400,7 @@ export class ClubsPage {
             @if (l === undefined) {
               <gr-skeleton class="mt-6 h-40 rounded-lg" />
             } @else {
-              @if (str(h, 'eyebrow')) { <p class="mt-6 flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>{{ str(h, 'eyebrow') }}</p> }
+              @if (str(h, 'eyebrow')) { <p class="mt-6 flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">{{ str(h, 'eyebrow') }}</p> }
               <h1 class="mt-3 text-display-m md:text-display-xl">{{ str(h, 'titulo') || 'GRStrength Cup' }} <span class="text-accent-text">{{ str(h, 'tituloAcento') }}</span></h1>
               <p class="mt-4 max-w-xl text-body-m text-text-secondary md:text-body-l">{{ str(h, 'texto') }}</p>
               <ul class="mt-6 grid gap-3 sm:grid-cols-3">

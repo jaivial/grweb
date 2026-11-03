@@ -15,7 +15,7 @@ import { applySeo } from './content';
 
 interface Publico {
   estado: 'en_venta' | 'proximamente' | 'cerrada' | 'agotada' | 'bloqueada' | 'sorteado'; motivo?: string; premio: string; premioDetalle: string; premioImagen: string; premioValor: number;
-  destino: string; precio: number; maxPorPersona: number; presets: number[]; vendidos: number; totalMax?: number; ventaHasta?: string; fechaSorteo?: string; pasarela: 'stripe' | 'simulado' | 'ninguna';
+  precio: number; maxPorPersona: number; presets: number[]; vendidos: number; totalMax?: number; ventaHasta?: string; fechaSorteo?: string; pasarela: 'stripe' | 'simulado' | 'ninguna';
   ganador?: { numero: string; nombre: string; at: string };
   verificacion?: { semillaHash: string; hashLista: string; total: number; semilla?: string; indice?: number; estado: string };
 }
@@ -35,7 +35,7 @@ const cuando = (iso?: string) => (iso ? `Se hace en directo el ${fechaLarga(iso)
   host: { class: 'flex flex-col items-center gap-6 text-center md:gap-10' },
   template: `
     <div class="flex flex-col items-center gap-4">
-      @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>{{ eyebrow() }}</p> }
+      @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">{{ eyebrow() }}</p> }
       <h2 class="text-display-s [text-shadow:0_4px_24px_rgb(0_0_0/0.6)] md:text-display-l">{{ titulo() }}@if (acento()) { {{ ' ' }}<span class="text-accent-text">{{ acento() }}</span> }</h2>
       @if (!eyebrow()) { <span class="h-0.5 w-18 bg-[linear-gradient(90deg,transparent,#c42b3e,transparent)] md:w-24" aria-hidden="true"></span> }
     </div>
@@ -121,18 +121,6 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
               <span class="flex size-16 items-center justify-center rounded-full bg-[radial-gradient(circle,rgb(196_43_62/0.25),transparent_70%)] text-accent-text"><gr-icon name="trophy" [size]="28" /></span>
               <p class="mt-1 text-display-xs">Ganador pendiente</p>
               <p class="text-body-s text-text-tertiary">{{ cuando(s.fechaSorteo) }} Publicaremos aquí el boleto ganador.</p>
-            }
-            @if (s.verificacion; as v) {
-              <details class="mt-2 w-full rounded-md border border-line-subtle bg-bg-base/40 p-4 text-left text-body-xs text-text-secondary">
-                <summary class="cursor-pointer text-label-s text-text-primary">Comprueba que el sorteo es limpio</summary>
-                <p class="mt-3">Antes de sortear se congeló la lista de {{ n(v.total) }} boletos (<a [href]="lista" class="text-accent-text underline">descargar lista</a>) y una semilla secreta, publicando sus huellas:</p>
-                <p class="mt-2 font-mono break-all">lista · sha256 {{ v.hashLista }}</p>
-                <p class="font-mono break-all">semilla · sha256 {{ v.semillaHash }}</p>
-                @if (v.semilla) {
-                  <p class="mt-2">Semilla revelada: <span class="font-mono break-all">{{ v.semilla }}</span></p>
-                  <p class="mt-2">Boleto ganador = posición HMAC-SHA256(semilla, huella de la lista) mod {{ v.total }} = {{ v.indice }} de la lista ordenada (empezando en 0).</p>
-                } @else { <p class="mt-2">La semilla se revela al confirmar el ganador: cualquiera podrá recalcular el resultado.</p> }
-              </details>
             }
           </div>
           @if (s.estado === 'en_venta') {
@@ -249,7 +237,7 @@ export class SorteoPage {
   protected readonly estadoTitulo: Record<string, string> = { proximamente: 'La venta abrirá pronto', cerrada: 'La venta ha terminado', agotada: 'Boletos agotados', bloqueada: 'Venta en preparación', sorteado: 'El sorteo ya se hizo' };
   protected readonly textoHero = computed(() => {
     const s = this.data();
-    return s ? `Compra hasta ${s.maxPorPersona} boletos para tener más oportunidades de ganar. Lo recaudado va a ${s.destino || 'una causa benéfica local'}.` : '';
+    return s ? `Compra hasta ${s.maxPorPersona} boletos para tener más oportunidades de ganar. ` : '';
   });
   protected readonly pasos = computed<{ t: string; d: string; i: GrIconName }[]>(() => {
     const s = this.data();
@@ -270,7 +258,7 @@ export class SorteoPage {
       { t: 'Un ganador', d: 'Un único premio: ' + (s.premio || 'por confirmar') + '.', i: 'trophy' },
       { t: 'Pago seguro', d: 'Con tarjeta a través de la pasarela; nunca guardamos tus datos de pago.', i: 'lock' },
       { t: 'Selección aleatoria y verificable', d: 'Lista y semilla publicadas antes de sortear.', i: 'shield' },
-      { t: 'Solo mayores de 18', d: 'Lo recaudado va a ' + (s.destino || 'una causa benéfica local') + '.', i: 'gift' },
+      { t: 'Solo mayores de 18', d: 'Para participar tienes que tener 18 años o más.', i: 'gift' },
     ];
   });
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
@@ -291,7 +279,7 @@ export class SorteoPage {
         }
       }
       const s = this.data();
-      await applySeo(cms, seo, '/sorteo', 'Sorteo benéfico · GR Strength Cup', s ? `Participa en el sorteo de un ${s.premio} por ${euros(s.precio)} el boleto. Lo recaudado va a ${s.destino || 'una causa benéfica'}. Sorteo en directo y verificable.` : 'Sorteo benéfico de la GR Strength Cup.');
+      await applySeo(cms, seo, '/sorteo', 'Sorteo · GR Strength Cup', s ? `Participa en el sorteo de un ${s.premio} por ${euros(s.precio)} el boleto. Sorteo en directo.` : 'Sorteo de la GR Strength Cup.');
     });
     if (this.browser) {
       const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
@@ -419,7 +407,7 @@ export class SorteoConfirmacionPage {
   });
   protected get redes() {
     const u = encodeURIComponent(this.enlace());
-    const t = encodeURIComponent('Ya participo en el sorteo benéfico de la GR Strength Cup. ¡Apúntate tú también!');
+    const t = encodeURIComponent('Ya participo en el sorteo de la GR Strength Cup. ¡Apúntate tú también!');
     return [
       { n: 'X', url: `https://x.com/intent/post?text=${t}&url=${u}` },
       { n: 'Facebook', url: `https://www.facebook.com/sharer/sharer.php?u=${u}` },

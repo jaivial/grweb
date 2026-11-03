@@ -35,7 +35,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
         <!-- 01 · Tabla -->
         <section id="tabla" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="01 · Tabla oficial" titulo="Totales mínimos *por categoría*" texto="Total = sentadilla + press de banca + peso muerto, en kg. JUN = júnior · ABS = absoluto · M1 = máster 1." [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Tabla oficial" titulo="Totales mínimos *por categoría*" texto="Total = sentadilla + press de banca + peso muerto, en kg. JUN = júnior · ABS = absoluto · M1 = máster 1." [centro]="false" tam="m" />
           <!-- mobile: sex tabs and one division at a time -->
           <div class="flex flex-col gap-3 md:hidden">
             <div class="grid grid-cols-2 gap-1 rounded-md border border-line-subtle p-1" role="tablist" aria-label="Sexo">
@@ -77,7 +77,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
         <!-- 02 · ¿Tienes la marca? -->
         <section id="comprobar" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="02 · Herramienta" titulo="¿Tienes *la marca?*" [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Herramienta" titulo="¿Tienes *la marca?*" [centro]="false" tam="m" />
           <div class="flex w-full flex-col gap-4 rounded-xl border border-line-subtle bg-bg-card p-5 lg:max-w-[588px]">
             <h3 class="text-ui-h5">¿Tienes la marca mínima?</h3>
             <div class="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
@@ -98,7 +98,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
         <!-- 03 · Cómo se acredita -->
         <section id="normas" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="03 · Normas" titulo="Cómo se *acredita*" [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Normas" titulo="Cómo se *acredita*" [centro]="false" tam="m" />
           <ul class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
             @for (n of normas; track n) { <li class="flex gap-3 text-body-s text-text-secondary md:text-body-m"><span class="mt-2 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ n }}</li> }
           </ul>
@@ -110,7 +110,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
         <!-- 04 · Preguntas frecuentes -->
         <section id="dudas" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="04 · Dudas" titulo="Preguntas *frecuentes*" [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Dudas" titulo="Preguntas *frecuentes*" [centro]="false" tam="m" />
           <div class="flex max-w-[720px] flex-col gap-3">
             @for (f of faq; track f.q; let i = $index) {
               <div class="rounded-lg border bg-bg-card" [class]="abierta() === i ? 'border-accent/60' : 'border-line-subtle'">

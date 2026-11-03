@@ -100,7 +100,6 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
                 @let abierto = abiertos().has(f.id) || q().length > 1 || mio();
                 @let fin = f.estado === 'finalizado';
                 <article [id]="'flight-' + f.codigo" class="relative overflow-hidden rounded-lg border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent' : 'border-line-subtle'">
-                  @if (f.estado === 'en_curso') { <span class="absolute inset-y-0 left-0 w-1 bg-accent" aria-hidden="true"></span> }
                   <!-- Figma «Flight block»: one row on desktop; time + pill on top and the title below on mobile -->
                   <button type="button" class="grid w-full grid-cols-[minmax(0,1fr)_auto_18px] items-center gap-x-2.5 gap-y-2 p-4 text-left md:grid-cols-[72px_minmax(0,1fr)_auto_18px] md:gap-x-4 md:p-5" (click)="toggle(f.id)" [attr.aria-expanded]="abierto">
                     <span class="flex items-end gap-2 md:flex-col md:items-start md:gap-1">

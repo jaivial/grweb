@@ -34,7 +34,6 @@ var checklistItems = []struct{ Clave, Titulo, Detalle string }{
 	{"bases", "Bases del sorteo publicadas", "Texto legal «Bases del sorteo» publicado en /politica-concurso"},
 	{"mayores", "Solo mayores de 18 años", "Casilla obligatoria en la compra"},
 	{"consentimiento", "Consentimiento separado y sin marcar", "Novedades opcionales, nunca premarcadas"},
-	{"destino", "Destino benéfico comunicado", "Entidad y uso de lo recaudado visibles en /sorteo"},
 }
 
 // ItemChecklist is an item of the legal checklist.
@@ -298,8 +297,8 @@ func (s *Svc) registerAdmin() {
 					} else if !completa {
 						return problem.Conflict("CHECKLIST_LEGAL_PENDIENTE", "Completa antes la checklist legal (revisión de la asesoría).")
 					}
-					if strings.TrimSpace(b.Destino) == "" || strings.TrimSpace(b.Premio) == "" {
-						return problem.Conflict("FALTAN_DATOS", "Indica el premio y el destino benéfico antes de abrir la venta.")
+					if strings.TrimSpace(b.Premio) == "" {
+						return problem.Conflict("FALTAN_DATOS", "Indica el premio antes de abrir la venta.")
 					}
 				}
 				if b.Precio != cur.Precio && s.vendidos(ctx, tx, in.CID) > 0 {
@@ -563,7 +562,7 @@ func (s *Svc) registerAdmin() {
 					txt = append(txt, numero(n))
 				}
 				v := map[string]string{"nombre": strings.Fields(nombre + " ")[0], "boletos": strings.Join(txt, ", "), "cantidad": itoa(cantidad), "importe": pagos.Euros(importe),
-					"premio": cfg.Premio, "fechaSorteo": "", "enlace": s.webURL + "/sorteo/confirmacion?compra=" + in.ID.String() + "&t=" + s.tokenCompra(in.ID), "destino": cfg.Destino}
+					"premio": cfg.Premio, "fechaSorteo": "", "enlace": s.webURL + "/sorteo/confirmacion?compra=" + in.ID.String() + "&t=" + s.tokenCompra(in.ID)}
 				if cfg.FechaSorteo != nil {
 					v["fechaSorteo"] = fechaHora(*cfg.FechaSorteo)
 				}

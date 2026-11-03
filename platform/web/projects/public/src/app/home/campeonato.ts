@@ -95,10 +95,11 @@ export class Countdown {
       @if (patrocinadores().length) {
         <gr-eyebrow class="mt-6 md:mt-10" [texto]="tituloPatrocinadores() || 'Patrocinadores y colaboradores'" />
         <div class="relative w-full max-w-[1200px] overflow-hidden" role="list" aria-label="Patrocinadores y colaboradores">
-          <div class="flex w-max animate-[gr-marquesina_40s_linear_infinite] items-center gap-9 hover:[animation-play-state:paused] motion-reduce:animate-none md:gap-[72px]">
+          <!-- endless loop right to left (keyframes in tokens.css): each half repeats the logos until it is wider than 1440 px -->
+          <div class="flex w-max animate-[gr-marquesina_linear_infinite] items-center hover:[animation-play-state:paused] motion-reduce:animate-none" [style.animation-duration.s]="duracion()">
             @for (p of cinta(); track $index) {
-              <a role="listitem" [attr.href]="p.url || null" target="_blank" rel="noopener sponsored" [attr.aria-hidden]="$index >= patrocinadores().length || null" [attr.tabindex]="$index >= patrocinadores().length ? -1 : null">
-                <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" loading="lazy" />
+              <a role="listitem" class="shrink-0 pr-9 md:pr-[72px]" [attr.href]="p.url || null" target="_blank" rel="noopener sponsored" [attr.aria-hidden]="$index >= patrocinadores().length || null" [attr.tabindex]="$index >= patrocinadores().length ? -1 : null">
+                <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" />
               </a>
             }
           </div>
@@ -109,7 +110,6 @@ export class Countdown {
     </div>
     </div>
   `,
-  styles: [`@keyframes gr-marquesina { from { transform: translateX(0); } to { transform: translateX(-50%); } }`],
 })
 export class Campeonato {
   readonly comp = input<CompeticionPublica | null>(null);
@@ -123,8 +123,13 @@ export class Campeonato {
   protected readonly glow = GLOW;
   protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
   protected readonly nivel = computed(() => this.subtitulo() || this.comp()?.evento?.nivel || '');
-  /** The logos twice: the track scrolls half its width and starts again without a jump. */
-  protected readonly cinta = computed(() => [...this.patrocinadores(), ...this.patrocinadores()]);
+  /** Times the logos repeat in each half: at least 16 logos per half (≥ 2 500 px with the 72 px gap), wider than the
+   *  1200 px strip, so the loop never shows an empty end. */
+  private readonly veces = computed(() => Math.max(1, Math.ceil(16 / Math.max(1, this.patrocinadores().length))));
+  /** Two equal halves: the track scrolls one half and starts again without a jump. */
+  protected readonly cinta = computed(() => { const mitad = Array.from({ length: this.veces() }, () => this.patrocinadores()).flat(); return [...mitad, ...mitad]; });
+  /** ~5 s per logo of a half: the same speed whatever the number of sponsors. */
+  protected readonly duracion = computed(() => Math.max(20, this.patrocinadores().length * this.veces() * 5));
   protected readonly dias = computed(() => {
     const f = this.comp()?.fechaInicio;
     return f ? Math.round((new Date(f).getTime() - Date.now()) / 86_400_000) : -1;

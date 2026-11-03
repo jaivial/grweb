@@ -22,6 +22,9 @@ export function trozosTitulo(titulo: string, acento = ''): Trozo[][] {
   return out.filter((l) => l.length);
 }
 
+/** «01 · Los atletas» → «Los atletas» (eyebrows have no numbers). */
+export const sinNumero = (t: string) => (t || '').replace(/^\s*\d{1,2}\s*[·\-—–]\s*/, '');
+
 /** Plain text of a CMS title (alt texts, aria labels). */
 export const textoTitulo = (titulo: string, acento = '') => trozosTitulo(titulo, acento).map((l) => l.map((t) => t.t).join('')).join(' ');
 
@@ -43,26 +46,21 @@ export class GrTitulo {
 }
 
 /**
- * Eyebrow of a section (Figma «Eyebrow»): «01 — Los atletas» = number in mono accent, a 28 px dash and the label.
- * The CMS keeps it as one text («01 · Los atletas»); without a number only the dash and the label are shown.
+ * Eyebrow of a section (Figma «Eyebrow»): only the label. A leading number from the CMS («01 · Los atletas») is
+ * dropped: eyebrows carry no numbers or dashes.
  */
 @Component({
   selector: 'gr-eyebrow',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex items-center gap-2.5' },
   template: `
-    @if (partes().num) { <span class="text-mono-xs text-accent-text">{{ partes().num }}</span> }
-    <span class="h-px w-7 shrink-0 bg-accent/60" aria-hidden="true"></span>
-    <span class="text-label-xs" [class]="tono() === 'claro' ? 'text-text-secondary' : 'text-text-tertiary'">{{ partes().label }}</span>
+    <span class="text-label-xs" [class]="tono() === 'claro' ? 'text-text-secondary' : 'text-text-tertiary'">{{ label() }}</span>
   `,
 })
 export class GrEyebrow {
   readonly texto = input('');
   readonly tono = input<'normal' | 'claro'>('normal');
-  protected readonly partes = computed(() => {
-    const m = /^\s*(\d{1,2})\s*[·\-—–]\s*(.+)$/.exec(this.texto() || '');
-    return m ? { num: m[1].padStart(2, '0'), label: m[2] } : { num: '', label: this.texto() };
-  });
+  protected readonly label = computed(() => sinNumero(this.texto()));
 }
 
 /**
