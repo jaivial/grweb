@@ -7,7 +7,7 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
 import { GrIcon } from './icon';
 
 /** One choice of a `gr-select`, read from the projected `<option>` elements. */
-export interface GrOpcion { valor: string; etiqueta: string; deshabilitada: boolean }
+export interface GrOpcion { valor: string; etiqueta: string; deshabilitada: boolean; oculta: boolean }
 
 let siguiente = 0;
 const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -61,7 +61,7 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
               </div>
             </div>
             <ul [id]="uid + '-lista'" role="listbox" [attr.aria-label]="titulo()" class="flex flex-col overflow-y-auto overscroll-contain px-3 pb-6">
-              @for (o of lista(); track $index; let i = $index) {
+              @for (o of lista(); track $index; let i = $index) { @if (!o.oculta) {
                 <li [id]="uid + '-' + i" role="option" [attr.aria-selected]="o.valor === valor()" [attr.aria-disabled]="o.deshabilitada || null"
                   class="flex min-h-[52px] shrink-0 cursor-pointer items-center justify-between gap-3 rounded-sm px-3 text-body-l"
                   [class]="o.deshabilitada ? 'cursor-not-allowed opacity-40' : o.valor === valor() ? 'bg-accent/14 text-text-primary' : i === activo() ? 'bg-white/5 text-text-secondary' : 'text-text-secondary'"
@@ -69,7 +69,8 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
                   <span class="min-w-0 flex-1">{{ o.etiqueta }}</span>
                   @if (o.valor === valor()) { <gr-icon name="check" [size]="20" class="shrink-0 text-accent-text" /> }
                 </li>
-              } @empty { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() }}</li> }
+              } }
+              @if (!visibles()) { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() }}</li> }
             </ul>
           </div>
         </div>
@@ -77,7 +78,7 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
         <ul #capa [id]="uid + '-lista'" role="listbox" [attr.aria-label]="titulo()" (mousedown)="$event.preventDefault()"
           class="fixed inset-auto z-[90] m-0 flex max-h-[284px] flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-md border border-line-strong bg-bg-raised p-1.5 text-text-primary shadow-[0_16px_40px_rgb(0_0_0/0.5)]"
           [style.top.px]="pos().top" [style.left.px]="pos().left" [style.min-width.px]="pos().ancho" [style.visibility]="pos().listo ? null : 'hidden'">
-          @for (o of lista(); track $index; let i = $index) {
+          @for (o of lista(); track $index; let i = $index) { @if (!o.oculta) {
             <li [id]="uid + '-' + i" role="option" [attr.aria-selected]="o.valor === valor()" [attr.aria-disabled]="o.deshabilitada || null"
               class="flex min-h-11 shrink-0 cursor-pointer items-center justify-between gap-3 rounded-sm px-2.5"
               [class]="(tam() === 'l' ? 'text-body-m ' : 'text-body-s ') + (o.deshabilitada ? 'cursor-not-allowed opacity-40' : o.valor === valor() ? 'bg-accent/14 text-text-primary' : i === activo() ? 'bg-white/5 text-text-primary' : 'text-text-secondary')"
@@ -85,7 +86,8 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
               <span class="min-w-0 flex-1 whitespace-nowrap">{{ o.etiqueta }}</span>
               @if (o.valor === valor()) { <gr-icon name="check" [size]="16" class="shrink-0 text-accent-text" /> }
             </li>
-          } @empty { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() }}</li> }
+          } }
+          @if (!visibles()) { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() }}</li> }
         </ul>
       }
     }
@@ -130,6 +132,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
   private quitar: (() => void)[] = [];
 
   protected readonly idControl = computed(() => this.id() || this.uid);
+  protected readonly visibles = computed(() => this.lista().some((o) => !o.oculta));
   protected readonly bloqueado = computed(() => this.deshabilitadoCva());
   protected readonly seleccion = computed(() => this.lista().find((o) => o.valor === this.valor()) ?? null);
   /** The empty-value option (if any) is the placeholder of a field and the «all» choice of a filter. */
@@ -166,7 +169,8 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     const lista: GrOpcion[] = els.map((o) => {
       const v = (o as HTMLOptionElement & { value?: unknown }).value;
       const etiqueta = (o.textContent || '').replace(/\s+/g, ' ').trim();
-      return { valor: v != null ? String(v) : o.getAttribute('value') ?? etiqueta, etiqueta, deshabilitada: !!(o as HTMLOptionElement).disabled || o.hasAttribute('disabled') };
+      // `hidden` (the HTML placeholder pattern `<option value="" hidden>Elige…</option>`): shown in the control, not in the menu
+      return { valor: v != null ? String(v) : o.getAttribute('value') ?? etiqueta, etiqueta, deshabilitada: !!(o as HTMLOptionElement).disabled || o.hasAttribute('disabled'), oculta: o.hasAttribute('hidden') };
     });
     const firma = JSON.stringify(lista);
     if (firma !== this.firma) { this.firma = firma; this.lista.set(lista); }
@@ -231,7 +235,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
 
   protected elegir(i: number): void {
     const o = this.lista()[i];
-    if (!o || o.deshabilitada) return;
+    if (!o || o.deshabilitada || o.oculta) return;
     if (o.valor !== this.valor()) {
       this.valor.set(o.valor);
       this.onChange(o.valor);
@@ -243,7 +247,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
   /** Next enabled option from `desde` in direction `paso` (stays put at the ends). */
   private mover(desde: number, paso: 1 | -1): number {
     const l = this.lista();
-    for (let i = desde + paso; i >= 0 && i < l.length; i += paso) if (!l[i].deshabilitada) return i;
+    for (let i = desde + paso; i >= 0 && i < l.length; i += paso) if (!l[i].deshabilitada && !l[i].oculta) return i;
     return desde;
   }
 
@@ -294,7 +298,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     const q = repetida ? this.busqueda[0] : this.busqueda;
     for (let k = 1; k <= l.length; k++) {
       const i = (desde + (q.length === 1 ? k : k - 1)) % l.length;
-      if (!l[i].deshabilitada && sinAcentos(l[i].etiqueta).startsWith(q)) return i;
+      if (!l[i].deshabilitada && !l[i].oculta && sinAcentos(l[i].etiqueta).startsWith(q)) return i;
     }
     return -1;
   }

@@ -161,7 +161,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                     <gr-select [id]="'i-' + f.k" tam="l" name="sexo" [(ngModel)]="d.sexo" (ngModelChange)="d.categoria = ''; revalidar()"><option value="F">Mujer</option><option value="M">Hombre</option></gr-select>
                   }
                   @case ('categoria') {
-                    <gr-select [id]="'i-' + f.k" tam="l" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()" [invalido]="!!err()[f.k]" [aria-describedby]="err()[f.k] ? 'e-' + f.k : ''" vacio="Elige primero el sexo"><option value="">Seleccionar categoría</option>@for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }</gr-select>
+                    <gr-select [id]="'i-' + f.k" tam="l" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()" [invalido]="!!err()[f.k]" [aria-describedby]="err()[f.k] ? 'e-' + f.k : ''" vacio="Elige primero el sexo"><option value="" hidden>Seleccionar categoría</option>@for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }</gr-select>
                   }
                   @default {
                     <input [id]="'i-' + f.k" [class]="CAMPO + ' ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong')" [name]="f.k" [attr.name]="f.k" [type]="f.type || 'text'" [attr.autocomplete]="f.ac" [attr.placeholder]="f.ph" [(ngModel)]="d[f.k]" (ngModelChange)="revalidar()"

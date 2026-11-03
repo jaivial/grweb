@@ -130,7 +130,7 @@ function descargar(blob: Blob, nombre: string): void {
                       @if (c.campo === 'creado' || c.campo === 'actividad') { <option value="desde">desde</option><option value="hasta">hasta</option> } @else { <option value="es">es</option><option value="no_es">no es</option> }
                     </gr-select>
                     @switch (c.campo) {
-                      @case ('relacion') { <gr-select aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()"><option value="">Elige…</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</gr-select> }
+                      @case ('relacion') { <gr-select aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()"><option value="" hidden>Elige…</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</gr-select> }
                       @case ('creado') { <input grInput type="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
                       @case ('actividad') { <input grInput type="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
                       @default { <input grInput aria-label="Valor" [placeholder]="c.campo === 'origen' ? 'ig_story, ig_reel' : 'etiqueta'" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }

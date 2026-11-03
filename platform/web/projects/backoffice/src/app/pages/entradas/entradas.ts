@@ -258,7 +258,7 @@ function descargar(blob: Blob, nombre: string): void {
 
     <bo-drawer [(open)]="moverOpen" [title]="'Mover ' + sel().size + ' reservas'">
       <div class="flex flex-col gap-3">
-        <gr-field label="Sesión de destino" for="mv-s"><gr-select id="mv-s" [(ngModel)]="mover.sesionId"><option value="">Elige…</option>@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }} · quedan {{ x.libres }}</option> }</gr-select></gr-field>
+        <gr-field label="Sesión de destino" for="mv-s"><gr-select id="mv-s" [(ngModel)]="mover.sesionId"><option value="" hidden>Elige…</option>@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }} · quedan {{ x.libres }}</option> }</gr-select></gr-field>
         <label class="flex items-center gap-2 text-body-s"><bo-toggle [(value)]="mover.avisar" label="Avisar" />Enviar la entrada actualizada a cada titular</label>
       </div>
       <ng-container drawerActions><button grButton variant="ghost" (click)="moverOpen.set(false)">Cancelar</button><button grButton variant="primary" [disabled]="!mover.sesionId" (click)="bulk('mover')">Mover</button></ng-container>
