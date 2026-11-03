@@ -52,7 +52,7 @@ var seedSecciones = map[string]any{
 		"eyebrow2": "Material", "titulo2": "*Equipamiento* de competición",
 		"texto2": "Equipamiento profesional de SBD y A7, marcas líderes en powerlifting con homologación internacional.",
 		"marcas": []map[string]string{{"nombre": "SBD", "logo": ""}, {"nombre": "A7", "logo": bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp"}}},
-	"sorteo": map[string]any{"eyebrow": "Sorteo benéfico", "titulo": "Sorteo", "subtitulo": "Entra en el sorteo de un cinturón SBD",
+	"sorteo": map[string]any{"eyebrow": "Sorteo", "titulo": "Sorteo", "subtitulo": "Entra en el sorteo de un cinturón SBD",
 		"texto": "Cuantos más boletos, más oportunidades de ganar. Se sortea en directo durante la competición.", "imagen": bcdn + "frames/belt_output_webp/frame_000090.webp"},
 	"categorias": map[string]any{"eyebrow": "05 · Competición", "titulo": "Categorías *de peso*", "tituloAcento": "", "texto": "Categorías oficiales de la AEP para hombres y mujeres.",
 		"imagen": img + "categorias.webp", "ctaTitulo": "Consulta las marcas mínimas", "ctaTexto": "Para clasificar para otras competiciones AEP (PDF oficial)."},
@@ -71,7 +71,7 @@ var seedFAQ = []faqIn{
 	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true},
 	{"Competición", "¿Necesito una marca mínima?", "Para esta competición no hace falta marca mínima. Las [marcas mínimas](/marcas-minimas) sirven para clasificar a otras competiciones AEP.", true, true},
 	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true},
-	{"Sorteo", "¿Cómo funciona el sorteo?", "1 € por boleto. El sorteo es benéfico y se celebra en directo con lista cerrada y semilla publicada: cualquiera puede comprobar el resultado.", true, true},
+	{"Sorteo", "¿Cómo funciona el sorteo?", "1 € por boleto. El sorteo se celebra en directo, con la lista de boletos cerrada antes de sortear.", true, true},
 	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", false, true},
 	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta. *Datos de ejemplo: pendiente de confirmar por la organización.*", false, true},
 	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón. *Datos de ejemplo.*", false, true},
@@ -156,11 +156,11 @@ func seedSeo(ctx context.Context, tx pgx.Tx, cid uuid.UUID, r [3]string) error {
 const ejemplo = "> **Datos de ejemplo.** Texto provisional pendiente de revisión por la asesoría legal antes de publicar la web.\n\n"
 
 var seedLegal = map[string][2]string{
-	"privacidad":     {"Política de privacidad", ejemplo + "## Responsable\nGR Strength (organizador de la GR Strength Cup).\n\n## Finalidades\n- Gestionar tu reserva de entradas y el acceso.\n- Enviarte avisos de la competición si lo aceptas expresamente (email o WhatsApp, por separado).\n- Gestionar el sorteo benéfico.\n\n## Base jurídica\nEjecución de la reserva y tu consentimiento, que puedes retirar en cualquier momento.\n\n## Conservación\nHasta 12 meses después del evento, salvo obligación legal.\n\n## Derechos\nAcceso, rectificación, supresión, oposición, limitación y portabilidad escribiendo a admin@grstrength.com. Puedes reclamar ante la AEPD."},
+	"privacidad":     {"Política de privacidad", ejemplo + "## Responsable\nGR Strength (organizador de la GR Strength Cup).\n\n## Finalidades\n- Gestionar tu reserva de entradas y el acceso.\n- Enviarte avisos de la competición si lo aceptas expresamente (email o WhatsApp, por separado).\n- Gestionar el sorteo.\n\n## Base jurídica\nEjecución de la reserva y tu consentimiento, que puedes retirar en cualquier momento.\n\n## Conservación\nHasta 12 meses después del evento, salvo obligación legal.\n\n## Derechos\nAcceso, rectificación, supresión, oposición, limitación y portabilidad escribiendo a admin@grstrength.com. Puedes reclamar ante la AEPD."},
 	"terminos":       {"Términos y condiciones", ejemplo + "## Entradas\nLas entradas son gratuitas y personales. La organización puede reasignar plazas no utilizadas.\n\n## Acceso\nSe valida el QR en la puerta. El aforo es limitado por sesión."},
 	"cookies":        {"Política de cookies", ejemplo + "Solo usamos cookies técnicas necesarias para el funcionamiento de la web y de la sesión del backoffice."},
 	"consentimiento": {"Consentimiento de datos e imagen", ejemplo + "Durante el evento se tomarán fotografías y vídeos que podrán publicarse en la web y redes de la competición. Los menores necesitan la autorización de su tutor."},
-	"bases-sorteo":   {"Bases del sorteo benéfico", ejemplo + "## Organizador\nGR Strength.\n\n## Precio\n1 € por boleto.\n\n## Legalidad\nSorteo benéfico sujeto a la normativa española de juego y, en su caso, a la autorización autonómica correspondiente (Comunitat Valenciana). La venta no se activa hasta completar la checklist legal.\n\n## Mecánica\nLista de boletos cerrada antes del sorteo, semilla publicada y sorteo en directo.\n\n## Premio\nSegún se anuncie en la web. Los premios pueden estar sujetos a retención fiscal según la normativa vigente."},
+	"bases-sorteo":   {"Bases del sorteo", ejemplo + "## Organizador\nGR Strength.\n\n## Precio\n1 € por boleto.\n\n## Legalidad\nSorteo sujeto a la normativa española de juego y, en su caso, a la autorización autonómica correspondiente (Comunitat Valenciana). La venta no se activa hasta completar la checklist legal.\n\n## Mecánica\nLista de boletos cerrada antes del sorteo, semilla publicada y sorteo en directo.\n\n## Premio\nSegún se anuncie en la web. Los premios pueden estar sujetos a retención fiscal según la normativa vigente."},
 }
 
 var seedPaginas = []paginaIn{

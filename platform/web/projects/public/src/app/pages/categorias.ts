@@ -41,7 +41,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
       <div class="flex flex-col gap-12 md:gap-20">
         <!-- 01 · Calculadora -->
         <section id="calculadora" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="01 · Herramienta" titulo="¿En qué *categoría compito?*" [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Herramienta" titulo="¿En qué *categoría compito?*" [centro]="false" tam="m" />
           <div class="grid gap-6 lg:grid-cols-2">
             <div class="flex flex-col gap-4 rounded-[20px] border border-accent bg-bg-card p-5 md:p-7">
               <div class="flex items-center gap-2">
@@ -85,7 +85,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
         <!-- 02 · 18 categorías -->
         <section id="categorias" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="02 · Categorías AEP" titulo="18 categorías de *peso corporal*" texto="9 masculinas y 9 femeninas. Los rangos indican el peso del pesaje con el que entras en cada categoría." [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Categorías AEP" titulo="18 categorías de *peso corporal*" texto="9 masculinas y 9 femeninas. Los rangos indican el peso del pesaje con el que entras en cada categoría." [centro]="false" tam="m" />
           <div class="grid grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 md:hidden" role="tablist" aria-label="Sexo">
             @for (g of generos; track g.k) {
               <button type="button" role="tab" [attr.aria-selected]="tabla() === g.k" (click)="tabla.set(g.k)" class="h-11 rounded-md text-label-s" [class]="tabla() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-tertiary'">{{ g.l }}</button>
@@ -115,7 +115,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
         <!-- 03 · Divisiones por edad -->
         <section id="edad" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="03 · Divisiones por edad" titulo="Compite con los de *tu edad*" texto="Además de la categoría de peso, cada atleta compite en su división de edad (según el calendario oficial de la AEP)." [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Divisiones por edad" titulo="Compite con los de *tu edad*" texto="Además de la categoría de peso, cada atleta compite en su división de edad (según el calendario oficial de la AEP)." [centro]="false" tam="m" />
           <div class="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
             @for (d of divisiones; track d.t) {
               <div class="flex flex-col gap-2 rounded-lg border bg-bg-card p-4 md:p-5" [class]="d.destacada ? 'border-accent' : 'border-line-subtle'">
@@ -130,7 +130,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
         <!-- 04 · El pesaje -->
         <section id="pesaje" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
-          <gr-cabecera eyebrow="04 · Pesaje" titulo="El *pesaje*" [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Pesaje" titulo="El *pesaje*" [centro]="false" tam="m" />
           <div class="grid gap-6 lg:grid-cols-2">
             <gr-hechos [items]="pesaje" />
             <gr-callout tono="consejo" class="self-start lg:self-stretch">Declara tus primeros intentos y la altura del rack en el pesaje: no podrás cambiarlos después sin prisa.</gr-callout>

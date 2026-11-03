@@ -20,7 +20,7 @@ var ModulosCatalogo = []struct{ Clave, Nombre, Descripcion string }{
 	{"horarios", "Horarios", "Flights y horarios publicados"},
 	{"directo", "Directo", "Resultados en vivo y pantalla del pabellón"},
 	{"resultados", "Resultados", "Clasificaciones y acta"},
-	{"sorteo", "Sorteo benéfico", "Venta de boletos y sorteo (requiere checklist legal)"},
+	{"sorteo", "Sorteo", "Venta de boletos y sorteo (requiere checklist legal)"},
 	{"areaAtleta", "Área del atleta", "Acceso del atleta a su ficha y avisos"},
 	{"voluntarios", "Voluntarios", "Formulario de voluntariado"},
 	{"blog", "Blog", "Noticias de la competición"},

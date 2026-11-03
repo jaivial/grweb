@@ -524,7 +524,7 @@ export class ResultadosIndexPage {
 
         @if (!q() && !cat()) {
           @if (conGL) {
-          <gr-cabecera class="mt-12" eyebrow="01 · Mejores levantadores" titulo="Mejor *levantador/a*" texto="Por puntos GL de la IPF." [centro]="false" tam="m" />
+          <gr-cabecera class="mt-12" eyebrow="Mejores levantadores" titulo="Mejor *levantador/a*" texto="Por puntos GL de la IPF." [centro]="false" tam="m" />
           <div class="mt-5 grid gap-3 md:grid-cols-2">
             @for (s of sx; track s) {
               @if (r.mejores[s]; as f) {
@@ -684,7 +684,7 @@ export class ResultadosEdicionPage {
 
         @if (galeria().length) {
           <section class="flex flex-col gap-5 md:gap-7">
-            <gr-cabecera eyebrow="01 · Galería" [titulo]="'Así fue *la edición ' + anio() + '*'" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Galería" [titulo]="'Así fue *la edición ' + anio() + '*'" [centro]="false" tam="m" />
             <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
               @for (f of galeria(); track f.url; let i = $index) {
                 <!-- mobile shows six (Figma 28 mobile), desktop eight -->
@@ -698,7 +698,7 @@ export class ResultadosEdicionPage {
         }
         @if (sponsors().length) {
           <section class="flex flex-col gap-5 md:gap-7">
-            <gr-cabecera [eyebrow]="'02 · Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
+            <gr-cabecera [eyebrow]="'Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:flex md:flex-wrap md:gap-4">
               @for (p of sponsors(); track p.nombre) { <li class="flex h-20 items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-5 py-4 md:w-[200px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" loading="lazy" /></li> }
             </ul>
@@ -707,7 +707,7 @@ export class ResultadosEdicionPage {
         }
         <gr-related [items]="rel()" />
         <section class="overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 md:flex md:items-center md:justify-between md:p-10">
-          <div><p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>Edición {{ siguiente() }}</p>
+          <div><p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">Edición {{ siguiente() }}</p>
             <h2 class="mt-3 text-display-xs md:text-display-m">Compite en la GRStrength Cup</h2><p class="mt-2 text-body-s text-text-secondary">Plazas limitadas. La inscripción se hace a través de la AEP.</p></div>
           <a grButton variant="primary" size="l" href="/inscripcion" class="mt-5 max-sm:w-full md:mt-0">Inscribirse</a>
         </section>

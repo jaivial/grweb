@@ -33,7 +33,7 @@ type Config struct {
 	PremioDetalle string     `json:"premioDetalle" maxLength:"600"`
 	PremioImagen  string     `json:"premioImagen" maxLength:"500"`
 	PremioValor   int        `json:"premioValor" minimum:"0" doc:"Céntimos"`
-	Destino       string     `json:"destino" maxLength:"200" doc:"Entidad benéfica que recibe lo recaudado"`
+	Destino       string     `json:"destino" maxLength:"200" doc:"Uso interno y opcional: a qué se destina lo recaudado (la web no lo muestra)"`
 	Precio        int        `json:"precio" minimum:"50" maximum:"10000" doc:"Céntimos por boleto"`
 	MaxPorPersona int        `json:"maxPorPersona" minimum:"1" maximum:"100"`
 	Presets       []int      `json:"presets" maxItems:"6"`

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { sinNumero } from './bloques';
 
 /** Section heading with eyebrow and a red accent part (Figma «Section header»). */
 @Component({
@@ -6,7 +7,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    @if (eyebrow()) { <p class="flex items-center gap-3 text-mono-xs text-text-tertiary" [class.justify-center]="center()"><span class="h-px w-8 bg-accent"></span>{{ eyebrow() }}</p> }
+    @if (eyebrow()) { <p class="flex items-center text-label-xs text-text-tertiary uppercase" [class.justify-center]="center()">{{ sinNumero(eyebrow()) }}</p> }
     <h2 class="mt-3 text-display-s md:text-display-l" [class.text-center]="center()">{{ titulo() }} @if (acento()) { <span class="text-accent-text">{{ acento() }}</span> }</h2>
   `,
 })
@@ -15,4 +16,5 @@ export class SectionTitle {
   readonly titulo = input('');
   readonly acento = input('');
   readonly center = input(false);
+  protected readonly sinNumero = sinNumero;
 }

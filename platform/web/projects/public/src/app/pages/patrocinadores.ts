@@ -30,7 +30,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
           <div class="grid gap-4 md:grid-cols-2">@for (i of [1, 2]; track i) { <gr-skeleton class="h-56 rounded-lg" /> }</div>
         } @else {
           <section class="flex flex-col gap-5 md:gap-7">
-            <gr-cabecera eyebrow="01 · Avala y organiza" titulo="Federación *y organización*" [centro]="false" tam="m" />
+            <gr-cabecera eyebrow="Avala y organiza" titulo="Federación *y organización*" [centro]="false" tam="m" />
             <ul class="grid gap-4 md:grid-cols-2">
               @for (t of federacion(); track t.nombre) {
                 <li>
@@ -46,7 +46,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
 
           @if (marcas().length) {
             <section class="flex flex-col gap-5 md:gap-7">
-              <gr-cabecera eyebrow="02 · Colaboradores" titulo="Marcas *y clubs*" [centro]="false" tam="m" />
+              <gr-cabecera eyebrow="Colaboradores" titulo="Marcas *y clubs*" [centro]="false" tam="m" />
               <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
                 @for (t of marcas(); track t.nombre) {
                   <li>
@@ -66,7 +66,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
         }
 
         <section class="flex flex-col gap-5 md:gap-7">
-          <gr-cabecera eyebrow="03 · Patrocina" titulo="Hazte *patrocinador*" texto="Llega a atletas, entrenadores y aficionados a la fuerza de toda la Comunitat Valenciana." [centro]="false" tam="m" />
+          <gr-cabecera eyebrow="Patrocina" titulo="Hazte *patrocinador*" texto="Llega a atletas, entrenadores y aficionados a la fuerza de toda la Comunitat Valenciana." [centro]="false" tam="m" />
           <div class="grid gap-4 md:grid-cols-2">
             <div class="rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
               <h3 class="text-label-m">Qué ofrecemos</h3>
@@ -89,7 +89,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
 
         <section class="overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-8 md:p-10">
           <div>
-            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>Voluntariado</p>
+            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">Voluntariado</p>
             <h2 class="mt-3 text-display-xs md:text-display-m">Haz posible la competición</h2>
             <p class="mt-2 text-body-s text-text-secondary md:text-body-m">Jueces, cargadores, mesa técnica y foto: apúntate como voluntario.</p>
           </div>
