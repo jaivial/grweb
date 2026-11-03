@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts, type GrTone, fmtAgo } from '@grcup/ui';
 import { Competitions } from '../core/competitions';
 import { webPublica } from '../core/web';
-import { BoDrawer, BoPageHeader, BoToggle, Media, errText } from '../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, Confirm, Media, errText } from '../shared/ui';
 
 /** A row of the «clubs» collection (cms): directory entries and the requests from /clubs. */
 interface Club {
@@ -107,13 +107,14 @@ const DIA = 86_400_000;
           @case ('rechazadas') {
             @if (!rechazadas().length) { <gr-empty icon="building" title="Sin solicitudes rechazadas" /> }
             @else {
+              <p class="text-body-xs text-text-tertiary">Guardan el nombre, el email y el mensaje de quien las envió: bórralas cuando ya no hagan falta.</p>
               <ul class="flex flex-col gap-3">
                 @for (c of rechazadas(); track c.id) {
                   <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-4 md:flex-row md:items-center md:gap-4">
                     <span class="min-w-0 flex-1"><span class="block text-label-s">{{ c.nombre }} <span class="text-body-xs font-normal text-text-tertiary">· {{ c.ciudad }}</span></span>
                       <span class="block text-body-s text-text-secondary">«{{ c.motivoRechazo }}»</span>
                       <span class="block text-body-xs text-text-tertiary">{{ c.revisadoPor || 'Equipo' }} · {{ c.revisadoAt ? hace(c.revisadoAt) : '' }}</span></span>
-                    <span class="flex gap-2"><button grButton size="s" (click)="revisar(c)">Revisar de nuevo</button></span>
+                    <span class="flex gap-2"><button grButton size="s" (click)="revisar(c)">Revisar de nuevo</button><button grButton size="s" variant="danger" icon="trash" [disabled]="ocupado()" (click)="borrar(c)">Borrar</button></span>
                   </li>
                 }
               </ul>
@@ -180,6 +181,7 @@ export class ClubsPage {
   private readonly http = inject(HttpClient);
   private readonly toasts = inject(GrToasts);
   private readonly media = inject(Media);
+  private readonly confirm = inject(Confirm);
   protected readonly web = webPublica();
   protected readonly lista = signal<Club[] | null | undefined>(undefined);
   protected readonly tab = signal<Tab>('solicitudes');
@@ -300,6 +302,21 @@ export class ClubsPage {
     } catch (e) {
       this.toasts.error('No se pudo guardar', errText(e));
       await this.cargar();
+    } finally {
+      this.ocupado.set(false);
+    }
+  }
+
+  /** Deletes a rejected request and the personal data it holds (contact, email, message). */
+  protected async borrar(c: Club): Promise<void> {
+    if (!(await this.confirm.ask({ title: `¿Borrar la solicitud de ${c.nombre}?`, text: 'Se borran el club, la persona de contacto, su email y el mensaje. No se puede deshacer.', confirm: 'Borrar', danger: true }))) return;
+    this.ocupado.set(true);
+    try {
+      await firstValueFrom(this.http.delete(`${this.base}/web/clubs/${c.id}`));
+      this.toasts.success('Solicitud borrada');
+      await this.cargar();
+    } catch (e) {
+      this.toasts.error('No se pudo borrar', errText(e));
     } finally {
       this.ocupado.set(false);
     }
