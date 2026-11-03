@@ -84,7 +84,18 @@ func (s *Svc) registerRetransmision() {
 					return err
 				}
 				// /en-directo reloads on «directo.estado» (public SSE): the new video shows without a refresh
-				return evento(ctx, tx, in.CID, "directo.estado", map[string]any{"fase": e.Fase, "retransmision": true}, events.Subject("retransmisión"))
+				if err := evento(ctx, tx, in.CID, "directo.estado", map[string]any{"fase": e.Fase, "retransmision": true}, events.Subject("retransmisión")); err != nil {
+					return err
+				}
+				// the activity log keeps who embedded (or hid) which video on the public page
+				if e.StreamURL == b.StreamURL && e.ReplayURL == b.ReplayURL && e.StreamVisible == b.Visible {
+					return nil
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "directo.retransmision", map[string]any{
+					"antes":   map[string]any{"streamUrl": e.StreamURL, "replayUrl": e.ReplayURL, "visible": e.StreamVisible},
+					"despues": map[string]any{"streamUrl": b.StreamURL, "replayUrl": b.ReplayURL, "visible": b.Visible},
+					"por":     actor(ctx),
+				}, events.Competition(in.CID.String()), events.ForPermission("directo.operar"), events.Subject("retransmisión")))
 			})
 			if err != nil {
 				return nil, err
