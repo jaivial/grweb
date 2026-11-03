@@ -1,3 +1,4 @@
+import { embedVideo } from '@grcup/ui';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -36,20 +37,8 @@ export const gl = (v?: number | null) => (v === undefined || v === null ? '—' 
 export const catCorta = (sexo: string, c: string) => `${sexo} ${c.replace('-', '−')}`;
 export const catLarga = (sexo: string, c: string) => `${sexo === 'F' ? 'Femenino' : 'Masculino'} ${c.replace('-', '−')} kg`;
 
-/** YouTube / Twitch link → embeddable player URL (anything else is not embedded). */
-export function embed(url: string | undefined, host: string): string | null {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    if (/(^|\.)youtube\.com$/.test(u.hostname)) {
-      const id = u.searchParams.get('v') ?? u.pathname.split('/').filter(Boolean).pop();
-      return id ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&rel=0` : null;
-    }
-    if (u.hostname === 'youtu.be') return `https://www.youtube-nocookie.com/embed${u.pathname}?autoplay=1&mute=1&rel=0`;
-    if (/(^|\.)twitch\.tv$/.test(u.hostname)) return `https://player.twitch.tv/?channel=${u.pathname.split('/')[1]}&parent=${host}&muted=true`;
-  } catch { /* not a URL */ }
-  return null;
-}
+/** YouTube / Twitch link → embeddable player URL (shared with the backoffice preview). */
+export const embed = embedVideo;
 
 /** Live snapshot, published results and editions (live + competition services). Upstream failures → 503 on SSR. */
 @Injectable({ providedIn: 'root' })

@@ -93,8 +93,11 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 	if err != nil {
 		return nil, err
 	}
-	d = Directo{Fase: e.Fase, Pausa: e.Pausa, RetrasoMin: e.RetrasoMin, StreamURL: e.StreamURL, ReplayURL: e.ReplayURL, Movimiento: e.Movimiento,
+	d = Directo{Fase: e.Fase, Pausa: e.Pausa, RetrasoMin: e.RetrasoMin, Movimiento: e.Movimiento,
 		Siguientes: []EnPlataforma{}, Clasificacion: []Categoria{}}
+	if e.StreamVisible { // hidden from the backoffice: no video at all, in any phase
+		d.StreamURL, d.ReplayURL = e.StreamURL, e.ReplayURL
+	}
 	var n int
 	_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1`, c.ID).Scan(&n)
 	d.ResultadosPublicados = n > 0

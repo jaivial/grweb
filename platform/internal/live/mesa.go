@@ -30,25 +30,26 @@ type Pantalla struct {
 
 // Estado is the live state of a competition.
 type Estado struct {
-	Version      int        `json:"version"`
-	Fase         string     `json:"fase" enum:"antes,en_directo,finalizado"`
-	FlightID     *uuid.UUID `json:"flightId,omitempty"`
-	Movimiento   string     `json:"movimiento" enum:"sq,bp,dl"`
-	Pausa        bool       `json:"pausa"`
-	RetrasoMin   int        `json:"retrasoMin"`
-	StreamURL    string     `json:"streamUrl"`
-	ReplayURL    string     `json:"replayUrl"`
-	Pantalla     Pantalla   `json:"pantalla"`
-	PublicarAuto bool       `json:"publicarAuto"`
-	TurnoAt      *time.Time `json:"turnoAt,omitempty"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	Version       int        `json:"version"`
+	Fase          string     `json:"fase" enum:"antes,en_directo,finalizado"`
+	FlightID      *uuid.UUID `json:"flightId,omitempty"`
+	Movimiento    string     `json:"movimiento" enum:"sq,bp,dl"`
+	Pausa         bool       `json:"pausa"`
+	RetrasoMin    int        `json:"retrasoMin"`
+	StreamURL     string     `json:"streamUrl"`
+	ReplayURL     string     `json:"replayUrl"`
+	StreamVisible bool       `json:"streamVisible" doc:"/en-directo muestra el vídeo"`
+	Pantalla      Pantalla   `json:"pantalla"`
+	PublicarAuto  bool       `json:"publicarAuto"`
+	TurnoAt       *time.Time `json:"turnoAt,omitempty"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
-const selEstado = `SELECT version, fase, flight_id, movimiento, pausa, retraso_min, stream_url, replay_url, pantalla, publicar_auto, turno_at, updated_at FROM estado WHERE competition_id = $1`
+const selEstado = `SELECT version, fase, flight_id, movimiento, pausa, retraso_min, stream_url, replay_url, stream_visible, pantalla, publicar_auto, turno_at, updated_at FROM estado WHERE competition_id = $1`
 
 func scanEstado(r pgx.Row) (Estado, error) {
 	var e Estado
-	err := r.Scan(&e.Version, &e.Fase, &e.FlightID, &e.Movimiento, &e.Pausa, &e.RetrasoMin, &e.StreamURL, &e.ReplayURL, &e.Pantalla, &e.PublicarAuto, &e.TurnoAt, &e.UpdatedAt)
+	err := r.Scan(&e.Version, &e.Fase, &e.FlightID, &e.Movimiento, &e.Pausa, &e.RetrasoMin, &e.StreamURL, &e.ReplayURL, &e.StreamVisible, &e.Pantalla, &e.PublicarAuto, &e.TurnoAt, &e.UpdatedAt)
 	return e, err
 }
 
@@ -456,11 +457,6 @@ func (s *Svc) registerMesa() {
 				return nil, err
 			}
 			b := in.Body
-			for _, u := range []string{b.StreamURL, b.ReplayURL} {
-				if u != "" && !strings.HasPrefix(u, "https://") {
-					return nil, problem.Unprocessable("URL_NO_VALIDA", "La emisión debe ser un enlace https (YouTube, Twitch…).")
-				}
-			}
 			p, err := s.cargarPlan(ctx, in.CID)
 			if err != nil {
 				return nil, err
@@ -481,6 +477,10 @@ func (s *Svc) registerMesa() {
 				}
 				if strings.Trim(in.IfMatch, `"W/`) != itoa(e.Version) {
 					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha cambiado el directo. Se ha recargado la mesa.")
+				}
+				// the desk sends the links back unchanged: only a new link is checked (an older one never blocks the live)
+				if (b.StreamURL != e.StreamURL && !videoOK(b.StreamURL)) || (b.ReplayURL != e.ReplayURL && !videoOK(b.ReplayURL)) {
+					return problem.Unprocessable("URL_NO_VALIDA", msgVideo)
 				}
 				fase := b.Fase
 				if fase == "antes" && f != nil && (e.FlightID == nil || *e.FlightID != f.ID) {

@@ -332,7 +332,9 @@ export class EnDirectoPage {
   protected readonly video = computed(() => {
     const d = this.dir();
     if (!d || !this.browser) return null;
-    const u = embed(d.fase === 'finalizado' ? d.replayUrl : d.fase === 'en_directo' ? d.streamUrl : undefined, location.hostname);
+    // Figma «Live player» (YouTube): the scheduled broadcast before (YouTube shows its waiting room and «Notify me»),
+    // the live muted during, the replay (or the same broadcast) after.
+    const u = embed(d.fase === 'finalizado' ? d.replayUrl || d.streamUrl : d.streamUrl, location.hostname, d.fase === 'en_directo');
     return u ? this.san.bypassSecurityTrustResourceUrl(u) : null;
   });
   /** After the lights, the judged attempt stays on screen for 8 s. */
