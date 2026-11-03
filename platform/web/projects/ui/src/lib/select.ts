@@ -51,8 +51,9 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
     </button>
     @if (abierto()) {
       @if (hoja()) {
-        <div #capa class="fixed inset-0 z-[90] m-0 flex h-dvh max-h-none w-screen max-w-none flex-col justify-end border-0 bg-black/55 p-0" (click)="cerrar(true)">
-          <div class="flex max-h-[75dvh] flex-col rounded-t-[20px] border-t border-line-strong bg-bg-raised pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.stopPropagation()">
+        <!-- every click inside cancels its default: a wrapping <label> must not forward it to the control (it would reopen) -->
+        <div #capa class="fixed inset-0 z-[90] m-0 flex h-dvh max-h-none w-screen max-w-none flex-col justify-end border-0 bg-black/55 p-0" (click)="$event.preventDefault(); cerrar(true)">
+          <div class="flex max-h-[75dvh] flex-col rounded-t-[20px] border-t border-line-strong bg-bg-raised pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.preventDefault(); $event.stopPropagation()">
             <div class="flex flex-col items-center gap-3 px-5 pt-2 pb-3">
               <span class="h-1 w-10 rounded-pill bg-line-strong" aria-hidden="true"></span>
               <div class="flex w-full items-center justify-between gap-3">
@@ -75,15 +76,15 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
           </div>
         </div>
       } @else {
-        <ul #capa [id]="uid + '-lista'" role="listbox" [attr.aria-label]="titulo()" (mousedown)="$event.preventDefault()"
-          class="fixed inset-auto z-[90] m-0 flex max-h-[284px] flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-md border border-line-strong bg-bg-raised p-1.5 text-text-primary shadow-[0_16px_40px_rgb(0_0_0/0.5)]"
+        <ul #capa [id]="uid + '-lista'" role="listbox" [attr.aria-label]="titulo()" (mousedown)="$event.preventDefault()" (click)="$event.preventDefault()"
+          class="fixed inset-auto z-[90] m-0 flex max-h-[284px] max-w-[min(480px,calc(100vw-16px))] flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-md border border-line-strong bg-bg-raised p-1.5 text-text-primary shadow-[0_16px_40px_rgb(0_0_0/0.5)]"
           [style.top.px]="pos().top" [style.left.px]="pos().left" [style.min-width.px]="pos().ancho" [style.visibility]="pos().listo ? null : 'hidden'">
           @for (o of lista(); track $index; let i = $index) { @if (!o.oculta) {
             <li [id]="uid + '-' + i" role="option" [attr.aria-selected]="o.valor === valor()" [attr.aria-disabled]="o.deshabilitada || null"
               class="flex min-h-11 shrink-0 cursor-pointer items-center justify-between gap-3 rounded-sm px-2.5"
               [class]="(tam() === 'l' ? 'text-body-m ' : 'text-body-s ') + (o.deshabilitada ? 'cursor-not-allowed opacity-40' : o.valor === valor() ? 'bg-accent/14 text-text-primary' : i === activo() ? 'bg-white/5 text-text-primary' : 'text-text-secondary')"
               (click)="elegir(i)" (mousemove)="o.deshabilitada || activo.set(i)">
-              <span class="min-w-0 flex-1 whitespace-nowrap">{{ o.etiqueta }}</span>
+              <span class="min-w-0 flex-1 py-2.5 leading-snug">{{ o.etiqueta }}</span>
               @if (o.valor === valor()) { <gr-icon name="check" [size]="16" class="shrink-0 text-accent-text" /> }
             </li>
           } }
