@@ -65,7 +65,7 @@ const TURNOS = ['Montaje (la víspera)', 'Mañana', 'Tarde', 'Todo el día'];
             @else {
               <section class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
                 <table class="hidden w-full table-fixed text-left md:table">
-                  <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3 font-normal">Voluntario</th><th class="w-64 px-3 py-3 font-normal">Quiere ayudar en</th><th class="w-40 px-3 py-3 font-normal">Disponibilidad</th><th class="w-28 px-3 py-3 font-normal">Recibida</th><th class="w-52 px-3 py-3 font-normal">Estado</th><th class="w-10"></th></tr></thead>
+                  <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3 font-normal">Voluntario</th><th class="w-60 px-3 py-3 font-normal">Quiere ayudar en</th><th class="w-40 px-3 py-3 font-normal">Disponibilidad</th><th class="w-28 px-3 py-3 font-normal">Recibida</th><th class="w-56 px-3 py-3 font-normal">Estado</th><th class="w-10"></th></tr></thead>
                   <tbody>
                     @for (v of filtradas(); track v.id) {
                       <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" (click)="revisar(v)">
@@ -255,7 +255,7 @@ export class VoluntariosPage {
   protected estado(v: Voluntario): { l: string; tone: GrTone } {
     if (v.estado === 'confirmado') return { l: `${this.rol(v.puesto)} · ${v.turno}`, tone: 'success' };
     if (v.estado === 'descartado') return { l: 'Rechazada', tone: 'neutral' };
-    if (v.esMenor && !v.autorizacionUrl) return { l: 'Menor · falta autorización', tone: 'warning' };
+    if (v.esMenor && !v.autorizacionUrl) return { l: 'Menor · sin autorización', tone: 'warning' };
     return v.estado === 'revision' ? { l: 'En revisión', tone: 'warning' } : { l: 'Nueva', tone: 'info' };
   }
   /** mailto with everyone in Bcc (nobody sees the others' addresses). */
