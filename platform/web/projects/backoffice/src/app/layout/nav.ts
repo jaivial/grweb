@@ -39,6 +39,7 @@ export const NAV: NavGroup[] = [
       { label: 'Entradas y aforo', path: 'entradas', icon: 'ticket', perm: 'entradas.gestionar', mobileTab: true },
       { label: 'Sorteo', path: 'sorteo', icon: 'gift', perm: 'sorteo.gestionar' },
       { label: 'Contactos', path: 'contactos', icon: 'users', perm: 'contactos.ver' },
+      { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar' },
       { label: 'Campañas', path: 'campanas', icon: 'send', perm: 'campanas.enviar' },
       { label: 'Emails y avisos', path: 'emails', icon: 'mail', perm: 'campanas.enviar' },
     ],

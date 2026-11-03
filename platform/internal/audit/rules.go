@@ -38,7 +38,7 @@ var notifRules = map[string]notifRule{
 		return "Nueva solicitud de voluntariado", cuerpo, "/web/voluntarios", "info", "web.editar", true
 	},
 	"cms.club_solicitado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
-		return "Nuevo club propuesto para el directorio", "«" + str(d["nombre"]) + "» espera revisión antes de aparecer en /clubs.", "/web/patrocinadores", "info", "web.editar", true
+		return "Nueva solicitud de club", "«" + str(d["nombre"]) + "» espera revisión antes de aparecer en /clubs.", "/clubs", "info", "web.editar", true
 	},
 	"athletes.importacion_confirmada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Acta de la AEP importada", fmt.Sprintf("%v nuevos · %v con cambios · %v bajas · %v filas con errores omitidas", d["nuevos"], d["cambios"], d["bajas"], d["errores"]), "/atletas", "ok", "atletas.editar", true
@@ -347,6 +347,10 @@ func resumen(e events.Event) string {
 		return "confirmó un aviso de «Avísame cuando compita»"
 	case "cms.club_solicitado":
 		return "propuso el club «" + str(d["nombre"]) + "» para el directorio"
+	case "cms.club_aprobado":
+		return "aprobó el club «" + str(d["nombre"]) + "» y lo publicó en /clubs"
+	case "cms.club_rechazado":
+		return "rechazó la solicitud del club «" + str(d["nombre"]) + "»"
 	case "cms.medio_subido":
 		return "subió una imagen"
 	case "cms.medio_actualizado":

@@ -50,6 +50,7 @@ var automatizaciones = []Automatizacion{
 	{Clave: "espera", Nombre: "Lista de espera: alta y oferta de plaza", Cuando: "al apuntarse · al liberarse plaza", Publico: "Lista de espera", Canales: []string{"email"}, Esencial: true},
 	{Clave: "recordatorios", Nombre: "Recordatorios de la entrada", Cuando: "T−7 · T−1 (con QR)", Publico: "Reservas activas", Canales: []string{"email"}},
 	{Clave: "voluntarios", Nombre: "Voluntariado recibido", Cuando: "al enviar la solicitud", Publico: "Voluntarios", Canales: []string{"email"}},
+	{Clave: "clubs", Nombre: "Directorio de clubs", Cuando: "al aprobar o rechazar una solicitud (si se marca «Avisar»)", Publico: "Quien propone un club", Canales: []string{"email"}},
 }
 
 func p(clave, nombre, disparador, servicio, auto string, esencial bool, vars []string, ej map[string]string, c Contenido) Plantilla {
@@ -125,6 +126,12 @@ var catalogo = []Plantilla{
 	p("voluntario-recibido", "Solicitud de voluntariado recibida", "Al enviar el formulario de voluntarios", "cms", "voluntarios", true, []string{"nombre"},
 		map[string]string{"nombre": "Pablo"},
 		Contenido{Asunto: "Hemos recibido tu solicitud de voluntariado", Titulo: "¡Gracias, {{nombre}}!", Cuerpo: "Hemos recibido tu solicitud para ser voluntario en la GR Strength Cup. Te escribiremos en unos días con el puesto y los turnos."}),
+	p("club-aprobado", "Club publicado en el directorio", "Al aprobar una solicitud de /clubs", "cms", "clubs", true, []string{"nombre", "club", "enlace"},
+		map[string]string{"nombre": "Marta", "club": "Fuerza Isabel", "enlace": "https://grcup.example/clubs"},
+		Contenido{Asunto: "{{club}} ya está en el directorio", Titulo: "¡Bienvenidos, {{nombre}}!", Cuerpo: "Hemos revisado la solicitud y **{{club}}** ya aparece en el directorio de clubs de la GR Strength Cup.\n\nSi quieres cambiar algún dato o el logo, responde a este email.", BotonTexto: "Ver el directorio", BotonURL: "{{enlace}}"}),
+	p("club-rechazado", "Solicitud de club no aprobada", "Al rechazar una solicitud de /clubs", "cms", "clubs", true, []string{"nombre", "club", "motivo"},
+		map[string]string{"nombre": "Marta", "club": "Fuerza Isabel", "motivo": "No hemos podido verificar el club con la web ni las redes."},
+		Contenido{Asunto: "Sobre la solicitud de {{club}}", Titulo: "Hola, {{nombre}}", Cuerpo: "Gracias por proponer **{{club}}** para el directorio de clubs. De momento no podemos añadirlo:\n\n{{motivo}}\n\nSi algo ha cambiado, responde a este email y lo revisamos de nuevo."}),
 	withQR(p("entrada-confirmada", "Tu entrada", "Al reservar (y al reenviarla)", "ticketing", "entradas", true, []string{"nombre", "titular", "sesion", "dia", "puertas", "hasta", "personas", "codigo", "qr", "enlace", "lugar"}, ejEntrada,
 		Contenido{Asunto: "Tu entrada · {{sesion}} · {{codigo}}", Preheader: "Enseña el QR en la puerta", Titulo: "¡Tienes entrada, {{nombre}}!", Cuerpo: "**{{titular}}** · {{sesion}}, {{dia}}. Puertas a las **{{puertas}}** (hasta las {{hasta}}).\n\n{{lugar}}\n\nEnseña este QR en la puerta desde el móvil: no hace falta imprimirlo. Si cambia algo, gestiona tu entrada con el botón.", BotonTexto: "Gestionar mi entrada", BotonURL: "{{enlace}}"})),
 	p("entrada-enlace", "Enlace de «Mi entrada»", "Al pedir de nuevo el enlace", "ticketing", "entradas", true, []string{"nombre", "codigo", "sesion", "enlace"}, ejEntrada,

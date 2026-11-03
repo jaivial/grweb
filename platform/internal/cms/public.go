@@ -407,6 +407,8 @@ func (s *Svc) registerPublicExtra() {
 			Instagram        string `json:"instagram,omitempty" maxLength:"300"`
 			AfiliadoAEP      bool   `json:"afiliadoAep,omitempty"`
 			Email            string `json:"email" format:"email" maxLength:"254" doc:"Contacto para verificar el club (no se publica)"`
+			ContactoNombre   string `json:"contactoNombre" minLength:"2" maxLength:"120" doc:"Persona de contacto (no se publica)"`
+			Mensaje          string `json:"mensaje,omitempty" maxLength:"1000"`
 			AceptaPrivacidad bool   `json:"aceptaPrivacidad,omitempty" doc:"Obligatorio: casilla sin premarcar (si falta o es false → 422 CONSENTIMIENTO_OBLIGATORIO)"`
 		}
 	}
@@ -422,7 +424,7 @@ func (s *Svc) registerPublicExtra() {
 			if !in.Body.AceptaPrivacidad {
 				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar el club tienes que aceptar la política de privacidad.")
 			}
-			b := clubIn{Nombre: in.Body.Nombre, Ciudad: in.Body.Ciudad, Provincia: in.Body.Provincia, Web: in.Body.Web, Instagram: in.Body.Instagram}
+			b := clubIn{Nombre: in.Body.Nombre, Ciudad: in.Body.Ciudad, Provincia: in.Body.Provincia, Web: in.Body.Web, Instagram: instagramURL(in.Body.Instagram)}
 			if err := validClub(&b); err != nil {
 				return nil, err
 			}
@@ -430,9 +432,10 @@ func (s *Svc) registerPublicExtra() {
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
 			return nil, s.change(ctx, cid, "cms.club_solicitado", map[string]any{"id": id, "nombre": b.Nombre}, func(tx pgx.Tx) error {
-				_, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, consentimiento_at, legal_version, orden)
-					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pendiente',$9,now(),$10, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
-					id, cid, b.Nombre, b.Ciudad, b.Provincia, b.Web, b.Instagram, in.Body.AfiliadoAEP, strings.ToLower(strings.TrimSpace(in.Body.Email)), version)
+				_, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, consentimiento_at, legal_version, orden)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pendiente',$9,$10,$11,now(),$12, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
+					id, cid, b.Nombre, b.Ciudad, b.Provincia, b.Web, b.Instagram, in.Body.AfiliadoAEP, strings.ToLower(strings.TrimSpace(in.Body.Email)),
+					strings.TrimSpace(in.Body.ContactoNombre), strings.TrimSpace(in.Body.Mensaje), version)
 				return err
 			})
 		})
@@ -556,3 +559,17 @@ var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Carga
 
 // minutosLectura is the reading time of a page in whole minutes (200 words a minute, at least 1).
 const minutosLectura = `GREATEST(1, ceil(cardinality(regexp_split_to_array(btrim(cuerpo), '\s+')) / 200.0))::int AS minutos`
+
+// instagramURL turns «@club», «club» or «instagram.com/club» into https://instagram.com/club (a full https link stays).
+func instagramURL(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" || strings.HasPrefix(v, "https://") {
+		return v
+	}
+	v = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(v, "http://"), "www."), "instagram.com/")
+	v = strings.Trim(strings.TrimPrefix(v, "@"), "/ ")
+	if v == "" || strings.ContainsAny(v, " /?#") {
+		return v // validClub rejects it with its message
+	}
+	return "https://instagram.com/" + v
+}
