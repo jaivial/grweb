@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, computed
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { GrAlert, GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, type FichaPub, type ListaPub, type Participantes } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
@@ -38,7 +38,7 @@ export class Fav {
 /** /atletas (Figma page 39): search, filters, athlete cards (list grouped by class on mobile), load more. */
 @Component({
   selector: 'gr-atletas-page',
-  imports: [Page, FormsModule, GrIcon, GrButton, GrSkeleton, Fav, Related, Community],
+  imports: [GrSelect, Page, FormsModule, GrIcon, GrButton, GrSkeleton, Fav, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -69,18 +69,18 @@ export class Fav {
           </button>
         </div>
         <div class="flex-wrap gap-2" [class]="filtros() ? 'flex' : 'hidden md:flex'">
-          <select [ngModel]="categoria()" (ngModelChange)="categoria.set($event); limite.set(24)" aria-label="Categoría" class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s">
-            <option value="">Categoría</option>@for (c of categorias(); track c) { <option [value]="c">{{ c[0] }} {{ cat(c.slice(2)) }} kg</option> }
-          </select>
-          <select [ngModel]="club()" (ngModelChange)="club.set($event); limite.set(24)" aria-label="Club" class="h-10 max-w-52 rounded-md border border-line-strong bg-bg-field px-3 text-label-s">
-            <option value="">Club</option>@for (c of clubs(); track c) { <option [value]="c">{{ c }}</option> }
-          </select>
-          <select [ngModel]="division()" (ngModelChange)="division.set($event); limite.set(24)" aria-label="División" class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s">
-            <option value="">División</option>@for (d of divisiones(); track d) { <option [value]="d">{{ d }}</option> }
-          </select>
-          <select [ngModel]="orden()" (ngModelChange)="orden.set($event)" aria-label="Orden" class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s">
-            <option value="horario">Orden: horario</option><option value="nombre">Orden: nombre</option><option value="categoria">Orden: categoría</option>
-          </select>
+          <gr-select tipo="filtro" etiqueta="Categoría" aria-label="Categoría" [ngModel]="categoria()" (ngModelChange)="categoria.set($event); limite.set(24)">
+            <option value="">Todas</option>@for (c of categorias(); track c) { <option [value]="c">{{ c[0] }} {{ cat(c.slice(2)) }} kg</option> }
+          </gr-select>
+          <gr-select tipo="filtro" etiqueta="Club" aria-label="Club" class="max-w-64" [ngModel]="club()" (ngModelChange)="club.set($event); limite.set(24)">
+            <option value="">Todos</option>@for (c of clubs(); track c) { <option [value]="c">{{ c }}</option> }
+          </gr-select>
+          <gr-select tipo="filtro" etiqueta="División" aria-label="División" [ngModel]="division()" (ngModelChange)="division.set($event); limite.set(24)">
+            <option value="">Todas</option>@for (d of divisiones(); track d) { <option [value]="d">{{ d }}</option> }
+          </gr-select>
+          <gr-select tipo="filtro" etiqueta="Orden" [resaltar]="false" aria-label="Orden" [ngModel]="orden()" (ngModelChange)="orden.set($event)">
+            <option value="horario">horario</option><option value="nombre">nombre</option><option value="categoria">categoría</option>
+          </gr-select>
           @if (fav.slugs().length) {
             <button type="button" (click)="soloFav.set(!soloFav())" [attr.aria-pressed]="soloFav()" class="inline-flex h-10 items-center gap-1.5 rounded-pill border px-3 text-label-s" [class]="soloFav() ? 'border-accent-text bg-accent-deep/40' : 'border-line-strong'">
               Mis atletas · {{ fav.slugs().length }}

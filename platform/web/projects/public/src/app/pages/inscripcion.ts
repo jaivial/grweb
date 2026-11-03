@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GrAlert, GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { CATEGORIAS_IPF, cat } from '../core/atletas';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -37,7 +37,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
 /** /inscripcion (Figma pages 06 and 06b): AEP link (external mode) or own registration with payment, coupon and referral. */
 @Component({
   selector: 'gr-inscripcion-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton],
+  imports: [GrSelect, Page, FormsModule, GrButton, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = cfg();
@@ -158,12 +158,10 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                 <label class="text-label-s" [for]="'i-' + f.k">{{ f.label }}{{ f.req ? ' *' : '' }}</label>
                 @switch (f.k) {
                   @case ('sexo') {
-                    <span class="relative"><select [id]="'i-' + f.k" [class]="CAMPO + ' appearance-none pr-10 border-line-strong'" name="sexo" [(ngModel)]="d.sexo" (ngModelChange)="d.categoria = ''; revalidar()"><option value="F">Mujer</option><option value="M">Hombre</option></select>
-                      <gr-icon name="chevron-down" [size]="16" class="pointer-events-none absolute top-4 right-3.5 text-accent-text" /></span>
+                    <gr-select [id]="'i-' + f.k" tam="l" name="sexo" [(ngModel)]="d.sexo" (ngModelChange)="d.categoria = ''; revalidar()"><option value="F">Mujer</option><option value="M">Hombre</option></gr-select>
                   }
                   @case ('categoria') {
-                    <span class="relative"><select [id]="'i-' + f.k" [class]="CAMPO + ' appearance-none pr-10 ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong') + (d.categoria ? '' : ' text-text-muted')" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()" [attr.aria-invalid]="!!err()[f.k]" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k : null"><option value="">Seleccionar categoría</option>@for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }</select>
-                      <gr-icon name="chevron-down" [size]="16" class="pointer-events-none absolute top-4 right-3.5 text-accent-text" /></span>
+                    <gr-select [id]="'i-' + f.k" tam="l" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()" [invalido]="!!err()[f.k]" [aria-describedby]="err()[f.k] ? 'e-' + f.k : ''" vacio="Elige primero el sexo"><option value="">Seleccionar categoría</option>@for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }</gr-select>
                   }
                   @default {
                     <input [id]="'i-' + f.k" [class]="CAMPO + ' ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong')" [name]="f.k" [attr.name]="f.k" [type]="f.type || 'text'" [attr.autocomplete]="f.ac" [attr.placeholder]="f.ph" [(ngModel)]="d[f.k]" (ngModelChange)="revalidar()"

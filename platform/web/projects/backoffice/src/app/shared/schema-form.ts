@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input, model, signal } from '@angular/core';
 import { marked } from 'marked';
-import { GrButton, GrField, GrIcon, GrIconButton, GrInput, GrToasts } from '@grcup/ui';
+import { GrButton, GrField, GrIcon, GrIconButton, GrInput, GrToasts, GrSelect } from '@grcup/ui';
 import { webPublica } from '../core/web';
 import { BoCount, BoToggle, Media } from './ui';
 
@@ -20,7 +20,7 @@ type Obj = Record<string, unknown>;
 /** Form rendered from a field schema (the same schema the API returns for home sections). Lists nest recursively. */
 @Component({
   selector: 'bo-schema-form',
-  imports: [GrField, GrInput, GrButton, GrIcon, GrIconButton, BoCount, BoToggle],
+  imports: [GrSelect, GrField, GrInput, GrButton, GrIcon, GrIconButton, BoCount, BoToggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'grid grid-cols-1 gap-4 sm:grid-cols-2' },
   template: `
@@ -77,9 +77,9 @@ type Obj = Record<string, unknown>;
                 @case ('numero') { <input grInput [id]="id" type="number" inputmode="numeric" [value]="get(f.clave) ?? ''" (input)="set(f.clave, num($any($event.target).value))" /> }
                 @case ('fecha') { <input grInput [id]="id" type="datetime-local" [value]="local(f.clave)" (input)="set(f.clave, iso($any($event.target).value))" /> }
                 @case ('select') {
-                  <select grInput [id]="id" (change)="set(f.clave, $any($event.target).value)">
-                    @for (o of f.opciones ?? []; track o.value) { <option [value]="o.value" [selected]="o.value === get(f.clave)">{{ o.label }}</option> }
-                  </select>
+                  <gr-select [id]="id" [value]="get(f.clave)" (valorChange)="set(f.clave, $event)">
+                    @for (o of f.opciones ?? []; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
+                  </gr-select>
                 }
                 @case ('imagen') {
                   <div class="flex flex-col gap-2">

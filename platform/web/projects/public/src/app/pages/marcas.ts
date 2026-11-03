@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrIcon } from '@grcup/ui';
+import { GrIcon, GrSelect } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
@@ -22,7 +22,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 /** /marcas-minimas (Figma page 22): the AEP-1 table, «¿Tienes la marca?», how it is accredited and FAQ. */
 @Component({
   selector: 'gr-marcas-page',
-  imports: [Page, FormsModule, GrIcon, GrCabecera, GrCallout, GrChipsAncla, Related, Community],
+  imports: [GrSelect, Page, FormsModule, GrIcon, GrCabecera, GrCallout, GrChipsAncla, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Marcas mínimas" accent="AEP-1" eyebrow="Competición" section="Competición" crumb="Marcas mínimas"
@@ -81,10 +81,10 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
           <div class="flex w-full flex-col gap-4 rounded-xl border border-line-subtle bg-bg-card p-5 lg:max-w-[588px]">
             <h3 class="text-ui-h5">¿Tienes la marca mínima?</h3>
             <div class="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
-              <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Categoría</span>
-                <span class="relative"><select [ngModel]="sel()" (ngModelChange)="sel.set($event)" class="h-12 w-full appearance-none rounded-sm border border-line-strong bg-bg-field pr-9 pl-3 text-body-m focus:border-accent-text focus:outline-none">
+              <div class="flex min-w-0 flex-col gap-2"><label for="mm-cat" class="text-label-s text-text-secondary">Categoría</label>
+                <gr-select id="mm-cat" tam="l" [ngModel]="sel()" (ngModelChange)="sel.set($event)">
                   @for (o of opciones; track o.v) { <option [value]="o.v">{{ o.l }}</option> }
-                </select><gr-icon name="chevron-down" [size]="16" class="pointer-events-none absolute top-4 right-3 text-text-tertiary" /></span></label>
+                </gr-select></div>
               <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Tu total</span>
                 <input inputmode="decimal" placeholder="570" [ngModel]="total()" (ngModelChange)="total.set($event)" class="h-12 rounded-sm border border-line-strong bg-bg-field px-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" /></label>
             </div>

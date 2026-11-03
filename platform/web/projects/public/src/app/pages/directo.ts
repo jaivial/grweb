@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Mov, type Pantalla, type ResultadosPublicos } from '../core/directo';
@@ -484,7 +484,7 @@ export class ResultadosIndexPage {
 /** /resultados/:anio (Figma page 25): best lifters by GL, podiums and the full ranking of every category, with filters. */
 @Component({
   selector: 'gr-resultados-edicion',
-  imports: [Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community],
+  imports: [GrSelect, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = res();
@@ -517,8 +517,8 @@ export class ResultadosIndexPage {
           @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.l }}</button> }
           </div>
           <div id="filtros-resultados" class="w-full flex-col gap-2 md:contents" [class.flex]="filtros()" [class.hidden]="!filtros()">
-          <select class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:h-10" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Categoría</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</select>
-          <select class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:ml-auto md:h-10" aria-label="Ordenar" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">Ordenar: posición</option><option value="total">Ordenar: total</option>@if (conGL) { <option value="gl">Ordenar: puntos GL</option> }</select>
+          <gr-select tipo="filtro" etiqueta="Categoría" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Todas</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</gr-select>
+          <gr-select tipo="filtro" etiqueta="Ordenar" [resaltar]="false" aria-label="Ordenar" class="md:ml-auto" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">posición</option><option value="total">total</option>@if (conGL) { <option value="gl">puntos GL</option> }</gr-select>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -25,7 +25,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -93,9 +93,9 @@ function descargar(blob: Blob, nombre: string): void {
           <div class="flex flex-wrap items-center gap-2">
             <label class="relative min-w-0 flex-1 basis-64 md:max-w-xs"><span class="sr-only">Buscar</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
               <input grInput class="pl-9" placeholder="Nombre, email, teléfono o código" [ngModel]="f().q" (ngModelChange)="filtrar({ q: $event })" /></label>
-            <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Sesión" [ngModel]="f().sesion ?? ''" (ngModelChange)="filtrar({ sesion: $event })"><option value="">Todas las sesiones</option>@for (x of r?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</select>
-            <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los estados</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></select>
-            <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">Todos los orígenes</option>@for (o of lista()?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</select>
+            <gr-select tipo="filtro" aria-label="Sesión" [ngModel]="f().sesion ?? ''" (ngModelChange)="filtrar({ sesion: $event })"><option value="">Todas las sesiones</option>@for (x of r?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</gr-select>
+            <gr-select tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los estados</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></gr-select>
+            <gr-select tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">Todos los orígenes</option>@for (o of lista()?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
           </div>
           @if (sel().size) {
             <div class="flex flex-wrap items-center gap-2 rounded-md border border-line-strong bg-bg-raised px-3 py-2 text-body-s">
@@ -241,7 +241,7 @@ function descargar(blob: Blob, nombre: string): void {
 
     <bo-drawer [(open)]="manualOpen" title="Reserva manual">
       <div class="flex flex-col gap-3">
-        <gr-field label="Sesión" for="m-s"><select grInput id="m-s" [(ngModel)]="man.sesionId">@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }} · quedan {{ x.libres }}</option> }</select></gr-field>
+        <gr-field label="Sesión" for="m-s"><gr-select id="m-s" [(ngModel)]="man.sesionId">@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }} · quedan {{ x.libres }}</option> }</gr-select></gr-field>
         <div class="grid grid-cols-2 gap-3">
           <gr-field label="Nombre" for="m-n"><input grInput id="m-n" [(ngModel)]="man.nombre" /></gr-field>
           <gr-field label="Apellidos" for="m-a"><input grInput id="m-a" [(ngModel)]="man.apellidos" /></gr-field>
@@ -258,7 +258,7 @@ function descargar(blob: Blob, nombre: string): void {
 
     <bo-drawer [(open)]="moverOpen" [title]="'Mover ' + sel().size + ' reservas'">
       <div class="flex flex-col gap-3">
-        <gr-field label="Sesión de destino" for="mv-s"><select grInput id="mv-s" [(ngModel)]="mover.sesionId"><option value="">Elige…</option>@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }} · quedan {{ x.libres }}</option> }</select></gr-field>
+        <gr-field label="Sesión de destino" for="mv-s"><gr-select id="mv-s" [(ngModel)]="mover.sesionId"><option value="">Elige…</option>@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }} · quedan {{ x.libres }}</option> }</gr-select></gr-field>
         <label class="flex items-center gap-2 text-body-s"><bo-toggle [(value)]="mover.avisar" label="Avisar" />Enviar la entrada actualizada a cada titular</label>
       </div>
       <ng-container drawerActions><button grButton variant="ghost" (click)="moverOpen.set(false)">Cancelar</button><button grButton variant="primary" [disabled]="!mover.sesionId" (click)="bulk('mover')">Mover</button></ng-container>

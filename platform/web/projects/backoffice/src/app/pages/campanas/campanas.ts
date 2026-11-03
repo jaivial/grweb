@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -11,7 +11,7 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
 /** «Campañas · lista» (Figma page 61): campaigns by email and WhatsApp with their audience and progress. */
 @Component({
   selector: 'bo-campanas',
-  imports: [FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -25,9 +25,9 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
       </bo-page-header>
       <div class="flex flex-wrap items-end gap-3">
         <gr-field label="Estado" class="w-56">
-          <select grInput [ngModel]="estado()" (ngModelChange)="estado.set($event)">
+          <gr-select [ngModel]="estado()" (ngModelChange)="estado.set($event)">
             <option value="">Todas</option>@for (e of estados; track e.v) { <option [value]="e.v">{{ e.l }}</option> }
-          </select>
+          </gr-select>
         </gr-field>
         @if (l) { <p class="pb-2.5 text-body-xs text-text-tertiary">{{ l.total }} campañas · {{ l.enCurso }} en curso</p> }
       </div>

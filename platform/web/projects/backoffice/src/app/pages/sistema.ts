@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, type GrIconName, GrSelect } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { BoDrawer, BoPageHeader, Confirm, errText } from '../shared/ui';
@@ -33,7 +33,7 @@ const ESTADO_COMP: Record<string, string> = { borrador: 'Borrador', proximamente
 /** «Sistema e integraciones» (Figma page 64): competitions (new edition cloning the setup), integrations, the email domain, health and the danger zone. */
 @Component({
   selector: 'bo-sistema',
-  imports: [FormsModule, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
@@ -142,7 +142,7 @@ const ESTADO_COMP: Record<string, string> = { borrador: 'Borrador', proximamente
         <div class="flex flex-col gap-3">
           @for (c of info(cfg.tipo).campos; track c.k) {
             <gr-field [label]="c.l">
-              @if (c.opciones) { <select grInput [(ngModel)]="cfgVals[c.k]">@for (o of c.opciones; track o) { <option [value]="o">{{ o }}</option> }</select> }
+              @if (c.opciones) { <gr-select [(ngModel)]="cfgVals[c.k]">@for (o of c.opciones; track o) { <option [value]="o">{{ o }}</option> }</gr-select> }
               @else { <input grInput [(ngModel)]="cfgVals[c.k]" /> }
             </gr-field>
           }

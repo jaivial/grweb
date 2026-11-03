@@ -8,3 +8,4 @@ export * from './lib/primitives';
 export * from './lib/controls';
 export * from './lib/toast';
 export * from './lib/format';
+export * from './lib/select';

@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { BoDrawer, BoPageHeader, Confirm, errText } from '../shared/ui';
@@ -34,7 +34,7 @@ const rel = (iso?: string) => {
 /** «Equipo y permisos» (Figma page 63): members, the permissions matrix by role, invitations and the member card with active sessions. */
 @Component({
   selector: 'bo-equipo',
-  imports: [FormsModule, BoPageHeader, BoDrawer, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, BoPageHeader, BoDrawer, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
@@ -117,7 +117,7 @@ const rel = (iso?: string) => {
         <div class="flex flex-col gap-5">
           <p class="text-body-s text-text-secondary">{{ m.email }} · en el equipo desde {{ rel(m.desde) }}</p>
           <section><h3 class="text-label-m">Rol en {{ comps.current()?.nombreCorto }}</h3>
-            <select grInput class="mt-2" [ngModel]="m.rolSlug" (ngModelChange)="cambiarRol(m, $event)" [disabled]="!puede() || m.usuarioId === yo()">@for (r of roles(); track r.slug) { <option [value]="r.slug">{{ r.nombre }}</option> }</select></section>
+            <gr-select class="mt-2" [ngModel]="m.rolSlug" (ngModelChange)="cambiarRol(m, $event)" [disabled]="!puede() || m.usuarioId === yo()">@for (r of roles(); track r.slug) { <option [value]="r.slug">{{ r.nombre }}</option> }</gr-select></section>
           <section><h3 class="text-label-m">Sesiones activas</h3><p class="text-body-xs text-text-tertiary">Cookie por dispositivo · caducan a las 12 h sin uso</p>
             <ul class="mt-2 flex flex-col gap-2">@for (x of sesiones(); track x.id) {
               <li class="flex items-center gap-3 rounded-md bg-bg-raised px-3 py-2 text-body-s"><gr-icon [name]="x.origen === 'cli' ? 'key' : 'smartphone'" [size]="16" /><div class="min-w-0 flex-1"><p class="truncate text-label-s">{{ dispositivo(x.userAgent) }}</p><p class="text-body-xs text-text-tertiary">{{ x.origen }} · {{ rel(x.lastUsedAt) }}</p></div>
@@ -138,7 +138,7 @@ const rel = (iso?: string) => {
         <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Invitar persona" (click)="$event.stopPropagation()" (ngSubmit)="invitar()">
           <h2 class="text-ui-h5">Invitar persona</h2><p class="mt-1 text-body-s text-text-secondary">Si ya tiene cuenta entra directamente; si no, recibe un email de invitación (caduca en 7 días).</p>
           <gr-field label="Email" class="mt-4"><input grInput type="email" name="email" [(ngModel)]="inv.email" autofocus /></gr-field>
-          <gr-field label="Rol" class="mt-3"><select grInput name="rol" [(ngModel)]="inv.rol">@for (r of roles(); track r.slug) { <option [value]="r.slug">{{ r.nombre }}</option> }</select></gr-field>
+          <gr-field label="Rol" class="mt-3"><gr-select name="rol" [(ngModel)]="inv.rol">@for (r of roles(); track r.slug) { <option [value]="r.slug">{{ r.nombre }}</option> }</gr-select></gr-field>
           <div class="mt-6 flex justify-end gap-2"><button type="button" grButton variant="ghost" (click)="invitarOpen.set(false)">Cancelar</button><button type="submit" grButton variant="primary" [disabled]="!inv.email.includes('@') || !inv.rol">Invitar</button></div>
         </form>
       </div>
@@ -278,7 +278,7 @@ export class EquipoPage {
 /** «Auditoría» (Figma page 63): who changed what and when, with filters and the before → after of each change. */
 @Component({
   selector: 'bo-auditoria',
-  imports: [FormsModule, BoPageHeader, BoDrawer, GrButton, GrEmpty, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, BoPageHeader, BoDrawer, GrButton, GrEmpty, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
@@ -286,8 +286,8 @@ export class EquipoPage {
       <div class="flex flex-wrap items-end gap-2">
         <label class="flex flex-col gap-1 text-label-s">Desde<input grInput type="date" [(ngModel)]="f.desde" (change)="buscar()" /></label>
         <label class="flex flex-col gap-1 text-label-s">Hasta<input grInput type="date" [(ngModel)]="f.hasta" (change)="buscar()" /></label>
-        <label class="flex flex-col gap-1 text-label-s">Acción<select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" [(ngModel)]="f.tipo" (change)="buscar()"><option value="">Todas</option>@for (t of tipos; track t.v) { <option [value]="t.v">{{ t.l }}</option> }</select></label>
-        <label class="flex flex-col gap-1 text-label-s">Origen<select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" [(ngModel)]="f.origen" (change)="buscar()"><option value="">Todos</option><option value="web">Backoffice</option><option value="cli">CLI</option><option value="token">Token</option><option value="mcp">MCP</option></select></label>
+        <label class="flex flex-col gap-1 text-label-s">Acción<gr-select tipo="filtro" [(ngModel)]="f.tipo" (valorChange)="buscar()"><option value="">Todas</option>@for (t of tipos; track t.v) { <option [value]="t.v">{{ t.l }}</option> }</gr-select></label>
+        <label class="flex flex-col gap-1 text-label-s">Origen<gr-select tipo="filtro" [(ngModel)]="f.origen" (valorChange)="buscar()"><option value="">Todos</option><option value="web">Backoffice</option><option value="cli">CLI</option><option value="token">Token</option><option value="mcp">MCP</option></gr-select></label>
       </div>
       @if (items() === null) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (!items()!.length) { <gr-empty icon="history" title="Nada en este periodo">Prueba con otras fechas o filtros.</gr-empty> }
