@@ -12,9 +12,9 @@ import { NoEncontrada } from '../layout/no-encontrada';
 import { Campeonato, fechaCorta } from './campeonato';
 import { HeroTrophy } from './hero-trophy';
 import {
-  SecAfiliaciones, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecInscripciones, SecLocalizacion, SecOrganizacion, SecPremios, SecSorteo,
-  type SorteoHome,
+  SecAfiliaciones, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecInscripciones, SecLocalizacion, SecOrganizacion, SecPremios,
 } from './secciones';
+import { SecSorteo, type SorteoHome } from './sorteo';
 
 /**
  * «/ — Home» (Figma page 05, desktop · tablet · mobile). Data from the competition and the CMS («Web · home»: order,

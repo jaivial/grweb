@@ -8,7 +8,7 @@ import { GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { Seo } from '../core/seo';
-import { SecSorteo } from '../home/secciones';
+import { SecSorteo } from '../home/sorteo';
 import { Footer, Navbar, instagramOf } from '../layout/layout';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
@@ -70,7 +70,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
       } @else {
         <!-- Figma «Section / Sorteo» (the same panel as the home, as the page's hero) -->
         <div class="h-[76px] md:hidden"></div>
-        <gr-sec-sorteo [sorteo]="s" [pagina]="true" [texto]="textoHero()" />
+        <gr-sec-sorteo [sorteo]="s" [pagina]="true" (elegido)="cantidad.set($event)" />
 
         <!-- Normas del sorteo -->
         <section id="normas" [class]="seccion + ' scroll-mt-20'">
@@ -110,7 +110,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
         </section>
 
         <!-- Resultados -->
-        <section [class]="seccion">
+        <section id="resultados" [class]="seccion + ' scroll-mt-20'">
           <gr-sorteo-titulo titulo="Resultados" />
           <div class="flex w-full max-w-[520px] flex-col items-center gap-3 rounded-lg border p-7 text-center" [class]="s.ganador ? 'border-accent/50 bg-[linear-gradient(150deg,#4a121c,#1b1112_70%)]' : 'border-line-subtle bg-bg-card'">
             @if (s.ganador; as g) {
@@ -227,7 +227,8 @@ export class SorteoPage {
   protected readonly checks = [{ k: 'mayorEdad' as const, req: true }, { k: 'aceptaBases' as const, req: true }, { k: 'novedades' as const, req: false }];
   protected readonly campo = 'h-12 rounded-sm border bg-bg-field px-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none';
   protected readonly seccion = SECCION;
-  protected readonly cancelado = inject(ActivatedRoute).snapshot.queryParamMap.has('cancelado');
+  private readonly route = inject(ActivatedRoute);
+  protected readonly cancelado = this.route.snapshot.queryParamMap.has('cancelado');
   protected readonly euros = euros;
   protected readonly eur = eur;
   protected readonly fechaLarga = fechaLarga;
@@ -235,10 +236,6 @@ export class SorteoPage {
   protected readonly total = computed(() => (this.data()?.precio ?? 0) * this.cantidad());
   protected readonly nombreComp = computed(() => this.comp.data()?.nombre ?? 'GR Strength Cup');
   protected readonly estadoTitulo: Record<string, string> = { proximamente: 'La venta abrirá pronto', cerrada: 'La venta ha terminado', agotada: 'Boletos agotados', bloqueada: 'Venta en preparación', sorteado: 'El sorteo ya se hizo' };
-  protected readonly textoHero = computed(() => {
-    const s = this.data();
-    return s ? `Compra hasta ${s.maxPorPersona} boletos para tener más oportunidades de ganar. ` : '';
-  });
   protected readonly pasos = computed<{ t: string; d: string; i: GrIconName }[]>(() => {
     const s = this.data();
     return [
@@ -270,7 +267,9 @@ export class SorteoPage {
       try {
         const [s] = await Promise.all([firstValueFrom(this.http.get<Publico>(BASE)), this.comp.load()]);
         this.data.set(s);
-        this.cantidad.set(Math.min(s.presets?.[0] ?? 1, s.maxPorPersona));
+        // ?boletos=N comes from «Participar por N €» in the home panel
+        const pedidos = Number(this.route.snapshot.queryParamMap.get('boletos'));
+        this.cantidad.set(Math.min(Number.isInteger(pedidos) && pedidos >= 1 ? pedidos : (s.presets?.[0] ?? 1), s.maxPorPersona));
       } catch (e) {
         this.data.set(null);
         if (this.res && !(e instanceof HttpErrorResponse && e.status === 404)) {

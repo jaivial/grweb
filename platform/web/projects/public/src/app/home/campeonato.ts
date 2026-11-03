@@ -54,7 +54,7 @@ export class Countdown {
 }
 
 /**
- * «Section / Campeonato» (Figma 03/05): logo L, title with the level, separator, event meta, notice badge, countdown,
+ * «Section / Campeonato» (Figma 03/05): logo L, the level as the visible title, separator, event meta, notice badge, countdown,
  * the two CTAs and the sponsors strip (an endless marquee with edge fades). It slides over the end of the hero
  * («Relevo», margin-top −400 px).
  */
@@ -72,8 +72,10 @@ export class Countdown {
     @let c = comp();
     <div class="relative mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-5 pt-18 pb-18 text-center md:gap-8 md:px-20 md:pt-32 md:pb-32">
       <img [src]="logo" alt="GR Strength Cup" class="h-[97px] w-auto select-none md:h-[145px]" draggable="false" />
+      <!-- The hero already says «Campeonato de powerlifting»: the h2 keeps it for screen readers and shows the level -->
       <h2 class="max-w-[1024px] text-display-xs md:text-display-l">
-        <gr-titulo [titulo]="titulo() + (nivel() ? '|' + nivel() : '')" />
+        @if (nivel()) { <span class="sr-only">{{ titulo() }}: </span><gr-titulo [titulo]="'*' + nivel() + '*'" /> }
+        @else { <gr-titulo [titulo]="titulo()" /> }
       </h2>
       <div class="h-px w-full max-w-[560px] bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.7),transparent)]" aria-hidden="true"></div>
       @if (meta().length) {
