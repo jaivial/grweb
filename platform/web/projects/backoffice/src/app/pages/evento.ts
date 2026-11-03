@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer as DomSanitizerRef } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
@@ -34,7 +34,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
   selector: 'bo-evento',
-  imports: [FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -122,7 +122,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
                 }
                 @if (puede()) {
                   <div class="mt-3 flex flex-wrap items-end gap-2">
-                    <gr-field label="Estado"><select grInput [(ngModel)]="prog.estado">@for (e of estados; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</select></gr-field>
+                    <gr-field label="Estado"><gr-select [(ngModel)]="prog.estado">@for (e of estados; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select></gr-field>
                     <gr-field label="Cuándo"><input grInput type="datetime-local" [(ngModel)]="prog.en" /></gr-field>
                     <button grButton (click)="programar()" [disabled]="!prog.en">Programar</button>
                   </div>
@@ -149,7 +149,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
                 <div class="mt-4 flex gap-1 rounded-md border border-line-strong p-1">@for (e of estadosInsc; track e.v) { <button type="button" class="h-9 flex-1 rounded-sm text-label-s" [class]="d.inscripcion.estado === e.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" [disabled]="!puede()" (click)="d.inscripcion.estado = e.v; tocar()">{{ e.l }}</button> }</div>
                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
                   <gr-field label="Plazas de atletas (cupo AEP)"><input grInput type="number" min="0" [(ngModel)]="d.inscripcion.plazas" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                  <gr-field label="Modo"><select grInput [(ngModel)]="d.inscripcion.modo" (ngModelChange)="tocar()" [disabled]="!puede()"><option value="externa">Inscripción en la web de la AEP</option><option value="cerrada">Sin inscripción</option></select></gr-field>
+                  <gr-field label="Modo"><gr-select [(ngModel)]="d.inscripcion.modo" (ngModelChange)="tocar()" [disabled]="!puede()"><option value="externa">Inscripción en la web de la AEP</option><option value="cerrada">Sin inscripción</option></gr-select></gr-field>
                   <gr-field label="URL de inscripción AEP" class="sm:col-span-2" [error]="err('url')"><input grInput [(ngModel)]="d.inscripcion.url" (ngModelChange)="tocar()" placeholder="https://aep-powerlifting.com/…" [disabled]="!puede()" /></gr-field>
                   <gr-field label="Responsable"><input grInput [(ngModel)]="d.inscripcion.responsable.nombre" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                   <gr-field label="Email de dudas"><input grInput type="email" [(ngModel)]="d.inscripcion.responsable.email" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
@@ -166,7 +166,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
               <section class="flex flex-col gap-3">
                 @for (x of d.comoLlegar; track $index; let i = $index) {
                   <div class="rounded-lg border border-line-subtle bg-bg-card p-4">
-                    <div class="flex flex-wrap items-center gap-2"><select class="h-9 rounded-md border border-line-strong bg-bg-field px-2 text-label-s" [(ngModel)]="x.tipo" (ngModelChange)="tocar()" [disabled]="!puede()">@for (t of transportes; track t) { <option [value]="t">{{ t }}</option> }</select>
+                    <div class="flex flex-wrap items-center gap-2"><gr-select tipo="filtro" [(ngModel)]="x.tipo" (ngModelChange)="tocar()" [disabled]="!puede()">@for (t of transportes; track t) { <option [value]="t">{{ t }}</option> }</gr-select>
                       <input grInput class="min-w-0 flex-1" [(ngModel)]="x.titulo" (ngModelChange)="tocar()" placeholder="Título" [disabled]="!puede()" />
                       <button type="button" class="h-9 rounded-sm px-2 text-mono-xs uppercase" [class]="x.estado === 'confirmado' ? 'text-success' : 'text-warning'" (click)="x.estado = x.estado === 'confirmado' ? 'por_confirmar' : 'confirmado'; tocar()" [disabled]="!puede()">{{ x.estado === 'confirmado' ? 'Confirmado' : 'Por confirmar' }}</button>
                       @if (puede()) { <button type="button" class="flex size-9 items-center justify-center rounded-sm text-accent-text hover:bg-bg-raised" (click)="quitarTransporte(i)" aria-label="Quitar"><gr-icon name="trash" [size]="14" /></button> }</div>

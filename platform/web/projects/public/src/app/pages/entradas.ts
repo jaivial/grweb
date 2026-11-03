@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
@@ -93,7 +93,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
  */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
+  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
@@ -211,7 +211,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                     <label class="flex flex-col gap-1.5 text-label-s">Teléfono (opcional)
                       <span class="flex h-12 items-center overflow-hidden rounded-sm border border-line-strong bg-bg-field focus-within:border-accent-text"><span class="flex h-full items-center border-r border-line-subtle px-3 text-body-m font-normal text-text-secondary">+34</span>
                         <input type="tel" inputmode="tel" class="h-full min-w-0 flex-1 bg-transparent px-3 text-body-m font-normal placeholder:text-text-muted focus:outline-none" [(ngModel)]="f.telefono" name="tel" autocomplete="tel-national" placeholder="600 000 000" /></span></label>
-                    <label class="flex flex-col gap-1.5 text-label-s">¿Cómo nos conociste?<select [class]="campo(false) + ' font-normal'" [(ngModel)]="f.origen" name="origen"><option value="">Elige una opción</option>@for (o of origenes; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+                    <div class="flex flex-col gap-1.5 text-label-s"><label for="e-origen">¿Cómo nos conociste?</label><gr-select id="e-origen" tam="l" class="font-normal" [(ngModel)]="f.origen" name="origen"><option value="">Elige una opción</option>@for (o of origenes; track o) { <option [value]="o">{{ o }}</option> }</gr-select></div>
                   </div>
                 </fieldset>
                 <fieldset class="flex flex-col gap-3">

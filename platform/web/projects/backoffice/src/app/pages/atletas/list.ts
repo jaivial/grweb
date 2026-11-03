@@ -2,7 +2,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton, GrToasts, fmtNumber, fmtShortDate, type GrTone } from '@grcup/ui';
+import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton, GrToasts, fmtNumber, fmtShortDate, type GrTone, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -26,7 +26,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [FormsModule, RouterLink, A11yModule, BoPageHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -89,18 +89,18 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                 <input type="search" placeholder="Buscar atleta, club o licencia…" [ngModel]="q()" (ngModelChange)="buscar($event)"
                   class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s placeholder:text-text-muted focus:border-accent-text focus:outline-none md:h-10" />
               </label>
-              <select [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo" class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:h-10">
+              <gr-select tipo="filtro" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
                 <option value="">Sexo</option><option value="F">Femenino</option><option value="M">Masculino</option>
-              </select>
-              <select [ngModel]="categoria()" (ngModelChange)="categoria.set($event); recargar(1)" aria-label="Categoría" class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:h-10">
+              </gr-select>
+              <gr-select tipo="filtro" [ngModel]="categoria()" (ngModelChange)="categoria.set($event); recargar(1)" aria-label="Categoría">
                 <option value="">Categoría</option>
                 @for (c of l?.categorias ?? []; track c) { <option [value]="c">{{ cat(c) }}</option> }
-              </select>
+              </gr-select>
               @if (l?.flights?.length) {
-                <select [ngModel]="flight()" (ngModelChange)="flight.set($event); recargar(1)" aria-label="Flight" class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-label-s md:h-10">
+                <gr-select tipo="filtro" [ngModel]="flight()" (ngModelChange)="flight.set($event); recargar(1)" aria-label="Flight">
                   <option value="">Flight</option>
                   @for (f of l!.flights; track f) { <option [value]="f">{{ f }}</option> }
-                </select>
+                </gr-select>
               }
               <span class="ml-auto hidden text-body-xs text-text-tertiary md:inline">{{ fmtNumber(l?.total) }} atletas</span>
               <button type="button" (click)="incompletos.set(!incompletos()); recargar(1)" [attr.aria-pressed]="incompletos()"

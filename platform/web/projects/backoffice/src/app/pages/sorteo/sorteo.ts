@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { problemOf } from '../../core/api';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -22,7 +22,7 @@ const deLocal = (v: string) => (v ? new Date(v).toISOString() : null);
  *  On a phone the live tab is the presenter view («Móvil · presentador»). */
 @Component({
   selector: 'bo-sorteo',
-  imports: [FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = panel();
@@ -114,7 +114,7 @@ const deLocal = (v: string) => (v ? new Date(v).toISOString() : null);
             <div class="flex flex-wrap items-center gap-2">
               <label class="relative min-w-0 flex-1 basis-64 md:max-w-xs"><span class="sr-only">Buscar</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
                 <input grInput class="pl-9" placeholder="Nombre, email o número" [ngModel]="f().q" (ngModelChange)="filtrar({ q: $event })" /></label>
-              <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Estado" [ngModel]="f().estado" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los pagos</option>@for (e of estadosC; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</select>
+              <gr-select tipo="filtro" aria-label="Estado" [ngModel]="f().estado" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los pagos</option>@for (e of estadosC; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select>
             </div>
             @if (compras(); as l) {
               <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">

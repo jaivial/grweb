@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { BoDrawer, BoPageHeader, Confirm, errText } from '../../shared/ui';
@@ -28,7 +28,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Contactos» (Figma page 61): list with KPIs and filters, segments and unsubscribes/suppressions. */
 @Component({
   selector: 'bo-contactos',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -68,10 +68,10 @@ function descargar(blob: Blob, nombre: string): void {
               <span class="sr-only">Buscar</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
               <input grInput class="pl-9" placeholder="Buscar por email, teléfono o nombre" [ngModel]="f().q" (ngModelChange)="filtrar({ q: $event })" />
             </label>
-            <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">+ Origen</option>@for (o of l?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</select>
-            <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Canal" [ngModel]="f().canal ?? ''" (ngModelChange)="filtrar({ canal: $event })"><option value="">+ Canal</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></select>
-            <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">+ Consentimiento</option><option value="confirmado">Confirmado</option><option value="pendiente">Pendiente</option><option value="no">No aceptado</option><option value="revocado">Revocado</option><option value="rebotado">Rebotado / no válido</option></select>
-            <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Relación" [ngModel]="f().relacion ?? ''" (ngModelChange)="filtrar({ relacion: $event })"><option value="">+ Relación</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</select>
+            <gr-select tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">+ Origen</option>@for (o of l?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
+            <gr-select tipo="filtro" aria-label="Canal" [ngModel]="f().canal ?? ''" (ngModelChange)="filtrar({ canal: $event })"><option value="">+ Canal</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></gr-select>
+            <gr-select tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">+ Consentimiento</option><option value="confirmado">Confirmado</option><option value="pendiente">Pendiente</option><option value="no">No aceptado</option><option value="revocado">Revocado</option><option value="rebotado">Rebotado / no válido</option></gr-select>
+            <gr-select tipo="filtro" aria-label="Relación" [ngModel]="f().relacion ?? ''" (ngModelChange)="filtrar({ relacion: $event })"><option value="">+ Relación</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</gr-select>
             <span class="ml-auto text-body-xs text-text-tertiary">{{ l?.total ?? 0 }} contactos</span>
           </div>
 
@@ -125,12 +125,12 @@ function descargar(blob: Blob, nombre: string): void {
               <ul class="mt-4 flex flex-col gap-3">
                 @for (c of e.condiciones; track $index) {
                   <li class="grid grid-cols-[1fr_1fr] gap-2 md:grid-cols-[1fr_1fr_1.4fr_44px]">
-                    <select grInput aria-label="Campo" [(ngModel)]="c.campo" (ngModelChange)="c.valor = ''; c.operador = c.campo === 'creado' || c.campo === 'actividad' ? 'desde' : 'es'; contar()">@for (k of campos; track k.v) { <option [value]="k.v">{{ k.label }}</option> }</select>
-                    <select grInput aria-label="Operador" [(ngModel)]="c.operador" (ngModelChange)="contar()">
+                    <gr-select aria-label="Campo" [(ngModel)]="c.campo" (ngModelChange)="c.valor = ''; c.operador = c.campo === 'creado' || c.campo === 'actividad' ? 'desde' : 'es'; contar()">@for (k of campos; track k.v) { <option [value]="k.v">{{ k.label }}</option> }</gr-select>
+                    <gr-select aria-label="Operador" [(ngModel)]="c.operador" (ngModelChange)="contar()">
                       @if (c.campo === 'creado' || c.campo === 'actividad') { <option value="desde">desde</option><option value="hasta">hasta</option> } @else { <option value="es">es</option><option value="no_es">no es</option> }
-                    </select>
+                    </gr-select>
                     @switch (c.campo) {
-                      @case ('relacion') { <select grInput aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()"><option value="">Elige…</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</select> }
+                      @case ('relacion') { <gr-select aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()"><option value="" hidden>Elige…</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</gr-select> }
                       @case ('creado') { <input grInput type="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
                       @case ('actividad') { <input grInput type="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
                       @default { <input grInput aria-label="Valor" [placeholder]="c.campo === 'origen' ? 'ig_story, ig_reel' : 'etiqueta'" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
@@ -197,7 +197,7 @@ function descargar(blob: Blob, nombre: string): void {
 
     <bo-drawer [(open)]="bajaOpen" title="Añadir baja">
       <div class="flex flex-col gap-4">
-        <gr-field label="Canal" for="b-c"><select grInput id="b-c" [(ngModel)]="baja.canal"><option value="email">Email</option><option value="whatsapp">WhatsApp</option></select></gr-field>
+        <gr-field label="Canal" for="b-c"><gr-select id="b-c" [(ngModel)]="baja.canal"><option value="email">Email</option><option value="whatsapp">WhatsApp</option></gr-select></gr-field>
         <gr-field [label]="baja.canal === 'email' ? 'Email' : 'Teléfono'" for="b-d"><input grInput id="b-d" [(ngModel)]="baja.destino" [placeholder]="baja.canal === 'email' ? 'nombre@dominio.com' : '+34 600 000 000'" /></gr-field>
         <gr-field label="Motivo" for="b-m"><input grInput id="b-m" maxlength="200" [(ngModel)]="baja.motivo" placeholder="Pedida por teléfono, por email…" /></gr-field>
         <p class="text-body-xs text-text-tertiary">Dejará de recibir campañas por ese canal. Si tenía novedades por email confirmadas, se revocan.</p>

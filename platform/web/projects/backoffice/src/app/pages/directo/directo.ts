@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { problemOf } from '../../core/api';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -23,7 +23,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
  *  On a phone it opens the speaker view («Móvil · locutor»). Decisions made without network are kept on the device and sent in order. */
 @Component({
   selector: 'bo-directo',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let m = mesa();
@@ -61,10 +61,10 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
         <!-- Controls: flight, lift, delay -->
         <section class="flex flex-wrap items-end gap-3">
           <gr-field label="Flight" class="w-full sm:w-80">
-            <select grInput [ngModel]="m.estado.flightId ?? ''" (ngModelChange)="elegirFlight($event)" [disabled]="!puedeOperar() || !!guardando()">
+            <gr-select [ngModel]="m.estado.flightId ?? ''" (ngModelChange)="elegirFlight($event)" [disabled]="!puedeOperar() || !!guardando()">
               <option value="" disabled>Elige el flight</option>
               @for (f of m.flights; track f.id) { <option [value]="f.id">{{ f.codigo }} · {{ f.titulo }} · {{ estadoFlight[f.estado] }}</option> }
-            </select>
+            </gr-select>
           </gr-field>
           @if (m.flight) {
             <div class="flex h-10 rounded-md border border-line-strong p-0.5" role="radiogroup" aria-label="Movimiento">
@@ -206,7 +206,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
           <header class="flex items-start justify-between gap-3"><h2 class="text-ui-h5">Corregir intento · {{ c.fila.nombre }}</h2><button type="button" class="-mt-1 -mr-2 flex size-9 items-center justify-center rounded-sm hover:bg-bg-card" (click)="corr.set(null)" aria-label="Cerrar"><gr-icon name="x" [size]="18" /></button></header>
           <div class="mt-5 flex flex-col gap-4">
             <gr-field label="Resultado" [hint]="'Antes: ' + ver(c.it.votos, c.it.resultado)">
-              <select grInput name="res" [(ngModel)]="c.res">@for (o of opciones; track o.v) { <option [value]="o.v">{{ ver(c.it.votos, c.it.resultado) }} → {{ o.l }}</option> }</select>
+              <gr-select name="res" [(ngModel)]="c.res">@for (o of opciones; track o.v) { <option [value]="o.v">{{ ver(c.it.votos, c.it.resultado) }} → {{ o.l }}</option> }</gr-select>
             </gr-field>
             <div class="grid grid-cols-2 gap-3">
               <gr-field label="Intento"><input grInput [value]="MOVN[c.mov] + ' ' + ORD[c.n]" disabled /></gr-field>

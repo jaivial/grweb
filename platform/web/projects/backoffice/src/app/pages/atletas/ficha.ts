@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, fmtAgo, fmtShortDate } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, fmtAgo, fmtShortDate, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -18,7 +18,7 @@ const PUBLIC_WEB = webPublica();
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({
   selector: 'bo-atleta-ficha',
-  imports: [FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = atleta();
@@ -191,10 +191,10 @@ const PUBLIC_WEB = webPublica();
                   <gr-field label="Apellidos" for="d-a"><input grInput id="d-a" [(ngModel)]="d.apellidos" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Licencia AEP" for="d-l"><input grInput id="d-l" [(ngModel)]="d.licencia" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Fecha de nacimiento" for="d-f" [hint]="a.edad !== undefined ? a.edad + ' años el día de la competición' : null"><input grInput id="d-f" type="date" [(ngModel)]="d.fechaNacimiento" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Sexo" for="d-s"><select grInput id="d-s" [(ngModel)]="d.sexo" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></select></gr-field>
-                  <gr-field label="Categoría de peso" for="d-c"><select grInput id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (!categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</select></gr-field>
-                  <gr-field label="División" for="d-d"><select grInput id="d-d" [(ngModel)]="d.division" [disabled]="!canEdit()">@for (v of divisiones; track v.value) { <option [value]="v.value">{{ v.label }}</option> }</select></gr-field>
-                  <gr-field label="Estado" for="d-e"><select grInput id="d-e" [(ngModel)]="d.estado" [disabled]="!canEdit()"><option value="confirmado">Confirmado</option><option value="reserva">Reserva</option><option value="baja">Baja</option></select></gr-field>
+                  <gr-field label="Sexo" for="d-s"><gr-select id="d-s" [(ngModel)]="d.sexo" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
+                  <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (!categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
+                  <gr-field label="División" for="d-d"><gr-select id="d-d" [(ngModel)]="d.division" [disabled]="!canEdit()">@for (v of divisiones; track v.value) { <option [value]="v.value">{{ v.label }}</option> }</gr-select></gr-field>
+                  <gr-field label="Estado" for="d-e"><gr-select id="d-e" [(ngModel)]="d.estado" [disabled]="!canEdit()"><option value="confirmado">Confirmado</option><option value="reserva">Reserva</option><option value="baja">Baja</option></gr-select></gr-field>
                   <gr-field label="Club" for="d-club"><input grInput id="d-club" [(ngModel)]="d.club" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Ciudad" for="d-city"><input grInput id="d-city" [(ngModel)]="d.ciudad" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Email" for="d-mail"><input grInput id="d-mail" type="email" [(ngModel)]="d.email" [disabled]="!canEdit()" /></gr-field>

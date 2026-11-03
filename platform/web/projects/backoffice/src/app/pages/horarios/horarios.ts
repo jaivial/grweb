@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSkeleton, GrSpinner, GrToasts, type GrIconName, type GrTone } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSkeleton, GrSpinner, GrToasts, type GrIconName, type GrTone, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -24,7 +24,7 @@ const ICONOS: { v: string; label: string }[] = [
 /** «Horarios y flights» (Figma page 56): planner with drag and drop, conflicts, weigh-ins, versions and publishing with notices. */
 @Component({
   selector: 'bo-horarios',
-  imports: [FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle,
+  imports: [GrSelect, FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle,
     GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSkeleton, GrSpinner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
@@ -110,21 +110,15 @@ const ICONOS: { v: string; label: string }[] = [
             <div class="-mx-4 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 [&>*]:shrink-0">
               @if (canEdit()) { <button grButton icon="zap" (click)="generar()">Generar automáticamente</button> }
               @if (canEdit()) { <button grButton variant="ghost" icon="plus" (click)="nuevoFlight()">Flight</button> }
-              <label class="inline-flex h-10 items-center gap-1 rounded-pill border border-line-strong pr-1 pl-3 text-label-s">Máx.
-                <select class="h-8 rounded-pill bg-transparent pr-1 text-label-s focus:outline-none" [ngModel]="b.config.maxPorFlight" (ngModelChange)="ajustar({ maxPorFlight: +$event })" [disabled]="!canEdit()" aria-label="Máximo por flight">
-                  @for (n of maximos; track n) { <option [value]="n">{{ n }} por flight</option> }
-                </select>
-              </label>
-              <label class="inline-flex h-10 items-center gap-1 rounded-pill border border-line-strong pr-1 pl-3 text-label-s">Plataformas:
-                <select class="h-8 rounded-pill bg-transparent pr-1 text-label-s focus:outline-none" [ngModel]="b.config.plataformas" (ngModelChange)="ajustar({ plataformas: +$event })" [disabled]="!canEdit()" aria-label="Plataformas">
-                  @for (n of [1, 2, 3, 4]; track n) { <option [value]="n">{{ n }}</option> }
-                </select>
-              </label>
-              <label class="inline-flex h-10 items-center gap-1 rounded-pill border border-line-strong pr-1 pl-3 text-label-s">Orden:
-                <select class="h-8 rounded-pill bg-transparent pr-1 text-label-s focus:outline-none" [ngModel]="b.config.orden" (ngModelChange)="ajustar({ orden: $event })" [disabled]="!canEdit()" aria-label="Orden">
-                  <option value="total">total previsto</option><option value="categoria">categoría y apellidos</option>
-                </select>
-              </label>
+              <gr-select tipo="filtro" etiqueta="Máximo" [resaltar]="false" [ngModel]="b.config.maxPorFlight" (ngModelChange)="ajustar({ maxPorFlight: +$event })" [disabled]="!canEdit()" aria-label="Máximo por flight">
+                @for (n of maximos; track n) { <option [value]="n">{{ n }} por flight</option> }
+              </gr-select>
+              <gr-select tipo="filtro" etiqueta="Plataformas" [resaltar]="false" [ngModel]="b.config.plataformas" (ngModelChange)="ajustar({ plataformas: +$event })" [disabled]="!canEdit()" aria-label="Plataformas">
+                @for (n of [1, 2, 3, 4]; track n) { <option [value]="n">{{ n }}</option> }
+              </gr-select>
+              <gr-select tipo="filtro" etiqueta="Orden" [resaltar]="false" [ngModel]="b.config.orden" (ngModelChange)="ajustar({ orden: $event })" [disabled]="!canEdit()" aria-label="Orden">
+                <option value="total">total previsto</option><option value="categoria">categoría y apellidos</option>
+              </gr-select>
               <button type="button" class="inline-flex h-10 items-center gap-1.5 rounded-pill border border-line-subtle px-3 text-label-s text-text-tertiary hover:text-text-primary" (click)="abrirDia()">
                 <gr-icon name="settings" [size]="14" />{{ diaCfg()?.pausaInicio ? 'Pausa comida ' + diaCfg()!.pausaInicio + '–' + diaCfg()!.pausaFin : 'Ajustes del día' }}
               </button>
@@ -322,8 +316,8 @@ const ICONOS: { v: string; label: string }[] = [
         <div class="flex flex-col gap-4">
           <p class="text-body-s text-text-secondary">{{ f.titulo }} · {{ activos(f) }} atletas</p>
           <div class="grid grid-cols-2 gap-3">
-            <gr-field label="Día" for="f-dia"><select grInput id="f-dia" [(ngModel)]="fEdit.dia" [disabled]="!canEdit()">@for (d of data()?.config?.dias ?? []; track d.fecha) { <option [value]="d.fecha">{{ diaLargo(d.fecha) }}</option> }</select></gr-field>
-            <gr-field label="Plataforma" for="f-pl"><select grInput id="f-pl" [(ngModel)]="fEdit.plataforma" [disabled]="!canEdit()">@for (n of [1, 2, 3, 4]; track n) { <option [ngValue]="n">{{ n }}</option> }</select></gr-field>
+            <gr-field label="Día" for="f-dia"><gr-select id="f-dia" [(ngModel)]="fEdit.dia" [disabled]="!canEdit()">@for (d of data()?.config?.dias ?? []; track d.fecha) { <option [value]="d.fecha">{{ diaLargo(d.fecha) }}</option> }</gr-select></gr-field>
+            <gr-field label="Plataforma" for="f-pl"><gr-select id="f-pl" [ngModel]="fEdit.plataforma" (ngModelChange)="fEdit.plataforma = +$event" [disabled]="!canEdit()">@for (n of [1, 2, 3, 4]; track n) { <option [value]="n">{{ n }}</option> }</gr-select></gr-field>
             <gr-field label="Sale a plataforma" for="f-ini"><input grInput id="f-ini" type="time" step="300" [(ngModel)]="fEdit.inicio" [disabled]="!canEdit()" /></gr-field>
             <gr-field label="Duración (min)" for="f-dur"><input grInput id="f-dur" type="number" min="10" max="600" step="5" [(ngModel)]="fEdit.duracionMin" [disabled]="!canEdit()" /></gr-field>
             <gr-field label="Pesaje desde" for="f-pi"><input grInput id="f-pi" type="time" step="300" [(ngModel)]="fEdit.pesajeInicio" [disabled]="!canEdit()" /></gr-field>
@@ -335,7 +329,7 @@ const ICONOS: { v: string; label: string }[] = [
               <h3 class="text-label-m">En directo</h3>
               <p class="text-body-xs text-text-tertiary">Se ve al momento en /horarios. El día del evento lo lleva la mesa de Directo.</p>
               <div class="mt-3 grid grid-cols-2 gap-3">
-                <gr-field label="Estado" for="d-e"><select grInput id="d-e" [(ngModel)]="dEdit.estado"><option value="programado">Programado</option><option value="en_curso">En curso</option><option value="finalizado">Finalizado</option></select></gr-field>
+                <gr-field label="Estado" for="d-e"><gr-select id="d-e" [(ngModel)]="dEdit.estado"><option value="programado">Programado</option><option value="en_curso">En curso</option><option value="finalizado">Finalizado</option></gr-select></gr-field>
                 <gr-field label="Retraso (min)" for="d-r"><input grInput id="d-r" type="number" min="0" max="600" step="5" [(ngModel)]="dEdit.retrasoMin" /></gr-field>
               </div>
               <button grButton size="s" class="mt-3" [loading]="guardando()" (click)="guardarDirecto(f)">Actualizar directo</button>
@@ -372,7 +366,7 @@ const ICONOS: { v: string; label: string }[] = [
               <li class="grid grid-cols-[112px_minmax(0,1fr)_96px_44px] items-center gap-2">
                 <input grInput type="time" [(ngModel)]="it.hora" aria-label="Hora" [disabled]="!canEdit()" />
                 <input grInput [(ngModel)]="it.titulo" maxlength="120" aria-label="Qué pasa" [disabled]="!canEdit()" />
-                <select grInput [(ngModel)]="it.icono" aria-label="Icono" [disabled]="!canEdit()">@for (i of iconos; track i.v) { <option [value]="i.v">{{ i.label }}</option> }</select>
+                <gr-select [(ngModel)]="it.icono" aria-label="Icono" [disabled]="!canEdit()">@for (i of iconos; track i.v) { <option [value]="i.v">{{ i.label }}</option> }</gr-select>
                 @if (canEdit()) { <button grIconButton icon="trash" label="Quitar" (click)="agendaDia.splice($index, 1)"></button> }
               </li>
             }

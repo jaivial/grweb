@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrIcon, GrToasts, type GrTone } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrIcon, GrToasts, type GrTone, GrSelect } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, errText } from '../../shared/ui';
@@ -18,7 +18,7 @@ const RESULTADO: Record<FilaDiff['accion'] | 'baja', { label: string; tone: GrTo
 /** «Importar acta de la AEP» (Figma page 55 · «Atletas · importar AEP»): upload → map columns → review the diff → confirm. */
 @Component({
   selector: 'bo-atletas-importar',
-  imports: [FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrIcon],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let imp = importacion();
@@ -62,10 +62,10 @@ const RESULTADO: Record<FilaDiff['accion'] | 'baja', { label: string; tone: GrTo
               @for (c of imp?.campos ?? []; track c.clave) {
                 <li class="grid gap-2 border-b border-line-subtle px-5 py-3 last:border-0 md:grid-cols-[220px_260px_minmax(0,1fr)] md:items-center">
                   <label [for]="'m-' + c.clave" class="text-label-s">{{ c.etiqueta }} @if (c.obligatorio) { <span class="text-accent-text">*</span> }</label>
-                  <select [id]="'m-' + c.clave" [ngModel]="mapeo()[c.clave] ?? ''" (ngModelChange)="mapear(c.clave, $event)" class="h-11 rounded-md border border-line-strong bg-bg-field px-3 text-body-s md:h-10">
+                  <gr-select [id]="'m-' + c.clave" [ngModel]="mapeo()[c.clave] ?? ''" (ngModelChange)="mapear(c.clave, $event)">
                     <option value="">— No importar —</option>
                     @for (col of imp?.columnas ?? []; track col) { <option [value]="col">{{ col }}</option> }
-                  </select>
+                  </gr-select>
                   <span class="truncate text-mono-xs text-text-tertiary">{{ ejemplo(c.clave) }}</span>
                 </li>
               }

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, type Club, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
@@ -212,7 +212,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
 /** /clubs (Figma page 32): searchable club directory by province and a moderated «Añadir mi club» form. */
 @Component({
   selector: 'gr-clubs-page',
-  imports: [Page, FormsModule, GrIcon, GrSkeleton, GrButton, GrField, GrInput, GrAlert, Related, Community],
+  imports: [GrSelect, Page, FormsModule, GrIcon, GrSkeleton, GrButton, GrField, GrInput, GrAlert, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Clubs de powerlifting" accent="en Valencia" eyebrow="Comunidad" section="Comunidad" crumb="Clubs"
@@ -294,7 +294,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
               <gr-field label="Nombre del club" for="c-nombre"><input grInput id="c-nombre" name="nombre" required [(ngModel)]="f.nombre" /></gr-field>
               <gr-field label="Ciudad" for="c-ciudad"><input grInput id="c-ciudad" name="ciudad" autocomplete="address-level2" required [(ngModel)]="f.ciudad" /></gr-field>
               <gr-field label="Provincia" for="c-prov">
-                <select grInput id="c-prov" name="provincia" [(ngModel)]="f.provincia">@for (p of provincias.slice(1); track p) { <option [value]="p">{{ p }}</option> }<option value="Otra">Otra</option></select>
+                <gr-select id="c-prov" name="provincia" [(ngModel)]="f.provincia">@for (p of provincias.slice(1); track p) { <option [value]="p">{{ p }}</option> }<option value="Otra">Otra</option></gr-select>
               </gr-field>
               <gr-field label="Web" for="c-web" [optional]="true" hint="https://…"><input grInput id="c-web" name="web" type="url" inputmode="url" [(ngModel)]="f.web" /></gr-field>
               <gr-field label="Instagram" for="c-ig" [optional]="true" hint="https://instagram.com/…"><input grInput id="c-ig" name="instagram" type="url" inputmode="url" [(ngModel)]="f.instagram" /></gr-field>

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrBadge, GrButton, GrIcon, GrKpi, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrBadge, GrButton, GrIcon, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, errText } from '../../shared/ui';
@@ -152,7 +152,7 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
  */
 @Component({
   selector: 'bo-escaner',
-  imports: [FormsModule, RouterLink, GrBadge, GrButton, GrIcon],
+  imports: [GrSelect, FormsModule, RouterLink, GrBadge, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -171,9 +171,9 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
             }
           </ul>
           <label class="text-label-s" for="es-s">Sesión</label>
-          <select id="es-s" class="h-12 rounded-md border border-line-strong bg-bg-field px-3 text-body-m" [ngModel]="sesion()" (ngModelChange)="sesion.set($event)">
+          <gr-select id="es-s" [ngModel]="sesion()" (ngModelChange)="sesion.set($event)">
             @for (s of boot()?.sesiones ?? []; track s.id) { <option [value]="s.id">{{ s.nombre }}{{ s.id === boot()?.actual ? ' (ahora)' : '' }}</option> }
-          </select>
+          </gr-select>
           <button grButton variant="primary" size="l" [disabled]="!puesto() || !sesion()" (click)="empezar()">Empezar a escanear</button>
           @if (!boot()) { <p class="text-body-s text-text-tertiary">Cargando puestos y entradas…</p> }
         }

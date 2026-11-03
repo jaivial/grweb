@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, type GrIconName, GrSelect } from '@grcup/ui';
 import { problemOf } from '../../core/api';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -38,7 +38,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
 /** «Campaña» (Figma page 61): Flujo · Diseño (blocks, layers, properties, AI) · Previsualización (email + WhatsApp) · Ajustes and sending. */
 @Component({
   selector: 'bo-campana',
-  imports: [FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`.canvas p { margin: 0 } .canvas strong { color: #141011 }`],
   template: `
@@ -183,7 +183,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
                   }
                   @if (iaCargando()) { <p class="flex items-center gap-2 text-body-xs text-text-tertiary"><gr-icon name="loader" [size]="14" class="animate-spin" />Diseñando · {{ iaSeg() }} s</p> }
                 </div>
-                <gr-field label="Modelo de IA" class="mt-3"><select grInput [(ngModel)]="modelo">@for (m of modelos(); track m.id) { <option [value]="m.id">{{ m.nombre }}</option> } @empty { <option value="">No disponible</option> }</select></gr-field>
+                <gr-field label="Modelo de IA" class="mt-3"><gr-select [(ngModel)]="modelo">@for (m of modelos(); track m.id) { <option [value]="m.id">{{ m.nombre }}</option> } @empty { <option value="">No disponible</option> }</gr-select></gr-field>
                 <form class="mt-3 flex gap-2" (ngSubmit)="pedirIA()">
                   <textarea grInput name="ia" rows="2" class="flex-1" [(ngModel)]="iaTexto" placeholder="Describe el cambio que quieres…" (keydown.enter)="$event.preventDefault(); pedirIA()"></textarea>
                   <button type="submit" grButton variant="primary" icon="send" [disabled]="iaCargando() || iaTexto.trim().length < 3 || !modelos().length" aria-label="Enviar a la IA"></button>
@@ -217,8 +217,8 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
                       <gr-field label="Hasta (hora de Madrid)"><input grInput type="datetime-local" [ngModel]="b.fecha" (ngModelChange)="editar(b.id, { fecha: $event })" /></gr-field>
                       <gr-field label="Texto encima"><input grInput [ngModel]="b.texto" (ngModelChange)="editar(b.id, { texto: $event })" /></gr-field>
                     }
-                    @case ('horario') { <gr-field label="Día"><select grInput [ngModel]="b.fecha" (ngModelChange)="editar(b.id, { fecha: $event })">@for (d of dias(); track d) { <option [value]="d">{{ diaLargo(d) }}</option> }</select></gr-field> }
-                    @case ('espacio') { <gr-field label="Alto"><select grInput [ngModel]="b.alto" (ngModelChange)="editar(b.id, { alto: +$event })">@for (h of [8, 16, 24, 32, 48, 64]; track h) { <option [value]="h">{{ h }} px</option> }</select></gr-field> }
+                    @case ('horario') { <gr-field label="Día"><gr-select [ngModel]="b.fecha" (ngModelChange)="editar(b.id, { fecha: $event })">@for (d of dias(); track d) { <option [value]="d">{{ diaLargo(d) }}</option> }</gr-select></gr-field> }
+                    @case ('espacio') { <gr-field label="Alto"><gr-select [ngModel]="b.alto" (ngModelChange)="editar(b.id, { alto: +$event })">@for (h of [8, 16, 24, 32, 48, 64]; track h) { <option [value]="h">{{ h }} px</option> }</gr-select></gr-field> }
                     @default { <p class="text-body-s text-text-tertiary">Este bloque no tiene opciones.</p> }
                   }
                   @if (b.tipo === 'titulo' || b.tipo === 'texto' || b.tipo === 'boton') {
@@ -283,8 +283,8 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
               @if (c.estado === 'pausada') { <button grButton variant="primary" icon="play" (click)="accion('reanudar')">Reanudar</button> }
               @if (c.estado === 'enviando' || c.estado === 'pausada') { <button grButton variant="danger" (click)="cancelar()">Cancelar envío</button> }
               <span class="flex-1"></span>
-              <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Canal" [ngModel]="fd().canal" (ngModelChange)="filtrarDest({ canal: $event })"><option value="">Todos los canales</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></select>
-              <select class="h-10 rounded-md border border-line-strong bg-bg-field px-3 text-label-s" aria-label="Estado" [ngModel]="fd().estado" (ngModelChange)="filtrarDest({ estado: $event })"><option value="">Todos los estados</option>@for (e of estadosDest; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</select>
+              <gr-select tipo="filtro" aria-label="Canal" [ngModel]="fd().canal" (ngModelChange)="filtrarDest({ canal: $event })"><option value="">Todos los canales</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></gr-select>
+              <gr-select tipo="filtro" aria-label="Estado" [ngModel]="fd().estado" (ngModelChange)="filtrarDest({ estado: $event })"><option value="">Todos los estados</option>@for (e of estadosDest; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select>
             </div>
             @if (dest(); as d) {
               <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
@@ -318,7 +318,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
             </section>
             <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
               <div class="flex items-start justify-between gap-3"><div><h2 class="text-ui-h5">Destinatarios</h2><p class="text-body-xs text-text-tertiary">El consentimiento de cada canal y las bajas se aplican siempre</p></div><button grButton size="s" (click)="calcular()">Calcular</button></div>
-              <gr-field label="Segmento" class="mt-4 md:w-1/2"><select grInput [ngModel]="f().segmentoId ?? ''" (ngModelChange)="set({ segmentoId: $event || undefined })"><option value="">Todos con consentimiento</option>@for (s of segs(); track s.id) { <option [value]="s.id">{{ s.nombre }} ({{ n(s.recuento.total) }})</option> }</select></gr-field>
+              <gr-field label="Segmento" class="mt-4 md:w-1/2"><gr-select [ngModel]="f().segmentoId ?? ''" (ngModelChange)="set({ segmentoId: $event || undefined })"><option value="">Todos con consentimiento</option>@for (s of segs(); track s.id) { <option [value]="s.id">{{ s.nombre }} ({{ n(s.recuento.total) }})</option> }</gr-select></gr-field>
               @if (aud(); as a) { <p class="mt-3 text-body-s">{{ n(destinos()) }} destinos · {{ n(a.email) }} por email / {{ n(a.whatsapp) }} por WhatsApp · {{ n(a.excluidos) }} excluidos (sin consentimiento del canal o con baja)</p> }
             </section>
             <section class="rounded-lg border border-line-subtle bg-bg-card p-5">

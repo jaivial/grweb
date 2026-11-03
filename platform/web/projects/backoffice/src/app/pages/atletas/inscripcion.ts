@@ -4,7 +4,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
+import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton, GrToasts, type GrTone, GrSelect } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -32,7 +32,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
 /** «Inscripción» (Figma page 66): own registration with payment, coupons, referrals and payments. */
 @Component({
   selector: 'bo-inscripcion',
-  imports: [FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6 pb-24">
@@ -149,7 +149,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                 <div class="flex items-center justify-between gap-4"><span><span class="block text-ui-h5">Programa de referidos</span><span class="block text-body-xs text-text-tertiary">Los nuevos inscritos reciben su código en el email de confirmación y en su área</span></span><bo-toggle [(value)]="c.referidos.activo" label="Activo" [disabled]="!canEdit()" /></div>
                 <gr-segmented label="Modo" [options]="modosRef" [(value)]="c.referidos.modo" />
                 <div class="grid gap-4 md:grid-cols-2">
-                  <gr-field label="Descuento para quien se inscribe" for="r-d"><div class="flex gap-2"><input grInput id="r-d" type="number" min="0" [ngModel]="c.referidos.descTipo === 'porcentaje' ? c.referidos.descValor : c.referidos.descValor / 100" (ngModelChange)="c.referidos.descValor = c.referidos.descTipo === 'porcentaje' ? +$event : round($event)" [disabled]="!canEdit()" /><select grInput class="w-24" [(ngModel)]="c.referidos.descTipo" [disabled]="!canEdit()"><option value="porcentaje">%</option><option value="importe">€</option></select></div></gr-field>
+                  <gr-field label="Descuento para quien se inscribe" for="r-d"><div class="flex gap-2"><input grInput id="r-d" type="number" min="0" [ngModel]="c.referidos.descTipo === 'porcentaje' ? c.referidos.descValor : c.referidos.descValor / 100" (ngModelChange)="c.referidos.descValor = c.referidos.descTipo === 'porcentaje' ? +$event : round($event)" [disabled]="!canEdit()" /><gr-select class="w-24" [(ngModel)]="c.referidos.descTipo" [disabled]="!canEdit()"><option value="porcentaje">%</option><option value="importe">€</option></gr-select></div></gr-field>
                   <gr-field label="Recompensa para quien invita (€ por invitado)" for="r-r"><input grInput id="r-r" type="number" min="0" step="0.5" [ngModel]="c.referidos.recompensa / 100" (ngModelChange)="c.referidos.recompensa = round($event)" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Invitados máximos por código" for="r-m" hint="0 = sin límite"><input grInput id="r-m" type="number" min="0" [(ngModel)]="c.referidos.maxUsos" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Tope de devolución" for="r-t" hint="Nunca se devuelve más de lo que pagó"><input grInput id="r-t" [value]="'Lo que pagó (hasta ' + euros(c.cuota) + ')'" disabled /></gr-field>
