@@ -400,7 +400,7 @@ export class ClubsPage {
               <gr-skeleton class="mt-6 h-40 rounded-lg" />
             } @else {
               @if (str(h, 'eyebrow')) { <p class="mt-6 flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-7 bg-accent/60"></span>{{ str(h, 'eyebrow') }}</p> }
-              <h1 class="mt-3 text-display-l md:text-display-xl">{{ str(h, 'titulo') || 'GRStrength Cup' }} <span class="text-accent-text">{{ str(h, 'tituloAcento') }}</span></h1>
+              <h1 class="mt-3 text-display-m md:text-display-xl">{{ str(h, 'titulo') || 'GRStrength Cup' }} <span class="text-accent-text">{{ str(h, 'tituloAcento') }}</span></h1>
               <p class="mt-4 max-w-xl text-body-m text-text-secondary md:text-body-l">{{ str(h, 'texto') }}</p>
               <ul class="mt-6 grid gap-3 sm:grid-cols-3">
                 <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="calendar" [size]="18" /></span>
@@ -408,7 +408,7 @@ export class ClubsPage {
                 <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="map-pin" [size]="18" /></span>
                   <span><span class="block text-label-xs text-text-muted uppercase">Venue</span><span class="block text-label-m">{{ c ? c.sede.ciudad + ' · Valencia' : 'Almussafes · Valencia' }}</span></span></li>
                 @if (h?.['plazas']) {
-                  <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="users" [size]="18" /></span>
+                  <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="user" [size]="18" /></span>
                     <span><span class="block text-label-xs text-text-muted uppercase">Lifters</span><span class="block text-label-m">{{ h?.['plazas'] }} places</span></span></li>
                 }
               </ul>
