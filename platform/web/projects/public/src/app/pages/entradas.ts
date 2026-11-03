@@ -1,42 +1,48 @@
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrIcon, GrLogo, GrSkeleton } from '@grcup/ui';
+import { firstValueFrom } from 'rxjs';
+import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms, type Faq } from '../core/cms';
-import { Competition } from '../core/competition';
+import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
+import type { Horarios } from '../core/horarios';
 import { Seo } from '../core/seo';
+import { GrCabecera } from '../home/bloques';
+import { Footer, Navbar } from '../layout/layout';
 import { Newsletter } from '../layout/newsletter';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
-import { Community } from './landings';
 
 const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
-  disponible: { label: 'Disponible', cls: 'border-success/40 bg-success/10 text-success' },
-  ultimas: { label: 'Últimas', cls: 'border-warning/50 bg-warning/10 text-warning' },
+  disponible: { label: 'Disponible', cls: 'border-success/50 bg-success/10 text-success' },
+  ultimas: { label: 'Últimas', cls: 'border-accent/50 bg-accent/10 text-accent-text' },
   agotada: { label: 'Agotada', cls: 'border-line-strong text-text-tertiary' },
   cerrada: { label: 'Cerrada', cls: 'border-line-strong text-text-tertiary' },
   proximamente: { label: 'Próximamente', cls: 'border-info/40 bg-info/10 text-info' },
 };
 
-/** Ticket card (Figma 37 hero, 38 confirmation and «Mi entrada»). */
+/** Ticket card (Figma 37 hero, 38 confirmation and «Mi entrada»): charcoal card, perforation with notches, the QR. */
 @Component({
   selector: 'gr-ticket',
   imports: [GrIcon, GrLogo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <article class="relative overflow-hidden rounded-xl border p-5 shadow-card" [class]="anulada() ? 'border-line-strong bg-bg-card opacity-60' : 'border-accent/50 bg-[linear-gradient(160deg,#3a0f17,#1b1112_70%)]'">
-      <header class="flex items-start justify-between gap-3"><gr-logo [height]="34" /><span class="inline-flex h-6 items-center rounded-pill border px-2 text-mono-xs" [class]="anulada() ? 'border-line-strong text-text-tertiary' : 'border-success/50 bg-success/10 text-success'">{{ anulada() ? 'Anulada' : 'Entrada gratuita' }}</span></header>
-      <p class="mt-3 font-display text-[26px] leading-none uppercase italic">{{ evento() }}</p>
-      <ul class="mt-3 flex flex-col gap-1.5 text-body-s text-text-secondary">
-        <li class="flex items-center gap-2"><gr-icon name="calendar" [size]="14" class="text-accent-text" />{{ linea1() }}</li>
-        <li class="flex items-center gap-2"><gr-icon name="clock" [size]="14" class="text-accent-text" />{{ linea2() }}</li>
-        @if (lugar()) { <li class="flex items-center gap-2"><gr-icon name="map-pin" [size]="14" class="text-accent-text" />{{ lugar() }}</li> }
-        <li class="flex items-center gap-2"><gr-icon name="users" [size]="14" class="text-accent-text" />{{ titular() }}</li>
+    <article class="relative rounded-xl border border-line-strong bg-bg-card p-5 shadow-card" [class.opacity-60]="anulada()">
+      <header class="flex items-start justify-between gap-3"><gr-logo [height]="30" />
+        <span class="inline-flex h-6 items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="anulada() ? 'border-line-strong text-text-tertiary' : 'border-success/50 bg-success/10 text-success'">{{ anulada() ? 'Anulada' : 'Entrada gratuita' }}</span></header>
+      <p class="mt-3 text-display-xs">{{ evento() }}</p>
+      <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
+        <li class="flex items-center gap-2.5"><gr-icon name="calendar" [size]="16" class="shrink-0 text-accent-text" />{{ linea1() }}</li>
+        <li class="flex items-center gap-2.5"><gr-icon name="clock" [size]="16" class="shrink-0 text-accent-text" />{{ linea2() }}</li>
+        @if (lugar()) { <li class="flex items-center gap-2.5"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ lugar() }}</li> }
+        <li class="flex items-center gap-2.5"><gr-icon name="users" [size]="16" class="shrink-0 text-accent-text" />{{ titular() }}</li>
       </ul>
-      <div class="relative my-4 border-t border-dashed border-white/20"><span class="absolute -top-3 -left-8 size-6 rounded-full bg-bg-base"></span><span class="absolute -top-3 -right-8 size-6 rounded-full bg-bg-base"></span></div>
+      <!-- Figma «Perforado»: dashed line with a notch on each side -->
+      <div class="relative my-5 border-t border-dashed border-white/20" aria-hidden="true"><span class="absolute -top-3 -left-8 size-6 rounded-full border border-line-strong bg-bg-base"></span><span class="absolute -top-3 -right-8 size-6 rounded-full border border-line-strong bg-bg-base"></span></div>
       <div class="flex flex-col items-center gap-2">
         @if (img()) { <img [src]="img()" alt="Código QR de la entrada" width="168" height="168" class="size-42 rounded-md bg-white p-2" /> } @else { <span class="size-42 rounded-md bg-white/10"></span> }
         <p class="font-mono text-label-m tracking-widest">{{ codigo() }}</p>
@@ -69,189 +75,395 @@ const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
 
 // ============================================================ /entradas ===
 
-/** /entradas (Figma page 37): free tickets per session, waiting list when sold out. */
+/** The raffle as /entradas needs it (step 4 of the form). */
+interface SorteoVenta { estado: string; premio: string; premioDetalle: string; premioImagen: string; precio: number; maxPorPersona: number; pasarela: string }
+interface Fila { hora: string; titulo: string }
+
+const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+/** «2 €», «2,50 €» (cents in). */
+const euros = (c: number) => eur.format(c / 100).replace(',00', '');
+const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text-text-primary placeholder:text-text-muted focus:border-accent-text focus:outline-none';
+
+/**
+ * /entradas (Figma page 37): full-bleed hero with the example ticket and the session capacity; «Qué vas a ver», «Cómo
+ * funciona», the day hour by hour (from the published schedule) and the FAQ on the left; the booking form (sticky) on
+ * the right — on phones the form comes right after the hero and a bottom bar brings it back. Step 4 adds raffle tickets
+ * while the raffle is on sale: the ticket is reserved first (free) and then the payment opens. States: errors, sending,
+ * sold-out session (waiting list) and everything sold out.
+ */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [RouterLink, Page, FormsModule, GrAlert, GrIcon, GrSkeleton, TicketCard, Community],
+  imports: [RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
-    <gr-page title="Vive la GRStrength Cup" accent="en directo" eyebrow="Entrada gratuita · aforo limitado" crumb="Entradas"
-      subtitle="150 atletas, jueces AEP y tres movimientos al límite en Almussafes. La entrada es gratis: resérvala en un minuto y entra sin colas.">
-      <div pageStamps class="flex flex-col gap-2 text-body-s text-text-secondary">
-        <p class="flex items-center gap-2"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ fechas() }}</p>
-        <p class="flex items-center gap-2"><gr-icon name="map-pin" [size]="16" class="text-accent-text" />{{ comp.data()?.sede?.nombre || 'Almussafes' }}</p>
-        @if (d?.personas) { <p class="flex items-center gap-2"><gr-icon name="users" [size]="16" class="text-accent-text" /><b class="text-text-primary">{{ n(d!.personas) }} personas</b> ya tienen entrada</p> }
-      </div>
+    <gr-navbar />
+    <main class="relative overflow-x-clip">
+      <!-- Figma «Hero campaña»: the crowd photo, a dark veil and the red glow; 920 px on desktop -->
+      <section class="relative overflow-hidden">
+        <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover grayscale-[60%]" fetchpriority="high" />
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(14_12_13/0.72),rgb(14_12_13/0.8)_60%,var(--color-bg-base))]" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.5),transparent)]" aria-hidden="true"></div>
+        <div class="relative mx-auto grid max-w-[1200px] items-center gap-10 px-5 pt-[104px] pb-12 md:px-8 md:pt-40 md:pb-20 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-16 lg:pb-24 xl:px-0">
+          <div class="flex flex-col items-start gap-4 md:gap-5">
+            <p class="inline-flex h-7 items-center rounded-full border px-3 text-label-xs uppercase" [class]="todasAgotadas() ? 'border-line-strong bg-white/5 text-text-secondary' : 'border-success/50 bg-success/10 text-success'">{{ todasAgotadas() ? 'Entradas agotadas' : 'Entrada gratuita · aforo limitado' }}</p>
+            <h1 class="text-display-m md:text-display-hero">
+              @if (todasAgotadas()) { Hasta aquí <span class="text-accent-text">el aforo</span> } @else { Vive la GRStrength Cup <span class="text-accent-text">en directo</span> }
+            </h1>
+            <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">{{ todasAgotadas()
+              ? 'Se han reservado todas las entradas. Apúntate a la lista de espera: si alguien anula, te avisamos por email y tienes un plazo para confirmar.'
+              : '150 atletas, jueces AEP y tres movimientos al límite en ' + ciudad() + '. La entrada es gratis: resérvala en un minuto y entra sin colas.' }}</p>
+            <ul class="flex flex-col gap-2 text-body-s text-text-secondary md:flex-row md:flex-wrap md:gap-x-6">
+              <li class="flex items-center gap-2"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ fechas() }}</li>
+              <li class="flex items-center gap-2"><gr-icon name="map-pin" [size]="16" class="text-accent-text" />{{ comp.data()?.sede?.nombre || 'Almussafes' }}</li>
+              @if (puertas()) { <li class="flex items-center gap-2 md:basis-full"><gr-icon name="clock" [size]="16" class="text-accent-text" />{{ puertas() }}</li> }
+            </ul>
+            <div class="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              @if (todasAgotadas()) {
+                <a grButton variant="primary" size="l" routerLink="." fragment="reservar">Apuntarme a la lista de espera</a>
+                <a grButton variant="outline" size="l" href="/en-directo" iconRight="arrow-right">Seguirlo en directo</a>
+              } @else {
+                <a grButton variant="primary" size="l" routerLink="." fragment="reservar">Reservar mi entrada</a>
+                <a grButton variant="outline" size="l" routerLink="." fragment="como-funciona" iconRight="arrow-right">Cómo funciona</a>
+              }
+            </div>
+            @if (d?.personas) {
+              <div class="flex items-center gap-3">
+                <span class="flex -space-x-2" aria-hidden="true">@for (i of [0, 1, 2, 3]; track i) { <span class="flex size-8 items-center justify-center rounded-full border-2 border-bg-base text-text-secondary" [class]="avatar[i]"><gr-icon name="user" [size]="14" /></span> }</span>
+                <span class="flex flex-col"><span class="text-body-s"><b class="font-semibold">{{ n(d!.personas) }} personas</b> ya tienen entrada</span>
+                  <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="radio" [size]="12" class="text-success" />Se actualiza cada minuto</span></span>
+              </div>
+            }
+          </div>
+          <!-- Figma «Ticket» (rotated 4°) and «Aforo meter»: desktop only -->
+          <div class="hidden flex-col gap-5 lg:flex">
+            <gr-ticket class="rotate-[4deg]" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" />
+            @if (sesHero(); as s) { <ng-container [ngTemplateOutlet]="aforo" [ngTemplateOutletContext]="{ $implicit: s }" /> }
+          </div>
+        </div>
+      </section>
 
-      <div class="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_440px]">
-        <div class="order-2 flex flex-col gap-14 lg:order-1">
-          <section class="hidden items-center gap-8 lg:flex" aria-label="Ejemplo de entrada">
-            <gr-ticket class="w-80 shrink-0 -rotate-2" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" />
-            <div><p class="text-mono-xs text-text-tertiary">Ejemplo</p><h2 class="mt-2 text-display-2xs">Así es tu entrada</h2>
-              <p class="mt-2 text-body-m text-text-secondary">Te llega por email y la tienes siempre en «Mi entrada». Un solo QR para todo tu grupo: lo escaneamos en la puerta y entráis juntos.</p>
-              <a routerLink="." fragment="como-funciona" class="mt-4 inline-flex h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-label-s">Cómo funciona<gr-icon name="arrow-right" [size]="14" /></a></div>
-          </section>
-          <section>
-            <p class="flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>El día</p>
-            <h2 class="mt-2 text-display-xs md:text-display-s">Qué vas a <span class="text-accent-text">ver</span></h2>
-            <ul class="mt-5 grid gap-3 sm:grid-cols-2">
-              @for (x of queVer; track x.t) { <li class="rounded-lg border border-line-subtle bg-bg-card p-4"><gr-icon [name]="x.i" [size]="18" class="text-accent-text" /><p class="mt-3 text-label-m">{{ x.t }}</p><p class="mt-1 text-body-s text-text-tertiary">{{ x.d }}</p></li> }
+      <div class="relative mx-auto grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-16 px-5 pb-18 md:px-8 md:pb-24 lg:grid-cols-[minmax(0,616px)_minmax(0,520px)] lg:justify-between lg:gap-10 xl:px-0">
+        <!-- the form: right column (sticky) on desktop, right after the hero on phones -->
+        <aside id="reservar" #reservarEl class="scroll-mt-24 lg:col-start-2 lg:row-start-1">
+          <div class="lg:sticky lg:top-28">
+            @if (d === undefined) { <gr-skeleton class="h-[640px] rounded-2xl" /> }
+            @else if (d === null) { <gr-alert tone="warning" title="No hemos podido cargar las entradas">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert> }
+            @else if (todasAgotadas() && !sesSel()) {
+              <!-- Figma «Todo agotado»: no form; the waiting list is per session -->
+              <section class="flex flex-col gap-4 rounded-2xl border border-line-strong bg-bg-card p-5 md:p-7">
+                <h2 class="text-display-xs md:text-display-s">Elige sesión</h2>
+                <p class="text-body-s text-text-secondary">Todas las sesiones están completas. Elige una para apuntarte a su lista de espera.</p>
+                <ng-container [ngTemplateOutlet]="sesiones" />
+              </section>
+              <gr-newsletter class="mt-4 block" titulo="Te avisamos de lo importante" texto="Horarios, sorteo y próximas competiciones de GRStrength. Como mucho un email al mes." origen="/entradas" [compacta]="true" />
+            } @else if (!abiertas().length && !todasAgotadas()) {
+              <section class="rounded-2xl border border-line-strong bg-bg-card p-6 text-center">
+                <h2 class="text-display-xs">Reservas cerradas</h2>
+                <p class="mt-2 text-body-s text-text-secondary">Ahora mismo no hay sesiones con reservas abiertas. Síguenos en Instagram para saber cuándo se abren.</p>
+              </section>
+            } @else if (enviado(); as e) {
+              <section class="flex flex-col items-center gap-3 rounded-2xl border border-success/40 bg-success/8 p-6 text-center" role="status"><gr-icon name="mail" [size]="26" class="text-success" /><h2 class="text-ui-h4">Te hemos apuntado</h2><p class="text-body-s text-text-secondary">{{ e }}</p></section>
+            } @else if (sesSel()?.estado === 'agotada' && sesSel()?.listaEspera) {
+              <!-- Figma «Sesión agotada · lista de espera» -->
+              <section class="flex flex-col gap-4">
+                <h2 class="text-display-xs md:text-display-s">Elige sesión</h2>
+                <ng-container [ngTemplateOutlet]="sesiones" />
+                <ng-container [ngTemplateOutlet]="aforo" [ngTemplateOutletContext]="{ $implicit: sesSel()! }" />
+                <div class="flex flex-col gap-4 rounded-2xl border border-warning/60 bg-bg-card p-5 md:p-6">
+                  <h3 class="flex items-center gap-3 text-ui-h4"><span class="flex size-10 items-center justify-center rounded-md bg-warning/12 text-warning"><gr-icon name="bell" [size]="20" /></span>{{ sesSel()!.nombre }} está completa</h3>
+                  <p class="text-body-s text-text-secondary">Apúntate a la lista de espera de esta sesión. Si alguien anula, te mandamos un enlace y tendrás un plazo para confirmar tu entrada.</p>
+                  <label class="relative block"><span class="sr-only">Email</span><gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3.5 -translate-y-1/2 text-text-tertiary" />
+                    <input type="email" autocomplete="email" class="pl-10" [class]="campo(false)" placeholder="tu@email.com" [(ngModel)]="f.email" name="we" /></label>
+                  <ng-container [ngTemplateOutlet]="personas" />
+                  <label class="flex items-start gap-3 text-body-s"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.privacidad" name="wp" /><span>He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></label>
+                  @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
+                  <button grButton variant="primary" size="l" type="button" class="w-full" [loading]="enviando()" (click)="apuntarme()">Apuntarme a la lista de espera</button>
+                  @if (abiertas().length) { <button type="button" class="h-11 text-label-s text-text-tertiary hover:text-text-primary" (click)="elegir(abiertas()[0])">Elegir otra sesión</button> }
+                </div>
+              </section>
+            } @else {
+              <form class="flex flex-col gap-6 rounded-2xl border border-line-strong bg-bg-card p-5 md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
+                <div class="flex flex-col gap-3">
+                  <h2 class="text-display-xs md:text-display-s">Reserva tu entrada</h2>
+                  <p class="flex flex-wrap gap-2">
+                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-success/50 bg-success/10 px-2.5 text-label-xs text-success uppercase"><gr-icon name="check" [size]="12" />Gratis</span>
+                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2.5 text-label-xs text-text-secondary uppercase"><gr-icon name="clock" [size]="12" />1 minuto</span>
+                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2.5 text-label-xs text-text-secondary uppercase"><gr-icon name="scan" [size]="12" />QR por email</span>
+                  </p>
+                </div>
+                @if (errores().length) {
+                  <div class="flex flex-col gap-1.5 rounded-md border border-accent/60 bg-accent/8 p-4" role="alert" tabindex="-1" #resumenErr>
+                    <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />{{ errores().length === 1 ? 'Revisa 1 campo' : 'Revisa ' + errores().length + ' campos' }}</p>
+                    @for (e of errores(); track e) { <p class="pl-[26px] text-body-s text-text-secondary">{{ e }}</p> }
+                  </div>
+                }
+                <fieldset class="flex flex-col gap-4">
+                  <legend class="mb-4 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">1</span>Tus datos</legend>
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="flex flex-col gap-1.5 text-label-s">Nombre *<input [class]="campo(err('nombre'))" [(ngModel)]="f.nombre" name="nombre" autocomplete="given-name" placeholder="Tu nombre" [attr.aria-invalid]="err('nombre')" /></label>
+                    <label class="flex flex-col gap-1.5 text-label-s">Apellidos *<input [class]="campo(err('apellidos'))" [(ngModel)]="f.apellidos" name="apellidos" autocomplete="family-name" placeholder="Tus apellidos" [attr.aria-invalid]="err('apellidos')" /></label>
+                  </div>
+                  <label class="flex flex-col gap-1.5 text-label-s">Email *<input type="email" [class]="campo(err('email'))" [(ngModel)]="f.email" name="email" autocomplete="email" placeholder="email@ejemplo.com" [attr.aria-invalid]="err('email')" />
+                    @if (err('email')) { <span class="flex items-center gap-1.5 text-body-xs font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Introduce un email válido</span> }</label>
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="flex flex-col gap-1.5 text-label-s">Teléfono (opcional)
+                      <span class="flex h-12 items-center overflow-hidden rounded-sm border border-line-strong bg-bg-field focus-within:border-accent-text"><span class="flex h-full items-center border-r border-line-subtle px-3 text-body-m font-normal text-text-secondary">+34</span>
+                        <input type="tel" inputmode="tel" class="h-full min-w-0 flex-1 bg-transparent px-3 text-body-m font-normal placeholder:text-text-muted focus:outline-none" [(ngModel)]="f.telefono" name="tel" autocomplete="tel-national" placeholder="600 000 000" /></span></label>
+                    <label class="flex flex-col gap-1.5 text-label-s">¿Cómo nos conociste?<select [class]="campo(false) + ' font-normal'" [(ngModel)]="f.origen" name="origen"><option value="">Elige una opción</option>@for (o of origenes; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+                  </div>
+                </fieldset>
+                <fieldset class="flex flex-col gap-3">
+                  <legend class="mb-3 flex w-full items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">2</span>Elige sesión<span class="ml-auto text-body-xs font-normal text-text-tertiary">{{ diaSesiones() }}</span></legend>
+                  <ng-container [ngTemplateOutlet]="sesiones" />
+                </fieldset>
+                <fieldset class="flex flex-col gap-3">
+                  <legend class="mb-3 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">3</span>¿Cuántos venís?</legend>
+                  <ng-container [ngTemplateOutlet]="personas" />
+                </fieldset>
+                @if (sorteoAbierto(); as so) {
+                  <fieldset class="flex flex-col gap-3">
+                    <legend class="mb-3 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">4</span>Sorteo (opcional)</legend>
+                    <div class="flex flex-col gap-4 rounded-lg border p-4" [class]="boletos() ? 'border-accent/60 bg-[linear-gradient(135deg,#3a0f17,#1b1112_70%)]' : 'border-line-subtle'">
+                      <div class="flex items-start gap-4">
+                        @if (so.premioImagen) { <img [src]="so.premioImagen" alt="" class="size-16 shrink-0 rounded-md object-cover" loading="lazy" /> }
+                        <div class="flex flex-col items-start gap-1">
+                          <p class="text-label-m">Súmate al sorteo benéfico</p>
+                          <p class="text-body-xs text-text-tertiary">{{ so.premio }}{{ so.premioDetalle ? ' · ' + so.premioDetalle : '' }}</p>
+                          <span class="mt-1 inline-flex h-6 items-center rounded-full border border-accent/50 px-2.5 text-label-xs text-accent-text uppercase">{{ euros(so.precio) }} por boleto</span>
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between border-t border-line-subtle pt-3">
+                        <span class="text-label-s">Boletos</span>
+                        <span class="flex items-center gap-3">
+                          <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong disabled:opacity-40" aria-label="Menos boletos" [disabled]="!boletos()" (click)="boletos.set(boletos() - 1)"><gr-icon name="minus" [size]="16" /></button>
+                          <span class="w-6 text-center text-ui-h4" aria-live="polite">{{ boletos() }}</span>
+                          <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong disabled:opacity-40" aria-label="Más boletos" [disabled]="boletos() >= maxBoletos()" (click)="boletos.set(boletos() + 1)"><gr-icon name="plus" [size]="16" /></button>
+                        </span>
+                      </div>
+                      <p class="flex items-center justify-between text-body-xs text-text-tertiary">
+                        <span>{{ boletos() ? boletos() + (boletos() === 1 ? ' boleto' : ' boletos') + ' × ' + euros(so.precio) : 'Opcional · la entrada es gratis igualmente' }}</span>
+                        <span class="text-ui-h4" [class]="boletos() ? 'text-accent-text' : 'text-text-tertiary'">{{ euros(boletos() * so.precio) }}</span>
+                      </p>
+                    </div>
+                  </fieldset>
+                }
+                <div class="flex flex-col gap-3 text-body-s">
+                  <label class="flex items-start gap-3" [class.text-accent-text]="err('privacidad')"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.privacidad" name="priv" [attr.aria-invalid]="err('privacidad')" /><span>He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></label>
+                  @if (boletos()) {
+                    <label class="flex items-start gap-3" [class.text-accent-text]="err('edad')"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.mayorEdad" name="edad" [attr.aria-invalid]="err('edad')" /><span>Tengo 18 años o más (para el sorteo) *</span></label>
+                    <label class="flex items-start gap-3" [class.text-accent-text]="err('bases')"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.bases" name="bases" [attr.aria-invalid]="err('bases')" /><span>Acepto las <a href="/politica-concurso" class="text-accent-text underline">bases del sorteo</a> *</span></label>
+                  }
+                  <label class="flex items-start gap-3"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.novedades" name="nov" /><span>Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></span></label>
+                  <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
+                </div>
+                <button grButton variant="primary" size="l" type="submit" class="w-full" [loading]="enviando()">{{ boletos() ? 'Reservar y pagar ' + euros(boletos() * (sorteoAbierto()?.precio ?? 0)) : 'Reservar entrada gratis' }}</button>
+                <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ boletos() ? 'La entrada se reserva ya; los boletos se pagan con tarjeta en el paso siguiente.' : 'Solo usamos tus datos para tu entrada. Sin spam.' }}</p>
+              </form>
+            }
+          </div>
+        </aside>
+
+        <div class="flex flex-col gap-16 md:gap-20 lg:col-start-1 lg:row-start-1">
+          <section class="flex flex-col gap-5 md:gap-7">
+            <gr-cabecera eyebrow="El día" titulo="Qué vas a *ver*" [centro]="false" tam="m" />
+            <ul class="grid gap-3 sm:grid-cols-2 md:gap-4">
+              @for (x of queVer; track x.t) {
+                <li class="flex gap-4 rounded-lg border border-line-subtle bg-bg-card p-5 sm:flex-col sm:gap-3"><span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="x.i" [size]="20" /></span>
+                  <span class="flex flex-col gap-1"><span class="text-label-m">{{ x.t }}</span><span class="text-body-s text-text-tertiary">{{ x.d }}</span></span></li>
+              }
             </ul>
           </section>
-          <section id="como-funciona" class="scroll-mt-28">
-            <p class="flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>Sin colas</p>
-            <h2 class="mt-2 text-display-xs md:text-display-s">Cómo <span class="text-accent-text">funciona</span></h2>
-            <ol class="mt-5 grid gap-3 sm:grid-cols-3">
-              @for (x of pasos; track x.t; let i = $index) { <li class="rounded-lg border border-line-subtle bg-bg-card p-4"><span class="flex size-8 items-center justify-center rounded-sm bg-accent-deep/50 text-label-s text-accent-text">{{ i + 1 }}</span><p class="mt-3 text-label-m">{{ x.t }}</p><p class="mt-1 text-body-s text-text-tertiary">{{ x.d }}</p></li> }
+          <section id="como-funciona" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
+            <gr-cabecera eyebrow="Sin colas" titulo="Cómo *funciona*" [centro]="false" tam="m" />
+            <ol class="grid gap-3 sm:grid-cols-3 md:gap-4">
+              @for (x of pasos; track x.t; let i = $index) {
+                <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5"><span class="flex size-7 items-center justify-center rounded-full bg-accent/20 text-label-s text-accent-text">{{ i + 1 }}</span>
+                  <span class="text-label-m">{{ x.t }}</span><span class="text-body-s text-text-tertiary">{{ x.d }}</span></li>
+              }
             </ol>
           </section>
+          @if (filas().length) {
+            <section class="flex flex-col gap-5 md:gap-7">
+              <gr-cabecera [eyebrow]="eyebrowDia()" titulo="El día, *hora a hora*" [centro]="false" tam="m" />
+              <ol class="rounded-lg border border-line-subtle bg-bg-card px-5">
+                @for (x of filas(); track $index) {
+                  <li class="flex items-baseline gap-5 border-b border-line-subtle py-3.5 last:border-b-0"><span class="w-12 shrink-0 font-mono text-mono-s text-accent-text">{{ x.hora }}</span><span class="text-body-m">{{ x.titulo }}</span></li>
+                }
+              </ol>
+              <a grButton variant="outline" href="/horarios" iconRight="arrow-right" class="w-full sm:w-auto sm:self-start">Ver horarios en directo</a>
+            </section>
+          }
           @if (faq().length) {
-            <section>
-              <p class="flex items-center gap-3 text-mono-xs text-text-tertiary"><span class="h-px w-8 bg-accent"></span>Dudas</p>
-              <h2 class="mt-2 text-display-xs md:text-display-s">Preguntas <span class="text-accent-text">frecuentes</span></h2>
-              <div class="mt-5 flex flex-col gap-2">
-                @for (f of faq(); track f.pregunta) { <details class="group rounded-lg border border-line-subtle bg-bg-card px-4"><summary class="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 text-label-m">{{ f.pregunta }}<gr-icon name="plus" [size]="16" class="transition-transform group-open:rotate-45" /></summary><p class="pb-4 text-body-s text-text-secondary">{{ f.respuesta }}</p></details> }
+            <section class="flex flex-col gap-5 md:gap-7">
+              <gr-cabecera eyebrow="Dudas" titulo="Preguntas *frecuentes*" [centro]="false" tam="m" />
+              <div class="flex flex-col gap-3">
+                @for (f of faq(); track f.pregunta; let first = $first) {
+                  <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [open]="first">
+                    <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-m md:text-ui-h4">{{ f.pregunta }}
+                      <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span></summary>
+                    <p class="px-5 pb-5 text-body-m text-text-secondary">{{ f.respuesta }}</p>
+                  </details>
+                }
               </div>
             </section>
           }
         </div>
-
-        <aside id="reservar" class="order-1 scroll-mt-28 lg:order-2">
-          <div class="lg:sticky lg:top-28">
-          @if (d === undefined) { <gr-skeleton class="h-[640px] rounded-xl" /> }
-          @else if (d === null) { <gr-alert tone="warning" title="No hemos podido cargar las entradas">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert> }
-          @else if (!abiertas().length) {
-            <section class="rounded-xl border border-line-subtle bg-bg-card p-6 text-center">
-              <h2 class="text-display-2xs">{{ todasAgotadas() ? 'Entradas agotadas' : 'Reservas cerradas' }}</h2>
-              <p class="mt-2 text-body-s text-text-secondary">{{ todasAgotadas() ? 'Apúntate a la lista de espera de una sesión: si alguien anula, te escribimos.' : 'Ahora mismo no hay sesiones con reservas abiertas.' }}</p>
-            </section>
-          }
-          @if (d && (abiertas().length || todasAgotadas())) {
-            @if (enviado(); as e) {
-              <section class="rounded-xl border border-success/40 bg-success/10 p-6 text-center" role="status"><gr-icon name="mail" [size]="24" class="text-success" /><h2 class="mt-2 text-ui-h4">Te hemos apuntado</h2><p class="mt-1 text-body-s text-text-secondary">{{ e }}</p></section>
-            } @else if (sesSel()?.estado === 'agotada' && sesSel()?.listaEspera) {
-              <section class="rounded-xl border border-warning/50 bg-bg-card p-5">
-                <h2 class="flex items-center gap-2 text-ui-h4"><gr-icon name="bell" [size]="20" class="text-warning" />{{ sesSel()!.nombre }} está completa</h2>
-                <p class="mt-2 text-body-s text-text-secondary">Apúntate a la lista de espera de esta sesión. Si alguien anula, te mandamos un enlace y tendrás un plazo para confirmar tu entrada.</p>
-                <label class="mt-4 block"><span class="sr-only">Email</span><input type="email" class="h-12 w-full rounded-md border border-line-strong bg-bg-field px-3 text-body-m" placeholder="tu@email.com" [(ngModel)]="f.email" name="we" /></label>
-                <div class="mt-3 flex items-center justify-between rounded-md border border-line-subtle px-3 py-2"><span class="text-label-m">Personas<span class="block text-body-xs text-text-tertiary">Tú + acompañantes</span></span>
-                  <span class="flex items-center gap-3"><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong" aria-label="Menos personas" (click)="f.personas = max(1, f.personas - 1)">−</button><span class="w-5 text-center text-ui-h5">{{ f.personas }}</span><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong" aria-label="Más personas" (click)="f.personas = min(sesSel()?.maxPorReserva ?? 6, f.personas + 1)">+</button></span></div>
-                <label class="mt-3 flex items-start gap-2 text-body-s"><input type="checkbox" class="mt-1 size-4 accent-[#c42b3e]" [(ngModel)]="f.privacidad" name="wp" /><span>He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></label>
-                @if (error()) { <p class="mt-2 text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-                <button type="button" class="mt-4 h-12 w-full rounded-sm bg-accent-grain text-label-m text-white disabled:opacity-60" [disabled]="enviando()" (click)="apuntarme()">{{ enviando() ? 'Enviando…' : 'Apuntarme a la lista de espera' }}</button>
-                <button type="button" class="mt-2 h-11 w-full text-label-s text-text-tertiary" (click)="sesion.set('')">Elegir otra sesión</button>
-              </section>
-            } @else {
-              <form class="flex flex-col gap-5 rounded-xl border border-line-subtle bg-bg-card p-5" (submit)="$event.preventDefault(); reservar()" novalidate>
-                <div><h2 class="text-display-2xs">Reserva tu entrada</h2>
-                  <p class="mt-2 flex flex-wrap gap-1.5">@for (c of ['Gratis', '1 minuto', 'QR por email']; track c) { <span class="inline-flex h-6 items-center gap-1 rounded-pill border border-success/40 px-2 text-mono-xs text-success"><gr-icon name="check" [size]="10" />{{ c }}</span> }</p></div>
-                @if (errores().length) { <gr-alert tone="danger" [title]="'Revisa ' + errores().length + (errores().length === 1 ? ' campo' : ' campos')">@for (e of errores(); track e) { <span class="block">{{ e }}</span> }</gr-alert> }
-                <fieldset class="flex flex-col gap-3"><legend class="mb-2 flex items-center gap-2 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent text-mono-xs text-white">1</span>Tus datos</legend>
-                  <div class="grid grid-cols-2 gap-2">
-                    <label class="text-body-xs text-text-tertiary">Nombre *<input class="mt-1 h-12 w-full rounded-md border bg-bg-field px-3 text-body-m text-text-primary" [class]="err('nombre') ? 'border-accent-text' : 'border-line-strong'" [(ngModel)]="f.nombre" name="nombre" autocomplete="given-name" /></label>
-                    <label class="text-body-xs text-text-tertiary">Apellidos *<input class="mt-1 h-12 w-full rounded-md border bg-bg-field px-3 text-body-m text-text-primary" [class]="err('apellidos') ? 'border-accent-text' : 'border-line-strong'" [(ngModel)]="f.apellidos" name="apellidos" autocomplete="family-name" /></label>
-                  </div>
-                  <label class="text-body-xs text-text-tertiary">Email *<input type="email" class="mt-1 h-12 w-full rounded-md border bg-bg-field px-3 text-body-m text-text-primary" [class]="err('email') ? 'border-accent-text' : 'border-line-strong'" [(ngModel)]="f.email" name="email" autocomplete="email" placeholder="ahí te llega la entrada" /></label>
-                  <div class="grid grid-cols-2 gap-2">
-                    <label class="text-body-xs text-text-tertiary">Teléfono (opcional)<input type="tel" class="mt-1 h-12 w-full rounded-md border border-line-strong bg-bg-field px-3 text-body-m text-text-primary" [(ngModel)]="f.telefono" name="tel" autocomplete="tel" placeholder="+34 600 000 000" /></label>
-                    <label class="text-body-xs text-text-tertiary">¿Cómo nos conociste?<select class="mt-1 h-12 w-full rounded-md border border-line-strong bg-bg-field px-3 text-body-m text-text-primary" [(ngModel)]="f.origen" name="origen"><option value="">Elige una opción</option>@for (o of origenes; track o) { <option [value]="o">{{ o }}</option> }</select></label>
-                  </div>
-                </fieldset>
-                <fieldset class="flex flex-col gap-2"><legend class="mb-2 flex w-full items-center gap-2 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent text-mono-xs text-white">2</span>Elige sesión</legend>
-                  @for (s of d!.sesiones; track s.id) {
-                    <button type="button" role="radio" [attr.aria-checked]="sesion() === s.id" [disabled]="s.estado === 'cerrada' || s.estado === 'proximamente'" (click)="elegir(s)"
-                      class="flex items-center gap-3 rounded-lg border p-3 text-left disabled:opacity-50" [class]="sesion() === s.id ? 'border-accent bg-accent-deep/25' : err('sesion') ? 'border-accent-text/60' : 'border-line-subtle'">
-                      <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sesion() === s.id ? 'border-accent' : 'border-line-strong'">@if (sesion() === s.id) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
-                      <span class="min-w-0 flex-1"><span class="block text-label-m first-letter:uppercase">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">Puertas {{ hora(s.puertas) }}{{ s.detalle ? ' · ' + s.detalle : '' }}</span></span>
-                      <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2 text-mono-xs" [class]="estado[s.estado].cls">{{ s.estado === 'ultimas' ? 'Últimas ' + s.libres : estado[s.estado].label }}</span>
-                    </button>
-                  }
-                </fieldset>
-                <fieldset><legend class="mb-2 flex items-center gap-2 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent text-mono-xs text-white">3</span>¿Cuántos venís?</legend>
-                  <div class="flex items-center justify-between rounded-md border border-line-subtle px-3 py-2"><span class="text-label-m">Personas<span class="block text-body-xs text-text-tertiary">Tú + acompañantes</span></span>
-                    <span class="flex items-center gap-3"><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong" aria-label="Menos personas" (click)="f.personas = max(1, f.personas - 1)">−</button><span class="w-5 text-center text-ui-h5">{{ f.personas }}</span><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong" aria-label="Más personas" (click)="f.personas = min(maxPersonas(), f.personas + 1)">+</button></span></div>
-                </fieldset>
-                <div class="flex flex-col gap-2 text-body-s">
-                  <label class="flex items-start gap-2" [class.text-accent-text]="err('privacidad')"><input type="checkbox" class="mt-1 size-4 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.privacidad" name="priv" /><span>He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></label>
-                  <label class="flex items-start gap-2"><input type="checkbox" class="mt-1 size-4 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.novedades" name="nov" /><span>Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional: te pediremos confirmarlo por email)</span></span></label>
-                  <p class="rounded-md bg-bg-raised p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y oposición escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} · Más en la política de privacidad.</p>
-                </div>
-                <button type="submit" class="h-12 rounded-sm bg-accent-grain text-label-m text-white disabled:opacity-60" [disabled]="enviando()">{{ enviando() ? 'Reservando…' : 'Reservar entrada gratis' }}</button>
-                <p class="flex items-center justify-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Solo usamos tus datos para tu entrada. Sin spam.</p>
-              </form>
-            }
-          }
-          @if (sesHero(); as s) {
-            <div class="mt-4 rounded-lg border border-line-subtle bg-bg-card p-4">
-              <p class="flex justify-between text-label-s"><span>Aforo · {{ s.nombre }}</span><span class="font-mono">{{ n(s.ocupadas) }} / {{ n(s.aforo) }}</span></p>
-              <div class="mt-2 h-2 rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="min(100, s.ocupadas * 100 / s.aforo)"></div></div>
-              <p class="mt-1.5 text-body-xs text-text-tertiary">{{ s.libres ? 'Quedan ' + n(s.libres) + ' entradas para esta sesión' : 'Agotada · lista de espera' }}</p>
-            </div>
-          }
-          </div>
-        </aside>
       </div>
-      <div class="mt-18 md:mt-24"><gr-community /></div>
-    </gr-page>
+    </main>
+    <gr-footer />
+    @if (barra()) {
+      <!-- Figma «Bottom CTA bar» (mobile): back to the form -->
+      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[20px] md:hidden">
+        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">{{ todasAgotadas() ? 'Entradas agotadas' : 'Entrada gratuita' }}</span><span class="text-body-xs text-text-tertiary">{{ todasAgotadas() ? 'Lista de espera por sesión' : 'Aforo limitado · 1 minuto' }}</span></span>
+        <a routerLink="." fragment="reservar" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">{{ todasAgotadas() ? 'Apuntarme' : 'Reservar' }}</a>
+      </div>
+    }
+
+    <ng-template #sesiones>
+      <div class="flex flex-col gap-3" role="radiogroup" aria-label="Sesión">
+        @for (s of d!.sesiones; track s.id) {
+          <button type="button" role="radio" [attr.aria-checked]="sesion() === s.id" [disabled]="s.estado === 'cerrada' || s.estado === 'proximamente'" (click)="elegir(s)"
+            class="flex items-center gap-3 rounded-lg border p-4 text-left transition-colors disabled:opacity-50"
+            [class]="sesion() === s.id ? 'border-accent bg-accent/10' : err('sesion') ? 'border-accent-text/60' : 'border-line-subtle hover:border-line-strong'">
+            <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sesion() === s.id ? 'border-accent' : 'border-line-strong'">@if (sesion() === s.id) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
+            <span class="min-w-0 flex-1" [class.text-text-tertiary]="s.estado === 'agotada' && sesion() !== s.id"><span class="block text-label-m first-letter:uppercase">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">Puertas {{ hora(s.puertas) }}{{ s.detalle ? ' · ' + s.detalle : '' }}</span></span>
+            <span class="inline-flex h-6 shrink-0 items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="estado[s.estado].cls">{{ s.estado === 'ultimas' ? 'Últimas ' + s.libres : estado[s.estado].label }}</span>
+          </button>
+        }
+      </div>
+    </ng-template>
+    <ng-template #personas>
+      <div class="flex items-center justify-between rounded-lg border border-line-subtle px-4 py-3">
+        <span class="flex flex-col"><span class="text-label-m">Personas</span><span class="text-body-xs text-text-tertiary">Tú + acompañantes</span></span>
+        <span class="flex items-center gap-3">
+          <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong disabled:opacity-40" aria-label="Menos personas" [disabled]="f.personas <= 1" (click)="f.personas = max(1, f.personas - 1)"><gr-icon name="minus" [size]="16" /></button>
+          <span class="w-6 text-center text-ui-h4" aria-live="polite">{{ f.personas }}</span>
+          <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong disabled:opacity-40" aria-label="Más personas" [disabled]="f.personas >= maxPersonas()" (click)="f.personas = min(maxPersonas(), f.personas + 1)"><gr-icon name="plus" [size]="16" /></button>
+        </span>
+      </div>
+    </ng-template>
+    <ng-template #aforo let-s>
+      <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card/90 p-4">
+        <p class="flex items-center justify-between gap-3 text-label-s"><span class="flex items-center gap-2"><gr-icon name="users" [size]="16" class="text-accent-text" />Aforo · {{ s.nombre }}</span><span class="font-mono text-mono-s text-text-secondary">{{ n(s.ocupadas) }} / {{ n(s.aforo) }}</span></p>
+        <div class="h-1.5 rounded-full bg-white/10"><div class="h-full rounded-full bg-accent" [style.width.%]="min(100, s.ocupadas * 100 / s.aforo)"></div></div>
+        <p class="flex items-center gap-1.5 text-body-s text-text-secondary">@if (!s.libres) { <gr-icon name="bell" [size]="14" class="text-text-tertiary" /> }{{ s.libres ? 'Quedan ' + n(s.libres) + ' entradas para esta sesión' : 'Agotadas · apúntate a la lista de espera' }}</p>
+      </div>
+    </ng-template>
   `,
 })
 export class EntradasPage {
   private readonly api = inject(EntradasPublic);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   protected readonly comp = inject(Competition);
+  private readonly reservarEl = viewChild<ElementRef<HTMLElement>>('reservarEl');
   protected readonly hora = hora;
   protected readonly estado = ESTADO;
+  protected readonly euros = euros;
   protected readonly max = Math.max;
   protected readonly min = Math.min;
+  protected readonly avatar = ['bg-accent/30', 'bg-[#5a2a32]', 'bg-[#3d2a2e]', 'bg-bg-raised'];
   protected readonly origenes = ['Instagram', 'Un amigo o familiar', 'Mi club o gimnasio', 'Un atleta', 'Cartel o flyer', 'Otro'];
-  protected readonly queVer = [
-    { i: 'zap' as const, t: 'Sentadilla, banca y peso muerto', d: 'Tres intentos por movimiento y atleta, con jueces oficiales de la AEP.' },
-    { i: 'users' as const, t: '150 atletas', d: 'De subjúnior a máster, de clubs de toda la Comunitat Valenciana.' },
-    { i: 'trophy' as const, t: 'Premios y sorteo en directo', d: 'Medallas por categoría y sorteo del cinturón SBD al final del día.' },
-    { i: 'star' as const, t: 'Sigue a tus atletas', d: 'Horarios en directo en el móvil y aviso 30 min antes de que compitan.' },
+  protected readonly queVer: { i: GrIconName; t: string; d: string }[] = [
+    { i: 'maximize', t: 'Sentadilla, banca y peso muerto', d: 'Tres intentos por movimiento y atleta, con jueces oficiales de la AEP.' },
+    { i: 'users', t: '150 atletas', d: 'De subjúnior a máster, de clubs de toda la Comunitat Valenciana.' },
+    { i: 'trophy', t: 'Premios y sorteo en directo', d: 'Medallas por categoría y sorteo del cinturón SBD al final del día.' },
+    { i: 'radio', t: 'Sigue a tus atletas', d: 'Horarios en directo en el móvil y aviso 30 min antes de que compitan.' },
   ];
   protected readonly pasos = [
     { t: 'Reserva en 1 minuto', d: 'Elige sesión y cuántos venís. Si quieres, súmate al sorteo.' },
     { t: 'Recibe tu QR', d: 'Por email y en «Mi entrada». Añádelo al calendario.' },
-    { t: 'Enséñalo en la puerta', d: 'Los escaneamos desde el móvil y entras. No hace falta imprimirlo.' },
+    { t: 'Enséñalo en la puerta', d: 'Lo escaneamos desde el móvil y entras. No hace falta imprimirlo.' },
   ];
   protected readonly data = signal<Entradas | null | undefined>(undefined);
   protected readonly faq = signal<Faq[]>([]);
+  private readonly horarios = signal<Horarios | null>(null);
+  private readonly sorteo = signal<SorteoVenta | null>(null);
   protected readonly sesion = signal('');
+  protected readonly boletos = signal(0);
   protected readonly enviando = signal(false);
   protected readonly errores = signal<string[]>([]);
   protected readonly campos = signal<string[]>([]);
   protected readonly error = signal('');
   protected readonly enviado = signal('');
-  protected f = { nombre: '', apellidos: '', email: '', telefono: '', origen: '', personas: 1, privacidad: false, novedades: false };
+  private readonly formVisible = signal(true);
+  private readonly bajoHero = signal(false);
+  protected f = { nombre: '', apellidos: '', email: '', telefono: '', origen: '', personas: 1, privacidad: false, novedades: false, mayorEdad: false, bases: false };
   protected readonly sesSel = computed(() => this.data()?.sesiones.find((s) => s.id === this.sesion()));
   protected readonly abiertas = computed(() => (this.data()?.sesiones ?? []).filter((s) => s.estado === 'disponible' || s.estado === 'ultimas'));
-  protected readonly todasAgotadas = computed(() => { const l = this.data()?.sesiones ?? []; return l.length > 0 && l.every((s) => s.estado === 'agotada' || s.estado === 'cerrada') && l.some((s) => s.estado === 'agotada'); });
-  protected readonly sesHero = computed(() => this.sesSel() ?? this.abiertas()[0]);
+  protected readonly todasAgotadas = computed(() => { const l = this.data()?.sesiones ?? []; return l.length > 0 && !this.abiertas().length && l.some((s) => s.estado === 'agotada'); });
+  protected readonly sesHero = computed(() => this.sesSel() ?? this.abiertas()[0] ?? this.data()?.sesiones[0]);
   protected readonly ejemplo = computed(() => {
     const x = this.sesHero();
-    return x ? { l1: dia(x.inicio) + ' · ' + x.nombre, l2: 'Puertas ' + hora(x.puertas) + ' · hasta las ' + hora(x.fin) } : { l1: 'Sábado 25 jul · Sesión de mañana', l2: 'Puertas 8:30 · hasta las 14:00' };
+    return x ? { l1: dia(x.inicio) + ' · ' + x.nombre, l2: 'Puertas ' + hora(x.puertas) + ' · hasta las ' + hora(x.fin) } : { l1: 'Sábado · sesión de mañana', l2: 'Puertas 8:30 · hasta las 14:00' };
   });
-  protected readonly maxPersonas = computed(() => Math.min(this.sesSel()?.maxPorReserva ?? 6, Math.max(1, this.sesSel()?.libres ?? 6)));
+  protected readonly maxPersonas = computed(() => Math.min(this.sesSel()?.maxPorReserva ?? 6, Math.max(1, this.sesSel()?.estado === 'agotada' ? 6 : (this.sesSel()?.libres ?? 6))));
+  protected readonly ciudad = computed(() => this.comp.data()?.sede?.ciudad || 'Almussafes');
   protected readonly fechas = computed(() => {
     const c = this.comp.data();
     return c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
   });
+  /** «Puertas 8:30 · premios y sorteo 21:30» from the published schedule (else the first session's doors). */
+  protected readonly puertas = computed(() => {
+    const dd = this.horarios()?.dias?.[0];
+    const p = dd?.puertas ?? (this.data()?.sesiones[0] ? hora(this.data()!.sesiones[0].puertas) : '');
+    const premios = dd?.agenda.find((a) => a.icono === 'trophy')?.hora;
+    return [p && 'Puertas ' + p.replace(/^0/, ''), premios && 'premios y sorteo ' + premios.replace(/^0/, '')].filter(Boolean).join(' · ');
+  });
+  protected readonly diaSesiones = computed(() => { const s = this.data()?.sesiones[0]; return s ? dia(s.inicio).replace(/^\w/, (c) => c.toUpperCase()) : ''; });
+  protected readonly eyebrowDia = computed(() => { const f = this.horarios()?.dias?.[0]?.fecha; return (f ? dia(f + 'T12:00:00Z') : 'El día') + ' · horario publicado'; });
+  /** The day hour by hour: the agenda and the flights, flights starting at the same time on one row. */
+  protected readonly filas = computed<Fila[]>(() => {
+    const dd = this.horarios()?.dias?.[0];
+    if (!dd) return [];
+    const porHora = new Map<string, { codigos: string[]; sexos: Set<string> }>();
+    for (const fl of [...dd.flights].sort((a, b) => a.inicio.localeCompare(b.inicio))) {
+      const h = hora(fl.inicio);
+      const g = porHora.get(h) ?? { codigos: [], sexos: new Set<string>() };
+      g.codigos.push(fl.codigo); g.sexos.add(fl.sexo === 'F' ? 'femenino' : 'masculino');
+      porHora.set(h, g);
+    }
+    const filas: Fila[] = [...porHora].map(([h, g]) => ({ hora: h, titulo: (g.codigos.length > 1 ? 'Flights ' + g.codigos.join(' y ') : 'Flight ' + g.codigos[0]) + ' · ' + [...g.sexos].join(' y ') }));
+    for (const a of dd.agenda) filas.push({ hora: a.hora, titulo: a.titulo.split(' · ')[0] });
+    return filas.sort((a, b) => a.hora.localeCompare(b.hora));
+  });
+  /** Step 4: only while the raffle is on sale and there is a payment gateway. */
+  protected readonly sorteoAbierto = computed(() => { const s = this.sorteo(); return s && s.estado === 'en_venta' && s.pasarela !== 'ninguna' ? s : null; });
+  protected readonly maxBoletos = computed(() => Math.min(10, this.sorteoAbierto()?.maxPorPersona ?? 0));
+  /** Mobile bottom bar: below the hero, while the form is off screen. */
+  protected readonly barra = computed(() => this.bajoHero() && !this.formVisible() && !!this.data());
 
   constructor() {
     const seo = inject(Seo);
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
-      const [d, faq] = await Promise.all([this.api.sesiones(), cms.faq(), this.comp.load()]);
+      const opt = <T,>(p: Promise<T>) => p.catch(() => null);
+      const [d, faq, h, so] = await Promise.all([this.api.sesiones(), cms.faq(), opt(firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios?resumen=true`))),
+        opt(firstValueFrom(this.http.get<SorteoVenta>(`/api/competiciones/${COMPETITION_SLUG}/sorteo`))), this.comp.load()]);
       this.data.set(d);
+      this.horarios.set(h?.publicado ? h : null);
+      this.sorteo.set(this.comp.data()?.modulos?.['sorteo'] === false ? null : so);
       const l = faq ?? [];
       this.faq.set((l.some((x) => /entrada/i.test(x.categoria)) ? l.filter((x) => /entrada/i.test(x.categoria)) : l).slice(0, 5));
       const s = d?.sesiones.find((x) => x.estado === 'disponible' || x.estado === 'ultimas');
       if (s) this.sesion.set(s.id);
       await applySeo(cms, seo, '/entradas', 'Entradas gratis · GR Strength Cup', 'Reserva gratis tu entrada para la GR Strength Cup en Almussafes: elige sesión, recibe tu QR por email y entra sin colas.');
     });
+    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      const destroy = inject(DestroyRef);
+      afterNextRender(() => {
+        const el = this.reservarEl()?.nativeElement;
+        const io = new IntersectionObserver(([e]) => this.formVisible.set(e.isIntersecting), { rootMargin: '0px 0px -30% 0px' });
+        if (el) io.observe(el);
+        const onScroll = () => this.bajoHero.set(window.scrollY > 560);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        // capacity every minute while the page is open (the «personas» line says so)
+        const t = setInterval(() => { if (!document.hidden) void this.api.sesiones().then((x) => { if (x) this.data.set(x); }); }, 60_000);
+        destroy.onDestroy(() => { io.disconnect(); window.removeEventListener('scroll', onScroll); clearInterval(t); });
+      });
+    }
   }
   protected n(v: number): string {
     return v.toLocaleString('es-ES');
@@ -259,8 +471,12 @@ export class EntradasPage {
   protected err(c: string): boolean {
     return this.campos().includes(c);
   }
+  protected campo(mal: boolean): string {
+    return CAMPO + (mal ? ' border-accent-text' : ' border-line-strong');
+  }
   protected elegir(s: SesionPub): void {
     this.sesion.set(s.id);
+    this.error.set('');
     this.f.personas = Math.min(this.f.personas, s.maxPorReserva);
   }
   private validar(): boolean {
@@ -271,8 +487,11 @@ export class EntradasPage {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.f.email.trim())) { e.push('Email: introduce un email válido.'); c.push('email'); }
     if (!this.sesion()) { e.push('Elige una sesión.'); c.push('sesion'); }
     if (!this.f.privacidad) { e.push('Acepta la política de privacidad para reservar.'); c.push('privacidad'); }
+    if (this.boletos() && !this.f.mayorEdad) { e.push('Sorteo: confirma que tienes 18 años o más (o quita los boletos).'); c.push('edad'); }
+    if (this.boletos() && !this.f.bases) { e.push('Sorteo: acepta las bases del sorteo (o quita los boletos).'); c.push('bases'); }
     this.errores.set(e);
     this.campos.set(c);
+    if (e.length) setTimeout(() => this.reservarEl()?.nativeElement.querySelector<HTMLElement>('[role=alert]')?.focus());
     return e.length === 0;
   }
   protected async reservar(): Promise<void> {
@@ -281,19 +500,36 @@ export class EntradasPage {
     const qp = this.route.snapshot.queryParamMap;
     const utm: Record<string, string> = {};
     for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'ref']) { const v = qp.get(k); if (v) utm[k] = v.slice(0, 60); }
+    const tel = this.f.telefono.trim();
+    const telefono = tel ? (tel.startsWith('+') ? tel : '+34 ' + tel) : undefined;
+    let token = '';
     try {
-      const r = await this.api.reservar({ sesionId: this.sesion(), nombre: this.f.nombre.trim(), apellidos: this.f.apellidos.trim(), email: this.f.email.trim(), telefono: this.f.telefono.trim() || undefined,
+      const r = await this.api.reservar({ sesionId: this.sesion(), nombre: this.f.nombre.trim(), apellidos: this.f.apellidos.trim(), email: this.f.email.trim(), telefono,
         personas: this.f.personas, origen: this.f.origen || undefined, utm, aceptaPrivacidad: true, novedades: this.f.novedades });
-      void this.router.navigate(['/entradas/confirmacion'], { queryParams: { t: r.token } });
+      token = r.token;
     } catch (e) {
       const x = errorDe(e);
-      if (x.code === 'AGOTADA') {
-        this.data.set(await this.api.sesiones());
-      }
+      if (x.code === 'AGOTADA') this.data.set(await this.api.sesiones());
       this.errores.set([x.detail]);
-    } finally {
       this.enviando.set(false);
+      return;
     }
+    // the ticket is reserved; the raffle tickets are an extra step (payment), which returns to the ticket's confirmation
+    if (this.boletos()) {
+      try {
+        const c = await firstValueFrom(this.http.post<{ checkoutUrl: string }>(`/api/competiciones/${COMPETITION_SLUG}/sorteo/compras`, {
+          nombre: `${this.f.nombre.trim()} ${this.f.apellidos.trim()}`, email: this.f.email.trim(), telefono, cantidad: this.boletos(),
+          mayorEdad: true, aceptaBases: true, aceptaPrivacidad: true, novedades: this.f.novedades, origen: 'entradas', entrada: token,
+        }));
+        location.href = c.checkoutUrl;
+        return;
+      } catch {
+        // the ticket is valid anyway: show it (the confirmation offers the raffle again)
+        void this.router.navigate(['/entradas/confirmacion'], { queryParams: { t: token, sorteo: 'error' } });
+        return;
+      }
+    }
+    void this.router.navigate(['/entradas/confirmacion'], { queryParams: { t: token } });
   }
   protected async apuntarme(): Promise<void> {
     this.error.set('');
