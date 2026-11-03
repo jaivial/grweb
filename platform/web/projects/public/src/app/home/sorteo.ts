@@ -206,7 +206,8 @@ export class SecSorteo {
   readonly sorteo = input<SorteoHome | null>(null);
   /** On /sorteo itself: the page's h1 and the actions go to the form and the rules of the page. */
   readonly pagina = input(false);
-  /** /sorteo: the tickets picked in the panel (the form takes them). */
+  /** /sorteo: the tickets of the form (the panel shows them and the form takes the ones picked here). */
+  readonly cantidad = input<number | null>(null);
   readonly elegido = output<number>();
   protected readonly glow = GLOW;
   protected readonly euros = euros;
@@ -232,7 +233,7 @@ export class SecSorteo {
     const r = this.sorteo();
     if (!r) return '';
     if (r.estado === 'sorteado') return 'Sorteo cerrado' + (r.fechaSorteo ? ' · se celebró ' + diaHora(r.fechaSorteo) : '');
-    if (r.estado === 'proximamente') return 'Sorteo · ' + (r.motivo || 'la venta abre pronto');
+    if (r.estado === 'proximamente') return 'Sorteo · ' + (r.motivo ? r.motivo.charAt(0).toLowerCase() + r.motivo.slice(1).replace(/\.$/, '') : 'la venta abre pronto');
     if (r.estado === 'en_venta') return 'Sorteo · ' + (r.fechaSorteo ? 'en directo ' + diaHora(r.fechaSorteo) : 'en directo durante la competición');
     return 'Sorteo · ' + (TITULO_ESTADO[r.estado] || 'cerrado').toLowerCase();
   });
@@ -252,7 +253,7 @@ export class SecSorteo {
   });
   protected readonly elegidos = computed(() => {
     const o = this.opciones();
-    return this.pick() ?? (o.includes(5) ? 5 : o[Math.min(o.length - 1, 2)]);
+    return this.cantidad() ?? this.pick() ?? (o.includes(5) ? 5 : o[Math.min(o.length - 1, 2)]);
   });
   protected readonly vendidos = computed(() => this.vivos() ?? this.sorteo()?.vendidos ?? 0);
   /** Countdown to the draw («Faltan 46 d 04 h»; under a day, hours and minutes). */

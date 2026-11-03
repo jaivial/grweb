@@ -70,7 +70,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
       } @else {
         <!-- Figma «Section / Sorteo» (the same panel as the home, as the page's hero) -->
         <div class="h-[76px] md:hidden"></div>
-        <gr-sec-sorteo [sorteo]="s" [pagina]="true" (elegido)="cantidad.set($event)" />
+        <gr-sec-sorteo [sorteo]="s" [pagina]="true" [cantidad]="cantidad()" (elegido)="cantidad.set($event)" />
 
         <!-- Normas del sorteo -->
         <section id="normas" [class]="seccion + ' scroll-mt-20'">

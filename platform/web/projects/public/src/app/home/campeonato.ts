@@ -147,7 +147,8 @@ export class Campeonato {
       const corto = ciudad && n.toLowerCase().includes(ciudad.toLowerCase()) ? n.replace(new RegExp(`\\s+(d['’]|de\\s+)?${ciudad}$`, 'i'), '') : n;
       out.push({ icon: 'map-pin', label: 'Sede', value: ciudad ? `${corto} · ${ciudad}` : corto });
     }
-    if (c.evento?.nivel) out.push({ icon: 'trophy', label: 'Nivel', value: c.evento.nivel });
+    // the level is the visible title: only repeated here when the title shows something else
+    if (c.evento?.nivel && this.nivel() !== c.evento.nivel) out.push({ icon: 'trophy', label: 'Nivel', value: c.evento.nivel });
     return out;
   });
 }
