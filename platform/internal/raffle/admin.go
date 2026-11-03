@@ -562,7 +562,7 @@ func (s *Svc) registerAdmin() {
 					txt = append(txt, numero(n))
 				}
 				v := map[string]string{"nombre": strings.Fields(nombre + " ")[0], "boletos": strings.Join(txt, ", "), "cantidad": itoa(cantidad), "importe": pagos.Euros(importe),
-					"premio": cfg.Premio, "fechaSorteo": "", "enlace": s.webURL + "/sorteo/confirmacion?compra=" + in.ID.String() + "&t=" + s.tokenCompra(in.ID), "destino": cfg.Destino}
+					"premio": cfg.Premio, "fechaSorteo": "", "enlace": s.webURL + "/sorteo/confirmacion?compra=" + in.ID.String() + "&t=" + s.tokenCompra(in.ID)}
 				if cfg.FechaSorteo != nil {
 					v["fechaSorteo"] = fechaHora(*cfg.FechaSorteo)
 				}

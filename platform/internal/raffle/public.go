@@ -108,7 +108,6 @@ type Publico struct {
 	PremioDetalle string        `json:"premioDetalle"`
 	PremioImagen  string        `json:"premioImagen"`
 	PremioValor   int           `json:"premioValor"`
-	Destino       string        `json:"destino"`
 	Precio        int           `json:"precio"`
 	MaxPorPersona int           `json:"maxPorPersona"`
 	Presets       []int         `json:"presets"`
@@ -141,7 +140,7 @@ func (s *Svc) publico(ctx context.Context, c compref.Comp) (*Publico, error) {
 	if err != nil {
 		return nil, err
 	}
-	o := &Publico{Premio: cfg.Premio, PremioDetalle: cfg.PremioDetalle, PremioImagen: cfg.PremioImagen, PremioValor: cfg.PremioValor, Destino: cfg.Destino, Precio: cfg.Precio,
+	o := &Publico{Premio: cfg.Premio, PremioDetalle: cfg.PremioDetalle, PremioImagen: cfg.PremioImagen, PremioValor: cfg.PremioValor, Precio: cfg.Precio,
 		MaxPorPersona: cfg.MaxPorPersona, Presets: cfg.Presets, TotalMax: cfg.TotalMax, VentaHasta: cfg.VentaHasta, FechaSorteo: cfg.FechaSorteo, Pasarela: provName(s.proveedor(ctx, c.ID))}
 	o.Vendidos = s.vendidos(ctx, s.a.DB, c.ID)
 	o.Estado, o.Motivo = estadoVenta(cfg, o.Vendidos, time.Now())
@@ -516,7 +515,7 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 		var totalEmail int
 		_ = tx.QueryRow(ctx, `SELECT COALESCE(sum(cantidad), 0) FROM compras WHERE competition_id = $1 AND email = $2 AND estado = 'pagada'`, cid, *em).Scan(&totalEmail)
 		v := map[string]string{"nombre": strings.Fields(nombre + " ")[0], "boletos": strings.Join(nums, ", "), "cantidad": itoa(cantidad), "importe": pagos.Euros(importe),
-			"premio": cfg.Premio, "fechaSorteo": "", "enlace": s.webURL + "/sorteo/confirmacion?compra=" + id.String() + "&t=" + s.tokenCompra(id), "destino": cfg.Destino}
+			"premio": cfg.Premio, "fechaSorteo": "", "enlace": s.webURL + "/sorteo/confirmacion?compra=" + id.String() + "&t=" + s.tokenCompra(id)}
 		if cfg.FechaSorteo != nil {
 			v["fechaSorteo"] = fechaHora(*cfg.FechaSorteo)
 		}

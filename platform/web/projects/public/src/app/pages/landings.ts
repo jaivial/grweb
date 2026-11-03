@@ -33,7 +33,7 @@ export interface RelatedLink {
     <ul class="mt-5 grid auto-rows-fr gap-3 md:grid-cols-3 md:gap-4">
       @for (l of items(); track l.ruta; let i = $index) {
         <li class="min-w-0">
-          <a [href]="l.ruta" class="flex h-[84px] items-center gap-4 rounded-lg border border-line-subtle bg-bg-card px-4 transition-colors hover:border-line-strong">
+          <a [href]="l.ruta" [attr.title]="l.titulo + ' · ' + l.texto" class="flex h-[84px] items-center gap-4 rounded-lg border border-line-subtle bg-bg-card px-4 transition-colors hover:border-line-strong">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/12 text-display-2xs text-accent-text">{{ (i + 1).toString().padStart(2, '0') }}</span>
             <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ l.titulo }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ l.texto }}</span></span>
             <gr-icon name="arrow-right" [size]="16" class="text-text-tertiary" />

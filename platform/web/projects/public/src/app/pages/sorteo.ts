@@ -15,7 +15,7 @@ import { applySeo } from './content';
 
 interface Publico {
   estado: 'en_venta' | 'proximamente' | 'cerrada' | 'agotada' | 'bloqueada' | 'sorteado'; motivo?: string; premio: string; premioDetalle: string; premioImagen: string; premioValor: number;
-  destino: string; precio: number; maxPorPersona: number; presets: number[]; vendidos: number; totalMax?: number; ventaHasta?: string; fechaSorteo?: string; pasarela: 'stripe' | 'simulado' | 'ninguna';
+  precio: number; maxPorPersona: number; presets: number[]; vendidos: number; totalMax?: number; ventaHasta?: string; fechaSorteo?: string; pasarela: 'stripe' | 'simulado' | 'ninguna';
   ganador?: { numero: string; nombre: string; at: string };
   verificacion?: { semillaHash: string; hashLista: string; total: number; semilla?: string; indice?: number; estado: string };
 }
