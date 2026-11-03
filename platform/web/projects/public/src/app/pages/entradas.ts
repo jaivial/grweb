@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui';
-import { Cms, type Faq } from '../core/cms';
+import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
@@ -100,11 +100,11 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
     <gr-navbar />
     <main class="relative overflow-x-clip">
       <!-- Figma «Hero campaña»: the crowd photo, a dark veil and the red glow; 920 px on desktop -->
-      <section class="relative overflow-hidden">
+      <section class="relative flex overflow-hidden lg:min-h-[920px] lg:items-center">
         <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover grayscale-[60%]" fetchpriority="high" />
         <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(14_12_13/0.72),rgb(14_12_13/0.8)_60%,var(--color-bg-base))]" aria-hidden="true"></div>
         <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.5),transparent)]" aria-hidden="true"></div>
-        <div class="relative mx-auto grid max-w-[1200px] items-center gap-10 px-5 pt-[104px] pb-12 md:px-8 md:pt-40 md:pb-20 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-16 lg:pb-24 xl:px-0">
+        <div class="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 pt-[104px] pb-12 md:px-8 md:pt-40 md:pb-20 lg:grid-cols-[minmax(0,700px)_350px] lg:justify-between lg:pt-24 lg:pb-16 xl:px-0">
           <div class="flex flex-col items-start gap-4 md:gap-5">
             <p class="inline-flex h-7 items-center rounded-full border px-3 text-label-xs uppercase" [class]="todasAgotadas() ? 'border-line-strong bg-white/5 text-text-secondary' : 'border-success/50 bg-success/10 text-success'">{{ todasAgotadas() ? 'Entradas agotadas' : 'Entrada gratuita · aforo limitado' }}</p>
             <h1 class="text-display-m md:text-display-hero">
@@ -183,13 +183,14 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                 </div>
               </section>
             } @else {
-              <form class="flex flex-col gap-6 rounded-2xl border border-line-strong bg-bg-card p-5 md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
+              <!-- a card from tablet up; on phones the form sits on the page (Figma 37 mobile) -->
+              <form class="flex flex-col gap-6 md:rounded-2xl md:border md:border-line-strong md:bg-bg-card md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
                 <div class="flex flex-col gap-3">
                   <h2 class="text-display-xs md:text-display-s">Reserva tu entrada</h2>
-                  <p class="flex flex-wrap gap-2">
-                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-success/50 bg-success/10 px-2.5 text-label-xs text-success uppercase"><gr-icon name="check" [size]="12" />Gratis</span>
-                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2.5 text-label-xs text-text-secondary uppercase"><gr-icon name="clock" [size]="12" />1 minuto</span>
-                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2.5 text-label-xs text-text-secondary uppercase"><gr-icon name="scan" [size]="12" />QR por email</span>
+                  <p class="flex flex-wrap gap-1.5">
+                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-success/50 bg-success/10 px-2 text-label-xs text-success uppercase"><gr-icon name="check" [size]="12" />Gratis</span>
+                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2 text-label-xs text-text-secondary uppercase"><gr-icon name="clock" [size]="12" />1 minuto</span>
+                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2 text-label-xs text-text-secondary uppercase"><gr-icon name="scan" [size]="12" />QR por email</span>
                   </p>
                 </div>
                 @if (errores().length) {
@@ -302,7 +303,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [open]="first">
                     <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-m md:text-ui-h4">{{ f.pregunta }}
                       <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span></summary>
-                    <p class="px-5 pb-5 text-body-m text-text-secondary">{{ f.respuesta }}</p>
+                    <div class="prose-gr px-5 pb-5 text-body-m text-text-secondary" [innerHTML]="md(f.respuesta)"></div>
                   </details>
                 }
               </div>
@@ -403,7 +404,8 @@ export class EntradasPage {
   protected readonly ciudad = computed(() => this.comp.data()?.sede?.ciudad || 'Almussafes');
   protected readonly fechas = computed(() => {
     const c = this.comp.data();
-    return c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
+    const t = c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
+    return t.charAt(0).toUpperCase() + t.slice(1);
   });
   /** «Puertas 8:30 · premios y sorteo 21:30» from the published schedule (else the first session's doors). */
   protected readonly puertas = computed(() => {
@@ -467,6 +469,10 @@ export class EntradasPage {
   }
   protected n(v: number): string {
     return v.toLocaleString('es-ES');
+  }
+  /** FAQ answers are markdown (Angular sanitizes the HTML). */
+  protected md(v: string): string {
+    return renderMarkdown(v).html;
   }
   protected err(c: string): boolean {
     return this.campos().includes(c);
