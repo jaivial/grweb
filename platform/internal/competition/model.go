@@ -17,6 +17,7 @@ var Estados = []string{"borrador", "proximamente", "inscripciones", "completas",
 var ModulosCatalogo = []struct{ Clave, Nombre, Descripcion string }{
 	{"entradas", "Entradas", "Reserva de entradas gratuitas por sesión con QR"},
 	{"atletas", "Atletas", "Listado y perfiles públicos de atletas"},
+	{"alta-atleta", "Alta de atleta", "Formulario público de alta de atleta (solicitud con revisión humana)"},
 	{"horarios", "Horarios", "Flights y horarios publicados"},
 	{"directo", "Directo", "Resultados en vivo y pantalla del pabellón"},
 	{"resultados", "Resultados", "Clasificaciones y acta"},

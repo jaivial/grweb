@@ -55,6 +55,8 @@ var routeTable = func() []route {
 		{`^/api/webhooks/pagos/inscripciones$`, "athletes"},
 		{`^/api/pagos/simulado/athletes/`, "athletes"},
 		{p + `(atletas|participantes|seguimientos)(/|$)`, "athletes"},
+		// El alta de atleta es de athletes (si no, cae en la regla genérica de competition).
+		{p + `alta-atleta(/|$)`, "athletes"},
 		{`^/api/area-atleta(/|$)`, "athletes"},
 		{c + `(horarios|flights)(/|$)`, "schedule"},
 		{p + `horarios(/|$|\.ics$)`, "schedule"},

@@ -43,6 +43,15 @@ var notifRules = map[string]notifRule{
 	"athletes.importacion_confirmada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Acta de la AEP importada", fmt.Sprintf("%v nuevos · %v con cambios · %v bajas · %v filas con errores omitidas", d["nuevos"], d["cambios"], d["bajas"], d["errores"]), "/atletas", "ok", "atletas.editar", true
 	},
+	"athletes.solicitud_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		nivel := "info"
+		cuerpo := "Revísala a mano y publícala en la lista de atletas."
+		if d["esMenor"] == true {
+			nivel = "aviso"
+			cuerpo = "Es menor de edad: necesitarás la autorización de su tutor antes de publicarla."
+		}
+		return "Nueva solicitud de atleta · " + str(d["nombre"]), cuerpo, "/atletas/solicitudes", nivel, "atletas.editar", true
+	},
 	"athletes.cupon_agotado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Cupón agotado", "«" + str(d["codigo"]) + "» ha llegado a su límite de usos.", "/atletas/inscripcion", "aviso", "atletas.editar", true
 	},
@@ -341,6 +350,14 @@ func resumen(e events.Event) string {
 		return "envió a un atleta el enlace a su área"
 	case "athletes.atleta_borrado":
 		return "borró a un atleta y sus datos"
+	case "athletes.solicitud_creada":
+		return "envió una solicitud de alta de atleta"
+	case "athletes.solicitud_actualizada":
+		return "cambió el estado de una solicitud de atleta"
+	case "athletes.solicitud_aprobada":
+		return "aprobó el alta de atleta de " + str(d["nombre"])
+	case "athletes.solicitud_rechazada":
+		return "rechazó el alta de atleta de " + str(d["nombre"])
 	case "athletes.importacion_confirmada":
 		return "importó el acta de la AEP «" + str(d["archivo"]) + "»"
 	case "athletes.seguimiento_confirmado":

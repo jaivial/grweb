@@ -520,7 +520,7 @@ func lockComp(ctx context.Context, tx pgx.Tx, cid uuid.UUID) (Competicion, error
 
 func defaultModulos() map[string]Modulo {
 	m := map[string]Modulo{}
-	for _, k := range []string{"entradas", "atletas", "horarios", "resultados", "patrocinadores", "voluntarios"} {
+	for _, k := range []string{"entradas", "atletas", "alta-atleta", "horarios", "resultados", "patrocinadores", "voluntarios"} {
 		m[k] = Modulo{Activo: true}
 	}
 	m["sorteo"] = Modulo{Activo: false, Bloqueado: true, Motivo: "Checklist legal del sorteo pendiente"}

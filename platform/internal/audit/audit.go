@@ -109,6 +109,8 @@ func (s *Svc) handle(ctx context.Context, e events.Event) error {
 				}
 				out := events.New(ctx, "notificacion.nueva", map[string]any{"id": nid, "titulo": titulo, "cuerpo": cuerpo, "enlace": enlace, "nivel": nivel}, events.Competition(cid.String()))
 				out.Permission = permiso
+				// Trazabilidad del aviso al equipo (sin datos personales).
+				s.a.Log.Info("notificación al equipo", "evento", e.Type, "permiso", permiso, "nivel", nivel)
 				if err := events.Enqueue(ctx, tx, out); err != nil {
 					return err
 				}

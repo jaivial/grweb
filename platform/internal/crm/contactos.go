@@ -231,6 +231,7 @@ type Consentimiento struct {
 	Hash       string     `json:"hash"`
 	Origen     string     `json:"origen"`
 	IP         string     `json:"ip"`
+	UserAgent  string     `json:"userAgent"`
 	AceptadoAt time.Time  `json:"aceptadoAt"`
 	DoiAt      *time.Time `json:"doiAt,omitempty"`
 	RevocadoAt *time.Time `json:"revocadoAt,omitempty"`
@@ -273,14 +274,14 @@ func (s *Svc) ficha(ctx context.Context, cid, id uuid.UUID, verTel bool) (Ficha,
 	if err := s.a.DB.QueryRow(ctx, `SELECT etiquetas, created_at, version FROM contactos WHERE id = $1`, id).Scan(&f.Etiquetas, &f.CreatedAt, &f.Version); err != nil {
 		return f, err
 	}
-	rows, err = s.a.DB.Query(ctx, `SELECT finalidad, canal, estado, texto_version, texto_hash, origen, ip, aceptado_at, doi_at, revocado_at, revocado_motivo FROM consentimientos WHERE contacto_id = $1
+	rows, err = s.a.DB.Query(ctx, `SELECT finalidad, canal, estado, texto_version, texto_hash, origen, ip, user_agent, aceptado_at, doi_at, revocado_at, revocado_motivo FROM consentimientos WHERE contacto_id = $1
 		ORDER BY array_position(ARRAY['privacidad','novedades_email','avisos_whatsapp','avisos_atleta','imagen'], finalidad)`, id)
 	if err != nil {
 		return f, err
 	}
 	if f.Consentimientos, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Consentimiento, error) {
 		var c Consentimiento
-		err := r.Scan(&c.Finalidad, &c.Canal, &c.Estado, &c.Version, &c.Hash, &c.Origen, &c.IP, &c.AceptadoAt, &c.DoiAt, &c.RevocadoAt, &c.Motivo)
+		err := r.Scan(&c.Finalidad, &c.Canal, &c.Estado, &c.Version, &c.Hash, &c.Origen, &c.IP, &c.UserAgent, &c.AceptadoAt, &c.DoiAt, &c.RevocadoAt, &c.Motivo)
 		return c, err
 	}); err != nil {
 		return f, err
