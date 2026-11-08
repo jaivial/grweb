@@ -2,6 +2,7 @@ package athletes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -481,6 +482,36 @@ func (s *Svc) registerInternal() {
 					a.Slug, a.Frase = r.Slug, r.Frase
 				}
 				o.Body = append(o.Body, a)
+			}
+			return o, nil
+		})
+	// fans (cuentas de directo, paso 17): an account of type «atleta» is accepted only when its email matches a
+	// confirmed or reserve athlete of the competition. Answers only the id (never the athlete's data).
+	type porEmailIn struct {
+		CID   uuid.UUID `path:"cid"`
+		Email string    `query:"email" maxLength:"254"`
+	}
+	type porEmailOut struct {
+		Body struct {
+			ID uuid.UUID `json:"id"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-atleta-por-email", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/atletas/por-email", Summary: "Atleta con ese email (solo fans)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *porEmailIn) (*porEmailOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			o := &porEmailOut{}
+			email := strings.TrimSpace(in.Email)
+			if email == "" {
+				return nil, problem.NotFound("Sin atleta con ese email.")
+			}
+			err := s.a.DB.QueryRow(ctx, `SELECT id FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY estado = 'confirmado' DESC LIMIT 1`, in.CID, email).Scan(&o.Body.ID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, problem.NotFound("Sin atleta con ese email.")
+			}
+			if err != nil {
+				return nil, err
 			}
 			return o, nil
 		})

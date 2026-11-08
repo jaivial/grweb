@@ -23,6 +23,12 @@ resources:
   - raffle/raffle.yaml
   - ai/ai.yaml
   - realtime/realtime.yaml
+  - fans/fans.yaml
+  - chat/chat.yaml
+  - donaciones/donaciones.yaml
+  - patrocinio/patrocinio.yaml
+  - juegos/juegos.yaml
   - gateway/gateway.yaml
   - web/web.yaml
   - backoffice/backoffice.yaml
+  - juegos-worker/juegos-worker.yaml

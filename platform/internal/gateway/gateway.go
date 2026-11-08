@@ -70,6 +70,13 @@ var routeTable = func() []route {
 		{c + `(campanas|emails|whatsapp|mensajes|automatizaciones)(/|$)`, "messaging"},
 		{`^/api/webhooks/whatsapp$`, "messaging"},
 		{c + `ia(/|$)`, "ai"},
+		// Paso 17 · directo social (chat, donativos, patrocinio, porra y fantasy): before the competition catch-all.
+		{c + `fans(/|$)`, "fans"}, {p + `fans(/|$)`, "fans"},
+		{c + `chat(/|$)`, "chat"}, {p + `chat(/|$)`, "chat"},
+		{c + `donaciones(/|$)`, "donaciones"}, {p + `donaciones(/|$)`, "donaciones"},
+		{`^/api/webhooks/pagos/donaciones$`, "donaciones"}, {`^/api/pagos/simulado/donaciones/`, "donaciones"},
+		{c + `patrocinio(/|$)`, "patrocinio"}, {p + `patrocinio(/|$)`, "patrocinio"},
+		{c + `juegos(/|$)`, "juegos"}, {p + `juegos(/|$)`, "juegos"},
 		{`^/api/admin/(competiciones|workspaces)(/|$)`, "competition"},
 		{`^/api/competiciones(/|$)`, "competition"},
 	}
@@ -90,7 +97,7 @@ func match(path string) string {
 }
 
 // AllServices lists every backend service the gateway can route to.
-var AllServices = []string{"identity", "competition", "cms", "athletes", "schedule", "live", "ticketing", "raffle", "crm", "messaging", "ai", "realtime", "audit"}
+var AllServices = []string{"identity", "competition", "cms", "athletes", "schedule", "live", "ticketing", "raffle", "crm", "messaging", "ai", "realtime", "audit", "fans", "chat", "donaciones", "patrocinio", "juegos"}
 
 type gw struct {
 	a        *app.App
