@@ -1,0 +1,76 @@
+// Package juegos runs the virtual games of a live meet (contract §6): jornadas, wallets as a ledger (porra and
+// fantasy coins, never bought with money), the porra (parimutuel betting on the scoreboard), GRS Fantasy (athlete
+// market with real-time clauses), prizes and classifications. The `worker` subcommand (juegos-worker) consumes the
+// events of chat, donations and live: rewards, clause changes, points and market liquidation.
+package juegos
+
+import (
+	"context"
+	"embed"
+	"io/fs"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/jaivial/grweb/platform/pkg/app"
+	"github.com/jaivial/grweb/platform/pkg/cache"
+	"github.com/jaivial/grweb/platform/pkg/compref"
+	"github.com/jaivial/grweb/platform/pkg/config"
+	"github.com/jaivial/grweb/platform/pkg/fanauth"
+	"github.com/jaivial/grweb/platform/pkg/svcclient"
+)
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
+
+func mustMigrations() fs.FS {
+	m, err := fs.Sub(migrationsFS, "migrations")
+	if err != nil {
+		panic(err)
+	}
+	return m
+}
+
+var bearer = []map[string][]string{{"bearer": {}}}
+
+// Svc holds the service dependencies.
+type Svc struct {
+	a      *app.App
+	comps  *compref.Resolver
+	live   *svcclient.Client
+	fans   *fanauth.Verifier
+	cache  *cache.Cache
+	marcMu sync.Mutex
+	marc   map[string]marcEntrada
+}
+
+type marcEntrada struct {
+	m   *Marcador
+	exp time.Time
+}
+
+// Service returns the games service definition.
+func Service() app.Service {
+	s := &Svc{marc: map[string]marcEntrada{}}
+	return app.Service{Name: "juegos", Title: "GR Cup · juegos", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
+		Commands: map[string]func(context.Context, *app.App, []string) error{"worker": s.comandoWorker}}
+}
+
+func (s *Svc) init(a *app.App) {
+	s.a = a
+	comp := svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "juegos", "competition", a.Cfg.InternalToken)
+	s.comps = compref.New(comp, a.Log)
+	s.live = svcclient.New(config.Str("UPSTREAM_LIVE", "http://live:8080"), "juegos", "live", a.Cfg.InternalToken)
+	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
+	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "juegos", "")}
+}
+
+func (s *Svc) setup(_ context.Context, a *app.App) error {
+	s.init(a)
+	s.registerPublic()
+	s.registerAdmin()
+	return nil
+}
+
+func newID() uuid.UUID { return uuid.Must(uuid.NewV7()) }

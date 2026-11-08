@@ -1,0 +1,799 @@
+// http.go: the public endpoints of juegos (contract §6.6), behind the fan session (cookie grcup_fan or the
+// X-GrCup-Fan header for the load test) when they touch a wallet, and public otherwise.
+package juegos
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/fanauth"
+	"github.com/jaivial/grweb/platform/pkg/problem"
+)
+
+var tagJuegos = []string{"Juegos"}
+
+// sesionFan reads and verifies the fan session of a request (contract §3).
+type sesionFan struct {
+	Session string `cookie:"grcup_fan" maxLength:"4096"`
+	Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+}
+
+func (s *Svc) fan(ctx context.Context, cid uuid.UUID, in *sesionFan) (fanauth.Fan, error) {
+	tok := in.Session
+	if tok == "" {
+		tok = in.Header
+	}
+	f, err := s.fans.Verify(ctx, tok)
+	if err != nil {
+		return fanauth.Fan{}, fanauth.Problem(err)
+	}
+	if f.CompetitionID != cid {
+		return fanauth.Fan{}, problem.Forbidden("Tu sesión de directo no es de esta competición.")
+	}
+	return f, nil
+}
+
+// fanOpcional returns the fan when a valid session travels with the request (uuid.Nil otherwise), so public
+// views show «mi puesto» and «es mío» to logged fans without blocking anonymous readers.
+func (s *Svc) fanOpcional(ctx context.Context, cid uuid.UUID, in *sesionFan) (uuid.UUID, error) {
+	tok := in.Session
+	if tok == "" {
+		tok = in.Header
+	}
+	if tok == "" {
+		return uuid.Nil, nil
+	}
+	f, err := s.fans.Verify(ctx, tok)
+	if err != nil {
+		return uuid.Nil, fanauth.Problem(err)
+	}
+	if f.CompetitionID != cid {
+		return uuid.Nil, problem.Forbidden("Tu sesión de directo no es de esta competición.")
+	}
+	return f.ID, nil
+}
+
+// requireAny follows the pattern of the other services (live, schedule).
+func requireAny(ctx context.Context, cid uuid.UUID, msg string, perms ...string) (*auth.Principal, error) {
+	p, err := auth.User(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, k := range perms {
+		if p.Can(cid.String(), k) {
+			return p, nil
+		}
+	}
+	return nil, problem.Forbidden(msg)
+}
+
+// jornadaPublica resolves the jornada of a request: the given id, else the active one.
+func (s *Svc) jornadaPublica(ctx context.Context, cid, jid uuid.UUID) (*jornada, error) {
+	if jid != uuid.Nil {
+		j, err := scanJornada(s.a.DB.QueryRow(ctx, selJornada+" FROM jornadas WHERE id = $1 AND competition_id = $2", jid, cid))
+		if db.IsNoRows(err) {
+			return nil, problem.NotFound("Jornada no encontrada.")
+		}
+		return &j, err
+	}
+	j, err := s.jornadaActiva(ctx, s.a.DB, cid)
+	if err != nil {
+		return nil, err
+	}
+	if j == nil {
+		return nil, problem.NotFound("No hay jornada activa hoy.")
+	}
+	return j, nil
+}
+
+// jornadaOut is one jornada of the list.
+type jornadaOut struct {
+	ID     uuid.UUID `json:"id"`
+	Dia    string    `json:"dia"`
+	Nombre string    `json:"nombre"`
+	Estado string    `json:"estado" enum:"borrador,abierta,en_juego,cerrada"`
+}
+
+// apuestaVista is one bet of mis-apuestas.
+type apuestaVista struct {
+	ID        uuid.UUID `json:"id"`
+	MercadoID uuid.UUID `json:"mercadoId"`
+	Mercado   string    `json:"mercado"`
+	AtletaID  uuid.UUID `json:"atletaId"`
+	Atleta    string    `json:"atleta"`
+	Importe   int64     `json:"importe"`
+	Estado    string    `json:"estado" enum:"abierto,cerrado,liquidado"`
+	CreatedAt string    `json:"createdAt"`
+}
+
+// carteraOut is the response of GET /juegos/cartera.
+type carteraOut struct {
+	Body struct {
+		Porra       int64             `json:"porra"`
+		Fantasy     int64             `json:"fantasy"`
+		Movimientos []movimientoVista `json:"movimientos"`
+	}
+}
+
+type movimientoVista struct {
+	Importe   int64  `json:"importe"`
+	Motivo    string `json:"motivo"`
+	Moneda    string `json:"moneda" enum:"porra,fantasy"`
+	CreatedAt string `json:"createdAt"`
+}
+
+func (s *Svc) registerPublic() {
+	api := s.a.API
+	base := "/api/competiciones/{slug}/juegos"
+
+	type slugIn struct {
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+	}
+	type jornadaIn struct {
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+	type jidIn struct {
+		Slug string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JID  uuid.UUID `path:"jid"`
+	}
+	type fanJornadaIn struct {
+		Session   string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header    string    `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+
+	// ---- jornadas ----
+	type jornadasOut struct {
+		Body struct {
+			Jornadas []jornadaOut `json:"jornadas"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-jornadas", Method: http.MethodGet, Path: base + "/jornadas",
+		Summary: "Jornadas de juegos (pasadas, activa y futuras)", Tags: tagJuegos},
+		func(ctx context.Context, in *slugIn) (*jornadasOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado FROM jornadas WHERE competition_id = $1 ORDER BY dia DESC`, c.ID)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			o := &jornadasOut{}
+			o.Body.Jornadas = []jornadaOut{}
+			for rows.Next() {
+				var j jornadaOut
+				if err := rows.Scan(&j.ID, &j.Dia, &j.Nombre, &j.Estado); err != nil {
+					return nil, err
+				}
+				o.Body.Jornadas = append(o.Body.Jornadas, j)
+			}
+			return o, rows.Err()
+		})
+
+	// The jornada detail: estado and athletes with clause and owner (public alias, contract §6.6).
+	type jornadaDetalleOut struct {
+		Body struct {
+			Jornada jornadaOut      `json:"jornada"`
+			Atletas []atletaMercado `json:"atletas"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-jornada", Method: http.MethodGet, Path: base + "/jornadas/{jid}",
+		Summary: "Una jornada: estado y atletas con cláusula y dueño", Tags: tagJuegos},
+		func(ctx context.Context, in *jidIn) (*jornadaDetalleOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			j, err := scanJornada(s.a.DB.QueryRow(ctx, selJornada+" FROM jornadas WHERE id = $1 AND competition_id = $2", in.JID, c.ID))
+			if db.IsNoRows(err) {
+				return nil, problem.NotFound("Jornada no encontrada.")
+			}
+			if err != nil {
+				return nil, err
+			}
+			o := &jornadaDetalleOut{}
+			o.Body.Jornada = jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Atletas, err = s.mercadoFantasy(ctx, c.ID, j, uuid.Nil)
+			return o, err
+		})
+
+	// ---- porra ----
+	type mercadosOut struct {
+		Body struct {
+			Jornada  *jornadaOut    `json:"jornada,omitempty"`
+			Mercados []mercadoVista `json:"mercados"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-porra-mercados", Method: http.MethodGet, Path: base + "/porra/mercados",
+		Summary: "Mercados de la porra con bote y cuotas en vivo", Tags: tagJuegos},
+		func(ctx context.Context, in *jornadaIn) (*mercadosOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			ms, err := s.mercadosVista(ctx, c.ID, j)
+			if err != nil {
+				return nil, err
+			}
+			o := &mercadosOut{}
+			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Mercados = ms
+			return o, nil
+		})
+
+	// POST apuestas (fan session; contract §6.2: open market, min and max, saldo, atomic spend).
+	type apuestaIn struct {
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Body    struct {
+			MercadoID uuid.UUID `json:"mercadoId"`
+			AtletaID  uuid.UUID `json:"atletaId"`
+			Importe   int64     `json:"importe" minimum:"1" maximum:"1000000"`
+			Jornada   uuid.UUID `json:"jornada,omitempty"`
+		}
+	}
+	type apuestaOut struct {
+		Body struct {
+			ApuestaID uuid.UUID `json:"apuestaId"`
+			Saldo     int64     `json:"saldo"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-porra-apostar", Method: http.MethodPost, Path: base + "/porra/apuestas",
+		Summary: "Apostar monedas de porra en un mercado", Tags: tagJuegos, Security: bearer},
+		func(ctx context.Context, in *apuestaIn) (*apuestaOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.Body.Jornada)
+			if err != nil {
+				return nil, err
+			}
+			cfg, err := configJuegos(ctx, s.a.DB, c.ID)
+			if err != nil {
+				return nil, err
+			}
+			o := &apuestaOut{}
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				aid, err := s.apostarTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.MercadoID, in.Body.AtletaID, in.Body.Importe)
+				if err != nil {
+					return err
+				}
+				o.Body.ApuestaID = aid
+				o.Body.Saldo, err = abrirCarteraTx(ctx, tx, *j, f.ID, Porra)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			s.eventoClasificacion(ctx, c.ID, j.ID)
+			return o, nil
+		})
+
+	// mis-apuestas (fan session).
+	type misApuestasIn struct {
+		Session   string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header    string    `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+	type misApuestasOut struct {
+		Body struct {
+			Apuestas []apuestaVista `json:"apuestas"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-porra-mis-apuestas", Method: http.MethodGet, Path: base + "/porra/mis-apuestas",
+		Summary: "Mis apuestas de la jornada", Tags: tagJuegos, Security: bearer},
+		func(ctx context.Context, in *misApuestasIn) (*misApuestasOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.mercado_id, m.titulo, a.atleta_id, COALESCE(fa.nombre_publico, ''),
+				a.importe, m.estado, a.created_at::text
+				FROM apuestas a JOIN mercados m ON m.id = a.mercado_id
+				LEFT JOIN fantasy_atletas fa ON fa.jornada_id = a.jornada_id AND fa.atleta_id = a.atleta_id
+				WHERE a.jornada_id = $1 AND a.fan_id = $2 ORDER BY a.created_at DESC LIMIT 100`, j.ID, f.ID)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			o := &misApuestasOut{}
+			o.Body.Apuestas = []apuestaVista{}
+			for rows.Next() {
+				var v apuestaVista
+				if err := rows.Scan(&v.ID, &v.MercadoID, &v.Mercado, &v.AtletaID, &v.Atleta, &v.Importe, &v.Estado, &v.CreatedAt); err != nil {
+					return nil, err
+				}
+				o.Body.Apuestas = append(o.Body.Apuestas, v)
+			}
+			return o, rows.Err()
+		})
+
+	// clasificación de la porra (contract §6.2: saldo, desempate por quién llegó antes; top 50 + mi puesto).
+	type clasPorraIn struct {
+		Session   string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header    string    `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+	type clasPorraOut struct {
+		Body struct {
+			Jornada  *jornadaOut `json:"jornada,omitempty"`
+			Top      []filaPorra `json:"top"`
+			MiPuesto int         `json:"miPuesto"`
+			MiSaldo  int64       `json:"miSaldo"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-porra-clasificacion", Method: http.MethodGet, Path: base + "/porra/clasificacion",
+		Summary: "Clasificación de la porra (top 50 y mi puesto)", Tags: tagJuegos},
+		func(ctx context.Context, in *clasPorraIn) (*clasPorraOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			fanID, err := s.fanOpcional(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			o := &clasPorraOut{}
+			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Top, o.Body.MiPuesto = s.rankingPorra(ctx, *j, fanID)
+			if fanID != uuid.Nil {
+				_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'porra'`, j.ID, fanID).Scan(&o.Body.MiSaldo)
+			}
+			return o, nil
+		})
+
+	// ---- fantasy ----
+	type mercadoFantasyIn struct {
+		Session   string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header    string    `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+	type mercadoFantasyOut struct {
+		Body struct {
+			Jornada *jornadaOut     `json:"jornada,omitempty"`
+			Atletas []atletaMercado `json:"atletas"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-mercado", Method: http.MethodGet, Path: base + "/fantasy/mercado",
+		Summary: "Mercado de GRS Fantasy: atletas, cláusulas, dueños y protección", Tags: tagJuegos},
+		func(ctx context.Context, in *mercadoFantasyIn) (*mercadoFantasyOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			fanID, err := s.fanOpcional(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			ats, err := s.mercadoFantasy(ctx, c.ID, *j, fanID)
+			if err != nil {
+				return nil, err
+			}
+			o := &mercadoFantasyOut{}
+			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Atletas = ats
+			return o, nil
+		})
+
+	// mi-equipo (fan session): my athletes, value and titulares.
+	type equipoOut struct {
+		Body struct {
+			Jornada     *jornadaOut     `json:"jornada,omitempty"`
+			Atletas     []atletaMercado `json:"atletas"`
+			Titulares   int             `json:"titulares"`
+			Valor       int64           `json:"valor"`
+			Saldo       int64           `json:"saldo"`
+			Clausulazos int             `json:"clausulazos"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-mi-equipo", Method: http.MethodGet, Path: base + "/fantasy/mi-equipo",
+		Summary: "Mi equipo de fantasy: plantilla, valor, saldo y clausulazos gastados", Tags: tagJuegos, Security: bearer},
+		func(ctx context.Context, in *mercadoFantasyIn) (*equipoOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			ats, err := s.mercadoFantasy(ctx, c.ID, *j, f.ID)
+			if err != nil {
+				return nil, err
+			}
+			o := &equipoOut{}
+			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Atletas = []atletaMercado{}
+			for _, a := range ats {
+				if a.EsMio {
+					o.Body.Atletas = append(o.Body.Atletas, a)
+					if a.Titular {
+						o.Body.Titulares++
+					}
+					o.Body.Valor += a.Clausula
+				}
+			}
+			_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, j.ID, f.ID).Scan(&o.Body.Saldo)
+			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM fichajes WHERE jornada_id = $1 AND a_fan = $2 AND tipo = 'clausulazo'`, j.ID, f.ID).Scan(&o.Body.Clausulazos)
+			return o, nil
+		})
+
+	// comprar | vender | clausulazo (fan session, same shape).
+	type fichajeIn struct {
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Body    struct {
+			AtletaID uuid.UUID `json:"atletaId"`
+			Jornada  uuid.UUID `json:"jornada,omitempty"`
+		}
+	}
+	type fichajeOut struct {
+		Body struct {
+			OK    bool  `json:"ok"`
+			Saldo int64 `json:"saldo"`
+		}
+	}
+	operar := func(op string) func(ctx context.Context, in *fichajeIn) (*fichajeOut, error) {
+		return func(ctx context.Context, in *fichajeIn) (*fichajeOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.Body.Jornada)
+			if err != nil {
+				return nil, err
+			}
+			if !j.jugable() {
+				return nil, problem.Conflict("JORNADA_NO_JUGABLE", "La jornada no está abierta para jugar.")
+			}
+			cfg, err := configJuegos(ctx, s.a.DB, c.ID)
+			if err != nil {
+				return nil, err
+			}
+			o := &fichajeOut{}
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				switch op {
+				case "comprar":
+					err = s.comprarTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.AtletaID)
+				case "vender":
+					err = s.venderTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.AtletaID)
+				default:
+					err = s.clausulazoTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.AtletaID)
+				}
+				if err != nil {
+					return err
+				}
+				o.Body.Saldo, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			o.Body.OK = true
+			s.eventoClasificacion(ctx, c.ID, j.ID)
+			return o, nil
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-comprar", Method: http.MethodPost, Path: base + "/fantasy/comprar",
+		Summary: "Comprar un atleta libre por su cláusula", Tags: tagJuegos, Security: bearer}, operar("comprar"))
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-vender", Method: http.MethodPost, Path: base + "/fantasy/vender",
+		Summary: "Vender un atleta propio (vuelve al mercado, 100 % de su valor)", Tags: tagJuegos, Security: bearer}, operar("vender"))
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clausulazo", Method: http.MethodPost, Path: base + "/fantasy/clausulazo",
+		Summary: "Pagar la cláusula de un atleta de otro usuario", Tags: tagJuegos, Security: bearer}, operar("clausulazo"))
+
+	// alineacion (fan session): set the titulars, blocked for athletes whose flight is on the platform.
+	type alineacionIn struct {
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Body    struct {
+			Titulares []uuid.UUID `json:"titulares" maxItems:"15"`
+			Jornada   uuid.UUID   `json:"jornada,omitempty"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-alineacion", Method: http.MethodPost, Path: base + "/fantasy/alineacion",
+		Summary: "Cambiar la alineación (titulares y suplentes)", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *alineacionIn) (*struct{}, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.Body.Jornada)
+			if err != nil {
+				return nil, err
+			}
+			cfg, err := configJuegos(ctx, s.a.DB, c.ID)
+			if err != nil {
+				return nil, err
+			}
+			m, err := s.marcador(ctx, c.ID, j.Dia)
+			if err != nil {
+				return nil, problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
+			}
+			enCurso := map[uuid.UUID]bool{}
+			for i := range m.Atletas {
+				if m.Atletas[i].FlightEnCurso {
+					enCurso[m.Atletas[i].AtletaID] = true
+				}
+			}
+			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				return s.alineacionTx(ctx, tx, *j, cfg, f.ID, in.Body.Titulares, enCurso)
+			}); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		})
+
+	// clasificación fantasy (contract §6.3: puntos, desempate valor de plantilla → saldo → quién llegó antes).
+	type clasFantasyOut struct {
+		Body struct {
+			Jornada  *jornadaOut   `json:"jornada,omitempty"`
+			Top      []filaFantasy `json:"top"`
+			MiPuesto int           `json:"miPuesto"`
+			MiPuntos int           `json:"miPuntos"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clasificacion", Method: http.MethodGet, Path: base + "/fantasy/clasificacion",
+		Summary: "Clasificación de fantasy (top 50 y mi puesto)", Tags: tagJuegos},
+		func(ctx context.Context, in *clasPorraIn) (*clasFantasyOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			fanID, err := s.fanOpcional(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			o := &clasFantasyOut{}
+			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Top, o.Body.MiPuesto = s.rankingFantasy(ctx, *j, fanID)
+			if fanID != uuid.Nil {
+				for _, f := range o.Body.Top {
+					if f.FanID == fanID {
+						o.Body.MiPuntos = f.Puntos
+					}
+				}
+			}
+			return o, nil
+		})
+
+	// GET /fantasy/atletas/{aid}: clause history and points of one athlete (contract §6.6).
+	type atletaIn struct {
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		AID       uuid.UUID `path:"aid"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+	type historialClausula struct {
+		Clausula  int64  `json:"clausula"`
+		Delta     int64  `json:"delta"`
+		Motivo    string `json:"motivo"`
+		CreatedAt string `json:"createdAt"`
+	}
+	type puntoVista struct {
+		Concepto string `json:"concepto"`
+		Puntos   int    `json:"puntos"`
+		Ref      string `json:"ref"`
+	}
+	type atletaOut struct {
+		Body struct {
+			Atleta    *atletaMercado      `json:"atleta"`
+			Clausulas []historialClausula `json:"clausulas"`
+			Puntos    []puntoVista        `json:"puntos"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-atleta", Method: http.MethodGet, Path: base + "/fantasy/atletas/{aid}",
+		Summary: "Historial de la cláusula y puntos de un atleta", Tags: tagJuegos},
+		func(ctx context.Context, in *atletaIn) (*atletaOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			ats, err := s.mercadoFantasy(ctx, c.ID, *j, uuid.Nil)
+			if err != nil {
+				return nil, err
+			}
+			o := &atletaOut{}
+			for i := range ats {
+				if ats[i].AtletaID == in.AID {
+					o.Body.Atleta = &ats[i]
+					break
+				}
+			}
+			if o.Body.Atleta == nil {
+				return nil, problem.NotFound("Ese atleta no está en la jornada.")
+			}
+			rows, err := s.a.DB.Query(ctx, `SELECT clausula, delta, motivo, created_at::text FROM historial_clausulas
+				WHERE jornada_id = $1 AND atleta_id = $2 ORDER BY created_at DESC LIMIT 100`, j.ID, in.AID)
+			if err != nil {
+				return nil, err
+			}
+			o.Body.Clausulas = []historialClausula{}
+			for rows.Next() {
+				var h historialClausula
+				if err := rows.Scan(&h.Clausula, &h.Delta, &h.Motivo, &h.CreatedAt); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				o.Body.Clausulas = append(o.Body.Clausulas, h)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return nil, err
+			}
+			rows, err = s.a.DB.Query(ctx, `SELECT concepto, puntos, ref FROM puntos WHERE jornada_id = $1 AND atleta_id = $2 ORDER BY ref`, j.ID, in.AID)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			o.Body.Puntos = []puntoVista{}
+			for rows.Next() {
+				var p puntoVista
+				if err := rows.Scan(&p.Concepto, &p.Puntos, &p.Ref); err != nil {
+					return nil, err
+				}
+				o.Body.Puntos = append(o.Body.Puntos, p)
+			}
+			return o, rows.Err()
+		})
+
+	// GET /juegos/cartera: both wallets and the last movements (fan session, contract §6.6).
+	type carteraIn struct {
+		Session   string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header    string    `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-cartera", Method: http.MethodGet, Path: base + "/cartera",
+		Summary: "Mi cartera: saldos de porra y fantasy y últimos movimientos", Tags: tagJuegos, Security: bearer},
+		func(ctx context.Context, in *carteraIn) (*carteraOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			o := &carteraOut{}
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if o.Body.Porra, err = abrirCarteraTx(ctx, tx, *j, f.ID, Porra); err != nil {
+					return err
+				}
+				if o.Body.Fantasy, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			rows, err := s.a.DB.Query(ctx, `SELECT importe, motivo, moneda, created_at::text FROM movimientos
+				WHERE jornada_id = $1 AND fan_id = $2 ORDER BY created_at DESC LIMIT 50`, j.ID, f.ID)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			o.Body.Movimientos = []movimientoVista{}
+			for rows.Next() {
+				var mv movimientoVista
+				if err := rows.Scan(&mv.Importe, &mv.Motivo, &mv.Moneda, &mv.CreatedAt); err != nil {
+					return nil, err
+				}
+				o.Body.Movimientos = append(o.Body.Movimientos, mv)
+			}
+			return o, rows.Err()
+		})
+
+	// GET /juegos/premios (contract §6.5): visible prizes of the jornada (porra, fantasy and donantes).
+	type premiosOut struct {
+		Body struct {
+			Premios []premioVista `json:"premios"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-premios", Method: http.MethodGet, Path: base + "/premios",
+		Summary: "Premios de la jornada (porra, fantasy y donantes)", Tags: tagJuegos},
+		func(ctx context.Context, in *jornadaIn) (*premiosOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			var jid any
+			if in.JornadaID != uuid.Nil {
+				jid = in.JornadaID
+			} else {
+				j, err := s.jornadaActiva(ctx, s.a.DB, c.ID)
+				if err != nil {
+					return nil, err
+				}
+				if j != nil {
+					jid = j.ID
+				}
+			}
+			var rows pgx.Rows
+			if jid == nil {
+				rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
+					FROM premios WHERE competition_id = $1 AND jornada_id IS NULL AND activo ORDER BY ranking, orden`, c.ID)
+			} else {
+				rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
+					FROM premios WHERE competition_id = $1 AND (jornada_id = $2 OR jornada_id IS NULL) AND activo ORDER BY ranking, orden`, c.ID, jid)
+			}
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			o := &premiosOut{}
+			o.Body.Premios = []premioVista{}
+			for rows.Next() {
+				var p premioVista
+				if err := rows.Scan(&p.ID, &p.Ranking, &p.PuestoDesde, &p.PuestoHasta, &p.Titulo, &p.Descripcion, &p.ImagenURL, &p.ValorTexto, &p.Patrocinador); err != nil {
+					return nil, err
+				}
+				o.Body.Premios = append(o.Body.Premios, p)
+			}
+			return o, rows.Err()
+		})
+}
