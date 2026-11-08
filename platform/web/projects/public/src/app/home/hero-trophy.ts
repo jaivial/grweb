@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { GrIcon, GrLogo } from '@grcup/ui';
+import { VideoScrub } from '../core/video-scrub';
 
 const FRAMES = 313;
 const FPS = 24;
@@ -153,13 +154,8 @@ export class HeroTrophy {
 
   private progress = 0;
   private shown = 0;
-  private target = 0;
-  private mostrado = -1;
-  private enVuelo = -1;
-  private metadata = false;
+  private scrub?: VideoScrub;
   private videoFallido = false;
-  private abort?: AbortController;
-  private objectUrl?: string;
   private raf = 0;
   private tope = 0;
   private fade = 0;
@@ -179,47 +175,33 @@ export class HeroTrophy {
       }
 
       const video = this.video().nativeElement;
-      video.muted = true;
       const onLoadedMetadata = () => {
-        this.metadata = true;
         this.measure();
         this.updateTarget();
-        this.pump(video);
-      };
-      const onSeeked = () => {
-        if (this.videoFallido || this.enVuelo < 0) return;
-        this.mostrado = this.enVuelo;
-        this.enVuelo = -1;
-        this.imagenFija.set(false);
-        this.finPrecarga();
-        this.pump(video); // Only the latest target survives; old scroll positions are never queued.
-      };
-      const onError = () => this.failVideo();
-      const onVisibility = () => {
-        if (document.visibilityState !== 'visible' || this.videoFallido || !this.metadata) return;
-        // A suspended decoder can leave a seek pending: restart it at the latest scroll position.
-        if (this.enVuelo >= 0) {
-          this.enVuelo = -1;
-          this.mostrado = -1;
-        }
-        this.updateTarget();
-        this.pump(video);
       };
       video.addEventListener('loadedmetadata', onLoadedMetadata);
-      video.addEventListener('seeked', onSeeked);
-      video.addEventListener('error', onError);
-      document.addEventListener('visibilitychange', onVisibility);
+      const scrub = new VideoScrub(video, {
+        frames: FRAMES,
+        fps: FPS,
+        onFirstFrame: () => {
+          this.imagenFija.set(false);
+          this.finPrecarga();
+        },
+        onProgress: (pct) => {
+          if (pct === null) this.progresoIndeterminado.set(true);
+          else {
+            this.criticoPct.set(pct);
+            this.progresoIndeterminado.set(false);
+          }
+        },
+        onError: () => this.failVideo(),
+      });
+      this.scrub = scrub;
       this.tope = window.setTimeout(() => this.finPrecarga(), 4000);
 
       destroy.onDestroy(() => {
-        this.abort?.abort();
         video.removeEventListener('loadedmetadata', onLoadedMetadata);
-        video.removeEventListener('seeked', onSeeked);
-        video.removeEventListener('error', onError);
-        document.removeEventListener('visibilitychange', onVisibility);
-        video.removeAttribute('src');
-        video.load();
-        if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+        scrub.destroy();
         cancelAnimationFrame(this.raf);
         clearTimeout(this.tope);
         clearTimeout(this.fade);
@@ -229,13 +211,12 @@ export class HeroTrophy {
       // Phones and Save-Data connections use the smaller encode; reduced motion never reaches this download.
       const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
       const url = window.innerWidth < 768 || conn?.saveData ? VIDEO_MOBILE : VIDEO_DESKTOP;
-      void this.loadVideo(url, video);
+      void scrub.load(url);
       const loop = () => {
         this.measure();
         this.shown += (this.progress - this.shown) * 0.15; // smoothing (same as the previous web)
         this.p.set(this.shown);
         this.updateTarget();
-        this.pump(video);
         this.raf = requestAnimationFrame(loop);
       };
       // The loop only runs while the hero is on screen (no work while reading the rest of the page).
@@ -264,67 +245,7 @@ export class HeroTrophy {
   }
 
   private updateTarget(): void {
-    this.target = Math.round(tramo(this.shown, T.frames) * (FRAMES - 1));
-  }
-
-  /** Seeks to the centre of the latest target frame, with at most one request in flight. */
-  private pump(video: HTMLVideoElement): void {
-    if (!this.metadata || this.videoFallido || this.enVuelo >= 0 || this.target === this.mostrado) return;
-    this.enVuelo = this.target;
-    try {
-      video.currentTime = (this.enVuelo + 0.5) / FPS;
-    } catch {
-      this.enVuelo = -1;
-      this.failVideo();
-    }
-  }
-
-  /** Downloads the MP4 once into a Blob; direct Range-based playback is the network/CORS fallback. */
-  private async loadVideo(url: string, video: HTMLVideoElement): Promise<void> {
-    const controller = new AbortController();
-    this.abort = controller;
-    try {
-      const response = await fetch(url, { signal: controller.signal });
-      if (!response.ok) throw new Error(`Video download failed: ${response.status}`);
-      const total = Number(response.headers.get('Content-Length'));
-      const measurable = Number.isFinite(total) && total > 0;
-      this.progresoIndeterminado.set(!measurable);
-      let blob: Blob;
-      if (response.body) {
-        const reader = response.body.getReader();
-        const chunks: Uint8Array[] = [];
-        let received = 0;
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) {
-              chunks.push(value);
-              received += value.byteLength;
-              if (measurable) this.criticoPct.set(Math.min(100, Math.round((received / total) * 100)));
-            }
-          }
-        } finally {
-          reader.releaseLock();
-        }
-        blob = new Blob(chunks as BlobPart[], { type: 'video/mp4' });
-      } else {
-        blob = new Blob([await response.blob()], { type: 'video/mp4' });
-      }
-      if (controller.signal.aborted) return;
-      this.criticoPct.set(100);
-      this.progresoIndeterminado.set(false);
-      this.objectUrl = URL.createObjectURL(blob);
-      video.src = this.objectUrl;
-    } catch {
-      if (controller.signal.aborted || this.videoFallido) return;
-      this.progresoIndeterminado.set(true);
-      try {
-        video.src = url;
-      } catch {
-        this.failVideo();
-      }
-    }
+    this.scrub?.seek(Math.round(tramo(this.shown, T.frames) * (FRAMES - 1)));
   }
 
   private finPrecarga(): void {
@@ -337,7 +258,6 @@ export class HeroTrophy {
   private failVideo(): void {
     if (this.videoFallido) return;
     this.videoFallido = true;
-    this.enVuelo = -1;
     this.imagenFija.set(true);
     this.finPrecarga();
   }
