@@ -16,6 +16,9 @@ data:
   REDIS_USERNAME: grcup-prod
   WEB_HOST: grcup.menustudioai.com
   PUBLIC_WEB_URL: https://grcup.menustudioai.com
+  PUBLIC_API_URL: https://grcup-api.menustudioai.com
+  # The webhook of evo-weai goes out to the public API (the internal one is only for QA).
+  WHATSAPP_WEBHOOK_URL: https://grcup-api.menustudioai.com
   BACKOFFICE_URL: https://grcup-bo.menustudioai.com
   API_URL: https://grcup-api.menustudioai.com
   CORS_ORIGINS: https://grcup.menustudioai.com,https://grcup-bo.menustudioai.com

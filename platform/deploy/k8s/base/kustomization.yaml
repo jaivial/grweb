@@ -23,6 +23,7 @@ resources:
   - raffle/raffle.yaml
   - ai/ai.yaml
   - realtime/realtime.yaml
+  - evo-weai/evo-weai.yaml
   - gateway/gateway.yaml
   - web/web.yaml
   - backoffice/backoffice.yaml

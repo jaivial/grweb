@@ -125,5 +125,6 @@ spec:
         - podSelector: { matchLabels: { grcup.dev/servicio: gateway } }
         - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
         - podSelector: { matchLabels: { grcup.dev/servicio: crm } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: evo-weai } }
       ports:
         - { port: 8080, protocol: TCP }

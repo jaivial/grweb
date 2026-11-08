@@ -35,7 +35,7 @@ type Render struct {
 func variablesDe(c Contenido) []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, f := range []string{c.Asunto, c.Preheader, c.Titulo, c.Cuerpo, c.BotonTexto, c.BotonURL, c.Pie} {
+	for _, f := range []string{c.Asunto, c.Preheader, c.Titulo, c.Cuerpo, c.BotonTexto, c.BotonURL, c.Pie, c.Nota, c.Imagen} {
 		for _, m := range reVar.FindAllStringSubmatch(f, -1) {
 			if !seen[m[1]] {
 				seen[m[1]] = true
@@ -183,6 +183,13 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 			`<a href="` + html.EscapeString(btnURL) + `" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none">` + btnTxt + `</a></td></tr></table>`
 		parrafosTxt = append(parrafosTxt, html.UnescapeString(btnTxt)+": "+btnURL)
 	}
+	// The image of the template (the photo of the request, by a signed URL that expires).
+	imagen := ""
+	imgURL, _ := sustituir(c.Imagen, full, false)
+	if strings.HasPrefix(imgURL, "http") {
+		imagen = `<p style="margin:0 0 20px;text-align:center"><img src="` + html.EscapeString(imgURL) + `" alt="Foto de la solicitud" width="536" style="display:block;width:100%;max-width:536px;height:auto;border:0;border-radius:8px"></p>`
+		parrafosTxt = append([]string{"Foto de la solicitud: " + imgURL}, parrafosTxt...)
+	}
 	pie := ""
 	if c.Pie != "" && !vacia(c.Pie, full) {
 		ph, _ := sustituir(html.EscapeString(c.Pie), escVars(full), false)
@@ -193,6 +200,9 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 	nota := "Email operativo de tu participación en " + m.Nombre + "."
 	if !operativo {
 		nota = "Recibes este email porque lo pediste en " + m.Nombre + "."
+	}
+	if c.Nota != "" {
+		nota, _ = sustituir(c.Nota, full, false)
 	}
 	logo := ""
 	if m.Logo != "" {
@@ -205,7 +215,7 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">` +
 		`<tr><td style="background:#141011;padding:20px 32px">` + logo + `</td></tr>` +
 		`<tr><td style="padding:32px 32px 16px"><h1 style="margin:0 0 20px;font-size:24px;line-height:30px;color:#141011">` + titulo + `</h1>` +
-		qr + strings.Join(parrafosHTML, "") + boton + pie + `</td></tr>` +
+		qr + imagen + strings.Join(parrafosHTML, "") + boton + pie + `</td></tr>` +
 		`<tr><td style="padding:16px 32px 28px;border-top:1px solid #eee6e7;font-size:12px;line-height:18px;color:#9a8f91">` + html.EscapeString(nota) +
 		` <a href="` + html.EscapeString(m.Web) + `" style="color:#9a8f91">` + html.EscapeString(strings.TrimPrefix(strings.TrimPrefix(m.Web, "https://"), "http://")) + `</a></td></tr>` +
 		`</table></td></tr></table></body></html>`
@@ -225,6 +235,34 @@ func linkify(h string) string {
 	return reURL.ReplaceAllStringFunc(h, func(u string) string {
 		return `<a href="` + u + `" style="color:#c42b3e">` + u + `</a>`
 	})
+}
+
+// renderizarWA builds the WhatsApp text of a transactional template: the same paragraphs as the email, with the
+// WhatsApp formatting (*negrita*) and the same rule (a paragraph with an empty variable is not shown).
+func renderizarWA(texto string, vars map[string]string, permitidas []string) (string, error) {
+	ok := map[string]bool{}
+	for _, v := range permitidas {
+		ok[v] = true
+	}
+	for _, v := range variablesDe(Contenido{Cuerpo: texto}) {
+		if !ok[v] {
+			return "", fmt.Errorf("%s", errVariable(v, permitidas))
+		}
+	}
+	full := map[string]string{}
+	for _, v := range permitidas {
+		full[v] = vars[v]
+	}
+	var out []string
+	for _, par := range reBlanks.Split(strings.TrimSpace(texto), -1) {
+		par = strings.TrimSpace(par)
+		if par == "" || vacia(par, full) {
+			continue
+		}
+		t, _ := sustituir(par, full, false)
+		out = append(out, reBold.ReplaceAllString(t, "*$1*"))
+	}
+	return strings.Join(out, "\n\n"), nil
 }
 
 // variablesOrdenadas is for the editor panel.

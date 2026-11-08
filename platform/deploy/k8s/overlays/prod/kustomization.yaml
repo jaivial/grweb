@@ -27,6 +27,15 @@ patches:
       - op: replace
         path: /spec/template/spec/volumes/0/hostPath/path
         value: /var/lib/grcup/medios
+  # The WhatsApp service (evo-weai): its state (the SQLite database) on the node and the public webhook.
+  - target: { kind: Deployment, name: evo-weai }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/evo-weai
+      - op: replace
+        path: /spec/template/spec/containers/0/env/6/value
+        value: "false"
   - target: { kind: CronJob, name: copias-postgres }
     patch: |-
       - op: replace

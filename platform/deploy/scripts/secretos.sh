@@ -24,6 +24,10 @@ gen REDIS_PASSWORD 32
 gen INTERNAL_TOKEN_SECRET 32
 gen CRYPTO_KEY 32
 gen ROOT_PASSWORD 12
+# evo-weai (WhatsApp): the global key messaging sends as «apikey» and the key that encrypts the state at rest.
+# The same WEAI_API_KEY goes in the «whatsapp» integration of the competition («Sistema e integraciones»).
+gen WEAI_API_KEY 32
+gen WEAI_DATA_KEY 32
 if [ "$ENTORNO" = qa ]; then
   grep -q '^ROOT_EMAIL=' "$F" || echo "ROOT_EMAIL=${ROOT_EMAIL:-jaimebillanueba99@gmail.com}" >>"$F"
   grep -q '^ROOT_NOMBRE=' "$F" || echo 'ROOT_NOMBRE="Jaime (QA)"' >>"$F"
@@ -58,6 +62,8 @@ kv() { printf '  %s: "%s"\n' "$1" "$2"; }
   kv INTERNAL_TOKEN_SECRET "$INTERNAL_TOKEN_SECRET"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-crypto, namespace: $NS }"; echo "stringData:"
   kv CRYPTO_KEY "$CRYPTO_KEY"
+  echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-weai, namespace: $NS }"; echo "stringData:"
+  kv WEAI_API_KEY "$WEAI_API_KEY"; kv WEAI_DATA_KEY "$WEAI_DATA_KEY"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-root, namespace: $NS }"; echo "stringData:"
   kv ROOT_EMAIL "$ROOT_EMAIL"; kv ROOT_PASSWORD "$ROOT_PASSWORD"; kv ROOT_NOMBRE "$ROOT_NOMBRE"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-jwt, namespace: $NS }"; echo "stringData:"
