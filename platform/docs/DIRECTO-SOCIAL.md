@@ -111,7 +111,7 @@ Reglas de la arquitectura (las de `ARQUITECTURA.md`): una BD por servicio (`grcu
 - **Plantilla**: hasta 8 atletas, **5 titulares + hasta 3 suplentes**. Un atleta tiene como mucho **un dueño por jornada**.
 - **Mercado**: los atletas libres se compran al instante por su **valor** actual. **Venta**: se devuelve al mercado y el vendedor recibe el 100 % del valor actual.
 - **Cláusula = valor** (un único número por atleta y jornada, `fantasy_atletas.clausula`). Empieza en **200.000**.
-- **Clausulazo**: pagar la cláusula de un atleta de otro usuario. El dinero va **al dueño anterior**. Se ejecuta en una transacción con `SELECT … FOR UPDATE` de la fila de propiedad y de los dos saldos (en orden de fan_id para evitar interbloqueos). **Protección de 10 minutos** tras cualquier fichaje o clausulazo (configurable). No se puede clausular sin hueco en la plantilla.
+- **Clausulazo**: pagar la cláusula de un atleta de otro usuario. El dinero va **al dueño anterior**. Se ejecuta en una transacción con `SELECT … FOR UPDATE` de la fila de propiedad y de los dos saldos (en orden de fan_id para evitar interbloqueos). **Protección de 10 minutos** tras cualquier fichaje o clausulazo (configurable). Como máximo **3 clausulazos por usuario y jornada** (configurable, `max_clausulazos`). No se puede clausular sin hueco en la plantilla ni dejar el saldo en negativo (sin deuda, a diferencia de LaLiga Fantasy).
 - Al entrar en la plantilla: titular si hay hueco entre los 5, si no suplente. Cambios titular ↔ suplente en cualquier momento **salvo para atletas cuyo flight está en curso** (anti-trampa: nadie puede poner de titular solo a quien está levantando ahora).
 - **Variación de la cláusula** (en tiempo real, en `juegos-worker`, por cada veredicto; valores configurables): intento válido +5 %, nulo −4 %, blanqueo −30 %; al publicarse los resultados, ajuste por puesto en la categoría (1.º +25 %, 2.º +15 %, 3.º +8 %); cada compra o clausulazo +3 % (demanda). Mínimo 50.000 y máximo 5.000.000; se redondea a 1.000. Cada cambio queda en `historial_clausulas` (para la gráfica) y se emite el evento público `fantasy.clausula` `{jornadaId, atletaId, clausula, delta}`.
 - **Puntos** (configurables en el backoffice; la tabla por defecto):
@@ -119,13 +119,14 @@ Reglas de la arquitectura (las de `ARQUITECTURA.md`): una BD por servicio (`grcu
   | Concepto | Puntos |
   |---|---|
   | Intento válido (máx. 9) | +3 cada uno |
+  | Pleno 9/9 (bonus) | +5 |
   | Blanqueo (3 nulos en un movimiento) | −15 |
   | Puesto en su categoría de peso | 1.º +20 · 2.º +14 · 3.º +10 · 4.º–5.º +5 · resto que acaba +2 |
   | Puesto IPF GL de su sexo | 1.º +25 · 2.º +18 · 3.º +12 · 4.º–10.º +4 |
   | Puesto por movimiento (sexo) | por cada movimiento: 1.º +10 · 2.º +6 · 3.º +3 |
 
 - **¿A quién cuentan los puntos?** Los de cada intento, al usuario que lo tiene **de titular en el momento del veredicto**. Los de los puestos, al dueño titular cuando se publican los resultados. Se guardan en `puntos (id, jornada_id, fan_id, atleta_id, concepto, puntos, ref UNIQUE, created_at)`, con `ref` idempotente (p. ej. `intento:<atleta>:<mov>:<n>`). Una corrección (`directo.correccion`) recalcula ese intento y ajusta su fila sin cambiarle el dueño.
-- **Clasificación fantasy** = suma de puntos de la jornada (desempate: valor de la plantilla y después quién llegó antes). Ganadores = top N con premio.
+- **Clasificación fantasy** = suma de puntos de la jornada (desempate como en LaLiga Fantasy: valor de la plantilla, después saldo y después quién llegó antes). Ganadores = top N con premio.
 - Tablas: `fantasy_atletas (jornada_id, atleta_id, nombre_publico, sexo, categoria, clausula, dueno_fan_id NULL, titular bool, protegido_hasta, version, PK(jornada_id, atleta_id))`, `fichajes (id, jornada_id, atleta_id, de_fan, a_fan, tipo (compra|venta|clausulazo), precio, created_at)`, `historial_clausulas`, `puntos`, `intentos_vistos (jornada_id, atleta_id, mov, numero, resultado, dueno_fan_id, titular)`.
 
 ### 6.4 Recompensas (en `juegos-worker`, idempotentes por `ref`)
