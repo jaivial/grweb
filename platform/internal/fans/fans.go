@@ -130,7 +130,7 @@ type fanRow struct {
 	CreatedAt     time.Time
 }
 
-const selFan = `SELECT id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, uuid_nil()), baneado_hasta, baneado_motivo, version, created_at FROM fans`
+const selFan = `SELECT id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at FROM fans`
 
 func scanFan(row pgx.Row) (fanRow, error) {
 	var f fanRow

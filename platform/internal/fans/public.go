@@ -240,7 +240,7 @@ func (s *Svc) registerPublic() {
 				return nil, aliasOcupado()
 			}
 			row, err := scanFan(s.a.DB.QueryRow(ctx, `UPDATE fans SET alias = $3, updated_at = now() WHERE id = $1 AND competition_id = $2
-				RETURNING id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, uuid_nil()), baneado_hasta, baneado_motivo, version, created_at`, f.ID, cid, alias))
+				RETURNING id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at`, f.ID, cid, alias))
 			if err != nil {
 				return nil, err
 			}
@@ -280,7 +280,7 @@ func (s *Svc) registerPublic() {
 }
 
 func atletaOpcional(f fanRow) uuid.UUID {
-	if f.Tipo == fanauth.TipoAtleta {
+	if f.Tipo == fanauth.TipoAtleta && f.AtletaID != uuid.Nil {
 		return f.AtletaID
 	}
 	return uuid.Nil

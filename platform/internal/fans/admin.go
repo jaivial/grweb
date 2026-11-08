@@ -82,7 +82,7 @@ func (s *Svc) registerAdmin() {
 			if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM fans WHERE `+where, args...).Scan(&o.Body.Total); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT id, email::text, tipo, alias::text, COALESCE(atleta_id, uuid_nil()), baneado_hasta, baneado_motivo, version, created_at
+			rows, err := s.a.DB.Query(ctx, `SELECT id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at
 				FROM fans WHERE `+where+fmt.Sprintf(` ORDER BY created_at DESC LIMIT %d OFFSET %d`, o.Body.Por, (o.Body.Pagina-1)*o.Body.Por), args...)
 			if err != nil {
 				return nil, err

@@ -151,15 +151,112 @@ services:
       <<: *env
       DATABASE_URL: postgres://grcup_juegos:dev_juegos@postgres:5432/grcup_juegos?sslmode=disable
 
+  athletes:
+    <<: *svc
+    build: { context: ../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+
+  athletes-seed:
+    build: { context: ../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      athletes: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+
+  schedule:
+    <<: *svc
+    build: { context: ../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  schedule-seed:
+    build: { context: ../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      athletes-seed: { condition: service_completed_successfully }
+      schedule: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  live:
+    <<: *svc
+    build: { context: ../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  live-seed:
+    build: { context: ../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      live: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  cms:
+    <<: *svc
+    build: { context: ../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    volumes:
+      - cmsdata:/data/medios
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  cms-seed:
+    build: { context: ../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      cms: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  messaging:
+    <<: *svc
+    build: { context: ../.., args: { SVC: messaging, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_messaging:dev_messaging@postgres:5432/grcup_messaging?sslmode=disable
+
+  # Réplica del chat con puerto publicado para la prueba de carga (cmd/carga-chat sin pasar por el gateway).
+  chat-load:
+    <<: *svc
+    build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
+      CHAT_MAX_CONEXIONES: "10000"
+    ports:
+      - "127.0.0.1:18301:8080"
+
   gateway:
     <<: *svc
     build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
-      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos
+      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos,athletes,schedule,live,cms,messaging
       CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
     ports:
       - "127.0.0.1:18300:8080"
 
 volumes:
   pgdata:
+  cmsdata:

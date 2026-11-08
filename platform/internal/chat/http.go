@@ -394,7 +394,7 @@ type enviarIn struct {
 	Slug    string `path:"slug"`
 	Body    struct {
 		Texto string `json:"texto" maxLength:"300" doc:"Mensaje (280 runas como máximo)"`
-		Cid   string `json:"cid" pattern:"^[0-9a-fA-F-]{8,64}$" doc:"Id del mensaje en el cliente, para deduplicar reintentos"`
+		Cid   string `json:"cid,omitempty" required:"false" pattern:"^[0-9a-fA-F-]{8,64}$" doc:"Id del mensaje en el cliente, para deduplicar reintentos"`
 	}
 }
 

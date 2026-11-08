@@ -40,6 +40,7 @@ type opciones struct {
 	base   string
 	slug   string
 	cid    string
+	token  string
 	ws     int
 	sse    int
 	rest   int
@@ -83,6 +84,7 @@ func main() {
 	flag.Float64Var(&c.rate, "rate", 100, "mensajes por segundo en total (0 = solo conexiones)")
 	flag.DurationVar(&c.dur, "dur", 60*time.Second, "duración de la fase de envío")
 	flag.StringVar(&c.secret, "secret", "", "INTERNAL_TOKEN_SECRET de dev para firmar los tokens de fan (obligatorio)")
+	flag.StringVar(&c.token, "token", "", "JWT admin opcional para resolver -slug → id (la vista pública no trae el id)")
 	flag.StringVar(&c.out, "out", "", "fichero Markdown del informe (por defecto docs/carga/<fecha>.md)")
 	flag.Parse()
 
@@ -102,7 +104,7 @@ func main() {
 	r := &resultados{vistos: map[string]map[string]struct{}{}, globales: map[string]struct{}{}, inicio: time.Now()}
 
 	// la competición se obtiene de la API pública (su id va firmado dentro de cada token de fan)
-	cid, err := compID(ctx, c.base, c.slug, c.cid)
+	cid, err := compID(ctx, c.base, c.slug, c.cid, c.token)
 	if err != nil {
 		fatal("no se pudo obtener la competición", err)
 	}
@@ -153,7 +155,7 @@ func fanToken(key []byte, cid string, n int) string {
 	return tok
 }
 
-func compID(ctx context.Context, base, slug, cidFlag string) (string, error) {
+func compID(ctx context.Context, base, slug, cidFlag, token string) (string, error) {
 	// contra el servicio chat directamente no existe GET /api/competiciones/{slug} (lo sirve competition a través
 	// del gateway): en ese caso se pasa el id con -cid
 	if cidFlag != "" {
@@ -180,10 +182,41 @@ func compID(ctx context.Context, base, slug, cidFlag string) (string, error) {
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
 		return "", err
 	}
-	if _, err := uuid.Parse(out.ID); err != nil {
-		return "", errors.New("la respuesta no trae un id de competición")
+	if _, err := uuid.Parse(out.ID); err == nil {
+		return out.ID, nil
 	}
-	return out.ID, nil
+	// la vista pública de competition no incluye el id (por diseño): se resuelve con la lista admin
+	if token == "" {
+		return "", errors.New("la vista pública no trae el id de la competición: pasa -cid (o -token con un JWT admin para resolverlo por la lista admin)")
+	}
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/admin/competiciones", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GET /api/admin/competiciones: %s", resp2.Status)
+	}
+	var lista []struct {
+		ID   string `json:"id"`
+		Slug string `json:"slug"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp2.Body, 8<<20)).Decode(&lista); err != nil {
+		return "", err
+	}
+	for _, c := range lista {
+		if c.Slug == slug {
+			if _, err := uuid.Parse(c.ID); err == nil {
+				return c.ID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("el slug %q no está en la lista admin", slug)
 }
 
 func nombreComp(c opciones) string {

@@ -134,6 +134,11 @@ func (s *Svc) contar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 		return
 	}
 	hitosTotal.Add(1)
+	// frame para los clientes del chat (contrato §4: «+100 porra · +10k fantasy»): el worker acredita por el
+	// evento, pero la sala necesita ver su propio hito
+	if err := s.inyectar(ctx, cid.String(), dia, item{T: "hito", Mensajes: n, FanID: f.ID.String(), Alias: f.Alias, Ts: time.Now().UnixMilli()}); err != nil {
+		s.a.Log.Warn("hito a la sala", "err", err)
+	}
 	ev := events.New(ctx, "chat.hito", map[string]any{"fanId": f.ID.String(), "alias": f.Alias, "dia": dia, "mensajes": n},
 		events.Competition(cid.String()), events.Audience(events.Internal), events.Subject("fan:"+f.ID.String()))
 	// transacción mínima: only this INSERT (the relay publishes it to grcup:events)
