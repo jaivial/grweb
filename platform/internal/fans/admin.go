@@ -40,13 +40,13 @@ func (s *Svc) registerAdmin() {
 		_, err := auth.Require(ctx, cid.String(), "directo.operar")
 		return err
 	}
-	type cidIn struct {
+	type CidIn struct {
 		CID uuid.UUID `path:"cid"`
 	}
 
 	// ---- lista y búsqueda ----
 	type listaIn struct {
-		cidIn
+		CidIn
 		Estado string `query:"estado" enum:"todos,activos,baneados," doc:"Filtro rápido; vacío = todos"`
 		Q      string `query:"q" maxLength:"80" doc:"Alias (contiene) o email exacto"`
 		Pagina int    `query:"pagina" minimum:"1" default:"1"`
@@ -101,7 +101,7 @@ func (s *Svc) registerAdmin() {
 
 	// ---- banear ----
 	type banIn struct {
-		cidIn
+		CidIn
 		FanID uuid.UUID `path:"fanId"`
 		Body  struct {
 			Hasta  *time.Time `json:"hasta,omitempty" doc:"Momento hasta el que no puede entrar (por defecto 24 horas)"`
@@ -156,7 +156,7 @@ func (s *Svc) registerAdmin() {
 		Summary: "Desbanear (podrá volver a entrar pidiendo un enlace)", Tags: tagAdmin, Security: []map[string][]string{{"bearer": {}}},
 		DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *struct {
-			cidIn
+			CidIn
 			FanID uuid.UUID `path:"fanId"`
 		}) (*struct{}, error) {
 			if err := operar(ctx, in.CID); err != nil {

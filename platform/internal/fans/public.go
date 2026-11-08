@@ -74,13 +74,13 @@ func (s *Svc) firmar(row fanRow) (string, error) {
 		Alias: row.Alias, AtletaID: atletaOpcional(row), Ver: row.Version, Verificado: true})
 }
 
-// sesionIn carries the fan token for huma (cookie; the header is the load-test alternative).
-type sesionIn struct {
+// SesionIn carries the fan token for huma (cookie; the header is the load-test alternative).
+type SesionIn struct {
 	Session string `cookie:"grcup_fan"`
 	Header  string `header:"X-GrCup-Fan"`
 }
 
-type slugIn struct {
+type SlugIn struct {
 	Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 }
 
@@ -90,7 +90,7 @@ func (s *Svc) registerPublic() {
 
 	// ---- alta: pedir el enlace mágico ----
 	type accesoIn struct {
-		slugIn
+		SlugIn
 		Body struct {
 			Email        string `json:"email" format:"email" maxLength:"254"`
 			Tipo         string `json:"tipo" enum:"atleta,publico"`
@@ -150,11 +150,11 @@ func (s *Svc) registerPublic() {
 
 	// ---- canje: GET del enlace o POST con el token ----
 	type canjeIn struct {
-		slugIn
+		SlugIn
 		Token string `path:"token" minLength:"20" maxLength:"100"`
 	}
 	type canjeBodyIn struct {
-		slugIn
+		SlugIn
 		Body struct {
 			Token string `json:"token" minLength:"20" maxLength:"100"`
 		}
@@ -172,8 +172,8 @@ func (s *Svc) registerPublic() {
 
 	// ---- yo ----
 	type yoIn struct {
-		sesionIn
-		slugIn
+		SesionIn
+		SlugIn
 	}
 	type yoOut struct {
 		SetCookie []http.Cookie `header:"Set-Cookie" doc:"Solo cuando la sesión está a menos de 7 días de caducar: se re-emite"`
@@ -211,8 +211,8 @@ func (s *Svc) registerPublic() {
 
 	// ---- cambiar alias ----
 	type aliasIn struct {
-		sesionIn
-		slugIn
+		SesionIn
+		SlugIn
 		Body struct {
 			Alias string `json:"alias" minLength:"3" maxLength:"20"`
 		}
@@ -257,8 +257,8 @@ func (s *Svc) registerPublic() {
 
 	// ---- salir ----
 	type salirIn struct {
-		sesionIn
-		slugIn
+		SesionIn
+		SlugIn
 	}
 	type salirOut struct {
 		SetCookie []http.Cookie `header:"Set-Cookie"`
