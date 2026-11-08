@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon } from '@grcup/ui';
 import type { Seccion } from '../core/cms';
 import { COMPETITION_SLUG } from '../core/competition';
+import { VideoScrub } from '../core/video-scrub';
 import { GLOW, GrTitulo } from './bloques';
 
 /** Public raffle data used by the panel (GET /api/competiciones/{slug}/sorteo). */
@@ -17,6 +18,7 @@ export interface SorteoHome {
 }
 
 const BELT_FRAMES = 169;
+const BELT_VIDEO = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/cinturon-scroll/cinturon-960x540.mp4';
 const beltFrame = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_${String(i).padStart(6, '0')}.webp`;
 const ES_BELT = /\/belt_output_webp\/frame_\d{6}\.webp$/;
 const euros = (c: number) => (c % 100 ? (c / 100).toLocaleString('es-ES', { minimumFractionDigits: 2 }) : String(c / 100)) + ' €';
@@ -30,9 +32,8 @@ const diaHora = (iso: string) => {
 const TITULO_ESTADO: Record<string, string> = { cerrada: 'La venta ha terminado', agotada: 'Boletos agotados', bloqueada: 'Venta en preparación' };
 
 /**
- * The belt of the raffle panel: the static frame in the server HTML; in the browser, when it is the CDN belt, it turns
- * with the scroll (frames belt_output_webp, one in three — one in four on phones — loaded when the panel gets near).
- * Without it (reduced motion, Save-Data, another image) the static picture stays.
+ * Static CDN belt in the server HTML; a paused H.264 video follows the scroll in the browser.
+ * Reduced motion, Save-Data, other images and video failures keep the static picture.
  */
 @Component({
   selector: 'gr-cinturon',
@@ -40,7 +41,7 @@ const TITULO_ESTADO: Record<string, string> = { cerrada: 'La venta ha terminado'
   host: { class: 'block' },
   template: `
     <img [src]="src()" [alt]="alt()" class="absolute inset-0 size-full object-cover" [attr.loading]="prioridad() ? null : 'lazy'" [attr.fetchpriority]="prioridad() ? 'high' : null" />
-    <canvas #canvas class="absolute inset-0 size-full transition-opacity duration-300" [class.opacity-0]="!listo()" aria-hidden="true"></canvas>
+    <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="absolute inset-0 size-full object-cover transition-opacity duration-300" [class.opacity-0]="!listo()"></video>
   `,
 })
 export class GrCinturon {
@@ -48,7 +49,7 @@ export class GrCinturon {
   readonly alt = input('');
   readonly prioridad = input(false);
   protected readonly listo = signal(false);
-  private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  private readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('video');
   private readonly host = inject(ElementRef<HTMLElement>);
 
   constructor() {
@@ -57,58 +58,30 @@ export class GrCinturon {
     afterNextRender(() => {
       const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
       if (!browser || !ES_BELT.test(this.src()) || window.matchMedia('(prefers-reduced-motion: reduce)').matches || conn?.saveData) return;
-      const c = this.canvas().nativeElement;
-      const ctx = c.getContext('2d');
-      if (!ctx) return;
-      const paso = window.innerWidth < 768 ? 4 : 3;
-      const frames = new Map<number, HTMLImageElement>();
-      let raf = 0, dibujado = -1, cargando = false;
-      const medir = () => { const dpr = Math.min(window.devicePixelRatio || 1, 2); c.width = Math.round(c.clientWidth * dpr); c.height = Math.round(c.clientHeight * dpr); dibujado = -1; };
-      const dibujar = () => {
+      const scrub = new VideoScrub(this.video().nativeElement, {
+        frames: BELT_FRAMES,
+        fps: 24,
+        onFirstFrame: () => this.listo.set(true),
+        onError: () => this.listo.set(false),
+      });
+      let raf = 0, cargado = false;
+      const animar = () => {
         const r = this.host.nativeElement.getBoundingClientRect();
         const p = Math.min(1, Math.max(0, (window.innerHeight - r.top) / (window.innerHeight + r.height)));
-        const quiero = 1 + Math.round(p * (BELT_FRAMES - 1));
-        let i = -1;
-        for (let d = 0; d < BELT_FRAMES && i < 0; d++) { if (frames.has(quiero - d)) i = quiero - d; else if (frames.has(quiero + d)) i = quiero + d; }
-        if (i > 0 && i !== dibujado) {
-          const img = frames.get(i)!;
-          const s = Math.max(c.width / img.naturalWidth, c.height / img.naturalHeight);
-          const w = img.naturalWidth * s, h = img.naturalHeight * s;
-          ctx.clearRect(0, 0, c.width, c.height);
-          ctx.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
-          dibujado = i;
+        scrub.seek(Math.round(p * (BELT_FRAMES - 1)));
+        raf = requestAnimationFrame(animar);
+      };
+      const cerca = new IntersectionObserver(([e]) => {
+        if (e.isIntersecting && !cargado) {
+          cargado = true;
+          void scrub.load(BELT_VIDEO);
+          cerca.disconnect();
         }
-        raf = requestAnimationFrame(dibujar);
-      };
-      const cargar = () => {
-        if (cargando) return;
-        cargando = true;
-        const orden: number[] = [];
-        for (let i = 1; i <= BELT_FRAMES; i += paso) orden.push(i);
-        let n = 0, sig = 0;
-        const bomba = () => {
-          if (sig >= orden.length) return;
-          const i = orden[sig++];
-          const img = new Image();
-          img.decoding = 'async';
-          img.crossOrigin = 'anonymous';
-          img.onload = img.onerror = () => {
-            if (img.naturalWidth) frames.set(i, img);
-            // the canvas replaces the static picture once a quarter of the turn is in
-            if (++n === Math.ceil(orden.length / 4)) { medir(); this.listo.set(true); }
-            bomba();
-          };
-          img.src = beltFrame(i);
-        };
-        for (let k = 0; k < 4; k++) bomba();
-      };
-      const ro = new ResizeObserver(medir);
-      ro.observe(c);
-      const cerca = new IntersectionObserver(([e]) => { if (e.isIntersecting) { cargar(); cerca.disconnect(); } }, { rootMargin: '600px 0px' });
+      }, { rootMargin: '600px 0px' });
       cerca.observe(this.host.nativeElement);
-      const visible = new IntersectionObserver(([e]) => { cancelAnimationFrame(raf); if (e.isIntersecting) raf = requestAnimationFrame(dibujar); });
+      const visible = new IntersectionObserver(([e]) => { cancelAnimationFrame(raf); if (e.isIntersecting) raf = requestAnimationFrame(animar); });
       visible.observe(this.host.nativeElement);
-      destroy.onDestroy(() => { cancelAnimationFrame(raf); cerca.disconnect(); visible.disconnect(); ro.disconnect(); });
+      destroy.onDestroy(() => { cancelAnimationFrame(raf); cerca.disconnect(); visible.disconnect(); scrub.destroy(); });
     });
   }
 }
