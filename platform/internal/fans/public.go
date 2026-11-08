@@ -29,7 +29,7 @@ type Yo struct {
 	Alias    string    `json:"alias"`
 	Tipo     string    `json:"tipo" enum:"atleta,publico"`
 	AtletaID uuid.UUID `json:"atletaId,omitempty" doc:"Relleno cuando el email coincide con una inscripción"`
-	Insignia string    `json:"insigna,omitempty" doc:"«Atleta» o vacío (público)"`
+	Insignia string    `json:"insignia,omitempty" doc:"«Atleta» o vacío (público)"`
 }
 
 // sesionOut is a response that (re)issues the session cookie.
