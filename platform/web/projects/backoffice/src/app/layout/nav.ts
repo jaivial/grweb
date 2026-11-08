@@ -34,6 +34,17 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    label: 'Directo social',
+    items: [
+      { label: 'Chat', path: 'chat', icon: 'send', perm: 'directo.operar' },
+      { label: 'Patrocinio', path: 'patrocinio', icon: 'layout', perm: 'web.editar' },
+      { label: 'Juegos', path: 'juegos', icon: 'trophy', perm: 'directo.operar' },
+      { label: 'Donaciones', path: 'donaciones', icon: 'heart', perm: 'sorteo.gestionar' },
+      { label: 'Premios', path: 'premios', icon: 'gift', perm: 'directo.operar' },
+      { label: 'Fans', path: 'fans', icon: 'users', perm: 'directo.operar' },
+    ],
+  },
+  {
     label: 'Público',
     items: [
       { label: 'Entradas y aforo', path: 'entradas', icon: 'ticket', perm: 'entradas.gestionar', mobileTab: true },
