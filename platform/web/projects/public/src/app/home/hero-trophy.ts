@@ -5,6 +5,9 @@ import { isPlatformBrowser } from '@angular/common';
 import { GrIcon, GrLogo } from '@grcup/ui';
 
 const FRAMES = 313;
+const FPS = 24;
+const VIDEO_MOBILE = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-scroll/copa-600x900.mp4';
+const VIDEO_DESKTOP = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-scroll/copa-720x1080.mp4';
 const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_${String(i + 1).padStart(4, '0')}.webp`;
 
 /** Scroll timeline of Figma page 04 «Hero · Storyboard scroll» (the previous web's animation, same thresholds). */
@@ -26,10 +29,10 @@ const PUFFS = [
 ].map((p) => ({ left: (p.x / 1440) * 100, top: (p.y / 900) * 100, width: (p.w / 1440) * 100, height: (p.h / 900) * 100, dx: p.dx }));
 
 /**
- * Scroll-driven hero (Figma 04): preload with the trophy icon, smoke intro with the title, the 313 trophy frames
- * (contained, 2:3, with the radial vignette and the red glow of the storyboard), clouds and fog entering, and the
- * hand-over to «Campeonato». Frames load progressively (first ones, every 8th, the rest) and the nearest loaded frame
- * is drawn meanwhile. With prefers-reduced-motion the section is one screen: smoke, title and the last frame.
+ * Scroll-driven hero (Figma 04): smoke, title, trophy, clouds and the hand-over to «Campeonato», with the same thresholds.
+ * A paused H.264 video is seeked to frame centres, coalescing scroll updates into one seek in flight; a fixed WebP covers
+ * loading and failures. Its small Blob and decoder buffers replace the 313 retained image bitmaps (and the canvas).
+ * With prefers-reduced-motion the section is one screen with the last WebP and no video download.
  */
 @Component({
   selector: 'gr-hero-trophy',
@@ -44,7 +47,8 @@ const PUFFS = [
            (blend «lighten», as in Figma) and every edge fades out (mask), so the box never shows on wide screens. -->
       <div class="pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" [style.opacity]="trofeo()"></div>
       <div class="gr-trofeo-fundido absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 mix-blend-lighten" [style.opacity]="trofeo()">
-        <canvas #canvas class="size-full" aria-hidden="true"></canvas>
+        <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
+        <img [src]="imagenTrofeo()" alt="" fetchpriority="high" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
       </div>
       <!-- Smoke of the intro (clears and drifts away) -->
       <div class="pointer-events-none absolute inset-0" aria-hidden="true" [style.opacity]="humo()">
@@ -86,14 +90,14 @@ const PUFFS = [
           class="absolute bottom-8 left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
           Saltar intro<gr-icon name="arrow-down" [size]="16" />
         </button>
-        <!-- «Hero preload»: trophy icon, bar and percentage while the first frames arrive -->
+        <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
         @if (precarga()) {
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
           <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
-            role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="criticoPct()" aria-valuemin="0" aria-valuemax="100">
+            role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
             <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
-            <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [style.width.%]="criticoPct()"></div></div>
-            <p class="text-body-xs text-text-tertiary">{{ criticoPct() }} %</p>
+            <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
+            <p class="text-body-xs text-text-tertiary">@if (progresoIndeterminado()) { Cargando vídeo… } @else { {{ criticoPct() }} % }</p>
           </div>
         }
       }
@@ -119,16 +123,19 @@ export class HeroTrophy {
   /** Emits true once the intro has been scrolled through (the navbar shows from then on). */
   readonly done = output<boolean>();
 
-  private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  private readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('video');
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly puffs = PUFFS;
   protected readonly reduced = signal(false);
   protected readonly finished = signal(false);
-  /** Share of the frames the preload waits for (the first 12 of the loading order). */
+  /** Video download progress; without Content-Length the bar is indeterminate. */
   protected readonly criticoPct = signal(0);
+  protected readonly progresoIndeterminado = signal(false);
+  protected readonly imagenTrofeo = signal(frameUrl(0));
+  protected readonly imagenFija = signal(true);
   protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
-  /** Preload overlay: shown until the first frames are in (never longer than 4 s), then fades out. */
+  /** Preload overlay: shown until the first seek completes (never longer than 4 s), then fades out. */
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);
   private readonly p = signal(0);
@@ -144,13 +151,19 @@ export class HeroTrophy {
   protected readonly nubes = computed(() => ease(tramo(this.p(), T.nubes)));
   protected readonly siguiente = computed(() => ease(tramo(this.p(), [0.6, 0.667])) * (1 - tramo(this.p(), [0.75, 0.85])));
 
-  private frames: (HTMLImageElement | null)[] = new Array(FRAMES).fill(null);
   private progress = 0;
   private shown = 0;
-  private drawn = -1;
+  private target = 0;
+  private mostrado = -1;
+  private enVuelo = -1;
+  private metadata = false;
+  private videoFallido = false;
+  private abort?: AbortController;
+  private objectUrl?: string;
   private raf = 0;
+  private tope = 0;
+  private fade = 0;
   private wasDone = false;
-  private step = 1;
   private io?: IntersectionObserver;
 
   constructor() {
@@ -159,60 +172,82 @@ export class HeroTrophy {
       if (!this.browser) return;
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.reduced.set(reduced);
-      const ctx = this.canvas().nativeElement.getContext('2d');
-      if (!ctx) return;
-      const resize = () => {
-        const c = this.canvas().nativeElement;
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        c.width = Math.round(c.clientWidth * dpr);
-        c.height = Math.round(c.clientHeight * dpr);
-        this.drawn = -1;
-      };
-      resize();
-      const ro = new ResizeObserver(resize);
-      ro.observe(this.canvas().nativeElement);
-      const fin = () => { this.precargaFuera.set(true); setTimeout(() => this.precarga.set(false), 500); };
-      const tope = setTimeout(fin, 4000);
       if (reduced) {
-        this.load([FRAMES - 1], () => { this.draw(ctx, FRAMES - 1); fin(); });
+        this.imagenTrofeo.set(frameUrl(FRAMES - 1));
         this.done.emit(true);
-      } else {
-        // Phones and Save-Data connections get one frame in three (~3.7 MB instead of ~11 MB): the nearest
-        // loaded frame is drawn, so the motion stays smooth at small sizes.
-        const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-        this.step = window.innerWidth < 768 || conn?.saveData ? 3 : 1;
-        const criticos = 12;
-        let n = 0;
-        this.preload(() => {
-          this.drawn = -1;
-          this.criticoPct.set(Math.min(100, Math.round((++n / criticos) * 100)));
-          if (n === criticos) { clearTimeout(tope); fin(); }
-        });
-        const loop = () => {
-          this.measure();
-          this.shown += (this.progress - this.shown) * 0.15; // smoothing (same as the previous web)
-          this.p.set(this.shown);
-          const f = tramo(this.shown, T.frames);
-          this.draw(ctx, Math.round(f * (FRAMES - 1)));
-          this.raf = requestAnimationFrame(loop);
-        };
-        // The loop only runs while the hero is on screen (no work while reading the rest of the page).
-        this.io = new IntersectionObserver(([entry]) => {
-          cancelAnimationFrame(this.raf);
-          if (entry.isIntersecting) {
-            this.raf = requestAnimationFrame(loop);
-          } else {
-            this.measure(); // settle the intro state (navbar) for the position we left it at
-          }
-        });
-        this.io.observe(this.host.nativeElement);
+        return;
       }
+
+      const video = this.video().nativeElement;
+      video.muted = true;
+      const onLoadedMetadata = () => {
+        this.metadata = true;
+        this.measure();
+        this.updateTarget();
+        this.pump(video);
+      };
+      const onSeeked = () => {
+        if (this.videoFallido || this.enVuelo < 0) return;
+        this.mostrado = this.enVuelo;
+        this.enVuelo = -1;
+        this.imagenFija.set(false);
+        this.finPrecarga();
+        this.pump(video); // Only the latest target survives; old scroll positions are never queued.
+      };
+      const onError = () => this.failVideo();
+      const onVisibility = () => {
+        if (document.visibilityState !== 'visible' || this.videoFallido || !this.metadata) return;
+        // A suspended decoder can leave a seek pending: restart it at the latest scroll position.
+        if (this.enVuelo >= 0) {
+          this.enVuelo = -1;
+          this.mostrado = -1;
+        }
+        this.updateTarget();
+        this.pump(video);
+      };
+      video.addEventListener('loadedmetadata', onLoadedMetadata);
+      video.addEventListener('seeked', onSeeked);
+      video.addEventListener('error', onError);
+      document.addEventListener('visibilitychange', onVisibility);
+      this.tope = window.setTimeout(() => this.finPrecarga(), 4000);
+
       destroy.onDestroy(() => {
+        this.abort?.abort();
+        video.removeEventListener('loadedmetadata', onLoadedMetadata);
+        video.removeEventListener('seeked', onSeeked);
+        video.removeEventListener('error', onError);
+        document.removeEventListener('visibilitychange', onVisibility);
+        video.removeAttribute('src');
+        video.load();
+        if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
         cancelAnimationFrame(this.raf);
-        clearTimeout(tope);
+        clearTimeout(this.tope);
+        clearTimeout(this.fade);
         this.io?.disconnect();
-        ro.disconnect();
       });
+
+      // Phones and Save-Data connections use the smaller encode; reduced motion never reaches this download.
+      const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+      const url = window.innerWidth < 768 || conn?.saveData ? VIDEO_MOBILE : VIDEO_DESKTOP;
+      void this.loadVideo(url, video);
+      const loop = () => {
+        this.measure();
+        this.shown += (this.progress - this.shown) * 0.15; // smoothing (same as the previous web)
+        this.p.set(this.shown);
+        this.updateTarget();
+        this.pump(video);
+        this.raf = requestAnimationFrame(loop);
+      };
+      // The loop only runs while the hero is on screen (no work while reading the rest of the page).
+      this.io = new IntersectionObserver(([entry]) => {
+        cancelAnimationFrame(this.raf);
+        if (entry.isIntersecting) {
+          this.raf = requestAnimationFrame(loop);
+        } else {
+          this.measure(); // settle the intro state (navbar) for the position we left it at
+        }
+      });
+      this.io.observe(this.host.nativeElement);
     });
   }
 
@@ -228,48 +263,83 @@ export class HeroTrophy {
     }
   }
 
-  /** Draws the frame (or the nearest loaded one) covering the 2:3 box. */
-  private draw(ctx: CanvasRenderingContext2D, want: number): void {
-    let idx = -1;
-    for (let d = 0; d < FRAMES; d++) {
-      if (this.frames[want - d]) { idx = want - d; break; }
-      if (this.frames[want + d]) { idx = want + d; break; }
+  private updateTarget(): void {
+    this.target = Math.round(tramo(this.shown, T.frames) * (FRAMES - 1));
+  }
+
+  /** Seeks to the centre of the latest target frame, with at most one request in flight. */
+  private pump(video: HTMLVideoElement): void {
+    if (!this.metadata || this.videoFallido || this.enVuelo >= 0 || this.target === this.mostrado) return;
+    this.enVuelo = this.target;
+    try {
+      video.currentTime = (this.enVuelo + 0.5) / FPS;
+    } catch {
+      this.enVuelo = -1;
+      this.failVideo();
     }
-    if (idx < 0 || idx === this.drawn) return;
-    const img = this.frames[idx]!;
-    const { width: cw, height: ch } = ctx.canvas;
-    const s = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
-    const w = img.naturalWidth * s, h = img.naturalHeight * s;
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
-    this.drawn = idx;
   }
 
-  /** First frames → every 8th → the rest (every `step`-th, plus the last one), 6 requests at a time. */
-  private preload(onFrame: () => void): void {
-    const wanted = (i: number) => i % this.step === 0 || i === FRAMES - 1;
-    const order: number[] = [0, 1, 2, 3, 4].filter(wanted);
-    for (let i = 8; i < FRAMES; i += 8) if (wanted(i)) order.push(i);
-    for (let i = 5; i < FRAMES; i++) if (wanted(i) && !order.includes(i)) order.push(i);
-    this.load(order, onFrame);
+  /** Downloads the MP4 once into a Blob; direct Range-based playback is the network/CORS fallback. */
+  private async loadVideo(url: string, video: HTMLVideoElement): Promise<void> {
+    const controller = new AbortController();
+    this.abort = controller;
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error(`Video download failed: ${response.status}`);
+      const total = Number(response.headers.get('Content-Length'));
+      const measurable = Number.isFinite(total) && total > 0;
+      this.progresoIndeterminado.set(!measurable);
+      let blob: Blob;
+      if (response.body) {
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              chunks.push(value);
+              received += value.byteLength;
+              if (measurable) this.criticoPct.set(Math.min(100, Math.round((received / total) * 100)));
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+        blob = new Blob(chunks as BlobPart[], { type: 'video/mp4' });
+      } else {
+        blob = new Blob([await response.blob()], { type: 'video/mp4' });
+      }
+      if (controller.signal.aborted) return;
+      this.criticoPct.set(100);
+      this.progresoIndeterminado.set(false);
+      this.objectUrl = URL.createObjectURL(blob);
+      video.src = this.objectUrl;
+    } catch {
+      if (controller.signal.aborted || this.videoFallido) return;
+      this.progresoIndeterminado.set(true);
+      try {
+        video.src = url;
+      } catch {
+        this.failVideo();
+      }
+    }
   }
 
-  private load(order: number[], onFrame: () => void): void {
-    let next = 0;
-    const pump = () => {
-      if (next >= order.length) return;
-      const i = order[next++];
-      const img = new Image();
-      img.decoding = 'async';
-      img.crossOrigin = 'anonymous';
-      img.onload = img.onerror = () => {
-        if (img.naturalWidth) this.frames[i] = img;
-        onFrame();
-        pump();
-      };
-      img.src = frameUrl(i);
-    };
-    for (let k = 0; k < 6; k++) pump();
+  private finPrecarga(): void {
+    if (this.precargaFuera()) return;
+    this.precargaFuera.set(true);
+    clearTimeout(this.tope);
+    this.fade = window.setTimeout(() => this.precarga.set(false), 500);
+  }
+
+  private failVideo(): void {
+    if (this.videoFallido) return;
+    this.videoFallido = true;
+    this.enVuelo = -1;
+    this.imagenFija.set(true);
+    this.finPrecarga();
   }
 
   protected skip(): void {
