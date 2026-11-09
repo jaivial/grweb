@@ -65,6 +65,14 @@ var legalDeCasilla = map[string]string{
 // legal text of «novedades» in the cms).
 const versionNovedades = "novedades-2026-10"
 
+// textoNovedades must stay identical to crm.TextoNovedades: its digest is part of the consent proof.
+const textoNovedades = "Quiero recibir novedades de GRStrength. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic."
+
+var hashNovedades = func() string {
+	h := sha256.Sum256([]byte(textoNovedades))
+	return hex.EncodeToString(h[:])
+}()
+
 // Consentimiento is the proof of one box: the legal version in force, its hash and when it was ticked.
 type Consentimiento struct {
 	Aceptado bool      `json:"aceptado"`
@@ -831,7 +839,7 @@ func (s *Svc) legalVersiones(ctx context.Context, cid uuid.UUID) map[string]stri
 // versionCasilla is the version and the hash of the legal text of a box (empty when it is not published).
 func (s *Svc) versionCasilla(ctx context.Context, cid uuid.UUID, casilla string) (string, string) {
 	if casilla == "novedades" {
-		return versionNovedades, ""
+		return versionNovedades, hashNovedades
 	}
 	tipo, ok := legalDeCasilla[casilla]
 	if !ok {

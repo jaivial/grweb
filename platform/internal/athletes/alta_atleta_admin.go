@@ -183,7 +183,7 @@ type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
 	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
-	Menor  bool      `query:"menor"`
+	Menor  *bool     `query:"menor"`
 	Q      string    `query:"q" maxLength:"80"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
 }
@@ -464,7 +464,7 @@ func (s *Svc) listaSolicitudes(ctx context.Context, in *FiltrosLista) (*ListaSol
 }
 
 // filtrosSolicitud builds the WHERE of the list.
-func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor bool, q string) (string, []any) {
+func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor *bool, q string) (string, []any) {
 	where := []string{"competition_id = $1"}
 	args := []any{cid}
 	switch estado {
@@ -493,9 +493,13 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor bool, 
 	case "ninguna":
 		where = append(where, "match_atleta_id IS NULL")
 	}
-	if menor {
-		// A free filter: the minors of any state.
-		where = append(where, "es_menor")
+	if menor != nil {
+		// A free filter: distinguish «only minors» from «exclude minors»; nil means no filter.
+		if *menor {
+			where = append(where, "es_menor")
+		} else {
+			where = append(where, "NOT es_menor")
+		}
 	}
 	if q = strings.TrimSpace(q); q != "" {
 		args = append(args, "%"+q+"%")
@@ -849,16 +853,24 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
 			return err
 		}
-		// The notices to the athlete (optional).
-		if avisarEmail {
-			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": s.webURL + "/area-atleta"}); err != nil {
+		// The notices to the athlete (optional). WhatsApp requires the consent recorded on submission.
+		avisarWA := avisarWhatsApp && sol.Telefono != "" && cons["whatsapp"].Aceptado
+		urlArea := s.webURL + "/area-atleta"
+		if avisarEmail || avisarWA {
+			urlArea, err = s.newAreaLink(ctx, tx, *destino)
+			if err != nil {
 				return err
 			}
 		}
-		if avisarWhatsApp && sol.Telefono != "" {
+		if avisarEmail {
+			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
+				"nombre": sol.Nombre, "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": urlArea}); err != nil {
+				return err
+			}
+		}
+		if avisarWA {
 			if err := whatsapp(ctx, tx, cid, sol.Telefono, false, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": s.webURL + "/area-atleta"}, ""); err != nil {
+				"nombre": sol.Nombre, "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": urlArea}, ""); err != nil {
 				return err
 			}
 		}
@@ -958,8 +970,8 @@ func (s *Svc) actualizaPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.U
 		frase = COALESCE(NULLIF($2,''), frase), bio = COALESCE(NULLIF($3,''), bio), instagram = CASE WHEN $9 THEN '' ELSE COALESCE(NULLIF($4,''), instagram) END,
 		historial = COALESCE(NULLIF($5,''), historial), entrenador = COALESCE(NULLIF($10,''), entrenador),
 		marca_sq = COALESCE($6, marca_sq), marca_bp = COALESCE($7, marca_bp), marca_dl = COALESCE($8, marca_dl),
-		visible = CASE WHEN $9 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
-		atleta, frase, bio, instagram, historial, sq, bp, dl, sol.EsMenor, entrenador); err != nil {
+		visible = CASE WHEN $9 OR NOT $11 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
+		atleta, frase, bio, instagram, historial, sq, bp, dl, sol.EsMenor, entrenador, sol.consent("imagen").Aceptado); err != nil {
 		return "", err
 	}
 	// The club and the city live in the athlete (the rest of the AEP data is not touched).
@@ -1067,6 +1079,7 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 		if err := yaRevisada(sol); err != nil {
 			return err
 		}
+		cons := sol.consentMap()
 		fotoClave = sol.FotoClave
 		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'rechazada', motivo_rechazo = $3, revisado_at = now(), revisado_por = $4,
 			version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`, cid, id, motivo, por); err != nil {
@@ -1082,7 +1095,7 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 				return err
 			}
 		}
-		if avisarWhatsApp && sol.Telefono != "" {
+		if avisarWhatsApp && sol.Telefono != "" && cons["whatsapp"].Aceptado {
 			if err := whatsapp(ctx, tx, cid, sol.Telefono, false, "atleta-solicitud-rechazada", map[string]string{
 				"nombre": sol.Nombre, "motivo": motivo, "urlAlta": s.webURL + "/alta-atleta"}, ""); err != nil {
 				return err
