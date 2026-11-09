@@ -311,12 +311,11 @@ interface FilaConsentimiento {
           @if (d.estado === 'rechazada') {
             <gr-alert tone="danger" title="Solicitud rechazada">
               Motivo: {{ d.motivoRechazo || 'sin motivo' }}
-              <button alertAction type="button" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text" (click)="dialogo.set('rechazar')">Editar motivo <gr-icon name="arrow-right" [size]="14" /></button>
             </gr-alert>
           }
           @if (d.esMenor) {
-            <gr-alert tone="warning" title="Menor de {{ d.edad }} años · falta autorización">
-              Aprobar permanece bloqueado hasta subir la autorización firmada de madre, padre o tutor.
+            <gr-alert [tone]="d.autorizacion ? 'success' : 'warning'" title="Menor de {{ d.edad }} años · {{ d.autorizacion ? 'autorización guardada' : 'falta autorización' }}">
+              {{ d.autorizacion ? 'La autorización firmada está guardada en privado.' : 'Aprobar permanece bloqueado hasta subir la autorización firmada de madre, padre o tutor.' }}
               <a alertAction [href]="correoAutorizacion()" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Pedir autorización <gr-icon name="arrow-right" [size]="14" /></a>
             </gr-alert>
             <section class="flex flex-col gap-2">
@@ -1253,7 +1252,11 @@ export class SolicitudesPage {
     if (!items.length) return;
     this.exporting.set(true);
     try {
-      const esc = (x: string) => `"${(x ?? '').replace(/"/g, '""')}"`;
+      const esc = (x: string) => {
+        // Public-form values must stay text in Excel/LibreOffice, even when they start with a formula prefix.
+        const safe = /^[=+\-@\t\r]/.test(x ?? '') ? `'${x}` : (x ?? '');
+        return `"${safe.replace(/"/g, '""')}"`;
+      };
       const filas = [
         ['Nombre', 'Email', 'Club', 'Edad', 'Coincidencia', 'Estado', 'Recibida'],
         ...items.map((s) => [this.nombreCompleto(s), s.email, s.club, String(s.edad), MATCH[s.match], s.estado, s.createdAt]),
