@@ -126,7 +126,11 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ctx := r.Context()
+	// The handler owns its context: the request context of a hijacked connection is only cancelled when the
+	// handler returns, so the writer goroutine would wait for it forever (and the handler waited for the writer:
+	// a deadlock that leaked the goroutine, the subscription and the connection slot).
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
 	// The gateway rewrites the Host, so the browser's Origin is checked against the whitelist (CHAT_ORIGENES).
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: s.origenes})
 	if err != nil {
@@ -215,14 +219,23 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 
 	saludo, _ := json.Marshal(item{T: "estado", Dia: dia, Motivo: "conectado"})
 	_ = escribir(saludo)
+	// cerrar ends the connection: the writer goroutine leaves its select (its context is cancelled), the socket
+	// is closed and the writer gets a moment to finish (it may be in the middle of a write).
+	cerrar := func(estado websocket.StatusCode, motivo string) {
+		cancel()
+		_ = conn.Close(estado, motivo)
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
+	}
 	// read loop: one read every CHAT_WS_IDLE_SEG at most (clients ping); each read resets the deadline.
 	for {
-		rctx, cancel := context.WithTimeout(ctx, time.Duration(config.Int("CHAT_WS_IDLE_SEG", defWsIdleSegundos))*time.Second)
+		rctx, cancelLectura := context.WithTimeout(ctx, time.Duration(config.Int("CHAT_WS_IDLE_SEG", defWsIdleSegundos))*time.Second)
 		_, data, err := conn.Read(rctx)
-		cancel()
+		cancelLectura()
 		if err != nil {
-			<-done
-			_ = conn.Close(websocket.StatusNormalClosure, "")
+			cerrar(websocket.StatusNormalClosure, "")
 			return
 		}
 		var fr struct {
@@ -237,8 +250,7 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 		case "ping":
 			pong, _ := json.Marshal(item{T: "pong", Ts: time.Now().UnixMilli()})
 			if !escribir(pong) {
-				<-done
-				_ = conn.Close(websocket.StatusNormalClosure, "")
+				cerrar(websocket.StatusNormalClosure, "")
 				return
 			}
 		case "msg":
