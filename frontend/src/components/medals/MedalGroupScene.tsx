@@ -3,7 +3,7 @@ import { Environment, Lightformer, PerspectiveCamera } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import { MathUtils } from 'three';
 import { createLogger } from '@utils/logger';
-import { MedalRig } from './MedalRig';
+import { MedalRig, type RigEntrance } from './MedalRig';
 import type { MedalSlot } from './MedalStage';
 import type { MedalAssets, MedalMaterial, MedalStageConfig } from './types';
 
@@ -81,7 +81,7 @@ function StudioLight({ config }: { config: MedalStageConfig }) {
  * moves, the rigs rescale and re-hang; the world, the joints and the GLB clones are kept.
  */
 export function MedalGroupScene({ slot, config, onReady }: MedalGroupSceneProps) {
-  const { id, medals, layout, width, physics, collisions, active, onHover, trackRef } = slot;
+  const { id, medals, layout, width, physics, collisions, active, onHover, trackRef, entrance } = slot;
   const ppu = physics.pxPerUnit;
   const grabbingRef = useRef(false);
   const startedAt = useMemo(() => performance.now(), []);
@@ -101,6 +101,26 @@ export function MedalGroupScene({ slot, config, onReady }: MedalGroupSceneProps)
     }
     return material;
   }, [materialCache, config.material]);
+
+  // Per-medal entrance: group timing + the medal's place in the sequence.
+  const entrances = useMemo<RigEntrance[]>(
+    () =>
+      medals.map((medal, index) => ({
+        state: entrance.state,
+        startAt: entrance.startAt,
+        delayMs: (medal.entryOrder ?? index) * entrance.staggerMs,
+        durationMs: layout.entranceMs,
+        curve: entrance.curve,
+      })),
+    [medals, entrance, layout.entranceMs],
+  );
+
+  // Logged once per start, not on every re-measure.
+  const entrancesRef = useRef(entrances);
+  entrancesRef.current = entrances;
+  useEffect(() => {
+    if (entrance.state === 'playing') log.info('entrance drop', { id, durationMs: layout.entranceMs, delays: entrancesRef.current.map((e) => e.delayMs) });
+  }, [id, entrance.state, entrance.startAt, layout.entranceMs]);
 
   const setCursor = useCallback((cursor: string) => {
     if (trackRef.current) trackRef.current.style.cursor = cursor;
@@ -129,7 +149,7 @@ export function MedalGroupScene({ slot, config, onReady }: MedalGroupSceneProps)
       <StudioLight config={config} />
       <Suspense fallback={null}>
         <Physics paused={!active} timeStep={1 / 60} updatePriority={-1}>
-          {medals.map((medal) => (
+          {medals.map((medal, index) => (
             <MedalRig
               key={medal.id}
               medal={medal}
@@ -143,6 +163,7 @@ export function MedalGroupScene({ slot, config, onReady }: MedalGroupSceneProps)
               grabbingRef={grabbingRef}
               setCursor={setCursor}
               onHover={onHover}
+              entrance={entrances[index]}
             />
           ))}
         </Physics>

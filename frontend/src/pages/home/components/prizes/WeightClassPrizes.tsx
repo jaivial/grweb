@@ -1,15 +1,19 @@
 import { memo, useCallback, useMemo, useRef, type KeyboardEvent } from 'react';
 import { useAtom } from 'jotai';
 import { HangingMedals, type HangingMedalSpec } from '@components/medals';
-import { useMediaQuery } from '@hooks/useMediaQuery';
+import { useMatchingEntry, useMediaQuery } from '@hooks/useMediaQuery';
 import { weightClassTabAtom } from '../../atoms/prizes';
 import { PrizeHeading } from './PrizeHeading';
+import { SteelRail } from './SteelRail';
 import {
   MEDAL_ASSETS,
+  MEDAL_ENTRANCE,
   MEDAL_PHYSICS,
+  PODIUM_BAND_GAP,
   PODIUM_COLLISIONS,
   PODIUM_LAYOUTS,
   PODIUM_MEDALS,
+  PODIUM_RAILS,
   PRIZES_COPY,
   WEIGHT_CLASS_GROUPS,
   formatWeightClass,
@@ -114,24 +118,44 @@ const WeightClassTabs = memo(function WeightClassTabs() {
 });
 
 /**
- * Block B · «Premio por categoría de peso»: the podium (silver · gold · bronze) hangs in the
- * block's padding-top, then the heading and the weight classes as text. It is its own view of
- * the section's shared medal canvas, with its own IntersectionObserver and physics world.
+ * Block B · «Premio por categoría de peso»: the podium (silver · gold · bronze) hangs from a
+ * steel rail in the block's padding-top, then the heading and the weight classes as text. It is
+ * its own view of the section's shared medal canvas, with its own IntersectionObserver and
+ * physics world. The block must not create a stacking context (no z-index): the rail has to
+ * sit above the canvas, the text stays in its own z-20 layer.
  */
 export const WeightClassPrizes = memo(function WeightClassPrizes() {
   const blockRef = useRef<HTMLDivElement>(null);
   const showColumns = useMediaQuery(COLUMNS_QUERY);
+  const rail = useMatchingEntry(PODIUM_RAILS);
+  const layout = useMatchingEntry(PODIUM_LAYOUTS);
   const medals = useMemo<HangingMedalSpec[]>(
-    () => PODIUM_MEDALS.map((medal) => ({ id: medal.id, label: medal.label, phase: medal.phase, assets: MEDAL_ASSETS[medal.metal] })),
+    () =>
+      PODIUM_MEDALS.map((medal) => ({ id: medal.id, label: medal.label, phase: medal.phase, entryOrder: medal.entryOrder, assets: MEDAL_ASSETS[medal.metal] })),
     [],
+  );
+  // padding-top = rail axis + band + gap (408 / 308 / 208): no layout shift when the band fills.
+  const blockStyle = useMemo(
+    () => ({ marginTop: rail.marginTop, paddingTop: (layout.anchorY ?? 0) + layout.canvasHeight + PODIUM_BAND_GAP }),
+    [rail.marginTop, layout.anchorY, layout.canvasHeight],
   );
 
   return (
-    // padding-top = PODIUM_LAYOUTS[].canvasHeight + 8 (192 / 280 / 368).
-    <div ref={blockRef} className="relative mt-16 pt-[192px] sm:mt-20 sm:pt-[280px] 3xl:pt-[368px]" data-ui="weight-class-prizes">
-      <HangingMedals id="podium" medals={medals} layouts={PODIUM_LAYOUTS} physics={MEDAL_PHYSICS} collisions={PODIUM_COLLISIONS} containerRef={blockRef} />
-      <PrizeHeading eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
-      {showColumns ? <WeightClassColumns /> : <WeightClassTabs />}
+    <div ref={blockRef} className="relative" style={blockStyle} data-ui="weight-class-prizes">
+      <HangingMedals
+        id="podium"
+        medals={medals}
+        layouts={PODIUM_LAYOUTS}
+        physics={MEDAL_PHYSICS}
+        collisions={PODIUM_COLLISIONS}
+        containerRef={blockRef}
+        entrance={MEDAL_ENTRANCE}
+      />
+      <SteelRail rail={rail} dataUi="weight-class-rail" />
+      <div className="relative z-20" data-ui="weight-class-content">
+        <PrizeHeading eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
+        {showColumns ? <WeightClassColumns /> : <WeightClassTabs />}
+      </div>
     </div>
   );
 });

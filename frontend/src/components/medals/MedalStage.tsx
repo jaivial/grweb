@@ -1,6 +1,7 @@
 import { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { createLogger } from '@utils/logger';
+import type { EntranceCurve } from './medalEntrance';
 import type { HangingLayout, MedalCollisions, MedalPhysics, MedalStageConfig, ResolvedMedal } from './types';
 
 const MedalStageCanvas = lazy(() => import('./MedalStageCanvas'));
@@ -22,6 +23,16 @@ export interface MedalSlot {
   /** In the viewport: physics running and the view rendered. */
   active: boolean;
   onHover?: (id: string | null) => void;
+  /** Entrance drop of the group. */
+  entrance: SlotEntrance;
+}
+
+/** `waiting`: hidden above the anchor line; `playing`: dropping since `startAt`; `off`: at rest. */
+export interface SlotEntrance {
+  state: 'waiting' | 'playing' | 'off';
+  startAt: number;
+  staggerMs: number;
+  curve: EntranceCurve | null;
 }
 
 export type MedalSlotInput = Omit<MedalSlot, 'order'>;

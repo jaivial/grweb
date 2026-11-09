@@ -6,11 +6,13 @@ import {
   RigidBody,
   interactionGroups,
   useBeforePhysicsStep,
+  useRapier,
   useSphericalJoint,
   type RapierRigidBody,
 } from '@react-three/rapier';
 import { Euler, MathUtils, Plane, Quaternion, Vector3, type Group } from 'three';
 import { Ribbon } from './Ribbon';
+import type { EntranceCurve } from './medalEntrance';
 import { medalMetrics, useMedalModel } from './useMedalModel';
 import type { HangingLayout, MedalCollisions, MedalMaterial, MedalPhysics, ResolvedMedal } from './types';
 
@@ -32,9 +34,21 @@ export interface MedalRigProps {
   /** Sets the CSS cursor of the element that receives this medal's pointer events. */
   setCursor: (cursor: string) => void;
   onHover?: (id: string | null) => void;
+  /** Entrance drop of this medal (read every physics step; keep the object current). */
+  entrance: RigEntrance;
 }
 
-type Mode = 'idle' | 'drag' | 'released';
+/** Entrance of one rig: `waiting` hides it above the anchor, `playing` drops it, `off` = at rest. */
+export interface RigEntrance {
+  state: 'waiting' | 'playing' | 'off';
+  /** performance.now() of the group start (playing). */
+  startAt: number;
+  delayMs: number;
+  durationMs: number;
+  curve: EntranceCurve | null;
+}
+
+type Mode = 'entering' | 'idle' | 'drag' | 'released';
 
 const GRAVITY = 9.81;
 /** Without `collisions`, a medal is in group 15 and filters out every group: it hits nothing. */
@@ -58,13 +72,17 @@ const WIND_ADAPT_MAX = 1.25;
  * box (the GLB mesh is not watertight); it only touches other medals when `collisions` is set.
  * A breakpoint change keeps the body, joint and model: it rescales them and re-hangs the medal.
  */
-export function MedalRig({ medal, railX, railY, layout, physics, material, collisions, active, grabbingRef, setCursor, onHover }: MedalRigProps) {
+export function MedalRig({ medal, railX, railY, layout, physics, material, collisions, active, grabbingRef, setCursor, onHover, entrance }: MedalRigProps) {
   const { assets, geometry: geo } = medal;
   const ppu = physics.pxPerUnit;
   const loaded = useMedalModel(assets.glb, material);
   const model = useMemo(() => ({ ...loaded, ...medalMetrics(loaded, geo.medalWidth / ppu) }), [loaded, geo.medalWidth, ppu]);
   const ribbonTexture = useTexture(assets.ribbon);
 
+  const { rapier } = useRapier();
+  const rootRef = useRef<Group>(null);
+  const entranceRef = useRef(entrance);
+  entranceRef.current = entrance;
   const railRef = useRef<RapierRigidBody>(null);
   const bodyRef = useRef<RapierRigidBody>(null);
   const attachRef = useRef<Group>(null);
@@ -100,7 +118,8 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
   ]);
 
   const sim = useRef({
-    mode: 'idle' as Mode,
+    // A rig that has to drop in starts kinematic and hidden above its anchor line.
+    mode: (entrance.state === 'off' ? 'idle' : 'entering') as Mode,
     time: 0,
     windWeight: 1,
     forceAmp: rig.forceAmp,
@@ -137,19 +156,62 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
     body.setAngvel({ x: 0, y: 0, z: 0 }, true);
   }, [railX, railY, rig.rod, rig.z, rig.forceAmp, jointRef]);
 
-  // Entering the viewport: a ~2° nudge so the wind is noticed at once.
-  useEffect(() => {
-    const body = bodyRef.current;
-    if (!active || !body) return;
+  /** The ~2° nudge that makes the wind noticeable at once. */
+  const nudge = useCallback((body: RapierRigidBody) => {
     const speed = MathUtils.degToRad(physics.entryImpulseDeg) * rig.omega0 * rig.rod;
     body.applyImpulse({ x: physics.mass * speed * (medal.phase < 0.5 ? 1 : -1), y: 0, z: 0 }, true);
-  }, [active, physics, rig, medal.phase]);
+  }, [physics, rig, medal.phase]);
+
+  // Entering the viewport: nudge (a rig still dropping in gets it when it lands).
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!active || !body || sim.current.mode === 'entering') return;
+    nudge(body);
+  }, [active, nudge]);
+
+  /** End of the drop (or drop cancelled): dynamic again at rest, nudge, wind blends in. */
+  const land = useCallback((body: RapierRigidBody) => {
+    const s = sim.current;
+    body.setBodyType(rapier.RigidBodyType.Dynamic, true);
+    body.setTranslation({ x: railX, y: railY - rig.rod, z: rig.z }, true);
+    body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+    body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    s.mode = 'idle';
+    s.windWeight = 0;
+    nudge(body);
+  }, [rapier, railX, railY, rig.rod, rig.z, nudge]);
+
+  // Drop pending: kinematic (no wind, hover or drag) until it lands.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body || sim.current.mode !== 'entering') return;
+    if (entrance.state === 'off') land(body);
+    else body.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true);
+  }, [entrance.state, rapier, land]);
 
   useBeforePhysicsStep((world) => {
     const body = bodyRef.current;
     if (!body) return;
     const s = sim.current;
     const dt = world.timestep;
+    if (s.mode === 'entering') {
+      // Kinematic drop along the vertical below the rail; the ribbon follows the medal.
+      const e = entranceRef.current;
+      if (e.state === 'off') {
+        land(body);
+        return;
+      }
+      const t = e.state === 'playing' && e.curve ? (performance.now() - e.startAt - e.delayMs) / e.durationMs : 0;
+      if (t >= 1) {
+        land(body);
+        return;
+      }
+      const dy = e.curve ? e.curve.offset(t, geo.ribbonLength, geo.medalHeight) : 0;
+      body.setNextKinematicTranslation({ x: railX, y: railY - rig.rod - dy / ppu, z: rig.z });
+      body.setNextKinematicRotation({ x: 0, y: 0, z: 0, w: 1 });
+      return;
+    }
     s.time += dt;
     body.resetForces(false);
     body.resetTorques(false);
@@ -215,6 +277,10 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
   // Hover scale spring (stiffness/damping from the spec) and env-map boost; visual only.
   useFrame((_, delta) => {
     const s = sim.current;
+    if (rootRef.current) {
+      const e = entranceRef.current;
+      rootRef.current.visible = s.mode !== 'entering' || (e.state === 'playing' && performance.now() >= e.startAt + e.delayMs);
+    }
     const dt = Math.min(delta, 1 / 30);
     const target = s.hovered || s.mode === 'drag' ? physics.hoverScale : 1;
     s.scaleVelocity += (physics.hoverStiffness * (target - s.scale) - physics.hoverDamping * s.scaleVelocity) * dt;
@@ -241,7 +307,7 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
   }, [railX, railY, rig.maxSwing]);
 
   const handlePointerOver = useCallback((event: ThreeEvent<PointerEvent>) => {
-    if (event.pointerType !== 'mouse' || sim.current.hovered) return;
+    if (event.pointerType !== 'mouse' || sim.current.hovered || sim.current.mode === 'entering') return;
     sim.current.hovered = true;
     setCursor(sim.current.mode === 'drag' ? 'grabbing' : 'grab');
     onHover?.(medal.id);
@@ -258,7 +324,7 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
 
   const handlePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
     const body = bodyRef.current;
-    if (!body) return;
+    if (!body || sim.current.mode === 'entering') return;
     event.stopPropagation();
     (event.target as Element).setPointerCapture(event.pointerId);
     const s = sim.current;
@@ -322,7 +388,7 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
   useEffect(() => () => clearTimeout(hitTimer.current), []);
 
   return (
-    <>
+    <group ref={rootRef}>
       <RigidBody ref={railRef} type="fixed" colliders={false} position={[railX, railY, rig.z]} />
       <RigidBody
         ref={bodyRef}
@@ -369,6 +435,6 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
         spreadTop={layout.ribbonSpreadTop / ppu}
         spreadBottom={layout.ribbonSpreadBottom / ppu}
       />
-    </>
+    </group>
   );
 }

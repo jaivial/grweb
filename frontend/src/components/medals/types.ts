@@ -93,6 +93,11 @@ export interface HangingLayout {
   id: string;
   /** Media query that selects this layout (first match wins, last entry is the default). */
   query: string;
+  /**
+   * Distance from the top of the container to the anchor line (a rail axis, a card edge), px.
+   * The band (canvas view) starts there, so anything above it is hidden. Default 0.
+   */
+  anchorY?: number;
   canvasHeight: number;
   ribbonLength: number;
   medalWidth: number;
@@ -111,6 +116,33 @@ export interface HangingLayout {
   medals?: ReadonlyArray<Partial<MedalGeometry>>;
   /** Velocity change (u/s) of a click/tap without drag. */
   tapImpulse: number;
+  /** Duration of each medal's entrance drop at this breakpoint, ms. */
+  entranceMs: number;
+}
+
+/** cubic-bezier(x1, y1, x2, y2). */
+export type BezierCurve = readonly [number, number, number, number];
+
+/**
+ * Entrance drop of a group of medals (once per page load): each medal falls from above the
+ * anchor line, overshoots, rebounds once and hands over to the physics. Offsets are vertical,
+ * relative to the rest position (positive = down), in units of the ribbon length L.
+ */
+export interface MedalEntrance {
+  /** Fraction of the band that must be visible to start. */
+  threshold: number;
+  /** If the model is not ready this long after the band became visible, skip the drop (ms). */
+  maxWaitMs: number;
+  /** Delay between consecutive medals (`HangingMedalSpec.entryOrder`), ms. */
+  staggerMs: number;
+  /** Start offset = −(L + H + startGapPx): fully above the anchor line. */
+  startGapPx: number;
+  /** Overshoot (+·L) and the time (0-1) it is reached. */
+  overshoot: { at: number; l: number };
+  /** Single rebound (−·L) and the time it is reached. */
+  rebound: { at: number; l: number };
+  /** Easing of the fall (start → overshoot), of the rebound and of the settle. */
+  easing: { fall: BezierCurve; rebound: BezierCurve; settle: BezierCurve };
 }
 
 /** Simulation constants shared by every rig (world: `pxPerUnit` CSS px = 1 unit). */
@@ -147,6 +179,8 @@ export interface HangingMedalSpec {
   assets: MedalAssets;
   /** Element whose horizontal centre is the anchor when the layout follows anchors. */
   anchorRef?: RefObject<HTMLElement>;
+  /** Position in the entrance sequence (delay = entryOrder × staggerMs). Default: its index. */
+  entryOrder?: number;
 }
 
 /** Contact material when the medals of one canvas may hit each other (null/absent: no collisions). */

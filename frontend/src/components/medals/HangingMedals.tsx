@@ -4,11 +4,18 @@ import { useIntersectionObserver } from '@hooks/useIntersectionObserver';
 import { useMatchingEntry, useMediaQuery } from '@hooks/useMediaQuery';
 import { createLogger } from '@utils/logger';
 import { getMedalFallbackReason } from './medalCapability';
-import { useMedalStage } from './MedalStage';
+import { createEntranceCurve } from './medalEntrance';
+import { useMedalStage, type SlotEntrance } from './MedalStage';
 import { StaticMedal } from './StaticMedal';
-import type { HangingLayout, HangingMedalSpec, MedalCollisions, MedalPhysics, ResolvedMedal } from './types';
+import type { HangingLayout, HangingMedalSpec, MedalCollisions, MedalEntrance, MedalPhysics, ResolvedMedal } from './types';
 
 const log = createLogger('medals');
+
+/** Groups that already dropped in during this page load (the entrance never repeats). */
+const enteredGroups = new Set<string>();
+
+/** Entrance of a group: not decided yet, dropping, or none (at rest). */
+export type EntrancePhase = 'waiting' | 'playing' | 'off';
 
 export interface HangingMedalsProps {
   /** Group id (one view of the shared `<MedalStage>` canvas), e.g. «movements», «podium». */
@@ -21,6 +28,10 @@ export interface HangingMedalsProps {
   /** Positioned element the medals hang from (its top edge is the rail; anchors are relative to it). */
   containerRef: RefObject<HTMLElement>;
   onMedalHover?: (id: string | null) => void;
+  /** Entrance drop when the band shows up (3D only, once per page load); null = none. */
+  entrance?: MedalEntrance | null;
+  /** Entrance phase changes (e.g. to fade a halo in with the drop). */
+  onEntranceChange?: (phase: EntrancePhase, info: { startAt: number; durationMs: number }) => void;
 }
 
 interface Measure {
@@ -71,7 +82,7 @@ const StaticMedalRow = memo(function StaticMedalRow({ medals, layout, swing }: {
  * - Anchors: centre of each medal's `anchorRef` (ResizeObserver) or `anchorsPct` of the width.
  * - A breakpoint change swaps the layout in place (same view, world and models).
  */
-export function HangingMedals({ id, medals, layouts, physics, collisions = null, containerRef, onMedalHover }: HangingMedalsProps) {
+export function HangingMedals({ id, medals, layouts, physics, collisions = null, containerRef, onMedalHover, entrance = null, onEntranceChange }: HangingMedalsProps) {
   const stage = useMedalStage();
   const layout = useMatchingEntry(layouts);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -81,11 +92,15 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
     () => ({
       measure: atom<Measure | null>(null),
       hoveredId: atom<string | null>(null),
+      entrance: atom<{ phase: EntrancePhase; startAt: number }>({ phase: entrance && !enteredGroups.has(id) ? 'waiting' : 'off', startAt: 0 }),
+      waitedOut: atom(false),
     }),
     [],
   );
   const [measure, setMeasure] = useAtom(atoms.measure);
   const [hoveredId, setHoveredId] = useAtom(atoms.hoveredId);
+  const [entranceState, setEntranceState] = useAtom(atoms.entrance);
+  const [waitedOut, setWaitedOut] = useAtom(atoms.waitedOut);
   const handleHover = useCallback((medalId: string | null) => {
     setHoveredId(medalId);
     onMedalHover?.(medalId);
@@ -93,12 +108,15 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
 
   const near = useIntersectionObserver({ rootMargin: '100% 0px', threshold: 0, triggerOnce: true });
   const visible = useIntersectionObserver({ threshold: 0 });
+  const shown = useIntersectionObserver({ threshold: entrance?.threshold ?? 0.3, triggerOnce: true });
   const { ref: nearRef } = near;
   const { ref: visibleRef } = visible;
+  const { ref: shownRef } = shown;
   const setBandRef = useCallback((node: HTMLDivElement | null) => {
     nearRef(node);
     visibleRef(node);
-  }, [nearRef, visibleRef]);
+    shownRef(node);
+  }, [nearRef, visibleRef, shownRef]);
 
   // Passive effect: the container and anchor refs belong to ancestors/siblings and are attached after this layout phase.
   useEffect(() => {
@@ -148,7 +166,48 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
   const failed = !!stage?.failed.has(id);
   const ready = !!stage?.ready.has(id);
   const useCanvas = !!stage && !fallbackReason && !failed && near.isIntersecting && resolved.length > 0;
-  const showStatic = !useCanvas || !ready;
+
+  // Entrance: starts when the band is `threshold` visible AND the models are ready. If they are
+  // not ready `maxWaitMs` after it showed up, the medals appear at rest (no late drop). Only 3D:
+  // the PNG fallback and reduced motion never drop (see MEDAL_ENTRANCE in the page config).
+  const phase: EntrancePhase = useCanvas ? entranceState.phase : 'off';
+  useEffect(() => {
+    if (entranceState.phase !== 'waiting') return;
+    if (!useCanvas && (fallbackReason || failed)) {
+      setEntranceState({ phase: 'off', startAt: 0 });
+      return;
+    }
+    if (!shown.isIntersecting) return;
+    if (ready) {
+      enteredGroups.add(id);
+      setEntranceState({ phase: 'playing', startAt: performance.now() });
+      return;
+    }
+    const timer = setTimeout(() => {
+      log.info('entrance skipped: model not ready in time', { id, maxWaitMs: entrance?.maxWaitMs });
+      enteredGroups.add(id);
+      setWaitedOut(true);
+      setEntranceState({ phase: 'off', startAt: 0 });
+    }, entrance?.maxWaitMs ?? 0);
+    return () => clearTimeout(timer);
+  }, [entranceState.phase, useCanvas, fallbackReason, failed, shown.isIntersecting, ready, id, entrance, setEntranceState, setWaitedOut]);
+
+  // Playing → off once the last medal has landed (state only; the rigs land on their own).
+  const lastDelay = useMemo(() => Math.max(0, ...medals.map((medal, index) => medal.entryOrder ?? index)) * (entrance?.staggerMs ?? 0), [medals, entrance]);
+  useEffect(() => {
+    if (entranceState.phase !== 'playing') return;
+    const remaining = entranceState.startAt + lastDelay + layout.entranceMs - performance.now();
+    const timer = setTimeout(() => setEntranceState({ phase: 'off', startAt: 0 }), Math.max(0, remaining) + 50);
+    return () => clearTimeout(timer);
+  }, [entranceState, lastDelay, layout.entranceMs, setEntranceState]);
+
+  useEffect(() => {
+    onEntranceChange?.(phase, { startAt: entranceState.startAt, durationMs: layout.entranceMs });
+  }, [phase, entranceState.startAt, layout.entranceMs, onEntranceChange]);
+
+  // PNG placeholder: fallback, or loading at rest. Not while a drop may still come (the band
+  // stays empty until the medals fall in), only once the wait ran out.
+  const showStatic = !useCanvas || (!ready && (phase === 'off' || waitedOut));
   const hovered = useMemo(() => resolved.find((medal) => medal.id === hoveredId), [resolved, hoveredId]);
 
   useEffect(() => {
@@ -162,10 +221,15 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
   const unregister = stage?.unregister;
   const active = visible.isIntersecting;
   const width = measure?.width ?? 0;
+  const curve = useMemo(() => (entrance ? createEntranceCurve(entrance) : null), [entrance]);
+  const slotEntrance = useMemo<SlotEntrance>(
+    () => ({ state: phase, startAt: entranceState.startAt, staggerMs: entrance?.staggerMs ?? 0, curve }),
+    [phase, entranceState.startAt, entrance, curve],
+  );
   useEffect(() => {
     if (!register || !useCanvas) return;
-    register({ id, trackRef, medals: resolved, layout, width, physics, collisions, active, onHover: handleHover });
-  }, [register, useCanvas, id, resolved, layout, width, physics, collisions, active, handleHover]);
+    register({ id, trackRef, medals: resolved, layout, width, physics, collisions, active, onHover: handleHover, entrance: slotEntrance });
+  }, [register, useCanvas, id, resolved, layout, width, physics, collisions, active, handleHover, slotEntrance]);
   useEffect(() => {
     if (!unregister || useCanvas) return;
     unregister(id);
@@ -175,11 +239,12 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
   return (
     <div
       ref={setBandRef}
-      className="pointer-events-none absolute inset-x-0 top-0 z-30"
-      style={{ height: layout.canvasHeight }}
+      className="pointer-events-none absolute inset-x-0 z-30"
+      style={{ top: layout.anchorY ?? 0, height: layout.canvasHeight }}
       aria-hidden
       data-ui="hanging-medals"
       data-mode={useCanvas ? '3d' : `static${fallbackReason ? `-${fallbackReason}` : ''}`}
+      data-entrance={phase}
     >
       {showStatic && <StaticMedalRow medals={resolved} layout={layout} swing={!!fallbackReason || failed} />}
       {useCanvas && (
