@@ -179,7 +179,7 @@ Tienen que ir **antes** de `^/api/competiciones(/|$)` (competition). El proxy de
 
 ## 10. Despliegue
 
-- `deploy/k8s/generar.py`: `fans` (1–3, 64/256Mi), `chat` (2–8, 64/384Mi, env `CHAT_MAX_CONEXIONES=10000`), `donaciones` (1–3), `patrocinio` (1–2), `juegos` (2–4); `juegos-worker` como Deployment aparte del mismo binario con `args: ["worker"]` (1 réplica, como `messaging-worker`). Grafo `LLAMADAS`: `athletes` ← `fans`; `live` ← `juegos`, `patrocinio`; `competition` ← todos los que resuelven el slug.
+- `deploy/k8s/generar.py`: `fans` (1–3, 64/256Mi), `chat` (2–8 réplicas, 128Mi/1Gi, `GOMEMLIMIT=800MiB`, `CHAT_MAX_CONEXIONES=4000` **por pod**: la memoria, no la CPU, limita el chat, con unos 200–240 KiB por conexión según la prueba de carga de `docs/carga/2026-11-08-chat.md`; 10.000 conexiones = 3 pods), `donaciones` (1–3), `patrocinio` (1–2), `juegos` (2–4); `juegos-worker` como Deployment aparte del mismo binario con `args: ["worker"]` (1 réplica, como `messaging-worker`). Grafo `LLAMADAS`: `athletes` ← `fans`; `live` ← `juegos`, `patrocinio`; `competition` ← todos los que resuelven el slug.
 - `deploy/dev/compose.yml` + `initdb/01-databases.sh` (las 5 BD nuevas). Makefile `SERVICES`.
 - Todos los contenedores con `mem_limit` (regla de la máquina).
 
