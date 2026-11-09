@@ -651,7 +651,10 @@ func (s *Svc) registerCampanas() {
 				cfg := s.waDe(ctx, in.CID)
 				id, err := s.enviarWA(ctx, cfg, tel, WhatsApp{Texto: personalizar("[Prueba]\n\n"+wa, "Prueba", baja, false), Imagen: waImg})
 				if err != nil {
-					return nil, problem.New(http.StatusBadGateway, "ENVIO_FALLIDO", "No se pudo enviar la prueba: "+err.Error())
+					// The provider answers in English and with the technical name of the instance: the person reads a
+					// sentence in Spanish and the log keeps the detail.
+					s.waLog(ctx, in.CID, "enviar la prueba de WhatsApp", err)
+					return nil, problem.New(http.StatusBadGateway, "ENVIO_FALLIDO", "No se pudo enviar la prueba: "+s.waMensaje(ctx, in.CID, err))
 				}
 				o.Body.Canal, o.Body.Detalle = "whatsapp", "Enviada a "+tel+" · "+id
 				if cfg.Modo == "simulado" {

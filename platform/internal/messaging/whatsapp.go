@@ -85,6 +85,7 @@ func (s *Svc) waDe(ctx context.Context, cid uuid.UUID) waCfg {
 // errWA is a send error; permanent means the number is not on WhatsApp.
 type errWA struct {
 	msg        string
+	texto      string // the message of the provider, without the JSON wrapper (for the log and the translation)
 	permanente bool
 	servidor   bool // evo-weai itself is down (connection, 5xx): the batch waits, no try is spent
 	existe     bool // the instance already exists (409): the caller adopts it
@@ -109,7 +110,7 @@ func (s *Svc) evo(ctx context.Context, c waCfg, method, path string, in, out any
 	req.Header.Set("Content-Type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return &errWA{msg: "evo-weai no responde: " + err.Error(), servidor: true}
+		return &errWA{msg: "evo-weai no responde: " + err.Error(), texto: "no responde: " + err.Error(), servidor: true}
 	}
 	defer res.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
@@ -120,7 +121,15 @@ func (s *Svc) evo(ctx context.Context, c waCfg, method, path string, in, out any
 		}
 		low := strings.ToLower(m)
 		perm := res.StatusCode == http.StatusBadRequest && (strings.Contains(low, "exists") || strings.Contains(low, "not on whatsapp") || strings.Contains(low, "invalid number"))
-		return &errWA{msg: fmt.Sprintf("evo-weai %d: %s", res.StatusCode, m), permanente: perm, servidor: res.StatusCode >= 500,
+		// The provider answers in English and with the technical name of the instance: only the log sees it.
+		texto := m
+		var j struct {
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(raw, &j) == nil && j.Message != "" {
+			texto = j.Message
+		}
+		return &errWA{msg: fmt.Sprintf("evo-weai %d: %s", res.StatusCode, m), texto: texto, permanente: perm, servidor: res.StatusCode >= 500,
 			existe: res.StatusCode == http.StatusConflict || strings.Contains(low, "already in use"), codigo: res.StatusCode}
 	}
 	if out != nil {
@@ -138,7 +147,7 @@ func (s *Svc) enviarWA(ctx context.Context, c waCfg, numero string, w WhatsApp) 
 		return "sim-" + uuid.Must(uuid.NewV7()).String(), nil
 	case "evo-weai":
 	default:
-		return "", &errWA{msg: "WhatsApp no está configurado"}
+		return "", &errWA{msg: "WhatsApp no está configurado", texto: "not configured"}
 	}
 	var r struct {
 		Key struct {
@@ -213,7 +222,8 @@ func (s *Svc) waEstado(ctx context.Context, cid uuid.UUID) WAEstado {
 		} `json:"instance"`
 	}
 	if err := s.evo(ctx, c, http.MethodGet, "/instance/connectionState/"+c.Instancia, nil, &r); err != nil {
-		e.Conexion, e.Detalle = "close", err.Error()
+		s.waLog(ctx, cid, "estado de la sesión", err)
+		e.Conexion, e.Detalle = "close", s.waMensaje(ctx, cid, err)
 		return e
 	}
 	e.Conexion = r.Instance.State
@@ -325,7 +335,8 @@ func (s *Svc) estadoAdmin(ctx context.Context, cid uuid.UUID) WAEstadoAdmin {
 			out.Estado = "desconectado"
 			return out
 		}
-		out.Servicio, out.Estado, out.Error = "caido", "error", err.Error()
+		s.waLog(ctx, cid, "estado de la sesión", err)
+		out.Servicio, out.Estado, out.Error = "caido", "error", s.waMensaje(ctx, cid, err)
 		return out
 	}
 	switch r.Instance.State {
@@ -436,13 +447,14 @@ func (s *Svc) registerWhatsApp() {
 			if err != nil {
 				var ew *errWA
 				if !errors.As(err, &ew) || !ew.existe {
-					return nil, problem.New(http.StatusBadGateway, "WHATSAPP_NO_RESPONDE", err.Error())
+					s.waLog(ctx, in.CID, "crear la instancia", err)
+					return nil, s.waProblema(ctx, in.CID, err)
 				}
 				// 409: the instance was already there (it is adopted and the webhook is registered again).
 				s.a.Log.Info("instancia de whatsapp ya existente", "instancia", nombre)
 			}
 			if err := s.registrarWebhook(ctx, c, in.CID); err != nil {
-				s.a.Log.Warn("webhook de whatsapp", "err", err)
+				s.waLog(ctx, in.CID, "registrar el webhook", err)
 			}
 			_, _ = s.a.DB.Exec(ctx, `INSERT INTO whatsapp_instancia (competition_id, instancia, url, estado, updated_at) VALUES ($1,$2,$3,'conectando', now())
 				ON CONFLICT (competition_id) DO UPDATE SET instancia = EXCLUDED.instancia, url = EXCLUDED.url, estado = 'conectando', updated_at = now()`, in.CID, nombre, url)
@@ -486,10 +498,11 @@ func (s *Svc) registerWhatsApp() {
 				path += "?number=" + num
 			}
 			if err := s.evo(ctx, c, http.MethodGet, path, nil, &r); err != nil {
-				return nil, problem.New(http.StatusBadGateway, "WHATSAPP_NO_RESPONDE", err.Error())
+				s.waLog(ctx, in.CID, "vincular el número", err)
+				return nil, s.waProblema(ctx, in.CID, err)
 			}
 			if err := s.registrarWebhook(ctx, c, in.CID); err != nil {
-				s.a.Log.Warn("webhook de whatsapp", "err", err)
+				s.waLog(ctx, in.CID, "registrar el webhook", err)
 			}
 			if num != "" {
 				_, _ = s.a.DB.Exec(ctx, `UPDATE whatsapp_instancia SET numero = $2, estado = 'conectando', updated_at = now() WHERE competition_id = $1`, in.CID, "+"+num)
@@ -522,8 +535,8 @@ func (s *Svc) registerWhatsApp() {
 			}
 			// evo-weai returns the QR it already has: it does not break the socket of the session that is linking.
 			if err := s.evo(ctx, c, http.MethodGet, "/instance/connect/"+c.Instancia, nil, &r); err != nil {
-				s.a.Log.Warn("qr de whatsapp", "err", err)
-				return o, nil
+				s.waLog(ctx, in.CID, "pedir el QR", err)
+				return nil, s.waProblema(ctx, in.CID, err)
 			}
 			o.Body.QR = r.Base64
 			return o, nil
@@ -544,7 +557,8 @@ func (s *Svc) registerWhatsApp() {
 				return nil, problem.Conflict("WHATSAPP_SIN_CONFIGURAR", "No hay ninguna instancia de WhatsApp que reiniciar.")
 			}
 			if err := s.evo(ctx, c, http.MethodPost, "/instance/restart/"+c.Instancia, nil, nil); err != nil {
-				return nil, problem.New(http.StatusBadGateway, "WHATSAPP_NO_RESPONDE", err.Error())
+				s.waLog(ctx, in.CID, "reiniciar la sesión", err)
+				return nil, s.waProblema(ctx, in.CID, err)
 			}
 			s.guardarEstadoInstancia(ctx, in.CID, c.Instancia, "conectando", "")
 			if err := s.tx(ctx, func(tx pgx.Tx) error {
@@ -569,10 +583,16 @@ func (s *Svc) registerWhatsApp() {
 			}
 			// Logout first, then delete: logout alone leaves the socket in «connecting» (Neural does the same).
 			if err := s.evo(ctx, c, http.MethodDelete, "/instance/logout/"+c.Instancia, nil, nil); err != nil {
-				s.a.Log.Warn("logout de whatsapp", "err", err)
+				s.waLog(ctx, in.CID, "desconectar (logout)", err)
+				if !waIgnorable(err) {
+					return nil, s.waProblema(ctx, in.CID, err)
+				}
 			}
 			if err := s.evo(ctx, c, http.MethodDelete, "/instance/delete/"+c.Instancia, nil, nil); err != nil {
-				s.a.Log.Warn("borrado de la instancia de whatsapp", "err", err)
+				s.waLog(ctx, in.CID, "desconectar (borrado de la instancia)", err)
+				if !waIgnorable(err) {
+					return nil, s.waProblema(ctx, in.CID, err)
+				}
 			}
 			// The instance is gone in evo-weai: the row too (the page goes back to «Sin instancia»).
 			_, _ = s.a.DB.Exec(ctx, `DELETE FROM whatsapp_instancia WHERE competition_id = $1`, in.CID)

@@ -272,26 +272,31 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 		ew = &errWA{msg: err.Error()}
 	}
 	if ew.servidor {
+		s.waLog(ctx, p.cid, "enviar el mensaje de WhatsApp", err)
 		_ = s.a.Redis.Set(ctx, caido, ew.msg, time.Minute).Err()
 		s.devolver(ctx, p, time.Minute, "WhatsApp (evo-weai) no disponible: reintento automático")
 		return
 	}
+	// The provider answers in English and with the technical name of the instance: the person reads a sentence in
+	// Spanish and the log keeps the detail.
+	s.waLog(ctx, p.cid, "enviar el mensaje de WhatsApp", err)
+	detalle := s.waMensaje(ctx, p.cid, err)
 	if ew.permanente {
-		s.fin(ctx, p, "rebotado", ew.msg, func(tx pgx.Tx) error {
+		s.fin(ctx, p, "rebotado", detalle, func(tx pgx.Tx) error {
 			if p.cid == uuid.Nil {
 				return nil
 			}
-			return events.Enqueue(ctx, tx, events.New(ctx, "messaging.rebote", map[string]any{"para": p.destino, "canal": "whatsapp", "tipo": "whatsapp_invalido", "motivo": ew.msg},
+			return events.Enqueue(ctx, tx, events.New(ctx, "messaging.rebote", map[string]any{"para": p.destino, "canal": "whatsapp", "tipo": "whatsapp_invalido", "motivo": detalle},
 				events.Competition(p.cid.String()), events.Audience(events.Internal)))
 		}, ", asunto = $4", t.Nombre)
 		return
 	}
 	if p.intentos >= maxIntentos {
-		s.fin(ctx, p, "fallido", ew.msg, nil, ", asunto = $4", t.Nombre)
+		s.fin(ctx, p, "fallido", detalle, nil, ", asunto = $4", t.Nombre)
 		return
 	}
 	espera := time.Duration(1<<(p.intentos-1)) * time.Minute // 1, 2, 4, 8 min
-	s.fin(ctx, p, "reintentando", ew.msg, nil, ", asunto = $4, proximo_at = now() + $5::interval", t.Nombre, fmt.Sprintf("%d seconds", int(espera.Seconds())))
+	s.fin(ctx, p, "reintentando", detalle, nil, ", asunto = $4, proximo_at = now() + $5::interval", t.Nombre, fmt.Sprintf("%d seconds", int(espera.Seconds())))
 }
 
 // estadoSMTP records a change of the server state (only transitions emit the backoffice event).
