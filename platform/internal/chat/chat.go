@@ -69,6 +69,8 @@ func Service() app.Service {
 func (s *Svc) setup(ctx context.Context, a *app.App) error {
 	s.a = a
 	s.hub.a = a // the hub is created before the app exists (Service); the rooms need it
+	// key of the public pseudonyms of the fans (HMAC): the UUID of a fan never travels to the clients
+	s.hub.claveFan = fanauth.Key(a.Cfg.InternalToken)
 	s.ctxRaiz = ctx
 	comp := svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "chat", "competition", a.Cfg.InternalToken)
 	s.comps = compref.New(comp, a.Log)

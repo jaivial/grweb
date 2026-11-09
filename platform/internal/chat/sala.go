@@ -2,6 +2,9 @@ package chat
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -21,7 +24,8 @@ type item struct {
 	MensajeID      string `json:"mensajeId,omitempty"` // id of the deleted message (frame «borrado»)
 	Texto          string `json:"texto,omitempty"`
 	Alias          string `json:"alias,omitempty"`
-	FanID          string `json:"fanId,omitempty"`
+	FanID          string `json:"fanId,omitempty"`  // real UUID: never leaves the service (see publica)
+	FanKey         string `json:"fanKey,omitempty"` // public pseudonym of the fan (HMAC of its UUID)
 	Atleta         bool   `json:"atleta,omitempty"`
 	Ts             int64  `json:"ts,omitempty"`  // unix millis of the send
 	Cid            string `json:"cid,omitempty"` // client message id (dedupe)
@@ -45,6 +49,17 @@ type item struct {
 type frame struct {
 	it   item
 	json []byte
+}
+
+// publica is the public view of an item: the UUID of the fan is replaced by its pseudonym (a short HMAC with
+// the key of the service), so an anonymous client cannot correlate the messages of a room with the account of
+// the fans (the moderation of the backoffice keeps seeing the UUID).
+func (it item) publica(hash func(string) string) item {
+	if it.FanID != "" {
+		it.FanKey = hash(it.FanID)
+		it.FanID = ""
+	}
+	return it
 }
 
 // nuevaFrame encodes the item once (the bytes are shared by every subscriber).
@@ -101,10 +116,26 @@ type hub struct {
 	mu    sync.Mutex
 	salas map[salaID]*sala
 
+	// claveFan derives the public pseudonym of a fan (HMAC with the key of the service): the UUID of the fan
+	// never travels to the clients.
+	claveFan []byte
+
 	// streams lists every room stream this pod has ever seen: the persistence group keeps its own position, so
 	// dropping a stream from XREADGROUP would leave its entries unread until the room wakes up again.
 	streamsMu sync.Mutex
 	streams   map[string]struct{}
+}
+
+// hashFan returns the public pseudonym of a fan: the first bytes of the HMAC of its UUID with the key of the
+// service. The same fan always gets the same pseudonym (the client compares it with the one the service gives
+// it), but it cannot be turned back into the UUID.
+func (h *hub) hashFan(id string) string {
+	if h == nil || len(h.claveFan) == 0 || id == "" {
+		return ""
+	}
+	m := hmac.New(sha256.New, h.claveFan)
+	m.Write([]byte("grcup/chat/fan/v1:" + id))
+	return hex.EncodeToString(m.Sum(nil))[:12]
 }
 
 func (h *hub) registrar(nombre string) {
@@ -193,7 +224,7 @@ func (s *sala) unsub(ch chan frame) {
 // buffer means a slow client: it is dropped (its connection ends with 1008 and it reconnects with its last id)
 // instead of blocking the room.
 func (s *sala) publicar(it item) {
-	fr := nuevaFrame(it)
+	fr := nuevaFrame(it.publica(s.hub.hashFan))
 	s.mu.Lock()
 	var lentos []chan frame
 	for ch := range s.subs {

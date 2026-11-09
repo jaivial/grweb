@@ -94,6 +94,26 @@ func (s *Svc) fanDeRequest(r *http.Request, cid uuid.UUID) (fanauth.Fan, error) 
 	return f, nil
 }
 
+// fanKeyDeRequest returns the public pseudonym of the fan of a request (empty when there is no session): the
+// client compares it with the fanKey of the frames to know which messages are its own, without ever seeing the
+// UUID of the fans. Anonymous requests skip the verification (no session, nothing to compute).
+func (s *Svc) fanKeyDeRequest(r *http.Request, cid uuid.UUID) string {
+	tok := r.Header.Get("X-GrCup-Fan")
+	if tok == "" {
+		if c, err := r.Cookie(fanauth.Cookie); err == nil {
+			tok = c.Value
+		}
+	}
+	if tok == "" {
+		return ""
+	}
+	f, err := s.fanDeRequest(r, cid)
+	if err != nil {
+		return ""
+	}
+	return s.hub.hashFan(f.ID.String())
+}
+
 // salaDe resolves the slug, the day (today unless a valid ?dia= is given) and checks the connection budget.
 // The WS and SSE handlers share it.
 func (s *Svc) salaDe(w http.ResponseWriter, r *http.Request) (uuid.UUID, string, bool) {
@@ -339,7 +359,7 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 				raw, _ := m.Values["d"].(string)
 				if json.Unmarshal([]byte(raw), &it) == nil && it.T != "" {
 					it.ID = m.ID
-					if !escribir(m.ID, nuevaFrame(it)) {
+					if !escribir(m.ID, nuevaFrame(it.publica(s.hub.hashFan))) {
 						return
 					}
 				}
@@ -358,7 +378,7 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 				raw, _ := m.Values["d"].(string)
 				if json.Unmarshal([]byte(raw), &it) == nil && it.T != "" {
 					it.ID = m.ID
-					if !escribir(m.ID, nuevaFrame(it)) {
+					if !escribir(m.ID, nuevaFrame(it.publica(s.hub.hashFan))) {
 						return
 					}
 				}
@@ -546,7 +566,7 @@ func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut,
 				raw, _ := m.Values["d"].(string)
 				if json.Unmarshal([]byte(raw), &it) == nil && (it.T == "msg" || it.T == "donacion") {
 					it.ID = m.ID
-					msgs = append(msgs, it)
+					msgs = append(msgs, it.publica(s.hub.hashFan))
 				}
 			}
 		}
@@ -659,7 +679,9 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 }
 
 type estadoIn struct {
-	Slug string `path:"slug"`
+	Slug    string `path:"slug"`
+	Session string `cookie:"grcup_fan" maxLength:"4096"`
+	Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
 }
 
 type estadoBody struct {
@@ -667,6 +689,7 @@ type estadoBody struct {
 	SalaActiva   bool   `json:"salaActiva"`
 	ModoLentoSeg int    `json:"modoLentoSeg"`
 	Dia          string `json:"dia"`
+	FanKey       string `json:"fanKey,omitempty"` // pseudonym of the fan of the request (empty if anonymous)
 }
 
 type estadoOut struct {
@@ -702,5 +725,11 @@ func (s *Svc) estado(ctx context.Context, in *estadoIn) (*estadoOut, error) {
 			}
 		}
 	}
-	return &estadoOut{CacheControl: "no-cache", Body: estadoBody{Conectados: total, SalaActiva: cfg.Activo, ModoLentoSeg: cfg.ModoLentoSeg, Dia: dia}}, nil
+	fanKey := ""
+	if tok := tokenFanDe(sesionFan{Session: in.Session, Header: in.Header}); tok != "" {
+		if f, err := s.fanDe(ctx, tok, cid); err == nil {
+			fanKey = s.hub.hashFan(f.ID.String())
+		}
+	}
+	return &estadoOut{CacheControl: "no-cache", Body: estadoBody{Conectados: total, SalaActiva: cfg.Activo, ModoLentoSeg: cfg.ModoLentoSeg, Dia: dia, FanKey: fanKey}}, nil
 }

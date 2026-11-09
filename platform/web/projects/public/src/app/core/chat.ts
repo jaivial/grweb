@@ -21,7 +21,12 @@ export interface ChatFrame {
   id?: string;
   texto?: string;
   alias?: string;
-  fanId?: string;
+  /**
+   * Pseudonym of the fan (HMAC of its UUID with the key of the service): the real UUID never travels to the
+   * clients. The service gives the own pseudonym in the room state (and in the greeting of the socket), so the
+   * client can tell which messages are its own.
+   */
+  fanKey?: string;
   atleta?: boolean;
   ts?: number;
   cid?: string;
@@ -50,6 +55,8 @@ export interface ChatMsg {
   ts: number;
   mio: boolean;
   cid?: string;
+  /** Pseudonym of the author (never the UUID): it is compared with the own one to mark the message. */
+  fanKey?: string;
   estado: 'pendiente' | 'enviado' | 'error';
   error?: string;
   borrado?: boolean;
@@ -106,6 +113,8 @@ export interface ChatEstadoSala {
   salaActiva: boolean;
   modoLentoSeg: number;
   dia: string;
+  /** Pseudonym of the fan of the request (empty when the request is anonymous). */
+  fanKey?: string;
 }
 
 export interface ChatHistorial {
@@ -183,6 +192,11 @@ export class ChatService {
   readonly aviso = signal<string | null>(null);
   /** Seconds left to send in slow mode (countdown). */
   readonly esperaEnvio = signal(0);
+  /**
+   * Pseudonym of the own fan (the service never sends the UUID of a fan): the frames carry this value and the
+   * client compares them to know which messages are its own.
+   */
+  readonly miHash = signal<string>('');
 
   private ws: WebSocket | null = null;
   private es: EventSource | null = null;
@@ -263,6 +277,10 @@ export class ChatService {
       this.conectados.set(r.conectados);
       this.salaActiva.set(r.salaActiva);
       this.modoLentoSeg.set(r.modoLentoSeg);
+      if (r.fanKey) {
+        this.miHash.set(r.fanKey);
+        this.recalcularMios();
+      }
     } catch {
       /* nothing */
     }
@@ -530,6 +548,10 @@ export class ChatService {
         if (typeof f.conectados === 'number') this.conectados.set(f.conectados);
         if (f.dia) this.dia.set(f.dia);
         if (f.motivo === 'conectado') this.estado.set('conectado');
+        if (f.fanKey) {
+          this.miHash.set(f.fanKey);
+          this.recalcularMios();
+        }
         return;
       }
       default:
@@ -549,7 +571,8 @@ export class ChatService {
           atleta: !!f.atleta,
           texto: f.texto ?? '',
           ts,
-          mio: !!f.fanId && f.fanId === this.fan.yo()?.id,
+          mio: !!f.fanKey && f.fanKey === this.miHash(),
+          fanKey: f.fanKey,
           cid: f.cid,
           estado: 'enviado',
         };
@@ -587,6 +610,16 @@ export class ChatService {
   private anadir(nuevos: ChatItem[]): void {
     if (!nuevos.length) return;
     this.items.update((l) => this.dedup([...l, ...nuevos]).slice(-MAX_ITEMS));
+  }
+
+  /**
+   * The own pseudonym arrives with the state of the room: the messages already in the list are marked now
+   * (the history and the state travel in parallel).
+   */
+  private recalcularMios(): void {
+    const hash = this.miHash();
+    if (!hash) return;
+    this.items.update((l) => l.map((i) => (i.kind === 'msg' && i.fanKey ? { ...i, mio: i.fanKey === hash } : i)));
   }
 
   /** Removes duplicated items (same id) keeping the last one. */
