@@ -56,9 +56,10 @@ function StudioLight({ config }: { config: MedalStageConfig }) {
           <directionalLight key={index} position={light.position} intensity={light.intensity} color={light.color} />
         ),
       )}
-      {/* Built from local light-formers (no HDRI download); rendered once per view. */}
+      {/* Built from local light-formers (no HDRI download); rendered once per view. No scene
+          background colour in it: a <color attach="background"> leaves the GL clear colour opaque
+          after the cube render, and the next full-canvas clear then blacked out the page. */}
       <Environment resolution={env.resolution} frames={1}>
-        <color attach="background" args={[env.background]} />
         {env.lightformers.map((former, index) => (
           <Lightformer
             key={index}

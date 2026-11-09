@@ -281,6 +281,10 @@ export const MOVEMENTS_FADE = {
  * medals in `entryOrder`. Then the physics takes over (2° nudge, wind blends in over 0,6 s).
  * - The trigger observes each group's band (not the whole section: the section of block A is
  *   taller than three viewports and would never reach 30 %).
+ * - The PNG placeholder fills the band while the 3D is not ready (QA: no empty band). If it was
+ *   ever on screen, there is no drop: the medals swap to 3D at rest (replaces the spec's 1,2 s
+ *   wait, which would show the PNGs and then make them vanish and fall). The drop plays when
+ *   the models were preloaded (the band starts loading one viewport ahead) — the usual case.
  * - prefers-reduced-motion: no 3D, so no drop (PNGs at rest).
  * - PNG fallback (no WebGL, save-data, ≤ 4 cores): DECISION, no CSS drop. Those are the devices
  *   the fallback protects, and the same PNGs are the loading state of the 3D medals: a CSS drop
@@ -290,7 +294,6 @@ export const MOVEMENTS_FADE = {
  */
 export const MEDAL_ENTRANCE: MedalEntrance = {
   threshold: 0.3,
-  maxWaitMs: 1200,
   staggerMs: 120,
   startGapPx: 8,
   overshoot: { at: 0.62, l: 0.06 },
@@ -335,7 +338,7 @@ export const MEDAL_PHYSICS: MedalPhysics = {
  *   channel does not correlate with the relief: r ≈ 0,03 against the normal map), so it is the
  *   spec's fallback: one flat factor 0,35 (bronze 0,38). Normal map at 30 % (its generated noise
  *   looked hammered), a light clear coat (the spec allows clearcoat 0,5).
- * - Studio: dark warm background (the dark parts of the metal), a top softbox for the bevels, a
+ * - Studio: transparent black between the panels (the dark parts of the metal), a top softbox for the bevels, a
  *   narrow vertical strip in front that sweeps across the faces as they twist, a dim front fill
  *   so the face never goes black, side strips for the edges and the red rim behind.
  * - Neutral tone mapping keeps the gold saturated. The spec says ACES, but with these assets ACES
@@ -349,7 +352,6 @@ export const MEDAL_STAGE: MedalStageConfig = {
   material: { roughness: 0.35, useRoughnessMap: false, normalScale: 0.3, metalness: 1, envMapIntensity: 1.2, clearcoat: 0.5, clearcoatRoughness: 0.18 },
   environment: {
     resolution: 256,
-    background: '#0d0b09',
     lightformers: [
       // Top softbox (bevels, top edges).
       { form: 'rect', intensity: 4, color: '#FFF4E0', position: [0, 5, 5], scale: [12, 2.5, 1], target: [0, 0, 0] },

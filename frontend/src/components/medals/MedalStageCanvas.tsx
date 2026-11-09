@@ -29,15 +29,19 @@ const CLEAR_PRIORITY = 1;
 const FIRST_VIEW = 2;
 
 /**
- * Clears the whole canvas at the start of every frame. The canvas is fixed over the viewport and
- * views only draw their own band, so without it a view that stops drawing (scrolled out, paused)
- * would leave its last image stuck on screen. When the last view pauses it asks for one more
- * (empty) frame before the loop goes on demand.
+ * Clears the whole canvas to TRANSPARENT at the start of every frame. The canvas is fixed over
+ * the viewport and views only draw their own band, so without it a view that stops drawing
+ * (scrolled out, paused) would leave its last image stuck on screen. The clear colour is set
+ * explicitly every time: three keeps the GL clear state of the last scene it rendered (a cube
+ * or PMREM pass may leave it opaque), and an opaque full-canvas clear hides the whole page
+ * under the fixed canvas until the next frame (seconds while shaders compile). When the last
+ * view pauses it asks for one more (empty) frame before the loop goes on demand.
  */
 function FrameClear({ anyActive }: { anyActive: boolean }) {
   const invalidate = useThree((state) => state.invalidate);
   useFrame(({ gl }) => {
     gl.setScissorTest(false);
+    gl.setClearColor(0x000000, 0);
     gl.clear(true, true, false);
   }, CLEAR_PRIORITY);
   useEffect(() => {
@@ -96,6 +100,7 @@ export default function MedalStageCanvas({ slots, config, eventSourceRef, onSlot
   }, []);
 
   const handleCreated = useCallback((state: RootState) => {
+    state.gl.setClearColor(0x000000, 0);
     state.gl.toneMapping = TONE_MAPPING[config.toneMapping];
     state.gl.toneMappingExposure = config.exposure;
     const context = state.gl.getContext();
@@ -113,7 +118,7 @@ export default function MedalStageCanvas({ slots, config, eventSourceRef, onSlot
       // R3F/drei type these refs as mutable; they are only read.
       eventSource={eventSourceRef as MutableRefObject<HTMLElement>}
       eventPrefix="client"
-      style={{ position: 'fixed', inset: 0, zIndex: 30, pointerEvents: 'none', visibility: anyActive ? 'visible' : 'hidden' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 30, pointerEvents: 'none', background: 'transparent', visibility: anyActive ? 'visible' : 'hidden' }}
       resize={{ scroll: false }}
       dpr={config.dpr}
       frameloop={anyActive ? 'always' : 'demand'}

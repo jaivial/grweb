@@ -58,8 +58,6 @@ export interface MedalStageConfig {
   environment: {
     /** Cube map size of the generated environment. */
     resolution: number;
-    /** Colour between the panels (what the dark parts of the metal reflect). */
-    background: string;
     lightformers: readonly MedalLightformer[];
   };
   ambientIntensity: number;
@@ -131,8 +129,6 @@ export type BezierCurve = readonly [number, number, number, number];
 export interface MedalEntrance {
   /** Fraction of the band that must be visible to start. */
   threshold: number;
-  /** If the model is not ready this long after the band became visible, skip the drop (ms). */
-  maxWaitMs: number;
   /** Delay between consecutive medals (`HangingMedalSpec.entryOrder`), ms. */
   staggerMs: number;
   /** Start offset = −(L + H + startGapPx): fully above the anchor line. */

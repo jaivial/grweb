@@ -93,14 +93,12 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
       measure: atom<Measure | null>(null),
       hoveredId: atom<string | null>(null),
       entrance: atom<{ phase: EntrancePhase; startAt: number }>({ phase: entrance && !enteredGroups.has(id) ? 'waiting' : 'off', startAt: 0 }),
-      waitedOut: atom(false),
     }),
     [],
   );
   const [measure, setMeasure] = useAtom(atoms.measure);
   const [hoveredId, setHoveredId] = useAtom(atoms.hoveredId);
   const [entranceState, setEntranceState] = useAtom(atoms.entrance);
-  const [waitedOut, setWaitedOut] = useAtom(atoms.waitedOut);
   const handleHover = useCallback((medalId: string | null) => {
     setHoveredId(medalId);
     onMedalHover?.(medalId);
@@ -167,8 +165,12 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
   const ready = !!stage?.ready.has(id);
   const useCanvas = !!stage && !fallbackReason && !failed && near.isIntersecting && resolved.length > 0;
 
-  // Entrance: starts when the band is `threshold` visible AND the models are ready. If they are
-  // not ready `maxWaitMs` after it showed up, the medals appear at rest (no late drop). Only 3D:
+  // PNG placeholder: fallback, and the loading state of the 3D medals (shown until they are ready).
+  const showStatic = !useCanvas || !ready;
+
+  // Entrance: plays when the band is `threshold` visible AND the models are ready, but only if
+  // the PNG placeholder was never on screen: once the user has seen the medals at rest (models
+  // still loading when the band came into view), they swap to 3D at rest, no late drop. Only 3D:
   // the PNG fallback and reduced motion never drop (see MEDAL_ENTRANCE in the page config).
   const phase: EntrancePhase = useCanvas ? entranceState.phase : 'off';
   useEffect(() => {
@@ -177,20 +179,17 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
       setEntranceState({ phase: 'off', startAt: 0 });
       return;
     }
-    if (!shown.isIntersecting) return;
-    if (ready) {
+    if (showStatic && visible.isIntersecting) {
+      log.info('entrance skipped: placeholder already on screen, medals stay at rest', { id });
       enteredGroups.add(id);
-      setEntranceState({ phase: 'playing', startAt: performance.now() });
+      setEntranceState({ phase: 'off', startAt: 0 });
       return;
     }
-    const timer = setTimeout(() => {
-      log.info('entrance skipped: model not ready in time', { id, maxWaitMs: entrance?.maxWaitMs });
+    if (shown.isIntersecting && ready) {
       enteredGroups.add(id);
-      setWaitedOut(true);
-      setEntranceState({ phase: 'off', startAt: 0 });
-    }, entrance?.maxWaitMs ?? 0);
-    return () => clearTimeout(timer);
-  }, [entranceState.phase, useCanvas, fallbackReason, failed, shown.isIntersecting, ready, id, entrance, setEntranceState, setWaitedOut]);
+      setEntranceState({ phase: 'playing', startAt: performance.now() });
+    }
+  }, [entranceState.phase, useCanvas, fallbackReason, failed, showStatic, visible.isIntersecting, shown.isIntersecting, ready, id, setEntranceState]);
 
   // Playing → off once the last medal has landed (state only; the rigs land on their own).
   const lastDelay = useMemo(() => Math.max(0, ...medals.map((medal, index) => medal.entryOrder ?? index)) * (entrance?.staggerMs ?? 0), [medals, entrance]);
@@ -205,9 +204,6 @@ export function HangingMedals({ id, medals, layouts, physics, collisions = null,
     onEntranceChange?.(phase, { startAt: entranceState.startAt, durationMs: layout.entranceMs });
   }, [phase, entranceState.startAt, layout.entranceMs, onEntranceChange]);
 
-  // PNG placeholder: fallback, or loading at rest. Not while a drop may still come (the band
-  // stays empty until the medals fall in), only once the wait ran out.
-  const showStatic = !useCanvas || (!ready && (phase === 'off' || waitedOut));
   const hovered = useMemo(() => resolved.find((medal) => medal.id === hoveredId), [resolved, hoveredId]);
 
   useEffect(() => {
