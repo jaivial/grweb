@@ -97,14 +97,19 @@ images:
   - { name: grcup/athletes, newTag: TAG }
   - { name: grcup/audit, newTag: TAG }
   - { name: grcup/backoffice, newTag: TAG }
+  - { name: grcup/chat, newTag: TAG }
   - { name: grcup/cms, newTag: TAG }
   - { name: grcup/competition, newTag: TAG }
   - { name: grcup/crm, newTag: TAG }
+  - { name: grcup/donaciones, newTag: TAG }
+  - { name: grcup/fans, newTag: TAG }
   - { name: grcup/gateway, newTag: TAG }
   - { name: grcup/identity, newTag: TAG }
+  - { name: grcup/juegos, newTag: TAG }
   - { name: grcup/live, newTag: TAG }
   - { name: grcup/messaging, newTag: TAG }
   - { name: grcup/openlifter, newTag: TAG }
+  - { name: grcup/patrocinio, newTag: TAG }
   - { name: grcup/raffle, newTag: TAG }
   - { name: grcup/realtime, newTag: TAG }
   - { name: grcup/schedule, newTag: TAG }
