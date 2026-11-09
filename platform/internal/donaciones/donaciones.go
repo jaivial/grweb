@@ -203,8 +203,9 @@ func (s *Svc) caducar(ctx context.Context) {
 
 // confirmarPago marks a donation as paid and enqueues the events that chat and juegos-worker consume (the fanId
 // is an opaque UUID). Idempotent by webhook event and by state. A payment that arrives late (the row was already
-// «caducada») is confirmed too: the money is in, so the donation has to be (PR review I3). Returns the día
-// touched (to invalidate the ranking cache).
+// «caducada») is confirmed too: the money is in, so the donation has to be (PR review I3). The amount paid is
+// checked against the donation's amount: a mismatch is not confirmed, only logged as an alert (PR review M5).
+// Returns the día touched (to invalidate the ranking cache).
 func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ev pagos.Event) (string, error) {
 	var estado, alias, mensaje string
 	var anonimo bool
@@ -218,6 +219,12 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 	}
 	if estado != "pendiente" && estado != "caducada" {
 		return "", nil // ya pagada, reembolsada o en curso: nada que hacer
+	}
+	if ev.Amount > 0 && ev.Amount != importe {
+		// El importe cobrado no es el de la donación: no se confirma (sería acreditar un donativo por otra cantidad).
+		s.a.Log.Error("el importe cobrado no coincide con el de la donación", "donacion", id, "importe", importe, "cobrado", ev.Amount, "estado", estado)
+		_, _ = tx.Exec(ctx, `UPDATE donaciones SET motivo = $2 WHERE id = $1`, id, "Importe cobrado distinto ("+pagos.Euros(ev.Amount)+")")
+		return "", nil
 	}
 	if _, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'pagada', payment_id = $2, pagada_at = now(), motivo = '' WHERE id = $1`, id, ev.PaymentID); err != nil {
 		return "", err
