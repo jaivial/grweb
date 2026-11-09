@@ -514,6 +514,47 @@ func userAgentDe(ctx context.Context) string {
 	return s
 }
 
+// ---- the size of the public form ----
+
+// limitaFotoAlta reads the body of the public form to answer with the documented error when the
+// photo does not fit: without it, huma answers 413 with its English text («request body is too
+// large limit=…»). The body is read here (bounded by the same limit) and handed over to the handler.
+func limitaFotoAlta(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.Body == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		lim, codigo, detalle := int64(0), "", ""
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/alta-atleta"):
+			lim, codigo, detalle = maxFoto, "FOTO_DEMASIADO_GRANDE", "La foto supera los 8 MB. Usa una foto más pequeña."
+		case strings.HasSuffix(r.URL.Path, "/autorizacion"):
+			lim, codigo, detalle = maxFotoAlta, "ARCHIVO_GRANDE", "El archivo supera los 8 MB."
+		default:
+			next.ServeHTTP(w, r)
+			return
+		}
+		body, err := io.ReadAll(io.LimitReader(r.Body, lim+1))
+		if err != nil {
+			var mb *http.MaxBytesError
+			if errors.As(err, &mb) {
+				problem.Write(w, problem.BadRequest(codigo, detalle))
+				return
+			}
+			problem.Write(w, problem.BadRequest("PETICION_INVALIDA", "No hemos podido leer el formulario. Inténtalo de nuevo."))
+			return
+		}
+		if int64(len(body)) > lim {
+			problem.Write(w, problem.BadRequest(codigo, detalle))
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
+		next.ServeHTTP(w, r)
+	})
+}
+
 // ---- routes that Go's router cannot tell apart ----
 
 // reescribeHistorial keeps the public URL of the history of an athlete (/atletas/{id}/historial).

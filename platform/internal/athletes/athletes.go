@@ -98,9 +98,9 @@ func Service() app.Service {
 			return 0
 		},
 		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "enlace-area": s.cmdEnlaceArea, "etl-mysql": s.etlMySQL},
-		// The user agent of the request (the proof of the consents of the public form) and the
-		// rewrite of the history of an athlete (see «reescribeHistorial»).
-		Middlewares: []httpx.Middleware{conUserAgent, reescribeHistorial},
+		// The user agent of the request (the proof of the consents of the public form), the rewrite of
+		// the history of an athlete (see «reescribeHistorial») and the size of the public form.
+		Middlewares: []httpx.Middleware{conUserAgent, reescribeHistorial, limitaFotoAlta},
 	}
 }
 

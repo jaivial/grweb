@@ -54,7 +54,12 @@ type ItemSolicitud struct {
 	Version       int        `json:"version"`
 }
 
-// Contadores are the counts of the tabs of the panel.
+// Contadores are the counts of the tabs of the panel. Every counter is a count of requests and they
+// do not overlap: «pendiente» and «revision» are the state of the request, «aprobada» and «rechazada»
+// the closed ones and «todas» the sum of the four.
+//
+// «menor» is NOT a state: it counts the requests of minors that are still pending review (⊂ pendiente ∪
+// revision), so it must not be added to «pendiente» + «revision» (the minors are already inside).
 type Contadores struct {
 	Todas     int `json:"todas"`
 	Pendiente int `json:"pendiente"`
@@ -79,9 +84,11 @@ type ListaSolicitud struct {
 	KPIs       KPIsSolicitud   `json:"kpis"`
 }
 
-// Diferencia is one field of the comparison between the declared data and the athlete.
+// Diferencia is one field of the comparison between the declared data and the athlete: «clave» is
+// the technical name of the field (the backoffice keys on it) and «campo» its label.
 type Diferencia struct {
-	Campo  string `json:"campo"`
+	Clave  string `json:"clave" doc:"Clave técnica del campo (nombre, apellidos, email…)"`
+	Campo  string `json:"campo" doc:"Etiqueta del campo en el panel"`
 	Actual string `json:"actual"`
 	Nuevo  string `json:"nuevo"`
 	Tipo   string `json:"tipo" enum:"igual,distinto,nuevo"`
@@ -175,7 +182,7 @@ type AprobarOut struct {
 type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
-	Match  string    `query:"match" enum:"licencia,email,nombre,ninguna" default:""`
+	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
 	Menor  bool      `query:"menor"`
 	Q      string    `query:"q" maxLength:"80"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
@@ -418,9 +425,12 @@ func (s *Svc) listaSolicitudes(ctx context.Context, in *FiltrosLista) (*ListaSol
 	where, args := s.filtrosSolicitud(in.CID, in.Estado, in.Match, in.Menor, in.Q)
 	// The counters ignore the state filter (they are the tabs of the panel).
 	base, argsBase := s.filtrosSolicitud(in.CID, "", in.Match, in.Menor, in.Q)
+	// The counters of the tabs: each state is counted apart (a minor is inside «pendiente» or
+	// «revision», not in a group of its own) and «menor» counts the minors still pending review.
 	cont := Contadores{}
 	if err := s.a.DB.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE estado='pendiente'), count(*) FILTER (WHERE estado='revision'),
-		count(*) FILTER (WHERE es_menor), count(*) FILTER (WHERE estado='aprobada'), count(*) FILTER (WHERE estado='rechazada')
+		count(*) FILTER (WHERE es_menor AND estado IN ('pendiente','revision')),
+		count(*) FILTER (WHERE estado='aprobada'), count(*) FILTER (WHERE estado='rechazada')
 		FROM solicitudes_atleta WHERE `+base, argsBase...).Scan(&cont.Todas, &cont.Pendiente, &cont.Revision, &cont.Menor, &cont.Aprobada, &cont.Rechazada); err != nil {
 		return nil, err
 	}
@@ -467,7 +477,9 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor bool, 
 	case "rechazada":
 		where = append(where, "estado = 'rechazada'")
 	case "menor":
-		where = append(where, "es_menor")
+		// The tab «Menor · sin autorización»: the minors that are still pending review (⊂ pendiente ∪
+		// revision), the same ones the counter «menor» counts.
+		where = append(where, "es_menor AND estado IN ('pendiente','revision')")
 	}
 	switch match {
 	case "licencia":
@@ -476,10 +488,13 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor bool, 
 		where = append(where, "match_tipo = 'email'")
 	case "nombre":
 		where = append(where, "match_tipo = 'nombre'")
+	case "manual":
+		where = append(where, "match_tipo = 'manual'")
 	case "ninguna":
 		where = append(where, "match_atleta_id IS NULL")
 	}
 	if menor {
+		// A free filter: the minors of any state.
 		where = append(where, "es_menor")
 	}
 	if q = strings.TrimSpace(q); q != "" {
@@ -555,11 +570,12 @@ func (s *Svc) enlaceDe(a row) AtletaEnlace {
 	return e
 }
 
-// diferencias compares the declared data with the athlete (17 fields).
+// diferencias compares the declared data with the athlete (17 fields). «clave» is the technical name
+// of the field and «campo» its label.
 func diferencias(a AtletaEnlace, sol solicitud) []Diferencia {
 	out := []Diferencia{}
-	add := func(campo, actual, nuevo string) {
-		d := Diferencia{Campo: campo, Actual: actual, Nuevo: nuevo, Tipo: "igual"}
+	add := func(clave, campo, actual, nuevo string) {
+		d := Diferencia{Clave: clave, Campo: campo, Actual: actual, Nuevo: nuevo, Tipo: "igual"}
 		switch {
 		case actual == nuevo:
 			d.Tipo = "igual"
@@ -570,23 +586,23 @@ func diferencias(a AtletaEnlace, sol solicitud) []Diferencia {
 		}
 		out = append(out, d)
 	}
-	add("Nombre", a.Nombre, sol.Nombre)
-	add("Apellidos", a.Apellidos, sol.Apellidos)
-	add("Email", a.Email, sol.Email)
-	add("Teléfono", a.Telefono, sol.Telefono)
-	add("Sexo", a.Sexo, sol.Sexo)
-	add("Fecha de nacimiento", a.FechaNacimiento, fechaTexto(sol.FechaNacimiento))
-	add("Licencia AEP", a.Licencia, sol.Licencia)
-	add("Club", a.Club, sol.Club)
-	add("Ciudad", a.Ciudad, sol.Ciudad)
-	add("Entrenador/a", a.Entrenador, sol.Entrenador)
-	add("Frase", a.Frase, sol.Frase)
-	add("Sobre ti", a.Bio, sol.Bio)
-	add("Instagram", a.Instagram, sol.Instagram)
-	add("Historial", a.Historial, sol.Historial)
-	add("Marca sentadilla", marca(a.MarcaSQ), marca(sol.MarcaSQ))
-	add("Marca banca", marca(a.MarcaBP), marca(sol.MarcaBP))
-	add("Marca peso muerto", marca(a.MarcaDL), marca(sol.MarcaDL))
+	add("nombre", "Nombre", a.Nombre, sol.Nombre)
+	add("apellidos", "Apellidos", a.Apellidos, sol.Apellidos)
+	add("email", "Email", a.Email, sol.Email)
+	add("telefono", "Teléfono", a.Telefono, sol.Telefono)
+	add("sexo", "Sexo", a.Sexo, sol.Sexo)
+	add("fechaNacimiento", "Fecha de nacimiento", a.FechaNacimiento, fechaTexto(sol.FechaNacimiento))
+	add("licencia", "Licencia AEP", a.Licencia, sol.Licencia)
+	add("club", "Club", a.Club, sol.Club)
+	add("ciudad", "Ciudad", a.Ciudad, sol.Ciudad)
+	add("entrenador", "Entrenador/a", a.Entrenador, sol.Entrenador)
+	add("frase", "Frase", a.Frase, sol.Frase)
+	add("bio", "Sobre ti", a.Bio, sol.Bio)
+	add("instagram", "Instagram", a.Instagram, sol.Instagram)
+	add("historial", "Historial", a.Historial, sol.Historial)
+	add("marcaSQ", "Marca sentadilla", marca(a.MarcaSQ), marca(sol.MarcaSQ))
+	add("marcaBP", "Marca banca", marca(a.MarcaBP), marca(sol.MarcaBP))
+	add("marcaDL", "Marca peso muerto", marca(a.MarcaDL), marca(sol.MarcaDL))
 	return out
 }
 
@@ -690,6 +706,7 @@ func (s *Svc) enlazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm string
 			return err
 		}
 		var destino *uuid.UUID
+		tipo := ""
 		if !nuevo {
 			if atletaID == nil {
 				return problem.Unprocessable("ATLETA_OBLIGATORIO", "Elige un atleta o marca que se creará uno nuevo.")
@@ -702,9 +719,10 @@ func (s *Svc) enlazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm string
 				return problem.NotFound("Ese atleta no está en esta competición.")
 			}
 			destino = atletaID
+			tipo = "manual" // the reviewer chose the athlete by hand
 		}
-		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET match_atleta_id = $3, version = version + 1, updated_at = now()
-			WHERE competition_id = $1 AND id = $2`, cid, id, destino); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET match_atleta_id = $3, match_tipo = $4, version = version + 1, updated_at = now()
+			WHERE competition_id = $1 AND id = $2`, cid, id, destino, tipo); err != nil {
 			return err
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
