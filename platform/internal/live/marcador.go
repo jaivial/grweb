@@ -25,6 +25,7 @@ type MarcadorIntento struct {
 type MarcadorAtleta struct {
 	AtletaID         uuid.UUID                    `json:"atletaId"`
 	NombrePublico    string                       `json:"nombrePublico" doc:"Nombre si el perfil es público; si no «Atleta · −83 kg · lote 12»"`
+	FotoURL          string                       `json:"fotoUrl,omitempty" doc:"Foto pública: solo con perfil público e imagen consentida"`
 	Sexo             string                       `json:"sexo"`
 	Categoria        string                       `json:"categoria"`
 	FlightID         uuid.UUID                    `json:"flightId"`
@@ -46,6 +47,14 @@ type Marcador struct {
 	FlightEnCurso        string           `json:"flightEnCurso" doc:"Id del flight que está en la plataforma («» = ninguno)"`
 	Atletas              []MarcadorAtleta `json:"atletas"`
 	CategoriasPublicadas []string         `json:"categoriasPublicadas"`
+}
+
+// fotoPublica is the photo only for a public profile (athletes already sends it only with image consent).
+func fotoPublica(a *atleta) string {
+	if !a.Publico {
+		return ""
+	}
+	return a.FotoURL
 }
 
 // nombrePublico applies the privacy rule of /en-directo: the name only with a public profile, otherwise
@@ -197,7 +206,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 			}
 			k := clave(a.Sexo, a.Categoria)
 			ma := MarcadorAtleta{
-				AtletaID: a.ID, NombrePublico: nombrePublico(a), Sexo: a.Sexo, Categoria: a.Categoria,
+				AtletaID: a.ID, NombrePublico: nombrePublico(a), FotoURL: fotoPublica(a), Sexo: a.Sexo, Categoria: a.Categoria,
 				FlightID: f.ID, FlightEnCurso: e.FlightID != nil && *e.FlightID == f.ID,
 				Intentos: map[string][]MarcadorIntento{}, Mejor: map[string]*float64{},
 				PuestoMovimiento: map[string]int{}, Blanqueo: map[string]bool{},

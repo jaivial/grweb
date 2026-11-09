@@ -456,6 +456,8 @@ type AtletaPlan struct {
 	Licencia     string   `json:"licencia"`
 	// Public profile only: the sentence the speaker can read («Cuarta competición · objetivo 360 kg»).
 	Frase string `json:"frase,omitempty"`
+	// Public profile with image consent only (the same rule as the public pages): the avatar of the fantasy pitch.
+	FotoURL string `json:"fotoUrl,omitempty" doc:"Solo con perfil público e imagen consentida"`
 }
 
 // registerInternal exposes the confirmed athletes to other services and lets schedule write the published times.
@@ -479,7 +481,7 @@ func (s *Svc) registerInternal() {
 					DivisionNombre: DivisionNombre(r.Division), Club: r.Club, TotalPrevisto: r.totalPrevisto(), Seguidores: r.Seguidores,
 					PesoCorporal: r.PesoCorporal, Primeros: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, RackSQ: r.RackSQ, RackBP: r.RackBP, Licencia: r.Licencia}
 				if a.Publico {
-					a.Slug, a.Frase = r.Slug, r.Frase
+					a.Slug, a.Frase, a.FotoURL = r.Slug, r.Frase, r.fotoPublica(d)
 				}
 				o.Body = append(o.Body, a)
 			}
