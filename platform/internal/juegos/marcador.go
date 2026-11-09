@@ -21,6 +21,7 @@ type MarcadorIntento struct {
 type MarcadorAtleta struct {
 	AtletaID         uuid.UUID                    `json:"atletaId"`
 	NombrePublico    string                       `json:"nombrePublico"`
+	FotoURL          string                       `json:"fotoUrl,omitempty"`
 	Sexo             string                       `json:"sexo"`
 	Categoria        string                       `json:"categoria"`
 	FlightID         uuid.UUID                    `json:"flightId"`

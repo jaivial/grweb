@@ -18,14 +18,16 @@ import (
 
 // atletaMercado is one row of the fantasy market (public view).
 type atletaMercado struct {
-	AtletaID   uuid.UUID `json:"atletaId"`
-	Nombre     string    `json:"nombre"`
-	Sexo       string    `json:"sexo"`
-	Categoria  string    `json:"categoria"`
-	Clausula   int64     `json:"clausula"`
-	DuenoAlias string    `json:"duenoAlias,omitempty"`
-	Titular    bool      `json:"titular"`
-	Protegido  bool      `json:"protegido"`
+	AtletaID uuid.UUID `json:"atletaId"`
+	Nombre   string    `json:"nombre"`
+	// FotoURL is the public photo (public profile with image consent, from the live scoreboard); empty otherwise.
+	FotoURL    string `json:"fotoUrl,omitempty"`
+	Sexo       string `json:"sexo"`
+	Categoria  string `json:"categoria"`
+	Clausula   int64  `json:"clausula"`
+	DuenoAlias string `json:"duenoAlias,omitempty"`
+	Titular    bool   `json:"titular"`
+	Protegido  bool   `json:"protegido"`
 	// ProtegidoHasta is set while the protection after the last signing lasts (the «Protegido · mm:ss» countdown).
 	ProtegidoHasta *time.Time `json:"protegidoHasta,omitempty"`
 	Libre          bool       `json:"libre"`
@@ -40,9 +42,13 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, fanI
 		return nil, err
 	}
 	enCurso := map[uuid.UUID]bool{}
+	fotos := map[uuid.UUID]string{}
 	for i := range m.Atletas {
 		if m.Atletas[i].FlightEnCurso {
 			enCurso[m.Atletas[i].AtletaID] = true
+		}
+		if m.Atletas[i].FotoURL != "" {
+			fotos[m.Atletas[i].AtletaID] = m.Atletas[i].FotoURL
 		}
 	}
 	// COALESCE: `protegido_hasta > now()` is NULL when the athlete was never signed (NULL > now() = NULL) and a
@@ -63,6 +69,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, fanI
 		a.Libre = dueno == nil
 		a.EsMio = dueno != nil && *dueno == fanID
 		a.FlightEnCurso = enCurso[a.AtletaID]
+		a.FotoURL = fotos[a.AtletaID]
 		out = append(out, a)
 	}
 	return out, rows.Err()
