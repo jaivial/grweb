@@ -124,7 +124,7 @@ export const AbsoluteWinnerCard = memo(function AbsoluteWinnerCard({ entry, inde
           <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl" style={haloStyle} data-ui="absolute-winner-halo" />
         </div>
 
-        <div className={`relative flex flex-1 flex-col items-center px-4 pb-6 text-center min-[1280px]:px-10 min-[1280px]:pb-10`} data-ui="absolute-winner-content">
+        <div className={`relative flex flex-1 flex-col items-center px-[16px] pb-[24px] text-center min-[1280px]:px-[40px] min-[1280px]:pb-[40px]`} data-ui="absolute-winner-content">
           <p
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] min-[1280px]:text-[11px] min-[1280px]:tracking-[0.15em]`}
             style={{ borderColor: `${MEDAL_GOLD_COLOR}66`, color: MEDAL_GOLD_COLOR }}
@@ -135,22 +135,24 @@ export const AbsoluteWinnerCard = memo(function AbsoluteWinnerCard({ entry, inde
           </p>
           <h3
             id={nameId}
-            className={`mt-3 font-contrail text-[30px] uppercase leading-tight min-[1280px]:mt-4 min-[1280px]:text-5xl ${decided ? 'text-white' : 'text-white/50'}`}
+            className={`mt-3 font-contrail text-[30px] uppercase leading-tight min-[1280px]:mt-4 min-[1280px]:text-[48px] ${decided ? 'text-white' : 'text-white/50'}`}
             data-ui="absolute-winner-name"
           >
             {decided ? entry.name : COPY.namePending}
           </h3>
           <p className={`mt-1 text-sm text-white/60 min-[1280px]:mt-2 min-[1280px]:text-base`} data-ui="absolute-winner-detail">{detail}</p>
 
-          <dl className={`mt-5 grid w-full grid-cols-3 gap-2 min-[1280px]:mt-6 min-[1280px]:gap-3`} data-ui="absolute-winner-stats">
+          {/* Pixel sizes (not rem): the site scales the root font (14 px < 640, 18 px ≥ 1536) and the
+              figures must keep the Figma sizes and fit on one line in the 588 card. */}
+          <dl className={`mt-5 grid w-full grid-cols-3 gap-[8px] min-[1280px]:mt-6 min-[1280px]:gap-[12px]`} data-ui="absolute-winner-stats">
             {stats.map((stat) => (
               <div
                 key={stat.id}
-                className={`rounded-2xl border px-2 py-3 min-[1280px]:px-4 min-[1280px]:py-4 min-[1280px]:text-left`}
+                className={`min-w-0 rounded-2xl border px-[8px] py-[12px] min-[1280px]:px-[16px] min-[1280px]:py-[16px] min-[1280px]:text-left`}
                 style={stat.highlight ? { borderColor: `${MEDAL_GOLD_COLOR}80`, background: 'rgba(212, 175, 55, 0.06)' } : { borderColor: 'transparent', background: 'rgba(255, 255, 255, 0.05)' }}
                 data-ui={`absolute-winner-stat-${stat.id}`}
               >
-                <dt className={`text-[10px] uppercase tracking-[0.1em] text-white/60 min-[1280px]:text-xs`} data-ui={`absolute-winner-stat-${stat.id}-label`}>
+                <dt className={`whitespace-nowrap text-[10px] uppercase tracking-[0.1em] text-white/60 min-[1280px]:text-[12px] min-[1280px]:tracking-[0.08em]`} data-ui={`absolute-winner-stat-${stat.id}-label`}>
                   <span className={`min-[1280px]:hidden`} data-ui={`absolute-winner-stat-${stat.id}-label-short`}>{stat.shortLabel}</span>
                   <span className={`hidden min-[1280px]:inline`} data-ui={`absolute-winner-stat-${stat.id}-label-full`}>{stat.label}</span>
                 </dt>
@@ -160,10 +162,10 @@ export const AbsoluteWinnerCard = memo(function AbsoluteWinnerCard({ entry, inde
                     <PendingValue stat={stat} />
                   ) : (
                     <span className="font-contrail leading-none" data-ui={`absolute-winner-stat-${stat.id}-figure`}>
-                      <span className={`text-2xl min-[1280px]:text-4xl`} style={{ color: stat.highlight ? MEDAL_GOLD_COLOR : '#ffffff' }} data-ui={`absolute-winner-stat-${stat.id}-number`}>
+                      <span className={`text-[24px] min-[1280px]:text-[36px]`} style={{ color: stat.highlight ? MEDAL_GOLD_COLOR : '#ffffff' }} data-ui={`absolute-winner-stat-${stat.id}-number`}>
                         {stat.value}
                       </span>
-                      <span className={`ml-1 hidden font-sans text-sm font-semibold text-white/50 min-[1280px]:inline`} data-ui={`absolute-winner-stat-${stat.id}-unit`}>{stat.unit}</span>
+                      <span className={`ml-1 hidden font-sans text-[14px] font-semibold text-white/50 min-[1280px]:inline`} data-ui={`absolute-winner-stat-${stat.id}-unit`}>{stat.unit}</span>
                     </span>
                   )}
                 </dd>
