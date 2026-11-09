@@ -48,6 +48,7 @@ export const ini = (n: string) => n.split(' ').filter(Boolean).slice(0, 2).map((
 export function veredicto(votos: string, r: ResultadoIntento): string {
   if (r === 'renuncia') return 'Renuncia';
   if (r === 'pendiente') return 'Sin juzgar';
+  if (!votos) return r === 'valido' ? 'Válido' : 'Nulo'; // decided without lights (OpenLifter desk)
   const b = [...votos].filter((x) => x === 'B').length;
   return `${r === 'valido' ? 'Válido' : 'Nulo'} (${b}-${votos.length - b})`;
 }

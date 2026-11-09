@@ -139,7 +139,9 @@ func (s *Svc) syncOpenLifter(ctx context.Context, cid uuid.UUID, b SyncOL) (Resu
 				return err
 			}
 		}
-		if f == nil || (e.Fase == "en_directo" && eqID(e.FlightID, &f.ID) && e.Movimiento == b.Estado.Movimiento) {
+		// Nothing to do when the live already shows that flight and lift, or the organiser ended the live on it
+		// (a desk left open after the last flight must not reopen it).
+		if f == nil || (eqID(e.FlightID, &f.ID) && (e.Fase == "finalizado" || (e.Fase == "en_directo" && e.Movimiento == b.Estado.Movimiento))) {
 			return nil
 		}
 		// The desk moved to another flight or lift: the live follows it (same events as Directo › estado).
