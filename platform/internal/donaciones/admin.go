@@ -272,6 +272,11 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
+			if estado == "reembolsando" {
+				// Un intento anterior se quedó a medias (caída): se reanuda con la misma clave de idempotencia, que
+				// devuelve el mismo reembolso en la pasarela.
+				s.a.Log.Warn("reembolso de donación reanudado", "donacion", in.ID)
+			}
 			prov := s.proveedor(ctx, in.CID)
 			if pas == "simulado" && s.sim != nil {
 				prov = s.sim
