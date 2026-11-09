@@ -27,6 +27,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/pagos"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
@@ -56,12 +57,21 @@ type Svc struct {
 	a            *app.App
 	comp         *svcclient.Client
 	cms          *svcclient.Client
+	identity     *svcclient.Client
 	comps        *compref.Resolver
 	cache        *cache.Cache
 	qrKey        []byte
 	webURL       string
+	boURL        string
 	cookieSecure bool
 	sim          *pagos.Simulado
+	// Public «alta de atleta»: keys of the antibot challenge, of the time token and of the
+	// signed URLs of the private photos (all derived from the internal secret).
+	altchaKey string
+	tiempoKey []byte
+	firmaKey  []byte
+	// Volume of the service where the private files of the requests are kept.
+	fotoDir string
 }
 
 // Service returns the athletes service definition.
@@ -78,10 +88,19 @@ func Service() app.Service {
 				return maxImport
 			case r.URL.Path == "/api/area-atleta/foto" || strings.HasSuffix(r.URL.Path, "/foto"):
 				return maxFoto
+			// The public form of the «alta de atleta» (photo of 8 MB + the data of the form).
+			case strings.HasSuffix(r.URL.Path, "/alta-atleta"):
+				return maxFoto
+			// The signed authorisation of a minor (private file).
+			case strings.HasSuffix(r.URL.Path, "/autorizacion"):
+				return maxFoto
 			}
 			return 0
 		},
 		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "enlace-area": s.cmdEnlaceArea, "etl-mysql": s.etlMySQL},
+		// The user agent of the request (the proof of the consents of the public form) and the
+		// rewrite of the history of an athlete (see «reescribeHistorial»).
+		Middlewares: []httpx.Middleware{conUserAgent, reescribeHistorial},
 	}
 }
 
@@ -89,13 +108,26 @@ func (s *Svc) init(a *app.App) {
 	s.a = a
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "athletes", "competition", a.Cfg.InternalToken)
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "athletes", "cms", a.Cfg.InternalToken)
+	s.identity = svcclient.New(config.Str("UPSTREAM_IDENTITY", "http://identity:8080"), "athletes", "identity", a.Cfg.InternalToken)
 	s.comps = compref.New(s.comp, a.Log)
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "athletes", "")}
 	// The accreditation QR is signed with a key derived from the internal secret (never leaves the service).
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/athletes/qr/v1"))
 	s.qrKey = m.Sum(nil)
+	// Keys of the public form: the antibot challenge, the time token and the signed photo URLs.
+	ma := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
+	ma.Write([]byte("grcup/athletes/altcha/v1"))
+	s.altchaKey = hex.EncodeToString(ma.Sum(nil))
+	mt := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
+	mt.Write([]byte("grcup/athletes/tiempo/v1"))
+	s.tiempoKey = mt.Sum(nil)
+	mf := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
+	mf.Write([]byte("grcup/athletes/foto/v1"))
+	s.firmaKey = mf.Sum(nil)
 	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
+	s.boURL = strings.TrimRight(config.Str("BACKOFFICE_URL", "http://localhost:4201"), "/")
+	s.fotoDir = config.Str("ATLETAS_DIR", "/data/atletas")
 	s.cookieSecure = config.Bool("COOKIE_SECURE", a.Cfg.Env != "dev")
 }
 
@@ -109,8 +141,11 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.initPagos()
 	s.registerInscripcion()
 	s.registerInscripcionAdmin()
+	s.registerAltaAtleta()
+	s.registerAltaAtletaAdmin()
 	a.Go(s.expirador)
 	a.Go(s.avisosSalida)
+	a.Go(s.purgaSolicitudes)
 	return nil
 }
 

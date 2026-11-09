@@ -26,7 +26,12 @@ SERVICES = {
                 # /tmp holds multipart spool files of uploads (the root filesystem is read-only).
                 volumes=[("medios", "/var/lib/grcup-qa/medios", "/data/medios")], tmp=[("tmp", "64Mi", "/tmp")],
                 jobs=[("cms-seed", ["seed-grcup"], [])]),
-    "athletes": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), tmp=[("tmp", "64Mi", "/tmp")],  # multipart spool (AEP list, photos)
+    "athletes": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"),
+                     # The private files of the public form («alta de atleta»): the processed photo of a request
+                     # (0600) until it is approved and the published copy when the competition has no CDN.
+                     env={"ATLETAS_DIR": "/data/atletas"},
+                     volumes=[("atletas", "/var/lib/grcup-qa/atletas", "/data/atletas")],
+                     tmp=[("tmp", "64Mi", "/tmp")],  # multipart spool (AEP list, photos)
                      jobs=[("athletes-seed", ["seed-grcup"], [])]),
     "schedule": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("schedule-seed", ["seed-grcup"], [])]),
     "crm": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("crm-seed", ["seed-grcup"], [])]),

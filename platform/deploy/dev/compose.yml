@@ -109,6 +109,19 @@ services:
     ports:
       - "127.0.0.1:18300:8080"
 
+  # The athletes of the competition (the public form of «alta de atleta» and the private files it needs).
+  athletes:
+    <<: *svc
+    build: { context: ../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+      # The private files of the requests (the processed photo of a request, private until it is approved)
+      # and the published copy when the competition has no CDN.
+      ATLETAS_DIR: /data/atletas
+    volumes:
+      - atletas-data:/data/atletas
+
   # WhatsApp (evo-weai). The image comes from its own repository (the release, not the sources):
   #   docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.14 \
   #     --secret id=evo_weai_gh_token,env=EVO_WEAI_GH_TOKEN -t grcup/evo-weai:v0.2.14 ~/evo-weai
@@ -137,3 +150,4 @@ services:
 volumes:
   pgdata:
   weai-data:
+  atletas-data:

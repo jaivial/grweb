@@ -9,6 +9,9 @@
 #     from the Secret grcup-weai (deploy/scripts/secretos.sh).
 #   · no Ingress and no Service of its own outside the cluster: only messaging reaches it (allow-evo-weai).
 #
+# Its tier is «external» (not «service»): it gets neither the platform config/SMTP patches nor the ingress rules
+# opened to every platform service.
+#
 # The image is built outside the deploy script (another repository and a private release):
 #   docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.14 \
 #     --secret id=evo_weai_gh_token,env=EVO_WEAI_GH_TOKEN -t grcup/evo-weai:v0.2.14 ~/evo-weai
@@ -17,7 +20,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: evo-weai
-  labels: { app.kubernetes.io/name: evo-weai, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service }
+  labels: { app.kubernetes.io/name: evo-weai, app.kubernetes.io/part-of: grcup, grcup.dev/tier: external }
 spec:
   replicas: 1
   revisionHistoryLimit: 3
@@ -28,7 +31,7 @@ spec:
     type: Recreate
   template:
     metadata:
-      labels: { app.kubernetes.io/name: evo-weai, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: evo-weai }
+      labels: { app.kubernetes.io/name: evo-weai, app.kubernetes.io/part-of: grcup, grcup.dev/tier: external, grcup.dev/servicio: evo-weai }
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30

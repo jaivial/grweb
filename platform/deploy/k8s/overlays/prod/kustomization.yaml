@@ -27,6 +27,12 @@ patches:
       - op: replace
         path: /spec/template/spec/volumes/0/hostPath/path
         value: /var/lib/grcup/medios
+  # The private files of the public form of athletes (the processed photo of a request).
+  - target: { kind: Deployment, name: athletes }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/atletas
   # The WhatsApp service (evo-weai): its state (the SQLite database) on the node and the public webhook.
   - target: { kind: Deployment, name: evo-weai }
     patch: |-

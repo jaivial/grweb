@@ -539,7 +539,10 @@ func (s *Svc) registerAdmin() {
 		})
 
 	type histOut struct{ Body []HistorialItem }
-	huma.Register(api, huma.Operation{OperationID: "atletas-historial", Method: http.MethodGet, Path: base + "/{id}/historial", Summary: "Historial de cambios del atleta", Tags: tagAdmin, Security: bearer},
+	// The route is /atletas/historial/{id} (the public URL /atletas/{id}/historial is kept by the
+	// middleware «reescribeHistorial»): Go's router cannot tell apart /atletas/{id}/historial and
+	// /atletas/solicitudes/{id}, the requests of the public form.
+	huma.Register(api, huma.Operation{OperationID: "atletas-historial", Method: http.MethodGet, Path: base + "/historial/{id}", Summary: "Historial de cambios del atleta", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *idIn) (*histOut, error) {
 			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
 				return nil, err

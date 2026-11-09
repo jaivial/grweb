@@ -43,6 +43,19 @@ spec:
           resources:
             requests: { cpu: 20m, memory: 32Mi }
             limits: { cpu: 500m, memory: 128Mi }
+        - name: permisos
+          image: busybox:1.37
+          command: ["sh", "-c", "chown -R 65532:65532 /data/atletas"]
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL], add: [CHOWN, DAC_OVERRIDE, FOWNER] }
+          volumeMounts:
+            - { name: atletas, mountPath: /data/atletas }
+          resources:
+            requests: { cpu: 10m, memory: 8Mi }
+            limits: { cpu: 100m, memory: 32Mi }
       containers:
         - name: athletes
           image: grcup/athletes
@@ -60,6 +73,7 @@ spec:
               valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
             - name: INTERNAL_TOKEN_SECRET
               valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
+            - { name: ATLETAS_DIR, value: "/data/atletas" }
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 5
@@ -77,8 +91,11 @@ spec:
             requests: { cpu: 30m, memory: 64Mi }
             limits: { cpu: 500m, memory: 256Mi }
           volumeMounts:
+            - { name: atletas, mountPath: /data/atletas }
             - { name: tmp, mountPath: /tmp }
       volumes:
+        - name: atletas
+          hostPath: { path: /var/lib/grcup-qa/atletas, type: DirectoryOrCreate }
         - name: tmp
           emptyDir: { sizeLimit: 64Mi }
 ---
