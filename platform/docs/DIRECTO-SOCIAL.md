@@ -167,7 +167,7 @@ Con 10 mensajes hay **dos** hitos: el del 5 (+100 / +10k) y el del 10 (+100 + 50
 
 `GET /internal/competiciones/{cid}/marcador?dia=YYYY-MM-DD` (token de servicio, solo para `juegos`) → atletas de los flights de ese día:
 `{fase, flightEnCurso, atletas: [{atletaId, nombrePublico, sexo, categoria, flightId, flightEnCurso: bool, intentos: {sq:[{n,peso,resultado}],bp:[…],dl:[…]}, mejor:{sq,bp,dl}, total, gl, puestoCategoria, puestoGL, puestoMovimiento:{sq,bp,dl}, blanqueo:{sq,bp,dl}, terminado: bool}], categoriasPublicadas: […]}`.
-`nombrePublico` sigue la regla de privacidad de `/en-directo` (nombre si el perfil es público y, si no, «Atleta · −83 kg · lote 12»). Reutiliza el cálculo existente (`datos.go` y `resultados.go`). Hay que añadir `juegos` a `LLAMADAS["live"]` en `generar.py`.
+`fotoUrl` solo aparece para atletas con perfil público e imagen consentida (la da `athletes` en su lista interna) y `juegos` la pasa a las vistas de fantasy (mercado, mi equipo y ficha) para los avatares de la pista. `nombrePublico` sigue la regla de privacidad de `/en-directo` (nombre si el perfil es público y, si no, «Atleta · −83 kg · lote 12»). Reutiliza el cálculo existente (`datos.go` y `resultados.go`). Hay que añadir `juegos` a `LLAMADAS["live"]` en `generar.py`.
 
 ## 9. Rutas del gateway (añadir a `routeTable` y a `AllServices`)
 
