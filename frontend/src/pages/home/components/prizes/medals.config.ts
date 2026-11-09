@@ -14,7 +14,8 @@ export const MEDAL_RIBBON_SRC = '/images/medals/ribbon.png';
 export const MEDAL_ASSETS: Record<MedalMetal, MedalAssets> = {
   gold: { glb: '/models/medals/gold.glb', image: '/images/medals/medal-gold-lg.png', ribbon: MEDAL_RIBBON_SRC },
   silver: { glb: '/models/medals/silver.glb', image: '/images/medals/medal-silver-lg.png', ribbon: MEDAL_RIBBON_SRC },
-  bronze: { glb: '/models/medals/bronze.glb', image: '/images/medals/medal-bronze-lg.png', ribbon: MEDAL_RIBBON_SRC },
+  // Spec 191:61686: bronze reliefs a bit more satin (0,30 vs 0,25 for gold and silver).
+  bronze: { glb: '/models/medals/bronze.glb', image: '/images/medals/medal-bronze-lg.png', ribbon: MEDAL_RIBBON_SRC, material: { roughness: 0.38 } },
 };
 
 export const MEDAL_GOLD_COLOR = '#D4AF37';
@@ -329,24 +330,31 @@ export const MEDAL_PHYSICS: MedalPhysics = {
  * metal finish and the studio light the metal reflects.
  *
  * Polished metal = sharp-ish reflections of a contrasted studio, not a bright uniform one:
- * - Finish: flat roughness 0.3 (the Tripo map, ~0.05-0.25, made the face reflect one big soft
- *   panel evenly), normal map at 30 % (its generated noise looked hammered), a light clear coat.
+ * - Finish (spec 191:61686): metalness 1; the spec asks roughness 0,25–0,30 on the reliefs and
+ *   0,40–0,50 on the fields, but the Tripo metallicRoughness map cannot separate them (its G
+ *   channel does not correlate with the relief: r ≈ 0,03 against the normal map), so it is the
+ *   spec's fallback: one flat factor 0,35 (bronze 0,38). Normal map at 30 % (its generated noise
+ *   looked hammered), a light clear coat (the spec allows clearcoat 0,5).
  * - Studio: dark warm background (the dark parts of the metal), a top softbox for the bevels, a
  *   narrow vertical strip in front that sweeps across the faces as they twist, a dim front fill
  *   so the face never goes black, side strips for the edges and the red rim behind.
- * - Neutral tone mapping keeps the gold saturated (ACES pushed it to a flat cream).
+ * - Neutral tone mapping keeps the gold saturated. The spec says ACES, but with these assets ACES
+ *   pushed the gold to a flat cream (phase 1 captures t0 vs t3); kept neutral on purpose.
+ * - Plus the spec's thin horizontal strip above-front (10 × 0,6, intensity 4): reflection lines.
  */
 export const MEDAL_STAGE: MedalStageConfig = {
   dpr: [1, 1.5],
   toneMapping: 'neutral',
   exposure: 1,
-  material: { roughness: 0.3, useRoughnessMap: false, normalScale: 0.3, metalness: 1, envMapIntensity: 1.2, clearcoat: 0.5, clearcoatRoughness: 0.18 },
+  material: { roughness: 0.35, useRoughnessMap: false, normalScale: 0.3, metalness: 1, envMapIntensity: 1.2, clearcoat: 0.5, clearcoatRoughness: 0.18 },
   environment: {
     resolution: 256,
     background: '#0d0b09',
     lightformers: [
       // Top softbox (bevels, top edges).
       { form: 'rect', intensity: 4, color: '#FFF4E0', position: [0, 5, 5], scale: [12, 2.5, 1], target: [0, 0, 0] },
+      // Thin horizontal strip above-front (spec 191:61686): the reflection lines of the photo.
+      { form: 'rect', intensity: 4, color: '#FFFFFF', position: [0, 2.2, 6], scale: [10, 0.6, 1], target: [0, 0, 0] },
       // Narrow vertical strip in front: the highlight that sweeps across the face with the twist.
       { form: 'rect', intensity: 3, color: '#FFF1D6', position: [1.4, 0, 7], scale: [0.9, 12, 1] },
       // Dim front fill.
