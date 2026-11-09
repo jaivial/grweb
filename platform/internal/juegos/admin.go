@@ -176,8 +176,11 @@ func (s *Svc) registerAdmin() {
 		CID uuid.UUID `path:"cid"`
 		MID uuid.UUID `path:"mid"`
 	}
+	// huma only fills parameters of EXPORTED embedded structs: the path params are repeated here instead of
+	// embedding mercadoIDIn (with the embedding, cid and mid arrived as zero UUIDs).
 	type mercadoPatchIn struct {
-		mercadoIDIn
+		CID  uuid.UUID `path:"cid"`
+		MID  uuid.UUID `path:"mid"`
 		Body struct {
 			Titulo *string `json:"titulo,omitempty" minLength:"1" maxLength:"80"`
 		}
@@ -214,9 +217,13 @@ func (s *Svc) registerAdmin() {
 		if err != nil {
 			return err
 		}
-		m, err := s.marcador(ctx, in.CID, j.Dia)
-		if err != nil {
-			return problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
+		// «Anular y devolver» is the way out of a stuck market: it does not need the scoreboard (the whole pot comes
+		// back), so it still works when live does not answer.
+		m := &Marcador{}
+		if accion == "liquidar" && !devolver {
+			if m, err = s.marcador(ctx, in.CID, j.Dia); err != nil {
+				return problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
+			}
 		}
 		return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 			var mc mercadoRow
@@ -229,7 +236,8 @@ func (s *Svc) registerAdmin() {
 				return e
 			}
 			if accion == "cerrar" {
-				return cerrarMercadosTx(ctx, tx, in.CID, *j, m, []mercadoRow{mc})
+				// closing by hand is forced (the automatic close waits for the first judged attempt)
+				return cerrarMercadoATx(ctx, tx, in.CID, mc)
 			}
 			// liquidar a mano: winners from the scoreboard now
 			return liquidarDesdeMarcadorTx(ctx, tx, in.CID, *j, cfg, m, mc, devolver)
@@ -241,7 +249,8 @@ func (s *Svc) registerAdmin() {
 			return nil, accionMercado(ctx, in, "cerrar", false)
 		})
 	type mercadoLiquidarIn struct {
-		mercadoIDIn
+		CID  uuid.UUID `path:"cid"`
+		MID  uuid.UUID `path:"mid"`
 		Body *struct {
 			Devolver bool `json:"devolver,omitempty" doc:"Anula el mercado y devuelve todo el bote, aunque el resultado todavia no sea definitivo (accion de staff, auditada)"`
 		}
@@ -252,7 +261,7 @@ func (s *Svc) registerAdmin() {
 		Tags:        tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *mercadoLiquidarIn) (*struct{}, error) {
 			devolver := in.Body != nil && in.Body.Devolver
-			return nil, accionMercado(ctx, &in.mercadoIDIn, "liquidar", devolver)
+			return nil, accionMercado(ctx, &mercadoIDIn{CID: in.CID, MID: in.MID}, "liquidar", devolver)
 		})
 
 	// ---- fantasy: sincronizar atletas ----
@@ -571,7 +580,7 @@ func (s *Svc) jornadaPublicaAdmin(ctx context.Context, cid, jid uuid.UUID) (*jor
 }
 
 func jornadaDeMercado(ctx context.Context, q querier, cid, mid uuid.UUID) (*jornada, error) {
-	j, err := scanJornada(q.QueryRow(ctx, selJornada+" FROM jornadas j JOIN mercados m ON m.jornada_id = j.id WHERE m.id = $1 AND m.competition_id = $2", mid, cid))
+	j, err := scanJornada(q.QueryRow(ctx, selJornada+" FROM jornadas WHERE id = (SELECT jornada_id FROM mercados WHERE id = $1 AND competition_id = $2)", mid, cid))
 	if db.IsNoRows(err) {
 		return nil, problem.NotFound("Mercado no encontrado.")
 	}

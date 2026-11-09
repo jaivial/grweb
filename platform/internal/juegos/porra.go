@@ -252,6 +252,21 @@ func cerrarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, 
 	return nil
 }
 
+// cerrarMercadoATx closes a market by hand (staff), whatever the scoreboard says: no more bets. Only an open market
+// can be closed (409 otherwise).
+func cerrarMercadoATx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, mc mercadoRow) error {
+	tag, err := tx.Exec(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = now(), version = version + 1, updated_at = now() WHERE id = $1 AND estado = 'abierto'`, mc.ID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return problem.Conflict("MERCADO_NO_ABIERTO", "El mercado ya está cerrado o liquidado.")
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "porra.mercado",
+		map[string]any{"mercadoId": mc.ID.String(), "estado": "cerrado"},
+		events.Competition(cid.String()), events.Audience(events.Public)))
+}
+
 func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 	enOpciones := func(aid uuid.UUID) bool {
 		for _, x := range mc.Opciones {
