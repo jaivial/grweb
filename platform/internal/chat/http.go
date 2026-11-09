@@ -569,20 +569,26 @@ func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut,
 	return &historialOut{CacheControl: "no-cache", Body: historialBody{Dia: dia, Mensajes: msgs}}, nil
 }
 
+// idNumerico is the numeric form of the stream id («<ms>-<seq>»). Compared as text, «1000-0» < «999-0» is false:
+// the cursor skipped or repeated entries depending on the number of digits of the millisecond.
+const idNumerico = `(CASE WHEN id LIKE '%-%' THEN split_part(id, '-', 1)::numeric END, ` +
+	`CASE WHEN id LIKE '%-%' THEN split_part(id, '-', 2)::numeric END)`
+
 // historialDB reads the persisted messages of a day (newest first).
 func (s *Svc) historialDB(ctx context.Context, cid uuid.UUID, dia, antes string, limite int) ([]item, error) {
 	var args []any
 	q := `SELECT id, fan_id, alias, tipo, texto, borrado, extract(epoch from created_at)::bigint * 1000 FROM mensajes WHERE competition_id = $1 AND dia = $2 AND NOT borrado`
 	args = append(args, cid, dia)
 	if antes != "" {
-		if _, _, err := parseID(antes); err != nil {
+		ms, seq, err := parseID(antes)
+		if err != nil {
 			return nil, problem.BadRequest("ID_INVALIDO", "El parámetro antes tiene que ser un id del stream.")
 		}
 		// the stream id encodes the publication time: it is a good cursor for a day's history
-		q += ` AND id < $3`
-		args = append(args, antes)
+		q += ` AND ` + idNumerico + ` < ($3::numeric, $4::numeric)`
+		args = append(args, int64(ms), int64(seq))
 	}
-	q += ` ORDER BY created_at DESC, id DESC LIMIT $` + strconv.Itoa(len(args)+1)
+	q += ` ORDER BY created_at DESC, ` + idNumerico + ` DESC LIMIT $` + strconv.Itoa(len(args)+1)
 	args = append(args, limite)
 	rows, err := s.a.DB.Query(ctx, q, args...)
 	if err != nil {
