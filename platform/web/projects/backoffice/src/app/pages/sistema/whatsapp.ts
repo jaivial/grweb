@@ -45,7 +45,7 @@ type Dialogo = 'desconectar' | null;
       } @else {
         <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="WhatsApp">
           @for (t of tabs; track t.k) {
-            <button type="button" (click)="tab.set(t.k)" [attr.aria-current]="tab() === t.k ? 'page' : null"
+            <button type="button" (click)="irTab(t.k)" [attr.aria-current]="tab() === t.k ? 'page' : null"
               class="relative flex h-11 shrink-0 items-center px-3 text-label-s whitespace-nowrap" [class]="tab() === t.k ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
               {{ t.l }}
               @if (tab() === t.k) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
