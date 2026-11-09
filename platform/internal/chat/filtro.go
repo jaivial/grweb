@@ -97,14 +97,18 @@ func filtrar(texto string, cfg Config) resultadoDelFiltro {
 			return resultadoDelFiltro{Code: "PALABRA_PROHIBIDA", Detalle: "Tu mensaje contiene una palabra no permitida."}
 		}
 	}
-	if d, tiene := enlace(t); tiene && !dominioPermitido(d, cfg.DominiosPermitidos) {
-		return resultadoDelFiltro{Code: "ENLACE_NO_PERMITIDO", Detalle: "Los enlaces deben apuntar a dominios permitidos por la organización."}
+	// todos los enlaces del mensaje se validan: mirar solo el primero dejaba pasar «grcup.com y spam.example»
+	for _, d := range enlaces(t) {
+		if !dominioPermitido(d, cfg.DominiosPermitidos) {
+			return resultadoDelFiltro{Code: "ENLACE_NO_PERMITIDO", Detalle: "Los enlaces deben apuntar a dominios permitidos por la organización."}
+		}
 	}
 	return filtroOK
 }
 
-// enlace extracts the hostname of the first link found in the text (https://, http:// or www.).
-func enlace(texto string) (string, bool) {
+// enlaces extracts the hostname of every link found in the text (https://, http:// or www.).
+func enlaces(texto string) []string {
+	var out []string
 	for _, campo := range strings.FieldsFunc(texto, esSeparador) {
 		bajo := strings.ToLower(campo)
 		var host string
@@ -127,10 +131,19 @@ func enlace(texto string) (string, bool) {
 			host = host[i+1:]
 		}
 		if host != "" {
-			return host, true
+			out = append(out, host)
 		}
 	}
-	return "", false
+	return out
+}
+
+// enlace extracts the hostname of the first link found in the text (the filter uses enlaces: it checks them all).
+func enlace(texto string) (string, bool) {
+	hosts := enlaces(texto)
+	if len(hosts) == 0 {
+		return "", false
+	}
+	return hosts[0], true
 }
 
 func esSeparador(r rune) bool { return unicode.IsSpace(r) || r == '<' || r == '>' || r == '"' }
