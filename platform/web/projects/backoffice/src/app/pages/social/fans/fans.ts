@@ -1,21 +1,23 @@
+import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrToasts } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, Confirm, errText } from '../../../shared/ui';
-import { descargarCsv, diaCorto, iniciales, num } from '../ui';
+import { SoIcon, SoSegmented, SoSkelFilas, descargarCsv, diaCorto, iniciales, num, type SoOpcion } from '../ui';
 import { FansApi, type Fan, type ListaFans } from './api';
 
 type Tipo = 'atleta' | 'publico';
 
-/** «Fans» (Figma 73 · «BO · Fans»): cuentas de directo, búsqueda, filtros y baneos. */
+/** «Fans» (Figma 73 · «BO · Fans», UI v2): cuentas de directo, búsqueda, filtros y baneos (tabla en escritorio, tarjetas en móvil). */
 @Component({
   selector: 'bo-fans',
-  imports: [FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrSkeleton],
+  imports: [A11yModule, FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoIcon, SoSegmented, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': 'banear.set(null)' },
   template: `
-    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
       <bo-page-header title="Fans" [badge]="num(lista()?.total ?? 0) + ' cuentas'" [badgeTone]="'accent'"
         subtitle="Cuentas de directo con enlace mágico · cookie grcup_fan · alias 3–20 caracteres, único por competición (§3)"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Fans']">
@@ -28,104 +30,134 @@ type Tipo = 'atleta' | 'publico';
         <gr-alert tone="warning" title="Tu rol no puede gestionar los fans">Hace falta el permiso «directo.operar».</gr-alert>
       }
 
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-3">
         <label class="relative min-w-0 flex-1 basis-64 md:max-w-xs">
           <span class="sr-only">Buscar</span>
           <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
           <input grInput class="pl-9" placeholder="Buscar por alias o email…" [ngModel]="filtro().q" (ngModelChange)="buscar($event)" />
         </label>
-        <gr-select tipo="filtro" etiqueta="Estado" [ngModel]="filtro().estado" (ngModelChange)="filtrar({ estado: $event })">
-          <option value="">Todos</option>
-          <option value="activos">Activos</option>
-          <option value="baneados">Baneados</option>
-        </gr-select>
-        <button type="button" class="inline-flex h-11 items-center gap-1.5 rounded-sm border px-3 text-label-s md:h-10"
-          [class]="tipo() === 'atleta' ? 'border-accent bg-accent/10 text-accent-text' : 'border-line-strong text-text-secondary hover:border-text-muted hover:text-text-primary'"
-          (click)="alternarTipo('atleta')"><gr-icon name="plus" [size]="16" />Atletas</button>
-        <button type="button" class="inline-flex h-11 items-center gap-1.5 rounded-sm border px-3 text-label-s md:h-10"
-          [class]="tipo() === 'publico' ? 'border-accent bg-accent/10 text-accent-text' : 'border-line-strong text-text-secondary hover:border-text-muted hover:text-text-primary'"
-          (click)="alternarTipo('publico')"><gr-icon name="plus" [size]="16" />Público</button>
-        <span class="inline-flex h-7 items-center gap-1.5 rounded-pill border border-accent/50 bg-accent/10 px-2.5 text-label-xs text-accent-text">
-          <gr-icon name="circle-alert" [size]="12" />Baneados {{ baneados() }}
-        </span>
+        <so-segmented label="Estado" [opciones]="estados()" [value]="filtro().estado" (valueChange)="filtrar({ estado: $event })" />
+        <so-segmented label="Tipo" [opciones]="tipos" [value]="tipo()" (valueChange)="tipo.set($any($event))" />
       </div>
 
-      @if (cargando() && !lista()) {
-        <gr-skeleton class="h-72 rounded-lg" />
-      } @else if (error()) {
-        <gr-empty icon="wifi-off" title="No hemos podido cargar las cuentas" [text]="error()">
-          <button grButton (click)="cargar()">Reintentar</button>
-        </gr-empty>
-      } @else if (lista(); as l) {
-        <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-          <table class="w-full min-w-[760px] text-left text-body-s">
-            <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
-              <tr><th class="px-4 py-3">Alias</th><th class="px-3 py-3">Tipo</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">Estado</th><th class="px-4 py-3 text-right">Acciones</th></tr>
-            </thead>
-            <tbody>
+      <section class="min-w-0 overflow-hidden rounded-lg border border-line-subtle bg-bg-card" aria-label="Cuentas">
+        @if (cargando() && !lista()) {
+          <so-skel-filas [n]="7" />
+        } @else if (error()) {
+          <gr-empty icon="wifi-off" title="No hemos podido cargar las cuentas" [text]="error()">
+            <button grButton variant="primary" icon="refresh" (click)="cargar()">Reintentar</button>
+          </gr-empty>
+        } @else if (lista(); as l) {
+          @if (!visibles().length) {
+            @if (filtro().q || filtro().estado || tipo()) {
+              <gr-empty icon="search" title="Ninguna cuenta coincide" text="Prueba con otro alias o email, o quita los filtros de estado y tipo.">
+                <button grButton (click)="limpiar()">Quitar filtros</button>
+              </gr-empty>
+            } @else {
+              <gr-empty icon="users" title="Todavía no hay fans" text="Las cuentas aparecen aquí cuando alguien entra al directo con su enlace mágico." />
+            }
+          } @else {
+            <div class="hidden overflow-x-auto md:block">
+              <table class="w-full min-w-[780px] text-left text-body-s">
+                <thead class="border-b border-line-subtle bg-bg-surface font-mono text-mono-xs text-text-tertiary">
+                  <tr><th class="px-5 py-3 font-medium">Alias</th><th class="px-3 py-3 font-medium">Tipo</th><th class="px-3 py-3 font-medium">Email</th><th class="px-3 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acción</th></tr>
+                </thead>
+                <tbody>
+                  @for (f of visibles(); track f.id) {
+                    @let ban = baneado(f);
+                    <tr class="border-b border-line-subtle transition-colors last:border-0" [class]="ban ? 'bg-accent-deep/15' : 'hover:bg-bg-raised/40'">
+                      <td class="px-5 py-2.5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="flex size-8 shrink-0 items-center justify-center rounded-pill border bg-bg-raised font-mono text-mono-xs text-text-secondary" [class]="ban ? 'border-accent/60' : 'border-line-strong'">{{ iniciales(f.alias) }}</span>
+                          <span class="truncate text-label-s">{{ f.alias }}</span>
+                        </div>
+                      </td>
+                      <td class="px-3 py-2.5"><gr-badge [tone]="f.tipo === 'atleta' ? 'info' : 'neutral'">{{ f.tipo === 'atleta' ? 'Atleta' : 'Público' }}</gr-badge></td>
+                      <td class="px-3 py-2.5 font-mono text-mono-s text-text-tertiary">{{ enmascarar(f.email) }}</td>
+                      <td class="px-3 py-2.5">
+                        @if (ban) {
+                          <gr-badge tone="danger">Baneado hasta {{ diaCorto(f.baneadoHasta) }}</gr-badge>
+                          @if (f.baneadoMotivo) { <p class="mt-1 max-w-[260px] truncate text-body-xs text-text-tertiary">{{ f.baneadoMotivo }}</p> }
+                        } @else {
+                          <gr-badge tone="success">Activo</gr-badge>
+                        }
+                      </td>
+                      <td class="px-5 py-2.5 text-right">
+                        @if (ban) {
+                          <button grButton size="s" icon="undo" [disabled]="!puede()" [attr.aria-label]="'Levantar el baneo de ' + f.alias" (click)="desbanear(f)">Levantar baneo</button>
+                        } @else {
+                          <button type="button" class="inline-flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-label-s text-text-secondary transition-colors hover:bg-bg-raised hover:text-accent-text disabled:opacity-40"
+                            [disabled]="!puede()" [attr.aria-label]="'Banear a ' + f.alias" (click)="abrirBanear(f)"><so-icon name="ban" [size]="16" />Banear</button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <ul class="divide-y divide-line-subtle md:hidden">
               @for (f of visibles(); track f.id) {
-                <tr class="border-b border-line-subtle last:border-0">
-                  <td class="px-4 py-2.5">
-                    <div class="flex items-center gap-2.5">
-                      <span class="flex size-8 shrink-0 items-center justify-center rounded-pill border border-line-strong bg-bg-raised text-mono-xs">{{ iniciales(f.alias) }}</span>
-                      <span class="truncate text-label-s">{{ f.alias }}</span>
-                    </div>
-                  </td>
-                  <td class="px-3 py-2.5">
-                    @if (f.tipo === 'atleta') { <span class="text-info">Atleta</span> } @else { <span class="text-text-tertiary">Público</span> }
-                  </td>
-                  <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ enmascarar(f.email) }}</td>
-                  <td class="px-3 py-2.5">
-                    @if (baneado(f)) {
-                      <gr-badge tone="danger">Baneado hasta {{ diaCorto(f.baneadoHasta) }}</gr-badge>
-                    } @else {
-                      <gr-badge tone="success">Activo</gr-badge>
-                    }
-                  </td>
-                  <td class="px-4 py-2.5 text-right">
-                    @if (baneado(f)) {
-                      <button grIconButton icon="undo" [label]="'Desbanear a ' + f.alias" [disabled]="!puede()" (click)="desbanear(f)"></button>
-                    } @else {
-                      <button grIconButton icon="circle-x" [label]="'Banear a ' + f.alias" [disabled]="!puede()" (click)="abrirBanear(f)"></button>
-                    }
-                  </td>
-                </tr>
-              } @empty { <tr><td colspan="5" class="px-4 py-10 text-center text-text-tertiary">No hay cuentas con estos filtros.</td></tr> }
-            </tbody>
-          </table>
-        </section>
-        <p class="flex items-center justify-between text-body-xs text-text-tertiary">
-          <span>Mostrando {{ visibles().length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + visibles().length }} de {{ num(l.total) }} cuentas</span>
-          <span class="flex gap-1">
-            <button grButton size="s" variant="ghost" icon="chevron-left" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)" aria-label="Anterior"></button>
-            <button grButton size="s" variant="ghost" icon="chevron-right" [disabled]="l.pagina * l.por >= l.total" (click)="filtrar({ pagina: l.pagina + 1 }, false)" aria-label="Siguiente"></button>
-          </span>
-        </p>
-      }
+                @let ban = baneado(f);
+                <li class="flex items-center gap-3 p-4" [class.bg-accent-deep/15]="ban">
+                  <span class="flex size-9 shrink-0 items-center justify-center rounded-pill border border-line-strong bg-bg-raised font-mono text-mono-xs text-text-secondary">{{ iniciales(f.alias) }}</span>
+                  <div class="min-w-0 flex-1">
+                    <p class="flex items-center gap-2"><span class="truncate text-label-s">{{ f.alias }}</span><gr-badge [tone]="f.tipo === 'atleta' ? 'info' : 'neutral'">{{ f.tipo === 'atleta' ? 'Atleta' : 'Público' }}</gr-badge></p>
+                    <p class="truncate font-mono text-mono-s text-text-tertiary">{{ enmascarar(f.email) }}</p>
+                    @if (ban) { <p class="mt-1 text-body-xs text-accent-text">Baneado hasta {{ diaCorto(f.baneadoHasta) }}</p> }
+                  </div>
+                  @if (ban) {
+                    <button grIconButton icon="undo" class="border border-line-strong" [label]="'Levantar el baneo de ' + f.alias" [disabled]="!puede()" (click)="desbanear(f)"></button>
+                  } @else {
+                    <button type="button" class="inline-flex size-11 items-center justify-center rounded-sm border border-line-subtle text-text-secondary hover:text-accent-text disabled:opacity-40"
+                      [attr.aria-label]="'Banear a ' + f.alias" [disabled]="!puede()" (click)="abrirBanear(f)"><so-icon name="ban" [size]="20" /></button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          <footer class="flex items-center justify-between gap-3 border-t border-line-subtle px-5 py-3 text-body-xs text-text-tertiary">
+            <span>Mostrando {{ visibles().length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + visibles().length }} de {{ num(l.total) }} cuentas</span>
+            <span class="flex items-center gap-1">
+              <button grIconButton icon="chevron-left" label="Página anterior" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)"></button>
+              <span class="min-w-12 text-center font-mono text-mono-s text-text-secondary">{{ l.pagina }} / {{ paginas(l) }}</span>
+              <button grIconButton icon="chevron-right" label="Página siguiente" [disabled]="l.pagina * l.por >= l.total" (click)="filtrar({ pagina: l.pagina + 1 }, false)"></button>
+            </span>
+          </footer>
+        }
+      </section>
     </div>
 
     <!-- ===== Baneo ===== -->
     @if (banear(); as f) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="banear.set(null)" (keydown.escape)="banear.set(null)">
-        <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="alertdialog" aria-modal="true" [attr.aria-label]="'Banear a ' + f.alias"
-          (click)="$event.stopPropagation()" (ngSubmit)="confirmarBaneo()">
-          <h2 class="text-ui-h5">Banear a {{ f.alias }}</h2>
-          <p class="mt-3 text-body-s text-text-secondary">Se cierra su sesión de directo, no puede volver a entrar hasta el fin del baneo y el chat borra sus últimos mensajes.</p>
-          <gr-field class="mt-4" label="Duración del baneo">
-            <gr-select name="horas" [ngModel]="horas()" (ngModelChange)="horas.set(+$event)" aria-label="Duración del baneo">
-              <option [value]="1">1 hora</option>
-              <option [value]="24">24 horas</option>
-              <option [value]="168">7 días</option>
-              <option [value]="720">30 días</option>
-            </gr-select>
-          </gr-field>
-          <gr-field class="mt-4" label="Motivo" [optional]="true">
-            <input grInput name="motivo" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)" maxlength="300" placeholder="Spam en el chat" />
-          </gr-field>
-          <div class="mt-6 flex justify-end gap-2">
+      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="banear.set(null)">
+        <form class="w-full max-w-md rounded-t-xl border border-line-strong bg-bg-card shadow-card sm:rounded-lg" role="alertdialog" aria-modal="true" aria-labelledby="ban-titulo"
+          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()" (ngSubmit)="confirmarBaneo()">
+          <header class="flex items-center gap-3 border-b border-line-subtle px-5 py-4">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent-deep/50 text-accent-text"><so-icon name="ban" [size]="20" /></span>
+            <div class="min-w-0 flex-1">
+              <h2 id="ban-titulo" class="text-ui-h5">Banear a {{ f.alias }}</h2>
+              <p class="truncate font-mono text-mono-s text-text-tertiary">{{ enmascarar(f.email) }}</p>
+            </div>
+            <button type="button" grIconButton icon="x" label="Cerrar" (click)="banear.set(null)"></button>
+          </header>
+          <div class="flex flex-col gap-4 px-5 py-5">
+            <p class="text-body-s text-text-secondary">Se cierra su sesión de directo, no puede volver a entrar hasta el fin del baneo y el chat borra sus últimos mensajes.</p>
+            <gr-field label="Duración del baneo">
+              <gr-select name="horas" [ngModel]="horas()" (ngModelChange)="horas.set(+$event)" aria-label="Duración del baneo">
+                <option [value]="1">1 hora</option>
+                <option [value]="24">24 horas</option>
+                <option [value]="168">7 días</option>
+                <option [value]="720">30 días</option>
+              </gr-select>
+            </gr-field>
+            <gr-field label="Motivo" [optional]="true" hint="Queda en el registro y se ve en esta lista">
+              <input grInput name="motivo" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)" maxlength="300" placeholder="Spam en el chat" />
+            </gr-field>
+          </div>
+          <footer class="flex justify-end gap-2 border-t border-line-subtle px-5 py-4">
             <button type="button" grButton variant="ghost" (click)="banear.set(null)">Cancelar</button>
             <button type="submit" grButton variant="danger" [loading]="ocupado()">Banear</button>
-          </div>
+          </footer>
         </form>
       </div>
     }
@@ -160,6 +192,16 @@ export class FansPage {
     const t = this.tipo();
     return t ? l.items.filter((f) => f.tipo === t) : l.items;
   });
+  protected readonly estados = computed<SoOpcion[]>(() => [
+    { v: '', l: 'Todos' },
+    { v: 'activos', l: 'Activos' },
+    { v: 'baneados', l: 'Baneados', n: this.baneados(), tone: 'accent' },
+  ]);
+  protected readonly tipos: SoOpcion[] = [
+    { v: '', l: 'Atletas y público', c: 'Todos' },
+    { v: 'atleta', l: 'Atletas' },
+    { v: 'publico', l: 'Público' },
+  ];
   protected readonly baneados = computed(() => this.lista()?.items.filter((f) => this.baneado(f)).length ?? 0);
   private timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -195,6 +237,15 @@ export class FansPage {
   protected buscar(q: string): void {
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.filtrar({ q }), 300);
+  }
+
+  protected paginas(l: ListaFans): number {
+    return Math.max(1, Math.ceil(l.total / (l.por || 1)));
+  }
+
+  protected limpiar(): void {
+    this.tipo.set('');
+    this.filtrar({ q: '', estado: '' });
   }
 
   protected alternarTipo(t: Tipo): void {
