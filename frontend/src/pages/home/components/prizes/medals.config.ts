@@ -15,7 +15,7 @@ export const MEDAL_ASSETS: Record<MedalMetal, MedalAssets> = {
   gold: { glb: '/models/medals/gold.glb', image: '/images/medals/medal-gold-lg.png', ribbon: MEDAL_RIBBON_SRC },
   silver: { glb: '/models/medals/silver.glb', image: '/images/medals/medal-silver-lg.png', ribbon: MEDAL_RIBBON_SRC },
   // Spec 191:61686: bronze reliefs a bit more satin (0,30 vs 0,25 for gold and silver).
-  bronze: { glb: '/models/medals/bronze.glb', image: '/images/medals/medal-bronze-lg.png', ribbon: MEDAL_RIBBON_SRC, material: { roughness: 0.38 } },
+  bronze: { glb: '/models/medals/bronze.glb', image: '/images/medals/medal-bronze-lg.png', ribbon: MEDAL_RIBBON_SRC, material: { roughness: 0.27 } },
 };
 
 export const MEDAL_GOLD_COLOR = '#D4AF37';
@@ -333,11 +333,13 @@ export const MEDAL_PHYSICS: MedalPhysics = {
  * metal finish and the studio light the metal reflects.
  *
  * Polished metal = sharp-ish reflections of a contrasted studio, not a bright uniform one:
- * - Finish (spec 191:61686): metalness 1; the spec asks roughness 0,25–0,30 on the reliefs and
- *   0,40–0,50 on the fields, but the Tripo metallicRoughness map cannot separate them (its G
- *   channel does not correlate with the relief: r ≈ 0,03 against the normal map), so it is the
- *   spec's fallback: one flat factor 0,35 (bronze 0,38). Normal map at 30 % (its generated noise
- *   looked hammered), a light clear coat (the spec allows clearcoat 0,5).
+ * - Finish (spec 191:61686 + QA): metalness 1 and one flat roughness 0,22 (bronze 0,27): the
+ *   Tripo metallicRoughness map cannot separate reliefs from fields (its G channel does not
+ *   correlate with the relief) and its noise read as crumpled foil. The generated surface is
+ *   wavy, so the faces' shading normals are pulled towards the face normal (`flattenFace`, in a
+ *   shader patch) and the normal map is kept at 12 %: flat polished faces, bevels keep their
+ *   highlights. The red enamel is picked by base colour and made dielectric (`enamel`): the
+ *   GLB metalness map marks the whole medal as metal, which turned the «2» maroon.
  * - Studio: transparent black between the panels (the dark parts of the metal), a top softbox for the bevels, a
  *   narrow vertical strip in front that sweeps across the faces as they twist, a dim front fill
  *   so the face never goes black, side strips for the edges and the red rim behind.
@@ -349,7 +351,17 @@ export const MEDAL_STAGE: MedalStageConfig = {
   dpr: [1, 1.5],
   toneMapping: 'neutral',
   exposure: 1,
-  material: { roughness: 0.35, useRoughnessMap: false, normalScale: 0.3, metalness: 1, envMapIntensity: 1.2, clearcoat: 0.5, clearcoatRoughness: 0.18 },
+  material: {
+    roughness: 0.22,
+    useRoughnessMap: false,
+    normalScale: 0.12,
+    metalness: 1,
+    envMapIntensity: 1.2,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.18,
+    flattenFace: 0.85,
+    enamel: { roughness: 0.28, maskFrom: 0.18, maskTo: 0.32 },
+  },
   environment: {
     resolution: 256,
     lightformers: [

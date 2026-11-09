@@ -27,6 +27,17 @@ export interface MedalMaterial {
   /** 0 keeps MeshStandardMaterial; > 0 swaps to MeshPhysicalMaterial with a clear coat. */
   clearcoat: number;
   clearcoatRoughness: number;
+  /**
+   * 0–1: pulls the shading normal of the medal's front/back faces towards the face normal (+z),
+   * so the wavy generated surface reads as a flat polished face; bevels and edges keep theirs.
+   */
+  flattenFace: number;
+  /**
+   * Red enamel (the «2»): texels whose base colour is red (max(g, b) / r below `maskTo`, fully
+   * below `maskFrom`) become dielectric (metalness 0) with this roughness: vivid glossy red
+   * instead of red-tinted metal. The GLB metalness map marks everything as metal.
+   */
+  enamel: { roughness: number; maskFrom: number; maskTo: number };
 }
 
 /** One light panel of the studio environment the metal reflects (drei `Lightformer`). */
