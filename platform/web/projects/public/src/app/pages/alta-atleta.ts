@@ -930,6 +930,11 @@ export class AltaAtletaPage {
       return;
     }
     const codigo = cuerpo.code ?? '';
+    // The server consumes a valid challenge before field/photo validation and processing. A retry needs a new one.
+    if (!(xhr.status === 400 && codigo === 'ANTIBOT')) {
+      this.altchaPago.set('');
+      void this.pedirReto();
+    }
     if (xhr.status === 409 || codigo === 'SOLICITUD_EN_CURSO') {
       this.aviso.set('duplicado');
       return;
