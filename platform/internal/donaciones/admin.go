@@ -243,13 +243,13 @@ func (s *Svc) registerAdmin() {
 			if err := gestionar(ctx, in.CID); err != nil {
 				return nil, err
 			}
-			var pago, estado, pas, dia string
+			var pago, estado, pas, dia, reembolsoID string
 			var importe int
 			// 1) Reclamar el reembolso: la fila se bloquea y pasa a «reembolsando» ANTES de llamar a la pasarela, así
 			// que dos clics (o dos réplicas) nunca devuelven el dinero dos veces (PR review I2).
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				if err := tx.QueryRow(ctx, `SELECT payment_id, estado, proveedor, importe, dia::text FROM donaciones WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).
-					Scan(&pago, &estado, &pas, &importe, &dia); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT payment_id, estado, proveedor, importe, dia::text, reembolso_id FROM donaciones WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).
+					Scan(&pago, &estado, &pas, &importe, &dia, &reembolsoID); err != nil {
 					if db.IsNoRows(err) {
 						return problem.NotFound("Donación no encontrada.")
 					}
@@ -273,30 +273,46 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			if estado == "reembolsando" {
-				// Un intento anterior se quedó a medias (caída): se reanuda con la misma clave de idempotencia, que
-				// devuelve el mismo reembolso en la pasarela.
+				// Un intento anterior se quedó a medias (caída del pod o de la pasarela).
 				s.a.Log.Warn("reembolso de donación reanudado", "donacion", in.ID)
 			}
-			prov := s.proveedor(ctx, in.CID)
-			if pas == "simulado" && s.sim != nil {
-				prov = s.sim
+			ref := reembolsoID
+			if ref == "" {
+				// 2) La pasarela, con clave de idempotencia (el id de la donación): la pasarela recuerda la clave 24 h
+				// (Stripe), así que un reintento dentro de esa ventana devuelve el mismo reembolso y no el dinero
+				// dos veces. Pasada la ventana la clave ya no se recuerda: por eso el id del reembolso se guarda en
+				// cuanto la pasarela lo devuelve (en su propia transacción) y un intento posterior que encuentre la
+				// fila «reembolsando» con «reembolso_id» NO vuelve a llamar a la pasarela: solo cierra el estado y
+				// encola el evento. La interfaz de pagos no permite consultar un reembolso ya creado, así que la
+				// única ventana que queda es la caída justo entre la respuesta de la pasarela y ese guardado (un
+				// reintento más de 24 h después crearía un segundo reembolso).
+				prov := s.proveedor(ctx, in.CID)
+				if pas == "simulado" && s.sim != nil {
+					prov = s.sim
+				}
+				if prov == nil || prov.Name() != pas {
+					s.devolverPagada(ctx, in.ID, "La donación se pagó con otra pasarela")
+					return nil, problem.Conflict("PASARELA_DISTINTA", "Esta donación se pagó con otra pasarela: reembólsala desde su panel.")
+				}
+				ref, err = s.reembolsar(ctx, prov, pago, importe, in.ID.String())
+				if err != nil {
+					s.a.Log.Warn("reembolso de donación", "err", err)
+					s.devolverPagada(ctx, in.ID, "Reembolso fallido: "+err.Error())
+					return nil, problem.New(http.StatusBadGateway, "REEMBOLSO_FALLIDO", "La pasarela no ha podido reembolsar: "+err.Error())
+				}
+				// el id del reembolso se guarda ya, en su propia transacción: si el pod muere después, el siguiente
+				// intento ve el reembolso hecho y no vuelve a llamar a la pasarela
+				if err := s.guardarReembolso(ctx, in.CID, in.ID, ref); err != nil {
+					s.a.Log.Warn("reembolso de donación: no se pudo guardar el id del reembolso", "err", err)
+				}
 			}
-			if prov == nil || prov.Name() != pas {
-				s.devolverPagada(ctx, in.ID, "La donación se pagó con otra pasarela")
-				return nil, problem.Conflict("PASARELA_DISTINTA", "Esta donación se pagó con otra pasarela: reembólsala desde su panel.")
-			}
-			// 2) La pasarela, con clave de idempotencia (el id de la donación): un reintento tras una caída devuelve el
-			// mismo reembolso, no el dinero dos veces.
-			ref, err := s.reembolsar(ctx, prov, pago, importe, in.ID.String())
-			if err != nil {
-				s.a.Log.Warn("reembolso de donación", "err", err)
-				s.devolverPagada(ctx, in.ID, "Reembolso fallido: "+err.Error())
-				return nil, problem.New(http.StatusBadGateway, "REEMBOLSO_FALLIDO", "La pasarela no ha podido reembolsar: "+err.Error())
-			}
-			// 3) Confirmar el estado y encolar el evento (en la misma transacción): si esto falla, la donación queda
-			// «reembolsando» y un reintento con la misma clave recupera el mismo reembolso.
+			// 3) Confirmar el estado y encolar el evento (en la misma transacción): la transición sólo ocurre si la
+			// fila estaba «reembolsando», así que dos reembolsos concurrentes no encolan dos eventos ni se pisan el
+			// estado. Si esto falla, la donación queda «reembolsando» con su «reembolso_id» y un reintento cierra el
+			// estado sin volver a llamar a la pasarela.
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'reembolsada', reembolso_id = $2, motivo = $3, reembolsada_at = now() WHERE id = $1 AND estado = 'reembolsando'`, in.ID, ref, strings.TrimSpace(in.Body.Motivo))
+				tag, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'reembolsada', reembolso_id = $2, motivo = $3, reembolsada_at = now()
+					WHERE id = $1 AND competition_id = $4 AND estado = 'reembolsando'`, in.ID, ref, strings.TrimSpace(in.Body.Motivo), in.CID)
 				if err != nil {
 					return err
 				}
@@ -305,7 +321,7 @@ func (s *Svc) registerAdmin() {
 				}
 				var fanID uuid.UUID
 				var coins int
-				if err := tx.QueryRow(ctx, `SELECT fan_id, coins FROM donaciones WHERE id = $1`, in.ID).Scan(&fanID, &coins); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT fan_id, coins FROM donaciones WHERE id = $1 AND competition_id = $2`, in.ID, in.CID).Scan(&fanID, &coins); err != nil {
 					return err
 				}
 				// juegos-worker retira la recompensa de fantasy (hasta dejar el saldo en 0 si no alcanza).
@@ -326,9 +342,19 @@ func (s *Svc) registerAdmin() {
 }
 
 // devolverPagada deja la donación como «pagada» cuando la pasarela no ha podido reembolsar (el dinero sigue en
-// la pasarela): el siguiente intento vuelve a encontrarla reembolsable.
+// la pasarela): el siguiente intento vuelve a encontrarla reembolsable. Sólo revierte si no hay «reembolso_id»:
+// con el reembolso ya hecho en la pasarela, volver a «pagada» dejaría el dinero devuelto y la donación como
+// pagada (y el fan conservaría la recompensa de fantasy).
 func (s *Svc) devolverPagada(ctx context.Context, id uuid.UUID, motivo string) {
-	_, _ = s.a.DB.Exec(ctx, `UPDATE donaciones SET estado = 'pagada', motivo = $2 WHERE id = $1 AND estado = 'reembolsando'`, id, motivo)
+	_, _ = s.a.DB.Exec(ctx, `UPDATE donaciones SET estado = 'pagada', motivo = $2 WHERE id = $1 AND estado = 'reembolsando' AND reembolso_id = ''`, id, motivo)
+}
+
+// guardarReembolso guarda el id del reembolso en cuanto la pasarela lo devuelve (su propia transacción): si el pod
+// muere después, el siguiente intento ve el reembolso ya hecho y cierra el estado sin volver a llamar a la
+// pasarela (la clave de idempotencia solo se recuerda 24 h).
+func (s *Svc) guardarReembolso(ctx context.Context, cid, id uuid.UUID, ref string) error {
+	_, err := s.a.DB.Exec(ctx, `UPDATE donaciones SET reembolso_id = $3 WHERE id = $1 AND competition_id = $2 AND reembolso_id = ''`, id, cid, ref)
+	return err
 }
 
 // reembolsar llama a la pasarela con una clave de idempotencia (el id de la donación): si la pasarela la
