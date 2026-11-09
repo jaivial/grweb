@@ -2,7 +2,8 @@ import { isPlatformBrowser } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, computed, effect, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
+import { GrButton, GrIcon, GrInput, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrCoin } from './ui';
 import { Donaciones, coinsDe, euros, eurosCorto, fantasyDe, num } from '../../core/donaciones';
 import { FanSession, detalleError } from '../../core/fan';
 
@@ -17,65 +18,102 @@ const euros0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
  */
 @Component({
   selector: 'gr-donar-modal',
-  imports: [FormsModule, A11yModule, GrButton, GrIcon, GrSkeleton],
+  imports: [FormsModule, A11yModule, GrButton, GrIcon, GrInput, GrSkeleton, GrCoin],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `
+    @keyframes gr-velo { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes gr-sube { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+    @keyframes gr-aparece { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+    .gr-velo { animation: gr-velo 180ms ease-out both; }
+    .gr-hoja { animation: gr-sube 260ms var(--ease-out-soft) both; }
+    @media (min-width: 768px) { .gr-hoja { animation-name: gr-aparece; } }
+    @media (prefers-reduced-motion: reduce) { .gr-velo, .gr-hoja { animation: none; } }
+  `,
   template: `
     @if (abierto()) {
-      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 px-0 md:items-center md:px-4" (click)="cerrar()" (keydown.escape)="cerrar()">
-        <div class="max-h-[92vh] w-full overflow-y-auto rounded-t-xl border border-line-strong bg-bg-raised p-5 shadow-card md:max-w-[440px] md:rounded-xl md:p-6"
-          role="dialog" aria-modal="true" aria-label="Donar al directo" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
-          <div class="flex items-start justify-between gap-3">
-            <h2 class="text-ui-h4">Donar al directo</h2>
-            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="18" /></button>
-          </div>
+      <div class="gr-velo fixed inset-0 z-[60] flex items-end justify-center bg-black/65 backdrop-blur-[2px] md:items-center md:px-4" (click)="cerrar()" (keydown.escape)="cerrar()">
+        <div class="gr-hoja relative max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-xl border border-line-strong bg-bg-card bg-[linear-gradient(180deg,rgb(110_20_32/0.5),transparent_240px)] px-5 pt-2.5 pb-7 shadow-card md:max-w-[440px] md:rounded-xl md:p-6"
+          role="dialog" aria-modal="true" aria-labelledby="donar-titulo" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <span class="mx-auto mb-4 block h-1 w-10 rounded-full bg-line-strong md:hidden" aria-hidden="true"></span>
           @if (estado() === 'exito') {
-            <p class="mt-3 text-body-s text-text-secondary">{{ num(coins()) }} GRS coins en el chat y +{{ num(fantasy()) }} monedas de GRS Fantasy se acreditan al volver a la sala de la jornada.</p>
-            <p class="mt-3 inline-flex items-center gap-2 rounded-sm bg-bg-surface px-2.5 py-1 text-mono-xs text-text-secondary"><gr-icon name="circle-check" [size]="14" class="text-success" />Recibo enviado a tu email</p>
+            <div class="flex justify-end"><button type="button" class="flex size-10 items-center justify-center rounded-full border border-line-subtle bg-bg-raised text-text-secondary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="16" /></button></div>
+            <div class="flex flex-col items-center gap-2.5 text-center">
+              <span class="flex size-[72px] items-center justify-center rounded-full border-2 border-success/50 bg-success/14 text-success shadow-[0_0_28px_rgb(34_197_94/0.35)]"><gr-icon name="check" [size]="32" /></span>
+              <h2 id="donar-titulo" class="font-display text-[30px] leading-tight uppercase italic">¡Gracias por tu donativo!</h2>
+              <p class="text-body-s text-text-secondary">Tus {{ eurosCorto(importe()) }} llegan al club anfitrión y tu nombre sale en el chat y en el ranking del día.</p>
+            </div>
+            <p class="mt-4 flex flex-wrap justify-center gap-2">
+              <gr-coin>+{{ num(coins()) }} GRS coins</gr-coin><gr-coin tipo="fantasy">+{{ num(fantasy()) }} fantasy</gr-coin>
+            </p>
+            <p class="mt-4 flex items-start gap-2 rounded-sm border border-line-subtle bg-bg-surface px-3 py-2.5 text-body-xs text-text-secondary"><gr-icon name="mail" [size]="14" class="mt-px shrink-0 text-success" />Recibo enviado a tu email · las monedas se acreditan al volver a la sala de la jornada</p>
             <div class="mt-5 flex flex-col gap-2">
-              <button type="button" grButton variant="primary" [block]="true" (click)="cerrar()">Volver al directo</button>
-              <button type="button" grButton variant="secondary" [block]="true" (click)="cerrar(); verRanking.emit()">Ver ranking de donantes</button>
+              <button type="button" grButton variant="primary" size="l" [block]="true" (click)="cerrar()">Volver al directo</button>
+              <button type="button" grButton variant="outline" [block]="true" (click)="cerrar(); verRanking.emit()">Ver ranking de donantes</button>
             </div>
           } @else {
-            <p class="mt-2 text-body-s text-text-secondary">El 100 % llega al club anfitrión. Tu donativo aparece en el chat y en el ranking del día.</p>
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h2 id="donar-titulo" class="font-display text-[24px] leading-tight uppercase italic">Donar al directo</h2>
+                <p class="mt-1.5 text-body-s text-text-secondary">Tu donativo sale en el chat y en el ranking del día.</p>
+              </div>
+              <button type="button" class="flex size-10 shrink-0 items-center justify-center rounded-full border border-line-subtle bg-bg-raised text-text-secondary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="16" /></button>
+            </div>
+            <ul class="mt-4 flex flex-wrap gap-1.5" aria-label="Garantías">
+              @for (g of garantias; track g.t) {
+                <li class="inline-flex h-6 items-center gap-1.5 rounded-pill border border-line-subtle bg-bg-raised pr-2 pl-1.5 font-mono text-[11px] tracking-[0.08em] text-text-secondary uppercase"><gr-icon [name]="g.i" [size]="12" class="text-success" />{{ g.t }}</li>
+              }
+            </ul>
 
             @if (cargando()) {
-              <div class="mt-4 flex flex-col gap-3"><gr-skeleton class="h-11 rounded-md" /><gr-skeleton class="h-24 rounded-md" /></div>
+              <div class="mt-5 flex flex-col gap-3"><gr-skeleton class="h-36 rounded-md" /><gr-skeleton class="h-24 rounded-md" /></div>
             } @else {
               <!-- importe -->
-              <p class="mt-5 text-label-s text-text-primary">Importe</p>
-              <div class="mt-2 flex flex-wrap gap-2">
-                @for (c of chips(); track c) {
-                  <button type="button" class="h-11 rounded-md border px-3 text-label-s md:h-9" [class]="importe() === c ? 'border-accent bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-muted'"
-                    [attr.aria-pressed]="importe() === c" (click)="elegir(c)">{{ eurosCorto(c) }}</button>
-                }
-                <button type="button" class="h-11 rounded-md border px-4 text-label-s md:h-9" [class]="otro() ? 'border-accent bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-muted'"
-                  [attr.aria-pressed]="otro()" (click)="otro.set(true)">Otro</button>
-              </div>
+              <fieldset class="mt-5">
+                <legend class="text-label-s text-text-primary">Elige el importe</legend>
+                <div class="mt-2 grid grid-cols-3 gap-2">
+                  @for (c of chips(); track c) {
+                    <button type="button" class="flex h-[68px] flex-col items-center justify-center gap-1 rounded-md border transition-[border-color,background,box-shadow]"
+                      [class]="!otro() && importe() === c ? 'border-accent bg-accent-deep/32 shadow-[0_0_16px_rgb(196_43_62/0.3)]' : 'border-line-strong bg-bg-surface hover:border-text-muted'"
+                      [attr.aria-pressed]="!otro() && importe() === c" (click)="elegir(c)">
+                      <span class="font-display text-[24px] leading-none text-text-primary italic">{{ eurosCorto(c) }}</span>
+                      <span class="font-mono text-[11px] tracking-[0.08em] uppercase" [class]="!otro() && importe() === c ? 'text-accent-text' : 'text-text-tertiary'">{{ num(coinsDe(c)) }} coins</span>
+                    </button>
+                  }
+                  <button type="button" class="flex h-[68px] flex-col items-center justify-center gap-1 rounded-md border transition-[border-color,background,box-shadow]" [style.grid-column]="'span ' + spanOtro()"
+                    [class]="otro() ? 'border-accent bg-accent-deep/32 shadow-[0_0_16px_rgb(196_43_62/0.3)]' : 'border-line-strong bg-bg-surface hover:border-text-muted'"
+                    [attr.aria-pressed]="otro()" (click)="otro.set(true)">
+                    <span class="text-label-s text-text-primary">Otro importe</span>
+                    <span class="font-mono text-[11px] tracking-[0.08em] uppercase" [class]="otro() ? 'text-accent-text' : 'text-text-tertiary'">De {{ minimoEuros() }} a {{ maximoEuros() }}</span>
+                  </button>
+                </div>
+              </fieldset>
               @if (otro()) {
-                <label class="mt-3 block">
-                  <span class="text-label-s text-text-primary">Importe en €</span>
-                  <input grInput type="number" inputmode="decimal" min="1" step="0.5" class="mt-1.5" placeholder="15,00 €" aria-label="Importe en euros" [ngModel]="otroEuros()" (ngModelChange)="otroEuros.set($event)" />
+                <label class="mt-4 block">
+                  <span class="text-label-s text-text-primary">Importe en € *</span>
+                  <input grInput type="number" inputmode="decimal" min="1" step="0.5" class="mt-1.5" placeholder="15,00" aria-label="Importe en euros" [invalid]="fueraDeRango()" [ngModel]="otroEuros()" (ngModelChange)="ponerOtro($event)" />
+                  <span class="mt-1.5 block text-body-xs" [class]="fueraDeRango() ? 'text-accent-text' : 'text-text-tertiary'">Entre {{ minimoEuros() }} y {{ maximoEuros() }}</span>
                 </label>
-                <p class="mt-1 text-mono-xs text-text-tertiary">Entre {{ minimoEuros() }} y {{ maximoEuros() }}</p>
               }
 
               <!-- mensaje -->
-              <label class="mt-5 block">
-                <span class="text-label-s text-text-primary">Mensaje (opcional) · máx. 140</span>
-                <textarea grInput rows="3" class="mt-1.5" placeholder="Escribe un mensaje para el chat…" aria-label="Mensaje para el chat" [ngModel]="mensaje()" (ngModelChange)="mensaje.set($event)"></textarea>
-                <span class="mt-1 block text-right font-mono text-mono-xs" [class]="mensaje().length > 140 ? 'text-accent-text' : 'text-text-tertiary'">{{ mensaje().length }} / 140</span>
+              <label class="mt-4 block">
+                <span class="flex items-baseline justify-between gap-2"><span class="text-label-s text-text-primary">Mensaje para el chat <span class="font-normal text-text-tertiary">(opcional)</span></span>
+                  <span class="font-mono text-[11px] tracking-[0.08em]" [class]="mensaje().length > 140 ? 'text-accent-text' : 'text-text-muted'">{{ mensaje().length }}/140</span></span>
+                <textarea grInput rows="2" class="mt-1.5 resize-none" placeholder="Escribe algo para los atletas…" aria-label="Mensaje para el chat" [invalid]="mensaje().length > 140" [ngModel]="mensaje()" (ngModelChange)="mensaje.set($event)"></textarea>
               </label>
 
               <!-- anónimo -->
-              <label class="mt-3 flex cursor-pointer items-start gap-2.5">
-                <input type="checkbox" class="mt-0.5 size-4 shrink-0 accent-[#c42b3e]" [ngModel]="anonimo()" (ngModelChange)="anonimo.set($event)" />
-                <span class="text-body-xs text-text-secondary">Donar anónimamente (apareces como «Anónimo» en el ranking)</span>
+              <label class="mt-3 flex min-h-11 cursor-pointer items-center gap-3">
+                <input type="checkbox" class="size-5 shrink-0 accent-[#c42b3e]" [ngModel]="anonimo()" (ngModelChange)="anonimo.set($event)" />
+                <span class="text-body-s text-text-secondary">Donar de forma anónima <span class="text-text-tertiary">(sales como «Anónimo» en el ranking)</span></span>
               </label>
 
-              <!-- equivalencias -->
-              <div class="mt-4 flex flex-col gap-1.5 rounded-md bg-bg-surface p-3">
-                <p class="flex items-center gap-2 text-body-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-warning"></span>{{ eurosCorto(importe()) }} = {{ num(coins()) }} GRS coins anunciados en el chat</p>
-                <p class="flex items-center gap-2 text-body-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-info"></span>+{{ num(fantasy()) }} monedas de GRS Fantasy (10.000 por €)</p>
+              <!-- resumen -->
+              <div class="mt-3 rounded-md border border-line-subtle bg-bg-surface p-3.5">
+                <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Con tu donativo</p>
+                <p class="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1"><gr-coin>+{{ num(coins()) }} GRS coins</gr-coin><span class="text-body-xs text-text-tertiary">anunciados en el chat</span></p>
+                <p class="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1"><gr-coin tipo="fantasy">+{{ num(fantasy()) }} fantasy</gr-coin><span class="text-body-xs text-text-tertiary">para tu equipo de GRS Fantasy</span></p>
+                <p class="mt-3 flex items-center justify-between border-t border-line-subtle pt-3"><span class="text-label-s text-text-primary">Total</span><span class="font-display text-[24px] leading-none italic">{{ total() }}</span></p>
               </div>
 
               @if (!activo()) {
@@ -85,10 +123,8 @@ const euros0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
                 <p class="mt-4 flex items-start gap-2 rounded-md border border-accent/40 bg-accent-deep/20 p-3 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="14" class="mt-0.5 shrink-0" />{{ e }}</p>
               }
 
-              <!-- total -->
-              <p class="mt-5 flex items-center justify-between text-label-s text-text-primary"><span>Total</span><span class="font-mono">{{ total() }}</span></p>
-              <button type="button" grButton variant="primary" size="l" [block]="true" class="mt-3" [loading]="pagando()" [disabled]="!puedePagar()" (click)="pagar()">Pagar con Stripe</button>
-              <p class="mt-3 text-center text-body-xs text-text-tertiary">Pasarela segura · al terminar vuelves al directo (/en-directo?donacion=ok)</p>
+              <button type="button" grButton variant="primary" size="l" [block]="true" icon="lock" class="mt-4" [loading]="pagando()" [disabled]="!puedePagar()" (click)="pagar()">Pagar{{ importe() > 0 ? ' ' + total() : '' }}</button>
+              <p class="mt-3 flex items-center justify-center gap-1.5 text-center text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ pie() }}</p>
             }
           }
         </div>
@@ -122,6 +158,21 @@ export class DonarModal {
   protected maximoEuros = computed(() => euros0.format((this.don.config()?.maximo ?? 50000) / 100));
   protected readonly coins = computed(() => coinsDe(this.importe(), this.don.config()?.coinsPorEuro ?? 100));
   protected readonly fantasy = computed(() => fantasyDe(this.importe()));
+  /** «Otro importe» fills the rest of the last row of the 3-column grid. */
+  protected readonly spanOtro = computed(() => 3 - (this.chips().length % 3));
+  protected readonly fueraDeRango = computed(() => {
+    if (!this.otro() || this.otroEuros() === '') return false;
+    const cfg = this.don.config();
+    return this.importe() < (cfg?.minimo ?? 100) || this.importe() > (cfg?.maximo ?? 50000);
+  });
+  protected readonly pie = computed(() =>
+    this.don.config()?.pasarela === 'stripe' ? 'Pago seguro con Stripe · no guardamos tu tarjeta' : 'Pago seguro · no guardamos tu tarjeta',
+  );
+  protected readonly garantias: { i: GrIconName; t: string }[] = [
+    { i: 'heart', t: '100 % al club' },
+    { i: 'lock', t: 'Pago seguro' },
+    { i: 'mail', t: 'Recibo' },
+  ];
   /** «10,00 €» */
   protected readonly total = computed(() => euros2.format(this.importe() / 100));
 
@@ -188,5 +239,12 @@ export class DonarModal {
   }
   protected num(n: number): string {
     return num(n);
+  }
+  /** The number input gives a number (or null when empty): the amount is kept as text. */
+  protected ponerOtro(v: number | string | null): void {
+    this.otroEuros.set(v === null || v === undefined ? '' : String(v));
+  }
+  protected coinsDe(c: number): number {
+    return coinsDe(c, this.don.config()?.coinsPorEuro ?? 100);
   }
 }
