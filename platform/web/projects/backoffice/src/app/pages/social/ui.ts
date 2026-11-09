@@ -167,13 +167,16 @@ export class SoGrupo {}
 /** Logo / creative thumbnail with a fallback (display initials) when the URL is empty or broken. */
 @Component({
   selector: 'so-thumb',
+  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative flex shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line-strong bg-bg-raised' },
   template: `
     @if (src() && !roto()) {
       <img [src]="src()" [alt]="alt()" class="size-full object-contain" loading="lazy" (error)="roto.set(true)" />
-    } @else {
+    } @else if (nombre().trim()) {
       <span class="px-1 text-center font-display text-[13px] leading-none tracking-[0.06em] text-text-secondary uppercase italic" aria-hidden="true">{{ marca() }}</span>
+    } @else {
+      <gr-icon name="camera" [size]="20" class="text-text-muted" />
     }
   `,
 })

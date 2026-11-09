@@ -187,14 +187,14 @@ const aIso = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null)
 
         <div class="flex flex-col gap-3">
           <p class="text-label-s">Creatividades</p>
-          <div class="grid grid-cols-[minmax(0,1fr)_76px] gap-3">
+          <div class="grid grid-cols-[minmax(0,1fr)_76px] items-start gap-3">
             <figure class="flex min-w-0 flex-col gap-2">
               <so-thumb class="aspect-[1200/630] w-full rounded-md" [src]="form().imagenUrl" [nombre]="form().patrocinador" alt="Vista previa del banner de escritorio" />
-              <figcaption class="text-body-xs text-text-tertiary"><span class="text-label-s text-text-secondary">Escritorio</span> · 1200 × 630</figcaption>
+              <figcaption class="text-body-xs text-text-tertiary"><span class="block text-label-s text-text-secondary">Escritorio</span>1200 × 630 · PNG o WebP</figcaption>
             </figure>
             <figure class="flex flex-col gap-2">
               <so-thumb class="aspect-[9/16] w-full rounded-md" [src]="form().imagenMovilUrl" [nombre]="form().patrocinador" alt="Vista previa del banner de móvil" />
-              <figcaption class="text-body-xs text-text-tertiary"><span class="text-label-s text-text-secondary">Móvil</span> · 1080 × 1920</figcaption>
+              <figcaption class="text-body-xs text-text-tertiary"><span class="block text-label-s text-text-secondary">Móvil</span>1080 × 1920</figcaption>
             </figure>
           </div>
           <div class="flex flex-col gap-2">
