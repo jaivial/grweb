@@ -48,6 +48,7 @@ type atleta struct {
 	RackSQ         *int      `json:"rackSq,omitempty"`
 	RackBP         string    `json:"rackBp,omitempty"`
 	Frase          string    `json:"frase,omitempty"`
+	FotoURL        string    `json:"fotoUrl,omitempty"` // athletes sends it only with public profile + image consent
 	// from the published schedule
 	Lote   int       `json:"-"`
 	Flight uuid.UUID `json:"-"`

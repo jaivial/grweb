@@ -52,7 +52,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 
 // noAudit are progress or delivery events: they are for live screens and other services, not the activity log.
 // Internal events carrying personal data (email requests, contact facts, deliveries) are not kept in the log either.
-var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitado": true, "cms.email_solicitado": true, "identity.email_solicitado": true,
+var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitado": true, "cms.email_solicitado": true, "identity.email_solicitado": true, "fans.email_solicitado": true,
 	"crm.email_solicitado": true, "athletes.contacto": true, "cms.contacto": true, "messaging.enviado": true, "messaging.rebote": true, "mensaje.estado": true,
 	"ticketing.email_solicitado": true, "ticketing.contacto": true, "checkin.escaneo": true, "aforo.actualizado": true,
 	// live: the public mirrors of the desk (every weight and light); the log keeps directo.cambio, the corrections and

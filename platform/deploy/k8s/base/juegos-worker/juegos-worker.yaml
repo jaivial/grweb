@@ -1,0 +1,74 @@
+# juegos-worker: same binary and image as juegos, running `juegos worker` (recompensas, cláusulas, puntos y
+# liquidación de mercados consumiendo grcup:events). One replica: the Redis lock (SET NX PX) and the idempotency
+# by `ref` make the work single-flight; more replicas only add contention. Hand-written (like the gateway) because
+# generar.py only emits the template of HTTP services: no Service (nothing listens) and no probes (the worker
+# command does not serve HTTP; its liveness is the event loop itself and `Salud` sees the juegos deployment).
+# The migrate init container is the same one the juegos deployment runs: goose is idempotent and serialised with
+# an advisory lock, so both pods can race on it safely.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juegos-worker
+  labels: { app.kubernetes.io/name: juegos-worker, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: juegos }
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: juegos-worker }
+  strategy:
+    rollingUpdate: { maxSurge: 0, maxUnavailable: 0 } # never two workers at once
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: juegos-worker, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: juegos, grcup.dev/db: "true" }
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      initContainers:
+        - name: migrate
+          image: grcup/juegos
+          imagePullPolicy: IfNotPresent
+          args: ["migrate"]
+          envFrom:
+            - configMapRef: { name: grcup-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-db, key: PW_JUEGOS } }
+            - { name: DATABASE_URL, value: "postgres://grcup_juegos:$(DB_PASSWORD)@postgres:5432/grcup_juegos?sslmode=disable&$(DB_POOL)" }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
+            - name: INTERNAL_TOKEN_SECRET
+              valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+      containers:
+        - name: juegos-worker
+          image: grcup/juegos
+          imagePullPolicy: IfNotPresent
+          args: ["worker"]
+          envFrom:
+            - configMapRef: { name: grcup-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-db, key: PW_JUEGOS } }
+            - { name: DATABASE_URL, value: "postgres://grcup_juegos:$(DB_PASSWORD)@postgres:5432/grcup_juegos?sslmode=disable&$(DB_POOL)" }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
+            - name: INTERNAL_TOKEN_SECRET
+              valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 30m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
