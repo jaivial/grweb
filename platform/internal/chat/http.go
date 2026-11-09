@@ -127,7 +127,8 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	conn, err := websocket.Accept(w, r, nil)
+	// The gateway rewrites the Host, so the browser's Origin is checked against the whitelist (CHAT_ORIGENES).
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: s.origenes})
 	if err != nil {
 		return
 	}
@@ -151,17 +152,59 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 
 	// writer: room items from the hub; a closed channel means the client was too slow → 1008.
 	done := make(chan struct{})
+	// the client may reconnect with ?desde=<id>: the missed entries are replayed before the live ones and the
+	// writer skips the ones already sent (same contract as the SSE with Last-Event-ID).
+	visto := ""
+	if from := lastID(r); from != "" {
+		nombre := s.streamDe(cid.String(), dia)
+		msgs, err := s.a.Redis.XRangeN(ctx, nombre, from, "+", maxReplay+1).Result()
+		if err == nil {
+			truncado := len(msgs) > maxReplay
+			if truncado {
+				msgs = msgs[:maxReplay]
+			}
+			for _, m := range msgs {
+				if m.ID == from {
+					continue
+				}
+				var it item
+				raw, _ := m.Values["d"].(string)
+				if json.Unmarshal([]byte(raw), &it) == nil && it.T != "" {
+					it.ID = m.ID
+					b, _ := json.Marshal(it)
+					if !escribir(b) {
+						return
+					}
+					visto = m.ID
+				}
+			}
+			if truncado {
+				b, _ := json.Marshal(item{T: "sistema", Motivo: "resync", Texto: "demasiados_eventos"})
+				_ = escribir(b)
+			}
+		}
+	}
 	go func() {
 		defer close(done)
 		for {
 			select {
-			case it, ok := <-ch:
+			case fr, ok := <-ch:
 				if !ok {
 					_ = conn.Close(websocket.StatusPolicyViolation, "lento")
 					return
 				}
-				b, err := json.Marshal(it)
-				if err == nil && !escribir(b) {
+				// the room already encoded the frame (once for the whole room): no per-client JSON
+				b := fr.json
+				if b == nil {
+					b, _ = json.Marshal(fr.it)
+				}
+				if fr.it.ID != "" {
+					if visto != "" && !after(fr.it.ID, visto) {
+						continue // already sent in the replay
+					}
+					visto = fr.it.ID
+				}
+				if !escribir(b) {
 					return
 				}
 			case <-ctx.Done():
@@ -251,12 +294,16 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 		sl.unsub(ch)
 	}()
 
-	escribir := func(id string, it item) bool {
-		b, err := json.Marshal(it)
-		if err != nil {
-			return true
+	escribir := func(id string, fr frame) bool {
+		b := fr.json
+		if b == nil {
+			var err error
+			b, err = json.Marshal(fr.it)
+			if err != nil {
+				return true
+			}
 		}
-		if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", id, it.T, b); err != nil {
+		if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", id, fr.it.T, b); err != nil {
 			return false
 		}
 		return rc.Flush() == nil
@@ -280,7 +327,7 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 				raw, _ := m.Values["d"].(string)
 				if json.Unmarshal([]byte(raw), &it) == nil && it.T != "" {
 					it.ID = m.ID
-					if !escribir(m.ID, it) {
+					if !escribir(m.ID, nuevaFrame(it)) {
 						return
 					}
 				}
@@ -299,7 +346,7 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 				raw, _ := m.Values["d"].(string)
 				if json.Unmarshal([]byte(raw), &it) == nil && it.T != "" {
 					it.ID = m.ID
-					if !escribir(m.ID, it) {
+					if !escribir(m.ID, nuevaFrame(it)) {
 						return
 					}
 				}
@@ -316,19 +363,19 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-ctx.Done():
 			return
-		case it, ok := <-ch:
+		case fr, ok := <-ch:
 			if !ok {
 				return // too slow: the client reconnects with Last-Event-ID
 			}
 			// only stream items carry an id (estado is published locally without one): replay duplicates
 			// are skipped by id, the rest always go out
-			if it.ID != "" {
-				if visto != "" && !after(it.ID, visto) {
+			if fr.it.ID != "" {
+				if visto != "" && !after(fr.it.ID, visto) {
 					continue
 				}
-				visto = it.ID
+				visto = fr.it.ID
 			}
-			if !escribir(it.ID, it) {
+			if !escribir(fr.it.ID, fr) {
 				return
 			}
 		case <-ping.C:
@@ -468,6 +515,7 @@ func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut,
 	if dia == hoy() {
 		nombre := s.streamDe(cid.String(), dia)
 		var fin, omitir string
+		fin = "+" // XREVRANGE empieza por el más nuevo (con «» Redis rechaza el rango y el historial se queda solo con la tabla)
 		if in.Antes != "" {
 			if _, _, err := parseID(in.Antes); err != nil {
 				return nil, problem.BadRequest("ID_INVALIDO", "El parámetro antes tiene que ser un id del stream.")
@@ -484,7 +532,7 @@ func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut,
 				}
 				var it item
 				raw, _ := m.Values["d"].(string)
-				if json.Unmarshal([]byte(raw), &it) == nil && it.T == "msg" {
+				if json.Unmarshal([]byte(raw), &it) == nil && (it.T == "msg" || it.T == "donacion") {
 					it.ID = m.ID
 					msgs = append(msgs, it)
 				}
@@ -550,7 +598,7 @@ type reportarIn struct {
 	Slug    string `path:"slug"`
 	ID      string `path:"id"`
 	Body    struct {
-		Motivo string `json:"motivo" maxLength:"200"`
+		Motivo string `json:"motivo,omitempty" maxLength:"200"`
 	}
 }
 

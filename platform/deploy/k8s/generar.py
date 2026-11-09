@@ -37,8 +37,13 @@ SERVICES = {
     "ai": dict(db=False, hpa=(1, 2), mem=("32Mi", "128Mi"), secrets={"MINIMAX_API_KEY": ("grcup-ai", "MINIMAX_API_KEY")}),
     "realtime": dict(db=False, hpa=(2, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
     # Paso 17 · directo social (§10): chat es la ruta caliente; juegos-worker va aparte, más abajo.
+    # CHAT_ORIGENES: los orígenes (host:port) que el chat acepta en el handshake del WebSocket (el gateway
+    # reescribe el Host, así que el Origin del navegador se comprueba contra esta lista blanca). QA por defecto;
+    # producción lo sobreescribe en overlays/prod (patch del Deployment «chat»).
     "fans": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
-    "chat": dict(db=True, hpa=(2, 8), mem=("64Mi", "384Mi"), env={"CHAT_MAX_CONEXIONES": "10000"}),
+    # memory, not CPU, bounds the chat: ~200 KiB per connection (load test 08/11/2026, docs/carga) → 1 GiB holds
+    # ~4.000 connections per pod; GOMEMLIMIT keeps the GC ahead of the limit.
+    "chat": dict(db=True, hpa=(2, 8), mem=("128Mi", "1Gi"), env={"CHAT_MAX_CONEXIONES": "4000", "GOMEMLIMIT": "800MiB", "CHAT_ORIGENES": "grcup-qa.menustudioai.com,grcup-qa.menustudioai.com:*"}),
     "donaciones": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
     "patrocinio": dict(db=True, hpa=(1, 2), mem=("64Mi", "256Mi")),
     "juegos": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi")),

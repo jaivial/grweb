@@ -58,8 +58,8 @@ type Config struct {
 	PctPuesto       [3]int    `json:"pctPuesto"`
 	Puntos          PuntosCfg `json:"puntos"`
 	Activo          bool      `json:"activo"`
-	Version         int       `json:"version"`
-	UpdatedPor      string    `json:"updatedPor"`
+	Version         int       `json:"version" required:"false"`
+	UpdatedPor      string    `json:"updatedPor" required:"false"`
 }
 
 // configPorDefecto matches the migration defaults (contract values).

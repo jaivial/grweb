@@ -9,7 +9,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -43,17 +45,19 @@ const (
 	envMaxConexiones  = "CHAT_MAX_CONEXIONES"
 	defMaxConexiones  = 10000
 	defWsIdleSegundos = 90 // a WS connection is closed when the client sends nothing for this long
+	envOrigenes       = "CHAT_ORIGENES"
 )
 
 // Svc holds the service dependencies.
 type Svc struct {
-	a       *app.App
-	comps   *compref.Resolver
-	fans    fanauth.Verifier
-	hub     *hub
-	max     int64
-	pod     string
-	ctxRaiz context.Context // app-lifetime context for the room readers (not the request's)
+	a        *app.App
+	comps    *compref.Resolver
+	fans     fanauth.Verifier
+	hub      *hub
+	max      int64
+	pod      string
+	origenes []string
+	ctxRaiz  context.Context // app-lifetime context for the room readers (not the request's)
 }
 
 // Service returns the chat service definition.
@@ -71,6 +75,7 @@ func (s *Svc) setup(ctx context.Context, a *app.App) error {
 	s.fans = fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
 	s.max = int64(config.Int(envMaxConexiones, defMaxConexiones))
 	s.pod, _ = os.Hostname()
+	s.origenes = origenesWS()
 
 	s.registrarPublico()
 	s.registrarAdmin()
@@ -243,6 +248,35 @@ func (s *Svc) presencia(ctx context.Context) {
 		case <-t.C:
 		}
 	}
+}
+
+// origenesWS is the whitelist of Origin hosts accepted in the WebSocket handshake. The gateway rewrites the Host
+// (chat:8080), so the browser's Origin can never match it and has to be checked against this list. InsecureSkipVerify
+// is NOT an option: the chat authenticates with the cookie of the fan and skipping the check would open the door to
+// CSWSH.
+// CHAT_ORIGENES (comma separated) has priority; by default the host of PUBLIC_WEB_URL, plus localhost:* and
+// 127.0.0.1:* only in dev.
+func origenesWS() []string {
+	var out []string
+	if v := config.Str(envOrigenes, ""); v != "" {
+		for _, o := range strings.Split(v, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				out = append(out, o)
+			}
+		}
+		if len(out) > 0 {
+			return out
+		}
+	}
+	if web := config.Str("PUBLIC_WEB_URL", "http://localhost:4200"); web != "" {
+		if u, err := url.Parse(web); err == nil && u.Host != "" {
+			out = append(out, u.Host, u.Host+":*")
+		}
+	}
+	if config.Str("SERVICE_ENV", "dev") == "dev" {
+		out = append(out, "localhost:*", "127.0.0.1:*")
+	}
+	return out
 }
 
 // ---- metrics (counters exposed at /metrics/chat; HTTP request metrics come from a.Metrics) ----

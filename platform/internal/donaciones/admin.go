@@ -233,7 +233,7 @@ func (s *Svc) registerAdmin() {
 		CID  uuid.UUID `path:"cid"`
 		ID   uuid.UUID `path:"id"`
 		Body struct {
-			Motivo string `json:"motivo" minLength:"3" maxLength:"200"`
+			Motivo string `json:"motivo,omitempty" minLength:"3" maxLength:"200"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "donaciones-reembolso", Method: http.MethodPost, Path: base + "/{id}/reembolso", Summary: "Reembolsar una donación pagada", Tags: tagAdmin, Security: bearer},

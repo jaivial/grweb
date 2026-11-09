@@ -16,6 +16,8 @@ resources:
 patches:
   - path: config.yaml
   - path: sin-ejemplos.yaml
+  # The chat accepts the WebSocket handshakes of the public web only (the Origin whitelist of QA is patched here).
+  - path: chat-origenes.yaml
   # Data of production on the node.
   - target: { kind: StatefulSet, name: postgres }
     patch: |-

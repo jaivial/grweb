@@ -116,11 +116,15 @@ services:
 
   chat:
     <<: *svc
+    mem_limit: 768m  # ~200 KiB per connection (docs/carga/2026-11-08-chat.md)
     build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
       DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
       CHAT_MAX_CONEXIONES: "10000"
+      # White list of Origin hosts for the WebSocket handshake (the gateway rewrites the Host): in dev the web
+      # runs in localhost (4200/4201).
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
 
   donaciones:
     <<: *svc
@@ -239,11 +243,13 @@ services:
   # Réplica del chat con puerto publicado para la prueba de carga (cmd/carga-chat sin pasar por el gateway).
   chat-load:
     <<: *svc
+    mem_limit: 768m  # ~200 KiB per connection (docs/carga/2026-11-08-chat.md)
     build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
       DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
       CHAT_MAX_CONEXIONES: "10000"
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
     ports:
       - "127.0.0.1:18301:8080"
 

@@ -34,7 +34,7 @@ type filaFantasy struct {
 const rankFantasyBase = `SELECT s.fan_id, s.alias, s.saldo, COALESCE(p.puntos, 0) AS puntos, COALESCE(v.valor, 0) AS valor, s.created_at
 	FROM saldos s
 	LEFT JOIN (SELECT fan_id, sum(puntos)::int puntos FROM puntos WHERE jornada_id = $1 GROUP BY fan_id) p ON p.fan_id = s.fan_id
-	LEFT JOIN (SELECT fan_id, sum(clausula) valor FROM fantasy_atletas WHERE jornada_id = $1 AND dueno_fan_id IS NOT NULL GROUP BY fan_id) v ON v.fan_id = s.fan_id
+	LEFT JOIN (SELECT dueno_fan_id AS fan_id, sum(clausula) valor FROM fantasy_atletas WHERE jornada_id = $1 AND dueno_fan_id IS NOT NULL GROUP BY dueno_fan_id) v ON v.fan_id = s.fan_id
 	WHERE s.jornada_id = $1 AND s.moneda = 'fantasy'`
 
 // rankingPorra returns the top 50 of the porra (cached 3 s) and the fan's own place.
@@ -88,15 +88,23 @@ func (s *Svc) miPuesto(ctx context.Context, j jornada, fanID uuid.UUID, m Moneda
 	if fanID == uuid.Nil {
 		return 0
 	}
-	q := `SELECT puesto FROM (
-		SELECT fan_id, rank() OVER (ORDER BY saldo DESC, updated_at ASC) puesto
-		FROM saldos WHERE jornada_id = $1 AND moneda = $2) r WHERE r.fan_id = $3`
+	var (
+		q    string
+		args []any
+	)
 	if m == Fantasy {
+		// the base query already filters by jornada ($1): the fan is $2.
 		q = `SELECT puesto FROM (SELECT fan_id, rank() OVER (ORDER BY puntos DESC, valor DESC, saldo DESC, created_at ASC) puesto
 			FROM (` + rankFantasyBase + `) r) r2 WHERE r2.fan_id = $2`
+		args = []any{j.ID, fanID}
+	} else {
+		q = `SELECT puesto FROM (
+			SELECT fan_id, rank() OVER (ORDER BY saldo DESC, updated_at ASC) puesto
+			FROM saldos WHERE jornada_id = $1 AND moneda = $2) r WHERE r.fan_id = $3`
+		args = []any{j.ID, m, fanID}
 	}
 	var puesto int
-	if err := s.a.DB.QueryRow(ctx, q, j.ID, m, fanID).Scan(&puesto); err != nil {
+	if err := s.a.DB.QueryRow(ctx, q, args...).Scan(&puesto); err != nil {
 		return 0
 	}
 	return puesto

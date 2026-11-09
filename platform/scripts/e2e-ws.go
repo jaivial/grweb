@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -28,6 +29,7 @@ func main() {
 		n     = flag.Int("n", 0, "mensajes a enviar (0 = solo leer)")
 		pausa = flag.Duration("pausa", 2200*time.Millisecond, "pausa entre mensajes (el límite es 1 cada 2 s)")
 		texto = flag.String("texto", "hola desde el e2e", "texto de los mensajes (≥3 caracteres sin espacios para contar)")
+		desde = flag.String("desde", "", "id del stream desde el que reanudar (el servidor hace el replay)")
 	)
 	flag.Parse()
 	if *url == "" {
@@ -42,7 +44,11 @@ func main() {
 		hdr.Set("X-GrCup-Fan", *fan)
 		hdr.Set("Cookie", "grcup_fan="+*fan)
 	}
-	ws, _, err := websocket.Dial(ctx, *url, &websocket.DialOptions{HTTPHeader: hdr})
+	u := *url
+	if *desde != "" {
+		u += "?desde=" + *desde
+	}
+	ws, _, err := websocket.Dial(ctx, u, &websocket.DialOptions{HTTPHeader: hdr})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ws dial: %v\n", err)
 		os.Exit(1)
@@ -71,6 +77,34 @@ func main() {
 	}()
 
 	enviados := 0
+	// el servidor cierra un WS que lleva 90 s sin hablar (CHAT_WS_IDLE_SEG): el lector que solo escucha
+	// manda un ping cada 30 s para que no lo desconecten.
+	var wmu sync.Mutex
+	escribir := func(b []byte) error {
+		wmu.Lock()
+		defer wmu.Unlock()
+		w, err := ws.Writer(ctx, websocket.MessageText)
+		if err != nil {
+			return err
+		}
+		if _, err := w.Write(b); err != nil {
+			return err
+		}
+		return w.Close()
+	}
+	go func() {
+		t := time.NewTicker(30 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				msg, _ := json.Marshal(map[string]any{"t": "ping"})
+				_ = escribir(msg)
+			}
+		}
+	}()
 	for i := 0; i < *n; i++ {
 		// respetar el ritmo: 1 mensaje cada 2 s con ráfaga de 5
 		if i > 0 {
@@ -83,15 +117,7 @@ func main() {
 		msg, _ := json.Marshal(map[string]any{
 			"t": "msg", "texto": textoMsg, "cid": uuid.NewString(),
 		})
-		w, err := ws.Writer(ctx, websocket.MessageText)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ws writer: %v\n", err)
-			break
-		}
-		if _, err := w.Write(msg); err == nil {
-			err = w.Close()
-		}
-		if err != nil {
+		if err := escribir(msg); err != nil {
 			fmt.Fprintf(os.Stderr, "ws send: %v\n", err)
 			break
 		}

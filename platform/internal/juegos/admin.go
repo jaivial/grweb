@@ -26,6 +26,10 @@ type premioVista struct {
 	ImagenURL    string    `json:"imagenUrl,omitempty"`
 	ValorTexto   string    `json:"valorTexto,omitempty"`
 	Patrocinador string    `json:"patrocinador,omitempty"`
+	// admin only (the public endpoint returns only active prizes and does not fill these)
+	JornadaID *uuid.UUID `json:"jornadaId,omitempty" doc:"Vacío: premio común a todas las jornadas"`
+	Orden     int        `json:"orden"`
+	Activo    bool       `json:"activo"`
 }
 
 func (s *Svc) registerAdmin() {
@@ -326,10 +330,10 @@ func (s *Svc) registerAdmin() {
 			PuestoDesde  int        `json:"puestoDesde" minimum:"1" maximum:"999"`
 			PuestoHasta  int        `json:"puestoHasta" minimum:"1" maximum:"999"`
 			Titulo       string     `json:"titulo" minLength:"1" maxLength:"120"`
-			Descripcion  string     `json:"descripcion" maxLength:"400"`
-			ImagenURL    string     `json:"imagenUrl" maxLength:"400"`
-			ValorTexto   string     `json:"valorTexto" maxLength:"60"`
-			Patrocinador string     `json:"patrocinador" maxLength:"80"`
+			Descripcion  string     `json:"descripcion,omitempty" maxLength:"400"`
+			ImagenURL    string     `json:"imagenUrl,omitempty" maxLength:"400"`
+			ValorTexto   string     `json:"valorTexto,omitempty" maxLength:"60"`
+			Patrocinador string     `json:"patrocinador,omitempty" maxLength:"80"`
 			Orden        int        `json:"orden"`
 		}
 	}
@@ -374,6 +378,10 @@ func (s *Svc) registerAdmin() {
 			Patrocinador *string `json:"patrocinador,omitempty" maxLength:"80"`
 			Orden        *int    `json:"orden,omitempty"`
 			Activo       *bool   `json:"activo,omitempty"`
+			PuestoDesde  *int    `json:"puestoDesde,omitempty" minimum:"1" maximum:"1000"`
+			PuestoHasta  *int    `json:"puestoHasta,omitempty" minimum:"1" maximum:"1000"`
+			// "" = common to every jornada; absent = unchanged
+			JornadaID *string `json:"jornadaId,omitempty"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-premio-patch", Method: http.MethodPatch, Path: base + "/premios/{pid}",
@@ -383,11 +391,26 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			b := in.Body
+			cambiaJornada, jornada := false, (*uuid.UUID)(nil)
+			if b.JornadaID != nil {
+				cambiaJornada = true
+				if *b.JornadaID != "" {
+					j, err := uuid.Parse(*b.JornadaID)
+					if err != nil {
+						return nil, problem.Unprocessable("JORNADA_NO_VALIDA", "La jornada no es válida.")
+					}
+					jornada = &j
+				}
+			}
 			tag, err := s.a.DB.Exec(ctx, `UPDATE premios SET
 				titulo = COALESCE($3, titulo), descripcion = COALESCE($4, descripcion), imagen_url = COALESCE($5, imagen_url),
 				valor_texto = COALESCE($6, valor_texto), patrocinador = COALESCE($7, patrocinador),
-				orden = COALESCE($8, orden), activo = COALESCE($9, activo), version = version + 1, updated_at = now()
-				WHERE id = $1 AND competition_id = $2`, in.PID, in.CID, b.Titulo, b.Descripcion, b.ImagenURL, b.ValorTexto, b.Patrocinador, b.Orden, b.Activo)
+				orden = COALESCE($8, orden), activo = COALESCE($9, activo),
+				puesto_desde = COALESCE($10, puesto_desde), puesto_hasta = COALESCE($11, puesto_hasta),
+				jornada_id = CASE WHEN $12 THEN $13 ELSE jornada_id END,
+				version = version + 1, updated_at = now()
+				WHERE id = $1 AND competition_id = $2`, in.PID, in.CID, b.Titulo, b.Descripcion, b.ImagenURL, b.ValorTexto, b.Patrocinador, b.Orden, b.Activo,
+				b.PuestoDesde, b.PuestoHasta, cambiaJornada, jornada)
 			if err != nil {
 				return nil, err
 			}
@@ -470,10 +493,10 @@ func (s *Svc) premios(ctx context.Context, cid, jid uuid.UUID) ([]premioVista, e
 	var rows pgx.Rows
 	var err error
 	if jid == uuid.Nil {
-		rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
+		rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador, jornada_id, orden, activo
 			FROM premios WHERE competition_id = $1 ORDER BY jornada_id NULLS FIRST, ranking, orden`, cid)
 	} else {
-		rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
+		rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador, jornada_id, orden, activo
 			FROM premios WHERE competition_id = $1 AND (jornada_id = $2 OR jornada_id IS NULL) ORDER BY ranking, orden`, cid, jid)
 	}
 	if err != nil {
@@ -483,7 +506,7 @@ func (s *Svc) premios(ctx context.Context, cid, jid uuid.UUID) ([]premioVista, e
 	out := []premioVista{}
 	for rows.Next() {
 		var p premioVista
-		if err := rows.Scan(&p.ID, &p.Ranking, &p.PuestoDesde, &p.PuestoHasta, &p.Titulo, &p.Descripcion, &p.ImagenURL, &p.ValorTexto, &p.Patrocinador); err != nil {
+		if err := rows.Scan(&p.ID, &p.Ranking, &p.PuestoDesde, &p.PuestoHasta, &p.Titulo, &p.Descripcion, &p.ImagenURL, &p.ValorTexto, &p.Patrocinador, &p.JornadaID, &p.Orden, &p.Activo); err != nil {
 			return nil, err
 		}
 		out = append(out, p)

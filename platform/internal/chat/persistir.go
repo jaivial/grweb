@@ -35,10 +35,16 @@ func (s *Svc) persistir(ctx context.Context) {
 	for ctx.Err() == nil {
 		nombres := s.hub.nombresStreams()
 		if len(nombres) > 0 {
+			// XREADGROUP wants one id per stream: «STREAMS k1 k2 > >». With a single ">" and two streams Redis
+			// answers «Unbalanced XREAD list of streams» and nothing is persisted.
+			streams := append([]string{}, nombres...)
+			for range nombres {
+				streams = append(streams, ">")
+			}
 			res, err := s.a.Redis.XReadGroup(ctx, &redis.XReadGroupArgs{
 				Group:    persistirGrupo,
 				Consumer: s.pod,
-				Streams:  append(append([]string{}, nombres...), ">"),
+				Streams:  streams,
 				Count:    persistirCount,
 				Block:    time.Second,
 			}).Result()
@@ -264,7 +270,8 @@ func (s *Svc) baneado(ctx context.Context, e events.Event) error {
 		}
 		if _, err := s.a.Redis.XDel(ctx, nombre, m.ID).Result(); err == nil {
 			borrados++
-			_ = s.inyectar(ctx, e.CompetitionID, dia, item{T: "borrado", ID: m.ID, Motivo: "baneado", Ts: time.Now().UnixMilli()})
+			// el id del mensaje borrado viaja en «mensajeId» (el lector de la sala pisa «id»)
+			_ = s.inyectar(ctx, e.CompetitionID, dia, item{T: "borrado", MensajeID: m.ID, Motivo: "baneado", Ts: time.Now().UnixMilli()})
 			_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET borrado = true WHERE id = $1 AND competition_id = $2`, m.ID, e.CompetitionID)
 		}
 	}

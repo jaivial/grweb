@@ -40,7 +40,7 @@ func atoi(s string) int {
 
 // publicarHasta adds the item to the stream until the local subscriber receives it (XREAD "$" only delivers
 // entries added after the reader's first command, so the very first one can fall in front of it).
-func publicarHasta(t *testing.T, rdb *redis.Client, nombre string, it item, ch chan item) {
+func publicarHasta(t *testing.T, rdb *redis.Client, nombre string, it item, ch chan frame) {
 	t.Helper()
 	for intento := 0; intento < 6; intento++ {
 		b, err := json.Marshal(it)
@@ -55,7 +55,7 @@ func publicarHasta(t *testing.T, rdb *redis.Client, nombre string, it item, ch c
 			if !ok {
 				t.Fatal("canal cerrado")
 			}
-			if got.Texto == it.Texto && got.ID != "" {
+			if got.it.Texto == it.Texto && got.it.ID != "" {
 				return
 			}
 		case <-time.After(time.Second):
@@ -215,8 +215,8 @@ func TestIntegracionSalaLenta(t *testing.T) {
 		if !ok {
 			t.Fatal("el sano fue desconectado por culpa del lento")
 		}
-		if it.Texto != "gota final" {
-			t.Errorf("el sano esperaba la gota final, recibió %q", it.Texto)
+		if it.it.Texto != "gota final" {
+			t.Errorf("el sano esperaba la gota final, recibió %q", it.it.Texto)
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("el sano dejó de recibir")

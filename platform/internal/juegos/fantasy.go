@@ -18,18 +18,19 @@ import (
 
 // atletaMercado is one row of the fantasy market (public view).
 type atletaMercado struct {
-	AtletaID      uuid.UUID  `json:"atletaId"`
-	Nombre        string     `json:"nombre"`
-	Sexo          string     `json:"sexo"`
-	Categoria     string     `json:"categoria"`
-	Clausula      int64      `json:"clausula"`
-	Dueno         *uuid.UUID `json:"dueno,omitempty"`
-	DuenoAlias    string     `json:"duenoAlias,omitempty"`
-	Titular       bool       `json:"titular"`
-	Protegido     bool       `json:"protegido"`
-	Libre         bool       `json:"libre"`
-	EsMio         bool       `json:"esMio"`
-	FlightEnCurso bool       `json:"flightEnCurso"`
+	AtletaID   uuid.UUID `json:"atletaId"`
+	Nombre     string    `json:"nombre"`
+	Sexo       string    `json:"sexo"`
+	Categoria  string    `json:"categoria"`
+	Clausula   int64     `json:"clausula"`
+	DuenoAlias string    `json:"duenoAlias,omitempty"`
+	Titular    bool      `json:"titular"`
+	Protegido  bool      `json:"protegido"`
+	// ProtegidoHasta is set while the protection after the last signing lasts (the «Protegido · mm:ss» countdown).
+	ProtegidoHasta *time.Time `json:"protegidoHasta,omitempty"`
+	Libre          bool       `json:"libre"`
+	EsMio          bool       `json:"esMio"`
+	FlightEnCurso  bool       `json:"flightEnCurso"`
 }
 
 // mercadoFantasy lists the athletes of a jornada with clause, owner (public alias) and protection.
@@ -44,7 +45,9 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, fanI
 			enCurso[m.Atletas[i].AtletaID] = true
 		}
 	}
-	rows, err := s.a.DB.Query(ctx, `SELECT atleta_id, nombre_publico, sexo, categoria, clausula, dueno_fan_id, dueno_alias, titular, protegido_hasta > now()
+	// COALESCE: `protegido_hasta > now()` is NULL when the athlete was never signed (NULL > now() = NULL) and a
+	// NULL cannot be scanned into a bool.
+	rows, err := s.a.DB.Query(ctx, `SELECT atleta_id, nombre_publico, sexo, categoria, clausula, dueno_fan_id, dueno_alias, titular, COALESCE(protegido_hasta > now(), false), CASE WHEN protegido_hasta > now() THEN protegido_hasta END
 		FROM fantasy_atletas WHERE jornada_id = $1 ORDER BY sexo, categoria, nombre_publico`, j.ID)
 	if err != nil {
 		return nil, err
@@ -54,7 +57,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, fanI
 	for rows.Next() {
 		var a atletaMercado
 		var dueno *uuid.UUID
-		if err := rows.Scan(&a.AtletaID, &a.Nombre, &a.Sexo, &a.Categoria, &a.Clausula, &dueno, &a.DuenoAlias, &a.Titular, &a.Protegido); err != nil {
+		if err := rows.Scan(&a.AtletaID, &a.Nombre, &a.Sexo, &a.Categoria, &a.Clausula, &dueno, &a.DuenoAlias, &a.Titular, &a.Protegido, &a.ProtegidoHasta); err != nil {
 			return nil, err
 		}
 		a.Libre = dueno == nil

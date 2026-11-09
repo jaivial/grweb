@@ -749,6 +749,11 @@ func (s *Svc) registerPublic() {
 		})
 
 	// GET /juegos/premios (contract §6.5): visible prizes of the jornada (porra, fantasy and donantes).
+	type premiosIn struct {
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID uuid.UUID `query:"jornada"`
+		Ranking   string    `query:"ranking" enum:"porra,fantasy,donantes" doc:"Filtra por clasificación"`
+	}
 	type premiosOut struct {
 		Body struct {
 			Premios []premioVista `json:"premios"`
@@ -756,7 +761,7 @@ func (s *Svc) registerPublic() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-premios", Method: http.MethodGet, Path: base + "/premios",
 		Summary: "Premios de la jornada (porra, fantasy y donantes)", Tags: tagJuegos},
-		func(ctx context.Context, in *jornadaIn) (*premiosOut, error) {
+		func(ctx context.Context, in *premiosIn) (*premiosOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -774,10 +779,17 @@ func (s *Svc) registerPublic() {
 				}
 			}
 			var rows pgx.Rows
-			if jid == nil {
+			switch {
+			case in.Ranking != "" && jid == nil:
+				rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
+					FROM premios WHERE competition_id = $1 AND jornada_id IS NULL AND activo AND ranking = $2 ORDER BY ranking, orden`, c.ID, in.Ranking)
+			case in.Ranking != "":
+				rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
+					FROM premios WHERE competition_id = $1 AND (jornada_id = $2 OR jornada_id IS NULL) AND activo AND ranking = $3 ORDER BY ranking, orden`, c.ID, jid, in.Ranking)
+			case jid == nil:
 				rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
 					FROM premios WHERE competition_id = $1 AND jornada_id IS NULL AND activo ORDER BY ranking, orden`, c.ID)
-			} else {
+			default:
 				rows, err = s.a.DB.Query(ctx, `SELECT id, ranking, puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador
 					FROM premios WHERE competition_id = $1 AND (jornada_id = $2 OR jornada_id IS NULL) AND activo ORDER BY ranking, orden`, c.ID, jid)
 			}

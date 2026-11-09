@@ -223,7 +223,8 @@ func (s *Svc) borrarMensaje(ctx context.Context, in *borrarIn) (*struct{}, error
 		return nil, problem.NotFound("Mensaje no encontrado.")
 	}
 	_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET borrado = true WHERE id = $1 AND competition_id = $2`, in.ID, in.CID)
-	_ = s.inyectar(ctx, in.CID.String(), dia, item{T: "borrado", ID: in.ID, Ts: time.Now().UnixMilli()})
+	// el id del mensaje borrado viaja en «mensajeId»: el lector de la sala pisa «id» con el id de la entrada
+	_ = s.inyectar(ctx, in.CID.String(), dia, item{T: "borrado", MensajeID: in.ID, Ts: time.Now().UnixMilli()})
 	if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		return events.Enqueue(ctx, tx, events.New(ctx, "chat.mensaje_borrado", map[string]any{"id": in.ID, "dia": dia, "por": actor(ctx)},
 			events.Competition(in.CID.String()), events.ForPermission("directo.operar"), events.Subject("mensaje:"+in.ID)))
@@ -238,7 +239,7 @@ type silenciarIn struct {
 	FanID uuid.UUID `path:"fanId"`
 	Body  struct {
 		Minutos int    `json:"minutos" minimum:"1" maximum:"10080"`
-		Motivo  string `json:"motivo" maxLength:"200"`
+		Motivo  string `json:"motivo,omitempty" maxLength:"200"`
 	}
 }
 

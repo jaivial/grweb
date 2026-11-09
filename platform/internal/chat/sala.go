@@ -18,6 +18,7 @@ import (
 type item struct {
 	T              string `json:"t"` // msg | donacion | banner | borrado | sistema | hito | estado
 	ID             string `json:"id,omitempty"`
+	MensajeID      string `json:"mensajeId,omitempty"` // id of the deleted message (frame «borrado»)
 	Texto          string `json:"texto,omitempty"`
 	Alias          string `json:"alias,omitempty"`
 	FanID          string `json:"fanId,omitempty"`
@@ -38,9 +39,26 @@ type item struct {
 	Motivo         string `json:"motivo,omitempty"`
 }
 
+// frame is an item with its JSON already encoded. The room encodes each message ONCE and shares the bytes with
+// every local client: with thousands of connections, encoding the same message per client was the hot spot of
+// the fanout (the CPU of a pod grew with (clients × messages)).
+type frame struct {
+	it   item
+	json []byte
+}
+
+// nuevaFrame encodes the item once (the bytes are shared by every subscriber).
+func nuevaFrame(it item) frame {
+	b, err := json.Marshal(it)
+	if err != nil {
+		return frame{it: it}
+	}
+	return frame{it: it, json: b}
+}
+
 // subBuffer is the per-client channel buffer. A client that does not drain it in time is disconnected (code 1008)
 // and reconnects with its last id: a slow client never blocks the rest of the room.
-const subBuffer = 256
+const subBuffer = 64
 
 // idleSala removes a room without subscribers after this long (its reader goroutine exits).
 const idleSala = 2 * time.Minute
@@ -58,7 +76,7 @@ type sala struct {
 	hub    *hub
 
 	mu     sync.Mutex
-	subs   map[chan item]struct{}
+	subs   map[chan frame]struct{}
 	lastID string // reader position ("$" until the first entry arrives)
 	last   time.Time
 	parado bool
@@ -119,7 +137,7 @@ func (h *hub) abrir(ctx context.Context, id salaID) *sala {
 		id:     id,
 		nombre: id.stream(h.a.Keys),
 		hub:    h,
-		subs:   map[chan item]struct{}{},
+		subs:   map[chan frame]struct{}{},
 		lastID: "$",
 		last:   time.Now(),
 	}
@@ -153,8 +171,8 @@ func (h *hub) gc(ctx context.Context) {
 	}
 }
 
-func (s *sala) sub() chan item {
-	ch := make(chan item, subBuffer)
+func (s *sala) sub() chan frame {
+	ch := make(chan frame, subBuffer)
 	s.mu.Lock()
 	s.subs[ch] = struct{}{}
 	s.last = time.Now()
@@ -162,7 +180,7 @@ func (s *sala) sub() chan item {
 	return ch
 }
 
-func (s *sala) unsub(ch chan item) {
+func (s *sala) unsub(ch chan frame) {
 	s.mu.Lock()
 	if _, ok := s.subs[ch]; ok {
 		delete(s.subs, ch)
@@ -171,14 +189,16 @@ func (s *sala) unsub(ch chan item) {
 	s.mu.Unlock()
 }
 
-// publicar fans the item out to the local subscribers. A full buffer means a slow client: it is dropped (its
-// connection ends with 1008 and it reconnects with its last id) instead of blocking the room.
+// publicar fans the item out to the local subscribers. The JSON is encoded once (not once per client). A full
+// buffer means a slow client: it is dropped (its connection ends with 1008 and it reconnects with its last id)
+// instead of blocking the room.
 func (s *sala) publicar(it item) {
+	fr := nuevaFrame(it)
 	s.mu.Lock()
-	var lentos []chan item
+	var lentos []chan frame
 	for ch := range s.subs {
 		select {
-		case ch <- it:
+		case ch <- fr:
 		default:
 			lentos = append(lentos, ch)
 		}

@@ -12,7 +12,7 @@ import (
 // TestHubClienteLento verifies the fanout contract without Redis: a client that stops draining its channel is
 // disconnected (buffer full → closed channel) and a fresh subscription keeps working (§4).
 func TestHubClienteLento(t *testing.T) {
-	s := &sala{subs: map[chan item]struct{}{}, id: salaID{"c", "d"}}
+	s := &sala{subs: map[chan frame]struct{}{}, id: salaID{"c", "d"}}
 	lento := s.sub()
 	if n := s.nsubs(); n != 1 {
 		t.Fatalf("suscriptores = %d, esperaba 1", n)
@@ -30,8 +30,8 @@ func TestHubClienteLento(t *testing.T) {
 		if !ok {
 			t.Fatal("el canal se cerró antes de drenar los mensajes pendientes")
 		}
-		if it.Texto != "lleno" {
-			t.Errorf("texto = %q", it.Texto)
+		if it.it.Texto != "lleno" {
+			t.Errorf("texto = %q", it.it.Texto)
 		}
 	}
 	// y tras el drenaje, el cierre
@@ -50,8 +50,8 @@ func TestHubClienteLento(t *testing.T) {
 		if !ok {
 			t.Fatal("canal cerrado sin motivo")
 		}
-		if it.Texto != "recibido" {
-			t.Errorf("texto = %q", it.Texto)
+		if it.it.Texto != "recibido" {
+			t.Errorf("texto = %q", it.it.Texto)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("el cliente sano no recibió el mensaje")
@@ -64,7 +64,7 @@ func TestHubClienteLento(t *testing.T) {
 
 // TestHubDosClientesUnLento: el lento no castiga al que sí drena.
 func TestHubDosClientesUnLento(t *testing.T) {
-	s := &sala{subs: map[chan item]struct{}{}, id: salaID{"c", "d"}}
+	s := &sala{subs: map[chan frame]struct{}{}, id: salaID{"c", "d"}}
 	sano := s.sub()
 	lento := s.sub()
 
@@ -122,7 +122,7 @@ func TestItemCodifica(t *testing.T) {
 
 // TestHubConcurrencia hammers publicar/sub/unsub from several goroutines (go test -race).
 func TestHubConcurrencia(t *testing.T) {
-	s := &sala{subs: map[chan item]struct{}{}, id: salaID{"c", "d"}}
+	s := &sala{subs: map[chan frame]struct{}{}, id: salaID{"c", "d"}}
 	var wg sync.WaitGroup
 	for range 8 {
 		wg.Add(1)

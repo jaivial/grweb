@@ -20,7 +20,7 @@ var tagAdmin = []string{"Patrocinio (admin)"}
 
 // Banner as the backoffice sees it.
 type Banner struct {
-	ID             uuid.UUID  `json:"id" readOnly:"true"`
+	ID             uuid.UUID  `json:"id" readOnly:"true" required:"false"`
 	Patrocinador   string     `json:"patrocinador" minLength:"1" maxLength:"120"`
 	ImagenURL      string     `json:"imagenUrl" maxLength:"500"`
 	ImagenMovilURL string     `json:"imagenMovilUrl,omitempty" maxLength:"500"`
@@ -30,8 +30,8 @@ type Banner struct {
 	Desde          *time.Time `json:"desde,omitempty"`
 	Hasta          *time.Time `json:"hasta,omitempty"`
 	Orden          int        `json:"orden"`
-	Version        int        `json:"version" readOnly:"true"`
-	CreatedAt      time.Time  `json:"createdAt" readOnly:"true"`
+	Version        int        `json:"version" readOnly:"true" required:"false"`
+	CreatedAt      time.Time  `json:"createdAt" readOnly:"true" required:"false"`
 }
 
 // Config is the patrocinio setup of a competition.
@@ -42,9 +42,9 @@ type Config struct {
 	PesoBronce    int       `json:"pesoBronce" minimum:"0" maximum:"10"`
 	SoloEnDirecto bool      `json:"soloEnDirecto" doc:"Solo mostrar banners cuando el directo esté en vivo"`
 	Activo        bool      `json:"activo"`
-	Version       int       `json:"version" readOnly:"true"`
-	UpdatedPor    string    `json:"updatedPor" readOnly:"true"`
-	UpdatedAt     time.Time `json:"updatedAt" readOnly:"true"`
+	Version       int       `json:"version" readOnly:"true" required:"false"`
+	UpdatedPor    string    `json:"updatedPor" readOnly:"true" required:"false"`
+	UpdatedAt     time.Time `json:"updatedAt" readOnly:"true" required:"false"`
 }
 
 const selConfig = `SELECT intervalo_seg, peso_oro, peso_plata, peso_bronce, solo_en_directo, activo, version, updated_por, updated_at FROM config_patrocinio WHERE competition_id = $1`
@@ -61,7 +61,10 @@ func cargarConfig(ctx context.Context, q rowQ, cid uuid.UUID, lock bool) (Config
 	var c Config
 	err := q.QueryRow(ctx, sql, cid).Scan(&c.IntervaloSeg, &c.PesoOro, &c.PesoPlata, &c.PesoBronce, &c.SoloEnDirecto, &c.Activo, &c.Version, &c.UpdatedPor, &c.UpdatedAt)
 	if db.IsNoRows(err) {
-		return Config{IntervaloSeg: 90, PesoOro: 3, PesoPlata: 2, PesoBronce: 1, SoloEnDirecto: true}, nil
+		// The row does not exist yet: its version will be 1 when it is created (the default of the migration), so
+		// the ETag that this GET returns is the one the PUT has to accept (otherwise the first save would always
+		// answer 409 CONFLICTO_EDICION).
+		return Config{IntervaloSeg: 90, PesoOro: 3, PesoPlata: 2, PesoBronce: 1, SoloEnDirecto: true, Version: 1}, nil
 	}
 	return c, err
 }

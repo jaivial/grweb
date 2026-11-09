@@ -29,9 +29,9 @@ type Config struct {
 	Maximo            int       `json:"maximo" minimum:"1" maximum:"500000" doc:"Céntimos"`
 	CoinsPorEuro      int       `json:"coinsPorEuro" minimum:"1" maximum:"10000" doc:"GRS coins anunciadas por cada euro (solo exposición, no son gastables)"`
 	ImportesSugeridos []int     `json:"importesSugeridos" maxItems:"6"`
-	Version           int       `json:"version" readOnly:"true"`
-	UpdatedPor        string    `json:"updatedPor" readOnly:"true"`
-	UpdatedAt         time.Time `json:"updatedAt" readOnly:"true"`
+	Version           int       `json:"version" readOnly:"true" required:"false"`
+	UpdatedPor        string    `json:"updatedPor" readOnly:"true" required:"false"`
+	UpdatedAt         time.Time `json:"updatedAt" readOnly:"true" required:"false"`
 }
 
 const selConfig = `SELECT activo, minimo, maximo, coins_por_euro, importes_sugeridos, version, updated_por, updated_at FROM config_donaciones WHERE competition_id = $1`
@@ -48,7 +48,10 @@ func cargarConfig(ctx context.Context, q rowQ, cid uuid.UUID, lock bool) (Config
 	var c Config
 	err := q.QueryRow(ctx, sql, cid).Scan(&c.Activo, &c.Minimo, &c.Maximo, &c.CoinsPorEuro, &c.ImportesSugeridos, &c.Version, &c.UpdatedPor, &c.UpdatedAt)
 	if db.IsNoRows(err) {
-		return Config{Minimo: 100, Maximo: 50000, CoinsPorEuro: 100, ImportesSugeridos: []int{500, 1000, 2500, 5000}}, nil
+		// The row does not exist yet: its version will be 1 when it is created (the default of the migration), so
+		// the ETag that this GET returns is the one the PUT has to accept (otherwise the first save would always
+		// answer 409 CONFLICTO_EDICION).
+		return Config{Activo: false, Minimo: 100, Maximo: 50000, CoinsPorEuro: 100, ImportesSugeridos: []int{500, 1000, 2500, 5000}, Version: 1}, nil
 	}
 	return c, err
 }
