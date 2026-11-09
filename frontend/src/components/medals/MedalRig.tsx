@@ -63,6 +63,8 @@ const TWIST_KD = 6;
 /** Bounds of the per-cycle correction of the adaptive wind amplitude. */
 const WIND_ADAPT_MIN = 0.8;
 const WIND_ADAPT_MAX = 1.25;
+/** Physics steps per second (`timeStep` of the group's <Physics>). */
+const PHYSICS_HZ = 60;
 
 /**
  * One hanging medal: a fixed rail body and the medal body joined by a spherical joint at the
@@ -130,6 +132,9 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
     target: new Vector3(),
     plane: new Plane(new Vector3(0, 0, 1), 0),
     down: { x: 0, y: 0, time: 0 },
+    /** Physics steps run during the current drag, and steps left of a deferred release. */
+    dragSteps: 0,
+    releaseIn: 0,
     hovered: false,
     scale: 1,
     scaleVelocity: 0,
@@ -271,6 +276,13 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
         { x: grab.x, y: grab.y, z: grab.z },
         true,
       );
+      s.dragSteps += 1;
+      // Deferred release (see `release`): the spring has had the gesture's time, let go now.
+      if (s.releaseIn > 0 && --s.releaseIn === 0) {
+        s.mode = 'released';
+        s.restTime = 0;
+        clampSpeed(body);
+      }
     }
   });
 
@@ -328,6 +340,8 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
     event.stopPropagation();
     (event.target as Element).setPointerCapture(event.pointerId);
     const s = sim.current;
+    s.dragSteps = 0;
+    s.releaseIn = 0;
     const t = body.translation();
     const r = body.rotation();
     s.grabLocal
@@ -337,44 +351,57 @@ export function MedalRig({ medal, railX, railY, layout, physics, material, colli
     s.grabLocal.z = 0;
     s.plane.constant = -t.z;
     s.target.set(event.point.x, event.point.y, t.z);
-    s.down = { x: event.clientX, y: event.clientY, time: performance.now() };
+    s.down = { x: event.clientX, y: event.clientY, time: event.nativeEvent.timeStamp };
     s.mode = 'drag';
     grabbingRef.current = true;
     setCursor('grabbing');
   }, [grabbingRef, scratch, setCursor]);
 
   const handlePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
-    if (sim.current.mode !== 'drag') return;
+    if (sim.current.mode !== 'drag' || sim.current.releaseIn > 0) return;
     if (event.ray.intersectPlane(sim.current.plane, scratch.p)) setTarget(scratch.p);
   }, [scratch, setTarget]);
+
+  /** Keep the gesture velocity on release, clamped. */
+  const clampSpeed = useCallback((body: RapierRigidBody) => {
+    const v = body.linvel();
+    const speed = Math.hypot(v.x, v.y, v.z);
+    if (speed <= physics.releaseMaxSpeed) return;
+    const k = physics.releaseMaxSpeed / speed;
+    const w = body.angvel();
+    body.setLinvel({ x: v.x * k, y: v.y * k, z: v.z * k }, true);
+    body.setAngvel({ x: w.x * k, y: w.y * k, z: w.z * k }, true);
+  }, [physics.releaseMaxSpeed]);
 
   const release = useCallback((event: ThreeEvent<PointerEvent>) => {
     const s = sim.current;
     const body = bodyRef.current;
-    if (s.mode !== 'drag' || !body) return;
+    if (s.mode !== 'drag' || s.releaseIn > 0 || !body) return;
     (event.target as Element).releasePointerCapture?.(event.pointerId);
     grabbingRef.current = false;
-    s.mode = 'released';
     s.restTime = 0;
     setCursor(s.hovered ? 'grab' : '');
+    const gestureMs = event.nativeEvent.timeStamp - s.down.time;
     const moved = Math.hypot(event.clientX - s.down.x, event.clientY - s.down.y);
-    const isTap = moved < physics.tapMaxMovePx && performance.now() - s.down.time < physics.tapMaxMs;
+    const isTap = moved < physics.tapMaxMovePx && gestureMs < physics.tapMaxMs;
     if (isTap) {
+      s.mode = 'released';
       const t = body.translation();
       const direction = -(Math.sign(s.target.x - t.x) || 1);
       body.applyImpulseAtPoint({ x: physics.mass * layout.tapImpulse * direction, y: 0, z: 0 }, s.target, true);
       return;
     }
-    // Keep the gesture velocity, clamped.
-    const v = body.linvel();
-    const speed = Math.hypot(v.x, v.y, v.z);
-    if (speed > physics.releaseMaxSpeed) {
-      const k = physics.releaseMaxSpeed / speed;
-      const w = body.angvel();
-      body.setLinvel({ x: v.x * k, y: v.y * k, z: v.z * k }, true);
-      body.setAngvel({ x: w.x * k, y: w.y * k, z: w.z * k }, true);
+    // On a busy main thread the pointer events of a quick swipe arrive together, before any
+    // physics step: keep pulling towards the release point for the steps the gesture lasted,
+    // so the medal still follows the swipe, then let go.
+    const lagSteps = Math.round((gestureMs / 1000) * PHYSICS_HZ) - s.dragSteps;
+    if (lagSteps > 1) {
+      s.releaseIn = lagSteps;
+      return;
     }
-  }, [grabbingRef, layout.tapImpulse, physics, setCursor]);
+    s.mode = 'released';
+    clampSpeed(body);
+  }, [grabbingRef, layout.tapImpulse, physics, setCursor, clampSpeed]);
 
   // After a hit between podium medals: more angular damping for a moment, so they do not rattle.
   const hitTimer = useRef<ReturnType<typeof setTimeout>>();
