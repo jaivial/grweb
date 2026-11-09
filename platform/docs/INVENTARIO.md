@@ -335,8 +335,9 @@ Rutas nuevas en el `routeTable` del gateway (antes del catch-all de `competition
 |---|---|---|---|
 | `fans.email_solicitado` | `fans` | Internal | { para, plantilla: "fans-acceso", vars: { alias, tipo, enlace } } |
 | `fans.baneado` | `fans` | Internal | { fanId, alias, hasta, motivo } |
-| `chat.hito` | `chat` | Admin | { fanId, dia, mensajes: N } (máx. 100 hitos por fan y jornada) |
-| `donacion.confirmada` | `donaciones` | Public | { donacionId, fanId, alias (o «Anónimo»), importe, coins, mensaje, dia } |
+| `chat.hito` | `chat` | Internal | { fanId, alias, dia, mensajes: N } (máx. 100 hitos por fan y jornada) |
+| `donacion.confirmada` | `donaciones` | Internal | { donacionId, fanId, alias (o «Anónimo»), importe, coins, mensaje, dia } |
+| `donacion.anunciada` | `donaciones` | Public | { alias (o «Anónimo»), importe, coins, mensaje, dia } (sin identificadores) |
 | `donacion.reembolsada` | `donaciones` | Internal | { donacionId, fanId, importe, coins } |
 | `patrocinio.banner` | `patrocinio` | Public | { bannerId, patrocinador, imagenUrl, imagenMovilUrl, clicUrl, tier, dia } |
 | `fantasy.clausula` | `juegos-worker` | Public | { jornadaId, atletaId, clausula, delta } |
