@@ -3,7 +3,8 @@
  * sparkline, tarjeta de atleta, fila de mercado, feed de movimientos, modal de clausulazo y ficha del atleta.
  */
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { GrBadge, GrButton, GrIcon } from '@grcup/ui';
+import { GrButton, GrIcon } from '@grcup/ui';
+import { iniciales } from '../porra/componentes';
 import { type AtletaMercado, type AtletaDetalle, type MovimientoFeed, pctClausula, monedas } from '../../core/juegos';
 
 /** La flecha de la cláusula (Figma «Clause trend chip»): sube, baja o se queda. */
@@ -11,7 +12,7 @@ import { type AtletaMercado, type AtletaDetalle, type MovimientoFeed, pctClausul
   selector: 'gr-clause-trend',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'inline-flex h-6 items-center gap-1 rounded-pill px-2 text-mono-xs', '[class]': 'clase()' },
+  host: { '[class]': '"inline-flex h-6 shrink-0 items-center gap-1 rounded-pill px-2 font-mono text-[11px] font-medium tabular-nums " + clase()', '[attr.aria-label]': 'etiqueta()' },
   template: `@if (delta() > 0) { <gr-icon name="arrow-up" [size]="12" />{{ delta() }} % } @else if (delta() < 0) { <gr-icon name="arrow-down" [size]="12" />{{ -delta() }} % } @else { <span>— 0 %</span> }`,
 })
 export class ClauseTrend {
@@ -20,6 +21,7 @@ export class ClauseTrend {
   protected readonly clase = computed(() =>
     this.delta() > 0 ? 'bg-success/12 text-success' : this.delta() < 0 ? 'bg-warning/12 text-warning' : 'bg-bg-raised text-text-muted',
   );
+  protected readonly etiqueta = computed(() => (this.delta() > 0 ? `Cláusula sube un ${this.delta()} %` : this.delta() < 0 ? `Cláusula baja un ${-this.delta()} %` : 'Cláusula sin cambios'));
 }
 
 /** La sparkline de la cláusula (SVG propio, sin librerías). */
@@ -50,50 +52,49 @@ export class SparklineClausula {
   });
 }
 
-/** La tarjeta de un atleta de mi plantilla (Figma «Fantasy athlete card»). */
+/** La carta de un atleta de mi plantilla (Figma «Fantasy athlete card»): monograma, cláusula con tendencia y puntos. */
 @Component({
   selector: 'gr-athlete-card',
-  imports: [GrBadge, GrButton, GrIcon, ClauseTrend],
+  imports: [GrIcon, ClauseTrend],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4' },
+  host: { '[class]': 'clases()' },
   template: `
-    <header class="flex items-start justify-between gap-2">
-      <span class="flex min-w-0 items-center gap-3">
-        <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-bg-raised text-label-xs text-text-secondary">{{ iniciales() }}</span>
-        <span class="min-w-0">
-          <span class="block truncate text-label-s text-text-primary">{{ atleta().nombre }}</span>
-          <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
-        </span>
-      </span>
+    <span class="pointer-events-none absolute -top-24 left-1/2 h-36 w-60 -translate-x-1/2 rounded-full blur-3xl" [class]="atleta().titular ? 'bg-accent/25' : 'bg-info/12'" aria-hidden="true"></span>
+    <span class="absolute top-2.5 right-2.5">
       @if (atleta().flightEnCurso) {
-        <span class="flex shrink-0 items-center gap-1 rounded-2xs border border-warning/40 bg-warning/10 px-2 py-1 text-mono-xs text-warning"><gr-icon name="lock" [size]="12" />En juego</span>
-      } @else if (atleta().titular) {
-        <gr-badge tone="danger">Titular</gr-badge>
+        <span class="flex items-center gap-1 rounded-2xs border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-mono-xs text-warning"><gr-icon name="lock" [size]="11" />En juego</span>
       } @else {
-        <gr-badge>Suplente</gr-badge>
+        <span class="rounded-2xs border px-1.5 py-0.5 text-mono-xs" [class]="atleta().titular ? 'border-accent/40 bg-accent-deep/50 text-accent-text' : 'border-line-strong bg-bg-raised text-text-tertiary'">{{ atleta().titular ? 'Titular' : 'Suplente' }}</span>
       }
-    </header>
-    <p class="flex items-center justify-between gap-2 rounded-md border border-line-subtle bg-bg-surface/50 px-3 py-2">
-      <span class="text-mono-xs text-text-tertiary uppercase">Cláusula actual</span>
-      <span class="flex items-center gap-2">
-        <span class="font-mono text-label-s text-text-primary">{{ monedas(atleta().clausula) }}</span>
-        <gr-clause-trend [delta]="delta()" />
+    </span>
+    <button type="button" class="relative flex flex-col items-center gap-2 pt-3 text-center" (click)="ficha.emit()" [attr.aria-label]="'Ver la ficha de ' + atleta().nombre">
+      <span class="flex size-14 items-center justify-center rounded-full border-2 bg-bg-raised font-display text-[20px] text-text-primary italic sm:size-16 sm:text-[22px]" [class]="atleta().titular ? 'border-accent/80' : 'border-line-strong'">{{ ini() }}</span>
+      <span class="min-w-0">
+        <span class="line-clamp-2 min-h-[2.4em] text-label-s text-text-primary sm:text-label-m">{{ atleta().nombre }}</span>
+        <span class="mt-0.5 block truncate text-body-xs" [class]="atleta().flightEnCurso ? 'text-warning' : 'text-text-tertiary'">{{ subtitulo() }}</span>
       </span>
-    </p>
-    <p class="flex items-center justify-between gap-2 rounded-md border border-line-subtle bg-bg-surface/50 px-3 py-2">
-      <span class="text-mono-xs text-text-tertiary uppercase">Puntos en vivo</span>
-      <span class="text-body-xs text-text-tertiary">{{ intentos() }}</span>
-    </p>
+    </button>
+    <dl class="relative flex flex-col">
+      <div class="flex items-center justify-between gap-2 border-t border-line-subtle py-2.5">
+        <span class="min-w-0"><dt class="text-mono-xs text-text-muted">Cláusula</dt><dd class="font-mono text-[15px] font-bold text-text-primary tabular-nums">{{ monedas(atleta().clausula) }}</dd></span>
+        <gr-clause-trend [delta]="delta()" />
+      </div>
+      <div class="flex items-center justify-between gap-2 border-t border-line-subtle pt-2.5">
+        <span class="min-w-0"><dt class="text-mono-xs text-text-muted">{{ atleta().titular ? 'Puntos en vivo' : 'Puntos' }}</dt>
+          <dd class="font-mono text-[15px] font-bold tabular-nums" [class]="atleta().titular && intentos() !== '—' ? 'text-success' : 'text-text-tertiary'">{{ atleta().titular ? intentos() : 'No puntúa' }}</dd></span>
+      </div>
+    </dl>
     @if (atleta().flightEnCurso) {
-      <p class="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-body-xs text-warning">
-        <gr-icon name="lock" [size]="16" class="mt-0.5 shrink-0" />Compitiendo ahora: no se puede mover
+      <p class="relative flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-body-xs text-warning">
+        <gr-icon name="lock" [size]="14" class="mt-0.5 shrink-0" />Compitiendo ahora: no se puede mover
       </p>
     }
-    <button grButton variant="secondary" [block]="true" [disabled]="atleta().flightEnCurso" (click)="vender.emit()">Vender</button>
-    @if (!atleta().titular) {
-      <button grButton variant="primary" [block]="true" [disabled]="atleta().flightEnCurso" (click)="subir.emit()">Subir a titular</button>
-    }
-    <button type="button" class="text-label-xs text-text-tertiary hover:text-text-primary" (click)="ficha.emit()">Ver la ficha del atleta</button>
+    <span class="relative mt-auto flex flex-col gap-2">
+      @if (!atleta().titular) {
+        <button type="button" class="h-11 w-full rounded-sm bg-accent-grain text-label-s text-white transition-shadow hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 md:h-10" [disabled]="atleta().flightEnCurso" (click)="subir.emit()">Subir a titular</button>
+      }
+      <button type="button" class="h-11 w-full rounded-sm border border-line-strong bg-bg-raised text-label-s text-text-primary transition-colors hover:border-text-muted disabled:cursor-not-allowed disabled:opacity-50 md:h-10" [disabled]="atleta().flightEnCurso" (click)="vender.emit()">Vender · {{ monedas(atleta().clausula) }}</button>
+    </span>
   `,
 })
 export class AthleteCard {
@@ -106,55 +107,48 @@ export class AthleteCard {
   readonly subir = output<void>();
   readonly ficha = output<void>();
 
-  protected readonly iniciales = computed(() =>
-    (this.atleta().nombre ?? '')
-      .split(/\s+/)
-      .map((w) => w.match(/\p{L}/u)?.[0] ?? '')
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || '·',
-  );
+  protected readonly clases = computed(() => {
+    const a = this.atleta();
+    const borde = a.flightEnCurso ? 'border-warning/60' : a.titular ? 'border-accent/45' : 'border-line-subtle';
+    return 'relative isolate flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border bg-bg-card p-3 sm:p-3.5 ' + borde;
+  });
+  protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
-    return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;
+    return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg${a.flightEnCurso ? ' · en juego' : ''}`;
   });
 }
 
 /**
- * Una fila del mercado de fantasy (Figma «Fantasy market row»): tendencia, cláusula, dueño y acción.
- * En móvil se reorganiza en dos líneas (frame «/fantasy · Mercado» Mobile): arriba el nombre con la cláusula y el
- * chip, abajo el dueño y la acción; la sparkline solo se ve en escritorio.
+ * Una fila del mercado de fantasy (Figma «Fantasy market row»): atleta, tendencia, cláusula, dueño y acción. En móvil
+ * va en dos líneas (arriba el atleta y la cláusula, abajo el dueño y la acción); la sparkline solo en escritorio.
  */
 @Component({
   selector: 'gr-market-row',
-  imports: [GrBadge, GrButton, ClauseTrend, SparklineClausula],
+  imports: [GrButton, GrIcon, ClauseTrend, SparklineClausula],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-3' },
+  host: { '[class]': 'clases()' },
   template: `
-    <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-bg-raised text-label-xs text-text-secondary">{{ iniciales() }}</span>
-    <button type="button" class="min-w-0 flex-1 basis-[7rem] text-left" (click)="ficha.emit()">
-      <span class="block truncate text-label-s text-text-primary">{{ atleta().nombre }}</span>
+    <span class="flex size-10 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-bg-raised font-display text-[15px] text-text-primary italic" [class]="atleta().esMio ? 'border-info/70' : 'border-line-strong'">{{ ini() }}</span>
+    <button type="button" class="min-w-0 flex-1 basis-[9rem] py-1 text-left" (click)="ficha.emit()" [attr.aria-label]="'Ver la ficha de ' + atleta().nombre">
+      <span class="block truncate text-label-m text-text-primary hover:underline underline-offset-4">{{ atleta().nombre }}</span>
       <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
     </button>
-    <span class="ml-auto flex w-20 shrink-0 flex-col items-end gap-1 sm:ml-0">
-      <span class="font-mono text-label-s text-text-primary">{{ monedas(atleta().clausula) }}</span>
+    <span class="hidden w-[72px] shrink-0 lg:block"><gr-sparkline-clausula [valores]="serie()" [color]="color()" /></span>
+    <span class="flex shrink-0 flex-col items-end gap-1 lg:w-24">
+      <span class="font-mono text-[16px] font-bold text-text-primary tabular-nums">{{ monedas(atleta().clausula) }}</span>
       <gr-clause-trend [delta]="delta()" />
     </span>
-    <span class="hidden w-14 shrink-0 sm:block"><gr-sparkline-clausula [valores]="serie()" [color]="color()" /></span>
-    <span class="hidden w-28 shrink-0 truncate text-body-xs text-text-tertiary md:block">{{ dueno() }}</span>
-    <span class="flex w-full items-center justify-between gap-2 sm:w-32 sm:justify-end">
-      @if (accion() === 'protegido') {
-        <span class="min-w-0 truncate text-body-xs text-warning">{{ proteccion() }}</span>
-      } @else {
-        <span class="min-w-0 truncate text-body-xs text-text-tertiary sm:hidden">{{ dueno() }}</span>
-      }
-      <span class="shrink-0">
+    <span class="flex w-full items-center justify-between gap-3 border-t border-line-subtle pt-2.5 lg:w-auto lg:border-0 lg:pt-0">
+      <span class="min-w-0 truncate font-mono text-[13px] lg:w-28" [class]="duenoColor()">
+        @if (accion() === 'protegido') { <span class="inline-flex items-center gap-1 text-warning"><gr-icon name="shield" [size]="13" />{{ proteccion() }}</span> } @else { {{ dueno() }} }
+      </span>
+      <span class="w-32 shrink-0">
         @switch (accion()) {
-          @case ('fichar') { <button grButton variant="primary" (click)="fichar.emit()">Fichar</button> }
-          @case ('clausulazo') { <button grButton variant="danger" (click)="clausulazo.emit()">Clausulazo</button> }
-          @case ('vender') { <button grButton variant="secondary" (click)="vender.emit()">Vender</button> }
-          @default { <gr-badge tone="warning">{{ proteccion() }}</gr-badge> }
+          @case ('fichar') { <button grButton variant="primary" [block]="true" (click)="fichar.emit()">Fichar</button> }
+          @case ('clausulazo') { <button type="button" class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-accent/60 bg-accent-deep/85 font-display text-[17px] text-white uppercase shadow-glow-deep transition-colors hover:bg-accent-deep md:h-10" (click)="clausulazo.emit()"><gr-icon name="zap" [size]="15" class="text-accent-text" />Clausulazo</button> }
+          @case ('vender') { <button grButton variant="outline" [block]="true" (click)="vender.emit()">Vender</button> }
+          @default { <span class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-warning/30 bg-warning/8 text-label-xs text-warning md:h-10"><gr-icon name="lock" [size]="13" />Protegido</span> }
         }
       </span>
     </span>
@@ -173,34 +167,34 @@ export class MarketRow {
   readonly vender = output<void>();
   readonly ficha = output<void>();
 
+  protected readonly clases = computed(
+    () =>
+      'flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-md border bg-bg-card px-3.5 py-3 transition-colors hover:border-line-strong lg:flex-nowrap lg:gap-4 lg:pr-3 ' +
+      (this.atleta().esMio ? 'border-info/40' : 'border-line-subtle'),
+  );
   /** «Protegido · 07:42» (o solo «Protegido» si el backend no envía `protegidoHasta`). */
   protected readonly proteccion = computed(() => {
     const s = this.restante();
     if (s === null || s <= 0) return 'Protegido';
     const m = Math.floor(s / 60);
     const seg = s % 60;
-    return `Protegido · ${m}:${seg < 10 ? '0' : ''}${seg}`;
+    return `${m}:${seg < 10 ? '0' : ''}${seg}`;
   });
 
-  protected readonly iniciales = computed(() =>
-    (this.atleta().nombre ?? '')
-      .split(/\s+/)
-      .map((w) => w.match(/\p{L}/u)?.[0] ?? '')
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || '·',
-  );
+  protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
-    const base = `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;
-    return a.esMio ? `${base} · Tuyo` : base;
+    return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;
   });
   protected readonly dueno = computed(() => {
     const a = this.atleta();
     if (a.esMio) return '@tú';
     if (a.duenoAlias) return '@' + a.duenoAlias;
     return 'Libre';
+  });
+  protected readonly duenoColor = computed(() => {
+    const a = this.atleta();
+    return a.esMio ? 'text-info' : a.libre ? 'text-success' : 'text-text-secondary';
   });
   protected readonly color = computed(() => (this.delta() < 0 ? '#f59e0b' : '#22c55e'));
 }
@@ -210,14 +204,14 @@ export class MarketRow {
   selector: 'gr-feed-row',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex items-start gap-3 rounded-lg border border-line-subtle bg-bg-card px-4 py-3' },
+  host: { class: 'flex items-start gap-3 rounded-md border border-line-subtle bg-bg-surface px-3 py-2.5' },
   template: `
-    <span class="flex size-8 shrink-0 items-center justify-center rounded-full" [class]="tono()">
+    <span class="flex size-8 shrink-0 items-center justify-center rounded-sm" [class]="tono()">
       <gr-icon [name]="icono()" [size]="15" />
     </span>
     <span class="min-w-0 flex-1">
-      <span class="block truncate text-body-s text-text-primary">{{ titulo() }}</span>
-      <span class="block truncate text-body-xs text-text-tertiary">{{ detalle() }}</span>
+      <span class="line-clamp-2 text-label-s text-text-primary">{{ titulo() }}</span>
+      <span class="block truncate font-mono text-[11px] text-text-tertiary">{{ detalle() }}</span>
     </span>
   `,
 })
@@ -231,7 +225,7 @@ export class FeedRow {
   });
   protected readonly tono = computed(() => {
     const t = this.mov().tipo;
-    return t === 'clausulazo' ? 'bg-accent-deep/40 text-accent-text' : t === 'compra' ? 'bg-success/12 text-success' : 'bg-info/12 text-info';
+    return t === 'clausulazo' ? 'bg-accent-deep/50 text-accent-text' : t === 'compra' ? 'bg-success/12 text-success' : 'bg-info/12 text-info';
   });
   protected readonly titulo = computed(() => {
     const m = this.mov();
@@ -249,58 +243,75 @@ export class FeedRow {
   });
 }
 
-/** El modal de clausulazo (Figma «Modal Clausulazo»): saldo antes y después, a quién va el dinero y la protección. */
+/** El modal de clausulazo (Figma «Modal Clausulazo»): quién cobra, cuánto pagas, tu saldo antes y después y la protección. */
 @Component({
   selector: 'gr-clausulazo-modal',
   imports: [GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents', '(document:keydown.escape)': 'cerrar.emit()' },
   template: `
-    <div class="fixed inset-0 z-50 flex items-end justify-center md:items-center" role="dialog" aria-modal="true" aria-label="Clausulazo">
-      <button type="button" class="absolute inset-0 bg-black/70" aria-label="Cerrar" (click)="cerrar.emit()"></button>
-      <div class="relative flex max-h-[92dvh] w-full max-w-[520px] flex-col gap-4 overflow-y-auto rounded-t-xl border border-line-strong bg-bg-raised p-5 shadow-card md:rounded-xl">
-        <header class="flex items-center justify-between gap-3">
-          <h2 class="text-display-2xs">Clausulazo</h2>
-          <button type="button" class="-m-2 flex size-10 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="20" /></button>
+    <div class="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-labelledby="clausulazo-titulo">
+      <button type="button" class="absolute inset-0 bg-black/75 backdrop-blur-[2px]" aria-label="Cerrar" (click)="cerrar.emit()"></button>
+      <div class="relative flex max-h-[94dvh] w-full max-w-[520px] flex-col overflow-y-auto rounded-t-2xl border border-accent/50 bg-bg-raised shadow-glow-deep md:rounded-2xl">
+        <span class="mx-auto mt-2 block h-1 w-11 shrink-0 rounded-pill bg-line-strong md:hidden" aria-hidden="true"></span>
+        <header class="flex items-center justify-between gap-3 border-b border-accent/60 bg-accent-deep/60 px-5 py-3.5 md:py-4">
+          <h2 id="clausulazo-titulo" class="flex items-center gap-2 text-display-xs"><gr-icon name="zap" [size]="20" class="text-accent-text" />Clausulazo</h2>
+          <button type="button" class="-m-2 flex size-11 items-center justify-center rounded-sm text-text-secondary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="20" /></button>
         </header>
-        <p class="flex items-center gap-3 rounded-md border border-line-subtle bg-bg-card px-3 py-2.5">
-          <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-bg-raised text-label-xs text-text-secondary">{{ iniciales() }}</span>
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-label-s">{{ atleta().nombre }}</span>
-            <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
-          </span>
-          <span class="shrink-0 text-right">
-            <span class="block font-mono text-label-s text-accent-text">{{ monedas(atleta().clausula) }}</span>
-            <span class="block text-body-xs text-text-tertiary">dueño actual: {{ dueno() }}</span>
-          </span>
-        </p>
-        <p class="flex items-center justify-between gap-3 text-body-xs">
-          <span class="text-text-secondary">Cláusula a pagar</span>
-          <span class="text-right text-text-tertiary">Se suma al movimiento del día (+3 % por demanda) <b class="font-mono text-accent-text">{{ monedas(atleta().clausula) }}</b></span>
-        </p>
-        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <p class="rounded-md border border-line-subtle bg-bg-card px-3 py-2.5">
-            <span class="block text-mono-xs text-text-tertiary uppercase">Antes</span>
-            <span class="block font-mono text-label-m text-text-primary">{{ monedas(saldo()) }}</span>
+        <div class="flex flex-col gap-3.5 p-5">
+          <p class="flex items-center gap-3 rounded-md border border-line-strong bg-bg-card px-3 py-3">
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-accent/80 bg-bg-raised font-display text-[16px] italic">{{ ini() }}</span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-label-m">{{ atleta().nombre }}</span>
+              <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
+            </span>
+            <span class="shrink-0 text-right">
+              <span class="block font-mono text-label-s text-text-primary">{{ dueno() }}</span>
+              <span class="block text-mono-xs text-text-muted">dueño actual</span>
+            </span>
           </p>
-          <gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" />
-          <p class="rounded-md border border-line-subtle bg-bg-card px-3 py-2.5">
-            <span class="block text-mono-xs text-text-tertiary uppercase">Después</span>
-            <span class="block font-mono text-label-m" [class]="despues() < 0 ? 'text-accent-text' : 'text-text-primary'">{{ monedas(despuesMostrado()) }}</span>
+          <p class="flex items-center justify-between gap-3 rounded-md border border-accent/50 bg-accent-deep/25 px-3.5 py-3">
+            <span class="min-w-0">
+              <span class="block text-mono-xs text-text-tertiary">Cláusula a pagar</span>
+              <span class="block text-body-xs text-text-tertiary">Sube un 3 % por la demanda tras el fichaje</span>
+            </span>
+            <span class="shrink-0 font-mono text-[24px] font-bold text-accent-text tabular-nums md:text-[26px]">{{ monedas(atleta().clausula) }}</span>
           </p>
+          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
+            <p class="rounded-md border border-line-subtle bg-bg-card px-3 py-2.5">
+              <span class="block text-mono-xs text-text-tertiary">Tu saldo antes</span>
+              <span class="block font-mono text-[18px] font-bold text-text-primary tabular-nums">{{ monedas(saldo()) }}</span>
+            </p>
+            <gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" />
+            <p class="rounded-md border px-3 py-2.5" [class]="despues() < 0 ? 'border-accent-text/50 bg-accent-deep/30' : 'border-warning/45 bg-bg-card'">
+              <span class="block text-mono-xs text-text-tertiary">Después</span>
+              <span class="block font-mono text-[18px] font-bold tabular-nums" [class]="despues() < 0 ? 'text-accent-text' : 'text-warning'">{{ despues() < 0 ? 'Sin saldo' : monedas(despuesMostrado()) }}</span>
+            </p>
+          </div>
+          <ul class="flex flex-col gap-2 rounded-md border border-warning/35 bg-warning/8 px-3.5 py-3 text-body-xs text-text-secondary">
+            <li class="flex items-start gap-2"><gr-icon name="credit-card" [size]="15" class="mt-px shrink-0 text-warning" /><span>Cobra <b class="text-text-primary">{{ dueno() }}</b>: el dinero va íntegro al dueño anterior.</span></li>
+            @if (proteccionMin() > 0) {
+              <li class="flex items-start gap-2"><gr-icon name="shield" [size]="15" class="mt-px shrink-0 text-warning" /><span>Después queda <b class="text-text-primary">protegido {{ proteccionMin() }} min</b>: nadie te lo puede clausular.</span></li>
+            }
+            <li class="flex items-start gap-2"><gr-icon name="zap" [size]="15" class="mt-px shrink-0 text-warning" /><span>Clausulazos usados: <b class="font-mono text-text-primary">{{ clausulazosUsados() }} de {{ maxClausulazos() }}</b> esta jornada · sin deuda.</span></li>
+          </ul>
+          @if (error()) {
+            <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
+              <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />{{ error() }}
+            </p>
+          } @else if (despues() < 0) {
+            <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
+              <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />Te faltan {{ monedas(-despues()) }} monedas para pagar la cláusula.
+            </p>
+          } @else if (clausulazosUsados() >= maxClausulazos()) {
+            <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
+              <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />Ya has usado tus {{ maxClausulazos() }} clausulazos de esta jornada.
+            </p>
+          }
+          <button grButton variant="display-gradient" size="m" class="h-12!" [block]="true" icon="zap" [loading]="cargando()" [disabled]="!puede()" (click)="pagar.emit()">
+            Pagar {{ monedas(atleta().clausula) }} y fichar
+          </button>
         </div>
-        <p class="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-body-xs text-warning">
-          <gr-icon name="info" [size]="16" class="mt-0.5 shrink-0" />
-          <span>El dinero va a <b>{{ dueno() }}</b>. Protección de {{ proteccionMin() }} min tras el fichaje: hasta entonces puede quedar bloqueado. Máximo {{ maxClausulazos() }} clausulazos por usuario y jornada; sin deuda: no se puede dejar el saldo en negativo.</span>
-        </p>
-        @if (error()) {
-          <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
-            <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />{{ error() }}
-          </p>
-        }
-        <button grButton variant="primary" size="l" [block]="true" [loading]="cargando()" [disabled]="!puede()" (click)="pagar.emit()">
-          Pagar {{ monedas(atleta().clausula) }} y fichar
-        </button>
       </div>
     </div>
   `,
@@ -319,15 +330,7 @@ export class ClausulazoModal {
   readonly cerrar = output<void>();
   readonly pagar = output<void>();
 
-  protected readonly iniciales = computed(() =>
-    (this.atleta().nombre ?? '')
-      .split(/\s+/)
-      .map((w) => w.match(/\p{L}/u)?.[0] ?? '')
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || '·',
-  );
+  protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;
@@ -351,10 +354,10 @@ export class ClausulazoModal {
   template: `
     <div class="fixed inset-0 z-50 flex items-end justify-end md:items-stretch md:justify-end" role="dialog" aria-modal="true" aria-label="Ficha del atleta">
       <button type="button" class="absolute inset-0 bg-black/70" aria-label="Cerrar" (click)="cerrar.emit()"></button>
-      <div class="relative flex max-h-[92dvh] w-full max-w-[460px] flex-col gap-4 overflow-y-auto rounded-t-xl border border-line-strong bg-bg-raised p-5 shadow-card md:max-h-none md:rounded-none md:border-y-0 md:border-r-0">
+      <div class="relative flex max-h-[92dvh] w-full max-w-[460px] flex-col gap-4 overflow-y-auto rounded-t-2xl border border-line-strong bg-bg-raised p-5 shadow-card md:max-h-none md:rounded-none md:border-y-0 md:border-r-0">
         <header class="flex items-start justify-between gap-3">
           <span class="flex min-w-0 items-center gap-3">
-            <span class="flex size-11 shrink-0 items-center justify-center rounded-full border border-line-strong bg-bg-raised text-label-s text-text-secondary">{{ iniciales() }}</span>
+            <span class="flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-accent/70 bg-bg-raised font-display text-[18px] italic">{{ ini() }}</span>
             <span class="min-w-0">
               <span class="block truncate text-ui-h5">{{ atleta()?.nombre ?? 'Atleta' }}</span>
               <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
@@ -366,7 +369,7 @@ export class ClausulazoModal {
         <p class="flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-card px-3 py-2.5">
           <span class="min-w-0">
             <span class="block text-mono-xs text-text-tertiary uppercase">Cláusula actual · dueño {{ dueno() }}</span>
-            <span class="block font-mono text-[20px] text-accent-text">{{ monedas(clausulaActual()) }}</span>
+            <span class="block font-mono text-[24px] font-bold text-accent-text tabular-nums">{{ monedas(clausulaActual()) }}</span>
           </span>
           <gr-clause-trend [delta]="delta()" />
         </p>
@@ -440,15 +443,7 @@ export class AthleteSheet {
     if (a.duenoAlias) return '@' + a.duenoAlias;
     return 'libre';
   });
-  protected readonly iniciales = computed(() =>
-    (this.atleta()?.nombre ?? '')
-      .split(/\s+/)
-      .map((w) => w.match(/\p{L}/u)?.[0] ?? '')
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || '·',
-  );
+  protected readonly ini = computed(() => iniciales(this.atleta()?.nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     if (!a) return '';
