@@ -639,6 +639,7 @@ type reportarIn struct {
 	Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
 	Slug    string `path:"slug"`
 	ID      string `path:"id"`
+	Dia     string `query:"dia" doc:"Jornada del mensaje (YYYY-MM-DD). Si no se manda, se reporta el más reciente con ese id"`
 	Body    struct {
 		Motivo string `json:"motivo,omitempty" maxLength:"200"`
 	}
@@ -661,13 +662,24 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 	if _, _, err := parseID(in.ID); err != nil {
 		return nil, problem.BadRequest("ID_INVALIDO", "El id del mensaje no es válido.")
 	}
+	if in.Dia != "" && !diaValido(in.Dia) {
+		return nil, problem.BadRequest("DIA_INVALIDO", "El parámetro dia tiene que ser una fecha YYYY-MM-DD.")
+	}
 	ip := httpx.ClientIPFrom(ctx)
 	if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "reportes", ip), 20, time.Hour); err == nil && !r.Allowed {
 		return nil, problem.TooMany("Has reportado demasiado. Inténtalo más tarde.")
 	}
-	// the id of the stream is only unique inside a room: the report goes to the most recent day with that id
-	tag, err := s.a.DB.Exec(ctx, `UPDATE mensajes SET reportes = reportes + 1 WHERE id = $1 AND competition_id = $2
-		AND dia = (SELECT dia FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1)`, in.ID, cid)
+	// the id of the stream is only unique inside a room: with the day of the message the report goes to that
+	// jornada; without it, to the most recent day with that id (fallback)
+	cond := `id = $1 AND competition_id = $2`
+	args := []any{in.ID, cid}
+	if in.Dia != "" {
+		cond += ` AND dia = $3`
+		args = append(args, in.Dia)
+	} else {
+		cond += ` AND dia = (SELECT dia FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1)`
+	}
+	tag, err := s.a.DB.Exec(ctx, `UPDATE mensajes SET reportes = reportes + 1 WHERE `+cond, args...)
 	if err != nil {
 		return nil, problem.Internal()
 	}
@@ -676,7 +688,7 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 		return nil, problem.NotFound("Mensaje no encontrado.")
 	}
 	var n int
-	if err := s.a.DB.QueryRow(ctx, `SELECT reportes FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1`, in.ID, cid).Scan(&n); err != nil {
+	if err := s.a.DB.QueryRow(ctx, `SELECT reportes FROM mensajes WHERE `+cond, args...).Scan(&n); err != nil {
 		return nil, problem.Internal()
 	}
 	return &reportarOut{Body: reportarBody{Reportes: n}}, nil

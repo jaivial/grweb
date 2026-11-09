@@ -197,6 +197,7 @@ func normalizaLista(in []string) []string {
 type borrarIn struct {
 	CID uuid.UUID `path:"cid"`
 	ID  string    `path:"id"`
+	Dia string    `query:"dia" doc:"Jornada del mensaje (YYYY-MM-DD). Si no se manda, se borra el más reciente con ese id"`
 }
 
 // borrarMensaje removes a message: it disappears from the stream (XDEL), connected clients get a `borrado` frame
@@ -209,18 +210,30 @@ func (s *Svc) borrarMensaje(ctx context.Context, in *borrarIn) (*struct{}, error
 		return nil, problem.BadRequest("ID_INVALIDO", "El id del mensaje no es válido.")
 	}
 	dia := hoy()
-	// the row tells us the day of the message (it may be an older jornada); the id of the stream is only unique
-	// inside a room, so the most recent day wins
-	var msgDia string
-	var borrado bool
-	if err := s.a.DB.QueryRow(ctx, `SELECT dia, borrado FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1`, in.ID, in.CID).Scan(&msgDia, &borrado); err == nil {
-		dia = msgDia
+	if in.Dia != "" {
+		// la jornada la manda el backoffice (la del listado que está moderando): el id del stream solo es único
+		// dentro de una sala, así que sin ella se podría borrar el mensaje de otra jornada
+		if !diaValido(in.Dia) {
+			return nil, problem.BadRequest("DIA_INVALIDO", "El parámetro dia tiene que ser una fecha YYYY-MM-DD.")
+		}
+		dia = in.Dia
+	} else {
+		// fallback: la fila dice el día del mensaje (puede ser una jornada vieja); si no hay fila, la más reciente
+		var msgDia string
+		if err := s.a.DB.QueryRow(ctx, `SELECT dia FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1`, in.ID, in.CID).Scan(&msgDia); err == nil {
+			dia = msgDia
+		}
+	}
+	// la fila persistida dice si el mensaje existe (el stream puede estar recortado)
+	var existe bool
+	if err := s.a.DB.QueryRow(ctx, `SELECT true FROM mensajes WHERE id = $1 AND competition_id = $2 AND dia = $3`, in.ID, in.CID, dia).Scan(&existe); err != nil {
+		existe = false
 	}
 	n, err := s.a.Redis.XDel(ctx, s.streamDe(in.CID.String(), dia), in.ID).Result()
 	if err != nil {
 		return nil, problem.Internal()
 	}
-	if n == 0 && err == nil && msgDia == "" {
+	if n == 0 && !existe {
 		return nil, problem.NotFound("Mensaje no encontrado.")
 	}
 	_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET borrado = true WHERE id = $1 AND competition_id = $2 AND dia = $3`, in.ID, in.CID, dia)

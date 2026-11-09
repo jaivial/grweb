@@ -383,7 +383,8 @@ export class ChatPage {
     if (!cid) return;
     this.ocupado.set(true);
     try {
-      await this.api.borrar(cid, m.id);
+      // la jornada del listado que se está moderando: el id del stream solo es único dentro de una sala
+      await this.api.borrar(cid, m.id, this.dia());
       this.toasts.success('Mensaje borrado');
       await this.sondear();
     } catch (e) {

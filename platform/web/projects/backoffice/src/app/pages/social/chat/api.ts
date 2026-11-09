@@ -63,8 +63,12 @@ export class ChatApi {
     return firstValueFrom(this.http.get<MensajesAdmin>(`${this.b(cid)}/reportados`, { params: p }));
   }
 
-  borrar(cid: string, id: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/mensajes/${id}`));
+  /**
+   * Borra un mensaje de una jornada (`?dia=`): el id del stream solo es único dentro de una sala, así que sin la
+   * jornada se borraría el mensaje más reciente con ese id.
+   */
+  borrar(cid: string, id: string, dia: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/mensajes/${id}`, { params: new HttpParams().set('dia', dia) }));
   }
 
   silenciar(cid: string, fanId: string, minutos: number, motivo: string): Promise<{ hasta: string }> {

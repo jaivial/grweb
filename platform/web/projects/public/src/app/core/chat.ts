@@ -338,6 +338,20 @@ export class ChatService {
     this.aviso.set(null);
   }
 
+  /**
+   * Reports a message for the moderation (`POST /mensajes/{id}/reportar`): the day of the room travels with the
+   * report, because the id of the stream is only unique inside a room (without it the report would fall on the
+   * most recent message with that id, maybe of another jornada). Returns the number of reports of the message.
+   */
+  async reportar(id: string, motivo?: string): Promise<number> {
+    try {
+      const r = await firstValueFrom(this.http.post<{ reportes: number }>(`${this.base}/mensajes/${id}/reportar`, { motivo }, { params: { dia: this.dia() } }));
+      return r?.reportes ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
   // ------------------------------------------------------------- transporte
 
   private abrirWs(): void {
