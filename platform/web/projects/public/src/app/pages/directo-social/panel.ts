@@ -21,43 +21,59 @@ type Pestana = 'chat' | 'donantes' | 'porra';
   selector: 'gr-panel-social',
   imports: [GrIcon, GrButton, ChatView, DonantesView, PorraView, DonarModal],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `
+    @keyframes gr-latido { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
+    .gr-latido { animation: gr-latido 2s ease-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .gr-latido { animation: none; display: none; } }
+  `,
   template: `
-    <section class="flex flex-col overflow-hidden rounded-xl border border-line-subtle bg-bg-card/70 lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat del directo">
-      <header class="flex shrink-0 items-start justify-between gap-3 px-4 pt-4">
+    <section class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card bg-[linear-gradient(180deg,rgb(110_20_32/0.42),transparent_220px)] lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat del directo">
+      <header class="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-3">
         <div class="min-w-0">
-          <h2 class="font-display text-[22px] leading-none uppercase italic">Chat en directo</h2>
-          <p class="mt-2 flex items-center gap-2 text-mono-xs text-text-tertiary"><gr-icon name="users" [size]="14" />{{ chat.conectados() }} conectados</p>
+          <h2 class="font-display text-[20px] leading-none text-text-primary uppercase italic">Chat en directo</h2>
+          <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-[11px] leading-none font-medium tracking-[0.08em] uppercase" role="status">
+            <span class="relative flex size-2 shrink-0" aria-hidden="true">
+              @if (vivo()) { <span class="gr-latido absolute inset-0 rounded-full bg-accent"></span> }
+              <span class="relative size-2 rounded-full" [class]="puntoClase()"></span>
+            </span>
+            <span [class]="estadoClase()">{{ badge() }}</span>
+            @if (vivo()) {
+              <span class="inline-flex items-center gap-1 whitespace-nowrap text-text-tertiary md:before:mr-0.5 md:before:text-text-muted md:before:content-['·']"><gr-icon name="users" [size]="12" />{{ conectados() }} conectados</span>
+            }
+          </p>
         </div>
-        <div class="flex shrink-0 flex-col items-end gap-2">
-          <span class="inline-flex h-6 items-center gap-1.5 rounded-pill border px-2.5 text-label-xs uppercase"
-            [class]="badgeClase()"><gr-icon [name]="badgeIcono()" [size]="12" />{{ badge() }}</span>
-          <button type="button" grButton variant="primary" size="s" (click)="donar.set(true)">Donar</button>
-        </div>
+        <button type="button" grButton variant="primary" icon="heart" class="shrink-0" (click)="donar.set(true)">Donar</button>
       </header>
 
-      <nav class="mt-3 grid shrink-0 grid-cols-3 border-b border-line-subtle px-2" role="tablist" aria-label="Secciones del directo">
+      <nav class="grid shrink-0 grid-cols-3 border-b border-line-subtle px-2" role="tablist" aria-label="Secciones del directo">
         @for (t of pestanas; track t.v) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.v" class="relative h-11 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="tab.set(t.v)">
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.v" class="relative h-11 text-label-s transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="tab.set(t.v)">
             {{ t.l }}
-            @if (tab() === t.v) { <span class="absolute inset-x-6 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
+            @if (tab() === t.v) { <span class="absolute bottom-0 left-1/2 h-0.5 w-14 -translate-x-1/2 rounded-t-2xs bg-accent shadow-[0_0_8px_rgb(196_43_62/0.6)]"></span> }
           </button>
         }
       </nav>
 
-      <div class="flex shrink-0 items-start gap-2 px-3 pt-3">
-        <span class="shrink-0 pt-2.5 text-mono-xs text-text-tertiary uppercase">Jornada</span>
-        <div class="-mr-3 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] lg:flex-wrap lg:overflow-visible">
+      <!-- jornada: una sola fila con scroll horizontal y degradado de borde (la de hoy con punto vivo) -->
+      <div class="shrink-0 border-b border-line-subtle/60" role="group" aria-label="Jornada">
+        <div class="flex gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] [scrollbar-width:none]">
           @for (o of opciones(); track o.dia) {
-            <button type="button" class="h-9 shrink-0 rounded-pill border px-3 text-label-s" [class]="o.dia === chat.dia() ? 'border-accent bg-accent-deep/30 text-accent-text' : 'border-line-strong text-text-secondary hover:border-text-muted'"
-              [attr.aria-pressed]="o.dia === chat.dia()" (click)="elegirDia(o.dia)">{{ o.l }}</button>
+            <button type="button" class="group flex h-11 shrink-0 items-center md:h-[52px]" [attr.aria-pressed]="o.dia === chat.dia()" (click)="elegirDia(o.dia)">
+              <span class="inline-flex h-8 items-center gap-1.5 rounded-pill border px-3 text-label-s transition-colors"
+                [class]="o.dia === chat.dia() ? 'border-accent/60 bg-accent-deep/35 text-accent-text' : 'border-line-strong text-text-secondary group-hover:border-text-muted group-hover:text-text-primary'">
+                @if (o.hoy) { <span class="size-1.5 rounded-full bg-accent shadow-[0_0_6px_rgb(196_43_62/0.8)]" aria-hidden="true"></span> }
+                {{ o.l }}
+              </span>
+            </button>
           }
+          <span class="w-6 shrink-0" aria-hidden="true"></span>
         </div>
       </div>
 
-      <div class="flex min-h-0 flex-1 flex-col pt-2">
+      <div class="flex min-h-0 flex-1 flex-col">
         @switch (tab()) {
           @case ('chat') { <gr-chat-view (donar)="donar.set(true)" /> }
-          @case ('donantes') { <gr-donantes-view [diaSala]="chat.dia()" [jornadaId]="jornadaId()" /> }
+          @case ('donantes') { <gr-donantes-view [diaSala]="chat.dia()" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> }
           @case ('porra') { <gr-porra-view [jornadaId]="jornadaId()" [jornadaNombre]="jornadaNombre()" /> }
         }
       </div>
@@ -87,11 +103,11 @@ export class PanelSocial {
   /** La sala viva (hoy) y las jornadas de juegos de otros días (historial de solo lectura). */
   protected readonly opciones = computed(() => {
     const hoy = diaDeHoy();
-    const lista = [{ dia: hoy, l: 'Hoy · en directo' }];
+    const lista = [{ dia: hoy, l: 'Hoy · en directo', hoy: true }];
     const otras = this.jornadas()
       .filter((j) => j.dia !== hoy)
       .sort((a, b) => a.dia.localeCompare(b.dia))
-      .map((j) => ({ dia: j.dia, l: `${j.nombre} · ${etiquetaDia(j.dia)}` }));
+      .map((j) => ({ dia: j.dia, l: `${j.nombre} · ${etiquetaDia(j.dia)}`, hoy: false }));
     return [...lista, ...otras];
   });
 
@@ -100,16 +116,26 @@ export class PanelSocial {
   protected readonly jornadaNombre = computed(() => this.jornadas().find((j) => j.dia === this.chat.dia())?.nombre ?? '');
 
   protected readonly badge = computed(() => {
+    if (this.chat.soloLectura()) return `Historial · ${etiquetaDia(this.chat.dia())}`;
     if (this.chat.estado() === 'conectado') return 'En directo';
     if (this.chat.estado() === 'reconectando') return 'Reconectando…';
     return 'Sin conexión';
   });
-  protected readonly badgeIcono = computed(() => (this.chat.estado() === 'conectado' ? 'radio' : this.chat.estado() === 'reconectando' ? 'refresh' : 'wifi-off'));
-  protected readonly badgeClase = computed(() => {
-    if (this.chat.estado() === 'conectado') return 'border-accent/50 bg-accent-deep/30 text-accent-text';
-    if (this.chat.estado() === 'reconectando') return 'border-warning/50 bg-warning/10 text-warning';
-    return 'border-line-strong bg-white/5 text-text-tertiary';
+  protected readonly puntoClase = computed(() => {
+    if (this.chat.soloLectura()) return 'bg-text-muted';
+    if (this.chat.estado() === 'conectado') return 'bg-accent shadow-[0_0_8px_rgb(196_43_62/0.8)]';
+    if (this.chat.estado() === 'reconectando') return 'bg-warning shadow-[0_0_8px_rgb(245_158_11/0.7)]';
+    return 'bg-text-muted';
   });
+  protected readonly estadoClase = computed(() => {
+    if (this.chat.soloLectura()) return 'text-text-tertiary';
+    if (this.chat.estado() === 'conectado') return 'text-accent-text';
+    if (this.chat.estado() === 'reconectando') return 'text-warning';
+    return 'text-text-tertiary';
+  });
+  /** Live room of today, connected: the dot beats and the audience shows. */
+  protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.soloLectura());
+  protected readonly conectados = computed(() => new Intl.NumberFormat('es-ES').format(this.chat.conectados()));
 
   constructor() {
     if (this.browser) {
