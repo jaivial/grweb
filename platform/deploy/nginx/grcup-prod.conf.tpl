@@ -9,6 +9,9 @@
 
 map $http_upgrade $grcup_connection { default upgrade; '' ''; }
 
+# Alta de atleta (POST): límite por IP para que un formulario no se llene de peticiones (10 r/min, ráfaga de 5).
+limit_req_zone $binary_remote_addr zone=alta_atleta_prod:10m rate=10r/m;
+
 server {
     listen 80;
     listen [::]:80;
@@ -30,6 +33,12 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     client_max_body_size 16m;
 
+    location ~ ^/api/competiciones/[^/]+/alta-atleta$ {
+        limit_req zone=alta_atleta_prod burst=5 nodelay;
+        client_max_body_size 10m;
+        proxy_pass http://10.43.241.10:8080;
+        include /etc/nginx/snippets/grcup-proxy.conf;
+    }
     location /api/ {
         proxy_pass http://10.43.241.10:8080;
         include /etc/nginx/snippets/grcup-proxy.conf;
@@ -77,6 +86,12 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     client_max_body_size 64m;
 
+    location ~ ^/api/competiciones/[^/]+/alta-atleta$ {
+        limit_req zone=alta_atleta_prod burst=5 nodelay;
+        client_max_body_size 10m;
+        proxy_pass http://10.43.241.10:8080;
+        include /etc/nginx/snippets/grcup-proxy.conf;
+    }
     location / {
         proxy_pass http://10.43.241.10:8080;
         include /etc/nginx/snippets/grcup-proxy.conf;

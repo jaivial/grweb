@@ -44,50 +44,27 @@ export class SecCifras {
   protected readonly items = computed(() => list<{ valor: string; etiqueta: string }>(this.s(), 'items'));
 }
 
-/** «Section / Inscripciones»: the registration card (state badge, places counter, bar and the actions). */
+/** «Section / Alta de atleta»: la llamada a completar la ficha (la plantilla de la competición ya está completa). */
 @Component({
-  selector: 'gr-sec-inscripciones',
+  selector: 'gr-sec-alta',
   imports: [GrButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-20 md:pt-16 md:pb-32' },
   template: `
-    @let c = comp();
     <div class="relative mx-auto flex max-w-[720px] flex-col items-center gap-4 overflow-hidden rounded-2xl border border-line-subtle bg-bg-card px-5 py-8 text-center md:gap-5 md:px-14 md:py-12">
       <div class="absolute inset-x-0 top-0 h-0.5 bg-[linear-gradient(90deg,transparent,#c42b3e,transparent)]"></div>
-      <span class="inline-flex h-7 items-center rounded-pill border px-3 text-label-xs" [class]="badge().clase">{{ badge().texto }}</span>
-      <h2 class="text-display-m text-accent-text [text-shadow:0_0_24px_rgb(196_43_62/0.5)] md:text-display-xl">{{ s()?.['titulo'] || 'Inscripciones' }}</h2>
-      @if (plazas()) {
-        <p class="flex items-end gap-2"><span class="text-display-xl md:text-display-hero">{{ inscritos() ?? plazas() }}</span><span class="pb-1 text-display-xs text-text-tertiary">/ {{ plazas() }} atletas</span></p>
-        <div class="h-1.5 w-full max-w-[420px] overflow-hidden rounded-[3px] bg-line-strong" role="progressbar" [attr.aria-valuenow]="pct()" aria-valuemin="0" aria-valuemax="100" aria-label="Plazas ocupadas">
-          <div class="h-full rounded-[3px] bg-[linear-gradient(120deg,#c42b3e,#6e1420)]" [style.width.%]="pct()"></div>
-        </div>
-      }
-      <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] }}</p>
+      <span class="inline-flex h-7 items-center rounded-pill border border-line-strong bg-bg-raised px-3 text-label-xs text-text-secondary uppercase">{{ s()?.['eyebrow'] || 'GR Cup 2026 · Plantilla completa' }}</span>
+      <h2 class="text-display-m text-accent-text [text-shadow:0_0_24px_rgb(196_43_62/0.5)] md:text-display-xl">{{ s()?.['titulo'] || 'Completa tu ficha de atleta' }}</h2>
+      <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] || 'La plantilla de la GR Cup 2026 está completa. Si compites, completa tu ficha de atleta: foto, club y mejores marcas. La revisamos a mano y la publicamos en la lista de atletas.' }}</p>
       <div class="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-        @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="primary" size="l" href="/atletas">Ver atletas inscritos</a> }
-        @if (propia()) { <a grButton variant="outline" size="l" href="/inscripcion" iconRight="arrow-right">Inscríbete</a> }
-        @else if (c?.inscripcion?.url) { <a grButton variant="outline" size="l" [href]="c!.inscripcion.url" target="_blank" rel="noopener">{{ c!.inscripcion.estado === 'completa' ? 'Lista de espera en la AEP' : 'Inscripción en la AEP' }}</a> }
+        <a grButton variant="primary" size="l" href="/alta-atleta">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
+        <a grButton variant="outline" size="l" href="/atletas">Ver atletas</a>
       </div>
     </div>
   `,
 })
-export class SecInscripciones {
+export class SecAlta {
   readonly s = input<Seccion | undefined>();
-  readonly comp = input<CompeticionPublica | null>(null);
-  /** Own registration with payment (athletes service): links to /inscripcion instead of the AEP. */
-  readonly propia = input(false);
-  /** Confirmed athletes (athletes summary); null → the counter shows the places. */
-  readonly inscritos = input<number | null>(null);
-  protected readonly plazas = computed(() => Number(this.s()?.['plazas'] ?? 0) || this.comp()?.inscripcion?.plazas || 0);
-  protected readonly pct = computed(() => Math.min(100, Math.round(((this.inscritos() ?? this.plazas()) / (this.plazas() || 1)) * 100)));
-  protected readonly badge = computed(() => {
-    const e = this.comp()?.inscripcion?.estado ?? 'proximamente';
-    return ({
-      abierta: { texto: 'Inscripciones abiertas', clase: 'border-success/60 bg-success/12 text-success' },
-      completa: { texto: 'Inscripciones completas', clase: 'border-text-tertiary/60 bg-text-tertiary/12 text-text-tertiary' },
-      cerrada: { texto: 'Inscripciones cerradas', clase: 'border-text-tertiary/60 bg-text-tertiary/12 text-text-tertiary' },
-    } as Record<string, { texto: string; clase: string }>)[e] ?? { texto: 'Próximamente', clase: 'border-info/60 bg-info/12 text-info' };
-  });
 }
 
 /**

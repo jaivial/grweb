@@ -75,6 +75,7 @@ type PlantillaDetalle struct {
 	Variables  []string          `json:"variables"`
 	Ejemplo    map[string]string `json:"ejemplo"`
 	Original   Contenido         `json:"original"`
+	WA         *ContenidoWA      `json:"wa,omitempty" doc:"Versión de WhatsApp del mensaje (no se edita: la lleva el código)"`
 	Version    int               `json:"version"`
 	UpdatedPor string            `json:"updatedPor,omitempty"`
 	UpdatedAt  *time.Time        `json:"updatedAt,omitempty"`
@@ -206,7 +207,7 @@ func (s *Svc) registerAdmin() {
 		if err != nil {
 			return nil, err
 		}
-		d := PlantillaDetalle{Info: it, Contenido: e.Contenido, Variables: variablesOrdenadas(t.Variables), Ejemplo: t.Ejemplo, Original: t.Contenido, Version: e.Version, UpdatedPor: e.UpdatedPor, UpdatedAt: e.UpdatedAt}
+		d := PlantillaDetalle{Info: it, Contenido: e.Contenido, Variables: variablesOrdenadas(t.Variables), Ejemplo: t.Ejemplo, Original: t.Contenido, WA: t.WA, Version: e.Version, UpdatedPor: e.UpdatedPor, UpdatedAt: e.UpdatedAt}
 		return &detOut{ETag: `W/"` + strconv.Itoa(e.Version) + `"`, Body: d}, nil
 	}
 	huma.Register(api, huma.Operation{OperationID: "emails-plantilla", Method: http.MethodGet, Path: base + "/plantillas/{clave}", Summary: "Plantilla para el editor", Tags: tagAdmin, Security: bearer},
@@ -245,11 +246,13 @@ func (s *Svc) registerAdmin() {
 				if in.IfMatch != "" && strings.Trim(strings.TrimPrefix(in.IfMatch, "W/"), `"`) != strconv.Itoa(ver) {
 					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta plantilla mientras la editabas. Recarga para ver sus cambios.")
 				}
-				if _, err := tx.Exec(ctx, `INSERT INTO plantillas (competition_id, clave, asunto, preheader, titulo, cuerpo, boton_texto, boton_url, pie, version, updated_por)
-					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10)
+				if _, err := tx.Exec(ctx, `INSERT INTO plantillas (competition_id, clave, asunto, preheader, titulo, cuerpo, boton_texto, boton_url, pie, imagen, nota, version, updated_por)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,$12)
 					ON CONFLICT (competition_id, clave) DO UPDATE SET asunto = $3, preheader = $4, titulo = $5, cuerpo = $6, boton_texto = $7, boton_url = $8, pie = $9,
-					version = plantillas.version + 1, updated_por = $10, updated_at = now()`,
-					in.CID, in.Clave, c.Asunto, c.Preheader, c.Titulo, c.Cuerpo, c.BotonTexto, c.BotonURL, c.Pie, actor(ctx)); err != nil {
+					imagen = CASE WHEN $10 = '' THEN plantillas.imagen ELSE $10 END,
+					nota = CASE WHEN $11 = '' THEN plantillas.nota ELSE $11 END,
+					version = plantillas.version + 1, updated_por = $12, updated_at = now()`,
+					in.CID, in.Clave, c.Asunto, c.Preheader, c.Titulo, c.Cuerpo, c.BotonTexto, c.BotonURL, c.Pie, c.Imagen, c.Nota, actor(ctx)); err != nil {
 					return err
 				}
 				// Saving a valid design re-activates a template paused by a render error.

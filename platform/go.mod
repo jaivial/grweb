@@ -3,6 +3,7 @@ module github.com/jaivial/grweb/platform
 go 1.26.0
 
 require (
+	github.com/altcha-org/altcha-lib-go v1.0.0
 	github.com/coder/websocket v1.8.15
 	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/go-sql-driver/mysql v1.10.1

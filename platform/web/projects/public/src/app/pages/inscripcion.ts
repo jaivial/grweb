@@ -92,7 +92,8 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
             @else { La inscripción de la {{ nombreComp() }} está cerrada. Si tienes una duda sobre tu inscripción, escríbenos{{ contacto() ? ' a ' + contacto() : '' }}. }
           </p>
           <div class="flex w-full flex-col gap-3 md:w-auto md:flex-row">
-            <a grButton variant="primary" size="l" href="/atletas">Ver atletas inscritos</a>
+            <a grButton variant="primary" size="l" href="/alta-atleta">Dar de alta tu atleta</a>
+            <a grButton variant="outline" size="l" href="/atletas">Ver atletas</a>
             @if (v === 'completas' && c?.modo !== 'propia' && urlAep()) { <a grButton variant="outline" size="l" [href]="urlAep()" target="_blank" rel="noopener">Lista de espera en la AEP</a> }
           </div>
           <div class="grid w-full gap-4 pt-6 text-left md:max-w-[960px] md:grid-cols-2">
@@ -334,7 +335,7 @@ export class InscripcionPage {
       this.cfg.set(c);
       this.competicion.set(cp);
       if (this.browser && this.referido && c?.modo === 'propia') void this.calcular(); // shared link …?ref=CODE
-      seo.set({ title: 'Inscripción · GR Strength Cup', description: c?.modo === 'propia' ? `Inscríbete en la GR Strength Cup: ${eur(c.cuota)}, ${c.plazas} plazas.` : 'Cómo inscribirte como atleta en la GR Strength Cup (inscripción en la AEP).', path: '/inscripcion' });
+      seo.set({ title: 'Inscripción · GR Strength Cup', description: c?.modo === 'propia' ? `Inscríbete en la GR Strength Cup: ${eur(c.cuota)}, ${c.plazas} plazas.` : 'La inscripción en la GR Strength Cup la gestiona la AEP. Da de alta tu atleta para que tu ficha se publique.', path: '/inscripcion' });
     });
     if (this.browser) {
       const p = new URLSearchParams(location.search);

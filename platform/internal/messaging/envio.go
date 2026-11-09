@@ -193,22 +193,34 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 		var ee *errEnvio
 		var ew *errWA
 		if err != nil && ((errors.As(err, &ee) && ee.servidor) || (errors.As(err, &ew) && ew.servidor)) {
-			_ = s.a.Redis.Set(ctx, caido, err.Error(), time.Minute).Err()
+			causa := err.Error()
+			if canal == "whatsapp" {
+				causa = s.waMensaje(ctx, c.cid, err)
+			}
+			_ = s.a.Redis.Set(ctx, caido, causa, time.Minute).Err()
 			rest := make([]uuid.UUID, 0, len(lote)-i)
 			for _, q := range lote[i:] {
 				rest = append(rest, q.id)
 			}
 			det := "Servidor de email no disponible: "
-			if canal == "whatsapp" {
-				det = "WhatsApp (evo-weai) no disponible: "
-			}
 			msg := err.Error()
+			if canal == "whatsapp" {
+				// The provider answers in English and with the technical name of the instance: the person reads a
+				// sentence in Spanish and the log keeps the detail.
+				s.waLog(ctx, c.cid, "enviar el WhatsApp de la campaña", err)
+				det = "WhatsApp no disponible: "
+				msg = s.waMensaje(ctx, c.cid, err)
+			}
 			if len(msg) > 150 {
 				msg = msg[:150]
 			}
 			_, _ = s.a.DB.Exec(ctx, `UPDATE campana_destinatarios SET estado = 'pendiente', intentos = greatest(intentos - 1, 0), proximo_at = now() + interval '1 minute', detalle = $2, updated_at = now() WHERE id = ANY($1)`,
 				rest, det+msg)
-			s.a.Log.Warn("canal de campaña caído", "campana", c.id, "canal", canal, "err", err)
+			detalleLog := err.Error()
+			if canal == "whatsapp" {
+				detalleLog = waSinDatos(waTecnico(err)) // the log never carries a phone number
+			}
+			s.a.Log.Warn("canal de campaña caído", "campana", c.id, "canal", canal, "err", detalleLog)
 			return
 		}
 		s.resultado(ctx, c, canal, p, id, err, wa.Modo == "simulado")
@@ -242,6 +254,12 @@ func (s *Svc) resultado(ctx context.Context, c envioCamp, canal string, p pendie
 			perm = ee.permanente
 		case errors.As(err, &ew):
 			perm = ew.permanente
+		}
+		if canal == "whatsapp" {
+			// The provider answers in English and with the technical name of the instance: the person reads a
+			// sentence in Spanish and the log keeps the detail.
+			s.waLog(ctx, c.cid, "enviar el WhatsApp de la campaña", err)
+			motivo = s.waMensaje(ctx, c.cid, err)
 		}
 		if len(motivo) > 200 {
 			motivo = motivo[:200]

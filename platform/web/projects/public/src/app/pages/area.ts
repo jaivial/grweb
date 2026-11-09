@@ -59,6 +59,10 @@ const api = '/api/area-atleta';
                 <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">Enviarme el enlace</button>
               </form>
               <aside class="mt-6 rounded-lg border border-line-subtle bg-bg-card p-5">
+                <p class="text-label-m">¿Aún no tienes ficha?</p>
+                <p class="mt-1 text-body-s text-text-tertiary">Da de alta tu atleta con el email de tu inscripción en la AEP y el equipo publica tu ficha. <a href="/alta-atleta" class="text-accent-text hover:underline">Alta de atleta</a></p>
+              </aside>
+              <aside class="mt-4 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <p class="text-label-m">¿No te llega?</p>
                 <p class="mt-1 text-body-s text-text-tertiary">Revisa spam{{ contacto() ? ' o escribe a ' + contacto() : '' }}. Por privacidad, no confirmamos si un email está inscrito.</p>
               </aside>

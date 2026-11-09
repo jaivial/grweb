@@ -62,7 +62,9 @@ var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitad
 	"campana.progreso": true, "messaging.baja": true,
 	// raffle: emails and contact facts (personal data), each purchase (a counter, not an action of the team) and the
 	// public mirrors of the draw (the log keeps sorteo.congelado/ejecutado/confirmado/repetido)
-	"raffle.email_solicitado": true, "raffle.contacto": true, "sorteo.compra": true, "sorteo.estado": true, "sorteo.ganador": true}
+	"raffle.email_solicitado": true, "raffle.contacto": true, "sorteo.compra": true, "sorteo.estado": true, "sorteo.ganador": true,
+	// athlete sign-up: WhatsApp requests carry the phone number
+	"athletes.whatsapp_solicitado": true}
 
 // handle stores the event, then applies notification and KPI rules (its own events are ignored to avoid loops).
 func (s *Svc) handle(ctx context.Context, e events.Event) error {
@@ -109,6 +111,8 @@ func (s *Svc) handle(ctx context.Context, e events.Event) error {
 				}
 				out := events.New(ctx, "notificacion.nueva", map[string]any{"id": nid, "titulo": titulo, "cuerpo": cuerpo, "enlace": enlace, "nivel": nivel}, events.Competition(cid.String()))
 				out.Permission = permiso
+				// Trazabilidad del aviso al equipo (sin datos personales).
+				s.a.Log.Info("notificación al equipo", "evento", e.Type, "permiso", permiso, "nivel", nivel)
 				if err := events.Enqueue(ctx, tx, out); err != nil {
 					return err
 				}

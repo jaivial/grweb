@@ -132,7 +132,7 @@ func (s *Svc) registerPublic() {
 
 	type legalIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Tipo string `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,bases-sorteo"`
+		Tipo string `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,whatsapp,bases-sorteo"`
 	}
 	type legalOut struct {
 		CacheControl string `header:"Cache-Control"`

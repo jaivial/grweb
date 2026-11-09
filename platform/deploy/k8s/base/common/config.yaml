@@ -15,6 +15,9 @@ data:
   LOG_LEVEL: info
   BACKOFFICE_URL: https://grcup-qa-bo.menustudioai.com
   PUBLIC_WEB_URL: https://grcup-qa.menustudioai.com
+  PUBLIC_API_URL: https://grcup-qa-api.menustudioai.com
+  # The webhook of evo-weai: in QA it points to the internal service (the event does not leave the cluster).
+  WHATSAPP_WEBHOOK_URL: http://messaging:8080
   # Platform SMTP (backoffice access, invitations, and competitions without their own SMTP). QA: Mailpit.
   SMTP_HOST: mailpit
   SMTP_PORT: "1025"

@@ -86,9 +86,49 @@ corrección urgente.
 | Redis caído (puente) | `k get pods -l app.kubernetes.io/name=redis-puente`; `systemctl status redis` en el nodo | Sin Redis no hay tiempo real ni límites de peticiones; los eventos esperan en el outbox de cada servicio y salen al volver. |
 | Bus de eventos con retraso | Salud › Trabajos (columna «Por leer») | Ver logs del consumidor atrasado. Los mensajes que fallan 20 veces se descartan con un log de error. |
 | Emails sin salir | Backoffice › Emails y avisos › Bandeja (estado del SMTP) · Sistema › Email (dominio) | El envío reintenta con espera; campañas: el canal se pausa 1 min por caída del servidor sin gastar reintentos. |
-| WhatsApp sin salir | Campañas › WhatsApp (estado de la sesión de evo-weai) | Vincular de nuevo el número con el código. |
+| WhatsApp sin salir | Sistema › WhatsApp (estado del servicio y de la sesión) | Vincular de nuevo el número (QR o código). Revisar `k logs deploy/evo-weai --tail=50`. |
 | Pagos sin confirmar | Sorteo › Boletos y pagos / Atletas › Inscripción (pendientes) | El webhook se reintenta desde Stripe; el estado de la compra repite la consulta. Revisar el secreto del webhook en Sistema › Integraciones. |
 | Pantalla del pabellón sin conexión | Directo › Pantalla (último ping) | Recargar la página de la pantalla; si el enlace se filtró, «Nuevo enlace». |
+
+## 6.1 WhatsApp (evo-weai)
+
+El número de WhatsApp lo sirve `evo-weai`, un microservicio propio (no es un servicio Go de la plataforma). Su
+manifiesto está en `deploy/k8s/base/evo-weai/`: 1 réplica, `Recreate` (la sesión es un único socket), estado en
+`/var/lib/grcup/evo-weai` (el overlay de producción lo cambia), Secret `grcup-weai`, sin Ingress y con una
+NetworkPolicy que solo deja entrar a `messaging`.
+
+**Puesta en marcha (una vez, con la aprobación del organizador):**
+
+```bash
+# 1. La imagen (viene de su propio repositorio, ~/evo-weai; necesita un token de GitHub con lectura):
+docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.14 \
+  --secret id=evo_weai_gh_token,env=EVO_WEAI_GH_TOKEN -t grcup/evo-weai:v0.2.14 ~/evo-weai
+docker save grcup/evo-weai:v0.2.14 | gzip -1 | ssh kraken 'gunzip | sudo k3s ctr -n k8s.io images import -'
+
+# 2. El Secret (genera WEAI_API_KEY y WEAI_DATA_KEY en ~/.config/grcup-prod/secrets.env):
+ROOT_EMAIL=… ROOT_NOMBRE=… deploy/scripts/secretos.sh prod
+```
+
+> La imagen **no** la construye `deploy/scripts/desplegar.sh` (está en otro repositorio): si se actualiza evo-weai,
+> se repite el paso 1 y se cambia la etiqueta en `deploy/k8s/base/evo-weai/evo-weai.yaml`.
+
+**Vincular el número:**
+
+1. Copiar la `WEAI_API_KEY` del Secret a la integración «WhatsApp» de la competición (*Sistema › Integraciones*):
+   proveedor `evo-weai`, URL `http://evo-weai:8080` (la interna del cluster), clave = `WEAI_API_KEY`.
+   ```bash
+   k get secret grcup-weai -o jsonpath='{.data.WEAI_API_KEY}' | base64 -d
+   ```
+2. *Sistema › WhatsApp* → «Crear instancia» (crea `grcup-<slug>` en evo-weai, idempotente) → «Vincular con QR» o
+   «Vincular con código».
+3. «Avisos de solicitudes de atleta»: teléfonos de los organizadores y los interruptores de los mensajes del alta.
+
+- El webhook de producción es **público y firmado**: `https://grcup-api.menustudioai.com/api/webhooks/whatsapp`
+  (la firma HMAC va en la query; evo-weai añade además la cabecera `authorization: Bearer <clave>`). En el Deployment
+  de producción `WEAI_WEBHOOK_ALLOW_INTERNAL` está a `false`: evo-weai no puede llamar a direcciones internas.
+- `WHATSAPP_SIMULADO` está a `false` en producción: si el número no está vinculado, los mensajes fallan y se reintentan
+  (no salen silenciosos).
+- En producción el servicio se niega a arrancar si `WHATSAPP_SIMULADO=true` (ya lo hace el resto de la plataforma).
 
 ## 7. Secretos
 

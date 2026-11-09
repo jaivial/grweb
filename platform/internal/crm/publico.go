@@ -228,6 +228,14 @@ func (s *Svc) iniciarNovedades(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID
 		return nil
 	}
 	tok := randomToken()
+	if err == nil && estado == "pendiente" {
+		// La prueba ya está guardada (p. ej. la del formulario de alta de atleta): se conserva y solo se inicia
+		// el doble opt-in (token + email de confirmación).
+		if _, err := tx.Exec(ctx, `UPDATE consentimientos SET token_hash = $2, recordado_at = NULL WHERE contacto_id = $1 AND finalidad = 'novedades_email'`, id, hashToken(tok)); err != nil {
+			return err
+		}
+		return email(ctx, tx, cid, e, "novedades-confirmar", s.enlacesNovedades(id, tok))
+	}
 	if err := s.consentir(ctx, tx, id, ConsentIn{Finalidad: "novedades_email", Canal: "email", Estado: "pendiente", Version: VersionNovedades, Hash: hashNovedades,
 		Origen: origen + " · casilla de novedades", IP: ip}, time.Now()); err != nil {
 		return err

@@ -29,6 +29,7 @@ resources:
   - donaciones/donaciones.yaml
   - patrocinio/patrocinio.yaml
   - juegos/juegos.yaml
+  - evo-weai/evo-weai.yaml
   - gateway/gateway.yaml
   - web/web.yaml
   - backoffice/backoffice.yaml

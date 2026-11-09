@@ -103,11 +103,11 @@ export class BoToggle {
       <aside class="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-line-strong bg-bg-card shadow-card sm:w-[480px]" role="dialog" aria-modal="true" [attr.aria-label]="title()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
         <header class="flex items-center gap-3 border-b border-line-subtle px-5 py-4">
           <h2 class="min-w-0 flex-1 truncate text-ui-h5">{{ title() }}</h2>
-          @if (badge()) { <gr-badge tone="warning">{{ badge() }}</gr-badge> }
+          @if (badge()) { <gr-badge [tone]="badgeTone()">{{ badge() }}</gr-badge> }
           <button grIconButton icon="x" label="Cerrar" (click)="close()"></button>
         </header>
         <div class="flex-1 overflow-y-auto px-5 py-5"><ng-content /></div>
-        <footer class="flex flex-wrap justify-end gap-2 border-t border-line-subtle px-5 py-4"><ng-content select="[drawerActions]" /></footer>
+        <footer class="flex flex-wrap justify-end gap-2 border-t border-line-subtle bg-bg-card px-5 py-4"><ng-content select="[drawerActions]" /></footer>
       </aside>
     }
   `,
@@ -116,6 +116,7 @@ export class BoDrawer {
   readonly open = model(false);
   readonly title = input('');
   readonly badge = input('');
+  readonly badgeTone = input<GrTone>('warning');
   close(): void {
     this.open.set(false);
   }

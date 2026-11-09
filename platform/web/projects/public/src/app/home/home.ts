@@ -12,7 +12,7 @@ import { NoEncontrada } from '../layout/no-encontrada';
 import { Campeonato, fechaCorta } from './campeonato';
 import { HeroTrophy } from './hero-trophy';
 import {
-  SecAfiliaciones, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecInscripciones, SecLocalizacion, SecOrganizacion, SecPremios,
+  SecAfiliaciones, SecAlta, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecLocalizacion, SecOrganizacion, SecPremios,
 } from './secciones';
 import { SecSorteo, type SorteoHome } from './sorteo';
 
@@ -23,7 +23,7 @@ import { SecSorteo, type SorteoHome } from './sorteo';
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, HeroTrophy, Campeonato, SecCifras, SecInscripciones, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, HeroTrophy, Campeonato, SecCifras, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -40,7 +40,8 @@ import { SecSorteo, type SorteoHome } from './sorteo';
         @for (k of h.orden; track k) {
           @switch (k) {
             @case ('cifras') { <gr-sec-cifras [s]="h.secciones[k]" /> }
-            @case ('inscripciones') { <gr-sec-inscripciones [s]="h.secciones[k]" [comp]="c" [propia]="propia()" [inscritos]="inscritos()" /> }
+            @case ('alta-atleta') { <gr-sec-alta [s]="h.secciones[k]" /> }
+            @case ('inscripciones') { @if (!h.orden.includes('alta-atleta')) { <gr-sec-alta [s]="h.secciones[k]" /> } }
             @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" [sorteo]="c?.modulos?.['sorteo'] ? sorteo() : null" /> } }
             @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
             @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
@@ -65,11 +66,9 @@ export class HomePage {
   protected readonly introDone = signal(false);
   protected readonly cms = signal<HomeCms | null>(null);
   protected heroMeta = signal('');
-  protected readonly propia = signal(false);
   protected readonly sorteo = signal<SorteoHome | null>(null);
   protected readonly entradas = signal<Entradas | null>(null);
   protected readonly horarios = signal<Horarios | null>(null);
-  protected readonly inscritos = signal<number | null>(null);
 
   constructor() {
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
@@ -77,17 +76,13 @@ export class HomePage {
     const http = inject(HttpClient);
     const api = (p: string) => `/api/competiciones/${COMPETITION_SLUG}${p}`;
     const opt = <T,>(p: string) => firstValueFrom(http.get<T>(api(p))).catch(() => null);
-    const modo = opt<{ modo: string }>('/inscripcion').then((r) => r?.modo === 'propia');
     void inject(PendingTasks).run(() => Promise.all([
-      this.comp.load(), cmsApi.home(), modo, opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
-      opt<{ resumen: { total: number } }>('/atletas?resumen=true'),
-    ]).then(([c, h, propia, sorteo, entradas, horarios, atletas]) => {
+      this.comp.load(), cmsApi.home(), opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
+    ]).then(([c, h, sorteo, entradas, horarios]) => {
       this.cms.set(h);
-      this.propia.set(propia);
       this.sorteo.set(sorteo);
       this.entradas.set(entradas);
       this.horarios.set(horarios);
-      this.inscritos.set(atletas?.resumen?.total ?? null);
       this.heroMeta.set([fechaCorta(c?.fechaInicio), c?.sede?.ciudad, c?.sede?.provincia].filter(Boolean).join(' · '));
       const nombre = c?.nombre ?? 'GR Strength Cup';
       this.seo.set({
