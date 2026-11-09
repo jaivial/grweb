@@ -414,26 +414,13 @@ interface FilaConsentimiento {
 
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Consentimientos con prueba</h3>
-            @if (d.estado === 'aprobada') {
-              <div class="mt-2 rounded-md bg-bg-raised p-4">
-                <div class="flex items-start justify-between gap-3">
-                  <p class="text-body-s">Consentimientos aplicados al perfil publicado</p>
-                  <gr-badge tone="success">Confirmado</gr-badge>
-                </div>
-                <dl class="mt-3 flex flex-col gap-1 text-body-xs">
-                  <div class="flex justify-between gap-3"><dt class="text-text-tertiary">Texto aceptado</dt><dd class="text-right uppercase">Términos y reglamento · versión 2026-02</dd></div>
-                  <div class="flex justify-between gap-3"><dt class="text-text-tertiary">Origen</dt><dd class="text-right uppercase">Formulario de alta de atleta</dd></div>
-                </dl>
-              </div>
-            } @else if (d.estado === 'rechazada') {
-              <div class="mt-2 rounded-md bg-bg-raised p-4">
-                <div class="flex items-start justify-between gap-3">
-                  <p class="text-body-s">Consentimientos guardados · se borran con la solicitud (RGPD)</p>
-                  <gr-badge tone="success">Confirmado</gr-badge>
-                </div>
-              </div>
-            } @else {
-              <ul class="mt-2 flex flex-col gap-4 rounded-md bg-bg-raised p-4">
+            <div class="mt-2 flex flex-col gap-3 rounded-md bg-bg-raised p-4">
+              @if (d.estado === 'aprobada') {
+                <p class="text-body-s">Consentimientos aplicados al perfil publicado</p>
+              } @else if (d.estado === 'rechazada') {
+                <p class="text-body-s">Consentimientos guardados · se borran con la solicitud (RGPD)</p>
+              }
+              <ul class="flex flex-col gap-6">
                 @for (c of consentimientos(); track c.clave) {
                   <li class="flex items-start gap-2">
                     @if (c.aceptado) { <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0 text-success" /> }
@@ -446,7 +433,7 @@ interface FilaConsentimiento {
                   </li>
                 }
               </ul>
-            }
+            </div>
           </section>
 
           @if (d.estado !== 'aprobada' && d.estado !== 'rechazada') {
