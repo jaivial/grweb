@@ -53,6 +53,8 @@ export interface FilaFantasy {
 export interface Clasificaciones {
   porra: FilaPorra[];
   fantasy: FilaFantasy[];
+  /** Deuda pendiente de la jornada: lo que un reembolso no pudo retirar del saldo de fantasy (queda anotado). */
+  pendienteFantasy: number;
 }
 
 export interface PuntosCfg {

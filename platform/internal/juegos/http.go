@@ -115,9 +115,12 @@ type apuestaVista struct {
 // carteraOut is the response of GET /juegos/cartera.
 type carteraOut struct {
 	Body struct {
-		Porra       int64             `json:"porra"`
-		Fantasy     int64             `json:"fantasy"`
-		Movimientos []movimientoVista `json:"movimientos"`
+		Porra   int64 `json:"porra"`
+		Fantasy int64 `json:"fantasy"`
+		// PendienteFantasy is what a refund could not take back (the wallet never goes below zero): the debt
+		// stays noted and visible to the fan (contract §5 «si no, lo deja anotado»).
+		PendienteFantasy int64             `json:"pendienteFantasy"`
+		Movimientos      []movimientoVista `json:"movimientos"`
 	}
 }
 
@@ -724,7 +727,10 @@ func (s *Svc) registerPublic() {
 				if o.Body.Fantasy, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy); err != nil {
 					return err
 				}
-				return nil
+				// The pending debt of the refunds that could not take the fantasy reward back: it stays noted
+				// (contract §5) and the fan can see it in his wallet.
+				return tx.QueryRow(ctx, `SELECT COALESCE(sum(pendiente), 0) FROM movimientos
+					WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, j.ID, f.ID).Scan(&o.Body.PendienteFantasy)
 			})
 			if err != nil {
 				return nil, err

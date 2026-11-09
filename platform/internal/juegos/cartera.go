@@ -126,6 +126,10 @@ func acreditarTx(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m M
 // reward when the balance allows it and, if not, leaves the rest noted (contract §5/§6.4). Idempotent by ref,
 // like every withdrawal and credit of the ledger. The wallet row is locked FOR UPDATE and the debit is atomic
 // (LEAST): the balance cannot change under our feet and the CHECK saldo >= 0 can never abort the transaction.
+//
+// The pending debt (`pendiente`) is NOT charged automatically: the contract only asks to leave it noted
+// (contract §5 «si no, lo deja anotado»), so nothing is deducted from the next credit of the fan. The amount is
+// exposed to the fan in GET …/juegos/cartera (`pendienteFantasy`) and to the staff in the admin classifications.
 func retirarLoQueHaya(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m Moneda, importe int64, motivo, ref string) error {
 	if importe <= 0 {
 		return nil

@@ -149,6 +149,8 @@ export interface Movimiento {
 export interface Cartera {
   porra: number;
   fantasy: number;
+  /** Deuda pendiente: lo que un reembolso no pudo retirar del saldo (queda anotado, contrato §5). */
+  pendienteFantasy: number;
   movimientos: Movimiento[];
 }
 

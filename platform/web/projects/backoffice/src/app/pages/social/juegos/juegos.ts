@@ -40,11 +40,12 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
         <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar».</gr-alert>
       }
 
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <gr-kpi label="Jugadores porra" [value]="num(clasif().porra.length)" caption="en el top 50" />
         <gr-kpi label="Jugadores fantasy" [value]="num(clasif().fantasy.length)" caption="en el top 50" />
         <gr-kpi label="Monedas en circulación" [value]="monedas()" caption="porra + fantasy del top" />
         <gr-kpi label="Apuestas" [value]="num(apuestas())" [caption]="bote() + ' en botes'" />
+        <gr-kpi label="Deuda pendiente" [value]="num(clasif().pendienteFantasy)" caption="fantasy · reembolsos" />
       </div>
 
       @if (cargando()) {
@@ -206,7 +207,7 @@ export class JuegosPage {
   protected readonly jornadas = signal<Jornada[]>([]);
   protected readonly seleccionada = signal('');
   protected readonly mercados = signal<Mercado[]>([]);
-  protected readonly clasif = signal<Clasificaciones>({ porra: [], fantasy: [] });
+  protected readonly clasif = signal<Clasificaciones>({ porra: [], fantasy: [], pendienteFantasy: 0 });
   protected readonly cargando = signal(true);
   protected readonly ocupado = signal(false);
   protected readonly error = signal('');
@@ -306,7 +307,7 @@ export class JuegosPage {
   protected async elegir(j: Jornada): Promise<void> {
     if (j.id === this.seleccionada()) return;
     this.seleccionada.set(j.id);
-    this.clasif.set({ porra: [], fantasy: [] });
+    this.clasif.set({ porra: [], fantasy: [], pendienteFantasy: 0 });
     this.mercados.set([]);
     await this.cargarJornada(j.id);
   }

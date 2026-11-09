@@ -470,6 +470,9 @@ func (s *Svc) registerAdmin() {
 		Body struct {
 			Porra   []filaPorra   `json:"porra"`
 			Fantasy []filaFantasy `json:"fantasy"`
+			// PendienteFantasy is the pending debt of the jornada (the refunds that could not take the fantasy
+			// reward back): it stays noted and the staff sees it (contract §5).
+			PendienteFantasy int64 `json:"pendienteFantasy"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-clasificaciones", Method: http.MethodGet, Path: base + "/clasificaciones",
@@ -485,6 +488,10 @@ func (s *Svc) registerAdmin() {
 			o := &clasificacionesOut{}
 			o.Body.Porra, _ = s.rankingPorra(ctx, *j, uuid.Nil)
 			o.Body.Fantasy, _ = s.rankingFantasy(ctx, *j, uuid.Nil)
+			if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(sum(pendiente), 0) FROM movimientos
+				WHERE jornada_id = $1 AND moneda = 'fantasy'`, j.ID).Scan(&o.Body.PendienteFantasy); err != nil {
+				return nil, err
+			}
 			return o, nil
 		})
 
