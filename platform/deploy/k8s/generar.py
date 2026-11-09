@@ -33,6 +33,8 @@ SERVICES = {
     "messaging": dict(db=True, hpa=(1, 2), mem=("64Mi", "256Mi")),
     "ticketing": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("ticketing-seed", ["seed-grcup"], [])]),
     "live": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("live-seed", ["seed-grcup"], [])]),
+    # OpenLifter desk (fork) → athletes (weigh-in) and live (attempts): on the event day, like live.
+    "openlifter": dict(db=True, hpa=(2, 4), mem=("48Mi", "256Mi")),
     "raffle": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("raffle-seed", ["seed-grcup"], [])]),
     "ai": dict(db=False, hpa=(1, 2), mem=("32Mi", "128Mi"), secrets={"MINIMAX_API_KEY": ("grcup-ai", "MINIMAX_API_KEY")}),
     "realtime": dict(db=False, hpa=(2, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
@@ -58,14 +60,14 @@ WORKERS = {"juegos-worker": "juegos"}  # name: image (the binary runs `juegos wo
 LLAMADAS = {
     "identity": ["*"],
     "competition": ["ai", "athletes", "chat", "cms", "crm", "donaciones", "fans", "juegos", "live", "messaging", "patrocinio", "raffle", "realtime", "schedule", "ticketing"],
-    "athletes": ["crm", "fans", "live", "schedule"],
+    "athletes": ["crm", "fans", "live", "openlifter", "schedule"],
     "cms": ["athletes", "crm", "ticketing"],
     "crm": ["messaging"],
     "messaging": ["crm"],
     "raffle": ["crm"],
     "schedule": ["live", "messaging"],
     "ticketing": ["crm"],
-    "live": ["juegos", "patrocinio"],
+    "live": ["juegos", "openlifter", "patrocinio"],
 }
 
 

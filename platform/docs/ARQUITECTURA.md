@@ -27,6 +27,9 @@ flowchart LR
   GW --> AT[athletes]
   GW --> SC[schedule]
   GW --> LV[live]
+  GW --> OL[openlifter]
+  OL --> AT
+  OL --> LV
   GW --> TK[ticketing]
   GW --> RF[raffle]
   GW --> CRM[crm]
@@ -71,6 +74,7 @@ flowchart LR
 | `athletes` | Perfiles de atleta, importación del acta AEP (xlsx), pesaje, openers, acreditación por QR, área del atleta, seguidores | `/api/competiciones/{slug}/atletas`, `C/atletas/*` | `horarios.publicados` (aviso al atleta) |
 | `schedule` | Flights, asignación de atletas, versiones de horario (borrador, publicado, diff), generador | `/api/competiciones/{slug}/horarios`, `C/horarios/*` | `atleta.*` (conflictos) |
 | `live` | Estado de plataforma, intentos, votos de jueces (Idempotency-Key + secuencia), correcciones auditadas, resultados (IPF GL), récords, acta PDF, token de pantalla | `/api/competiciones/{slug}/directo\|resultados`, `C/directo/*`, `C/resultados/*`, rutas de jueces actuales | `horarios.publicados`, `atleta.pesaje` |
+| `openlifter` | Mesas de OpenLifter (fork), última versión de cada entrada, vínculo entrada ↔ atleta (automático, sugerido, confirmado, ignorado) y alias confirmados | `C/openlifter/atletas\|sync\|vinculos` | — (llama a `athletes` para la identidad y el pesaje, y a `live` para los intentos y el flight en directo) |
 | `ticketing` | Sesiones con aforo y ventana, entradas con QR `E:{c}:{id}:{hmac}`, reservas con bloqueo de fila (sin sobreventa), lista de espera con autopromoción, puestos y escaneos (lote offline idempotente) | `/api/competiciones/{slug}/entradas`, `/api/mi-entrada/*`, `C/entradas/*`, `C/checkin/*` | `evento.estado` |
 | `raffle` | Configuración, premios, checklist legal (bloquea la venta), compras con Stripe Checkout, boletos, reembolsos, sorteo auditable (lista congelada y semilla publicada) | `/api/competiciones/{slug}/rifa`, `/api/webhooks/stripe`, `C/rifa/*` | — |
 | `crm` | Contactos, consentimientos por finalidad y canal (con prueba), doble opt-in, segmentos, supresiones, RGPD (acceso, rectificación, supresión, anonimización programada) | `C/contactos/*`, `C/segmentos/*`, `C/supresiones/*`, `/api/baja/{token}` | `entrada.creada`, `rifa.compra`, `atleta.seguido` (alta de contacto con su consentimiento) |

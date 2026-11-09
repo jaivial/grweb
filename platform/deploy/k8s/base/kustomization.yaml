@@ -20,6 +20,7 @@ resources:
   - messaging/messaging.yaml
   - ticketing/ticketing.yaml
   - live/live.yaml
+  - openlifter/openlifter.yaml
   - raffle/raffle.yaml
   - ai/ai.yaml
   - realtime/realtime.yaml

@@ -19,7 +19,7 @@ touch "$F"
 
 gen() { grep -q "^$1=" "$F" || echo "$1=$(openssl rand -hex "${2:-24}")" >>"$F"; }
 gen POSTGRES_PASSWORD
-for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT FANS CHAT DONACIONES PATROCINIO JUEGOS; do gen "PW_$s"; done
+for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT FANS CHAT DONACIONES PATROCINIO JUEGOS OPENLIFTER; do gen "PW_$s"; done
 gen REDIS_PASSWORD 32
 gen INTERNAL_TOKEN_SECRET 32
 gen CRYPTO_KEY 32
@@ -51,7 +51,7 @@ kv() { printf '  %s: "%s"\n' "$1" "$2"; }
 {
   echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-db, namespace: $NS }"; echo "type: Opaque"; echo "stringData:"
   kv POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
-  for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT FANS CHAT DONACIONES PATROCINIO JUEGOS; do v="PW_$s"; kv "PW_$s" "${!v}"; done
+  for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT FANS CHAT DONACIONES PATROCINIO JUEGOS OPENLIFTER; do v="PW_$s"; kv "PW_$s" "${!v}"; done
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-redis, namespace: $NS }"; echo "stringData:"
   kv REDIS_PASSWORD "$REDIS_PASSWORD"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-internal, namespace: $NS }"; echo "stringData:"

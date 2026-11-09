@@ -47,6 +47,7 @@ var routeTable = func() []route {
 		{c + `(web|legal|voluntarios|medios|clubs)(/|$)`, "cms"},
 		{p + `(web|faq|patrocinadores|legal|blog|galeria|voluntarios|seo|paginas|clubs)(/|$)`, "cms"},
 		{`^/api/(sitemap|ayuda|medios)(/|$)`, "cms"},
+		{c + `openlifter(/|$)`, "openlifter"},
 		{c + `(directo|resultados)(/|$)`, "live"},
 		{p + `(directo|resultados|pantalla)(/|$)`, "live"},
 		// .../inscripcion (AEP link and state) belongs to competition; the own registration lives under inscripcion/config.
@@ -97,7 +98,7 @@ func match(path string) string {
 }
 
 // AllServices lists every backend service the gateway can route to.
-var AllServices = []string{"identity", "competition", "cms", "athletes", "schedule", "live", "ticketing", "raffle", "crm", "messaging", "ai", "realtime", "audit", "fans", "chat", "donaciones", "patrocinio", "juegos"}
+var AllServices = []string{"identity", "competition", "cms", "athletes", "schedule", "live", "ticketing", "raffle", "crm", "messaging", "ai", "realtime", "audit", "fans", "chat", "donaciones", "patrocinio", "juegos", "openlifter"}
 
 type gw struct {
 	a        *app.App
