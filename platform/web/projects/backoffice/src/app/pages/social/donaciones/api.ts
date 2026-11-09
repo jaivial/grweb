@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 /** Donaciones service (contrato §5). Admin: C/donaciones/* con permiso «sorteo.gestionar». */
 
-export type EstadoDonacion = 'pendiente' | 'pagada' | 'caducada' | 'reembolsada';
+export type EstadoDonacion = 'pendiente' | 'pagada' | 'caducada' | 'reembolsando' | 'reembolsada';
 
 export interface Donacion {
   id: string;

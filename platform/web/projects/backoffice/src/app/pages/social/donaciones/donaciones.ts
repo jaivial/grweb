@@ -8,12 +8,16 @@ import { BoPageHeader, BoToggle, errText } from '../../../shared/ui';
 import { descargarCsv, euros, fecha, num, SoNumber } from '../ui';
 import { DonacionesApi, type ConfigDonaciones, type Donacion, type KpisDonaciones, type ListaDonaciones, type RankingDonaciones } from './api';
 
-type Estado = 'pendiente' | 'pagada' | 'caducada' | 'reembolsada';
+type Estado = 'pendiente' | 'pagada' | 'caducada' | 'reembolsando' | 'reembolsada';
+type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
-const ESTADOS: Record<Estado, { l: string; tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = {
+// El mapa es parcial a propósito: un estado que el backend añada después no puede romper la página (la etiqueta
+// sale tal cual y con tono neutro).
+const ESTADOS: Partial<Record<Estado, { l: string; tone: Tone }>> = {
   pagada: { l: 'Pagada', tone: 'success' },
   pendiente: { l: 'Pendiente', tone: 'warning' },
   caducada: { l: 'Caducada', tone: 'neutral' },
+  reembolsando: { l: 'Reembolsando…', tone: 'warning' },
   reembolsada: { l: 'Reembolsada', tone: 'info' },
 };
 
@@ -71,6 +75,7 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
               <option value="pagada">Pagadas</option>
               <option value="pendiente">Pendientes</option>
               <option value="caducada">Caducadas</option>
+              <option value="reembolsando">Reembolsando</option>
               <option value="reembolsada">Reembolsadas</option>
             </gr-select>
           </div>
@@ -244,7 +249,8 @@ export class DonacionesPage {
   protected readonly nuevoSugerido = signal(0);
   private timer: ReturnType<typeof setTimeout> | undefined;
 
-  protected readonly est = (e: Estado) => ESTADOS[e];
+  /** Etiqueta y tono del estado; un estado desconocido no rompe la página. */
+  protected readonly est = (e: string): { l: string; tone: Tone } => ESTADOS[e as Estado] ?? { l: e, tone: 'neutral' };
   protected readonly euros = euros;
   protected readonly num = num;
   protected readonly fecha = fecha;
