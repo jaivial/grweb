@@ -34,6 +34,15 @@ func mustMigrations() fs.FS {
 
 var bearer = []map[string][]string{{"bearer": {}}}
 
+// The public operations of juegos authenticate with the fan session (the cookie «grcup_fan» or the header
+// «X-GrCup-Fan»), not with the staff bearer token. The repo declares no cookie security scheme, so the
+// operations document the session here: the OpenAPI published by the gateway is the contract of the generated
+// clients and it must not describe a bearer that is not used (contract §3 and §6.6).
+const (
+	descSesionFan         = "Requiere la sesión de fan: cookie «grcup_fan» (Path=/api, httpOnly) o cabecera «X-GrCup-Fan»."
+	descSesionFanOpcional = "La sesión de fan es opcional (cookie «grcup_fan» o cabecera «X-GrCup-Fan»): sin ella la respuesta no lleva «mi puesto» ni «mi saldo»."
+)
+
 // Svc holds the service dependencies.
 type Svc struct {
 	a      *app.App

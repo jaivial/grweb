@@ -254,7 +254,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-porra-apostar", Method: http.MethodPost, Path: base + "/porra/apuestas",
-		Summary: "Apostar monedas de porra en un mercado", Tags: tagJuegos, Security: bearer},
+		Summary: "Apostar monedas de porra en un mercado", Tags: tagJuegos, Description: descSesionFan},
 		func(ctx context.Context, in *apuestaIn) (*apuestaOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -302,7 +302,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-porra-mis-apuestas", Method: http.MethodGet, Path: base + "/porra/mis-apuestas",
-		Summary: "Mis apuestas de la jornada", Tags: tagJuegos, Security: bearer},
+		Summary: "Mis apuestas de la jornada", Tags: tagJuegos, Description: descSesionFan},
 		func(ctx context.Context, in *misApuestasIn) (*misApuestasOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -353,7 +353,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-porra-clasificacion", Method: http.MethodGet, Path: base + "/porra/clasificacion",
-		Summary: "Clasificación de la porra (top 50 y mi puesto)", Tags: tagJuegos},
+		Summary: "Clasificación de la porra (top 50 y mi puesto)", Tags: tagJuegos, Description: descSesionFanOpcional},
 		func(ctx context.Context, in *clasPorraIn) (*clasPorraOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -392,7 +392,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-mercado", Method: http.MethodGet, Path: base + "/fantasy/mercado",
-		Summary: "Mercado de GRS Fantasy: atletas, cláusulas, dueños y protección", Tags: tagJuegos},
+		Summary: "Mercado de GRS Fantasy: atletas, cláusulas, dueños y protección", Tags: tagJuegos, Description: descSesionFanOpcional},
 		func(ctx context.Context, in *mercadoFantasyIn) (*mercadoFantasyOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -428,7 +428,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-mi-equipo", Method: http.MethodGet, Path: base + "/fantasy/mi-equipo",
-		Summary: "Mi equipo de fantasy: plantilla, valor, saldo y clausulazos gastados", Tags: tagJuegos, Security: bearer},
+		Summary: "Mi equipo de fantasy: plantilla, valor, saldo y clausulazos gastados", Tags: tagJuegos, Description: descSesionFan},
 		func(ctx context.Context, in *mercadoFantasyIn) (*equipoOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -525,11 +525,11 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-comprar", Method: http.MethodPost, Path: base + "/fantasy/comprar",
-		Summary: "Comprar un atleta libre por su cláusula", Tags: tagJuegos, Security: bearer}, operar("comprar"))
+		Summary: "Comprar un atleta libre por su cláusula", Tags: tagJuegos, Description: descSesionFan}, operar("comprar"))
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-vender", Method: http.MethodPost, Path: base + "/fantasy/vender",
-		Summary: "Vender un atleta propio (vuelve al mercado, 100 % de su valor)", Tags: tagJuegos, Security: bearer}, operar("vender"))
+		Summary: "Vender un atleta propio (vuelve al mercado, 100 % de su valor)", Tags: tagJuegos, Description: descSesionFan}, operar("vender"))
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clausulazo", Method: http.MethodPost, Path: base + "/fantasy/clausulazo",
-		Summary: "Pagar la cláusula de un atleta de otro usuario", Tags: tagJuegos, Security: bearer}, operar("clausulazo"))
+		Summary: "Pagar la cláusula de un atleta de otro usuario", Tags: tagJuegos, Description: descSesionFan}, operar("clausulazo"))
 
 	// alineacion (fan session): set the titulars, blocked for athletes whose flight is on the platform.
 	type alineacionIn struct {
@@ -542,7 +542,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-alineacion", Method: http.MethodPost, Path: base + "/fantasy/alineacion",
-		Summary: "Cambiar la alineación (titulares y suplentes)", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent},
+		Summary: "Cambiar la alineación (titulares y suplentes)", Tags: tagJuegos, Description: descSesionFan, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *alineacionIn) (*struct{}, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -588,7 +588,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clasificacion", Method: http.MethodGet, Path: base + "/fantasy/clasificacion",
-		Summary: "Clasificación de fantasy (top 50 y mi puesto)", Tags: tagJuegos},
+		Summary: "Clasificación de fantasy (top 50 y mi puesto)", Tags: tagJuegos, Description: descSesionFanOpcional},
 		func(ctx context.Context, in *clasPorraIn) (*clasFantasyOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -702,7 +702,7 @@ func (s *Svc) registerPublic() {
 		JornadaID uuid.UUID `query:"jornada"`
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-cartera", Method: http.MethodGet, Path: base + "/cartera",
-		Summary: "Mi cartera: saldos de porra y fantasy y últimos movimientos", Tags: tagJuegos, Security: bearer},
+		Summary: "Mi cartera: saldos de porra y fantasy y últimos movimientos", Tags: tagJuegos, Description: descSesionFan},
 		func(ctx context.Context, in *carteraIn) (*carteraOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
