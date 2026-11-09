@@ -88,8 +88,8 @@ spec:
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
           resources:
-            requests: { cpu: 30m, memory: 64Mi }
-            limits: { cpu: 500m, memory: 256Mi }
+            requests: { cpu: 30m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 1Gi }
           volumeMounts:
             - { name: atletas, mountPath: /data/atletas }
             - { name: tmp, mountPath: /tmp }

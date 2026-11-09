@@ -26,7 +26,8 @@ SERVICES = {
                 # /tmp holds multipart spool files of uploads (the root filesystem is read-only).
                 volumes=[("medios", "/var/lib/grcup-qa/medios", "/data/medios")], tmp=[("tmp", "64Mi", "/tmp")],
                 jobs=[("cms-seed", ["seed-grcup"], [])]),
-    "athletes": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"),
+    # Two 48 MP photos can need >600 MiB while decoded, rotated and converted; keep the required two-worker pipeline within the pod limit.
+    "athletes": dict(db=True, hpa=(1, 3), mem=("128Mi", "1Gi"),
                      # The private files of the public form («alta de atleta»): the processed photo of a request
                      # (0600) until it is approved and the published copy when the competition has no CDN.
                      env={"ATLETAS_DIR": "/data/atletas"},
