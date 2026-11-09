@@ -162,8 +162,8 @@ interface FilaConsentimiento {
             </gr-select>
             <gr-select tipo="filtro" etiqueta="+ Menor de edad" [ngModel]="fMenor()" (ngModelChange)="fMenor.set($event); recargar(1)" aria-label="Menor de edad">
               <option value="">Menor de edad</option>
-              <option value="true">Sí</option>
-              <option value="false">No</option>
+              <option value="si">Sí</option>
+              <option value="no">No</option>
             </gr-select>
             <gr-select tipo="filtro" etiqueta="+ Recibida" [ngModel]="fRecibida()" (ngModelChange)="fRecibida.set($event)" aria-label="Recibida">
               <option value="">Recibida</option>
