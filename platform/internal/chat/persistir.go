@@ -202,7 +202,21 @@ func (s *Svc) inyectarEvento(ctx context.Context, e events.Event) error {
 		if alias == "" {
 			alias = "Anónimo"
 		}
-		return s.inyectar(ctx, e.CompetitionID, dia, item{T: "donacion", Alias: alias, Importe: d.Importe, Coins: d.Coins, Texto: d.Mensaje, Ts: time.Now().UnixMilli(), Dia: dia})
+		// el mensaje del donativo pasa el mismo filtro que el chat (§5): palabras prohibidas y enlaces. Si no
+		// pasa, el donativo se anuncia igual pero sin el mensaje (nada de bypass del filtro de la sala).
+		cfg := configPorDefecto()
+		if cid, err := uuid.Parse(e.CompetitionID); err == nil {
+			cfg = s.configDe(ctx, cid)
+		}
+		texto := ""
+		if d.Mensaje != "" {
+			if res := filtrar(d.Mensaje, cfg); res.OK {
+				texto = d.Mensaje
+			} else {
+				s.a.Log.Warn("mensaje de donativo descartado", "code", res.Code, "detalle", res.Detalle, "competicion", e.CompetitionID)
+			}
+		}
+		return s.inyectar(ctx, e.CompetitionID, dia, item{T: "donacion", Alias: alias, Importe: d.Importe, Coins: d.Coins, Texto: texto, Ts: time.Now().UnixMilli(), Dia: dia})
 	case "patrocinio.banner":
 		var b struct {
 			BannerID       string `json:"bannerId"`
