@@ -142,7 +142,8 @@ paso "0d · config de juegos con la protección de clausulazo a 0 (la real es 10
 code=$(api GET "$GW/api/admin/competiciones/$CID/juegos/config" "" "${AUTH[@]}")
 if [ "$code" != 200 ]; then fallo "GET juegos/config (HTTP $code)"; else
   CFGJ="$(jq -c '. | .proteccionMin = 0 | .activo = true' "$TMP/resp")"
-  code=$(api PUT "$GW/api/admin/competiciones/$CID/juegos/config" "$CFGJ" "${AUTH[@]}")
+  VERJ="$(jq -r '.version // 1' "$TMP/resp")"
+  code=$(api PUT "$GW/api/admin/competiciones/$CID/juegos/config" "$CFGJ" "${AUTH[@]}" -H "If-Match: \"$VERJ\"")
   if [ "$code" != 200 ]; then fallo "PUT juegos/config (HTTP $code): $(head -c 200 "$TMP/resp")"; else ok "proteccionMin=0"; fi
 fi
 
@@ -376,6 +377,7 @@ MID=''; MAOP=''; MAOP2=''; CLAVE=''
 for m in $(jq -r '.mercados[] | select(.tipo=="categoria") | .id' <<<"$MERCADOS"); do
   MC="$(jq -c --arg id "$m" '.mercados[] | select(.id==$id)' <<<"$MERCADOS")"
   [ "$(jq -r '.apuestas' <<<"$MC")" = "0" ] || continue
+  [ "$(jq -r '.opciones | length' <<<"$MC")" -ge 2 ] || continue  # two bettors on two different athletes
   SEXO="$(jq -r .sexo <<<"$MC")"; CAT="$(jq -r .categoria <<<"$MC")"; CLAVE="$SEXO$CAT"
   LIBRE="$(jq -r --arg s "$SEXO" --arg c "$CAT" '[.[] | select(.sexo==$s and .categoria==$c)][0].id // empty' <<<"$LIBRES")"
   [ -n "$LIBRE" ] || continue
