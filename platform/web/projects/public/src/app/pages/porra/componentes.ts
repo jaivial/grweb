@@ -176,7 +176,7 @@ export class OddsRow {
         <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success">
           <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" />{{ liquidado() }}
         </p>
-        <p class="mt-2 text-body-xs text-text-tertiary">Liquidada al publicarse los resultados de la categoría</p>
+        <p class="mt-2 text-body-xs text-text-tertiary">{{ subLiquidado() }}</p>
       </div>
     }
   `,
@@ -211,10 +211,15 @@ export class MarketCard {
   });
   protected readonly liquidado = computed(() => {
     const m = this.mercado();
+    if (m.devuelto) return 'Nadie acertó: se devolvieron todas las apuestas';
     if (!m.ganador?.length) return 'Liquidada: el bote se repartió entre los acertantes';
     const nombres = m.opciones.filter((o) => m.ganador!.includes(o.atletaId)).map((o) => o.nombre);
     return `Liquidada: ${nombres.join(' y ')}`;
   });
+  /** La línea de debajo del estado liquidado: con el bote devuelto no se liquidó por la categoría. */
+  protected readonly subLiquidado = computed(() =>
+    this.mercado().devuelto ? 'El bote volvió a las apuestas' : 'Liquidada al publicarse los resultados de la categoría',
+  );
   /** Las tres opciones con más apostado (o las tres primeras si nadie ha apostado). */
   protected readonly top = computed(() => {
     const o = [...this.mercado().opciones].sort((a, b) => b.apostado - a.apostado);

@@ -39,6 +39,9 @@ type mercadoVista struct {
 	Bote       int64         `json:"bote"`
 	Apuestas   int           `json:"apuestas"`
 	Ganador    []uuid.UUID   `json:"ganador,omitempty"`
+	// Devuelto está a true cuando el mercado se liquidó sin ganador (o lo anuló el staff): el bote volvió a las
+	// apuestas y cada una recupera su importe (contract §6.2, caso «sin ganador» y «Anular y devolver»).
+	Devuelto bool `json:"devuelto,omitempty"`
 }
 
 // mercadosVista lists the markets of a jornada with names, live pot and odds (botes grouped from apuestas).
@@ -131,6 +134,14 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 			v.Opciones = append(v.Opciones, op)
 		}
 		v.Bote = bote
+		// Nadie acertó al ganador (o el staff anuló el mercado): el bote volvió a las apuestas (contract §6.2).
+		if m.Estado == "liquidado" && v.Apuestas > 0 {
+			var aGanadores int64
+			for _, g := range ganadores[m.ID] {
+				aGanadores += apostado[botesKey{m.ID, g}]
+			}
+			v.Devuelto = aGanadores == 0
+		}
 		out = append(out, v)
 	}
 	return out, nil

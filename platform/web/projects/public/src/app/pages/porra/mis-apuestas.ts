@@ -13,8 +13,8 @@ import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { AvisoJuegos, CoinBalance } from './componentes';
 
-type Filtro = 'todas' | 'abiertas' | 'ganadas' | 'perdidas';
-type EstadoApuesta = 'Abierta' | 'Ganada' | 'Perdida';
+type Filtro = 'todas' | 'abiertas' | 'ganadas' | 'devueltas' | 'perdidas';
+type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
 
 @Component({
   selector: 'gr-mis-apuestas-page',
@@ -22,7 +22,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Perdida';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mis apuestas" [suffix]="jornadaTxt()" crumb="Mis apuestas" section="Juegos"
-      subtitle="Tu boleto de la jornada: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.">
+      subtitle="Tu boleto de la jornada: lo que sigue en juego, lo cobrado, lo devuelto y lo perdido. Se liquida al publicarse los resultados.">
       <div pageStamps class="flex flex-wrap items-center gap-3">
         <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
       </div>
@@ -42,8 +42,8 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Perdida';
           <a grButton variant="primary" href="/porra">Ver los mercados</a>
         </gr-empty>
       } @else {
-        <!-- Los tres resúmenes del diseño -->
-        <div class="mb-6 grid gap-4 md:grid-cols-3">
+        <!-- Los resúmenes del diseño (en juego, cobrado, devuelto y perdido) -->
+        <div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-lg border border-line-subtle bg-bg-card p-5">
             <p class="text-label-xs text-text-tertiary uppercase">En juego</p>
             <p class="mt-2 font-mono text-[28px] leading-none text-text-primary">{{ monedas(totales().enJuego) }}</p>
@@ -53,6 +53,11 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Perdida';
             <p class="text-label-xs text-text-tertiary uppercase">Cobrado</p>
             <p class="mt-2 font-mono text-[28px] leading-none text-success">{{ monedas(totales().cobrado) }}</p>
             <p class="mt-2 text-body-xs text-text-tertiary">{{ ganadas() }} {{ ganadas() === 1 ? 'ganada' : 'ganadas' }} · liquidadas</p>
+          </div>
+          <div class="rounded-lg border border-line-subtle bg-bg-card p-5">
+            <p class="text-label-xs text-text-tertiary uppercase">Devuelto</p>
+            <p class="mt-2 font-mono text-[28px] leading-none text-text-primary">{{ monedas(totales().devuelto) }}</p>
+            <p class="mt-2 text-body-xs text-text-tertiary">{{ devueltas() }} {{ devueltas() === 1 ? 'devuelta' : 'devueltas' }} · bote de vuelta</p>
           </div>
           <div class="rounded-lg border border-line-subtle bg-bg-card p-5">
             <p class="text-label-xs text-text-tertiary uppercase">Perdido</p>
@@ -94,6 +99,10 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Perdida';
                       <span class="block font-mono text-label-s text-text-tertiary">Sin acierto</span>
                       <span class="block text-body-xs text-text-tertiary">el bote se repartió entre acertantes</span>
                     }
+                    @case ('Devuelta') {
+                      <span class="block font-mono text-label-s text-text-primary">+{{ monedas(a.importe) }} devueltos</span>
+                      <span class="block text-body-xs text-text-tertiary">se devolvió tu apuesta</span>
+                    }
                     @default {
                       <span class="block font-mono text-label-s text-accent-text">Si gana: ~{{ monedas(cuota(a)) }}</span>
                       <span class="block text-body-xs text-text-tertiary">se liquida al publicar resultados</span>
@@ -123,6 +132,7 @@ export class MisApuestasPage {
     { v: 'todas', l: 'Todas', n: () => this.apuestas().length },
     { v: 'abiertas', l: 'Abiertas', n: () => this.abiertas() },
     { v: 'ganadas', l: 'Ganadas', n: () => this.ganadas() },
+    { v: 'devueltas', l: 'Devueltas', n: () => this.devueltas() },
     { v: 'perdidas', l: 'Perdidas', n: () => this.perdidas() },
   ];
 
@@ -138,7 +148,11 @@ export class MisApuestasPage {
     const m = new Map<string, EstadoApuesta>();
     for (const a of this.apuestas()) {
       const mercado = this.mercado(a);
-      if (!mercado || mercado.estado !== 'liquidado') {
+      if (a.devuelto || mercado?.devuelto) {
+        // El bote volvió a las apuestas (nadie acertó al ganador o el staff anuló el mercado): la apuesta recuperó
+        // su importe, no está ganada ni perdida.
+        m.set(a.id, 'Devuelta');
+      } else if (!mercado || mercado.estado !== 'liquidado') {
         m.set(a.id, 'Abierta');
       } else if (mercado.ganador?.length && mercado.ganador.includes(a.atletaId)) {
         m.set(a.id, 'Ganada');
@@ -150,25 +164,27 @@ export class MisApuestasPage {
   });
   protected readonly abiertas = computed(() => [...this.estados().values()].filter((e) => e === 'Abierta').length);
   protected readonly ganadas = computed(() => [...this.estados().values()].filter((e) => e === 'Ganada').length);
+  protected readonly devueltas = computed(() => [...this.estados().values()].filter((e) => e === 'Devuelta').length);
   protected readonly perdidas = computed(() => [...this.estados().values()].filter((e) => e === 'Perdida').length);
   protected readonly visibles = computed(() => {
     const f = this.filtro();
     const est = this.estados();
     return this.apuestas().filter((a) => {
       const e = est.get(a.id);
-      return f === 'todas' || (f === 'abiertas' && e === 'Abierta') || (f === 'ganadas' && e === 'Ganada') || (f === 'perdidas' && e === 'Perdida');
+      return f === 'todas' || (f === 'abiertas' && e === 'Abierta') || (f === 'ganadas' && e === 'Ganada') || (f === 'devueltas' && e === 'Devuelta') || (f === 'perdidas' && e === 'Perdida');
     });
   });
   protected readonly totales = computed(() => {
-    let enJuego = 0, cobrado = 0, perdido = 0;
+    let enJuego = 0, cobrado = 0, devuelto = 0, perdido = 0;
     const est = this.estados();
     for (const a of this.apuestas()) {
       const e = est.get(a.id);
       if (e === 'Ganada') cobrado += this.cobro(a);
+      else if (e === 'Devuelta') devuelto += a.importe;
       else if (e === 'Perdida') perdido += a.importe;
       else enJuego += a.importe;
     }
-    return { enJuego, cobrado, perdido };
+    return { enJuego, cobrado, devuelto, perdido };
   });
 
   constructor() {
@@ -177,7 +193,7 @@ export class MisApuestasPage {
     void inject(PendingTasks).run(async () => {
       await this.estado.cargar();
       await this.store.cargar();
-      await applySeo(cms, seo, '/porra/mis-apuestas', 'Mis apuestas · Porra · GR Strength Cup', 'Tus apuestas de porra de la jornada: lo que sigue en juego, lo cobrado y lo perdido.');
+      await applySeo(cms, seo, '/porra/mis-apuestas', 'Mis apuestas · Porra · GR Strength Cup', 'Tus apuestas de porra de la jornada: lo que sigue en juego, lo cobrado, lo devuelto y lo perdido.');
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       void this.fan.cargar().then(() => {

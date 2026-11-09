@@ -56,6 +56,8 @@ export interface Mercado {
   bote: number;
   apuestas: number;
   ganador?: string[];
+  /** El bote volvió a las apuestas (nadie acertó al ganador o el staff anuló el mercado): cada apuesta recupera su importe. */
+  devuelto?: boolean;
 }
 
 /** Una apuesta propia. */
@@ -68,6 +70,8 @@ export interface Apuesta {
   importe: number;
   /** Estado del mercado en el que se juega: abierto | cerrado | liquidado. */
   estado: EstadoMercado;
+  /** El bote del mercado volvió a las apuestas: esta apuesta recuperó su importe. */
+  devuelto?: boolean;
   createdAt: string;
 }
 
