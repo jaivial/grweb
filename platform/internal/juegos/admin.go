@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
@@ -628,4 +629,16 @@ func resultadoDefinitivo(m *Marcador, mc mercadoRow) bool {
 		}
 	}
 	return true
+}
+
+// actor names the staff member behind the request (like internal/live and internal/chat): it goes in the audit
+// event of the staff actions.
+func actor(ctx context.Context) string {
+	if p, ok := auth.FromContext(ctx); ok {
+		if p.Name != "" {
+			return p.Name
+		}
+		return p.Email
+	}
+	return "Sistema"
 }

@@ -428,7 +428,7 @@ func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 	if res.devolver {
 		// The staff annulled the market: the audit event says who did it (the actor comes from the request).
 		if err := events.Enqueue(ctx, tx, events.New(ctx, "juegos.porra.devolucion",
-			map[string]any{"mercadoId": mc.ID.String(), "jornadaId": j.ID.String(), "estado": estado},
+			map[string]any{"mercadoId": mc.ID.String(), "jornadaId": j.ID.String(), "por": actor(ctx)},
 			events.Competition(cid.String()), events.ForPermission("directo.operar"))); err != nil {
 			return err
 		}
