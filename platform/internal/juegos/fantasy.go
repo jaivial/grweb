@@ -223,7 +223,9 @@ func (s *Svc) clausulazoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jorn
 	return err
 }
 
-// bloquearCarterasTx opens (lazily) and locks the fantasy wallets of fans in fan_id order.
+// bloquearCarterasTx opens (lazily) and locks the fantasy wallets of fans in fan_id order. Every operation that
+// touches several wallets of one transaction takes them in that same order (the liquidation of the porra sorts its
+// payouts by fan_id too): two operations that run at the same time cannot deadlock each other (contract §6.3).
 func bloquearCarterasTx(ctx context.Context, tx pgx.Tx, j jornada, fans ...uuid.UUID) error {
 	for _, f := range fans {
 		if _, err := abrirCarteraTx(ctx, tx, j, f, Fantasy); err != nil {

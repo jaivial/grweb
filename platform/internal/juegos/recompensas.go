@@ -63,6 +63,8 @@ func (s *Svc) jornadaParaEvento(ctx context.Context, q querier, cid uuid.UUID, d
 // recompensaHito credits the chat milestones of one fan (contract §6.4): multiples of 5 (+100 / +10k) and of 10
 // (which ADDS to the one of 5: +500 / +50k). At most max_hitos per fan and jornada (anti-abuse, second line
 // after the counter of chat). Idempotent by refs hito:<jornada>:<fan>:<N>:<moneda>.
+// Only one fan is credited in this transaction (the two coins are two different wallets): no lock order to care
+// about (contract §6.3).
 func (s *Svc) recompensaHito(ctx context.Context, cid uuid.UUID, raw json.RawMessage) error {
 	d, err := decodificar[datoHito](raw)
 	if err != nil || d.FanID == uuid.Nil || d.Mensajes <= 0 {

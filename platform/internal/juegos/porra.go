@@ -5,8 +5,10 @@
 package juegos
 
 import (
+	"bytes"
 	"context"
 	"math"
+	"sort"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -396,6 +398,16 @@ func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 		return err
 	}
 	premios := repartoBote(apuestas, ganadores)
+	// The credits of a transaction always take the wallets in fan_id order (contract §6.3): two liquidations that
+	// run at the same time (the worker and the backoffice) cannot deadlock each other.
+	sort.Slice(premios, func(i, k int) bool {
+		a, b := premios[i].FanID, premios[k].FanID
+		if a != b {
+			return bytes.Compare(a[:], b[:]) < 0 // the same order as `ORDER BY fan_id` of PostgreSQL
+		}
+		ap, bp := premios[i].ApuestaID, premios[k].ApuestaID
+		return bytes.Compare(ap[:], bp[:]) < 0
+	})
 	for _, p := range premios {
 		motivo := "premio_porra"
 		if len(ganadores) == 0 {
