@@ -320,12 +320,12 @@ interface LegalGroup {
           <section class="flex flex-col rounded-lg border border-line-subtle bg-bg-card p-5">
             <div class="flex items-start justify-between gap-3">
               <div><h2 class="text-ui-h5">{{ g.nombre }}</h2><p class="mt-0.5 text-mono-xs text-text-tertiary">{{ g.ruta }}</p></div>
-              @if (g.vigente) { <gr-badge tone="success">v{{ g.vigente.version }}</gr-badge> } @else { <gr-badge tone="warning">Sin publicar</gr-badge> }
+              @if (g.vigente) { <gr-badge tone="success">{{ ver(g.vigente.version) }}</gr-badge> } @else { <gr-badge tone="warning">Sin publicar</gr-badge> }
             </div>
             <ul class="mt-4 flex flex-1 flex-col gap-2">
               @for (v of g.versiones.slice(0, 3); track v.id) {
                 <li class="flex items-center justify-between gap-3 rounded-sm border border-line-subtle bg-bg-surface px-3 py-2">
-                  <span class="flex min-w-0 items-baseline gap-2"><span class="text-mono-s">v{{ v.version }}</span><span class="text-body-xs text-text-tertiary">{{ v.publicadoAt ? 'publicada ' + date(v.publicadoAt) : 'borrador' }}</span></span>
+                  <span class="flex min-w-0 items-baseline gap-2"><span class="text-mono-s">{{ ver(v.version) }}</span><span class="text-body-xs text-text-tertiary">{{ v.publicadoAt ? 'publicada ' + date(v.publicadoAt) : 'borrador' }}</span></span>
                   @if (!v.publicadoAt && canEdit()) { <button grButton size="s" (click)="edit(g, v)">Editar</button> }
                   @if (!v.publicadoAt && canPublish()) { <button grButton size="s" variant="primary" (click)="publish(g, v)">Publicar</button> }
                 </li>
@@ -379,6 +379,11 @@ export class WebLegalTab {
     return new Date(v).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
+  /** «v2026-11», but «whatsapp-2026-11»: a version that names itself does not need the prefix. */
+  protected ver(version: string): string {
+    return /^\d/.test(version) ? 'v' + version : version;
+  }
+
   private async load(): Promise<void> {
     this.groups.set(await firstValueFrom(this.http.get<LegalGroup[]>(this.base())));
   }
@@ -413,7 +418,7 @@ export class WebLegalTab {
 
   protected async publish(g: LegalGroup, v: LegalVersion): Promise<void> {
     const ok = await this.confirm.ask({
-      title: `Publicar ${g.nombre.toLowerCase()} v${v.version}`,
+      title: `Publicar ${g.nombre.toLowerCase()} ${this.ver(v.version)}`,
       text: 'La web mostrará la nueva versión al momento. Las aceptaciones anteriores se conservan como prueba; cada persona aceptará esta versión en su próxima reserva o compra. No se envía ningún email masivo.',
       confirm: 'Publicar versión',
     });

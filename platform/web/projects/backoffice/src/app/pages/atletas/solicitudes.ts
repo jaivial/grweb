@@ -10,7 +10,7 @@ import { problemOf } from '../../core/api';
 import { BoDrawer, BoPageHeader, BoToggle, errText } from '../../shared/ui';
 import {
   SolicitudesApi,
-  type Candidato, type Consentimiento, type EstadoSolicitud, type SolicitudDetalle, type SolicitudItem, type SolicitudLista, type TipoMatch,
+  type Candidato, type Consentimiento, type Diferencia, type EstadoSolicitud, type SolicitudDetalle, type SolicitudItem, type SolicitudLista, type TipoMatch,
 } from './solicitudes-api';
 
 type Pestana = 'todas' | 'pendiente' | 'revision' | 'menor' | 'aprobada' | 'rechazada';
@@ -47,8 +47,8 @@ const CONSENTIMIENTOS: { clave: string; texto: string; etiqueta: string }[] = [
 ];
 
 /** Text and tone of the match badge of a row. */
-const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: 'Email', nombre: 'Sugerida', '': 'Sin coincidencia' };
-const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', '': 'neutral' };
+const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: 'Email', nombre: 'Sugerida', manual: 'Enlazado', '': 'Sin coincidencia' };
+const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
 
 /** The 17 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
 interface FilaCampo {
@@ -75,6 +75,7 @@ interface FilaConsentimiento {
   selector: 'bo-solicitudes',
   imports: [A11yModule, FormsModule, RouterLink, BoDrawer, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
     @let l = lista();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
@@ -288,7 +289,8 @@ interface FilaConsentimiento {
     </div>
 
     <!-- ===== Review (drawer) ===== -->
-    <bo-drawer [(open)]="abierto" [title]="detalle() ? nombreCompleto(detalle()!) : 'Revisar solicitud'" [badge]="detalle() ? estado(detalle()!).l : ''" [badgeTone]="detalle() ? estado(detalle()!).tone : 'warning'">      @if (detalle(); as d) {
+    <bo-drawer [(open)]="abierto" [title]="detalle() ? nombreCompleto(detalle()!) : 'Revisar solicitud'" [badge]="detalle() ? estado(detalle()!).l : ''" [badgeTone]="detalle() ? estado(detalle()!).tone : 'warning'">
+      @if (detalle(); as d) {
         <div class="flex flex-col gap-5">
           <p class="text-body-xs text-text-tertiary">Solicitud recibida {{ hace(d.createdAt) }} desde el formulario de alta</p>
 
@@ -488,6 +490,17 @@ interface FilaConsentimiento {
 
           @if (error()) { <gr-alert tone="danger" title="No se pudo guardar">{{ error() }}</gr-alert> }
         </div>
+      } @else {
+        <div class="flex flex-col items-center gap-3 py-8 text-center">
+          @if (cargandoDetalle()) {
+            <gr-skeleton class="h-40 w-full rounded-lg" />
+          } @else {
+            <span class="flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="wifi-off" [size]="22" /></span>
+            <h3 class="text-ui-h5">No se pudo abrir la solicitud</h3>
+            <p class="text-body-s text-text-tertiary">{{ error() || 'No hemos podido cargar los datos de esta solicitud.' }}</p>
+            <button grButton variant="primary" (click)="recargarDetalle()">Reintentar</button>
+          }
+        </div>
       }
       <ng-container drawerActions>
         @if (detalle(); as d) {
@@ -510,8 +523,8 @@ interface FilaConsentimiento {
 
     <!-- ===== Photo (full screen) ===== -->
     @if (ampliada() && foto(); as url) {
-      <div class="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-black/90 p-4" (click)="ampliada.set(false)" (keydown.escape)="ampliada.set(false)">
-        <img [src]="url" [alt]="'Foto de ' + (detalle() ? nombreCompleto(detalle()!) : '')" class="max-h-[78vh] max-w-[92vw] rounded-md object-contain" />
+      <div class="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-black/90 p-4" (click)="ampliada.set(false)">
+        <img [src]="url" [alt]="'Foto de ' + (detalle() ? nombreCompleto(detalle()!) : '')" class="max-h-[78vh] max-w-[92vw] rounded-md object-contain" (click)="$event.stopPropagation()" />
         <p class="mt-4 text-body-s text-white/85">Foto tal como se publicará · {{ detalle() ? nombreCompleto(detalle()!) : '' }}</p>
         <p class="text-body-xs text-white/50">Cierra con la tecla Esc o tocando fuera de la foto</p>
       </div>
@@ -526,7 +539,7 @@ interface FilaConsentimiento {
             <h2 class="text-ui-h5">Aprobar y publicar</h2>
             <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="dialogo.set(null)"><gr-icon name="x" [size]="18" /></button>
           </div>
-          <p class="mt-3 text-body-s text-text-secondary">Se creará o enlazará el atleta ({{ nombreAtleta() }}) y se publicará su perfil con la foto en blanco y negro.</p>
+          <p class="mt-3 text-body-s text-text-secondary">{{ destinoAprueba().texto }} y se publicará su perfil con la foto en blanco y negro.</p>
           <div class="mt-5 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
             <span class="min-w-0"><span class="block text-label-s">Avisar por email</span><span class="block text-body-xs text-text-tertiary">Le llegará un email con el enlace a su ficha y el acceso a su área de atleta</span></span>
             <bo-toggle [(value)]="avisarEmail" label="Avisar por email" />
@@ -623,6 +636,11 @@ export class SolicitudesPage {
   protected readonly fotoUrl = signal<string | null>(null);
   protected readonly miniaturas = signal<Record<string, string>>({});
   protected readonly candidatos = signal<Candidato[]>([]);
+  /** Athlete the reviewer chose in the search (the approval links the request to it). */
+  protected readonly atletaElegido = signal<string | null>(null);
+  /** The reviewer decided that a new athlete will be created when the request is approved. */
+  protected readonly nuevoAtleta = signal(false);
+  protected readonly cargandoDetalle = signal(false);
   protected readonly qEnlace = signal('');
   protected readonly ocupado = signal(false);
   protected readonly subiendo = signal(false);
@@ -652,7 +670,8 @@ export class SolicitudesPage {
   protected readonly rol = computed(() => this.auth.rolEn(this.cid()) || 'Invitado');
   protected readonly pendientes = computed(() => {
     const c = this.lista()?.contadores;
-    return c ? c.pendiente + c.revision + c.menor : 0;
+    // A minor is inside «pendiente» or «revision»: it is not counted twice.
+    return c ? c.pendiente + c.revision : 0;
   });
   protected readonly visibles = computed(() => {
     const items = this.lista()?.items ?? [];
@@ -859,6 +878,8 @@ export class SolicitudesPage {
     this.verTodos.set(false);
     this.candidatos.set([]);
     this.qEnlace.set('');
+    this.atletaElegido.set(null);
+    this.nuevoAtleta.set(false);
     await this.recargarDetalle();
   }
 
@@ -867,6 +888,7 @@ export class SolicitudesPage {
     const d = this.detalle();
     const id = d?.id ?? this.pendienteId;
     if (!cid || !id) return;
+    this.cargandoDetalle.set(true);
     try {
       const det = await this.api.detalle(cid, id);
       this.detalle.set(det);
@@ -875,6 +897,7 @@ export class SolicitudesPage {
         entrenador: det.entrenador ?? '', marcaSQ: det.marcaSQ ?? null, marcaBP: det.marcaBP ?? null, marcaDL: det.marcaDL ?? null,
       };
       this.conflicto.set('');
+      this.error.set('');
       if (this.fotoUrl()) {
         URL.revokeObjectURL(this.fotoUrl()!);
         this.fotoUrl.set(null);
@@ -887,7 +910,16 @@ export class SolicitudesPage {
       }
     } catch (e) {
       this.error.set(errText(e, 'No se pudo abrir la solicitud.'));
+    } finally {
+      this.cargandoDetalle.set(false);
     }
+  }
+
+  /** Esc closes the enlarged photo; the drawer stays open. */
+  protected onEscape(e: Event): void {
+    if (!this.ampliada()) return;
+    this.ampliada.set(false);
+    e.stopImmediatePropagation();
   }
 
   private pendienteId = '';
@@ -917,11 +949,22 @@ export class SolicitudesPage {
 
   private fila(clave: string): FilaCampo {
     const d = this.detalle()!;
-    const dif = (d.diferencias ?? []).find((x) => x.campo === clave);
+    // The API sends the technical key («clave») and the label («campo»): the panel keys on the first one.
+    const difs = d.diferencias ?? [];
+    const dif = difs.find((x) => x.clave === clave);
     const nuevo = this.valorCampo(clave, d);
-    const actual = dif?.actual ?? '';
-    const tipo: 'igual' | 'distinto' | 'nuevo' = dif?.tipo ?? (actual ? (actual === nuevo ? 'igual' : 'distinto') : 'nuevo');
-    const etiqueta = clave === 'marcas' ? 'Mejores marcas' : (CAMPOS.find((c) => c.clave === clave)?.etiqueta ?? clave);
+    let actual = dif?.actual ?? '';
+    let tipo: 'igual' | 'distinto' | 'nuevo';
+    if (clave === 'marcas') {
+      // The summary of the three marks: the worst of the three.
+      const tres = ['marcaSQ', 'marcaBP', 'marcaDL'].map((k) => difs.find((x) => x.clave === k)).filter((x): x is Diferencia => !!x);
+      actual = tres.map((x) => x.actual).filter(Boolean).join(' · ');
+      tipo = !tres.length ? 'nuevo' : tres.some((x) => x.tipo === 'distinto') ? 'distinto' : tres.some((x) => x.tipo === 'nuevo') ? 'nuevo' : 'igual';
+    } else {
+      // With a current value the field is never «nuevo».
+      tipo = actual === '' ? 'nuevo' : dif?.tipo === 'igual' || actual === nuevo ? 'igual' : 'distinto';
+    }
+    const etiqueta = dif?.campo || (clave === 'marcas' ? 'Mejores marcas' : (CAMPOS.find((c) => c.clave === clave)?.etiqueta ?? clave));
     return {
       clave, etiqueta, nuevo, actual, tipo,
       l: tipo === 'igual' ? 'IGUAL' : tipo === 'distinto' ? 'DISTINTO' : 'NUEVO',
@@ -988,14 +1031,6 @@ export class SolicitudesPage {
 
   // ---------------------------------------------------------------- actions
 
-  protected nombreAtleta(): string {
-    const d = this.detalle();
-    if (!d) return '';
-    const nombre = d.atleta?.nombre ?? this.nombreCompleto(d);
-    const licencia = d.atleta?.licencia ?? d.licencia;
-    return licencia ? `${nombre} · ${licencia}` : nombre;
-  }
-
   protected async marcarRevision(): Promise<void> {
     const d = this.detalle();
     if (!d) return;
@@ -1020,7 +1055,10 @@ export class SolicitudesPage {
     this.error.set('');
     try {
       const cambios = this.cambiosCorregidos(d);
-      await this.api.aprobar(this.cid(), d.id, d.version, { cambios, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp() });
+      const destino = this.destinoAprueba();
+      await this.api.aprobar(this.cid(), d.id, d.version, {
+        ...destino.cuerpo, cambios, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp(),
+      });
       this.dialogo.set(null);
       this.toasts.success('Aprobada y publicada', this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
       await this.cargar();
@@ -1031,6 +1069,24 @@ export class SolicitudesPage {
     } finally {
       this.ocupado.set(false);
     }
+  }
+
+  /** Where the approval will link the request: the chosen athlete, the linked one or a new one. */
+  protected destinoAprueba(): { texto: string; cuerpo: { atletaId?: string; nuevo?: boolean } } {
+    const d = this.detalle();
+    const elegido = this.atletaElegido();
+    if (elegido) {
+      const c = this.candidatos().find((x) => x.id === elegido);
+      const nombre = c?.nombre ?? elegido;
+      return { texto: `Se actualizará el atleta ${nombre}${c?.licencia ? ' · ' + c.licencia : ''}`, cuerpo: { atletaId: elegido } };
+    }
+    if (this.nuevoAtleta() || !d?.atleta) {
+      return { texto: `Se creará un atleta nuevo (${d ? this.nombreCompleto(d) : 'la solicitud'})`, cuerpo: { nuevo: true } };
+    }
+    return {
+      texto: `Se actualizará el atleta enlazado (${d.atleta.nombre}${d.atleta.licencia ? ' · ' + d.atleta.licencia : ''})`,
+      cuerpo: { atletaId: d.atleta.id },
+    };
   }
 
   /** Only the fields the reviewer actually changed. */
@@ -1142,8 +1198,11 @@ export class SolicitudesPage {
     this.ocupado.set(true);
     try {
       await this.api.enlazar(this.cid(), d.id, d.version, { atletaId: c.id });
+      this.atletaElegido.set(c.id);
+      this.nuevoAtleta.set(false);
       this.toasts.success('Atleta enlazado');
       await this.recargarDetalle();
+      await this.cargar();
     } catch (e) {
       this.gestionarError(e);
     } finally {
@@ -1155,10 +1214,13 @@ export class SolicitudesPage {
     const d = this.detalle();
     if (!d) return;
     this.ocupado.set(true);
+    this.nuevoAtleta.set(true);
+    this.atletaElegido.set(null);
     try {
       await this.api.enlazar(this.cid(), d.id, d.version, { nuevo: true });
       this.toasts.success('Se creará un atleta nuevo al aprobar');
       await this.recargarDetalle();
+      await this.cargar();
     } catch (e) {
       this.gestionarError(e);
     } finally {

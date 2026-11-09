@@ -6,7 +6,8 @@ import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrS
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, BoToggle, errText } from '../../shared/ui';
+import { problemOf } from '../../core/api';
+import { BoPageHeader, BoToggle } from '../../shared/ui';
 import { WhatsAppApi, type EstadoWa, type EstadoWaInfo, type TelefonoAviso } from './whatsapp-api';
 
 type Tab = 'vinculacion' | 'avisos';
@@ -366,6 +367,12 @@ export class WhatsAppSistemaPage {
     }
   }
 
+  /** Change of tab: coming back to «Vinculación» while it is connecting asks again for the QR. */
+  protected irTab(k: Tab): void {
+    this.tab.set(k);
+    if (k === 'vinculacion' && this.estado() === 'conectando') void this.actualizarQr();
+  }
+
   async cargarEstado(): Promise<void> {
     const cid = this.cid();
     if (!cid) return;
@@ -440,7 +447,7 @@ export class WhatsAppSistemaPage {
       this.estadoInfo.set(await this.api.crearInstancia(this.cid()));
       this.toasts.success('Servicio de WhatsApp preparado');
     } catch (e) {
-      this.toasts.error('No se pudo crear el servicio', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo preparar el servicio', this.waError(e, 'No se pudo preparar el servicio de WhatsApp. Inténtalo de nuevo.'));
     } finally {
       this.ocupado.set(false);
     }
@@ -460,7 +467,7 @@ export class WhatsAppSistemaPage {
       }
       await this.cargarEstado();
     } catch (e) {
-      this.toasts.error('No se pudo generar el QR', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo generar el QR', this.waError(e, 'No se pudo generar el QR. Inténtalo de nuevo.'));
     } finally {
       this.ocupado.set(false);
     }
@@ -497,7 +504,7 @@ export class WhatsAppSistemaPage {
       if (!r.codigo) this.toasts.info('El servicio no ha devuelto un código', 'Vuelve a intentarlo en unos segundos.');
       await this.cargarEstado();
     } catch (e) {
-      this.toasts.error('No se pudo generar el código', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo generar el código', this.waError(e, 'No se pudo generar el código. Inténtalo de nuevo.'));
     } finally {
       this.ocupado.set(false);
     }
@@ -518,7 +525,7 @@ export class WhatsAppSistemaPage {
       this.estadoInfo.set(await this.api.reiniciar(this.cid()));
       this.toasts.success('Conexión reiniciada');
     } catch (e) {
-      this.toasts.error('No se pudo reiniciar', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo reiniciar', this.waError(e, 'No se pudo reiniciar la conexión. Inténtalo de nuevo.'));
     } finally {
       this.ocupado.set(false);
     }
@@ -534,7 +541,7 @@ export class WhatsAppSistemaPage {
       this.codigo.set(null);
       this.toasts.success('WhatsApp desconectado');
     } catch (e) {
-      this.toasts.error('No se pudo desconectar', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo desconectar', this.waError(e, 'No se pudo desconectar WhatsApp. Inténtalo de nuevo.'));
     } finally {
       this.ocupado.set(false);
     }
@@ -550,7 +557,7 @@ export class WhatsAppSistemaPage {
       this.avisos.set(await this.api.guardarAvisos(cid, { ...a, alAtleta: this.alAtleta(), aOrganizadores: this.aOrganizadores() }));
       this.guardado.set(true);
     } catch (e) {
-      this.toasts.error('No se pudo guardar la configuración', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo guardar la configuración', this.waError(e, 'No se pudo guardar la configuración. Inténtalo de nuevo.'));
     }
   }
 
@@ -578,7 +585,7 @@ export class WhatsAppSistemaPage {
       this.nuevo.set('');
       this.guardado.set(true);
     } catch (e) {
-      this.toasts.error('No se pudo añadir el teléfono', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo añadir el teléfono', this.waError(e, 'No se pudo guardar la lista de teléfonos. Inténtalo de nuevo.'));
     } finally {
       this.ocupado.set(false);
     }
@@ -592,7 +599,7 @@ export class WhatsAppSistemaPage {
       this.avisos.set(await this.api.guardarAvisos(this.cid(), { ...a, telefonos: a.telefonos.filter((x) => x.numero !== t.numero), alAtleta: this.alAtleta(), aOrganizadores: this.aOrganizadores() }));
       this.guardado.set(true);
     } catch (e) {
-      this.toasts.error('No se pudo quitar el teléfono', errText(e, 'Inténtalo de nuevo.'));
+      this.toasts.error('No se pudo quitar el teléfono', this.waError(e, 'No se pudo guardar la lista de teléfonos. Inténtalo de nuevo.'));
     } finally {
       this.ocupado.set(false);
     }
@@ -607,10 +614,10 @@ export class WhatsAppSistemaPage {
         this.toasts.success(`Prueba enviada · ${primero}`, 'Entregado en 2 segundos');
       } else {
         const err = r.errores?.[0];
-        this.toasts.error('No se pudo enviar la prueba', err?.error ?? 'WhatsApp desconectado · vincula el número en Vinculación');
+        this.toasts.error('No se pudo enviar la prueba', this.waTexto(err?.error ?? '', 'WhatsApp desconectado · vincula el número en Vinculación'));
       }
     } catch (e) {
-      this.toasts.error('No se pudo enviar la prueba', errText(e, 'WhatsApp desconectado · vincula el número en Vinculación'));
+      this.toasts.error('No se pudo enviar la prueba', this.waError(e, 'WhatsApp desconectado · vincula el número en Vinculación'));
     } finally {
       this.probando.set(false);
     }
@@ -628,6 +635,22 @@ export class WhatsAppSistemaPage {
     const grupos: string[] = [];
     for (let i = d.length; i > 0; i -= 3) grupos.unshift(d.slice(Math.max(0, i - 3), i));
     return '+' + grupos.join(' ');
+  }
+
+  /** The errors of the WhatsApp provider arrive in English or as raw JSON: the panel shows Spanish. */
+  protected waError(e: unknown, porDefecto: string): string {
+    return this.waTexto(problemOf(e).detail ?? '', porDefecto);
+  }
+
+  /** Cleans the text of a failure of the WhatsApp service: no raw JSON and no technical instance name. */
+  protected waTexto(texto: string, porDefecto: string): string {
+    let t = (texto ?? '').trim();
+    const tecnico = this.estadoInfo()?.instanciaId;
+    const legible = this.estadoInfo()?.instancia;
+    if (tecnico && legible) t = t.split(tecnico).join(legible);
+    if (!t) return porDefecto;
+    if (t.startsWith('{') || t.startsWith('[') || /"message"\s*:/.test(t)) return porDefecto;
+    return t;
   }
 
   /** E.164 with the country prefix of the picker (+34 by default). */

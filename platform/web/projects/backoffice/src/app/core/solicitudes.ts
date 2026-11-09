@@ -8,7 +8,7 @@ import { SolicitudesApi, type Contadores } from '../pages/atletas/solicitudes-ap
  * Live count of the athlete requests waiting for a review (Figma D3: the «Atletas» item of the menu
  * shows «8 pendientes de revisar» and goes up in real time when a request arrives).
  *
- * Pending = new + in review + minors without a signed authorisation (the same figures as the tabs).
+ * Pending = new + in review. A minor is inside one of the two: it is not counted twice.
  */
 @Injectable({ providedIn: 'root' })
 export class SolicitudesContador {
@@ -21,7 +21,7 @@ export class SolicitudesContador {
   readonly contadores = signal<Contadores | null>(null);
   readonly pendientes = computed(() => {
     const c = this.contadores();
-    return c ? c.pendiente + c.revision + c.menor : 0;
+    return c ? c.pendiente + c.revision : 0;
   });
 
   constructor() {

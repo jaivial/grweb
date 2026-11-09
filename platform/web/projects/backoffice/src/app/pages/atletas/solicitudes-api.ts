@@ -4,8 +4,8 @@ import { firstValueFrom } from 'rxjs';
 
 /** Estado of an «alta de atleta» request (athletes service). */
 export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
-/** How the request was matched against the athletes' list: licence, e-mail, name suggestion or nothing. */
-export type TipoMatch = '' | 'licencia' | 'email' | 'nombre';
+/** How the request was matched against the athletes' list: licence, e-mail, name suggestion, by hand or nothing. */
+export type TipoMatch = '' | 'licencia' | 'email' | 'nombre' | 'manual';
 export type TipoDiferencia = 'igual' | 'distinto' | 'nuevo';
 
 export interface Contadores {
@@ -46,6 +46,9 @@ export interface SolicitudLista {
 }
 
 export interface Diferencia {
+  /** Technical name of the field (nombre, apellidos, email…) — the panel keys on it. */
+  clave: string;
+  /** Label of the field shown in the panel. */
   campo: string;
   actual: string;
   nuevo: string;
@@ -97,6 +100,10 @@ export interface Candidato {
   estado: string;
 }
 export interface AprobarIn {
+  /** Athlete the request is linked to (the one the reviewer chose). */
+  atletaId?: string;
+  /** The request will create a new athlete when it is approved. */
+  nuevo?: boolean;
   cambios: Record<string, string | number | null>;
   avisarEmail: boolean;
   avisarWhatsApp: boolean;
