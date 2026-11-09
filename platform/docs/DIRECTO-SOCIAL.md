@@ -108,6 +108,7 @@ Reglas de la arquitectura (las de `ARQUITECTURA.md`): una BD por servicio (`grcu
 - `apuestas (id, mercado_id, fan_id, atleta_id, importe, created_at)`. Mínimo 100 y máximo 50.000 por apuesta, configurables. Varias apuestas por mercado permitidas.
 - **Bote común** (parimutuel, sin casa): al liquidar, cada acertante recibe `floor(bote × su_importe / total_apostado_al_ganador)`; el resto por redondeo se ignora. Si nadie acertó, se devuelve todo. Si hay empate en el resultado, el bote se reparte entre las apuestas a todos los empatados. Las cuotas orientativas se muestran en vivo: `bote / apostado_a_ese_atleta`.
 - **Cierre automático**: un mercado se cierra cuando se juzga el primer intento de cualquiera de sus atletas (o del movimiento, en los mercados de movimiento), o a mano. **Liquidación**: al publicarse los resultados de la categoría (`resultados.publicados`); los mercados `gl` y `movimiento` de un sexo, cuando están publicadas todas las categorías de ese sexo en esa jornada, o a mano («Liquidar»).
+- **Liquidación, tres casos:** (a) resultado pendiente (categoría sin publicar o, en GL y movimiento, alguna categoría del sexo sin publicar) → 409 `RESULTADO_PENDIENTE` y el mercado sigue cerrado; (b) resultado definitivo con ganador(es) → bote común; (c) resultado definitivo sin ganador → se devuelve todo y el mercado queda liquidado. El backoffice puede «Anular y devolver» con `POST C/juegos/mercados/{mid}/liquidar {devolver: true}`, que deja el evento admin `juegos.porra.devolucion`. Los premios se acreditan en orden de `fan_id`.
 - **Clasificación de la porra** = saldo de porra de la jornada (desempate: quien llegó antes a ese saldo). Endpoint público con el top 50 y mi puesto.
 
 ### 6.3 GRS Fantasy
@@ -141,7 +142,7 @@ Reglas de la arquitectura (las de `ARQUITECTURA.md`): una BD por servicio (`grcu
 | `donacion.confirmada` | **nada** (la porra nunca se compra) | +10.000 por euro (`floor(importe/100) × 10000`) |
 | `donacion.reembolsada` | — | se retira lo acreditado (como mucho, hasta dejar el saldo en 0) |
 
-Con 10 mensajes hay **dos** hitos: el del 5 (+100 / +10k) y el del 10 (+100 + 500 / +10k + 50k). Si el fan aún no tiene cartera en la jornada activa, se le crea antes de acreditar. Las cantidades son configurables (`config_juegos`).
+Con 10 mensajes hay **dos** hitos: el del 5 (+100 / +10k) y el del 10 (+100 + 500 / +10k + 50k). Si el fan aún no tiene cartera en la jornada activa, se le crea antes de acreditar. Las cantidades son configurables (`config_juegos`). Lo que un reembolso no puede retirar (el saldo nunca baja de 0) queda en `movimientos.pendiente`, se ve en `GET …/juegos/cartera` (`pendienteFantasy`) y en las clasificaciones del backoffice, y no se cobra automáticamente.
 
 ### 6.5 Premios
 - `premios (id, competition_id, jornada_id, ranking (porra|fantasy|donantes), puesto_desde, puesto_hasta, titulo, descripcion, imagen_url, valor_texto, patrocinador, orden, activo)`. CRUD en el backoffice (`C/juegos/premios`); la imagen se sube a `cms` medios o se pega una URL.
