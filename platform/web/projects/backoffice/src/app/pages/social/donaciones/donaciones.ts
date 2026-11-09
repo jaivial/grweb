@@ -1,11 +1,12 @@
+import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrToasts } from '@grcup/ui';
 import { problemOf } from '../../../core/api';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, BoToggle, errText } from '../../../shared/ui';
-import { descargarCsv, euros, fecha, num, SoNumber } from '../ui';
+import { SoAjuste, SoCard, SoNumber, SoPuesto, SoSkelFilas, SoSkelKpis, descargarCsv, euros, fecha, hora, iniciales, num } from '../ui';
 import { DonacionesApi, type ConfigDonaciones, type Donacion, type KpisDonaciones, type ListaDonaciones, type RankingDonaciones } from './api';
 
 type Estado = 'pendiente' | 'pagada' | 'caducada' | 'reembolsando' | 'reembolsada';
@@ -35,17 +36,23 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
  * «Donaciones» (Figma 73 · «BO · Donaciones»).
  * KPIs, listado con filtros y paginación, reembolso con confirmación y configuración de los donativos.
  */
+/**
+ * «Donaciones» (Figma 73 · «BO · Donaciones», UI v2).
+ * KPIs, listado con filtros y paginación (tabla en escritorio, tarjetas en móvil), reembolso con confirmación,
+ * configuración de los donativos y el top de donantes del día.
+ */
 @Component({
   selector: 'bo-donaciones',
-  imports: [FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton, SoNumber],
+  imports: [A11yModule, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, SoAjuste, SoCard, SoNumber, SoPuesto, SoSkelFilas, SoSkelKpis],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': 'reembolso.set(null); verRanking.set(false)' },
   template: `
-    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
       <bo-page-header title="Donaciones" [badge]="pasarela()" [badgeTone]="pasarela() === 'Stripe en verde' ? 'success' : 'neutral'"
         subtitle="GRS coins de exhibición: coins = euros × 100 · solo se anuncian en el chat, nunca son gastables (§5)"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Donaciones']">
         <ng-container actions>
-          <button grButton icon="download" (click)="exportar()">Exportar CSV</button>
+          <button grButton icon="download" [disabled]="!lista()" (click)="exportar()">Exportar CSV</button>
           <button grButton variant="primary" icon="award" (click)="verRanking.set(true)">Ver ranking</button>
         </ng-container>
       </bo-page-header>
@@ -54,18 +61,22 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
         <gr-alert tone="warning" title="Tu rol no puede gestionar las donaciones">Hace falta el permiso «sorteo.gestionar».</gr-alert>
       }
 
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <gr-kpi label="Recaudado hoy" [value]="euros(ranking()?.totalRecaudado ?? 0)" caption="hoy" />
-        <gr-kpi label="Total" [value]="euros(kpis()?.recaudado ?? 0)" [caption]="(kpis()?.pagadas ?? 0) + ' donativos pagados'" />
-        <gr-kpi label="Donantes" [value]="num(kpis()?.donantes ?? null)" caption="en la competición" />
-        <gr-kpi label="Ticket medio" [value]="euros(ticketMedio())" caption="por donativo" />
-      </div>
+      @if (cargando() && !kpis()) {
+        <so-skel-kpis />
+      } @else {
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <gr-kpi label="Recaudado hoy" [value]="euros(ranking()?.totalRecaudado ?? 0)" [caption]="donativosHoy() + (donativosHoy() === 1 ? ' donativo hoy' : ' donativos hoy')" />
+          <gr-kpi label="Total" [value]="euros(kpis()?.recaudado ?? 0)" [caption]="num(kpis()?.pagadas ?? 0) + ((kpis()?.pagadas ?? 0) === 1 ? ' donativo pagado' : ' donativos pagados')" />
+          <gr-kpi label="Donantes" [value]="num(kpis()?.donantes ?? null)" caption="en la competición" />
+          <gr-kpi label="Ticket medio" [value]="euros(ticketMedio())" caption="por donativo pagado" />
+        </div>
+      }
 
-      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <!-- ===== Listado ===== -->
-        <section class="flex flex-col gap-4">
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="relative min-w-0 flex-1 basis-64 md:max-w-xs">
+        <section class="flex min-w-0 flex-col self-start overflow-hidden rounded-lg border border-line-subtle bg-bg-card" aria-label="Donaciones">
+          <div class="flex flex-wrap items-center gap-3 border-b border-line-subtle p-4">
+            <label class="relative min-w-0 flex-1 basis-56">
               <span class="sr-only">Buscar</span>
               <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
               <input grInput class="pl-9" placeholder="Alias, mensaje o fan…" [ngModel]="filtro().q" (ngModelChange)="buscar($event)" />
@@ -81,146 +92,219 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
           </div>
 
           @if (cargando() && !lista()) {
-            <gr-skeleton class="h-72 rounded-lg" />
+            <so-skel-filas [n]="6" />
           } @else if (error()) {
             <gr-empty icon="wifi-off" title="No hemos podido cargar las donaciones" [text]="error()">
-              <button grButton (click)="cargar()">Reintentar</button>
+              <button grButton variant="primary" icon="refresh" (click)="cargar()">Reintentar</button>
             </gr-empty>
           } @else if (lista(); as l) {
-            <div class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-              <table class="w-full min-w-[720px] text-left text-body-s">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
-                  <tr><th class="px-4 py-3">Fecha</th><th class="px-3 py-3">Alias</th><th class="px-3 py-3 text-right">Importe</th><th class="px-3 py-3">Mensaje</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Proveedor</th><th class="px-4 py-3"></th></tr>
-                </thead>
-                <tbody>
-                  @for (d of l.items; track d.id) {
-                    <tr class="border-b border-line-subtle last:border-0" [class.opacity-60]="d.estado === 'reembolsada' || d.estado === 'caducada'">
-                      <td class="px-4 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fecha(d.createdAt) }}</td>
-                      <td class="px-3 py-2.5">
-                        <span class="text-label-s">{{ d.alias || 'Anónimo' }}</span>
-                        @if (d.anonimo) { <gr-badge class="ml-2">Anónimo</gr-badge> }
-                      </td>
-                      <td class="px-3 py-2.5 text-right font-mono">{{ euros(d.importe) }}</td>
-                      <td class="max-w-[220px] truncate px-3 py-2.5 text-text-tertiary">{{ d.mensaje || '—' }}</td>
-                      <td class="px-3 py-2.5"><gr-badge [tone]="est(d.estado).tone">{{ est(d.estado).l }}</gr-badge></td>
-                      <td class="px-3 py-2.5 text-text-tertiary">{{ d.proveedor }}</td>
-                      <td class="px-4 py-2.5 text-right">
-                        @if (d.estado === 'pagada') {
-                          <button grIconButton icon="undo" [label]="'Reembolsar la donación de ' + d.alias" [disabled]="!puede()" (click)="abrirReembolso(d)"></button>
-                        }
-                      </td>
-                    </tr>
-                  } @empty { <tr><td colspan="7" class="px-4 py-10 text-center text-text-tertiary">Aún no hay donaciones.</td></tr> }
-                </tbody>
-              </table>
-            </div>
-            <p class="flex items-center justify-between text-body-xs text-text-tertiary">
-              <span>Mostrando {{ l.items.length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ num(l.total) }} donaciones</span>
-              <span class="flex gap-1">
-                <button grButton size="s" variant="ghost" icon="chevron-left" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)" aria-label="Anterior"></button>
-                <button grButton size="s" variant="ghost" icon="chevron-right" [disabled]="l.pagina * l.por >= l.total" (click)="filtrar({ pagina: l.pagina + 1 }, false)" aria-label="Siguiente"></button>
+            @if (!l.items.length) {
+              @if (filtro().q || filtro().estado) {
+                <gr-empty icon="search" title="Ninguna donación coincide" text="Prueba con otro alias o quita el filtro de estado.">
+                  <button grButton (click)="limpiar()">Quitar filtros</button>
+                </gr-empty>
+              } @else {
+                <gr-empty icon="heart" title="Aún no hay donaciones" text="Cuando un fan done desde /en-directo aparecerá aquí, con su mensaje y el estado del pago." />
+              }
+            } @else {
+              <!-- escritorio -->
+              <div class="hidden overflow-x-auto md:block">
+                <table class="w-full min-w-[720px] text-left text-body-s">
+                  <thead class="border-b border-line-subtle bg-bg-surface font-mono text-mono-xs text-text-tertiary">
+                    <tr><th class="px-4 py-3 font-medium">Fecha</th><th class="px-3 py-3 font-medium">Donante</th><th class="px-3 py-3 text-right font-medium">Importe</th><th class="px-3 py-3 font-medium">Mensaje</th><th class="px-3 py-3 font-medium">Estado</th><th class="px-4 py-3"><span class="sr-only">Acciones</span></th></tr>
+                  </thead>
+                  <tbody>
+                    @for (d of l.items; track d.id) {
+                      @let apagada = d.estado === 'reembolsada' || d.estado === 'caducada';
+                      <tr class="border-b border-line-subtle transition-colors last:border-0 hover:bg-bg-raised/40">
+                        <td class="px-4 py-2.5 font-mono text-mono-s whitespace-nowrap text-text-tertiary">{{ fecha(d.createdAt) }}</td>
+                        <td class="px-3 py-2.5">
+                          <div class="flex items-center gap-2.5">
+                            <span class="flex size-8 shrink-0 items-center justify-center rounded-pill border border-line-strong bg-bg-raised font-mono text-mono-xs text-text-secondary">
+                              @if (d.anonimo) { <gr-icon name="user" [size]="14" /> } @else { {{ iniciales(d.alias || '·') }} }
+                            </span>
+                            <div class="min-w-0">
+                              <p class="truncate text-label-s" [class.text-text-tertiary]="apagada">{{ d.alias || 'Anónimo' }}</p>
+                              <p class="truncate text-body-xs text-text-tertiary">{{ d.proveedor }}{{ d.anonimo ? ' · anónimo en el chat' : '' }}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-3 py-2.5 text-right font-mono text-mono-s whitespace-nowrap" [class]="apagada ? 'text-text-tertiary line-through' : 'text-text-primary'">{{ euros(d.importe) }}</td>
+                        <td class="max-w-[220px] truncate px-3 py-2.5 text-text-tertiary" [title]="d.mensaje || ''">{{ d.mensaje || '—' }}</td>
+                        <td class="px-3 py-2.5"><gr-badge [tone]="est(d.estado).tone">{{ est(d.estado).l }}</gr-badge></td>
+                        <td class="px-4 py-2.5 text-right">
+                          @if (d.estado === 'pagada') {
+                            <button grButton size="s" variant="ghost" icon="undo" [attr.aria-label]="'Reembolsar la donación de ' + (d.alias || 'Anónimo')" [disabled]="!puede()" (click)="abrirReembolso(d)">Reembolsar</button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <!-- móvil -->
+              <ul class="divide-y divide-line-subtle md:hidden">
+                @for (d of l.items; track d.id) {
+                  <li class="flex flex-col gap-2 p-4">
+                    <div class="flex items-start gap-3">
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-label-s">{{ d.alias || 'Anónimo' }}</p>
+                        <p class="font-mono text-mono-xs text-text-tertiary">{{ fecha(d.createdAt) }} · {{ d.proveedor }}</p>
+                      </div>
+                      <span class="font-mono text-mono-s" [class.line-through]="d.estado === 'reembolsada'">{{ euros(d.importe) }}</span>
+                    </div>
+                    @if (d.mensaje) { <p class="text-body-s text-text-tertiary">«{{ d.mensaje }}»</p> }
+                    <div class="flex items-center gap-2">
+                      <gr-badge [tone]="est(d.estado).tone">{{ est(d.estado).l }}</gr-badge>
+                      @if (d.estado === 'pagada') {
+                        <button grButton variant="ghost" icon="undo" class="ml-auto" [disabled]="!puede()" (click)="abrirReembolso(d)">Reembolsar</button>
+                      }
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+            <footer class="flex items-center justify-between gap-3 border-t border-line-subtle px-4 py-3 text-body-xs text-text-tertiary">
+              <span>Mostrando {{ l.items.length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ num(l.total) }}</span>
+              <span class="flex items-center gap-1">
+                <button grIconButton icon="chevron-left" label="Página anterior" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)"></button>
+                <span class="min-w-12 text-center font-mono text-mono-s text-text-secondary">{{ l.pagina }} / {{ paginas(l) }}</span>
+                <button grIconButton icon="chevron-right" label="Página siguiente" [disabled]="l.pagina * l.por >= l.total" (click)="filtrar({ pagina: l.pagina + 1 }, false)"></button>
               </span>
-            </p>
+            </footer>
           }
         </section>
 
-        <!-- ===== Configuración ===== -->
-        <aside class="flex flex-col gap-5">
-          <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-            <h2 class="text-label-xs text-text-tertiary">Configuración (§5)</h2>
-
-            <div class="mt-4 flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-label-s">Donaciones activas</p>
-                <p class="text-body-xs text-text-tertiary">El botón Donar aparece en /en-directo</p>
-              </div>
+        <!-- ===== Configuración y top ===== -->
+        <aside class="flex min-w-0 flex-col gap-6">
+          <so-card titulo="Configuración de donativos" ayuda="Lo que ve el fan al donar en /en-directo (§5)">
+            <so-ajuste label="Donaciones activas" ayuda="El botón Donar aparece en /en-directo">
               <bo-toggle [value]="form().activo" label="Donaciones activas" [disabled]="!puede()" (changed)="set({ activo: $event })" />
+            </so-ajuste>
+            <hr class="border-line-subtle" />
+            <div class="grid grid-cols-2 gap-3">
+              <gr-field label="Mínimo" hint="Cubre comisiones">
+                <span class="relative block">
+                  <input grInput type="number" min="1" class="pr-8 text-right font-mono" [ngModel]="form().minimo / 100" (ngModelChange)="set({ minimo: Math.round(+$event * 100) })" [disabled]="!puede()" />
+                  <span class="absolute top-1/2 right-3 -translate-y-1/2 text-body-xs text-text-tertiary">€</span>
+                </span>
+              </gr-field>
+              <gr-field label="Máximo" hint="Por donativo">
+                <span class="relative block">
+                  <input grInput type="number" min="1" class="pr-8 text-right font-mono" [ngModel]="form().maximo / 100" (ngModelChange)="set({ maximo: Math.round(+$event * 100) })" [disabled]="!puede()" />
+                  <span class="absolute top-1/2 right-3 -translate-y-1/2 text-body-xs text-text-tertiary">€</span>
+                </span>
+              </gr-field>
             </div>
-
-            <gr-field class="mt-4" label="Importe mínimo" hint="Cobertura de comisiones">
-              <input grInput type="number" min="1" [ngModel]="form().minimo / 100" (ngModelChange)="set({ minimo: Math.round(+$event * 100) })" [disabled]="!puede()" />
-            </gr-field>
-
-            <gr-field class="mt-4" label="Importe máximo" hint="Límite por donativo (céntimos 100–50000)">
-              <input grInput type="number" min="1" [ngModel]="form().maximo / 100" (ngModelChange)="set({ maximo: Math.round(+$event * 100) })" [disabled]="!puede()" />
-            </gr-field>
-
-            <gr-field class="mt-4" label="Coins por euro (exhibición)" hint="Se anuncian en el chat · no gastables">
-              <so-number label="Coins por euro" [disabled]="!puede()" [valor]="form().coinsPorEuro" (changed)="set({ coinsPorEuro: $event })" />
-            </gr-field>
-
-            <gr-field class="mt-4" label="Importes sugeridos" hint="En euros · máximo 6">
+            <so-ajuste label="Coins por euro" ayuda="GRS coins de exhibición · se anuncian, no se gastan">
+              <so-number ancho="xs" unidad="coins" label="Coins por euro" [disabled]="!puede()" [valor]="form().coinsPorEuro" [cambiado]="form().coinsPorEuro !== config()?.coinsPorEuro" (changed)="set({ coinsPorEuro: $event })" />
+            </so-ajuste>
+            <div class="flex flex-col gap-2">
+              <p class="text-label-s">Importes sugeridos</p>
               <div class="flex flex-wrap gap-2">
                 @for (s of form().importesSugeridos; track $index) {
-                  <span class="inline-flex h-9 items-center gap-1.5 rounded-pill border border-line-strong bg-bg-raised px-3 text-label-s">
+                  <span class="inline-flex h-9 items-center gap-1 rounded-pill border border-line-strong bg-bg-raised pr-1 pl-3 text-label-s">
                     {{ s / 100 }} €
-                    <button type="button" class="flex size-5 items-center justify-center rounded-pill text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Quitar ' + (s / 100) + ' euros'" (click)="quitarSugerido(s)">
+                    <button type="button" class="flex size-7 items-center justify-center rounded-pill text-text-tertiary hover:bg-bg-card hover:text-text-primary" [attr.aria-label]="'Quitar ' + (s / 100) + ' euros'" [disabled]="!puede()" (click)="quitarSugerido(s)">
                       <gr-icon name="x" [size]="12" />
                     </button>
                   </span>
                 }
-                <label class="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-pill border border-dashed border-line-strong px-3 text-label-s text-text-tertiary hover:border-text-muted hover:text-text-primary">
-                  <gr-icon name="plus" [size]="14" />Añadir
-                  <input type="number" class="w-16 bg-transparent text-label-s outline-none" min="1" [value]="nuevoSugerido()" (input)="nuevoSugerido.set(+$any($event.target).value)" (change)="anadirSugerido()" aria-label="Nuevo importe sugerido en euros" />
-                </label>
+                @if (form().importesSugeridos.length < 6) {
+                  <label class="inline-flex h-9 cursor-text items-center gap-1.5 rounded-pill border border-dashed border-line-strong pr-2 pl-3 text-label-s text-text-tertiary focus-within:border-accent-text hover:border-text-muted">
+                    <gr-icon name="plus" [size]="14" />
+                    <input type="number" class="w-16 bg-transparent text-label-s text-text-primary outline-none placeholder:text-text-muted" min="1" placeholder="Añadir" [value]="nuevoSugerido() || ''"
+                      (input)="nuevoSugerido.set(+$any($event.target).value)" (keydown.enter)="$event.preventDefault(); anadirSugerido()" (change)="anadirSugerido()" aria-label="Nuevo importe sugerido en euros" [disabled]="!puede()" />€
+                  </label>
+                }
               </div>
-            </gr-field>
-
-            <div class="mt-6 flex items-center gap-3 rounded-md border border-success/30 bg-success/5 p-4">
-              <gr-icon name="circle-check" [size]="20" class="text-success" />
-              <div class="min-w-0 flex-1">
-                <p class="text-label-s">Config guardada</p>
-                <p class="text-body-xs text-text-tertiary">Webhook verificado · idempotente</p>
-              </div>
+              <p class="text-body-xs text-text-tertiary">En euros · máximo 6 botones</p>
             </div>
+            <footer class="flex flex-col gap-3 border-t border-line-subtle pt-4">
+              <p class="flex items-center gap-2 text-label-s">
+                <gr-icon [name]="sucio() ? 'pencil' : 'circle-check'" [size]="16" [class]="sucio() ? 'text-warning' : 'text-success'" />
+                {{ sucio() ? 'Cambios sin guardar' : 'Todo guardado' }}
+                <span class="ml-auto font-mono text-mono-xs text-text-tertiary">v{{ config()?.version ?? '—' }}</span>
+              </p>
+              @if (sucio()) {
+                <div class="flex gap-2">
+                  <button grButton class="flex-1" (click)="descartar()">Descartar</button>
+                  <button grButton class="flex-1" variant="primary" [loading]="guardando()" [disabled]="!puede()" (click)="guardar()">Guardar</button>
+                </div>
+              } @else {
+                <p class="text-body-xs text-text-tertiary">Webhook verificado e idempotente</p>
+              }
+            </footer>
+          </so-card>
 
-            <div class="mt-4 flex justify-end gap-2">
-              <button grButton variant="ghost" [disabled]="!sucio()" (click)="descartar()">Descartar</button>
-              <button grButton variant="primary" [loading]="guardando()" [disabled]="!sucio()" (click)="guardar()">Guardar configuración</button>
-            </div>
-          </section>
+          <so-card titulo="Top donantes de hoy" [ayuda]="euros(ranking()?.totalRecaudado ?? 0) + ' recaudados hoy'">
+            <ol class="-mt-1 flex flex-col divide-y divide-line-subtle">
+              @for (r of (ranking()?.items ?? []).slice(0, 3); track r.puesto) {
+                <li class="flex items-center gap-3 py-2">
+                  <so-puesto [n]="r.puesto" />
+                  <span class="min-w-0 flex-1 truncate text-body-s">{{ r.alias }}</span>
+                  <span class="shrink-0 text-body-xs text-text-tertiary">{{ r.donativos }} don.</span>
+                  <span class="shrink-0 font-mono text-mono-s">{{ euros(r.total) }}</span>
+                </li>
+              } @empty { <li class="py-4 text-body-s text-text-tertiary">Todavía no hay donaciones de hoy.</li> }
+            </ol>
+            @if ((ranking()?.items?.length ?? 0) > 3) {
+              <button type="button" class="self-start text-label-s text-accent-text hover:underline" (click)="verRanking.set(true)">Ver ranking completo</button>
+            }
+          </so-card>
         </aside>
       </div>
     </div>
 
     <!-- ===== Reembolso ===== -->
     @if (reembolso(); as d) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="reembolso.set(null)" (keydown.escape)="reembolso.set(null)">
-        <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="alertdialog" aria-modal="true" [attr.aria-label]="'Reembolsar ' + euros(d.importe)"
-          (click)="$event.stopPropagation()" (ngSubmit)="reembolsar()">
-          <h2 class="text-ui-h5">Reembolsar {{ euros(d.importe) }}</h2>
-          <p class="mt-3 text-body-s text-text-secondary">{{ d.alias || 'Anónimo' }} · {{ d.proveedor }} · {{ fecha(d.createdAt) }}. La pasarela devolverá el importe en 5–10 días y se retirará la recompensa de fantasy.</p>
-          <gr-field class="mt-4" label="Motivo" [error]="motivo().length > 0 && motivo().trim().length < 3 ? 'Escribe al menos 3 caracteres.' : ''">
-            <input grInput name="motivo" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)" maxlength="200" placeholder="Compra duplicada" />
-          </gr-field>
-          <div class="mt-6 flex justify-end gap-2">
-            <button type="button" grButton variant="ghost" (click)="reembolso.set(null)">Cancelar</button>
-            <button type="submit" grButton variant="danger" [loading]="ocupado()" [disabled]="motivo().trim().length < 3">Reembolsar</button>
+      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="reembolso.set(null)">
+        <form class="w-full max-w-md rounded-t-xl border border-line-strong bg-bg-card shadow-card sm:rounded-lg" role="alertdialog" aria-modal="true" aria-labelledby="re-titulo"
+          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()" (ngSubmit)="reembolsar()">
+          <header class="flex items-center gap-3 border-b border-line-subtle px-5 py-4">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent-deep/50 text-accent-text"><gr-icon name="undo" [size]="20" /></span>
+            <div class="min-w-0 flex-1">
+              <h2 id="re-titulo" class="text-ui-h5">Reembolsar {{ euros(d.importe) }}</h2>
+              <p class="truncate text-body-xs text-text-tertiary">{{ d.alias || 'Anónimo' }} · {{ d.proveedor }} · {{ fecha(d.createdAt) }}</p>
+            </div>
+            <button type="button" grIconButton icon="x" label="Cerrar" (click)="reembolso.set(null)"></button>
+          </header>
+          <div class="flex flex-col gap-4 px-5 py-5">
+            <p class="text-body-s text-text-secondary">La pasarela devolverá el importe en 5–10 días y se retirará la recompensa de fantasy. No se puede deshacer.</p>
+            <gr-field label="Motivo" hint="Queda en el registro del reembolso" [error]="motivo().length > 0 && motivo().trim().length < 3 ? 'Escribe al menos 3 caracteres.' : ''">
+              <input grInput name="motivo" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)" maxlength="200" placeholder="Compra duplicada" />
+            </gr-field>
           </div>
+          <footer class="flex justify-end gap-2 border-t border-line-subtle px-5 py-4">
+            <button type="button" grButton variant="ghost" (click)="reembolso.set(null)">Cancelar</button>
+            <button type="submit" grButton variant="danger" [loading]="ocupado()" [disabled]="motivo().trim().length < 3">Reembolsar {{ euros(d.importe) }}</button>
+          </footer>
         </form>
       </div>
     }
 
     <!-- ===== Ranking ===== -->
     @if (verRanking()) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="verRanking.set(false)" (keydown.escape)="verRanking.set(false)">
-        <div class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Ranking de donantes" (click)="$event.stopPropagation()">
-          <header class="flex items-start justify-between gap-3">
-            <div>
-              <h2 class="text-ui-h5">Ranking de donantes</h2>
-              <p class="text-body-xs text-text-tertiary">{{ diaCorto(ranking()?.dia) }} · {{ euros(ranking()?.totalRecaudado ?? 0) }} repartidos</p>
+      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="verRanking.set(false)">
+        <div class="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-xl border border-line-strong bg-bg-card shadow-card sm:rounded-lg" role="dialog" aria-modal="true" aria-labelledby="rk-titulo"
+          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <header class="flex items-center gap-3 border-b border-line-subtle px-5 py-4">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent-deep/50 text-accent-text"><gr-icon name="award" [size]="20" /></span>
+            <div class="min-w-0 flex-1">
+              <h2 id="rk-titulo" class="text-ui-h5">Ranking de donantes</h2>
+              <p class="text-body-xs text-text-tertiary">{{ diaCorto(ranking()?.dia) }} · {{ euros(ranking()?.totalRecaudado ?? 0) }} recaudados</p>
             </div>
             <button grIconButton icon="x" label="Cerrar" (click)="verRanking.set(false)"></button>
           </header>
-          <ol class="mt-4 flex flex-col gap-2">
+          <ol class="flex flex-col divide-y divide-line-subtle overflow-y-auto px-5 py-2">
             @for (r of ranking()?.items ?? []; track r.puesto) {
-              <li class="flex items-center gap-3 rounded-sm border border-line-subtle bg-bg-card p-3">
-                <span class="w-5 shrink-0 font-mono text-mono-xs text-text-tertiary">{{ r.puesto }}</span>
+              <li class="flex items-center gap-3 py-2.5">
+                <so-puesto [n]="r.puesto" />
                 <span class="min-w-0 flex-1 truncate text-body-s">{{ r.alias }}</span>
-                <span class="shrink-0 font-mono text-body-xs">{{ euros(r.total) }}</span>
                 <span class="shrink-0 text-body-xs text-text-tertiary">{{ r.donativos }} don.</span>
+                <span class="shrink-0 font-mono text-mono-s">{{ euros(r.total) }}</span>
               </li>
-            } @empty { <li class="py-6 text-center text-body-s text-text-tertiary">Todavía no hay donaciones de hoy.</li> }
+            } @empty { <li class="py-8 text-center text-body-s text-text-tertiary">Todavía no hay donaciones de hoy.</li> }
           </ol>
         </div>
       </div>
@@ -254,10 +338,13 @@ export class DonacionesPage {
   protected readonly euros = euros;
   protected readonly num = num;
   protected readonly fecha = fecha;
+  protected readonly hora = hora;
+  protected readonly iniciales = iniciales;
   protected readonly Math = Math;
 
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'sorteo.gestionar'));
+  protected readonly donativosHoy = computed(() => (this.ranking()?.items ?? []).reduce((a, r) => a + r.donativos, 0));
   protected readonly ticketMedio = computed(() => {
     const k = this.kpis();
     return k && k.pagadas ? Math.round(k.recaudado / k.pagadas) : 0;
@@ -331,6 +418,14 @@ export class DonacionesPage {
   protected filtrar(p: Partial<{ estado: string; q: string; pagina: number }>, reset = true): void {
     this.filtro.update((f) => ({ ...f, ...(reset ? { pagina: 1 } : {}), ...p }));
     void this.cargarLista();
+  }
+
+  protected paginas(l: ListaDonaciones): number {
+    return Math.max(1, Math.ceil(l.total / (l.por || 1)));
+  }
+
+  protected limpiar(): void {
+    this.filtrar({ q: '', estado: '' });
   }
 
   /** Búsqueda con retardo: no se lanza una petición por cada tecla. */
