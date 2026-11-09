@@ -102,6 +102,7 @@ images:
   - { name: grcup/identity, newTag: TAG }
   - { name: grcup/live, newTag: TAG }
   - { name: grcup/messaging, newTag: TAG }
+  - { name: grcup/openlifter, newTag: TAG }
   - { name: grcup/raffle, newTag: TAG }
   - { name: grcup/realtime, newTag: TAG }
   - { name: grcup/schedule, newTag: TAG }

@@ -435,31 +435,9 @@ func (s *Svc) registerAdmin() {
 			if _, err := requireAny(ctx, in.CID, "checkin.escanear", "atletas.editar"); err != nil {
 				return nil, err
 			}
-			b := in.Body
 			out := &pesajeOut{}
-			err := s.change(ctx, in.CID, "athletes.pesaje_registrado", map[string]any{"id": in.ID, "peso": b.Peso}, func(tx pgx.Tx) error {
-				r, err := s.lock(ctx, tx, in.CID, in.ID, "")
-				if err != nil {
-					return err
-				}
-				if r.Estado != "confirmado" {
-					return problem.Conflict("NO_CONFIRMADO", "Solo se pesa a atletas confirmados.")
-				}
-				ok, sug := CheckPesaje(r.Sexo, r.Categoria, r.Division, b.Peso)
-				estado := map[bool]string{true: "ok", false: "fuera"}[ok]
-				if ok {
-					sug = ""
-				}
-				if _, err := tx.Exec(ctx, `UPDATE atletas SET peso_corporal=$2, rack_sq=COALESCE($3, rack_sq), rack_bp=COALESCE(NULLIF($4,''), rack_bp), seguros_bp=COALESCE($5, seguros_bp),
-					intento_sq=COALESCE($6, intento_sq), intento_bp=COALESCE($7, intento_bp), intento_dl=COALESCE($8, intento_dl), pesaje_estado=$9, pesaje_sugerencia=$10,
-					pesado_at=now(), pesado_por=$11, version=version+1, updated_at=now() WHERE id=$1`,
-					in.ID, b.Peso, b.RackSQ, b.RackBP, b.SegurosBP, b.Intentos.SQ, b.Intentos.BP, b.Intentos.DL, estado, sug, actor(ctx)); err != nil {
-					return err
-				}
-				out.Body.CategoriaOk, out.Body.Sugerencia = ok, sug
-				detalle := fmt.Sprintf("%s kg · %s", kg(&b.Peso), map[bool]string{true: "dentro de " + r.Categoria, false: "fuera de " + r.Categoria + " (le corresponde " + sug + ")"}[ok])
-				return hist(ctx, tx, in.ID, "Pesaje registrado", detalle)
-			})
+			var err error
+			out.Body.CategoriaOk, out.Body.Sugerencia, err = s.pesar(ctx, in.CID, in.ID, in.Body, actor(ctx))
 			if err != nil {
 				return nil, err
 			}
