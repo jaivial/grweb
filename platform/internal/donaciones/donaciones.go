@@ -201,9 +201,9 @@ func (s *Svc) caducar(ctx context.Context) {
 	}
 }
 
-// confirmarPago marks a donation as paid and enqueues the public event that realtime, chat and juegos-worker
-// consume (no personal data: alias or «Anónimo», the fanId is an opaque UUID). Idempotent by webhook event and by
-// state. Returns the día touched (to invalidate the ranking cache).
+// confirmarPago marks a donation as paid and enqueues the events that chat and juegos-worker consume (the fanId
+// is an opaque UUID). Idempotent by webhook event and by state. Returns the día touched (to invalidate the
+// ranking cache).
 func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ev pagos.Event) (string, error) {
 	var estado, alias, mensaje string
 	var anonimo bool
@@ -226,9 +226,19 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 		nombre = "Anónimo"
 	}
 	d := diaTexto(dia)
+	// donacion.confirmada es interno: lleva el fanId (juegos-worker acredita la recompensa de fantasy con él) y
+	// realtime nunca lo reenvía al SSE público, que solo reparte eventos «public» (PR review I1).
 	err = events.Enqueue(ctx, tx, events.New(ctx, "donacion.confirmada", map[string]any{
 		"donacionId": id.String(), "fanId": fanID.String(), "alias": nombre, "importe": importe, "coins": coins, "mensaje": mensaje, "dia": d,
-	}, events.Competition(cid.String()), events.Audience(events.Public), events.Subject("donacion:"+id.String())))
+	}, events.Competition(cid.String()), events.Audience(events.Internal), events.Subject("donacion:"+id.String())))
+	if err != nil {
+		return "", err
+	}
+	// donacion.anunciada es su gemelo público: lo que se anuncia en el directo (alias, importe, coins, mensaje y
+	// día), sin identificadores del fan.
+	err = events.Enqueue(ctx, tx, events.New(ctx, "donacion.anunciada", map[string]any{
+		"alias": nombre, "importe": importe, "coins": coins, "mensaje": mensaje, "dia": d,
+	}, events.Competition(cid.String()), events.Audience(events.Public)))
 	return d, err
 }
 
