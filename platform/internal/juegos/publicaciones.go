@@ -79,12 +79,12 @@ func aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jor
 				continue
 			}
 			if err := insertarPuntoUnicoTx(ctx, tx, cid, j.ID, duenoTitular(ats, ma), ma.AtletaID, "gl",
-				puntosPuestoGL(cfg.Puntos, ma.PuestoGL), "punto:gl:"+ma.AtletaID.String()); err != nil {
+				puntosPuestoGL(cfg.Puntos, ma.PuestoGL), refPuntoGL(j.ID, ma.AtletaID)); err != nil {
 				return err
 			}
 			for _, mv := range movimientos {
 				if err := insertarPuntoUnicoTx(ctx, tx, cid, j.ID, duenoTitular(ats, ma), ma.AtletaID, "mov",
-					puntosPuestoMov(cfg.Puntos, ma.PuestoMovimiento[mv]), "punto:mov:"+ma.AtletaID.String()+":"+mv); err != nil {
+					puntosPuestoMov(cfg.Puntos, ma.PuestoMovimiento[mv]), refPuntoMov(j.ID, ma.AtletaID, mv)); err != nil {
 					return err
 				}
 			}
@@ -119,7 +119,7 @@ func aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jor
 // puntosPuestoTx writes the category points of one athlete (owner titular at publication time).
 func puntosPuestoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, ma *MarcadorAtleta, ats map[uuid.UUID]*atletaFantasia) error {
 	return insertarPuntoUnicoTx(ctx, tx, cid, j.ID, duenoTitular(ats, ma), ma.AtletaID, "cat",
-		puntosPuestoCat(cfg.Puntos, ma.PuestoCategoria), "punto:cat:"+ma.AtletaID.String())
+		puntosPuestoCat(cfg.Puntos, ma.PuestoCategoria), refPuntoCat(j.ID, ma.AtletaID))
 }
 
 func duenoTitular(ats map[uuid.UUID]*atletaFantasia, ma *MarcadorAtleta) uuid.UUID {

@@ -204,7 +204,7 @@ func aplicarIntentosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 						if _, err := tx.Exec(ctx, `INSERT INTO puntos (id, competition_id, jornada_id, fan_id, atleta_id, concepto, puntos, ref)
 							VALUES ($1,$2,$3,$4,$5,'intento',$6,$7) ON CONFLICT (ref) DO NOTHING`,
 							newID(), cid, j.ID, at.Dueno, ma.AtletaID, puntosIntento(cfg.Puntos, mi.Resultado),
-							"punto:intento:"+ma.AtletaID.String()+":"+mv+":"+itoa(mi.N)); err != nil {
+							refPuntoIntento(j.ID, ma.AtletaID, mv, mi.N)); err != nil {
 							return err
 						}
 					}
@@ -233,7 +233,7 @@ func aplicarIntentosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 						}
 					}
 					vistos[k].Resultado, vistos[k].DeltaPct = mi.Resultado, nuevoPct
-					ref := "punto:intento:" + ma.AtletaID.String() + ":" + mv + ":" + itoa(mi.N)
+					ref := refPuntoIntento(j.ID, ma.AtletaID, mv, mi.N)
 					if prev.Dueno != uuid.Nil && prev.Titular {
 						if mi.Resultado == "valido" {
 							if _, err := tx.Exec(ctx, `UPDATE puntos SET puntos = $3 WHERE jornada_id = $1 AND ref = $2`, j.ID, ref,
@@ -258,7 +258,7 @@ func aplicarIntentosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 			}
 			if ma.Terminado && plenoDe(&ma) {
 				if err := insertarPuntoUnicoTx(ctx, tx, cid, j.ID, at.Dueno, ma.AtletaID, "pleno", cfg.Puntos.Pleno,
-					"punto:pleno:"+ma.AtletaID.String()); err != nil {
+					refPuntoPleno(j.ID, ma.AtletaID)); err != nil {
 					return err
 				}
 			}
@@ -298,7 +298,7 @@ func aplicarBlanqueoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 	}
 	if at.Dueno != uuid.Nil && at.Titular {
 		return insertarPuntoUnicoTx(ctx, tx, cid, j.ID, at.Dueno, ma.AtletaID, "blanqueo", cfg.Puntos.Blanqueo,
-			"punto:blanqueo:"+ma.AtletaID.String()+":"+mv)
+			refPuntoBlanqueo(j.ID, ma.AtletaID, mv))
 	}
 	return nil
 }
@@ -353,6 +353,33 @@ func cambiarClausulaTx(ctx context.Context, tx pgx.Tx, cid, jid, atletaID uuid.U
 }
 
 var movimientos = []string{"sq", "bp", "dl"}
+
+// The refs of the points are idempotent keys of `puntos`, whose `ref` is UNIQUE GLOBAL (contract §6.3). The
+// jornada is part of every ref: the same athlete lifts in every jornada and the points of one jornada must not
+// silence the points of the next one (contract §0 punto 8, jornadas independientes).
+func refPuntoIntento(jid, atletaID uuid.UUID, mov string, n int) string {
+	return "punto:" + jid.String() + ":intento:" + atletaID.String() + ":" + mov + ":" + itoa(n)
+}
+
+func refPuntoPleno(jid, atletaID uuid.UUID) string {
+	return "punto:" + jid.String() + ":pleno:" + atletaID.String()
+}
+
+func refPuntoBlanqueo(jid, atletaID uuid.UUID, mov string) string {
+	return "punto:" + jid.String() + ":blanqueo:" + atletaID.String() + ":" + mov
+}
+
+func refPuntoCat(jid, atletaID uuid.UUID) string {
+	return "punto:" + jid.String() + ":cat:" + atletaID.String()
+}
+
+func refPuntoGL(jid, atletaID uuid.UUID) string {
+	return "punto:" + jid.String() + ":gl:" + atletaID.String()
+}
+
+func refPuntoMov(jid, atletaID uuid.UUID, mov string) string {
+	return "punto:" + jid.String() + ":mov:" + atletaID.String() + ":" + mov
+}
 
 func itoa(n int) string {
 	if n == 0 {

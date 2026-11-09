@@ -159,7 +159,8 @@ CREATE TABLE historial_clausulas (
 );
 CREATE INDEX historial_clausulas_atleta ON historial_clausulas (jornada_id, atleta_id, created_at);
 
--- Points of the fantasy. Idempotent by ref (e.g. punto:intento:<atleta>:<mov>:<n>); a correction rewrites the row
+-- Points of the fantasy. Idempotent by ref (e.g. punto:<jornada>:intento:<atleta>:<mov>:<n>: the jornada is part
+-- of the ref because the ref is UNIQUE globally and the jornadas are independent); a correction rewrites the row
 -- without changing the owner (contract §6.3).
 CREATE TABLE puntos (
     id             uuid PRIMARY KEY,
