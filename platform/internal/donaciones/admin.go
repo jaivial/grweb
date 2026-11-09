@@ -30,7 +30,7 @@ type Fila struct {
 	Coins       int        `json:"coins"`
 	Mensaje     string     `json:"mensaje,omitempty"`
 	Anonimo     bool       `json:"anonimo"`
-	Estado      string     `json:"estado" enum:"pendiente,pagada,caducada,reembolsada"`
+	Estado      string     `json:"estado" enum:"pendiente,pagada,caducada,reembolsando,reembolsada"`
 	Proveedor   string     `json:"proveedor"`
 	Motivo      string     `json:"motivo,omitempty"`
 	CreatedAt   time.Time  `json:"createdAt"`
@@ -205,7 +205,7 @@ func (s *Svc) registerAdmin() {
 
 	type listaIn struct {
 		CID    uuid.UUID `path:"cid"`
-		Estado string    `query:"estado" enum:"pendiente,pagada,caducada,reembolsada,"`
+		Estado string    `query:"estado" enum:"pendiente,pagada,caducada,reembolsando,reembolsada,"`
 		Q      string    `query:"q" maxLength:"80"`
 		Pagina int       `query:"pagina" minimum:"1" default:"1"`
 	}
@@ -245,32 +245,58 @@ func (s *Svc) registerAdmin() {
 			}
 			var pago, estado, pas, dia string
 			var importe int
-			if err := s.a.DB.QueryRow(ctx, `SELECT payment_id, estado, proveedor, importe, dia::text FROM donaciones WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
-				Scan(&pago, &estado, &pas, &importe, &dia); err != nil {
-				return nil, problem.NotFound("Donación no encontrada.")
-			}
-			if estado != "pagada" {
-				return nil, problem.Conflict("NO_REEMBOLSABLE", "Solo se reembolsan donaciones pagadas.")
+			// 1) Reclamar el reembolso: la fila se bloquea y pasa a «reembolsando» ANTES de llamar a la pasarela, así
+			// que dos clics (o dos réplicas) nunca devuelven el dinero dos veces (PR review I2).
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if err := tx.QueryRow(ctx, `SELECT payment_id, estado, proveedor, importe, dia::text FROM donaciones WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).
+					Scan(&pago, &estado, &pas, &importe, &dia); err != nil {
+					if db.IsNoRows(err) {
+						return problem.NotFound("Donación no encontrada.")
+					}
+					return err
+				}
+				if estado != "pagada" && estado != "reembolsando" {
+					return problem.Conflict("NO_REEMBOLSABLE", "Solo se reembolsan donaciones pagadas.")
+				}
+				if estado == "pagada" {
+					tag, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'reembolsando' WHERE id = $1 AND competition_id = $2 AND estado = 'pagada'`, in.ID, in.CID)
+					if err != nil {
+						return err
+					}
+					if tag.RowsAffected() == 0 {
+						return problem.Conflict("NO_REEMBOLSABLE", "La donación ya no está pagada.")
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, err
 			}
 			prov := s.proveedor(ctx, in.CID)
 			if pas == "simulado" && s.sim != nil {
 				prov = s.sim
 			}
 			if prov == nil || prov.Name() != pas {
+				s.devolverPagada(ctx, in.ID, "La donación se pagó con otra pasarela")
 				return nil, problem.Conflict("PASARELA_DISTINTA", "Esta donación se pagó con otra pasarela: reembólsala desde su panel.")
 			}
-			ref, err := prov.Refund(ctx, pago, importe, "requested_by_customer")
+			// 2) La pasarela, con clave de idempotencia (el id de la donación): un reintento tras una caída devuelve el
+			// mismo reembolso, no el dinero dos veces.
+			ref, err := s.reembolsar(ctx, prov, pago, importe, in.ID.String())
 			if err != nil {
 				s.a.Log.Warn("reembolso de donación", "err", err)
+				s.devolverPagada(ctx, in.ID, "Reembolso fallido: "+err.Error())
 				return nil, problem.New(http.StatusBadGateway, "REEMBOLSO_FALLIDO", "La pasarela no ha podido reembolsar: "+err.Error())
 			}
+			// 3) Confirmar el estado y encolar el evento (en la misma transacción): si esto falla, la donación queda
+			// «reembolsando» y un reintento con la misma clave recupera el mismo reembolso.
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'reembolsada', reembolso_id = $2, motivo = $3, reembolsada_at = now() WHERE id = $1 AND estado = 'pagada'`, in.ID, ref, strings.TrimSpace(in.Body.Motivo))
+				tag, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'reembolsada', reembolso_id = $2, motivo = $3, reembolsada_at = now() WHERE id = $1 AND estado = 'reembolsando'`, in.ID, ref, strings.TrimSpace(in.Body.Motivo))
 				if err != nil {
 					return err
 				}
 				if tag.RowsAffected() == 0 {
-					return problem.Conflict("NO_REEMBOLSABLE", "La donación ya no está pagada.")
+					return nil // otro intento lo reembolsó antes: el evento ya está en la outbox
 				}
 				var fanID uuid.UUID
 				var coins int
@@ -292,4 +318,19 @@ func (s *Svc) registerAdmin() {
 			}
 			return &struct{ Body Fila }{x}, nil
 		})
+}
+
+// devolverPagada deja la donación como «pagada» cuando la pasarela no ha podido reembolsar (el dinero sigue en
+// la pasarela): el siguiente intento vuelve a encontrarla reembolsable.
+func (s *Svc) devolverPagada(ctx context.Context, id uuid.UUID, motivo string) {
+	_, _ = s.a.DB.Exec(ctx, `UPDATE donaciones SET estado = 'pagada', motivo = $2 WHERE id = $1 AND estado = 'reembolsando'`, id, motivo)
+}
+
+// reembolsar llama a la pasarela con una clave de idempotencia (el id de la donación): si la pasarela la
+// soporta, un reintento devuelve el mismo reembolso en lugar de devolver el dinero otra vez.
+func (s *Svc) reembolsar(ctx context.Context, prov pagos.Provider, pago string, importe int, clave string) (string, error) {
+	if p, ok := prov.(pagos.RefundConClave); ok {
+		return p.RefundConClave(ctx, pago, importe, "requested_by_customer", clave)
+	}
+	return prov.Refund(ctx, pago, importe, "requested_by_customer")
 }

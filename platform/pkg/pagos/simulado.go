@@ -82,6 +82,17 @@ func (s *Simulado) CreateCheckout(ctx context.Context, in CheckoutIn) (CheckoutO
 }
 
 func (s *Simulado) Refund(ctx context.Context, paymentID string, amount int, _ string) (string, error) {
+	return s.RefundConClave(ctx, paymentID, amount, "", "")
+}
+
+// RefundConClave refunds with an idempotency key: the same key returns the same refund (the key is kept in
+// Redis), so a retry after a crash never refunds twice.
+func (s *Simulado) RefundConClave(ctx context.Context, paymentID string, amount int, _ string, clave string) (string, error) {
+	if clave != "" {
+		if id, err := s.Redis.Get(ctx, s.Prefix+"re:"+clave).Result(); err == nil && id != "" {
+			return id, nil // already refunded with this key
+		}
+	}
 	sid, err := s.Redis.Get(ctx, s.pkey(paymentID)).Result()
 	if err != nil {
 		return "", errors.New("pago simulado no encontrado")
@@ -97,7 +108,11 @@ func (s *Simulado) Refund(ctx context.Context, paymentID string, amount int, _ s
 	if err := s.save(ctx, ss); err != nil {
 		return "", err
 	}
-	return "sim_re_" + rnd(8), nil
+	id := "sim_re_" + rnd(8)
+	if clave != "" {
+		_ = s.Redis.Set(ctx, s.Prefix+"re:"+clave, id, 30*24*time.Hour).Err()
+	}
+	return id, nil
 }
 
 func (s *Simulado) VerifyWebhook(payload []byte, h http.Header) (Event, error) {
