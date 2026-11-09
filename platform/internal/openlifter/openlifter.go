@@ -736,9 +736,13 @@ func (s *Svc) register() {
 						RETURNING COALESCE(entradas.datos->>'name', '')`, in.CID, b.Mesa, c.EntryID, c.AtletaID, vinc, map[bool]float64{true: 1}[c.AtletaID != nil], motivo).Scan(&nombre); err != nil {
 						return err
 					}
-					if k := clave(nombre); c.AtletaID != nil && k != "" {
-						if _, err := tx.Exec(ctx, `INSERT INTO alias (competition_id, clave, atleta_id) VALUES ($1,$2,$3) ON CONFLICT (competition_id, clave) DO UPDATE SET atleta_id = $3`,
-							in.CID, k, *c.AtletaID); err != nil {
+					if k := clave(nombre); k != "" {
+						// a confirmed name links again on its own; unlinking or ignoring forgets it
+						q, args := `DELETE FROM alias WHERE competition_id = $1 AND clave = $2`, []any{in.CID, k}
+						if c.AtletaID != nil {
+							q, args = `INSERT INTO alias (competition_id, clave, atleta_id) VALUES ($1,$2,$3) ON CONFLICT (competition_id, clave) DO UPDATE SET atleta_id = $3`, append(args, *c.AtletaID)
+						}
+						if _, err := tx.Exec(ctx, q, args...); err != nil {
 							return err
 						}
 					}
