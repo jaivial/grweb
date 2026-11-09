@@ -169,11 +169,15 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
     }
     if (s.windWeight > 0) {
       body.addForce({ x: s.windWeight * s.forceAmp * Math.sin(2 * Math.PI * cyclePos), y: 0, z: 0 }, true);
+    }
+    // Twist around the vertical: idle ±twist with the wind, otherwise held facing the camera
+    // (drags and podium hits must never turn the medal round to its plain back).
+    {
       const { q, euler } = scratch;
       const r = body.rotation();
       euler.setFromQuaternion(q.set(r.x, r.y, r.z, r.w));
-      const twistTarget = rig.twistRad * Math.sin(2 * Math.PI * (s.time / geo.wind.twistPeriodS + medal.phase));
-      const torque = s.windWeight * rig.inertiaY * (TWIST_KP * (twistTarget - euler.y) - TWIST_KD * w.y);
+      const twistTarget = s.windWeight * rig.twistRad * Math.sin(2 * Math.PI * (s.time / geo.wind.twistPeriodS + medal.phase));
+      const torque = rig.inertiaY * (TWIST_KP * (twistTarget - euler.y) - TWIST_KD * w.y);
       body.addTorque({ x: 0, y: torque, z: 0 }, true);
     }
 
@@ -258,8 +262,10 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
     s.grabLocal
       .set(event.point.x - t.x, event.point.y - t.y, event.point.z - t.z)
       .applyQuaternion(scratch.q.set(r.x, r.y, r.z, r.w).invert());
-    s.plane.constant = -event.point.z;
-    s.target.copy(event.point);
+    // Grab on the medal's mid-plane: an off-plane grab point would add a torque around Y.
+    s.grabLocal.z = 0;
+    s.plane.constant = -t.z;
+    s.target.set(event.point.x, event.point.y, t.z);
     s.down = { x: event.clientX, y: event.clientY, time: performance.now() };
     s.mode = 'drag';
     grabbingRef.current = true;
@@ -319,6 +325,8 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
         position={[railX, railY - rig.rod, rig.z]}
         linearDamping={physics.linearDamping}
         angularDamping={physics.angularDamping}
+        // Swing in the screen plane only (no tilt towards the camera): rotation X locked.
+        enabledRotations={[false, true, true]}
         onCollisionEnter={collisions ? handleHit : undefined}
       >
         <CuboidCollider
