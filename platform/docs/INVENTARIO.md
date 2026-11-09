@@ -340,6 +340,7 @@ Rutas nuevas en el `routeTable` del gateway (antes del catch-all de `competition
 | `donacion.anunciada` | `donaciones` | Public | { alias (o «Anónimo»), importe, coins, dia } (sin identificadores ni mensaje) |
 | `donacion.reembolsada` | `donaciones` | Internal | { donacionId, fanId, importe, coins } |
 | `patrocinio.banner` | `patrocinio` | Public | { bannerId, patrocinador, imagenUrl, imagenMovilUrl, clicUrl, tier, dia } |
+| `juegos.porra.cierre_manual` | `juegos` | Admin (`directo.operar`) | { mercadoId, por } (cerrar a mano desde el backoffice) |
 | `juegos.porra.devolucion` | `juegos` | Admin (`directo.operar`) | { mercadoId, jornadaId, por } (anular y devolver desde el backoffice) |
 | `fantasy.clausula` | `juegos-worker` | Public | { jornadaId, atletaId, clausula, delta } |
 | `fantasy.fichaje` | `juegos` | Public | { jornadaId, atletaId, tipo, aliasDe, aliasA, precio } |

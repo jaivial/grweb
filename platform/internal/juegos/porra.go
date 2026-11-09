@@ -262,6 +262,12 @@ func cerrarMercadoATx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, mc mercadoR
 	if tag.RowsAffected() == 0 {
 		return problem.Conflict("MERCADO_NO_ABIERTO", "El mercado ya está cerrado o liquidado.")
 	}
+	// audit: who closed it (the public event below carries no actor)
+	if err := events.Enqueue(ctx, tx, events.New(ctx, "juegos.porra.cierre_manual",
+		map[string]any{"mercadoId": mc.ID.String(), "por": actor(ctx)},
+		events.Competition(cid.String()), events.ForPermission("directo.operar"))); err != nil {
+		return err
+	}
 	return events.Enqueue(ctx, tx, events.New(ctx, "porra.mercado",
 		map[string]any{"mercadoId": mc.ID.String(), "estado": "cerrado"},
 		events.Competition(cid.String()), events.Audience(events.Public)))
