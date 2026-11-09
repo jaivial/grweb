@@ -13,7 +13,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/events"
 )
 
-// filaPorra is one row of the porra ranking.
+// filaPorra is one row of the porra ranking (it keeps the fan id: only the admin view uses it).
 type filaPorra struct {
 	Puesto int       `json:"puesto"`
 	FanID  uuid.UUID `json:"fanId"`
@@ -21,7 +21,7 @@ type filaPorra struct {
 	Saldo  int64     `json:"saldo"`
 }
 
-// filaFantasy is one row of the fantasy ranking.
+// filaFantasy is one row of the fantasy ranking (it keeps the fan id: only the admin view uses it).
 type filaFantasy struct {
 	Puesto int       `json:"puesto"`
 	FanID  uuid.UUID `json:"fanId"`
@@ -29,6 +29,41 @@ type filaFantasy struct {
 	Puntos int       `json:"puntos"`
 	Valor  int64     `json:"valor" doc:"Valor de la plantilla (suma de cláusulas)"`
 	Saldo  int64     `json:"saldo"`
+}
+
+// filaPorraPublic is one row of the public porra ranking: alias and balance, never the fan id (the internal
+// identifier of the fan is personal data and does not travel in the public views, contract §6.6).
+type filaPorraPublic struct {
+	Puesto int    `json:"puesto"`
+	Alias  string `json:"alias"`
+	Saldo  int64  `json:"saldo"`
+}
+
+// filaFantasyPublic is one row of the public fantasy ranking (no fan id, like filaPorraPublic).
+type filaFantasyPublic struct {
+	Puesto int    `json:"puesto"`
+	Alias  string `json:"alias"`
+	Puntos int    `json:"puntos"`
+	Valor  int64  `json:"valor" doc:"Valor de la plantilla (suma de cláusulas)"`
+	Saldo  int64  `json:"saldo"`
+}
+
+// publicaPorra strips the fan ids of the porra ranking (public view).
+func publicaPorra(filas []filaPorra) []filaPorraPublic {
+	out := make([]filaPorraPublic, 0, len(filas))
+	for _, f := range filas {
+		out = append(out, filaPorraPublic{Puesto: f.Puesto, Alias: f.Alias, Saldo: f.Saldo})
+	}
+	return out
+}
+
+// publicaFantasy strips the fan ids of the fantasy ranking (public view).
+func publicaFantasy(filas []filaFantasy) []filaFantasyPublic {
+	out := make([]filaFantasyPublic, 0, len(filas))
+	for _, f := range filas {
+		out = append(out, filaFantasyPublic{Puesto: f.Puesto, Alias: f.Alias, Puntos: f.Puntos, Valor: f.Valor, Saldo: f.Saldo})
+	}
+	return out
 }
 
 const rankFantasyBase = `SELECT s.fan_id, s.alias, s.saldo, COALESCE(p.puntos, 0) AS puntos, COALESCE(v.valor, 0) AS valor, s.created_at
@@ -108,6 +143,19 @@ func (s *Svc) miPuesto(ctx context.Context, j jornada, fanID uuid.UUID, m Moneda
 		return 0
 	}
 	return puesto
+}
+
+// misPuntos returns the points of the fan in the fantasy ranking. The public ranking does not expose the fan
+// id, so «mis puntos» are computed here from the session (contract §6.6).
+func (s *Svc) misPuntos(ctx context.Context, j jornada, fanID uuid.UUID) int {
+	if fanID == uuid.Nil {
+		return 0
+	}
+	var n int64
+	if err := s.a.DB.QueryRow(ctx, `SELECT coalesce(sum(puntos), 0) FROM puntos WHERE jornada_id = $1 AND fan_id = $2`, j.ID, fanID).Scan(&n); err != nil {
+		return 0
+	}
+	return int(n)
 }
 
 // eventoClasificacion emits juegos.clasificacion at most once every 5 s per jornada (contract §6.6), with the

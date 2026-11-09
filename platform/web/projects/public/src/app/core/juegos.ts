@@ -71,10 +71,9 @@ export interface Apuesta {
   createdAt: string;
 }
 
-/** Una fila de la clasificación de la porra (saldo de porra de la jornada). */
+/** Una fila de la clasificación de la porra (saldo de porra de la jornada). El backend no publica el id del fan. */
 export interface FilaPorra {
   puesto: number;
-  fanId: string;
   alias: string;
   saldo: number;
 }
@@ -82,7 +81,6 @@ export interface FilaPorra {
 /** Una fila de la clasificación de fantasy (puntos, valor de la plantilla y saldo). */
 export interface FilaFantasy {
   puesto: number;
-  fanId: string;
   alias: string;
   puntos: number;
   valor: number;

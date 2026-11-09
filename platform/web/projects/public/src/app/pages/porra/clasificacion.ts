@@ -76,7 +76,7 @@ export class PorraClasificacionPage {
     const c = this.store.clas();
     if (!c || !c.miPuesto) return null;
     const enTop = c.top.find((f) => f.puesto === c.miPuesto);
-    return enTop ?? { puesto: c.miPuesto, fanId: '', alias: this.fan.yo()?.alias ?? '', saldo: c.miSaldo };
+    return enTop ?? { puesto: c.miPuesto, alias: this.fan.yo()?.alias ?? '', saldo: c.miSaldo };
   });
   protected readonly hayMas = computed(() => {
     const c = this.store.clas();

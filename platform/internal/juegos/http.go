@@ -346,10 +346,10 @@ func (s *Svc) registerPublic() {
 	}
 	type clasPorraOut struct {
 		Body struct {
-			Jornada  *jornadaOut `json:"jornada,omitempty"`
-			Top      []filaPorra `json:"top"`
-			MiPuesto int         `json:"miPuesto"`
-			MiSaldo  int64       `json:"miSaldo"`
+			Jornada  *jornadaOut       `json:"jornada,omitempty"`
+			Top      []filaPorraPublic `json:"top"`
+			MiPuesto int               `json:"miPuesto"`
+			MiSaldo  int64             `json:"miSaldo"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-porra-clasificacion", Method: http.MethodGet, Path: base + "/porra/clasificacion",
@@ -369,7 +369,9 @@ func (s *Svc) registerPublic() {
 			}
 			o := &clasPorraOut{}
 			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-			o.Body.Top, o.Body.MiPuesto = s.rankingPorra(ctx, *j, fanID)
+			top, miPuesto := s.rankingPorra(ctx, *j, fanID)
+			o.Body.Top = publicaPorra(top)
+			o.Body.MiPuesto = miPuesto
 			if fanID != uuid.Nil {
 				_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'porra'`, j.ID, fanID).Scan(&o.Body.MiSaldo)
 			}
@@ -579,10 +581,10 @@ func (s *Svc) registerPublic() {
 	// clasificación fantasy (contract §6.3: puntos, desempate valor de plantilla → saldo → quién llegó antes).
 	type clasFantasyOut struct {
 		Body struct {
-			Jornada  *jornadaOut   `json:"jornada,omitempty"`
-			Top      []filaFantasy `json:"top"`
-			MiPuesto int           `json:"miPuesto"`
-			MiPuntos int           `json:"miPuntos"`
+			Jornada  *jornadaOut         `json:"jornada,omitempty"`
+			Top      []filaFantasyPublic `json:"top"`
+			MiPuesto int                 `json:"miPuesto"`
+			MiPuntos int                 `json:"miPuntos"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clasificacion", Method: http.MethodGet, Path: base + "/fantasy/clasificacion",
@@ -602,14 +604,10 @@ func (s *Svc) registerPublic() {
 			}
 			o := &clasFantasyOut{}
 			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-			o.Body.Top, o.Body.MiPuesto = s.rankingFantasy(ctx, *j, fanID)
-			if fanID != uuid.Nil {
-				for _, f := range o.Body.Top {
-					if f.FanID == fanID {
-						o.Body.MiPuntos = f.Puntos
-					}
-				}
-			}
+			top, miPuesto := s.rankingFantasy(ctx, *j, fanID)
+			o.Body.Top = publicaFantasy(top)
+			o.Body.MiPuesto = miPuesto
+			o.Body.MiPuntos = s.misPuntos(ctx, *j, fanID)
 			return o, nil
 		})
 
