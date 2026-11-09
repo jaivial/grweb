@@ -7,7 +7,8 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { GrAlert, GrBadge, GrButton, GrIcon, type GrIconName, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { JuegosEstado, PorraStore, type Apuesta, type Mercado, mensajeError, monedas } from '../../core/juegos';
+import { JuegosEstado, PorraStore, type Apuesta, type Mercado, mensajeError } from '../../core/juegos';
+import { monedas } from './formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';

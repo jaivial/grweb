@@ -5,6 +5,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { GrButton, GrIcon } from '@grcup/ui';
 import { JuegosEstado } from '../../core/juegos';
+import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { JuegosNav } from '../porra/componentes';
@@ -113,8 +114,8 @@ export class ComoSeJuegaPage {
       icono: 'users',
       puntos: [
         'Los atletas libres se fichan al instante por su valor (cláusula) actual.',
-        `La cláusula empieza en ${this.clausulaInicial().toLocaleString('es-ES')}: válido +5 %, nulo −4 %, blanqueo −30 %; puesto 1.º +25 %, 2.º +15 %, 3.º +8 %; compra o clausulazo +3 %.`,
-        `Mínimo ${this.clausulaMin().toLocaleString('es-ES')} y máximo ${this.clausulaMax().toLocaleString('es-ES')}, redondeado a 1.000.`,
+        `La cláusula empieza en ${monedas(this.clausulaInicial())}: válido +5 %, nulo −4 %, blanqueo −30 %; puesto 1.º +25 %, 2.º +15 %, 3.º +8 %; compra o clausulazo +3 %.`,
+        `Mínimo ${monedas(this.clausulaMin())} y máximo ${monedas(this.clausulaMax())}, redondeado a 1.000.`,
         'Vender devuelve el 100 % del valor actual al mercado.',
       ],
     },

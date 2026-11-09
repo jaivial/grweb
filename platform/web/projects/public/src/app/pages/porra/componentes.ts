@@ -7,7 +7,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { FormsModule } from '@angular/forms';
 import { GrBadge, GrButton, GrIcon, GrSelect } from '@grcup/ui';
 import { FanSession } from '../../core/fan';
-import { type Mercado, type OpcionMercado, type Premio, cuota, monedas, sexoTxt } from '../../core/juegos';
+import { type Mercado, type OpcionMercado, type Premio, cuota, sexoTxt } from '../../core/juegos';
+import { monedas } from './formato';
 
 /** Iniciales de un nombre («Laura Gómez» → «LG»). */
 export function iniciales(nombre: string | null | undefined): string {

@@ -7,7 +7,8 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { JuegosEnVivo, JuegosEstado, PorraStore, monedas } from '../../core/juegos';
+import { JuegosEnVivo, JuegosEstado, PorraStore } from '../../core/juegos';
+import { monedas } from './formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';

@@ -8,6 +8,7 @@ import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
 import { FantasyStore, JuegosEnVivo, JuegosEstado, fusionaFichajes, type FilaFantasy } from '../../core/juegos';
+import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
@@ -155,6 +156,6 @@ export class FantasyClasificacionPage {
   }
   protected nota(f: FilaFantasy): string {
     if (f.puesto === this.miPuesto()) return 'Tu puesto en fantasy';
-    return `Plantilla ${f.valor.toLocaleString('es-ES')} · saldo ${f.saldo.toLocaleString('es-ES')}`;
+    return `Plantilla ${monedas(f.valor)} · saldo ${monedas(f.saldo)}`;
   }
 }

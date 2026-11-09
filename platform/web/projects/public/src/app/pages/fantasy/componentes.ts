@@ -5,7 +5,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { GrButton, GrIcon } from '@grcup/ui';
 import { iniciales } from '../porra/componentes';
-import { type AtletaMercado, type AtletaDetalle, type MovimientoFeed, pctClausula, monedas } from '../../core/juegos';
+import { type AtletaMercado, type AtletaDetalle, type MovimientoFeed, pctClausula } from '../../core/juegos';
+import { monedas } from '../porra/formato';
 
 /** La flecha de la cláusula (Figma «Clause trend chip»): sube, baja o se queda. */
 @Component({
@@ -60,19 +61,18 @@ export class SparklineClausula {
   host: { '[class]': 'clases()' },
   template: `
     <span class="pointer-events-none absolute -top-24 left-1/2 h-36 w-60 -translate-x-1/2 rounded-full blur-3xl" [class]="atleta().titular ? 'bg-accent/25' : 'bg-info/12'" aria-hidden="true"></span>
-    <span class="absolute top-2.5 right-2.5">
-      @if (atleta().flightEnCurso) {
-        <span class="flex items-center gap-1 rounded-2xs border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-mono-xs text-warning"><gr-icon name="lock" [size]="11" />En juego</span>
-      } @else {
-        <span class="rounded-2xs border px-1.5 py-0.5 text-mono-xs" [class]="atleta().titular ? 'border-accent/40 bg-accent-deep/50 text-accent-text' : 'border-line-strong bg-bg-raised text-text-tertiary'">{{ atleta().titular ? 'Titular' : 'Suplente' }}</span>
-      }
-    </span>
-    <button type="button" class="relative flex flex-col items-center gap-2 pt-3 text-center" (click)="ficha.emit()" [attr.aria-label]="'Ver la ficha de ' + atleta().nombre">
+    <button type="button" class="relative flex flex-col items-center gap-2 pt-1 text-center" (click)="ficha.emit()" [attr.aria-label]="'Ver la ficha de ' + atleta().nombre">
       <span class="flex size-14 items-center justify-center rounded-full border-2 bg-bg-raised font-display text-[20px] text-text-primary italic sm:size-16 sm:text-[22px]" [class]="atleta().titular ? 'border-accent/80' : 'border-line-strong'">{{ ini() }}</span>
       <span class="min-w-0">
         <span class="line-clamp-2 min-h-[2.4em] text-label-s text-text-primary sm:text-label-m">{{ atleta().nombre }}</span>
         <span class="mt-0.5 block truncate text-body-xs" [class]="atleta().flightEnCurso ? 'text-warning' : 'text-text-tertiary'">{{ subtitulo() }}</span>
       </span>
+      <!-- El rol va en el flujo, bajo el nombre: en 2 columnas a 390 no cabe en la esquina sin pisar el avatar -->
+      @if (atleta().flightEnCurso) {
+        <span class="inline-flex items-center gap-1 rounded-2xs border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-mono-xs text-warning"><gr-icon name="lock" [size]="11" />En juego</span>
+      } @else {
+        <span class="rounded-2xs border px-1.5 py-0.5 text-mono-xs" [class]="atleta().titular ? 'border-accent/40 bg-accent-deep/50 text-accent-text' : 'border-line-strong bg-bg-raised text-text-tertiary'">{{ atleta().titular ? 'Titular' : 'Suplente' }}</span>
+      }
     </button>
     <dl class="relative flex flex-col">
       <div class="flex items-center justify-between gap-2 border-t border-line-subtle py-2.5">
@@ -115,7 +115,7 @@ export class AthleteCard {
   protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
-    return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg${a.flightEnCurso ? ' · en juego' : ''}`;
+    return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;
   });
 }
 
