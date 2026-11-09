@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrButton, GrEmpty, GrIcon, GrToasts } from '@grcup/ui';
 import { problemOf } from '../../../core/api';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, BoToggle, errText } from '../../../shared/ui';
-import { SoNumber, SoTier, TIERS, diaCorto, num } from '../ui';
+import { SoAjuste, SoCard, SoGrupo, SoNumber, SoSkelFilas, SoTier, TIERS, TIER_LIST, diaCorto, num, pct, type Tier } from '../ui';
 import { PatrocinioApi, type ConfigPatrocinio, type Informe, type InformeFila } from './api';
 
 interface FormConfig {
@@ -18,37 +18,29 @@ interface FormConfig {
   activo: boolean;
 }
 
-interface Barra {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  color: string;
-  valor: number;
-  nombre: string;
-}
-
 const VACIO: FormConfig = { intervaloSeg: 90, pesoOro: 3, pesoPlata: 2, pesoBronce: 1, soloEnDirecto: true, activo: true };
-const ANCHO = 620;
-const ALTO = 200;
+/** Banners visibles en la gráfica antes de «Ver todos». */
+const TOP = 10;
+const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata', bronce: 'pesoBronce' };
 
 /**
- * «Patrocinio · Configuración e informe» (Figma 73 · «BO · Patrocinio · Configuración e informe»).
- * Configuración del worker (intervalo mínimo 15 s, pesos por tier, solo en directo) e informe del día con las
- * apariciones y los clics por banner, el CTR y la cola de pendientes.
+ * «Patrocinio · Configuración e informe» (Figma 73 · «BO · Patrocinio · Configuración e informe», UI v2).
+ * Configuración del worker (intervalo mínimo 15 s, pesos por tier, solo en directo) e informe del día: ranking
+ * horizontal de apariciones (color del tier, clics debajo y CTR), resumen y cola de pendientes. La gráfica es
+ * legible con 3 o con 40 banners: se muestran los 10 primeros y el resto con «Ver todos».
  */
 @Component({
   selector: 'bo-patrocinio-informe',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, SoNumber, SoTier],
+  imports: [FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrIcon, SoAjuste, SoCard, SoGrupo, SoNumber, SoSkelFilas, SoTier],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
       <bo-page-header title="Patrocinio · Configuración e informe" [badge]="config()?.activo ? 'Worker activo' : 'Worker parado'" [badgeTone]="config()?.activo ? 'accent' : 'neutral'"
         [subtitle]="'Un tic cada ' + (config()?.intervaloSeg ?? 90) + ' s mientras el directo está en juego · cola y registro de apariciones (§7)'"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Patrocinio', 'Informe']">
         <ng-container actions>
           <a grButton icon="layout" [routerLink]="['/', comps.current()?.slug, 'patrocinio']">Banners</a>
-          <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio()" (click)="guardar()">Guardar configuración</button>
+          <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !!errorIntervalo() || !puede()" (click)="guardar()">Guardar configuración</button>
         </ng-container>
       </bo-page-header>
 
@@ -57,139 +49,128 @@ const ALTO = 200;
       }
 
       @if (cargando()) {
-        <gr-skeleton class="h-64 rounded-lg" />
+        <div class="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+          <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card"><so-skel-filas [n]="5" [avatar]="false" /></div>
+          <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card"><so-skel-filas [n]="8" [avatar]="false" /></div>
+        </div>
       } @else if (error()) {
-        <gr-empty icon="wifi-off" title="No hemos podido cargar el patrocinio" [text]="error()">
-          <button grButton (click)="cargar()">Reintentar</button>
-        </gr-empty>
+        <div class="rounded-lg border border-line-subtle bg-bg-card">
+          <gr-empty icon="wifi-off" title="No hemos podido cargar el patrocinio" [text]="error()">
+            <button grButton variant="primary" icon="refresh" (click)="cargar()">Reintentar</button>
+          </gr-empty>
+        </div>
       } @else {
         @if (estimacion()) {
-          <gr-alert tone="warning" [title]="estimacion()">
-            Garantía: todos aparecen al menos 1 vez por jornada — primero los pendientes del día (oro > plata > bronce y orden). Aviso si la duración de los flights no da para una ronda completa.
-            <span class="mt-2 block"><a [routerLink]="['/', comps.current()?.slug, 'patrocinio']" class="text-accent-text hover:underline">Revisar filas →</a></span>
+          <gr-alert [tone]="informe()?.aviso ? 'warning' : 'info'" [title]="estimacion()">
+            Todos salen al menos una vez por jornada: primero los pendientes del día (oro → plata → bronce y orden) y después según su peso.
+            @if (informe()?.aviso; as aviso) { <span class="mt-1 block text-warning">{{ aviso }}</span> }
+            <a alertAction [routerLink]="['/', comps.current()?.slug, 'patrocinio']" class="mt-2 inline-flex items-center gap-1 text-label-s text-info hover:underline">Revisar banners <gr-icon name="arrow-right" [size]="14" /></a>
           </gr-alert>
         }
 
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div class="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
           <!-- ===== Configuración ===== -->
-          <section class="flex flex-col gap-5">
-            <div class="rounded-lg border border-line-subtle bg-bg-card p-5">
-              <h2 class="text-label-xs text-text-tertiary">Configuración del patrocinio</h2>
-
-              <div class="mt-4 flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <p class="text-label-s">Activo</p>
-                  <p class="text-body-xs text-text-tertiary">El worker hace tics y publica patrocinio.banner</p>
-                </div>
+          <div class="flex min-w-0 flex-col gap-6">
+            <so-card titulo="Reparto de banners" ayuda="Cómo y cuándo publica el worker en el chat">
+              <so-ajuste label="Patrocinio activo" ayuda="El worker hace tics y publica patrocinio.banner">
                 <bo-toggle [value]="form().activo" label="Patrocinio activo" [disabled]="!puede()" (changed)="set({ activo: $event })" />
-              </div>
-
-              <div class="mt-4 flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <p class="text-label-s">Solo durante el directo</p>
-                  <p class="text-body-xs text-text-tertiary">Tics solo con la fase de live en_directo (caché 10 s)</p>
-                </div>
+              </so-ajuste>
+              <so-ajuste label="Solo durante el directo" ayuda="Tics solo con la fase en directo (caché 10 s)">
                 <bo-toggle [value]="form().soloEnDirecto" label="Solo durante el directo" [disabled]="!puede()" (changed)="set({ soloEnDirecto: $event })" />
-              </div>
-
-              <gr-field class="mt-5" label="Intervalo (segundos)" hint="Mínimo 15 s (§7)" [error]="errorIntervalo()">
-                <so-number label="Intervalo entre banners en segundos" [disabled]="!puede()" [valor]="form().intervaloSeg" (changed)="set({ intervaloSeg: $event })" />
-              </gr-field>
-
-              <div class="mt-4 grid gap-3 sm:grid-cols-3">
-                <gr-field label="Peso oro"><input grInput type="number" min="0" max="10" [ngModel]="form().pesoOro" (ngModelChange)="set({ pesoOro: +$event })" [disabled]="!puede()" /></gr-field>
-                <gr-field label="Peso plata"><input grInput type="number" min="0" max="10" [ngModel]="form().pesoPlata" (ngModelChange)="set({ pesoPlata: +$event })" [disabled]="!puede()" /></gr-field>
-                <gr-field label="Peso bronce"><input grInput type="number" min="0" max="10" [ngModel]="form().pesoBronce" (ngModelChange)="set({ pesoBronce: +$event })" [disabled]="!puede()" /></gr-field>
-              </div>
-
-              <div class="mt-6 flex items-center gap-3 rounded-md border border-success/30 bg-success/5 p-4">
-                <gr-icon name="circle-check" [size]="20" class="text-success" />
-                <div class="min-w-0 flex-1">
-                  <p class="text-label-s">Configuración guardada</p>
-                  <p class="text-body-xs text-text-tertiary">Versión {{ config()?.version ?? 1 }} · aplica al siguiente tic</p>
-                </div>
-                <a grButton size="s" variant="secondary" [routerLink]="['/', comps.current()?.slug, 'patrocinio']">Ver en la web</a>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-              <gr-kpi label="Banners activos" [value]="num(activos())" caption="en la cola" />
-              <gr-kpi label="Pendientes hoy" [value]="num(pendientes().length)" caption="aún sin aparecer" />
-            </div>
-          </section>
-
-          <!-- ===== Informe ===== -->
-          <section class="flex flex-col gap-5">
-            <div class="rounded-lg border border-line-subtle bg-bg-card p-5">
-              <header class="flex flex-wrap items-center justify-between gap-2">
-                <h2 class="text-label-xs text-text-tertiary">Informe · {{ diaCorto(informe()?.dia) }}</h2>
-                <span class="text-body-xs text-text-tertiary">{{ activos() }} activos · {{ pendientes().length }} pendientes</span>
-              </header>
-
-              @if (!barras().length) {
-                <gr-empty icon="activity" title="Todavía no hay apariciones" text="Cuando el worker reparta banners verás aquí las apariciones y los clics del día." />
-              } @else {
-                <div class="mt-4 rounded-md border border-line-subtle bg-bg-raised p-4">
-                  <div class="flex flex-wrap items-center justify-between gap-2">
-                    <p class="text-label-s">Apariciones por banner · hoy</p>
-                    <div class="flex flex-wrap items-center gap-3 text-body-xs text-text-tertiary">
-                      @for (t of tiers; track t) {
-                        <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-pill" [style.background]="TIERS[t].color"></span>{{ TIERS[t].l }} × {{ cuenta(t) }}</span>
-                      }
-                    </div>
-                  </div>
-                  <svg class="mt-3 w-full" [attr.viewBox]="'0 0 ' + ancho + ' ' + alto" role="img" aria-label="Apariciones por banner">
-                    <line [attr.x1]="0" [attr.y1]="alto - 1" [attr.x2]="ancho" [attr.y2]="alto - 1" stroke="#2e2729" stroke-width="1" />
-                    @for (b of barras(); track b.x) {
-                      <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h" rx="3" [attr.fill]="b.color" />
-                      <text [attr.x]="b.x + b.w / 2" [attr.y]="b.y - 6" text-anchor="middle" fill="#d1d5db" font-size="11" font-family="Roboto Mono, monospace">{{ b.valor }}</text>
-                      @if (b.nombre) { <text [attr.x]="b.x + b.w / 2" [attr.y]="alto - 8" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Inter, sans-serif">{{ b.nombre }}</text> }
-                    }
-                  </svg>
-                </div>
-
-                <div class="mt-4 overflow-x-auto">
-                  <table class="w-full min-w-[420px] text-left text-body-s">
-                    <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
-                      <tr><th class="py-2 pr-3">Banner</th><th class="px-3 py-2 text-right">Apar.</th><th class="px-3 py-2 text-right">Clics</th><th class="py-2 pl-3 text-right">CTR</th></tr>
-                    </thead>
-                    <tbody>
-                      @for (f of informe()?.banners ?? []; track f.id) {
-                        <tr class="border-b border-line-subtle last:border-0">
-                          <td class="py-2 pr-3">
-                            <span class="inline-flex items-center gap-2">
-                              <span class="text-label-s">{{ f.patrocinador }}</span>
-                              <so-tier [tier]="f.tier" />
-                            </span>
-                          </td>
-                          <td class="px-3 py-2 text-right font-mono">{{ f.apariciones }}</td>
-                          <td class="px-3 py-2 text-right font-mono">{{ f.clics }}</td>
-                          <td class="py-2 pl-3 text-right font-mono">{{ ctr(f) }}</td>
-                        </tr>
-                      } @empty { <tr><td colspan="4" class="py-6 text-center text-text-tertiary">Sin banners.</td></tr> }
-                    </tbody>
-                  </table>
+              </so-ajuste>
+              <hr class="border-line-subtle" />
+              <so-ajuste label="Intervalo entre banners" [ayuda]="errorIntervalo() || 'Mínimo 15 s · cuanto menor, más apariciones'">
+                <so-number ancho="xs" unidad="s" label="Intervalo entre banners en segundos" [disabled]="!puede()" [valor]="form().intervaloSeg" [cambiado]="form().intervaloSeg !== config()?.intervaloSeg" (changed)="set({ intervaloSeg: $event })" />
+              </so-ajuste>
+              @if (errorIntervalo()) { <p class="-mt-2 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="14" />{{ errorIntervalo() }}</p> }
+              <hr class="border-line-subtle" />
+              <so-grupo>PESO POR TIER · REPARTO ESPERADO</so-grupo>
+              @for (t of tiers; track t) {
+                <div class="flex items-center gap-3">
+                  <span class="size-2.5 shrink-0 rounded-pill" [style.background]="TIERS[t].color" aria-hidden="true"></span>
+                  <span class="flex-1 text-label-s">{{ TIERS[t].l }}</span>
+                  <span class="font-mono text-mono-s text-text-tertiary">{{ reparto()[t] }} %</span>
+                  <so-number ancho="xs" unidad="× peso" [label]="'Peso ' + TIERS[t].l" [disabled]="!puede()" [valor]="peso(t)" [cambiado]="peso(t) !== pesoGuardado(t)" (changed)="setPeso(t, $event)" />
                 </div>
               }
-            </div>
+              <div class="flex h-2 gap-0.5 overflow-hidden rounded-2xs" aria-hidden="true">
+                @for (t of tiers; track t) { <span class="h-full" [style.width.%]="reparto()[t]" [style.background]="TIERS[t].color"></span> }
+              </div>
+              <footer class="flex items-center gap-2 border-t border-line-subtle pt-4">
+                <gr-icon [name]="sucio() ? 'pencil' : 'circle-check'" [size]="16" [class]="sucio() ? 'text-warning' : 'text-success'" />
+                <div class="min-w-0 flex-1">
+                  <p class="text-label-s">{{ sucio() ? 'Cambios sin guardar' : 'Todo guardado' }}</p>
+                  <p class="text-body-xs text-text-tertiary">Versión {{ config()?.version ?? 1 }} · aplica al siguiente tic</p>
+                </div>
+                @if (sucio()) { <button grButton size="s" variant="ghost" (click)="descartar()">Descartar</button> }
+              </footer>
+            </so-card>
 
-            <div class="rounded-lg border border-line-subtle bg-bg-card p-5">
-              <h2 class="text-label-xs text-text-tertiary">Cola de pendientes del día</h2>
+            <so-card titulo="Cola de pendientes del día" ayuda="Banners activos que aún no han salido hoy">
               @if (!pendientes().length) {
-                <p class="mt-3 text-body-s text-text-tertiary">Todos los banners activos ya han salido al menos una vez hoy.</p>
+                <p class="flex items-center gap-2 text-body-s text-text-tertiary"><gr-icon name="circle-check" [size]="16" class="text-success" />Todos los banners activos ya han salido al menos una vez hoy.</p>
               } @else {
-                <ul class="mt-3 flex flex-col gap-2">
-                  @for (p of pendientes(); track p.id) {
-                    <li class="flex items-center gap-3 rounded-sm border border-line-subtle bg-bg-raised p-3">
+                <ul class="flex flex-col gap-2">
+                  @for (p of pendientes(); track p.id; let i = $index) {
+                    <li class="flex items-center gap-3 rounded-md bg-bg-raised px-3 py-2.5">
                       <so-tier [tier]="p.tier" />
                       <span class="min-w-0 flex-1 truncate text-label-s">{{ p.patrocinador }}</span>
-                      <span class="shrink-0 text-body-xs text-text-tertiary">espera 1.ª aparición</span>
+                      <span class="shrink-0 text-body-xs text-text-tertiary">{{ i === 0 ? 'siguiente' : 'en cola · ' + (i + 1) + '.º' }}</span>
                     </li>
                   }
                 </ul>
               }
+            </so-card>
+          </div>
+
+          <!-- ===== Informe ===== -->
+          <so-card titulo="Informe del día" [ayuda]="diaCorto(informe()?.dia) + ' · ' + activos() + ' activos · ' + pendientes().length + ' pendientes'" class="self-start">
+            <div class="grid grid-cols-3 gap-3">
+              @for (d of resumen(); track d.l) {
+                <div class="min-w-0 rounded-md bg-bg-raised px-3.5 py-3">
+                  <p class="font-mono text-mono-xs text-text-tertiary">{{ d.l }}</p>
+                  <p class="mt-1 truncate text-ui-h4 md:text-ui-h3">{{ d.v }}</p>
+                  <p class="hidden text-body-xs text-text-tertiary sm:block">{{ d.c }}</p>
+                </div>
+              }
             </div>
-          </section>
+
+            @if (!ranking().length || !totApariciones()) {
+              <gr-empty icon="activity" title="Todavía no hay apariciones" text="Cuando el worker reparta banners verás aquí el ranking de apariciones, los clics y el CTR del día." />
+            } @else {
+              <figure class="flex flex-col gap-3">
+                <figcaption class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span class="mr-auto text-label-s">Apariciones por banner · hoy</span>
+                  @for (t of tiers; track t) {
+                    <span class="inline-flex items-center gap-1.5 text-body-xs text-text-tertiary"><span class="size-2 rounded-pill" [style.background]="TIERS[t].color"></span>{{ TIERS[t].l }}</span>
+                  }
+                  <span class="inline-flex items-center gap-1.5 text-body-xs text-text-tertiary"><span class="h-1 w-3 rounded-pill bg-text-primary/55"></span>Clics</span>
+                </figcaption>
+                <div class="hidden grid-cols-[minmax(0,150px)_minmax(0,1fr)_150px] gap-3 font-mono text-mono-xs text-text-tertiary sm:grid">
+                  <span>Banner</span><span></span><span class="text-right">Apar. · clics · CTR</span>
+                </div>
+                <ol class="flex flex-col gap-2.5" aria-label="Ranking de apariciones">
+                  @for (f of rankingVisible(); track f.id) {
+                    <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,150px)_minmax(0,1fr)_150px]">
+                      <span class="truncate text-body-s" [class]="f.activo ? 'text-text-secondary' : 'text-text-muted'" [title]="f.patrocinador">{{ f.patrocinador }}</span>
+                      <span class="order-last col-span-2 flex flex-col gap-[3px] sm:order-none sm:col-span-1" aria-hidden="true">
+                        <span class="h-3 rounded-[3px]" [style.width.%]="ancho(f.apariciones)" [style.background]="TIERS[f.tier].color"></span>
+                        <span class="h-1 rounded-pill bg-text-primary/55" [style.width.%]="ancho(f.clics)"></span>
+                      </span>
+                      <span class="text-right font-mono text-mono-s whitespace-nowrap">
+                        {{ f.apariciones }} <span class="text-text-tertiary">· {{ f.clics }} · {{ pct(f.clics, f.apariciones) }}</span>
+                      </span>
+                    </li>
+                  }
+                </ol>
+                @if (ranking().length > top) {
+                  <button grButton size="s" variant="ghost" class="self-start" [iconRight]="todos() ? 'chevron-down' : 'chevron-right'" (click)="todos.update(v => !v)">
+                    {{ todos() ? 'Ver solo los ' + top + ' primeros' : 'Ver todos (' + ranking().length + ')' }}
+                  </button>
+                }
+              </figure>
+            }
+          </so-card>
         </div>
       }
     </div>
@@ -208,11 +189,12 @@ export class PatrocinioInformePage {
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
-  protected readonly ancho = ANCHO;
-  protected readonly alto = ALTO;
+  protected readonly todos = signal(false);
+  protected readonly top = TOP;
   protected readonly TIERS = TIERS;
-  protected readonly tiers: (keyof typeof TIERS)[] = ['oro', 'plata', 'bronce'];
+  protected readonly tiers = TIER_LIST;
   protected readonly num = num;
+  protected readonly pct = pct;
   protected readonly diaCorto = diaCorto;
 
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
@@ -243,33 +225,46 @@ export class PatrocinioInformePage {
     const x = this.form().intervaloSeg;
     if (n <= 0 || x <= 0) return '';
     const min = (n * x) / 60;
-    const texto = `Con ${n} banners cada ${x} s, la primera ronda completa tarda ${min >= 10 ? Math.round(min) : Math.round(min * 10) / 10} min`;
-    const aviso = this.informe()?.aviso;
-    return aviso ? `${texto}. ${aviso}` : texto;
+    const cifra = new Intl.NumberFormat('es-ES', { maximumFractionDigits: min >= 10 ? 0 : 1 }).format(min);
+    return `Con ${n} banners cada ${x} s, la primera ronda completa tarda ${cifra} min`;
   });
-  protected readonly barras = computed<Barra[]>(() => {
-    const filas = this.informe()?.banners ?? [];
-    if (!filas.length) return [];
-    const max = Math.max(...filas.map((f) => f.apariciones), 1);
-    const hueco = 14;
-    const w = Math.min(46, (ANCHO - 8) / filas.length - hueco);
-    const paso = (ANCHO - 8) / filas.length;
-    // Con muchas barras el nombre no cabe: se acorta y, si no hay sitio, se omite.
-    const caben = paso >= 34;
-    return filas.map((f, i) => {
-      const h = Math.round(((f.apariciones / max) * (ALTO - 34)) / 1);
-      const nombre = caben ? (f.patrocinador.length > 7 ? f.patrocinador.slice(0, 6) + '…' : f.patrocinador) : '';
-      return {
-        x: 4 + i * paso + (paso - w) / 2,
-        y: ALTO - 1 - h,
-        w,
-        h,
-        color: TIERS[f.tier].color,
-        valor: f.apariciones,
-        nombre,
-      };
-    });
+  /** Ranking por apariciones (desc); la barra más larga es el 100 %. */
+  protected readonly ranking = computed(() => [...(this.informe()?.banners ?? [])].sort((x, y) => y.apariciones - x.apariciones || x.orden - y.orden));
+  protected readonly rankingVisible = computed(() => (this.todos() ? this.ranking() : this.ranking().slice(0, TOP)));
+  private readonly maxAp = computed(() => Math.max(1, ...this.ranking().map((f) => f.apariciones)));
+  protected readonly totApariciones = computed(() => this.ranking().reduce((a, f) => a + f.apariciones, 0));
+  protected readonly totClics = computed(() => this.ranking().reduce((a, f) => a + f.clics, 0));
+  protected readonly resumen = computed(() => [
+    { l: 'APARICIONES', v: num(this.totApariciones()), c: 'hoy en el chat' },
+    { l: 'CLICS', v: num(this.totClics()), c: 'hoy' },
+    { l: 'CTR MEDIO', v: pct(this.totClics(), this.totApariciones()), c: 'clics / apariciones' },
+  ]);
+  /** Reparto esperado por tier (peso × banners activos del tier), en %. */
+  protected readonly reparto = computed(() => {
+    const f = this.form();
+    const n = (t: Tier) => this.informe()?.banners.filter((b) => b.tier === t && b.activo).length ?? 0;
+    const w = { oro: f.pesoOro * n('oro'), plata: f.pesoPlata * n('plata'), bronce: f.pesoBronce * n('bronce') };
+    const tot = w.oro + w.plata + w.bronce || 1;
+    return { oro: Math.round((w.oro / tot) * 100), plata: Math.round((w.plata / tot) * 100), bronce: Math.round((w.bronce / tot) * 100) } as Record<Tier, number>;
   });
+
+  protected ancho(v: number): number {
+    return v ? Math.max(1.5, (v / this.maxAp()) * 100) : 0;
+  }
+  protected peso(t: Tier): number {
+    return this.form()[PESO[t]] as number;
+  }
+  protected pesoGuardado(t: Tier): number | undefined {
+    const c = this.config();
+    return c ? (c[PESO[t] as keyof ConfigPatrocinio] as number) : undefined;
+  }
+  protected setPeso(t: Tier, v: number): void {
+    this.set({ [PESO[t]]: v } as Partial<FormConfig>);
+  }
+  protected descartar(): void {
+    const c = this.config();
+    if (c) this.form.set({ intervaloSeg: c.intervaloSeg, pesoOro: c.pesoOro, pesoPlata: c.pesoPlata, pesoBronce: c.pesoBronce, soloEnDirecto: c.soloEnDirecto, activo: c.activo });
+  }
 
   constructor() {
     effect(() => {
