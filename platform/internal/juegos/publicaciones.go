@@ -36,6 +36,11 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 			continue
 		}
 		sexo, cat := k[:1], k[1:]
+		if !tieneAtletasCategoria(m, sexo, cat) {
+			// The scoreboard does not bring the athletes of the category (degraded): nobody can have won it and the
+			// result is unknown. The category is retried on the next sync of the worker (contract §6.2).
+			continue
+		}
 		var ganadores []uuid.UUID
 		for i := range m.Atletas {
 			ma := &m.Atletas[i]
@@ -67,20 +72,15 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 	}
 
 	// GL and movement points when every category of the sex is published.
-	todas := map[string][]string{} // all categories with athletes per sex (from the scoreboard)
-	for i := range m.Atletas {
-		ma := &m.Atletas[i]
-		k := ma.Sexo + ma.Categoria
-		if !contiene(todas[ma.Sexo], k) {
-			todas[ma.Sexo] = append(todas[ma.Sexo], k)
-		}
-	}
 	for _, sx := range []string{"F", "M"} {
 		clave := "sexo:" + sx
-		if aplicadas[clave] || len(todas[sx]) == 0 {
+		// The categories of the sex that the scoreboard brings: the result of its GL and movement markets is
+		// definitive only when all of them are published (contract §6.2).
+		cats := categoriasDelSexo(m, sx)
+		if aplicadas[clave] || len(cats) == 0 {
 			continue
 		}
-		if !sexoCompleto(publicadas, todas[sx]) {
+		if !resultadoDefinitivoDeCategorias(publicadas, cats) {
 			// Some category of the sex is not published yet: the result of the GL and movement markets is not
 			// definitive. The markets stay closed and the sex is retried on the next sync of the worker.
 			s.logResultadoPendente(j, "gl/movimiento", sx)
@@ -131,17 +131,6 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 		}
 	}
 	return nil
-}
-
-// sexoCompleto reports whether every category of a sex is published (the result of the GL and movement markets
-// of that sex is then definitive).
-func sexoCompleto(publicadas map[string]bool, categorias []string) bool {
-	for _, k := range categorias {
-		if !publicadas[k] {
-			return false
-		}
-	}
-	return true
 }
 
 // motivoPuesto is the marker of the clause adjustment by place (the history row is its idempotency key).
@@ -205,13 +194,4 @@ func cargarPublicacionesTx(ctx context.Context, tx pgx.Tx, jid uuid.UUID) (map[s
 func marcarPublicacionTx(ctx context.Context, tx pgx.Tx, jid uuid.UUID, clave string) error {
 	_, err := tx.Exec(ctx, `INSERT INTO publicaciones (jornada_id, clave) VALUES ($1,$2) ON CONFLICT DO NOTHING`, jid, clave)
 	return err
-}
-
-func contiene(l []string, k string) bool {
-	for _, x := range l {
-		if x == k {
-			return true
-		}
-	}
-	return false
 }

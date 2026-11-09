@@ -613,22 +613,23 @@ func liquidarDesdeMarcadorTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jo
 }
 
 // resultadoDefinitivo reports whether the result of a market is definitive: the category of a `categoria` market
-// has to be published, and a `gl`/`movimiento` market needs every category of its sex published (contract §6.2).
+// has to be published and the scoreboard has to bring its athletes, and a `gl`/`movimiento` market needs every
+// category of its sex published (contract §6.2). A degraded scoreboard (no athletes of the sex, or none of the
+// category) is NOT a definitive result: the market stays closed (409 RESULTADO_PENDIENTE) instead of returning the
+// pot and settling it for good.
 func resultadoDefinitivo(m *Marcador, mc mercadoRow) bool {
 	publicadas := map[string]bool{}
 	for _, k := range m.CategoriasPublicadas {
 		publicadas[k] = true
 	}
 	if mc.Tipo == "categoria" {
-		return publicadas[mc.Sexo+mc.Categoria]
-	}
-	for i := range m.Atletas {
-		ma := &m.Atletas[i]
-		if ma.Sexo == mc.Sexo && !publicadas[ma.Sexo+ma.Categoria] {
+		if !publicadas[mc.Sexo+mc.Categoria] {
 			return false
 		}
+		// Without the athletes of the category nobody can have won it: the result is unknown, not definitive.
+		return tieneAtletasCategoria(m, mc.Sexo, mc.Categoria)
 	}
-	return true
+	return resultadoDefinitivoDeCategorias(publicadas, categoriasDelSexo(m, mc.Sexo))
 }
 
 // actor names the staff member behind the request (like internal/live and internal/chat): it goes in the audit

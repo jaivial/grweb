@@ -86,6 +86,53 @@ type apuestaLote struct {
 	Importe  int64
 }
 
+// categoriasDelSexo returns the weight categories of a sex that the scoreboard brings (contract §6.2): the result of
+// the `gl` and `movimiento` markets of a sex depends on all of them being published.
+func categoriasDelSexo(m *Marcador, sexo string) []string {
+	out := []string{}
+	vistas := map[string]bool{}
+	for i := range m.Atletas {
+		ma := &m.Atletas[i]
+		if ma.Sexo != sexo {
+			continue
+		}
+		k := ma.Sexo + ma.Categoria
+		if vistas[k] {
+			continue
+		}
+		vistas[k] = true
+		out = append(out, k)
+	}
+	return out
+}
+
+// resultadoDefinitivoDeCategorias says whether the result of a market is definitive: there have to be categories in
+// play and all of them have to be published (contract §6.2). Without categories the scoreboard is degraded: the
+// result is unknown, not definitive, and the market must not be settled (409 RESULTADO_PENDIENTE).
+func resultadoDefinitivoDeCategorias(publicadas map[string]bool, categorias []string) bool {
+	if len(categorias) == 0 {
+		return false
+	}
+	for _, k := range categorias {
+		if !publicadas[k] {
+			return false
+		}
+	}
+	return true
+}
+
+// tieneAtletasCategoria says whether the scoreboard brings an athlete of a category: without them nobody can have
+// won it, so the result of its market is unknown (contract §6.2).
+func tieneAtletasCategoria(m *Marcador, sexo, categoria string) bool {
+	for i := range m.Atletas {
+		ma := &m.Atletas[i]
+		if ma.Sexo == sexo && ma.Categoria == categoria {
+			return true
+		}
+	}
+	return false
+}
+
 // premioBote is the payout of one bet after liquidation.
 type premioBote struct {
 	ApuestaID uuid.UUID
