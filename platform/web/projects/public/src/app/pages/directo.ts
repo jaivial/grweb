@@ -16,6 +16,7 @@ import { Lightbox } from '../layout/lightbox';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
+import { PanelSocial } from './directo-social/panel';
 
 const TZ = 'Europe/Madrid';
 const PABELLON = 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp';
@@ -146,7 +147,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
  *  provisional ranking) and finished (replay, results, previous edition). */
 @Component({
   selector: 'gr-en-directo',
-  imports: [Page, GrAlert, GrIcon, GrSkeleton, Luces, Clasificacion, Related, Community],
+  imports: [Page, GrAlert, GrIcon, GrSkeleton, Luces, Clasificacion, Related, Community, PanelSocial],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabeceraMovil]="false">
@@ -158,7 +159,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
           <!-- Video -->
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
-          <section class="relative -mx-5 -mt-4 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border" aria-label="Retransmisión">
+          <section class="relative -mx-5 -mt-4 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
             @if (video(); as v) {
               <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GR Strength Cup" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {
@@ -191,114 +192,119 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
             }
           </section>
 
-          <h1 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h1>
-          <!-- Side panel -->
-          <aside class="flex flex-col gap-4">
-            @switch (d.fase) {
-              @case ('en_directo') {
-                @if (enPlataforma(); as a) {
-                  <section class="rounded-lg border border-accent/40 bg-[linear-gradient(150deg,#3a0f17,#1b1112_70%)] p-5" aria-live="polite">
-                    <p class="flex justify-between text-label-xs text-text-tertiary uppercase"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
-                    <p class="mt-3 font-display text-[30px] leading-none uppercase italic">@if (a.slug) { <a [href]="'/atletas/' + a.slug" class="hover:text-accent-text">{{ a.nombre }}</a> } @else { {{ a.nombre }} }</p>
-                    <p class="mt-1 text-body-s text-text-secondary">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}</p>
-                    <div class="mt-4 flex items-end justify-between gap-3">
-                      <div><p class="text-label-s">{{ MOVN[a.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ ORD[a.numero] }} intento</p></div>
-                      <p class="font-display text-[40px] leading-none text-accent-text italic">{{ kg(a.peso) }} KG</p>
-                    </div>
-                    <div class="mt-4 flex items-center gap-3"><gr-luces [votos]="mostrandoUltimo() ? a.votos : ''" />
-                      @if (mostrandoUltimo()) { <span class="text-label-s" [class]="a.resultado === 'valido' ? 'text-success' : 'text-accent-text'">{{ a.resultado === 'valido' ? 'Válido' : a.resultado === 'nulo' ? 'Nulo' : 'Renuncia' }}</span> }</div>
+          <!-- Panel social del directo (Figma 70): en móvil va bajo el player; en escritorio, en la columna derecha -->
+          <gr-panel-social class="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2" />
+
+          <div class="flex min-w-0 flex-col lg:col-start-1 lg:row-start-2">
+            <h1 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h1>
+            <!-- Contenido de la fase (Figma 27): en escritorio, bajo el player -->
+            <aside class="flex flex-col gap-4">
+              @switch (d.fase) {
+                @case ('en_directo') {
+                  @if (enPlataforma(); as a) {
+                    <section class="rounded-lg border border-accent/40 bg-[linear-gradient(150deg,#3a0f17,#1b1112_70%)] p-5" aria-live="polite">
+                      <p class="flex justify-between text-label-xs text-text-tertiary uppercase"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
+                      <p class="mt-3 font-display text-[30px] leading-none uppercase italic">@if (a.slug) { <a [href]="'/atletas/' + a.slug" class="hover:text-accent-text">{{ a.nombre }}</a> } @else { {{ a.nombre }} }</p>
+                      <p class="mt-1 text-body-s text-text-secondary">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}</p>
+                      <div class="mt-4 flex items-end justify-between gap-3">
+                        <div><p class="text-label-s">{{ MOVN[a.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ ORD[a.numero] }} intento</p></div>
+                        <p class="font-display text-[40px] leading-none text-accent-text italic">{{ kg(a.peso) }} KG</p>
+                      </div>
+                      <div class="mt-4 flex items-center gap-3"><gr-luces [votos]="mostrandoUltimo() ? a.votos : ''" />
+                        @if (mostrandoUltimo()) { <span class="text-label-s" [class]="a.resultado === 'valido' ? 'text-success' : 'text-accent-text'">{{ a.resultado === 'valido' ? 'Válido' : a.resultado === 'nulo' ? 'Nulo' : 'Renuncia' }}</span> }</div>
+                    </section>
+                  } @else {
+                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.flight ? 'Cambio de movimiento' : 'Preparando el siguiente flight' }}</p><p class="mt-1 text-body-s text-text-tertiary">En unos minutos sale el siguiente atleta.</p></section>
+                  }
+                  <!-- on mobile «Siguientes» lives in the «Plataforma» tab (Figma 27) -->
+                  <section class="hidden lg:block">
+                    <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
+                    <ul class="mt-2 divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card">
+                      @for (s of d.siguientes; track $index) {
+                        <li class="flex items-center gap-3 px-4 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill border border-line-strong text-mono-xs">{{ s.numero }}</span>
+                          <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
+                          <span class="font-mono text-mono-s">{{ kg(s.peso) }} kg</span></li>
+                      } @empty { <li class="px-4 py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
+                    </ul>
                   </section>
-                } @else {
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.flight ? 'Cambio de movimiento' : 'Preparando el siguiente flight' }}</p><p class="mt-1 text-body-s text-text-tertiary">En unos minutos sale el siguiente atleta.</p></section>
                 }
-                <!-- on mobile «Siguientes» lives in the «Plataforma» tab (Figma 27) -->
-                <section class="hidden lg:block">
-                  <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
-                  <ul class="mt-2 divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card">
-                    @for (s of d.siguientes; track $index) {
-                      <li class="flex items-center gap-3 px-4 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill border border-line-strong text-mono-xs">{{ s.numero }}</span>
-                        <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
-                        <span class="font-mono text-mono-s">{{ kg(s.peso) }} kg</span></li>
-                    } @empty { <li class="px-4 py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
-                  </ul>
-                </section>
+                @case ('antes') {
+                  @if (futuro()) {
+                    <div class="grid grid-cols-4 gap-2" role="timer" [attr.aria-label]="'Faltan ' + cuentaTexto()">
+                      @for (p of cuenta(); track p.l) { <div class="flex h-[76px] flex-col items-center justify-center rounded-md border border-line-subtle bg-bg-card"><span class="text-display-s tabular-nums">{{ p.v }}</span><span class="text-mono-xs text-text-tertiary">{{ p.l }}</span></div> }
+                    </div>
+                  }
+                  @if (d.proximo; as p) {
+                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                      <p class="text-mono-xs text-text-tertiary">Primer bloque</p>
+                      <p class="mt-2 text-label-m first-letter:uppercase">{{ diaHora(p.inicio) }} · {{ p.titulo }}</p>
+                      <a href="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a>
+                    </section>
+                  } @else {
+                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">Los horarios se publican unas 2 semanas antes</p><a href="/horarios" class="mt-3 inline-flex text-label-s text-accent-text">Ver horarios →</a></section>
+                  }
+                  <a [href]="ics" class="flex h-12 items-center justify-center gap-2 rounded-md bg-accent text-label-m text-white shadow-glow hover:bg-accent-hover"><gr-icon name="calendar-plus" [size]="18" />Recordármelo</a>
+                }
+                @case ('finalizado') {
+                  <gr-alert tone="success" title="La competición ha terminado">Ya puedes consultar los resultados oficiales.
+                    <a [href]="'/resultados/' + anio()" class="mt-2 block text-label-s text-accent-text hover:underline">Ver resultados →</a></gr-alert>
+                  <a href="/ediciones/2025" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
+                    <div class="relative h-40"><img [src]="foto2025" alt="" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
+                    <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Celebrada</span>
+                      <p class="mt-2 font-display text-[22px] uppercase italic">GRStrength Cup 2025</p>
+                      <p class="mt-1 text-body-xs text-text-tertiary">1–2 marzo 2025 · Llíria (Valencia) · AEP-2 Regional</p>
+                      <span class="mt-3 inline-flex text-label-s group-hover:text-accent-text">Ver la edición →</span></div>
+                  </a>
+                }
               }
-              @case ('antes') {
-                @if (futuro()) {
-                  <div class="grid grid-cols-4 gap-2" role="timer" [attr.aria-label]="'Faltan ' + cuentaTexto()">
-                    @for (p of cuenta(); track p.l) { <div class="flex h-[76px] flex-col items-center justify-center rounded-md border border-line-subtle bg-bg-card"><span class="text-display-s tabular-nums">{{ p.v }}</span><span class="text-mono-xs text-text-tertiary">{{ p.l }}</span></div> }
+            </aside>
+
+          @if (d.fase === 'en_directo') {
+            <nav class="mt-8 grid grid-cols-3 border-b border-line-subtle" aria-label="Directo">
+              @for (t of tabs; track t.v) {
+                <button type="button" class="relative h-11 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="tab.set(t.v)">{{ t.l }}
+                  @if (tab() === t.v) { <span class="absolute inset-x-6 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</button>
+              }
+            </nav>
+            <div class="mt-5">
+              @switch (tab()) {
+                @case ('clasificacion') {
+                  @if (d.clasificacion.length > 1) {
+                    <div class="mb-3 flex flex-wrap gap-2">@for (c of d.clasificacion; track c.clave) { <button type="button" class="h-9 rounded-pill border px-3 text-label-s" [class]="catSel() === c.clave ? 'border-accent bg-accent-deep/40' : 'border-line-strong text-text-secondary'" (click)="cat.set(c.clave)">{{ c.corto }}</button> }</div>
+                  }
+                  @if (categoria(); as c) { <gr-clasificacion [c]="c" /> <p class="mt-2 text-body-xs text-text-tertiary">Clasificación provisional: la oficial se publica en /resultados al terminar la categoría.</p> }
+                }
+                @case ('plataforma') {
+                  <section class="mb-4 lg:hidden">
+                    <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
+                    <ul class="mt-2 divide-y divide-line-subtle">
+                      @for (s of d.siguientes; track $index) {
+                        <li class="flex items-center gap-3 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong text-label-xs">{{ s.numero }}</span>
+                          <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
+                          <span class="text-mono-s">{{ kg(s.peso) }} kg</span></li>
+                      } @empty { <li class="py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
+                    </ul>
+                  </section>
+                  <div class="grid gap-3 md:grid-cols-3">
+                    <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Flight</p><p class="mt-1 text-label-m">{{ d.flight?.codigo }} · {{ d.flight?.titulo }}</p><p class="text-body-xs text-text-tertiary">Plataforma {{ d.flight?.plataforma }}</p></div>
+                    <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Movimiento</p><p class="mt-1 text-label-m">{{ MOVN[d.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ d.ronda <= 3 ? 'Ronda ' + d.ronda + ' de 3' : 'Terminado' }}</p></div>
+                    <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Último intento</p>
+                      @if (d.ultimo; as u) { <p class="mt-1 text-label-m">{{ u.nombre }} · {{ kg(u.peso) }} kg</p><div class="mt-1 flex items-center gap-2"><gr-luces [votos]="u.votos" [size]="14" /><span class="text-body-xs text-text-tertiary">{{ MOVN[u.movimiento] }} {{ ORD[u.numero] }}</span></div> }
+                      @else { <p class="mt-1 text-body-s text-text-tertiary">Aún ninguno</p> }</div>
                   </div>
                 }
-                @if (d.proximo; as p) {
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                    <p class="text-mono-xs text-text-tertiary">Primer bloque</p>
-                    <p class="mt-2 text-label-m first-letter:uppercase">{{ diaHora(p.inicio) }} · {{ p.titulo }}</p>
-                    <a href="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a>
-                  </section>
-                } @else {
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">Los horarios se publican unas 2 semanas antes</p><a href="/horarios" class="mt-3 inline-flex text-label-s text-accent-text">Ver horarios →</a></section>
+                @case ('horario') {
+                  <div class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.retrasoMin ? 'Vamos con ' + d.retrasoMin + ' min de retraso' : 'Vamos en hora' }}</p>
+                    <p class="mt-1 text-body-s text-text-tertiary">Los horarios se actualizan con el retraso en directo y marcan el flight que está en la plataforma.</p>
+                    <a href="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a></div>
                 }
-                <a [href]="ics" class="flex h-12 items-center justify-center gap-2 rounded-md bg-accent text-label-m text-white shadow-glow hover:bg-accent-hover"><gr-icon name="calendar-plus" [size]="18" />Recordármelo</a>
               }
-              @case ('finalizado') {
-                <gr-alert tone="success" title="La competición ha terminado">Ya puedes consultar los resultados oficiales.
-                  <a [href]="'/resultados/' + anio()" class="mt-2 block text-label-s text-accent-text hover:underline">Ver resultados →</a></gr-alert>
-                <a href="/ediciones/2025" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
-                  <div class="relative h-40"><img [src]="foto2025" alt="" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
-                  <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Celebrada</span>
-                    <p class="mt-2 font-display text-[22px] uppercase italic">GRStrength Cup 2025</p>
-                    <p class="mt-1 text-body-xs text-text-tertiary">1–2 marzo 2025 · Llíria (Valencia) · AEP-2 Regional</p>
-                    <span class="mt-3 inline-flex text-label-s group-hover:text-accent-text">Ver la edición →</span></div>
-                </a>
-              }
-            }
-          </aside>
-        </div>
-
-        @if (d.fase === 'en_directo') {
-          <nav class="mt-8 grid grid-cols-3 border-b border-line-subtle" aria-label="Directo">
-            @for (t of tabs; track t.v) {
-              <button type="button" class="relative h-11 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="tab.set(t.v)">{{ t.l }}
-                @if (tab() === t.v) { <span class="absolute inset-x-6 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</button>
-            }
-          </nav>
-          <div class="mt-5">
-            @switch (tab()) {
-              @case ('clasificacion') {
-                @if (d.clasificacion.length > 1) {
-                  <div class="mb-3 flex flex-wrap gap-2">@for (c of d.clasificacion; track c.clave) { <button type="button" class="h-9 rounded-pill border px-3 text-label-s" [class]="catSel() === c.clave ? 'border-accent bg-accent-deep/40' : 'border-line-strong text-text-secondary'" (click)="cat.set(c.clave)">{{ c.corto }}</button> }</div>
-                }
-                @if (categoria(); as c) { <gr-clasificacion [c]="c" /> <p class="mt-2 text-body-xs text-text-tertiary">Clasificación provisional: la oficial se publica en /resultados al terminar la categoría.</p> }
-              }
-              @case ('plataforma') {
-                <section class="mb-4 lg:hidden">
-                  <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
-                  <ul class="mt-2 divide-y divide-line-subtle">
-                    @for (s of d.siguientes; track $index) {
-                      <li class="flex items-center gap-3 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong text-label-xs">{{ s.numero }}</span>
-                        <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
-                        <span class="text-mono-s">{{ kg(s.peso) }} kg</span></li>
-                    } @empty { <li class="py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
-                  </ul>
-                </section>
-                <div class="grid gap-3 md:grid-cols-3">
-                  <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Flight</p><p class="mt-1 text-label-m">{{ d.flight?.codigo }} · {{ d.flight?.titulo }}</p><p class="text-body-xs text-text-tertiary">Plataforma {{ d.flight?.plataforma }}</p></div>
-                  <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Movimiento</p><p class="mt-1 text-label-m">{{ MOVN[d.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ d.ronda <= 3 ? 'Ronda ' + d.ronda + ' de 3' : 'Terminado' }}</p></div>
-                  <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Último intento</p>
-                    @if (d.ultimo; as u) { <p class="mt-1 text-label-m">{{ u.nombre }} · {{ kg(u.peso) }} kg</p><div class="mt-1 flex items-center gap-2"><gr-luces [votos]="u.votos" [size]="14" /><span class="text-body-xs text-text-tertiary">{{ MOVN[u.movimiento] }} {{ ORD[u.numero] }}</span></div> }
-                    @else { <p class="mt-1 text-body-s text-text-tertiary">Aún ninguno</p> }</div>
-                </div>
-              }
-              @case ('horario') {
-                <div class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.retrasoMin ? 'Vamos con ' + d.retrasoMin + ' min de retraso' : 'Vamos en hora' }}</p>
-                  <p class="mt-1 text-body-s text-text-tertiary">Los horarios se actualizan con el retraso en directo y marcan el flight que está en la plataforma.</p>
-                  <a href="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a></div>
-              }
-            }
+            </div>
+          } @else {
+            <gr-related class="mt-14 block" titulo="Mientras tanto" [items]="mientras" />
+          }
           </div>
-        } @else {
-          <gr-related class="mt-14 block" titulo="Mientras tanto" [items]="mientras" />
-        }
+        </div>
         <gr-community class="mt-14 block" />
       }
     </gr-page>

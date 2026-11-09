@@ -138,6 +138,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublic()
 	s.registerArea()
 	s.registerInternal()
+	s.registerOpenLifter()
 	s.initPagos()
 	s.registerInscripcion()
 	s.registerInscripcionAdmin()
@@ -234,7 +235,11 @@ func contacto(ctx context.Context, tx pgx.Tx, cid uuid.UUID, data map[string]any
 }
 
 func hist(ctx context.Context, tx pgx.Tx, atleta uuid.UUID, accion, detalle string) error {
-	_, err := tx.Exec(ctx, `INSERT INTO historial (id, atleta_id, actor, accion, detalle) VALUES ($1,$2,$3,$4,$5)`, newID(), atleta, actor(ctx), accion, detalle)
+	return histPor(ctx, tx, atleta, actor(ctx), accion, detalle)
+}
+
+func histPor(ctx context.Context, tx pgx.Tx, atleta uuid.UUID, por, accion, detalle string) error {
+	_, err := tx.Exec(ctx, `INSERT INTO historial (id, atleta_id, actor, accion, detalle) VALUES ($1,$2,$3,$4,$5)`, newID(), atleta, por, accion, detalle)
 	return err
 }
 

@@ -169,10 +169,15 @@ spec:
         - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
         - podSelector: { matchLabels: { grcup.dev/servicio: ai } }
         - podSelector: { matchLabels: { grcup.dev/servicio: athletes } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: chat } }
         - podSelector: { matchLabels: { grcup.dev/servicio: cms } }
         - podSelector: { matchLabels: { grcup.dev/servicio: crm } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: donaciones } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: fans } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: juegos } }
         - podSelector: { matchLabels: { grcup.dev/servicio: live } }
         - podSelector: { matchLabels: { grcup.dev/servicio: messaging } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: patrocinio } }
         - podSelector: { matchLabels: { grcup.dev/servicio: raffle } }
         - podSelector: { matchLabels: { grcup.dev/servicio: realtime } }
         - podSelector: { matchLabels: { grcup.dev/servicio: schedule } }

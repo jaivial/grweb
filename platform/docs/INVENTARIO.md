@@ -20,6 +20,11 @@
 | `ai` | Pasarela MiniMax (MiniMax-M3.1-Flash): asistente de diseño, textos, SEO; presupuesto y registro |
 | `realtime` | SSE: stream público, admin y pantalla desde Redis Streams con Last-Event-ID |
 | `audit` | Auditoría, actividad, notificaciones, KPIs del Inicio, exportaciones y trabajos |
+| `fans` *(paso 17)* | Cuentas de directo (atleta o público), alias, enlace mágico, sesión `grcup_fan`, baneos |
+| `chat` *(paso 17)* | Salas por jornada, mensajes (WebSocket, SSE y REST), moderación, límites, contadores e hitos de recompensa |
+| `donaciones` *(paso 17)* | Donativos con Stripe (o pasarela simulada), webhook, ranking de donantes, reembolsos |
+| `patrocinio` *(paso 17)* | Banners de patrocinadores, tiers y pesos, cola con apariciones garantizadas por jornada, clics |
+| `juegos` *(paso 17)* | Jornadas, carteras (porra y fantasy), mercados, cláusulas, puntos, premios y clasificaciones; `juegos worker` consume los eventos de recompensas y liquidación |
 
 ## 2. API actual (.NET) → servicio (174 endpoints: 118 migran, 43 se retiran, 13 por decidir)
 
@@ -265,3 +270,81 @@ Todos viajan por el bus `grcup:events` (Redis Streams, Redis de kraken) y los en
 - Endpoints v7 sin dueño: **0**
 - Tablas v7 sin dueño: **0**
 - Entidades EF sin destino: **0**
+
+## 10. Paso 17 · directo social (nuevo)
+
+`chat`, `donativos`, `patrocinio`, `porra` y GRS Fantasy. Contrato: `docs/DIRECTO-SOCIAL.md`. Una base de datos por servicio (`grcup_fans`, `grcup_chat`, `grcup_donaciones`, `grcup_patrocinio`, `grcup_juegos`), jornada = `(competition_id, dia date)` y `dia` (fecha Europe/Madrid) en todos los servicios salvo `juegos`, que es dueño de `jornadas`.
+
+### Servicios y despliegue
+
+| Servicio | HPA | Memoria (req/lim) | Notas |
+|---|---|---|---|
+| `fans` | 1–3 | 64Mi/256Mi | Sesión `grcup_fan` (pkg/fanauth); llama a `athletes` y `competition` |
+| `chat` | 2–8 | 64Mi/384Mi | Ruta caliente; `CHAT_MAX_CONEXIONES=10000`; WebSocket + SSE + REST |
+| `donaciones` | 1–3 | 64Mi/256Mi | Stripe con la integración cifrada de `competition` (como `raffle`); webhook propio |
+| `patrocinio` | 1–2 | 64Mi/256Mi | Worker con bloqueo en Redis; consulta el estado de `live` |
+| `juegos` | 2–4 | 64Mi/256Mi | Llama a `live` (marcador interno) y `competition` |
+| `juegos-worker` | 1 (fija) | 64Mi/256Mi | Mismo binario e imagen que `juegos` con `args: ["worker"]`; sin Service ni probes |
+
+Rutas nuevas en el `routeTable` del gateway (antes del catch-all de `competition`): `fans`, `chat`, `donaciones` (más `POST /api/webhooks/pagos/donaciones` y `/api/pagos/simulado/donaciones/`), `patrocinio` y `juegos`, con sus variantes `{c}` admin y `{p}` pública. El nginx del host ya proxya WebSocket en `/api/` (`proxy_http_version 1.1`, `Upgrade`, `Connection` con `map $http_upgrade`) y usa `proxy_read_timeout 3600s`.
+
+### Tablas nuevas (por base de datos)
+
+| Servicio | Tabla | Columnas |
+|---|---|---|
+| `fans` | `fans` | Id, CompetitionId, Email (citext), EmailHash, Tipo (atleta\|publico), Alias (citext), AtletaId, BaneadoHasta, BaneadoMotivo, Version, CreatedAt, UpdatedAt · UNIQUE(competition_id, email), UNIQUE(competition_id, alias) |
+| `fans` | `accesos` | Id, CompetitionId, TokenHash (único), FanEmail, EmailHash, Tipo, Alias, Ip (/24 o /48), ExpiresAt, UsadoAt, CreatedAt |
+| `chat` | `config_chat` | CompetitionId (PK), Activo, ModoLentoSeg, PalabrasProhibidas[], DominiosPermitidos[], MaxHitos, Version |
+| `chat` | `mensajes` | Id (text = id del stream), CompetitionId, Dia, FanId, Alias, Tipo, Texto, Borrado, Reportes, CreatedAt |
+| `chat` | `silencios` | CompetitionId, FanId, Hasta, Motivo, Por |
+| `donaciones` | `donaciones` | Id, CompetitionId, Dia, FanId, Alias, Importe, Coins, Mensaje, Anonimo, Estado (pendiente\|pagada\|caducada\|reembolsada), Proveedor, SessionId, PaymentId, CreatedAt, PagadaAt |
+| `donaciones` | `config_donaciones` | CompetitionId (PK), Activo, Minimo, Maximo, CoinsPorEuro, ImportesSugeridos[], Version |
+| `donaciones` | `webhook_eventos` | Id (PK), RecibidoAt |
+| `patrocinio` | `banners` | Id, CompetitionId, Patrocinador, ImagenUrl, ImagenMovilUrl, UrlDestino, Tier (oro\|plata\|bronce), Activo, Desde, Hasta, Orden, Version |
+| `patrocinio` | `config_patrocinio` | CompetitionId (PK), IntervaloSeg (def. 90, mín. 15), PesoOro 3, PesoPlata 2, PesoBronce 1, SoloEnDirecto, Activo |
+| `patrocinio` | `apariciones` | Id, CompetitionId, BannerId, Dia, MostradoAt |
+| `patrocinio` | `clics` | BannerId, Dia, At, IpHash |
+| `juegos` | `jornadas` | Id, CompetitionId, Dia, Nombre, Estado (borrador\|abierta\|en_juego\|cerrada) |
+| `juegos` | `saldos` | JornadaId, FanId, Moneda (porra\|fantasy), Saldo ≥ 0, Version |
+| `juegos` | `movimientos` | Id, JornadaId, FanId, Moneda, Importe, Motivo, Ref (único), CreatedAt |
+| `juegos` | `mercados` | Id, JornadaId, Tipo (categoria\|gl\|movimiento), Sexo, Categoria, Movimiento, Estado (abierto\|cerrado\|liquidado), Resultado |
+| `juegos` | `apuestas` | Id, MercadoId, FanId, AtletaId, Importe, CreatedAt |
+| `juegos` | `fantasy_atletas` | JornadaId, AtletaId, NombrePublico, Sexo, Categoria, Clausula, DuenoFanId, Titular, ProtegidoHasta, Version · PK(jornada_id, atleta_id) |
+| `juegos` | `fichajes` | Id, JornadaId, AtletaId, DeFan, AFan, Tipo (compra\|venta\|clausulazo), Precio, CreatedAt |
+| `juegos` | `historial_clausulas` | JornadaId, AtletaId, Clausula, Delta, Motivo, CreatedAt |
+| `juegos` | `puntos` | Id, JornadaId, FanId, AtletaId, Concepto, Puntos, Ref (único), CreatedAt |
+| `juegos` | `intentos_vistos` | JornadaId, AtletaId, Mov, Numero, Resultado, DuenoFanId, Titular |
+| `juegos` | `premios` | Id, CompetitionId, JornadaId, Ranking (porra\|fantasy\|donantes), PuestoDesde, PuestoHasta, Titulo, Descripcion, ImagenUrl, ValorTexto, Patrocinador, Orden, Activo |
+| `juegos` | `config_juegos` | CompetitionId (PK), ajustes de puntos, cláusulas (mín/máx, protección, max_clausulazos) y recompensas |
+
+### Endpoints nuevos
+
+| Servicio | Endpoints |
+|---|---|
+| `fans` | `POST /api/competiciones/{slug}/fans/acceso` REST · Nuevo · 70<br>`GET /api/competiciones/{slug}/fans/acceso/{token}` REST · Nuevo · 70<br>`POST /api/competiciones/{slug}/fans/canjear` REST · Nuevo · 70<br>`GET /api/competiciones/{slug}/fans/yo` REST · Nuevo · 70<br>`PATCH /api/competiciones/{slug}/fans/yo` REST · Nuevo · 70<br>`POST /api/competiciones/{slug}/fans/salir` REST · Nuevo · 70<br>`GET C/fans?estado=&q=&pagina=` REST · Nuevo · 73<br>`POST C/fans/{fanId}/banear` REST · Nuevo · 73<br>`POST C/fans/{fanId}/desbanear` REST · Nuevo · 73 |
+| `chat` | `GET /api/competiciones/{slug}/chat/ws` WS · Nuevo · 70<br>`GET /api/competiciones/{slug}/chat/stream` SSE · Nuevo · 70<br>`POST /api/competiciones/{slug}/chat/mensajes` REST · Nuevo · 70<br>`GET /api/competiciones/{slug}/chat/mensajes?antes=&limite=` REST · Nuevo · 70<br>`POST /api/competiciones/{slug}/chat/mensajes/{id}/reportar` REST · Nuevo · 70<br>`GET/PUT C/chat/config` REST · Nuevo · 73<br>`DELETE C/chat/mensajes/{id}` REST · Nuevo · 73<br>`POST C/chat/fans/{fanId}/silenciar` REST · Nuevo · 73<br>`GET C/chat/mensajes?reportados=` REST · Nuevo · 73 |
+| `donaciones` | `POST /api/competiciones/{slug}/donaciones` REST · Nuevo · 70<br>`POST /api/webhooks/pagos/donaciones` WEBHOOK · Nuevo · 70<br>`GET /api/competiciones/{slug}/donaciones/ranking?dia=` REST · Nuevo · 70<br>`GET/PUT C/donaciones/config` REST · Nuevo · 73<br>`GET C/donaciones?estado=&dia=` REST · Nuevo · 73<br>`POST C/donaciones/{id}/reembolso` REST · Nuevo · 73 |
+| `patrocinio` | `GET /api/competiciones/{slug}/patrocinio/banners/{id}/clic` REST · Nuevo · 70<br>`GET/POST/PUT C/patrocinio/banners[/{id}]` REST · Nuevo · 73<br>`GET/PUT C/patrocinio/config` REST · Nuevo · 73<br>`GET C/patrocinio/informe?dia=` REST · Nuevo · 73 |
+| `juegos` | `GET /api/competiciones/{slug}/juegos/jornadas[/{jid}]` REST · Nuevo · 70<br>`GET /api/competiciones/{slug}/juegos/porra/mercados?jornada=` REST · Nuevo · 71<br>`POST /api/competiciones/{slug}/juegos/porra/apuestas` REST · Nuevo · 71<br>`GET /api/competiciones/{slug}/juegos/porra/mis-apuestas` REST · Nuevo · 71<br>`GET /api/competiciones/{slug}/juegos/porra/clasificacion` REST · Nuevo · 71<br>`GET /api/competiciones/{slug}/juegos/fantasy/mercado` REST · Nuevo · 72<br>`GET /api/competiciones/{slug}/juegos/fantasy/mi-equipo` REST · Nuevo · 72<br>`POST /api/competiciones/{slug}/juegos/fantasy/comprar\|vender\|clausulazo\|alineacion` REST · Nuevo · 72<br>`GET /api/competiciones/{slug}/juegos/fantasy/clasificacion` REST · Nuevo · 72<br>`GET /api/competiciones/{slug}/juegos/fantasy/atletas/{aid}` REST · Nuevo · 72<br>`GET /api/competiciones/{slug}/juegos/cartera` REST · Nuevo · 71<br>`GET /api/competiciones/{slug}/juegos/premios?jornada=` REST · Nuevo · 71<br>`GET/POST/PUT C/juegos/jornadas[/{jid}]` y `C/juegos/jornadas/{jid}/estado` REST · Nuevo · 73<br>`POST C/juegos/porra/mercados[/{id}/cerrar\|liquidar]` REST · Nuevo · 73<br>`GET/PUT C/juegos/config` REST · Nuevo · 73<br>`GET/POST/PUT/DELETE C/juegos/premios[/{id}]` REST · Nuevo · 73<br>`GET C/juegos/clasificaciones?jornada=` REST · Nuevo · 73 |
+| `live` (§8) | `GET /internal/competiciones/{cid}/marcador?dia=` REST · Nuevo · — (solo `juegos`) |
+| `athletes` (propuesta) | `GET /internal/competiciones/{cid}/atletas/por-email?email=` REST · Pendiente de asignar · — (solo `fans`) |
+
+### Eventos nuevos (bus `grcup:events`)
+
+| Evento | Productor | Audiencia | Payload |
+|---|---|---|---|
+| `fans.email_solicitado` | `fans` | Internal | { para, plantilla: "fans-acceso", vars: { alias, tipo, enlace } } |
+| `fans.baneado` | `fans` | Internal | { fanId, alias, hasta, motivo } |
+| `chat.hito` | `chat` | Internal | { fanId, alias, dia, mensajes: N } (máx. 100 hitos por fan y jornada) |
+| `donacion.confirmada` | `donaciones` | Internal | { donacionId, fanId, alias (o «Anónimo»), importe, coins, mensaje, dia } |
+| `donacion.anunciada` | `donaciones` | Public | { alias (o «Anónimo»), importe, coins, dia } (sin identificadores ni mensaje) |
+| `donacion.reembolsada` | `donaciones` | Internal | { donacionId, fanId, importe, coins } |
+| `patrocinio.banner` | `patrocinio` | Public | { bannerId, patrocinador, imagenUrl, imagenMovilUrl, clicUrl, tier, dia } |
+| `juegos.porra.cierre_manual` | `juegos` | Admin (`directo.operar`) | { mercadoId, por } (cerrar a mano desde el backoffice) |
+| `juegos.porra.devolucion` | `juegos` | Admin (`directo.operar`) | { mercadoId, jornadaId, por } (anular y devolver desde el backoffice) |
+| `fantasy.clausula` | `juegos-worker` | Public | { jornadaId, atletaId, clausula, delta } |
+| `fantasy.fichaje` | `juegos` | Public | { jornadaId, atletaId, tipo, aliasDe, aliasA, precio } |
+| `porra.mercado` | `juegos` | Public | { mercadoId, estado } |
+| `juegos.clasificacion` | `juegos` | Public | { jornadaId, ranking } (máx. uno cada 5 s por jornada) |
+
+Consumidores: `chat` inyecta `donacion.confirmada`, `patrocinio.banner` y `fans.baneado` en la sala; `juegos-worker` consume `chat.hito`, `donacion.confirmada\|reembolsada` y los veredictos de `live` para recompensas, cláusulas y puntos (idempotentes por `ref`).

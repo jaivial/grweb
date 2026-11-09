@@ -1,0 +1,14 @@
+# Production overrides the QA WebSocket origin whitelist of the chat (the domains decided 30/10/2026).
+# Strategic merge: the env list merges by name, so only CHAT_ORIGENES changes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat
+spec:
+  template:
+    spec:
+      containers:
+        - name: chat
+          env:
+            - name: CHAT_ORIGENES
+              value: "grcup.menustudioai.com,grcup.menustudioai.com:*"

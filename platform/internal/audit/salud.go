@@ -46,7 +46,7 @@ type Salud struct {
 }
 
 // The gateway is not listed: this request came through it (and its network policy only admits web traffic).
-var servicios = []string{"identity", "competition", "cms", "athletes", "schedule", "live", "ticketing", "raffle", "crm", "messaging", "ai", "realtime"}
+var servicios = []string{"identity", "competition", "cms", "athletes", "schedule", "live", "ticketing", "raffle", "crm", "messaging", "ai", "realtime", "openlifter"}
 
 func (s *Svc) salud(ctx context.Context, cid uuid.UUID) Salud {
 	o := Salud{Generado: time.Now().UTC(), Servicios: make([]Servicio, len(servicios)), Grupos: []Grupo{}}

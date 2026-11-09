@@ -1,9 +1,11 @@
 # Local development stack. Mirrors QA: PostgreSQL 17 (one DB per service), Redis 6.0 (same major as kraken), Mailpit.
 # make dev-up  → gateway on http://127.0.0.1:18300, Mailpit on http://127.0.0.1:18325
+# Every service carries a mem_limit (machine rule: the dev stack shares the laptop with builds).
 name: grcup-dev
 
 x-svc: &svc
   restart: unless-stopped
+  mem_limit: 256m
   depends_on:
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -20,6 +22,7 @@ x-env: &env
 services:
   postgres:
     image: postgres:17-alpine
+    mem_limit: 512m
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: dev-postgres
@@ -33,6 +36,7 @@ services:
 
   redis:
     image: redis:6.0-alpine
+    mem_limit: 128m
     command: ["redis-server", "--requirepass", "dev-redis", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "dev-redis", "ping"]
@@ -41,6 +45,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.27
+    mem_limit: 256m
     ports:
       - "127.0.0.1:18325:8025"
 
@@ -57,6 +62,7 @@ services:
     build: { context: ../.., args: { SVC: identity, VERSION: "${VERSION:-dev}" } }
     command: ["bootstrap-root"]
     restart: "no"
+    mem_limit: 256m
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -78,6 +84,7 @@ services:
     build: { context: ../.., args: { SVC: competition, VERSION: "${VERSION:-dev}" } }
     command: ["seed-grcup"]
     restart: on-failure
+    mem_limit: 256m
     depends_on:
       identity-bootstrap: { condition: service_completed_successfully }
       identity: { condition: service_started }
@@ -99,28 +106,167 @@ services:
     environment:
       <<: *env
 
-  gateway:
+  fans:
     <<: *svc
-    build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
+    build: { context: ../.., args: { SVC: fans, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
-      UPSTREAMS: identity,competition,audit,realtime
-      CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
-    ports:
-      - "127.0.0.1:18300:8080"
+      DATABASE_URL: postgres://grcup_fans:dev_fans@postgres:5432/grcup_fans?sslmode=disable
+      COOKIE_SECURE: "false"
 
-  # The athletes of the competition (the public form of «alta de atleta» and the private files it needs).
+  chat:
+    <<: *svc
+    mem_limit: 768m  # ~200 KiB per connection (docs/carga/2026-11-08-chat.md)
+    build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
+      CHAT_MAX_CONEXIONES: "10000"
+      # White list of Origin hosts for the WebSocket handshake (the gateway rewrites the Host): in dev the web
+      # runs in localhost (4200/4201).
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
+
+  donaciones:
+    <<: *svc
+    build: { context: ../.., args: { SVC: donaciones, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_donaciones:dev_donaciones@postgres:5432/grcup_donaciones?sslmode=disable
+
+  patrocinio:
+    <<: *svc
+    build: { context: ../.., args: { SVC: patrocinio, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_patrocinio:dev_patrocinio@postgres:5432/grcup_patrocinio?sslmode=disable
+
+  juegos:
+    <<: *svc
+    build: { context: ../.., args: { SVC: juegos, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_juegos:dev_juegos@postgres:5432/grcup_juegos?sslmode=disable
+
+  juegos-worker:
+    <<: *svc
+    build: { context: ../.., args: { SVC: juegos, VERSION: "${VERSION:-dev}" } }
+    command: ["worker"]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_juegos:dev_juegos@postgres:5432/grcup_juegos?sslmode=disable
+
   athletes:
     <<: *svc
     build: { context: ../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
       DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
-      # The private files of the requests (the processed photo of a request, private until it is approved)
+      # The private files of the «alta de atleta» requests (the processed photo, private until it is approved)
       # and the published copy when the competition has no CDN.
       ATLETAS_DIR: /data/atletas
     volumes:
       - atletas-data:/data/atletas
+
+  athletes-seed:
+    build: { context: ../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      athletes: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+
+  schedule:
+    <<: *svc
+    build: { context: ../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  schedule-seed:
+    build: { context: ../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      athletes-seed: { condition: service_completed_successfully }
+      schedule: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  live:
+    <<: *svc
+    build: { context: ../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  live-seed:
+    build: { context: ../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      live: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  cms:
+    <<: *svc
+    build: { context: ../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    volumes:
+      - cmsdata:/data/medios
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  cms-seed:
+    build: { context: ../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      cms: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  messaging:
+    <<: *svc
+    build: { context: ../.., args: { SVC: messaging, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_messaging:dev_messaging@postgres:5432/grcup_messaging?sslmode=disable
+
+  # Réplica del chat con puerto publicado para la prueba de carga (cmd/carga-chat sin pasar por el gateway).
+  chat-load:
+    <<: *svc
+    mem_limit: 768m  # ~200 KiB per connection (docs/carga/2026-11-08-chat.md)
+    build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
+      CHAT_MAX_CONEXIONES: "10000"
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
+    ports:
+      - "127.0.0.1:18301:8080"
+
+  gateway:
+    <<: *svc
+    build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos,athletes,schedule,live,cms,messaging
+      CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
+    ports:
+      - "127.0.0.1:18300:8080"
 
   # WhatsApp (evo-weai). The image comes from its own repository (the release, not the sources):
   #   docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.14 \
@@ -151,3 +297,4 @@ volumes:
   pgdata:
   weai-data:
   atletas-data:
+  cmsdata:

@@ -3,6 +3,8 @@ import { Component, type ReactNode } from 'react';
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
+  /** Called once with the caught error (e.g. to log it with a scoped logger). */
+  onError?: (error: Error) => void;
 }
 
 interface ErrorBoundaryState {
@@ -21,7 +23,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught:', error, errorInfo);
+    if (this.props.onError) this.props.onError(error);
+    else console.error('ErrorBoundary caught:', error, errorInfo);
   }
 
   handleRetry = () => {
@@ -31,7 +34,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render(): ReactNode {
     if (this.state.hasError) {
-      if (this.props.fallback) return this.props.fallback;
+      if (this.props.fallback !== undefined) return this.props.fallback;
       return (
         <div className="min-h-screen bg-dark-base flex items-center justify-center p-4" data-ui="error-boundary">
           <div className="text-center max-w-md" data-ui="error-boundary-content">

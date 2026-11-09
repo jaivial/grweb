@@ -85,7 +85,9 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerMesa()
 	s.registerRetransmision()
 	s.registerResultados()
+	s.registerMarcador()
 	s.registerPublic()
+	s.registerOpenLifter()
 	return nil
 }
 

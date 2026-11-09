@@ -2,12 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrIconButton, GrLogo } from '@grcup/ui';
+import { GrButton, GrIcon, GrIconButton, GrLogo, GrToaster } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
 import { Seo } from '../core/seo';
+import { FanSession } from '../core/fan';
 import { Newsletter } from './newsletter';
+import { AccesoModal } from '../pages/directo-social/acceso-modal';
 
 export interface NavLink {
   label: string;
@@ -209,10 +211,29 @@ export class Navbar {
   protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 }
 
+/**
+ * Overlays globales de la web: el modal de acceso al directo (una sola instancia: cualquier página puede pedirlo
+ * con `FanSession.abrirAcceso()`) y el bandeja de avisos.
+ */
+@Component({
+  selector: 'gr-overlays',
+  imports: [AccesoModal, GrToaster],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<gr-acceso-modal /><gr-toaster />`,
+})
+export class Overlays {
+  private readonly fan = inject(FanSession);
+
+  constructor() {
+    // The session of the fan is the cookie httpOnly `grcup_fan`: the browser asks once and everyone la usa.
+    if (isPlatformBrowser(inject(PLATFORM_ID))) void this.fan.cargar();
+  }
+}
+
 /** Footer (Figma «Footer»). */
 @Component({
   selector: 'gr-footer',
-  imports: [GrLogo, GrIcon, Newsletter],
+  imports: [GrLogo, GrIcon, Newsletter, Overlays],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block border-t border-line-subtle bg-bg-deep' },
   template: `
@@ -291,6 +312,8 @@ export class Navbar {
       <button type="button" (click)="arriba()" aria-label="Volver arriba" class="fixed right-4 bottom-[104px] z-40 flex size-12 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card md:hidden"><gr-icon name="arrow-up" [size]="20" /></button>
     }
     }
+    <!-- Modal de acceso al directo y avisos: una sola instancia en toda la web -->
+    <gr-overlays />
   `,
 })
 export class Footer {

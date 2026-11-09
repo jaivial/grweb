@@ -162,5 +162,8 @@ spec:
     - from:
         - podSelector: { matchLabels: { grcup.dev/servicio: gateway } }
         - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: juegos } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: openlifter } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: patrocinio } }
       ports:
         - { port: 8080, protocol: TCP }

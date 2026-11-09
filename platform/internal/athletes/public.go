@@ -2,6 +2,7 @@ package athletes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -455,6 +456,8 @@ type AtletaPlan struct {
 	Licencia     string   `json:"licencia"`
 	// Public profile only: the sentence the speaker can read («Cuarta competición · objetivo 360 kg»).
 	Frase string `json:"frase,omitempty"`
+	// Public profile with image consent only (the same rule as the public pages): the avatar of the fantasy pitch.
+	FotoURL string `json:"fotoUrl,omitempty" doc:"Solo con perfil público e imagen consentida"`
 }
 
 // registerInternal exposes the confirmed athletes to other services and lets schedule write the published times.
@@ -478,9 +481,39 @@ func (s *Svc) registerInternal() {
 					DivisionNombre: DivisionNombre(r.Division), Club: r.Club, TotalPrevisto: r.totalPrevisto(), Seguidores: r.Seguidores,
 					PesoCorporal: r.PesoCorporal, Primeros: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, RackSQ: r.RackSQ, RackBP: r.RackBP, Licencia: r.Licencia}
 				if a.Publico {
-					a.Slug, a.Frase = r.Slug, r.Frase
+					a.Slug, a.Frase, a.FotoURL = r.Slug, r.Frase, r.fotoPublica(d)
 				}
 				o.Body = append(o.Body, a)
+			}
+			return o, nil
+		})
+	// fans (cuentas de directo, paso 17): an account of type «atleta» is accepted only when its email matches a
+	// confirmed or reserve athlete of the competition. Answers only the id (never the athlete's data).
+	type porEmailIn struct {
+		CID   uuid.UUID `path:"cid"`
+		Email string    `query:"email" maxLength:"254"`
+	}
+	type porEmailOut struct {
+		Body struct {
+			ID uuid.UUID `json:"id"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-atleta-por-email", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/atletas/por-email", Summary: "Atleta con ese email (solo fans)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *porEmailIn) (*porEmailOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			o := &porEmailOut{}
+			email := strings.TrimSpace(in.Email)
+			if email == "" {
+				return nil, problem.NotFound("Sin atleta con ese email.")
+			}
+			err := s.a.DB.QueryRow(ctx, `SELECT id FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY estado = 'confirmado' DESC LIMIT 1`, in.CID, email).Scan(&o.Body.ID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, problem.NotFound("Sin atleta con ese email.")
+			}
+			if err != nil {
+				return nil, err
 			}
 			return o, nil
 		})
