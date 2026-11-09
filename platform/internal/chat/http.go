@@ -195,7 +195,9 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 				raw, _ := m.Values["d"].(string)
 				if json.Unmarshal([]byte(raw), &it) == nil && it.T != "" {
 					it.ID = m.ID
-					b, _ := json.Marshal(it)
+					// el replay es público (la conexión es anónima): el UUID del fan se sustituye por su
+					// seudónimo, igual que en el SSE y en el fanout de la sala
+					b, _ := json.Marshal(it.publica(s.hub.hashFan))
 					if !escribir(b) {
 						return
 					}
@@ -625,7 +627,9 @@ func (s *Svc) historialDB(ctx context.Context, cid uuid.UUID, dia, antes string,
 		}
 		it.Ts = ts
 		it.Dia = dia
-		out = append(out, it)
+		// el historial es público: el UUID del fan se sustituye por su seudónimo, igual que en la parte que
+		// sale de Redis
+		out = append(out, it.publica(s.hub.hashFan))
 	}
 	return out, nil
 }
