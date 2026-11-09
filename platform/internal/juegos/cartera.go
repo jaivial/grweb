@@ -124,10 +124,14 @@ func acreditarTx(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m M
 
 // retirarLoQueHaya withdraws up to importe (never below zero): a refund of a donation takes back the fantasy
 // reward when the balance allows it and, if not, leaves the rest noted (contract §5/§6.4). Idempotent by ref,
-// like every withdrawal and credit of the ledger.
+// like every withdrawal and credit of the ledger. The wallet row is locked FOR UPDATE and the debit is atomic
+// (LEAST): the balance cannot change under our feet and the CHECK saldo >= 0 can never abort the transaction.
 func retirarLoQueHaya(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m Moneda, importe int64, motivo, ref string) error {
+	if importe <= 0 {
+		return nil
+	}
 	var saldo int64
-	err := tx.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = $3`, j.ID, fanID, m).Scan(&saldo)
+	err := tx.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = $3 FOR UPDATE`, j.ID, fanID, m).Scan(&saldo)
 	if db.IsNoRows(err) {
 		return nil // never had a wallet: nothing to withdraw
 	}
@@ -141,7 +145,7 @@ func retirarLoQueHaya(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID
 	if cuanto <= 0 {
 		return nil
 	}
-	// The ledger row first: a repeated refund (same ref) is a no-op.
+	// The ledger row first: a repeated refund (same ref) is a no-op. It records what was really withdrawn.
 	tag, err := tx.Exec(ctx, `INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,$4,$5,$6,$7)
 		ON CONFLICT (ref) DO NOTHING`,
 		newID(), j.ID, fanID, m, -cuanto, motivo, ref)
@@ -151,7 +155,10 @@ func retirarLoQueHaya(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID
 	if tag.RowsAffected() == 0 {
 		return nil
 	}
-	_, err = tx.Exec(ctx, `UPDATE saldos SET saldo = saldo - $1, version = version + 1, updated_at = now()
-		WHERE jornada_id = $2 AND fan_id = $3 AND moneda = $4`, cuanto, j.ID, fanID, m)
-	return err
+	// The row is locked, so LEAST(saldo, importe) is exactly `cuanto`: the balance never goes below zero.
+	if _, err := tx.Exec(ctx, `UPDATE saldos SET saldo = saldo - LEAST(saldo, $1), version = version + 1, updated_at = now()
+		WHERE jornada_id = $2 AND fan_id = $3 AND moneda = $4`, importe, j.ID, fanID, m); err != nil {
+		return err
+	}
+	return nil
 }
