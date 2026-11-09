@@ -60,6 +60,9 @@ sudo k3s kubectl apply -k \$tmp/overlays/$ENTORNO
 # Kustomize does not prune: the generic allow-services policy was replaced by allow-<servicio> (step 15).
 sudo k3s kubectl -n $NS delete networkpolicy allow-services --ignore-not-found >/dev/null
 sudo k3s kubectl -n $NS rollout status statefulset/postgres --timeout=180s
+# databases of services added after PostgreSQL was initialized (initdb only runs on an empty data directory): the
+# same idempotent script, read from the ConfigMap just applied (the mounted copy can lag behind)
+sudo k3s kubectl -n $NS get configmap postgres-initdb -o jsonpath='{.data.01-databases\\.sh}' | sudo k3s kubectl -n $NS exec -i statefulset/postgres -- sh -s
 for d in \$(sudo k3s kubectl -n $NS get deploy -o name); do sudo k3s kubectl -n $NS rollout status \$d --timeout=240s; done
 # only the deploy's own Jobs (the backup CronJob's Jobs do not carry the label: a failing off-node copy must not
 # block a deploy)
