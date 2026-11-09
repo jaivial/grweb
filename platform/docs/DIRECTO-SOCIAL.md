@@ -60,6 +60,8 @@ Reglas de la arquitectura (las de `ARQUITECTURA.md`): una BD por servicio (`grcu
 - `GET /api/competiciones/{slug}/chat/stream` — **SSE** con `Last-Event-ID` (XRANGE) y latido de 15 s, para quien no puede abrir WebSockets.
 - `POST /api/competiciones/{slug}/chat/mensajes` — **REST** para enviar desde SSE (misma validación). `GET …/chat/mensajes?antes=<id>&limite=50` devuelve el historial.
 
+**Privacidad de los frames:** ningún frame, historial ni replay público lleva el UUID del fan. Llevan `fanKey`, un seudónimo HMAC-SHA256 (12 hex) con una clave del servicio; el fan recibe el suyo en el saludo del WebSocket y en `GET …/chat/estado` para reconocer sus mensajes e hitos. El UUID real solo está en Redis y PostgreSQL para la moderación del backoffice. El frame `borrado` lleva `mensajeId`, el id del mensaje borrado.
+
 **Diseño para escalar:**
 - Cada sala (`cid` + `dia`) es un Redis Stream `chat:sala:<cid>:<dia>` con `MAXLEN ~ 5000`. Enviar = validar → `XADD` → responder. **Ningún INSERT en PostgreSQL en la ruta caliente.**
 - En cada pod, **un solo lector por sala activa** (`XREAD BLOCK` con el último id) reparte a las conexiones locales por canales con búfer (256). Un cliente lento que llena su búfer se desconecta con el código 1008 y reconecta con su último id (sin bloquear al resto).
@@ -80,7 +82,7 @@ Reglas de la arquitectura (las de `ARQUITECTURA.md`): una BD por servicio (`grcu
 
 **Admin** (`C/chat/*`, permiso `directo.operar`): config de la sala (`activo`, `modo_lento_seg`, `palabras_prohibidas[]`, `dominios_permitidos[]`, `max_hitos`), borrar un mensaje (item `borrado`), silenciar a un fan N minutos, ver los mensajes recientes y los reportados. Público: `POST …/chat/mensajes/{id}/reportar`.
 
-**Tablas:** `config_chat (competition_id PK, …, version)`, `mensajes (id text PK = id del stream, competition_id, dia, fan_id, alias, tipo, texto, borrado, reportes, created_at)`, `silencios (competition_id, fan_id, hasta, motivo, por)`.
+**Tablas:** `config_chat (competition_id PK, …, version)`, `mensajes (competition_id, dia, id text = id del stream, fan_id, alias, tipo, texto, borrado, reportes, created_at, PK (competition_id, dia, id))`, `silencios (competition_id, fan_id, hasta, motivo, por)`.
 
 ## 5. Donativos (`donaciones`)
 
