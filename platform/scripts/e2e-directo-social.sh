@@ -108,7 +108,9 @@ if [ "$code" != 200 ]; then fallo "GET horarios (HTTP $code): $(head -c 200 "$TM
     ETAGH="$(etag "$GW/api/admin/competiciones/$CID/horarios" "${AUTH[@]}")"
     # el planificador llena el primer día de la lista: para que HOY tenga flights, los días anteriores se
     # quitan (los posteriores se conservan).
-    CFGH="$(jq -c --arg d "$HOY" '.config | .dias = [{"fecha":$d,"inicio":"09:00","fin":"21:00","puertas":"08:30"}] + ((.dias // []) | map(select(.fecha > $d)))' "$TMP/resp")"
+    # mesasPesaje = 4: el generador de schedule puede dejar dos pesajes solapados en la misma mesa con 2 mesas
+    # (fallo previo del planificador, fuera de este paso); con datos de prueba basta con más mesas.
+    CFGH="$(jq -c --arg d "$HOY" '.config | .mesasPesaje = 4 | .dias = [{"fecha":$d,"inicio":"09:00","fin":"21:00","puertas":"08:30"}] + ((.dias // []) | map(select(.fecha > $d)))' "$TMP/resp")"
     code=$(api PUT "$GW/api/admin/competiciones/$CID/horarios/config" "$CFGH" "${AUTH[@]}" -H "If-Match: $ETAGH")
     [ "$code" = 200 ] && ok "config de horarios con el día de hoy" || fallo "PUT horarios/config (HTTP $code): $(head -c 200 "$TMP/resp")"
     code=$(api POST "$GW/api/admin/competiciones/$CID/horarios/generar" '{}' "${AUTH[@]}")
