@@ -1,43 +1,250 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrIcon, GrInput, type GrTone } from '@grcup/ui';
+import { Ban, Flag, Keyboard, VolumeX, type IconNode } from 'lucide';
 
-/** Small pieces shared by the «Directo social» screens (Figma page 73). */
+/** Small pieces shared by the «Directo social» screens (Figma page 73, UI v2). */
 
 export type Tier = 'oro' | 'plata' | 'bronce';
 
 export interface TierInfo {
   l: string;
   tone: GrTone;
-  /** Dot / fill colour of the tier (Figma «BO / Tier badge»). */
+  /** Medal colour of the tier (Figma variables color/medal/gold · silver · bronze). */
   color: string;
   peso: number;
+  /** Badge classes (medal tint, never the brand red: bronze is not an error). */
+  badge: string;
 }
 
 export const TIERS: Record<Tier, TierInfo> = {
-  oro: { l: 'Oro', tone: 'warning', color: '#d99a2b', peso: 3 },
-  plata: { l: 'Plata', tone: 'neutral', color: '#9ca3af', peso: 2 },
-  bronce: { l: 'Bronce', tone: 'danger', color: '#c42b3e', peso: 1 },
+  oro: { l: 'Oro', tone: 'warning', color: '#d4af37', peso: 3, badge: 'border-[#d4af37]/45 bg-[#d4af37]/14 text-[#d4af37]' },
+  plata: { l: 'Plata', tone: 'neutral', color: '#c0c4cc', peso: 2, badge: 'border-[#c0c4cc]/45 bg-[#c0c4cc]/14 text-[#c0c4cc]' },
+  bronce: { l: 'Bronce', tone: 'neutral', color: '#c8835a', peso: 1, badge: 'border-[#c8835a]/45 bg-[#c8835a]/14 text-[#c8835a]' },
 };
 
 export const TIER_LIST: Tier[] = ['oro', 'plata', 'bronce'];
 
-/** Tier badge of the Figma (dot + name). */
+/** Medal colours for the 1st-3rd place markers of the rankings. */
+export const MEDALLAS = [TIERS.oro.badge, TIERS.plata.badge, TIERS.bronce.badge];
+
+/** Tier badge (Figma «BO / Tier badge»: medal dot + name). */
 @Component({
   selector: 'so-tier',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    '[class]': '"inline-flex h-6 items-center gap-1.5 rounded-2xs border px-2 text-mono-xs whitespace-nowrap " + cls()',
-  },
-  template: `<span class="size-1.5 rounded-pill" [style.background]="info().color"></span>{{ info().l }}`,
+  host: { '[class]': '"inline-flex h-6 items-center gap-1.5 rounded-2xs border px-2 text-mono-xs whitespace-nowrap " + info().badge' },
+  template: `<span class="size-2 rounded-pill" [style.background]="info().color" aria-hidden="true"></span>{{ info().l }}`,
 })
 export class SoTier {
   readonly tier = input.required<Tier>();
   protected readonly info = computed(() => TIERS[this.tier()]);
-  protected readonly cls = computed(() => {
-    const t = TIERS[this.tier()];
-    return t.tone === 'warning' ? 'border-warning/30 bg-warning/10 text-warning' : t.tone === 'danger' ? 'border-accent-text/30 bg-accent-deep/30 text-accent-text' : 'border-line-strong bg-bg-raised text-text-secondary';
-  });
+}
+
+/** Position marker of a ranking (medal colours for the podium). */
+@Component({
+  selector: 'so-puesto',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': '"inline-flex size-7 shrink-0 items-center justify-center rounded-pill border font-mono text-mono-xs " + cls()' },
+  template: `{{ n() }}`,
+})
+export class SoPuesto {
+  readonly n = input.required<number>();
+  protected readonly cls = computed(() => MEDALLAS[this.n() - 1] ?? 'border-line-strong bg-bg-raised text-text-tertiary');
+}
+
+/** Icons the shared set lacks (lucide, same stroke as `gr-icon`). */
+const SO_ICONS = { ban: Ban, flag: Flag, keyboard: Keyboard, 'volume-x': VolumeX } satisfies Record<string, IconNode>;
+export type SoIconName = keyof typeof SO_ICONS;
+
+@Component({
+  selector: 'so-icon',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'inline-flex shrink-0 items-center justify-center', 'aria-hidden': 'true' },
+  template: `<svg xmlns="http://www.w3.org/2000/svg" [attr.width]="size()" [attr.height]="size()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    @for (el of nodes(); track $index) {
+      @switch (el[0]) {
+        @case ('path') { <path [attr.d]="el[1]['d']" /> }
+        @case ('circle') { <circle [attr.cx]="el[1]['cx']" [attr.cy]="el[1]['cy']" [attr.r]="el[1]['r']" /> }
+        @case ('line') { <line [attr.x1]="el[1]['x1']" [attr.y1]="el[1]['y1']" [attr.x2]="el[1]['x2']" [attr.y2]="el[1]['y2']" /> }
+        @case ('rect') { <rect [attr.x]="el[1]['x']" [attr.y]="el[1]['y']" [attr.width]="el[1]['width']" [attr.height]="el[1]['height']" [attr.rx]="el[1]['rx']" /> }
+      }
+    }
+  </svg>`,
+})
+export class SoIcon {
+  readonly name = input.required<SoIconName>();
+  readonly size = input(16);
+  protected readonly nodes = computed(() => SO_ICONS[this.name()] as unknown as [string, Record<string, string>][]);
+}
+
+export interface SoOpcion {
+  v: string;
+  l: string;
+  n?: number | null;
+  /** Short label for phones («Silenc.»). */
+  c?: string;
+  /** «accent»: the counter turns red when > 0 (reported messages, bans). */
+  tone?: 'accent';
+}
+
+/** Segmented filter with counters (Figma «Filtro segmentado»): 44 px on phones, 36 px on desktop. */
+@Component({
+  selector: 'so-segmented',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'inline-flex max-w-full min-w-0 items-center gap-0.5 overflow-x-auto rounded-[10px] border border-line-subtle bg-bg-surface p-[3px] [scrollbar-width:none]', role: 'group', '[attr.aria-label]': 'label()' },
+  template: `
+    @for (o of opciones(); track o.v) {
+      <button type="button" [attr.aria-pressed]="o.v === value()" (click)="value.set(o.v)"
+        class="inline-flex h-11 min-w-0 shrink-0 items-center justify-center gap-1 rounded-sm border px-2 text-label-s whitespace-nowrap transition-colors sm:gap-1.5 sm:px-3 md:h-8"
+        [class]="o.v === value() ? 'border-line-strong bg-bg-raised text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-primary'"
+        [class.flex-1]="llenar()">
+        @if (o.c) { <span class="sm:hidden">{{ o.c }}</span><span class="hidden sm:inline">{{ o.l }}</span> } @else { {{ o.l }} }
+        @if (o.n !== undefined && o.n !== null) {
+          <span class="rounded-2xs px-1.5 font-mono text-mono-xs" [class]="o.tone === 'accent' && o.n > 0 ? 'bg-accent text-white' : 'bg-bg-raised text-text-secondary'">{{ o.n }}</span>
+        }
+      </button>
+    }
+  `,
+})
+export class SoSegmented {
+  readonly opciones = input.required<SoOpcion[]>();
+  readonly value = model.required<string>();
+  readonly label = input('');
+  /** Stretch the options to the full width (phones). */
+  readonly llenar = input(false);
+}
+
+/** Card with a UI/H5 title, help line and optional actions (the block of every «Directo social» screen). */
+@Component({
+  selector: 'so-card',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex min-w-0 flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5' },
+  template: `
+    @if (titulo()) {
+      <header class="flex items-start gap-3">
+        <div class="min-w-0 flex-1">
+          <h2 class="text-ui-h5 text-text-primary">{{ titulo() }}</h2>
+          @if (ayuda()) { <p class="mt-0.5 text-body-xs text-text-tertiary">{{ ayuda() }}</p> }
+        </div>
+        <ng-content select="[cardActions]" />
+      </header>
+    }
+    <ng-content />
+  `,
+})
+export class SoCard {
+  readonly titulo = input('');
+  readonly ayuda = input('');
+}
+
+/** Setting row: label and help on the left, control on the right (Figma «BO / Toggle row»). */
+@Component({
+  selector: 'so-ajuste',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex items-center justify-between gap-4' },
+  template: `
+    <div class="min-w-0">
+      <p class="text-label-s text-text-primary">{{ label() }}</p>
+      @if (ayuda()) { <p class="mt-0.5 text-body-xs text-text-tertiary">{{ ayuda() }}</p> }
+    </div>
+    <div class="flex shrink-0 items-center gap-2"><ng-content /></div>
+  `,
+})
+export class SoAjuste {
+  readonly label = input.required<string>();
+  readonly ayuda = input('');
+}
+
+/** Small mono group label of a form section («PESO POR TIER»). */
+@Component({
+  selector: 'so-grupo',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block font-mono text-mono-xs text-text-tertiary' },
+  template: `<ng-content />`,
+})
+export class SoGrupo {}
+
+/** Logo / creative thumbnail with a fallback (display initials) when the URL is empty or broken. */
+@Component({
+  selector: 'so-thumb',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'relative flex shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line-strong bg-bg-raised' },
+  template: `
+    @if (src() && !roto()) {
+      <img [src]="src()" [alt]="alt()" class="size-full object-contain" loading="lazy" (error)="roto.set(true)" />
+    } @else {
+      <span class="px-1 text-center font-display text-[13px] leading-none tracking-[0.06em] text-text-secondary uppercase italic" aria-hidden="true">{{ marca() }}</span>
+    }
+  `,
+})
+export class SoThumb {
+  readonly src = input<string | null | undefined>('');
+  readonly nombre = input('');
+  readonly alt = input('');
+  protected readonly roto = signal(false);
+  protected readonly marca = computed(() => this.nombre().replace(/[^\p{L}\p{N} ]/gu, '').trim().slice(0, 6) || '·');
+}
+
+/** Ghost rows while a list loads (same height as the real rows, so nothing jumps). */
+@Component({
+  selector: 'so-skel-filas',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block', 'aria-hidden': 'true' },
+  template: `
+    @for (i of filas(); track i) {
+      <div class="flex animate-pulse items-center gap-3 border-b border-line-subtle px-5 py-3.5 last:border-0">
+        @if (avatar()) { <span class="size-8 shrink-0 rounded-pill bg-bg-raised"></span> }
+        <span class="flex min-w-0 flex-1 flex-col gap-2">
+          <span class="h-2.5 rounded-2xs bg-bg-raised" [style.width.%]="28 + ((i * 17) % 20)"></span>
+          <span class="h-2.5 rounded-2xs bg-bg-raised" [style.width.%]="52 - ((i * 11) % 18)"></span>
+        </span>
+        <span class="hidden h-7 w-40 rounded-sm bg-bg-raised sm:block"></span>
+      </div>
+    }
+  `,
+})
+export class SoSkelFilas {
+  readonly n = input(5);
+  readonly avatar = input(true);
+  protected readonly filas = computed(() => Array.from({ length: this.n() }, (_, i) => i));
+}
+
+/** Ghost KPI tiles. */
+@Component({
+  selector: 'so-skel-kpis',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'grid grid-cols-2 gap-3 lg:grid-cols-4', 'aria-hidden': 'true' },
+  template: `
+    @for (i of filas(); track i) {
+      <div class="flex animate-pulse flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
+        <span class="h-2.5 w-20 rounded-2xs bg-bg-raised"></span><span class="h-8 w-24 rounded-2xs bg-bg-raised"></span><span class="h-2.5 w-28 rounded-2xs bg-bg-raised"></span>
+      </div>
+    }
+  `,
+})
+export class SoSkelKpis {
+  readonly n = input(4);
+  protected readonly filas = computed(() => Array.from({ length: this.n() }, (_, i) => i));
+}
+
+/** Sticky save bar shown only with pending changes (Figma «BO / Save bar · Unsaved»). */
+@Component({
+  selector: 'so-guardar',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'sticky bottom-20 z-20 flex flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-bg-raised p-4 shadow-card md:bottom-4', role: 'status' },
+  template: `
+    <gr-icon name="pencil" [size]="20" class="text-warning" />
+    <div class="min-w-0 flex-1">
+      <p class="text-label-s">{{ titulo() }}</p>
+      @if (detalle()) { <p class="text-body-xs text-text-tertiary">{{ detalle() }}</p> }
+    </div>
+    <div class="flex w-full gap-2 sm:w-auto"><ng-content /></div>
+  `,
+})
+export class SoGuardar {
+  readonly titulo = input.required<string>();
+  readonly detalle = input('');
 }
 
 /** Tag input (Figma «BO / Tag input»): chips + free text, Enter or comma adds. */
@@ -47,22 +254,25 @@ export class SoTier {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <div class="flex min-h-11 flex-wrap items-center gap-1.5 rounded-sm border border-line-strong bg-bg-field p-2">
+    <div class="flex min-h-11 flex-wrap items-center gap-1.5 rounded-sm border border-line-strong bg-bg-field p-1.5 transition-[border-color,box-shadow] focus-within:border-accent-text focus-within:ring-2 focus-within:ring-accent/30"
+      [class.opacity-50]="disabled()">
       @for (t of items(); track t) {
-        <span class="inline-flex h-7 items-center gap-1 rounded-2xs bg-bg-raised px-2 text-label-xs text-text-primary">
+        <span class="inline-flex h-8 items-center gap-1 rounded-2xs bg-bg-raised pr-1 pl-2 text-label-s text-text-primary">
           {{ t }}
-          <button type="button" class="-mr-1 flex size-5 items-center justify-center rounded-2xs text-text-tertiary hover:bg-bg-card hover:text-text-primary"
-            [attr.aria-label]="'Quitar ' + t" (click)="quitar(t)"><gr-icon name="x" [size]="12" /></button>
+          <button type="button" class="flex size-6 items-center justify-center rounded-2xs text-text-tertiary hover:bg-bg-card hover:text-text-primary"
+            [attr.aria-label]="'Quitar ' + t" [disabled]="disabled()" (click)="quitar(t)"><gr-icon name="x" [size]="12" /></button>
         </span>
       }
-      <input class="min-w-[7rem] flex-1 bg-transparent text-body-s outline-none placeholder:text-text-muted" [placeholder]="placeholder()"
-        [value]="nuevo()" (input)="nuevo.set($any($event.target).value)" (keydown)="tecla($event)" (blur)="anadir()" />
+      <input class="h-8 min-w-[7rem] flex-1 bg-transparent px-1 text-body-s outline-none placeholder:text-text-muted" [placeholder]="placeholder()" [attr.aria-label]="label() || placeholder()"
+        [disabled]="disabled()" [value]="nuevo()" (input)="nuevo.set($any($event.target).value)" (keydown)="tecla($event)" (blur)="anadir()" />
     </div>
   `,
 })
 export class SoTags {
   readonly items = input.required<string[]>();
   readonly placeholder = input('Añadir…');
+  readonly label = input('');
+  readonly disabled = input(false);
   readonly changed = output<string[]>();
   protected readonly nuevo = signal('');
   protected quitar(t: string): void {
@@ -87,22 +297,35 @@ export class SoTags {
 const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 export const euros = (c?: number | null) => eur.format((c ?? 0) / 100);
 export const num = (v?: number | null) => (v === null || v === undefined ? '—' : new Intl.NumberFormat('es-ES').format(v));
+/** «1,24 M», «753,9 k»: big figures that must fit a KPI tile. */
+export const compacto = (v?: number | null) => {
+  if (v === null || v === undefined) return '—';
+  const a = Math.abs(v);
+  const f = (x: number, d: number) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: d }).format(x);
+  if (a >= 1_000_000) return `${f(v / 1_000_000, 2)} M`;
+  if (a >= 100_000) return `${f(v / 1_000, 1)} k`;
+  return num(v);
+};
+/** «35,3 %» (one decimal, Spanish comma). */
+export const pct = (parte: number, total: number) => (total ? `${((parte / total) * 100).toFixed(1).replace('.', ',')} %` : '—');
 
 /**
- * Numeric field with thousands separators (Figma «BO · Juegos · Configuración»): while it is not focused the value is
- * shown as «200.000» and while it is being edited the raw number is shown, so the caret does not jump.
+ * Numeric field with thousands separators: while it is not focused the value is shown as «200.000» and while it is
+ * being edited the raw number is shown, so the caret does not jump. `cambiado` marks a value that differs from the
+ * saved one (amber border).
  */
 @Component({
   selector: 'so-number',
   imports: [FormsModule, GrInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `.cambiado { border-color: var(--color-warning) !important; }`,
   template: `
     <span class="flex items-center justify-end gap-2">
-      <span [class]="ancho() === 's' ? 'block w-[88px] shrink-0' : 'block w-[112px] shrink-0'">
-        <input grInput class="text-right font-mono" type="text" inputmode="numeric"
+      <span [class]="ancho() === 'xs' ? 'block w-[72px] shrink-0' : ancho() === 's' ? 'block w-[88px] shrink-0' : 'block w-[112px] shrink-0'">
+        <input grInput class="text-right font-mono" type="text" inputmode="numeric" [class.cambiado]="cambiado()"
           [disabled]="disabled()" [attr.aria-label]="label()" [ngModel]="mostrar()" (ngModelChange)="cambia($event)" (focus)="enfocar()" (blur)="soltar()" />
       </span>
-      @if (unidad()) { <span class="w-[52px] shrink-0 text-right text-body-xs text-text-tertiary">{{ unidad() }}</span> }
+      @if (unidad()) { <span class="w-11 shrink-0 text-body-xs text-text-tertiary">{{ unidad() }}</span> }
     </span>
   `,
 })
@@ -110,8 +333,9 @@ export class SoNumber {
   readonly valor = input.required<number>();
   readonly label = input('');
   readonly unidad = input('');
-  readonly ancho = input<'m' | 's'>('m');
+  readonly ancho = input<'m' | 's' | 'xs'>('m');
   readonly disabled = input(false);
+  readonly cambiado = input(false);
   readonly changed = output<number>();
   protected readonly foco = signal(false);
   protected readonly crudo = signal('');
@@ -138,8 +362,10 @@ export const fecha = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es
 export const hora = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '—');
 export const fechaDia = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' }).format(new Date(iso.length === 10 ? iso + 'T12:00:00' : iso)) : '');
 export const diaCorto = (dia?: string | null) => (dia ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(dia.length === 10 ? dia + 'T12:00:00' : dia)).replace('.', '') : '');
+/** «1 nov» (vigencia of a banner). */
+export const diaMes = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '') : '');
 export const iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase() || '·';
-export const ordinal = (n: number) => `${n}.${n === 1 ? 'er' : 'ª'}`;
+export const ordinal = (n: number) => `${n}.${n === 1 || n === 3 ? 'er' : 'º'}`;
 
 /** Client-side CSV (the paso 17 services have no export endpoint). */
 export function descargarCsv(nombre: string, cabeceras: string[], filas: (string | number | null | undefined)[][]): void {
