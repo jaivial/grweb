@@ -33,11 +33,21 @@ export interface MedalMaterial {
    */
   flattenFace: number;
   /**
-   * Red enamel (the «2»): texels whose base colour is red (max(g, b) / r below `maskTo`, fully
-   * below `maskFrom`) become dielectric (metalness 0) with this roughness: vivid glossy red
-   * instead of red-tinted metal. The GLB metalness map marks everything as metal.
+   * Even metal colour: 0–1 pull of the base colour towards `faceColor` (the generated texture
+   * has blotchy light/dark patches that read as crumpled foil on a mirror finish). Red enamel
+   * is left out. 0 or no colour keeps the texture.
    */
-  enamel: { roughness: number; maskFrom: number; maskTo: number };
+  faceTint: number;
+  /** Metal colour (sRGB hex), per metal: the median of its base colour texture. */
+  faceColor?: string;
+  /**
+   * Red enamel (the «2»): texels whose base colour is red (max(g, b) / r below `maskTo`, fully
+   * below `maskFrom`) become dielectric (metalness 0) with this roughness and `color` (sRGB hex;
+   * darker than the texture so the studio light does not wash it to orange) and `sheen` (0–1
+   * share of its reflections and clear coat: the white studio strips over it read as pink): vivid
+   * red instead of red-tinted metal. The GLB metalness map marks everything as metal.
+   */
+  enamel: { roughness: number; maskFrom: number; maskTo: number; color: string; sheen: number };
 }
 
 /** One light panel of the studio environment the metal reflects (drei `Lightformer`). */

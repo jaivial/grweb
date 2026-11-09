@@ -12,10 +12,11 @@ export type MedalMetal = 'gold' | 'silver' | 'bronze';
 export const MEDAL_RIBBON_SRC = '/images/medals/ribbon.png';
 
 export const MEDAL_ASSETS: Record<MedalMetal, MedalAssets> = {
-  gold: { glb: '/models/medals/gold.glb', image: '/images/medals/medal-gold-lg.png', ribbon: MEDAL_RIBBON_SRC },
-  silver: { glb: '/models/medals/silver.glb', image: '/images/medals/medal-silver-lg.png', ribbon: MEDAL_RIBBON_SRC },
+  // faceColor: median of each GLB's base colour texture (metal texels, enamel left out).
+  gold: { glb: '/models/medals/gold.glb', image: '/images/medals/medal-gold-lg.png', ribbon: MEDAL_RIBBON_SRC, material: { faceColor: '#EACA75' } },
+  silver: { glb: '/models/medals/silver.glb', image: '/images/medals/medal-silver-lg.png', ribbon: MEDAL_RIBBON_SRC, material: { faceColor: '#E2D8D5' } },
   // Spec 191:61686: bronze reliefs a bit more satin (0,30 vs 0,25 for gold and silver).
-  bronze: { glb: '/models/medals/bronze.glb', image: '/images/medals/medal-bronze-lg.png', ribbon: MEDAL_RIBBON_SRC, material: { roughness: 0.27 } },
+  bronze: { glb: '/models/medals/bronze.glb', image: '/images/medals/medal-bronze-lg.png', ribbon: MEDAL_RIBBON_SRC, material: { roughness: 0.27, faceColor: '#DBA086' } },
 };
 
 export const MEDAL_GOLD_COLOR = '#D4AF37';
@@ -338,8 +339,11 @@ export const MEDAL_PHYSICS: MedalPhysics = {
  *   correlate with the relief) and its noise read as crumpled foil. The generated surface is
  *   wavy, so the faces' shading normals are pulled towards the face normal (`flattenFace`, in a
  *   shader patch) and the normal map is kept at 12 %: flat polished faces, bevels keep their
- *   highlights. The red enamel is picked by base colour and made dielectric (`enamel`): the
- *   GLB metalness map marks the whole medal as metal, which turned the «2» maroon.
+ *   highlights. The base colour is pulled 80 % to each metal's median colour (`faceTint`,
+ *   `faceColor`): the texture's light/dark patches mottled the mirror finish. The red enamel is
+ *   picked by base colour and made dielectric (`enamel`): the GLB metalness map marks the whole
+ *   medal as metal, which turned the «2» maroon; its colour is darker than the texture and its
+ *   reflections cut to 35 %, or the studio light washed it to orange-pink.
  * - Studio: transparent black between the panels (the dark parts of the metal), a top softbox for the bevels, a
  *   narrow vertical strip in front that sweeps across the faces as they twist, a dim front fill
  *   so the face never goes black, side strips for the edges and the red rim behind.
@@ -360,7 +364,8 @@ export const MEDAL_STAGE: MedalStageConfig = {
     clearcoat: 0.5,
     clearcoatRoughness: 0.18,
     flattenFace: 0.85,
-    enamel: { roughness: 0.28, maskFrom: 0.18, maskTo: 0.32 },
+    faceTint: 0.8,
+    enamel: { roughness: 0.28, maskFrom: 0.18, maskTo: 0.32, color: '#8C0717', sheen: 0.35 },
   },
   environment: {
     resolution: 256,

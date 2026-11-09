@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { Box3, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Vector3, type Object3D } from 'three';
+import { Box3, Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Vector3, type Object3D } from 'three';
 import type { MedalMaterial } from './types';
 
 export interface MedalModel {
@@ -29,17 +29,24 @@ export interface MedalMetrics {
 const FALLBACK_PIVOT_FROM_TOP = 0.03;
 
 /**
- * Shader patch of the medal finish: flat polished faces (see `flattenFace`) and a dielectric red
- * enamel picked by base colour (see `enamel`). Uniforms come from the finish; one program per
- * finish values (customProgramCacheKey).
+ * Shader patch of the medal finish: flat polished faces (see `flattenFace`), an even metal colour
+ * (`faceTint`) and a dielectric red enamel picked by base colour (see `enamel`). Every value is a
+ * uniform, so all medals share one program (customProgramCacheKey).
  */
 function patchFinish(material: MeshStandardMaterial, finish: MedalMaterial) {
   const { flattenFace, enamel } = finish;
   if (flattenFace <= 0 && enamel.maskTo <= 0) return;
+  const faceTint = finish.faceColor ? finish.faceTint : 0;
+  const faceColor = new Color(finish.faceColor ?? '#ffffff');
+  const enamelColor = new Color(enamel.color);
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uMedalFlatten = { value: flattenFace };
     shader.uniforms.uEnamelRoughness = { value: enamel.roughness };
     shader.uniforms.uEnamelMask = { value: [enamel.maskFrom, enamel.maskTo] };
+    shader.uniforms.uEnamelColor = { value: enamelColor };
+    shader.uniforms.uEnamelSheen = { value: enamel.sheen };
+    shader.uniforms.uFaceColor = { value: faceColor };
+    shader.uniforms.uFaceTint = { value: faceTint };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vMedalFront;')
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvMedalFront = normalize( normalMatrix * vec3( 0.0, 0.0, 1.0 ) );');
@@ -50,21 +57,32 @@ function patchFinish(material: MeshStandardMaterial, finish: MedalMaterial) {
         ${target} = normalize( mix( ${target}, vMedalFront * sign( medalFacing ), medalFlat ) );
       }`;
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vMedalFront;\nuniform float uMedalFlatten;\nuniform float uEnamelRoughness;\nuniform vec2 uEnamelMask;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vMedalFront;\nuniform float uMedalFlatten;\nuniform float uEnamelRoughness;\nuniform vec2 uEnamelMask;\nuniform vec3 uEnamelColor;\nuniform float uEnamelSheen;\nuniform vec3 uFaceColor;\nuniform float uFaceTint;')
       .replace(
         '#include <metalnessmap_fragment>',
         `#include <metalnessmap_fragment>
+      float medalRed = max( diffuseColor.g, diffuseColor.b ) / max( diffuseColor.r, 1e-3 );
+      float medalEnamel = ( 1.0 - smoothstep( uEnamelMask.x, uEnamelMask.y, medalRed ) ) * step( 0.08, diffuseColor.r );
+      metalnessFactor = mix( metalnessFactor, 0.0, medalEnamel );
+      roughnessFactor = mix( roughnessFactor, uEnamelRoughness, medalEnamel );
+      diffuseColor.rgb = mix( mix( diffuseColor.rgb, uFaceColor, uFaceTint ), uEnamelColor, medalEnamel );`,
+      )
+      .replace(
+        '#include <lights_physical_fragment>',
+        `#include <lights_physical_fragment>
       {
-        float medalRed = max( diffuseColor.g, diffuseColor.b ) / max( diffuseColor.r, 1e-3 );
-        float medalEnamel = ( 1.0 - smoothstep( uEnamelMask.x, uEnamelMask.y, medalRed ) ) * step( 0.08, diffuseColor.r );
-        metalnessFactor = mix( metalnessFactor, 0.0, medalEnamel );
-        roughnessFactor = mix( roughnessFactor, uEnamelRoughness, medalEnamel );
+        float medalSheen = mix( 1.0, uEnamelSheen, medalEnamel );
+        material.specularColorBlended *= medalSheen;
+        material.specularF90 *= medalSheen;
+        #ifdef USE_CLEARCOAT
+          material.clearcoat *= medalSheen;
+        #endif
       }`,
       )
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>${flatten('normal')}`)
       .replace('#include <clearcoat_normal_fragment_maps>', `#include <clearcoat_normal_fragment_maps>\n#ifdef USE_CLEARCOAT${flatten('clearcoatNormal')}\n#endif`);
   };
-  material.customProgramCacheKey = () => `medal-finish:${flattenFace}:${enamel.roughness}:${enamel.maskFrom}:${enamel.maskTo}`;
+  material.customProgramCacheKey = () => 'medal-finish';
 }
 
 /** The GLB material with the configured metal finish (maps kept; clear coat → physical). */
