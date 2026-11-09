@@ -326,13 +326,15 @@ func insertarPuntoUnicoTx(ctx context.Context, tx pgx.Tx, cid, jid, fanID, atlet
 }
 
 // cambiarClausulaTx moves the clause by a percentage (contract §6.3): updates the athlete, writes the history
-// (also used as an idempotency marker) and emits fantasy.clausula. Returns whether it changed.
+// (also used as an idempotency marker) and emits fantasy.clausula. The row is read FOR UPDATE: the read-modify-
+// write of the worker cannot overwrite the +3 % of a concurrent signing (the clause is money). Returns whether it
+// changed.
 func cambiarClausulaTx(ctx context.Context, tx pgx.Tx, cid, jid, atletaID uuid.UUID, pct int, cfg *Config, motivo string) (bool, error) {
 	if pct == 0 {
 		return false, nil
 	}
 	var actual int64
-	if err := tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2`, jid, atletaID).Scan(&actual); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, jid, atletaID).Scan(&actual); err != nil {
 		return false, err
 	}
 	nueva, delta := variarClausula(actual, pct, cfg.ClausulaMin, cfg.ClausulaMax)
