@@ -202,8 +202,9 @@ func (s *Svc) caducar(ctx context.Context) {
 }
 
 // confirmarPago marks a donation as paid and enqueues the events that chat and juegos-worker consume (the fanId
-// is an opaque UUID). Idempotent by webhook event and by state. Returns the día touched (to invalidate the
-// ranking cache).
+// is an opaque UUID). Idempotent by webhook event and by state. A payment that arrives late (the row was already
+// «caducada») is confirmed too: the money is in, so the donation has to be (PR review I3). Returns the día
+// touched (to invalidate the ranking cache).
 func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ev pagos.Event) (string, error) {
 	var estado, alias, mensaje string
 	var anonimo bool
@@ -215,10 +216,10 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 	if err != nil {
 		return "", err
 	}
-	if estado != "pendiente" {
-		return "", nil
+	if estado != "pendiente" && estado != "caducada" {
+		return "", nil // ya pagada, reembolsada o en curso: nada que hacer
 	}
-	if _, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'pagada', payment_id = $2, pagada_at = now() WHERE id = $1`, id, ev.PaymentID); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE donaciones SET estado = 'pagada', payment_id = $2, pagada_at = now(), motivo = '' WHERE id = $1`, id, ev.PaymentID); err != nil {
 		return "", err
 	}
 	nombre := alias
