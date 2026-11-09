@@ -43,7 +43,7 @@ func aplicar(t *testing.T, s *Svc, cid uuid.UUID, j jornada, cfg *Config, m *Mar
 		if err := cerrarMercadosTx(context.Background(), tx, cid, j, m, mercados); err != nil {
 			return err
 		}
-		return aplicarPublicacionesTx(context.Background(), tx, cid, j, cfg, m, ats, mercados)
+		return s.aplicarPublicacionesTx(context.Background(), tx, cid, j, cfg, m, ats, mercados)
 	}); err != nil {
 		t.Fatalf("aplicar marcador: %v", err)
 	}

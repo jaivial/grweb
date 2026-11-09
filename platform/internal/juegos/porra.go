@@ -327,13 +327,30 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 }
 
 // liquidarMercadoTx settles a market with the parimutuel split (contract §6.2). ganadores holds the atletaIds
-// tied at the winning place (empty: nobody hit → everything comes back). Idempotent by estado and premio refs.
+// tied at the winning place. An empty list means the result is NOT definitive yet (the results are not published
+// or the scoreboard is degraded): the market is not settled (409 RESULTADO_PENDIENTE) and stays closed, so the pot
+// is never returned to everybody by mistake. The market row is locked FOR UPDATE: a bet that arrives while the
+// market is being settled cannot slip in (contract §6.2).
+// Idempotent by estado and premio refs.
 func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, mc *mercadoRow, ganadores []uuid.UUID) error {
 	if mc == nil {
 		return nil // market not generated: nothing to settle
 	}
 	if mc.Estado == "liquidado" {
 		return nil
+	}
+	var estadoActual string
+	if err := tx.QueryRow(ctx, `SELECT estado FROM mercados WHERE id = $1 FOR UPDATE`, mc.ID).Scan(&estadoActual); err != nil {
+		if db.IsNoRows(err) {
+			return nil // the market is gone: nothing to settle
+		}
+		return err
+	}
+	if estadoActual == "liquidado" {
+		return nil
+	}
+	if len(ganadores) == 0 {
+		return problem.Conflict("RESULTADO_PENDIENTE", "El resultado del mercado todavía no es definitivo: no se puede liquidar.")
 	}
 	rows, err := tx.Query(ctx, `SELECT id, atleta_id, fan_id, importe FROM apuestas WHERE mercado_id = $1`, mc.ID)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 //     liquidation of the `categoria` market;
 //   - per sex, when all its categories are published: GL and movement points and the liquidation of the `gl` and
 //     `movimiento` markets.
-func aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador,
+func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador,
 	ats map[uuid.UUID]*atletaFantasia, mercados []mercadoRow) error {
 
 	aplicadas, err := cargarPublicacionesTx(ctx, tx, j.ID)
@@ -45,12 +45,19 @@ func aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jor
 				return err
 			}
 			if ma.PuestoCategoria >= 1 && ma.PuestoCategoria <= 3 && ats[ma.AtletaID] != nil {
-				if _, err := cambiarClausulaTx(ctx, tx, cid, j.ID, ma.AtletaID, cfg.PctPuesto[ma.PuestoCategoria-1], cfg, "puesto:cat"); err != nil {
+				if err := aplicarPuestoTx(ctx, tx, cid, j.ID, ma.AtletaID, cfg.PctPuesto[ma.PuestoCategoria-1], cfg); err != nil {
 					return err
 				}
 			}
 		}
-		if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, buscarMercado(mercados, "categoria", sexo, cat, ""), ganadores); err != nil {
+		mc := buscarMercado(mercados, "categoria", sexo, cat, "")
+		if mc != nil && len(ganadores) == 0 {
+			// The result is not definitive yet (the results were published before the totals arrived): the market
+			// stays closed and the category is retried on the next sync (the points and the clause are idempotent).
+			s.logResultadoPendente(j, "categoria", sexo+" "+cat)
+			continue
+		}
+		if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mc, ganadores); err != nil {
 			return err
 		}
 		if err := marcarPublicacionTx(ctx, tx, j.ID, clave); err != nil {
@@ -89,6 +96,7 @@ func aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jor
 				}
 			}
 		}
+		pendiente := false
 		for _, mv := range movimientos {
 			var ganadores []uuid.UUID
 			for i := range m.Atletas {
@@ -96,7 +104,12 @@ func aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jor
 					ganadores = append(ganadores, m.Atletas[i].AtletaID)
 				}
 			}
-			if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, buscarMercado(mercados, "movimiento", sx, "", mv), ganadores); err != nil {
+			mc := buscarMercado(mercados, "movimiento", sx, "", mv)
+			if mc != nil && len(ganadores) == 0 {
+				pendiente = true
+				continue
+			}
+			if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mc, ganadores); err != nil {
 				return err
 			}
 		}
@@ -106,14 +119,50 @@ func aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jor
 				ganadoresGL = append(ganadoresGL, m.Atletas[i].AtletaID)
 			}
 		}
-		if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, buscarMercado(mercados, "gl", sx, "", ""), ganadoresGL); err != nil {
+		mcGL := buscarMercado(mercados, "gl", sx, "", "")
+		if mcGL != nil && len(ganadoresGL) == 0 {
+			pendiente = true
+		} else if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mcGL, ganadoresGL); err != nil {
 			return err
+		}
+		if pendiente {
+			// The result is not definitive yet: the markets stay closed and the sex is retried on the next sync.
+			s.logResultadoPendente(j, "gl/movimiento", sx)
+			continue
 		}
 		if err := marcarPublicacionTx(ctx, tx, j.ID, clave); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// motivoPuesto is the marker of the clause adjustment by place (the history row is its idempotency key).
+const motivoPuesto = "puesto:cat"
+
+// aplicarPuestoTx applies the clause variation of a place once (contract §6.3): the history row is the
+// idempotency marker, because a published category can be retried while its result is not definitive.
+func aplicarPuestoTx(ctx context.Context, tx pgx.Tx, cid, jid, atletaID uuid.UUID, pct int, cfg *Config) error {
+	var ya bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM historial_clausulas WHERE jornada_id = $1 AND atleta_id = $2 AND motivo = $3)`,
+		jid, atletaID, motivoPuesto).Scan(&ya); err != nil {
+		return err
+	}
+	if ya {
+		return nil
+	}
+	_, err := cambiarClausulaTx(ctx, tx, cid, jid, atletaID, pct, cfg, motivoPuesto)
+	return err
+}
+
+// logResultadoPendente warns that a market cannot be settled yet: the result is not definitive, the market stays
+// closed and the publication is retried on the next sync of the worker.
+func (s *Svc) logResultadoPendente(j jornada, tipo, detalle string) {
+	if s.a == nil || s.a.Log == nil {
+		return
+	}
+	s.a.Log.Warn("liquidación pendiente: el resultado del mercado todavía no es definitivo",
+		"jornada", j.ID.String(), "tipo", tipo, "detalle", detalle)
 }
 
 // puntosPuestoTx writes the category points of one athlete (owner titular at publication time).

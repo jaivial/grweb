@@ -85,7 +85,7 @@ func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
 		if err := cerrarMercadosTx(ctx, tx, cid, j, m, mercados); err != nil {
 			return err
 		}
-		return aplicarPublicacionesTx(ctx, tx, cid, j, cfg, m, ats, mercados)
+		return s.aplicarPublicacionesTx(ctx, tx, cid, j, cfg, m, ats, mercados)
 	})
 }
 
