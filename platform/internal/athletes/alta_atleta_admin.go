@@ -183,7 +183,7 @@ type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
 	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
-	Menor  *bool     `query:"menor"`
+	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
 }
@@ -464,7 +464,7 @@ func (s *Svc) listaSolicitudes(ctx context.Context, in *FiltrosLista) (*ListaSol
 }
 
 // filtrosSolicitud builds the WHERE of the list.
-func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor *bool, q string) (string, []any) {
+func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor string, q string) (string, []any) {
 	where := []string{"competition_id = $1"}
 	args := []any{cid}
 	switch estado {
@@ -493,13 +493,12 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor *bool,
 	case "ninguna":
 		where = append(where, "match_atleta_id IS NULL")
 	}
-	if menor != nil {
-		// A free filter: distinguish «only minors» from «exclude minors»; nil means no filter.
-		if *menor {
-			where = append(where, "es_menor")
-		} else {
-			where = append(where, "NOT es_menor")
-		}
+	switch menor {
+	case "si":
+		// A free filter: distinguish «only minors» from «exclude minors»; empty means no filter.
+		where = append(where, "es_menor")
+	case "no":
+		where = append(where, "NOT es_menor")
 	}
 	if q = strings.TrimSpace(q); q != "" {
 		args = append(args, "%"+q+"%")
