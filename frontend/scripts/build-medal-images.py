@@ -5,8 +5,7 @@ Inputs  (canonical WaveSpeed views, 2048² on a flat #D9D9D9-ish background):
   <views>/{gold,silver,bronze}_front.png   medal front, no ribbon
   <views>/gold_ribbon.png                  medal hanging from the real lanyard
 Outputs (frontend/public/images/medals/):
-  medal-gold-lg.png      440 px wide cut-out (static GL Points medal, CSS fallback of the 3D medals)
-  medal-{metal}-sm.png   128 px wide cut-out (mini medals of the category cards)
+  medal-{metal}-lg.png   440 px wide cut-out (static GL Points medal, CSS fallback of the 3D medals)
   ribbon.png             straight vertical strip of the real lanyard (3D texture + CSS ribbon)
 
 Cut-out (gold, bronze): the background is neutral grey, the medal is saturated metal or red enamel.
@@ -27,7 +26,7 @@ from scipy import ndimage
 
 VIEWS = Path(sys.argv[1] if len(sys.argv) > 1 else "/home/jaime/medals-capture/wavespeed/views")
 OUT = Path(__file__).resolve().parent.parent / "public" / "images" / "medals"
-SIZES = {"lg": 440, "sm": 128}
+SIZES = {"lg": 440}
 SATURATION_MAX = 0.16  # max (max-min)/max of a background pixel
 MIN_BG_REGION = 6000  # px at 2048²: smaller grey blobs are highlights, not background
 # Silver is itself near-grey, so saturation cannot separate it from the background. The
@@ -64,8 +63,6 @@ def cut_out(rgb: np.ndarray, medal: np.ndarray) -> Image.Image:
 
 def save_sizes(img: Image.Image, metal: str) -> None:
     for name, width in SIZES.items():
-        if name == "lg" and metal != "gold":
-            continue  # only the gold medal is shown large
         h = round(img.height * width / img.width)
         dst = OUT / f"medal-{metal}-{name}.png"
         img.resize((width, h), Image.LANCZOS).save(dst, optimize=True)
