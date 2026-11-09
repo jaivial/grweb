@@ -242,10 +242,12 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 	if err != nil {
 		return "", err
 	}
-	// donacion.anunciada es su gemelo público: lo que se anuncia en el directo (alias, importe, coins, mensaje y
-	// día), sin identificadores del fan.
+	// donacion.anunciada es su gemelo público: lo que se anuncia en el directo (alias, importe, coins y día), sin
+	// identificadores del fan y SIN el mensaje del donativo: ese mensaje lo filtra el chat (mismo filtro que los
+	// mensajes de la sala) y sale ya filtrado en el frame «donacion» de la sala. Publicarlo aquí en crudo era un
+	// bypass del filtro por la vía del evento público (PR review M3).
 	err = events.Enqueue(ctx, tx, events.New(ctx, "donacion.anunciada", map[string]any{
-		"alias": nombre, "importe": importe, "coins": coins, "mensaje": mensaje, "dia": d,
+		"alias": nombre, "importe": importe, "coins": coins, "dia": d,
 	}, events.Competition(cid.String()), events.Audience(events.Public)))
 	return d, err
 }
