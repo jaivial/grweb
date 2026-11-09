@@ -6,6 +6,7 @@ import { GrButton, GrIcon, GrIconButton, GrLogo } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
+import { Seo } from '../core/seo';
 import { Newsletter } from './newsletter';
 
 export interface NavLink {
@@ -244,7 +245,7 @@ export class Navbar {
     } @else {
     <!-- Figma «Footer»: mobile 48/20/32 with 28 between blocks, desktop 72/80/32 with 48 -->
     <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-28 md:gap-12 md:px-8 md:pt-[72px] md:pb-10 xl:px-[120px]">
-      <gr-newsletter />
+      <gr-newsletter [nivel]="nivelNewsletter()" />
       <div class="grid lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
         <div class="mb-6 flex flex-col gap-4 lg:mb-0">
           <gr-logo [height]="56" />
@@ -294,6 +295,9 @@ export class Navbar {
 })
 export class Footer {
   readonly lang = input<Lang>('es');
+  private readonly seo = inject(Seo);
+  /** En /alta-atleta el contenido ya tiene sus dos H2: la banda de novedades baja a H3. */
+  protected readonly nivelNewsletter = computed<'h2' | 'h3'>(() => (this.seo.path() === '/alta-atleta' ? 'h3' : 'h2'));
   protected readonly year = new Date().getFullYear();
   private readonly comp = inject(Competition);
   private readonly http = inject(HttpClient);

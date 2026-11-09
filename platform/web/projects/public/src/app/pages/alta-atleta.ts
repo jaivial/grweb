@@ -103,8 +103,8 @@ const AYUDA = [
           <p class="text-body-s text-text-tertiary">¿Necesitas cambiar algo antes de que revisemos tu solicitud? Escríbenos a <a [href]="'mailto:' + contacto()" class="text-accent-text hover:underline">{{ contacto() }}</a>.</p>
         </section>
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
-          <gr-related [items]="relacionados" />
-          <gr-community />
+          <gr-related nivel="h3" [items]="relacionados" />
+          <gr-community nivel="h3" />
         </div>
       } @else {
         <!-- Contenido útil antes del formulario (Figma 75) -->
@@ -523,8 +523,8 @@ const AYUDA = [
           </ul>
         </section>
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
-          <gr-related [items]="relacionados" />
-          <gr-community />
+          <gr-related nivel="h3" [items]="relacionados" />
+          <gr-community nivel="h3" />
         </div>
       }
     </gr-page>

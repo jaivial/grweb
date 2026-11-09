@@ -114,8 +114,8 @@ export class Fav {
                   <span class="text-label-l">{{ a.nombre }} {{ a.apellidos }}</span>
                   <span class="text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</span>
                   <span class="mt-3 flex flex-wrap gap-1.5">
-                    <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 px-2 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span>
-                    <span class="inline-flex h-6 items-center rounded-pill border border-line-strong px-2 text-mono-xs text-text-secondary">{{ a.divisionNombre }}</span>
+                    @if (a.categoria) { <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 px-2 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
+                    @if (a.divisionNombre) { <span class="inline-flex h-6 items-center rounded-pill border border-line-strong px-2 text-mono-xs text-text-secondary">{{ a.divisionNombre }}</span> }
                   </span>
                   <span class="mt-auto flex items-center gap-1.5 pt-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') : 'Horario por publicar' }}</span>
                 </span>
@@ -134,7 +134,7 @@ export class Fav {
                     <a [href]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2">
                       @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-10 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                       @else { <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(a) }}</span> }
-                      <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.sexo }} {{ cat(a.categoria) }} kg · {{ a.divisionNombre }}</span></span>
+                      <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.categoria ? ' · ' + a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
                       <span class="text-mono-xs text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
                       <gr-fav [slug]="a.slug" [nombre]="a.nombre" />
                     </a>
@@ -208,7 +208,8 @@ export class AtletasPage {
   protected readonly grupos = computed(() => {
     const out: { titulo: string; items: AtletaPub[] }[] = [];
     for (const a of this.visibles()) {
-      const t = `${sexoTxt[a.sexo]} ${cat(a.categoria)} kg${a.flight ? ' · Flight ' + a.flight : ''}`;
+      const catTxt = a.categoria ? `${sexoTxt[a.sexo]} ${cat(a.categoria)} kg` : sexoTxt[a.sexo];
+      const t = `${catTxt}${a.flight ? ' · Flight ' + a.flight : ''}`;
       const g = out.at(-1);
       if (g && g.titulo === t) g.items.push(a);
       else out.push({ titulo: t, items: [a] });
@@ -276,8 +277,8 @@ function catSort(a: string, b: string): number {
               </div>
               <div class="p-5">
                 <p class="flex flex-wrap gap-1.5">
-                  <span class="inline-flex h-7 items-center rounded-pill border border-accent/50 bg-accent-deep/30 px-2.5 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span>
-                  <span class="inline-flex h-7 items-center rounded-pill border border-line-strong px-2.5 text-mono-xs">{{ a.divisionNombre }}</span>
+                  @if (a.categoria) { <span class="inline-flex h-7 items-center rounded-pill border border-accent/50 bg-accent-deep/30 px-2.5 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
+                  @if (a.divisionNombre) { <span class="inline-flex h-7 items-center rounded-pill border border-line-strong px-2.5 text-mono-xs">{{ a.divisionNombre }}</span> }
                   <span class="inline-flex h-7 items-center gap-1 rounded-pill border border-line-strong px-2.5 text-mono-xs"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Horario por publicar' }}</span>
                 </p>
                 <p class="mt-3 flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</p>
@@ -364,7 +365,7 @@ function catSort(a: string, b: string): number {
             }
             @if (a.tambien.length) {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                <h2 class="text-ui-h5">También en {{ a.sexo }} {{ cat(a.categoria) }} kg</h2>
+                <h2 class="text-ui-h5">También en {{ a.categoria ? a.sexo + ' ' + cat(a.categoria) + ' kg' : 'la misma categoría' }}</h2>
                 <ul class="mt-2">
                   @for (o of a.tambien; track o.slug) {
                     <li class="flex items-center gap-3 border-b border-line-subtle py-2 last:border-0">
@@ -422,9 +423,14 @@ export class AtletaPage {
       }
       if (c?.fechaInicio) this.diaTxt.set(new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(c.fechaInicio)));
       const nombre = `${f.nombre} ${f.apellidos}`;
+      // Sin categoría (atleta recién creado desde una solicitud) no se pinta «M  kg».
+      const catTxt = f.categoria ? `${f.sexo} ${cat(f.categoria)} kg` : '';
+      const desc = catTxt
+        ? `${nombre} (${f.club || 'independiente'}) compite en ${f.sexo === 'F' ? 'femenino' : 'masculino'} ${cat(f.categoria)} kg ${f.divisionNombre} en la GR Strength Cup.`
+        : `${nombre} (${f.club || 'independiente'}) compite en la GR Strength Cup.`;
       seo.set({
-        title: `${nombre} · ${f.sexo} ${cat(f.categoria)} kg · GR Strength Cup`,
-        description: `${nombre} (${f.club || 'independiente'}) compite en ${f.sexo === 'F' ? 'femenino' : 'masculino'} ${cat(f.categoria)} kg ${f.divisionNombre} en la GR Strength Cup.${f.totalPrevisto ? ' Total previsto: ' + kg(f.totalPrevisto) + ' kg.' : ''}`,
+        title: catTxt ? `${nombre} · ${catTxt} · GR Strength Cup` : `${nombre} · GR Strength Cup`,
+        description: `${desc}${f.totalPrevisto ? ' Total previsto: ' + kg(f.totalPrevisto) + ' kg.' : ''}`,
         path: '/atletas/' + f.slug, image: f.fotoUrl || undefined,
         jsonLd: { '@context': 'https://schema.org', '@type': 'Person', name: nombre, ...(f.club ? { memberOf: { '@type': 'SportsTeam', name: f.club } } : {}), knowsAbout: 'Powerlifting' },
       });
