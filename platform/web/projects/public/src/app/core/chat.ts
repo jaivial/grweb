@@ -28,6 +28,8 @@ export interface ChatFrame {
    */
   fanKey?: string;
   atleta?: boolean;
+  /** Id of the deleted message (frame «borrado»): the room reader overwrites «id» with the id of the entry. */
+  mensajeId?: string;
   ts?: number;
   cid?: string;
   conectados?: number;
@@ -513,9 +515,10 @@ export class ChatService {
         return;
       }
       case 'borrado': {
-        // The backend injects the id of the deleted message, but the room reader overwrites it with the id of the
-        // stream entry: when it does not match any message, the deletion is shown as its own line.
-        const id = f.id ?? '';
+        // The backend injects the id of the deleted message in «mensajeId», but the room reader overwrites «id»
+        // with the id of the stream entry of the deletion: the message is looked up by «mensajeId» (with «id»
+        // as a fallback). When it matches nothing, the deletion is shown as its own line.
+        const id = f.mensajeId ?? f.id ?? '';
         if (id && this.items().some((i) => i.kind === 'msg' && i.id === id)) {
           this.items.update((l) => l.map((i) => (i.kind === 'msg' && i.id === id ? { ...i, borrado: true } : i)));
           return;
