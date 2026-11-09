@@ -408,57 +408,78 @@ export const PRIZES_COPY = {
     eyebrow: 'Clasificación absoluta',
     title: 'Ganador absoluto ·',
     titleAccent: 'GL Points',
-    badge: 'Mejor atleta · GL Points',
     namePending: 'Por decidir',
     detailPending: 'Se decide el día del campeonato',
     valuePending: 'Pendiente',
-    medalLabel: 'Oro · Ganador absoluto',
     explainerTitle: '¿Qué son los GL Points?',
     explainer:
       'La fórmula IPF GoodLift convierte tu total en puntos según tu peso corporal y tu sexo. Así, un \u221243 kg y un +120 kg compiten en la misma clasificación: gana quien más rinde, no quien más pesa.',
   },
 } as const;
 
-/** Absolute winner once the championship is over. */
-export interface AbsoluteWinner {
-  name: string;
-  club: string;
-  sex: 'Hombres' | 'Mujeres';
+export type WinnerSex = 'M' | 'F';
+
+/**
+ * One absolute winner by IPF GoodLift points (one per sex, each with its own prize and card).
+ * Figma 191:61759: `pending` before the event («Por decidir», «Pendiente» in every figure, same
+ * height as the numbers so publishing does not move the card); `decided` with the data
+ * (es-ES: total 1 decimal, GL 2, bodyweight 1). Data fields are only read when `decided`.
+ */
+export interface AbsoluteWinnerEntry {
+  sex: WinnerSex;
+  status: 'pending' | 'decided';
+  name?: string;
+  club?: string;
   /** Weight class as in MEN_CATEGORIES / WOMEN_CATEGORIES, e.g. «-93». */
-  weightClass: string;
-  totalKg: number;
-  glPoints: number;
-  bodyweightKg: number;
+  category?: string;
+  /** Total, kg. */
+  total?: number;
+  /** IPF GoodLift points. */
+  gl?: number;
+  /** Bodyweight, kg. */
+  bodyweight?: number;
 }
 
 /**
- * Block C state (Figma 191:61759): `pending` before the event («Por decidir», «Pendiente» in
- * every figure, same height as the numbers so publishing does not move the card); `decided`
- * with the winner (es-ES: total 1 decimal, GL 2, bodyweight 1).
+ * Per-sex texts of block C: category word of the meta line, badge (replaces «Mejor atleta · GL
+ * Points» so the two pending cards can be told apart; PROVISIONAL copy until the Figma of the
+ * two cards), tooltip of the medal.
  */
-export type AbsoluteWinnerState = { status: 'pending' } | { status: 'decided'; winner: AbsoluteWinner };
-
-/** Publish the winner here after the championship: `{ status: 'decided', winner: { … } }`. */
-export const ABSOLUTE_WINNER: AbsoluteWinnerState = { status: 'pending' };
-
-/**
- * Fictitious post-event example of the Figma (coherent with the GL formula). QA only: never
- * assign it to ABSOLUTE_WINNER in a commit.
- */
-export const ABSOLUTE_WINNER_EXAMPLE: AbsoluteWinnerState = {
-  status: 'decided',
-  winner: { name: 'Alejandro Ruiz', club: 'GR Strength Club', sex: 'Hombres', weightClass: '-93', totalKg: 612.5, glPoints: 80.3, bodyweightKg: 92.6 },
+export const ABSOLUTE_SEX: Record<WinnerSex, { category: string; badge: string; medalLabel: string }> = {
+  M: { category: 'Hombres', badge: 'Hombres · GL Points', medalLabel: 'Oro · Ganador absoluto masculino' },
+  F: { category: 'Mujeres', badge: 'Mujeres · GL Points', medalLabel: 'Oro · Ganadora absoluta femenina' },
 };
 
-/** Figures of the card: label (wide), short label with unit (narrow, unit then hidden), unit. */
-export const ABSOLUTE_STATS = [
-  { id: 'total', label: 'Total', shortLabel: 'Total · kg', unit: 'kg', decimals: 1, highlight: false },
-  { id: 'gl-points', label: 'GL Points', shortLabel: 'GL Points', unit: 'GL', decimals: 2, highlight: true },
-  { id: 'bodyweight', label: 'Peso corporal', shortLabel: 'Peso · kg', unit: 'kg', decimals: 1, highlight: false },
-] as const;
+/**
+ * The absolute winners, one card each, in this order. Publish after the championship by setting
+ * `status: 'decided'` and the data of each entry.
+ */
+export const ABSOLUTE_WINNERS: readonly AbsoluteWinnerEntry[] = [
+  { sex: 'M', status: 'pending' },
+  { sex: 'F', status: 'pending' },
+];
+
+/**
+ * Fictitious post-event data (the male one is the Figma example, coherent with the GL formula).
+ * QA only: never assign it to ABSOLUTE_WINNERS in a commit.
+ */
+export const ABSOLUTE_WINNERS_EXAMPLE: readonly AbsoluteWinnerEntry[] = [
+  { sex: 'M', status: 'decided', name: 'Alejandro Ruiz', club: 'GR Strength Club', category: '-93', total: 612.5, gl: 80.3, bodyweight: 92.6 },
+  { sex: 'F', status: 'decided', name: 'Lucía Martín', club: 'GR Strength Club', category: '-63', total: 380, gl: 82.15, bodyweight: 62.4 },
+];
+
+/** Figures of a card: entry field, label (wide), short label with unit (narrow, unit then hidden), unit. */
+export const ABSOLUTE_STATS: ReadonlyArray<{ id: string; field: 'total' | 'gl' | 'bodyweight'; label: string; shortLabel: string; unit: string; decimals: number; highlight: boolean }> = [
+  { id: 'total', field: 'total', label: 'Total', shortLabel: 'Total · kg', unit: 'kg', decimals: 1, highlight: false },
+  { id: 'gl-points', field: 'gl', label: 'GL Points', shortLabel: 'GL Points', unit: 'GL', decimals: 2, highlight: true },
+  { id: 'bodyweight', field: 'bodyweight', label: 'Peso corporal', shortLabel: 'Peso · kg', unit: 'kg', decimals: 1, highlight: false },
+];
 
 /** Card layout per breakpoint: two columns (medal zone 440 | content) only from this width. */
 export const ABSOLUTE_TWO_COLUMNS_QUERY = '(min-width: 1280px)';
+
+/** Gap between consecutive winner cards (provisional stacking until the Figma layout of two cards), px. */
+export const ABSOLUTE_CARDS_GAP = 40;
 
 /** Block C extras per layout id (ABSOLUTE_LAYOUTS): steel clip at the card top, medal zone, band width. */
 export interface AbsoluteCardLayout {
@@ -479,6 +500,9 @@ export interface AbsoluteCardLayout {
  *   centred, 160 × 156 with a 110 ribbon, clip 72 × 8, zone 282 (110 + 156 + 16).
  * - < 768: anchor at the card centre, ribbon 72, medal 112 × 109, clip 56 × 6, zone 200.
  * Physics as page 79 without collisions, swing max 40°. StaticMedal is only the fallback.
+ * PROVISIONAL: this is the geometry of ONE card. There are two winners (M / F), one card and one
+ * hanging medal (one view of the shared canvas) each; until the Figma layout of the two cards is
+ * approved they are stacked with this same geometry.
  */
 export const ABSOLUTE_LAYOUTS: readonly HangingLayout[] = [
   {

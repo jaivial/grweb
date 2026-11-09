@@ -5,7 +5,8 @@ import { useMatchingEntry } from '@hooks/useMediaQuery';
 import { HangingMedals, MedalStage, type HangingMedalSpec } from '@components/medals';
 import { hoveredPrizeMovementAtom } from '../atoms/prizes';
 import {
-  AbsoluteWinnerCard,
+  ABSOLUTE_WINNERS,
+  AbsoluteWinners,
   HANGING_LAYOUTS,
   MEDAL_ASSETS,
   MEDAL_ENTRANCE,
@@ -176,7 +177,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
       {/* No z-index here: blocks B and C put their rail / clip above the medal canvas (z-30) and their own content in z-20. */}
       <div className="relative mx-auto w-[calc(100%-40px)] max-w-[1200px]" data-ui="prizes-extra-content">
         <WeightClassPrizes />
-        <AbsoluteWinnerCard />
+        <AbsoluteWinners winners={ABSOLUTE_WINNERS} />
       </div>
 
       <div className="absolute top-1/2 left-1/4 w-80 h-80 bg-dark-red/5 rounded-full blur-3xl pointer-events-none" data-ui="bg-glow-left" aria-hidden />
