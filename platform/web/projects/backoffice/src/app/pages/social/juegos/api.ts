@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
@@ -148,8 +148,12 @@ export class JuegosApi {
     return firstValueFrom(this.http.get<ConfigJuegos>(`${this.b(cid)}/config`));
   }
 
+  /**
+   * Guarda la configuración. La versión leída viaja en `If-Match`: si otra persona guardó antes, el backend
+   * responde 409 CONFLICTO_EDICION (igual que el resto de configuraciones del backoffice).
+   */
   guardarConfig(cid: string, c: ConfigJuegos): Promise<ConfigJuegos> {
-    return firstValueFrom(this.http.put<ConfigJuegos>(`${this.b(cid)}/config`, c));
+    return firstValueFrom(this.http.put<ConfigJuegos>(`${this.b(cid)}/config`, c, { headers: new HttpHeaders({ 'If-Match': `"${c.version}"` }) }));
   }
 
   clasificaciones(cid: string, jornada: string): Promise<Clasificaciones> {

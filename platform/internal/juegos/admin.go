@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -269,11 +271,12 @@ func (s *Svc) registerAdmin() {
 		})
 
 	type configPutIn struct {
-		CID  uuid.UUID `path:"cid"`
-		Body Config
+		CID     uuid.UUID `path:"cid"`
+		IfMatch string    `header:"If-Match" required:"true" doc:"Versión leída (ETag): si otra persona guardó antes → 409 CONFLICTO_EDICION"`
+		Body    Config
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-config-guardar", Method: http.MethodPut, Path: base + "/config",
-		Summary: "Guardar la configuración de puntos, cláusulas y recompensas", Tags: tagJuegos, Security: bearer},
+		Summary: "Guardar la configuración de puntos, cláusulas y recompensas (If-Match)", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *configPutIn) (*configOut, error) {
 			p, err := requireAny(ctx, in.CID, "Tu rol no puede gestionar los juegos (permiso «directo.operar»).", "directo.operar")
 			if err != nil {
@@ -284,16 +287,30 @@ func (s *Svc) registerAdmin() {
 				return nil, problem.Unprocessable("CONFIG_NO_VALIDA", "El mínimo y el máximo de apuesta no son coherentes.")
 			}
 			pt, _ := json.Marshal(b.Puntos)
-			_, err = s.a.DB.Exec(ctx, `UPDATE config_juegos SET porra_min = $2, porra_max = $3, hito5_porra = $4, hito10_porra = $5,
-				hito5_fantasy = $6, hito10_fantasy = $7, fantasy_por_euro = $8, max_hitos = $9, max_clausulazos = $10, proteccion_min = $11,
-				plantilla_max = $12, titulares_max = $13, clausula_inicial = $14, clausula_min = $15, clausula_max = $16,
-				pct_valido = $17, pct_nulo = $18, pct_blanqueo = $19, pct_demanda = $20, pct_puesto = $21, puntos = $22,
-				version = version + 1, updated_por = $23, updated_at = now()
-				WHERE competition_id = $1`,
-				in.CID, b.PorraMin, b.PorraMax, b.Hito5Porra, b.Hito10Porra, b.Hito5Fantasy, b.Hito10Fantasy,
-				b.FantasyPorEuro, b.MaxHitos, b.MaxClausulazos, b.ProteccionMin, b.PlantillaMax, b.TitularesMax,
-				b.ClausulaInicial, b.ClausulaMin, b.ClausulaMax, b.PctValido, b.PctNulo, b.PctBlanqueo, b.PctDemanda, b.PctPuesto,
-				pt, p.Name)
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				// The row may not exist yet (the first save): it is created with the defaults (version 1).
+				if _, err := tx.Exec(ctx, `INSERT INTO config_juegos (competition_id) VALUES ($1) ON CONFLICT DO NOTHING`, in.CID); err != nil {
+					return err
+				}
+				var actual int
+				if err := tx.QueryRow(ctx, `SELECT version FROM config_juegos WHERE competition_id = $1 FOR UPDATE`, in.CID).Scan(&actual); err != nil {
+					return err
+				}
+				if strings.Trim(in.IfMatch, `"W/`) != strconv.Itoa(actual) {
+					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha cambiado la configuración de los juegos. Recarga para ver la última versión.")
+				}
+				_, err := tx.Exec(ctx, `UPDATE config_juegos SET porra_min = $2, porra_max = $3, hito5_porra = $4, hito10_porra = $5,
+					hito5_fantasy = $6, hito10_fantasy = $7, fantasy_por_euro = $8, max_hitos = $9, max_clausulazos = $10, proteccion_min = $11,
+					plantilla_max = $12, titulares_max = $13, clausula_inicial = $14, clausula_min = $15, clausula_max = $16,
+					pct_valido = $17, pct_nulo = $18, pct_blanqueo = $19, pct_demanda = $20, pct_puesto = $21, puntos = $22,
+					version = version + 1, updated_por = $23, updated_at = now()
+					WHERE competition_id = $1`,
+					in.CID, b.PorraMin, b.PorraMax, b.Hito5Porra, b.Hito10Porra, b.Hito5Fantasy, b.Hito10Fantasy,
+					b.FantasyPorEuro, b.MaxHitos, b.MaxClausulazos, b.ProteccionMin, b.PlantillaMax, b.TitularesMax,
+					b.ClausulaInicial, b.ClausulaMin, b.ClausulaMax, b.PctValido, b.PctNulo, b.PctBlanqueo, b.PctDemanda, b.PctPuesto,
+					pt, p.Name)
+				return err
+			})
 			if err != nil {
 				return nil, err
 			}
