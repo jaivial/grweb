@@ -140,19 +140,18 @@ func retirarLoQueHaya(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID
 	}
 	cuanto := importe
 	if saldo < cuanto {
-		cuanto = saldo
+		cuanto = max(saldo, 0)
 	}
-	if cuanto <= 0 {
-		return nil
-	}
-	// The ledger row first: a repeated refund (same ref) is a no-op. It records what was really withdrawn.
-	tag, err := tx.Exec(ctx, `INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,$4,$5,$6,$7)
+	// The ledger row first: a repeated refund (same ref) is a no-op. It records what was really withdrawn and, in
+	// `pendiente`, what could not be (the balance never goes below zero), so the debt stays noted even when nothing
+	// could be withdrawn.
+	tag, err := tx.Exec(ctx, `INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref, pendiente) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 		ON CONFLICT (ref) DO NOTHING`,
-		newID(), j.ID, fanID, m, -cuanto, motivo, ref)
+		newID(), j.ID, fanID, m, -cuanto, motivo, ref, importe-cuanto)
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() == 0 {
+	if tag.RowsAffected() == 0 || cuanto == 0 {
 		return nil
 	}
 	// The row is locked, so LEAST(saldo, importe) is exactly `cuanto`: the balance never goes below zero.
