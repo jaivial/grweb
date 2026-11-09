@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
-import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import {
   CuboidCollider,
@@ -11,8 +11,8 @@ import {
 } from '@react-three/rapier';
 import { Euler, MathUtils, Plane, Quaternion, Vector3, type Group } from 'three';
 import { Ribbon } from './Ribbon';
-import { useMedalModel } from './useMedalModel';
-import type { HangingLayout, MedalCollisions, MedalPhysics, ResolvedMedal } from './types';
+import { medalMetrics, useMedalModel } from './useMedalModel';
+import type { HangingLayout, MedalCollisions, MedalMaterial, MedalPhysics, ResolvedMedal } from './types';
 
 export interface MedalRigProps {
   medal: ResolvedMedal;
@@ -21,12 +21,16 @@ export interface MedalRigProps {
   railY: number;
   layout: HangingLayout;
   physics: MedalPhysics;
+  /** Metal finish (stage default merged with the metal's overrides; keep it referentially stable). */
+  material: MedalMaterial;
   /** Contact material when medals may hit each other; null = this medal collides with nothing. */
   collisions: MedalCollisions | null;
   /** False while the canvas is out of the viewport. */
   active: boolean;
   /** Shared flag: a pointer is dragging a medal (blocks touch scrolling). */
   grabbingRef: MutableRefObject<boolean>;
+  /** Sets the CSS cursor of the element that receives this medal's pointer events. */
+  setCursor: (cursor: string) => void;
   onHover?: (id: string | null) => void;
 }
 
@@ -52,13 +56,14 @@ const WIND_ADAPT_MAX = 1.25;
  * idle wind (periodic force whose amplitude adapts to the target angle), idle twist, and the
  * drag spring towards the pointer. The ribbon is drawn from the medal transform. The collider is a
  * box (the GLB mesh is not watertight); it only touches other medals when `collisions` is set.
+ * A breakpoint change keeps the body, joint and model: it rescales them and re-hangs the medal.
  */
-export function MedalRig({ medal, railX, railY, layout, physics, collisions, active, grabbingRef, onHover }: MedalRigProps) {
+export function MedalRig({ medal, railX, railY, layout, physics, material, collisions, active, grabbingRef, setCursor, onHover }: MedalRigProps) {
   const { assets, geometry: geo } = medal;
   const ppu = physics.pxPerUnit;
-  const model = useMedalModel(assets.glb, geo.medalWidth / ppu);
+  const loaded = useMedalModel(assets.glb, material);
+  const model = useMemo(() => ({ ...loaded, ...medalMetrics(loaded, geo.medalWidth / ppu) }), [loaded, geo.medalWidth, ppu]);
   const ribbonTexture = useTexture(assets.ribbon);
-  const gl = useThree((state) => state.gl);
 
   const railRef = useRef<RapierRigidBody>(null);
   const bodyRef = useRef<RapierRigidBody>(null);
@@ -89,7 +94,7 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
     };
   }, [geo, physics, model, ppu]);
 
-  useSphericalJoint(railRef, bodyRef, [
+  const jointRef = useSphericalJoint(railRef, bodyRef, [
     [0, 0, 0],
     [0, rig.rod, 0],
   ]);
@@ -116,17 +121,21 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
     [],
   );
 
-  // Anchor moved (resize / column re-measure): move the rail and re-hang the medal below it.
+  // Anchor moved or breakpoint changed (resize / column re-measure): move the rail, set the new
+  // rod length on the existing joint and re-hang the medal below it. Nothing is remounted.
   useEffect(() => {
     const rail = railRef.current;
     const body = bodyRef.current;
     if (!rail || !body) return;
+    jointRef.current?.setAnchor2({ x: 0, y: rig.rod, z: 0 });
+    sim.current.forceAmp = rig.forceAmp;
+    sim.current.peak = 0;
     rail.setTranslation({ x: railX, y: railY, z: rig.z }, true);
     body.setTranslation({ x: railX, y: railY - rig.rod, z: rig.z }, true);
     body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
     body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     body.setAngvel({ x: 0, y: 0, z: 0 }, true);
-  }, [railX, railY, rig.rod, rig.z]);
+  }, [railX, railY, rig.rod, rig.z, rig.forceAmp, jointRef]);
 
   // Entering the viewport: a ~2° nudge so the wind is noticed at once.
   useEffect(() => {
@@ -216,10 +225,6 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
       material.envMapIntensity = model.baseEnvIntensity[index] * boost;
     });
   });
-
-  const setCursor = useCallback((cursor: string) => {
-    gl.domElement.style.cursor = cursor;
-  }, [gl]);
 
   /** Clamp the drag target to `maxSwing` from the vertical below the rail. */
   const setTarget = useCallback((point: Vector3) => {

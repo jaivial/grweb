@@ -1,13 +1,14 @@
 import { FC, useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useAtom } from 'jotai';
 import { useCdnImage } from '@hooks/useCdnImage';
-import { HangingMedals, type HangingMedalSpec } from '@components/medals';
+import { HangingMedals, MedalStage, type HangingMedalSpec } from '@components/medals';
 import { hoveredPrizeMovementAtom } from '../atoms/prizes';
 import {
   AbsoluteWinnerCard,
   HANGING_LAYOUTS,
   MEDAL_ASSETS,
   MEDAL_PHYSICS,
+  MEDAL_STAGE,
   PRIZES_COPY,
   PRIZE_MOVEMENTS,
   PrizeHeading,
@@ -100,8 +101,10 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
 
   return (
     <section id="premios" ref={sectionRef} className={`relative isolate scroll-mt-[88px] overflow-hidden pt-[220px] sm:pt-[300px] 3xl:pt-[420px] ${className}`} style={{ minHeight: 'auto', background: '#0a0a0a', paddingBottom: '80px' }} data-section="prices-all-movements" data-ui="prices-all-movements-section">
+      {/* One WebGL canvas for every group of hanging medals of the section (a view per group). */}
+      <MedalStage eventSourceRef={sectionRef} config={MEDAL_STAGE}>
       <div className="absolute left-1/2 top-0 h-[640px] w-[640px] -translate-x-1/2 -translate-y-1/3 rounded-full pointer-events-none" data-ui="medals-glow" style={{ background: 'radial-gradient(circle, rgba(139, 0, 0, 0.22) 0%, transparent 65%)' }} aria-hidden />
-      <HangingMedals medals={medals} layouts={HANGING_LAYOUTS} physics={MEDAL_PHYSICS} containerRef={sectionRef} onMedalHover={handleMedalHover} />
+      <HangingMedals id="movements" medals={medals} layouts={HANGING_LAYOUTS} physics={MEDAL_PHYSICS} containerRef={sectionRef} onMedalHover={handleMedalHover} />
       <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none z-10" data-ui="fade-overlay-top" style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, transparent 100%)' }} aria-hidden />
       <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-10" data-ui="fade-overlay-bottom" style={{ background: 'linear-gradient(to top, #0a0a0a 0%, transparent 100%)' }} aria-hidden />
       <div className="absolute top-0 bottom-0 left-0 w-16 pointer-events-none z-10" data-ui="fade-overlay-left" style={{ background: 'linear-gradient(to right, #0a0a0a 0%, transparent 100%)' }} aria-hidden />
@@ -165,6 +168,7 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
 
       <div className="absolute top-1/2 left-1/4 w-80 h-80 bg-dark-red/5 rounded-full blur-3xl pointer-events-none" data-ui="bg-glow-left" aria-hidden />
       <div className="absolute top-1/2 right-1/4 w-80 h-80 bg-red-accent/4 rounded-full blur-3xl pointer-events-none" data-ui="bg-glow-right" aria-hidden />
+      </MedalStage>
     </section>
   );
 };

@@ -8,6 +8,60 @@ export interface MedalAssets {
   image: string;
   /** Straight vertical strip of the lanyard, tiles vertically. */
   ribbon: string;
+  /** Per-metal overrides of the stage material (`MedalStageConfig.material`). */
+  material?: Partial<MedalMaterial>;
+}
+
+/** PBR finish of the medal metal, applied over the GLB material (its maps are kept). */
+export interface MedalMaterial {
+  /**
+   * glTF roughnessFactor. With `useRoughnessMap` it multiplies the G channel of the
+   * metallicRoughness map; without it, it is the flat roughness of the whole medal.
+   */
+  roughness: number;
+  useRoughnessMap: boolean;
+  metalness: number;
+  envMapIntensity: number;
+  /** 0 keeps MeshStandardMaterial; > 0 swaps to MeshPhysicalMaterial with a clear coat. */
+  clearcoat: number;
+  clearcoatRoughness: number;
+}
+
+/** One light panel of the studio environment the metal reflects (drei `Lightformer`). */
+export interface MedalLightformer {
+  form: 'rect' | 'ring' | 'circle';
+  intensity: number;
+  color?: string;
+  position: [number, number, number];
+  scale: number | [number, number, number];
+  /** Point the panel faces; omitted = its default orientation (facing +z). */
+  target?: [number, number, number];
+}
+
+/** Direct light of the medal scene (point lights have no distance falloff). */
+export interface MedalLight {
+  type: 'directional' | 'point';
+  position: [number, number, number];
+  intensity: number;
+  color: string;
+}
+
+/** Rendering of the shared medal canvas: resolution, tone mapping, finish and studio light. */
+export interface MedalStageConfig {
+  /** Device pixel ratio range of the shared canvas. */
+  dpr: [number, number];
+  toneMapping: 'aces' | 'agx' | 'neutral';
+  exposure: number;
+  material: MedalMaterial;
+  environment: {
+    /** Cube map size of the generated environment. */
+    resolution: number;
+    /** Colour between the panels (what the dark parts of the metal reflect). */
+    background: string;
+    lightformers: readonly MedalLightformer[];
+  };
+  ambientIntensity: number;
+  lights: readonly MedalLight[];
 }
 
 /** Idle wind of a hanging medal (physical periodic force, not keyframes). */

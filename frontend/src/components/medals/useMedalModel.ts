@@ -1,17 +1,25 @@
 import { useEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { Box3, Mesh, MeshStandardMaterial, Vector3, type Object3D } from 'three';
+import { Box3, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Vector3, type Object3D } from 'three';
+import type { MedalMaterial } from './types';
 
 export interface MedalModel {
-  /** Per-instance clone (own materials, shared geometry/textures). */
+  /** Per-instance clone (own materials, shared geometry/textures), in model units. */
   object: Object3D;
   /** Materials of this instance, for the hover env-map boost. */
   materials: MeshStandardMaterial[];
   /** Base envMapIntensity of each material. */
   baseEnvIntensity: number[];
-  /** Scale that makes the model `widthUnits` wide. */
+  /** Model width, height and depth in model units. */
+  size: Vector3;
+  /** Tab pivot height above the medal centre (`ribbon_anchor`), model units. */
+  pivot: number;
+}
+
+/** A model scaled to a width in world units. */
+export interface MedalMetrics {
   scale: number;
-  /** Tab pivot height above the medal centre (`ribbon_anchor`), world units. */
+  /** Tab pivot height above the medal centre, world units. */
   pivotY: number;
   /** Half extents of the scaled medal box, for its collider and hit proxy. */
   halfExtents: [number, number, number];
@@ -20,12 +28,41 @@ export interface MedalModel {
 /** Fallback pivot when the GLB has no `ribbon_anchor` node: tab centre at 3 % from the top. */
 const FALLBACK_PIVOT_FROM_TOP = 0.03;
 
+/** The GLB material with the configured metal finish (maps kept; clear coat → physical). */
+function finishMaterial(source: MeshStandardMaterial, finish: MedalMaterial): MeshStandardMaterial {
+  const material =
+    finish.clearcoat > 0
+      ? new MeshPhysicalMaterial({
+          name: source.name,
+          color: source.color,
+          map: source.map,
+          normalMap: source.normalMap,
+          normalScale: source.normalScale,
+          roughnessMap: source.roughnessMap,
+          metalnessMap: source.metalnessMap,
+          aoMap: source.aoMap,
+          emissive: source.emissive,
+          emissiveMap: source.emissiveMap,
+          side: source.side,
+          clearcoat: finish.clearcoat,
+          clearcoatRoughness: finish.clearcoatRoughness,
+        })
+      : source.clone();
+  material.roughness = finish.roughness;
+  material.metalness = finish.metalness;
+  material.envMapIntensity = finish.envMapIntensity;
+  if (!finish.useRoughnessMap) material.roughnessMap = null;
+  material.needsUpdate = true;
+  return material;
+}
+
 /**
- * Loads a medal GLB (drei cache, shared by every instance) and returns a clone scaled to
- * `widthUnits`, plus the geometry the rig needs. Only glTF core + EXT_texture_webp +
+ * Loads a medal GLB (drei cache, shared by every instance) and returns one clone with the
+ * configured finish. Size-independent: a breakpoint change only rescales it (`medalMetrics`),
+ * the clone and its materials are kept. Only glTF core + EXT_texture_webp +
  * KHR_mesh_quantization are used, so no Draco/Meshopt decoders are loaded.
  */
-export function useMedalModel(url: string, widthUnits: number): MedalModel {
+export function useMedalModel(url: string, finish: MedalMaterial): MedalModel {
   const { scene } = useGLTF(url, false, false);
 
   const model = useMemo<MedalModel>(() => {
@@ -33,25 +70,32 @@ export function useMedalModel(url: string, widthUnits: number): MedalModel {
     const materials: MeshStandardMaterial[] = [];
     object.traverse((child) => {
       if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
-        child.material = child.material.clone();
+        child.material = finishMaterial(child.material, finish);
         materials.push(child.material);
       }
     });
     const size = new Box3().setFromObject(object).getSize(new Vector3());
-    const scale = widthUnits / size.x;
     const anchor = object.getObjectByName('ribbon_anchor');
-    const pivotLocal = anchor ? anchor.position.y : size.y * (0.5 - FALLBACK_PIVOT_FROM_TOP);
     return {
       object,
       materials,
       baseEnvIntensity: materials.map((material) => material.envMapIntensity),
-      scale,
-      pivotY: pivotLocal * scale,
-      halfExtents: [(size.x * scale) / 2, (size.y * scale) / 2, (size.z * scale) / 2],
+      size,
+      pivot: anchor ? anchor.position.y : size.y * (0.5 - FALLBACK_PIVOT_FROM_TOP),
     };
-  }, [scene, widthUnits]);
+  }, [scene, finish]);
 
   useEffect(() => () => model.materials.forEach((material) => material.dispose()), [model]);
 
   return model;
+}
+
+/** Scale, pivot and half extents of `model` at `widthUnits` world units wide. */
+export function medalMetrics(model: MedalModel, widthUnits: number): MedalMetrics {
+  const scale = widthUnits / model.size.x;
+  return {
+    scale,
+    pivotY: model.pivot * scale,
+    halfExtents: [(model.size.x * scale) / 2, (model.size.y * scale) / 2, (model.size.z * scale) / 2],
+  };
 }

@@ -115,8 +115,8 @@ const WeightClassTabs = memo(function WeightClassTabs() {
 
 /**
  * Block B · «Premio por categoría de peso»: the podium (silver · gold · bronze) hangs in the
- * block's padding-top, then the heading and the weight classes as text. Its canvas has its own
- * IntersectionObserver and physics world, separate from block A.
+ * block's padding-top, then the heading and the weight classes as text. It is its own view of
+ * the section's shared medal canvas, with its own IntersectionObserver and physics world.
  */
 export const WeightClassPrizes = memo(function WeightClassPrizes() {
   const blockRef = useRef<HTMLDivElement>(null);
@@ -129,7 +129,7 @@ export const WeightClassPrizes = memo(function WeightClassPrizes() {
   return (
     // padding-top = PODIUM_LAYOUTS[].canvasHeight + 8 (192 / 280 / 368).
     <div ref={blockRef} className="relative mt-16 pt-[192px] sm:mt-20 sm:pt-[280px] 3xl:pt-[368px]" data-ui="weight-class-prizes">
-      <HangingMedals medals={medals} layouts={PODIUM_LAYOUTS} physics={MEDAL_PHYSICS} collisions={PODIUM_COLLISIONS} containerRef={blockRef} />
+      <HangingMedals id="podium" medals={medals} layouts={PODIUM_LAYOUTS} physics={MEDAL_PHYSICS} collisions={PODIUM_COLLISIONS} containerRef={blockRef} />
       <PrizeHeading eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
       {showColumns ? <WeightClassColumns /> : <WeightClassTabs />}
     </div>

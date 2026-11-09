@@ -4,7 +4,7 @@
  * block B: weight-class podium), physics, movements, weight classes and the absolute winner.
  */
 import { MEN_CATEGORIES, WOMEN_CATEGORIES } from '@/constants';
-import type { HangingLayout, MedalAssets, MedalPhysics } from '@components/medals/types';
+import type { HangingLayout, MedalAssets, MedalPhysics, MedalStageConfig } from '@components/medals/types';
 
 export type MedalMetal = 'gold' | 'silver' | 'bronze';
 
@@ -189,6 +189,32 @@ export const MEDAL_PHYSICS: MedalPhysics = {
   hoverDamping: 18,
   hoverImpulse: 0.15,
   hoverEnvBoost: 1.25,
+};
+
+/**
+ * Shared medal canvas (one WebGL context for every hanging group of the section): resolution,
+ * metal finish and the studio light the metal reflects.
+ */
+export const MEDAL_STAGE: MedalStageConfig = {
+  dpr: [1, 1.5],
+  toneMapping: 'aces',
+  exposure: 1,
+  material: { roughness: 1, useRoughnessMap: true, metalness: 1, envMapIntensity: 1, clearcoat: 0, clearcoatRoughness: 0 },
+  environment: {
+    resolution: 256,
+    background: '#14110f',
+    lightformers: [
+      { form: 'rect', intensity: 0.7, color: '#FFF1D6', position: [0, 0, 6], scale: [14, 8, 1] },
+      { form: 'rect', intensity: 2.5, color: '#FFF1D6', position: [-4, 5, 3], scale: [6, 3, 1], target: [0, 0, 0] },
+      { form: 'rect', intensity: 1, position: [5, 1, 2], scale: [3, 6, 1], target: [0, 0, 0] },
+      { form: 'ring', intensity: 1.5, color: '#DC143C', position: [2, 1, -4], scale: 3 },
+    ],
+  },
+  ambientIntensity: 0.3,
+  lights: [
+    { type: 'directional', position: [-3, 5, 4], intensity: 2.2, color: '#FFF1D6' },
+    { type: 'point', position: [2, 1, -3], intensity: 0.6, color: '#DC143C' },
+  ],
 };
 
 export type MovementId = 'squat' | 'bench' | 'deadlift';
