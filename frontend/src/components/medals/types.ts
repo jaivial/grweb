@@ -20,6 +20,8 @@ export interface MedalMaterial {
    */
   roughness: number;
   useRoughnessMap: boolean;
+  /** Strength of the GLB normal map (1 = as authored; lower flattens the generated surface noise). */
+  normalScale: number;
   metalness: number;
   envMapIntensity: number;
   /** 0 keeps MeshStandardMaterial; > 0 swaps to MeshPhysicalMaterial with a clear coat. */

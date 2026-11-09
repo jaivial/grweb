@@ -51,6 +51,7 @@ function finishMaterial(source: MeshStandardMaterial, finish: MedalMaterial): Me
   material.roughness = finish.roughness;
   material.metalness = finish.metalness;
   material.envMapIntensity = finish.envMapIntensity;
+  material.normalScale = source.normalScale.clone().multiplyScalar(finish.normalScale);
   if (!finish.useRoughnessMap) material.roughnessMap = null;
   material.needsUpdate = true;
   return material;

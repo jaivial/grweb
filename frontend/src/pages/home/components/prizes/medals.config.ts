@@ -194,19 +194,34 @@ export const MEDAL_PHYSICS: MedalPhysics = {
 /**
  * Shared medal canvas (one WebGL context for every hanging group of the section): resolution,
  * metal finish and the studio light the metal reflects.
+ *
+ * Polished metal = sharp-ish reflections of a contrasted studio, not a bright uniform one:
+ * - Finish: flat roughness 0.3 (the Tripo map, ~0.05-0.25, made the face reflect one big soft
+ *   panel evenly), normal map at 30 % (its generated noise looked hammered), a light clear coat.
+ * - Studio: dark warm background (the dark parts of the metal), a top softbox for the bevels, a
+ *   narrow vertical strip in front that sweeps across the faces as they twist, a dim front fill
+ *   so the face never goes black, side strips for the edges and the red rim behind.
+ * - Neutral tone mapping keeps the gold saturated (ACES pushed it to a flat cream).
  */
 export const MEDAL_STAGE: MedalStageConfig = {
   dpr: [1, 1.5],
-  toneMapping: 'aces',
+  toneMapping: 'neutral',
   exposure: 1,
-  material: { roughness: 1, useRoughnessMap: true, metalness: 1, envMapIntensity: 1, clearcoat: 0, clearcoatRoughness: 0 },
+  material: { roughness: 0.3, useRoughnessMap: false, normalScale: 0.3, metalness: 1, envMapIntensity: 1.2, clearcoat: 0.5, clearcoatRoughness: 0.18 },
   environment: {
     resolution: 256,
-    background: '#14110f',
+    background: '#0d0b09',
     lightformers: [
-      { form: 'rect', intensity: 0.7, color: '#FFF1D6', position: [0, 0, 6], scale: [14, 8, 1] },
-      { form: 'rect', intensity: 2.5, color: '#FFF1D6', position: [-4, 5, 3], scale: [6, 3, 1], target: [0, 0, 0] },
-      { form: 'rect', intensity: 1, position: [5, 1, 2], scale: [3, 6, 1], target: [0, 0, 0] },
+      // Top softbox (bevels, top edges).
+      { form: 'rect', intensity: 4, color: '#FFF4E0', position: [0, 5, 5], scale: [12, 2.5, 1], target: [0, 0, 0] },
+      // Narrow vertical strip in front: the highlight that sweeps across the face with the twist.
+      { form: 'rect', intensity: 3, color: '#FFF1D6', position: [1.4, 0, 7], scale: [0.9, 12, 1] },
+      // Dim front fill.
+      { form: 'rect', intensity: 0.25, color: '#FFE8C2', position: [-2, -1, 7], scale: [5, 6, 1] },
+      // Side strips (edges).
+      { form: 'rect', intensity: 2, position: [-6, 1, 2], scale: [2, 8, 1], target: [0, 0, 0] },
+      { form: 'rect', intensity: 1.5, position: [6, -2, 2], scale: [2, 6, 1], target: [0, 0, 0] },
+      // Red rim behind (brand).
       { form: 'ring', intensity: 1.5, color: '#DC143C', position: [2, 1, -4], scale: 3 },
     ],
   },
