@@ -61,7 +61,7 @@ func TestLiquidacionParimutuel(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-			return liquidarMercadoTx(ctx, tx, cid, j, cfg, &mc, ganadores)
+			return liquidarMercadoTx(ctx, tx, cid, j, cfg, &mc, resultadoMercado{definitivo: true, ganadores: ganadores})
 		}); err != nil {
 			t.Fatalf("liquidación: %v", err)
 		}

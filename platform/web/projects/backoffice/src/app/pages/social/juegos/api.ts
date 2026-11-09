@@ -132,8 +132,12 @@ export class JuegosApi {
     return firstValueFrom(this.http.post<void>(`${this.b(cid)}/mercados/${mid}/cerrar`, {}));
   }
 
-  liquidarMercado(cid: string, mid: string): Promise<void> {
-    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/mercados/${mid}/liquidar`, {}));
+  /**
+   * Liquida el mercado a mano. `devolver` es la acción explícita de staff: el bote entero vuelve a las apuestas y
+   * el mercado queda liquidado aunque el resultado todavía no sea definitivo (el backend lo audita con un evento).
+   */
+  liquidarMercado(cid: string, mid: string, devolver = false): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/mercados/${mid}/liquidar`, { devolver }));
   }
 
   tituloMercado(cid: string, mid: string, titulo: string): Promise<void> {

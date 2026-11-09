@@ -132,6 +132,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                         }
                         @if (m.estado !== 'liquidado') {
                           <button grIconButton icon="circle-check" [label]="'Liquidar el mercado ' + m.titulo" [disabled]="!puede()" (click)="liquidar(m)"></button>
+                          <button grIconButton icon="undo" [label]="'Anular y devolver el mercado ' + m.titulo" [disabled]="!puede()" (click)="devolver(m)"></button>
                         }
                       </div>
                     </li>
@@ -396,6 +397,32 @@ export class JuegosPage {
       await this.cargarJornada(this.seleccionada());
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo liquidar el mercado.'));
+    } finally {
+      this.ocupado.set(false);
+    }
+  }
+
+  /**
+   * «Anular y devolver»: el bote entero vuelve a las apuestas y el mercado queda liquidado. Es la salida manual
+   * para un mercado cuyo resultado no va a llegar (o no es definitivo): el backend lo audita con un evento admin.
+   */
+  protected async devolver(m: Mercado): Promise<void> {
+    const cid = this.cid();
+    if (!cid) return;
+    const ok = await this.confirm.ask({
+      title: '¿Anular el mercado y devolver el bote?',
+      text: `Se devuelve todo (${m.bote}) a las apuestas de «${m.titulo}» y el mercado queda liquidado. No se puede deshacer y queda anotado en el registro de la acción.`,
+      confirm: 'Anular y devolver',
+      danger: true,
+    });
+    if (!ok) return;
+    this.ocupado.set(true);
+    try {
+      await this.api.liquidarMercado(cid, m.id, true);
+      this.toasts.success('Mercado anulado y bote devuelto');
+      await this.cargarJornada(this.seleccionada());
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo anular el mercado.'));
     } finally {
       this.ocupado.set(false);
     }

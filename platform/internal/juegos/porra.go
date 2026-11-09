@@ -328,13 +328,29 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	return aid, nil
 }
 
-// liquidarMercadoTx settles a market with the parimutuel split (contract §6.2). ganadores holds the atletaIds
-// tied at the winning place. An empty list means the result is NOT definitive yet (the results are not published
-// or the scoreboard is degraded): the market is not settled (409 RESULTADO_PENDIENTE) and stays closed, so the pot
-// is never returned to everybody by mistake. The market row is locked FOR UPDATE: a bet that arrives while the
-// market is being settled cannot slip in (contract §6.2).
-// Idempotent by estado and premio refs.
-func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, mc *mercadoRow, ganadores []uuid.UUID) error {
+// resultadoMercado is what the scoreboard says about a market (contract §6.2). The three cases are different and
+// must not be mixed:
+//   - definitivo=false: the result is NOT definitive yet (the category is not published, or some category of the
+//     sex of a GL/movement market is not published): the market stays closed and its pot is not touched
+//     (409 RESULTADO_PENDIENTE in the API).
+//   - definitivo=true with winners: the result is definitive and there is a winner (or a tie): the pot is split
+//     parimutuel.
+//   - definitivo=true without winners: the result is definitive and NOBODY won (nobody finished or nobody has a
+//     valid lift): the whole pot comes back to everybody and the market is settled.
+//
+// `devolver` is the explicit action of the staff (backoffice «Anular y devolver»): the whole pot comes back and
+// the market is settled even if the result is not definitive yet. It is audited with an admin event.
+type resultadoMercado struct {
+	definitivo bool
+	ganadores  []uuid.UUID
+	devolver   bool
+}
+
+// liquidarMercadoTx settles a market with the parimutuel split (contract §6.2). The market row is locked
+// FOR UPDATE: a bet that arrives while the market is being settled cannot slip in (contract §6.2). The payouts go
+// in fan_id order (like every other operation of the wallet, contract §6.3): two settlements of different
+// markets cannot interleave and deadlock. Idempotent by estado and premio refs.
+func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, mc *mercadoRow, res resultadoMercado) error {
 	if mc == nil {
 		return nil // market not generated: nothing to settle
 	}
@@ -351,10 +367,18 @@ func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 	if estadoActual == "liquidado" {
 		return nil
 	}
-	if len(ganadores) == 0 {
+	if !res.definitivo && !res.devolver {
+		// The result is not definitive yet: the market stays closed and the pot is not touched.
 		return problem.Conflict("RESULTADO_PENDIENTE", "El resultado del mercado todavía no es definitivo: no se puede liquidar.")
 	}
-	rows, err := tx.Query(ctx, `SELECT id, atleta_id, fan_id, importe FROM apuestas WHERE mercado_id = $1`, mc.ID)
+	ganadores := res.ganadores
+	if res.devolver {
+		ganadores = nil // nobody won: the whole pot comes back
+	}
+	if ganadores == nil {
+		ganadores = []uuid.UUID{}
+	}
+	rows, err := tx.Query(ctx, `SELECT id, atleta_id, fan_id, importe FROM apuestas WHERE mercado_id = $1 ORDER BY fan_id, id`, mc.ID)
 	if err != nil {
 		return err
 	}
@@ -371,7 +395,8 @@ func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	for _, p := range repartoBote(apuestas, ganadores) {
+	premios := repartoBote(apuestas, ganadores)
+	for _, p := range premios {
 		motivo := "premio_porra"
 		if len(ganadores) == 0 {
 			motivo = "devolucion"
@@ -387,6 +412,14 @@ func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 	if _, err := tx.Exec(ctx, `UPDATE mercados SET estado = $2, ganador = $3, liquidado_at = now(), version = version + 1, updated_at = now()
 		WHERE id = $1 AND estado <> 'liquidado'`, mc.ID, estado, ganadores); err != nil {
 		return err
+	}
+	if res.devolver {
+		// The staff annulled the market: the audit event says who did it (the actor comes from the request).
+		if err := events.Enqueue(ctx, tx, events.New(ctx, "juegos.porra.devolucion",
+			map[string]any{"mercadoId": mc.ID.String(), "jornadaId": j.ID.String(), "estado": estado},
+			events.Competition(cid.String()), events.ForPermission("directo.operar"))); err != nil {
+			return err
+		}
 	}
 	return events.Enqueue(ctx, tx, events.New(ctx, "porra.mercado",
 		map[string]any{"mercadoId": mc.ID.String(), "estado": "liquidado"},

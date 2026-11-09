@@ -96,7 +96,7 @@ type premioBote struct {
 // repartoBote splits the pot parimutuel (contract §6.2): every winner gets floor(pot × own bet / total bet on the
 // winners); with several tied winners the pot is shared among the bets of all of them; the rounding remainder is
 // ignored. If nobody bet on the winners (the result IS definitive), everything is returned. An empty list of
-// winners means «no result yet» and never reaches here: liquidarMercadoTx refuses to settle the market.
+// winners means that nobody won: the whole pot comes back (the caller decides if the result was definitive).
 func repartoBote(apuestas []apuestaLote, ganadores []uuid.UUID) []premioBote {
 	ganado := map[uuid.UUID]bool{}
 	for _, g := range ganadores {

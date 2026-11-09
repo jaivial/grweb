@@ -201,46 +201,58 @@ func (s *Svc) registerAdmin() {
 			return nil, nil
 		})
 
-	cerrarLiquidar := func(accion string) func(ctx context.Context, in *mercadoIDIn) (*struct{}, error) {
-		return func(ctx context.Context, in *mercadoIDIn) (*struct{}, error) {
-			if err := operar(ctx, in.CID); err != nil {
-				return nil, err
-			}
-			j, err := jornadaDeMercado(ctx, s.a.DB, in.CID, in.MID)
-			if err != nil {
-				return nil, err
-			}
-			cfg, err := configJuegos(ctx, s.a.DB, in.CID)
-			if err != nil {
-				return nil, err
-			}
-			m, err := s.marcador(ctx, in.CID, j.Dia)
-			if err != nil {
-				return nil, problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
-			}
-			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				var mc mercadoRow
-				e := tx.QueryRow(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND competition_id = $2`, in.MID, in.CID).
-					Scan(&mc.ID, &mc.Tipo, &mc.Sexo, &mc.Categoria, &mc.Movimiento, &mc.Estado, &mc.Opciones)
-				if db.IsNoRows(e) {
-					return problem.NotFound("Mercado no encontrado.")
-				}
-				if e != nil {
-					return e
-				}
-				if accion == "cerrar" {
-					return cerrarMercadosTx(ctx, tx, in.CID, *j, m, []mercadoRow{mc})
-				}
-				// liquidar a mano: winners from the scoreboard now
-				return liquidarDesdeMarcadorTx(ctx, tx, in.CID, *j, cfg, m, mc)
-			})
-			return nil, err
+	accionMercado := func(ctx context.Context, in *mercadoIDIn, accion string, devolver bool) error {
+		if err := operar(ctx, in.CID); err != nil {
+			return err
 		}
+		j, err := jornadaDeMercado(ctx, s.a.DB, in.CID, in.MID)
+		if err != nil {
+			return err
+		}
+		cfg, err := configJuegos(ctx, s.a.DB, in.CID)
+		if err != nil {
+			return err
+		}
+		m, err := s.marcador(ctx, in.CID, j.Dia)
+		if err != nil {
+			return problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
+		}
+		return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			var mc mercadoRow
+			e := tx.QueryRow(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND competition_id = $2`, in.MID, in.CID).
+				Scan(&mc.ID, &mc.Tipo, &mc.Sexo, &mc.Categoria, &mc.Movimiento, &mc.Estado, &mc.Opciones)
+			if db.IsNoRows(e) {
+				return problem.NotFound("Mercado no encontrado.")
+			}
+			if e != nil {
+				return e
+			}
+			if accion == "cerrar" {
+				return cerrarMercadosTx(ctx, tx, in.CID, *j, m, []mercadoRow{mc})
+			}
+			// liquidar a mano: winners from the scoreboard now
+			return liquidarDesdeMarcadorTx(ctx, tx, in.CID, *j, cfg, m, mc, devolver)
+		})
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-mercado-cerrar", Method: http.MethodPost, Path: base + "/mercados/{mid}/cerrar",
-		Summary: "Cerrar un mercado a mano", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent}, cerrarLiquidar("cerrar"))
+		Summary: "Cerrar un mercado a mano", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *mercadoIDIn) (*struct{}, error) {
+			return nil, accionMercado(ctx, in, "cerrar", false)
+		})
+	type mercadoLiquidarIn struct {
+		mercadoIDIn
+		Body *struct {
+			Devolver bool `json:"devolver,omitempty" doc:"Anula el mercado y devuelve todo el bote, aunque el resultado todavia no sea definitivo (accion de staff, auditada)"`
+		}
+	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-mercado-liquidar", Method: http.MethodPost, Path: base + "/mercados/{mid}/liquidar",
-		Summary: "Liquidar un mercado a mano (reparte el bote parimutuel)", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent}, cerrarLiquidar("liquidar"))
+		Summary:     "Liquidar un mercado a mano (reparte el bote parimutuel) o devolverlo entero (devolver=true)",
+		Description: "Sin `devolver` el resultado tiene que ser definitivo (409 RESULTADO_PENDIENTE si todavia no lo es). Con `devolver=true` el bote entero vuelve a las apuestas y el mercado queda liquidado (accion de staff, auditada con un evento admin).",
+		Tags:        tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *mercadoLiquidarIn) (*struct{}, error) {
+			devolver := in.Body != nil && in.Body.Devolver
+			return nil, accionMercado(ctx, &in.mercadoIDIn, "liquidar", devolver)
+		})
 
 	// ---- fantasy: sincronizar atletas ----
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-fantasy-sincronizar", Method: http.MethodPost, Path: base + "/fantasy/sincronizar",
@@ -562,8 +574,11 @@ func jornadaDeMercado(ctx context.Context, q querier, cid, mid uuid.UUID) (*jorn
 }
 
 // liquidarDesdeMarcadorTx liquidates a market by hand: winners are the athletes at the winning place of the
-// scoreboard right now (puestoCategoria/puestoGL/puestoMovimiento == 1).
-func liquidarDesdeMarcadorTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador, mc mercadoRow) error {
+// scoreboard right now (puestoCategoria/puestoGL/puestoMovimiento == 1). The result has to be definitive (the
+// category published, or every category of the sex published for the GL and movement markets): if it is not, the
+// market stays closed (409 RESULTADO_PENDIENTE) unless the staff forces the refund (`devolver`: the whole pot
+// comes back and the market is settled, audited with an admin event).
+func liquidarDesdeMarcadorTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador, mc mercadoRow, devolver bool) error {
 	var ganadores []uuid.UUID
 	for i := range m.Atletas {
 		ma := &m.Atletas[i]
@@ -582,5 +597,28 @@ func liquidarDesdeMarcadorTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jo
 			}
 		}
 	}
-	return liquidarMercadoTx(ctx, tx, cid, j, cfg, &mc, ganadores)
+	return liquidarMercadoTx(ctx, tx, cid, j, cfg, &mc, resultadoMercado{
+		definitivo: resultadoDefinitivo(m, mc),
+		ganadores:  ganadores,
+		devolver:   devolver,
+	})
+}
+
+// resultadoDefinitivo reports whether the result of a market is definitive: the category of a `categoria` market
+// has to be published, and a `gl`/`movimiento` market needs every category of its sex published (contract §6.2).
+func resultadoDefinitivo(m *Marcador, mc mercadoRow) bool {
+	publicadas := map[string]bool{}
+	for _, k := range m.CategoriasPublicadas {
+		publicadas[k] = true
+	}
+	if mc.Tipo == "categoria" {
+		return publicadas[mc.Sexo+mc.Categoria]
+	}
+	for i := range m.Atletas {
+		ma := &m.Atletas[i]
+		if ma.Sexo == mc.Sexo && !publicadas[ma.Sexo+ma.Categoria] {
+			return false
+		}
+	}
+	return true
 }

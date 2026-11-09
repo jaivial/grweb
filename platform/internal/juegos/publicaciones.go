@@ -14,6 +14,10 @@ import (
 //     liquidation of the `categoria` market;
 //   - per sex, when all its categories are published: GL and movement points and the liquidation of the `gl` and
 //     `movimiento` markets.
+//
+// A published category is a definitive result: if nobody is at 1.º (nobody finished or nobody has a valid lift)
+// nobody won and the whole pot comes back (contract §6.2). Only a category that is NOT published yet leaves the
+// market closed (the result is not definitive).
 func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador,
 	ats map[uuid.UUID]*atletaFantasia, mercados []mercadoRow) error {
 
@@ -21,9 +25,9 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 	if err != nil {
 		return err
 	}
-	porSexo := map[string][]string{} // published categories per sex
+	publicadas := map[string]bool{} // published categories (sexo + categoría)
 	for _, k := range m.CategoriasPublicadas {
-		porSexo[k[:1]] = append(porSexo[k[:1]], k)
+		publicadas[k] = true
 	}
 
 	for _, k := range m.CategoriasPublicadas {
@@ -51,13 +55,9 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 			}
 		}
 		mc := buscarMercado(mercados, "categoria", sexo, cat, "")
-		if mc != nil && len(ganadores) == 0 {
-			// The result is not definitive yet (the results were published before the totals arrived): the market
-			// stays closed and the category is retried on the next sync (the points and the clause are idempotent).
-			s.logResultadoPendente(j, "categoria", sexo+" "+cat)
-			continue
-		}
-		if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mc, ganadores); err != nil {
+		// The category is published: the result is definitive. Without a 1.º nobody won and the whole pot comes
+		// back to everybody (contract §6.2).
+		if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mc, resultadoMercado{definitivo: true, ganadores: ganadores}); err != nil {
 			return err
 		}
 		if err := marcarPublicacionTx(ctx, tx, j.ID, clave); err != nil {
@@ -77,7 +77,13 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 	}
 	for _, sx := range []string{"F", "M"} {
 		clave := "sexo:" + sx
-		if aplicadas[clave] || len(todas[sx]) == 0 || len(porSexo[sx]) < len(todas[sx]) {
+		if aplicadas[clave] || len(todas[sx]) == 0 {
+			continue
+		}
+		if !sexoCompleto(publicadas, todas[sx]) {
+			// Some category of the sex is not published yet: the result of the GL and movement markets is not
+			// definitive. The markets stay closed and the sex is retried on the next sync of the worker.
+			s.logResultadoPendente(j, "gl/movimiento", sx)
 			continue
 		}
 		for i := range m.Atletas {
@@ -96,7 +102,6 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 				}
 			}
 		}
-		pendiente := false
 		for _, mv := range movimientos {
 			var ganadores []uuid.UUID
 			for i := range m.Atletas {
@@ -105,11 +110,9 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 				}
 			}
 			mc := buscarMercado(mercados, "movimiento", sx, "", mv)
-			if mc != nil && len(ganadores) == 0 {
-				pendiente = true
-				continue
-			}
-			if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mc, ganadores); err != nil {
+			// Every category of the sex is published: the result is definitive. Nobody at 1.º in this movement
+			// means that nobody won: the whole pot comes back (contract §6.2).
+			if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mc, resultadoMercado{definitivo: true, ganadores: ganadores}); err != nil {
 				return err
 			}
 		}
@@ -120,21 +123,25 @@ func (s *Svc) aplicarPublicacionesTx(ctx context.Context, tx pgx.Tx, cid uuid.UU
 			}
 		}
 		mcGL := buscarMercado(mercados, "gl", sx, "", "")
-		if mcGL != nil && len(ganadoresGL) == 0 {
-			pendiente = true
-		} else if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mcGL, ganadoresGL); err != nil {
+		if err := liquidarMercadoTx(ctx, tx, cid, j, cfg, mcGL, resultadoMercado{definitivo: true, ganadores: ganadoresGL}); err != nil {
 			return err
-		}
-		if pendiente {
-			// The result is not definitive yet: the markets stay closed and the sex is retried on the next sync.
-			s.logResultadoPendente(j, "gl/movimiento", sx)
-			continue
 		}
 		if err := marcarPublicacionTx(ctx, tx, j.ID, clave); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// sexoCompleto reports whether every category of a sex is published (the result of the GL and movement markets
+// of that sex is then definitive).
+func sexoCompleto(publicadas map[string]bool, categorias []string) bool {
+	for _, k := range categorias {
+		if !publicadas[k] {
+			return false
+		}
+	}
+	return true
 }
 
 // motivoPuesto is the marker of the clause adjustment by place (the history row is its idempotency key).
