@@ -4,18 +4,18 @@
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal, untracked } from '@angular/core';
-import { GrEmpty, GrSkeleton } from '@grcup/ui';
+import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
 import { JuegosEnVivo, JuegosEstado, PorraStore, monedas } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { AvisoJuegos, CoinBalance, LeaderboardRow, PremioCard } from './componentes';
+import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPodio } from './componentes';
 
 @Component({
   selector: 'gr-porra-clasificacion-page',
-  imports: [Page, GrEmpty, GrSkeleton, AvisoJuegos, CoinBalance, LeaderboardRow, PremioCard],
+  imports: [Page, GrButton, GrIcon, GrSkeleton, CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Clasificación" [suffix]="jornadaTxt()" crumb="Clasificación" section="Juegos"
@@ -24,28 +24,36 @@ import { AvisoJuegos, CoinBalance, LeaderboardRow, PremioCard } from './componen
         <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
       </div>
 
-      <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
+      <gr-juegos-nav class="mb-6 md:mb-8" juego="porra" activa="clasificacion" />
+
+      <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div class="min-w-0">
           @if (store.cargandoClas()) {
-            <div class="flex flex-col gap-2">
-              @for (i of [1, 2, 3, 4, 5]; track i) { <gr-skeleton class="h-16 rounded-lg" /> }
+            <div class="flex flex-col gap-2" aria-busy="true">
+              <gr-skeleton class="mx-auto mb-4 h-56 w-full max-w-[760px] rounded-lg" />
+              @for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-md" /> }
             </div>
           } @else if (!filas().length) {
-            <gr-empty icon="trophy" title="Todavía no hay clasificación" text="En cuanto se abra la jornada y alguien juegue, aquí verás el ranking en vivo." />
+            <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
+              <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="trophy" [size]="24" /></span>
+              <p class="text-display-xs">El podio está libre</p>
+              <p class="max-w-md text-body-s text-text-tertiary">En cuanto alguien apueste, aquí verás el ranking en vivo. La primera apuesta puede ser la tuya.</p>
+              <a grButton variant="primary" href="/porra" iconRight="arrow-right">Ir a los mercados</a>
+            </div>
           } @else {
-            <p class="mb-3 text-label-xs text-text-tertiary uppercase">Puesto</p>
-            <ul class="flex flex-col gap-2">
-              @for (f of filas(); track f.puesto) {
+            <gr-podio class="mb-6" [plazas]="podio()" />
+            <ol class="flex flex-col gap-2" aria-label="Clasificación desde el 4.º puesto">
+              @for (f of resto(); track f.puesto) {
                 <li><gr-leaderboard-row [fila]="f" [nota]="nota(f)" [yo]="f.puesto === miPuesto()" /></li>
               }
-            </ul>
+            </ol>
             @if (hayMas()) {
-              <p class="my-3 text-center text-body-xs text-text-tertiary">· · · puestos {{ visibles().length + 1 }} a {{ topTotal() }} · · ·</p>
-              @if (miFila(); as m) {
-                <ul class="flex flex-col gap-2">
-                  <li><gr-leaderboard-row [fila]="m" [nota]="nota(m)" [yo]="true" /></li>
-                </ul>
-              }
+              <p class="my-3 text-center font-mono text-[11px] text-text-tertiary uppercase">· · · puestos {{ visibles().length + 1 }} a {{ topTotal() }} · · ·</p>
+            }
+            @if (miFilaFuera(); as m) {
+              <div class="mt-2">
+                <gr-leaderboard-row [fila]="m" [nota]="nota(m)" [yo]="true" />
+              </div>
             }
           }
           @if (premios().length) {
@@ -54,13 +62,12 @@ import { AvisoJuegos, CoinBalance, LeaderboardRow, PremioCard } from './componen
         </div>
 
         @if (premios().length) {
-          <aside class="lg:justify-self-end">
-            <gr-premio-card [premio]="premios()[0]" />
+          <aside class="flex flex-col gap-4">
+            <p class="text-mono-xs text-accent-text">Lo que te llevas</p>
+            @for (p of premios().slice(0, 3); track p.id) { <gr-premio-card [premio]="p" /> }
           </aside>
         }
       </div>
-
-      <gr-aviso-juegos class="mt-10" />
     </gr-page>
   `,
 })
@@ -84,6 +91,19 @@ export class PorraClasificacionPage {
   });
   protected readonly topTotal = computed(() => this.store.clas()?.top.length ?? 0);
   protected readonly filas = computed(() => this.visibles());
+  /** Los tres primeros, para el podio. */
+  protected readonly podio = computed<PlazaPodio[]>(() =>
+    this.filas()
+      .filter((f) => f.puesto <= 3)
+      .map((f) => ({ puesto: f.puesto, alias: f.alias, valor: monedas(f.saldo), yo: f.puesto === this.miPuesto() })),
+  );
+  /** Del 4.º en adelante (los visibles). */
+  protected readonly resto = computed(() => this.filas().filter((f) => f.puesto > 3));
+  /** Mi fila cuando no está entre las visibles (se fija abajo). */
+  protected readonly miFilaFuera = computed(() => {
+    const m = this.miFila();
+    return m && m.puesto > this.visibles().length ? m : null;
+  });
   protected readonly saldo = computed(() => this.estado.saldoPorra());
   protected readonly premios = computed(() => this.store.premios().filter((p) => p.ranking === 'porra'));
   /** La línea de premios del diseño. */

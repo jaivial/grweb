@@ -4,32 +4,34 @@
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal, untracked } from '@angular/core';
-import { GrAlert, GrEmpty, GrIcon, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
 import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, TIPO_MERCADO, type Mercado, type TipoMercado, mensajeError, monedas } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { AvisoJuegos, BoletoApuesta, CoinBalance, GrupoChips, MarketCard, PremioCard } from './componentes';
+import { BoletoApuesta, CoinBalance, GrupoChips, JuegosNav, MarketCard, PremioCard } from './componentes';
 
 type FiltroTipo = 'todas' | TipoMercado;
 type FiltroSexo = 'todos' | 'F' | 'M';
 
 @Component({
   selector: 'gr-porra-page',
-  imports: [Page, GrAlert, GrEmpty, GrIcon, GrSkeleton, AvisoJuegos, BoletoApuesta, CoinBalance, GrupoChips, MarketCard, PremioCard],
+  imports: [Page, GrAlert, GrButton, GrIcon, GrSkeleton, BoletoApuesta, CoinBalance, GrupoChips, JuegosNav, MarketCard, PremioCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Porra" [suffix]="jornadaTxt()" crumb="Porra" section="Juegos" [subtitle]="subtitulo()">
-      <div pageStamps class="flex flex-wrap items-center gap-3">
+      <div pageStamps class="flex flex-wrap items-center gap-x-4 gap-y-2">
         <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
-        <button type="button" class="text-label-s text-accent-text hover:underline underline-offset-4" (click)="verCartera.set(!verCartera())">
-          {{ verCartera() ? 'Ocultar cartera' : 'Ver cartera y movimientos' }}
-        </button>
+        @if (fan.conSesion()) {
+          <button type="button" class="inline-flex h-11 items-center gap-1.5 text-label-s text-accent-text underline-offset-4 hover:underline md:h-auto" [attr.aria-expanded]="verCartera()" (click)="verCartera.set(!verCartera())">
+            <gr-icon name="history" [size]="15" />{{ verCartera() ? 'Ocultar cartera' : 'Cartera y movimientos' }}
+          </button>
+        }
       </div>
 
-      <gr-aviso-juegos class="mb-6" />
+      <gr-juegos-nav class="mb-6 md:mb-8" juego="porra" activa="mercados" />
 
       @if (soloLectura()) {
         <gr-alert class="mb-6" tone="info" title="Jornada cerrada">
@@ -39,16 +41,16 @@ type FiltroSexo = 'todos' | 'F' | 'M';
 
       @if (verCartera() && cartera()) {
         <section class="mb-6 rounded-lg border border-line-subtle bg-bg-card p-5" aria-label="Mi cartera">
-          <div class="flex flex-wrap items-center gap-6">
-            <p class="flex items-center gap-2 text-label-s"><gr-icon name="zap" [size]="16" class="text-accent-text" />Saldo de porra <span class="font-mono text-accent-text">{{ monedas(cartera()!.porra) }}</span></p>
-            <p class="flex items-center gap-2 text-label-s"><gr-icon name="zap" [size]="16" class="text-info" />Saldo fantasy <span class="font-mono text-info">{{ monedas(cartera()!.fantasy) }}</span></p>
+          <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Porra</span><span class="font-mono text-[20px] font-bold text-accent-text tabular-nums">{{ monedas(cartera()!.porra) }}</span></p>
+            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Fantasy</span><span class="font-mono text-[20px] font-bold text-info tabular-nums">{{ monedas(cartera()!.fantasy) }}</span></p>
           </div>
           @if (cartera()!.movimientos.length) {
             <ul class="mt-4 flex flex-col divide-y divide-line-subtle border-t border-line-subtle">
               @for (m of cartera()!.movimientos; track m.createdAt + m.motivo) {
                 <li class="flex items-center justify-between gap-3 py-2.5 text-body-xs">
                   <span class="min-w-0 truncate text-text-secondary">{{ m.motivo }}</span>
-                  <span class="shrink-0 font-mono" [class]="m.importe >= 0 ? 'text-success' : 'text-accent-text'">{{ m.importe >= 0 ? '+' : '' }}{{ monedas(m.importe) }}</span>
+                  <span class="shrink-0 font-mono tabular-nums" [class]="m.importe >= 0 ? 'text-success' : 'text-accent-text'">{{ m.importe >= 0 ? '+' : '' }}{{ monedas(m.importe) }}</span>
                 </li>
               }
             </ul>
@@ -58,58 +60,72 @@ type FiltroSexo = 'todos' | 'F' | 'M';
         </section>
       }
 
-      <!-- Figma «Gana más monedas escribiendo en el chat» + el selector de jornada -->
-      <section class="mb-6 flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5 md:flex-row md:items-center md:justify-between">
-        <div class="flex flex-col gap-2">
-          <p class="text-label-xs text-accent-text uppercase">Gana más monedas escribiendo en el chat</p>
-          <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="zap" [size]="15" class="text-accent-text" />5 mensajes en el chat: +100</p>
-          <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="zap" [size]="15" class="text-accent-text" />10 mensajes: +500 (se suma al de 5)</p>
-        </div>
-        <div class="flex flex-col gap-2">
+      <!-- Figma «Selector · jornada» + «Gana más monedas escribiendo en el chat» -->
+      <section class="mb-6 flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card/80 p-4 md:flex-row md:items-center md:justify-between md:p-5">
+        <div class="flex min-w-0 flex-col gap-2">
+          <p class="text-mono-xs text-text-tertiary">Jornada</p>
           <div class="flex flex-wrap gap-2" role="group" aria-label="Jornada">
             @for (j of jornadas(); track j.id) {
-              <button type="button" class="h-9 rounded-pill border px-4 text-label-xs transition-colors"
-                [class]="j.id === jornadaActiva()?.id ? 'border-accent bg-accent-deep/50 text-accent-text' : 'border-line-strong text-text-secondary hover:border-text-muted'"
+              <button type="button" class="h-11 rounded-pill border px-4 text-label-xs transition-colors md:h-9"
+                [class]="j.id === jornadaActiva()?.id ? 'border-accent bg-accent-grain text-white shadow-glow-deep' : 'border-line-strong text-text-secondary hover:border-text-muted hover:text-text-primary'"
                 [attr.aria-pressed]="j.id === jornadaActiva()?.id" (click)="elegirJornada(j.id)">{{ etiquetaJornada(j) }}</button>
-            }
-            @if (!jornadas().length) { <span class="text-body-xs text-text-tertiary">Cargando jornadas…</span> }
+            } @empty { <gr-skeleton class="h-9 w-40 rounded-pill" /> }
           </div>
-          <p class="text-body-xs text-text-tertiary">El histórico de cada jornada se guarda al cerrarla.</p>
+        </div>
+        <div class="flex flex-col gap-2 md:items-end">
+          <p class="text-mono-xs text-accent-text">Gana más monedas en el chat</p>
+          <p class="flex flex-wrap gap-2 text-body-xs text-text-secondary">
+            <span class="inline-flex h-8 items-center gap-1.5 rounded-pill border border-line-subtle bg-bg-surface px-3"><gr-icon name="zap" [size]="13" class="text-accent-text" />5 mensajes <b class="font-mono text-text-primary">+100</b></span>
+            <span class="inline-flex h-8 items-center gap-1.5 rounded-pill border border-line-subtle bg-bg-surface px-3"><gr-icon name="zap" [size]="13" class="text-accent-text" />10 mensajes <b class="font-mono text-text-primary">+500</b></span>
+          </p>
         </div>
       </section>
 
       <!-- Filtros (en móvil, una fila con scroll horizontal por grupo) -->
-      <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <gr-grupo-chips class="min-w-0 flex-1" [opciones]="tipos" [valor]="filtroTipo()" (valorChange)="filtroTipo.set($event)" />
-        <gr-grupo-chips class="min-w-0 flex-1" [opciones]="sexos" [valor]="filtroSexo()" (valorChange)="filtroSexo.set($event)" />
+      <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <gr-grupo-chips class="min-w-0" etiqueta="Tipo de mercado" [opciones]="tipos" [valor]="filtroTipo()" (valorChange)="filtroTipo.set($event)" />
+        <gr-grupo-chips class="min-w-0" etiqueta="Sexo" [opciones]="sexos" [valor]="filtroSexo()" (valorChange)="filtroSexo.set($event)" />
       </div>
 
       @if (store.cargando()) {
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          @for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-[420px] rounded-lg" /> }
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+          @for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-[480px] rounded-lg" /> }
         </div>
       } @else if (store.error(); as e) {
         <gr-alert tone="warning" title="No hemos podido cargar los mercados">{{ e }}</gr-alert>
       } @else if (!mercadosVisibles().length) {
-        <gr-empty icon="trophy" title="Todavía no hay mercados" text="Los mercados se generan cuando empieza la jornada. Vuelve en unos minutos." />
+        <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
+          <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="trophy" [size]="24" /></span>
+          <p class="text-display-xs">{{ todosMercados().length ? 'Ningún mercado con estos filtros' : 'Los mercados abren con la jornada' }}</p>
+          <p class="max-w-md text-body-s text-text-tertiary">{{ todosMercados().length ? 'Prueba con otro tipo o con ambos sexos.' : 'Se generan cuando empieza la competición. Vuelve en unos minutos: tienes 100.000 monedas esperando.' }}</p>
+          @if (todosMercados().length) { <button grButton variant="secondary" (click)="filtroTipo.set('todas'); filtroSexo.set('todos')">Quitar filtros</button> }
+        </div>
       } @else {
-        <p class="mb-3 text-body-xs text-text-tertiary">{{ resumen() }}</p>
+        <p class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-text-tertiary uppercase">
+          <span class="inline-flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-success"></span>{{ n('abierto') }} abiertos</span>
+          <span>{{ n('cerrado') }} cerrados</span><span>{{ n('liquidado') }} liquidados</span>
+        </p>
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           @for (m of mercadosVisibles(); track m.id) {
             <gr-market-card [mercado]="m" [soloLectura]="soloLectura()" [minimo]="estado.porraMin()" [maximoApuesta]="estado.porraMax()" (apostar)="apostar($event)" />
           }
         </div>
-        @if (filtrados().length > mercadosVisibles().length) {
-          <button type="button" class="mt-5 text-label-s text-accent-text hover:underline underline-offset-4" (click)="verTodos.set(!verTodos())">
-            {{ verTodos() ? 'Ver menos mercados' : 'Ver todos los mercados (' + filtrados().length + ')' }} →
-          </button>
+        @if (filtrados().length > 6) {
+          <div class="mt-6 flex justify-center">
+            <button grButton variant="secondary" [iconRight]="verTodos() ? 'chevron-left' : 'chevron-right'" (click)="verTodos.set(!verTodos())">
+              {{ verTodos() ? 'Ver menos mercados' : 'Ver todos los mercados (' + filtrados().length + ')' }}
+            </button>
+          </div>
         }
       }
 
       <!-- Premios de la jornada (gancho) -->
       @if (premios().length) {
-        <section class="mt-12">
-          <h2 class="text-display-2xs">Premios de la jornada</h2>
+        <section class="mt-14" aria-labelledby="premios-porra">
+          <div class="flex flex-wrap items-end justify-between gap-2">
+            <h2 id="premios-porra" class="text-display-xs">Premios de la jornada</h2>
+            <a href="/porra/clasificacion" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text hover:underline underline-offset-4 md:h-auto">Ver la clasificación<gr-icon name="chevron-right" [size]="16" /></a>
+          </div>
           <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             @for (p of premios(); track p.id) { <gr-premio-card [premio]="p" /> }
           </div>
@@ -177,11 +193,10 @@ export class PorraPage {
   protected readonly mercadosVisibles = computed(() => (this.verTodos() ? this.filtrados() : this.filtrados().slice(0, 6)));
   /** Con la jornada cerrada los mercados solo se consultan. */
   protected readonly soloLectura = computed(() => this.jornadaActiva()?.estado === 'cerrada');
-  protected readonly resumen = computed(() => {
-    const l = this.filtrados();
-    const n = (e: string) => l.filter((m) => m.estado === e).length;
-    return `${n('abierto')} abiertos · ${n('cerrado')} cerrados · ${n('liquidado')} liquidados`;
-  });
+  /** Cuántos mercados filtrados hay en un estado (abierto · cerrado · liquidado). */
+  protected n(estado: string): number {
+    return this.filtrados().filter((m) => m.estado === estado).length;
+  }
 
   constructor() {
     const seo = inject(Seo);
