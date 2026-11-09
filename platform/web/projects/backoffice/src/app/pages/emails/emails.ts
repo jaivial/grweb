@@ -360,6 +360,17 @@ export class EmailsPage {
               <gr-field label="Enlace del botón" for="e-bu"><input grInput id="e-bu" maxlength="300" [(ngModel)]="c.botonUrl" (ngModelChange)="cambio()" (focus)="campo = 'botonUrl'" /></gr-field>
             </div>
             <gr-field label="Pie" for="e-pie"><textarea grInput id="e-pie" rows="3" maxlength="400" [(ngModel)]="c.pie" (ngModelChange)="cambio()" (focus)="campo = 'pie'"></textarea></gr-field>
+            <gr-field label="Nota del pie" for="e-no" hint="Por qué recibe este email · opcional"><textarea grInput id="e-no" rows="2" maxlength="300" [(ngModel)]="c.nota" (ngModelChange)="cambio()" (focus)="campo = 'nota'"></textarea></gr-field>
+            <gr-field label="Imagen sobre el texto" for="e-im" hint="Una URL, normalmente una variable (por ejemplo, la foto) · opcional">
+              <input grInput id="e-im" maxlength="500" [(ngModel)]="c.imagen" (ngModelChange)="cambio()" (focus)="campo = 'imagen'" />
+            </gr-field>
+            @if (p.wa; as wa) {
+              <div class="rounded-md border border-line-subtle bg-bg-raised p-3">
+                <p class="text-label-xs text-text-muted uppercase">Versión de WhatsApp</p>
+                <p class="mt-1 text-body-xs whitespace-pre-line text-text-secondary">{{ wa.texto }}</p>
+                @if (wa.imagen) { <p class="mt-1 text-body-xs text-text-tertiary">El mensaje lleva la imagen (la foto de la solicitud).</p> }
+              </div>
+            }
           </aside>
         </div>
       }
@@ -393,7 +404,7 @@ export class PlantillaEditorPage {
   protected readonly guardando = signal(false);
   protected readonly enviando = signal(false);
   protected readonly pruebaOpen = signal(false);
-  protected c: Contenido = { asunto: '', preheader: '', titulo: '', cuerpo: '', botonTexto: '', botonUrl: '', pie: '' };
+  protected c: Contenido = { asunto: '', preheader: '', titulo: '', cuerpo: '', botonTexto: '', botonUrl: '', pie: '', nota: '', imagen: '' };
   protected campo: keyof Contenido = 'cuerpo';
   protected destino = '';
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
@@ -414,7 +425,7 @@ export class PlantillaEditorPage {
   }
   private set(p: PlantillaDetalle): void {
     this.plantilla.set(p);
-    this.c = { asunto: p.asunto, preheader: p.preheader, titulo: p.titulo, cuerpo: p.cuerpo, botonTexto: p.botonTexto, botonUrl: p.botonUrl, pie: p.pie };
+    this.c = { asunto: p.asunto, preheader: p.preheader, titulo: p.titulo, cuerpo: p.cuerpo, botonTexto: p.botonTexto, botonUrl: p.botonUrl, pie: p.pie, nota: p.nota ?? '', imagen: p.imagen ?? '' };
     this.sucio.set(false);
     void this.previsualizar();
   }

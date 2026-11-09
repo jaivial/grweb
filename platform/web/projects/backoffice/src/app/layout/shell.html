@@ -50,6 +50,7 @@
                 [class]="rla.isActive ? 'bg-accent-deep/40 text-text-primary' : 'text-text-secondary hover:bg-bg-card hover:text-text-primary'">
                 <gr-icon [name]="it.icon" [size]="18" [class]="rla.isActive ? 'text-accent-text' : ''" />
                 @if (!collapsed()) { <span class="truncate">{{ it.label }}</span> }
+                @if (contadorDe(it); as c) { <span class="ml-auto rounded-2xs bg-bg-raised px-1.5 text-mono-xs text-text-secondary">{{ c }}</span> }
               </a>
             </li>
           }
@@ -174,6 +175,7 @@
         @for (it of g.items; track it.path) {
           <a [routerLink]="['/', comp()?.slug, it.path]" routerLinkActive="bg-accent-deep/40 text-text-primary" class="flex h-11 items-center gap-3 rounded-sm px-3 text-label-s text-text-secondary">
             <gr-icon [name]="it.icon" [size]="20" />{{ it.label }}
+            @if (contadorDe(it); as c) { <span class="ml-auto rounded-2xs bg-bg-raised px-1.5 text-mono-xs text-text-secondary">{{ c }}</span> }
           </a>
         }
       }

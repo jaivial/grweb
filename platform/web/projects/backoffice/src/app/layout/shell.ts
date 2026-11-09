@@ -8,6 +8,7 @@ import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { Notifications } from '../core/notifications';
 import { Realtime } from '../core/realtime';
+import { SolicitudesContador } from '../core/solicitudes';
 import type { Notificacion } from '../core/api';
 import { ALL_ITEMS, NAV, type NavItem } from './nav';
 import { Outside } from './outside';
@@ -31,6 +32,7 @@ export class Shell {
   protected readonly comps = inject(Competitions);
   protected readonly notifs = inject(Notifications);
   protected readonly live = inject(Realtime);
+  protected readonly solicitudes = inject(SolicitudesContador);
   private readonly toasts = inject(GrToasts);
   private readonly router = inject(Router);
 
@@ -48,7 +50,12 @@ export class Shell {
   protected readonly visible = (it: NavItem) => !it.perm || this.auth.can(this.cid(), it.perm);
   protected readonly nav = computed(() => NAV.map((g) => ({ ...g, items: g.items.filter((i) => this.visible(i)) })).filter((g) => g.items.length));
   protected readonly tabs = computed(() => ALL_ITEMS.filter((i) => i.mobileTab && this.visible(i)).slice(0, 4));
-  protected readonly pageTitle = computed(() => ALL_ITEMS.find((i) => this.url().includes(`/${i.path}`))?.label ?? 'Backoffice');
+  protected readonly pageTitle = computed(() => {
+    const url = this.url();
+    if (url.includes('/atletas/solicitudes')) return 'Solicitudes';
+    if (url.includes('/sistema/whatsapp')) return 'WhatsApp';
+    return ALL_ITEMS.find((i) => url.includes(`/${i.path}`))?.label ?? 'Backoffice';
+  });
   protected readonly results = computed(() => {
     const q = this.query().trim().toLowerCase();
     const items = ALL_ITEMS.filter((i) => this.visible(i));
@@ -76,6 +83,7 @@ export class Shell {
       if (!id) return;
       this.live.connect(id);
       void this.notifs.load(id);
+      void this.solicitudes.cargar(id);
     });
     const sub = this.live.events.subscribe((e) => {
       const id = this.cid();
@@ -114,6 +122,13 @@ export class Shell {
     this.query.set('');
     this.palette.set(true);
     setTimeout(() => document.getElementById('bo-palette-input')?.focus());
+  }
+
+  /** Live badge of a section of the menu (athlete requests waiting for a review). */
+  protected contadorDe(it: NavItem): number | null {
+    if (it.contador !== 'solicitudes') return null;
+    const n = this.solicitudes.pendientes();
+    return n > 0 ? n : null;
   }
 
   protected go(it: NavItem): void {
