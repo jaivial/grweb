@@ -40,12 +40,12 @@ const euros0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
             <div class="flex flex-col items-center gap-2.5 text-center">
               <span class="flex size-[72px] items-center justify-center rounded-full border-2 border-success/50 bg-success/14 text-success shadow-[0_0_28px_rgb(34_197_94/0.35)]"><gr-icon name="check" [size]="32" /></span>
               <h2 id="donar-titulo" class="font-display text-[30px] leading-tight uppercase italic">¡Gracias por tu donativo!</h2>
-              <p class="text-body-s text-text-secondary">Tus {{ eurosCorto(importe()) }} llegan al club anfitrión y tu nombre sale en el chat y en el ranking del día.</p>
+              <p class="text-body-s text-text-secondary">Tus {{ eurosCorto(importe()) }} apoyan a la GR Strength Cup y tu nombre sale en el chat y en el ranking del día.</p>
             </div>
             <p class="mt-4 flex flex-wrap justify-center gap-2">
               <gr-coin>+{{ num(coins()) }} GRS coins</gr-coin><gr-coin tipo="fantasy">+{{ num(fantasy()) }} fantasy</gr-coin>
             </p>
-            <p class="mt-4 flex items-start gap-2 rounded-sm border border-line-subtle bg-bg-surface px-3 py-2.5 text-body-xs text-text-secondary"><gr-icon name="mail" [size]="14" class="mt-px shrink-0 text-success" />Recibo enviado a tu email · las monedas se acreditan al volver a la sala de la jornada</p>
+            <p class="mt-4 flex items-start gap-2 rounded-sm border border-line-subtle bg-bg-surface px-3 py-2.5 text-body-xs text-text-secondary"><gr-icon name="circle-check" [size]="14" class="mt-px shrink-0 text-success" />Las monedas se acreditan al volver a la sala de la jornada</p>
             <div class="mt-5 flex flex-col gap-2">
               <button type="button" grButton variant="primary" size="l" [block]="true" (click)="cerrar()">Volver al directo</button>
               <button type="button" grButton variant="outline" [block]="true" (click)="cerrar(); verRanking.emit()">Ver ranking de donantes</button>
@@ -59,7 +59,7 @@ const euros0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
               <button type="button" class="flex size-10 shrink-0 items-center justify-center rounded-full border border-line-subtle bg-bg-raised text-text-secondary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="16" /></button>
             </div>
             <ul class="mt-4 flex flex-wrap gap-1.5" aria-label="Garantías">
-              @for (g of garantias; track g.t) {
+              @for (g of garantias(); track g.t) {
                 <li class="inline-flex h-6 items-center gap-1.5 rounded-pill border border-line-subtle bg-bg-raised pr-2 pl-1.5 font-mono text-[11px] tracking-[0.08em] text-text-secondary uppercase"><gr-icon [name]="g.i" [size]="12" class="text-success" />{{ g.t }}</li>
               }
             </ul>
@@ -168,11 +168,12 @@ export class DonarModal {
   protected readonly pie = computed(() =>
     this.don.config()?.pasarela === 'stripe' ? 'Pago seguro con Stripe · no guardamos tu tarjeta' : 'Pago seguro · no guardamos tu tarjeta',
   );
-  protected readonly garantias: { i: GrIconName; t: string }[] = [
-    { i: 'heart', t: '100 % al club' },
+  /** Only what the product does: the gateway pill shows only when the gateway is Stripe. */
+  protected readonly garantias = computed<{ i: GrIconName; t: string }[]>(() => [
+    { i: 'heart', t: 'Apoyo al evento' },
     { i: 'lock', t: 'Pago seguro' },
-    { i: 'mail', t: 'Recibo' },
-  ];
+    ...(this.don.config()?.pasarela === 'stripe' ? [{ i: 'credit-card' as GrIconName, t: 'Pago con Stripe' }] : []),
+  ]);
   /** «10,00 €» */
   protected readonly total = computed(() => euros2.format(this.importe() / 100));
 

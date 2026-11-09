@@ -65,7 +65,7 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
             <span class="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#d4af37]/50 bg-[#d4af37]/15 text-[#e3c25a]"><gr-icon name="trophy" [size]="20" /></span>
             <div class="min-w-0">
               <p class="text-label-m text-text-primary">Entra en el ranking del día</p>
-              <p class="mt-0.5 text-body-xs text-text-secondary">Cada donativo sale en el chat y suma en el ranking. El 100 % llega al club anfitrión.</p>
+              <p class="mt-0.5 text-body-xs text-text-secondary">Cada donativo sale en el chat y suma en el ranking. Apoya a la GR Strength Cup.</p>
             </div>
           </article>
         }
@@ -78,7 +78,7 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
             <p class="mt-1.5 text-body-xs text-text-secondary">{{ donativos() }} {{ donativos() === 1 ? 'donativo' : 'donativos' }} · media {{ media() }}</p>
           </div>
           <p class="flex w-[104px] shrink-0 flex-col items-center gap-1 rounded-sm bg-black/25 px-3 py-2.5 text-center text-body-xs text-text-secondary">
-            <gr-icon name="heart" [size]="18" class="text-accent-text" />100 % al club anfitrión
+            <gr-icon name="heart" [size]="18" class="text-accent-text" />Apoya a la GR Strength Cup
           </p>
         </div>
 
@@ -109,7 +109,7 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
     </div>
     <div class="shrink-0 border-t border-line-subtle bg-bg-card px-4 pt-3 pb-4">
       <button type="button" grButton variant="primary" size="l" [block]="true" icon="heart" (click)="donar.emit()">Donar y entrar en el ranking</button>
-      <p class="mt-2 flex items-center justify-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Pago seguro con Stripe · el 100 % al club</p>
+      <p class="mt-2 flex items-center justify-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Pago seguro · no guardamos tu tarjeta</p>
     </div>
   `,
 })
