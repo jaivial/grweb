@@ -47,7 +47,6 @@ export class Fav {
       <p pageStamps class="flex flex-wrap gap-2">
         @if (l?.actualizado) { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado el {{ fecha(l!.actualizado) }} · Fuente: inscritos AEP</span> }
         <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-mono-xs text-info">Datos de ejemplo</span>
-        @if (inscripcion(); as i) { <span class="inline-flex h-8 items-center rounded-pill border border-line-strong px-3 text-mono-xs text-text-secondary">{{ i }}</span> }
       </p>
 
       <div class="flex flex-col gap-3">
@@ -157,9 +156,9 @@ export class Fav {
         <section class="flex flex-col gap-4 rounded-xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-5 md:flex-row md:items-center md:justify-between md:p-6">
           <div class="flex gap-4">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-sm bg-accent-deep/60 text-accent-text"><gr-icon name="user" [size]="18" /></span>
-            <div><h2 class="text-ui-h5">¿Compites? Completa tu perfil</h2><p class="mt-1 text-body-s text-text-secondary">Entra con el email de tu inscripción en la AEP: foto, club, mejores marcas y tus alturas de rack para agilizar el pesaje.</p></div>
+            <div><h2 class="text-ui-h5">¿Compites? Completa tu perfil</h2><p class="mt-1 text-body-s text-text-secondary">Da de alta tu atleta con el email de tu inscripción en la AEP: foto, club, mejores marcas y tus alturas de rack para agilizar el pesaje.</p></div>
           </div>
-          <a grButton iconRight="arrow-right" href="/area-atleta" class="shrink-0">Área de atleta</a>
+          <a grButton iconRight="arrow-right" href="/alta-atleta" class="shrink-0">Dar de alta mi atleta</a>
         </section>
         <gr-related [items]="relacionados" />
         <gr-community />
@@ -192,14 +191,6 @@ export class AtletasPage {
     { titulo: 'Entradas', texto: 'Gratis con reserva', ruta: '/entradas' },
   ];
   protected readonly plazas = computed(() => this.comp()?.inscripcion?.plazas);
-  protected readonly inscripcion = computed(() => {
-    const c = this.comp();
-    const n = this.lista()?.resumen.total ?? 0;
-    const p = this.plazas();
-    if (!c) return '';
-    const e = { abierta: 'Inscripciones abiertas', completa: 'Inscripciones completas', cerrada: 'Inscripciones cerradas', proximamente: 'Inscripciones próximamente' }[c.inscripcion.estado] ?? '';
-    return p ? `${e} · ${n}/${p}` : e;
-  });
   protected readonly categorias = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.sexo + ' ' + a.categoria))].sort(catSort));
   protected readonly clubs = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.club).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
   protected readonly divisiones = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.divisionNombre))]);
@@ -493,10 +484,10 @@ export class AtletaPage {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = data();
-    <gr-page title="Participantes" accent="y flights" eyebrow="Inscritos" section="El evento" crumb="Participantes"
-      subtitle="Lista de atletas inscritos por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
+    <gr-page title="Participantes" accent="y flights" eyebrow="La plantilla" section="El evento" crumb="Participantes"
+      subtitle="Lista de atletas por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
       <p pageStamps class="flex flex-wrap gap-2">
-        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde las inscripciones</span>
+        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde la lista de la AEP</span>
         <span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span>
       </p>
       @if (p === undefined) { <gr-skeleton class="h-40 rounded-lg" /> }
@@ -506,7 +497,7 @@ export class AtletaPage {
           <div class="col-span-2 rounded-2xl border border-line-subtle bg-bg-card p-5 md:col-span-1">
             <p class="flex items-center justify-between text-label-s">Plazas ocupadas @if (p.plazas) { <span class="text-mono-xs text-accent-text">{{ p.ocupadas }} / {{ p.plazas }}</span> }</p>
             @if (p.plazas) { <div class="mt-3 h-1.5 rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="pct()"></div></div> }
-            <p class="mt-2 text-body-xs text-text-tertiary">{{ p.plazas && p.ocupadas >= p.plazas ? 'Completo · lista de espera en la AEP' : (p.reserva ? p.reserva + ' en reserva' : 'Inscripción en la AEP') }}</p>
+            <p class="mt-2 text-body-xs text-text-tertiary">{{ p.plazas && p.ocupadas >= p.plazas ? 'Plantilla completa' : (p.reserva ? p.reserva + ' en reserva' : 'Bloque completo') }}</p>
           </div>
           <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Mujeres</span><span class="font-display text-[44px] leading-none italic">{{ p.mujeres }}</span></div>
           <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Hombres</span><span class="font-display text-[44px] leading-none italic">{{ p.hombres }}</span></div>
@@ -558,7 +549,7 @@ export class AtletaPage {
         @if (contacto()) {
           <div class="mt-10 flex flex-col gap-3 rounded-xl border border-info/40 bg-info/8 p-4 md:flex-row md:items-center">
             <gr-icon name="info" [size]="18" class="text-info" />
-            <p class="flex-1 text-body-s text-text-secondary">¿No apareces en la lista o hay un error en tus datos? Escríbenos antes del cierre de inscripciones.</p>
+            <p class="flex-1 text-body-s text-text-secondary">¿No apareces en la lista o hay un error en tus datos? Escríbenos y lo corregimos.</p>
             <a [href]="'mailto:' + contacto()" class="inline-flex h-10 items-center justify-center rounded-sm bg-info/15 px-3 text-label-s text-info hover:bg-info/25">Contactar</a>
           </div>
         }
@@ -603,7 +594,7 @@ export class ParticipantesPage {
       const [p, c] = await Promise.all([this.api.participantes(), competition.load()]);
       this.data.set(p);
       this.contacto.set(c?.evento.emailContacto ?? '');
-      await applySeo(cms, seo, '/participantes', 'Participantes y flights · GR Strength Cup', 'Lista de atletas inscritos por bloque: busca tu nombre para ver tu hora de pesaje y tu flight.');
+      await applySeo(cms, seo, '/participantes', 'Participantes y flights · GR Strength Cup', 'Lista de atletas por bloque de competición: busca tu nombre para ver tu hora de pesaje y tu flight.');
     });
   }
 }

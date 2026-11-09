@@ -19,6 +19,7 @@ import { CategoriasPage } from './pages/categorias';
 import { MarcasPage } from './pages/marcas';
 import { FaqPage } from './pages/faq';
 import { ReglamentoPage } from './pages/reglamento';
+import { AltaAtletaPage } from './pages/alta-atleta';
 
 export const routes: Routes = [
   { path: '', component: HomePage },
@@ -49,6 +50,7 @@ export const routes: Routes = [
   { path: 'ediciones/:anio', component: EdicionPage },
   { path: 'pantalla/:slug', component: PantallaPublicaPage },
   { path: 'area-atleta', component: AreaAtletaPage },
+  { path: 'alta-atleta', component: AltaAtletaPage },
   { path: 'inscripcion', component: InscripcionPage },
   { path: 'inscripcion/estado', component: InscripcionEstadoPage },
   { path: 'pago/simulado', component: PagoSimuladoPage },
@@ -61,6 +63,7 @@ export const routes: Routes = [
   { path: 'terminos', component: LegalPage, data: { tipo: 'terminos', titulo: 'Términos y condiciones' } },
   { path: 'cookies', component: LegalPage, data: { tipo: 'cookies', titulo: 'Política de cookies' } },
   { path: 'consentimiento-datos', component: LegalPage, data: { tipo: 'consentimiento', titulo: 'Consentimiento de datos e imagen' } },
+  { path: 'texto-whatsapp', component: LegalPage, data: { tipo: 'whatsapp', titulo: 'Texto de avisos por WhatsApp' } },
   { path: 'politica-concurso', component: LegalPage, data: { tipo: 'bases-sorteo', titulo: 'Bases del sorteo' } },
   // CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
   { path: ':pslug', component: ContentPage },

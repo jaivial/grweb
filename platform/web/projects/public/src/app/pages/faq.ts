@@ -14,7 +14,7 @@ import { Community, Related, type RelatedLink } from './landings';
   imports: [Page, GrIcon, GrSkeleton, GrEyebrow, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Preguntas" accent="frecuentes" eyebrow="Ayuda" subtitle="Todo lo que necesitas saber sobre la inscripción, la competición, el sorteo y cómo venir a Almussafes.">
+    <gr-page title="Preguntas" accent="frecuentes" eyebrow="Ayuda" subtitle="Todo lo que necesitas saber sobre el alta de atleta, la competición, el sorteo y cómo venir a Almussafes.">
       <!-- Figma 24: «Temas» card (260, sticky) next to the questions -->
       <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-10">
         <nav class="h-fit min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3 lg:sticky lg:top-28 lg:p-4" aria-label="Temas">
@@ -108,7 +108,7 @@ export class FaqPage {
       const o = map?.paginas.find((p) => p.ruta === '/preguntas-frecuentes');
       seo.set({
         title: o?.title || 'Preguntas frecuentes · GR Strength Cup',
-        description: o?.description || 'Entradas gratuitas, inscripción AEP, sorteo y cómo llegar al pabellón de Almussafes.',
+        description: o?.description || 'Alta de atleta, entradas gratuitas, sorteo y cómo llegar al pabellón de Almussafes.',
         path: '/preguntas-frecuentes',
         // FAQPage structured data (rich results), from the published questions.
         jsonLd: list?.length ? { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: list.map((f) => ({ '@type': 'Question', name: f.pregunta, acceptedAnswer: { '@type': 'Answer', text: f.respuesta } })) } : undefined,

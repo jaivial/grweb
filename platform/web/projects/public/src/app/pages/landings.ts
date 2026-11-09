@@ -59,7 +59,7 @@ export class Related {
       <div>
         <p class="flex items-center gap-3 text-mono-xs text-text-tertiary">{{ en() ? 'Community' : 'Comunidad' }}</p>
         <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h2>
-        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, registration, raffle and results first on Instagram.' : 'Fechas, inscripciones, sorteo y resultados primero en Instagram.' }}</p>
+        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, schedule, raffle and results first on Instagram.' : 'Fechas, horarios, sorteo y resultados primero en Instagram.' }}</p>
       </div>
       <a grButton icon="camera" class="mt-5 w-full md:mt-0 md:w-auto" [href]="instagram()" target="_blank" rel="noopener">{{ en() ? 'Follow on Instagram' : 'Seguir en Instagram' }}</a>
     </section>
@@ -448,7 +448,7 @@ export class ClubsPage {
                 }
               </ul>
               <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                @if (c?.inscripcion?.url) { <a grButton variant="primary" size="l" [href]="c!.inscripcion.url" target="_blank" rel="noopener" iconRight="external-link">{{ str(h, 'cta') || 'Register' }}</a> }
+                <a grButton variant="primary" size="l" href="/alta-atleta" hreflang="es" iconRight="arrow-right">{{ str(h, 'cta') || 'Athlete sign-up (Spanish)' }}</a>
                 <a grButton size="l" href="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'Enter the raffle' }}</a>
               </div>
             }
@@ -469,6 +469,9 @@ export class ClubsPage {
                       <li class="flex flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ i['titulo'] }}</p><p class="text-body-s text-text-tertiary">{{ i['texto'] }}</p></li>
                     }
                   </ul>
+                  @if (str(s, 'cta')) {
+                    <a grButton variant="primary" size="l" href="/alta-atleta" hreflang="es" class="self-start">{{ str(s, 'cta') }}</a>
+                  }
                 </section>
               }
               @case ('raffle') {
