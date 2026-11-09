@@ -4,7 +4,7 @@
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
-import { GrAlert, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
 import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, fusionaFichajes, type AtletaDetalle, type AtletaMercado, mensajeError, monedas } from '../../core/juegos';
@@ -12,91 +12,107 @@ import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { AthleteCard, AthleteSheet } from './componentes';
-import { AvisoJuegos } from '../porra/componentes';
+import { CoinBalance, JuegosNav } from '../porra/componentes';
 
 @Component({
   selector: 'gr-mi-equipo-page',
-  imports: [Page, GrAlert, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton, AthleteCard, AthleteSheet, AvisoJuegos],
+  imports: [Page, GrAlert, GrButton, GrIcon, GrSkeleton, AthleteCard, AthleteSheet, CoinBalance, JuegosNav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRS Fantasy" accent="" [suffix]="jornadaTxt()" crumb="Mi equipo" section="Juegos"
       subtitle="Fichas con monedas virtuales, cláusulas en vivo y puntos por rendimiento. Tu plantilla: 5 titulares y hasta 3 suplentes.">
+      <div pageStamps class="flex flex-wrap items-center gap-3">
+        <gr-coin-balance [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
+      </div>
+
+      <gr-juegos-nav class="mb-6 md:mb-8" juego="fantasy" activa="equipo" />
+
       @if (error()) {
-        <gr-alert class="mt-4 mb-6" tone="danger" title="No hemos podido completar la operación">{{ error() }}</gr-alert>
+        <gr-alert class="mb-6" tone="danger" title="No hemos podido completar la operación">{{ error() }}</gr-alert>
       }
 
       @if (store.cargando()) {
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          @for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-28 rounded-lg" /> }
+        <div class="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-busy="true">
+          @for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-24 rounded-lg" /> }
         </div>
       } @else {
-        <!-- Los cuatro indicadores del diseño -->
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <gr-kpi label="Saldo fantasy" [value]="saldo() !== null ? monedas(saldo()!) : '—'" [caption]="jugandoCaption()" />
-          <gr-kpi label="Valor del equipo" [value]="valor() !== null ? monedas(valor()!) : '—'" [caption]="plantillaCaption()" />
-          <gr-kpi label="Puntos de la jornada" [value]="puntos() !== null ? (puntos()! >= 0 ? '+' + puntos() : '' + puntos()) : '—'" [caption]="puntosCaption()" />
-          <gr-kpi label="Tu puesto" [value]="puesto() !== null ? puesto()! + '.º' : '—'" [caption]="puestoCaption()" />
-        </div>
+        <!-- Marcador: los cuatro indicadores del diseño -->
+        <dl class="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+          @for (k of kpis(); track k.label) {
+            <div class="flex min-w-0 flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
+              <dt class="text-mono-xs text-text-tertiary">{{ k.label }}</dt>
+              <dd class="truncate font-mono text-[22px] leading-none font-bold tabular-nums md:text-[30px]" [class]="k.color">{{ k.valor }}</dd>
+              <dd class="truncate text-body-xs text-text-tertiary">{{ k.nota }}</dd>
+            </div>
+          }
+        </dl>
 
         @if (!fan.conSesion()) {
-          <gr-empty class="mt-8" icon="lock" title="Entra para montar tu equipo" text="Necesitas tu cuenta de directo para fichar atletas y puntuar.">
-            <button grButton variant="primary" (click)="entrar()">Entrar</button>
-          </gr-empty>
+          <div class="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
+            <span class="flex size-14 items-center justify-center rounded-full border border-info/50 bg-info/12 text-info"><gr-icon name="users" [size]="24" /></span>
+            <p class="text-display-xs">Monta tu equipo</p>
+            <p class="max-w-md text-body-s text-text-tertiary">Entra con tu cuenta del directo: 1.000.000 de monedas fantasy por jornada para fichar a 5 titulares y puntuar lo que levantan.</p>
+            <button grButton variant="primary" icon="user-plus" (click)="entrar()">Entrar para jugar</button>
+          </div>
         } @else {
-          <p class="mt-6 flex items-start gap-2 text-body-xs text-text-tertiary">
-            <gr-icon name="triangle-alert" [size]="16" class="mt-0.5 shrink-0 text-warning" />
-            El flight en curso bloquea al atleta: nadie puede meter de titular solo a quien está levantando ahora.
-          </p>
-
-          <section class="mt-6">
-            <h2 class="text-display-2xs">Alineación · 5 titulares</h2>
+          <!-- Figma «Pizarra»: la alineación como un tablero con la plataforma dibujada -->
+          <section class="relative isolate mt-6 overflow-hidden rounded-2xl border border-line-strong bg-bg-surface px-3 py-5 sm:px-5 md:mt-8 md:p-8" aria-labelledby="pizarra-titulo">
+            <span class="pointer-events-none absolute -top-48 left-1/2 -z-10 h-80 w-[min(1000px,140%)] -translate-x-1/2 rounded-full bg-accent/20 blur-[120px]" aria-hidden="true"></span>
+            <span class="pointer-events-none absolute inset-2 -z-10 rounded-[14px] border border-dashed border-line-strong/70 md:inset-3.5 md:rounded-[20px]" aria-hidden="true"></span>
+            <header class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <h2 id="pizarra-titulo" class="text-display-xs">Alineación · {{ titulares().length }}/5 titulares</h2>
+              <p class="flex items-center gap-2 text-body-xs text-text-tertiary">
+                <gr-icon name="lock" [size]="14" class="shrink-0 text-warning" />El flight en curso bloquea al atleta
+              </p>
+            </header>
             @if (store.cargandoEquipo()) {
-              <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                @for (i of [1, 2, 3, 4, 5]; track i) { <gr-skeleton class="h-56 rounded-lg" /> }
+              <div class="mt-5 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-5" aria-busy="true">
+                @for (i of [1, 2, 3, 4, 5]; track i) { <gr-skeleton class="h-72 rounded-lg" /> }
               </div>
             } @else {
-              <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <div class="mt-5 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-5">
                 @for (a of titulares(); track a.atletaId) {
                   <gr-athlete-card [atleta]="a" [delta]="delta(a)" [intentos]="intentos(a)" (vender)="vender(a)" (subir)="bajar(a)" (ficha)="verFicha(a)" />
-                } @empty {
-                  @for (i of [1, 2, 3, 4, 5]; track i) {
-                    <div class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-subtle bg-bg-card/40 p-6 text-center">
-                      <gr-icon name="plus" [size]="20" class="text-text-muted" />
-                      <p class="text-label-s text-text-secondary">Hueco libre</p>
-                      <p class="text-body-xs text-text-tertiary">Fichar desde el mercado</p>
-                      <a grButton variant="secondary" href="/fantasy/mercado">Fichar del mercado →</a>
-                    </div>
-                  }
                 }
+                @for (i of huecosTitulares(); track i) {
+                  <a href="/fantasy/mercado" class="group flex min-h-56 flex-col items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-line-strong bg-bg-card/35 p-4 text-center transition-colors hover:border-accent/60 hover:bg-accent-deep/15">
+                    <span class="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-text-muted transition-colors group-hover:border-accent/60 group-hover:text-accent-text"><gr-icon name="plus" [size]="22" /></span>
+                    <span class="text-label-s text-text-secondary">Titular {{ titulares().length + i + 1 }}</span>
+                    <span class="text-body-xs text-text-tertiary">Ficha en el mercado</span>
+                  </a>
+                }
+              </div>
+            }
+
+            <div class="mt-6 border-t border-dashed border-line-strong pt-5 md:mt-8 md:pt-6">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-display-2xs text-text-secondary">Banquillo · hasta 3</h2>
+                <p class="text-body-xs text-text-tertiary">No puntúan salvo que suban a titulares</p>
+              </div>
+              <div class="mt-4 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-5">
+                @for (a of suplentes(); track a.atletaId) {
+                  <gr-athlete-card [atleta]="a" [delta]="delta(a)" [intentos]="'—'" (vender)="vender(a)" (subir)="subir(a)" (ficha)="verFicha(a)" />
+                }
+                @for (i of huecosBanquillo(); track i) {
+                  <a href="/fantasy/mercado" class="group flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-line-subtle bg-bg-card/25 p-4 text-center transition-colors hover:border-line-strong">
+                    <span class="flex size-11 items-center justify-center rounded-full border border-dashed border-line-strong text-text-muted group-hover:text-text-secondary"><gr-icon name="plus" [size]="18" /></span>
+                    <span class="text-body-xs text-text-tertiary">Hueco libre</span>
+                  </a>
+                }
+              </div>
+            </div>
+            @if (plazasLibres() > 0) {
+              <div class="mt-6 flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-center sm:gap-4">
+                <p class="text-body-s text-text-secondary">Te quedan <b class="font-mono text-text-primary">{{ plazasLibres() }}</b> {{ plazasLibres() === 1 ? 'plaza' : 'plazas' }} y <b class="font-mono text-info">{{ monedas(saldo() ?? 0) }}</b> monedas</p>
+                <a grButton variant="primary" href="/fantasy/mercado" iconRight="arrow-right">Ir al mercado</a>
               </div>
             }
           </section>
 
-          <section class="mt-10">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h2 class="text-display-2xs">Suplentes · hasta 3</h2>
-              <p class="text-body-xs text-text-tertiary">No puntúan salvo que suban a titulares</p>
-            </div>
-            <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              @for (a of suplentes(); track a.atletaId) {
-                <gr-athlete-card [atleta]="a" [delta]="delta(a)" [intentos]="'Suplente: no puntúa'" (vender)="vender(a)" (subir)="subir(a)" (ficha)="verFicha(a)" />
-              }
-              @for (i of huecosArray(); track i) {
-                <div class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-subtle bg-bg-card/40 p-6 text-center">
-                  <gr-icon name="plus" [size]="20" class="text-text-muted" />
-                  <p class="text-label-s text-text-secondary">Hueco libre</p>
-                  <p class="text-body-xs text-text-tertiary">Los suplentes puntúan solo si suben a titulares</p>
-                  <a grButton variant="secondary" href="/fantasy/mercado">Fichar del mercado →</a>
-                </div>
-              }
-            </div>
-          </section>
-
-          <p class="mt-8 flex items-start gap-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 text-body-xs text-text-tertiary">
-            <gr-icon name="info" [size]="16" class="mt-0.5 shrink-0 text-info" />
+          <p class="mt-6 flex items-start gap-2 text-body-xs text-text-tertiary">
+            <gr-icon name="info" [size]="15" class="mt-px shrink-0 text-info" />
             Vender devuelve el 100 % del valor actual al mercado. Cambios titular ↔ suplente en cualquier momento, salvo flight en curso. La cláusula arranca en 200.000 y se mueve con cada veredicto (válido +5 %, nulo −4 %, blanqueo −30 %).
           </p>
-          <gr-aviso-juegos class="mt-4" />
         }
       }
     </gr-page>
@@ -130,8 +146,17 @@ export class MiEquipoPage {
   protected readonly titulares = computed(() => (this.equipo()?.atletas ?? []).filter((a) => a.titular));
   protected readonly suplentes = computed(() => (this.equipo()?.atletas ?? []).filter((a) => !a.titular));
   protected readonly huecos = computed(() => Math.max(0, 8 - (this.equipo()?.atletas.length ?? 0)));
-  /** Los huecos libres que quedan en la plantilla (para pintar los huecos). */
-  protected readonly huecosArray = computed(() => Array.from({ length: this.huecos() }, (_, i) => i));
+  /** Los huecos de titular y de banquillo que quedan (para pintar las siluetas de la pizarra). */
+  protected readonly huecosTitulares = computed(() => Array.from({ length: Math.max(0, 5 - this.titulares().length) }, (_, i) => i));
+  protected readonly huecosBanquillo = computed(() => Array.from({ length: Math.max(0, 3 - this.suplentes().length) }, (_, i) => i));
+  protected readonly plazasLibres = computed(() => this.huecos());
+  /** El marcador (Figma «KPIs»): saldo, valor, puntos y puesto. */
+  protected readonly kpis = computed(() => [
+    { label: 'Saldo fantasy', valor: this.saldo() !== null ? monedas(this.saldo()!) : '—', color: 'text-info', nota: this.jugandoCaption() },
+    { label: 'Valor del equipo', valor: this.valor() !== null ? monedas(this.valor()!) : '—', color: 'text-text-primary', nota: this.plantillaCaption() },
+    { label: 'Puntos de la jornada', valor: this.puntos() !== null ? (this.puntos()! >= 0 ? '+' + this.puntos() : '' + this.puntos()) : '—', color: 'text-success', nota: this.puntosCaption() },
+    { label: 'Tu puesto', valor: this.puesto() !== null ? this.puesto()! + '.º' : '—', color: 'text-accent-text', nota: this.puestoCaption() },
+  ]);
   protected readonly jornadaTxt = computed(() => {
     const j = this.store.jornada() ?? this.estado.jornada();
     return j ? '· ' + j.nombre.replace(/\s*\(.*\)$/, '') : '';

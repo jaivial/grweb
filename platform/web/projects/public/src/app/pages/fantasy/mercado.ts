@@ -5,7 +5,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrAlert, GrEmpty, GrIcon, GrSelect, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSelect, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
 import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, fusionaFichajes, type AtletaDetalle, type AtletaMercado, mensajeError, monedas } from '../../core/juegos';
@@ -13,14 +13,14 @@ import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { AthleteSheet, ClausulazoModal, FeedRow, MarketRow } from './componentes';
-import { AvisoJuegos, CoinBalance, GrupoChips } from '../porra/componentes';
+import { CoinBalance, GrupoChips, JuegosNav } from '../porra/componentes';
 
 type FiltroDueno = 'todos' | 'libres' | 'conDueno' | 'mios';
 type FiltroSexo = 'todos' | 'F' | 'M';
 
 @Component({
   selector: 'gr-mercado-fantasy-page',
-  imports: [Page, FormsModule, GrAlert, GrEmpty, GrIcon, GrSelect, GrSkeleton, AthleteSheet, ClausulazoModal, CoinBalance, FeedRow, MarketRow, AvisoJuegos, GrupoChips],
+  imports: [Page, FormsModule, GrAlert, GrButton, GrIcon, GrSelect, GrSkeleton, AthleteSheet, ClausulazoModal, CoinBalance, FeedRow, MarketRow, GrupoChips, JuegosNav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mercado" [suffix]="jornadaTxt()" crumb="Mercado" section="Juegos"
@@ -29,99 +29,116 @@ type FiltroSexo = 'todos' | 'F' | 'M';
         <gr-coin-balance [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
       </div>
 
+      <gr-juegos-nav class="mb-6 md:mb-8" juego="fantasy" activa="mercado" />
+
       @if (store.cargando()) {
-        <div class="flex flex-col gap-3">
-          @for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-lg" /> }
+        <div class="flex flex-col gap-2" aria-busy="true">
+          @for (i of [1, 2, 3, 4, 5]; track i) { <gr-skeleton class="h-[74px] rounded-md" /> }
         </div>
       } @else if (store.error(); as e) {
         <gr-alert tone="warning" title="No hemos podido cargar el mercado">{{ e }}</gr-alert>
       } @else {
         <!-- Filtros (en móvil, una fila con scroll horizontal por grupo) -->
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <gr-grupo-chips class="min-w-0 flex-1" [opciones]="filtros" [valor]="filtro()" (valorChange)="filtro.set($event)" />
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <gr-grupo-chips class="min-w-0 flex-1" [opciones]="sexos" [valor]="filtroSexo()" (valorChange)="filtroSexo.set($event)" />
-            <gr-select class="self-start" tipo="filtro" tam="l" aria-label="Categoría" etiqueta="Categoría" [ngModel]="filtroCategoria()" (ngModelChange)="filtroCategoria.set($event)">
+        <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <gr-grupo-chips class="min-w-0" etiqueta="Dueño" [opciones]="opcionesFiltro()" [valor]="filtro()" (valorChange)="filtro.set($event); limite.set(PAGINA)" />
+          <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+            <gr-grupo-chips class="min-w-0" etiqueta="Sexo" [opciones]="sexos" [valor]="filtroSexo()" (valorChange)="filtroSexo.set($event); limite.set(PAGINA)" />
+            <gr-select class="self-start" tipo="filtro" tam="l" aria-label="Categoría" etiqueta="Categoría" [ngModel]="filtroCategoria()" (ngModelChange)="filtroCategoria.set($event); limite.set(PAGINA)">
               <option value="">Todas</option>
               @for (c of categorias(); track c) { <option [value]="c">{{ c.replace('-', '−') }} kg</option> }
             </gr-select>
           </div>
         </div>
-        <p class="mt-3 text-body-xs text-text-tertiary">{{ atletas().length }} atletas en juego · cláusulas actualizadas hace {{ segundos() }} s</p>
+        <p class="mt-3 flex items-center gap-2 font-mono text-[11px] text-text-tertiary uppercase">
+          <span class="size-1.5 rounded-full bg-success motion-safe:animate-pulse" aria-hidden="true"></span>{{ visibles().length }} de {{ atletas().length }} atletas · cláusulas al día hace {{ segundos() }} s
+        </p>
 
-        <div class="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div>
+        @if (error()) {
+          <gr-alert class="mt-4" tone="danger" title="No hemos podido completar la operación">{{ error() }}</gr-alert>
+        }
+
+        <div class="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div class="min-w-0">
+            <!-- Mi plantilla de un vistazo (móvil y tablet; en escritorio va en la columna) -->
+            @if (equipo()) {
+              <a href="/fantasy" class="mb-4 flex items-center gap-3 rounded-md border border-info/30 bg-info/5 px-4 py-3 lg:hidden">
+                <span class="min-w-0 flex-1">
+                  <span class="block text-mono-xs text-info">Mi plantilla · {{ fichados() }}/{{ plantillaMax() }}</span>
+                  <span class="mt-1.5 block h-1.5 overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full rounded-pill bg-info" [style.width.%]="porcentajePlantilla()"></span></span>
+                </span>
+                <span class="shrink-0 text-right"><span class="block font-mono text-label-s text-text-primary">{{ clausulazosUsados() }}/{{ maxClausulazos() }}</span><span class="block text-mono-xs text-text-muted">clausulazos</span></span>
+                <gr-icon name="chevron-right" [size]="18" class="shrink-0 text-text-tertiary" />
+              </a>
+            }
             @if (!visibles().length) {
-              <gr-empty icon="users" title="No hay atletas con estos filtros" text="Cambia de filtros o espera a que se generen los atletas de la jornada." />
+              <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
+                <span class="flex size-14 items-center justify-center rounded-full border border-info/50 bg-info/12 text-info"><gr-icon name="users" [size]="24" /></span>
+                <p class="text-display-xs">{{ atletas().length ? 'Nadie con estos filtros' : 'El mercado abre con la jornada' }}</p>
+                <p class="max-w-md text-body-s text-text-tertiary">{{ atletas().length ? 'Cambia los filtros para ver más atletas.' : 'Los atletas se cargan cuando se genera la jornada. Vuelve en unos minutos.' }}</p>
+                @if (atletas().length) { <button grButton variant="secondary" (click)="quitarFiltros()">Quitar filtros</button> }
+              </div>
             } @else {
               <!-- Cabecera de la tabla (escritorio) -->
-              <p class="mb-2 hidden items-center gap-3 pl-12 text-mono-xs text-text-tertiary uppercase lg:flex">
+              <p class="mb-2 hidden items-center gap-4 pr-3 pl-[70px] text-mono-xs text-text-muted lg:flex" aria-hidden="true">
                 <span class="flex-1">Atleta</span>
-                <span class="w-14">Tendencia</span>
-                <span class="w-20 text-right">Cláusula</span>
+                <span class="w-[72px]">Tendencia</span>
+                <span class="w-24 text-right">Cláusula</span>
                 <span class="w-28">Dueño</span>
                 <span class="w-32 text-right">Acción</span>
               </p>
               <ul class="flex flex-col gap-2">
-                @for (a of visibles(); track a.atletaId) {
+                @for (a of pagina(); track a.atletaId) {
                   <li>
                     <gr-market-row [atleta]="a" [serie]="serie(a)" [delta]="delta(a)" [accion]="accion(a)" [restante]="restante(a)"
                       (fichar)="fichar(a)" (clausulazo)="abrirClausulazo(a)" (vender)="vender(a)" (ficha)="verFicha(a)" />
                   </li>
                 }
               </ul>
+              @if (visibles().length > pagina().length) {
+                <div class="mt-4 flex flex-col items-center gap-2">
+                  <button grButton variant="secondary" iconRight="chevron-down" (click)="limite.set(limite() + PAGINA)">Ver {{ Math.min(PAGINA, visibles().length - pagina().length) }} atletas más</button>
+                  <p class="font-mono text-[11px] text-text-tertiary uppercase">{{ pagina().length }} de {{ visibles().length }}</p>
+                </div>
+              }
             }
             <p class="mt-5 flex items-start gap-2 text-body-xs text-text-tertiary">
-              <gr-icon name="info" [size]="16" class="mt-0.5 shrink-0 text-info" />
-              Clausulazo: pagas la cláusula y el dinero va al dueño anterior. Máximo 3 clausulazos por usuario y jornada; sin deuda: no se puede dejar el saldo en negativo.
+              <gr-icon name="zap" [size]="15" class="mt-px shrink-0 text-accent-text" />
+              Clausulazo: pagas la cláusula y el dinero va al dueño anterior. Máximo {{ maxClausulazos() }} clausulazos por usuario y jornada; sin deuda: no se puede dejar el saldo en negativo.
             </p>
-            <gr-aviso-juegos class="mt-4" />
           </div>
 
           <!-- La columna de la derecha del diseño -->
-          <aside class="hidden flex-col gap-4 lg:flex">
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
-              <p class="text-label-xs text-accent-text uppercase">Mi plantilla</p>
-              <p class="mt-2 flex items-baseline justify-between gap-2 text-label-s">
-                <span>Fichados</span>
-                <span class="font-mono text-text-tertiary">{{ fichados() }}/{{ plantillaMax() }}</span>
-              </p>
+          <aside class="flex min-w-0 flex-col gap-4 lg:sticky lg:top-28 lg:self-start">
+            <section class="hidden rounded-lg border border-line-subtle bg-bg-card p-4 lg:block">
+              <p class="flex items-center justify-between gap-2"><span class="text-mono-xs text-info">Mi plantilla</span><span class="font-mono text-label-s text-text-primary">{{ fichados() }}/{{ plantillaMax() }}</span></p>
               <p class="mt-1 text-body-xs text-text-tertiary">{{ descripcionPlantilla() }}</p>
               <span class="mt-3 block h-1.5 w-full overflow-hidden rounded-pill bg-bg-raised">
-                <span class="block h-full rounded-pill bg-accent" [style.width.%]="porcentajePlantilla()"></span>
+                <span class="block h-full rounded-pill bg-info" [style.width.%]="porcentajePlantilla()"></span>
               </span>
-              <p class="mt-4 flex items-center justify-between gap-2 text-body-xs">
-                <span class="text-text-tertiary">Saldo fantasy</span>
-                <span class="font-mono text-accent-text">{{ saldo() !== null ? monedas(saldo()!) : '—' }}</span>
-              </p>
-              <p class="mt-1 flex items-center justify-between gap-2 text-body-xs">
-                <span class="text-text-tertiary">Gastado en fichajes</span>
-                <span class="font-mono text-text-primary">{{ gastado() !== null ? monedas(gastado()!) : '—' }}</span>
-              </p>
-              <p class="mt-1 flex items-center justify-between gap-2 text-body-xs">
-                <span class="text-text-tertiary">Clausulazos usados</span>
-                <span class="font-mono text-text-primary">{{ clausulazosUsados() !== null ? clausulazosUsados() + ' de ' + maxClausulazos() : '—' }}</span>
-              </p>
+              <dl class="mt-4 flex flex-col gap-1.5 text-body-xs">
+                <div class="flex items-center justify-between gap-2"><dt class="text-text-tertiary">Saldo fantasy</dt><dd class="font-mono font-bold text-info tabular-nums">{{ saldo() !== null ? monedas(saldo()!) : '—' }}</dd></div>
+                <div class="flex items-center justify-between gap-2"><dt class="text-text-tertiary">Valor de la plantilla</dt><dd class="font-mono text-text-primary tabular-nums">{{ gastado() !== null ? monedas(gastado()!) : '—' }}</dd></div>
+                <div class="flex items-center justify-between gap-2"><dt class="text-text-tertiary">Clausulazos usados</dt><dd class="font-mono text-text-primary">{{ clausulazosUsados() !== null ? clausulazosUsados() + ' de ' + maxClausulazos() : '—' }}</dd></div>
+              </dl>
             </section>
 
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
-              <p class="text-label-xs text-accent-text uppercase">Últimos movimientos del mercado</p>
+            <section class="rounded-lg border border-line-subtle bg-bg-card p-4" aria-labelledby="feed-mercado">
+              <p id="feed-mercado" class="flex items-center gap-2 text-mono-xs text-accent-text"><span class="size-1.5 rounded-full bg-accent motion-safe:animate-pulse" aria-hidden="true"></span>Últimos movimientos</p>
               @if (feed().length) {
-                <ul class="mt-3 flex flex-col gap-2">
-                  @for (m of feed(); track m.fecha + m.atletaId) {
+                <ul class="mt-3 flex flex-col gap-2" aria-live="polite">
+                  @for (m of feed().slice(0, verFeed() ? 20 : 6); track m.fecha + m.atletaId) {
                     <li><gr-feed-row [mov]="m" [nombreAtleta]="nombre(m.atletaId)" /></li>
                   }
                 </ul>
+                @if (feed().length > 6) {
+                  <button type="button" class="mt-2 h-11 w-full text-label-s text-accent-text hover:underline underline-offset-4 md:h-9" (click)="verFeed.set(!verFeed())">{{ verFeed() ? 'Ver menos' : 'Ver más movimientos' }}</button>
+                }
               } @else {
-                <p class="mt-2 text-body-xs text-text-tertiary">Todavía no hay movimientos en el mercado.</p>
+                <p class="mt-2 text-body-xs text-text-tertiary">Todavía no hay movimientos: el primer fichaje de la jornada puede ser el tuyo.</p>
               }
             </section>
           </aside>
         </div>
-
-        @if (error()) {
-          <gr-alert class="mt-6" tone="danger" title="No hemos podido completar la operación">{{ error() }}</gr-alert>
-        }
       }
     </gr-page>
 
@@ -152,6 +169,11 @@ export class MercadoFantasyPage {
   protected readonly clausulazo = signal<AtletaMercado | null>(null);
   protected readonly ficha = signal<AtletaDetalle | null>(null);
   protected readonly ahora = signal(Date.now());
+  /** El mercado se pinta por páginas de 20 (presentación: la lista completa ya está cargada). */
+  protected readonly PAGINA = 20;
+  protected readonly Math = Math;
+  protected readonly limite = signal(this.PAGINA);
+  protected readonly verFeed = signal(false);
 
   protected readonly filtros: { v: FiltroDueno; l: string; n: () => number }[] = [
     { v: 'todos', l: 'Todos', n: () => this.atletas().length },
@@ -194,6 +216,8 @@ export class MercadoFantasyPage {
         (!c || a.categoria === c),
     );
   });
+  protected readonly pagina = computed(() => this.visibles().slice(0, this.limite()));
+  protected readonly opcionesFiltro = computed(() => this.filtros.map((f) => ({ v: f.v, l: f.l, n: f.n() })));
   /** El feed: los fichajes cargados del API más los que llegan por SSE. */
   protected readonly feed = computed(() => fusionaFichajes(this.store.fichajes(), this.vivo.feed()));
   protected readonly jornadaTxt = computed(() => {
@@ -225,6 +249,12 @@ export class MercadoFantasyPage {
     }
   }
 
+  protected quitarFiltros(): void {
+    this.filtro.set('todos');
+    this.filtroSexo.set('todos');
+    this.filtroCategoria.set('');
+    this.limite.set(this.PAGINA);
+  }
   protected segundos(): number {
     const t = this.store.cargadoEn();
     if (!t) return 0;

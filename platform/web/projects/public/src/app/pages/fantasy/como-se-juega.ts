@@ -3,11 +3,11 @@
  * Fantasy y la tabla de puntos (contrato §6.3).
  */
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { GrIcon } from '@grcup/ui';
+import { GrButton, GrIcon } from '@grcup/ui';
 import { JuegosEstado } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
-import { AvisoJuegos } from '../porra/componentes';
+import { JuegosNav } from '../porra/componentes';
 
 interface BloqueReglas {
   titulo: string;
@@ -17,49 +17,72 @@ interface BloqueReglas {
 
 @Component({
   selector: 'gr-como-se-juega-page',
-  imports: [Page, GrIcon, AvisoJuegos],
+  imports: [Page, GrButton, GrIcon, JuegosNav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Cómo se juega" accent="" suffix="· GRS Fantasy" crumb="Cómo se juega" section="Juegos"
       subtitle="El manager de la GR Strength Cup: fichas atletas con monedas virtuales, pones tu alineación y puntúas lo que levantan en directo.">
-      <div class="grid gap-4 md:grid-cols-2">
-        @for (b of bloques; track b.titulo) {
-          <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-            <h2 class="flex items-center gap-2 text-ui-h5">
-              <span class="flex size-7 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon [name]="b.icono" [size]="16" /></span>
-              {{ b.titulo }}
+      <gr-juegos-nav class="mb-6 md:mb-8" juego="fantasy" activa="reglas" />
+
+      <ol class="grid gap-4 md:grid-cols-2">
+        @for (b of bloques; track b.titulo; let i = $index) {
+          <li class="relative overflow-hidden rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
+            <span class="pointer-events-none absolute -top-4 right-3 font-display text-[88px] leading-none text-white/[0.04] italic" aria-hidden="true">{{ i + 1 }}</span>
+            <h2 class="flex items-center gap-3 text-ui-h5">
+              <span class="flex size-10 shrink-0 items-center justify-center rounded-sm border border-accent/40 bg-accent-deep/40 text-accent-text"><gr-icon [name]="b.icono" [size]="18" /></span>
+              <span><span class="block text-mono-xs text-text-tertiary">Paso {{ i + 1 }}</span>{{ b.titulo }}</span>
             </h2>
-            <ul class="mt-3 flex flex-col gap-2">
+            <ul class="mt-4 flex flex-col gap-2.5">
               @for (p of b.puntos; track p) {
                 <li class="flex gap-2.5 text-body-s text-text-secondary">
                   <gr-icon name="check" [size]="15" class="mt-1 shrink-0 text-accent-text" />{{ p }}
                 </li>
               }
             </ul>
-          </section>
+          </li>
         }
-      </div>
+      </ol>
 
-      <section class="mt-8 rounded-lg border border-accent/50 bg-bg-card p-5 md:p-6">
-        <h2 class="text-display-2xs">Tabla de puntos</h2>
-        <p class="mt-2 text-body-xs text-text-tertiary">Puntúa lo que levanta tu titular en el momento del veredicto; los puestos, al titular cuando se publican los resultados.</p>
-        <ul class="mt-4 flex flex-col divide-y divide-line-subtle">
+      <section class="mt-8 overflow-hidden rounded-lg border border-accent/50 bg-bg-card" aria-labelledby="tabla-puntos">
+        <header class="border-b border-accent/40 bg-accent-deep/40 px-5 py-4 md:px-6">
+          <h2 id="tabla-puntos" class="text-display-xs">Tabla de puntos</h2>
+          <p class="mt-1 text-body-xs text-text-secondary">Puntúa lo que levanta tu titular en el momento del veredicto; los puestos, al titular cuando se publican los resultados.</p>
+        </header>
+        <ul class="flex flex-col divide-y divide-line-subtle px-5 md:px-6">
           @for (f of tabla; track f.concepto) {
-            <li class="flex flex-col gap-1 py-3 md:flex-row md:items-center md:justify-between">
-              <span class="text-label-s text-text-primary">{{ f.concepto }}</span>
-              @if (f.detalle) { <span class="text-body-xs text-text-tertiary md:max-w-[52%]">{{ f.detalle }}</span> }
-              @if (f.puntos) { <span class="font-mono text-label-s text-success">{{ f.puntos }}</span> }
+            <li class="flex flex-col gap-1.5 py-3.5 md:flex-row md:items-center md:justify-between md:gap-6">
+              <span class="min-w-0">
+                <span class="block text-label-s text-text-primary">{{ f.concepto }}</span>
+                @if (f.detalle) { <span class="block text-body-xs text-text-tertiary">{{ f.detalle }}</span> }
+              </span>
+              @if (f.puntos) {
+                <span class="self-start rounded-sm border px-2.5 py-1 font-mono text-[13px] font-bold tabular-nums md:self-auto md:shrink-0"
+                  [class]="f.puntos.trim().startsWith('−') || f.puntos.trim().startsWith('-') ? 'border-warning/40 bg-warning/10 text-warning' : 'border-success/40 bg-success/10 text-success'">{{ f.puntos }}</span>
+              }
             </li>
           }
         </ul>
       </section>
 
       <section class="mt-4 rounded-lg border border-line-subtle bg-bg-card p-5">
-        <p class="text-label-xs text-text-tertiary uppercase">Desempate del ranking</p>
-        <p class="mt-2 text-body-s text-text-secondary">1.º valor de la plantilla → 2.º saldo → 3.º quién llegó antes. Igual que en LaLiga Fantasy, pero sin deuda.</p>
+        <p class="text-mono-xs text-text-tertiary">Desempate del ranking</p>
+        <ol class="mt-3 flex flex-wrap items-center gap-2 text-body-s text-text-secondary">
+          <li class="rounded-pill border border-line-strong bg-bg-raised px-3 py-1.5"><b class="font-mono text-text-primary">1.º</b> valor de la plantilla</li>
+          <li aria-hidden="true"><gr-icon name="chevron-right" [size]="16" class="text-text-muted" /></li>
+          <li class="rounded-pill border border-line-strong bg-bg-raised px-3 py-1.5"><b class="font-mono text-text-primary">2.º</b> saldo</li>
+          <li aria-hidden="true"><gr-icon name="chevron-right" [size]="16" class="text-text-muted" /></li>
+          <li class="rounded-pill border border-line-strong bg-bg-raised px-3 py-1.5"><b class="font-mono text-text-primary">3.º</b> quién llegó antes</li>
+        </ol>
+        <p class="mt-3 text-body-xs text-text-tertiary">Igual que en LaLiga Fantasy, pero sin deuda.</p>
       </section>
 
-      <gr-aviso-juegos class="mt-8" />
+      <div class="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-line-strong bg-bg-surface px-6 py-8 text-center">
+        <p class="text-display-xs">¿Listo para fichar?</p>
+        <div class="flex flex-wrap justify-center gap-3">
+          <a grButton variant="primary" href="/fantasy/mercado" iconRight="arrow-right">Ir al mercado</a>
+          <a grButton variant="outline" href="/fantasy">Ver mi equipo</a>
+        </div>
+      </div>
     </gr-page>
   `,
 })
