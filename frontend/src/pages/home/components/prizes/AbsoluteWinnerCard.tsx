@@ -1,109 +1,217 @@
-import { memo, useMemo } from 'react';
-import { StaticMedal } from '@components/medals';
-import { useMediaQuery } from '@hooks/useMediaQuery';
+import { memo, useCallback, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { HangingMedals, type EntrancePhase, type HangingMedalSpec } from '@components/medals';
+import { useMatchingEntry } from '@hooks/useMediaQuery';
 import { PrizeHeading } from './PrizeHeading';
-import { ABSOLUTE_MEDAL, ABSOLUTE_WINNER, MEDAL_ASSETS, MEDAL_GOLD_COLOR, PRIZES_COPY, type AbsoluteWinner } from './medals.config';
+import { SteelClip } from './SteelRail';
+import {
+  ABSOLUTE_CARD,
+  ABSOLUTE_LAYOUTS,
+  ABSOLUTE_PHYSICS,
+  ABSOLUTE_SEX,
+  ABSOLUTE_STATS,
+  MEDAL_ASSETS,
+  MEDAL_ENTRANCE,
+  MEDAL_GOLD_COLOR,
+  PRIZES_COPY,
+  formatWeightClass,
+  type AbsoluteWinnerEntry,
+} from './medals.config';
 
 const COPY = PRIZES_COPY.absolute;
-const EMPTY = '\u2014';
-const DESKTOP_QUERY = '(min-width: 768px)';
+// Wide layout classes use the literal `min-[1280px]:` variant (= ABSOLUTE_WIDE_QUERY; Tailwind
+// only generates class names it can read verbatim in the source).
+/** Halo of the medal: normal opacity, opacity on hover, fade-in with the drop (from 62 % of it). */
+const HALO = { opacity: 0.6, hoverOpacity: 0.9, fadeMs: 300, fadeFrom: 0.62 } as const;
 
-const formatNumber = (value: number | undefined, decimals: number) =>
-  value === undefined ? EMPTY : value.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+const formatNumber = (value: number, decimals: number) =>
+  value.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 
-interface Stat {
+interface StatView {
   id: string;
   label: string;
+  shortLabel: string;
   unit: string;
-  value: string;
-  highlight?: boolean;
+  highlight: boolean;
+  /** Formatted number, or null while pending. */
+  value: string | null;
 }
 
-function buildStats(winner: AbsoluteWinner | null): Stat[] {
-  return [
-    { id: 'total', label: 'Total', unit: 'kg', value: formatNumber(winner?.totalKg, 1) },
-    { id: 'gl-points', label: 'GL Points', unit: 'GL', value: formatNumber(winner?.glPoints, 2), highlight: true },
-    { id: 'bodyweight', label: 'Peso corporal', unit: 'kg', value: formatNumber(winner?.bodyweightKg, 1) },
-  ];
+function buildStats(entry: AbsoluteWinnerEntry): StatView[] {
+  return ABSOLUTE_STATS.map((stat) => {
+    const raw = entry.status === 'decided' ? entry[stat.field] : undefined;
+    return { ...stat, value: raw === undefined ? null : formatNumber(raw, stat.decimals) };
+  });
 }
 
-/** Block C · «Ganador absoluto · GL Points»: static gold medal + best athlete by IPF GoodLift points. */
-export const AbsoluteWinnerCard = memo(function AbsoluteWinnerCard() {
-  const isDesktop = useMediaQuery(DESKTOP_QUERY);
-  const medal = isDesktop ? ABSOLUTE_MEDAL.desktop : ABSOLUTE_MEDAL.mobile;
-  const winner = ABSOLUTE_WINNER;
-  const stats = useMemo(() => buildStats(winner), [winner]);
-  const detail = winner ? `${winner.club} · ${winner.category}` : COPY.detailPlaceholder;
+/** «Pendiente» with the same height as a number, so publishing the results does not move the card. */
+function PendingValue({ stat }: { stat: StatView }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 font-sans text-[11px] font-semibold uppercase tracking-[0.12em] min-[1280px]:text-[13px]`}
+      style={{ color: stat.highlight ? 'rgba(212, 175, 55, 0.75)' : 'rgba(255, 255, 255, 0.45)' }}
+      data-ui={`absolute-winner-stat-${stat.id}-pending`}
+    >
+      {/* Dashed «empty slot» ring, wide layout only. */}
+      <svg className={`hidden min-[1280px]:inline-block`} width="8" height="8" viewBox="0 0 8 8" aria-hidden data-ui={`absolute-winner-stat-${stat.id}-pending-ring`}>
+        <circle cx="4" cy="4" r="3.25" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 1.5" data-ui={`absolute-winner-stat-${stat.id}-pending-ring-circle`} />
+      </svg>
+      {COPY.valuePending}
+    </span>
+  );
+}
+
+export interface AbsoluteWinnerCardProps {
+  entry: AbsoluteWinnerEntry;
+  /** Position in the block: the drop of card n waits n × staggerMs where the layout staggers cards. */
+  index: number;
+}
+
+/**
+ * One absolute winner (by IPF GoodLift points): gold medal hanging in 3D at the top centre (its
+ * own view of the shared canvas, clipped to the card's medal zone) from a steel clip on the
+ * card's top edge, then badge, name, club · category and the three figures. Reusable for N
+ * winners; pending / decided state from its own entry. The frame must not stack (no z-index):
+ * the clip sits above the canvas, the card in z-20.
+ */
+export const AbsoluteWinnerCard = memo(function AbsoluteWinnerCard({ entry, index }: AbsoluteWinnerCardProps) {
+  const layout = useMatchingEntry(ABSOLUTE_LAYOUTS);
+  const card = ABSOLUTE_CARD[layout.id];
+  const bandRef = useRef<HTMLDivElement>(null);
+  const sex = ABSOLUTE_SEX[entry.sex];
+  const key = entry.sex.toLowerCase();
+  const decided = entry.status === 'decided';
+  const stats = useMemo(() => buildStats(entry), [entry]);
+  const detail = decided ? `${entry.club ?? ''} · ${sex.category} ${formatWeightClass(entry.category ?? '')} kg` : COPY.detailPending;
+  const nameId = `absolute-winner-name-${key}`;
+
+  const entryOrder = card.staggerCards ? index : 0;
+  const medals = useMemo<HangingMedalSpec[]>(
+    () => [{ id: `absolute-gold-${key}`, label: sex.medalLabel, phase: 0.2 + index * 0.37, entryOrder, assets: MEDAL_ASSETS.gold }],
+    [key, sex.medalLabel, index, entryOrder],
+  );
+
+  // Halo: hidden until the medal drops in, fades in from 62 % of the drop; brighter on hover.
+  const [entrance, setEntrance] = useState<{ phase: EntrancePhase; durationMs: number }>({ phase: 'off', durationMs: 0 });
+  const [hovered, setHovered] = useState(false);
+  const handleEntrance = useCallback((phase: EntrancePhase, info: { durationMs: number }) => setEntrance({ phase, durationMs: info.durationMs }), []);
+  const handleHover = useCallback((id: string | null) => setHovered(id !== null), []);
+  const haloStyle = useMemo<CSSProperties>(
+    () => ({
+      width: card.haloSize,
+      height: card.haloSize,
+      top: layout.ribbonLength + layout.medalHeight / 2,
+      background: `radial-gradient(circle, ${MEDAL_GOLD_COLOR}59 0%, transparent 70%)`,
+      opacity: entrance.phase === 'waiting' ? 0 : hovered ? HALO.hoverOpacity : HALO.opacity,
+      transition: `opacity ${HALO.fadeMs}ms ease-out`,
+      transitionDelay: entrance.phase === 'playing' ? `${Math.round(entrance.durationMs * HALO.fadeFrom)}ms` : '0ms',
+    }),
+    [card.haloSize, layout.ribbonLength, layout.medalHeight, entrance, hovered],
+  );
+  const cardStyle = useMemo<CSSProperties>(
+    () => ({
+      minHeight: card.minHeight,
+      borderRadius: card.radius,
+      borderColor: `${MEDAL_GOLD_COLOR}59`,
+      background: 'linear-gradient(160deg, #1a1714 0%, #15120f 55%, #0d0c0b 100%)',
+    }),
+    [card.minHeight, card.radius],
+  );
 
   return (
-    <div className="mt-24 sm:mt-28" data-ui="absolute-winner">
-      <PrizeHeading id="absolute-winner-title" eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} dataUi="absolute-winner-heading" />
-      <article
-        className="group relative mx-auto mt-10 grid max-w-[1200px] overflow-hidden rounded-3xl border xl:min-h-[480px] xl:grid-cols-[440px_1fr] xl:rounded-[32px]"
-        style={{ borderColor: `${MEDAL_GOLD_COLOR}4d`, background: 'linear-gradient(135deg, #141414 0%, #1a1512 55%, #0a0a0a 100%)' }}
-        aria-labelledby="absolute-winner-name"
-        data-ui="absolute-winner-card"
-      >
-        <div className="relative flex justify-center pb-4 xl:pb-0" data-ui="absolute-winner-medal-area" aria-hidden>
-          <div
-            className="absolute left-1/2 h-72 w-72 -translate-x-1/2 rounded-full opacity-60 blur-3xl transition-opacity duration-200 group-hover:opacity-90"
-            style={{ top: medal.ribbonLength, background: `radial-gradient(circle, ${MEDAL_GOLD_COLOR}59 0%, transparent 70%)` }}
-            data-ui="absolute-winner-halo"
-          />
-          <StaticMedal
-            src={MEDAL_ASSETS.gold.image}
-            ribbonSrc={MEDAL_ASSETS.gold.ribbon}
-            width={medal.width}
-            ribbonLength={medal.ribbonLength}
-            ribbonWidth={medal.ribbonWidth}
-            ribbonSpreadTop={medal.ribbonSpreadTop}
-            ribbonSpreadBottom={medal.ribbonSpreadBottom}
-            className="relative"
-            dataUi="absolute-winner-medal"
-          />
+    <div className="relative mx-auto w-full max-w-[350px] xl:max-w-none" data-ui={`absolute-winner-frame-${key}`} data-sex={entry.sex}>
+      <article className="relative z-20 flex h-full flex-col overflow-hidden border" style={cardStyle} aria-labelledby={nameId} data-ui="absolute-winner-card" data-sex={entry.sex} data-status={entry.status}>
+        <div className="relative shrink-0" style={{ height: layout.canvasHeight }} data-ui="absolute-winner-medal-area" aria-hidden>
+          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl" style={haloStyle} data-ui="absolute-winner-halo" />
         </div>
 
-        <div className="relative px-5 pb-6 text-center xl:py-12 xl:pl-0 xl:pr-12 xl:text-left" data-ui="absolute-winner-content">
+        <div className={`relative flex flex-1 flex-col items-center px-[16px] pb-[24px] text-center min-[1280px]:px-[40px] min-[1280px]:pb-[40px]`} data-ui="absolute-winner-content">
           <p
-            className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.15em]"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] min-[1280px]:text-[11px] min-[1280px]:tracking-[0.15em]`}
             style={{ borderColor: `${MEDAL_GOLD_COLOR}66`, color: MEDAL_GOLD_COLOR }}
             data-ui="absolute-winner-badge"
           >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: MEDAL_GOLD_COLOR }} data-ui="absolute-winner-badge-dot" aria-hidden />
-            {COPY.badge}
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: MEDAL_GOLD_COLOR }} data-ui="absolute-winner-badge-dot" aria-hidden />
+            {sex.badge}
           </p>
-          <h3 id="absolute-winner-name" className="mt-4 font-contrail text-3xl uppercase text-white xl:text-5xl" data-ui="absolute-winner-name">
-            {winner?.name ?? COPY.namePlaceholder}
+          <h3
+            id={nameId}
+            className={`mt-3 font-contrail text-[30px] uppercase leading-tight min-[1280px]:mt-4 min-[1280px]:text-[48px] ${decided ? 'text-white' : 'text-white/50'}`}
+            data-ui="absolute-winner-name"
+          >
+            {decided ? entry.name : COPY.namePending}
           </h3>
-          <p className="mt-2 text-sm text-white/60 xl:text-base" data-ui="absolute-winner-detail">{detail}</p>
+          <p className={`mt-1 text-sm text-white/60 min-[1280px]:mt-2 min-[1280px]:text-base`} data-ui="absolute-winner-detail">{detail}</p>
 
-          <dl className="mt-6 grid grid-cols-3 gap-2 xl:gap-4" data-ui="absolute-winner-stats">
+          {/* Pixel sizes (not rem): the site scales the root font (14 px < 640, 18 px ≥ 1536) and the
+              figures must keep the Figma sizes and fit on one line in the 588 card. */}
+          <dl className={`mt-5 grid w-full grid-cols-3 gap-[8px] min-[1280px]:mt-6 min-[1280px]:gap-[12px]`} data-ui="absolute-winner-stats">
             {stats.map((stat) => (
               <div
                 key={stat.id}
-                className="rounded-2xl border px-3 py-3 xl:px-5 xl:py-4"
+                className={`min-w-0 rounded-2xl border px-[8px] py-[12px] min-[1280px]:px-[16px] min-[1280px]:py-[16px] min-[1280px]:text-left`}
                 style={stat.highlight ? { borderColor: `${MEDAL_GOLD_COLOR}80`, background: 'rgba(212, 175, 55, 0.06)' } : { borderColor: 'transparent', background: 'rgba(255, 255, 255, 0.05)' }}
                 data-ui={`absolute-winner-stat-${stat.id}`}
               >
-                <dt className="text-[10px] uppercase tracking-[0.12em] text-white/60 xl:text-xs" data-ui={`absolute-winner-stat-${stat.id}-label`}>
-                  {stat.label}
+                <dt className={`whitespace-nowrap text-[10px] uppercase tracking-[0.1em] text-white/60 min-[1280px]:text-[12px] min-[1280px]:tracking-[0.08em]`} data-ui={`absolute-winner-stat-${stat.id}-label`}>
+                  <span className={`min-[1280px]:hidden`} data-ui={`absolute-winner-stat-${stat.id}-label-short`}>{stat.shortLabel}</span>
+                  <span className={`hidden min-[1280px]:inline`} data-ui={`absolute-winner-stat-${stat.id}-label-full`}>{stat.label}</span>
                 </dt>
-                <dd className="mt-1 font-contrail leading-none" data-ui={`absolute-winner-stat-${stat.id}-value`}>
-                  <span className="text-2xl xl:text-4xl" style={{ color: stat.highlight ? MEDAL_GOLD_COLOR : '#ffffff' }} data-ui={`absolute-winner-stat-${stat.id}-number`}>
-                    {stat.value}
-                  </span>
-                  <span className="ml-1 text-xs text-white/50" data-ui={`absolute-winner-stat-${stat.id}-unit`}>{stat.unit}</span>
+                {/* Fixed height = the number's (30 / 41 px) in both states. */}
+                <dd className={`mt-1 flex h-[30px] items-center justify-center min-[1280px]:h-[41px] min-[1280px]:justify-start`} data-ui={`absolute-winner-stat-${stat.id}-value`}>
+                  {stat.value === null ? (
+                    <PendingValue stat={stat} />
+                  ) : (
+                    <span className="font-contrail leading-none" data-ui={`absolute-winner-stat-${stat.id}-figure`}>
+                      <span className={`text-[24px] min-[1280px]:text-[36px]`} style={{ color: stat.highlight ? MEDAL_GOLD_COLOR : '#ffffff' }} data-ui={`absolute-winner-stat-${stat.id}-number`}>
+                        {stat.value}
+                      </span>
+                      <span className={`ml-1 hidden font-sans text-[14px] font-semibold text-white/50 min-[1280px]:inline`} data-ui={`absolute-winner-stat-${stat.id}-unit`}>{stat.unit}</span>
+                    </span>
+                  )}
                 </dd>
               </div>
             ))}
           </dl>
-
-          <div className="mt-6 border-t border-white/10 pt-5 text-left" data-ui="absolute-winner-explainer">
-            <p className="text-sm font-semibold text-white" data-ui="absolute-winner-explainer-title">{COPY.explainerTitle}</p>
-            <p className="mt-2 text-sm leading-relaxed text-white/70 xl:text-base" data-ui="absolute-winner-explainer-text">{COPY.explainer}</p>
-          </div>
         </div>
       </article>
+
+      {/* 3D band of the medal (a view of the shared canvas): the card's medal zone, from its top edge. */}
+      <div ref={bandRef} className="pointer-events-none absolute inset-x-0 top-0" style={{ height: layout.canvasHeight }} data-ui="absolute-winner-band">
+        <HangingMedals
+          id={`absolute-${key}`}
+          medals={medals}
+          layouts={ABSOLUTE_LAYOUTS}
+          physics={ABSOLUTE_PHYSICS}
+          containerRef={bandRef}
+          entrance={MEDAL_ENTRANCE}
+          onMedalHover={handleHover}
+          onEntranceChange={handleEntrance}
+        />
+      </div>
+      <SteelClip width={card.pin.width} height={card.pin.height} radius={card.pin.radius} centerX="50%" dataUi="absolute-winner-clip" />
+    </div>
+  );
+});
+
+/**
+ * Block C · «Ganadores absolutos · GL Points»: one AbsoluteWinnerCard per entry (male first),
+ * then the GL Points explainer once, centred under the cards. Figma page 80 (194:912, 194:945):
+ * 2 columns 588 + 24 + 588 from 1280, 2 equal columns with gap 16 from 768, stacked 350 wide
+ * with gap 16 below (no tabs: both results get the same hierarchy).
+ */
+export const AbsoluteWinners = memo(function AbsoluteWinners({ winners }: { winners: readonly AbsoluteWinnerEntry[] }) {
+  return (
+    <div className="mt-24 sm:mt-28" data-ui="absolute-winner">
+      <PrizeHeading id="absolute-winner-title" eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="absolute-winner-heading" />
+      <div className={`mx-auto mt-10 grid max-w-[1200px] grid-cols-1 gap-[16px] xl:grid-cols-2 min-[1280px]:gap-[24px]`} data-ui="absolute-winner-list">
+        {winners.map((entry, index) => (
+          <AbsoluteWinnerCard key={entry.sex} entry={entry} index={index} />
+        ))}
+      </div>
+      <div className="mx-auto mt-10 max-w-[760px] text-center" data-ui="absolute-winner-explainer">
+        <p className="text-sm font-semibold text-white" data-ui="absolute-winner-explainer-title">{COPY.explainerTitle}</p>
+        <p className="mt-2 text-sm leading-relaxed text-white/70 xl:text-base" data-ui="absolute-winner-explainer-text">{COPY.explainer}</p>
+      </div>
     </div>
   );
 });
