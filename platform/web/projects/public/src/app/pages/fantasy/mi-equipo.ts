@@ -7,25 +7,21 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { GrAlert, GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, fusionaFichajes, type AtletaDetalle, type AtletaMercado, mensajeError } from '../../core/juegos';
+import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, type AtletaDetalle, type AtletaMercado, mensajeError } from '../../core/juegos';
 import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { AthleteCard, AthleteSheet } from './componentes';
-import { CoinBalance, JuegosNav } from '../porra/componentes';
+import { HojaJugador, JugadorPista, PistaFutsal, type AtletaPista } from './pista';
+import { JuegosNav } from '../porra/componentes';
 
 @Component({
   selector: 'gr-mi-equipo-page',
-  imports: [Page, GrAlert, GrButton, GrIcon, GrSkeleton, AthleteCard, AthleteSheet, CoinBalance, JuegosNav],
+  imports: [Page, GrAlert, GrButton, GrIcon, GrSkeleton, HojaJugador, JugadorPista, JuegosNav, PistaFutsal],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRS Fantasy" accent="" [suffix]="jornadaTxt()" crumb="Mi equipo" section="Juegos"
-      subtitle="Fichas con monedas virtuales, cláusulas en vivo y puntos por rendimiento. Tu plantilla: 5 titulares y hasta 3 suplentes.">
-      <div pageStamps class="flex flex-wrap items-center gap-3">
-        <gr-coin-balance [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
-      </div>
-
+      subtitle="Tu alineación de fútbol sala: 5 titulares en la pista y hasta 3 en el banquillo. Puntúan los titulares en el momento del veredicto.">
       <gr-juegos-nav class="mb-6 md:mb-8" juego="fantasy" activa="equipo" />
 
       @if (error()) {
@@ -33,93 +29,100 @@ import { CoinBalance, JuegosNav } from '../porra/componentes';
       }
 
       @if (store.cargando()) {
-        <div class="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-busy="true">
-          @for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-24 rounded-lg" /> }
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]" aria-busy="true">
+          <gr-skeleton class="aspect-[358/500] rounded-2xl lg:aspect-[680/760]" />
+          <gr-skeleton class="hidden h-64 rounded-lg lg:block" />
+        </div>
+      } @else if (!fan.conSesion()) {
+        <div class="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
+          <span class="flex size-14 items-center justify-center rounded-full border border-info/50 bg-info/12 text-info"><gr-icon name="users" [size]="24" /></span>
+          <p class="text-display-xs">Monta tu equipo</p>
+          <p class="max-w-md text-body-s text-text-tertiary">Entra con tu cuenta del directo: 1.000.000 de monedas fantasy por jornada para fichar a 5 titulares y puntuar lo que levantan.</p>
+          <button grButton variant="primary" icon="user-plus" (click)="entrar()">Entrar para jugar</button>
         </div>
       } @else {
-        <!-- Marcador: los cuatro indicadores del diseño -->
-        <dl class="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-          @for (k of kpis(); track k.label) {
-            <div class="flex min-w-0 flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
-              <dt class="text-mono-xs text-text-tertiary">{{ k.label }}</dt>
-              <dd class="truncate font-mono text-[22px] leading-none font-bold tabular-nums md:text-[30px]" [class]="k.color">{{ k.valor }}</dd>
-              <dd class="truncate text-body-xs text-text-tertiary">{{ k.nota }}</dd>
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:items-start lg:gap-8">
+          <!-- Móvil: marcador compacto (puntos y saldo); el resto, en «ver más» -->
+          <section class="rounded-lg border border-line-subtle bg-bg-card lg:hidden" aria-label="Tu jornada">
+            <div class="flex items-center gap-2 py-3 pr-2 pl-4">
+              <p class="min-w-0 flex-1"><span class="block text-mono-xs text-text-tertiary">Puntos</span><span class="block font-mono text-[20px] leading-tight font-bold text-success tabular-nums">{{ kpis()[2].valor }}</span></p>
+              <p class="min-w-0 flex-1"><span class="block text-mono-xs text-text-tertiary">Saldo</span><span class="block truncate font-mono text-[20px] leading-tight font-bold text-info tabular-nums">{{ kpis()[0].valor }}</span></p>
+              <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm border border-line-strong bg-bg-raised text-text-secondary" [attr.aria-expanded]="verMas()" aria-controls="mas-kpis"
+                [attr.aria-label]="verMas() ? 'Ver menos' : 'Ver puesto y valor del equipo'" (click)="verMas.set(!verMas())">
+                <gr-icon name="chevron-down" [size]="18" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="verMas()" />
+              </button>
             </div>
-          }
-        </dl>
-
-        @if (!fan.conSesion()) {
-          <div class="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
-            <span class="flex size-14 items-center justify-center rounded-full border border-info/50 bg-info/12 text-info"><gr-icon name="users" [size]="24" /></span>
-            <p class="text-display-xs">Monta tu equipo</p>
-            <p class="max-w-md text-body-s text-text-tertiary">Entra con tu cuenta del directo: 1.000.000 de monedas fantasy por jornada para fichar a 5 titulares y puntuar lo que levantan.</p>
-            <button grButton variant="primary" icon="user-plus" (click)="entrar()">Entrar para jugar</button>
-          </div>
-        } @else {
-          <!-- Figma «Pizarra»: la alineación como un tablero con la plataforma dibujada -->
-          <section class="relative isolate mt-6 overflow-hidden rounded-2xl border border-line-strong bg-bg-surface px-3 py-5 sm:px-5 md:mt-8 md:p-8" aria-labelledby="pizarra-titulo">
-            <span class="pointer-events-none absolute -top-48 left-1/2 -z-10 h-80 w-[min(1000px,140%)] -translate-x-1/2 rounded-full bg-accent/20 blur-[120px]" aria-hidden="true"></span>
-            <span class="pointer-events-none absolute inset-2 -z-10 rounded-[14px] border border-dashed border-line-strong/70 md:inset-3.5 md:rounded-[20px]" aria-hidden="true"></span>
-            <header class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <h2 id="pizarra-titulo" class="text-display-xs">Alineación · {{ titulares().length }}/5 titulares</h2>
-              <p class="flex items-center gap-2 text-body-xs text-text-tertiary">
-                <gr-icon name="lock" [size]="14" class="shrink-0 text-warning" />El flight en curso bloquea al atleta
-              </p>
-            </header>
-            @if (store.cargandoEquipo()) {
-              <div class="mt-5 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-5" aria-busy="true">
-                @for (i of [1, 2, 3, 4, 5]; track i) { <gr-skeleton class="h-72 rounded-lg" /> }
-              </div>
-            } @else {
-              <div class="mt-5 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-5">
-                @for (a of titulares(); track a.atletaId) {
-                  <gr-athlete-card [atleta]="a" [delta]="delta(a)" [intentos]="intentos(a)" (vender)="vender(a)" (subir)="bajar(a)" (ficha)="verFicha(a)" />
-                }
-                @for (i of huecosTitulares(); track i) {
-                  <a href="/fantasy/mercado" class="group flex min-h-56 flex-col items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-line-strong bg-bg-card/35 p-4 text-center transition-colors hover:border-accent/60 hover:bg-accent-deep/15">
-                    <span class="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-text-muted transition-colors group-hover:border-accent/60 group-hover:text-accent-text"><gr-icon name="plus" [size]="22" /></span>
-                    <span class="text-label-s text-text-secondary">Titular {{ titulares().length + i + 1 }}</span>
-                    <span class="text-body-xs text-text-tertiary">Ficha en el mercado</span>
-                  </a>
-                }
-              </div>
-            }
-
-            <div class="mt-6 border-t border-dashed border-line-strong pt-5 md:mt-8 md:pt-6">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <h2 class="text-display-2xs text-text-secondary">Banquillo · hasta 3</h2>
-                <p class="text-body-xs text-text-tertiary">No puntúan salvo que suban a titulares</p>
-              </div>
-              <div class="mt-4 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-5">
-                @for (a of suplentes(); track a.atletaId) {
-                  <gr-athlete-card [atleta]="a" [delta]="delta(a)" [intentos]="'—'" (vender)="vender(a)" (subir)="subir(a)" (ficha)="verFicha(a)" />
-                }
-                @for (i of huecosBanquillo(); track i) {
-                  <a href="/fantasy/mercado" class="group flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-line-subtle bg-bg-card/25 p-4 text-center transition-colors hover:border-line-strong">
-                    <span class="flex size-11 items-center justify-center rounded-full border border-dashed border-line-strong text-text-muted group-hover:text-text-secondary"><gr-icon name="plus" [size]="18" /></span>
-                    <span class="text-body-xs text-text-tertiary">Hueco libre</span>
-                  </a>
-                }
-              </div>
-            </div>
-            @if (plazasLibres() > 0) {
-              <div class="mt-6 flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-center sm:gap-4">
-                <p class="text-body-s text-text-secondary">Te quedan <b class="font-mono text-text-primary">{{ plazasLibres() }}</b> {{ plazasLibres() === 1 ? 'plaza' : 'plazas' }} y <b class="font-mono text-info">{{ monedas(saldo() ?? 0) }}</b> monedas</p>
-                <a grButton variant="primary" href="/fantasy/mercado" iconRight="arrow-right">Ir al mercado</a>
-              </div>
+            @if (verMas()) {
+              <dl id="mas-kpis" class="grid grid-cols-2 gap-3 border-t border-line-subtle px-4 py-3">
+                <div><dt class="text-mono-xs text-text-tertiary">Tu puesto</dt><dd class="font-mono text-[18px] font-bold text-accent-text">{{ kpis()[3].valor }}</dd><dd class="text-body-xs text-text-tertiary">{{ kpis()[3].nota }}</dd></div>
+                <div><dt class="text-mono-xs text-text-tertiary">Valor del equipo</dt><dd class="font-mono text-[18px] font-bold text-text-primary">{{ kpis()[1].valor }}</dd><dd class="text-body-xs text-text-tertiary">{{ kpis()[1].nota }}</dd></div>
+              </dl>
             }
           </section>
 
-          <p class="mt-6 flex items-start gap-2 text-body-xs text-text-tertiary">
-            <gr-icon name="info" [size]="15" class="mt-px shrink-0 text-info" />
-            Vender devuelve el 100 % del valor actual al mercado. Cambios titular ↔ suplente en cualquier momento, salvo flight en curso. La cláusula arranca en 200.000 y se mueve con cada veredicto (válido +5 %, nulo −4 %, blanqueo −30 %).
-          </p>
-        }
+          <!-- Figma «Pista · fútbol sala»: los 5 titulares en rombo -->
+          <section class="min-w-0" aria-labelledby="pista-titulo">
+            <div class="mb-3 flex items-end justify-between gap-3">
+              <h2 id="pista-titulo" class="text-display-xs">Alineación · {{ titulares().length }}/5</h2>
+              <p class="hidden text-body-xs text-text-tertiary sm:block">Toca un jugador para ver su ficha</p>
+            </div>
+            @if (store.cargandoEquipo() && !equipo()) {
+              <gr-skeleton class="block aspect-[358/500] rounded-2xl lg:aspect-[680/760]" />
+            } @else {
+              <gr-pista-futsal [titulares]="titulares()" [puntosDe]="puntosDe" (abrir)="abrirJugador($event.atleta, $event.origen)" />
+            }
+          </section>
+
+          <aside class="flex min-w-0 flex-col gap-4 lg:pt-[42px]">
+            <section class="hidden rounded-lg border border-line-subtle bg-bg-card p-5 lg:block" aria-labelledby="jornada-titulo">
+              <h2 id="jornada-titulo" class="text-display-2xs">Tu jornada {{ jornadaTxt() }}</h2>
+              <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-5">
+                @for (k of kpisEscritorio(); track k.label) {
+                  <div class="min-w-0"><dt class="text-mono-xs text-text-tertiary">{{ k.label }}</dt><dd class="truncate font-mono text-[26px] leading-tight font-bold tabular-nums" [class]="k.color">{{ k.valor }}</dd><dd class="truncate text-body-xs text-text-tertiary">{{ k.nota }}</dd></div>
+                }
+              </dl>
+            </section>
+
+            <section class="rounded-lg border border-line-subtle bg-bg-card p-4 lg:p-5" aria-labelledby="banquillo-titulo">
+              <div class="flex items-center justify-between gap-2">
+                <h2 id="banquillo-titulo" class="text-display-2xs">Banquillo · {{ suplentes().length }}/3</h2>
+                <p class="text-body-xs text-text-tertiary">No puntúan salvo que suban</p>
+              </div>
+              <ul class="mt-4 grid grid-cols-3 justify-items-center gap-2">
+                @for (a of suplentes(); track a.atletaId) {
+                  <li><gr-jugador-pista [atleta]="a" tamano="m" (abrir)="abrirJugador(a, $event)" /></li>
+                }
+                @for (i of huecosBanquillo(); track i) {
+                  <li>
+                    <a href="/fantasy/mercado" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" aria-label="Hueco libre del banquillo: fichar en el mercado">
+                      <span class="flex size-16 items-center justify-center rounded-full border-[1.5px] border-dashed border-line-strong text-text-tertiary transition-colors group-hover:border-text-muted group-hover:text-text-primary"><gr-icon name="plus" [size]="22" /></span>
+                      <span class="text-[12px] font-semibold text-text-tertiary">Fichar</span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            </section>
+
+            @if (plazasLibres() > 0) {
+              <section class="flex flex-col gap-3 rounded-lg border border-accent/45 bg-accent-deep/25 p-4 lg:p-5">
+                <p class="text-label-m text-text-primary">Te quedan {{ plazasLibres() }} {{ plazasLibres() === 1 ? 'plaza' : 'plazas' }} y {{ monedas(saldo() ?? 0) }} monedas</p>
+                <p class="hidden text-body-s text-text-secondary lg:block">Ficha libres a su valor o paga un clausulazo al dueño.</p>
+                <a grButton variant="primary" href="/fantasy/mercado" iconRight="arrow-right" class="w-full lg:w-auto lg:self-start">Ir al mercado</a>
+              </section>
+            }
+
+            <p class="flex items-start gap-2 text-body-xs text-text-tertiary">
+              <gr-icon name="info" [size]="15" class="mt-px shrink-0 text-info" />
+              Las posiciones son solo visuales. Vender devuelve el 100 % del valor actual; la cláusula se mueve con cada veredicto (válido +5 %, nulo −4 %, blanqueo −30 %).
+            </p>
+          </aside>
+        </div>
       }
     </gr-page>
 
-    @if (ficha(); as f) {
-      <gr-athlete-sheet [detalle]="f" [fichajes]="fichajesDe(f.atleta?.atletaId ?? '')" (cerrar)="cerrarFicha()" />
+    @if (seleccionado(); as a) {
+      <gr-hoja-jugador [atleta]="a" [detalle]="detalleHoja()" [delta]="delta(a)" [serie]="serieDe(a)" [saleAlBanquillo]="saleAlBanquillo()" [cargando]="operando()" [error]="error()"
+        (cerrar)="cerrarJugador()" (vender)="accion('vender', a)" (banquillo)="accion('bajar', a)" (subir)="accion('subir', a)" />
     }
   `,
 })
@@ -132,7 +135,13 @@ export class MiEquipoPage {
   private readonly juegos = inject(Juegos);
 
   protected readonly error = signal<string | null>(null);
-  protected readonly ficha = signal<AtletaDetalle | null>(null);
+  /** El atleta de la hoja inferior (por id: si se vende, la hoja se cierra sola). */
+  protected readonly idHoja = signal<string | null>(null);
+  protected readonly detalleCargado = signal<AtletaDetalle | null>(null);
+  protected readonly operando = signal(false);
+  protected readonly verMas = signal(false);
+  /** El elemento que abrió la hoja, para devolverle el foco al cerrar. */
+  private origenHoja: HTMLElement | null = null;
 
   protected readonly equipo = computed(() => this.store.equipo());
   protected readonly saldo = computed(() => this.equipo()?.saldo ?? null);
@@ -151,6 +160,25 @@ export class MiEquipoPage {
   protected readonly huecosTitulares = computed(() => Array.from({ length: Math.max(0, 5 - this.titulares().length) }, (_, i) => i));
   protected readonly huecosBanquillo = computed(() => Array.from({ length: Math.max(0, 3 - this.suplentes().length) }, (_, i) => i));
   protected readonly plazasLibres = computed(() => this.huecos());
+  protected readonly seleccionado = computed<AtletaPista | null>(() => (this.equipo()?.atletas ?? []).find((a) => a.atletaId === this.idHoja()) ?? null);
+  protected readonly detalleHoja = computed(() => {
+    const id = this.idHoja();
+    if (!id) return null;
+    const cargado = this.detalleCargado();
+    return cargado && (!cargado.atleta || cargado.atleta.atletaId === id) ? cargado : (this.store.detalles().get(id) ?? null);
+  });
+  /** Con los 5 titulares, «Subir a titular» manda al banquillo al último (la lógica de subir()). */
+  protected readonly saleAlBanquillo = computed(() => (this.titulares().length >= 5 ? this.titulares()[4].nombre : ''));
+  /** Los KPI del lateral en escritorio: puntos y puesto arriba, saldo y valor abajo. */
+  protected readonly kpisEscritorio = computed(() => {
+    const k = this.kpis();
+    return [k[2], k[3], k[0], k[1]];
+  });
+  /** Los puntos de la jornada de un titular (null mientras no se ha cargado su ficha). */
+  protected readonly puntosDe = (a: AtletaPista): number | null => {
+    const d = this.store.detalles().get(a.atletaId);
+    return d ? d.puntos.reduce((s, p) => s + p.puntos, 0) : null;
+  };
   /** El marcador (Figma «KPIs»): saldo, valor, puntos y puesto. */
   protected readonly kpis = computed(() => [
     { label: 'Saldo fantasy', valor: this.saldo() !== null ? monedas(this.saldo()!) : '—', color: 'text-info', nota: this.jugandoCaption() },
@@ -213,23 +241,40 @@ export class MiEquipoPage {
   protected delta(a: AtletaMercado): number {
     return this.vivo.clausulas().get(a.atletaId)?.pct ?? 0;
   }
-  protected intentos(a: AtletaMercado): string {
-    const d = this.store.detalles().get(a.atletaId);
-    if (!d) return '—';
-    const total = d.puntos.reduce((s, p) => s + p.puntos, 0);
-    return `${total >= 0 ? '+' : ''}${total} pts`;
-  }
-  /** El historial de fichajes del atleta: los del API más los que llegan por SSE. */
-  protected fichajesDe(atletaId: string) {
-    return fusionaFichajes(this.store.fichajesAtleta().filter((f) => f.atletaId === atletaId), this.vivo.feed());
+  /** La serie de la cláusula para la minigráfica: lo que llega en vivo o, si no, el historial de la ficha. */
+  protected serieDe(a: AtletaMercado): number[] {
+    const vivo = this.vivo.series().get(a.atletaId);
+    if (vivo && vivo.length > 1) return vivo;
+    const h = this.detalleHoja()?.clausulas ?? [];
+    return [...h].reverse().map((c) => c.clausula);
   }
 
-  protected async verFicha(a: AtletaMercado): Promise<void> {
-    await Promise.all([this.store.cargarDetalle(a.atletaId), this.store.cargarFichajes(a.atletaId)]);
-    this.ficha.set(this.store.detalle());
+  protected abrirJugador(a: AtletaMercado, origen?: Event): void {
+    this.origenHoja = (origen?.currentTarget as HTMLElement | null) ?? null;
+    this.error.set(null);
+    this.detalleCargado.set(null);
+    this.idHoja.set(a.atletaId);
+    void this.store.cargarDetalle(a.atletaId).then(() => {
+      if (this.idHoja() === a.atletaId) this.detalleCargado.set(this.store.detalle());
+    });
   }
-  protected cerrarFicha(): void {
-    this.ficha.set(null);
+  protected cerrarJugador(): void {
+    this.idHoja.set(null);
+    const o = this.origenHoja;
+    this.origenHoja = null;
+    if (o?.isConnected) o.focus();
+  }
+  /** Las acciones de la hoja: si salen bien, la hoja se cierra; si no, el error queda arriba y la hoja abierta. */
+  protected async accion(tipo: 'vender' | 'bajar' | 'subir', a: AtletaMercado): Promise<void> {
+    this.operando.set(true);
+    try {
+      if (tipo === 'vender') await this.vender(a);
+      else if (tipo === 'bajar') await this.bajar(a);
+      else await this.subir(a);
+    } finally {
+      this.operando.set(false);
+    }
+    if (!this.error()) this.cerrarJugador();
   }
 
   protected async vender(a: AtletaMercado): Promise<void> {
