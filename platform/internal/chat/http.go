@@ -641,7 +641,9 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 	if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "reportes", ip), 20, time.Hour); err == nil && !r.Allowed {
 		return nil, problem.TooMany("Has reportado demasiado. Inténtalo más tarde.")
 	}
-	tag, err := s.a.DB.Exec(ctx, `UPDATE mensajes SET reportes = reportes + 1 WHERE id = $1 AND competition_id = $2`, in.ID, cid)
+	// the id of the stream is only unique inside a room: the report goes to the most recent day with that id
+	tag, err := s.a.DB.Exec(ctx, `UPDATE mensajes SET reportes = reportes + 1 WHERE id = $1 AND competition_id = $2
+		AND dia = (SELECT dia FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1)`, in.ID, cid)
 	if err != nil {
 		return nil, problem.Internal()
 	}
@@ -650,7 +652,7 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 		return nil, problem.NotFound("Mensaje no encontrado.")
 	}
 	var n int
-	if err := s.a.DB.QueryRow(ctx, `SELECT reportes FROM mensajes WHERE id = $1`, in.ID).Scan(&n); err != nil {
+	if err := s.a.DB.QueryRow(ctx, `SELECT reportes FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1`, in.ID, cid).Scan(&n); err != nil {
 		return nil, problem.Internal()
 	}
 	return &reportarOut{Body: reportarBody{Reportes: n}}, nil

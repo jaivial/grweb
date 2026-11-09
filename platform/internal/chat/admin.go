@@ -209,10 +209,11 @@ func (s *Svc) borrarMensaje(ctx context.Context, in *borrarIn) (*struct{}, error
 		return nil, problem.BadRequest("ID_INVALIDO", "El id del mensaje no es válido.")
 	}
 	dia := hoy()
-	// the row tells us the day of the message (it may be an older jornada)
+	// the row tells us the day of the message (it may be an older jornada); the id of the stream is only unique
+	// inside a room, so the most recent day wins
 	var msgDia string
 	var borrado bool
-	if err := s.a.DB.QueryRow(ctx, `SELECT dia, borrado FROM mensajes WHERE id = $1 AND competition_id = $2`, in.ID, in.CID).Scan(&msgDia, &borrado); err == nil {
+	if err := s.a.DB.QueryRow(ctx, `SELECT dia, borrado FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1`, in.ID, in.CID).Scan(&msgDia, &borrado); err == nil {
 		dia = msgDia
 	}
 	n, err := s.a.Redis.XDel(ctx, s.streamDe(in.CID.String(), dia), in.ID).Result()
@@ -222,7 +223,7 @@ func (s *Svc) borrarMensaje(ctx context.Context, in *borrarIn) (*struct{}, error
 	if n == 0 && err == nil && msgDia == "" {
 		return nil, problem.NotFound("Mensaje no encontrado.")
 	}
-	_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET borrado = true WHERE id = $1 AND competition_id = $2`, in.ID, in.CID)
+	_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET borrado = true WHERE id = $1 AND competition_id = $2 AND dia = $3`, in.ID, in.CID, dia)
 	// el id del mensaje borrado viaja en «mensajeId»: el lector de la sala pisa «id» con el id de la entrada
 	_ = s.inyectar(ctx, in.CID.String(), dia, item{T: "borrado", MensajeID: in.ID, Ts: time.Now().UnixMilli()})
 	if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {

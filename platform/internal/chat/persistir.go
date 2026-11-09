@@ -109,7 +109,7 @@ func (s *Svc) descargar(ctx context.Context, lote *[]persistRow) {
 		}
 		batch.Queue(`INSERT INTO mensajes (id, competition_id, dia, fan_id, alias, tipo, texto, created_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8/1000.0))
-			ON CONFLICT (id) DO NOTHING`, r.id, cid, dia, r.it.FanID, r.it.Alias, r.it.T, r.it.Texto, r.ts)
+			ON CONFLICT (competition_id, dia, id) DO NOTHING`, r.id, cid, dia, r.it.FanID, r.it.Alias, r.it.T, r.it.Texto, r.ts)
 	}
 	persistPend.Store(int64(len(*lote)))
 	br := s.a.DB.SendBatch(ctx, batch)
@@ -272,7 +272,7 @@ func (s *Svc) baneado(ctx context.Context, e events.Event) error {
 			borrados++
 			// el id del mensaje borrado viaja en «mensajeId» (el lector de la sala pisa «id»)
 			_ = s.inyectar(ctx, e.CompetitionID, dia, item{T: "borrado", MensajeID: m.ID, Motivo: "baneado", Ts: time.Now().UnixMilli()})
-			_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET borrado = true WHERE id = $1 AND competition_id = $2`, m.ID, e.CompetitionID)
+			_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET borrado = true WHERE id = $1 AND competition_id = $2 AND dia = $3`, m.ID, e.CompetitionID, dia)
 		}
 	}
 	s.a.Log.Info("fans.baneado: mensajes borrados de la sala", "fan", b.FanID, "n", borrados, "motivo", b.Motivo)
