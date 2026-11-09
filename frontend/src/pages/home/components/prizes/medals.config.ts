@@ -406,14 +406,15 @@ export const PRIZES_COPY = {
   },
   absolute: {
     eyebrow: 'Clasificación absoluta',
-    title: 'Ganador absoluto ·',
+    title: 'Ganadores absolutos ·',
     titleAccent: 'GL Points',
+    lead: 'Mejor atleta masculino y mejor atleta femenina por puntos GL.',
     namePending: 'Por decidir',
     detailPending: 'Se decide el día del campeonato',
     valuePending: 'Pendiente',
     explainerTitle: '¿Qué son los GL Points?',
     explainer:
-      'La fórmula IPF GoodLift convierte tu total en puntos según tu peso corporal y tu sexo. Así, un \u221243 kg y un +120 kg compiten en la misma clasificación: gana quien más rinde, no quien más pesa.',
+      'La fórmula IPF GoodLift convierte tu total en puntos según tu peso corporal y tu sexo. Así, un \u221243 kg y un +120 kg compiten en la misma clasificación: gana quien más rinde, no quien más pesa. Hay un ganador por sexo porque la fórmula tiene coeficientes distintos para hombres y mujeres.',
   },
 } as const;
 
@@ -440,19 +441,16 @@ export interface AbsoluteWinnerEntry {
   bodyweight?: number;
 }
 
-/**
- * Per-sex texts of block C: category word of the meta line, badge (replaces «Mejor atleta · GL
- * Points» so the two pending cards can be told apart; PROVISIONAL copy until the Figma of the
- * two cards), tooltip of the medal.
- */
+/** Per-sex texts of block C: category word of the meta line, badge, tooltip of the medal. */
 export const ABSOLUTE_SEX: Record<WinnerSex, { category: string; badge: string; medalLabel: string }> = {
-  M: { category: 'Hombres', badge: 'Hombres · GL Points', medalLabel: 'Oro · Ganador absoluto masculino' },
-  F: { category: 'Mujeres', badge: 'Mujeres · GL Points', medalLabel: 'Oro · Ganadora absoluta femenina' },
+  M: { category: 'Hombres', badge: 'Mejor atleta masculino · GL Points', medalLabel: 'Oro · Mejor atleta masculino' },
+  F: { category: 'Mujeres', badge: 'Mejor atleta femenina · GL Points', medalLabel: 'Oro · Mejor atleta femenina' },
 };
 
 /**
- * The absolute winners, one card each, in this order. Publish after the championship by setting
- * `status: 'decided'` and the data of each entry.
+ * The absolute winners, one card each, in this order (male first, as Hombres | Mujeres in block
+ * B). Each entry is independent (a mixed state is valid). Publish after the championship by
+ * setting `status: 'decided'` and the data of the entry.
  */
 export const ABSOLUTE_WINNERS: readonly AbsoluteWinnerEntry[] = [
   { sex: 'M', status: 'pending' },
@@ -475,48 +473,49 @@ export const ABSOLUTE_STATS: ReadonlyArray<{ id: string; field: 'total' | 'gl' |
   { id: 'bodyweight', field: 'bodyweight', label: 'Peso corporal', shortLabel: 'Peso · kg', unit: 'kg', decimals: 1, highlight: false },
 ];
 
-/** Card layout per breakpoint: two columns (medal zone 440 | content) only from this width. */
-export const ABSOLUTE_TWO_COLUMNS_QUERY = '(min-width: 1280px)';
+/** Wide layout of block C (cards 588 + 24 + 588, wide typography) from this width. */
+export const ABSOLUTE_WIDE_QUERY = '(min-width: 1280px)';
 
-/** Gap between consecutive winner cards (provisional stacking until the Figma layout of two cards), px. */
-export const ABSOLUTE_CARDS_GAP = 40;
-
-/** Block C extras per layout id (ABSOLUTE_LAYOUTS): steel clip at the card top, medal zone, band width. */
+/** Block C extras per layout id (ABSOLUTE_LAYOUTS). */
 export interface AbsoluteCardLayout {
-  /** Clip (pasador) at the card's top edge, centred on the anchor: width × height, bottom radius. */
+  /** Steel clip (pasador) on the card's top edge, centred: width × height, bottom radius. */
   pin: { width: number; height: number; radius: number };
-  /** Height reserved for the medal in one column (L + H + air); null = the full card height. */
-  zoneHeight: number | null;
-  /** Width of the 3D band from the card's left edge; null = the whole card. */
-  bandWidth: number | null;
+  /** Card min-height and corner radius, px. */
+  minHeight: number;
+  radius: number;
+  /** Diameter of the gold halo behind the medal, px. */
+  haloSize: number;
+  /** Stagger the cards' drops (M 0 / F +staggerMs, both when the block shows up) or not (mobile:
+   *  stacked, each card drops when it enters the viewport). */
+  staggerCards: boolean;
 }
 
 /**
- * Block C · the gold medal hangs from a steel clip on the card's top edge (Figma 191:61626):
- * - ≥ 1280: two columns; anchor x 220 (centre of the 440 medal zone) / y 0; ribbon 150,
- *   medal 220 × 214 (116 px of air in the 480 card), clip 96 × 10. The band is 520 wide (zone +
- *   80 px of swing room) instead of the whole card so the text column keeps its pointer events.
- * - 768–1279: DECISION (not drawn in Figma): the card stays in one column, so the medal hangs
- *   centred, 160 × 156 with a 110 ribbon, clip 72 × 8, zone 282 (110 + 156 + 16).
- * - < 768: anchor at the card centre, ribbon 72, medal 112 × 109, clip 56 × 6, zone 200.
- * Physics as page 79 without collisions, swing max 40°. StaticMedal is only the fallback.
- * PROVISIONAL: this is the geometry of ONE card. There are two winners (M / F), one card and one
- * hanging medal (one view of the shared canvas) each; until the Figma layout of the two cards is
- * approved they are stacked with this same geometry.
+ * Block C · two absolute winners by GL points (male / female), one card each with its own clip,
+ * ribbon and gold medal (one view of the shared canvas per card; no collisions, the view is the
+ * card's medal zone so nothing leaves the card). Figma page 80, table 194:912, decision 194:945:
+ * - ≥ 1280: 2 columns 588 + 24 + 588; card 588 × 616, r 32; medal zone 320 high; clip 80 × 8;
+ *   anchor at the card's horizontal centre, top edge; ribbon 120 (strands 24, spread 70 → 22);
+ *   medal 176 × 171 (y 120–291); name 48, figures 36 + unit 14.
+ * - 768–1279: 2 equal columns, gap 16; card ≈ 344 × 428 at 768, r 24; zone 200; clip 56 × 6;
+ *   ribbon 72 (strands 15, 44 → 14); medal 112 × 109 (y 72–181); name 30, figures 24, unit in
+ *   the label.
+ * - < 768: stacked, 350 wide, gap 16; same geometry as tablet; 600 ms drop per card on its own.
+ * Swing max 40° everywhere (the 40° sweep stays inside the card). Medal band height = zone.
  */
 export const ABSOLUTE_LAYOUTS: readonly HangingLayout[] = [
   {
     id: 'absolute-desktop',
-    query: ABSOLUTE_TWO_COLUMNS_QUERY,
-    canvasHeight: 480,
-    ribbonLength: 150,
-    medalWidth: 220,
-    medalHeight: 214,
-    ribbonWidth: 30,
-    ribbonSpreadTop: 88,
-    ribbonSpreadBottom: 28,
+    query: ABSOLUTE_WIDE_QUERY,
+    canvasHeight: 320,
+    ribbonLength: 120,
+    medalWidth: 176,
+    medalHeight: 171,
+    ribbonWidth: 24,
+    ribbonSpreadTop: 70,
+    ribbonSpreadBottom: 22,
     followAnchors: false,
-    anchorsPct: [220 / 520],
+    anchorsPct: [0.5],
     wind: { ampDeg: 3, periodS: 3.2, twistDeg: 6, twistPeriodS: 5.5 },
     entranceMs: 720,
     tapImpulse: 2.4,
@@ -524,18 +523,18 @@ export const ABSOLUTE_LAYOUTS: readonly HangingLayout[] = [
   {
     id: 'absolute-tablet',
     query: '(min-width: 768px)',
-    canvasHeight: 282,
-    ribbonLength: 110,
-    medalWidth: 160,
-    medalHeight: 156,
-    ribbonWidth: 22,
-    ribbonSpreadTop: 64,
-    ribbonSpreadBottom: 20,
+    canvasHeight: 200,
+    ribbonLength: 72,
+    medalWidth: 112,
+    medalHeight: 109,
+    ribbonWidth: 15,
+    ribbonSpreadTop: 44,
+    ribbonSpreadBottom: 14,
     followAnchors: false,
     anchorsPct: [0.5],
-    wind: { ampDeg: 2.7, periodS: 3.1, twistDeg: 6, twistPeriodS: 5.5 },
+    wind: { ampDeg: 2.4, periodS: 3, twistDeg: 6, twistPeriodS: 5.5 },
     entranceMs: 720,
-    tapImpulse: 2,
+    tapImpulse: 1.6,
   },
   {
     id: 'absolute-mobile',
@@ -556,9 +555,9 @@ export const ABSOLUTE_LAYOUTS: readonly HangingLayout[] = [
 ];
 
 export const ABSOLUTE_CARD: Record<string, AbsoluteCardLayout> = {
-  'absolute-desktop': { pin: { width: 96, height: 10, radius: 5 }, zoneHeight: null, bandWidth: 520 },
-  'absolute-tablet': { pin: { width: 72, height: 8, radius: 4 }, zoneHeight: 282, bandWidth: null },
-  'absolute-mobile': { pin: { width: 56, height: 6, radius: 3 }, zoneHeight: 200, bandWidth: null },
+  'absolute-desktop': { pin: { width: 80, height: 8, radius: 4 }, minHeight: 616, radius: 32, haloSize: 288, staggerCards: true },
+  'absolute-tablet': { pin: { width: 56, height: 6, radius: 3 }, minHeight: 428, radius: 24, haloSize: 200, staggerCards: true },
+  'absolute-mobile': { pin: { width: 56, height: 6, radius: 3 }, minHeight: 428, radius: 24, haloSize: 200, staggerCards: false },
 };
 
 /** Block C physics: the shared rig constants with a 40° swing limit. */
