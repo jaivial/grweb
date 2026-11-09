@@ -286,9 +286,11 @@ func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 
 // apostarTx places one bet (fan session): open market, configurable min and max, athlete of the market, porra
 // coins with the atomic spend. Everything in one transaction; ref apuesta:<id> keeps the ledger exact.
+// The market row is read FOR SHARE: the bet and the close/liquidation of the market are serialized (a bet can
+// never slip into a market that is being closed or settled, contract §6.2).
 func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, mercadoID, atletaID uuid.UUID, importe int64) (uuid.UUID, error) {
 	var m mercadoRow
-	err := tx.QueryRow(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND jornada_id = $2`, mercadoID, j.ID).
+	err := tx.QueryRow(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND jornada_id = $2 FOR SHARE`, mercadoID, j.ID).
 		Scan(&m.ID, &m.Tipo, &m.Sexo, &m.Categoria, &m.Movimiento, &m.Estado, &m.Opciones)
 	if db.IsNoRows(err) {
 		return uuid.Nil, problem.NotFound("Ese mercado no existe.")
