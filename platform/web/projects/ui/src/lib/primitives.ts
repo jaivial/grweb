@@ -107,6 +107,8 @@ const toneAlert: Record<GrTone, { box: string; icon: GrIconName; title: string }
       <div class="text-body-s" [class]="title() ? 'text-text-secondary' : 'text-text-primary'"><ng-content /></div>
       <ng-content select="[alertAction]" />
     </div>
+    <!-- Figma «Alert / Action=Sí»: action chip and close on the right -->
+    <ng-content select="[alertEnd]" />
   `,
 })
 export class GrAlert {

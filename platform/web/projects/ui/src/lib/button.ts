@@ -70,7 +70,8 @@ export class GrButton {
     const v = this.variant();
     // display variants use the display type scale (Figma: Display/XS 24 on L, Display/2XS 20 on M)
     const size = v === 'link' ? '' : sizes[this.size()] + (v === 'display' || v === 'display-gradient' ? (this.size() === 'l' ? ' text-[24px]! leading-none!' : ' text-[20px]! leading-none!') : '');
-    return [base, variants[v], size, this.block() ? 'w-full' : ''].join(' ');
+    // Figma «Loading» keeps full opacity (only «Disabled» fades to 40 %)
+    return [base, variants[v], size, this.block() ? 'w-full' : '', this.loading() ? 'disabled:opacity-100! disabled:cursor-wait' : ''].join(' ');
   });
 }
 

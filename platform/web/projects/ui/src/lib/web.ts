@@ -128,20 +128,20 @@ const diaMadrid = (t: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'E
 @Component({
   selector: 'gr-countdown',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block w-[312px] max-w-full md:w-[420px]' },
+  host: { '[class]': '"block max-w-full " + (size() === "l" ? "w-[420px]" : size() === "s" ? "w-[312px]" : "w-[312px] md:w-[420px]")' },
   template: `
     @switch (estado()) {
       @case ('hoy') {
-        <p class="grain-acento flex h-[41px] items-center justify-center rounded-pill bg-[linear-gradient(90deg,#c42b3e,#6e1420)] px-4 text-label-s text-white md:h-[51px] md:text-label-m">Hoy se compite · en directo</p>
+        <p class="grain-acento flex items-center justify-center rounded-pill bg-[linear-gradient(90deg,#c42b3e,#6e1420)] px-4 text-white" [class]="c().txt + ' ' + c().hoy">Hoy se compite · en directo</p>
       }
       @case ('finalizado') {
-        <a [href]="resultados()" class="flex h-[43px] items-center justify-center rounded-pill border border-line-strong bg-bg-card px-4 text-label-s text-white transition-colors hover:border-accent md:h-[53px] md:text-label-m">Edición {{ target().slice(0, 4) }} finalizada · ver resultados</a>
+        <a [href]="resultados()" class="flex items-center justify-center rounded-pill border border-line-strong bg-bg-card px-4 text-white transition-colors hover:border-accent" [class]="c().txt + ' ' + c().fin">Edición {{ target().slice(0, 4) }} finalizada · ver resultados</a>
       }
       @default {
-        <div class="grid grid-cols-4 gap-2 md:gap-3" role="timer" [attr.aria-label]="aria()">
+        <div class="grid grid-cols-4" [class]="c().grid" role="timer" [attr.aria-label]="aria()">
           @for (p of parts(); track p.label) {
-            <div class="flex h-20 flex-col items-center justify-center gap-1 rounded-md border border-line-subtle bg-bg-card md:h-[105px]">
-              <span class="text-display-s tabular-nums md:text-display-l">{{ p.value }}</span>
+            <div class="flex flex-col items-center justify-center gap-1 rounded-md border border-line-subtle bg-bg-card" [class]="c().box">
+              <span class="tabular-nums" [class]="c().num">{{ p.value }}</span>
               <span class="text-label-xs text-text-muted">{{ p.label }}</span>
             </div>
           }
@@ -156,6 +156,15 @@ export class GrCountdown {
   /** Last day (ISO date); defaults to `target`. */
   readonly fin = input<string | null | undefined>(null);
   readonly resultados = input('/resultados');
+  /** Figma Size: L, S or (default) S on phones and L from tablet. */
+  readonly size = input<'l' | 's' | null>(null);
+  protected readonly c = computed(() =>
+    ({
+      l: { grid: 'gap-3', box: 'h-[105px]', num: 'text-display-l', txt: 'text-label-m', hoy: 'h-[51px]', fin: 'h-[53px]' },
+      s: { grid: 'gap-2', box: 'h-20', num: 'text-display-s', txt: 'text-label-s', hoy: 'h-[41px]', fin: 'h-[43px]' },
+      r: { grid: 'gap-2 md:gap-3', box: 'h-20 md:h-[105px]', num: 'text-display-s md:text-display-l', txt: 'text-label-s md:text-label-m', hoy: 'h-[41px] md:h-[51px]', fin: 'h-[43px] md:h-[53px]' },
+    })[this.size() ?? 'r'],
+  );
   /** Fixed «now» (ms) for previews; live clock otherwise. */
   readonly ahora = input<number | null>(null);
   private readonly reloj = signal(Date.now());
