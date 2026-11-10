@@ -13,6 +13,9 @@ export interface Fan {
   insignia?: string;
 }
 
+/** Destino interno al que vuelve el fan tras canjear el enlace mágico (solo rutas /fantasy/…; el backend ignora el resto). */
+export const DESTINO_INTERNO = /^\/fantasy(\/[A-Za-z0-9_-]+)*$/;
+
 export interface AccesoIn {
   email: string;
   tipo: 'atleta' | 'publico';
@@ -50,6 +53,8 @@ export class FanSession {
   readonly accesoAbierto = signal(false);
   /** What the user was trying to do when the modal opened (e.g. 'chat', 'donar', 'porra', 'fantasy'). */
   readonly motivoAcceso = signal<string | null>(null);
+  /** Where the magic link must bring the fan back (e.g. '/fantasy/unirse/K7P4'); travels with the token on the server. */
+  readonly destino = signal<string | null>(null);
 
   private pendiente: Promise<Fan | null> | null = null;
 
@@ -64,8 +69,9 @@ export class FanSession {
     return this.pendiente;
   }
 
-  abrirAcceso(motivo: string | null = null): void {
+  abrirAcceso(motivo: string | null = null, destino: string | null = null): void {
     this.motivoAcceso.set(motivo);
+    this.destino.set(destino && DESTINO_INTERNO.test(destino) ? destino : null);
     this.accesoAbierto.set(true);
   }
 
@@ -75,12 +81,12 @@ export class FanSession {
 
   /** Asks for the magic link (always 202 when accepted). Throws HttpErrorResponse with `code` on errors. */
   async pedirAcceso(i: AccesoIn): Promise<void> {
-    await firstValueFrom(this.http.post(`${this.base}/acceso`, i));
+    await firstValueFrom(this.http.post(`${this.base}/acceso`, { ...i, next: this.destino() ?? undefined }));
   }
 
   /** Redeems the token of the email link (page /acceso?acceso=…); sets the cookie and the session. */
-  async canjear(token: string): Promise<Fan> {
-    const f = await firstValueFrom(this.http.post<Fan>(`${this.base}/canjear`, { token }));
+  async canjear(token: string): Promise<Fan & { next?: string }> {
+    const f = await firstValueFrom(this.http.post<Fan & { next?: string }>(`${this.base}/canjear`, { token }));
     this.yo.set(f);
     this.cargada.set(true);
     return f;

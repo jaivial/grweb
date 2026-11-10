@@ -42,10 +42,10 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
               <div class="mt-5 flex flex-col items-center gap-2.5 rounded-lg border border-line-subtle bg-bg-surface px-4 py-5 text-center">
                 <span class="flex size-14 items-center justify-center rounded-full bg-accent-grain text-white shadow-glow"><gr-icon name="mail" [size]="24" /></span>
                 <p class="text-label-s break-all text-text-primary">Enviado a {{ email() }}</p>
-                <p class="text-body-s text-text-secondary">Ábrelo en este dispositivo para entrar como {{ tipo() === 'atleta' ? 'ATLETA' : 'PÚBLICO' }}.</p>
+                <p class="text-body-s text-text-secondary">{{ fan.destino() ? 'Puedes abrirlo en otro dispositivo: te lleva igualmente a la sala.' : 'Ábrelo en este dispositivo para entrar como ' + (tipo() === 'atleta' ? 'ATLETA' : 'PÚBLICO') + '.' }}</p>
               </div>
               <ol class="mt-4 flex flex-col gap-2.5">
-                @for (p of pasos; track p; let i = $index) {
+                @for (p of pasos(); track p; let i = $index) {
                   <li class="flex items-center gap-2.5 text-body-s text-text-secondary"><span class="flex size-6 shrink-0 items-center justify-center rounded-full border border-accent/50 bg-accent/18 text-[12px] font-medium text-accent-text">{{ i + 1 }}</span>{{ p }}</li>
                 }
               </ol>
@@ -145,7 +145,8 @@ export class AccesoModal {
     { v: 'atleta', l: 'Atleta', d: 'Insignia ATLETA con tu email de la AEP', i: 'trophy' },
     { v: 'publico', l: 'Público', d: 'Familia, clubs y afición', i: 'users' },
   ];
-  protected readonly pasos = ['Abre el email de GR Strength Cup', 'Pulsa «Entrar al directo»', 'Vuelves al chat con tu alias'];
+  /** With a saved destination (an invitation to a fantasy room) the link brings the fan back there, on any device. */
+  protected readonly pasos = computed(() => ['Abre el email de GR Strength Cup', 'Pulsa «Entrar al directo»', this.fan.destino() ? 'Vuelves a la sala con tu alias' : 'Vuelves al chat con tu alias']);
 
   protected readonly titulo = computed(() => (this.estado() === 'enviado' ? 'Revisa tu correo' : this.estado() === 'atleta' ? 'Entrar como atleta' : 'Entrar al directo'));
   protected readonly subtitulo = computed(() => {

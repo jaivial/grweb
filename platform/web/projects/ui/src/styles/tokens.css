@@ -27,6 +27,14 @@
   --color-warning: #f59e0b;
   --color-info: #38bdf8;
   --color-danger: #e6606b;
+  --color-crimson: #dc143c; /* color/legacy/crimson: bordes e iconos de error */
+  /* Nota 0–10 por tramo (color/nota/*): borde y número del componente «Nota» */
+  --color-nota-gris: #9ca3af;
+  --color-nota-rojo: #f87171;
+  --color-nota-ambar: #d97706;
+  --color-nota-azul: #60a5fa;
+  --color-nota-verde: #22c55e;
+  --color-nota-morado: #c084fc;
 
   /* Type families */
   --font-display: "Contrail One", "Impact", system-ui, sans-serif;

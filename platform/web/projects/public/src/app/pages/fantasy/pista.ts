@@ -1,18 +1,19 @@
 /**
  * fantasy/pista.ts — la alineación de /fantasy como una pista de fútbol sala (Figma «72 · /fantasy»: componentes
  * «Jugador · pista», «Pista · fútbol sala» y «Hoja · jugador»). En la pista solo va el avatar, el nombre corto y
- * la puntuación; todo lo demás (cláusula, desglose, flight y acciones) vive en la hoja inferior.
+ * la nota (0–10, con el color de su tramo); todo lo demás (cláusula, desglose, flight y acciones) vive en la hoja
+ * inferior. La alineación son exactamente 5 atletas: no hay banquillo.
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { GrIcon } from '@grcup/ui';
-import { type AtletaDetalle, type AtletaMercado } from '../../core/juegos';
+import { type AtletaDetalle, type AtletaMercado, nota1, tramoNota } from '../../core/juegos';
 import { iniciales } from '../porra/componentes';
 import { monedas } from '../porra/formato';
-import { ClauseTrend } from './componentes';
+import { ClauseTrend, GrNota, TEXTO_NOTA, lineasNota } from './componentes';
 
-/** El atleta con su foto pública (perfil público con imagen consentida; el backend la envía solo en ese caso). */
-export type AtletaPista = AtletaMercado & { fotoUrl?: string };
+/** El atleta de la pista (la foto pública solo llega si el perfil tiene imagen consentida). */
+export type AtletaPista = AtletaMercado;
 
 /**
  * Color estable del avatar sin foto, según el nombre (tokens de marca mezclados con bg/raised; mismo orden que la
@@ -37,17 +38,12 @@ export function nombreCorto(nombre: string): string {
   return nombre.trim().split(/\s+/).slice(0, 2).join(' ');
 }
 
-/** «+37» · «0» · «−4». */
-export function puntosTxt(p: number): string {
-  return p > 0 ? '+' + p : p < 0 ? '−' + -p : '0';
-}
-
 const TAM = { l: 'size-20', m: 'size-16', s: 'size-14' } as const;
 
-/** Un jugador en la pista (Figma «Jugador · pista»): avatar (foto o iniciales), nombre corto y chip de puntos. */
+/** Un jugador en la pista (Figma «Jugador · pista»): avatar (foto o iniciales), nombre corto y chip de la nota. */
 @Component({
   selector: 'gr-jugador-pista',
-  imports: [GrIcon],
+  imports: [GrIcon, GrNota],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -57,10 +53,7 @@ const TAM = { l: 'size-20', m: 'size-16', s: 'size-14' } as const;
           [class]="(atleta().flightEnCurso ? 'border-warning ' : 'border-white/25 ') + (foto() ? 'bg-bg-raised' : color()) + (tamano() === 'l' ? ' text-[27px]' : tamano() === 'm' ? ' text-[22px]' : ' text-[19px]')">
           @if (foto(); as f) { <img [src]="f" alt="" class="size-full object-cover" loading="lazy" decoding="async" (error)="sinFoto.set(true)" /> } @else { {{ ini() }} }
         </span>
-        @if (puntos() !== null) {
-          <span class="absolute -right-2 -bottom-0.5 rounded-pill border-[1.5px] bg-bg-deep px-1.5 py-px font-mono text-[12px] leading-[1.35] font-bold tabular-nums"
-            [class]="puntos()! > 0 ? 'border-success/70 text-success' : puntos()! < 0 ? 'border-accent-text/70 text-accent-text' : 'border-line-strong text-text-tertiary'" aria-hidden="true">{{ txt() }}</span>
-        }
+        <gr-nota class="absolute -right-2 -bottom-0.5" tamano="s" [nota]="atleta().nota" aria-hidden="true" />
         @if (atleta().flightEnCurso) {
           <span class="absolute -top-1 -right-1 flex size-[22px] items-center justify-center rounded-full bg-warning text-bg-deep" aria-hidden="true"><gr-icon name="lock" [size]="12" [stroke]="2.5" /></span>
         }
@@ -71,8 +64,6 @@ const TAM = { l: 'size-20', m: 'size-16', s: 'size-14' } as const;
 })
 export class JugadorPista {
   readonly atleta = input.required<AtletaPista>();
-  /** Puntos de la jornada (null: no se pinta el chip, p. ej. en el banquillo). */
-  readonly puntos = input<number | null>(null);
   readonly tamano = input<'l' | 'm' | 's'>('m');
   readonly abrir = output<Event>();
 
@@ -82,11 +73,9 @@ export class JugadorPista {
   protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly color = computed(() => colorAvatar(this.atleta().nombre));
   protected readonly corto = computed(() => nombreCorto(this.atleta().nombre));
-  protected readonly txt = computed(() => puntosTxt(this.puntos() ?? 0));
   protected readonly etiqueta = computed(() => {
     const a = this.atleta();
-    const p = this.puntos();
-    return `${a.nombre}${p !== null ? `, ${p} ${p === 1 || p === -1 ? 'punto' : 'puntos'}` : ''}${a.flightEnCurso ? ', compitiendo ahora' : ''}. Ver detalles`;
+    return `${a.nombre}, nota ${nota1(a.nota?.valor ?? 0)}${a.flightEnCurso ? ', compitiendo ahora' : ''}. Ver detalles`;
   });
 }
 
@@ -101,7 +90,7 @@ const POSICIONES = [
 
 /**
  * La pista de fútbol sala (Figma «Pista · fútbol sala»): degradado de rojo de marca a negro con trama de puntos y
- * líneas muy sutiles (CSS, sin imágenes), y los 5 titulares en rombo. Los huecos llevan al mercado.
+ * líneas muy sutiles (CSS, sin imágenes), y los 5 atletas de la alineación en rombo. Los huecos llevan al mercado.
  */
 @Component({
   selector: 'gr-pista-futsal',
@@ -128,13 +117,13 @@ const POSICIONES = [
       <span class="pointer-events-none absolute top-3 left-1/2 h-[13%] w-[46%] -translate-x-1/2 rounded-b-full border-[1.5px] border-t-0 border-white/10 lg:top-[18px]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute bottom-3 left-1/2 h-[13%] w-[46%] -translate-x-1/2 rounded-t-full border-[1.5px] border-b-0 border-white/10 lg:bottom-[18px]" aria-hidden="true"></span>
 
-      <ul class="absolute inset-0" aria-label="Titulares en la pista">
+      <ul class="absolute inset-0" aria-label="Alineación en la pista">
         @for (p of posiciones; track p.nombre; let i = $index) {
           <li class="absolute -translate-x-1/2" [style.left]="p.left" [style.top]="p.top">
             @if (titulares()[i]; as a) {
-              <gr-jugador-pista [atleta]="a" [puntos]="puntosDe()(a)" tamano="l" (abrir)="abrir.emit({ atleta: a, origen: $event })" />
+              <gr-jugador-pista [atleta]="a" tamano="l" (abrir)="abrir.emit({ atleta: a, origen: $event })" />
             } @else {
-              <a href="/fantasy/mercado" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" [attr.aria-label]="'Hueco libre (' + p.nombre + '): fichar en el mercado'">
+              <a [href]="mercado()" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" [attr.aria-label]="'Hueco libre (' + p.nombre + '): fichar en el mercado'">
                 <span class="flex size-16 items-center justify-center rounded-full border-[1.5px] border-dashed border-white/40 bg-bg-deep/35 text-text-secondary transition-colors group-hover:border-white/70 group-hover:text-white lg:size-20">
                   <gr-icon name="plus" [size]="24" />
                 </span>
@@ -148,16 +137,17 @@ const POSICIONES = [
   `,
 })
 export class PistaFutsal {
-  /** Los titulares en orden de posición (pívot, alas, cierre, portero); los que falten son huecos. */
+  /** La alineación en orden de posición (pívot, alas, cierre, portero); los que falten son huecos. */
   readonly titulares = input<AtletaPista[]>([]);
-  readonly puntosDe = input<(a: AtletaPista) => number | null>(() => null);
+  /** A dónde llevan los huecos (el mercado de la sala). */
+  readonly mercado = input('/fantasy/mercado');
   readonly abrir = output<{ atleta: AtletaPista; origen: Event }>();
   protected readonly posiciones = POSICIONES;
 }
 
 /**
  * La hoja inferior del jugador (Figma «Hoja · jugador»): foto grande, sexo y categoría, flight, cláusula con
- * tendencia y minigráfica, desglose de puntos y acciones. role="dialog" con foco atrapado, cierre con Escape, con
+ * tendencia y minigráfica, desglose de la nota y vender. role="dialog" con foco atrapado, cierre con Escape, con
  * el velo o arrastrando hacia abajo; sin animación con prefers-reduced-motion.
  */
 @Component({
@@ -210,44 +200,27 @@ export class PistaFutsal {
             </svg>
           </section>
 
-          <section class="rounded-lg border border-line-subtle bg-bg-card px-3.5 pt-3 pb-1.5" aria-labelledby="hoja-puntos">
-            <p class="flex items-center justify-between gap-3">
-              <span id="hoja-puntos" class="text-mono-xs text-text-tertiary">{{ atleta().titular ? 'Puntos de la jornada' : 'Puntos · no puntúa en el banquillo' }}</span>
-              <span class="font-mono text-[22px] font-bold tabular-nums" [class]="total() > 0 ? 'text-success' : total() < 0 ? 'text-accent-text' : 'text-text-tertiary'">{{ totalTxt() }}</span>
+          <section class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-3.5" aria-labelledby="hoja-nota">
+            <p class="flex items-center justify-between gap-2">
+              <span id="hoja-nota" class="text-mono-xs text-text-tertiary">Nota media</span>
+              <span class="font-mono text-[22px] leading-[1.3] font-bold tabular-nums" [class]="colorNota()">{{ notaTxt() }}</span>
             </p>
-            @if (!detalle()) {
-              <span class="my-3 block h-16 animate-pulse rounded-sm bg-bg-raised motion-reduce:animate-none" aria-hidden="true"></span>
-            } @else if (detalle()!.puntos.length) {
-              <ul class="mt-1.5">
-                @for (p of detalle()!.puntos; track p.ref) {
-                  <li class="flex items-center justify-between gap-3 border-t border-line-subtle py-2.5 text-body-s">
-                    <span class="min-w-0 text-text-secondary">{{ p.concepto }}</span>
-                    <span class="shrink-0 font-mono text-[13px] font-bold tabular-nums" [class]="p.puntos > 0 ? 'text-success' : p.puntos < 0 ? 'text-accent-text' : 'text-text-tertiary'">{{ ptxt(p.puntos) }}</span>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="border-t border-line-subtle py-3 text-body-s text-text-tertiary">Todavía no ha puntuado: los puntos llegan con cada veredicto mientras es titular.</p>
+            @for (l of lineas(); track l.concepto) {
+              <p class="flex items-center justify-between gap-2 border-t border-line-subtle py-1.5 text-body-s">
+                <span class="min-w-0 text-text-secondary" [class.line-through]="atleta().nota.blanqueo && l.concepto.slice(0, 8) !== 'Blanqueo'">{{ l.concepto }}</span>
+                <span class="shrink-0 font-mono text-[13px] font-bold tabular-nums" [class]="l.clase">{{ l.valor }}</span>
+              </p>
             }
           </section>
 
-          <div class="flex flex-col gap-2.5 pt-1">
-            <div class="grid grid-cols-2 gap-3">
-              @if (atleta().titular) {
-                <button type="button" class="h-12 rounded-sm border border-line-strong px-3 text-label-s text-text-primary transition-colors hover:border-text-muted disabled:cursor-not-allowed disabled:opacity-45" [disabled]="bloqueado()" (click)="banquillo.emit()">Pasar al banquillo</button>
-              } @else {
-                <button type="button" class="h-12 rounded-sm border border-line-strong px-3 text-label-s text-text-primary transition-colors hover:border-text-muted disabled:cursor-not-allowed disabled:opacity-45" [disabled]="bloqueado()" (click)="subir.emit()">Subir a titular</button>
-              }
-              <button type="button" class="h-12 rounded-sm bg-accent-grain px-3 text-label-s text-white transition-shadow hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-45" [disabled]="bloqueado()" (click)="vender.emit()">Vender · {{ monedas(atleta().clausula) }}</button>
-            </div>
+          <div class="flex flex-col gap-3 pt-1">
+            <button type="button" class="h-12 w-full rounded-sm bg-accent-grain px-6 text-label-m text-white transition-shadow hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-45" [disabled]="bloqueado()" (click)="vender.emit()">Vender · {{ monedas(atleta().clausula) }}</button>
             @if (atleta().flightEnCurso) {
               <p class="text-body-xs text-warning">Mientras compite no se puede vender ni cambiar de sitio.</p>
-            } @else if (!atleta().titular && saleAlBanquillo()) {
-              <p class="text-body-xs text-text-tertiary">Tienes los 5 titulares: entra por {{ saleAlBanquillo() }}, que pasa al banquillo.</p>
             }
             @if (cargando()) { <p class="text-body-xs text-text-tertiary" role="status">Guardando…</p> }
             @if (error() && !cargando()) {
-              <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="16" class="mt-px shrink-0" />{{ error() }}</p>
+              <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert"><gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />{{ error() }}</p>
             }
           </div>
         </div>
@@ -262,14 +235,12 @@ export class HojaJugador {
   readonly delta = input(0);
   /** La serie de la cláusula (del historial o de lo que llega en vivo). */
   readonly serie = input<number[]>([]);
-  /** Con los 5 titulares, a quién manda al banquillo «Subir a titular». */
-  readonly saleAlBanquillo = input('');
+  /** Lo que resta cada intento nulo (de la configuración pública). */
+  readonly nulo = input(0.3);
   readonly cargando = input(false);
   readonly error = input<string | null>(null);
   readonly cerrar = output<void>();
   readonly vender = output<void>();
-  readonly banquillo = output<void>();
-  readonly subir = output<void>();
 
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
   private readonly cerrarBtn = viewChild.required<ElementRef<HTMLButtonElement>>('cerrarBtn');
@@ -283,11 +254,14 @@ export class HojaJugador {
   protected readonly bloqueado = computed(() => this.atleta().flightEnCurso || this.cargando());
   protected readonly meta = computed(() => {
     const a = this.atleta();
-    return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg · ${a.titular ? 'Titular' : 'Suplente'}`;
+    return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;
   });
   protected readonly dueno = computed(() => (this.atleta().esMio ? 'dueño @tú' : this.atleta().duenoAlias ? 'dueño @' + this.atleta().duenoAlias : 'libre'));
-  protected readonly total = computed(() => (this.detalle()?.puntos ?? []).reduce((s, p) => s + p.puntos, 0));
-  protected readonly totalTxt = computed(() => (this.detalle() ? puntosTxt(this.total()) : '—'));
+  /** La nota con desglose: la de la ficha si ya llegó (más fresca) o la de la alineación. */
+  protected readonly notaAtleta = computed(() => this.detalle()?.atleta?.nota ?? this.atleta().nota);
+  protected readonly notaTxt = computed(() => nota1(this.notaAtleta()?.valor ?? 0));
+  protected readonly colorNota = computed(() => TEXTO_NOTA[tramoNota(this.notaAtleta()?.valor ?? 0, this.notaAtleta()?.tieneNota ?? false)]);
+  protected readonly lineas = computed(() => lineasNota(this.notaAtleta(), this.nulo()));
   protected readonly curva = computed(() => {
     const v = this.serie().length > 1 ? this.serie() : [this.atleta().clausula, this.atleta().clausula];
     const min = Math.min(...v);
@@ -298,9 +272,6 @@ export class HojaJugador {
     const v = this.serie();
     return v.length > 1 ? `Evolución de la cláusula: de ${monedas(v[0])} a ${monedas(v[v.length - 1])}` : 'Cláusula sin cambios en la jornada';
   });
-  protected ptxt(p: number): string {
-    return puntosTxt(p);
-  }
 
   constructor() {
     const browser = isPlatformBrowser(inject(PLATFORM_ID));

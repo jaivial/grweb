@@ -41,29 +41,35 @@ export interface FilaPorra {
   saldo: number;
 }
 
-export interface FilaFantasy {
-  puesto: number;
-  fanId: string;
-  alias: string;
-  puntos: number;
-  valor: number;
-  saldo: number;
+/** Una sala de fantasy con quién va ganando (la clasificación de fantasy va por sala). */
+export interface SalaFantasy {
+  id: string;
+  nombre: string;
+  anfitrion: string;
+  plazas: number;
+  miembros: number;
+  estado: string;
+  lider?: { alias: string; nota: number; saldo: number };
 }
 
 export interface Clasificaciones {
   porra: FilaPorra[];
-  fantasy: FilaFantasy[];
+  fantasy: SalaFantasy[];
   /** Deuda pendiente de la jornada: lo que un reembolso no pudo retirar del saldo de fantasy (queda anotado). */
   pendienteFantasy: number;
 }
 
+/** La tabla de la nota 0–10 de un atleta (A intentos + B puesto + C bonus − nulos). */
 export interface PuntosCfg {
-  intentoValido: number;
+  intentos: number;
+  puesto: number[];
   pleno: number;
-  blanqueo: number;
-  cat: number[];
-  gl: number[];
-  mov: number[];
+  recordPersonal: number;
+  recordCompeticion: number;
+  total: number;
+  nulo: number;
+  /** % de cláusula por cada punto de nota que el atleta gana o pierde. */
+  pctClausula: number;
 }
 
 export interface ConfigJuegos {
