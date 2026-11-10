@@ -4,25 +4,38 @@ import { GrSparkline } from './primitives';
 
 let fieldSeq = 0;
 
-/** Text input styles (Figma «BO / Field»: 44 mobile · 40 desktop, bg/field, line/strong, accent focus ring). */
+/**
+ * Text input styles. Size M = Figma «BO / Field» (44 mobile · 40 desktop, body S); size L = public Figma «Field»
+ * (48, body M 16/155, focus accent border + 3 px halo, error accent). bg/field, line/strong.
+ */
 @Directive({
   selector: 'input[grInput], textarea[grInput], select[grInput]',
   host: {
     class:
-      'w-full rounded-sm border bg-bg-field px-3 text-body-s text-text-primary placeholder:text-text-muted transition-[border-color,box-shadow] ' +
-      'focus:outline-none focus:border-accent-text focus:ring-2 focus:ring-accent/30 disabled:opacity-50',
+      'w-full rounded-sm border bg-bg-field px-3 text-text-primary placeholder:text-text-muted transition-[border-color,box-shadow] ' +
+      'focus:outline-none disabled:opacity-50',
     // Fixed height for inputs and selects; textareas grow with their rows.
-    '[class.h-11]': '!area',
-    '[class.md:h-10]': '!area',
+    '[class.h-11]': '!area && grSize() === "m"',
+    '[class.md:h-10]': '!area && grSize() === "m"',
+    '[class.h-12]': '!area && grSize() === "l"',
+    '[class.text-body-s]': 'grSize() === "m"',
+    '[class.text-body-m]': 'grSize() === "l"',
+    '[class.focus:border-accent-text]': 'grSize() === "m"',
+    '[class.focus:ring-2]': 'grSize() === "m"',
+    '[class.focus:ring-accent/30]': 'grSize() === "m"',
+    '[class.focus:border-accent]': 'grSize() === "l"',
+    '[class.focus:shadow-[0_0_0_3px_rgb(196_43_62/0.25)]]': 'grSize() === "l"',
     '[class.py-2]': 'area',
     '[class.min-h-24]': 'area',
     '[class.border-line-strong]': '!invalid()',
-    '[class.border-accent-text]': 'invalid()',
+    '[class.border-accent-text]': 'invalid() && grSize() === "m"',
+    '[class.border-accent]': 'invalid() && grSize() === "l"',
     '[attr.aria-invalid]': 'invalid() || null',
   },
 })
 export class GrInput {
   readonly invalid = input(false);
+  readonly grSize = input<'m' | 'l'>('m');
   protected readonly area = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.tagName === 'TEXTAREA';
 }
 

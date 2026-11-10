@@ -62,7 +62,7 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
 
 /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
 const GRUPOS_MOVIL: { titulo: string; items: NavLink[] }[] = [
-  { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta · Completa tu perfil', href: '/alta-atleta' }] },
+  { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
   { titulo: 'El evento', items: [{ label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
   { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Blog', href: '/blog' }] },
 ];
@@ -82,19 +82,21 @@ const UI = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
   template: `
-    <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-6 overflow-hidden rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[20px] md:h-[70px] md:px-6" aria-label="Principal">
+    <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-6 overflow-hidden rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[10px] md:h-[70px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
       <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-auto md:h-10" /></a>
-      <ul class="relative ml-auto hidden items-center gap-6 lg:flex">
+      <ul class="relative -mr-2 ml-auto hidden items-center gap-2 lg:flex">
         @for (l of links(); track l.href; let i = $index) {
           <li>
             @if (i === 0 && lang() === 'es') {
-              <button type="button" class="inline-flex h-10 items-center gap-1 text-label-s text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
-                {{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" />
+              <button type="button" class="group inline-flex flex-col items-center gap-2 rounded-xs p-2 text-label-s text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+                <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
+                <span class="h-0.5 w-6 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
               </button>
             } @else {
-              <a [href]="l.href" class="inline-flex h-10 items-center text-label-s text-text-secondary transition-colors hover:text-text-primary">{{ l.label }}</a>
+              <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
+              <a [href]="l.href" class="group inline-flex flex-col items-center gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s transition-colors hover:text-text-primary" [class]="actual() === l.href ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="actual() === l.href ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="actual() === l.href ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
@@ -305,7 +307,7 @@ export class Overlays {
     </div>
     @if (barra()) {
       <!-- Figma «Bottom CTA bar / Entrada» (mobile) and «Back to top» -->
-      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[20px] md:hidden">
+      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
         <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Aforo limitado · 1 minuto</span></span>
         <a href="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
@@ -341,7 +343,7 @@ export class Footer {
   protected readonly barra = computed(() => this.scrolled() && !this.footerVisible() && this.comp.data()?.modulos?.['entradas'] !== false &&
     !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
-    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta · Completa tu perfil', href: '/alta-atleta' }] },
+    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
     { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
     { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
     { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },

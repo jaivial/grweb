@@ -84,14 +84,17 @@ export class GrAvatar {
 
 const toneAlert: Record<GrTone, { box: string; icon: GrIconName; title: string }> = {
   neutral: { box: 'border-line-strong bg-bg-raised', icon: 'info', title: 'text-text-primary' },
-  accent: { box: 'border-accent/40 bg-accent-deep/25', icon: 'info', title: 'text-accent-text' },
-  success: { box: 'border-success/30 bg-success/5', icon: 'circle-check', title: 'text-success' },
-  warning: { box: 'border-warning/40 bg-warning/5', icon: 'triangle-alert', title: 'text-warning' },
-  info: { box: 'border-info/30 bg-info/5', icon: 'info', title: 'text-info' },
-  danger: { box: 'border-accent-text/40 bg-accent-deep/25', icon: 'circle-x', title: 'text-accent-text' },
+  accent: { box: 'border-accent/45 bg-accent/8', icon: 'info', title: 'text-accent-text' },
+  success: { box: 'border-success/45 bg-success/8', icon: 'circle-check', title: 'text-success' },
+  warning: { box: 'border-warning/45 bg-warning/8', icon: 'triangle-alert', title: 'text-warning' },
+  info: { box: 'border-info/45 bg-info/8', icon: 'circle-alert', title: 'text-info' },
+  danger: { box: 'border-accent/45 bg-accent/8', icon: 'circle-alert', title: 'text-accent-text' },
 };
 
-/** Inline alert with optional action slot (Figma «BO / Alert»). */
+/**
+ * Inline alert (Figma «Alert»: Tone × Action, border tone 45 %, fill tone 8 %, radius 12) with optional action slot.
+ * Without `title` the content is the message (body S, white), as in the public web; with it, the backoffice layout.
+ */
 @Component({
   selector: 'gr-alert',
   imports: [GrIcon],
@@ -100,15 +103,15 @@ const toneAlert: Record<GrTone, { box: string; icon: GrIconName; title: string }
   template: `
     <gr-icon [name]="icon() ?? t().icon" [size]="20" [class]="t().title + ' mt-0.5'" />
     <div class="min-w-0 flex-1">
-      <p class="text-label-s" [class]="t().title">{{ title() }}</p>
-      <div class="mt-1 text-body-s text-text-secondary"><ng-content /></div>
+      @if (title()) { <p class="mb-1 text-label-s" [class]="t().title">{{ title() }}</p> }
+      <div class="text-body-s" [class]="title() ? 'text-text-secondary' : 'text-text-primary'"><ng-content /></div>
       <ng-content select="[alertAction]" />
     </div>
   `,
 })
 export class GrAlert {
   readonly tone = input<GrTone>('neutral');
-  readonly title = input.required<string>();
+  readonly title = input<string | null>(null);
   readonly icon = input<GrIconName | null>(null);
   protected readonly t = computed(() => toneAlert[this.tone()]);
 }

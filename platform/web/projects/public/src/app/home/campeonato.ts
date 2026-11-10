@@ -1,6 +1,5 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
-import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { GrButton, GrCountdown, GrIcon, type GrIconName } from '@grcup/ui';
 import type { Patrocinador } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
 import { GLOW, GrEyebrow, GrTitulo } from './bloques';
@@ -13,46 +12,6 @@ export const fechaCorta = (iso?: string | null) => {
   return `${d} ${MESES[m - 1]} ${y}`;
 };
 
-/** Countdown to the event start in Madrid time (Figma «Countdown» L 420 × 105 · S 312 × 80). */
-@Component({
-  selector: 'gr-countdown',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'grid w-[312px] grid-cols-4 gap-2 md:w-[420px] md:gap-3', role: 'timer', '[attr.aria-label]': 'aria()' },
-  template: `
-    @for (p of parts(); track p.label) {
-      <div class="flex h-20 flex-col items-center justify-center gap-1 rounded-md border border-line-subtle bg-bg-card md:h-[105px]">
-        <span class="text-display-s tabular-nums md:text-display-l">{{ p.value }}</span>
-        <span class="text-label-xs text-text-muted">{{ p.label }}</span>
-      </div>
-    }
-  `,
-})
-export class Countdown {
-  readonly target = input.required<string>(); // ISO date (local day start in Madrid)
-  private readonly now = signal(Date.now());
-  private readonly ms = computed(() => Math.max(0, new Date(this.target().slice(0, 10) + 'T08:30:00+02:00').getTime() - this.now()));
-  protected readonly parts = computed(() => {
-    const s = Math.floor(this.ms() / 1000);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return [
-      { value: pad(Math.floor(s / 86400)), label: 'días' },
-      { value: pad(Math.floor((s % 86400) / 3600)), label: 'horas' },
-      { value: pad(Math.floor((s % 3600) / 60)), label: 'min' },
-      { value: pad(s % 60), label: 'seg' },
-    ];
-  });
-  protected readonly aria = computed(() => `Faltan ${this.parts()[0].value} días y ${this.parts()[1].value} horas`);
-  constructor() {
-    const browser = isPlatformBrowser(inject(PLATFORM_ID));
-    const destroy = inject(DestroyRef);
-    afterNextRender(() => {
-      if (!browser) return;
-      const t = setInterval(() => this.now.set(Date.now()), 1000);
-      destroy.onDestroy(() => clearInterval(t));
-    });
-  }
-}
-
 /**
  * «Section / Campeonato» (Figma 03/05): logo L, the level as the visible title, separator, event meta, notice badge, countdown,
  * the two CTAs and the sponsors strip (an endless marquee with edge fades). It slides over the end of the hero
@@ -60,7 +19,7 @@ export class Countdown {
  */
 @Component({
   selector: 'gr-campeonato',
-  imports: [GrIcon, GrButton, Countdown, GrEyebrow, GrTitulo],
+  imports: [GrIcon, GrButton, GrCountdown, GrEyebrow, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative z-10 -mt-[400px] block motion-reduce:mt-0', id: 'campeonato' },
   template: `
@@ -89,7 +48,7 @@ export class Countdown {
         </dl>
       }
       @if (aviso()) { <span class="inline-flex h-7 items-center rounded-pill border border-info/60 bg-info/12 px-3 text-label-xs text-info">{{ aviso() }}</span> }
-      @if (c?.fechaInicio && dias() >= 0) { <gr-countdown [target]="c!.fechaInicio!" /> }
+      @if (c?.fechaInicio) { <gr-countdown [target]="c!.fechaInicio!" [fin]="c!.fechaFin" /> }
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         @if (c?.modulos?.['entradas'] !== false) { <a grButton variant="primary" size="l" href="/entradas">Reserva tu entrada gratis</a> }
         @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="glass" size="l" href="/atletas" iconRight="arrow-right">Ver atletas</a> }
@@ -132,10 +91,6 @@ export class Campeonato {
   protected readonly cinta = computed(() => { const mitad = Array.from({ length: this.veces() }, () => this.patrocinadores()).flat(); return [...mitad, ...mitad]; });
   /** ~5 s per logo of a half: the same speed whatever the number of sponsors. */
   protected readonly duracion = computed(() => Math.max(20, this.patrocinadores().length * this.veces() * 5));
-  protected readonly dias = computed(() => {
-    const f = this.comp()?.fechaInicio;
-    return f ? Math.round((new Date(f).getTime() - Date.now()) / 86_400_000) : -1;
-  });
   protected readonly meta = computed(() => {
     const c = this.comp();
     if (!c) return [];
