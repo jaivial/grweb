@@ -295,12 +295,12 @@ export class Overlays {
       <p class="border-t border-line-subtle px-5 py-5 text-center text-body-xs text-text-muted">© {{ year }} GR Strength · All rights reserved</p>
     } @else {
     <!-- Figma «Footer»: mobile 48/20/32 with 28 between blocks, desktop 72/80/32 with 48 -->
-    <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-[46px] md:gap-12 md:px-8 md:pt-[72px] md:pb-10 xl:px-[120px]">
+    <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-8 md:gap-12 md:px-8 md:pt-[72px] xl:px-[120px]">
       <gr-newsletter [nivel]="nivelNewsletter()" />
-      <div class="grid lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
-        <div class="mb-6 flex flex-col gap-4 lg:mb-0">
+      <div class="grid md:grid-cols-4 md:gap-x-4 lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
+        <div class="mb-6 flex flex-col gap-4 md:col-span-4 md:mb-8 lg:col-span-1 lg:mb-0">
           <gr-logo [height]="56" [width]="150" />
-          <p class="max-w-[300px] text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo de material SBD para la comunidad.</p>
+          <p class="max-w-[300px] text-body-s text-text-tertiary md:max-w-none lg:max-w-[300px]">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo de material SBD para la comunidad.</p>
           <div class="flex gap-2">
             <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="instagram" [size]="18" /></a>
             @if (contacto()) { <a [href]="'mailto:' + contacto()" aria-label="Email" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="mail" [size]="18" /></a> }
@@ -309,12 +309,12 @@ export class Overlays {
           <p class="text-body-s text-text-tertiary">{{ contacto() }}{{ contacto() ? ' · ' : '' }}{{ handle() }}</p>
         </div>
         @for (col of columnas; track col.titulo) {
-          <!-- Desktop: open column. Mobile: accordion. -->
-          <nav class="hidden lg:block" [attr.aria-label]="col.titulo">
+          <!-- Tablet/desktop: open column. Mobile: accordion. -->
+          <nav class="hidden md:block" [attr.aria-label]="col.titulo">
             <p class="text-label-xs text-text-muted">{{ col.titulo }}</p>
             <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
           </nav>
-          <details class="group border-b border-line-subtle lg:hidden">
+          <details class="group border-b border-line-subtle md:hidden">
             <summary class="flex h-15 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform group-open:rotate-180" /></summary>
             <ul class="flex flex-col gap-3 pb-4 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
           </details>
@@ -328,7 +328,7 @@ export class Overlays {
           }
         </ul>
       }
-      <div class="flex flex-col items-center gap-3 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:text-left">
+      <div class="flex flex-col items-center gap-1 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:gap-3 md:text-left">
         <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a href="/cookies" class="hover:text-text-secondary">Cookies</a></p>
         <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p>
       </div>
