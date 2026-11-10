@@ -98,6 +98,11 @@ func (s *Svc) borrarMapa(ctx context.Context, cid uuid.UUID, r mapaRow) {
 	if !ok || !(strings.HasPrefix(key, "mapas/") || strings.HasPrefix(key, "mapas-")) {
 		return
 	}
+	// Another map (a pasted URL, also of another competition) may still show this file.
+	var enUso bool
+	if err := s.a.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM mapas_acceso WHERE imagen_url = $1)`, r.ImagenURL).Scan(&enUso); err != nil || enUso {
+		return
+	}
 	if err := st.Delete(ctx, key); err != nil {
 		s.a.Log.Warn("no se ha podido borrar el mapa de accesos del almacén", "err", err, "key", key)
 	}
