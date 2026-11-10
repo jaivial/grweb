@@ -44,7 +44,8 @@ const ALERTA: Record<string, { tone: GrTone; icon: GrIconName; t: string; accion
   Warning: { tone: 'warning', icon: 'clock', t: 'Quedan 10 plazas. Las inscripciones cierran pronto.', accion: 'Más info', bg: 'bg-warning/15', fg: 'text-warning' },
   Error: { tone: 'danger', icon: 'circle-alert', t: 'El sorteo está cerrado. No se pueden comprar más boletos.', accion: 'Ver resultados', bg: 'bg-accent/15', fg: 'text-accent-text' },
 };
-const LOGO: Record<string, number> = { L: 145, M: 97, S: 44 };
+/** Figma «Logo» Size frames (h, w); the image is fitted in them. */
+const LOGO: Record<string, [number, number]> = { L: [145, 384], M: [97, 256], S: [44, 116] };
 /** Fixed «now» of the countdown states (Figma: 84 d 09 h 41 min 17 s before 19 Dec 2026 08:30). */
 const AHORA = { 'Cuenta atrás': Date.parse('2026-12-19T08:30:00+01:00') - ((84 * 24 + 9) * 3600 + 41 * 60 + 17) * 1000, Hoy: Date.parse('2026-12-19T12:00:00+01:00'), Finalizado: Date.parse('2026-12-22T12:00:00+01:00') } as Record<string, number>;
 
@@ -122,7 +123,7 @@ class Cs {
                 }
                 @case ('80:155408') {
                   <gr-cs id="cs-logo" [w]="sets['logo'].w" [h]="sets['logo'].h">
-                    @for (l of logos; track $index) { <gr-logo class="absolute" [style.left.px]="l.x" [style.top.px]="l.y" [height]="logo[l.p['Size']]" /> }
+                    @for (l of logos; track $index) { <gr-logo class="absolute" [style.left.px]="l.x" [style.top.px]="l.y" [height]="logo[l.p['Size']][0]" [width]="logo[l.p['Size']][1]" /> }
                   </gr-cs>
                 }
                 @case ('80:155418') {

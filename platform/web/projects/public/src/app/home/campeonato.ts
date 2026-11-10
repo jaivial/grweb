@@ -86,7 +86,7 @@ export class Campeonato {
   protected horaPuertas(p?: string): string {
     return /^\d{1,2}:\d{2}$/.test(p ?? '') ? p! : '08:30';
   }
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
   protected readonly nivel = computed(() => this.subtitulo() || this.comp()?.evento?.nivel || '');
   /** Times the logos repeat in each half: at least 16 logos per half (≥ 2 500 px with the 72 px gap), wider than the
    *  1200 px strip, so the loop never shows an empty end. */

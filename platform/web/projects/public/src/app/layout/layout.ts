@@ -85,7 +85,7 @@ const UI = {
     <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[10px] md:h-[70px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
-      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-auto md:h-10" /></a>
+      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-24 object-contain md:h-10 md:w-[116px]" /></a>
       <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»), desktop all five -->
       <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-2">
         @for (l of links(); track l.href; let i = $index) {
@@ -129,7 +129,7 @@ const UI = {
            open); the edition line and the booking button at the bottom -->
       <div class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base px-5 pt-3 md:hidden" role="dialog" aria-modal="true" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
-          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-auto" /></a>
+          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
             <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
               <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
@@ -176,7 +176,7 @@ export class Navbar {
   /** The mega menu closes with a click outside the navbar (and with Esc). */
   protected fuera(e: Event): void { if (this.mega() && !this.el.nativeElement.contains(e.target as Node)) this.mega.set(false); }
   protected readonly megaCols = MEGA;
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
   protected readonly links = computed(() => LINKS[this.lang()]);
   private readonly comp = inject(Competition);
   private readonly router = inject(Router);
@@ -243,7 +243,7 @@ export class Overlays {
     @if (lang() === 'en') {
       <div class="mx-auto grid max-w-[1440px] gap-10 px-5 py-14 md:grid-cols-[1.4fr_1fr_1fr] md:px-8 xl:px-[120px]">
         <div>
-          <gr-logo [height]="44" />
+          <gr-logo [height]="56" [width]="150" />
           <p class="mt-4 max-w-sm text-body-s text-text-tertiary">Powerlifting championship in Almussafes (Valencia, Spain). Organised by GR Strength.</p>
         </div>
         <nav aria-label="Competition">
@@ -272,7 +272,7 @@ export class Overlays {
       <gr-newsletter [nivel]="nivelNewsletter()" />
       <div class="grid lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
         <div class="mb-6 flex flex-col gap-4 lg:mb-0">
-          <gr-logo [height]="56" />
+          <gr-logo [height]="56" [width]="150" />
           <p class="max-w-[300px] text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo de material SBD para la comunidad.</p>
           <div class="flex gap-2">
             <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="instagram" [size]="18" /></a>

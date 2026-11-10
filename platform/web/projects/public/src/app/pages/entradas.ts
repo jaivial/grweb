@@ -38,7 +38,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
     @let e = est();
     <article class="relative overflow-hidden rounded-[20px] border border-line-strong bg-bg-card shadow-card">
       <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
-        <header class="flex h-8 items-center justify-between gap-3"><gr-logo [height]="32" />
+        <header class="flex h-8 items-center justify-between gap-3"><gr-logo [height]="32" [width]="84" />
           <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ pill[e].t }}</span></header>
         <p class="text-display-xs" [class.text-text-muted]="e === 'anulada'">{{ evento() }}</p>
         <ul class="flex flex-col gap-2 text-body-s text-text-secondary">

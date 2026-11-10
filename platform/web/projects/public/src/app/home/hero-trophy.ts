@@ -135,7 +135,7 @@ export class HeroTrophy {
   protected readonly progresoIndeterminado = signal(false);
   protected readonly imagenTrofeo = signal(frameUrl(0));
   protected readonly imagenFija = signal(true);
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
   /** Preload overlay: shown until the first seek completes (never longer than 4 s), then fades out. */
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);

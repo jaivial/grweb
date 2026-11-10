@@ -14,7 +14,7 @@ import {
 } from './api';
 
 type Tab = 'flujo' | 'diseno' | 'previa' | 'ajustes';
-const LOGO = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+const LOGO = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
 const ENLACES = ['/entradas', '/horarios', '/atletas', '/participantes', '/sorteo', '/en-directo', '/resultados', '/como-llegar'];
 
 function nuevo(tipo: TipoBloque, id: string): Bloque {
