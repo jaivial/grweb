@@ -12,9 +12,11 @@ useGLTF.setDecoderPath('/draco/gltf/');
 /** One full turn in seconds (medium-slow). */
 export const TROPHY_TURN_SECONDS = 12;
 /** Height of the fitted model in world units. */
-const MODEL_HEIGHT = 2.4;
-/** Pose used when the animation is off (reduced motion). */
-const STILL_ROTATION_Y = -0.45;
+const MODEL_HEIGHT = 3.3;
+/** The GLB's handles span its Z axis (wide side): turn it so the wide side faces the camera at start. */
+const FRONT_OFFSET_Y = Math.PI / 2;
+/** Extra turn of the fixed pose (reduced motion): a slight 3/4 view. */
+const STILL_ROTATION_Y = -0.35;
 
 interface TrophyModelProps {
   url: string;
@@ -38,7 +40,7 @@ function TrophyModel({ url, spin, onReady }: TrophyModelProps) {
   }, [scene]);
 
   useLayoutEffect(() => {
-    if (groupRef.current && !spin) groupRef.current.rotation.y = STILL_ROTATION_Y;
+    if (groupRef.current) groupRef.current.rotation.y = spin ? 0 : STILL_ROTATION_Y;
     invalidate();
   }, [spin, invalidate]);
 
@@ -52,8 +54,10 @@ function TrophyModel({ url, spin, onReady }: TrophyModelProps) {
 
   return (
     <group ref={groupRef}>
-      <group position={fit.offset} scale={fit.scale}>
-        <primitive object={fit.object} />
+      <group rotation={[0, FRONT_OFFSET_Y, 0]}>
+        <group position={fit.offset} scale={fit.scale}>
+          <primitive object={fit.object} />
+        </group>
       </group>
     </group>
   );

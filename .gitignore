@@ -52,3 +52,6 @@ frontend/tests/e2e/explore-*.spec.ts
 ferweb/scripts/raw/
 ferweb/scripts/compressed/
 
+
+# Heavy source assets (not shipped)
+assets-src/
