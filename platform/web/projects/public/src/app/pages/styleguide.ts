@@ -127,9 +127,9 @@ const REJILLAS: [string, number, number, number, number, number][] = [
         </div>
       </section>
 
-      <section class="flex flex-wrap gap-6" aria-label="Efectos">
+      <section class="grid grid-cols-2 gap-6 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]" aria-label="Efectos">
         @for (e of efectos; track e[0]) {
-          <div class="flex w-[calc((100%-24px)/2)] flex-col items-center gap-2 rounded-md bg-bg-surface p-6 sm:w-[220px] md:w-[calc((100%-48px)/3)] lg:w-[calc((100%-72px)/4)] xl:w-[calc((100%-120px)/6)]">
+          <div class="flex flex-col items-center gap-2 rounded-md bg-bg-surface p-6">
             <span class="relative h-16 w-[120px] overflow-hidden rounded-md" [class]="e[1]">
               @if (e[2]; as g) { <span class="absolute inset-0 bg-[length:128px_128px]" [style.background-image]="g[0]" [style.opacity]="g[1]" [style.mix-blend-mode]="g[2]"></span> }
             </span>

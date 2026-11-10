@@ -8,7 +8,7 @@ export interface GrToast {
   text?: string;
 }
 
-/** Toast queue (Figma «BO / Toast»): bottom-right on desktop, bottom on mobile, 5 s, announced politely. */
+/** Toast queue (Figma «BO / Toast»): bottom-right on desktop, bottom on mobile, raised 96 px over drawer/form action bars; container ignores clicks, 5 s, announced politely. */
 @Injectable({ providedIn: 'root' })
 export class GrToasts {
   private seq = 0;
@@ -30,7 +30,7 @@ const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', er
   selector: 'gr-toaster',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'pointer-events-none fixed inset-x-4 bottom-20 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:items-end', 'aria-live': 'polite' },
+  host: { class: 'pointer-events-none fixed inset-x-4 bottom-24 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:items-end', 'aria-live': 'polite' },
   template: `
     @for (t of toasts.items(); track t.id) {
       <div class="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-line-strong bg-bg-raised p-4 shadow-card" role="status">
