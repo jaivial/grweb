@@ -37,8 +37,8 @@ import { applySeo } from './content';
                       </button>
                       @if (m.titulo || m.subtitulo || m.descripcion) {
                         <figcaption class="flex flex-col gap-1.5 p-5 md:p-6">
-                          @if (m.subtitulo) { <p class="text-label-xs text-text-muted uppercase">{{ m.subtitulo }}</p> }
                           @if (m.titulo) { <p class="text-ui-h5">{{ m.titulo }}</p> }
+                          @if (m.subtitulo) { <p class="text-body-s text-text-secondary">{{ m.subtitulo }}</p> }
                           @if (m.descripcion) { <p class="text-body-s whitespace-pre-line text-text-tertiary">{{ m.descripcion }}</p> }
                         </figcaption>
                       }
