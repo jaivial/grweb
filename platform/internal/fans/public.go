@@ -176,12 +176,16 @@ func (s *Svc) registerPublic() {
 		SlugIn
 	}
 	type yoOut struct {
+		Status    int
 		SetCookie []http.Cookie `header:"Set-Cookie" doc:"Solo cuando la sesión está a menos de 7 días de caducar: se re-emite"`
 		Body      Yo
 	}
 	huma.Register(api, huma.Operation{OperationID: "fans-yo", Method: http.MethodGet, Path: base + "/yo",
-		Summary: "Mi cuenta de directo", Tags: tagFans},
+		Summary: "Mi cuenta de directo (204 sin cookie ni cabecera: visitante anónimo, sin 401 en la consola)", Tags: tagFans},
 		func(ctx context.Context, in *yoIn) (*yoOut, error) {
+			if in.Session == "" && in.Header == "" {
+				return &yoOut{Status: http.StatusNoContent}, nil
+			}
 			cid, err := s.comps.ID(ctx, in.Slug)
 			if err != nil {
 				return nil, err

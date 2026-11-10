@@ -58,7 +58,7 @@ export class FanSession {
     if (!this.browser) return Promise.resolve(null);
     if (this.pendiente && !forzar) return this.pendiente;
     this.pendiente = firstValueFrom(this.http.get<Fan>(`${this.base}/yo`))
-      .then((f) => (this.yo.set(f), f))
+      .then((f) => (this.yo.set(f ?? null), f ?? null))
       .catch(() => (this.yo.set(null), null))
       .finally(() => this.cargada.set(true));
     return this.pendiente;
