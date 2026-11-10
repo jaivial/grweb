@@ -174,7 +174,7 @@ export class ComoSeJuegaPage {
       icono: 'users',
       puntos: [
         'Los atletas libres se fichan al instante por su valor (cláusula) actual.',
-        `La cláusula empieza en ${monedas(this.clausulaInicial())} y se mueve con la nota: ±${this.estado.config()?.puntos?.pctClausula ?? 4} % por punto que gana o pierde; blanqueo −30 %; compra o clausulazo +3 %.`,
+        `La cláusula empieza en ${monedas(this.clausulaInicial())} y se mueve con la nota: ±${this.estado.config()?.puntos?.pctClausula ?? 4} % por punto sobre o bajo 5,0; blanqueo −30 %; compra o clausulazo +3 %.`,
         `Mínimo ${monedas(this.clausulaMin())} y máximo ${monedas(this.clausulaMax())}, redondeado a 1.000.`,
         'Vender devuelve el 100 % del valor actual al mercado.',
       ],
