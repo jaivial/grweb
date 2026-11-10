@@ -118,7 +118,7 @@ export class GrCinturon {
           </span>
         }
       </div>
-      <div class="relative flex w-full flex-col items-center gap-4 text-center lg:flex-1 lg:items-start lg:gap-5 lg:text-left">
+      <div class="relative flex w-full min-w-0 flex-col items-center gap-4 text-center [overflow-wrap:anywhere] lg:flex-1 lg:items-start lg:gap-5 lg:text-left">
         @if (r) {
           <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary">
             <span class="size-2 shrink-0 rounded-full" [class]="venta ? 'bg-success' : e === 'proximamente' ? 'bg-warning' : 'bg-text-muted'" aria-hidden="true"></span>{{ linea() }}

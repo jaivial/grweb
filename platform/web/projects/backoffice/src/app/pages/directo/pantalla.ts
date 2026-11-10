@@ -130,8 +130,12 @@ export class PantallaPage {
   }
 
   protected async copiar(): Promise<void> {
-    await navigator.clipboard.writeText(this.url());
-    this.toasts.success('Enlace copiado');
+    try {
+      await navigator.clipboard.writeText(this.url());
+      this.toasts.success('Enlace copiado');
+    } catch {
+      this.toasts.error('No se pudo copiar el enlace. Ábrelo con «Abrir en ventana» y cópialo de la barra de direcciones.');
+    }
   }
 
   protected async rotar(): Promise<void> {

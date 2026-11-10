@@ -11,7 +11,7 @@ import { Novedades, mensajeError } from '../core/novedades';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <section id="novedades" class="grain-acento grid gap-5 rounded-lg border border-accent/30 bg-[linear-gradient(110deg,#4c111b,#280d12_55%,#170c0e)] p-5 md:p-6" [class]="compacta() ? '' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-6 lg:p-7'"
+    <section id="novedades" class="grain-acento grid rounded-lg border border-accent/30 bg-[linear-gradient(110deg,#4c111b,#280d12_55%,#170c0e)] p-5 md:p-6" [class]="compacta() ? 'gap-5' : 'gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_500px] lg:items-center'"
       [attr.aria-labelledby]="id + '-t'">
       <div>
         @if (nivel() === 'h3') { <h3 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
@@ -38,7 +38,7 @@ import { Novedades, mensajeError } from '../core/novedades';
           </div>
           <!-- Figma «Checkbox» (Kind Legal) -->
           <gr-checkbox name="acepta" [(checked)]="acepta" [invalid]="campo() === 'acepta'">
-            <span class="text-body-xs text-text-secondary">Quiero recibir novedades de GRStrength. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic. <a href="/privacidad" class="text-accent-text underline-offset-2 hover:underline">Política de privacidad</a></span>
+            <span class="block text-body-xs text-text-secondary">Quiero recibir novedades de GRStrength. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic. <a href="/privacidad" class="text-accent-text underline-offset-2 hover:underline">Política de privacidad</a></span>
           </gr-checkbox>
           @if (error()) { <p [id]="id + '-e'" class="text-body-xs text-accent-text" role="alert">{{ error() }}</p> }
         </form>
