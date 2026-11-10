@@ -74,11 +74,11 @@ const DONDE: Record<string, string> = {
   '80:157805': 'pages/alta-atleta.ts',
 };
 
-/** Component-set frame of the Figma page: its size, bg/base, Figma's dashed outline; scrolls sideways on narrow screens. */
+/** Component-set frame of the Figma page: its size, bg/base, Figma's dashed outline; scrolls sideways on narrow screens (contain: its width never stretches the page, so nothing is cut on the left). */
 @Component({
   selector: 'gr-cs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block max-w-full overflow-x-auto' },
+  host: { class: 'block w-full max-w-full overflow-x-auto [contain:inline-size]' },
   template: `<div class="relative shrink-0 rounded-sm border border-dashed border-[#9747ff] bg-bg-base" [style.width.px]="w()" [style.height.px]="h()"><ng-content /></div>`,
 })
 class Cs {
