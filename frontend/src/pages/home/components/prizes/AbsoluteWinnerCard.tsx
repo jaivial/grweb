@@ -11,7 +11,7 @@ export const AbsoluteWinnerCard = memo(function AbsoluteWinnerCard() {
 
   return (
     <div className="mt-24 sm:mt-28 3xl:mt-[120px]" data-ui="absolute-winner">
-      <PrizeHeading id="absolute-winner-title" eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="absolute-winner-heading" />
+      <PrizeHeading id="absolute-winner-title" index="04" eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="absolute-winner-heading" />
       {/* Figma 199:330: 2 columns 588 + 24 + 588, 40 px under the header. */}
       <div className="mx-auto mt-10 grid max-w-[1200px] grid-cols-1 gap-6 md:grid-cols-2" data-ui="absolute-winner-cards">
         {cards.map((card) => (

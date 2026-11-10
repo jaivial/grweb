@@ -30,31 +30,34 @@ type Group = (typeof WEIGHT_CLASS_GROUPS)[number];
 /** The weight classes of one sex as plain text chips. */
 const WeightClassList = memo(function WeightClassList({ group, columns }: { group: Group; columns?: boolean }) {
   return (
-    <ul className={columns ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'} data-ui={`weight-class-${group.id}-list`}>
+    <ul className="grid grid-cols-3 gap-2" data-ui={`weight-class-${group.id}-list`}>
       {group.classes.map((weightClass) => (
         <li
           key={weightClass}
-          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-center font-contrail text-sm uppercase tracking-[0.02em] text-white/85 sm:text-base"
+          className="rounded-lg border border-[#2e2729] bg-[#221d1f] px-2 py-3 text-center font-contrail text-base uppercase tracking-[0.02em] text-white sm:px-3 sm:text-lg"
           data-ui={`weight-class-${group.id}-${weightClass}`}
         >
-          {formatWeightClass(weightClass)} kg
+          {formatWeightClass(weightClass)}KG
         </li>
       ))}
     </ul>
   );
 });
 
-const groupTitleClass = 'font-contrail text-xl uppercase tracking-[0.05em] text-white sm:text-2xl';
+const groupTitleClass = 'font-contrail text-2xl uppercase tracking-[0.02em] text-white';
 
 /** ≥ 768 px: Hombres | Mujeres side by side. */
 const WeightClassColumns = memo(function WeightClassColumns() {
   return (
-    <div className="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-12" data-ui="weight-class-columns">
+    <div className="mx-auto mt-10 grid max-w-[824px] grid-cols-2 gap-6" data-ui="weight-class-columns">
       {WEIGHT_CLASS_GROUPS.map((group) => (
-        <section key={group.id} aria-labelledby={`weight-class-${group.id}-title`} data-ui={`weight-class-group-${group.id}`}>
-          <h3 id={`weight-class-${group.id}-title`} className={`mb-4 ${groupTitleClass}`} data-ui={`weight-class-group-${group.id}-title`}>
-            {group.label}
-          </h3>
+        <section key={group.id} className="rounded-[20px] border border-[#2e2729] bg-[#221d1f]/85 p-7" aria-labelledby={`weight-class-${group.id}-title`} data-ui={`weight-class-group-${group.id}`}>
+          <div className="mb-4 flex items-center justify-between" data-ui={`weight-class-group-${group.id}-head`}>
+            <h3 id={`weight-class-${group.id}-title`} className={groupTitleClass} data-ui={`weight-class-group-${group.id}-title`}>
+              {group.label}
+            </h3>
+            <span className="text-xs font-medium uppercase tracking-[0.04em] text-[#6b7280]" data-ui={`weight-class-group-${group.id}-count`}>{group.classes.length} categorías</span>
+          </div>
           <WeightClassList group={group} />
         </section>
       ))}
@@ -140,7 +143,7 @@ export const WeightClassPrizes = memo(function WeightClassPrizes() {
       <HangingMedals medals={medals} layouts={PODIUM_LAYOUTS} physics={MEDAL_PHYSICS} collisions={PODIUM_COLLISIONS} containerRef={blockRef} />
       {/* Smoke above the ribbons (canvas z-30): they are born inside it. Figma: layer starts 30 px above the block. */}
       <SmokeCloud height={cloudHeight} className="top-[-30px] z-40" />
-      <PrizeHeading eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
+      <PrizeHeading index="03" eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
       {showColumns ? <WeightClassColumns /> : <WeightClassTabs />}
     </div>
   );

@@ -2,6 +2,8 @@ import { memo } from 'react';
 
 export interface PrizeHeadingProps {
   id?: string;
+  /** Section number shown before the eyebrow (Figma: 02 / 03 / 04). */
+  index?: string;
   eyebrow: string;
   title: string;
   titleAccent: string;
@@ -10,11 +12,15 @@ export interface PrizeHeadingProps {
 }
 
 /** Eyebrow + Contrail One title with a crimson accent, shared by the three premios blocks. */
-export const PrizeHeading = memo(function PrizeHeading({ id, eyebrow, title, titleAccent, lead, dataUi }: PrizeHeadingProps) {
+export const PrizeHeading = memo(function PrizeHeading({ id, index, eyebrow, title, titleAccent, lead, dataUi }: PrizeHeadingProps) {
   return (
     <header className="text-center" data-ui={dataUi}>
-      <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/50 sm:text-sm" data-ui={`${dataUi}-eyebrow`}>
-        {eyebrow}
+      <p className="mb-4 flex items-center justify-center gap-2.5" data-ui={`${dataUi}-eyebrow`}>
+        {index && (
+          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#e6606b]" data-ui={`${dataUi}-eyebrow-index`}>{index}</span>
+        )}
+        {index && <span className="h-px w-7 bg-[#c42b3e]/60" data-ui={`${dataUi}-eyebrow-dash`} aria-hidden />}
+        <span className="text-xs font-medium uppercase tracking-[0.04em] text-[#9ca3af]" data-ui={`${dataUi}-eyebrow-text`}>{eyebrow}</span>
       </p>
       <h2
         id={id}
