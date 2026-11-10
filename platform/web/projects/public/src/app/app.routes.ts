@@ -89,6 +89,8 @@ export const routes: Routes = [
   { path: 'politica-concurso', component: LegalPage, data: { tipo: 'bases-sorteo', titulo: 'Bases del sorteo' } },
   // Internal token sheet for visual QA (Figma 01 · Fundamentos); noindex and not in the sitemap.
   { path: '_styleguide', component: StyleguidePage },
+  // Internal component sheet for visual QA (Figma 02 · Componentes); noindex and not in the sitemap.
+  { path: '_componentes', loadComponent: () => import('./pages/componentes').then((m) => m.ComponentesPage) },
   // CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
   { path: ':pslug', component: ContentPage },
   { path: '**', component: NotFoundPage },

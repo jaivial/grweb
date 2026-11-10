@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Injectable, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injectable, inject, input, output, signal } from '@angular/core';
 import { GrIcon, type GrIconName } from './icon';
 
 export interface GrToast {
@@ -8,7 +8,7 @@ export interface GrToast {
   text?: string;
 }
 
-/** Toast queue (Figma «BO / Toast»): bottom-right on desktop, bottom on mobile, raised 96 px over drawer/form action bars; container ignores clicks, 5 s, announced politely. */
+/** Toast queue (Figma «Toast»: 360 max, #1a1a1a, line/strong, body S; «BO / Toast» placement): bottom-right on desktop, bottom on mobile, raised 96 px over drawer/form action bars; container ignores clicks, 5 s, announced politely. */
 @Injectable({ providedIn: 'root' })
 export class GrToasts {
   private seq = 0;
@@ -24,27 +24,43 @@ export class GrToasts {
   dismiss(id: number): void { this.items.update((l) => l.filter((x) => x.id !== id)); }
 }
 
-const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', error: 'circle-x', info: 'info' };
+const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', error: 'circle-alert', info: 'info' };
+
+/** One toast (Figma «Toast»): tone icon, message, close. */
+@Component({
+  selector: 'gr-toast',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'pointer-events-auto flex w-full max-w-[360px] items-start gap-3 rounded-sm border border-line-strong bg-[#1a1a1a] p-4 shadow-card', role: 'status' },
+  template: `
+    <gr-icon [name]="icons[tone()]" [size]="20" [class]="tone() === 'success' ? 'text-success' : tone() === 'error' ? 'text-accent-text' : 'text-info'" />
+    <div class="min-w-0 flex-1">
+      <p class="text-body-s text-text-primary">{{ title() }}</p>
+      @if (text()) { <p class="mt-1 text-body-xs text-text-tertiary">{{ text() }}</p> }
+    </div>
+    @if (closable()) { <button type="button" class="-m-1 rounded-xs p-1 text-text-muted hover:text-text-primary" aria-label="Cerrar" (click)="closed.emit()"><gr-icon name="x" [size]="16" /></button> }
+  `,
+})
+export class GrToastCard {
+  readonly tone = input<GrToast['tone']>('info');
+  readonly title = input.required<string>();
+  readonly text = input<string | undefined>(undefined);
+  readonly closable = input(true);
+  readonly closed = output<void>();
+  protected readonly icons = icons;
+}
 
 @Component({
   selector: 'gr-toaster',
-  imports: [GrIcon],
+  imports: [GrToastCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'pointer-events-none fixed inset-x-4 bottom-24 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:items-end', 'aria-live': 'polite' },
   template: `
     @for (t of toasts.items(); track t.id) {
-      <div class="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-line-strong bg-bg-raised p-4 shadow-card" role="status">
-        <gr-icon [name]="icons[t.tone]" [size]="20" [class]="t.tone === 'success' ? 'text-success' : t.tone === 'error' ? 'text-accent-text' : 'text-info'" />
-        <div class="min-w-0 flex-1">
-          <p class="text-label-s">{{ t.title }}</p>
-          @if (t.text) { <p class="mt-1 text-body-xs text-text-tertiary">{{ t.text }}</p> }
-        </div>
-        <button type="button" class="-m-1 rounded-xs p-1 text-text-muted hover:text-text-primary" aria-label="Cerrar" (click)="toasts.dismiss(t.id)"><gr-icon name="x" [size]="16" /></button>
-      </div>
+      <gr-toast [tone]="t.tone" [title]="t.title" [text]="t.text" (closed)="toasts.dismiss(t.id)" />
     }
   `,
 })
 export class GrToaster {
   protected readonly toasts = inject(GrToasts);
-  protected readonly icons = icons;
 }

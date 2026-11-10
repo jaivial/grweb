@@ -24,29 +24,49 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
   proximamente: { label: 'Próximamente', cls: 'border-info/40 bg-info/10 text-info' },
 };
 
-/** Ticket card (Figma 37 hero, 38 confirmation and «Mi entrada»): charcoal card, perforation with notches, the QR. */
+/**
+ * Ticket card (Figma 02 «Ticket»: Reservada · Usada · Cancelada; used in 37 hero, 38 confirmation and «Mi entrada»):
+ * charcoal card radius 20, perforation with notches, the QR. «Usada» dims the QR under the green «Validada» stamp;
+ * «Cancelada» replaces it with «QR desactivado». The «Con sorteo» variant is obsolete (raffle only at the venue).
+ */
 @Component({
   selector: 'gr-ticket',
   imports: [GrIcon, GrLogo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <article class="relative rounded-xl border border-line-strong bg-bg-card p-5 shadow-card" [class.opacity-60]="anulada()">
-      <header class="flex items-start justify-between gap-3"><gr-logo [height]="30" />
-        <span class="inline-flex h-6 items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="anulada() ? 'border-line-strong text-text-tertiary' : 'border-success/50 bg-success/10 text-success'">{{ anulada() ? 'Anulada' : 'Entrada gratuita' }}</span></header>
-      <p class="mt-3 text-display-xs">{{ evento() }}</p>
-      <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
-        <li class="flex items-center gap-2.5"><gr-icon name="calendar" [size]="16" class="shrink-0 text-accent-text" />{{ linea1() }}</li>
-        <li class="flex items-center gap-2.5"><gr-icon name="clock" [size]="16" class="shrink-0 text-accent-text" />{{ linea2() }}</li>
-        @if (lugar()) { <li class="flex items-center gap-2.5"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ lugar() }}</li> }
-        <li class="flex items-center gap-2.5"><gr-icon name="users" [size]="16" class="shrink-0 text-accent-text" />{{ titular() }}</li>
-      </ul>
-      <!-- Figma «Perforado»: dashed line with a notch on each side -->
-      <div class="relative my-5 border-t border-dashed border-white/20" aria-hidden="true"><span class="absolute -top-3 -left-8 size-6 rounded-full border border-line-strong bg-bg-base"></span><span class="absolute -top-3 -right-8 size-6 rounded-full border border-line-strong bg-bg-base"></span></div>
-      <div class="flex flex-col items-center gap-2">
-        @if (img()) { <img [src]="img()" alt="Código QR de la entrada" width="168" height="168" class="size-42 rounded-md bg-white p-2" /> } @else { <span class="size-42 rounded-md bg-white/10"></span> }
-        <p class="font-mono text-label-m tracking-widest">{{ codigo() }}</p>
-        <p class="text-center text-body-xs text-text-tertiary">Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)</p>
+    @let e = est();
+    <article class="relative overflow-hidden rounded-[20px] border border-line-strong bg-bg-card shadow-card">
+      <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
+        <header class="flex h-8 items-center justify-between gap-3"><gr-logo [height]="32" />
+          <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ pill[e].t }}</span></header>
+        <p class="text-display-xs" [class.text-text-muted]="e === 'anulada'">{{ evento() }}</p>
+        <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
+          <li class="flex items-center gap-2.5"><gr-icon name="calendar" [size]="15" class="text-accent-text" />{{ linea1() }}</li>
+          <li class="flex items-center gap-2.5"><gr-icon name="clock" [size]="15" class="text-accent-text" />{{ linea2() }}</li>
+          @if (lugar()) { <li class="flex items-center gap-2.5"><gr-icon name="map-pin" [size]="15" class="text-accent-text" />{{ lugar() }}</li> }
+          <li class="flex items-center gap-2.5"><gr-icon name="users" [size]="15" class="text-accent-text" />{{ titular() }}</li>
+        </ul>
+      </div>
+      <!-- Figma «Perforado»: line 290 between two 24 notches cut half outside the card -->
+      <div class="relative h-6" aria-hidden="true">
+        <span class="absolute inset-x-[29px] top-3 border-t border-dashed border-line-strong"></span>
+        <span class="absolute top-0 -left-3 size-6 rounded-full border border-line-strong bg-bg-base"></span>
+        <span class="absolute top-0 -right-3 size-6 rounded-full border border-line-strong bg-bg-base"></span>
+      </div>
+      <div class="relative flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
+        @if (e === 'anulada') {
+          <span class="flex size-42 flex-col items-center justify-center gap-2 rounded-lg border border-line-strong text-text-muted"><gr-icon name="x" [size]="32" /><span class="text-label-s">QR desactivado</span></span>
+        } @else if (img()) {
+          <img [src]="img()" alt="Código QR de la entrada" width="168" height="168" class="size-42 rounded-sm bg-white p-2" [class.opacity-22]="e === 'usada'" />
+        } @else { <span class="size-42 rounded-sm bg-white/10"></span> }
+        @if (e === 'usada') {
+          <span class="absolute top-[53px] flex -rotate-6 flex-col items-center gap-1 rounded-md border-2 border-success px-5 py-2 text-success" aria-hidden="true">
+            <span class="text-display-s">Validada</span>@if (validadaEn()) { <span class="text-mono-s">{{ validadaEn() }}</span> }
+          </span>
+        }
+        <p class="text-mono-s" [class]="e === 'anulada' ? 'text-text-muted' : 'text-text-primary'">{{ codigo() }}</p>
+        <p class="text-body-xs text-text-tertiary">{{ e === 'usada' ? 'Validada' + (validadaEn() ? ' a las ' + validadaEn().slice(-5) : '') + ' · ¡que lo disfrutes!' : e === 'anulada' ? 'Has liberado tu plaza. ¡Gracias por avisar!' : 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)' }}</p>
       </div>
     </article>
   `,
@@ -59,7 +79,15 @@ export class TicketCard {
   readonly titular = input('');
   readonly codigo = input('');
   readonly qr = input('');
-  readonly anulada = input(false);
+  readonly estado = input<'reservada' | 'usada' | 'anulada'>('reservada');
+  /** «25/07 · 10:12» on the stamp of a used ticket. */
+  readonly validadaEn = input('');
+  protected readonly est = this.estado;
+  protected readonly pill = {
+    reservada: { t: 'Entrada gratuita', cls: 'border-success/40 bg-success/12 text-success' },
+    usada: { t: 'Validada', cls: 'border-text-tertiary/40 bg-text-tertiary/12 text-text-tertiary' },
+    anulada: { t: 'Anulada', cls: 'border-accent/40 bg-accent/12 text-accent-text' },
+  };
   protected readonly img = signal('');
   constructor() {
     const browser = isPlatformBrowser(inject(PLATFORM_ID));
@@ -715,7 +743,7 @@ export class OfertaPage {
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [anulada]="m.estado === 'anulada'" />
+          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" />
           @if (m.estado === 'anulada') { <p class="rounded-lg border border-line-strong p-3 text-center text-body-s text-text-secondary">Entrada anulada. Si fue un error, <a href="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p> }
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-4">

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrIconButton, GrLogo, GrToaster } from '@grcup/ui';
+import { GrButton, GrIcon, GrLogo, GrToaster } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -62,7 +62,7 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
 
 /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
 const GRUPOS_MOVIL: { titulo: string; items: NavLink[] }[] = [
-  { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta · Completa tu perfil', href: '/alta-atleta' }] },
+  { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
   { titulo: 'El evento', items: [{ label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
   { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Blog', href: '/blog' }] },
 ];
@@ -78,42 +78,45 @@ const UI = {
  */
 @Component({
   selector: 'gr-navbar',
-  imports: [RouterLink, GrLogo, GrButton, GrIcon, GrIconButton],
+  imports: [RouterLink, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
   template: `
-    <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-6 overflow-hidden rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[20px] md:h-[70px] md:px-6" aria-label="Principal">
+    <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[10px] md:h-[70px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
       <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-auto md:h-10" /></a>
-      <ul class="relative ml-auto hidden items-center gap-6 lg:flex">
+      <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»), desktop all five -->
+      <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-2">
         @for (l of links(); track l.href; let i = $index) {
-          <li>
+          <li [class]="i > 2 ? 'hidden lg:block' : ''">
             @if (i === 0 && lang() === 'es') {
-              <button type="button" class="inline-flex h-10 items-center gap-1 text-label-s text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
-                {{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" />
+              <button type="button" class="group inline-flex flex-col items-center gap-2 rounded-xs p-2 text-label-s text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+                <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
+                <span class="h-0.5 w-6 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
               </button>
             } @else {
-              <a [href]="l.href" class="inline-flex h-10 items-center text-label-s text-text-secondary transition-colors hover:text-text-primary">{{ l.label }}</a>
+              <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
+              <a [href]="l.href" class="group inline-flex flex-col items-center gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s transition-colors hover:text-text-primary" [class]="actual() === l.href ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="actual() === l.href ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="actual() === l.href ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
       </ul>
-      <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary lg:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
-      <a grButton variant="primary" href="/entradas" class="relative ml-auto lg:ml-0">{{ ui().cta }}</a>
-      <button grIconButton icon="menu" [label]="ui().open" class="relative lg:hidden" (click)="open.set(true)"></button>
+      <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
+      <a grButton variant="primary" href="/entradas" class="relative ml-auto md:ml-0">{{ ui().cta }}</a>
+      <button type="button" data-menu class="relative flex size-11 shrink-0 items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="ui().open" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
     </nav>
     @if (mega()) {
-      <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card lg:flex" (keydown.escape)="mega.set(false)">
+      <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] flex-wrap gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card md:flex lg:flex-nowrap" (keydown.escape)="mega.set(false)">
         @for (col of megaCols; track col.titulo) {
-          <div class="flex w-[250px] flex-col gap-1">
+          <div class="flex w-[194px] flex-col gap-1 lg:w-[250px]">
             <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
             @for (it of col.items; track it.href) {
               <a [href]="it.href" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
             }
           </div>
         }
-        <div class="ml-auto flex w-[240px] flex-col gap-2 self-start rounded-lg border border-accent/60 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] p-5">
+        <div class="flex w-full flex-col gap-2 self-start rounded-lg border lg:ml-auto lg:w-[240px] border-accent/60 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] p-5">
           <p class="text-label-xs text-text-secondary">Entrada gratuita</p>
           <p class="text-display-2xs">Vive la GR Cup en directo</p>
           <p class="text-body-s text-text-secondary">Reserva gratis y súmate al sorteo por 1 €.</p>
@@ -124,7 +127,7 @@ const UI = {
     @if (open()) {
       <!-- Figma «Mobile menu v3»: logo, ES / EN and close; the four main links; the groups as an accordion (the first one
            open); the edition line and the booking button at the bottom -->
-      <div class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base px-5 pt-3 lg:hidden" role="dialog" aria-modal="true" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
+      <div class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base px-5 pt-3 md:hidden" role="dialog" aria-modal="true" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
           <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-auto" /></a>
           <div class="flex items-center gap-2">
@@ -199,7 +202,7 @@ export class Navbar {
         const abierto = this.open();
         document.body.style.overflow = abierto ? 'hidden' : '';
         if (abierto) setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-cerrar-menu]')?.focus());
-        else if (estaba) (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[icon="menu"]')?.focus();
+        else if (estaba) (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[data-menu]')?.focus();
         estaba = abierto;
       });
       const sub = this.router.events.subscribe(() => { this.open.set(false); this.actual.set(this.router.url.split(/[?#]/)[0]); });
@@ -272,7 +275,7 @@ export class Overlays {
           <gr-logo [height]="56" />
           <p class="max-w-[300px] text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo de material SBD para la comunidad.</p>
           <div class="flex gap-2">
-            <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="camera" [size]="18" /></a>
+            <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="instagram" [size]="18" /></a>
             @if (contacto()) { <a [href]="'mailto:' + contacto()" aria-label="Email" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="mail" [size]="18" /></a> }
             <a href="/en" hreflang="en" class="flex h-11 shrink-0 items-center gap-2 rounded-sm border border-line-subtle px-3 text-body-s text-text-secondary hover:text-text-primary"><gr-icon name="globe" [size]="16" class="text-text-tertiary" />Español · English</a>
           </div>
@@ -305,7 +308,7 @@ export class Overlays {
     </div>
     @if (barra()) {
       <!-- Figma «Bottom CTA bar / Entrada» (mobile) and «Back to top» -->
-      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[20px] md:hidden">
+      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
         <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Aforo limitado · 1 minuto</span></span>
         <a href="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
@@ -341,7 +344,7 @@ export class Footer {
   protected readonly barra = computed(() => this.scrolled() && !this.footerVisible() && this.comp.data()?.modulos?.['entradas'] !== false &&
     !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
-    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta · Completa tu perfil', href: '/alta-atleta' }] },
+    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
     { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
     { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
     { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },
