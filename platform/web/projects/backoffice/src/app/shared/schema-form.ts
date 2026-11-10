@@ -89,7 +89,7 @@ type Obj = Record<string, unknown>;
                       <input grInput [id]="id" type="url" placeholder="https://… o súbela" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)" />
                       <label class="relative inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-sm border border-line-strong bg-bg-raised px-3 text-label-s hover:border-text-muted md:h-10">
                         <gr-icon name="download" [size]="16" class="rotate-180" />{{ uploading() ? 'Subiendo…' : 'Subir' }}
-                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="sr-only" (change)="upload(f, $event)" />
+                        <input type="file" [accept]="f.subida ? 'image/jpeg,image/png,image/webp' : 'image/jpeg,image/png,image/webp,image/gif'" class="sr-only" (change)="upload(f, $event)" />
                       </label>
                     </div>
                     @if (str(f.clave)) { <img [src]="vista(str(f.clave))" alt="" class="max-h-40 w-auto self-start rounded-sm border border-line-subtle object-cover" /> }
@@ -135,6 +135,8 @@ export class BoSchemaForm {
   protected async upload(f: FieldDef, e: Event): Promise<void> {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
+    // Above the body limit the server answers 413 with a technical message: say it here.
+    if (f.subida && file.size > 10 * 1024 * 1024) return this.toasts.error('No se pudo subir la imagen', 'La imagen supera los 10 MB.');
     this.uploading.set(true);
     try {
       this.set(f.clave, await this.media.upload(file, '', f.subida));
