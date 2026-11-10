@@ -11,13 +11,13 @@ import { Novedades, mensajeError } from '../core/novedades';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <section id="novedades" class="grid gap-5 rounded-lg border border-accent/40 bg-[linear-gradient(110deg,#3a0f17,#1d1214_70%)] p-5 md:p-6" [class]="compacta() ? '' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center lg:p-8'"
+    <section id="novedades" class="grain-acento grid gap-5 rounded-lg border border-accent/30 bg-[linear-gradient(110deg,#4c111b,#280d12_55%,#170c0e)] p-5 md:p-6" [class]="compacta() ? '' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-6 lg:p-7'"
       [attr.aria-labelledby]="id + '-t'">
       <div>
         @if (nivel() === 'h3') { <h3 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
         @else if (nivel() === 'p') { <p [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</p> }
         @else { <h2 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2> }
-        <p class="mt-2 text-body-s text-text-secondary">{{ texto() }}</p>
+        <p class="mt-2 text-body-s text-text-tertiary">{{ texto() }}</p>
       </div>
       @if (enviado()) {
         <div class="flex items-start gap-3 rounded-md border border-success/40 bg-success/10 p-4" role="status">
@@ -31,7 +31,7 @@ import { Novedades, mensajeError } from '../core/novedades';
               <span class="sr-only">Tu email</span>
               <gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
               <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" required
-                class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
+                class="h-12 w-full rounded-sm border border-line-strong bg-bg-field pr-3 pl-9 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
             </label>
             <button type="submit" class="h-12 shrink-0 rounded-sm bg-accent-grain px-6 text-label-m text-white disabled:opacity-60" [disabled]="enviando()">{{ enviando() ? 'Enviando…' : 'Suscribirme' }}</button>
           </div>

@@ -127,10 +127,10 @@ class Cs {
                 }
                 @case ('80:155418') {
                   <!-- transform: the fixed navbar is positioned against this box -->
-                  <div class="relative h-[88px] w-full max-w-[1440px] translate-x-0 overflow-hidden rounded-sm border border-dashed border-[#9747ff] bg-bg-base"><gr-navbar /></div>
+                  <div id="cs-navbar" class="relative h-[88px] w-full max-w-[1440px] translate-x-0 overflow-hidden rounded-sm border border-dashed border-[#9747ff] bg-bg-base"><gr-navbar /></div>
                 }
                 @case ('80:155513') {
-                  <div class="w-full translate-x-0 overflow-hidden rounded-sm border border-dashed border-[#9747ff]"><gr-footer /></div>
+                  <div id="cs-footer" class="w-full max-w-[1440px] translate-x-0 overflow-hidden rounded-sm border border-dashed border-[#9747ff]"><gr-footer /></div>
                 }
                 @case ('80:155864') {
                   <gr-cs id="cs-field" [w]="sets['field'].w" [h]="sets['field'].h">
