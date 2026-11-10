@@ -40,7 +40,7 @@ const STATIC_ROUTES = ['/', '/en', '/atletas', '/participantes', '/horarios', '/
 
 /** Redirects managed from the backoffice («Páginas y SEO · Redirecciones»). */
 app.use(async (req, res, next) => {
-  if (req.method !== 'GET' || req.path.includes('.')) return next();
+  if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path.includes('.')) return next();
   const map = await seoMap();
   // Follow chains to their end in one hop; a loop (a → b → a) is ignored instead of bouncing the browser forever.
   // Compare paths only: «/x?a=1» or «/x#b» lands on /x again, so it counts as a loop too.
