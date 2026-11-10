@@ -98,7 +98,7 @@ type redirRow struct {
 }
 
 type redirIn struct {
-	Desde  string `json:"desde" pattern:"^/" maxLength:"300"`
+	Desde  string `json:"desde" maxLength:"300" doc:"Ruta que empieza por /"`
 	Hacia  string `json:"hacia" maxLength:"500"`
 	Codigo int16  `json:"codigo,omitempty" enum:"301,302,308" default:"301"`
 }
@@ -247,6 +247,10 @@ type volIn struct {
 }
 
 func (s *Svc) registerCollections() {
+	webHost := ""
+	if u, err := url.Parse(s.webURL); err == nil {
+		webHost = u.Host
+	}
 	tagWeb := "Web y contenidos"
 	register(s, collection[faqRow, faqIn]{
 		name: "faq", path: "/web/faq", table: "faq", tag: tagWeb, perm: "web.editar", order: "categoria, orden, pregunta",
@@ -304,6 +308,9 @@ func (s *Svc) registerCollections() {
 		cols: "id, desde, hacia, codigo, orden",
 		validate: func(in *redirIn) error {
 			trimAll(&in.Desde, &in.Hacia)
+			if !strings.HasPrefix(in.Desde, "/") {
+				return problem.Unprocessable("ORIGEN_INVALIDO", "El origen debe empezar por «/».")
+			}
 			// The SSR server applies redirects to page routes only (not "/", "/api/…" or files with an extension).
 			if in.Desde == "/" || strings.HasPrefix(in.Desde, "/api/") || strings.HasPrefix(in.Desde, "//") || strings.Contains(in.Desde, ".") {
 				return problem.Unprocessable("ORIGEN_INVALIDO", "El origen debe ser una ruta de página, distinta de «/» y sin extensión.")
@@ -312,10 +319,17 @@ func (s *Svc) registerCollections() {
 			if strings.ContainsAny(in.Desde, "?#") || strings.IndexFunc(in.Desde, func(r rune) bool { return r <= ' ' || r >= 0x7f }) >= 0 {
 				return problem.Unprocessable("ORIGEN_INVALIDO", "El origen no admite espacios, tildes, «ñ», «?» ni «#».")
 			}
+			// An absolute URL of the public web itself (http or https) is stored as its path, so the loop check below sees it.
+			if u, err := url.Parse(in.Hacia); err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.User == nil && strings.EqualFold(u.Host, webHost) {
+				in.Hacia = in.Hacia[len(u.Scheme)+3+len(u.Host):]
+				if !strings.HasPrefix(in.Hacia, "/") {
+					in.Hacia = "/" + in.Hacia
+				}
+			}
 			// A destination whose path equals the origin (e.g. /x → /x?a=1) would bounce forever.
 			ruta, _, _ := strings.Cut(in.Hacia, "?")
 			ruta, _, _ = strings.Cut(ruta, "#")
-			if in.Hacia == "" || !validURL(in.Hacia, true) || ruta == in.Desde ||
+			if in.Hacia == "" || !validURL(in.Hacia, true) || ruta == in.Desde || strings.HasPrefix(strings.ToLower(in.Hacia), "http:") ||
 				strings.IndexFunc(in.Hacia, func(r rune) bool { return r <= ' ' || r == 0x7f }) >= 0 {
 				return problem.Unprocessable("DESTINO_INVALIDO", "El destino debe ser una ruta (/…) o una URL https, sin espacios y distinta del origen.")
 			}
