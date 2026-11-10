@@ -319,8 +319,11 @@ export class Overlays {
 export class Footer {
   readonly lang = input<Lang>('es');
   private readonly seo = inject(Seo);
-  /** En /alta-atleta el contenido ya tiene sus dos H2: la banda de novedades baja a H3. */
-  protected readonly nivelNewsletter = computed<'h2' | 'h3'>(() => (this.seo.path() === '/alta-atleta' ? 'h3' : 'h2'));
+  /** En /alta-atleta el contenido ya tiene sus dos H2: la banda de novedades baja a H3. En las páginas con sus dos H2 y sus tres H3 no es un encabezado. */
+  protected readonly nivelNewsletter = computed<'h2' | 'h3' | 'p'>(() => {
+    const p = this.seo.path();
+    return p === '/donde-dormir-y-comer' || p === '/mapa-de-accesos' ? 'p' : p === '/alta-atleta' ? 'h3' : 'h2';
+  });
   protected readonly year = new Date().getFullYear();
   private readonly comp = inject(Competition);
   private readonly http = inject(HttpClient);

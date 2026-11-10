@@ -78,6 +78,14 @@ export interface Club {
   afiliadoAep: boolean;
 }
 
+/** An access map of /mapa-de-accesos (uploaded in the backoffice; title, subtitle and description are optional). */
+export interface MapaAcceso {
+  imagenUrl: string;
+  titulo: string;
+  subtitulo: string;
+  descripcion: string;
+}
+
 export interface SeoMap {
   paginas: { ruta: string; title: string; description: string; imagenUrl: string; indexable: boolean }[];
   redirecciones: { desde: string; hacia: string; codigo: number }[];
@@ -119,6 +127,7 @@ export class Cms {
 
   landing(pagina: 'publico' | 'en'): Promise<Landing | null> { return this.get<Landing>(`/web/${pagina}`); }
   clubs(): Promise<Club[] | null> { return this.get<Club[]>('/clubs'); }
+  mapas(): Promise<MapaAcceso[] | null> { return this.get<MapaAcceso[]>('/mapas'); }
   async proponerClub(body: unknown): Promise<void> {
     await firstValueFrom(this.http.post(`${base}/clubs`, body));
   }

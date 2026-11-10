@@ -15,6 +15,7 @@ import { Novedades, mensajeError } from '../core/novedades';
       [attr.aria-labelledby]="id + '-t'">
       <div>
         @if (nivel() === 'h3') { <h3 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
+        @else if (nivel() === 'p') { <p [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</p> }
         @else { <h2 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2> }
         <p class="mt-2 text-body-s text-text-secondary">{{ texto() }}</p>
       </div>
@@ -52,8 +53,8 @@ export class Newsletter {
   readonly origen = input('');
   /** Narrow columns (sidebars): one column, stacked button. */
   readonly compacta = input(false);
-  /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75). */
-  readonly nivel = input<'h2' | 'h3'>('h2');
+  /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75); «p» en las que además ya tienen sus tres H3. */
+  readonly nivel = input<'h2' | 'h3' | 'p'>('h2');
   protected readonly id = 'nl-' + Math.random().toString(36).slice(2, 8);
   protected readonly enviando = signal(false);
   protected readonly enviado = signal(false);

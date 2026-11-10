@@ -35,7 +35,7 @@ async function seoMap(): Promise<SeoMap | null> {
   return seoCache.data;
 }
 
-const STATIC_ROUTES = ['/', '/en', '/atletas', '/participantes', '/horarios', '/entradas', '/sorteo', '/en-directo', '/resultados', '/resultados/2025', '/ediciones/2025', '/publico', '/clubs', '/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos', '/politica-concurso', '/alta-atleta'];
+const STATIC_ROUTES = ['/', '/en', '/atletas', '/participantes', '/horarios', '/entradas', '/sorteo', '/en-directo', '/resultados', '/resultados/2025', '/ediciones/2025', '/publico', '/clubs', '/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos', '/politica-concurso', '/alta-atleta'];
 
 /** Redirects managed from the backoffice («Páginas y SEO · Redirecciones»). */
 app.use(async (req, res, next) => {

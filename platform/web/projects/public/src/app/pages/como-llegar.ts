@@ -96,6 +96,7 @@ import { Community, Related, type RelatedLink } from './landings';
                 </article>
               }
             </div>
+            <a grButton variant="outline" size="l" class="w-full sm:w-auto sm:self-start" routerLink="/mapa-de-accesos" icon="map-pin">Ver el mapa de accesos</a>
           </section>
 
           <!-- 04 · Fotos del pabellón -->
@@ -123,9 +124,9 @@ import { Community, Related, type RelatedLink } from './landings';
               
               <gr-icon name="circle-check" [size]="20" class="ml-2 shrink-0 text-success" />
               <div class="flex flex-col gap-1"><p class="text-label-s text-success">Consejo</p>
-                <p class="text-body-m text-text-secondary">Si vienes de fuera, alójate en Valencia o en la Ribera Baixa ({{ c.sede.ciudad }}, Benifaió, Silla). Publicaremos aquí los acuerdos con alojamientos cercanos.</p></div>
+                <p class="text-body-m text-text-secondary">Si vienes de fuera, alójate en Valencia o en la Ribera Baixa ({{ c.sede.ciudad }}, Benifaió, Silla). Tienes hoteles, restaurantes y gimnasios en nuestra guía.</p></div>
             </div>
-            <a grButton variant="outline" size="l" class="w-full sm:w-auto sm:self-start" [href]="hoteles()" target="_blank" rel="noopener">Ver alojamientos cerca</a>
+            <a grButton variant="outline" size="l" class="w-full sm:w-auto sm:self-start" routerLink="/donde-dormir-y-comer">Ver alojamientos cerca</a>
           </section>
 
           <gr-related [items]="relacionados" />
@@ -174,11 +175,6 @@ export class ComoLlegarPage {
     if (!l.some((t) => t.tipo === 'accesibilidad')) l.push({ tipo: 'accesibilidad', titulo: 'Accesibilidad', detalle: 'Te confirmaremos los accesos y las zonas para personas con movilidad reducida.', estado: 'por_confirmar' });
     return l;
   });
-  protected readonly hoteles = computed(() => {
-    const s = this.comp()?.sede;
-    return s?.lat && s?.lng ? `https://www.google.com/maps/search/alojamiento/@${s.lat},${s.lng},12z` : 'https://www.google.com/maps/search/alojamiento+Almussafes';
-  });
-
   constructor() {
     const competition = inject(Competition);
     const cms = inject(Cms);
