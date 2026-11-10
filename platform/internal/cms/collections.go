@@ -308,8 +308,16 @@ func (s *Svc) registerCollections() {
 			if in.Desde == "/" || strings.HasPrefix(in.Desde, "/api/") || strings.HasPrefix(in.Desde, "//") || strings.Contains(in.Desde, ".") {
 				return problem.Unprocessable("ORIGEN_INVALIDO", "El origen debe ser una ruta de página, distinta de «/» y sin extensión.")
 			}
-			if in.Hacia == "" || !validURL(in.Hacia, true) || in.Desde == in.Hacia {
-				return problem.Unprocessable("DESTINO_INVALIDO", "El destino debe ser una ruta (/…) o una URL https distinta del origen.")
+			// The SSR matches req.path (no query/hash, percent-encoded), so only plain printable ASCII can ever match.
+			if strings.ContainsAny(in.Desde, "?#") || strings.IndexFunc(in.Desde, func(r rune) bool { return r <= ' ' || r >= 0x7f }) >= 0 {
+				return problem.Unprocessable("ORIGEN_INVALIDO", "El origen no admite espacios, tildes, «ñ», «?» ni «#».")
+			}
+			// A destination whose path equals the origin (e.g. /x → /x?a=1) would bounce forever.
+			ruta, _, _ := strings.Cut(in.Hacia, "?")
+			ruta, _, _ = strings.Cut(ruta, "#")
+			if in.Hacia == "" || !validURL(in.Hacia, true) || ruta == in.Desde ||
+				strings.IndexFunc(in.Hacia, func(r rune) bool { return r <= ' ' || r == 0x7f }) >= 0 {
+				return problem.Unprocessable("DESTINO_INVALIDO", "El destino debe ser una ruta (/…) o una URL https, sin espacios y distinta del origen.")
 			}
 			return nil
 		},
