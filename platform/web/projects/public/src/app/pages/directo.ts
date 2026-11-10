@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrLiveStatus, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Mov, type Pantalla, type ResultadosPublicos } from '../core/directo';
@@ -125,9 +125,13 @@ export class Clasificacion {
   }
 }
 
-/** Public SSE of the competition: reloads on the live events (no personal data travels in them). */
-function escuchar(tipos: string[], recargar: () => void): () => void {
+/** Public SSE of the competition: reloads on the live events (no personal data travels in them); `estado` gets the connection state. */
+function escuchar(tipos: string[], recargar: () => void, estado?: (e: GrLiveEstado) => void): () => void {
   const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+  if (estado) {
+    es.onopen = () => estado('en-directo');
+    es.onerror = () => estado(es.readyState === EventSource.CLOSED ? 'sin-conexion' : 'reconectando');
+  }
   let t: ReturnType<typeof setTimeout> | undefined;
   const fn = () => {
     clearTimeout(t);
@@ -147,7 +151,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
  *  provisional ranking) and finished (replay, results, previous edition). */
 @Component({
   selector: 'gr-en-directo',
-  imports: [Page, GrAlert, GrIcon, GrSkeleton, Luces, Clasificacion, Related, Community, PanelSocial],
+  imports: [Page, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, Luces, Clasificacion, Related, Community, PanelSocial],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabeceraMovil]="false">
@@ -201,6 +205,8 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
             <aside class="flex flex-col gap-4">
               @switch (d.fase) {
                 @case ('en_directo') {
+                  <!-- Figma «Live status»: state of the real-time connection -->
+                  <gr-live-status class="self-start" [estado]="conexion()" />
                   @if (enPlataforma(); as a) {
                     <section class="rounded-lg border border-accent/40 bg-[linear-gradient(150deg,#3a0f17,#1b1112_70%)] p-5" aria-live="polite">
                       <p class="flex justify-between text-label-xs text-text-tertiary uppercase"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
@@ -334,6 +340,7 @@ export class EnDirectoPage {
   protected readonly pabellon = PABELLON;
   protected readonly poster = '/img/home/org-publico-s.webp';
   protected readonly posterL = '/img/home/org-publico-l.webp';
+  protected readonly conexion = signal<GrLiveEstado>('en-directo');
   protected readonly foto2025 = FOTO_2025;
   private readonly san = inject(DomSanitizer);
 
@@ -391,7 +398,7 @@ export class EnDirectoPage {
         const d = await this.api.directo();
         if (d) this.dir.set(d);
       };
-      const cerrar = escuchar(EVENTOS, () => void recargar());
+      const cerrar = escuchar(EVENTOS, () => void recargar(), (e) => this.conexion.set(e));
       const poll = setInterval(() => void recargar(), 30_000);
       inject(DestroyRef).onDestroy(() => {
         clearInterval(tick);
