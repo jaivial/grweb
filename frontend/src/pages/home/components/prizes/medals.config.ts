@@ -24,14 +24,14 @@ const MEDAL_ASPECT = 179 / 184;
 /**
  * Block A · hanging geometry. Breakpoints match the section's columns: below 480 px (Tailwind `sm`)
  * the movement columns stack, from 480 px they sit in a row, from 1024 px (`3xl`) desktop.
- * The section's padding-top classes in PricesAllMovementsSection mirror `canvasHeight`
- * (Tailwind needs literal class names: change both together).
+ * The section's padding-top classes in PricesAllMovementsSection are fixed by the layout (the
+ * canvas may be taller than the padding: the long side ribbons hang over the photos).
  */
 export const HANGING_LAYOUTS: readonly HangingLayout[] = [
   {
     id: 'desktop',
     query: '(min-width: 1024px)',
-    canvasHeight: 420,
+    canvasHeight: 784,
     ribbonLength: 210,
     medalWidth: 184,
     medalHeight: 184 * MEDAL_ASPECT,
@@ -40,13 +40,20 @@ export const HANGING_LAYOUTS: readonly HangingLayout[] = [
     ribbonSpreadBottom: 28,
     followAnchors: true,
     anchorsPct: [0.236, 0.5, 0.764],
+    // Figma v2 (199:213): side medals hang long (face at y 565) over the photos, centre one short (y 210).
+    anchorOffsets: [-60, 0, 60],
+    medals: [
+      { ribbonLength: 565, wind: { ampDeg: 4, periodS: 3.6, twistDeg: 6, twistPeriodS: 5.5 }, z: 2 },
+      { ribbonLength: 210, wind: { ampDeg: 4, periodS: 3.4, twistDeg: 6, twistPeriodS: 5.5 }, z: 1 },
+      { ribbonLength: 565, wind: { ampDeg: 4, periodS: 3.2, twistDeg: 6, twistPeriodS: 5.5 }, z: 2 },
+    ],
     wind: { ampDeg: 4, periodS: 3.4, twistDeg: 6, twistPeriodS: 5.5 },
     tapImpulse: 2.4,
   },
   {
     id: 'tablet',
     query: '(min-width: 480px)',
-    canvasHeight: 300,
+    canvasHeight: 410,
     ribbonLength: 150,
     medalWidth: 132,
     medalHeight: 132 * MEDAL_ASPECT,
@@ -55,6 +62,12 @@ export const HANGING_LAYOUTS: readonly HangingLayout[] = [
     ribbonSpreadBottom: 20,
     followAnchors: true,
     anchorsPct: [0.236, 0.5, 0.764],
+    anchorOffsets: [-30, 0, 30],
+    medals: [
+      { ribbonLength: 260, wind: { ampDeg: 3.5, periodS: 3.4, twistDeg: 6, twistPeriodS: 5.5 }, z: 2 },
+      { ribbonLength: 150, wind: { ampDeg: 3.5, periodS: 3.2, twistDeg: 6, twistPeriodS: 5.5 }, z: 1 },
+      { ribbonLength: 260, wind: { ampDeg: 3.5, periodS: 3.0, twistDeg: 6, twistPeriodS: 5.5 }, z: 2 },
+    ],
     wind: { ampDeg: 3.5, periodS: 3.2, twistDeg: 6, twistPeriodS: 5.5 },
     tapImpulse: 2,
   },
@@ -78,62 +91,67 @@ export const HANGING_LAYOUTS: readonly HangingLayout[] = [
 /** Medal height for a given width (aspect of the cut-out / model front). */
 const h = (width: number) => Math.round(width * MEDAL_ASPECT);
 const PODIUM_TWIST = { twistDeg: 6, twistPeriodS: 5.5 };
+/** Figma v2: medal centres at 307 / 600 / 887 of the 1200 block (290 px between them). */
+const PODIUM_ANCHORS_PCT = [307 / 1200, 0.5, 887 / 1200] as const;
 
 /**
  * Block B · weight-class podium, left to right: silver (2º) · gold (1º) · bronze (3º).
  * Figma page 80, frames 189:580 (desktop), 189:677 (mobile), 189:822 (geometry).
  * Anchors are % of the block width (desktop block 1200: x 380 / 600 / 820; mobile block 350:
  * x 75 / 175 / 275). `medals` overrides ribbon, size, idle and stacking per medal (index order).
- * The block's padding-top classes in WeightClassPrizes (368 / 280 / 192) leave 8 px under
+ * The block's padding-top classes in WeightClassPrizes (708 / 528 / 338) leave 8 px under
  * the canvas; change both together.
  */
 export const PODIUM_LAYOUTS: readonly HangingLayout[] = [
   {
+    // Figma v2 199:255: canvas 700 (660 + 40 above the Figma layer: the ribbons are born inside the cloud),
+    // faces at 450 / 480 / 430 px from the layer top → ribbons 490 / 520 / 470 here.
     id: 'podium-desktop',
     query: '(min-width: 1024px)',
-    canvasHeight: 360,
-    ribbonLength: 150,
+    canvasHeight: 700,
+    ribbonLength: 490,
     medalWidth: 140,
     medalHeight: h(140),
     ribbonWidth: 22,
     ribbonSpreadTop: 64,
     ribbonSpreadBottom: 20,
     followAnchors: false,
-    anchorsPct: [380 / 1200, 0.5, 820 / 1200],
+    anchorsPct: PODIUM_ANCHORS_PCT,
     wind: { ampDeg: 3.5, periodS: 2.9, ...PODIUM_TWIST },
     medals: [
-      { ribbonLength: 150, medalWidth: 140, medalHeight: h(140), wind: { ampDeg: 3.5, periodS: 2.9, ...PODIUM_TWIST }, z: 2 },
-      { ribbonLength: 180, medalWidth: 160, medalHeight: h(160), wind: { ampDeg: 3, periodS: 3.2, ...PODIUM_TWIST }, z: 3 },
-      { ribbonLength: 130, medalWidth: 140, medalHeight: h(140), wind: { ampDeg: 3.5, periodS: 2.7, ...PODIUM_TWIST }, z: 1 },
+      { ribbonLength: 490, medalWidth: 140, medalHeight: h(140), wind: { ampDeg: 3.5, periodS: 2.9, ...PODIUM_TWIST }, z: 2 },
+      { ribbonLength: 520, medalWidth: 160, medalHeight: h(160), wind: { ampDeg: 3, periodS: 3.2, ...PODIUM_TWIST }, z: 3 },
+      { ribbonLength: 470, medalWidth: 140, medalHeight: h(140), wind: { ampDeg: 3.5, periodS: 2.7, ...PODIUM_TWIST }, z: 1 },
     ],
     tapImpulse: 2.4,
   },
   {
-    // Tablet rule of the spec: desktop percentages, gold 120 / silver-bronze 104 (×0.75).
+    // Tablet (not in Figma): desktop percentages, sizes ×0.75, ribbons ≈ ×0.72.
     id: 'podium-tablet',
     query: '(min-width: 480px)',
-    canvasHeight: 272,
-    ribbonLength: 112,
+    canvasHeight: 520,
+    ribbonLength: 350,
     medalWidth: 104,
     medalHeight: h(104),
     ribbonWidth: 17,
     ribbonSpreadTop: 48,
     ribbonSpreadBottom: 15,
     followAnchors: false,
-    anchorsPct: [380 / 1200, 0.5, 820 / 1200],
+    anchorsPct: PODIUM_ANCHORS_PCT,
     wind: { ampDeg: 3.2, periodS: 2.9, ...PODIUM_TWIST },
     medals: [
-      { ribbonLength: 112, medalWidth: 104, medalHeight: h(104), wind: { ampDeg: 3.2, periodS: 2.9, ...PODIUM_TWIST }, z: 2 },
-      { ribbonLength: 135, medalWidth: 120, medalHeight: h(120), wind: { ampDeg: 2.7, periodS: 3.2, ...PODIUM_TWIST }, z: 3 },
-      { ribbonLength: 98, medalWidth: 104, medalHeight: h(104), wind: { ampDeg: 3.2, periodS: 2.7, ...PODIUM_TWIST }, z: 1 },
+      { ribbonLength: 350, medalWidth: 104, medalHeight: h(104), wind: { ampDeg: 3.2, periodS: 2.9, ...PODIUM_TWIST }, z: 2 },
+      { ribbonLength: 375, medalWidth: 120, medalHeight: h(120), wind: { ampDeg: 2.7, periodS: 3.2, ...PODIUM_TWIST }, z: 3 },
+      { ribbonLength: 330, medalWidth: 104, medalHeight: h(104), wind: { ampDeg: 3.2, periodS: 2.7, ...PODIUM_TWIST }, z: 1 },
     ],
     tapImpulse: 2,
   },
   {
+    // Mobile (not in Figma): same long-ribbon idea, shorter so the block stays compact.
     id: 'podium-mobile',
     query: 'all',
-    canvasHeight: 184,
-    ribbonLength: 74,
+    canvasHeight: 330,
+    ribbonLength: 190,
     medalWidth: 72,
     medalHeight: h(72),
     ribbonWidth: 12,
@@ -143,9 +161,9 @@ export const PODIUM_LAYOUTS: readonly HangingLayout[] = [
     anchorsPct: [75 / 350, 0.5, 275 / 350],
     wind: { ampDeg: 2.8, periodS: 2.9, ...PODIUM_TWIST },
     medals: [
-      { ribbonLength: 74, medalWidth: 72, medalHeight: h(72), wind: { ampDeg: 2.8, periodS: 2.9, ...PODIUM_TWIST }, z: 2 },
-      { ribbonLength: 90, medalWidth: 84, medalHeight: h(84), wind: { ampDeg: 2.4, periodS: 3.2, ...PODIUM_TWIST }, z: 3 },
-      { ribbonLength: 66, medalWidth: 72, medalHeight: h(72), wind: { ampDeg: 2.8, periodS: 2.7, ...PODIUM_TWIST }, z: 1 },
+      { ribbonLength: 190, medalWidth: 72, medalHeight: h(72), wind: { ampDeg: 2.8, periodS: 2.9, ...PODIUM_TWIST }, z: 2 },
+      { ribbonLength: 210, medalWidth: 84, medalHeight: h(84), wind: { ampDeg: 2.4, periodS: 3.2, ...PODIUM_TWIST }, z: 3 },
+      { ribbonLength: 170, medalWidth: 72, medalHeight: h(72), wind: { ampDeg: 2.8, periodS: 2.7, ...PODIUM_TWIST }, z: 1 },
     ],
     tapImpulse: 1.6,
   },
@@ -153,7 +171,7 @@ export const PODIUM_LAYOUTS: readonly HangingLayout[] = [
 
 /**
  * Block B medals hit each other (podium) in their own collision group; block A medals never
- * collide. At rest they are 70 px (desktop) / 22 px (mobile) apart: they only touch when dragged.
+ * collide. At rest they are ~150 px (desktop) / 22 px (mobile) apart: they only touch when dragged.
  */
 export const PODIUM_COLLISIONS = { restitution: 0.15, friction: 0.4, group: 1, hitAngularDamping: 1.2, hitDampingMs: 400 } as const;
 
@@ -219,35 +237,22 @@ export const PRIZES_COPY = {
     eyebrow: 'Categorías de peso',
     title: 'Premio por',
     titleAccent: 'categoría de peso',
-    lead: 'Cada categoría tiene su propio podio: compites contra quien pesa como tú.',
+    lead: 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.',
   },
   absolute: {
     eyebrow: 'Clasificación absoluta',
-    title: 'Ganador absoluto ·',
+    title: 'Ganadores absolutos ·',
     titleAccent: 'GL Points',
-    badge: 'Mejor atleta · GL Points',
-    namePlaceholder: 'Se decide el día del campeonato',
-    detailPlaceholder: 'Club · Categoría',
-    explainerTitle: '¿Qué son los GL Points?',
-    explainer:
-      'La fórmula IPF GoodLift convierte tu total en puntos según tu peso corporal y tu sexo. Así, un \u221243 kg y un +120 kg compiten en la misma clasificación: gana quien más rinde, no quien más pesa.',
+    lead: 'Mejor atleta masculino y mejor atleta femenina por puntos GL.',
   },
 } as const;
 
-export interface AbsoluteWinner {
-  name: string;
-  club: string;
-  category: string;
-  totalKg: number;
-  glPoints: number;
-  bodyweightKg: number;
-}
+/** Trophy model of block C (generated asset; missing/failed → front render stays). */
+export const TROPHY_GLB = '/models/trophy/trophy.glb';
+export const TROPHY_FALLBACK_IMAGE = '/models/trophy/refs/front.png';
 
-/** Filled in after the championship; `null` shows the pre-event placeholders («—»). */
-export const ABSOLUTE_WINNER: AbsoluteWinner | null = null;
-
-/** Static medal of the absolute winner card (CSS px). */
-export const ABSOLUTE_MEDAL = {
-  desktop: { width: 220, ribbonLength: 150, ribbonWidth: 30, ribbonSpreadTop: 88, ribbonSpreadBottom: 28 },
-  mobile: { width: 112, ribbonLength: 72, ribbonWidth: 15, ribbonSpreadTop: 44, ribbonSpreadBottom: 14 },
-} as const;
+/** Block C cards (Figma 199:331 / 199:365). No results: only the title and the sex. */
+export const ABSOLUTE_WINNERS: ReadonlyArray<{ id: 'men' | 'women'; title: string; label: string; trophyAlt: string }> = [
+  { id: 'men', title: 'Ganador Absoluto - GL points', label: 'Masculino', trophyAlt: 'Trofeo del ganador absoluto masculino' },
+  { id: 'women', title: 'Ganadora Absoluta - GL points', label: 'Femenino', trophyAlt: 'Trofeo de la ganadora absoluta femenina' },
+];
