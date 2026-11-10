@@ -97,7 +97,7 @@ const UI = {
               </button>
             } @else {
               <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
-              <a [href]="l.href" class="group inline-flex flex-col items-center gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s transition-colors hover:text-text-primary" [class]="actual() === l.href ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="actual() === l.href ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="actual() === l.href ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
+              <a [href]="l.href" class="group inline-flex flex-col items-center gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
@@ -152,7 +152,7 @@ const UI = {
                 @if (grupo() === gi) {
                   <ul class="flex flex-col gap-1">
                     @for (it of g.items; track it.href) {
-                      <li><a [href]="it.href" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="actual() === it.href">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
+                      <li><a [href]="it.href" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
                     }
                   </ul>
                 }
@@ -201,6 +201,8 @@ export class Navbar {
   /** Open group of the mobile menu (Figma: «Competición» open). */
   protected readonly grupo = signal(0);
   protected readonly actual = signal('');
+  /** Active on its own page and on its subpages (/atletas/:slug), by whole path segment. */
+  protected activo(href: string): boolean { const a = this.actual(); return a === href || a.startsWith(href + '/'); }
   protected readonly grupos = GRUPOS_MOVIL;
   /** The four main links of the mobile menu (the booking one in red). */
   protected readonly accesos = computed(() => this.lang() === 'en'
