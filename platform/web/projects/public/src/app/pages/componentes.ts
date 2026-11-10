@@ -238,6 +238,8 @@ class Cs {
                   <gr-cs id="cs-ticket" [w]="sets['ticket'].w" [h]="sets['ticket'].h">
                     <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[0][1]" [style.top.px]="sets['ticket'].v[0][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"
                       lugar="Pabellón Municipal de Almussafes" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" />
+                    <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[1][1]" [style.top.px]="sets['ticket'].v[1][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"
+                      lugar="Pabellón Municipal de Almussafes" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" [boletos]="['0412', '0413']" premio="Cinturón SBD" />
                     <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[3][1]" [style.top.px]="sets['ticket'].v[3][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"
                       lugar="Pabellón Municipal de Almussafes" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" estado="anulada" />
                     <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[2][1]" [style.top.px]="sets['ticket'].v[2][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"

@@ -7,7 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrCheckbox, GrIcon, GrLogo, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
-import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
+import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, validada, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
@@ -27,7 +27,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
 /**
  * Ticket card (Figma 02 «Ticket»: Reservada · Usada · Cancelada; used in 37 hero, 38 confirmation and «Mi entrada»):
  * charcoal card radius 20, perforation with notches, the QR. «Usada» dims the QR under the green «Validada» stamp;
- * «Cancelada» replaces it with «QR desactivado». The «Con sorteo» variant is obsolete (raffle only at the venue).
+ * «Cancelada» replaces it with «QR desactivado». «Con sorteo» adds the raffle tickets paid with the booking (/entradas step 4).
  */
 @Component({
   selector: 'gr-ticket',
@@ -36,17 +36,28 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
   host: { class: 'block' },
   template: `
     @let e = est();
-    <article class="relative overflow-hidden rounded-[20px] border border-line-strong bg-bg-card shadow-card">
+    @let b = e !== 'anulada' ? boletos() : [];
+    <article class="relative overflow-hidden rounded-[20px] border bg-bg-card shadow-card" [class]="b.length ? 'border-accent/55' : 'border-line-strong'">
       <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
         <header class="flex h-8 items-center justify-between gap-3"><gr-logo [height]="32" [width]="84" />
           <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ pill[e].t }}</span></header>
         <p class="text-display-xs" [class.text-text-muted]="e === 'anulada'">{{ evento() }}</p>
         <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
-          <li class="flex items-center gap-2.5"><gr-icon name="calendar" [size]="15" class="text-accent-text" />{{ linea1() }}</li>
+          <li class="flex items-center gap-2.5"><gr-icon name="calendar" [size]="15" class="text-accent-text" />{{ l1() }}</li>
           <li class="flex items-center gap-2.5"><gr-icon name="clock" [size]="15" class="text-accent-text" />{{ linea2() }}</li>
           @if (lugar()) { <li class="flex items-center gap-2.5"><gr-icon name="map-pin" [size]="15" class="text-accent-text" />{{ lugar() }}</li> }
           <li class="flex items-center gap-2.5"><gr-icon name="users" [size]="15" class="text-accent-text" />{{ titular() }}</li>
         </ul>
+        @if (b.length) {
+          <!-- Figma «Ticket / Con sorteo» -->
+          <div class="flex items-center gap-2 rounded-md border border-accent/45 bg-black/25 p-3">
+            <gr-icon name="ticket" [size]="16" class="shrink-0 text-accent-text" />
+            <div class="flex min-w-0 flex-col gap-1">
+              <p class="text-body-s font-semibold text-white">Sorteo · {{ b.length }} {{ b.length === 1 ? 'boleto pagado' : 'boletos pagados' }}</p>
+              <p class="truncate text-mono-s text-text-secondary">Nº {{ b.join(' · ') }}@if (premio()) { · {{ premio() }} }</p>
+            </div>
+          </div>
+        }
       </div>
       <!-- Figma «Perforado»: line 290 between two 24 notches cut half outside the card -->
       <div class="relative h-6" aria-hidden="true">
@@ -61,7 +72,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
           <img [src]="img()" alt="Código QR de la entrada" width="168" height="168" class="size-42 rounded-sm bg-white p-2" [class.opacity-22]="e === 'usada'" />
         } @else { <span class="size-42 rounded-sm bg-white/10"></span> }
         @if (e === 'usada') {
-          <span class="absolute top-[53px] flex -rotate-6 flex-col items-center gap-1 rounded-md border-2 border-success px-5 py-2 text-success" aria-hidden="true">
+          <span class="absolute top-[57px] flex translate-x-1 -rotate-8 flex-col items-center gap-1 rounded-md border-2 border-success px-5 py-2 text-success" aria-hidden="true">
             <span class="text-display-s">Validada</span>@if (validadaEn()) { <span class="text-mono-s">{{ validadaEn() }}</span> }
           </span>
         }
@@ -80,9 +91,14 @@ export class TicketCard {
   readonly codigo = input('');
   readonly qr = input('');
   readonly estado = input<'reservada' | 'usada' | 'anulada'>('reservada');
+  /** Raffle ticket numbers paid with the booking («Con sorteo») and the prize. */
+  readonly boletos = input<string[]>([]);
+  readonly premio = input('');
   /** «25/07 · 10:12» on the stamp of a used ticket. */
   readonly validadaEn = input('');
   protected readonly est = this.estado;
+  /** «Sábado 25 jul · …» (Intl gives the weekday in lower case). */
+  protected readonly l1 = computed(() => this.linea1().charAt(0).toUpperCase() + this.linea1().slice(1));
   protected readonly pill = {
     reservada: { t: 'Entrada gratuita', cls: 'border-success/40 bg-success/12 text-success' },
     usada: { t: 'Validada', cls: 'border-text-tertiary/40 bg-text-tertiary/12 text-text-tertiary' },
@@ -610,7 +626,8 @@ export class EntradasPage {
           <div class="flex flex-col items-center text-center"><span class="flex size-12 items-center justify-center rounded-full border border-success/50 text-success"><gr-icon name="check" [size]="22" /></span>
             <h1 class="mt-3 text-display-s">¡Tienes entrada!</h1><p class="mt-2 text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p></div>
           @if (aviso(); as a) { <gr-alert tone="warning" [title]="a.t">{{ a.d }} <a href="/sorteo" class="text-accent-text underline">Ir al sorteo</a></gr-alert> }
-          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" />
+          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr"
+            [boletos]="sorteo().boletos" [premio]="sorteo().premio" />
           <div class="grid grid-cols-2 gap-2">
             <a [href]="ics()" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong text-label-s"><gr-icon name="calendar-plus" [size]="16" />Al calendario</a>
             <button type="button" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong text-label-s" (click)="imprimir()"><gr-icon name="download" [size]="16" />Guardar en PDF</button>
@@ -633,12 +650,15 @@ export class EntradasPage {
 })
 export class ConfirmacionPage {
   private readonly api = inject(EntradasPublic);
+  private readonly http = inject(HttpClient);
   protected readonly hora = hora;
   protected readonly dia = dia;
   protected readonly tit = titular;
   protected readonly mia = signal<MiEntrada | null | undefined>(undefined);
   protected readonly copiado = signal(false);
   protected readonly aviso = signal<{ t: string; d: string } | null>(null);
+  /** Raffle tickets paid together with this booking (Figma «Ticket / Con sorteo»). */
+  protected readonly sorteo = signal<{ boletos: string[]; premio: string }>({ boletos: [], premio: '' });
   protected readonly token: string;
   protected readonly ics = computed(() => this.api.ics(this.token));
   constructor() {
@@ -650,6 +670,20 @@ export class ConfirmacionPage {
     else if (q.get('compra') && q.get('cancelado')) this.aviso.set({ t: 'No has completado el pago del sorteo', d: 'Tu entrada está reservada; los boletos no. Puedes comprarlos cuando quieras.' });
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     void this.api.mia(this.token).then((m) => this.mia.set(m), () => this.mia.set(null));
+    const compra = q.get('compra'), ct = q.get('ct');
+    if (compra && ct && !q.get('cancelado')) void this.boletos(compra, ct);
+  }
+  private async boletos(compra: string, ct: string): Promise<void> {
+    const base = `/api/competiciones/${COMPETITION_SLUG}/sorteo`;
+    try {
+      const [c, s] = await Promise.all([
+        firstValueFrom(this.http.get<{ estado: string; boletos: string[] }>(`${base}/compras/${encodeURIComponent(compra)}?t=${encodeURIComponent(ct)}`)),
+        firstValueFrom(this.http.get<{ premio: string }>(base)).catch(() => ({ premio: '' })),
+      ]);
+      if (c.estado === 'pagada') this.sorteo.set({ boletos: c.boletos ?? [], premio: s.premio });
+    } catch {
+      // decoration: the booking is shown anyway
+    }
   }
   protected enc(v: string): string {
     return encodeURIComponent(v);
@@ -743,7 +777,7 @@ export class OfertaPage {
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" />
+          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
           @if (m.estado === 'anulada') { <p class="rounded-lg border border-line-strong p-3 text-center text-body-s text-text-secondary">Entrada anulada. Si fue un error, <a href="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p> }
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
@@ -779,6 +813,7 @@ export class OfertaPage {
 export class MiEntradaPage {
   private readonly api = inject(EntradasPublic);
   protected readonly hora = hora;
+  protected readonly validada = validada;
   protected readonly dia = dia;
   protected readonly tit = titular;
   protected readonly max = Math.max;
