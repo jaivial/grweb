@@ -2,7 +2,6 @@ package juegos
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,11 +10,25 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/db"
-	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
+// abierto is a day with clausulazos open (the cutoff has its own test).
+var abierto = clausulazoVista{Abierto: true}
+
+func duenoEnSala(t *testing.T, q querier, sala, aid uuid.UUID) (dueno uuid.UUID, protegido bool) {
+	t.Helper()
+	var d *uuid.UUID
+	if err := q.QueryRow(context.Background(), `SELECT dueno_fan_id, COALESCE(protegido_hasta > now(), false) FROM sala_atletas WHERE sala_id = $1 AND atleta_id = $2`, sala, aid).Scan(&d, &protegido); err != nil {
+		t.Fatal(err)
+	}
+	if d != nil {
+		dueno = *d
+	}
+	return
+}
+
 // The clausulazo race the client asked for (contract §12): 50 simultaneous clausulazos of the same athlete from
-// 50 fans. Exactly one wins, the protection blocks the rest and the coins are conserved.
+// 50 players of the room. Exactly one wins, the protection blocks the rest and the coins are conserved.
 func TestClausulazosConcurrentes(t *testing.T) {
 	pdb := testDB(t)
 	s := svcCompleta(pdb)
@@ -25,20 +38,16 @@ func TestClausulazosConcurrentes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dueno := uuid.Must(uuid.NewV7())
-	if _, err := abrirCarteraTx(ctx, pdb, j, dueno, Fantasy); err != nil {
-		t.Fatal(err)
-	}
-	aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, &dueno, true, 200000)
+	dueno := nuevoFan()
+	sala := salaDePrueba(t, pdb, cid, j, 10, dueno)
+	aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, &dueno, 200000)
 
 	const n = 50
 	fans := make([]uuid.UUID, n)
 	for i := range fans {
-		fans[i] = uuid.Must(uuid.NewV7())
-		if _, err := abrirCarteraTx(ctx, pdb, j, fans[i], Fantasy); err != nil {
-			t.Fatal(err)
-		}
+		fans[i] = nuevoFan()
 	}
+	sociosDePrueba(t, pdb, j, sala, fans...)
 
 	var ganados atomic.Int64
 	var wg sync.WaitGroup
@@ -47,15 +56,12 @@ func TestClausulazosConcurrentes(t *testing.T) {
 		go func(fan uuid.UUID) {
 			defer wg.Done()
 			e := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-				return s.clausulazoTx(ctx, tx, cid, j, cfg, fan, "fan"+fan.String()[:6], aid)
+				return s.clausulazoTx(ctx, tx, cid, j, cfg, abierto, sala, fan, "fan"+fan.String()[:6], aid)
 			})
 			if e == nil {
 				ganados.Add(1)
-			} else {
-				var p *problem.Error
-				if !errors.As(e, &p) {
-					t.Errorf("clausulazo fallido sin código estable: %v", e)
-				}
+			} else if c := codigoDe(t, e); c != "ATLETA_PROTEGIDO" {
+				t.Errorf("clausulazo fallido con código inesperado: %s", c)
 			}
 		}(f)
 	}
@@ -64,14 +70,7 @@ func TestClausulazosConcurrentes(t *testing.T) {
 	if ganados.Load() != 1 {
 		t.Fatalf("clausulazos ganados = %d; quería exactamente 1", ganados.Load())
 	}
-	var duenoActual uuid.UUID
-	if err := pdb.QueryRow(ctx, `SELECT dueno_fan_id FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2`, j.ID, aid).Scan(&duenoActual); err != nil {
-		t.Fatal(err)
-	}
-	protegido := false
-	if err := pdb.QueryRow(ctx, `SELECT protegido_hasta > now() FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2`, j.ID, aid).Scan(&protegido); err != nil {
-		t.Fatal(err)
-	}
+	duenoActual, protegido := duenoEnSala(t, pdb, sala, aid)
 	if !protegido {
 		t.Fatal("el atleta debería estar protegido tras el clausulazo")
 	}
@@ -91,8 +90,8 @@ func TestClausulazosConcurrentes(t *testing.T) {
 	}
 }
 
-// The limits of the clausulazo: protection window, max per fan and jornada (coordinator: 3 configurable) and no
-// clausulazo with a full squad (contract §6.3).
+// The limits of the clausulazo: protection window, max per fan and jornada (3, configurable), no clausulazo with a
+// full lineup, closed from the last session of the day, and only inside the fan's own room.
 func TestClausulazoLimites(t *testing.T) {
 	pdb := testDB(t)
 	s := svcCompleta(pdb)
@@ -102,82 +101,79 @@ func TestClausulazoLimites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	clausular := func(cierre clausulazoVista, sala, fan, aid uuid.UUID) error {
+		return db.Tx(ctx, pdb, func(tx pgx.Tx) error {
+			return s.clausulazoTx(ctx, tx, cid, j, cfg, cierre, sala, fan, "fan", aid)
+		})
+	}
 
 	t.Run("protección", func(t *testing.T) {
-		dueno := uuid.Must(uuid.NewV7())
-		retador := uuid.Must(uuid.NewV7())
-		for _, f := range []uuid.UUID{dueno, retador} {
-			if _, err := abrirCarteraTx(ctx, pdb, j, f, Fantasy); err != nil {
-				t.Fatal(err)
-			}
-		}
-		aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, &dueno, true, 200000)
-		if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-			return s.clausulazoTx(ctx, tx, cid, j, cfg, retador, "retador", aid)
-		}); err != nil {
+		dueno, retador, otro := nuevoFan(), nuevoFan(), nuevoFan()
+		sala := salaDePrueba(t, pdb, cid, j, 10, dueno, retador, otro)
+		aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, &dueno, 200000)
+		if err := clausular(abierto, sala, retador, aid); err != nil {
 			t.Fatalf("primer clausulazo: %v", err)
 		}
-		otro := uuid.Must(uuid.NewV7())
-		if _, err := abrirCarteraTx(ctx, pdb, j, otro, Fantasy); err != nil {
-			t.Fatal(err)
-		}
-		err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-			return s.clausulazoTx(ctx, tx, cid, j, cfg, otro, "otro", aid)
-		})
-		var p *problem.Error
-		if !errors.As(err, &p) || p.Code != "ATLETA_PROTEGIDO" {
-			t.Fatalf("segundo clausulazo = %v; quería ATLETA_PROTEGIDO", err)
+		if c := codigoDe(t, clausular(abierto, sala, otro, aid)); c != "ATLETA_PROTEGIDO" {
+			t.Fatalf("segundo clausulazo = %s; quería ATLETA_PROTEGIDO", c)
 		}
 	})
 
 	t.Run("máximo 3 clausulazos", func(t *testing.T) {
-		victima := uuid.Must(uuid.NewV7())
-		cazador := uuid.Must(uuid.NewV7())
-		for _, f := range []uuid.UUID{victima, cazador} {
-			if _, err := abrirCarteraTx(ctx, pdb, j, f, Fantasy); err != nil {
-				t.Fatal(err)
-			}
-		}
+		victima, cazador := nuevoFan(), nuevoFan()
+		sala := salaDePrueba(t, pdb, cid, j, 10, victima, cazador)
 		for i := 0; i < 4; i++ {
 			// A fresh owned athlete for each round; the hunter pays the clause.
-			aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, &victima, true, 50000)
-			err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-				return s.clausulazoTx(ctx, tx, cid, j, cfg, cazador, "cazador", aid)
-			})
+			aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, &victima, 50000)
+			err := clausular(abierto, sala, cazador, aid)
 			if i < 3 && err != nil {
 				t.Fatalf("clausulazo %d: %v", i+1, err)
 			}
-			if i == 3 {
-				var p *problem.Error
-				if !errors.As(err, &p) || p.Code != "MAX_CLAUSULAZOS" {
-					t.Fatalf("clausulazo 4 = %v; quería MAX_CLAUSULAZOS", err)
-				}
+			if i == 3 && codigoDe(t, err) != "MAX_CLAUSULAZOS" {
+				t.Fatalf("clausulazo 4 = %v; quería MAX_CLAUSULAZOS", err)
 			}
 		}
 	})
 
-	t.Run("plantilla llena", func(t *testing.T) {
-		dueno := uuid.Must(uuid.NewV7())
-		retador := uuid.Must(uuid.NewV7())
-		if _, err := abrirCarteraTx(ctx, pdb, j, retador, Fantasy); err != nil {
-			t.Fatal(err)
-		}
-		// A full squad (plantilla_max owned athletes).
+	t.Run("alineación llena", func(t *testing.T) {
+		dueno, retador := nuevoFan(), nuevoFan()
+		sala := salaDePrueba(t, pdb, cid, j, 10, dueno, retador)
 		for i := 0; i < cfg.PlantillaMax; i++ {
-			atletaFantasiaDePrueba(t, pdb, cid, j.ID, &retador, false, 50000)
+			atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, &retador, 50000)
 		}
-		aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, &dueno, true, 50000)
-		err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-			return s.clausulazoTx(ctx, tx, cid, j, cfg, retador, "retador", aid)
-		})
-		var p *problem.Error
-		if !errors.As(err, &p) || p.Code != "PLANTILLA_LLENA" {
-			t.Fatalf("clausulazo con plantilla llena = %v; quería PLANTILLA_LLENA", err)
+		aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, &dueno, 50000)
+		if c := codigoDe(t, clausular(abierto, sala, retador, aid)); c != "PLANTILLA_LLENA" {
+			t.Fatalf("clausulazo con alineación llena = %s; quería PLANTILLA_LLENA", c)
+		}
+	})
+
+	t.Run("cerrado desde la última sesión y sin horario", func(t *testing.T) {
+		dueno, retador := nuevoFan(), nuevoFan()
+		sala := salaDePrueba(t, pdb, cid, j, 10, dueno, retador)
+		aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, &dueno, 50000)
+		for _, cierre := range []clausulazoVista{{Motivo: "sin_horario"}, {Motivo: "ultima_sesion"}} {
+			if c := codigoDe(t, clausular(cierre, sala, retador, aid)); c != "CLAUSULAZO_CERRADO" {
+				t.Fatalf("clausulazo con %s = %s; quería CLAUSULAZO_CERRADO", cierre.Motivo, c)
+			}
+		}
+		if d, _ := duenoEnSala(t, pdb, sala, aid); d != dueno {
+			t.Fatal("un clausulazo cerrado cambió el dueño")
+		}
+	})
+
+	t.Run("solo en mi sala", func(t *testing.T) {
+		dueno, forastero := nuevoFan(), nuevoFan()
+		sala := salaDePrueba(t, pdb, cid, j, 10, dueno)
+		salaDePrueba(t, pdb, cid, j, 10, forastero)
+		aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, &dueno, 50000)
+		if c := codigoDe(t, clausular(abierto, sala, forastero, aid)); c != "SIN_SALA" {
+			t.Fatalf("clausulazo desde otra sala = %s; quería SIN_SALA", c)
 		}
 	})
 }
 
-// One owner at most per athlete: a second buy fails (contract §6.3).
+// One owner at most per athlete and room: a second buy in the room fails, but the same athlete is free in another
+// room (BIZ-143: each room has its own market).
 func TestCompraAtletaLibre(t *testing.T) {
 	pdb := testDB(t)
 	s := svcCompleta(pdb)
@@ -187,39 +183,33 @@ func TestCompraAtletaLibre(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fan1 := uuid.Must(uuid.NewV7())
-	fan2 := uuid.Must(uuid.NewV7())
-	aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, nil, false, 200000)
-	if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-		return s.comprarTx(ctx, tx, cid, j, cfg, fan1, "fan1", aid)
-	}); err != nil {
+	fan1, fan2, fan3 := nuevoFan(), nuevoFan(), nuevoFan()
+	sala := salaDePrueba(t, pdb, cid, j, 10, fan1, fan2)
+	otraSala := salaDePrueba(t, pdb, cid, j, 10, fan3)
+	aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, nil, 200000)
+	comprar := func(sala, fan uuid.UUID) error {
+		return db.Tx(ctx, pdb, func(tx pgx.Tx) error { return s.comprarTx(ctx, tx, cid, j, cfg, sala, fan, "fan", aid) })
+	}
+	if err := comprar(sala, fan1); err != nil {
 		t.Fatalf("compra: %v", err)
 	}
-	if _, err := abrirCarteraTx(ctx, pdb, j, fan2, Fantasy); err != nil {
-		t.Fatal(err)
-	}
-	err = db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-		return s.comprarTx(ctx, tx, cid, j, cfg, fan2, "fan2", aid)
-	})
-	var p *problem.Error
-	if !errors.As(err, &p) || p.Code != "YA_CON_DUENO" {
-		t.Fatalf("segunda compra = %v; quería YA_CON_DUENO", err)
+	if c := codigoDe(t, comprar(sala, fan2)); c != "YA_CON_DUENO" {
+		t.Fatalf("segunda compra = %s; quería YA_CON_DUENO", c)
 	}
 	// The buy charges the clause and applies the +3 % demand (contract §6.3).
 	if saldoDe(t, pdb, j.ID, fan1, Fantasy) != 1_000_000-200_000 {
 		t.Fatalf("saldo tras compra = %d; quería 800.000", saldoDe(t, pdb, j.ID, fan1, Fantasy))
 	}
-	var cl int64
-	if err := pdb.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2`, j.ID, aid).Scan(&cl); err != nil {
-		t.Fatal(err)
-	}
-	if cl != 206000 { // 200.000 + 3 %, redondeo a 1.000
+	if cl := clausulaDe(t, pdb, j.ID, aid); cl != 206000 { // 200.000 + 3 %, redondeo a 1.000
 		t.Fatalf("cláusula tras compra = %d; quería 206.000", cl)
+	}
+	if err := comprar(otraSala, fan3); err != nil {
+		t.Fatalf("el mismo atleta debía estar libre en otra sala: %v", err)
 	}
 }
 
-// One fan firing 20 purchases of 20 different free athletes at once: the squad limit holds (never more than
-// plantilla_max), because the buyer's wallet row serializes his own signings.
+// One fan firing 20 purchases of 20 different free athletes at once: the lineup limit holds (never more than 5),
+// because the buyer's wallet row serializes his own signings.
 func TestComprasConcurrentesMismoFan(t *testing.T) {
 	pdb := testDB(t)
 	s := svcCompleta(pdb)
@@ -229,10 +219,14 @@ func TestComprasConcurrentesMismoFan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fan := uuid.Must(uuid.NewV7())
+	if cfg.PlantillaMax != 5 {
+		t.Fatalf("alineación = %d; quería 5 (sin suplentes)", cfg.PlantillaMax)
+	}
+	fan := nuevoFan()
+	sala := salaDePrueba(t, pdb, cid, j, 10, fan)
 	ids := make([]uuid.UUID, 20)
 	for i := range ids {
-		ids[i] = atletaFantasiaDePrueba(t, pdb, cid, j.ID, nil, false, 50000)
+		ids[i] = atletaFantasiaDePrueba(t, pdb, cid, j.ID, sala, nil, 50000)
 	}
 	var wg sync.WaitGroup
 	var ok atomic.Int32
@@ -240,17 +234,17 @@ func TestComprasConcurrentesMismoFan(t *testing.T) {
 		wg.Add(1)
 		go func(aid uuid.UUID) {
 			defer wg.Done()
-			if db.Tx(ctx, pdb, func(tx pgx.Tx) error { return s.comprarTx(ctx, tx, cid, j, cfg, fan, "fan", aid) }) == nil {
+			if db.Tx(ctx, pdb, func(tx pgx.Tx) error { return s.comprarTx(ctx, tx, cid, j, cfg, sala, fan, "fan", aid) }) == nil {
 				ok.Add(1)
 			}
 		}(aid)
 	}
 	wg.Wait()
-	var total, titulares int
-	if err := pdb.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE titular) FROM fantasy_atletas WHERE jornada_id = $1 AND dueno_fan_id = $2`, j.ID, fan).Scan(&total, &titulares); err != nil {
+	var total int
+	if err := pdb.QueryRow(ctx, `SELECT count(*) FROM sala_atletas WHERE sala_id = $1 AND dueno_fan_id = $2`, sala, fan).Scan(&total); err != nil {
 		t.Fatal(err)
 	}
-	if total != cfg.PlantillaMax || int(ok.Load()) != cfg.PlantillaMax || titulares != cfg.TitularesMax {
-		t.Fatalf("plantilla = %d (compras ok %d, titulares %d); quería %d y %d titulares", total, ok.Load(), titulares, cfg.PlantillaMax, cfg.TitularesMax)
+	if total != cfg.PlantillaMax || int(ok.Load()) != cfg.PlantillaMax {
+		t.Fatalf("alineación = %d (compras ok %d); quería %d", total, ok.Load(), cfg.PlantillaMax)
 	}
 }

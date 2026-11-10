@@ -13,6 +13,7 @@ import (
 // and public athlete names: never fan ids.
 type fichajeVista struct {
 	ID        uuid.UUID `json:"id"`
+	SalaID    uuid.UUID `json:"salaId,omitempty"`
 	AtletaID  uuid.UUID `json:"atletaId"`
 	Atleta    string    `json:"atleta"`
 	Tipo      string    `json:"tipo" enum:"compra,venta,clausulazo"`
@@ -84,6 +85,7 @@ func (s *Svc) registerPublicExtra() {
 		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		JornadaID uuid.UUID `query:"jornada" required:"false"`
 		AtletaID  uuid.UUID `query:"atleta" required:"false"`
+		SalaID    uuid.UUID `query:"sala" required:"false" doc:"Solo los fichajes de esa sala"`
 		Limite    int       `query:"limite" minimum:"1" maximum:"100" default:"30" required:"false"`
 	}
 	type fichajesOut struct {
@@ -106,19 +108,16 @@ func (s *Svc) registerPublicExtra() {
 			if limite <= 0 {
 				limite = 30
 			}
-			var atleta *uuid.UUID
-			if in.AtletaID != uuid.Nil {
-				atleta = &in.AtletaID
-			}
+			atleta, sala := nilUUID(in.AtletaID), nilUUID(in.SalaID)
 			// aliases come from the fantasy wallets of the jornada (juegos keeps the public nickname there)
-			rows, err := s.a.DB.Query(ctx, `SELECT f.id, f.atleta_id, COALESCE(fa.nombre_publico, ''), f.tipo,
+			rows, err := s.a.DB.Query(ctx, `SELECT f.id, COALESCE(f.sala_id, '00000000-0000-0000-0000-000000000000'::uuid), f.atleta_id, COALESCE(fa.nombre_publico, ''), f.tipo,
 					COALESCE(sd.alias, ''), COALESCE(sa.alias, ''), f.precio, f.created_at
 				FROM fichajes f
 				LEFT JOIN fantasy_atletas fa ON fa.jornada_id = f.jornada_id AND fa.atleta_id = f.atleta_id
 				LEFT JOIN saldos sd ON sd.jornada_id = f.jornada_id AND sd.fan_id = f.de_fan AND sd.moneda = 'fantasy'
 				LEFT JOIN saldos sa ON sa.jornada_id = f.jornada_id AND sa.fan_id = f.a_fan AND sa.moneda = 'fantasy'
-				WHERE f.jornada_id = $1 AND f.competition_id = $2 AND ($3::uuid IS NULL OR f.atleta_id = $3)
-				ORDER BY f.created_at DESC LIMIT $4`, j.ID, c.ID, atleta, limite)
+				WHERE f.jornada_id = $1 AND f.competition_id = $2 AND ($3::uuid IS NULL OR f.atleta_id = $3) AND ($5::uuid IS NULL OR f.sala_id = $5)
+				ORDER BY f.created_at DESC LIMIT $4`, j.ID, c.ID, atleta, limite, sala)
 			if err != nil {
 				return nil, err
 			}
@@ -127,7 +126,7 @@ func (s *Svc) registerPublicExtra() {
 			o.Body.Fichajes = []fichajeVista{}
 			for rows.Next() {
 				var v fichajeVista
-				if err := rows.Scan(&v.ID, &v.AtletaID, &v.Atleta, &v.Tipo, &v.AliasDe, &v.AliasA, &v.Precio, &v.CreatedAt); err != nil {
+				if err := rows.Scan(&v.ID, &v.SalaID, &v.AtletaID, &v.Atleta, &v.Tipo, &v.AliasDe, &v.AliasA, &v.Precio, &v.CreatedAt); err != nil {
 					return nil, err
 				}
 				if v.Tipo == "compra" {

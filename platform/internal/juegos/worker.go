@@ -214,6 +214,13 @@ func (s *Svc) reconciler(ctx context.Context) {
 			if err := s.sincronizar(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
 				s.a.Log.Warn("reconciliación del marcador", "cid", j.CompetitionID, "err", err)
 			}
+			// BIZ-143: the first session of the day starts the rooms (at most 30 s late; the endpoints already
+			// refuse room changes from the exact minute).
+			if s.horario(ctx, j.CompetitionID, j.Dia).empezado(j, time.Now()) {
+				if err := s.iniciarSalas(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
+					s.a.Log.Warn("inicio de las salas", "cid", j.CompetitionID, "err", err)
+				}
+			}
 		}
 	}
 }

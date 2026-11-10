@@ -18,20 +18,22 @@ type querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// PuntosCfg is the configurable points table (contract §6.3); the jsonb of config_juegos holds it.
+// PuntosCfg holds the weights of the 0–10 grade of an athlete (BIZ-143); the jsonb of config_juegos holds it.
 type PuntosCfg struct {
-	IntentoValido int    `json:"intentoValido"` // +3 per valid attempt
-	Pleno         int    `json:"pleno"`         // +5 for a 9/9 (bonus «Pleno 9/9»)
-	Blanqueo      int    `json:"blanqueo"`      // −15 for 3 nulls in one lift
-	Cat           [5]int `json:"cat"`           // 1.º, 2.º, 3.º, 4.º–5.º, resto que acaba
-	GL            [4]int `json:"gl"`            // 1.º, 2.º, 3.º, 4.º–10.º
-	Mov           [3]int `json:"mov"`           // 1.º, 2.º, 3.º por movimiento
+	Intentos          float64    `json:"intentos" doc:"Nota máxima por intentos válidos (9/9)"`
+	Puesto            [5]float64 `json:"puesto" doc:"Nota por puesto en la categoría, 1.º–5.º"`
+	Pleno             float64    `json:"pleno" doc:"Bonus por 9/9"`
+	RecordPersonal    float64    `json:"recordPersonal"`
+	RecordCompeticion float64    `json:"recordCompeticion" doc:"Sustituye al récord personal"`
+	Total             float64    `json:"total" doc:"Bonus por completar el total"`
+	Nulo              float64    `json:"nulo" doc:"Lo que resta cada intento nulo"`
+	PctClausula       float64    `json:"pctClausula" doc:"% de cláusula por cada punto de nota que gana o pierde el atleta"`
 }
 
-// puntosPorDefecto is the table of the contract §6.3.
+// puntosPorDefecto is the grade table approved for BIZ-143.
 func puntosPorDefecto() PuntosCfg {
-	return PuntosCfg{IntentoValido: 3, Pleno: 5, Blanqueo: -15,
-		Cat: [5]int{20, 14, 10, 5, 2}, GL: [4]int{25, 18, 12, 4}, Mov: [3]int{10, 6, 3}}
+	return PuntosCfg{Intentos: 5, Puesto: [5]float64{3, 2.4, 1.8, 1.2, 0.6}, Pleno: 0.5,
+		RecordPersonal: 0.6, RecordCompeticion: 1, Total: 0.3, Nulo: 0.3, PctClausula: 4}
 }
 
 // Config is a row of config_juegos.
@@ -68,7 +70,7 @@ func configPorDefecto() Config {
 		PorraMin: 100, PorraMax: 50000,
 		Hito5Porra: 100, Hito10Porra: 500, Hito5Fantasy: 10000, Hito10Fantasy: 50000,
 		FantasyPorEuro: 10000, MaxHitos: 100, MaxClausulazos: 3, ProteccionMin: 10,
-		PlantillaMax: 8, TitularesMax: 5,
+		PlantillaMax: 5, TitularesMax: 5,
 		ClausulaInicial: 200000, ClausulaMin: 50000, ClausulaMax: 5000000,
 		PctValido: 5, PctNulo: -4, PctBlanqueo: -30, PctDemanda: 3, PctPuesto: [3]int{25, 15, 8},
 		Puntos: puntosPorDefecto(), Activo: true, Version: 1,

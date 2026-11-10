@@ -18,12 +18,15 @@ func TestRegistroEndpoints(t *testing.T) {
 	api := humago.New(mux, huma.DefaultConfig("juegos-test", "test"))
 	s := &Svc{a: &app.App{API: api}}
 	s.registerPublic()
+	s.registerPublicExtra()
+	s.registerSalas()
 	s.registerAdmin()
 	b, err := api.OpenAPI().YAML()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, querido := range []string{"grcup_fan", "X-GrCup-Fan", "/juegos/porra/apuestas", "/juegos/fantasy/clausulazo", "/juegos/cartera"} {
+	for _, querido := range []string{"grcup_fan", "X-GrCup-Fan", "/juegos/porra/apuestas", "/juegos/fantasy/clausulazo", "/juegos/cartera",
+		"/juegos/fantasy/salas/{sid}/solicitudes/{id}", "/juegos/fantasy/invitaciones/{codigo}/entrar", "/juegos/fantasy/palmares/{sid}"} {
 		if !strings.Contains(string(b), querido) {
 			t.Fatalf("el OpenAPI no incluye %q", querido)
 		}

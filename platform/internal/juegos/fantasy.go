@@ -1,7 +1,8 @@
-// fantasy.go: GRS Fantasy (contract §6.3): up to 8 athletes (5 titular + 3 suplentes), one owner at most per
-// athlete and jornada, instant buys and sales at the current value, clausulazo paying the clause to the previous
-// owner (row and both wallets locked in fan_id order, protection window, max 3 per fan and jornada, no debt),
-// and the alignment change blocked for athletes whose flight is on the platform.
+// fantasy.go: GRS Fantasy inside a room (BIZ-143): a lineup of exactly 5 athletes (no substitutes), one owner at
+// most per athlete and ROOM, instant buys and sales at the current value, clausulazo paying the clause to the
+// previous owner (athlete row and both wallets locked in fan_id order, protection window, max 3 per fan and
+// jornada, no debt, closed from the last session of the day). The clause is one per athlete and jornada
+// (fantasy_atletas); the ownership lives in sala_atletas. Lock order everywhere: room → athlete → wallets.
 package juegos
 
 import (
@@ -26,18 +27,23 @@ type atletaMercado struct {
 	Categoria  string `json:"categoria"`
 	Clausula   int64  `json:"clausula"`
 	DuenoAlias string `json:"duenoAlias,omitempty"`
-	Titular    bool   `json:"titular"`
 	Protegido  bool   `json:"protegido"`
 	// ProtegidoHasta is set while the protection after the last signing lasts (the «Protegido · mm:ss» countdown).
 	ProtegidoHasta *time.Time `json:"protegidoHasta,omitempty"`
 	Libre          bool       `json:"libre"`
 	EsMio          bool       `json:"esMio"`
 	FlightEnCurso  bool       `json:"flightEnCurso"`
+	Nota           notaAtleta `json:"nota"`
 }
 
-// mercadoFantasy lists the athletes of a jornada with clause, owner (public alias) and protection.
-func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, fanID uuid.UUID) ([]atletaMercado, error) {
+// mercadoFantasy lists the athletes of a jornada with clause and grade and, inside a room (salaID), the owner
+// (public alias) and the protection. Without a room every athlete shows as free.
+func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, salaID, fanID uuid.UUID) ([]atletaMercado, error) {
 	m, err := s.marcador(ctx, cid, j.Dia)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := configJuegos(ctx, s.a.DB, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -51,10 +57,13 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, fanI
 			fotos[m.Atletas[i].AtletaID] = m.Atletas[i].FotoURL
 		}
 	}
+	notas := notasDelMarcador(cfg.Puntos, m)
 	// COALESCE: `protegido_hasta > now()` is NULL when the athlete was never signed (NULL > now() = NULL) and a
 	// NULL cannot be scanned into a bool.
-	rows, err := s.a.DB.Query(ctx, `SELECT atleta_id, nombre_publico, sexo, categoria, clausula, dueno_fan_id, dueno_alias, titular, COALESCE(protegido_hasta > now(), false), CASE WHEN protegido_hasta > now() THEN protegido_hasta END
-		FROM fantasy_atletas WHERE jornada_id = $1 ORDER BY sexo, categoria, nombre_publico`, j.ID)
+	rows, err := s.a.DB.Query(ctx, `SELECT fa.atleta_id, fa.nombre_publico, fa.sexo, fa.categoria, fa.clausula, sa.dueno_fan_id, COALESCE(sa.dueno_alias, ''),
+			COALESCE(sa.protegido_hasta > now(), false), CASE WHEN sa.protegido_hasta > now() THEN sa.protegido_hasta END
+		FROM fantasy_atletas fa LEFT JOIN sala_atletas sa ON sa.sala_id = $2 AND sa.atleta_id = fa.atleta_id
+		WHERE fa.jornada_id = $1 ORDER BY fa.sexo, fa.categoria, fa.nombre_publico`, j.ID, salaID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,133 +72,156 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, fanI
 	for rows.Next() {
 		var a atletaMercado
 		var dueno *uuid.UUID
-		if err := rows.Scan(&a.AtletaID, &a.Nombre, &a.Sexo, &a.Categoria, &a.Clausula, &dueno, &a.DuenoAlias, &a.Titular, &a.Protegido, &a.ProtegidoHasta); err != nil {
+		if err := rows.Scan(&a.AtletaID, &a.Nombre, &a.Sexo, &a.Categoria, &a.Clausula, &dueno, &a.DuenoAlias, &a.Protegido, &a.ProtegidoHasta); err != nil {
 			return nil, err
 		}
 		a.Libre = dueno == nil
-		a.EsMio = dueno != nil && *dueno == fanID
+		a.EsMio = dueno != nil && fanID != uuid.Nil && *dueno == fanID
 		a.FlightEnCurso = enCurso[a.AtletaID]
 		a.FotoURL = fotos[a.AtletaID]
+		a.Nota = notas[a.AtletaID]
+		if a.Nota.Desglose == nil {
+			a.Nota.Desglose = []notaLinea{}
+		}
 		out = append(out, a)
 	}
 	return out, rows.Err()
 }
 
-// comprarTx signs a free athlete for his current value (clause): wallet spend, ownership, +3 % demand, history
-// and events, all in one transaction. The row lock avoids two buyers for the same athlete.
-func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
-	var cl int64
-	var dueno *uuid.UUID
-	var protegido *time.Time
-	err := tx.QueryRow(ctx, `SELECT clausula, dueno_fan_id, protegido_hasta FROM fantasy_atletas
-		WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, j.ID, atletaID).Scan(&cl, &dueno, &protegido)
+// atletaSala is the ownership of one athlete inside a room, read under the athlete row lock.
+type atletaSala struct {
+	Clausula   int64
+	Dueno      *uuid.UUID
+	DuenoAlias string
+	Protegido  *time.Time
+}
+
+// bloquearAtletaTx checks that the fan plays in a live room (shared lock on the room: a close or the start of the
+// day cannot interleave), locks the athlete row of the jornada and reads his ownership inside the room.
+func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, atletaID uuid.UUID) (atletaSala, error) {
+	var a atletaSala
+	var ok bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM sala_miembros WHERE sala_id = s.id AND fan_id = $2)
+		FROM salas s WHERE s.id = $1 AND s.jornada_id = $3 AND s.estado IN ('abierta', 'en_juego') FOR SHARE`, salaID, fanID, j.ID).Scan(&ok)
+	if db.IsNoRows(err) || (err == nil && !ok) {
+		return a, problem.Conflict("SIN_SALA", "Necesitas estar en una sala abierta o en juego para fichar.")
+	}
+	if err != nil {
+		return a, err
+	}
+	err = tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, j.ID, atletaID).Scan(&a.Clausula)
 	if db.IsNoRows(err) {
-		return problem.NotFound("Ese atleta no está en la jornada.")
+		return a, problem.NotFound("Ese atleta no está en la jornada.")
 	}
 	if err != nil {
-		return err
+		return a, err
 	}
-	if dueno != nil {
-		return problem.Conflict("YA_CON_DUENO", "Otro usuario ya tiene a ese atleta. Puedes pagar su cláusula.")
+	if _, err := tx.Exec(ctx, `INSERT INTO sala_atletas (sala_id, jornada_id, atleta_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, salaID, j.ID, atletaID); err != nil {
+		return a, err
 	}
-	if protegido != nil && protegido.After(time.Now()) {
-		return problem.Conflict("ATLETA_PROTEGIDO", "El atleta está protegido un rato después de su último fichaje.")
-	}
-	// The buyer's wallet row serializes his own signings: two concurrent purchases of different athletes cannot
-	// both see room in the squad (lock order stays athlete row → wallets, as in the clausulazo).
-	if err := bloquearCarterasTx(ctx, tx, j, fanID); err != nil {
-		return err
-	}
-	plantilla, titulares, err := contarPlantillaTx(ctx, tx, j.ID, fanID)
-	if err != nil {
-		return err
-	}
-	if plantilla >= cfg.PlantillaMax {
-		return problem.Conflict("PLANTILLA_LLENA", "Tu plantilla está completa (máximo "+itoa(cfg.PlantillaMax)+"). Vende alguien antes.")
-	}
-	fid := newID()
-	if err := gastarTx(ctx, tx, j, fanID, Fantasy, cl, "compra", "compra:"+fid.String(), alias); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `UPDATE fantasy_atletas SET dueno_fan_id = $3, dueno_alias = $4, titular = $5, protegido_hasta = now() + make_interval(mins => $6), version = version + 1, updated_at = now()
-		WHERE jornada_id = $1 AND atleta_id = $2`, j.ID, atletaID, fanID, alias, titulares < cfg.TitularesMax, cfg.ProteccionMin); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, atleta_id, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,'compra',$6)`,
-		fid, cid, j.ID, atletaID, fanID, cl); err != nil {
-		return err
-	}
-	if err := eventoFichaje(ctx, tx, cid, j.ID, atletaID, "compra", "", alias, cl); err != nil {
-		return err
-	}
-	_, err = cambiarClausulaTx(ctx, tx, cid, j.ID, atletaID, cfg.PctDemanda, cfg, "demanda")
+	err = tx.QueryRow(ctx, `SELECT dueno_fan_id, dueno_alias, protegido_hasta FROM sala_atletas WHERE sala_id = $1 AND atleta_id = $2`, salaID, atletaID).
+		Scan(&a.Dueno, &a.DuenoAlias, &a.Protegido)
+	return a, err
+}
+
+func asignarDuenoTx(ctx context.Context, tx pgx.Tx, salaID, atletaID uuid.UUID, dueno *uuid.UUID, alias string, proteccionMin int) error {
+	_, err := tx.Exec(ctx, `UPDATE sala_atletas SET dueno_fan_id = $3, dueno_alias = $4, protegido_hasta = now() + make_interval(mins => $5), updated_at = now()
+		WHERE sala_id = $1 AND atleta_id = $2`, salaID, atletaID, dueno, alias, proteccionMin)
 	return err
 }
 
-// venderTx returns an athlete to the market: the seller receives 100 % of the current value (contract §6.3).
-func (s *Svc) venderTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
-	var cl int64
-	var dueno *uuid.UUID
-	err := tx.QueryRow(ctx, `SELECT clausula, dueno_fan_id FROM fantasy_atletas
-		WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, j.ID, atletaID).Scan(&cl, &dueno)
-	if db.IsNoRows(err) {
-		return problem.NotFound("Ese atleta no está en la jornada.")
-	}
+// comprarTx signs a free athlete of the room for his current value (clause): wallet spend, ownership, +3 % demand,
+// history and events, all in one transaction. The athlete row lock avoids two buyers for the same athlete.
+func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, salaID, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
+	a, err := bloquearAtletaTx(ctx, tx, j, salaID, fanID, atletaID)
 	if err != nil {
 		return err
 	}
-	if dueno == nil {
+	if a.Dueno != nil {
+		return problem.Conflict("YA_CON_DUENO", "Otro jugador de la sala ya tiene a ese atleta. Puedes pagar su cláusula.")
+	}
+	if a.Protegido != nil && a.Protegido.After(time.Now()) {
+		return problem.Conflict("ATLETA_PROTEGIDO", "El atleta está protegido un rato después de su último fichaje.")
+	}
+	// The buyer's wallet row serializes his own signings: two concurrent purchases of different athletes cannot
+	// both see room in the lineup.
+	if err := bloquearCarterasTx(ctx, tx, j, fanID); err != nil {
+		return err
+	}
+	if n, err := contarAlineacionTx(ctx, tx, salaID, fanID); err != nil {
+		return err
+	} else if n >= cfg.PlantillaMax {
+		return problem.Conflict("PLANTILLA_LLENA", "Tu alineación está completa ("+itoa(cfg.PlantillaMax)+" atletas). Vende alguien antes.")
+	}
+	fid := newID()
+	if err := gastarTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "compra", "compra:"+fid.String(), alias); err != nil {
+		return err
+	}
+	if err := asignarDuenoTx(ctx, tx, salaID, atletaID, &fanID, alias, cfg.ProteccionMin); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, sala_id, atleta_id, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$6,'compra',$7)`,
+		fid, cid, j.ID, salaID, atletaID, fanID, a.Clausula); err != nil {
+		return err
+	}
+	if err := eventoFichaje(ctx, tx, cid, j.ID, salaID, atletaID, "compra", "", alias, a.Clausula); err != nil {
+		return err
+	}
+	_, err = cambiarClausulaTx(ctx, tx, cid, j.ID, atletaID, float64(cfg.PctDemanda), cfg, "demanda")
+	return err
+}
+
+// venderTx returns an athlete to the market of the room: the seller receives 100 % of the current value.
+func (s *Svc) venderTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, salaID, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
+	a, err := bloquearAtletaTx(ctx, tx, j, salaID, fanID, atletaID)
+	if err != nil {
+		return err
+	}
+	if a.Dueno == nil {
 		return problem.Conflict("ATLETA_LIBRE", "Ese atleta está libre: no puedes venderlo.")
 	}
-	if *dueno != fanID {
+	if *a.Dueno != fanID {
 		return problem.Conflict("ATLETA_AJENO", "Ese atleta no es tuyo.")
 	}
 	fid := newID()
-	if _, err := acreditarTx(ctx, tx, j, fanID, Fantasy, cl, "venta", "venta:"+fid.String(), alias); err != nil {
+	if _, err := acreditarTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "venta", "venta:"+fid.String(), alias); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE fantasy_atletas SET dueno_fan_id = NULL, dueno_alias = '', titular = false,
-		protegido_hasta = now() + make_interval(mins => $3), version = version + 1, updated_at = now()
-		WHERE jornada_id = $1 AND atleta_id = $2`, j.ID, atletaID, cfg.ProteccionMin); err != nil {
+	if err := asignarDuenoTx(ctx, tx, salaID, atletaID, nil, "", cfg.ProteccionMin); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, atleta_id, de_fan, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$5,'venta',$6)`,
-		fid, cid, j.ID, atletaID, fanID, cl); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, sala_id, atleta_id, de_fan, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$6,$6,'venta',$7)`,
+		fid, cid, j.ID, salaID, atletaID, fanID, a.Clausula); err != nil {
 		return err
 	}
-	return eventoFichaje(ctx, tx, cid, j.ID, atletaID, "venta", alias, "", cl)
+	return eventoFichaje(ctx, tx, cid, j.ID, salaID, atletaID, "venta", alias, "", a.Clausula)
 }
 
-// clausulazoTx pays the clause of an athlete owned by someone else: the money goes to the previous owner. The
-// athlete row and BOTH wallets are locked in fan_id order (no deadlocks between opposite clausulazos). Protection
-// window after any signing, at most max_clausulazos per fan and jornada, room in the squad required, and the
-// spend cannot go below zero (no debt).
-func (s *Svc) clausulazoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
-	var cl int64
-	var dueno *uuid.UUID
-	var duenoAlias string
-	var protegido *time.Time
-	err := tx.QueryRow(ctx, `SELECT clausula, dueno_fan_id, dueno_alias, protegido_hasta FROM fantasy_atletas
-		WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, j.ID, atletaID).Scan(&cl, &dueno, &duenoAlias, &protegido)
-	if db.IsNoRows(err) {
-		return problem.NotFound("Ese atleta no está en la jornada.")
+// clausulazoTx pays the clause of an athlete owned by another player of the room: the money goes to the previous
+// owner. The athlete row and BOTH wallets are locked in fan_id order (no deadlocks between opposite clausulazos).
+// Closed from the start of the last session of the day (cierre); protection window after any signing, at most
+// max_clausulazos per fan and jornada, room in the lineup required, and the spend cannot go below zero (no debt).
+func (s *Svc) clausulazoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, cierre clausulazoVista, salaID, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
+	if err := cierre.problema(); err != nil {
+		return err
 	}
+	a, err := bloquearAtletaTx(ctx, tx, j, salaID, fanID, atletaID)
 	if err != nil {
 		return err
 	}
-	if dueno == nil {
+	if a.Dueno == nil {
 		return problem.Conflict("ATLETA_LIBRE", "Ese atleta está libre: cómpralo, no hace falta clausulazo.")
 	}
-	if *dueno == fanID {
+	if *a.Dueno == fanID {
 		return problem.Conflict("ATLETA_PROPIO", "El atleta ya es tuyo.")
 	}
-	if protegido != nil && protegido.After(time.Now()) {
+	if a.Protegido != nil && a.Protegido.After(time.Now()) {
 		return problem.Conflict("ATLETA_PROTEGIDO", "El atleta está protegido un rato después de su último fichaje o clausulazo.")
 	}
 	// Both wallets (created lazily) locked in fan_id order BEFORE the per-fan checks: the clausulazo in the
 	// opposite direction cannot interleave and two concurrent signings of the same buyer cannot both pass the
-	// squad size or max_clausulazos checks (contract §6.3).
-	if err := bloquearCarterasTx(ctx, tx, j, fanID, *dueno); err != nil {
+	// lineup size or max_clausulazos checks.
+	if err := bloquearCarterasTx(ctx, tx, j, fanID, *a.Dueno); err != nil {
 		return err
 	}
 	var nClausulazos int
@@ -199,34 +231,64 @@ func (s *Svc) clausulazoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jorn
 	if nClausulazos >= cfg.MaxClausulazos {
 		return problem.Conflict("MAX_CLAUSULAZOS", "Ya has pagado "+itoa(cfg.MaxClausulazos)+" clausulazos en esta jornada.")
 	}
-	plantilla, titulares, err := contarPlantillaTx(ctx, tx, j.ID, fanID)
+	if n, err := contarAlineacionTx(ctx, tx, salaID, fanID); err != nil {
+		return err
+	} else if n >= cfg.PlantillaMax {
+		return problem.Conflict("PLANTILLA_LLENA", "No puedes clausular sin hueco en la alineación.")
+	}
+	previo := *a.Dueno
+	fid := newID()
+	if err := gastarTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "clausulazo", "clausulazo-out:"+fid.String(), alias); err != nil {
+		return err
+	}
+	if _, err := acreditarTx(ctx, tx, j, previo, Fantasy, a.Clausula, "clausulazo", "clausulazo-in:"+fid.String(), ""); err != nil {
+		return err
+	}
+	if err := asignarDuenoTx(ctx, tx, salaID, atletaID, &fanID, alias, cfg.ProteccionMin); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, sala_id, atleta_id, de_fan, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$6,$7,'clausulazo',$8)`,
+		fid, cid, j.ID, salaID, atletaID, previo, fanID, a.Clausula); err != nil {
+		return err
+	}
+	if err := eventoFichaje(ctx, tx, cid, j.ID, salaID, atletaID, "clausulazo", a.DuenoAlias, alias, a.Clausula); err != nil {
+		return err
+	}
+	_, err = cambiarClausulaTx(ctx, tx, cid, j.ID, atletaID, float64(cfg.PctDemanda), cfg, "demanda")
+	return err
+}
+
+// liberarAtletasTx returns to the market of the room every athlete of a fan (he leaves, is expelled, or the room
+// closes or is cancelled): he recovers the current value of each one. The caller holds the room FOR UPDATE, so no
+// signing of the room runs at the same time; the athlete rows are locked in id order before the wallet.
+func liberarAtletasTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID uuid.UUID) error {
+	rows, err := tx.Query(ctx, `SELECT fa.atleta_id, fa.clausula FROM fantasy_atletas fa
+		JOIN sala_atletas sa ON sa.atleta_id = fa.atleta_id AND sa.sala_id = $2 AND sa.dueno_fan_id = $3
+		WHERE fa.jornada_id = $1 ORDER BY fa.atleta_id FOR UPDATE OF fa`, j.ID, salaID, fanID)
 	if err != nil {
 		return err
 	}
-	if plantilla >= cfg.PlantillaMax {
-		return problem.Conflict("PLANTILLA_LLENA", "No puedes clausular sin hueco en la plantilla.")
+	var total int64
+	n := 0
+	for rows.Next() {
+		var id uuid.UUID
+		var cl int64
+		if err := rows.Scan(&id, &cl); err != nil {
+			rows.Close()
+			return err
+		}
+		total += cl
+		n++
 	}
-	previo := *dueno
-	fid := newID()
-	if err := gastarTx(ctx, tx, j, fanID, Fantasy, cl, "clausulazo", "clausulazo-out:"+fid.String(), alias); err != nil {
+	rows.Close()
+	if err := rows.Err(); err != nil || n == 0 {
 		return err
 	}
-	if _, err := acreditarTx(ctx, tx, j, previo, Fantasy, cl, "clausulazo", "clausulazo-in:"+fid.String(), ""); err != nil {
+	if _, err := acreditarTx(ctx, tx, j, fanID, Fantasy, total, "liberacion", "liberacion:"+newID().String(), ""); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE fantasy_atletas SET dueno_fan_id = $3, dueno_alias = $4, titular = $5,
-		protegido_hasta = now() + make_interval(mins => $6), version = version + 1, updated_at = now()
-		WHERE jornada_id = $1 AND atleta_id = $2`, j.ID, atletaID, fanID, alias, titulares < cfg.TitularesMax, cfg.ProteccionMin); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, atleta_id, de_fan, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$6,'clausulazo',$7)`,
-		fid, cid, j.ID, atletaID, previo, fanID, cl); err != nil {
-		return err
-	}
-	if err := eventoFichaje(ctx, tx, cid, j.ID, atletaID, "clausulazo", duenoAlias, alias, cl); err != nil {
-		return err
-	}
-	_, err = cambiarClausulaTx(ctx, tx, cid, j.ID, atletaID, cfg.PctDemanda, cfg, "demanda")
+	_, err = tx.Exec(ctx, `UPDATE sala_atletas SET dueno_fan_id = NULL, dueno_alias = '', protegido_hasta = NULL, updated_at = now()
+		WHERE sala_id = $1 AND dueno_fan_id = $2`, salaID, fanID)
 	return err
 }
 
@@ -243,79 +305,14 @@ func bloquearCarterasTx(ctx context.Context, tx pgx.Tx, j jornada, fans ...uuid.
 	return err
 }
 
-func contarPlantillaTx(ctx context.Context, tx pgx.Tx, jid, fanID uuid.UUID) (total, titulares int, err error) {
-	err = tx.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE titular) FROM fantasy_atletas WHERE jornada_id = $1 AND dueno_fan_id = $2`, jid, fanID).
-		Scan(&total, &titulares)
+func contarAlineacionTx(ctx context.Context, tx pgx.Tx, salaID, fanID uuid.UUID) (n int, err error) {
+	err = tx.QueryRow(ctx, `SELECT count(*) FROM sala_atletas WHERE sala_id = $1 AND dueno_fan_id = $2`, salaID, fanID).Scan(&n)
 	return
 }
 
 // eventoFichaje emits the public signing event (aliases are public nicknames, contract §6.6).
-func eventoFichaje(ctx context.Context, tx pgx.Tx, cid, jid, atletaID uuid.UUID, tipo, aliasDe, aliasA string, precio int64) error {
+func eventoFichaje(ctx context.Context, tx pgx.Tx, cid, jid, salaID, atletaID uuid.UUID, tipo, aliasDe, aliasA string, precio int64) error {
 	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.fichaje",
-		map[string]any{"jornadaId": jid.String(), "atletaId": atletaID.String(), "tipo": tipo, "aliasDe": aliasDe, "aliasA": aliasA, "precio": precio},
+		map[string]any{"jornadaId": jid.String(), "salaId": salaID.String(), "atletaId": atletaID.String(), "tipo": tipo, "aliasDe": aliasDe, "aliasA": aliasA, "precio": precio},
 		events.Competition(cid.String()), events.Audience(events.Public)))
-}
-
-// alineacionTx sets the titulars of a fan (at most titulares_max). An athlete whose flight is on the platform
-// cannot change status (anti-cheat: nobody moves a lifter to titular while he is lifting).
-func (s *Svc) alineacionTx(ctx context.Context, tx pgx.Tx, j jornada, cfg *Config, fanID uuid.UUID, titulares []uuid.UUID, enCurso map[uuid.UUID]bool) error {
-	if len(titulares) > cfg.TitularesMax {
-		return problem.Unprocessable("MUCHOS_TITULARES", "Solo puedes alinear "+itoa(cfg.TitularesMax)+" titulares.")
-	}
-	deseo := map[uuid.UUID]bool{}
-	for _, a := range titulares {
-		deseo[a] = true
-	}
-	rows, err := tx.Query(ctx, `SELECT atleta_id, titular FROM fantasy_atletas WHERE jornada_id = $1 AND dueno_fan_id = $2 FOR UPDATE`, j.ID, fanID)
-	if err != nil {
-		return err
-	}
-	type fila struct {
-		id      uuid.UUID
-		titular bool
-	}
-	var mias []fila
-	for rows.Next() {
-		var f fila
-		if err := rows.Scan(&f.id, &f.titular); err != nil {
-			rows.Close()
-			return err
-		}
-		mias = append(mias, f)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	if len(titulares) > len(mias) {
-		return problem.Unprocessable("NO_TUYOS", "Solo puedes alinear atletas de tu plantilla.")
-	}
-	deseados := 0
-	for _, f := range mias {
-		if deseo[f.id] {
-			deseados++
-		}
-	}
-	if deseados != len(titulares) {
-		return problem.Unprocessable("NO_TUYOS", "Solo puedes alinear atletas de tu plantilla.")
-	}
-	if deseados > cfg.TitularesMax {
-		return problem.Unprocessable("MUCHOS_TITULARES", "Solo puedes alinear "+itoa(cfg.TitularesMax)+" titulares.")
-	}
-	for _, f := range mias {
-		if f.titular == deseo[f.id] || !enCurso[f.id] {
-			continue
-		}
-		return problem.Conflict("ALINEACION_BLOQUEADA", "Hay un atleta tuyo levantando ahora mismo: no puedes cambiarlo de titular mientras su flight está en curso.")
-	}
-	for _, f := range mias {
-		if f.titular == deseo[f.id] {
-			continue
-		}
-		if _, err := tx.Exec(ctx, `UPDATE fantasy_atletas SET titular = $3, version = version + 1, updated_at = now()
-			WHERE jornada_id = $1 AND atleta_id = $2`, j.ID, f.id, deseo[f.id]); err != nil {
-			return err
-		}
-	}
-	return nil
 }

@@ -1,5 +1,4 @@
-// reglas.go: pure rules of GRS Fantasy and the porra (contract §6.2–6.3, coordinator update: «Pleno 9/9» +5,
-// max 3 clausulazos per fan and jornada, fantasy tie-break by squad value → saldo → who arrived first). No
+// reglas.go: pure rules of the clauses and the porra (contract §6.2–6.3; the 0–10 grade lives in nota.go). No
 // database here: everything is unit-tested without PostgreSQL.
 package juegos
 
@@ -11,8 +10,8 @@ import (
 
 // variarClausula applies a percentage variation (may be negative) and clamps it to [min, max], rounding to 1.000
 // (contract §6.3). It returns the new clause and the applied delta (new − old, after rounding).
-func variarClausula(clausula int64, pct int, min, max int64) (int64, int64) {
-	nueva := redondeo1000(clausula + int64(math.Round(float64(clausula)*float64(pct)/100)))
+func variarClausula(clausula int64, pct float64, min, max int64) (int64, int64) {
+	nueva := redondeo1000(clausula + int64(math.Round(float64(clausula)*pct/100)))
 	if nueva < min {
 		nueva = min
 	}
@@ -32,50 +31,6 @@ func redondeo1000(v int64) int64 {
 		return v - r + 1000
 	}
 	return v - r
-}
-
-// puntosPuestoCat scores the place in the weight class (1.º, 2.º, 3.º, 4.º–5.º, resto que acaba; 0 = sin total).
-func puntosPuestoCat(p PuntosCfg, puesto int) int {
-	if puesto <= 0 {
-		return 0
-	}
-	if puesto <= 3 {
-		return p.Cat[puesto-1]
-	}
-	if puesto <= 5 {
-		return p.Cat[3]
-	}
-	return p.Cat[4]
-}
-
-// puntosPuestoGL scores the IPF GL place within the sex (1.º–3.º, 4.º–10.º, resto 0).
-func puntosPuestoGL(p PuntosCfg, puesto int) int {
-	if puesto <= 0 {
-		return 0
-	}
-	if puesto <= 3 {
-		return p.GL[puesto-1]
-	}
-	if puesto <= 10 {
-		return p.GL[3]
-	}
-	return 0
-}
-
-// puntosPuestoMov scores the place by best lift within the sex (only the podium scores).
-func puntosPuestoMov(p PuntosCfg, puesto int) int {
-	if puesto >= 1 && puesto <= 3 {
-		return p.Mov[puesto-1]
-	}
-	return 0
-}
-
-// puntosIntento scores one judged attempt: valid + puntos.IntentoValido (nothing for null or renunciation).
-func puntosIntento(p PuntosCfg, resultado string) int {
-	if resultado == "valido" {
-		return p.IntentoValido
-	}
-	return 0
 }
 
 // apuestaLote is one bet of a pot for the parimutuel split.

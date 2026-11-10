@@ -13,17 +13,15 @@ func TestVariarClausula(t *testing.T) {
 	casos := []struct {
 		nombre   string
 		clausula int64
-		pct      int
+		pct      float64
 		esperada int64
 		delta    int64
 	}{
-		{"intento válido +5 %", 200000, 5, 210000, 10000},
-		{"intento nulo −4 %", 200000, -4, 192000, -8000},
+		{"un punto de nota +4 %", 200000, 4, 208000, 8000},
+		{"un nulo −0,3 → −1,2 %", 200000, -1.2, 198000, -2000},
 		{"blanqueo −30 %", 200000, -30, 140000, -60000},
 		{"demanda +3 %", 200000, 3, 206000, 6000},
-		{"puesto 1.º +25 %", 200000, 25, 250000, 50000},
-		{"puesto 2.º +15 %", 200000, 15, 230000, 30000},
-		{"puesto 3.º +8 %", 200000, 8, 216000, 16000},
+		{"nota +0,56 → +2,24 %", 200000, 2.24, 204000, 4000},
 		{"redondeo a 1.000", 50500, 5, 53000, 2500}, // 53.025 → 53.000
 		{"mínimo 50.000", 50500, -4, 50000, -500},   // 48.480 → 50.000 (tope)
 		{"máximo 5.000.000", 4900000, 25, 5000000, 100000},
@@ -33,39 +31,9 @@ func TestVariarClausula(t *testing.T) {
 		t.Run(c.nombre, func(t *testing.T) {
 			nueva, delta := variarClausula(c.clausula, c.pct, min, max)
 			if nueva != c.esperada || delta != c.delta {
-				t.Fatalf("variarClausula(%d, %d) = (%d, %d); quería (%d, %d)", c.clausula, c.pct, nueva, delta, c.esperada, c.delta)
+				t.Fatalf("variarClausula(%d, %v) = (%d, %d); quería (%d, %d)", c.clausula, c.pct, nueva, delta, c.esperada, c.delta)
 			}
 		})
-	}
-}
-
-// ---- pure rules: points table (contract §6.3; «Pleno 9/9» +5 per coordinator) ----
-
-func TestPuntosPuestos(t *testing.T) {
-	p := puntosPorDefecto()
-	if p.IntentoValido != 3 || p.Pleno != 5 || p.Blanqueo != -15 {
-		t.Fatalf("tabla por defecto incorrecta: %+v", p)
-	}
-	cats := map[int]int{1: 20, 2: 14, 3: 10, 4: 5, 5: 5, 6: 2, 9: 2, 0: 0}
-	for puesto, esperado := range cats {
-		if got := puntosPuestoCat(p, puesto); got != esperado {
-			t.Fatalf("puntosPuestoCat(%d) = %d; quería %d", puesto, got, esperado)
-		}
-	}
-	gls := map[int]int{1: 25, 2: 18, 3: 12, 4: 4, 10: 4, 11: 0, 0: 0}
-	for puesto, esperado := range gls {
-		if got := puntosPuestoGL(p, puesto); got != esperado {
-			t.Fatalf("puntosPuestoGL(%d) = %d; quería %d", puesto, got, esperado)
-		}
-	}
-	movs := map[int]int{1: 10, 2: 6, 3: 3, 4: 0, 0: 0}
-	for puesto, esperado := range movs {
-		if got := puntosPuestoMov(p, puesto); got != esperado {
-			t.Fatalf("puntosPuestoMov(%d) = %d; quería %d", puesto, got, esperado)
-		}
-	}
-	if puntosIntento(p, "valido") != 3 || puntosIntento(p, "nulo") != 0 || puntosIntento(p, "renuncia") != 0 {
-		t.Fatalf("puntosIntento incorrecto")
 	}
 }
 

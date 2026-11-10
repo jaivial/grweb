@@ -48,10 +48,14 @@ type Svc struct {
 	a      *app.App
 	comps  *compref.Resolver
 	live   *svcclient.Client
+	sched  *svcclient.Client
 	fans   *fanauth.Verifier
 	cache  *cache.Cache
 	marcMu sync.Mutex
 	marc   map[string]marcEntrada
+	hor    map[string]horEntrada
+	// horarioFijo replaces the published schedule in the tests.
+	horarioFijo *horarioDia
 }
 
 type marcEntrada struct {
@@ -71,6 +75,7 @@ func (s *Svc) init(a *app.App) {
 	comp := svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "juegos", "competition", a.Cfg.InternalToken)
 	s.comps = compref.New(comp, a.Log)
 	s.live = svcclient.New(config.Str("UPSTREAM_LIVE", "http://live:8080"), "juegos", "live", a.Cfg.InternalToken)
+	s.sched = svcclient.New(config.Str("UPSTREAM_SCHEDULE", "http://schedule:8080"), "juegos", "schedule", a.Cfg.InternalToken)
 	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "juegos", "")}
 }
@@ -79,6 +84,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
 	s.registerPublic()
 	s.registerPublicExtra()
+	s.registerSalas()
 	s.registerAdmin()
 	return nil
 }

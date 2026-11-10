@@ -5,6 +5,7 @@ package juegos
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -194,7 +195,7 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-jornada", Method: http.MethodGet, Path: base + "/jornadas/{jid}",
-		Summary: "Una jornada: estado y atletas con cláusula y dueño", Tags: tagJuegos},
+		Summary: "Una jornada: estado y atletas con cláusula y nota", Tags: tagJuegos},
 		func(ctx context.Context, in *jidIn) (*jornadaDetalleOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -209,7 +210,7 @@ func (s *Svc) registerPublic() {
 			}
 			o := &jornadaDetalleOut{}
 			o.Body.Jornada = jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-			o.Body.Atletas, err = s.mercadoFantasy(ctx, c.ID, j, uuid.Nil)
+			o.Body.Atletas, err = s.mercadoFantasy(ctx, c.ID, j, uuid.Nil, uuid.Nil)
 			return o, err
 		})
 
@@ -387,22 +388,26 @@ func (s *Svc) registerPublic() {
 			return o, nil
 		})
 
-	// ---- fantasy ----
-	type mercadoFantasyIn struct {
+	// ---- fantasy (BIZ-143: todo dentro de una sala; la del fan o la de ?sala=) ----
+	type fantasyIn struct {
 		Session   string    `cookie:"grcup_fan" maxLength:"4096"`
 		Header    string    `header:"X-GrCup-Fan" maxLength:"4096"`
 		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		JornadaID uuid.UUID `query:"jornada"`
+		SalaID    uuid.UUID `query:"sala" doc:"Sala que se quiere ver; por defecto, la mía de la jornada"`
 	}
 	type mercadoFantasyOut struct {
 		Body struct {
-			Jornada *jornadaOut     `json:"jornada,omitempty"`
-			Atletas []atletaMercado `json:"atletas"`
+			Jornada *jornadaOut `json:"jornada,omitempty"`
+			// Sala is the room the owners belong to; without it (no session or no room) every athlete shows as free.
+			Sala       *salaResumen    `json:"sala,omitempty"`
+			Atletas    []atletaMercado `json:"atletas"`
+			Clausulazo clausulazoVista `json:"clausulazo"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-mercado", Method: http.MethodGet, Path: base + "/fantasy/mercado",
-		Summary: "Mercado de GRS Fantasy: atletas, cláusulas, dueños y protección", Tags: tagJuegos, Description: descSesionFanOpcional},
-		func(ctx context.Context, in *mercadoFantasyIn) (*mercadoFantasyOut, error) {
+		Summary: "Mercado de GRS Fantasy de una sala: atletas, notas, cláusulas, dueños y protección", Tags: tagJuegos, Description: descSesionFanOpcional},
+		func(ctx context.Context, in *fantasyIn) (*mercadoFantasyOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -415,30 +420,43 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			ats, err := s.mercadoFantasy(ctx, c.ID, *j, fanID)
+			sl, err := s.salaDeVista(ctx, c.ID, *j, in.SalaID, fanID)
 			if err != nil {
 				return nil, err
 			}
 			o := &mercadoFantasyOut{}
 			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-			o.Body.Atletas = ats
+			o.Body.Sala = resumenDe(sl)
+			salaID := uuid.Nil
+			if sl != nil {
+				salaID = sl.ID
+			}
+			if o.Body.Atletas, err = s.mercadoFantasy(ctx, c.ID, *j, salaID, fanID); err != nil {
+				return nil, err
+			}
+			o.Body.Clausulazo = s.horario(ctx, c.ID, j.Dia).clausulazo(time.Now())
 			return o, nil
 		})
 
-	// mi-equipo (fan session): my athletes, value and titulares.
+	// mi-equipo (fan session): my lineup in my room, its grade, value, balance and clausulazos.
 	type equipoOut struct {
 		Body struct {
-			Jornada     *jornadaOut     `json:"jornada,omitempty"`
+			Jornada *jornadaOut `json:"jornada,omitempty"`
+			// Sala is missing while the fan is in no room: he has to create or join one to play.
+			Sala        *salaResumen    `json:"sala,omitempty"`
 			Atletas     []atletaMercado `json:"atletas"`
-			Titulares   int             `json:"titulares"`
+			Alineacion  int             `json:"alineacion" doc:"Tamaño de la alineación (5, sin suplentes)"`
+			Nota        float64         `json:"nota" doc:"Media de la alineación"`
+			ConNota     int             `json:"conNota" doc:"Atletas con nota: la media es provisional mientras sea menor que 5"`
 			Valor       int64           `json:"valor"`
 			Saldo       int64           `json:"saldo"`
 			Clausulazos int             `json:"clausulazos"`
+			Clausulazo  clausulazoVista `json:"clausulazo"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-mi-equipo", Method: http.MethodGet, Path: base + "/fantasy/mi-equipo",
-		Summary: "Mi equipo de fantasy: plantilla, valor, saldo y clausulazos gastados", Tags: tagJuegos, Description: descSesionFan},
-		func(ctx context.Context, in *mercadoFantasyIn) (*equipoOut, error) {
+		Summary: "Mi equipo de fantasy: alineación, nota, valor, saldo y clausulazos gastados", Tags: tagJuegos, Description: descSesionFan},
+		func(ctx context.Context, in *fantasyIn) (*equipoOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -451,28 +469,42 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			ats, err := s.mercadoFantasy(ctx, c.ID, *j, f.ID)
+			cfg, err := configJuegos(ctx, s.a.DB, c.ID)
+			if err != nil {
+				return nil, err
+			}
+			sl, err := miSala(ctx, s.a.DB, j.ID, f.ID)
 			if err != nil {
 				return nil, err
 			}
 			o := &equipoOut{}
 			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Sala = resumenDe(sl)
 			o.Body.Atletas = []atletaMercado{}
+			o.Body.Alineacion = cfg.PlantillaMax
+			o.Body.Clausulazo = s.horario(ctx, c.ID, j.Dia).clausulazo(time.Now())
+			_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, j.ID, f.ID).Scan(&o.Body.Saldo)
+			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM fichajes WHERE jornada_id = $1 AND a_fan = $2 AND tipo = 'clausulazo'`, j.ID, f.ID).Scan(&o.Body.Clausulazos)
+			if sl == nil {
+				return o, nil
+			}
+			ats, err := s.mercadoFantasy(ctx, c.ID, *j, sl.ID, f.ID)
+			if err != nil {
+				return nil, err
+			}
+			var notas []notaAtleta
 			for _, a := range ats {
 				if a.EsMio {
 					o.Body.Atletas = append(o.Body.Atletas, a)
-					if a.Titular {
-						o.Body.Titulares++
-					}
 					o.Body.Valor += a.Clausula
+					notas = append(notas, a.Nota)
 				}
 			}
-			_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, j.ID, f.ID).Scan(&o.Body.Saldo)
-			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM fichajes WHERE jornada_id = $1 AND a_fan = $2 AND tipo = 'clausulazo'`, j.ID, f.ID).Scan(&o.Body.Clausulazos)
+			o.Body.Nota, o.Body.ConNota = notaAlineacion(notas, max(cfg.PlantillaMax-len(notas), 0), j.Estado == "cerrada")
 			return o, nil
 		})
 
-	// comprar | vender | clausulazo (fan session, same shape).
+	// comprar | vender | clausulazo (fan session, same shape): always in the fan's own room of the jornada.
 	type fichajeIn struct {
 		Session string `cookie:"grcup_fan" maxLength:"4096"`
 		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
@@ -509,15 +541,22 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
+			sl, err := miSala(ctx, s.a.DB, j.ID, f.ID)
+			if err != nil {
+				return nil, err
+			}
+			if sl == nil {
+				return nil, problem.Conflict("SIN_SALA", "Crea una sala o entra en una para fichar atletas.")
+			}
 			o := &fichajeOut{}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				switch op {
 				case "comprar":
-					err = s.comprarTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.AtletaID)
+					err = s.comprarTx(ctx, tx, c.ID, *j, cfg, sl.ID, f.ID, f.Alias, in.Body.AtletaID)
 				case "vender":
-					err = s.venderTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.AtletaID)
+					err = s.venderTx(ctx, tx, c.ID, *j, cfg, sl.ID, f.ID, f.Alias, in.Body.AtletaID)
 				default:
-					err = s.clausulazoTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.AtletaID)
+					err = s.clausulazoTx(ctx, tx, c.ID, *j, cfg, s.horario(ctx, c.ID, j.Dia).clausulazo(time.Now()), sl.ID, f.ID, f.Alias, in.Body.AtletaID)
 				}
 				if err != nil {
 					return err
@@ -534,71 +573,25 @@ func (s *Svc) registerPublic() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-comprar", Method: http.MethodPost, Path: base + "/fantasy/comprar",
-		Summary: "Comprar un atleta libre por su cláusula", Tags: tagJuegos, Description: descSesionFan}, operar("comprar"))
+		Summary: "Comprar un atleta libre de mi sala por su cláusula", Tags: tagJuegos, Description: descSesionFan}, operar("comprar"))
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-vender", Method: http.MethodPost, Path: base + "/fantasy/vender",
-		Summary: "Vender un atleta propio (vuelve al mercado, 100 % de su valor)", Tags: tagJuegos, Description: descSesionFan}, operar("vender"))
+		Summary: "Vender un atleta propio (vuelve al mercado de la sala, 100 % de su valor)", Tags: tagJuegos, Description: descSesionFan}, operar("vender"))
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clausulazo", Method: http.MethodPost, Path: base + "/fantasy/clausulazo",
-		Summary: "Pagar la cláusula de un atleta de otro usuario", Tags: tagJuegos, Description: descSesionFan}, operar("clausulazo"))
+		Summary: "Pagar la cláusula de un atleta de otro jugador de mi sala (cerrado desde la última sesión del día)", Tags: tagJuegos, Description: descSesionFan}, operar("clausulazo"))
 
-	// alineacion (fan session): set the titulars, blocked for athletes whose flight is on the platform.
-	type alineacionIn struct {
-		Session string `cookie:"grcup_fan" maxLength:"4096"`
-		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
-		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Body    struct {
-			Titulares []uuid.UUID `json:"titulares" maxItems:"15"`
-			Jornada   uuid.UUID   `json:"jornada,omitempty"`
-		}
-	}
-	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-alineacion", Method: http.MethodPost, Path: base + "/fantasy/alineacion",
-		Summary: "Cambiar la alineación (titulares y suplentes)", Tags: tagJuegos, Description: descSesionFan, DefaultStatus: http.StatusNoContent},
-		func(ctx context.Context, in *alineacionIn) (*struct{}, error) {
-			c, err := s.comps.Public(ctx, in.Slug)
-			if err != nil {
-				return nil, err
-			}
-			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
-			if err != nil {
-				return nil, err
-			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.Body.Jornada)
-			if err != nil {
-				return nil, err
-			}
-			cfg, err := configJuegos(ctx, s.a.DB, c.ID)
-			if err != nil {
-				return nil, err
-			}
-			m, err := s.marcador(ctx, c.ID, j.Dia)
-			if err != nil {
-				return nil, problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
-			}
-			enCurso := map[uuid.UUID]bool{}
-			for i := range m.Atletas {
-				if m.Atletas[i].FlightEnCurso {
-					enCurso[m.Atletas[i].AtletaID] = true
-				}
-			}
-			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				return s.alineacionTx(ctx, tx, *j, cfg, f.ID, in.Body.Titulares, enCurso)
-			}); err != nil {
-				return nil, err
-			}
-			return nil, nil
-		})
-
-	// clasificación fantasy (contract §6.3: puntos, desempate valor de plantilla → saldo → quién llegó antes).
+	// clasificación fantasy de una sala (nota media; desempate valor de alineación → saldo → quién entró antes).
 	type clasFantasyOut struct {
 		Body struct {
-			Jornada  *jornadaOut         `json:"jornada,omitempty"`
-			Top      []filaFantasyPublic `json:"top"`
-			MiPuesto int                 `json:"miPuesto"`
-			MiPuntos int                 `json:"miPuntos"`
+			Jornada  *jornadaOut  `json:"jornada,omitempty"`
+			Sala     *salaResumen `json:"sala,omitempty"`
+			Filas    []filaSala   `json:"filas"`
+			MiPuesto int          `json:"miPuesto"`
+			MiNota   float64      `json:"miNota"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clasificacion", Method: http.MethodGet, Path: base + "/fantasy/clasificacion",
-		Summary: "Clasificación de fantasy (top 50 y mi puesto)", Tags: tagJuegos, Description: descSesionFanOpcional},
-		func(ctx context.Context, in *clasPorraIn) (*clasFantasyOut, error) {
+		Summary: "Clasificación de fantasy de una sala (la mía o ?sala=)", Tags: tagJuegos, Description: descSesionFanOpcional},
+		func(ctx context.Context, in *fantasyIn) (*clasFantasyOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -611,16 +604,33 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
+			sl, err := s.salaDeVista(ctx, c.ID, *j, in.SalaID, fanID)
+			if err != nil {
+				return nil, err
+			}
 			o := &clasFantasyOut{}
 			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-			top, miPuesto := s.rankingFantasy(ctx, *j, fanID)
-			o.Body.Top = publicaFantasy(top)
-			o.Body.MiPuesto = miPuesto
-			o.Body.MiPuntos = s.misPuntos(ctx, *j, fanID)
+			o.Body.Sala = resumenDe(sl)
+			o.Body.Filas = []filaSala{}
+			if sl == nil {
+				return o, nil
+			}
+			clas, err := s.clasificarSalas(ctx, s.a.DB, c.ID, *j, []*salaRow{sl}, fanID)
+			if err != nil {
+				return nil, err
+			}
+			if clas[sl.ID] != nil {
+				o.Body.Filas = clas[sl.ID]
+			}
+			for _, f := range o.Body.Filas {
+				if f.EsYo {
+					o.Body.MiPuesto, o.Body.MiNota = f.Puesto, f.Nota
+				}
+			}
 			return o, nil
 		})
 
-	// GET /fantasy/atletas/{aid}: clause history and points of one athlete (contract §6.6).
+	// GET /fantasy/atletas/{aid}: grade breakdown, attempts and clause history of one athlete.
 	type atletaIn struct {
 		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		AID       uuid.UUID `path:"aid"`
@@ -632,20 +642,16 @@ func (s *Svc) registerPublic() {
 		Motivo    string `json:"motivo"`
 		CreatedAt string `json:"createdAt"`
 	}
-	type puntoVista struct {
-		Concepto string `json:"concepto"`
-		Puntos   int    `json:"puntos"`
-		Ref      string `json:"ref"`
-	}
 	type atletaOut struct {
 		Body struct {
-			Atleta    *atletaMercado      `json:"atleta"`
-			Clausulas []historialClausula `json:"clausulas"`
-			Puntos    []puntoVista        `json:"puntos"`
+			Atleta *atletaMercado `json:"atleta" doc:"Con la nota y su desglose (sin dueño: el dueño depende de la sala)"`
+			// Intentos are the attempts of the scoreboard by lift (sq, bp, dl): the live events of the grade.
+			Intentos  map[string][]MarcadorIntento `json:"intentos"`
+			Clausulas []historialClausula          `json:"clausulas"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-atleta", Method: http.MethodGet, Path: base + "/fantasy/atletas/{aid}",
-		Summary: "Historial de la cláusula y puntos de un atleta", Tags: tagJuegos},
+		Summary: "Nota de un atleta con su desglose, sus intentos y el historial de la cláusula", Tags: tagJuegos},
 		func(ctx context.Context, in *atletaIn) (*atletaOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -655,7 +661,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			ats, err := s.mercadoFantasy(ctx, c.ID, *j, uuid.Nil)
+			ats, err := s.mercadoFantasy(ctx, c.ID, *j, uuid.Nil, uuid.Nil)
 			if err != nil {
 				return nil, err
 			}
@@ -669,36 +675,27 @@ func (s *Svc) registerPublic() {
 			if o.Body.Atleta == nil {
 				return nil, problem.NotFound("Ese atleta no está en la jornada.")
 			}
+			o.Body.Intentos = map[string][]MarcadorIntento{}
+			if m, err := s.marcador(ctx, c.ID, j.Dia); err == nil {
+				for i := range m.Atletas {
+					if m.Atletas[i].AtletaID == in.AID && m.Atletas[i].Intentos != nil {
+						o.Body.Intentos = m.Atletas[i].Intentos
+					}
+				}
+			}
 			rows, err := s.a.DB.Query(ctx, `SELECT clausula, delta, motivo, created_at::text FROM historial_clausulas
 				WHERE jornada_id = $1 AND atleta_id = $2 ORDER BY created_at DESC LIMIT 100`, j.ID, in.AID)
 			if err != nil {
 				return nil, err
 			}
+			defer rows.Close()
 			o.Body.Clausulas = []historialClausula{}
 			for rows.Next() {
 				var h historialClausula
 				if err := rows.Scan(&h.Clausula, &h.Delta, &h.Motivo, &h.CreatedAt); err != nil {
-					rows.Close()
 					return nil, err
 				}
 				o.Body.Clausulas = append(o.Body.Clausulas, h)
-			}
-			rows.Close()
-			if err := rows.Err(); err != nil {
-				return nil, err
-			}
-			rows, err = s.a.DB.Query(ctx, `SELECT concepto, puntos, ref FROM puntos WHERE jornada_id = $1 AND atleta_id = $2 ORDER BY ref`, j.ID, in.AID)
-			if err != nil {
-				return nil, err
-			}
-			defer rows.Close()
-			o.Body.Puntos = []puntoVista{}
-			for rows.Next() {
-				var p puntoVista
-				if err := rows.Scan(&p.Concepto, &p.Puntos, &p.Ref); err != nil {
-					return nil, err
-				}
-				o.Body.Puntos = append(o.Body.Puntos, p)
 			}
 			return o, rows.Err()
 		})
