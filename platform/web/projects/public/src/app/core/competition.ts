@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, type HttpInterceptorFn } from '@angular/
 import { InjectionToken, Injectable, PLATFORM_ID, REQUEST, RESPONSE_INIT, TransferState, inject, makeStateKey, signal } from '@angular/core';
 import { DOCUMENT, isPlatformServer } from '@angular/common';
 import { NavigationStart, Router } from '@angular/router';
-import { firstValueFrom, tap, throwError } from 'rxjs';
+import { firstValueFrom, tap, throwError, timeout } from 'rxjs';
 
 /** Base URL of the API when rendering on the server (in-cluster gateway); empty in the browser (same origin /api). */
 export const API_BASE = new InjectionToken<string>('API_BASE', { factory: () => '' });
@@ -24,7 +24,8 @@ export const apiBaseInterceptor: HttpInterceptorFn = (req, next) => {
   const xff = inject(REQUEST, { optional: true })?.headers.get('x-forwarded-for');
   const ssr = req.method === 'GET' ? inject(SSR_SECRET) : '';
   const headers: Record<string, string> = { ...(xff ? { 'X-Forwarded-For': xff } : {}), ...(ssr ? { 'X-GrCup-SSR': ssr } : {}) };
-  return next(req.clone({ url: base + req.url, setHeaders: headers }));
+  // A stuck upstream must not hold the render (and a web worker) for the gateway's 60 s: fail to 503 instead.
+  return next(req.clone({ url: base + req.url, setHeaders: headers })).pipe(timeout(10_000));
 };
 
 const NO_ENCONTRADOS = makeStateKey<Record<string, number>>('gr-api-4xx');

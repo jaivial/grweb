@@ -41,7 +41,14 @@ const STATIC_ROUTES = ['/', '/en', '/atletas', '/participantes', '/horarios', '/
 app.use(async (req, res, next) => {
   if (req.method !== 'GET' || req.path.includes('.')) return next();
   const map = await seoMap();
-  const r = map?.redirecciones.find((x) => x.desde === req.path);
+  // Follow chains to their end in one hop; a loop (a → b → a) is ignored instead of bouncing the browser forever.
+  const vistos = new Set([req.path]);
+  let r: SeoMap['redirecciones'][number] | undefined;
+  for (let x = map?.redirecciones.find((y) => y.desde === req.path); x; x = map?.redirecciones.find((y) => y.desde === r!.hacia)) {
+    if (vistos.has(x.hacia)) return next();
+    vistos.add(x.hacia);
+    r = x;
+  }
   if (r) return res.redirect(r.codigo, r.hacia);
   next();
 });
