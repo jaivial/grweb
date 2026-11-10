@@ -192,6 +192,8 @@ func (s *Svc) registerPublic() {
 		Body struct {
 			Jornada jornadaOut      `json:"jornada"`
 			Atletas []atletaMercado `json:"atletas"`
+			// Mejores: heaviest good lift of squat, bench and deadlift per sex + weight class (porra and bonuses).
+			Mejores []mejoresCategoria `json:"mejores"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-jornada", Method: http.MethodGet, Path: base + "/jornadas/{jid}",
@@ -211,7 +213,14 @@ func (s *Svc) registerPublic() {
 			o := &jornadaDetalleOut{}
 			o.Body.Jornada = jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
 			o.Body.Atletas, err = s.mercadoFantasy(ctx, c.ID, j, uuid.Nil, uuid.Nil)
-			return o, err
+			if err != nil {
+				return nil, err
+			}
+			o.Body.Mejores = []mejoresCategoria{}
+			if m, err := s.marcador(ctx, c.ID, j.Dia); err == nil { // cached 1 s, the market above just read it
+				o.Body.Mejores = mejoresPorCategoria(m)
+			}
+			return o, nil
 		})
 
 	// ---- porra ----
