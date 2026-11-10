@@ -20,8 +20,6 @@ type MarcadorIntento struct {
 	N         int     `json:"n"`
 	Peso      float64 `json:"peso"`
 	Resultado string  `json:"resultado" enum:"pendiente,valido,nulo,renuncia"`
-	// Votos are the three judges' lights (B white, R red); empty when the verdict came without lights (OpenLifter).
-	Votos     string     `json:"votos,omitempty"`
 	JuzgadoAt *time.Time `json:"juzgadoAt,omitempty"`
 }
 
@@ -231,7 +229,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 						terminado = false
 						continue
 					}
-					ma.Intentos[mv] = append(ma.Intentos[mv], MarcadorIntento{N: n, Peso: it.Peso, Resultado: it.Resultado, Votos: it.Votos, JuzgadoAt: it.JuzgadoAt})
+					ma.Intentos[mv] = append(ma.Intentos[mv], MarcadorIntento{N: n, Peso: it.Peso, Resultado: it.Resultado, JuzgadoAt: it.JuzgadoAt})
 					if !it.resuelto() {
 						terminado = false
 					}

@@ -136,7 +136,7 @@ func TestEventosNota(t *testing.T) {
 	t0 := time.Date(2026, 11, 10, 10, 0, 0, 0, time.UTC)
 	hora := func(min int) *time.Time { h := t0.Add(time.Duration(min) * time.Minute); return &h }
 	ma := &MarcadorAtleta{Intentos: map[string][]MarcadorIntento{
-		"sq": {{N: 1, Peso: 100, Resultado: "valido", Votos: "BBR", JuzgadoAt: hora(0)}, {N: 2, Peso: 110, Resultado: "nulo", Votos: "RRB", JuzgadoAt: hora(5)}, {N: 3, Peso: 110, Resultado: "pendiente"}},
+		"sq": {{N: 1, Peso: 100, Resultado: "valido", JuzgadoAt: hora(0)}, {N: 2, Peso: 110, Resultado: "nulo", JuzgadoAt: hora(5)}, {N: 3, Peso: 110, Resultado: "pendiente"}},
 		// Judged out of order on purpose: the events follow the hour.
 		"bp": {{N: 1, Peso: 60, Resultado: "valido", JuzgadoAt: hora(20)}, {N: 2, Peso: 65, Resultado: "valido", JuzgadoAt: hora(10)}},
 	}, Blanqueo: map[string]bool{}}
@@ -155,8 +155,8 @@ func TestEventosNota(t *testing.T) {
 			t.Fatalf("evento %d = %+v; quería %+v", i, ev[i], q)
 		}
 	}
-	if ev[0].Votos != "BBR" || ev[0].Hora == nil || ev[2].Votos != "" {
-		t.Fatalf("luces y hora: %+v / %+v", ev[0], ev[2])
+	if ev[0].Hora == nil {
+		t.Fatalf("hora: %+v", ev[0])
 	}
 	// Bomb-out: the third no lift of the movement leaves 0,0 and nothing after it moves the grade.
 	bomba := &MarcadorAtleta{Intentos: map[string][]MarcadorIntento{

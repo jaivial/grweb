@@ -107,8 +107,8 @@ type eventoNota struct {
 	N          int     `json:"n"`
 	Peso       float64 `json:"peso"`
 	Resultado  string  `json:"resultado" enum:"valido,nulo"`
-	// Votos are the three judges' lights (B white, R red); absent when the desk judged without lights.
-	Votos string     `json:"votos,omitempty"`
+	// Hora: when it was judged (live stamps it on arrival; OpenLifter sends no time). Only lift / no lift exists:
+	// the judges' lights never reach the platform.
 	Hora  *time.Time `json:"hora,omitempty"`
 	Delta float64    `json:"delta" doc:"Lo que el intento movió la nota"`
 	Nota  float64    `json:"nota" doc:"Nota de intentos tras este (sin puesto ni bonus, que llegan al cerrar)"`
@@ -125,7 +125,7 @@ func eventosNota(p PuntosCfg, ma *MarcadorAtleta) []eventoNota {
 	for _, mv := range movimientos {
 		for _, mi := range ma.Intentos[mv] {
 			if mi.Resultado == "valido" || mi.Resultado == "nulo" {
-				out = append(out, eventoNota{Movimiento: mv, N: mi.N, Peso: mi.Peso, Resultado: mi.Resultado, Votos: mi.Votos, Hora: mi.JuzgadoAt})
+				out = append(out, eventoNota{Movimiento: mv, N: mi.N, Peso: mi.Peso, Resultado: mi.Resultado, Hora: mi.JuzgadoAt})
 				porMov[mv]++
 			}
 		}
