@@ -57,7 +57,12 @@ export class Seo {
     let link = this.doc.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (d.robots?.includes('noindex')) {
       link?.remove();
-      if (this.res) this.res.headers = { ...(this.res.headers as Record<string, string> | undefined), 'X-Robots-Tag': d.robots };
+      if (this.res) {
+        // RESPONSE_INIT.headers is a Headers (already has Content-Type): spreading it would drop every header.
+        const h = new Headers(this.res.headers);
+        h.set('X-Robots-Tag', d.robots);
+        this.res.headers = h;
+      }
     } else {
       if (!link) {
         link = this.doc.createElement('link');

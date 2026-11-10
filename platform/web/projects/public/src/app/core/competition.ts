@@ -28,7 +28,11 @@ export function marcarFallo(res: ResponseInit | null, e: unknown): void {
   if (!res || (res.status === 429 && !limitado)) return;
   res.status = limitado ? 429 : 503;
   const retry = limitado ? ((e as HttpErrorResponse).headers.get('Retry-After') ?? '60') : '30';
-  res.headers = { ...(res.headers as Record<string, string> | undefined), 'Retry-After': retry, 'Cache-Control': 'no-store' };
+  // RESPONSE_INIT.headers is a Headers (already has Content-Type): spreading it would drop every header.
+  const h = new Headers(res.headers);
+  h.set('Retry-After', retry);
+  h.set('Cache-Control', 'no-store');
+  res.headers = h;
 }
 
 export interface CompeticionPublica {
