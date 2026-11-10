@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { GrIcon } from '@grcup/ui';
+import { GrCheckbox, GrIcon } from '@grcup/ui';
 import { Novedades, mensajeError } from '../core/novedades';
 
 /** «Novedades de la GRStrength Cup» (Figma «Footer» and «Próximamente» pages): email + unticked consent → double opt-in. */
 @Component({
   selector: 'gr-newsletter',
-  imports: [FormsModule, GrIcon],
+  imports: [FormsModule, GrCheckbox, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -30,16 +30,17 @@ import { Novedades, mensajeError } from '../core/novedades';
             <label class="relative min-w-0 flex-1">
               <span class="sr-only">Tu email</span>
               <gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-              <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" required
+              <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" required maxlength="254"
+                [attr.aria-invalid]="campo() === 'email' || null" [attr.aria-describedby]="campo() === 'email' ? id + '-e' : null"
                 class="h-12 w-full rounded-sm border border-line-strong bg-bg-field pr-3 pl-9 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
             </label>
             <button type="submit" class="h-12 shrink-0 rounded-sm bg-accent-grain px-6 text-label-m text-white disabled:opacity-60" [disabled]="enviando()">{{ enviando() ? 'Enviando…' : 'Suscribirme' }}</button>
           </div>
-          <label class="flex items-start gap-2.5 text-body-xs text-text-secondary">
-            <input type="checkbox" name="acepta" class="mt-0.5 size-4 shrink-0 accent-[#c42b3e]" [(ngModel)]="acepta" />
-            <span>Quiero recibir novedades de GRStrength. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic. <a href="/privacidad" class="text-accent-text underline-offset-2 hover:underline">Política de privacidad</a></span>
-          </label>
-          @if (error()) { <p class="text-body-xs text-accent-text" role="alert">{{ error() }}</p> }
+          <!-- Figma «Checkbox» (Kind Legal) -->
+          <gr-checkbox name="acepta" [(checked)]="acepta" [invalid]="campo() === 'acepta'">
+            <span class="text-body-xs text-text-secondary">Quiero recibir novedades de GRStrength. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic. <a href="/privacidad" class="text-accent-text underline-offset-2 hover:underline">Política de privacidad</a></span>
+          </gr-checkbox>
+          @if (error()) { <p [id]="id + '-e'" class="text-body-xs text-accent-text" role="alert">{{ error() }}</p> }
         </form>
       }
     </section>
@@ -59,22 +60,31 @@ export class Newsletter {
   protected readonly enviando = signal(false);
   protected readonly enviado = signal(false);
   protected readonly error = signal('');
+  /** Field the current error belongs to (aria-invalid / aria-describedby). */
+  protected readonly campo = signal<'email' | 'acepta' | null>(null);
   protected email = '';
   protected acepta = false;
 
   protected async enviar(): Promise<void> {
     this.error.set('');
+    this.campo.set(null);
     const e = this.email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return this.error.set('Escribe un email válido.');
-    if (!this.acepta) return this.error.set('Marca la casilla para recibir las novedades.');
+    if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return this.fallo('Escribe un email válido.', 'email');
+    if (!this.acepta) return this.fallo('Marca la casilla para recibir las novedades.', 'acepta');
     this.enviando.set(true);
     try {
       await this.api.suscribir(e, true, this.origen() || this.router.url.split('?')[0] || '/');
       this.enviado.set(true);
     } catch (err) {
-      this.error.set(mensajeError(err));
+      const m = mensajeError(err);
+      this.fallo(m, m === 'Escribe un email válido.' ? 'email' : null);
     } finally {
       this.enviando.set(false);
     }
+  }
+
+  private fallo(m: string, campo: 'email' | 'acepta' | null): void {
+    this.error.set(m);
+    this.campo.set(campo);
   }
 }

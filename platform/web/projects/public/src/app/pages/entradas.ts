@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
+import { GrAlert, GrButton, GrCheckbox, GrIcon, GrLogo, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
@@ -121,7 +121,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
  */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
+  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
@@ -205,7 +205,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <label class="relative block"><span class="sr-only">Email</span><gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3.5 -translate-y-1/2 text-text-tertiary" />
                     <input type="email" autocomplete="email" class="pl-10" [class]="campo(false)" placeholder="tu@email.com" [(ngModel)]="f.email" name="we" /></label>
                   <ng-container [ngTemplateOutlet]="personas" />
-                  <label class="flex items-start gap-3 text-body-s"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.privacidad" name="wp" /><span>He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></label>
+                  <gr-checkbox name="wp" [(checked)]="f.privacidad">He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</gr-checkbox>
                   @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
                   <button grButton variant="primary" size="l" type="button" class="w-full" [loading]="enviando()" (click)="apuntarme()">Apuntarme a la lista de espera</button>
                   @if (abiertas().length) { <button type="button" class="h-11 text-label-s text-text-tertiary hover:text-text-primary" (click)="elegir(abiertas()[0])">Elegir otra sesión</button> }
@@ -279,12 +279,12 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   </fieldset>
                 }
                 <div class="flex flex-col gap-3 text-body-s">
-                  <label class="flex items-start gap-3" [class.text-accent-text]="err('privacidad')"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.privacidad" name="priv" [attr.aria-invalid]="err('privacidad')" /><span>He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></label>
+                  <gr-checkbox name="priv" [(checked)]="f.privacidad" [invalid]="!!err('privacidad')"><span [class.text-accent-text]="err('privacidad')">He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></gr-checkbox>
                   @if (boletos()) {
-                    <label class="flex items-start gap-3" [class.text-accent-text]="err('edad')"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.mayorEdad" name="edad" [attr.aria-invalid]="err('edad')" /><span>Tengo 18 años o más (para el sorteo) *</span></label>
-                    <label class="flex items-start gap-3" [class.text-accent-text]="err('bases')"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.bases" name="bases" [attr.aria-invalid]="err('bases')" /><span>Acepto las <a href="/politica-concurso" class="text-accent-text underline">bases del sorteo</a> *</span></label>
+                    <gr-checkbox name="edad" [(checked)]="f.mayorEdad" [invalid]="!!err('edad')"><span [class.text-accent-text]="err('edad')">Tengo 18 años o más (para el sorteo) *</span></gr-checkbox>
+                    <gr-checkbox name="bases" [(checked)]="f.bases" [invalid]="!!err('bases')"><span [class.text-accent-text]="err('bases')">Acepto las <a href="/politica-concurso" class="text-accent-text underline">bases del sorteo</a> *</span></gr-checkbox>
                   }
-                  <label class="flex items-start gap-3"><input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#c42b3e]" [(ngModel)]="f.novedades" name="nov" /><span>Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></span></label>
+                  <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
                 </div>
                 <button grButton variant="primary" size="l" type="submit" class="w-full" [loading]="enviando()">{{ boletos() ? 'Reservar y pagar ' + euros(boletos() * (sorteoAbierto()?.precio ?? 0)) : 'Reservar entrada gratis' }}</button>
