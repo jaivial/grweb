@@ -15,6 +15,9 @@ type MarcadorIntento struct {
 	N         int     `json:"n"`
 	Peso      float64 `json:"peso"`
 	Resultado string  `json:"resultado"`
+	// Votos: the three judges' lights (B white, R red); empty when the desk judged without lights (OpenLifter).
+	Votos     string     `json:"votos,omitempty"`
+	JuzgadoAt *time.Time `json:"juzgadoAt,omitempty"`
 }
 
 // MarcadorAtleta mirrors one athlete of the live scoreboard.

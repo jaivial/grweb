@@ -26,6 +26,19 @@ type clausulazoVista struct {
 	Motivo  string     `json:"motivo,omitempty" enum:"sin_horario,ultima_sesion" doc:"Por qué están cerrados"`
 }
 
+// horarioVista tells the web when the day starts for the rooms and when clausulazos close (absent = no schedule).
+type horarioVista struct {
+	Inicio       *time.Time `json:"inicio,omitempty" doc:"Primera sesión del día: desde entonces las salas están en juego"`
+	UltimaSesion *time.Time `json:"ultimaSesion,omitempty" doc:"Inicio de la última sesión: cierre de clausulazos"`
+}
+
+func (h horarioDia) vista() horarioVista {
+	if !h.OK {
+		return horarioVista{}
+	}
+	return horarioVista{Inicio: &h.Inicio, UltimaSesion: &h.UltimaSesion}
+}
+
 // clausulazo: open until the last session of the day starts; without schedule, blocked.
 func (h horarioDia) clausulazo(ahora time.Time) clausulazoVista {
 	if !h.OK {

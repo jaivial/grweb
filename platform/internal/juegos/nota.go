@@ -8,6 +8,8 @@ package juegos
 
 import (
 	"math"
+	"sort"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -97,6 +99,62 @@ func calcularNota(p PuntosCfg, ma *MarcadorAtleta, ex notaExtras) notaAtleta {
 	total += bonus + linea("nulos", -p.Nulo*float64(n.Nulos))
 	n.Nota = redondeo2(math.Max(0, math.Min(10, total)))
 	return n
+}
+
+// eventoNota is one judged attempt of an athlete and what it did to his grade.
+type eventoNota struct {
+	Movimiento string  `json:"movimiento" enum:"sq,bp,dl"`
+	N          int     `json:"n"`
+	Peso       float64 `json:"peso"`
+	Resultado  string  `json:"resultado" enum:"valido,nulo"`
+	// Votos are the three judges' lights (B white, R red); absent when the desk judged without lights.
+	Votos string     `json:"votos,omitempty"`
+	Hora  *time.Time `json:"hora,omitempty"`
+	Delta float64    `json:"delta" doc:"Lo que el intento movió la nota"`
+	Nota  float64    `json:"nota" doc:"Nota de intentos tras este (sin puesto ni bonus, que llegan al cerrar)"`
+	// Blanqueo: this attempt was the third no lift of the movement, the grade drops to 0,0 for good.
+	Blanqueo bool `json:"blanqueo,omitempty"`
+}
+
+// eventosNota replays the judged attempts of an athlete in the order they were judged: each valid one adds
+// intentos ÷ 9, each no lift subtracts nulo, and the attempt that completes a bomb-out leaves 0,0. Place and
+// bonuses are not events (they depend on the others and land at the end): the breakdown of the grade has them.
+func eventosNota(p PuntosCfg, ma *MarcadorAtleta) []eventoNota {
+	out := []eventoNota{}
+	porMov := map[string]int{}
+	for _, mv := range movimientos {
+		for _, mi := range ma.Intentos[mv] {
+			if mi.Resultado == "valido" || mi.Resultado == "nulo" {
+				out = append(out, eventoNota{Movimiento: mv, N: mi.N, Peso: mi.Peso, Resultado: mi.Resultado, Votos: mi.Votos, Hora: mi.JuzgadoAt})
+				porMov[mv]++
+			}
+		}
+	}
+	// Judged time first; attempts without it keep the order of the competition (sq, bp, dl and attempt number).
+	sort.SliceStable(out, func(i, k int) bool {
+		a, b := out[i].Hora, out[k].Hora
+		return a != nil && b != nil && a.Before(*b)
+	})
+	validos, nulos, nota, blanqueado := 0, 0, 0.0, false
+	for i := range out {
+		e := &out[i]
+		if e.Resultado == "valido" {
+			validos++
+		} else {
+			nulos++
+		}
+		porMov[e.Movimiento]--
+		if porMov[e.Movimiento] == 0 && ma.Blanqueo[e.Movimiento] && !blanqueado {
+			blanqueado, e.Blanqueo = true, true
+		}
+		nueva := 0.0
+		if !blanqueado {
+			nueva = redondeo2(math.Max(0, math.Min(10, p.Intentos*float64(validos)/9-p.Nulo*float64(nulos))))
+		}
+		e.Delta, e.Nota = redondeo2(nueva-nota), nueva
+		nota = nueva
+	}
+	return out
 }
 
 // notasDelMarcador grades every athlete of a scoreboard.

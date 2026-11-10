@@ -646,8 +646,11 @@ func (s *Svc) registerPublic() {
 		Body struct {
 			Atleta *atletaMercado `json:"atleta" doc:"Con la nota y su desglose (sin dueño: el dueño depende de la sala)"`
 			// Intentos are the attempts of the scoreboard by lift (sq, bp, dl): the live events of the grade.
-			Intentos  map[string][]MarcadorIntento `json:"intentos"`
-			Clausulas []historialClausula          `json:"clausulas"`
+			Intentos map[string][]MarcadorIntento `json:"intentos"`
+			// Eventos are the judged attempts in order with their hour, the judges' lights (if the desk sent them)
+			// and what each one did to the grade.
+			Eventos   []eventoNota        `json:"eventos"`
+			Clausulas []historialClausula `json:"clausulas"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-atleta", Method: http.MethodGet, Path: base + "/fantasy/atletas/{aid}",
@@ -675,11 +678,14 @@ func (s *Svc) registerPublic() {
 			if o.Body.Atleta == nil {
 				return nil, problem.NotFound("Ese atleta no está en la jornada.")
 			}
-			o.Body.Intentos = map[string][]MarcadorIntento{}
+			o.Body.Intentos, o.Body.Eventos = map[string][]MarcadorIntento{}, []eventoNota{}
 			if m, err := s.marcador(ctx, c.ID, j.Dia); err == nil {
 				for i := range m.Atletas {
 					if m.Atletas[i].AtletaID == in.AID && m.Atletas[i].Intentos != nil {
 						o.Body.Intentos = m.Atletas[i].Intentos
+						if cfg, err := configJuegos(ctx, s.a.DB, c.ID); err == nil {
+							o.Body.Eventos = eventosNota(cfg.Puntos, &m.Atletas[i])
+						}
 					}
 				}
 			}

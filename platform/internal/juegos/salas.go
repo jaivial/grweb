@@ -33,16 +33,17 @@ type salaRow struct {
 	Anfitrion uuid.UUID
 	Plazas    int
 	Publica   bool
+	Admite    bool // new requests from the lobby are open (the host can block them)
 	Codigo    string
 	Estado    string
 	CreatedAt time.Time
 }
 
-const selSala = `SELECT s.id, s.jornada_id, s.nombre, s.anfitrion_fan_id, s.plazas, s.publica, s.codigo, s.estado, s.created_at FROM salas s`
+const selSala = `SELECT s.id, s.jornada_id, s.nombre, s.anfitrion_fan_id, s.plazas, s.publica, s.admite_solicitudes, s.codigo, s.estado, s.created_at FROM salas s`
 
 func scanSala(r pgx.Row) (*salaRow, error) {
 	var s salaRow
-	if err := r.Scan(&s.ID, &s.JornadaID, &s.Nombre, &s.Anfitrion, &s.Plazas, &s.Publica, &s.Codigo, &s.Estado, &s.CreatedAt); err != nil {
+	if err := r.Scan(&s.ID, &s.JornadaID, &s.Nombre, &s.Anfitrion, &s.Plazas, &s.Publica, &s.Admite, &s.Codigo, &s.Estado, &s.CreatedAt); err != nil {
 		return nil, err
 	}
 	return &s, nil
@@ -123,11 +124,14 @@ func esUnico(err error, restriccion string) bool {
 	return errors.As(err, &pg) && pg.Code == "23505" && strings.Contains(pg.ConstraintName, restriccion)
 }
 
-// eventoSala emits fantasy.sala (lobby and room views refetch) — only ids and the kind of change.
-func eventoSala(ctx context.Context, tx pgx.Tx, cid, jid, salaID uuid.UUID, tipo string) error {
-	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.sala",
-		map[string]any{"jornadaId": jid.String(), "salaId": salaID.String(), "tipo": tipo},
-		events.Competition(cid.String()), events.Audience(events.Public)))
+// eventoSala emits fantasy.sala (lobby and room views refetch) — only ids and the kind of change. The stream is
+// public, so a room that is not public («solo enlace») does not publish its id: its members refetch on `privada`.
+func eventoSala(ctx context.Context, tx pgx.Tx, cid uuid.UUID, s *salaRow, tipo string) error {
+	datos := map[string]any{"jornadaId": s.JornadaID.String(), "salaId": s.ID.String(), "tipo": tipo}
+	if !s.Publica {
+		datos = map[string]any{"jornadaId": s.JornadaID.String(), "privada": true, "tipo": tipo}
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.sala", datos, events.Competition(cid.String()), events.Audience(events.Public)))
 }
 
 // eventoSolicitud emits fantasy.solicitud (the host's tray and the requester's state refetch). solicitudId lets
@@ -203,7 +207,7 @@ func crearSalaTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, fanID
 	if existe {
 		return nil, problem.Conflict("NOMBRE_OCUPADO", "Ya hay una sala con ese nombre hoy. Elige otro.")
 	}
-	s := &salaRow{ID: newID(), JornadaID: j.ID, Nombre: nombre, Anfitrion: fanID, Plazas: plazas, Publica: publica, Codigo: nuevoCodigo(), Estado: "abierta"}
+	s := &salaRow{ID: newID(), JornadaID: j.ID, Nombre: nombre, Anfitrion: fanID, Plazas: plazas, Publica: publica, Admite: true, Codigo: nuevoCodigo(), Estado: "abierta"}
 	if err := tx.QueryRow(ctx, `INSERT INTO salas (id, competition_id, jornada_id, nombre, nombre_norm, anfitrion_fan_id, plazas, publica, codigo)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING created_at`, s.ID, cid, j.ID, nombre, normalizarNombre(nombre), fanID, plazas, publica, s.Codigo).Scan(&s.CreatedAt); err != nil {
 		if esUnico(err, "salas_nombre") { // two rooms with the same name created at once
@@ -214,7 +218,7 @@ func crearSalaTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, fanID
 	if err := altaMiembroTx(ctx, tx, cid, j, s, fanID, alias); err != nil {
 		return nil, err
 	}
-	return s, eventoSala(ctx, tx, cid, j.ID, s.ID, "creada")
+	return s, eventoSala(ctx, tx, cid, s, "creada")
 }
 
 // altaMiembroTx seats a fan in a room that the caller holds FOR UPDATE (or has just created): one room per day,
@@ -293,7 +297,7 @@ func unirsePorCodigoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 	if err := altaMiembroTx(ctx, tx, cid, j, s, fanID, alias); err != nil {
 		return nil, err
 	}
-	return s, eventoSala(ctx, tx, cid, j.ID, s.ID, "miembros")
+	return s, eventoSala(ctx, tx, cid, s, "miembros")
 }
 
 // solicitarTx asks to join a public room from the lobby: at most maxSolicitudes pending per fan, never again in
@@ -311,6 +315,9 @@ func solicitarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, salaI
 	}
 	if err := entradaPosibleTx(ctx, tx, j, s, fanID); err != nil {
 		return uuid.Nil, err
+	}
+	if !s.Admite {
+		return uuid.Nil, problem.Conflict("SOLICITUDES_BLOQUEADAS", "El anfitrión ha bloqueado las solicitudes de esta sala: solo se entra con su enlace de invitación.")
 	}
 	var miembros int
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM sala_miembros WHERE sala_id = $1`, s.ID).Scan(&miembros); err != nil {
@@ -407,7 +414,7 @@ func responderSolicitudTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jorna
 		if err := altaMiembroTx(ctx, tx, cid, j, s, fanID, alias); err != nil {
 			return err
 		}
-		if err := eventoSala(ctx, tx, cid, j.ID, s.ID, "miembros"); err != nil {
+		if err := eventoSala(ctx, tx, cid, s, "miembros"); err != nil {
 			return err
 		}
 	}
@@ -449,7 +456,7 @@ func cerrarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, s *salaR
 	if err := cerrarSolicitudesTx(ctx, tx, cid, j.ID, s.ID, uuid.Nil, "cancelada"); err != nil {
 		return err
 	}
-	return eventoSala(ctx, tx, cid, j.ID, s.ID, estado)
+	return eventoSala(ctx, tx, cid, s, estado)
 }
 
 // salirTx: a member leaves before the day starts. His athletes go back to the market; the host role passes to
@@ -489,7 +496,37 @@ func quitarMiembroTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, s
 			return err
 		}
 	}
-	return eventoSala(ctx, tx, cid, j.ID, s.ID, "miembros")
+	return eventoSala(ctx, tx, cid, s, "miembros")
+}
+
+// transferirTx: the host hands the role to another member of the room (by his public miembro id), also once the
+// day is on. The room row lock serializes it with leaves and expulsions.
+func transferirTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, salaID, anfitrion, miembroID uuid.UUID) error {
+	s, err := salaTx(ctx, tx, j, salaID)
+	if err != nil {
+		return err
+	}
+	if s.Anfitrion != anfitrion {
+		return problem.Forbidden("Solo el anfitrión de la sala puede hacer eso.")
+	}
+	if s.Estado != "abierta" && s.Estado != "en_juego" {
+		return problem.Conflict("SALA_NO_DISPONIBLE", "La sala está cerrada.")
+	}
+	var nuevo uuid.UUID
+	err = tx.QueryRow(ctx, `SELECT fan_id FROM sala_miembros WHERE sala_id = $1 AND miembro_id = $2`, s.ID, miembroID).Scan(&nuevo)
+	if db.IsNoRows(err) {
+		return problem.NotFound("Ese jugador no está en la sala.")
+	}
+	if err != nil {
+		return err
+	}
+	if nuevo == anfitrion {
+		return problem.Conflict("ANFITRION", "Ya eres el anfitrión de la sala.")
+	}
+	if _, err := tx.Exec(ctx, `UPDATE salas SET anfitrion_fan_id = $2, version = version + 1, updated_at = now() WHERE id = $1`, s.ID, nuevo); err != nil {
+		return err
+	}
+	return eventoSala(ctx, tx, cid, s, "anfitrion")
 }
 
 // expulsarTx: the host removes a member (by his public miembro id) before the day starts; he cannot come back.
@@ -551,7 +588,7 @@ func iniciarSalasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada) er
 		if _, err := tx.Exec(ctx, `UPDATE salas SET estado = 'en_juego', version = version + 1, updated_at = now() WHERE id = $1`, s.ID); err != nil {
 			return err
 		}
-		if err := eventoSala(ctx, tx, cid, j.ID, s.ID, "en_juego"); err != nil {
+		if err := eventoSala(ctx, tx, cid, s, "en_juego"); err != nil {
 			return err
 		}
 	}

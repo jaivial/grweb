@@ -28,12 +28,14 @@ type atletaMercado struct {
 	AtletaID uuid.UUID `json:"atletaId"`
 	Nombre   string    `json:"nombre"`
 	// FotoURL is the public photo (public profile with image consent, from the live scoreboard); empty otherwise.
-	FotoURL    string `json:"fotoUrl,omitempty"`
-	Sexo       string `json:"sexo"`
-	Categoria  string `json:"categoria"`
-	Clausula   int64  `json:"clausula"`
-	DuenoAlias string `json:"duenoAlias,omitempty"`
-	Protegido  bool   `json:"protegido"`
+	FotoURL   string `json:"fotoUrl,omitempty"`
+	Sexo      string `json:"sexo"`
+	Categoria string `json:"categoria"`
+	Clausula  int64  `json:"clausula"`
+	// PrecioVenta is what a sale pays: the clause of the jornada without the demand of the room.
+	PrecioVenta int64  `json:"precioVenta"`
+	DuenoAlias  string `json:"duenoAlias,omitempty"`
+	Protegido   bool   `json:"protegido"`
 	// ProtegidoHasta is set while the protection after the last signing lasts (the «Protegido · mm:ss» countdown).
 	ProtegidoHasta *time.Time `json:"protegidoHasta,omitempty"`
 	Libre          bool       `json:"libre"`
@@ -66,7 +68,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 	notas := notasDelMarcador(cfg.Puntos, m)
 	// COALESCE: `protegido_hasta > now()` is NULL when the athlete was never signed (NULL > now() = NULL) and a
 	// NULL cannot be scanned into a bool.
-	rows, err := s.a.DB.Query(ctx, `SELECT fa.atleta_id, fa.nombre_publico, fa.sexo, fa.categoria, `+precioSala+`, sa.dueno_fan_id, COALESCE(sa.dueno_alias, ''),
+	rows, err := s.a.DB.Query(ctx, `SELECT fa.atleta_id, fa.nombre_publico, fa.sexo, fa.categoria, `+precioSala+`, fa.clausula, sa.dueno_fan_id, COALESCE(sa.dueno_alias, ''),
 			COALESCE(sa.protegido_hasta > now(), false), CASE WHEN sa.protegido_hasta > now() THEN sa.protegido_hasta END
 		FROM fantasy_atletas fa LEFT JOIN sala_atletas sa ON sa.sala_id = $2 AND sa.atleta_id = fa.atleta_id
 		WHERE fa.jornada_id = $1 ORDER BY fa.sexo, fa.categoria, fa.nombre_publico`, j.ID, salaID)
@@ -78,7 +80,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 	for rows.Next() {
 		var a atletaMercado
 		var dueno *uuid.UUID
-		if err := rows.Scan(&a.AtletaID, &a.Nombre, &a.Sexo, &a.Categoria, &a.Clausula, &dueno, &a.DuenoAlias, &a.Protegido, &a.ProtegidoHasta); err != nil {
+		if err := rows.Scan(&a.AtletaID, &a.Nombre, &a.Sexo, &a.Categoria, &a.Clausula, &a.PrecioVenta, &dueno, &a.DuenoAlias, &a.Protegido, &a.ProtegidoHasta); err != nil {
 			return nil, err
 		}
 		a.Libre = dueno == nil
@@ -97,6 +99,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 // atletaSala is the ownership of one athlete inside a room, read under the athlete row lock.
 type atletaSala struct {
 	Clausula   int64 // price inside the room
+	Base       int64 // clause of the jornada (base × grade factor), without the demand of the room
 	Publica    bool  // the room shows in the lobby
 	Dueno      *uuid.UUID
 	DuenoAlias string
@@ -116,8 +119,7 @@ func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, 
 	if err != nil {
 		return a, err
 	}
-	var base int64
-	err = tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, j.ID, atletaID).Scan(&base)
+	err = tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, j.ID, atletaID).Scan(&a.Base)
 	if db.IsNoRows(err) {
 		return a, problem.NotFound("Ese atleta no está en la jornada.")
 	}
@@ -179,7 +181,9 @@ func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	return eventoFichaje(ctx, tx, cid, j.ID, salaID, a.Publica, atletaID, "compra", "", alias, a.Clausula)
 }
 
-// venderTx returns an athlete to the market of the room: the seller receives 100 % of the current value.
+// venderTx returns an athlete to the market of the room. The seller receives the clause of the jornada (base ×
+// grade factor) WITHOUT the demand of the room: the +3 % his own signing added is never cashed, so a buy-and-sell
+// loop cannot mint coins. Only the grade of the athlete can make a sale worth more than the purchase.
 func (s *Svc) venderTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, salaID, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
 	a, err := bloquearAtletaTx(ctx, tx, j, salaID, fanID, atletaID)
 	if err != nil {
@@ -192,17 +196,17 @@ func (s *Svc) venderTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 		return problem.Conflict("ATLETA_AJENO", "Ese atleta no es tuyo.")
 	}
 	fid := newID()
-	if _, err := acreditarTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "venta", "venta:"+fid.String(), alias); err != nil {
+	if _, err := acreditarTx(ctx, tx, j, fanID, Fantasy, a.Base, "venta", "venta:"+fid.String(), alias); err != nil {
 		return err
 	}
 	if err := asignarDuenoTx(ctx, tx, salaID, atletaID, nil, "", cfg.ProteccionMin, 0); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, sala_id, atleta_id, de_fan, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$6,$6,'venta',$7)`,
-		fid, cid, j.ID, salaID, atletaID, fanID, a.Clausula); err != nil {
+		fid, cid, j.ID, salaID, atletaID, fanID, a.Base); err != nil {
 		return err
 	}
-	return eventoFichaje(ctx, tx, cid, j.ID, salaID, a.Publica, atletaID, "venta", alias, "", a.Clausula)
+	return eventoFichaje(ctx, tx, cid, j.ID, salaID, a.Publica, atletaID, "venta", alias, "", a.Base)
 }
 
 // clausulazoTx pays the clause of an athlete owned by another player of the room: the money goes to the previous
@@ -310,11 +314,11 @@ func contarAlineacionTx(ctx context.Context, tx pgx.Tx, salaID, fanID uuid.UUID)
 }
 
 // eventoFichaje emits the signing event on the public stream. A room that is not public («solo enlace») only tells
-// that something changed (its members refetch): no aliases and no price leave the room.
+// that something changed (its members refetch): no room id, aliases or price leave the room.
 func eventoFichaje(ctx context.Context, tx pgx.Tx, cid, jid, salaID uuid.UUID, publica bool, atletaID uuid.UUID, tipo, aliasDe, aliasA string, precio int64) error {
 	datos := map[string]any{"jornadaId": jid.String(), "salaId": salaID.String(), "atletaId": atletaID.String(), "tipo": tipo, "aliasDe": aliasDe, "aliasA": aliasA, "precio": precio}
 	if !publica {
-		datos = map[string]any{"jornadaId": jid.String(), "salaId": salaID.String(), "privada": true}
+		datos = map[string]any{"jornadaId": jid.String(), "privada": true}
 	}
 	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.fichaje", datos, events.Competition(cid.String()), events.Audience(events.Public)))
 }

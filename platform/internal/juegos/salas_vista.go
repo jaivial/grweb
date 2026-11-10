@@ -23,6 +23,8 @@ type atletaAlineado struct {
 	Categoria string     `json:"categoria"`
 	Clausula  int64      `json:"clausula"`
 	Nota      notaAtleta `json:"nota"`
+	// Eventos are the judged attempts with their hour (only in the palmarés snapshot).
+	Eventos []eventoNota `json:"eventos,omitempty"`
 }
 
 // filaSala is one player of a room classification.
@@ -51,10 +53,20 @@ type salaVista struct {
 	Miembros  int       `json:"miembros"`
 	Estado    string    `json:"estado" enum:"esperando,lista,llena,en_juego,cancelada,cerrada,finalizada"`
 	Publica   bool      `json:"publica"`
-	Lider     *filaSala `json:"lider,omitempty" doc:"Quién va ganando, con su alineación"`
-	EsMia     bool      `json:"esMia"`
+	// AdmiteSolicitudes is false when the host blocked the requests from the lobby (the link still works).
+	AdmiteSolicitudes bool      `json:"admiteSolicitudes"`
+	Lider             *filaSala `json:"lider,omitempty" doc:"Quién va ganando, con su alineación"`
+	EsMia             bool      `json:"esMia"`
 	// MiSolicitud is the state of my request to this room, if any.
 	MiSolicitud string `json:"miSolicitud,omitempty" enum:"pendiente,aceptada,rechazada,cancelada,caducada,sala_llena,expulsada"`
+	// MiSolicitudAt is when I sent it: the web shows «aún no responde» 30 minutes later.
+	MiSolicitudAt *time.Time `json:"miSolicitudAt,omitempty"`
+}
+
+// miSolicitud is the fan's request to a room.
+type miSolicitud struct {
+	Estado string
+	At     time.Time
 }
 
 // estadoPublico derives what the web shows: an open room waits for its 2nd player, is ready, or is full.
@@ -185,9 +197,12 @@ func ordenarSala(fs []filaSala) {
 }
 
 // vistaDe builds the lobby view of one room from its classification.
-func vistaDe(sl *salaRow, filas []filaSala, mia bool, miSolicitud string) salaVista {
-	v := salaVista{ID: sl.ID, Nombre: sl.Nombre, Plazas: sl.Plazas, Miembros: len(filas), Publica: sl.Publica,
-		Estado: estadoPublico(sl.Estado, len(filas), sl.Plazas), EsMia: mia, MiSolicitud: miSolicitud}
+func vistaDe(sl *salaRow, filas []filaSala, mia bool, sol *miSolicitud) salaVista {
+	v := salaVista{ID: sl.ID, Nombre: sl.Nombre, Plazas: sl.Plazas, Miembros: len(filas), Publica: sl.Publica, AdmiteSolicitudes: sl.Admite,
+		Estado: estadoPublico(sl.Estado, len(filas), sl.Plazas), EsMia: mia}
+	if sol != nil {
+		v.MiSolicitud, v.MiSolicitudAt = sol.Estado, &sol.At
+	}
 	for i := range filas {
 		if filas[i].EsAnfitrion {
 			v.Anfitrion = filas[i].Alias
@@ -265,29 +280,29 @@ func (s *Svc) lobbyAdmin(ctx context.Context, cid uuid.UUID, j jornada) ([]salaV
 	}
 	out := make([]salaVista, 0, len(salas))
 	for _, sl := range salas {
-		out = append(out, vistaDe(sl, clas[sl.ID], false, ""))
+		out = append(out, vistaDe(sl, clas[sl.ID], false, nil))
 	}
 	return out, nil
 }
 
-// misSolicitudes maps room → state of the fan's request in a jornada.
-func misSolicitudes(ctx context.Context, q querier, jid, fanID uuid.UUID) (map[uuid.UUID]string, error) {
-	out := map[uuid.UUID]string{}
+// misSolicitudes maps room → the fan's request in a jornada (state and when it was sent).
+func misSolicitudes(ctx context.Context, q querier, jid, fanID uuid.UUID) (map[uuid.UUID]*miSolicitud, error) {
+	out := map[uuid.UUID]*miSolicitud{}
 	if fanID == uuid.Nil {
 		return out, nil
 	}
-	rows, err := q.Query(ctx, `SELECT sala_id, estado FROM sala_solicitudes WHERE jornada_id = $1 AND fan_id = $2`, jid, fanID)
+	rows, err := q.Query(ctx, `SELECT sala_id, estado, created_at FROM sala_solicitudes WHERE jornada_id = $1 AND fan_id = $2`, jid, fanID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var id uuid.UUID
-		var e string
-		if err := rows.Scan(&id, &e); err != nil {
+		var e miSolicitud
+		if err := rows.Scan(&id, &e.Estado, &e.At); err != nil {
 			return nil, err
 		}
-		out[id] = e
+		out[id] = &e
 	}
 	return out, rows.Err()
 }
@@ -330,14 +345,28 @@ func (s *Svc) finalizarSalas(ctx context.Context, cid uuid.UUID, j jornada) erro
 		if err != nil {
 			return err
 		}
+		// The snapshot keeps the judged attempts of every lined-up athlete with their hour (the detail of the game).
+		eventos := map[uuid.UUID][]eventoNota{}
+		if m, err := s.marcador(ctx, cid, j.Dia); err == nil {
+			if cfg, err := configJuegos(ctx, tx, cid); err == nil {
+				for i := range m.Atletas {
+					eventos[m.Atletas[i].AtletaID] = eventosNota(cfg.Puntos, &m.Atletas[i])
+				}
+			}
+		}
 		for _, sl := range salas {
 			for _, f := range clas[sl.ID] {
+				for i := range f.Alineacion {
+					f.Alineacion[i].Eventos = eventos[f.Alineacion[i].AtletaID]
+				}
 				al, err := json.Marshal(f.Alineacion)
 				if err != nil {
 					return err
 				}
-				if _, err := tx.Exec(ctx, `INSERT INTO palmares (sala_id, fan_id, jornada_id, competition_id, puesto, alias, nota, valor, saldo, alineacion)
-					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING`,
+				// fichajes = signings the player made in the room (buys and clausulazos); clausulazos = the ones he paid.
+				if _, err := tx.Exec(ctx, `INSERT INTO palmares (sala_id, fan_id, jornada_id, competition_id, puesto, alias, nota, valor, saldo, alineacion, fichajes, clausulazos)
+					SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10, count(*) FILTER (WHERE tipo <> 'venta'), count(*) FILTER (WHERE tipo = 'clausulazo')
+					FROM fichajes WHERE sala_id = $1 AND a_fan = $2 ON CONFLICT DO NOTHING`,
 					sl.ID, f.fanID, j.ID, cid, f.Puesto, f.Alias, f.Nota, f.Valor, f.Saldo, al); err != nil {
 					return err
 				}
@@ -345,7 +374,7 @@ func (s *Svc) finalizarSalas(ctx context.Context, cid uuid.UUID, j jornada) erro
 			if _, err := tx.Exec(ctx, `UPDATE salas SET estado = 'finalizada', version = version + 1, updated_at = now() WHERE id = $1`, sl.ID); err != nil {
 				return err
 			}
-			if err := eventoSala(ctx, tx, cid, j.ID, sl.ID, "finalizada"); err != nil {
+			if err := eventoSala(ctx, tx, cid, sl, "finalizada"); err != nil {
 				return err
 			}
 		}
@@ -361,6 +390,9 @@ type filaPalmares struct {
 	Valor      int64            `json:"valor"`
 	Saldo      int64            `json:"saldo"`
 	Alineacion []atletaAlineado `json:"alineacion"`
+	// Fichajes: signings the player made in the room (buys and clausulazos). Clausulazos: the ones he paid.
+	Fichajes    int `json:"fichajes"`
+	Clausulazos int `json:"clausulazos"`
 }
 
 // salaPalmares is one room of the palmarés of a day.
@@ -382,7 +414,7 @@ type diaPalmares struct {
 
 // filasPalmares reads the snapshot rows of some rooms (soloGanadores: only the 1st place).
 func filasPalmares(ctx context.Context, q querier, salaIDs []uuid.UUID, soloGanadores bool) (map[uuid.UUID][]filaPalmares, error) {
-	rows, err := q.Query(ctx, `SELECT sala_id, puesto, alias, nota::float8, valor, saldo, alineacion FROM palmares
+	rows, err := q.Query(ctx, `SELECT sala_id, puesto, alias, nota::float8, valor, saldo, alineacion, fichajes, clausulazos FROM palmares
 		WHERE sala_id = ANY($1) AND (NOT $2 OR puesto = 1) ORDER BY puesto, alias`, salaIDs, soloGanadores)
 	if err != nil {
 		return nil, err
@@ -393,7 +425,7 @@ func filasPalmares(ctx context.Context, q querier, salaIDs []uuid.UUID, soloGana
 		var id uuid.UUID
 		var f filaPalmares
 		var al []byte
-		if err := rows.Scan(&id, &f.Puesto, &f.Alias, &f.Nota, &f.Valor, &f.Saldo, &al); err != nil {
+		if err := rows.Scan(&id, &f.Puesto, &f.Alias, &f.Nota, &f.Valor, &f.Saldo, &al, &f.Fichajes, &f.Clausulazos); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(al, &f.Alineacion); err != nil {

@@ -11,6 +11,8 @@ CREATE TABLE salas (
     anfitrion_fan_id uuid        NOT NULL,
     plazas           integer     NOT NULL CHECK (plazas BETWEEN 2 AND 10),
     publica          boolean     NOT NULL DEFAULT true,
+    -- false = the host blocked new requests from the lobby (the invitation link still lets people in).
+    admite_solicitudes boolean   NOT NULL DEFAULT true,
     codigo           text        NOT NULL UNIQUE,
     -- abierta (antes de la primera sesión) → en_juego → finalizada; cancelada = empezó el día con 1 miembro;
     -- cerrada = la cerró el anfitrión o se quedó vacía.
@@ -75,6 +77,8 @@ CREATE TABLE palmares (
     valor          bigint        NOT NULL DEFAULT 0,
     saldo          bigint        NOT NULL DEFAULT 0,
     alineacion     jsonb         NOT NULL DEFAULT '[]',
+    fichajes       integer       NOT NULL DEFAULT 0,
+    clausulazos    integer       NOT NULL DEFAULT 0,
     created_at     timestamptz   NOT NULL DEFAULT now(),
     PRIMARY KEY (sala_id, fan_id)
 );

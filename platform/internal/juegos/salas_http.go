@@ -157,10 +157,11 @@ func (s *Svc) registerSalas() {
 			Atletas   int         `json:"atletas" doc:"Atletas del día"`
 			PlazasMax int         `json:"plazasMax" doc:"Plazas de una sala nueva: atletas ÷ 5, máximo 10"`
 			// PuedeCrear is false when there are not enough athletes for a 2-player room or the day has started.
-			PuedeCrear            bool `json:"puedeCrear"`
-			Empezada              bool `json:"empezada" doc:"La primera sesión del día ya empezó"`
-			SolicitudesMax        int  `json:"solicitudesMax"`
-			SolicitudesPendientes int  `json:"solicitudesPendientes"`
+			PuedeCrear            bool         `json:"puedeCrear"`
+			Empezada              bool         `json:"empezada" doc:"La primera sesión del día ya empezó"`
+			SolicitudesMax        int          `json:"solicitudesMax"`
+			SolicitudesPendientes int          `json:"solicitudesPendientes"`
+			Horario               horarioVista `json:"horario"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-salas", Method: http.MethodGet, Path: base + "/salas",
@@ -195,7 +196,8 @@ func (s *Svc) registerSalas() {
 			o.Body.Atletas = s.atletasDelDia(ctx, c.ID, *j)
 			var hayPlazas bool
 			o.Body.PlazasMax, hayPlazas = plazasSala(o.Body.Atletas, cfg.PlantillaMax)
-			o.Body.Empezada = s.horario(ctx, c.ID, j.Dia).empezado(*j, time.Now())
+			h := s.horario(ctx, c.ID, j.Dia)
+			o.Body.Empezada, o.Body.Horario = h.empezado(*j, time.Now()), h.vista()
 			o.Body.PuedeCrear = hayPlazas && !o.Body.Empezada && j.jugable()
 			o.Body.SolicitudesMax = maxSolicitudes
 			if fanID != uuid.Nil {
@@ -270,6 +272,7 @@ func (s *Svc) registerSalas() {
 			Clausulazo  clausulazoVista  `json:"clausulazo"`
 			Empezada    bool             `json:"empezada"`
 			PlazasMax   int              `json:"plazasMax"`
+			Horario     horarioVista     `json:"horario"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-sala", Method: http.MethodGet, Path: base + "/salas/{sid}",
@@ -336,7 +339,7 @@ func (s *Svc) registerSalas() {
 			}
 			h := s.horario(ctx, c.ID, j.Dia)
 			o.Body.Clausulazo = h.clausulazo(time.Now())
-			o.Body.Empezada = h.empezado(*j, time.Now())
+			o.Body.Empezada, o.Body.Horario = h.empezado(*j, time.Now()), h.vista()
 			o.Body.PlazasMax, _ = plazasSala(s.atletasDelDia(ctx, c.ID, *j), cfg.PlantillaMax)
 			return o, nil
 		})
@@ -348,10 +351,17 @@ func (s *Svc) registerSalas() {
 		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Codigo  string `path:"codigo" pattern:"^[A-Za-z0-9]{6,16}$"`
 	}
+	type miembroVista struct {
+		Alias       string `json:"alias"`
+		EsAnfitrion bool   `json:"esAnfitrion"`
+	}
 	type invitacionOut struct {
 		Body struct {
 			Jornada jornadaOut `json:"jornada"`
 			Sala    salaVista  `json:"sala"`
+			// Miembros are the players already in the room (public aliases, host first): the avatars of the invitation.
+			Miembros []miembroVista `json:"miembros"`
+			Horario  horarioVista   `json:"horario"`
 			// Estado says what the link can do for this fan right now.
 			Estado string `json:"estado" enum:"disponible,sin_sesion,ya_miembro,otra_sala,llena,empezada,cerrada,expulsado"`
 			// SolicitudesPendientes are the requests of the fan that entering would cancel.
@@ -389,10 +399,21 @@ func (s *Svc) registerSalas() {
 			}
 			o.Body.Sala = vistaDe(sl, clas[sl.ID], miembro, sols[sl.ID])
 			for _, e := range sols {
-				if e == "pendiente" {
+				if e.Estado == "pendiente" {
 					o.Body.SolicitudesPendientes++
 				}
 			}
+			o.Body.Miembros = []miembroVista{}
+			for _, f := range clas[sl.ID] {
+				mv := miembroVista{Alias: f.Alias, EsAnfitrion: f.EsAnfitrion}
+				if f.EsAnfitrion {
+					o.Body.Miembros = append([]miembroVista{mv}, o.Body.Miembros...)
+				} else {
+					o.Body.Miembros = append(o.Body.Miembros, mv)
+				}
+			}
+			h := s.horario(ctx, c.ID, j.Dia)
+			o.Body.Horario = h.vista()
 			otra, err := miSala(ctx, s.a.DB, j.ID, fanID)
 			if err != nil {
 				return nil, err
@@ -402,9 +423,9 @@ func (s *Svc) registerSalas() {
 				o.Body.Estado = "ya_miembro"
 			case sl.Estado == "cerrada" || sl.Estado == "cancelada" || sl.Estado == "finalizada" || j.Estado == "cerrada":
 				o.Body.Estado = "cerrada"
-			case sl.Estado == "en_juego" || s.horario(ctx, c.ID, j.Dia).empezado(*j, time.Now()):
+			case sl.Estado == "en_juego" || h.empezado(*j, time.Now()):
 				o.Body.Estado = "empezada"
-			case sols[sl.ID] == "expulsada":
+			case sols[sl.ID] != nil && sols[sl.ID].Estado == "expulsada":
 				o.Body.Estado = "expulsado"
 			case len(clas[sl.ID]) >= sl.Plazas:
 				o.Body.Estado = "llena"
@@ -535,7 +556,34 @@ func (s *Svc) registerSalas() {
 			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return expulsarTx(ctx, tx, cid, *j, in.SID, f.ID, in.MID) })
 		})
 
-	// ---- anfitrión: renombrar, ampliar plazas, visibilidad y regenerar el enlace ----
+	type transferirIn struct {
+		Session string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string    `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug    string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		SID     uuid.UUID `path:"sid"`
+		Body    struct {
+			MiembroID uuid.UUID `json:"miembroId" doc:"miembroId del nuevo anfitrión"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-sala-transferir", Method: http.MethodPost, Path: base + "/salas/{sid}/anfitrion",
+		Summary: "Transferir el rol de anfitrión a otro jugador de la sala (solo el anfitrión; también con la sala en juego)", Tags: tagJuegos, Description: descSesionFan, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *transferirIn) (*struct{}, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.fan(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
+			_, j, err := s.salaPublica(ctx, c.ID, in.SID)
+			if err != nil {
+				return nil, err
+			}
+			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return transferirTx(ctx, tx, c.ID, *j, in.SID, f.ID, in.Body.MiembroID) })
+		})
+
+	// ---- anfitrión: renombrar, ampliar plazas, visibilidad, bloquear solicitudes y regenerar el enlace ----
 	type patchIn struct {
 		Session string    `cookie:"grcup_fan" maxLength:"4096"`
 		Header  string    `header:"X-GrCup-Fan" maxLength:"4096"`
@@ -545,6 +593,8 @@ func (s *Svc) registerSalas() {
 			Nombre  *string `json:"nombre,omitempty" minLength:"3" maxLength:"64"`
 			Plazas  *int    `json:"plazas,omitempty" minimum:"2" maximum:"10" doc:"Entre los jugadores actuales y el máximo del día"`
 			Publica *bool   `json:"publica,omitempty"`
+			// AdmiteSolicitudes false blocks new requests from the lobby (the invitation link still lets people in).
+			AdmiteSolicitudes *bool `json:"admiteSolicitudes,omitempty"`
 			// RegenerarEnlace invalidates the current invitation link and issues a new one.
 			RegenerarEnlace bool `json:"regenerarEnlace,omitempty"`
 		}
@@ -591,18 +641,21 @@ func (s *Svc) registerSalas() {
 				if b.Publica != nil {
 					sl.Publica = *b.Publica
 				}
+				if b.AdmiteSolicitudes != nil {
+					sl.Admite = *b.AdmiteSolicitudes
+				}
 				if b.RegenerarEnlace {
 					sl.Codigo = nuevoCodigo()
 				}
-				if _, err := tx.Exec(ctx, `UPDATE salas SET nombre = $2, nombre_norm = $3, plazas = $4, publica = $5, codigo = $6, version = version + 1, updated_at = now() WHERE id = $1`,
-					sl.ID, sl.Nombre, normalizarNombre(sl.Nombre), sl.Plazas, sl.Publica, sl.Codigo); err != nil {
+				if _, err := tx.Exec(ctx, `UPDATE salas SET nombre = $2, nombre_norm = $3, plazas = $4, publica = $5, codigo = $6, admite_solicitudes = $7, version = version + 1, updated_at = now() WHERE id = $1`,
+					sl.ID, sl.Nombre, normalizarNombre(sl.Nombre), sl.Plazas, sl.Publica, sl.Codigo, sl.Admite); err != nil {
 					if esUnico(err, "salas_nombre") {
 						return problem.Conflict("NOMBRE_OCUPADO", "Ya hay una sala con ese nombre hoy. Elige otro.")
 					}
 					return err
 				}
 				o.Body.Codigo = sl.Codigo
-				return eventoSala(ctx, tx, cid, j.ID, sl.ID, "editada")
+				return eventoSala(ctx, tx, cid, sl, "editada")
 			})
 			return o, err
 		})
