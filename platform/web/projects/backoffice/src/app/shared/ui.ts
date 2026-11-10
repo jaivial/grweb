@@ -171,11 +171,12 @@ export class ConfirmHost {
 export class Media {
   private readonly http = inject(HttpClient);
   private readonly comps = inject(Competitions);
-  async upload(file: File, alt = ''): Promise<string> {
+  /** `ruta`: upload endpoint under the competition, for the images that do not go to the media library (e.g. the access maps, published in the CDN). */
+  async upload(file: File, alt = '', ruta = '/medios'): Promise<string> {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('alt', alt);
-    const r = await firstValueFrom(this.http.post<{ url: string }>(`/api/admin/competiciones/${this.comps.current()?.id}/medios`, fd));
+    const r = await firstValueFrom(this.http.post<{ url: string }>(`/api/admin/competiciones/${this.comps.current()?.id}${ruta}`, fd));
     return r.url;
   }
 }

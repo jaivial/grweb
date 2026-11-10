@@ -55,7 +55,7 @@ func Service() app.Service {
 		Name: "cms", Title: "GR Cup · cms", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
 		// 1 MiB for every request except media uploads (10 MB files + multipart overhead).
 		BodyLimitFor: func(r *http.Request) int64 {
-			if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, "/api/admin/competiciones/") && strings.HasSuffix(r.URL.Path, "/medios") || r.URL.Path == "/internal/medios") {
+			if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, "/api/admin/competiciones/") && (strings.HasSuffix(r.URL.Path, "/medios") || strings.HasSuffix(r.URL.Path, "/web/mapas/imagen")) || r.URL.Path == "/internal/medios") {
 				return maxUpload
 			}
 			return 0
@@ -79,6 +79,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerSecciones()
 	s.registerLegal()
 	s.registerMedios()
+	s.registerMapas()
 	s.registerPublic()
 	s.registerClubsAdmin()
 	s.registerVoluntariosAdmin()

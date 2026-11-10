@@ -11,6 +11,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -62,6 +63,10 @@ type collection[R any, I any] struct {
 	update   func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *I) error
 	// afterDelete runs once a row is deleted (files that live outside the database)
 	afterDelete func(cid, id uuid.UUID)
+	// deleted runs once a row is deleted, with the row as it was (a file in the CDN named by one of its columns)
+	deleted func(ctx context.Context, cid uuid.UUID, row R)
+	// public is the type of a public event (SSE) sent with every change, for the pages that follow the collection live
+	public string
 }
 
 func (c collection[R, I]) where() string {
@@ -87,6 +92,15 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 			return r, problem.NotFound("No encontrado.")
 		}
 		return r, nil
+	}
+	// change is s.change plus the public event of the collection, when it has one.
+	change := func(ctx context.Context, cid uuid.UUID, ev string, data any, fn func(tx pgx.Tx) error) error {
+		return s.change(ctx, cid, ev, data, func(tx pgx.Tx) error {
+			if err := fn(tx); err != nil || c.public == "" {
+				return err
+			}
+			return events.Enqueue(ctx, tx, events.New(ctx, c.public, nil, events.Competition(cid.String()), events.Audience(events.Public)))
+		})
 	}
 
 	huma.Register(api, huma.Operation{OperationID: c.name + "-list", Method: http.MethodGet, Path: base, Summary: "Listar", Tags: tags, Security: bearer},
@@ -118,7 +132,7 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 				}
 				id := newID()
 				var r R
-				err := s.change(ctx, in.CID, "cms."+c.name+"_creado", map[string]any{"id": id}, func(tx pgx.Tx) error {
+				err := change(ctx, in.CID, "cms."+c.name+"_creado", map[string]any{"id": id}, func(tx pgx.Tx) error {
 					if err := c.insert(ctx, tx, in.CID, id, &in.Body); err != nil {
 						return dupErr(err)
 					}
@@ -141,7 +155,7 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 				}
 			}
 			var r R
-			err := s.change(ctx, in.CID, "cms."+c.name+"_actualizado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+			err := change(ctx, in.CID, "cms."+c.name+"_actualizado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
 				if _, err := one(ctx, tx, in.CID, in.ID); err != nil {
 					return err
 				}
@@ -160,7 +174,14 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 			if _, err := auth.Require(ctx, in.CID.String(), c.perm); err != nil {
 				return nil, err
 			}
-			err := s.change(ctx, in.CID, "cms."+c.name+"_eliminado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+			var old R
+			err := change(ctx, in.CID, "cms."+c.name+"_eliminado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+				if c.deleted != nil {
+					var err error
+					if old, err = one(ctx, tx, in.CID, in.ID); err != nil {
+						return err
+					}
+				}
 				tag, err := tx.Exec(ctx, `DELETE FROM `+c.table+` WHERE `+c.where()+` AND id = $2`, in.CID, in.ID)
 				if err == nil && tag.RowsAffected() == 0 {
 					return problem.NotFound("No encontrado.")
@@ -170,6 +191,9 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 			if err == nil && c.afterDelete != nil {
 				c.afterDelete(in.CID, in.ID)
 			}
+			if err == nil && c.deleted != nil {
+				c.deleted(ctx, in.CID, old)
+			}
 			return nil, err
 		})
 
@@ -178,7 +202,7 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 			if _, err := auth.Require(ctx, in.CID.String(), c.perm); err != nil {
 				return nil, err
 			}
-			return nil, s.change(ctx, in.CID, "cms."+c.name+"_reordenado", map[string]any{"total": len(in.Body.IDs)}, func(tx pgx.Tx) error {
+			return nil, change(ctx, in.CID, "cms."+c.name+"_reordenado", map[string]any{"total": len(in.Body.IDs)}, func(tx pgx.Tx) error {
 				_, err := tx.Exec(ctx, `UPDATE `+c.table+` t SET orden = o.n FROM unnest($2::uuid[]) WITH ORDINALITY AS o(id, n) WHERE t.id = o.id AND t.`+c.where(), in.CID, in.Body.IDs)
 				return err
 			})

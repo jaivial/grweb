@@ -23,6 +23,8 @@ import { VoluntariosPage } from './pages/voluntarios';
 import { PatrocinadoresPage } from './pages/patrocinadores';
 import { GaleriaPage } from './pages/galeria';
 import { ComoLlegarPage } from './pages/como-llegar';
+import { DondeDormirPage } from './pages/donde-dormir-y-comer';
+import { MapaAccesosPage } from './pages/mapa-de-accesos';
 import { CategoriasPage } from './pages/categorias';
 import { MarcasPage } from './pages/marcas';
 import { FaqPage } from './pages/faq';
@@ -36,6 +38,8 @@ export const routes: Routes = [
   { path: 'galeria', component: GaleriaPage },
   { path: 'voluntarios', component: VoluntariosPage },
   { path: 'como-llegar', component: ComoLlegarPage },
+  { path: 'donde-dormir-y-comer', component: DondeDormirPage },
+  { path: 'mapa-de-accesos', component: MapaAccesosPage },
   { path: 'categorias-de-peso', component: CategoriasPage },
   { path: 'marcas-minimas', component: MarcasPage },
   { path: 'reglamento', component: ReglamentoPage },

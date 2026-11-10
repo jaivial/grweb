@@ -10,6 +10,10 @@ func TestMatch(t *testing.T) {
 		ruta string
 		svc  string
 	}{
+		// cms: access maps (public list and backoffice)
+		{"/api/competiciones/grc-2026/mapas", "cms"},
+		{"/api/admin/competiciones/01970000-0000-7000-8000-000000000001/web/mapas/imagen", "cms"},
+		{"/api/medios/mapas/mapas-0198.png", "cms"},
 		// fans
 		{"/api/competiciones/grc-2026/fans/acceso", "fans"},
 		{"/api/competiciones/grc-2026/fans/acceso/un-token-largo-32", "fans"},

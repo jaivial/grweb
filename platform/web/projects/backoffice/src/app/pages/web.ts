@@ -123,6 +123,7 @@ export class WebPage {
     { label: 'Patrocinadores y clubs', path: 'patrocinadores' },
     { label: 'Páginas y SEO', path: 'seo' },
     { label: 'Blog y galería', path: 'blog' },
+    { label: 'Mapas de acceso', path: 'mapas' },
     { label: 'Textos legales', path: 'legal' },
   ];
 
@@ -522,6 +523,14 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       empty: { title: 'Sin álbumes', text: 'Sube las fotos de la competición.' },
     },
   ],
+  mapas: [{
+    title: 'Mapas de acceso', subtitle: 'Planos para atletas y público de /mapa-de-accesos, en este orden (arrastra para ordenar)', path: '/web/mapas', item: 'mapa', reorder: true,
+    columns: [{ key: 'imagenUrl', label: 'Imagen', kind: 'image' }, { key: 'titulo', label: 'Título', value: (r) => String(r['titulo'] || 'Sin título') }, { key: 'subtitulo', label: 'Subtítulo', hideMobile: true }],
+    fields: [{ clave: 'imagenUrl', etiqueta: 'Imagen', tipo: 'imagen', subida: '/web/mapas/imagen', ayuda: 'JPG, PNG o WebP de hasta 10 MB. Se publica en el CDN.' },
+      { clave: 'titulo', etiqueta: 'Título (opcional)', tipo: 'texto', max: 120 }, { clave: 'subtitulo', etiqueta: 'Subtítulo (opcional)', tipo: 'texto', max: 160 },
+      { clave: 'descripcion', etiqueta: 'Descripción (opcional)', tipo: 'area', max: 1000 }],
+    empty: { title: 'Sin mapas', text: 'Sube los planos de acceso al pabellón para atletas y público.' },
+  }],
 };
 
 /** A tab made of one or more collections (route param `coleccion`). */
