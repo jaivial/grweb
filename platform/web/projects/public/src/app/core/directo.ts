@@ -1,8 +1,8 @@
 import { embedVideo } from '@grcup/ui';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG, marcarFallo } from './competition';
+import { COMPETITION_SLUG, FalloApi } from './competition';
 
 export type Mov = 'sq' | 'bp' | 'dl';
 export interface EnPlataforma {
@@ -44,7 +44,7 @@ export const embed = embedVideo;
 @Injectable({ providedIn: 'root' })
 export class DirectoPublic {
   private readonly http = inject(HttpClient);
-  private readonly res = inject(RESPONSE_INIT, { optional: true });
+  private readonly fallo = inject(FalloApi);
   readonly failed = signal(false);
 
   directo(): Promise<Directo | null> { return this.get<Directo>(`/api/competiciones/${COMPETITION_SLUG}/directo`); }
@@ -70,7 +70,7 @@ export class DirectoPublic {
       return await firstValueFrom(this.http.get<T>(url));
     } catch (e) {
       this.failed.set(true);
-      if (!(e instanceof HttpErrorResponse && e.status === 404)) marcarFallo(this.res, e);
+      if (!(e instanceof HttpErrorResponse && e.status === 404)) this.fallo.marcar(e);
       return null;
     }
   }

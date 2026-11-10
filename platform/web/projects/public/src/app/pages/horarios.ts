@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GrAlert, GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Favoritos, cat } from '../core/atletas';
 import { Cms } from '../core/cms';
-import { COMPETITION_SLUG, Competition } from '../core/competition';
+import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
 import { Seo } from '../core/seo';
 import { Newsletter } from '../layout/newsletter';
@@ -54,7 +54,8 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
             </section>
             <gr-newsletter titulo="Te avisamos de lo importante" texto="Horarios, sorteo y próximas competiciones de GRStrength. Como mucho un email al mes." origen="/horarios" [compacta]="true" />
           </div>
-        } @else {
+        } @else if (!fallo.limitado()) {
+          <!-- on a 429 the page header already shows «Demasiadas visitas desde tu red» -->
           <gr-alert tone="warning" title="No hemos podido cargar los horarios">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos; los horarios no han cambiado.</gr-alert>
         }
       } @else {
@@ -205,6 +206,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
 })
 export class HorariosPage {
   protected readonly api = inject(HorariosPublic);
+  protected readonly fallo = inject(FalloApi);
   protected readonly fav = inject(Favoritos);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly hora = hora;

@@ -85,12 +85,14 @@ const REJILLAS: [string, number, number, number, number, number][] = [
         @for (grupo of colores; track $index) {
           <ul class="flex flex-wrap gap-4">
             @for (c of grupo; track c[0]) {
-              <li class="flex w-[220px] flex-col overflow-hidden rounded-md border border-line-subtle bg-bg-card">
+              <!-- no mobile frame in Figma: two columns on phones instead of one 220 px card -->
+              <li class="flex w-[calc((100%-16px)/2)] flex-col overflow-hidden rounded-md border border-line-subtle bg-bg-card sm:w-[220px]">
                 <span class="h-[88px] shrink-0" [style.background]="c[1]"></span>
-                <span class="flex flex-col gap-1 px-3 py-4">
-                  <span class="text-mono-s">{{ c[0] }}</span>
-                  <span class="text-mono-xs text-text-muted">{{ c[1] }}</span>
-                  <span class="text-body-xs text-text-tertiary">{{ c[2] }}</span>
+                <span class="flex min-w-0 flex-col gap-1 px-3 py-4 break-words">
+                  <!-- Figma line boxes 18 / 15 / 17 (the 1.4–1.45 ratios round up to one extra px per card) -->
+                  <span class="text-mono-s leading-[18px]">{{ c[0] }}</span>
+                  <span class="text-mono-xs leading-[15px] text-text-muted">{{ c[1] }}</span>
+                  <span class="text-body-xs leading-[17px] text-text-tertiary">{{ c[2] }}</span>
                 </span>
               </li>
             }
@@ -109,7 +111,8 @@ const REJILLAS: [string, number, number, number, number, number][] = [
 
       <section class="flex flex-col gap-5" aria-labelledby="sg-tipo">
         <h2 id="sg-tipo" class="text-ui-h3">Tipografía</h2>
-        <p class="max-w-[1200px] text-body-m text-text-tertiary">Contrail One para titulares (en mayúsculas, como en la web) · Inter para interfaz y cuerpo · Roboto Mono para datos.</p>
+        <!-- Figma: 1200×50 text box (one line at desktop) -->
+        <p class="max-w-[1200px] text-body-m text-text-tertiary md:min-h-[50px]">Contrail One para titulares (en mayúsculas, como en la web) · Inter para interfaz y cuerpo · Roboto Mono para datos.</p>
         <ul class="flex flex-col gap-5">
           @for (t of tipos; track t[0]) {
             <li class="flex flex-col gap-2 border-b border-line-subtle py-3 md:flex-row md:items-center md:gap-8">
@@ -119,14 +122,14 @@ const REJILLAS: [string, number, number, number, number, number][] = [
           }
         </ul>
         <div class="flex flex-col gap-2 overflow-x-auto rounded-md bg-bg-card p-6">
-          <p class="text-label-s text-text-secondary">Escala responsive (Tailwind del proyecto: sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1440)</p>
-          @for (l of rampa; track $index) { <p class="text-mono-s whitespace-pre text-text-tertiary">{{ l }}</p> }
+          <p class="text-label-s leading-[17px] text-text-secondary">Escala responsive (Tailwind del proyecto: sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1440)</p>
+          @for (l of rampa; track $index) { <p class="text-mono-s leading-[18px] whitespace-pre text-text-tertiary">{{ l }}</p> }
         </div>
       </section>
 
       <section class="flex flex-wrap gap-6" aria-label="Efectos">
         @for (e of efectos; track e[0]) {
-          <div class="flex w-[220px] flex-col items-center gap-2 rounded-md bg-bg-surface p-6 xl:w-[calc((100%-120px)/6)]">
+          <div class="flex w-[calc((100%-24px)/2)] flex-col items-center gap-2 rounded-md bg-bg-surface p-6 sm:w-[220px] xl:w-[calc((100%-120px)/6)]">
             <span class="relative h-16 w-[120px] overflow-hidden rounded-md" [class]="e[1]">
               @if (e[2]; as g) { <span class="absolute inset-0 bg-[length:128px_128px]" [style.background-image]="g[0]" [style.opacity]="g[1]" [style.mix-blend-mode]="g[2]"></span> }
             </span>
@@ -158,9 +161,10 @@ const REJILLAS: [string, number, number, number, number, number][] = [
 
       <section class="flex flex-wrap items-start gap-10" aria-label="Rejillas">
         @for (g of rejillas; track g[0]) {
-          <div class="flex max-w-full flex-col gap-2" [style.width.px]="g[1]">
+          <!-- Figma: the frame hugs the label (tablet label 321 px over a 246 px grid), so the label stays on one line -->
+          <div class="flex max-w-full flex-col gap-2">
             <span class="text-mono-s text-text-tertiary">{{ g[0] }}</span>
-            <span class="flex w-full border border-line-subtle bg-bg-card" [style.aspect-ratio]="g[1] + ' / ' + g[2]" [style.gap.px]="g[4]" [style.padding-inline.px]="g[5]">
+            <span class="flex max-w-full border border-line-subtle bg-bg-card" [style.width.px]="g[1]" [style.aspect-ratio]="g[1] + ' / ' + g[2]" [style.gap.px]="g[4]" [style.padding-inline.px]="g[5]">
               @for (c of cols(g[3]); track c) { <span class="flex-1 bg-[#dc143d]/12"></span> }
             </span>
           </div>

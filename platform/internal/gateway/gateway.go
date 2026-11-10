@@ -6,6 +6,7 @@ package gateway
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -109,6 +110,10 @@ type gw struct {
 	identity *svcclient.Client
 	cors     []string
 	ipLimit  int64
+	// SSR renders of the public web send ssrSecret (cluster Secret, never sent by browsers): their GETs use a
+	// separate, larger per-visitor bucket, because one page view costs ~6 API calls on the server.
+	ssrSecret []byte
+	ssrLimit  int64
 
 	specMu   sync.Mutex
 	spec     []byte
@@ -125,6 +130,8 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.a = a
 	g.cors = config.List("CORS_ORIGINS")
 	g.ipLimit = int64(config.Int("RATE_LIMIT_IP_MIN", 600))
+	g.ssrSecret = []byte(config.Str("SSR_SECRET", ""))
+	g.ssrLimit = int64(config.Int("RATE_LIMIT_SSR_IP_MIN", 3000))
 	g.upstream, g.proxies = map[string]*url.URL{}, map[string]*httputil.ReverseProxy{}
 	enabled := config.List("UPSTREAMS")
 	if len(enabled) == 0 {
@@ -175,7 +182,12 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	if res, err := ratelimit.Allow(ctx, g.a.Redis, g.a.Keys.Of("rl", "gw", httpx.ClientIPFrom(ctx)), g.ipLimit, time.Minute); err == nil && !res.Allowed {
+	bucket, limit := "gw", g.ipLimit
+	if r.Method == http.MethodGet && len(g.ssrSecret) > 0 && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-GrCup-SSR")), g.ssrSecret) == 1 {
+		bucket, limit = "gw-ssr", g.ssrLimit
+	}
+	r.Header.Del("X-GrCup-SSR")
+	if res, err := ratelimit.Allow(ctx, g.a.Redis, g.a.Keys.Of("rl", bucket, httpx.ClientIPFrom(ctx)), limit, time.Minute); err == nil && !res.Allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(int(res.RetryAfter.Seconds())+1))
 		problem.Write(w, problem.TooMany("Demasiadas peticiones desde tu red. Espera un momento."))
 		return

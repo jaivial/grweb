@@ -137,6 +137,6 @@ export class NotFoundPage {
   constructor() {
     const res = inject(RESPONSE_INIT, { optional: true });
     if (res) res.status = 404;
-    inject(Seo).set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página que buscas no existe.', path: '/404' });
+    inject(Seo).set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
   }
 }

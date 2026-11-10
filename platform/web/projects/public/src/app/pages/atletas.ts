@@ -5,7 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, type FichaPub, type ListaPub, type Participantes } from '../core/atletas';
 import { Cms } from '../core/cms';
-import { Competition, type CompeticionPublica } from '../core/competition';
+import { Competition, FalloApi, type CompeticionPublica } from '../core/competition';
 import { Seo } from '../core/seo';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
@@ -258,7 +258,7 @@ function catSort(a: string, b: string): number {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = ficha();
-    <gr-page [title]="a ? a.nombre + ' ' + a.apellidos : a === null ? 'Atleta no encontrado' : ''" [hideTitle]="!!a" section="Atletas" [crumb]="a ? a.nombre + ' ' + a.apellidos : 'Atleta'">
+    <gr-page [title]="a ? a.nombre + ' ' + a.apellidos : a === null && !api.failed() ? 'Atleta no encontrado' : ''" [hideTitle]="!!a" section="Atletas" [crumb]="a ? a.nombre + ' ' + a.apellidos : 'Atleta'">
       @if (avisoConfirmado()) { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso confirmado">Te escribiremos 30 minutos antes de que {{ avisoConfirmado() }} salga a la plataforma.</gr-alert> }
       @if (baja() === 'ok') { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso desactivado">Ya no te escribiremos sobre {{ a?.nombre || 'este atleta' }}. Puedes volver a activarlo cuando quieras.</gr-alert> }
       @if (baja() === 'error') { <gr-alert tone="warning" class="-mt-4 mb-8" title="No hemos podido desactivar el aviso">El enlace no es válido o ya se usó. Si sigues recibiendo emails, responde a cualquiera de ellos.</gr-alert> }
@@ -266,6 +266,7 @@ function catSort(a: string, b: string): number {
         <div class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"><gr-skeleton class="h-[520px] rounded-lg" /><gr-skeleton class="h-96 rounded-lg" /></div>
       } @else if (a === null) {
         @if (!api.failed()) { <p class="text-body-m text-text-tertiary">Este atleta no existe o ya no está inscrito. <a href="/atletas" class="text-accent-text underline">Ver todos los atletas</a></p> }
+        @else if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar el atleta">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert> }
       } @else {
         <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
           <div class="flex flex-col gap-6">
@@ -390,6 +391,7 @@ function catSort(a: string, b: string): number {
 export class AtletaPage {
   readonly slug = input.required<string>();
   protected readonly api = inject(AtletasPublic);
+  protected readonly fallo = inject(FalloApi);
   protected readonly fav = inject(Favoritos);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly cat = cat;
@@ -418,7 +420,9 @@ export class AtletaPage {
       this.ficha.set(f);
       if (!f) {
         this.api.notFound();
-        seo.set({ title: 'Atleta no encontrado · GR Strength Cup', description: 'Este atleta no existe o ya no está inscrito.', path: '/atletas/' + this.slug() });
+        seo.set(this.api.failed()
+          ? { title: 'GR Strength Cup', description: 'Contenido no disponible ahora mismo.', path: '/atletas/' + this.slug() }
+          : { title: 'Atleta no encontrado · GR Strength Cup', description: 'Este atleta no existe o ya no está inscrito.', path: '/atletas/' + this.slug(), robots: 'noindex' });
         return;
       }
       if (c?.fechaInicio) this.diaTxt.set(new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(c.fechaInicio)));

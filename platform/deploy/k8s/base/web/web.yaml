@@ -32,6 +32,8 @@ spec:
             - { name: PUBLIC_ORIGIN, value: "https://grcup-qa.menustudioai.com" }
             - { name: NG_TRUST_PROXY_HEADERS, value: "x-forwarded-for,x-forwarded-proto" }
             - { name: NODE_OPTIONS, value: "--max-old-space-size=384" }
+            - name: SSR_SECRET
+              valueFrom: { secretKeyRef: { name: grcup-ssr, key: SSR_SECRET, optional: true } }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10

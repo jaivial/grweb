@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG, esNoEncontrado, marcarFallo } from './competition';
+import { COMPETITION_SLUG, FalloApi, esNoEncontrado } from './competition';
 
 export interface Marcas {
   sq?: number;
@@ -65,6 +65,7 @@ const base = `/api/competiciones/${COMPETITION_SLUG}`;
 export class AtletasPublic {
   private readonly http = inject(HttpClient);
   private readonly res = inject(RESPONSE_INIT, { optional: true });
+  private readonly fallo = inject(FalloApi);
   readonly failed = signal(false);
 
   lista(): Promise<ListaPub | null> { return this.get<ListaPub>('/atletas'); }
@@ -90,7 +91,7 @@ export class AtletasPublic {
     } catch (e) {
       if (esNoEncontrado(e)) return null;
       this.failed.set(true);
-      marcarFallo(this.res, e);
+      this.fallo.marcar(e);
       return null;
     }
   }

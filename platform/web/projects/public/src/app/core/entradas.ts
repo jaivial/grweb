@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG, marcarFallo } from './competition';
+import { COMPETITION_SLUG, FalloApi } from './competition';
 
 export type EstadoSesion = 'disponible' | 'ultimas' | 'agotada' | 'cerrada' | 'proximamente';
 export interface SesionPub {
@@ -24,7 +24,7 @@ const base = `/api/competiciones/${COMPETITION_SLUG}/entradas`;
 @Injectable({ providedIn: 'root' })
 export class EntradasPublic {
   private readonly http = inject(HttpClient);
-  private readonly res = inject(RESPONSE_INIT, { optional: true });
+  private readonly fallo = inject(FalloApi);
   readonly failed = signal(false);
 
   async sesiones(): Promise<Entradas | null> {
@@ -32,7 +32,7 @@ export class EntradasPublic {
       return await firstValueFrom(this.http.get<Entradas>(base));
     } catch (e) {
       this.failed.set(true);
-      marcarFallo(this.res, e);
+      this.fallo.marcar(e);
       return null;
     }
   }
