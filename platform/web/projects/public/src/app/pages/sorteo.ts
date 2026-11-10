@@ -6,7 +6,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
-import { COMPETITION_SLUG, Competition } from '../core/competition';
+import { COMPETITION_SLUG, Competition, marcarFallo } from '../core/competition';
 import { Seo } from '../core/seo';
 import { SecSorteo } from '../home/sorteo';
 import { Footer, Navbar, instagramOf } from '../layout/layout';
@@ -272,10 +272,7 @@ export class SorteoPage {
         this.cantidad.set(Math.min(Number.isInteger(pedidos) && pedidos >= 1 ? pedidos : (s.presets?.[0] ?? 1), s.maxPorPersona));
       } catch (e) {
         this.data.set(null);
-        if (this.res && !(e instanceof HttpErrorResponse && e.status === 404)) {
-          this.res.status = 503;
-          this.res.headers = { ...(this.res.headers as Record<string, string> | undefined), 'Retry-After': '30', 'Cache-Control': 'no-store' };
-        }
+        if (!(e instanceof HttpErrorResponse && e.status === 404)) marcarFallo(this.res, e);
       }
       const s = this.data();
       await applySeo(cms, seo, '/sorteo', 'Sorteo · GR Strength Cup', s ? `Participa en el sorteo de un ${s.premio} por ${euros(s.precio)} el boleto. Sorteo en directo.` : 'Sorteo de la GR Strength Cup.');

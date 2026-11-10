@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG } from './competition';
+import { COMPETITION_SLUG, marcarFallo } from './competition';
 
 export interface PubAtleta { slug: string; nombre: string; club: string; divisionNombre: string; sexo: 'F' | 'M'; categoria: string; lote: number }
 export interface PubFlight {
@@ -27,10 +27,7 @@ export class HorariosPublic {
       return await firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios`));
     } catch (e) {
       this.failed.set(true);
-      if (this.res && !(e instanceof HttpErrorResponse && e.status === 404)) {
-        this.res.status = 503;
-        this.res.headers = { ...(this.res.headers as Record<string, string> | undefined), 'Retry-After': '30', 'Cache-Control': 'no-store' };
-      }
+      if (!(e instanceof HttpErrorResponse && e.status === 404)) marcarFallo(this.res, e);
       return null;
     }
   }

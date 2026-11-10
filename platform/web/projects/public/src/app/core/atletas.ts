@@ -1,8 +1,8 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG } from './competition';
+import { COMPETITION_SLUG, esNoEncontrado, marcarFallo } from './competition';
 
 export interface Marcas {
   sq?: number;
@@ -80,19 +80,17 @@ export class AtletasPublic {
     return (await firstValueFrom(this.http.post<{ atleta: string }>(`${base}/seguimientos/confirmar`, { token }))).atleta;
   }
   notFound(): void {
-    if (this.res && !this.failed()) this.res.status = 404;
+    // Another API call of this render may already have answered 429/503: keep it.
+    if (this.res && !this.failed() && (this.res.status ?? 200) < 400) this.res.status = 404;
   }
 
   private async get<T>(path: string): Promise<T | null> {
     try {
       return await firstValueFrom(this.http.get<T>(base + path));
     } catch (e) {
-      if (e instanceof HttpErrorResponse && e.status === 404) return null;
+      if (esNoEncontrado(e)) return null;
       this.failed.set(true);
-      if (this.res) {
-        this.res.status = 503;
-        this.res.headers = { ...(this.res.headers as Record<string, string> | undefined), 'Retry-After': '30', 'Cache-Control': 'no-store' };
-      }
+      marcarFallo(this.res, e);
       return null;
     }
   }

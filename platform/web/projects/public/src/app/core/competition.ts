@@ -1,15 +1,35 @@
-import { HttpClient, type HttpInterceptorFn } from '@angular/common/http';
-import { InjectionToken, Injectable, inject, signal } from '@angular/core';
+import { HttpClient, HttpErrorResponse, type HttpInterceptorFn } from '@angular/common/http';
+import { InjectionToken, Injectable, REQUEST, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 /** Base URL of the API when rendering on the server (in-cluster gateway); empty in the browser (same origin /api). */
 export const API_BASE = new InjectionToken<string>('API_BASE', { factory: () => '' });
 
-/** SSR: relative /api calls go straight to the in-cluster gateway. */
+/**
+ * SSR: relative /api calls go straight to the in-cluster gateway, carrying the visitor's X-Forwarded-For (set by the
+ * host nginx) so the gateway rate-limits per visitor and not per web pod (all visitors would share one quota).
+ */
 export const apiBaseInterceptor: HttpInterceptorFn = (req, next) => {
   const base = inject(API_BASE);
-  return base && req.url.startsWith('/api/') ? next(req.clone({ url: base + req.url })) : next(req);
+  if (!base || !req.url.startsWith('/api/')) return next(req);
+  const xff = inject(REQUEST, { optional: true })?.headers.get('x-forwarded-for');
+  return next(req.clone({ url: base + req.url, ...(xff ? { setHeaders: { 'X-Forwarded-For': xff } } : {}) }));
 };
+
+/** A 4xx answer other than 429 means «this content does not exist» (404, or 422 for a slug the API rejects). */
+export const esNoEncontrado = (e: unknown): boolean => e instanceof HttpErrorResponse && e.status >= 400 && e.status < 500 && e.status !== 429;
+
+/** A 429 from the gateway: the visitor's network exceeded its quota. */
+export const esLimitado = (e: unknown): boolean => e instanceof HttpErrorResponse && e.status === 429;
+
+/** SSR status of a render whose API call failed: 429 with the gateway's Retry-After when rate limited, else 503 (a 429 wins). */
+export function marcarFallo(res: ResponseInit | null, e: unknown): void {
+  const limitado = esLimitado(e);
+  if (!res || (res.status === 429 && !limitado)) return;
+  res.status = limitado ? 429 : 503;
+  const retry = limitado ? ((e as HttpErrorResponse).headers.get('Retry-After') ?? '60') : '30';
+  res.headers = { ...(res.headers as Record<string, string> | undefined), 'Retry-After': retry, 'Cache-Control': 'no-store' };
+}
 
 export interface CompeticionPublica {
   slug: string;

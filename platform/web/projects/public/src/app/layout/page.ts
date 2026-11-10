@@ -50,7 +50,9 @@ import { Footer, Navbar, type Lang } from './layout';
             </div>
           </header>
         }
-        @if (!centrado() && cms.failed()) {
+        @if (!centrado() && cms.limitado()) {
+          <gr-alert class="mt-10 md:mt-16" tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert>
+        } @else if (!centrado() && cms.failed()) {
           <gr-alert class="mt-10 md:mt-16" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
         }
         <div [class]="centrado() ? 'contents' : cabecera() ? 'mt-10 block md:mt-16' : 'block'"><ng-content /></div>

@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG } from './competition';
+import { COMPETITION_SLUG, marcarFallo } from './competition';
 
 export type EstadoSesion = 'disponible' | 'ultimas' | 'agotada' | 'cerrada' | 'proximamente';
 export interface SesionPub {
@@ -30,12 +30,9 @@ export class EntradasPublic {
   async sesiones(): Promise<Entradas | null> {
     try {
       return await firstValueFrom(this.http.get<Entradas>(base));
-    } catch {
+    } catch (e) {
       this.failed.set(true);
-      if (this.res) {
-        this.res.status = 503;
-        this.res.headers = { ...(this.res.headers as Record<string, string> | undefined), 'Retry-After': '30', 'Cache-Control': 'no-store' };
-      }
+      marcarFallo(this.res, e);
       return null;
     }
   }
