@@ -98,7 +98,7 @@ func (s *Svc) clasificarSalas(ctx context.Context, q querier, cid uuid.UUID, j j
 	}
 	type clave struct{ sala, fan uuid.UUID }
 	alineaciones := map[clave][]atletaAlineado{}
-	rows, err := q.Query(ctx, `SELECT sa.sala_id, sa.dueno_fan_id, fa.atleta_id, fa.nombre_publico, fa.categoria, fa.clausula
+	rows, err := q.Query(ctx, `SELECT sa.sala_id, sa.dueno_fan_id, fa.atleta_id, fa.nombre_publico, fa.categoria, `+precioSala+`
 		FROM sala_atletas sa JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id
 		WHERE sa.sala_id = ANY($1) AND sa.dueno_fan_id IS NOT NULL ORDER BY fa.nombre_publico, fa.atleta_id`, ids)
 	if err != nil {

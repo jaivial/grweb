@@ -63,7 +63,38 @@ func (s *Svc) salaPublica(ctx context.Context, cid, salaID uuid.UUID) (*salaRow,
 	return sl, &j, err
 }
 
-// salaDeVista resolves the room of a fantasy view: the one asked for (?sala=) or the fan's own (nil = none).
+// salaPorCodigo resolves an invitation code to its room and the jornada of that room (not today's): the preview
+// and the entry of a link must agree.
+func (s *Svc) salaPorCodigo(ctx context.Context, cid uuid.UUID, codigo string) (*salaRow, *jornada, error) {
+	var sid uuid.UUID
+	err := s.a.DB.QueryRow(ctx, `SELECT id FROM salas WHERE codigo = upper($1) AND competition_id = $2`, codigo, cid).Scan(&sid)
+	if db.IsNoRows(err) {
+		return nil, nil, problem.NotFound("El enlace de invitación no es válido o ha caducado.")
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.salaPublica(ctx, cid, sid)
+}
+
+// salaVisible: a room that is not public («solo enlace») does not exist for whoever is not one of its members
+// (the invitation link has its own preview). Returns the room or errSalaNoExiste.
+func (s *Svc) salaVisible(ctx context.Context, sl *salaRow, fanID uuid.UUID) (*salaRow, error) {
+	if sl.Publica {
+		return sl, nil
+	}
+	var miembro bool
+	if err := s.a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM sala_miembros WHERE sala_id = $1 AND fan_id = $2)`, sl.ID, fanID).Scan(&miembro); err != nil {
+		return nil, err
+	}
+	if !miembro {
+		return nil, errSalaNoExiste
+	}
+	return sl, nil
+}
+
+// salaDeVista resolves the room of a fantasy view: the one asked for (?sala=, if the fan may see it) or the fan's
+// own (nil = none).
 func (s *Svc) salaDeVista(ctx context.Context, cid uuid.UUID, j jornada, salaID, fanID uuid.UUID) (*salaRow, error) {
 	if salaID == uuid.Nil {
 		return miSala(ctx, s.a.DB, j.ID, fanID)
@@ -72,7 +103,10 @@ func (s *Svc) salaDeVista(ctx context.Context, cid uuid.UUID, j jornada, salaID,
 	if db.IsNoRows(err) {
 		return nil, errSalaNoExiste
 	}
-	return sl, err
+	if err != nil {
+		return nil, err
+	}
+	return s.salaVisible(ctx, sl, fanID)
 }
 
 func (s *Svc) registerSalas() {
@@ -253,6 +287,9 @@ func (s *Svc) registerSalas() {
 			if err != nil {
 				return nil, err
 			}
+			if _, err := s.salaVisible(ctx, sl, fanID); err != nil {
+				return nil, err
+			}
 			cfg, err := configJuegos(ctx, s.a.DB, c.ID)
 			if err != nil {
 				return nil, err
@@ -332,15 +369,7 @@ func (s *Svc) registerSalas() {
 			if err != nil {
 				return nil, err
 			}
-			var sid uuid.UUID
-			err = s.a.DB.QueryRow(ctx, `SELECT id FROM salas WHERE codigo = upper($1) AND competition_id = $2`, in.Codigo, c.ID).Scan(&sid)
-			if db.IsNoRows(err) {
-				return nil, problem.NotFound("El enlace de invitación no es válido o ha caducado.")
-			}
-			if err != nil {
-				return nil, err
-			}
-			sl, j, err := s.salaPublica(ctx, c.ID, sid)
+			sl, j, err := s.salaPorCodigo(ctx, c.ID, in.Codigo)
 			if err != nil {
 				return nil, err
 			}
@@ -392,7 +421,16 @@ func (s *Svc) registerSalas() {
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-invitacion-entrar", Method: http.MethodPost, Path: base + "/invitaciones/{codigo}/entrar",
 		Summary: "Entrar en una sala con el enlace del anfitrión (directo, sin aprobación)", Tags: tagJuegos, Description: descSesionFan},
 		func(ctx context.Context, in *codigoIn) (*salaIDOut, error) {
-			cid, j, f, err := antesDeEmpezar(ctx, in.Slug, &sesionFan{Session: in.Session, Header: in.Header}, uuid.Nil, uuid.Nil)
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			// The jornada is the one of the room of the code, like the preview: a link of another day still works.
+			sala, _, err := s.salaPorCodigo(ctx, c.ID, in.Codigo)
+			if err != nil {
+				return nil, err
+			}
+			cid, j, f, err := antesDeEmpezar(ctx, in.Slug, &sesionFan{Session: in.Session, Header: in.Header}, uuid.Nil, sala.ID)
 			if err != nil {
 				return nil, err
 			}

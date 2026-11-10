@@ -2,6 +2,7 @@ package juegos
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -254,9 +255,9 @@ func TestVidaDeUnaSala(t *testing.T) {
 	if d, _ := duenoEnSala(t, pdb, sala.ID, aid); d != uuid.Nil {
 		t.Fatal("el atleta de quien sale debía quedar libre")
 	}
-	// He paid 200.000 and gets back the current value: 206.000 after the +3 % of his own demand.
-	if got := saldoDe(t, pdb, j.ID, anfitrion, Fantasy); got != 1_006_000 {
-		t.Fatalf("saldo tras salir = %d; quería 1.006.000", got)
+	// He paid 200.000 and gets back what he paid, not the current value (206.000 after his own +3 %).
+	if got := saldoDe(t, pdb, j.ID, anfitrion, Fantasy); got != 1_000_000 {
+		t.Fatalf("saldo tras salir = %d; quería 1.000.000", got)
 	}
 	if _, miembros, nuevo := estadoSala(t, pdb, sala.ID); miembros != 2 || nuevo != segundo {
 		t.Fatalf("tras salir el anfitrión: %d miembros, anfitrión %v; quería 2 y el más antiguo", miembros, nuevo)
@@ -325,8 +326,8 @@ func TestInicioYPalmares(t *testing.T) {
 	if estado, _, _ := estadoSala(t, pdb, sola); estado != "cancelada" {
 		t.Fatalf("sala con 1 miembro = %s; quería cancelada", estado)
 	}
-	if got := saldoDe(t, pdb, j.ID, solo, Fantasy); got != 1_006_000 {
-		t.Fatalf("la cancelación debía devolver el valor del atleta: saldo %d", got)
+	if got := saldoDe(t, pdb, j.ID, solo, Fantasy); got != 1_000_000 {
+		t.Fatalf("la cancelación debía devolver lo pagado, ni más ni menos: saldo %d", got)
 	}
 	if estado, _, _ := estadoSala(t, pdb, sala); estado != "en_juego" {
 		t.Fatalf("sala con 2 miembros = %s; quería en_juego", estado)
@@ -386,5 +387,203 @@ func TestOrdenarSala(t *testing.T) {
 		if fs[i].Alias != alias || fs[i].Puesto != i+1 {
 			t.Fatalf("puesto %d = %s (%d); quería %s", i+1, fs[i].Alias, fs[i].Puesto, alias)
 		}
+	}
+}
+
+func precioEnSala(t *testing.T, q querier, sala, aid uuid.UUID) int64 {
+	t.Helper()
+	var p int64
+	if err := q.QueryRow(context.Background(), `SELECT `+precioSala+` FROM sala_atletas sa
+		JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id WHERE sa.sala_id = $1 AND sa.atleta_id = $2`, sala, aid).Scan(&p); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// BIZ-143 R#1.1: the price of an athlete inside a room does not depend on the signings of other rooms. After the
+// same 5 athletes are signed in 10 rooms, a new fan still completes his lineup of 5 with the welcome balance.
+func TestPrecioPorSala(t *testing.T) {
+	pdb := testDB(t)
+	s := svcCompleta(pdb)
+	ctx := context.Background()
+	cid, j := nuevaJornada(t, pdb, "abierta")
+	cfg, err := configJuegos(ctx, pdb, cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var atletas []uuid.UUID
+	for i := 0; i < 5; i++ {
+		atletas = append(atletas, atletaFantasiaDePrueba(t, pdb, cid, j.ID, uuid.Nil, nil, 200000))
+	}
+	fichar5 := func(fan uuid.UUID) {
+		t.Helper()
+		sala := salaDePrueba(t, pdb, cid, j, 4, fan)
+		for _, aid := range atletas {
+			if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error { return s.comprarTx(ctx, tx, cid, j, cfg, sala, fan, "fan", aid) }); err != nil {
+				t.Fatalf("compra: %v", err)
+			}
+		}
+	}
+	for i := 0; i < 10; i++ {
+		fichar5(nuevoFan())
+	}
+	nuevo := nuevoFan()
+	fichar5(nuevo)
+	if got := saldoDe(t, pdb, j.ID, nuevo, Fantasy); got != 0 {
+		t.Fatalf("saldo del fan nuevo tras fichar 5 = %d; quería 0 (5 × 200.000)", got)
+	}
+	if cl := clausulaDe(t, pdb, j.ID, atletas[0]); cl != 200000 {
+		t.Fatalf("cláusula de la jornada = %d; quería 200.000", cl)
+	}
+}
+
+// BIZ-143 R#1.2: leaving, closing or being expelled never leaves a fan with more coins than before he signed.
+func TestSalirNoDaMonedas(t *testing.T) {
+	pdb := testDB(t)
+	s := svcCompleta(pdb)
+	ctx := context.Background()
+	cid, j := nuevaJornada(t, pdb, "abierta")
+	cfg, err := configJuegos(ctx, pdb, cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var atletas []uuid.UUID
+	for i := 0; i < 5; i++ {
+		atletas = append(atletas, atletaFantasiaDePrueba(t, pdb, cid, j.ID, uuid.Nil, nil, 200000))
+	}
+	comprar := func(sala, fan, aid uuid.UUID) {
+		t.Helper()
+		if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error { return s.comprarTx(ctx, tx, cid, j, cfg, sala, fan, "fan", aid) }); err != nil {
+			t.Fatalf("compra: %v", err)
+		}
+	}
+	// The loop: create a room → sign 5 → leave (last one out closes it), ten times.
+	fan := nuevoFan()
+	for i := 0; i < 10; i++ {
+		sala, err := crearSalaPrueba(ctx, pdb, cid, j, fan, "Bucle "+itoa(i+1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, aid := range atletas {
+			comprar(sala.ID, fan, aid)
+		}
+		if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error { return salirTx(ctx, tx, cid, j, sala.ID, fan) }); err != nil {
+			t.Fatal(err)
+		}
+		if got := saldoDe(t, pdb, j.ID, fan, Fantasy); got != 1_000_000 {
+			t.Fatalf("vuelta %d: saldo tras salir = %d; quería 1.000.000", i+1, got)
+		}
+	}
+	// A clausulazo moves coins between two players of the room; when each one leaves, his trading there is undone.
+	a, b := nuevoFan(), nuevoFan()
+	sala := salaDePrueba(t, pdb, cid, j, 4, a, b)
+	comprar(sala, a, atletas[0])
+	if _, err := pdb.Exec(ctx, `UPDATE sala_atletas SET protegido_hasta = NULL WHERE sala_id = $1`, sala); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
+		return s.clausulazoTx(ctx, tx, cid, j, cfg, abierto, sala, b, "b", atletas[0])
+	}); err != nil {
+		t.Fatalf("clausulazo: %v", err)
+	}
+	if got := saldoDe(t, pdb, j.ID, a, Fantasy); got != 1_006_000 { // paid 200.000, cashed the room price 206.000
+		t.Fatalf("saldo del clausulado = %d; quería 1.006.000", got)
+	}
+	for _, f := range []uuid.UUID{a, b} {
+		if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error { return salirTx(ctx, tx, cid, j, sala, f) }); err != nil {
+			t.Fatal(err)
+		}
+		if got := saldoDe(t, pdb, j.ID, f, Fantasy); got != 1_000_000 {
+			t.Fatalf("saldo tras salir = %d; quería 1.000.000", got)
+		}
+	}
+}
+
+// BIZ-143 R#1.3: an invitation link resolves the jornada of its room, not today's: a room of another open jornada
+// is entered with its link.
+func TestEnlaceDeOtraJornada(t *testing.T) {
+	pdb := testDB(t)
+	s := svcCompleta(pdb)
+	ctx := context.Background()
+	cid, _ := nuevaJornada(t, pdb, "abierta") // today's
+	otra := nuevoFan()                        // any fresh uuid
+	if _, err := pdb.Exec(ctx, `INSERT INTO jornadas (id, competition_id, dia, nombre, estado) VALUES ($1,$2,current_date + 1,'Mañana','abierta')`, otra, cid); err != nil {
+		t.Fatal(err)
+	}
+	manana, err := scanJornada(pdb.QueryRow(ctx, selJornada+" FROM jornadas WHERE id = $1", otra))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sala, err := crearSalaPrueba(ctx, pdb, cid, manana, nuevoFan(), "Sala de mañana")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sl, j, err := s.salaPorCodigo(ctx, cid, strings.ToLower(sala.Codigo))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sl.ID != sala.ID || j.ID != manana.ID {
+		t.Fatalf("el código resolvió sala %v y jornada %v; quería %v y %v", sl.ID, j.ID, sala.ID, manana.ID)
+	}
+	fan := nuevoFan()
+	if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
+		_, err := unirsePorCodigoTx(ctx, tx, cid, *j, fan, "fan", sala.Codigo)
+		return err
+	}); err != nil {
+		t.Fatalf("entrar con el enlace de otra jornada: %v", err)
+	}
+	if _, _, err := s.salaPorCodigo(ctx, cid, "ZZZZZZZZZZ"); err == nil {
+		t.Fatal("un código que no existe debía dar 404")
+	}
+}
+
+// BIZ-143 R#1.4: a room that is not public does not exist for whoever is not a member (detail, market and ranking
+// go through salaVisible / salaDeVista) and its signing events carry no aliases nor prices.
+func TestSalaSoloEnlaceEsPrivada(t *testing.T) {
+	pdb := testDB(t)
+	s := svcCompleta(pdb)
+	ctx := context.Background()
+	cid, j := nuevaJornada(t, pdb, "abierta")
+	cfg, err := configJuegos(ctx, pdb, cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	miembro, ajeno := nuevoFan(), nuevoFan()
+	var privada *salaRow
+	if err := db.Tx(ctx, pdb, func(tx pgx.Tx) (err error) {
+		privada, err = crearSalaTx(ctx, tx, cid, j, miembro, "alias", "Solo enlace", false, 4)
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, fan := range []uuid.UUID{ajeno, uuid.Nil} {
+		if _, err := s.salaDeVista(ctx, cid, j, privada.ID, fan); err != errSalaNoExiste {
+			t.Fatalf("sala privada para un no miembro = %v; quería 404", err)
+		}
+		if _, err := s.salaVisible(ctx, privada, fan); err != errSalaNoExiste {
+			t.Fatalf("detalle de sala privada para un no miembro = %v; quería 404", err)
+		}
+	}
+	if sl, err := s.salaDeVista(ctx, cid, j, privada.ID, miembro); err != nil || sl == nil {
+		t.Fatalf("el miembro debía ver su sala privada: %v", err)
+	}
+	publica := salaDePrueba(t, pdb, cid, j, 4, nuevoFan())
+	if sl, err := s.salaDeVista(ctx, cid, j, publica, ajeno); err != nil || sl == nil {
+		t.Fatalf("una sala pública se ve sin ser miembro: %v", err)
+	}
+	// The signing event of the private room: ids only.
+	aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, uuid.Nil, nil, 200000)
+	if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
+		return s.comprarTx(ctx, tx, cid, j, cfg, privada.ID, miembro, "alias-secreto", aid)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var filtrados int
+	if err := pdb.QueryRow(ctx, `SELECT count(*) FROM outbox WHERE type = 'fantasy.fichaje' AND payload::text LIKE '%' || $1 || '%'
+		AND (payload::text LIKE '%alias-secreto%' OR payload::text LIKE '%precio%')`, privada.ID.String()).Scan(&filtrados); err != nil {
+		t.Fatal(err)
+	}
+	if filtrados != 0 {
+		t.Fatalf("%d eventos de fichaje de la sala privada llevan alias o precio", filtrados)
 	}
 }

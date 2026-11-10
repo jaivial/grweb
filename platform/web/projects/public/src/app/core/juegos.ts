@@ -917,6 +917,8 @@ export class JuegosEnVivo {
   private fichaje(e: Event): void {
     const d = this.datos(e);
     if (!d) return;
+    // sala «solo enlace»: el evento no trae alias ni precio; solo avisa de que hay que recargar
+    if (d['privada']) return this.version.update((v) => v + 1);
     const tipo = (d['tipo'] as TipoFichaje) ?? 'compra';
     const mov: MovimientoFeed = {
       tipo,

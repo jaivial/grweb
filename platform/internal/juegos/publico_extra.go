@@ -82,6 +82,8 @@ func (s *Svc) registerPublicExtra() {
 		})
 
 	type fichajesIn struct {
+		Session   string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header    string    `header:"X-GrCup-Fan" maxLength:"4096"`
 		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		JornadaID uuid.UUID `query:"jornada" required:"false"`
 		AtletaID  uuid.UUID `query:"atleta" required:"false"`
@@ -94,9 +96,13 @@ func (s *Svc) registerPublicExtra() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-fichajes", Method: http.MethodGet, Path: base + "/fantasy/fichajes",
-		Summary: "Últimos fichajes del mercado de fantasy (de una jornada o de un atleta)", Tags: tagJuegos},
+		Summary: "Últimos fichajes del mercado de fantasy (de una jornada o de un atleta); los de salas «solo enlace» solo los ven sus jugadores", Tags: tagJuegos, Description: descSesionFanOpcional},
 		func(ctx context.Context, in *fichajesIn) (*fichajesOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			fanID, err := s.fanOpcional(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
 			if err != nil {
 				return nil, err
 			}
@@ -117,7 +123,9 @@ func (s *Svc) registerPublicExtra() {
 				LEFT JOIN saldos sd ON sd.jornada_id = f.jornada_id AND sd.fan_id = f.de_fan AND sd.moneda = 'fantasy'
 				LEFT JOIN saldos sa ON sa.jornada_id = f.jornada_id AND sa.fan_id = f.a_fan AND sa.moneda = 'fantasy'
 				WHERE f.jornada_id = $1 AND f.competition_id = $2 AND ($3::uuid IS NULL OR f.atleta_id = $3) AND ($5::uuid IS NULL OR f.sala_id = $5)
-				ORDER BY f.created_at DESC LIMIT $4`, j.ID, c.ID, atleta, limite, sala)
+					AND (f.sala_id IS NULL OR EXISTS (SELECT 1 FROM salas s WHERE s.id = f.sala_id AND (s.publica
+						OR EXISTS (SELECT 1 FROM sala_miembros m WHERE m.sala_id = s.id AND m.fan_id = $6))))
+				ORDER BY f.created_at DESC LIMIT $4`, j.ID, c.ID, atleta, limite, sala, fanID)
 			if err != nil {
 				return nil, err
 			}

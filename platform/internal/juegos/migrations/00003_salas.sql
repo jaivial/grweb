@@ -48,7 +48,8 @@ CREATE TABLE sala_solicitudes (
 );
 CREATE INDEX sala_solicitudes_fan ON sala_solicitudes (jornada_id, fan_id, estado);
 
--- Propiedad de los atletas dentro de una sala (la cláusula sigue en fantasy_atletas: una por atleta y jornada).
+-- Propiedad de los atletas dentro de una sala. fantasy_atletas.clausula es base × factor de nota (igual para todas
+-- las salas); demanda es el +3 % por fichaje, que es de la sala: precio en la sala = clausula × demanda.
 CREATE TABLE sala_atletas (
     sala_id         uuid        NOT NULL REFERENCES salas(id) ON DELETE CASCADE,
     jornada_id      uuid        NOT NULL,
@@ -56,6 +57,7 @@ CREATE TABLE sala_atletas (
     dueno_fan_id    uuid,
     dueno_alias     text        NOT NULL DEFAULT '',
     protegido_hasta timestamptz,
+    demanda         numeric(8, 4) NOT NULL DEFAULT 1,
     updated_at      timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (sala_id, atleta_id)
 );

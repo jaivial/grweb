@@ -200,8 +200,12 @@ func TestCompraAtletaLibre(t *testing.T) {
 	if saldoDe(t, pdb, j.ID, fan1, Fantasy) != 1_000_000-200_000 {
 		t.Fatalf("saldo tras compra = %d; quería 800.000", saldoDe(t, pdb, j.ID, fan1, Fantasy))
 	}
-	if cl := clausulaDe(t, pdb, j.ID, aid); cl != 206000 { // 200.000 + 3 %, redondeo a 1.000
-		t.Fatalf("cláusula tras compra = %d; quería 206.000", cl)
+	// The +3 % of the demand belongs to the room: the clause of the jornada does not move.
+	if cl := clausulaDe(t, pdb, j.ID, aid); cl != 200000 {
+		t.Fatalf("cláusula de la jornada tras compra = %d; quería 200.000", cl)
+	}
+	if p := precioEnSala(t, pdb, sala, aid); p != 206000 { // 200.000 + 3 %, redondeo a 1.000
+		t.Fatalf("precio en la sala tras compra = %d; quería 206.000", p)
 	}
 	if err := comprar(otraSala, fan3); err != nil {
 		t.Fatalf("el mismo atleta debía estar libre en otra sala: %v", err)
