@@ -4,6 +4,7 @@ import { HangingMedals, type HangingMedalSpec } from '@components/medals';
 import { useMediaQuery } from '@hooks/useMediaQuery';
 import { weightClassTabAtom } from '../../atoms/prizes';
 import { PrizeHeading } from './PrizeHeading';
+import { SmokeCloud } from './SmokeCloud';
 import {
   MEDAL_ASSETS,
   MEDAL_PHYSICS,
@@ -19,6 +20,10 @@ import {
 const COPY = PRIZES_COPY.weightClasses;
 /** Two columns (Hombres | Mujeres) from here; tabs above a two-column chip list below. */
 const COLUMNS_QUERY = '(min-width: 768px)';
+const TABLET_QUERY = '(min-width: 480px)';
+const DESKTOP_QUERY = '(min-width: 1024px)';
+/** Cloud layer height (Figma 400 on desktop), CSS px. */
+const CLOUD_HEIGHT = { desktop: 400, tablet: 300, mobile: 220 } as const;
 
 type Group = (typeof WEIGHT_CLASS_GROUPS)[number];
 
@@ -121,15 +126,20 @@ const WeightClassTabs = memo(function WeightClassTabs() {
 export const WeightClassPrizes = memo(function WeightClassPrizes() {
   const blockRef = useRef<HTMLDivElement>(null);
   const showColumns = useMediaQuery(COLUMNS_QUERY);
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const isTablet = useMediaQuery(TABLET_QUERY);
+  const cloudHeight = isDesktop ? CLOUD_HEIGHT.desktop : isTablet ? CLOUD_HEIGHT.tablet : CLOUD_HEIGHT.mobile;
   const medals = useMemo<HangingMedalSpec[]>(
     () => PODIUM_MEDALS.map((medal) => ({ id: medal.id, label: medal.label, phase: medal.phase, assets: MEDAL_ASSETS[medal.metal] })),
     [],
   );
 
   return (
-    // padding-top = PODIUM_LAYOUTS[].canvasHeight + 8 (192 / 280 / 368).
-    <div ref={blockRef} className="relative mt-16 pt-[192px] sm:mt-20 sm:pt-[280px] 3xl:pt-[368px]" data-ui="weight-class-prizes">
+    // padding-top = PODIUM_LAYOUTS[].canvasHeight + 8 (338 / 528 / 708). Figma: 120 px between blocks.
+    <div ref={blockRef} className="relative mt-16 pt-[338px] sm:mt-20 sm:pt-[528px] 3xl:mt-[120px] 3xl:pt-[708px]" data-ui="weight-class-prizes">
       <HangingMedals medals={medals} layouts={PODIUM_LAYOUTS} physics={MEDAL_PHYSICS} collisions={PODIUM_COLLISIONS} containerRef={blockRef} />
+      {/* Smoke above the ribbons (canvas z-30): they are born inside it. Figma: layer starts 30 px above the block. */}
+      <SmokeCloud height={cloudHeight} className="top-[-30px] z-40" />
       <PrizeHeading eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
       {showColumns ? <WeightClassColumns /> : <WeightClassTabs />}
     </div>
