@@ -271,6 +271,6 @@ export class GrRaffleItem {
 })
 export class GrRaffleNotice {
   readonly titulo = input('Rifa presencial · solo en efectivo');
-  readonly href = input<string | null>('/sorteo');
+  readonly href = input<string | null>('/rifa');
   readonly enlace = input('Ver objetos de la rifa →');
 }

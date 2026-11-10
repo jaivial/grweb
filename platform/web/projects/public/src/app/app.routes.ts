@@ -56,6 +56,8 @@ export const routes: Routes = [
   { path: 'baja', component: BajaPage },
   { path: 'sorteo', component: SorteoPage },
   { path: 'sorteo/confirmacion', component: SorteoConfirmacionPage },
+  // Figma links «Rifa presencial» to /rifa; until U13 builds the item showcase it lives on /sorteo.
+  { path: 'rifa', pathMatch: 'full', redirectTo: 'sorteo' },
   { path: 'en-directo', component: EnDirectoPage },
   { path: 'acceso', component: AccesoPage },
   { path: 'directo', pathMatch: 'full', redirectTo: 'en-directo' },
