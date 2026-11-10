@@ -447,7 +447,7 @@ const si = (v: unknown) => (v ? 'Sí' : 'No');
 /** Collections configured from the CMS API (Figma «Web · FAQ», «patrocinadores», «SEO», «blog y galería»). */
 export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   faq: [{
-    title: 'Preguntas frecuentes', subtitle: 'Las destacadas aparecen en la home', path: '/web/faq', item: 'pregunta', reorder: true, filterBy: 'categoria',
+    title: 'Preguntas frecuentes', subtitle: 'Las destacadas aparecen en la home', path: '/web/faq', item: 'pregunta', femenino: true, reorder: true, filterBy: 'categoria',
     columns: [{ key: 'pregunta', label: 'Pregunta' }, { key: 'categoria', label: 'Categoría', hideMobile: true }, { key: 'destacada', label: 'Home', kind: 'badge', value: (r) => (r['destacada'] ? 'Destacada' : '—'), tone: (r) => (r['destacada'] ? 'accent' : 'neutral'), hideMobile: true },
       { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
     fields: [{ clave: 'pregunta', etiqueta: 'Pregunta', tipo: 'texto', max: 200 }, { clave: 'respuesta', etiqueta: 'Respuesta', tipo: 'markdown', ayuda: 'Admite negrita y enlaces' },
@@ -484,7 +484,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   }],
   seo: [
     {
-      title: 'Páginas de contenido', subtitle: 'Reglamento, categorías, marcas mínimas… (/{slug})', path: '/web/paginas', item: 'página', reorder: true,
+      title: 'Páginas de contenido', subtitle: 'Reglamento, categorías, marcas mínimas… (/{slug})', path: '/web/paginas', item: 'página', femenino: true, reorder: true,
       columns: [{ key: 'titulo', label: 'Página' }, { key: 'slug', label: 'Ruta', kind: 'mono', value: (r) => '/' + r['slug'] }, { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
       fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140 }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ayuda: 'Minúsculas y guiones', ancho: 'mitad' }, { clave: 'portadaUrl', etiqueta: 'Portada', tipo: 'imagen' },
         { clave: 'resumen', etiqueta: 'Resumen', tipo: 'area', max: 300 }, { clave: 'cuerpo', etiqueta: 'Contenido', tipo: 'markdown' }, { clave: 'publicada', etiqueta: 'Publicada', tipo: 'bool' }],
@@ -492,7 +492,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       empty: { title: 'Sin páginas', text: 'Crea páginas como el reglamento o las categorías de peso.' },
     },
     {
-      title: 'SEO por ruta', subtitle: 'Title y description que ve Google', path: '/web/seo', item: 'ruta',
+      title: 'SEO por ruta', subtitle: 'Title y description que ve Google', path: '/web/seo', item: 'ruta', femenino: true,
       columns: [{ key: 'ruta', label: 'Ruta', kind: 'mono' }, { key: 'title', label: 'Title' }, { key: 'indexable', label: 'Indexable', kind: 'badge', value: (r) => si(r['indexable']), tone: (r) => (r['indexable'] ? 'success' : 'warning'), hideMobile: true }],
       fields: [{ clave: 'ruta', etiqueta: 'Ruta', tipo: 'texto', ayuda: 'Empieza por /' }, { clave: 'title', etiqueta: 'Title', tipo: 'texto', max: 70 }, { clave: 'description', etiqueta: 'Description', tipo: 'area', max: 170 },
         { clave: 'imagenUrl', etiqueta: 'Imagen para redes', tipo: 'imagen', ayuda: '1200 × 630' }, { clave: 'indexable', etiqueta: 'Indexable en buscadores', tipo: 'bool' }],
@@ -500,18 +500,18 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       empty: { title: 'Sin SEO a medida', text: 'Las páginas usan textos automáticos hasta que los definas aquí.' },
     },
     {
-      title: 'Redirecciones', subtitle: 'Enlaces antiguos que llevan a la página nueva', path: '/web/redirecciones', item: 'redirección',
+      title: 'Redirecciones', subtitle: 'Enlaces antiguos que llevan a la página nueva', path: '/web/redirecciones', item: 'redirección', femenino: true,
       columns: [{ key: 'desde', label: 'Desde', kind: 'mono' }, { key: 'hacia', label: 'Hacia', kind: 'mono' }, { key: 'codigo', label: 'Código', kind: 'badge', hideMobile: true }],
       fields: [{ clave: 'desde', etiqueta: 'Desde', tipo: 'texto', ayuda: '/ruta-antigua', ancho: 'mitad',
-        aviso: (v) => (RUTAS_PUBLICAS.has(v.trim()) ? 'Aviso: es una página de la web; la redirección la tapará.' : null) }, { clave: 'hacia', etiqueta: 'Hacia', tipo: 'texto', ayuda: '/ruta-nueva o https://…', ancho: 'mitad' },
-        { clave: 'codigo', etiqueta: 'Tipo', tipo: 'select', opciones: [{ value: '301', label: '301 · permanente' }, { value: '302', label: '302 · temporal' }] }],
-      defaults: { codigo: '301' },
+        aviso: (v) => (RUTAS_PUBLICAS.has(v.trim().toLowerCase().replace(/(.)\/+$/, '$1')) ? 'Es una página de la web: la redirección la tapará.' : null) }, { clave: 'hacia', etiqueta: 'Hacia', tipo: 'texto', ayuda: '/ruta-nueva o https://…', ancho: 'mitad' },
+        { clave: 'codigo', etiqueta: 'Tipo', tipo: 'select', opciones: [{ value: 301, label: '301 · permanente' }, { value: 302, label: '302 · temporal' }] }],
+      defaults: { codigo: 301 },
       empty: { title: 'Sin redirecciones', text: 'Útiles al cambiar de dominio o de ruta.' },
     },
   ],
   blog: [
     {
-      title: 'Blog', subtitle: 'Noticias de la competición', path: '/web/blog', item: 'entrada',
+      title: 'Blog', subtitle: 'Noticias de la competición', path: '/web/blog', item: 'entrada', femenino: true,
       columns: [{ key: 'titulo', label: 'Entrada' }, { key: 'publicarAt', label: 'Programada', kind: 'date', hideMobile: true }, { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
       fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140 }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ayuda: '/blog/{ruta}', ancho: 'mitad' }, { clave: 'publicarAt', etiqueta: 'Programar publicación', tipo: 'fecha', ancho: 'mitad' },
         { clave: 'categoria', etiqueta: 'Categoría', tipo: 'select', ancho: 'mitad', opciones: [['', 'Sin categoría'], ['noticias', 'Noticias'], ['calendario', 'Calendario'], ['guia', 'Guía'], ['normativa', 'Normativa'], ['marcas', 'Marcas'], ['cronica', 'Crónica'], ['entrenamiento', 'Entrenamiento']].map(([value, label]) => ({ value, label })) },

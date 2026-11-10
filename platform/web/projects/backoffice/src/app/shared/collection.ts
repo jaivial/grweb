@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
+import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { Resource } from './resource';
@@ -24,6 +25,7 @@ export interface CollectionConfig {
   subtitle?: string;
   path: string;
   item: string; // «pregunta», «patrocinador»…
+  femenino?: boolean; // «Nueva pregunta», «creada»
   columns: ColumnDef[];
   fields: FieldDef[];
   defaults?: Record<string, unknown>;
@@ -99,7 +101,7 @@ export interface CollectionConfig {
       </ul>
     }
 
-    <bo-drawer [(open)]="drawer" [title]="editing() ? 'Editar ' + c.item : 'Nuevo ' + c.item">
+    <bo-drawer [(open)]="drawer" [title]="editing() ? 'Editar ' + c.item : (c.femenino ? 'Nueva ' : 'Nuevo ') + c.item">
       @if (formError()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ formError() }}</gr-alert> }
       <bo-schema-form [fields]="c.fields" [(value)]="draft" />
       <ng-container drawerActions>
@@ -182,9 +184,9 @@ export class BoCollection {
       if (r) await this.res().update(r.id, this.draft());
       else await this.res().create(this.draft());
       this.drawer.set(false);
-      this.toasts.success(r ? 'Cambios guardados' : `${this.config().item[0].toUpperCase()}${this.config().item.slice(1)} creado`);
+      this.toasts.success(r ? 'Cambios guardados' : `${this.config().item[0].toUpperCase()}${this.config().item.slice(1)} ${this.config().femenino ? 'creada' : 'creado'}`);
     } catch (e) {
-      this.formError.set(errText(e));
+      this.formError.set(camposText(e, this.config().fields) ?? errText(e));
     } finally {
       this.saving.set(false);
     }
@@ -193,7 +195,7 @@ export class BoCollection {
   protected async remove(): Promise<void> {
     const r = this.editing();
     if (!r) return;
-    const ok = await this.confirm.ask({ title: `¿Borrar este ${this.config().item}?`, text: 'Desaparecerá de la web al momento. Queda registrado en la auditoría.', confirm: 'Borrar', danger: true });
+    const ok = await this.confirm.ask({ title: `¿Borrar ${this.config().femenino ? 'esta' : 'este'} ${this.config().item}?`, text: 'Desaparecerá de la web al momento. Queda registrado en la auditoría.', confirm: 'Borrar', danger: true });
     if (!ok) return;
     try {
       await this.res().remove(r.id);
@@ -214,4 +216,23 @@ export class BoCollection {
       void this.res().load();
     }
   }
+}
+
+/** Schema validation errors of the API («body.codigo: expected integer») as «Tipo: debe ser un número.», one per field. */
+function camposText(e: unknown, fields: FieldDef[]): string | null {
+  const errs = problemOf(e).errors;
+  if (!errs?.length) return null;
+  const msg = (m: string) => {
+    const max = /length <= (\d+)/.exec(m);
+    if (max) return `admite como máximo ${max[1]} caracteres.`;
+    if (m.includes('expected integer') || m.includes('expected number')) return 'debe ser un número.';
+    if (m.includes('one of')) return 'elige una de las opciones.';
+    if (m.includes('required')) return 'es obligatorio.';
+    if (m.includes('pattern')) return 'no tiene el formato esperado.';
+    return 'valor no válido.';
+  };
+  return errs.map((x) => {
+    const clave = (x.location ?? '').replace(/^body\.?/, '').split(/[.[]/)[0] || /property (\w+)/.exec(x.message ?? '')?.[1] || '';
+    return `${(fields.find((f) => f.clave === clave)?.etiqueta ?? clave) || 'Formulario'}: ${msg(x.message ?? '')}`;
+  }).join(' ');
 }

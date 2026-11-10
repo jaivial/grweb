@@ -15,6 +15,7 @@ const angularApp = new AngularNodeAppEngine();
 const API = process.env['API_INTERNAL_URL'] ?? 'http://127.0.0.1:18300';
 const ORIGIN = process.env['PUBLIC_ORIGIN'] ?? 'https://grcup-qa.menustudioai.com';
 const SLUG = 'grcup';
+const HOST = new URL(ORIGIN).host.toLowerCase();
 
 interface SeoMap {
   paginas: { ruta: string; indexable: boolean }[];
@@ -43,7 +44,11 @@ app.use(async (req, res, next) => {
   const map = await seoMap();
   // Follow chains to their end in one hop; a loop (a → b → a) is ignored instead of bouncing the browser forever.
   // Compare paths only: «/x?a=1» or «/x#b» lands on /x again, so it counts as a loop too.
-  const ruta = (u: string) => u.split(/[?#]/)[0];
+  // An absolute URL of this same web (http or https) counts by its path too.
+  const ruta = (u: string) => {
+    const m = /^https?:\/\/([^/?#]*)(.*)$/i.exec(u);
+    return (m && m[1].toLowerCase() === HOST ? m[2] : u).split(/[?#]/)[0] || '/';
+  };
   const vistos = new Set([req.path]);
   let r: SeoMap['redirecciones'][number] | undefined;
   for (let x = map?.redirecciones.find((y) => y.desde === req.path); x; x = map?.redirecciones.find((y) => y.desde === ruta(r!.hacia))) {
@@ -51,7 +56,14 @@ app.use(async (req, res, next) => {
     vistos.add(ruta(x.hacia));
     r = x;
   }
-  if (r) return res.redirect(r.codigo, r.hacia);
+  if (r) {
+    // Keep the incoming query (campaign tags of old links), merged with the destination's own.
+    const i = req.originalUrl.indexOf('?');
+    if (i < 0) return res.redirect(r.codigo, r.hacia);
+    const [base, ...hash] = r.hacia.split('#');
+    const q = req.originalUrl.slice(i + 1);
+    return res.redirect(r.codigo, base + (base.includes('?') ? '&' : '?') + q + (hash.length ? '#' + hash.join('#') : ''));
+  }
   next();
 });
 

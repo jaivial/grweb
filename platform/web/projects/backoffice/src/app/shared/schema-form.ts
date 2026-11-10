@@ -10,12 +10,13 @@ export interface FieldDef {
   tipo: 'texto' | 'area' | 'markdown' | 'url' | 'imagen' | 'numero' | 'bool' | 'select' | 'fecha' | 'lista';
   ayuda?: string;
   max?: number;
-  opciones?: { value: string; label: string }[];
+  /** Numeric values are sent as numbers (the API validates the JSON type). */
+  opciones?: { value: string | number; label: string }[];
   campos?: FieldDef[];
   ancho?: 'mitad';
   /** Image fields: upload endpoint under the competition, instead of the media library. */
   subida?: string;
-  /** Non-blocking warning for the current text value; replaces the help text while it returns one. */
+  /** Non-blocking warning for the current text value, shown under the help text in warning colour. */
   aviso?: (valor: string) => string | null;
 }
 
@@ -61,7 +62,8 @@ type Obj = Record<string, unknown>;
             </fieldset>
           }
           @default {
-            <gr-field [label]="f.etiqueta" [for]="id" [hint]="f.aviso?.(str(f.clave)) ?? f.ayuda ?? null">
+            @let aviso = f.aviso?.(str(f.clave));
+            <gr-field [label]="f.etiqueta" [for]="id" [hint]="f.ayuda ?? null">
               @if (f.max) { <bo-count fieldAside [value]="str(f.clave)" [max]="f.max" /> }
               @switch (f.tipo) {
                 @case ('area') { <textarea grInput [id]="id" rows="4" class="h-auto! py-2" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea> }
@@ -81,7 +83,7 @@ type Obj = Record<string, unknown>;
                 @case ('numero') { <input grInput [id]="id" type="number" inputmode="numeric" [value]="get(f.clave) ?? ''" (input)="set(f.clave, num($any($event.target).value))" /> }
                 @case ('fecha') { <input grInput [id]="id" type="datetime-local" [value]="local(f.clave)" (input)="set(f.clave, iso($any($event.target).value))" /> }
                 @case ('select') {
-                  <gr-select [id]="id" [value]="get(f.clave)" (valorChange)="set(f.clave, $event)">
+                  <gr-select [id]="id" [value]="get(f.clave)" (valorChange)="set(f.clave, opcion(f, $event))">
                     @for (o of f.opciones ?? []; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
                   </gr-select>
                 }
@@ -97,8 +99,9 @@ type Obj = Record<string, unknown>;
                     @if (str(f.clave)) { <img [src]="vista(str(f.clave))" alt="" class="max-h-40 w-auto self-start rounded-sm border border-line-subtle object-cover" /> }
                   </div>
                 }
-                @default { <input grInput [id]="id" [type]="f.tipo === 'url' ? 'url' : 'text'" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)" /> }
+                @default { <input grInput [id]="id" [type]="f.tipo === 'url' ? 'url' : 'text'" [value]="str(f.clave)" [attr.aria-describedby]="aviso ? id + '-aviso' : null" (input)="set(f.clave, $any($event.target).value)" /> }
               }
+              @if (aviso) { <p class="flex items-start gap-1.5 text-body-xs text-warning" [id]="id + '-aviso'"><gr-icon name="triangle-alert" [size]="14" class="mt-px shrink-0" />{{ aviso }}</p> }
             </gr-field>
           }
         }
@@ -129,6 +132,8 @@ export class BoSchemaForm {
     [l[i], l[i + d]] = [l[i + d], l[i]];
     this.set(k, l);
   }
+  /** gr-select emits strings: give back the option's own value (a number stays a number). */
+  protected opcion(f: FieldDef, v: string): unknown { return f.opciones?.find((o) => String(o.value) === v)?.value ?? v; }
   protected num(v: string): number | null { return v === '' ? null : Number(v); }
   protected local(k: string): string { const v = this.str(k); return v ? v.slice(0, 16) : ''; }
   protected iso(v: string): string | null { return v ? new Date(v).toISOString() : null; }
