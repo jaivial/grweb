@@ -76,7 +76,7 @@ const REJILLAS: [string, number, number, number, number, number][] = [
   template: `
     <main class="mx-auto flex max-w-[1600px] flex-col gap-16 px-5 py-20 md:px-8 xl:px-20">
       <header class="flex flex-col gap-3">
-        <h1 class="text-display-xl">Fundamentos</h1>
+        <h1 class="text-display-m md:text-display-xl">Fundamentos</h1>
         <p class="max-w-[1100px] text-body-l text-text-tertiary">Tokens medidos con getComputedStyle sobre la app en ejecución. Variables en la colección "GR Cup · Tokens" (modo Dark), estilos de texto y de efecto locales.</p>
       </header>
 
@@ -96,10 +96,10 @@ const REJILLAS: [string, number, number, number, number, number][] = [
             }
           </ul>
         }
-        <!-- Figma lays the five 280 px swatches in one row even though they overflow the 1440 column by 24 px -->
+        <!-- Figma lays the five 280 px swatches in one row even though they overflow the 1440 column by 24 px (into the margin); narrower screens shrink them -->
         <ul class="flex flex-wrap gap-4 xl:flex-nowrap">
           @for (g of gradientes; track g[0]) {
-            <li class="flex w-[280px] flex-col gap-2">
+            <li class="flex w-[280px] flex-col gap-2 min-[1600px]:shrink-0">
               <span class="h-[72px] rounded-md border border-line-subtle" [style.background]="g[1]"></span>
               <span class="text-body-s text-text-secondary">{{ g[0] }}</span>
             </li>
@@ -109,7 +109,7 @@ const REJILLAS: [string, number, number, number, number, number][] = [
 
       <section class="flex flex-col gap-5" aria-labelledby="sg-tipo">
         <h2 id="sg-tipo" class="text-ui-h3">Tipografía</h2>
-        <p class="max-w-[1200px] text-body-m text-text-tertiary">Contrail One para titulares (en mayúsculas, como en la web) · Inter para interfaz y cuerpo · Roboto Mono para datos. Fugaz One se carga en index.html pero no se usa: propuesta eliminarla.</p>
+        <p class="max-w-[1200px] text-body-m text-text-tertiary">Contrail One para titulares (en mayúsculas, como en la web) · Inter para interfaz y cuerpo · Roboto Mono para datos.</p>
         <ul class="flex flex-col gap-5">
           @for (t of tipos; track t[0]) {
             <li class="flex flex-col gap-2 border-b border-line-subtle py-3 md:flex-row md:items-center md:gap-8">
@@ -119,14 +119,14 @@ const REJILLAS: [string, number, number, number, number, number][] = [
           }
         </ul>
         <div class="flex flex-col gap-2 overflow-x-auto rounded-md bg-bg-card p-6">
-          <p class="text-label-s text-text-secondary">Escala responsive (Tailwind del proyecto: md 540 · lg 640 · xl 768 · 2xl 992 → tablet 768 = desktop)</p>
+          <p class="text-label-s text-text-secondary">Escala responsive (Tailwind del proyecto: sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1440)</p>
           @for (l of rampa; track $index) { <p class="text-mono-s whitespace-pre text-text-tertiary">{{ l }}</p> }
         </div>
       </section>
 
       <section class="flex flex-wrap gap-6" aria-label="Efectos">
         @for (e of efectos; track e[0]) {
-          <div class="flex w-[220px] flex-col items-center gap-2 rounded-md bg-bg-surface p-6">
+          <div class="flex w-[220px] flex-col items-center gap-2 rounded-md bg-bg-surface p-6 xl:w-[calc((100%-120px)/6)]">
             <span class="relative h-16 w-[120px] overflow-hidden rounded-md" [class]="e[1]">
               @if (e[2]; as g) { <span class="absolute inset-0 bg-[length:128px_128px]" [style.background-image]="g[0]" [style.opacity]="g[1]" [style.mix-blend-mode]="g[2]"></span> }
             </span>
@@ -158,9 +158,9 @@ const REJILLAS: [string, number, number, number, number, number][] = [
 
       <section class="flex flex-wrap items-start gap-10" aria-label="Rejillas">
         @for (g of rejillas; track g[0]) {
-          <div class="flex flex-col gap-2">
+          <div class="flex max-w-full flex-col gap-2" [style.width.px]="g[1]">
             <span class="text-mono-s text-text-tertiary">{{ g[0] }}</span>
-            <span class="flex border border-line-subtle bg-bg-card" [style.width.px]="g[1]" [style.height.px]="g[2]" [style.gap.px]="g[4]" [style.padding-inline.px]="g[5]">
+            <span class="flex w-full border border-line-subtle bg-bg-card" [style.aspect-ratio]="g[1] + ' / ' + g[2]" [style.gap.px]="g[4]" [style.padding-inline.px]="g[5]">
               @for (c of cols(g[3]); track c) { <span class="flex-1 bg-[#dc143d]/12"></span> }
             </span>
           </div>

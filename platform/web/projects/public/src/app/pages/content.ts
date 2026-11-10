@@ -147,7 +147,7 @@ export class ContentPage {
       if (!p) {
         this.p.set(null);
         this.cms.notFound();
-        seo.set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página no existe.', path: '/' + slug });
+        seo.set({ title: this.cms.failed() ? 'GR Strength Cup' : 'Página no encontrada · GR Strength Cup', description: this.cms.failed() ? 'Contenido no disponible ahora mismo.' : 'La página no existe.', path: '/' + slug });
         return;
       }
       this.html.set(renderMarkdown(p.cuerpo ?? '').html);

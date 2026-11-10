@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 
 export interface SeoData {
@@ -25,6 +25,7 @@ export class Seo {
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
   private readonly doc = inject(DOCUMENT);
+  private readonly res = inject(RESPONSE_INIT, { optional: true });
   readonly origin = 'https://grcup-qa.menustudioai.com';
   readonly defaultImage = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
   /** Ruta de la página que se está renderizando (la fija `set`). */
@@ -52,13 +53,19 @@ export class Seo {
     for (const [attr, key, content] of tags) this.meta.updateTag({ [attr]: key, content }, `${attr}="${key}"`);
     if (d.robots) this.meta.updateTag({ name: 'robots', content: d.robots }, 'name="robots"');
     else this.meta.removeTag('name="robots"');
+    // A noindex page has no canonical (contradictory signals) and repeats the directive as a header for non-HTML crawlers.
     let link = this.doc.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (!link) {
-      link = this.doc.createElement('link');
-      link.rel = 'canonical';
-      this.doc.head.appendChild(link);
+    if (d.robots?.includes('noindex')) {
+      link?.remove();
+      if (this.res) this.res.headers = { ...(this.res.headers as Record<string, string> | undefined), 'X-Robots-Tag': d.robots };
+    } else {
+      if (!link) {
+        link = this.doc.createElement('link');
+        link.rel = 'canonical';
+        this.doc.head.appendChild(link);
+      }
+      link.href = url;
     }
-    link.href = url;
     this.doc.documentElement.lang = d.lang ?? 'es';
     this.doc.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach((l) => l.remove());
     for (const a of d.alternates ?? []) {

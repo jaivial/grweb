@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ChangeDetectionStrategy, Component, PendingTasks, RESPONSE_INIT, inject, signal } from '@angular/core';
-import { fmtLongDate } from '@grcup/ui';
+import { GrAlert, fmtLongDate } from '@grcup/ui';
 import { Cms, type HomeCms } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import type { Entradas } from '../core/entradas';
@@ -23,7 +23,7 @@ import { SecSorteo, type SorteoHome } from './sorteo';
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, HeroTrophy, Campeonato, SecCifras, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, GrAlert, HeroTrophy, Campeonato, SecCifras, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -35,6 +35,11 @@ import { SecSorteo, type SorteoHome } from './sorteo';
       <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || 'Campeonato de powerlifting'"
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
+      @if (cmsApi.limitado()) {
+        <div class="mx-auto max-w-[1440px] px-5 py-10 md:px-8 xl:px-[120px]">
+          <gr-alert tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert>
+        </div>
+      }
       @if (h) {
         <!-- Sections in the order and visibility published from the backoffice («Web · home»). -->
         @for (k of h.orden; track k) {
@@ -62,6 +67,7 @@ import { SecSorteo, type SorteoHome } from './sorteo';
 })
 export class HomePage {
   protected readonly comp = inject(Competition);
+  protected readonly cmsApi = inject(Cms);
   private readonly seo = inject(Seo);
   protected readonly introDone = signal(false);
   protected readonly cms = signal<HomeCms | null>(null);
@@ -72,12 +78,11 @@ export class HomePage {
 
   constructor() {
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
-    const cmsApi = inject(Cms);
     const http = inject(HttpClient);
     const api = (p: string) => `/api/competiciones/${COMPETITION_SLUG}${p}`;
     const opt = <T,>(p: string) => firstValueFrom(http.get<T>(api(p))).catch(() => null);
     void inject(PendingTasks).run(() => Promise.all([
-      this.comp.load(), cmsApi.home(), opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
+      this.comp.load(), this.cmsApi.home(), opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
     ]).then(([c, h, sorteo, entradas, horarios]) => {
       this.cms.set(h);
       this.sorteo.set(sorteo);
