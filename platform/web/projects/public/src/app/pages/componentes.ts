@@ -215,9 +215,9 @@ class Cs {
                       @let t = alerta[a.p['Tone']];
                       <gr-alert class="absolute! w-[520px]" [style.left.px]="a.x" [style.top.px]="a.y" [tone]="t.tone" [icon]="t.icon">{{ t.t }}
                         @if (a.p['Action'] === 'Sí') {
-                          <span alertEnd class="flex shrink-0 items-start gap-3">
+                          <span alertEnd class="flex shrink-0 items-center gap-3 self-center">
                             <a href="#" class="rounded-sm px-2.5 py-1.5 text-label-s" [class]="t.bg + ' ' + t.fg">{{ t.accion }}</a>
-                            <button type="button" class="mt-1.5 text-text-tertiary hover:text-text-primary" aria-label="Cerrar"><gr-icon name="x" [size]="16" /></button>
+                            <button type="button" class="flex text-text-tertiary hover:text-text-primary" aria-label="Cerrar"><gr-icon name="x" [size]="16" /></button>
                           </span>
                         }
                       </gr-alert>
