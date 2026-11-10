@@ -12,9 +12,9 @@ import (
 
 // MarcadorIntento mirrors one attempt of the live scoreboard.
 type MarcadorIntento struct {
-	N         int     `json:"n"`
-	Peso      float64 `json:"peso"`
-	Resultado string  `json:"resultado"`
+	N         int        `json:"n"`
+	Peso      float64    `json:"peso"`
+	Resultado string     `json:"resultado"`
 	JuzgadoAt *time.Time `json:"juzgadoAt,omitempty"`
 }
 

@@ -101,7 +101,7 @@ func factorNota(cfg *Config, n notaAtleta) float64 {
 
 // aplicarNotasTx diffs the grade of every athlete of the scoreboard against the one already applied
 // (fantasy_atletas.nota and factor_nota) and moves the clause from the old factor to the new one, so the clause is
-// always base × factorNota (the base keeps the +3 % of every signing). Emits fantasy.nota. Replaying a scoreboard
+// always base × factorNota (the +3 % of each signing is the demand of its room, sala_atletas.demanda). Emits fantasy.nota. Replaying a scoreboard
 // changes nothing; a jury correction is just another diff.
 func aplicarNotasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador) error {
 	type aplicada struct {

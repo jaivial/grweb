@@ -135,11 +135,18 @@ func eventoSala(ctx context.Context, tx pgx.Tx, cid uuid.UUID, s *salaRow, tipo 
 }
 
 // eventoSolicitud emits fantasy.solicitud (the host's tray and the requester's state refetch). solicitudId lets
-// the requester recognise his own; the alias is the public nickname.
+// the requester recognise his own; the alias is the public nickname. A room that is not public («solo enlace», it
+// may have become so after the request) only tells that something changed: no room id and no alias leave it.
 func eventoSolicitud(ctx context.Context, tx pgx.Tx, cid, jid, salaID, solID uuid.UUID, tipo, alias string) error {
-	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.solicitud",
-		map[string]any{"jornadaId": jid.String(), "salaId": salaID.String(), "solicitudId": solID.String(), "tipo": tipo, "alias": alias},
-		events.Competition(cid.String()), events.Audience(events.Public)))
+	var publica bool
+	if err := tx.QueryRow(ctx, `SELECT publica FROM salas WHERE id = $1`, salaID).Scan(&publica); err != nil {
+		return err
+	}
+	datos := map[string]any{"jornadaId": jid.String(), "salaId": salaID.String(), "solicitudId": solID.String(), "tipo": tipo, "alias": alias}
+	if !publica {
+		datos = map[string]any{"jornadaId": jid.String(), "solicitudId": solID.String(), "tipo": tipo, "privada": true}
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.solicitud", datos, events.Competition(cid.String()), events.Audience(events.Public)))
 }
 
 // bloquearFanTx serializes the room operations of one fan in a jornada (max pending requests, one room per day).

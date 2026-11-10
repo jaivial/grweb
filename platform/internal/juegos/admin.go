@@ -129,32 +129,30 @@ func (s *Svc) registerAdmin() {
 			if b.Nombre == nil && b.Estado == nil {
 				return nil, problem.BadRequest("NADA_QUE_CAMBIAR", "Nada que cambiar.")
 			}
-			tag, err := s.a.DB.Exec(ctx, `UPDATE jornadas SET
-				nombre = COALESCE($3, nombre), estado = COALESCE($4, estado), version = version + 1, updated_at = now()
-				WHERE id = $1 AND competition_id = $2`, in.JID, in.CID, b.Nombre, b.Estado)
-			if err != nil {
-				return nil, err
-			}
-			if tag.RowsAffected() == 0 {
-				return nil, problem.NotFound("Jornada no encontrada.")
-			}
-			// BIZ-143: the rooms follow the jornada. en_juego starts them (1-member rooms are cancelled, pending
-			// requests expire); cerrada writes the palmarés.
-			if b.Estado != nil && (*b.Estado == "en_juego" || *b.Estado == "cerrada") {
-				j, err := scanJornada(s.a.DB.QueryRow(ctx, selJornada+" FROM jornadas WHERE id = $1", in.JID))
+			// BIZ-143: the rooms follow the jornada, in the same transaction (a failure leaves the jornada as it was).
+			// en_juego starts them (1-member rooms are cancelled, pending requests expire); cerrada writes the palmarés.
+			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `UPDATE jornadas SET
+					nombre = COALESCE($3, nombre), estado = COALESCE($4, estado), version = version + 1, updated_at = now()
+					WHERE id = $1 AND competition_id = $2`, in.JID, in.CID, b.Nombre, b.Estado)
 				if err != nil {
-					return nil, err
+					return err
+				}
+				if tag.RowsAffected() == 0 {
+					return problem.NotFound("Jornada no encontrada.")
+				}
+				if b.Estado == nil || (*b.Estado != "en_juego" && *b.Estado != "cerrada") {
+					return nil
+				}
+				j, err := scanJornada(tx.QueryRow(ctx, selJornada+" FROM jornadas WHERE id = $1", in.JID))
+				if err != nil {
+					return err
 				}
 				if *b.Estado == "cerrada" {
-					err = s.finalizarSalas(ctx, in.CID, j)
-				} else {
-					err = s.iniciarSalas(ctx, in.CID, j)
+					return s.finalizarSalasTx(ctx, tx, in.CID, j)
 				}
-				if err != nil {
-					return nil, err
-				}
-			}
-			return nil, nil
+				return iniciarSalasTx(ctx, tx, in.CID, j)
+			})
 		})
 
 	// ---- mercados ----

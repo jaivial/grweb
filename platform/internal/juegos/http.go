@@ -484,10 +484,11 @@ func (s *Svc) registerPublic() {
 			o.Body.Alineacion = cfg.PlantillaMax
 			o.Body.Clausulazo = s.horario(ctx, c.ID, j.Dia).clausulazo(time.Now())
 			_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, j.ID, f.ID).Scan(&o.Body.Saldo)
-			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM fichajes WHERE jornada_id = $1 AND a_fan = $2 AND tipo = 'clausulazo'`, j.ID, f.ID).Scan(&o.Body.Clausulazos)
 			if sl == nil {
 				return o, nil
 			}
+			// Only the clausulazos paid in this room (those of a room he left were undone with it).
+			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM fichajes WHERE sala_id = $1 AND a_fan = $2 AND tipo = 'clausulazo'`, sl.ID, f.ID).Scan(&o.Body.Clausulazos)
 			ats, err := s.mercadoFantasy(ctx, c.ID, *j, sl.ID, f.ID)
 			if err != nil {
 				return nil, err
@@ -575,7 +576,7 @@ func (s *Svc) registerPublic() {
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-comprar", Method: http.MethodPost, Path: base + "/fantasy/comprar",
 		Summary: "Comprar un atleta libre de mi sala por su cláusula", Tags: tagJuegos, Description: descSesionFan}, operar("comprar"))
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-vender", Method: http.MethodPost, Path: base + "/fantasy/vender",
-		Summary: "Vender un atleta propio (vuelve al mercado de la sala, 100 % de su valor)", Tags: tagJuegos, Description: descSesionFan}, operar("vender"))
+		Summary: "Vender un atleta propio (vuelve al mercado de la sala; cobra precioVenta, la cláusula de la jornada sin la demanda de la sala)", Tags: tagJuegos, Description: descSesionFan}, operar("vender"))
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-clausulazo", Method: http.MethodPost, Path: base + "/fantasy/clausulazo",
 		Summary: "Pagar la cláusula de un atleta de otro jugador de mi sala (cerrado desde la última sesión del día)", Tags: tagJuegos, Description: descSesionFan}, operar("clausulazo"))
 

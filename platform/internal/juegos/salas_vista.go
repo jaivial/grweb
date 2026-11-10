@@ -319,67 +319,70 @@ func (s *Svc) iniciarSalas(ctx context.Context, cid uuid.UUID, j jornada) error 
 // finalizarSalas closes the rooms of a jornada that has just been closed and writes the palmarés: the final
 // classification of every room that played (idempotent: a room is finalised once).
 func (s *Svc) finalizarSalas(ctx context.Context, cid uuid.UUID, j jornada) error {
+	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return s.finalizarSalasTx(ctx, tx, cid, j) })
+}
+
+// finalizarSalasTx is finalizarSalas inside the caller's transaction (the PATCH of the jornada).
+func (s *Svc) finalizarSalasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada) error {
 	j.Estado = "cerrada"
-	if err := s.iniciarSalas(ctx, cid, j); err != nil { // a day that never «started»: cancel the 1-member rooms first
+	if err := iniciarSalasTx(ctx, tx, cid, j); err != nil { // a day that never «started»: cancel the 1-member rooms first
 		return err
 	}
-	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, selSala+` WHERE s.jornada_id = $1 AND s.estado = 'en_juego' ORDER BY s.id FOR UPDATE`, j.ID)
+	rows, err := tx.Query(ctx, selSala+` WHERE s.jornada_id = $1 AND s.estado = 'en_juego' ORDER BY s.id FOR UPDATE`, j.ID)
+	if err != nil {
+		return err
+	}
+	var salas []*salaRow
+	for rows.Next() {
+		sl, err := scanSala(rows)
 		if err != nil {
+			rows.Close()
 			return err
 		}
-		var salas []*salaRow
-		for rows.Next() {
-			sl, err := scanSala(rows)
+		salas = append(salas, sl)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	clas, err := s.clasificarSalas(ctx, tx, cid, j, salas, uuid.Nil)
+	if err != nil {
+		return err
+	}
+	// The snapshot keeps the judged attempts of every lined-up athlete with their hour (the detail of the game).
+	eventos := map[uuid.UUID][]eventoNota{}
+	if m, err := s.marcador(ctx, cid, j.Dia); err == nil {
+		if cfg, err := configJuegos(ctx, tx, cid); err == nil {
+			for i := range m.Atletas {
+				eventos[m.Atletas[i].AtletaID] = eventosNota(cfg.Puntos, &m.Atletas[i])
+			}
+		}
+	}
+	for _, sl := range salas {
+		for _, f := range clas[sl.ID] {
+			for i := range f.Alineacion {
+				f.Alineacion[i].Eventos = eventos[f.Alineacion[i].AtletaID]
+			}
+			al, err := json.Marshal(f.Alineacion)
 			if err != nil {
-				rows.Close()
 				return err
 			}
-			salas = append(salas, sl)
+			// fichajes = signings the player made in the room (buys and clausulazos); clausulazos = the ones he paid.
+			if _, err := tx.Exec(ctx, `INSERT INTO palmares (sala_id, fan_id, jornada_id, competition_id, puesto, alias, nota, valor, saldo, alineacion, fichajes, clausulazos)
+				SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10, count(*) FILTER (WHERE tipo <> 'venta'), count(*) FILTER (WHERE tipo = 'clausulazo')
+				FROM fichajes WHERE sala_id = $1 AND a_fan = $2 ON CONFLICT DO NOTHING`,
+				sl.ID, f.fanID, j.ID, cid, f.Puesto, f.Alias, f.Nota, f.Valor, f.Saldo, al); err != nil {
+				return err
+			}
 		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE salas SET estado = 'finalizada', version = version + 1, updated_at = now() WHERE id = $1`, sl.ID); err != nil {
 			return err
 		}
-		clas, err := s.clasificarSalas(ctx, tx, cid, j, salas, uuid.Nil)
-		if err != nil {
+		if err := eventoSala(ctx, tx, cid, sl, "finalizada"); err != nil {
 			return err
 		}
-		// The snapshot keeps the judged attempts of every lined-up athlete with their hour (the detail of the game).
-		eventos := map[uuid.UUID][]eventoNota{}
-		if m, err := s.marcador(ctx, cid, j.Dia); err == nil {
-			if cfg, err := configJuegos(ctx, tx, cid); err == nil {
-				for i := range m.Atletas {
-					eventos[m.Atletas[i].AtletaID] = eventosNota(cfg.Puntos, &m.Atletas[i])
-				}
-			}
-		}
-		for _, sl := range salas {
-			for _, f := range clas[sl.ID] {
-				for i := range f.Alineacion {
-					f.Alineacion[i].Eventos = eventos[f.Alineacion[i].AtletaID]
-				}
-				al, err := json.Marshal(f.Alineacion)
-				if err != nil {
-					return err
-				}
-				// fichajes = signings the player made in the room (buys and clausulazos); clausulazos = the ones he paid.
-				if _, err := tx.Exec(ctx, `INSERT INTO palmares (sala_id, fan_id, jornada_id, competition_id, puesto, alias, nota, valor, saldo, alineacion, fichajes, clausulazos)
-					SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10, count(*) FILTER (WHERE tipo <> 'venta'), count(*) FILTER (WHERE tipo = 'clausulazo')
-					FROM fichajes WHERE sala_id = $1 AND a_fan = $2 ON CONFLICT DO NOTHING`,
-					sl.ID, f.fanID, j.ID, cid, f.Puesto, f.Alias, f.Nota, f.Valor, f.Saldo, al); err != nil {
-					return err
-				}
-			}
-			if _, err := tx.Exec(ctx, `UPDATE salas SET estado = 'finalizada', version = version + 1, updated_at = now() WHERE id = $1`, sl.ID); err != nil {
-				return err
-			}
-			if err := eventoSala(ctx, tx, cid, sl, "finalizada"); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // filaPalmares is one player of a finished room.

@@ -17,9 +17,9 @@ import (
 
 // MarcadorIntento is one attempt of the scoreboard.
 type MarcadorIntento struct {
-	N         int     `json:"n"`
-	Peso      float64 `json:"peso"`
-	Resultado string  `json:"resultado" enum:"pendiente,valido,nulo,renuncia"`
+	N         int        `json:"n"`
+	Peso      float64    `json:"peso"`
+	Resultado string     `json:"resultado" enum:"pendiente,valido,nulo,renuncia"`
 	JuzgadoAt *time.Time `json:"juzgadoAt,omitempty"`
 }
 
