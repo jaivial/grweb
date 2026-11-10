@@ -50,6 +50,8 @@ export interface HangingLayout {
   followAnchors: boolean;
   /** Anchor x as a fraction of the container width (fallback when there is no measure). */
   anchorsPct: readonly number[];
+  /** Extra x offset (px) added to each medal's anchor, by medal index (e.g. medals hanging outside their column). */
+  anchorOffsets?: readonly number[];
   wind: MedalWind;
   /** Per-medal overrides of the defaults above, by medal index (e.g. a podium). */
   medals?: ReadonlyArray<Partial<MedalGeometry>>;

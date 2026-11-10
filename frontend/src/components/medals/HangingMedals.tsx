@@ -110,7 +110,7 @@ export function HangingMedals({ medals, layouts, physics, collisions = null, con
         const element = layout.followAnchors ? medal.anchorRef?.current : null;
         const box = element?.getBoundingClientRect();
         const x = box && box.width > 0 ? box.left + box.width / 2 - rect.left : rect.width * (layout.anchorsPct[index] ?? 0.5);
-        return Math.round(x);
+        return Math.round(x + (layout.anchorOffsets?.[index] ?? 0));
       });
       const next = { width: Math.round(rect.width), anchors };
       setMeasure((previous) => (sameMeasure(previous, next) ? previous : next));
