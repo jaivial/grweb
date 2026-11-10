@@ -586,4 +586,46 @@ func TestSalaSoloEnlaceEsPrivada(t *testing.T) {
 	if filtrados != 0 {
 		t.Fatalf("%d eventos de fichaje de la sala privada llevan alias o precio", filtrados)
 	}
+	// Palmarés of the private room in play: 404 for non-members, visible to the member; a public one for anybody.
+	for _, fan := range []uuid.UUID{ajeno, uuid.Nil} {
+		if err := s.palmaresVisible(ctx, privada, fan); err != errSalaNoExiste {
+			t.Fatalf("palmarés de sala privada en juego para un no miembro = %v; quería 404", err)
+		}
+	}
+	if err := s.palmaresVisible(ctx, privada, miembro); err != nil {
+		t.Fatalf("el miembro debía ver el palmarés de su sala: %v", err)
+	}
+	pub, err := scanSala(pdb.QueryRow(ctx, selSala+` WHERE s.id = $1`, publica))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.palmaresVisible(ctx, pub, ajeno); err != nil {
+		t.Fatalf("palmarés de sala pública: %v", err)
+	}
+	finalizada := *privada
+	finalizada.Estado = "finalizada"
+	if err := s.palmaresVisible(ctx, &finalizada, ajeno); err != nil {
+		t.Fatalf("palmarés de sala privada finalizada: %v", err)
+	}
+	// A request to a room that became «solo enlace»: its fantasy.solicitud carries neither the room id nor the alias.
+	if err := db.Tx(ctx, pdb, func(tx pgx.Tx) error {
+		if _, err := solicitarTx(ctx, tx, cid, j, publica, ajeno, "alias-solicitante"); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE salas SET publica = false WHERE id = $1`, publica); err != nil {
+			return err
+		}
+		return cancelarSolicitudTx(ctx, tx, cid, j, publica, ajeno)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var conSala, privadas int
+	if err := pdb.QueryRow(ctx, `SELECT count(*) FILTER (WHERE payload::text LIKE '%' || $1 || '%' AND payload::text LIKE '%cancelada%'),
+		count(*) FILTER (WHERE payload::text LIKE '%cancelada%' AND payload::text LIKE '%privada%' AND payload::text NOT LIKE '%alias-solicitante%')
+		FROM outbox WHERE type = 'fantasy.solicitud'`, publica.String()).Scan(&conSala, &privadas); err != nil {
+		t.Fatal(err)
+	}
+	if conSala != 0 || privadas != 1 {
+		t.Fatalf("fantasy.solicitud de sala solo enlace: %d con salaId, %d privadas; quería 0 y 1", conSala, privadas)
+	}
 }

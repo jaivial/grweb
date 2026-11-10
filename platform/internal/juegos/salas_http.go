@@ -93,6 +93,16 @@ func (s *Svc) salaVisible(ctx context.Context, sl *salaRow, fanID uuid.UUID) (*s
 	return sl, nil
 }
 
+// palmaresVisible: the palmarés of a room that is not public is 404 for non-members while it is still open or
+// in play (its name and players stay inside); once finished, cancelled or closed it is public history.
+func (s *Svc) palmaresVisible(ctx context.Context, sl *salaRow, fanID uuid.UUID) error {
+	if sl.Estado != "abierta" && sl.Estado != "en_juego" {
+		return nil
+	}
+	_, err := s.salaVisible(ctx, sl, fanID)
+	return err
+}
+
 // salaDeVista resolves the room of a fantasy view: the one asked for (?sala=, if the fan may see it) or the fan's
 // own (nil = none).
 func (s *Svc) salaDeVista(ctx context.Context, cid uuid.UUID, j jornada, salaID, fanID uuid.UUID) (*salaRow, error) {
@@ -212,7 +222,7 @@ func (s *Svc) registerSalas() {
 		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
 		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Body    struct {
-			Nombre  string    `json:"nombre" minLength:"3" maxLength:"64"`
+			Nombre  string    `json:"nombre" minLength:"3" maxLength:"32"`
 			Publica *bool     `json:"publica,omitempty" doc:"Por defecto true; false = solo con enlace"`
 			Jornada uuid.UUID `json:"jornada,omitempty"`
 		}
@@ -590,7 +600,7 @@ func (s *Svc) registerSalas() {
 		Slug    string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		SID     uuid.UUID `path:"sid"`
 		Body    struct {
-			Nombre  *string `json:"nombre,omitempty" minLength:"3" maxLength:"64"`
+			Nombre  *string `json:"nombre,omitempty" minLength:"3" maxLength:"32"`
 			Plazas  *int    `json:"plazas,omitempty" minimum:"2" maximum:"10" doc:"Entre los jugadores actuales y el máximo del día"`
 			Publica *bool   `json:"publica,omitempty"`
 			// AdmiteSolicitudes false blocks new requests from the lobby (the invitation link still lets people in).
@@ -682,8 +692,10 @@ func (s *Svc) registerSalas() {
 		})
 
 	type palmaresSalaIn struct {
-		Slug string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		SID  uuid.UUID `path:"sid"`
+		Session string    `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string    `header:"X-GrCup-Fan" maxLength:"4096"`
+		Slug    string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		SID     uuid.UUID `path:"sid"`
 	}
 	type palmaresSalaOut struct {
 		Body struct {
@@ -693,14 +705,21 @@ func (s *Svc) registerSalas() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-palmares-sala", Method: http.MethodGet, Path: base + "/palmares/{sid}",
-		Summary: "Palmarés de una sala: clasificación final, alineaciones y detalle de las notas", Tags: tagJuegos},
+		Summary: "Palmarés de una sala: clasificación final, alineaciones y detalle de las notas", Tags: tagJuegos, Description: descSesionFanOpcional},
 		func(ctx context.Context, in *palmaresSalaIn) (*palmaresSalaOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
 			}
+			fanID, err := s.fanOpcional(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+			if err != nil {
+				return nil, err
+			}
 			sl, j, err := s.salaPublica(ctx, c.ID, in.SID)
 			if err != nil {
+				return nil, err
+			}
+			if err := s.palmaresVisible(ctx, sl, fanID); err != nil {
 				return nil, err
 			}
 			filas, err := filasPalmares(ctx, s.a.DB, []uuid.UUID{sl.ID}, false)
