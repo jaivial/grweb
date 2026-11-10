@@ -37,7 +37,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
   template: `
     @let e = est();
     @let b = e !== 'anulada' ? boletos() : [];
-    <article class="relative overflow-hidden rounded-[20px] border bg-bg-card shadow-card" [class]="b.length ? 'border-accent/55' : 'border-line-strong'">
+    <article class="relative overflow-hidden rounded-[20px] border shadow-card" [class]="b.length ? 'border-accent/55 bg-[linear-gradient(to_bottom_right,#4e121d,#150b0d)]' : 'border-line-strong bg-bg-card'">
       <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
         <header class="flex h-8 items-center justify-between gap-3"><gr-logo [height]="32" [width]="84" />
           <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ pill[e].t }}</span></header>
