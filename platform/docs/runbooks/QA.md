@@ -51,6 +51,50 @@ El comando imprime un enlace de un solo uso (válido 15 min) que abre la sesión
 
 **Usuario Root de QA:** `ROOT_EMAIL` en `~/.config/grcup-qa/secrets.env`. Por defecto es la cuenta del propietario.
 
+## WhatsApp (evo-weai)
+
+El servicio de WhatsApp (`evo-weai`) es un microservicio propio: no se construye con el resto de imágenes (viene de
+su propio repositorio, `~/evo-weai`, y la imagen se baja de una release privada), así que su imagen se trae a mano.
+El manifiesto (`deploy/k8s/base/evo-weai/`) ya está en el overlay: 1 réplica, `Recreate`, estado en
+`/var/lib/grcup-qa/evo-weai`, Secret `grcup-weai` y sin Ingress (solo entra `messaging`).
+
+**Una vez (imagen y secretos):**
+
+```bash
+# 1. La imagen (el token de GitHub con permiso de lectura en el repositorio de evo-weai):
+docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.14 \
+  --secret id=evo_weai_gh_token,env=EVO_WEAI_GH_TOKEN -t grcup/evo-weai:v0.2.14 ~/evo-weai
+docker save grcup/evo-weai:v0.2.14 | gzip -1 | ssh kraken 'gunzip | sudo k3s ctr -n k8s.io images import -'
+
+# 2. Los secretos (crea también el Secret grcup-weai con WEAI_API_KEY y WEAI_DATA_KEY):
+deploy/scripts/secretos-qa.sh
+```
+
+**En cada despliegue** la imagen no se reconstruye: si cambia la versión de evo-weai, se repite el paso 1 con la
+nueva etiqueta y se cambia `image:` en `deploy/k8s/base/evo-weai/evo-weai.yaml`.
+
+**Vincular el número (la apikey va en la integración):**
+
+1. La clave global de evo-weai es la `WEAI_API_KEY` del Secret. Se copia (sin imprimirla en un canal abierto) a la
+   integración «WhatsApp» de la competición: *Backoffice › Sistema › Integraciones › WhatsApp* → proveedor `evo-weai`,
+   URL `http://evo-weai:8080` (la interna del cluster), clave = `WEAI_API_KEY`.
+   ```bash
+   ssh kraken sudo k3s kubectl -n grcup-qa get secret grcup-weai -o jsonpath='{.data.WEAI_API_KEY}' | base64 -d
+   ```
+2. *Backoffice › Sistema › WhatsApp* → «Crear instancia». Crea en evo-weai la instancia `grcup-<slug>`, registra su
+   webhook y muestra el QR.
+3. «Vincular con QR» (escanea el QR desde el móvil) o «Vincular con código» (número → código de 8 caracteres).
+4. «Avisos de solicitudes de atleta»: los teléfonos de los organizadores (E.164) y los interruptores «WhatsApp al
+   atleta» y «WhatsApp a organizadores». «Enviar prueba» manda un mensaje a la lista.
+
+- El webhook de QA es **interno**: `http://messaging:8080/api/webhooks/whatsapp` (la firma va en la query y evo-weai
+  añade la cabecera `authorization: Bearer <clave>`). En el Deployment está `WEAI_WEBHOOK_ALLOW_INTERNAL=true` para
+  que evo-weai acepte ese destino; en producción se sustituye por la URL pública y el flag pasa a `false`.
+- En QA, `WHATSAPP_SIMULADO=true` (base/common/config.yaml): los envíos se registran como entregados sin salir. Para
+  probar de verdad hay que poner la integración en evo-weai y vincular el número.
+- El estado se ve en vivo: los eventos `whatsapp.conexion` y `whatsapp.qr_nuevo` llegan al bus y la página se
+  actualiza sola (el QR se pide con `GET /api/admin/competiciones/{cid}/whatsapp/qr`).
+
 ## Comprobaciones
 
 ```bash

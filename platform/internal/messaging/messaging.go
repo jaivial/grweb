@@ -74,20 +74,32 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
 	// History is never re-sent: a new consumer group starts at the end of the stream.
 	c := &events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "messaging", Start: "$",
-		Types: []string{"identity.email_", "athletes.email_", "cms.email_", "crm.email_", "ticketing.email_", "raffle.email_"}, Handle: s.handle, Log: a.Log}
+		Types: []string{"identity.email_", "athletes.email_", "cms.email_", "crm.email_", "ticketing.email_", "raffle.email_", "athletes.whatsapp_"}, Handle: s.handle, Log: a.Log}
 	a.Go(c.Run)
 	a.Go(s.worker)
 	a.Go(s.campanasWorker)
 	s.registerAdmin()
 	s.registerCampanas()
 	s.registerWhatsApp()
+	s.registerAvisos()
 	s.registerRGPD()
 	return nil
 }
 
-// handle queues an email request (idempotent by event id). Unknown templates fail at once; malformed addresses are
-// skipped and reported to crm as invalid.
+// handle queues an email or a WhatsApp request (idempotent by event id).
 func (s *Svc) handle(ctx context.Context, e events.Event) error {
+	switch {
+	case strings.HasSuffix(e.Type, ".email_solicitado"):
+		return s.handleEmail(ctx, e)
+	case strings.HasSuffix(e.Type, ".whatsapp_solicitado"):
+		return s.handleWhatsapp(ctx, e)
+	}
+	return nil
+}
+
+// handleEmail queues an email request (idempotent by event id). Unknown templates fail at once; malformed addresses
+// are skipped and reported to crm as invalid.
+func (s *Svc) handleEmail(ctx context.Context, e events.Event) error {
 	if !strings.HasSuffix(e.Type, ".email_solicitado") {
 		return nil
 	}
@@ -161,9 +173,17 @@ func (s *Svc) plantilla(ctx context.Context, cid uuid.UUID, clave string) (plant
 	var ver int
 	var por string
 	var at time.Time
-	err := s.a.DB.QueryRow(ctx, `SELECT asunto, preheader, titulo, cuerpo, boton_texto, boton_url, pie, version, updated_por, updated_at FROM plantillas WHERE competition_id = $1 AND clave = $2`, cid, clave).
-		Scan(&c.Asunto, &c.Preheader, &c.Titulo, &c.Cuerpo, &c.BotonTexto, &c.BotonURL, &c.Pie, &ver, &por, &at)
+	err := s.a.DB.QueryRow(ctx, `SELECT asunto, preheader, titulo, cuerpo, boton_texto, boton_url, pie, imagen, nota, version, updated_por, updated_at FROM plantillas WHERE competition_id = $1 AND clave = $2`, cid, clave).
+		Scan(&c.Asunto, &c.Preheader, &c.Titulo, &c.Cuerpo, &c.BotonTexto, &c.BotonURL, &c.Pie, &c.Imagen, &c.Nota, &ver, &por, &at)
 	if err == nil {
+		// The editor does not touch the image (it is a variable, p. ej. the signed photo) nor the note of the footer:
+		// an empty one keeps the default.
+		if c.Imagen == "" {
+			c.Imagen = base.Imagen
+		}
+		if c.Nota == "" {
+			c.Nota = base.Nota
+		}
 		p.Contenido, p.Personalizada, p.Version, p.UpdatedPor, p.UpdatedAt = c, true, ver, por, &at
 	} else if !db.IsNoRows(err) {
 		return p, err

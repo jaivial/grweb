@@ -19,11 +19,15 @@ touch "$F"
 
 gen() { grep -q "^$1=" "$F" || echo "$1=$(openssl rand -hex "${2:-24}")" >>"$F"; }
 gen POSTGRES_PASSWORD
-for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT; do gen "PW_$s"; done
+for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT FANS CHAT DONACIONES PATROCINIO JUEGOS OPENLIFTER; do gen "PW_$s"; done
 gen REDIS_PASSWORD 32
 gen INTERNAL_TOKEN_SECRET 32
 gen CRYPTO_KEY 32
 gen ROOT_PASSWORD 12
+# evo-weai (WhatsApp): the global key messaging sends as «apikey» and the key that encrypts the state at rest.
+# The same WEAI_API_KEY goes in the «whatsapp» integration of the competition («Sistema e integraciones»).
+gen WEAI_API_KEY 32
+gen WEAI_DATA_KEY 32
 if [ "$ENTORNO" = qa ]; then
   grep -q '^ROOT_EMAIL=' "$F" || echo "ROOT_EMAIL=${ROOT_EMAIL:-jaimebillanueba99@gmail.com}" >>"$F"
   grep -q '^ROOT_NOMBRE=' "$F" || echo 'ROOT_NOMBRE="Jaime (QA)"' >>"$F"
@@ -51,13 +55,15 @@ kv() { printf '  %s: "%s"\n' "$1" "$2"; }
 {
   echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-db, namespace: $NS }"; echo "type: Opaque"; echo "stringData:"
   kv POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
-  for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT; do v="PW_$s"; kv "PW_$s" "${!v}"; done
+  for s in IDENTITY COMPETITION CMS ATHLETES SCHEDULE LIVE TICKETING RAFFLE CRM MESSAGING AI AUDIT FANS CHAT DONACIONES PATROCINIO JUEGOS OPENLIFTER; do v="PW_$s"; kv "PW_$s" "${!v}"; done
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-redis, namespace: $NS }"; echo "stringData:"
   kv REDIS_PASSWORD "$REDIS_PASSWORD"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-internal, namespace: $NS }"; echo "stringData:"
   kv INTERNAL_TOKEN_SECRET "$INTERNAL_TOKEN_SECRET"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-crypto, namespace: $NS }"; echo "stringData:"
   kv CRYPTO_KEY "$CRYPTO_KEY"
+  echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-weai, namespace: $NS }"; echo "stringData:"
+  kv WEAI_API_KEY "$WEAI_API_KEY"; kv WEAI_DATA_KEY "$WEAI_DATA_KEY"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-root, namespace: $NS }"; echo "stringData:"
   kv ROOT_EMAIL "$ROOT_EMAIL"; kv ROOT_PASSWORD "$ROOT_PASSWORD"; kv ROOT_NOMBRE "$ROOT_NOMBRE"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-jwt, namespace: $NS }"; echo "stringData:"

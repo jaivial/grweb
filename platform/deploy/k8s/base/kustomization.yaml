@@ -20,9 +20,17 @@ resources:
   - messaging/messaging.yaml
   - ticketing/ticketing.yaml
   - live/live.yaml
+  - openlifter/openlifter.yaml
   - raffle/raffle.yaml
   - ai/ai.yaml
   - realtime/realtime.yaml
+  - fans/fans.yaml
+  - chat/chat.yaml
+  - donaciones/donaciones.yaml
+  - patrocinio/patrocinio.yaml
+  - juegos/juegos.yaml
+  - evo-weai/evo-weai.yaml
   - gateway/gateway.yaml
   - web/web.yaml
   - backoffice/backoffice.yaml
+  - juegos-worker/juegos-worker.yaml

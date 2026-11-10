@@ -3,6 +3,7 @@ package identity
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -64,6 +65,18 @@ type sesionInfo struct {
 	IP         string    `db:"ip" json:"ip"`
 	CreatedAt  time.Time `db:"created_at" json:"createdAt"`
 	LastUsedAt time.Time `db:"last_used_at" json:"lastUsedAt"`
+}
+
+// permisosQueConceden returns the permission keys that grant a permission: the key itself plus the ones that
+// imply it (the same expansion as auth.Expand, but in the other direction: «qué roles tienen este permiso»).
+func permisosQueConceden(perm string) []string {
+	out := []string{perm}
+	for k, implica := range auth.Implies {
+		if slices.Contains(implica, perm) {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // ensureDefaultRoles creates the default roles of a competition (idempotent).

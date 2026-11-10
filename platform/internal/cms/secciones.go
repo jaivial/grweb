@@ -53,7 +53,8 @@ var Secciones = []SeccionDef{
 		{Clave: "aviso", Etiqueta: "Aviso bajo los datos", Tipo: "texto", Max: 40, Ayuda: "p. ej. «Fecha por confirmar». Vacío: sin aviso"}}},
 	{Clave: "cifras", Nombre: "Cifras", Descripcion: "Franja de cuatro cifras", Campos: []Campo{
 		{Clave: "items", Etiqueta: "Cifras", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "valor", Etiqueta: "Valor", Tipo: "texto", Max: 12}, {Clave: "etiqueta", Etiqueta: "Etiqueta", Tipo: "texto", Max: 40}}}}},
-	{Clave: "inscripciones", Nombre: "Inscripciones", Descripcion: "Estado de la inscripción (plazas ocupadas en directo)", Campos: []Campo{cTitulo, cTexto, {Clave: "plazas", Etiqueta: "Plazas de atleta", Tipo: "numero"}}},
+	{Clave: "alta-atleta", Nombre: "Alta de atleta", Descripcion: "Llamada a completar la ficha de atleta (la plantilla de la competición está completa)", Campos: []Campo{cEyebrow, cTitulo, cTexto,
+		{Clave: "cta", Etiqueta: "Botón principal", Tipo: "texto", Max: 40, Ayuda: "Enlace a /alta-atleta"}}},
 	{Clave: "entradas", Nombre: "Entradas", Descripcion: "Ven a vivirlo en directo, con la entrada de ejemplo y el aforo en directo", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto,
 		{Clave: "puntos", Etiqueta: "Puntos", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 60}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 140}}}}},
 	{Clave: "atletas", Nombre: "Los atletas", Descripcion: "Editorial con foto (primera fila)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen, cAlt}},
@@ -119,7 +120,8 @@ var SeccionesPublico = []SeccionDef{
 var SeccionesEN = []SeccionDef{
 	{Clave: "hero", Nombre: "Hero", Descripcion: "Title, intro and key facts (date and venue come from the event)", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
 		{Clave: "plazas", Etiqueta: "Lifters (places)", Tipo: "numero"}, {Clave: "cta", Etiqueta: "Main button", Tipo: "texto", Max: 30}, {Clave: "ctaSorteo", Etiqueta: "Raffle button", Tipo: "texto", Max: 30}}},
-	{Clave: "compete", Nombre: "Compete", Descripcion: "How to register", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto, cItemsTituloTexto("items", "Cards", 4)}},
+	{Clave: "compete", Nombre: "Compete", Descripcion: "How to compete and sign up", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
+		{Clave: "cta", Etiqueta: "Sign-up button", Tipo: "texto", Max: 40, Ayuda: "Links to /alta-atleta (Spanish)"}, cItemsTituloTexto("items", "Cards", 4)}},
 	{Clave: "raffle", Nombre: "Raffle", Descripcion: "Raffle card (€1 per ticket, Spanish law)", Campos: []Campo{cEyebrow, cTitulo, cAcento,
 		{Clave: "subtitulo", Etiqueta: "Card title", Tipo: "texto", Max: 40}, cTexto, cImagen, {Clave: "cta", Etiqueta: "Button", Tipo: "texto", Max: 30}}},
 	{Clave: "travel", Nombre: "Getting there", Descripcion: "Plane, train and car", Campos: []Campo{cEyebrow, cTitulo, cAcento,

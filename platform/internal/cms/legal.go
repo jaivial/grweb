@@ -23,6 +23,7 @@ var TiposLegales = []struct{ Tipo, Nombre, Ruta string }{
 	{"terminos", "Términos y condiciones", "/terminos"},
 	{"cookies", "Política de cookies", "/cookies"},
 	{"consentimiento", "Consentimiento de datos e imagen", "/consentimiento-datos"},
+	{"whatsapp", "Consentimiento de WhatsApp", "/consentimiento-datos"},
 	{"bases-sorteo", "Bases del sorteo", "/politica-concurso"},
 }
 
@@ -91,7 +92,7 @@ func (s *Svc) registerLegal() {
 	}
 	type createIn struct {
 		CID  uuid.UUID `path:"cid"`
-		Tipo string    `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,bases-sorteo"`
+		Tipo string    `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,whatsapp,bases-sorteo"`
 		Body verIn
 	}
 	type oneOut struct{ Body legalRow }

@@ -22,10 +22,11 @@ const img = "/img/home/"
 var seedSecciones = map[string]any{
 	"hero":       map[string]any{"titulo": "Los ganadores nunca se rinden"},
 	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": "Fecha por confirmar"},
-	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas inscritos"}, {"valor": "18", "etiqueta": "Categorías de peso"},
+	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas en competición"}, {"valor": "18", "etiqueta": "Categorías de peso"},
 		{"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},
-	"inscripciones": map[string]any{"titulo": "Inscripciones", "plazas": 150,
-		"texto": "La inscripción y la lista de espera las gestiona la AEP. Mientras, conoce a quienes compiten y consulta su horario."},
+	"alta-atleta": map[string]any{"eyebrow": "GR Cup 2026 · Plantilla completa", "titulo": "Completa tu ficha de atleta",
+		"texto": "La plantilla de la GR Cup 2026 está completa. Si compites, completa tu ficha de atleta: foto, club y mejores marcas. La revisamos a mano y la publicamos en la lista de atletas.",
+		"cta":   "Dar de alta mi atleta"},
 	"entradas": map[string]any{"eyebrow": "Entrada gratuita · aforo limitado", "titulo": "Ven a vivirlo *en directo*", "tituloAcento": "",
 		"texto": "La entrada es gratis, pero hay que reservarla: te llega un QR al email y entras sin colas. Una reserva sirve para ti y hasta 3 acompañantes.",
 		"puntos": []map[string]string{{"titulo": "Gratis con reserva", "texto": "Tu QR llega al momento por email y lo tienes siempre en «Mi entrada»."},
@@ -67,7 +68,8 @@ var seedSecciones = map[string]any{
 
 var seedFAQ = []faqIn{
 	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true},
-	{"Competición", "¿Cómo me inscribo?", "La inscripción y la lista de espera las gestiona la **AEP** desde su web. Desde aquí te enlazamos a su formulario.", true, true},
+	{"Atletas", "¿Cómo completo mi ficha de atleta?", "Rellena el [formulario de alta de atleta](/alta-atleta) con tu nombre, el email con el que te inscribiste en la AEP, tu club y tus mejores marcas. Añade una foto si quieres: se publica en blanco y negro y recortada. El equipo revisa cada solicitud a mano y, cuando la aprueba, tu ficha aparece en la [lista de atletas](/atletas).", true, true},
+	{"Competición", "¿Cómo participo en la GR Cup?", "La inscripción y la lista de espera las gestiona la **AEP** y la plantilla está completa. Si compites en esta edición, lo que te falta es la ficha: [da de alta tu atleta](/alta-atleta) y te la revisamos a mano.", true, true},
 	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true},
 	{"Competición", "¿Necesito una marca mínima?", "Para esta competición no hace falta marca mínima. Las [marcas mínimas](/marcas-minimas) sirven para clasificar a otras competiciones AEP.", true, true},
 	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true},
@@ -115,9 +117,10 @@ var seedPublico = map[string]any{
 var seedEN = map[string]any{
 	"hero": map[string]any{"eyebrow": "Powerlifting · Valencia, Spain", "titulo": "GRStrength Cup", "tituloAcento": "2026",
 		"texto":  "A regional powerlifting championship of the Spanish Powerlifting Association (AEP), held in Almussafes, 20 km south of Valencia.",
-		"plazas": 150, "cta": "Register", "ctaSorteo": "Enter the raffle"},
-	"compete": map[string]any{"eyebrow": "01 · Compete", "titulo": "How to", "tituloAcento": "register",
-		"texto": "Registration is managed by the Spanish Powerlifting Association (AEP). A valid AEP licence is required to compete.",
+		"plazas": 150, "ctaSorteo": "Enter the raffle"},
+	"compete": map[string]any{"eyebrow": "01 · Compete", "titulo": "How to", "tituloAcento": "compete",
+		"texto": "Registration was managed by the Spanish Powerlifting Association (AEP) and the field is complete. If you compete in this edition, complete your athlete profile (in Spanish): the team reviews it by hand and publishes it in the athlete list.",
+		"cta":   "Athlete sign-up (Spanish)",
 		"items": []map[string]string{{"titulo": "Weight classes", "texto": "Men −53 to +120 kg · Women −43 to +84 kg (IPF classes, −53 and −43 for sub-juniors and juniors)."},
 			{"titulo": "Equipment", "texto": "Classic (raw): IPF-approved belt, wrist wraps and knee sleeves."}, {"titulo": "Weigh-in", "texto": "Starts 2 hours before your session and lasts 1.5 hours."}}},
 	"raffle": map[string]any{"eyebrow": "02 · Raffle", "titulo": "Win an", "tituloAcento": "SBD belt", "subtitulo": "Charity raffle",
@@ -148,6 +151,10 @@ var seedSeoRutas = map[string][3]string{
 	"/en":      {"/en", "GRStrength Cup 2026 · Powerlifting competition in Valencia, Spain", "AEP powerlifting championship in Almussafes, 20 km south of Valencia. Free spectator entry, raffle and travel tips."},
 }
 
+// seedSeoAltaAtleta is the SEO row of the public athlete sign-up page (indexable).
+var seedSeoAltaAtleta = [3]string{"/alta-atleta", "Alta de atleta de powerlifting | GR Strength Cup",
+	"Date de alta como atleta de la GR Strength Cup: crea tu perfil, sube tu foto y tus marcas AEP y compite con tu ficha lista para el pesaje."}
+
 func seedSeo(ctx context.Context, tx pgx.Tx, cid uuid.UUID, r [3]string) error {
 	_, err := tx.Exec(ctx, `INSERT INTO seo (id, competition_id, ruta, title, description, indexable) VALUES ($1,$2,$3,$4,$5,true) ON CONFLICT (competition_id, ruta) DO NOTHING`, newID(), cid, r[0], r[1], r[2])
 	return err
@@ -161,6 +168,44 @@ var seedLegal = map[string][2]string{
 	"cookies":        {"Política de cookies", ejemplo + "Solo usamos cookies técnicas necesarias para el funcionamiento de la web y de la sesión del backoffice."},
 	"consentimiento": {"Consentimiento de datos e imagen", ejemplo + "Durante el evento se tomarán fotografías y vídeos que podrán publicarse en la web y redes de la competición. Los menores necesitan la autorización de su tutor."},
 	"bases-sorteo":   {"Bases del sorteo", ejemplo + "## Organizador\nGR Strength.\n\n## Precio\n1 € por boleto.\n\n## Legalidad\nSorteo sujeto a la normativa española de juego y, en su caso, a la autorización autonómica correspondiente (Comunitat Valenciana). La venta no se activa hasta completar la checklist legal.\n\n## Mecánica\nLista de boletos cerrada antes del sorteo, semilla publicada y sorteo en directo.\n\n## Premio\nSegún se anuncie en la web. Los premios pueden estar sujetos a retención fiscal según la normativa vigente."},
+}
+
+// legalBorrador is a version of a legal text that is not published: the organiser reviews it and publishes it.
+type legalBorrador struct {
+	Version   string
+	Titulo    string
+	Contenido string
+}
+
+// seedLegalBorrador: texts of the athlete sign-up (the public form /alta-atleta): the consent to publish the photo
+// and the sports data (web, screen and live stream) and the WhatsApp consent. They are seeded as DRAFTS: the
+// organiser has to review them with the legal advice before publishing them.
+var seedLegalBorrador = map[string]legalBorrador{
+	"consentimiento": {Version: "2026-11", Titulo: "Consentimiento de datos e imagen", Contenido: ejemplo + `## Qué autorizas
+Al marcar esta casilla autorizas a GR Strength (organizador de la GR Strength Cup) a publicar tu nombre, tus datos deportivos (club, categoría, división y marcas) y tu foto en la web de la competición, en la pantalla del pabellón y en la retransmisión en directo de la GR Cup.
+
+## Quién ve esos datos
+El público que visite la web o la pantalla del pabellón y los espectadores de la retransmisión en directo. Tu email y tu teléfono no se publican.
+
+## La foto
+Se publica en blanco y negro, recortada y comprimida para que todas las fichas sean uniformes. Puedes pedir que se retire en cualquier momento.
+
+## Menores
+Si tienes menos de 18 años, necesitaremos la autorización firmada de tu madre, padre o tutor antes de publicar tu ficha.
+
+## Retirada
+Escribe a admin@grstrength.com para pedir que retiremos tu foto y tu ficha de la web y del CDN.`},
+	"whatsapp": {Version: "whatsapp-2026-11", Titulo: "Consentimiento de WhatsApp", Contenido: ejemplo + `## Qué mensajes recibes
+Si marcas esta casilla, GR Strength te escribe por WhatsApp para avisarte de tu alta de atleta (recibida, aprobada o rechazada) y de los avisos de la competición (pesaje, horarios y cambios de última hora).
+
+## Quién recibe los mensajes
+Tú y, si tu solicitud se acepta, el equipo de la organización. No hay grupos ni terceros.
+
+## Tu número
+Guardamos tu número solo para estos avisos, junto con la fecha en que aceptaste y la versión de este texto.
+
+## Cómo darte de baja
+Responde BAJA a cualquiera de nuestros mensajes: dejamos de escribirte y retiramos el consentimiento. También puedes escribir a admin@grstrength.com.`},
 }
 
 var seedPaginas = []paginaIn{
@@ -252,6 +297,18 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 					return err
 				}
 			}
+		}
+		// Los textos legales nuevos del alta de atleta se siembran como borrador (los publica la organización).
+		for tipo, v := range seedLegalBorrador {
+			if _, err := tx.Exec(ctx, `INSERT INTO legal (id, competition_id, tipo, version, titulo, contenido, hash) VALUES ($1,$2,$3,$4,$5,$6,$7)
+				ON CONFLICT (competition_id, tipo, version) DO NOTHING`,
+				newID(), cid, tipo, v.Version, v.Titulo, v.Contenido, hashText(v.Contenido)); err != nil {
+				return err
+			}
+		}
+		// SEO de la página pública de alta de atleta (indexable).
+		if err := seedSeo(ctx, tx, cid, seedSeoAltaAtleta); err != nil {
+			return err
 		}
 		if empty(tx, "paginas") {
 			for i, p := range seedPaginas {

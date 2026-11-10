@@ -62,6 +62,12 @@ type Provider interface {
 	VerifyWebhook(payload []byte, h http.Header) (Event, error)
 }
 
+// RefundConClave is a Provider that accepts an idempotency key: two refunds with the same key return the same
+// refund (Stripe's «Idempotency-Key»), so a retry after a crash never returns the money twice.
+type RefundConClave interface {
+	RefundConClave(ctx context.Context, paymentID string, amount int, reason, clave string) (string, error)
+}
+
 // ErrSignature means the webhook signature is missing, wrong or too old.
 var ErrSignature = errors.New("firma del webhook no válida")
 

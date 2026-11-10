@@ -45,6 +45,14 @@ export class Realtime {
     this.connected.set(false);
   }
 
+  /** Forces a reconnection (the «Conexión en vivo perdida» banner of the screens). */
+  reconnect(): void {
+    if (!this.cid) return;
+    this.disconnect();
+    this.lastId = '';
+    void this.run();
+  }
+
   private async run(): Promise<void> {
     const ctrl = new AbortController();
     this.ctrl = ctrl;

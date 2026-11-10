@@ -16,6 +16,8 @@ resources:
 patches:
   - path: config.yaml
   - path: sin-ejemplos.yaml
+  # The chat accepts the WebSocket handshakes of the public web only (the Origin whitelist of QA is patched here).
+  - path: chat-origenes.yaml
   # Data of production on the node.
   - target: { kind: StatefulSet, name: postgres }
     patch: |-
@@ -27,6 +29,21 @@ patches:
       - op: replace
         path: /spec/template/spec/volumes/0/hostPath/path
         value: /var/lib/grcup/medios
+  # The private files of the public form of athletes (the processed photo of a request).
+  - target: { kind: Deployment, name: athletes }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/atletas
+  # The WhatsApp service (evo-weai): its state (the SQLite database) on the node and the public webhook.
+  - target: { kind: Deployment, name: evo-weai }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/evo-weai
+      - op: replace
+        path: /spec/template/spec/containers/0/env/6/value
+        value: "false"
   - target: { kind: CronJob, name: copias-postgres }
     patch: |-
       - op: replace
@@ -95,13 +112,19 @@ images:
   - { name: grcup/athletes, newTag: TAG }
   - { name: grcup/audit, newTag: TAG }
   - { name: grcup/backoffice, newTag: TAG }
+  - { name: grcup/chat, newTag: TAG }
   - { name: grcup/cms, newTag: TAG }
   - { name: grcup/competition, newTag: TAG }
   - { name: grcup/crm, newTag: TAG }
+  - { name: grcup/donaciones, newTag: TAG }
+  - { name: grcup/fans, newTag: TAG }
   - { name: grcup/gateway, newTag: TAG }
   - { name: grcup/identity, newTag: TAG }
+  - { name: grcup/juegos, newTag: TAG }
   - { name: grcup/live, newTag: TAG }
   - { name: grcup/messaging, newTag: TAG }
+  - { name: grcup/openlifter, newTag: TAG }
+  - { name: grcup/patrocinio, newTag: TAG }
   - { name: grcup/raffle, newTag: TAG }
   - { name: grcup/realtime, newTag: TAG }
   - { name: grcup/schedule, newTag: TAG }

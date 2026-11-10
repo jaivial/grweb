@@ -28,7 +28,8 @@ export interface RelatedLink {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <h2 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2>
+    @if (nivel() === 'h3') { <h3 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
+    @else { <h2 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2> }
     <!-- every card the same size: equal columns, one fixed height, one line per text -->
     <ul class="mt-5 grid auto-rows-fr gap-3 md:grid-cols-3 md:gap-4">
       @for (l of items(); track l.ruta; let i = $index) {
@@ -46,6 +47,8 @@ export interface RelatedLink {
 export class Related {
   readonly titulo = input('Te puede interesar');
   readonly items = input<RelatedLink[]>([]);
+  /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75). */
+  readonly nivel = input<'h2' | 'h3'>('h2');
 }
 
 /** «Sigue la GRStrength Cup»: Instagram band before the footer. */
@@ -58,8 +61,9 @@ export class Related {
     <section class="relative overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-8 md:p-10">
       <div>
         <p class="flex items-center gap-3 text-mono-xs text-text-tertiary">{{ en() ? 'Community' : 'Comunidad' }}</p>
-        <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h2>
-        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, registration, raffle and results first on Instagram.' : 'Fechas, inscripciones, sorteo y resultados primero en Instagram.' }}</p>
+        @if (nivel() === 'h3') { <h3 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h3> }
+        @else { <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h2> }
+        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, schedule, raffle and results first on Instagram.' : 'Fechas, horarios, sorteo y resultados primero en Instagram.' }}</p>
       </div>
       <a grButton icon="camera" class="mt-5 w-full md:mt-0 md:w-auto" [href]="instagram()" target="_blank" rel="noopener">{{ en() ? 'Follow on Instagram' : 'Seguir en Instagram' }}</a>
     </section>
@@ -67,6 +71,8 @@ export class Related {
 })
 export class Community {
   readonly lang = input<Lang>('es');
+  /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75). */
+  readonly nivel = input<'h2' | 'h3'>('h2');
   protected readonly en = computed(() => this.lang() === 'en');
   private readonly comp = inject(Competition);
   protected readonly instagram = computed(() => instagramOf(this.comp.data()));
@@ -448,7 +454,7 @@ export class ClubsPage {
                 }
               </ul>
               <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                @if (c?.inscripcion?.url) { <a grButton variant="primary" size="l" [href]="c!.inscripcion.url" target="_blank" rel="noopener" iconRight="external-link">{{ str(h, 'cta') || 'Register' }}</a> }
+                <a grButton variant="primary" size="l" href="/alta-atleta" hreflang="es" iconRight="arrow-right">{{ str(h, 'cta') || 'Athlete sign-up (Spanish)' }}</a>
                 <a grButton size="l" href="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'Enter the raffle' }}</a>
               </div>
             }
@@ -469,6 +475,9 @@ export class ClubsPage {
                       <li class="flex flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ i['titulo'] }}</p><p class="text-body-s text-text-tertiary">{{ i['texto'] }}</p></li>
                     }
                   </ul>
+                  @if (str(s, 'cta')) {
+                    <a grButton variant="primary" size="l" href="/alta-atleta" hreflang="es" class="self-start">{{ str(s, 'cta') }}</a>
+                  }
                 </section>
               }
               @case ('raffle') {

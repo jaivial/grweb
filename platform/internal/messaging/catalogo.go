@@ -13,6 +13,7 @@ type Plantilla struct {
 	QR         bool              `json:"qr" doc:"Incluye la imagen del QR ({{qr}}) bajo el título"`
 	Ejemplo    map[string]string `json:"ejemplo" doc:"Datos de prueba para la vista previa"`
 	Contenido
+	WA *ContenidoWA `json:"wa,omitempty" doc:"Versión de WhatsApp del mensaje (si la plantilla se envía también por WhatsApp)"`
 }
 
 // Contenido is the editable part of a template.
@@ -24,6 +25,15 @@ type Contenido struct {
 	BotonTexto string `json:"botonTexto" maxLength:"40"`
 	BotonURL   string `json:"botonUrl" maxLength:"300" doc:"Normalmente una variable, p. ej. {{enlace}}"`
 	Pie        string `json:"pie" maxLength:"400"`
+	Nota       string `json:"nota,omitempty" maxLength:"300" doc:"Nota del pie (por defecto, la de la plataforma: por qué recibe este email)"`
+	Imagen     string `json:"imagen,omitempty" maxLength:"500" doc:"URL de una imagen (normalmente una variable, p. ej. {{foto}}) que se muestra sobre el texto"`
+}
+
+// ContenidoWA is the WhatsApp version of a transactional template: plain text with the WhatsApp formatting
+// (*negrita*), the same paragraphs as the email and the same rule (a paragraph with an empty variable is not shown).
+type ContenidoWA struct {
+	Texto  string `json:"texto" minLength:"1" maxLength:"2000"`
+	Imagen bool   `json:"imagen,omitempty" doc:"El mensaje lleva una imagen (la foto de la solicitud)"`
 }
 
 // Automatizacion groups templates the organiser can switch on or off (Figma 62 · «Automatizaciones»).
@@ -51,10 +61,18 @@ var automatizaciones = []Automatizacion{
 	{Clave: "recordatorios", Nombre: "Recordatorios de la entrada", Cuando: "T−7 · T−1 (con QR)", Publico: "Reservas activas", Canales: []string{"email"}},
 	{Clave: "voluntarios", Nombre: "Voluntariado recibido", Cuando: "al enviar la solicitud", Publico: "Voluntarios", Canales: []string{"email"}},
 	{Clave: "clubs", Nombre: "Directorio de clubs", Cuando: "al aprobar o rechazar una solicitud (si se marca «Avisar»)", Publico: "Quien propone un club", Canales: []string{"email"}},
+	{Clave: "solicitudes-atleta", Nombre: "Solicitudes de atleta", Cuando: "al enviar el alta y al aprobar o rechazarla", Publico: "Atletas que se dan de alta y el equipo", Canales: []string{"email", "whatsapp"}},
 }
 
 func p(clave, nombre, disparador, servicio, auto string, esencial bool, vars []string, ej map[string]string, c Contenido) Plantilla {
 	return Plantilla{Clave: clave, Nombre: nombre, Disparador: disparador, Servicio: servicio, Auto: auto, Esencial: esencial, Variables: vars, Ejemplo: ej, Contenido: c}
+}
+
+// pwa is a template that also travels by WhatsApp (the transactional worker sends its WhatsApp text).
+func pwa(clave, nombre, disparador, servicio, auto string, esencial bool, vars []string, ej map[string]string, c Contenido, w ContenidoWA) Plantilla {
+	t := p(clave, nombre, disparador, servicio, auto, esencial, vars, ej, c)
+	t.WA = &w
+	return t
 }
 
 var ejEntrada = map[string]string{"nombre": "Laura", "titular": "Laura Gómez Ruiz + 2 acompañantes", "sesion": "Sábado mañana", "dia": "sábado 25 jul", "puertas": "08:30", "hasta": "14:00",
@@ -82,6 +100,9 @@ var catalogo = []Plantilla{
 	p("atleta-enlace-area", "Acceso a tu área de atleta", "Al pedir el enlace del área", "athletes", "accesos", true, []string{"nombre", "enlace"},
 		map[string]string{"nombre": "Laura", "enlace": "https://grcup.example/area-atleta?t=…"},
 		Contenido{Asunto: "Tu acceso al área de atleta", Preheader: "Enlace válido 30 minutos", Titulo: "Hola, {{nombre}}", Cuerpo: "Aquí tienes tu enlace para entrar al área de atleta: tu QR de acreditación, tu flight y la previa del pesaje.\n\nCaduca en 30 minutos.", BotonTexto: "Entrar a mi área", BotonURL: "{{enlace}}"}),
+	p("fans-acceso", "Acceso al directo (chat, porra y fantasy)", "Al pedir el enlace en /en-directo", "fans", "accesos", true, []string{"alias", "tipo", "enlace"},
+		map[string]string{"alias": "Laura_PL", "tipo": "publico", "enlace": "https://grcup.example/acceso?acceso=…"},
+		Contenido{Asunto: "Tu enlace para entrar al directo", Preheader: "Enlace válido 30 minutos", Titulo: "Hola, {{alias}}", Cuerpo: "Pulsa el botón para entrar al directo de la GR Cup: chatea, dona y juega a la porra y a GRS Fantasy.\n\nEl enlace caduca en 30 minutos y solo funciona una vez. Si no lo has pedido tú, ignora este email.", BotonTexto: "Entrar al directo", BotonURL: "{{enlace}}"}),
 	p("seguimiento-confirmar", "Confirma tu aviso", "Al pulsar «Avísame cuando compita»", "athletes", "accesos", true, []string{"atleta", "enlace"},
 		map[string]string{"atleta": "Laura Gómez Ruiz", "enlace": "https://grcup.example/atletas/laura-gomez-ruiz?aviso=…"},
 		Contenido{Asunto: "Confirma tu aviso de {{atleta}}", Titulo: "¿Te avisamos?", Cuerpo: "Has pedido que te escribamos 30 minutos antes de que **{{atleta}}** salga a la plataforma.\n\nConfirma con el botón. Si no lo has pedido tú, ignora este email y no te escribiremos.", BotonTexto: "Confirmar aviso", BotonURL: "{{enlace}}"}),
@@ -156,6 +177,52 @@ var catalogo = []Plantilla{
 	p("novedades-recordatorio", "Recordatorio: confirma tu suscripción", "48 h después sin confirmar", "crm", "novedades", false, []string{"enlace", "baja"},
 		map[string]string{"enlace": "https://grcup.example/novedades/confirmar?t=…", "baja": "https://grcup.example/baja?t=…"},
 		Contenido{Asunto: "¿Sigues queriendo novedades?", Titulo: "Te falta un paso", Cuerpo: "Hace dos días pediste recibir las novedades de la GRStrength Cup, pero no confirmaste. Si sigues queriendo, pulsa el botón; si no, no te escribiremos más.", BotonTexto: "Confirmar suscripción", BotonURL: "{{enlace}}"}),
+	// ---- Alta de atleta (Figma 78 · «Emails y avisos» del alta). «foto» es la URL firmada de la foto de la
+	// solicitud: caduca en 7 días y solo la ven los administradores. «match» es una frase corta («sugerida
+	// (nombre y fecha de nacimiento)», «licencia», «email», «sin coincidencia»). «menor» es el aviso de menor de
+	// edad (vacío si es mayor de edad). ----
+	pwa("atleta-solicitud-recibida", "Solicitud de alta recibida", "Al enviar el formulario de alta de atleta", "athletes", "solicitudes-atleta", true,
+		[]string{"nombre", "email", "telefono", "club", "ciudad", "marcas", "foto", "urlAtletas"},
+		map[string]string{"nombre": "Carlos", "email": "carlos.garcia@example.com", "telefono": "+34 600 123 456", "club": "Club Halter Valencia",
+			"ciudad": "Valencia", "marcas": "180 / 120 / 220 kg", "foto": "Sí, en blanco y negro", "urlAtletas": "https://grcup.example/atletas"},
+		Contenido{Asunto: "Hemos recibido tu solicitud de alta", Preheader: "Revisamos tu ficha a mano y te avisamos por email", Titulo: "{{nombre}}, hemos recibido tu solicitud de alta",
+			Cuerpo:     "Tu solicitud para la ficha de atleta ya está en revisión. El equipo revisa cada solicitud a mano; te avisamos por email en cuanto tu ficha esté publicada.\n\n**Qué pasa ahora**\n\n1. Comprobamos tus datos con la lista de inscritos de la AEP.\n\n2. Preparamos tu foto en blanco y negro para la ficha.\n\n3. Publicamos tu ficha en /atletas y te avisamos por email.\n\n**Resumen de lo enviado**\n\n**Nombre:** {{nombre}}\n\n**Email:** {{email}}\n\n**Teléfono:** {{telefono}}\n\n**Club · ciudad:** {{club}} · {{ciudad}}\n\n**Mejores marcas:** {{marcas}}\n\n**Foto:** {{foto}}\n\nSi algo no cuadra, escríbenos a admin@grstrength.com.",
+			BotonTexto: "Ver la lista de atletas", BotonURL: "{{urlAtletas}}",
+			Nota: "Recibes este email porque has enviado una solicitud de alta de atleta en la GR Cup 2026."},
+		ContenidoWA{Texto: "¡Hola {{nombre}}! Hemos recibido tu solicitud de alta para la GR Cup 2026 ✍\n\nEl equipo revisa a mano. Cuando tu ficha esté publicada te avisamos por aquí y por email.\n\nConsulta las fichas publicadas:\n{{urlAtletas}}"}),
+	pwa("atleta-solicitud-nueva", "Nueva solicitud de alta", "Al enviar el formulario de alta de atleta", "athletes", "solicitudes-atleta", true,
+		[]string{"nombre", "apellidos", "email", "telefono", "licencia", "club", "ciudad", "sexo", "edad", "fechaNacimiento", "marcas", "frase", "match", "menor", "foto", "urlRevisar"},
+		map[string]string{"nombre": "Carlos", "apellidos": "García Molina", "email": "carlos.garcia@example.com", "telefono": "+34 600 123 456",
+			"licencia": "AEP-2026-04512", "club": "Club Halter Valencia", "ciudad": "Valencia", "sexo": "M", "edad": "17", "fechaNacimiento": "12/03/2009",
+			"marcas": "180 / 120 / 220 kg · total 520 kg", "frase": "«Primera temporada en juveniles»", "match": "sugerida (nombre y fecha de nacimiento)",
+			"menor": "⚠ Menor de edad · falta la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla.",
+			"foto":  "https://grcup.example/api/competiciones/grcup/alta-atleta/foto/…?e=…&s=…", "urlRevisar": "https://grcup-bo.example/grcup/atletas/solicitudes"},
+		Contenido{Asunto: "Nueva solicitud de alta · {{nombre}} {{apellidos}}", Preheader: "Revisa los datos antes de aprobar o rechazar", Titulo: "Nueva solicitud de alta · {{nombre}} {{apellidos}}",
+			Imagen:     "{{foto}}",
+			Cuerpo:     "Un atleta ha enviado el formulario de /alta-atleta. Revisa los datos declarados frente al atleta enlazado antes de aprobar o rechazar.\n\n**Nombre:** {{nombre}} {{apellidos}}\n\n**Email de la inscripción AEP:** {{email}}\n\n**Teléfono:** {{telefono}}\n\n**Licencia AEP:** {{licencia}}\n\n**Club · ciudad:** {{club}} · {{ciudad}}\n\n**Sexo · edad:** {{sexo}} · {{edad}} años\n\n**Fecha de nacimiento:** {{fechaNacimiento}}\n\n**Marcas SQ · BP · DL:** {{marcas}}\n\n**Frase:** {{frase}}\n\n**Coincidencia:** {{match}}\n\n{{menor}}",
+			BotonTexto: "Revisar solicitud", BotonURL: "{{urlRevisar}}",
+			Pie:  "La foto de este mensaje caduca en 7 días por seguridad. Este email contiene datos personales: no lo reenvíes.",
+			Nota: "Email automático del panel de solicitudes de atleta. La organización puede desactivar estos avisos en Backoffice › Emails y avisos."},
+		ContenidoWA{Texto: "*Nueva solicitud de alta · {{nombre}} {{apellidos}}*\n\n{{sexo}} · {{edad}} años · {{club}} · {{ciudad}}\n\n{{menor}}\n\n**Coincidencia:** {{match}}\n\nRevisar la solicitud: {{urlRevisar}}", Imagen: true}),
+	pwa("atleta-solicitud-aprobada", "Solicitud de alta aprobada", "Al aprobar una solicitud de alta (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
+		[]string{"nombre", "urlFicha", "urlArea"},
+		map[string]string{"nombre": "Carlos", "urlFicha": "https://grcup.example/atletas/carlos-garcia-molina", "urlArea": "https://grcup.example/area-atleta?t=…"},
+		Contenido{Asunto: "Tu ficha de atleta ya está aprobada", Preheader: "Ya puedes ver tu ficha en la GR Cup 2026", Titulo: "{{nombre}}, tu ficha de atleta ya está aprobada",
+			Cuerpo:     "Tu solicitud de alta está aprobada. Tu ficha queda lista con tu foto en blanco y negro, tu club y tus mejores marcas.\n\n✓ Publicamos tu ficha en {{urlFicha}}.\n\n✓ Desde el área de atleta podrás editar tu foto, tus marcas y tu frase cuando quieras.\n\n✓ Te avisaremos por email cuando tu ficha sea visible en la lista de atletas.",
+			BotonTexto: "Entrar en mi área de atleta", BotonURL: "{{urlArea}}",
+			Pie:  "Enlace personal: caduca en 30 minutos; luego puedes pedir otro desde el área de atleta.",
+			Nota: "Recibes este email porque tu solicitud de alta en la GR Cup 2026 ha sido aprobada."},
+		ContenidoWA{Texto: "¡Buenas, {{nombre}}! Tu ficha de atleta ya está aprobada ✓\n\nYa puedes verla en {{urlFicha}} y entrar en tu área de atleta para editar tu foto, tus marcas y tu frase:\n{{urlArea}}"}),
+	pwa("atleta-solicitud-rechazada", "Solicitud de alta rechazada", "Al rechazar una solicitud de alta (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
+		[]string{"nombre", "motivo", "urlAlta"},
+		map[string]string{"nombre": "Carlos", "motivo": "Tus datos no coinciden con tu inscripción en la AEP: la fecha de nacimiento que has enviado (12/03/2009) no es la que figura en tu licencia.",
+			"urlAlta": "https://grcup.example/alta-atleta"},
+		Contenido{Asunto: "Tu solicitud de alta no se ha podido aprobar", Titulo: "{{nombre}}, tu solicitud de alta no se ha podido aprobar",
+			Cuerpo:     "Hemos revisado tu solicitud de alta y, por ahora, no podemos publicar tu ficha. Tu inscripción en la AEP sigue en vigor: esto no afecta a tu participación.\n\n**Motivo del rechazo**\n\n{{motivo}}\n\n✓ Puedes volver a enviar el formulario con los datos corregidos en cualquier momento.\n\n✓ Si crees que es un error, escríbenos a admin@grstrength.com y lo revisamos a mano.\n\n✓ Tu foto y los datos de la solicitud se borrarán de forma segura (las rechazadas se purgan a los 30 días).",
+			BotonTexto: "Volver a enviar mi alta", BotonURL: "{{urlAlta}}",
+			Pie:  "No es un bloqueo permanente: corrige el motivo indicado arriba y envía de nuevo.",
+			Nota: "Recibes este email porque tu solicitud de alta en la GR Cup 2026 no ha podido ser aprobada."},
+		ContenidoWA{Texto: "Hola {{nombre}}, tu solicitud de alta no se ha podido aprobar.\n\n{{motivo}}\n\nTu inscripción en la AEP sigue en vigor: esto no afecta a tu participación.\n\nPuedes volver a enviarla con los datos corregidos:\n{{urlAlta}}"}),
 }
 
 var porClave = func() map[string]Plantilla {

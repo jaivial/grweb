@@ -6,6 +6,8 @@ export interface NavItem {
   icon: GrIconName;
   perm?: string; // permission required (Root always sees everything)
   mobileTab?: boolean;
+  /** Live badge of the section (athlete requests waiting for a review). */
+  contador?: 'solicitudes';
 }
 
 export interface NavGroup {
@@ -28,9 +30,20 @@ export const NAV: NavGroup[] = [
     items: [
       { label: 'Evento y módulos', path: 'evento', icon: 'trophy', perm: 'evento.editar' },
       { label: 'Web y contenidos', path: 'web', icon: 'layout', perm: 'web.editar' },
-      { label: 'Atletas', path: 'atletas', icon: 'user', perm: 'atletas.editar' },
+      { label: 'Atletas', path: 'atletas', icon: 'user', perm: 'atletas.editar', contador: 'solicitudes' },
       { label: 'Horarios y flights', path: 'horarios', icon: 'clock', perm: 'horarios.publicar' },
       { label: 'Resultados', path: 'resultados', icon: 'award', perm: 'resultados.publicar' },
+    ],
+  },
+  {
+    label: 'Directo social',
+    items: [
+      { label: 'Chat', path: 'chat', icon: 'send', perm: 'directo.operar' },
+      { label: 'Patrocinio', path: 'patrocinio', icon: 'layout', perm: 'web.editar' },
+      { label: 'Juegos', path: 'juegos', icon: 'trophy', perm: 'directo.operar' },
+      { label: 'Donaciones', path: 'donaciones', icon: 'heart', perm: 'sorteo.gestionar' },
+      { label: 'Premios', path: 'premios', icon: 'gift', perm: 'directo.operar' },
+      { label: 'Fans', path: 'fans', icon: 'users', perm: 'directo.operar' },
     ],
   },
   {

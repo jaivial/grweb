@@ -90,6 +90,12 @@ func (s *Stripe) CreateCheckout(ctx context.Context, in CheckoutIn) (CheckoutOut
 }
 
 func (s *Stripe) Refund(ctx context.Context, paymentID string, amount int, reason string) (string, error) {
+	return s.RefundConClave(ctx, paymentID, amount, reason, "")
+}
+
+// RefundConClave refunds with an idempotency key (Stripe's «Idempotency-Key»): the same key always returns the
+// same refund, so a retry after a crash never returns the money twice.
+func (s *Stripe) RefundConClave(ctx context.Context, paymentID string, amount int, reason, clave string) (string, error) {
 	f := url.Values{}
 	f.Set("payment_intent", paymentID)
 	f.Set("amount", strconv.Itoa(amount))
@@ -97,7 +103,7 @@ func (s *Stripe) Refund(ctx context.Context, paymentID string, amount int, reaso
 	var out struct {
 		ID string `json:"id"`
 	}
-	err := s.post(ctx, "/v1/refunds", f, "", &out)
+	err := s.post(ctx, "/v1/refunds", f, clave, &out)
 	return out.ID, err
 }
 

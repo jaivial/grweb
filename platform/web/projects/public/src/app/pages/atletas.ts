@@ -47,7 +47,6 @@ export class Fav {
       <p pageStamps class="flex flex-wrap gap-2">
         @if (l?.actualizado) { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado el {{ fecha(l!.actualizado) }} · Fuente: inscritos AEP</span> }
         <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-mono-xs text-info">Datos de ejemplo</span>
-        @if (inscripcion(); as i) { <span class="inline-flex h-8 items-center rounded-pill border border-line-strong px-3 text-mono-xs text-text-secondary">{{ i }}</span> }
       </p>
 
       <div class="flex flex-col gap-3">
@@ -115,8 +114,8 @@ export class Fav {
                   <span class="text-label-l">{{ a.nombre }} {{ a.apellidos }}</span>
                   <span class="text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</span>
                   <span class="mt-3 flex flex-wrap gap-1.5">
-                    <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 px-2 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span>
-                    <span class="inline-flex h-6 items-center rounded-pill border border-line-strong px-2 text-mono-xs text-text-secondary">{{ a.divisionNombre }}</span>
+                    @if (a.categoria) { <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 px-2 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
+                    @if (a.divisionNombre) { <span class="inline-flex h-6 items-center rounded-pill border border-line-strong px-2 text-mono-xs text-text-secondary">{{ a.divisionNombre }}</span> }
                   </span>
                   <span class="mt-auto flex items-center gap-1.5 pt-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') : 'Horario por publicar' }}</span>
                 </span>
@@ -135,7 +134,7 @@ export class Fav {
                     <a [href]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2">
                       @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-10 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                       @else { <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(a) }}</span> }
-                      <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.sexo }} {{ cat(a.categoria) }} kg · {{ a.divisionNombre }}</span></span>
+                      <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.categoria ? ' · ' + a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
                       <span class="text-mono-xs text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
                       <gr-fav [slug]="a.slug" [nombre]="a.nombre" />
                     </a>
@@ -157,9 +156,9 @@ export class Fav {
         <section class="flex flex-col gap-4 rounded-xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-5 md:flex-row md:items-center md:justify-between md:p-6">
           <div class="flex gap-4">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-sm bg-accent-deep/60 text-accent-text"><gr-icon name="user" [size]="18" /></span>
-            <div><h2 class="text-ui-h5">¿Compites? Completa tu perfil</h2><p class="mt-1 text-body-s text-text-secondary">Entra con el email de tu inscripción en la AEP: foto, club, mejores marcas y tus alturas de rack para agilizar el pesaje.</p></div>
+            <div><h2 class="text-ui-h5">¿Compites? Completa tu perfil</h2><p class="mt-1 text-body-s text-text-secondary">Da de alta tu atleta con el email de tu inscripción en la AEP: foto, club, mejores marcas y tus alturas de rack para agilizar el pesaje.</p></div>
           </div>
-          <a grButton iconRight="arrow-right" href="/area-atleta" class="shrink-0">Área de atleta</a>
+          <a grButton iconRight="arrow-right" href="/alta-atleta" class="shrink-0">Dar de alta mi atleta</a>
         </section>
         <gr-related [items]="relacionados" />
         <gr-community />
@@ -192,14 +191,6 @@ export class AtletasPage {
     { titulo: 'Entradas', texto: 'Gratis con reserva', ruta: '/entradas' },
   ];
   protected readonly plazas = computed(() => this.comp()?.inscripcion?.plazas);
-  protected readonly inscripcion = computed(() => {
-    const c = this.comp();
-    const n = this.lista()?.resumen.total ?? 0;
-    const p = this.plazas();
-    if (!c) return '';
-    const e = { abierta: 'Inscripciones abiertas', completa: 'Inscripciones completas', cerrada: 'Inscripciones cerradas', proximamente: 'Inscripciones próximamente' }[c.inscripcion.estado] ?? '';
-    return p ? `${e} · ${n}/${p}` : e;
-  });
   protected readonly categorias = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.sexo + ' ' + a.categoria))].sort(catSort));
   protected readonly clubs = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.club).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
   protected readonly divisiones = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.divisionNombre))]);
@@ -217,7 +208,8 @@ export class AtletasPage {
   protected readonly grupos = computed(() => {
     const out: { titulo: string; items: AtletaPub[] }[] = [];
     for (const a of this.visibles()) {
-      const t = `${sexoTxt[a.sexo]} ${cat(a.categoria)} kg${a.flight ? ' · Flight ' + a.flight : ''}`;
+      const catTxt = a.categoria ? `${sexoTxt[a.sexo]} ${cat(a.categoria)} kg` : sexoTxt[a.sexo];
+      const t = `${catTxt}${a.flight ? ' · Flight ' + a.flight : ''}`;
       const g = out.at(-1);
       if (g && g.titulo === t) g.items.push(a);
       else out.push({ titulo: t, items: [a] });
@@ -285,8 +277,8 @@ function catSort(a: string, b: string): number {
               </div>
               <div class="p-5">
                 <p class="flex flex-wrap gap-1.5">
-                  <span class="inline-flex h-7 items-center rounded-pill border border-accent/50 bg-accent-deep/30 px-2.5 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span>
-                  <span class="inline-flex h-7 items-center rounded-pill border border-line-strong px-2.5 text-mono-xs">{{ a.divisionNombre }}</span>
+                  @if (a.categoria) { <span class="inline-flex h-7 items-center rounded-pill border border-accent/50 bg-accent-deep/30 px-2.5 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
+                  @if (a.divisionNombre) { <span class="inline-flex h-7 items-center rounded-pill border border-line-strong px-2.5 text-mono-xs">{{ a.divisionNombre }}</span> }
                   <span class="inline-flex h-7 items-center gap-1 rounded-pill border border-line-strong px-2.5 text-mono-xs"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Horario por publicar' }}</span>
                 </p>
                 <p class="mt-3 flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</p>
@@ -373,7 +365,7 @@ function catSort(a: string, b: string): number {
             }
             @if (a.tambien.length) {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                <h2 class="text-ui-h5">También en {{ a.sexo }} {{ cat(a.categoria) }} kg</h2>
+                <h2 class="text-ui-h5">También en {{ a.categoria ? a.sexo + ' ' + cat(a.categoria) + ' kg' : 'la misma categoría' }}</h2>
                 <ul class="mt-2">
                   @for (o of a.tambien; track o.slug) {
                     <li class="flex items-center gap-3 border-b border-line-subtle py-2 last:border-0">
@@ -431,9 +423,14 @@ export class AtletaPage {
       }
       if (c?.fechaInicio) this.diaTxt.set(new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(c.fechaInicio)));
       const nombre = `${f.nombre} ${f.apellidos}`;
+      // Sin categoría (atleta recién creado desde una solicitud) no se pinta «M  kg».
+      const catTxt = f.categoria ? `${f.sexo} ${cat(f.categoria)} kg` : '';
+      const desc = catTxt
+        ? `${nombre} (${f.club || 'independiente'}) compite en ${f.sexo === 'F' ? 'femenino' : 'masculino'} ${cat(f.categoria)} kg ${f.divisionNombre} en la GR Strength Cup.`
+        : `${nombre} (${f.club || 'independiente'}) compite en la GR Strength Cup.`;
       seo.set({
-        title: `${nombre} · ${f.sexo} ${cat(f.categoria)} kg · GR Strength Cup`,
-        description: `${nombre} (${f.club || 'independiente'}) compite en ${f.sexo === 'F' ? 'femenino' : 'masculino'} ${cat(f.categoria)} kg ${f.divisionNombre} en la GR Strength Cup.${f.totalPrevisto ? ' Total previsto: ' + kg(f.totalPrevisto) + ' kg.' : ''}`,
+        title: catTxt ? `${nombre} · ${catTxt} · GR Strength Cup` : `${nombre} · GR Strength Cup`,
+        description: `${desc}${f.totalPrevisto ? ' Total previsto: ' + kg(f.totalPrevisto) + ' kg.' : ''}`,
         path: '/atletas/' + f.slug, image: f.fotoUrl || undefined,
         jsonLd: { '@context': 'https://schema.org', '@type': 'Person', name: nombre, ...(f.club ? { memberOf: { '@type': 'SportsTeam', name: f.club } } : {}), knowsAbout: 'Powerlifting' },
       });
@@ -493,10 +490,10 @@ export class AtletaPage {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = data();
-    <gr-page title="Participantes" accent="y flights" eyebrow="Inscritos" section="El evento" crumb="Participantes"
-      subtitle="Lista de atletas inscritos por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
+    <gr-page title="Participantes" accent="y flights" eyebrow="La plantilla" section="El evento" crumb="Participantes"
+      subtitle="Lista de atletas por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
       <p pageStamps class="flex flex-wrap gap-2">
-        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde las inscripciones</span>
+        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde la lista de la AEP</span>
         <span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span>
       </p>
       @if (p === undefined) { <gr-skeleton class="h-40 rounded-lg" /> }
@@ -506,7 +503,7 @@ export class AtletaPage {
           <div class="col-span-2 rounded-2xl border border-line-subtle bg-bg-card p-5 md:col-span-1">
             <p class="flex items-center justify-between text-label-s">Plazas ocupadas @if (p.plazas) { <span class="text-mono-xs text-accent-text">{{ p.ocupadas }} / {{ p.plazas }}</span> }</p>
             @if (p.plazas) { <div class="mt-3 h-1.5 rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="pct()"></div></div> }
-            <p class="mt-2 text-body-xs text-text-tertiary">{{ p.plazas && p.ocupadas >= p.plazas ? 'Completo · lista de espera en la AEP' : (p.reserva ? p.reserva + ' en reserva' : 'Inscripción en la AEP') }}</p>
+            <p class="mt-2 text-body-xs text-text-tertiary">{{ p.plazas && p.ocupadas >= p.plazas ? 'Plantilla completa' : (p.reserva ? p.reserva + ' en reserva' : 'Bloque completo') }}</p>
           </div>
           <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Mujeres</span><span class="font-display text-[44px] leading-none italic">{{ p.mujeres }}</span></div>
           <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Hombres</span><span class="font-display text-[44px] leading-none italic">{{ p.hombres }}</span></div>
@@ -558,7 +555,7 @@ export class AtletaPage {
         @if (contacto()) {
           <div class="mt-10 flex flex-col gap-3 rounded-xl border border-info/40 bg-info/8 p-4 md:flex-row md:items-center">
             <gr-icon name="info" [size]="18" class="text-info" />
-            <p class="flex-1 text-body-s text-text-secondary">¿No apareces en la lista o hay un error en tus datos? Escríbenos antes del cierre de inscripciones.</p>
+            <p class="flex-1 text-body-s text-text-secondary">¿No apareces en la lista o hay un error en tus datos? Escríbenos y lo corregimos.</p>
             <a [href]="'mailto:' + contacto()" class="inline-flex h-10 items-center justify-center rounded-sm bg-info/15 px-3 text-label-s text-info hover:bg-info/25">Contactar</a>
           </div>
         }
@@ -603,7 +600,7 @@ export class ParticipantesPage {
       const [p, c] = await Promise.all([this.api.participantes(), competition.load()]);
       this.data.set(p);
       this.contacto.set(c?.evento.emailContacto ?? '');
-      await applySeo(cms, seo, '/participantes', 'Participantes y flights · GR Strength Cup', 'Lista de atletas inscritos por bloque: busca tu nombre para ver tu hora de pesaje y tu flight.');
+      await applySeo(cms, seo, '/participantes', 'Participantes y flights · GR Strength Cup', 'Lista de atletas por bloque de competición: busca tu nombre para ver tu hora de pesaje y tu flight.');
     });
   }
 }

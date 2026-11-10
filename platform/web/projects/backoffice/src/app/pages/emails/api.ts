@@ -7,8 +7,10 @@ export interface Resumen { enviados7d: number; enviadosPrev: number; entregados:
 export interface PlantillaItem {
   clave: string; nombre: string; disparador: string; asunto: string; esencial: boolean; estado: 'activa' | 'pausada' | 'error'; error?: string; personalizada: boolean; enviados: number; fallos: number; ultimoEnvio?: string;
 }
-export interface Contenido { asunto: string; preheader: string; titulo: string; cuerpo: string; botonTexto: string; botonUrl: string; pie: string }
-export interface PlantillaDetalle extends Contenido { info: PlantillaItem; variables: string[]; ejemplo: Record<string, string>; original: Contenido; version: number; updatedPor?: string; updatedAt?: string }
+export interface Contenido { asunto: string; preheader: string; titulo: string; cuerpo: string; botonTexto: string; botonUrl: string; pie: string; nota?: string; imagen?: string }
+/** WhatsApp version of a template (it is not edited: it comes with the code). */
+export interface ContenidoWA { texto: string; imagen?: boolean }
+export interface PlantillaDetalle extends Contenido { info: PlantillaItem; variables: string[]; ejemplo: Record<string, string>; original: Contenido; wa?: ContenidoWA | null; version: number; updatedPor?: string; updatedAt?: string }
 export interface Render { asunto: string; html: string; texto: string }
 export type EstadoMensaje = 'en_cola' | 'enviando' | 'enviado' | 'reintentando' | 'rebotado' | 'fallido' | 'cancelado' | 'omitido';
 export interface Mensaje {

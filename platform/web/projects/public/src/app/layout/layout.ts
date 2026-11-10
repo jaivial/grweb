@@ -2,11 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrIconButton, GrLogo } from '@grcup/ui';
+import { GrButton, GrIcon, GrIconButton, GrLogo, GrToaster } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
+import { Seo } from '../core/seo';
+import { FanSession } from '../core/fan';
 import { Newsletter } from './newsletter';
+import { AccesoModal } from '../pages/directo-social/acceso-modal';
 
 export interface NavLink {
   label: string;
@@ -38,7 +41,7 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
     { label: 'Categorías de peso', desc: 'Pesos y divisiones de edad', href: '/categorias-de-peso' },
     { label: 'Marcas mínimas', desc: 'Totales AEP-1 por categoría', href: '/marcas-minimas' },
     { label: 'Reglamento', desc: 'Intentos, jueces y equipamiento', href: '/reglamento' },
-    { label: 'Inscripción', desc: 'La gestiona la AEP', href: '/inscripcion' },
+    { label: 'Alta de atleta', desc: 'Completa tu perfil', href: '/alta-atleta' },
     { label: 'Resultados', desc: 'Clasificaciones por edición', href: '/resultados' },
   ] },
   { titulo: 'El evento', items: [
@@ -59,7 +62,7 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
 
 /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
 const GRUPOS_MOVIL: { titulo: string; items: NavLink[] }[] = [
-  { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Inscripción (AEP)', href: '/inscripcion' }] },
+  { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta · Completa tu perfil', href: '/alta-atleta' }] },
   { titulo: 'El evento', items: [{ label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
   { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Blog', href: '/blog' }] },
 ];
@@ -208,10 +211,29 @@ export class Navbar {
   protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 }
 
+/**
+ * Overlays globales de la web: el modal de acceso al directo (una sola instancia: cualquier página puede pedirlo
+ * con `FanSession.abrirAcceso()`) y el bandeja de avisos.
+ */
+@Component({
+  selector: 'gr-overlays',
+  imports: [AccesoModal, GrToaster],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<gr-acceso-modal /><gr-toaster />`,
+})
+export class Overlays {
+  private readonly fan = inject(FanSession);
+
+  constructor() {
+    // The session of the fan is the cookie httpOnly `grcup_fan`: the browser asks once and everyone la usa.
+    if (isPlatformBrowser(inject(PLATFORM_ID))) void this.fan.cargar();
+  }
+}
+
 /** Footer (Figma «Footer»). */
 @Component({
   selector: 'gr-footer',
-  imports: [GrLogo, GrIcon, Newsletter],
+  imports: [GrLogo, GrIcon, Newsletter, Overlays],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block border-t border-line-subtle bg-bg-deep' },
   template: `
@@ -244,7 +266,7 @@ export class Navbar {
     } @else {
     <!-- Figma «Footer»: mobile 48/20/32 with 28 between blocks, desktop 72/80/32 with 48 -->
     <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-28 md:gap-12 md:px-8 md:pt-[72px] md:pb-10 xl:px-[120px]">
-      <gr-newsletter />
+      <gr-newsletter [nivel]="nivelNewsletter()" />
       <div class="grid lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
         <div class="mb-6 flex flex-col gap-4 lg:mb-0">
           <gr-logo [height]="56" />
@@ -290,10 +312,15 @@ export class Navbar {
       <button type="button" (click)="arriba()" aria-label="Volver arriba" class="fixed right-4 bottom-[104px] z-40 flex size-12 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card md:hidden"><gr-icon name="arrow-up" [size]="20" /></button>
     }
     }
+    <!-- Modal de acceso al directo y avisos: una sola instancia en toda la web -->
+    <gr-overlays />
   `,
 })
 export class Footer {
   readonly lang = input<Lang>('es');
+  private readonly seo = inject(Seo);
+  /** En /alta-atleta el contenido ya tiene sus dos H2: la banda de novedades baja a H3. */
+  protected readonly nivelNewsletter = computed<'h2' | 'h3'>(() => (this.seo.path() === '/alta-atleta' ? 'h3' : 'h2'));
   protected readonly year = new Date().getFullYear();
   private readonly comp = inject(Competition);
   private readonly http = inject(HttpClient);
@@ -309,9 +336,9 @@ export class Footer {
   private readonly url = signal('');
   /** Mobile CTA bar: after the first screen, not over the footer, not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && !this.footerVisible() && this.comp.data()?.modulos?.['entradas'] !== false &&
-    !/^\/(inscripcion|pago|entradas|area-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
+    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
-    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Inscripción (AEP)', href: '/inscripcion' }] },
+    { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta · Completa tu perfil', href: '/alta-atleta' }] },
     { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
     { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
     { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },

@@ -2,26 +2,13 @@
  * Decides whether the 3D medals can run, or the static PNG + CSS fallback is shown instead.
  * Returns the reason for the fallback, or `null` when WebGL medals are fine.
  */
+import { hasWebGL } from '@utils/webgl';
+
 export type MedalFallbackReason = 'reduced-motion' | 'no-webgl' | 'save-data' | 'low-end-device';
 
 interface NavigatorHints {
   connection?: { saveData?: boolean };
   hardwareConcurrency?: number;
-}
-
-let cachedWebGL: boolean | null = null;
-
-function hasWebGL(): boolean {
-  if (cachedWebGL !== null) return cachedWebGL;
-  try {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    cachedWebGL = !!context;
-    (context as WebGLRenderingContext | null)?.getExtension('WEBGL_lose_context')?.loseContext();
-  } catch {
-    cachedWebGL = false;
-  }
-  return cachedWebGL;
 }
 
 /** Minimum logical cores for the physics medals (Figma spec: ≤ 4 cores → fallback). */

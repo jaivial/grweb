@@ -18,6 +18,7 @@ const maxIntentos = 5
 type pendiente struct {
 	id       uuid.UUID
 	cid      uuid.UUID
+	canal    string
 	clave    string
 	destino  string
 	vars     map[string]string
@@ -48,13 +49,13 @@ func (s *Svc) worker(ctx context.Context) {
 func (s *Svc) tick(ctx context.Context) error {
 	rows, err := s.a.DB.Query(ctx, `UPDATE mensajes SET estado = 'enviando', intentos = intentos + 1, updated_at = now() WHERE id IN (
 		SELECT id FROM mensajes WHERE estado IN ('en_cola', 'reintentando') AND proximo_at <= now() ORDER BY proximo_at LIMIT 20 FOR UPDATE SKIP LOCKED)
-		RETURNING id, competition_id, plantilla, destino::text, vars, prueba, intentos`)
+		RETURNING id, competition_id, canal, plantilla, destino::text, vars, prueba, intentos`)
 	if err != nil {
 		return err
 	}
 	lote, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (pendiente, error) {
 		var p pendiente
-		err := r.Scan(&p.id, &p.cid, &p.clave, &p.destino, &p.vars, &p.prueba, &p.intentos)
+		err := r.Scan(&p.id, &p.cid, &p.canal, &p.clave, &p.destino, &p.vars, &p.prueba, &p.intentos)
 		return p, err
 	})
 	if err != nil {
@@ -131,10 +132,16 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 			}
 		}
 		var invalido string
-		if err := s.a.DB.QueryRow(ctx, `SELECT tipo FROM destinos_invalidos WHERE destino = $1`, p.destino).Scan(&invalido); err == nil {
-			s.fin(ctx, p, "omitido", "La dirección rebotó antes", nil, "")
-			return
+		if p.canal != "whatsapp" {
+			if err := s.a.DB.QueryRow(ctx, `SELECT tipo FROM destinos_invalidos WHERE destino = $1`, p.destino).Scan(&invalido); err == nil {
+				s.fin(ctx, p, "omitido", "La dirección rebotó antes", nil, "")
+				return
+			}
 		}
+	}
+	if p.canal == "whatsapp" {
+		s.procesarWA(ctx, p, t)
+		return
 	}
 	r, err := renderizar(t.Contenido, p.vars, t.Variables, s.marca(ctx, p.cid), t.Esencial, t.QR)
 	if err != nil {
@@ -212,6 +219,84 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 	}
 	espera := time.Duration(1<<(p.intentos-1)) * time.Minute // 1, 2, 4, 8 min
 	s.fin(ctx, p, "reintentando", ee.msg, nil, ", asunto = $4, proximo_at = now() + $5::interval", r.Asunto, fmt.Sprintf("%d seconds", int(espera.Seconds())))
+}
+
+// procesarWA sends a transactional message by WhatsApp: the text derived from the template, the photo of the
+// request as an image (sendMedia) and the same retries as the email. While evo-weai is down the messages wait
+// without spending an attempt; in QA without a linked number they are recorded as delivered (simulated).
+func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) {
+	if t.WA == nil || strings.TrimSpace(t.WA.Texto) == "" {
+		s.fin(ctx, p, "omitido", "La plantilla no tiene versión de WhatsApp", nil, "")
+		return
+	}
+	texto, err := renderizarWA(t.WA.Texto, p.vars, t.Variables)
+	if err != nil {
+		_, _ = s.a.DB.Exec(ctx, `INSERT INTO plantilla_estado (competition_id, clave, estado, error) VALUES ($1,$2,'error',$3)
+			ON CONFLICT (competition_id, clave) DO UPDATE SET estado = 'error', error = EXCLUDED.error, updated_at = now()`, p.cid, p.clave, err.Error())
+		s.devolver(ctx, p, 5*time.Minute, "Plantilla con error: "+err.Error())
+		return
+	}
+	c := s.waDe(ctx, p.cid)
+	// Circuit breaker: while the server is down, the messages wait instead of burning attempts.
+	caido := s.a.Keys.Of("messaging", "canal-caido", p.cid.String(), "whatsapp")
+	if n, _ := s.a.Redis.Exists(ctx, caido).Result(); n > 0 {
+		s.devolver(ctx, p, time.Minute, "WhatsApp (evo-weai) no disponible: reintento automático")
+		return
+	}
+	// Pace per competition (6 WhatsApp per minute, like the campaigns: the number is a person, not a mailbox).
+	key := s.a.Keys.Of("messaging", "ritmo-wa", p.cid.String(), time.Now().UTC().Format("200601021504"))
+	if n, err := s.a.Redis.Incr(ctx, key).Result(); err == nil {
+		s.a.Redis.Expire(ctx, key, 2*time.Minute)
+		if int(n) > 6 {
+			s.devolver(ctx, p, time.Duration(60-time.Now().Second()+1)*time.Second, "Ritmo máximo por minuto: en cola")
+			return
+		}
+	}
+	id, err := s.enviarWA(ctx, c, p.destino, WhatsApp{Texto: texto, Imagen: p.vars["__imagen"]})
+	if err == nil {
+		detalle := "Enviado"
+		if c.Modo == "simulado" {
+			detalle = "Simulado (WhatsApp sin número conectado)"
+		}
+		s.fin(ctx, p, "enviado", detalle, func(tx pgx.Tx) error {
+			if p.cid == uuid.Nil || p.prueba {
+				return nil
+			}
+			return events.Enqueue(ctx, tx, events.New(ctx, "messaging.enviado", map[string]any{"para": p.destino, "canal": "whatsapp", "plantilla": p.clave, "asunto": t.Nombre},
+				events.Competition(p.cid.String()), events.Audience(events.Internal)))
+		}, ", asunto = $4, proveedor_id = $5, enviado_at = now()", t.Nombre, id)
+		return
+	}
+	var ew *errWA
+	if !errors.As(err, &ew) {
+		ew = &errWA{msg: err.Error()}
+	}
+	if ew.servidor {
+		s.waLog(ctx, p.cid, "enviar el mensaje de WhatsApp", err)
+		_ = s.a.Redis.Set(ctx, caido, ew.msg, time.Minute).Err()
+		s.devolver(ctx, p, time.Minute, "WhatsApp (evo-weai) no disponible: reintento automático")
+		return
+	}
+	// The provider answers in English and with the technical name of the instance: the person reads a sentence in
+	// Spanish and the log keeps the detail.
+	s.waLog(ctx, p.cid, "enviar el mensaje de WhatsApp", err)
+	detalle := s.waMensaje(ctx, p.cid, err)
+	if ew.permanente {
+		s.fin(ctx, p, "rebotado", detalle, func(tx pgx.Tx) error {
+			if p.cid == uuid.Nil {
+				return nil
+			}
+			return events.Enqueue(ctx, tx, events.New(ctx, "messaging.rebote", map[string]any{"para": p.destino, "canal": "whatsapp", "tipo": "whatsapp_invalido", "motivo": detalle},
+				events.Competition(p.cid.String()), events.Audience(events.Internal)))
+		}, ", asunto = $4", t.Nombre)
+		return
+	}
+	if p.intentos >= maxIntentos {
+		s.fin(ctx, p, "fallido", detalle, nil, ", asunto = $4", t.Nombre)
+		return
+	}
+	espera := time.Duration(1<<(p.intentos-1)) * time.Minute // 1, 2, 4, 8 min
+	s.fin(ctx, p, "reintentando", detalle, nil, ", asunto = $4, proximo_at = now() + $5::interval", t.Nombre, fmt.Sprintf("%d seconds", int(espera.Seconds())))
 }
 
 // estadoSMTP records a change of the server state (only transitions emit the backoffice event).

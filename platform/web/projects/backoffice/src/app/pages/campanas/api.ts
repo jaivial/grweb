@@ -81,7 +81,6 @@ export class CampanasApi {
   }
   segmentos(cid: string): Promise<Segmento[]> { return firstValueFrom(this.http.get<Segmento[]>(`/api/admin/competiciones/${cid}/segmentos`)); }
   whatsapp(cid: string): Promise<WAEstado> { return firstValueFrom(this.http.get<WAEstado>(`/api/admin/competiciones/${cid}/whatsapp`)); }
-  conectar(cid: string, numero: string): Promise<{ codigo?: string; qr?: string }> { return firstValueFrom(this.http.post<{ codigo?: string; qr?: string }>(`/api/admin/competiciones/${cid}/whatsapp/conectar`, { numero })); }
   modelos(cid: string): Promise<Modelo[]> { return firstValueFrom(this.http.get<Modelo[]>(`/api/admin/competiciones/${cid}/ia/modelos`)); }
   ia(cid: string, b: { instruccion: string; diseno: Bloque[]; seleccion?: string; historial: MensajeIA[]; campana: string }): Promise<RespuestaIA> {
     return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/diseno`, b));

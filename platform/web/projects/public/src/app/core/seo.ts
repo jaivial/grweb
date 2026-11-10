@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 
 export interface SeoData {
@@ -27,9 +27,12 @@ export class Seo {
   private readonly doc = inject(DOCUMENT);
   readonly origin = 'https://grcup-qa.menustudioai.com';
   readonly defaultImage = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  /** Ruta de la página que se está renderizando (la fija `set`). */
+  readonly path = signal('');
 
   set(d: SeoData): void {
     const url = this.origin + d.path;
+    this.path.set(d.path);
     const image = d.image ?? this.defaultImage;
     this.title.setTitle(d.title);
     const tags: [string, string, string][] = [

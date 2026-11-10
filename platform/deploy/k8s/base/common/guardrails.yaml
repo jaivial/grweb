@@ -15,13 +15,14 @@ metadata:
   name: grcup-quota
 spec:
   hard:
-    requests.cpu: "4"
-    requests.memory: 6Gi
+    requests.cpu: "5"
+    requests.memory: 8Gi
     # Sized for every HPA at its maximum (services 500m each, gateway and web 1 CPU) plus the extra pod of a
-    # rolling update. Limits are ceilings, not reservations: real reservations are bounded by requests.cpu.
-    limits.cpu: "40"
-    limits.memory: 20Gi
-    pods: "80"
+    # rolling update — including the five services and the worker of «directo social» (paso 17). Limits are
+    # ceilings, not reservations: real reservations are bounded by requests.cpu.
+    limits.cpu: "60"
+    limits.memory: 32Gi
+    pods: "110"
 ---
 # Default deny: nothing reaches a pod unless a policy below allows it.
 apiVersion: networking.k8s.io/v1

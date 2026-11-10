@@ -380,7 +380,7 @@ func (s *Svc) registerResultados() {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
 			Categorias []string `json:"categorias" minItems:"1" maxItems:"40"`
-			Avisar     bool     `json:"avisar" doc:"Avisar a los atletas y a sus seguidores (solo la primera vez de cada categoría)"`
+			Avisar     bool     `json:"avisar,omitempty" doc:"Avisar a los atletas y a sus seguidores (solo la primera vez de cada categoría)"`
 		}
 	}
 	type pubOut struct {

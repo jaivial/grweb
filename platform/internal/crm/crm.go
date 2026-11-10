@@ -105,6 +105,8 @@ type ConsentIn struct {
 	Origen    string `json:"origen"`
 	IP        string `json:"ip"`
 	DOI       bool   `json:"doi"`
+	// UserAgent is the browser the consent was given in (proof of the consent).
+	UserAgent string `json:"userAgent"`
 }
 
 // ContactoIn is the payload of `*.contacto` events.
@@ -118,6 +120,7 @@ type ContactoIn struct {
 	Revocar         []string       `json:"revocar" doc:"Finalidades que la persona retira"`
 	Novedades       bool           `json:"novedades" doc:"Marcó la casilla de novedades: empieza el doble opt-in"`
 	IP              string         `json:"ip"`
+	UserAgent       string         `json:"userAgent" doc:"Navegador del formulario (prueba del consentimiento)"`
 	Actividad       *struct {
 		Tipo    string `json:"tipo"`
 		Titulo  string `json:"titulo"`
@@ -253,7 +256,15 @@ func (s *Svc) ingest(ctx context.Context, tx pgx.Tx, cid uuid.UUID, in ContactoI
 	if err := s.vincular(ctx, tx, cid, id, email, tel); err != nil {
 		return id, err
 	}
+	optIn := false
 	for _, c := range in.Consentimientos {
+		if c.UserAgent == "" {
+			c.UserAgent = in.UserAgent
+		}
+		// El consentimiento de novedades es de doble opt-in: el servicio que lo recogió lo deja «pendiente».
+		if c.Finalidad == "novedades_email" && (c.Estado == "pendiente" || c.DOI) {
+			optIn = true
+		}
 		if err := s.consentir(ctx, tx, id, c, at); err != nil {
 			return id, err
 		}
@@ -263,7 +274,7 @@ func (s *Svc) ingest(ctx context.Context, tx pgx.Tx, cid uuid.UUID, in ContactoI
 			return id, err
 		}
 	}
-	if in.Novedades && email != "" {
+	if (in.Novedades || optIn) && email != "" {
 		if err := s.iniciarNovedades(ctx, tx, cid, id, email, in.Origen, in.IP); err != nil {
 			return id, err
 		}
@@ -281,18 +292,36 @@ func (s *Svc) consentir(ctx context.Context, tx pgx.Tx, contacto uuid.UUID, c Co
 	if c.Estado == "" {
 		c.Estado = "confirmado"
 	}
+	switch c.Estado {
+	case "pendiente", "confirmado", "revocado":
+	default:
+		s.a.Log.Warn("estado de consentimiento desconocido", "finalidad", c.Finalidad, "estado", c.Estado)
+		c.Estado = "confirmado"
+	}
+	// The channel is informative: an unexpected value is kept out of the record instead of failing the whole contact.
+	switch c.Canal {
+	case "", "email", "whatsapp":
+	default:
+		s.a.Log.Warn("canal de consentimiento desconocido", "finalidad", c.Finalidad, "canal", c.Canal)
+		c.Canal = ""
+	}
 	var doi *time.Time
 	if c.DOI && c.Estado == "confirmado" {
 		doi = &at
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO consentimientos (id, contacto_id, finalidad, canal, estado, texto_version, texto_hash, origen, ip, aceptado_at, doi_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+	_, err := tx.Exec(ctx, `INSERT INTO consentimientos (id, contacto_id, finalidad, canal, estado, texto_version, texto_hash, origen, ip, user_agent, aceptado_at, doi_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		ON CONFLICT (contacto_id, finalidad) DO UPDATE SET
 			estado = CASE WHEN consentimientos.estado = 'confirmado' AND EXCLUDED.estado = 'pendiente' THEN 'confirmado' ELSE EXCLUDED.estado END,
 			texto_version = EXCLUDED.texto_version, texto_hash = EXCLUDED.texto_hash, origen = EXCLUDED.origen, ip = EXCLUDED.ip,
+			user_agent = CASE WHEN EXCLUDED.user_agent <> '' THEN EXCLUDED.user_agent ELSE consentimientos.user_agent END,
 			aceptado_at = CASE WHEN consentimientos.estado = 'confirmado' AND EXCLUDED.estado = 'pendiente' THEN consentimientos.aceptado_at ELSE EXCLUDED.aceptado_at END,
 			doi_at = COALESCE(EXCLUDED.doi_at, consentimientos.doi_at), revocado_at = NULL, revocado_motivo = ''`,
-		newID(), contacto, c.Finalidad, c.Canal, c.Estado, c.Version, c.Hash, c.Origen, anonIP(c.IP), at, doi)
+		newID(), contacto, c.Finalidad, c.Canal, c.Estado, c.Version, c.Hash, c.Origen, anonIP(c.IP), c.UserAgent, at, doi)
+	if err == nil {
+		// Trazabilidad: qué finalidad y desde dónde, nunca datos personales.
+		s.a.Log.Info("consentimiento registrado", "finalidad", c.Finalidad, "estado", c.Estado, "origen", c.Origen)
+	}
 	return err
 }
 

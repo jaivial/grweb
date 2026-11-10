@@ -278,6 +278,41 @@ func (s *Svc) registerInternal() {
 			})
 		})
 
+	// ---- equipo por permiso (avisos a los administradores de una competición) ----
+	type equipoIn struct {
+		CID     uuid.UUID `path:"cid"`
+		Permiso string    `query:"permiso" minLength:"3" maxLength:"60" doc:"Clave de permiso (p. ej. atletas.editar)"`
+	}
+	type equipoMiembro struct {
+		Email  string `json:"email" format:"email" db:"email"`
+		Nombre string `json:"nombre" db:"nombre"`
+	}
+	type equipoOut struct{ Body []equipoMiembro }
+	huma.Register(api, huma.Operation{OperationID: "internal-team-by-permission", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/equipo", Summary: "Miembros activos con un permiso (para avisos por email)", Tags: tags, Hidden: true},
+		func(ctx context.Context, in *equipoIn) (*equipoOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			if !auth.Valid(in.Permiso) {
+				return nil, problem.Unprocessable("PERMISO_DESCONOCIDO", "Permiso desconocido: "+in.Permiso)
+			}
+			granted := permisosQueConceden(in.Permiso)
+			rows, err := s.a.DB.Query(ctx, `SELECT u.email::text AS email, u.nombre FROM membresias m
+				JOIN usuarios u ON u.id = m.usuario_id JOIN roles r ON r.id = m.rol_id
+				WHERE m.competition_id = $1 AND m.estado = 'activo' AND u.estado = 'activo' AND r.permisos && $2
+				ORDER BY u.nombre`, in.CID, granted)
+			if err != nil {
+				return nil, err
+			}
+			list, err := pgx.CollectRows(rows, pgx.RowToStructByName[equipoMiembro])
+			if err != nil {
+				return nil, err
+			}
+			// Trazabilidad sin datos personales: solo el número de destinatarios.
+			s.a.Log.Info("equipo con permiso (aviso interno)", "competicion", in.CID, "permiso", in.Permiso, "miembros", len(list))
+			return &equipoOut{Body: list}, nil
+		})
+
 	type exIn struct {
 		Body struct {
 			Token string `json:"token" minLength:"10"`

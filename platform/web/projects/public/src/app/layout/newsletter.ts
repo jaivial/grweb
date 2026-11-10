@@ -11,10 +11,11 @@ import { Novedades, mensajeError } from '../core/novedades';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <section class="grid gap-5 rounded-lg border border-accent/40 bg-[linear-gradient(110deg,#3a0f17,#1d1214_70%)] p-5 md:p-6" [class]="compacta() ? '' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center lg:p-8'"
+    <section id="novedades" class="grid gap-5 rounded-lg border border-accent/40 bg-[linear-gradient(110deg,#3a0f17,#1d1214_70%)] p-5 md:p-6" [class]="compacta() ? '' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center lg:p-8'"
       [attr.aria-labelledby]="id + '-t'">
       <div>
-        <h2 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2>
+        @if (nivel() === 'h3') { <h3 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
+        @else { <h2 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2> }
         <p class="mt-2 text-body-s text-text-secondary">{{ texto() }}</p>
       </div>
       @if (enviado()) {
@@ -51,6 +52,8 @@ export class Newsletter {
   readonly origen = input('');
   /** Narrow columns (sidebars): one column, stacked button. */
   readonly compacta = input(false);
+  /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75). */
+  readonly nivel = input<'h2' | 'h3'>('h2');
   protected readonly id = 'nl-' + Math.random().toString(36).slice(2, 8);
   protected readonly enviando = signal(false);
   protected readonly enviado = signal(false);

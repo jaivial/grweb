@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
-import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, errText } from '../../shared/ui';
@@ -127,42 +126,49 @@ export class CampanasPage {
   }
 }
 
-/** WhatsApp channel (evo-weai): state of the linked number and linking with a pairing code. */
+/** WhatsApp channel (evo-weai): the state of the linked number. The linking itself lives in «Sistema › WhatsApp» (Figma D4). */
 @Component({
   selector: 'bo-whatsapp',
-  imports: [FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrField, GrInput, GrSkeleton],
+  imports: [FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let w = estado();
-    <div class="mx-auto flex max-w-[880px] flex-col gap-5 pb-24">
-      <bo-page-header title="WhatsApp" subtitle="Número de la competición para campañas y avisos (evo-weai)" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Campañas', 'WhatsApp']" />
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+      <bo-page-header title="WhatsApp" subtitle="Canal de WhatsApp de la competición para campañas y avisos" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Campañas', 'WhatsApp']">
+        <ng-container actions>
+          <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-success/40 bg-success/10 px-3 text-label-s text-success"><gr-icon name="radio" [size]="16" />Conexión en vivo</span>
+        </ng-container>
+      </bo-page-header>
       @if (!w) { <gr-skeleton class="h-48 rounded-lg" /> } @else {
-        <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-          <div class="flex flex-wrap items-center gap-3">
-            <h2 class="flex-1 text-ui-h5">Estado del canal</h2>
-            <gr-badge [tone]="w.conexion === 'open' ? 'success' : w.modo === 'simulado' ? 'info' : 'warning'">{{ etiqueta(w) }}</gr-badge>
-          </div>
-          <dl class="mt-4 grid gap-3 text-body-s sm:grid-cols-2">
-            <div><dt class="text-text-tertiary">Proveedor</dt><dd>{{ w.modo === 'evo-weai' ? 'evo-weai (número propio)' : w.modo === 'simulado' ? 'Simulado (QA)' : 'Sin configurar' }}</dd></div>
-            <div><dt class="text-text-tertiary">Número</dt><dd class="font-mono">{{ w.numero || '—' }}</dd></div>
-          </dl>
-          @if (w.detalle) { <p class="mt-3 text-body-xs text-warning">{{ w.detalle }}</p> }
-        </section>
-        @if (w.modo === 'evo-weai') {
+        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
           <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-            <h2 class="text-ui-h5">Vincular el número</h2>
-            <p class="mt-1 text-body-s text-text-secondary">En el móvil del número: WhatsApp › Dispositivos vinculados › Vincular con número de teléfono, y escribe el código que aparece aquí.</p>
-            <div class="mt-4 flex flex-wrap items-end gap-2">
-              <gr-field label="Número" class="w-64"><input grInput [(ngModel)]="numero" placeholder="+34 600 000 000" inputmode="tel" /></gr-field>
-              <button grButton variant="primary" [loading]="conectando()" [disabled]="!puedeConfigurar()" (click)="conectar()">Obtener código</button>
+            <div class="flex flex-wrap items-center gap-3">
+              <h2 class="flex-1 text-ui-h5">Estado del canal</h2>
+              <gr-badge [tone]="w.conexion === 'open' ? 'success' : 'warning'">{{ w.conexion === 'open' ? 'Vinculado' : 'Sin vincular' }}</gr-badge>
             </div>
-            @if (codigo()) { <p class="mt-4 font-mono text-display-s tracking-[0.3em]">{{ codigo() }}</p> }
-            @if (!puedeConfigurar()) { <p class="mt-2 text-body-xs text-text-tertiary">Vincular el número requiere el permiso «integraciones.config».</p> }
+            <p class="mt-3 text-body-s text-text-secondary">{{ descripcion(w) }}</p>
+            <p class="mt-3 text-body-xs text-text-tertiary">El canal lo usan las campañas y los avisos del alta</p>
+            <p class="text-body-xs text-text-tertiary">Estado · {{ estadoTexto(w) }}</p>
+            <p class="text-body-xs text-text-tertiary">Antes del primer envío: máximo 6 mensajes por minuto y con el consentimiento del destinatario</p>
+            <gr-alert tone="info" title="La vinculación vive en Sistema › WhatsApp" class="mt-4">
+              Número, QR o código y avisos de solicitudes se gestionan en un solo sitio. Aquí solo se consulta el estado del canal.
+              <a alertAction [routerLink]="['/', comps.current()?.slug, 'sistema', 'whatsapp']" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Abrir Sistema › WhatsApp <gr-icon name="arrow-right" [size]="14" /></a>
+            </gr-alert>
+            <div class="mt-5 flex flex-wrap gap-2">
+              <a grButton variant="primary" [routerLink]="['/', comps.current()?.slug, 'sistema', 'whatsapp']">Vincular en Sistema › WhatsApp</a>
+              <a grButton variant="ghost" [routerLink]="['/', comps.current()?.slug, 'sistema', 'whatsapp']">Ver estado del servicio</a>
+            </div>
           </section>
-        } @else {
-          <gr-alert tone="info" title="Cómo conectarlo">Configura la integración «WhatsApp» en «Sistema e integraciones» con proveedor evo-weai, la URL del servidor, el nombre de la instancia y su clave; después vuelve aquí para vincular el número con un código.</gr-alert>
-        }
-        <gr-alert tone="warning" title="Antes de usarlo (asesoría)">WhatsApp exige un consentimiento expreso y separado (ya se recoge aparte del email), baja con un mensaje («BAJA») y registro de la prueba. Con un número propio el ritmo debe ser bajo (6 por minuto por defecto) para no arriesgar el bloqueo del número.</gr-alert>
+          <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+            <h2 class="text-ui-h5">Qué se gestiona en Sistema › WhatsApp</h2>
+            <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
+              <li>Crear el servidor de WhatsApp de la competición</li>
+              <li>Vincular el número con QR o con código</li>
+              <li>Reiniciar la conexión y desconectar el número</li>
+              <li>Configurar los teléfonos y el mensaje de prueba</li>
+            </ul>
+          </section>
+        </div>
       }
     </div>
   `,
@@ -170,36 +176,23 @@ export class CampanasPage {
 export class WhatsAppPage {
   private readonly api = inject(CampanasApi);
   protected readonly comps = inject(Competitions);
-  private readonly auth = inject(Auth);
-  private readonly toasts = inject(GrToasts);
   protected readonly estado = signal<WAEstado | null>(null);
-  protected readonly codigo = signal('');
-  protected readonly conectando = signal(false);
-  protected numero = '';
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
-  protected readonly puedeConfigurar = computed(() => this.auth.can(this.cid(), 'integraciones.config'));
   constructor() {
     effect(() => {
       if (!this.cid()) return;
-      untracked(() => void this.api.whatsapp(this.cid()).then((w) => {
-        this.estado.set(w);
-        this.numero = w.numero ?? '';
-      }));
+      untracked(() => void this.api.whatsapp(this.cid()).then((w) => this.estado.set(w)).catch(() => this.estado.set(null)));
     });
   }
-  protected etiqueta(w: WAEstado): string {
-    return { open: 'Conectado', connecting: 'Conectando', close: 'Desconectado', simulado: 'Simulado', ninguno: 'Sin configurar' }[w.conexion];
+  protected descripcion(w: WAEstado): string {
+    if (w.conexion === 'open') return `Esta competición tiene el número ${w.numero ?? ''} vinculado. Las campañas con canal WhatsApp y los avisos del alta salen por aquí.`.trim();
+    if (w.conexion === 'connecting') return 'El número se está conectando. En cuanto esté listo, las campañas con canal WhatsApp y los avisos del alta saldrán por aquí.';
+    return 'Esta competición no tiene número de WhatsApp vinculado. Los envíos de campañas con canal WhatsApp quedan en pausa y los avisos del alta salen solo por email.';
   }
-  protected async conectar(): Promise<void> {
-    this.conectando.set(true);
-    try {
-      const r = await this.api.conectar(this.cid(), this.numero);
-      this.codigo.set(r.codigo ?? '');
-      if (!r.codigo) this.toasts.info('El servidor no devolvió código: revisa la instancia en evo-weai.');
-    } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo vincular.'));
-    } finally {
-      this.conectando.set(false);
-    }
+  protected estadoTexto(w: WAEstado): string {
+    if (w.conexion === 'open') return `número vinculado${w.numero ? ' · ' + w.numero : ''}`;
+    if (w.conexion === 'connecting') return 'conectando';
+    if (w.modo === 'simulado') return 'sin número vinculado · simulado';
+    return 'sin número vinculado';
   }
 }
