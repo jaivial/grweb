@@ -30,11 +30,11 @@ type Group = (typeof WEIGHT_CLASS_GROUPS)[number];
 /** The weight classes of one sex as plain text chips. */
 const WeightClassList = memo(function WeightClassList({ group, columns }: { group: Group; columns?: boolean }) {
   return (
-    <ul className="grid grid-cols-3 gap-2" data-ui={`weight-class-${group.id}-list`}>
+    <ul className="flex flex-wrap justify-center gap-2" data-ui={`weight-class-${group.id}-list`}>
       {group.classes.map((weightClass) => (
         <li
           key={weightClass}
-          className="rounded-lg border border-[#2e2729] bg-[#221d1f] px-2 py-3 text-center font-contrail text-base uppercase tracking-[0.02em] text-white sm:px-3 sm:text-lg"
+          className="flex h-[53px] w-[104px] items-center justify-center rounded-lg border border-[#2e2729] bg-[#221d1f] text-center font-contrail text-lg uppercase leading-[1.5] tracking-[0.02em] text-white"
           data-ui={`weight-class-${group.id}-${weightClass}`}
         >
           {formatWeightClass(weightClass)}KG
