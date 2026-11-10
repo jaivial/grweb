@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -30,6 +31,20 @@ type Yo struct {
 	Tipo     string    `json:"tipo" enum:"atleta,publico"`
 	AtletaID uuid.UUID `json:"atletaId,omitempty" doc:"Relleno cuando el email coincide con una inscripción"`
 	Insignia string    `json:"insignia,omitempty" doc:"«Atleta» o vacío (público)"`
+	// Next is only set by the redemption of a magic link that was asked for with a destination.
+	Next string `json:"next,omitempty" doc:"Ruta interna a la que volver tras entrar (p. ej. /fantasy/unirse/CODIGO)"`
+}
+
+// nextRe is the only kind of destination a magic link may carry: a relative path of the fantasy.
+var nextRe = regexp.MustCompile(`^/fantasy(/[A-Za-z0-9_-]+)*$`)
+
+// nextValido returns the destination if it is an internal fantasy route and "" otherwise (never an external URL,
+// a protocol-relative «//host», a query or a fragment): an open redirect must not travel in a login email.
+func nextValido(s string) string {
+	if len(s) > 200 || !nextRe.MatchString(s) {
+		return ""
+	}
+	return s
 }
 
 // sesionOut is a response that (re)issues the session cookie.
@@ -96,6 +111,7 @@ func (s *Svc) registerPublic() {
 			Tipo         string `json:"tipo" enum:"atleta,publico"`
 			Alias        string `json:"alias" minLength:"3" maxLength:"20" doc:"Nombre público en el chat y las clasificaciones"`
 			AceptaNormas bool   `json:"aceptaNormas" doc:"Debe ser true: normas de participación del directo"`
+			Next         string `json:"next,omitempty" maxLength:"200" doc:"Ruta interna /fantasy/… a la que volver tras entrar; cualquier otra cosa se ignora"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "fans-acceso", Method: http.MethodPost, Path: base + "/acceso",
@@ -130,9 +146,9 @@ func (s *Svc) registerPublic() {
 				}
 			}
 			tok := randomToken()
-			if err := s.a.DB.QueryRow(ctx, `INSERT INTO accesos (id, competition_id, token_hash, fan_email, email_hash, tipo, alias, ip, expires_at)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now() + interval '30 minutes') RETURNING created_at`,
-				newID(), cid, hashToken(tok), email, emailHash(email), in.Body.Tipo, alias, ipAnon(httpx.ClientIPFrom(ctx))).Scan(new(time.Time)); err != nil {
+			if err := s.a.DB.QueryRow(ctx, `INSERT INTO accesos (id, competition_id, token_hash, fan_email, email_hash, tipo, alias, ip, next, expires_at)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, now() + interval '30 minutes') RETURNING created_at`,
+				newID(), cid, hashToken(tok), email, emailHash(email), in.Body.Tipo, alias, ipAnon(httpx.ClientIPFrom(ctx)), nextValido(in.Body.Next)).Scan(new(time.Time)); err != nil {
 				return nil, err
 			}
 			link := s.webURL + "/acceso?acceso=" + tok
@@ -311,8 +327,9 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 		Tipo      string
 		Alias     string
 	}
+	var next string
 	err = s.a.DB.QueryRow(ctx, `UPDATE accesos SET usado_at = now() WHERE token_hash = $1 AND usado_at IS NULL AND expires_at > now()
-		RETURNING fan_email::text, email_hash, tipo, alias::text`, hashToken(tok)).Scan(&acc.Email, &acc.EmailHash, &acc.Tipo, &acc.Alias)
+		RETURNING fan_email::text, email_hash, tipo, alias::text, next`, hashToken(tok)).Scan(&acc.Email, &acc.EmailHash, &acc.Tipo, &acc.Alias, &next)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, problem.Unauthorized("ENLACE_INVALIDO", "El enlace ha caducado o ya se usó. Pide otro desde el directo.")
 	} else if err != nil {
@@ -346,7 +363,9 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	if err != nil {
 		return nil, err
 	}
-	return &sesionOut{SetCookie: []http.Cookie{*s.cookie(t, int(fanauth.TTL.Seconds()))}, Body: s.yoDe(row)}, nil
+	yo := s.yoDe(row)
+	yo.Next = nextValido(next) // validated again on the way out
+	return &sesionOut{SetCookie: []http.Cookie{*s.cookie(t, int(fanauth.TTL.Seconds()))}, Body: yo}, nil
 }
 
 // crearFan inserts the account of a first redemption; a concurrent redemption with the same alias (or the
