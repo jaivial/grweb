@@ -30,6 +30,7 @@ import { MarcasPage } from './pages/marcas';
 import { FaqPage } from './pages/faq';
 import { ReglamentoPage } from './pages/reglamento';
 import { AltaAtletaPage } from './pages/alta-atleta';
+import { StyleguidePage } from './pages/styleguide';
 
 export const routes: Routes = [
   { path: '', component: HomePage },
@@ -86,6 +87,8 @@ export const routes: Routes = [
   { path: 'consentimiento-datos', component: LegalPage, data: { tipo: 'consentimiento', titulo: 'Consentimiento de datos e imagen' } },
   { path: 'texto-whatsapp', component: LegalPage, data: { tipo: 'whatsapp', titulo: 'Texto de avisos por WhatsApp' } },
   { path: 'politica-concurso', component: LegalPage, data: { tipo: 'bases-sorteo', titulo: 'Bases del sorteo' } },
+  // Internal token sheet for visual QA (Figma 01 · Fundamentos); noindex and not in the sitemap.
+  { path: '_styleguide', component: StyleguidePage },
   // CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
   { path: ':pslug', component: ContentPage },
   { path: '**', component: NotFoundPage },
