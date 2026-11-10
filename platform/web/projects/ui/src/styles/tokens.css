@@ -27,6 +27,16 @@
   --color-warning: #f59e0b;
   --color-info: #38bdf8;
   --color-danger: #e6606b;
+  /* medal/* (podiums, rankings) and nota/* (backoffice notes) */
+  --color-medal-gold: #d4af37;
+  --color-medal-silver: #c0c4cc;
+  --color-medal-bronze: #c8835a;
+  --color-nota-gris: #9ca3af;
+  --color-nota-rojo: #f87171;
+  --color-nota-ambar: #d97706;
+  --color-nota-azul: #60a5fa;
+  --color-nota-verde: #22c55e;
+  --color-nota-morado: #c084fc;
 
   /* Type families */
   --font-display: "Contrail One", "Impact", system-ui, sans-serif;
@@ -48,6 +58,11 @@
   --shadow-text: 0 2px 20px rgb(0 0 0 / 0.8);
   --shadow-glow: 0 0 24px rgb(196 43 62 / 0.5);
   --shadow-glow-deep: 0 4px 28px rgb(110 20 32 / 0.7);
+  /* Blur/Glass 20 (backdrop-blur-glass) · Blur/Smoke 80 (blur-smoke) */
+  --blur-glass: 20px;
+  --blur-smoke: 80px;
+
+  /* Spacing (space/*): Tailwind's 4 px step covers the Figma scale (space/1 = 4 … space/32 = 128; compact 2 · 6 · 10 = 0.5 · 1.5 · 2.5). */
 
   /* Breakpoints of the design: M 390 · T 768 · D 1440 (Tailwind md = 768, xl = 1280, 2xl = 1440) */
   --breakpoint-2xl: 90rem;
