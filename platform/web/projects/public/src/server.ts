@@ -42,11 +42,13 @@ app.use(async (req, res, next) => {
   if (req.method !== 'GET' || req.path.includes('.')) return next();
   const map = await seoMap();
   // Follow chains to their end in one hop; a loop (a → b → a) is ignored instead of bouncing the browser forever.
+  // Compare paths only: «/x?a=1» or «/x#b» lands on /x again, so it counts as a loop too.
+  const ruta = (u: string) => u.split(/[?#]/)[0];
   const vistos = new Set([req.path]);
   let r: SeoMap['redirecciones'][number] | undefined;
-  for (let x = map?.redirecciones.find((y) => y.desde === req.path); x; x = map?.redirecciones.find((y) => y.desde === r!.hacia)) {
-    if (vistos.has(x.hacia)) return next();
-    vistos.add(x.hacia);
+  for (let x = map?.redirecciones.find((y) => y.desde === req.path); x; x = map?.redirecciones.find((y) => y.desde === ruta(r!.hacia))) {
+    if (vistos.has(ruta(x.hacia))) return next();
+    vistos.add(ruta(x.hacia));
     r = x;
   }
   if (r) return res.redirect(r.codigo, r.hacia);

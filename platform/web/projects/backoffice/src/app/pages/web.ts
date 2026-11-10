@@ -11,6 +11,14 @@ import { BoCollection, type CollectionConfig } from '../shared/collection';
 import { BoSchemaForm, type FieldDef } from '../shared/schema-form';
 import { BoDrawer, BoPageHeader, BoTabs, BoToggle, Confirm, errText } from '../shared/ui';
 
+/** Static routes of the public app (projects/public/src/app/app.routes.ts); a redirect from one of them hides that page. */
+const RUTAS_PUBLICAS = new Set(['/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos',
+  '/categorias-de-peso', '/marcas-minimas', '/reglamento', '/atletas', '/participantes', '/horarios', '/novedades/confirmar', '/entradas', '/entradas/confirmacion',
+  '/entradas/oferta', '/mi-entrada', '/baja', '/sorteo', '/sorteo/confirmacion', '/en-directo', '/acceso', '/directo', '/porra', '/porra/mis-apuestas',
+  '/porra/clasificacion', '/fantasy', '/fantasy/mercado', '/fantasy/clasificacion', '/fantasy/como-se-juega', '/resultados', '/area-atleta', '/alta-atleta',
+  '/inscripcion', '/inscripcion/estado', '/pago/simulado', '/publico', '/clubs', '/en', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos',
+  '/texto-whatsapp', '/politica-concurso', '/_styleguide']);
+
 export interface Seccion {
   id: string;
   clave: string;
@@ -494,7 +502,8 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
     {
       title: 'Redirecciones', subtitle: 'Enlaces antiguos que llevan a la página nueva', path: '/web/redirecciones', item: 'redirección',
       columns: [{ key: 'desde', label: 'Desde', kind: 'mono' }, { key: 'hacia', label: 'Hacia', kind: 'mono' }, { key: 'codigo', label: 'Código', kind: 'badge', hideMobile: true }],
-      fields: [{ clave: 'desde', etiqueta: 'Desde', tipo: 'texto', ayuda: '/ruta-antigua', ancho: 'mitad' }, { clave: 'hacia', etiqueta: 'Hacia', tipo: 'texto', ayuda: '/ruta-nueva o https://…', ancho: 'mitad' },
+      fields: [{ clave: 'desde', etiqueta: 'Desde', tipo: 'texto', ayuda: '/ruta-antigua', ancho: 'mitad',
+        aviso: (v) => (RUTAS_PUBLICAS.has(v.trim()) ? 'Aviso: es una página de la web; la redirección la tapará.' : null) }, { clave: 'hacia', etiqueta: 'Hacia', tipo: 'texto', ayuda: '/ruta-nueva o https://…', ancho: 'mitad' },
         { clave: 'codigo', etiqueta: 'Tipo', tipo: 'select', opciones: [{ value: '301', label: '301 · permanente' }, { value: '302', label: '302 · temporal' }] }],
       defaults: { codigo: '301' },
       empty: { title: 'Sin redirecciones', text: 'Útiles al cambiar de dominio o de ruta.' },

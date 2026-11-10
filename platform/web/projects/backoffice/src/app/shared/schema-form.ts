@@ -15,6 +15,8 @@ export interface FieldDef {
   ancho?: 'mitad';
   /** Image fields: upload endpoint under the competition, instead of the media library. */
   subida?: string;
+  /** Non-blocking warning for the current text value; replaces the help text while it returns one. */
+  aviso?: (valor: string) => string | null;
 }
 
 type Obj = Record<string, unknown>;
@@ -59,7 +61,7 @@ type Obj = Record<string, unknown>;
             </fieldset>
           }
           @default {
-            <gr-field [label]="f.etiqueta" [for]="id" [hint]="f.ayuda ?? null">
+            <gr-field [label]="f.etiqueta" [for]="id" [hint]="f.aviso?.(str(f.clave)) ?? f.ayuda ?? null">
               @if (f.max) { <bo-count fieldAside [value]="str(f.clave)" [max]="f.max" /> }
               @switch (f.tipo) {
                 @case ('area') { <textarea grInput [id]="id" rows="4" class="h-auto! py-2" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea> }
