@@ -41,8 +41,8 @@ func aplicar(t *testing.T, s *Svc, cid uuid.UUID, j jornada, cfg *Config, m *Mar
 	}
 }
 
-// The scoreboard diff (BIZ-143): the grade of an athlete moves his clause 4 % per point, a replay changes nothing,
-// a jury correction is just another diff and a bomb-out sets the grade to 0 and takes 30 % once.
+// The scoreboard diff (BIZ-143): clause = base × (1 + 4 % × (nota − 5)) once the athlete has a grade and base × 0,70
+// after a bomb-out; a replay changes nothing and a jury correction is just another diff.
 func TestSincronizarNotas(t *testing.T) {
 	pdb := testDB(t)
 	ctx := context.Background()
@@ -70,29 +70,29 @@ func TestSincronizarNotas(t *testing.T) {
 		t.Fatal("un atleta sin intentos juzgados no tiene nota ni mueve la cláusula")
 	}
 
-	// One valid attempt: nota 5 × 1/9 = 0,56 → cláusula +2,24 % → 204.480 → 204.000.
+	// One valid attempt: nota 5 × 1/9 = 0,56 → cláusula = 200.000 × (1 + 0,04 × (0,56 − 5)) = 164.480 → 164.000.
 	m.Atletas[0].Intentos["sq"][0].Resultado = "valido"
 	for i := 0; i < 2; i++ { // the second pass is a replay: nothing changes
 		aplicar(t, s, cid, j, cfg, m)
 		if n := notaDe(); n == nil || *n != 0.56 {
 			t.Fatalf("nota tras intento válido = %v; quería 0,56", n)
 		}
-		if got := clausulaDe(t, pdb, j.ID, aid); got != 204000 {
-			t.Fatalf("cláusula tras intento válido (pasada %d) = %d; quería 204.000", i+1, got)
+		if got := clausulaDe(t, pdb, j.ID, aid); got != 164000 {
+			t.Fatalf("cláusula tras intento válido (pasada %d) = %d; quería 164.000", i+1, got)
 		}
 	}
 
-	// Correction válido → nulo: nota 0 (−0,3 acotada a 0) → cláusula −2,24 % → 199.000.
+	// Correction válido → nulo: nota 0 (−0,3 acotada a 0) → cláusula = base × 0,80 = 160.000.
 	m.Atletas[0].Intentos["sq"][0].Resultado = "nulo"
 	aplicar(t, s, cid, j, cfg, m)
 	if n := notaDe(); n == nil || *n != 0 {
 		t.Fatalf("nota tras corrección = %v; quería 0", n)
 	}
-	if got := clausulaDe(t, pdb, j.ID, aid); got != 199000 {
-		t.Fatalf("cláusula tras corrección = %d; quería 199.000", got)
+	if got := clausulaDe(t, pdb, j.ID, aid); got != 160000 {
+		t.Fatalf("cláusula tras corrección = %d; quería 160.000", got)
 	}
 
-	// Bomb-out in banca (3 nulos en un movimiento): nota 0 absoluto y −30 % una sola vez: 199.000 → 139.000.
+	// Bomb-out in banca (3 nulos en un movimiento): nota 0 absoluto y cláusula = base × 0,70 = 140.000, una vez.
 	m.Atletas[0].Intentos["sq"][0].Resultado = "valido"
 	m.Atletas[0].Intentos["bp"] = []MarcadorIntento{{N: 1, Peso: 220, Resultado: "nulo"}, {N: 2, Peso: 220, Resultado: "nulo"}, {N: 3, Peso: 220, Resultado: "nulo"}}
 	m.Atletas[0].Blanqueo = map[string]bool{"bp": true}
@@ -101,9 +101,19 @@ func TestSincronizarNotas(t *testing.T) {
 		if n := notaDe(); n == nil || *n != 0 {
 			t.Fatalf("nota tras blanqueo = %v; quería 0", n)
 		}
-		if got := clausulaDe(t, pdb, j.ID, aid); got != 139000 {
-			t.Fatalf("cláusula tras blanqueo (pasada %d) = %d; quería 139.000", i+1, got)
+		if got := clausulaDe(t, pdb, j.ID, aid); got != 140000 {
+			t.Fatalf("cláusula tras blanqueo (pasada %d) = %d; quería 140.000", i+1, got)
 		}
+	}
+
+	// A good day on another athlete: 9/9, 1.º y total → nota 8,8 → base × (1 + 0,04 × 3,8) = 230.400 → 230.000.
+	bueno := atletaFantasiaDePrueba(t, pdb, cid, j.ID, uuid.Nil, nil, 200000)
+	total := 600.0
+	m.Atletas = append(m.Atletas, MarcadorAtleta{AtletaID: bueno, NombrePublico: "Atleta bueno", Sexo: "M", Categoria: "-93", PuestoCategoria: 1, Total: &total, Terminado: true,
+		Intentos: map[string][]MarcadorIntento{"sq": intentos("valido", "valido", "valido"), "bp": intentos("valido", "valido", "valido"), "dl": intentos("valido", "valido", "valido")}})
+	aplicar(t, s, cid, j, cfg, m)
+	if got := clausulaDe(t, pdb, j.ID, bueno); got != 230000 {
+		t.Fatalf("cláusula con nota 8,8 = %d; quería 230.000", got)
 	}
 }
 

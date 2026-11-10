@@ -27,7 +27,7 @@ type PuntosCfg struct {
 	RecordCompeticion float64    `json:"recordCompeticion" doc:"Sustituye al récord personal"`
 	Total             float64    `json:"total" doc:"Bonus por completar el total"`
 	Nulo              float64    `json:"nulo" doc:"Lo que resta cada intento nulo"`
-	PctClausula       float64    `json:"pctClausula" doc:"% de cláusula por cada punto de nota que gana o pierde el atleta"`
+	PctClausula       float64    `json:"pctClausula" doc:"% de cláusula por cada punto de nota por encima o por debajo de 5,0"`
 }
 
 // puntosPorDefecto is the grade table approved for BIZ-143.

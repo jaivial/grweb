@@ -83,6 +83,8 @@ CREATE INDEX fichajes_sala ON fichajes (sala_id, created_at DESC);
 
 -- Nota 0–10 ya aplicada a la cláusula (NULL = todavía sin intentos juzgados).
 ALTER TABLE fantasy_atletas ADD COLUMN nota numeric(4, 2);
+-- Factor de la nota ya aplicado a la cláusula: 1 sin nota, 1 + 4 % × (nota − 5) con nota, 0,70 con blanqueo.
+ALTER TABLE fantasy_atletas ADD COLUMN factor_nota numeric(6, 4) NOT NULL DEFAULT 1;
 
 -- Datos previos: las jornadas cerradas no se tocan (histórico). En las no cerradas la propiedad global deja de
 -- existir: cada dueño recupera el valor actual del atleta (movimiento idempotente por ref) y el atleta queda libre.
@@ -114,6 +116,7 @@ UPDATE config_juegos SET plantilla_max = 8,
     puntos = '{"intentoValido":3,"pleno":5,"blanqueo":-15,"cat":[20,14,10,5,2],"gl":[25,18,12,4],"mov":[10,6,3]}';
 ALTER TABLE config_juegos ALTER COLUMN puntos SET DEFAULT '{"intentoValido":3,"pleno":5,"blanqueo":-15,"cat":[20,14,10,5,2],"gl":[25,18,12,4],"mov":[10,6,3]}';
 ALTER TABLE config_juegos ALTER COLUMN plantilla_max SET DEFAULT 8;
+ALTER TABLE fantasy_atletas DROP COLUMN factor_nota;
 ALTER TABLE fantasy_atletas DROP COLUMN nota;
 DROP INDEX fichajes_sala;
 ALTER TABLE fichajes DROP COLUMN sala_id;

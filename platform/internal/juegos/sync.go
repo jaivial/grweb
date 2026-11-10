@@ -4,6 +4,7 @@ package juegos
 
 import (
 	"context"
+	"math"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -23,7 +24,7 @@ type mercadoRow struct {
 	Opciones   []uuid.UUID
 }
 
-// sincronizar applies the scoreboard of one jornada: new athletes, grades (clause variation and bomb-outs),
+// sincronizar applies the scoreboard of one jornada: new athletes, grades (clause = base × grade factor),
 // published categories (porra liquidation) and the automatic close of markets. Emits fantasy.nota,
 // fantasy.clausula and porra.mercado.
 func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
@@ -84,24 +85,42 @@ func cargarMercadosTx(ctx context.Context, tx pgx.Tx, jid uuid.UUID) ([]mercadoR
 	return out, rows.Err()
 }
 
+// factorNota is what the grade does to the clause (approved for BIZ-143): clause = base × (1 + pctClausula % ×
+// (nota − 5)) once the athlete has a grade, base × (1 + pct_blanqueo %) = × 0,70 after a bomb-out, and the base
+// alone while he has not lifted. Rounded to the 4 decimals the table keeps.
+func factorNota(cfg *Config, n notaAtleta) float64 {
+	f := 1.0
+	switch {
+	case n.Blanqueo:
+		f = 1 + float64(cfg.PctBlanqueo)/100
+	case n.TieneNota:
+		f = 1 + cfg.Puntos.PctClausula/100*(n.Nota-5)
+	}
+	return math.Round(f*10000) / 10000
+}
+
 // aplicarNotasTx diffs the grade of every athlete of the scoreboard against the one already applied
-// (fantasy_atletas.nota) and moves the clause by pctClausula % per grade point won or lost. A bomb-out sets the
-// grade to 0 and takes pct_blanqueo once (the history row is the marker). Emits fantasy.nota. Replaying a
-// scoreboard changes nothing; a jury correction is just another diff.
+// (fantasy_atletas.nota and factor_nota) and moves the clause from the old factor to the new one, so the clause is
+// always base × factorNota (the base keeps the +3 % of every signing). Emits fantasy.nota. Replaying a scoreboard
+// changes nothing; a jury correction is just another diff.
 func aplicarNotasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador) error {
-	rows, err := tx.Query(ctx, `SELECT atleta_id, nota::float8 FROM fantasy_atletas WHERE jornada_id = $1`, j.ID)
+	type aplicada struct {
+		nota   *float64
+		factor float64
+	}
+	rows, err := tx.Query(ctx, `SELECT atleta_id, nota::float8, factor_nota::float8 FROM fantasy_atletas WHERE jornada_id = $1`, j.ID)
 	if err != nil {
 		return err
 	}
-	aplicadas := map[uuid.UUID]*float64{}
+	aplicadas := map[uuid.UUID]aplicada{}
 	for rows.Next() {
 		var id uuid.UUID
-		var n *float64
-		if err := rows.Scan(&id, &n); err != nil {
+		var a aplicada
+		if err := rows.Scan(&id, &a.nota, &a.factor); err != nil {
 			rows.Close()
 			return err
 		}
-		aplicadas[id] = n
+		aplicadas[id] = a
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -117,33 +136,25 @@ func aplicarNotasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cf
 		if !n.TieneNota {
 			continue
 		}
+		f := factorNota(cfg, n)
 		antes := 0.0
-		if previa != nil {
-			antes = *previa
+		if previa.nota != nil {
+			antes = *previa.nota
 		}
-		if previa != nil && antes == n.Nota && !n.Blanqueo {
+		if previa.nota != nil && antes == n.Nota && previa.factor == f {
 			continue
 		}
-		if n.Blanqueo {
-			nuevo := false
-			for _, mv := range movimientos {
-				if !ma.Blanqueo[mv] {
-					continue
-				}
-				aplicado, err := aplicarBlanqueoTx(ctx, tx, cid, j, cfg, ma.AtletaID, mv)
-				if err != nil {
-					return err
-				}
-				nuevo = nuevo || aplicado
+		if f != previa.factor && previa.factor > 0 {
+			motivo := "nota"
+			if n.Blanqueo {
+				motivo = "blanqueo"
 			}
-			if !nuevo && previa != nil && antes == 0 {
-				continue
+			if _, err := cambiarClausulaTx(ctx, tx, cid, j.ID, ma.AtletaID, (f/previa.factor-1)*100, cfg, motivo); err != nil {
+				return err
 			}
-		} else if _, err := cambiarClausulaTx(ctx, tx, cid, j.ID, ma.AtletaID, cfg.Puntos.PctClausula*(n.Nota-antes), cfg, "nota"); err != nil {
-			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE fantasy_atletas SET nota = $3, updated_at = now() WHERE jornada_id = $1 AND atleta_id = $2`,
-			j.ID, ma.AtletaID, n.Nota); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE fantasy_atletas SET nota = $3, factor_nota = $4, updated_at = now() WHERE jornada_id = $1 AND atleta_id = $2`,
+			j.ID, ma.AtletaID, n.Nota, f); err != nil {
 			return err
 		}
 		if err := events.Enqueue(ctx, tx, events.New(ctx, "fantasy.nota",
@@ -154,25 +165,6 @@ func aplicarNotasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cf
 		}
 	}
 	return nil
-}
-
-// aplicarBlanqueoTx applies the clause penalty of a bomb-out once (the history row is the marker). Returns
-// whether it was applied now.
-func aplicarBlanqueoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, atletaID uuid.UUID, mv string) (bool, error) {
-	motivo := "blanqueo:" + mv
-	var ya bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM historial_clausulas WHERE jornada_id = $1 AND atleta_id = $2 AND motivo = $3)`,
-		j.ID, atletaID, motivo).Scan(&ya); err != nil || ya {
-		return false, err
-	}
-	// The marker must exist even when the clause is already at its minimum (delta 0 writes no history row).
-	cambio, err := cambiarClausulaTx(ctx, tx, cid, j.ID, atletaID, float64(cfg.PctBlanqueo), cfg, motivo)
-	if err != nil || cambio {
-		return err == nil, err
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO historial_clausulas (id, competition_id, jornada_id, atleta_id, clausula, delta, motivo)
-		SELECT $1, $2, $3, $4, clausula, 0, $5 FROM fantasy_atletas WHERE jornada_id = $3 AND atleta_id = $4`, newID(), cid, j.ID, atletaID, motivo)
-	return err == nil, err
 }
 
 // cambiarClausulaTx moves the clause by a percentage (contract §6.3): updates the athlete, writes the history
