@@ -118,12 +118,31 @@ export class GrCheckbox {
   readonly name = input<string | null>(null);
 }
 
-/** Calendar day (YYYY-MM-DD) in Madrid for a timestamp. */
-const diaMadrid = (t: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(t);
+/** Calendar day (YYYY-MM-DD) in `tz` for a timestamp. */
+const diaEn = (t: number, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(t);
+
+/** Offset (ms) of `tz` from UTC at instant `t`. */
+function offsetEn(t: number, tz: string): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(t)
+      .map((x) => [x.type, +x.value]),
+  );
+  return Date.UTC(p['year'], p['month'] - 1, p['day'], p['hour'], p['minute'], p['second']) - Math.floor(t / 1000) * 1000;
+}
+
+/** UTC instant of the wall-clock `fecha` (YYYY-MM-DD) + `hora` (HH:MM) in `tz` (DST-aware). */
+function instanteEn(fecha: string, hora: string, tz: string): number {
+  const [y, m, d] = fecha.split('-').map(Number);
+  const [h, mi] = hora.split(':').map(Number);
+  const local = Date.UTC(y, m - 1, d, h, mi);
+  const t = local - offsetEn(local, tz);
+  return local - offsetEn(t, tz);
+}
 
 /**
  * Figma «Countdown» (Size L 420 × 105 from tablet · S 312 × 80 on phones): days / hours / min / sec to the start
- * (08:30 Madrid). State «Hoy» on the competition day(s) and «Finalizado» (link to the results) once `fin` has passed.
+ * (`hora` in `zona`, 08:30 Europe/Madrid by default). State «Hoy» on the competition day(s) and «Finalizado» (link to the results) once `fin` has passed.
  */
 @Component({
   selector: 'gr-countdown',
@@ -156,6 +175,10 @@ export class GrCountdown {
   /** Last day (ISO date); defaults to `target`. */
   readonly fin = input<string | null | undefined>(null);
   readonly resultados = input('/resultados');
+  /** Start time (HH:MM, wall clock in `zona`). */
+  readonly hora = input('08:30');
+  /** IANA time zone of the competition. */
+  readonly zona = input('Europe/Madrid');
   /** Figma Size: L, S or (default) S on phones and L from tablet. */
   readonly size = input<'l' | 's' | null>(null);
   protected readonly c = computed(() =>
@@ -169,9 +192,9 @@ export class GrCountdown {
   readonly ahora = input<number | null>(null);
   private readonly reloj = signal(Date.now());
   private readonly now = computed(() => this.ahora() ?? this.reloj());
-  private readonly ms = computed(() => Math.max(0, new Date(this.target().slice(0, 10) + 'T08:30:00+02:00').getTime() - this.now()));
+  private readonly ms = computed(() => Math.max(0, instanteEn(this.target().slice(0, 10), this.hora(), this.zona()) - this.now()));
   protected readonly estado = computed<'cuenta' | 'hoy' | 'finalizado'>(() => {
-    const hoy = diaMadrid(this.now());
+    const hoy = diaEn(this.now(), this.zona());
     if (hoy > (this.fin() || this.target()).slice(0, 10)) return 'finalizado';
     return hoy >= this.target().slice(0, 10) ? 'hoy' : 'cuenta';
   });

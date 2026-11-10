@@ -48,7 +48,7 @@ export const fechaCorta = (iso?: string | null) => {
         </dl>
       }
       @if (aviso()) { <span class="inline-flex h-7 items-center rounded-pill border border-info/60 bg-info/12 px-3 text-label-xs text-info">{{ aviso() }}</span> }
-      @if (c?.fechaInicio) { <gr-countdown [target]="c!.fechaInicio!" [fin]="c!.fechaFin" /> }
+      @if (c?.fechaInicio) { <gr-countdown [target]="c!.fechaInicio!" [fin]="c!.fechaFin" [zona]="c!.zonaHoraria || 'Europe/Madrid'" [hora]="horaPuertas(c!.evento?.puertas)" /> }
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         @if (c?.modulos?.['entradas'] !== false) { <a grButton variant="primary" size="l" href="/entradas">Reserva tu entrada gratis</a> }
         @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="glass" size="l" href="/atletas" iconRight="arrow-right">Ver atletas</a> }
@@ -82,6 +82,10 @@ export class Campeonato {
   readonly patrocinadores = input<Patrocinador[]>([]);
   readonly tituloPatrocinadores = input('');
   protected readonly glow = GLOW;
+  /** Doors time («08:30») from the BO; the countdown falls back to 08:30 when it is not a HH:MM. */
+  protected horaPuertas(p?: string): string {
+    return /^\d{1,2}:\d{2}$/.test(p ?? '') ? p! : '08:30';
+  }
   protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
   protected readonly nivel = computed(() => this.subtitulo() || this.comp()?.evento?.nivel || '');
   /** Times the logos repeat in each half: at least 16 logos per half (≥ 2 500 px with the 72 px gap), wider than the
