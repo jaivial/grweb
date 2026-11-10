@@ -45,7 +45,7 @@ var routeTable = func() []route {
 		{p + `stream$`, "realtime"},
 		{c + `(auditoria|actividad|dashboard|notificaciones|exportaciones|trabajos|webhooks|sistema)(/|$)`, "audit"},
 		{c + `(web|legal|voluntarios|medios|clubs)(/|$)`, "cms"},
-		{p + `(web|faq|patrocinadores|legal|blog|galeria|voluntarios|seo|paginas|clubs)(/|$)`, "cms"},
+		{p + `(web|faq|patrocinadores|legal|blog|galeria|voluntarios|seo|paginas|clubs|mapas)(/|$)`, "cms"},
 		{`^/api/(sitemap|ayuda|medios)(/|$)`, "cms"},
 		{c + `openlifter(/|$)`, "openlifter"},
 		{c + `(directo|resultados)(/|$)`, "live"},
