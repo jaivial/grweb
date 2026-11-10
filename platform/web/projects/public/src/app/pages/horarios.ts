@@ -301,7 +301,7 @@ export class HorariosPage {
       let t: ReturnType<typeof setTimeout> | undefined;
       const recargar = () => {
         clearTimeout(t);
-        t = setTimeout(async () => this.aplicar(await this.api.get()), 400);
+        t = setTimeout(async () => this.aplicar(await this.api.get(true)), 400);
       };
       for (const ev of ['horarios.publicados', 'horarios.retirados', 'horarios.flight']) es.addEventListener(ev, recargar);
       // the «Ahora» line follows the competition desk — only while a flight of the schedule is on the platform

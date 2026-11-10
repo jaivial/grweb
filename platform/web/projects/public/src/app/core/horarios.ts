@@ -21,10 +21,12 @@ export class HorariosPublic {
   private readonly fallo = inject(FalloApi);
   readonly failed = signal(false);
 
-  async get(): Promise<Horarios | null> {
+  /** `fresca`: after a live event, skip the 15 s HTTP cache (browser and edge) with a cache-busting param + no-cache. */
+  async get(fresca = false): Promise<Horarios | null> {
     try {
       this.failed.set(false);
-      return await firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios`));
+      const opts = fresca ? { params: { v: Date.now() }, headers: { 'Cache-Control': 'no-cache' } } : {};
+      return await firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios`, opts));
     } catch (e) {
       this.failed.set(true);
       if (!(e instanceof HttpErrorResponse && e.status === 404)) this.fallo.marcar(e);
