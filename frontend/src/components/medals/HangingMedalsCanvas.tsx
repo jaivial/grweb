@@ -17,6 +17,8 @@ export interface HangingMedalsCanvasProps {
   /** False out of the viewport: physics paused and frameloop on demand. */
   active: boolean;
   onMedalHover?: (id: string | null) => void;
+  /** Element that receives the pointer events (the hanging container): the canvas itself ignores them, so the page below stays interactive. */
+  eventSource: HTMLElement;
   /** Called once the GLB, textures and physics are ready and the rigs are mounted. */
   onReady?: () => void;
 }
@@ -25,8 +27,7 @@ export interface HangingMedalsCanvasProps {
 const FOV = 20;
 
 /** Blocks touch scrolling only while a medal is being dragged (touch-action stays pan-y). */
-function TouchScrollGuard({ grabbingRef }: { grabbingRef: MutableRefObject<boolean> }) {
-  const element = useThree((state) => state.gl.domElement);
+function TouchScrollGuard({ grabbingRef, element }: { grabbingRef: MutableRefObject<boolean>; element: HTMLElement }) {
   useEffect(() => {
     const block = (event: TouchEvent) => {
       if (grabbingRef.current && event.cancelable) event.preventDefault();
@@ -42,7 +43,7 @@ function TouchScrollGuard({ grabbingRef }: { grabbingRef: MutableRefObject<boole
 }
 
 /** Medal rigs in canvas units: x from the anchors, rail at the top edge of the canvas. */
-function MedalRigs({ medals, layout, physics, collisions, active, onMedalHover, grabbingRef }: Omit<HangingMedalsCanvasProps, 'onReady'> & { grabbingRef: MutableRefObject<boolean> }) {
+function MedalRigs({ medals, layout, physics, collisions, active, onMedalHover, grabbingRef }: Omit<HangingMedalsCanvasProps, 'onReady' | 'eventSource'> & { grabbingRef: MutableRefObject<boolean> }) {
   const size = useThree((state) => state.size);
   const ppu = physics.pxPerUnit;
   const railY = size.height / 2 / ppu;
@@ -78,7 +79,7 @@ function ReadySignal({ startedAt, urls, onReady }: { startedAt: number; urls: st
  * Canvas of the hanging medals (lazy chunk: three + rapier). Decorative: aria-hidden, the DOM
  * keeps all the information. Out of the viewport the simulation pauses and nothing renders.
  */
-export default function HangingMedalsCanvas({ medals, layout, physics, collisions, active, onMedalHover, onReady }: HangingMedalsCanvasProps) {
+export default function HangingMedalsCanvas({ medals, layout, physics, collisions, active, onMedalHover, onReady, eventSource }: HangingMedalsCanvasProps) {
   const glbUrls = useMemo(() => [...new Set(medals.map((medal) => medal.assets.glb))], [medals]);
   const grabbingRef = useRef(false);
   const startedAt = useMemo(() => performance.now(), []);
@@ -102,7 +103,9 @@ export default function HangingMedalsCanvas({ medals, layout, physics, collision
     <Canvas
       aria-hidden
       data-ui="hanging-medals-canvas"
-      style={{ touchAction: 'pan-y', pointerEvents: 'auto' }}
+      style={{ touchAction: 'pan-y', pointerEvents: 'none' }}
+      eventSource={eventSource}
+      eventPrefix="client"
       dpr={[1, 2]}
       frameloop={active ? 'always' : 'demand'}
       camera={{ fov: FOV, position: [0, 0, cameraZ], near: 0.1, far: cameraZ + 20 }}
@@ -119,7 +122,7 @@ export default function HangingMedalsCanvas({ medals, layout, physics, collision
         <Lightformer form="rect" intensity={1} position={[5, 1, 2]} scale={[3, 6, 1]} target={[0, 0, 0]} />
         <Lightformer form="ring" color="#DC143C" intensity={1.5} position={[2, 1, -4]} scale={3} />
       </Environment>
-      <TouchScrollGuard grabbingRef={grabbingRef} />
+      <TouchScrollGuard grabbingRef={grabbingRef} element={eventSource} />
       <Suspense fallback={null}>
         <Physics paused={!active} timeStep={1 / 60} updatePriority={-1}>
           <MedalRigs

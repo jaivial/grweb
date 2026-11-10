@@ -218,8 +218,9 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
   });
 
   const setCursor = useCallback((cursor: string) => {
-    gl.domElement.style.cursor = cursor;
-  }, [gl]);
+    // The canvas ignores pointer events (the page below must stay interactive), so the cursor goes on <body>.
+    document.body.style.cursor = cursor;
+  }, []);
 
   /** Clamp the drag target to `maxSwing` from the vertical below the rail. */
   const setTarget = useCallback((point: Vector3) => {
@@ -256,6 +257,7 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
     if (!body) return;
     event.stopPropagation();
     (event.target as Element).setPointerCapture(event.pointerId);
+    document.body.style.userSelect = 'none';
     const s = sim.current;
     const t = body.translation();
     const r = body.rotation();
@@ -282,6 +284,7 @@ export function MedalRig({ medal, railX, railY, layout, physics, collisions, act
     const body = bodyRef.current;
     if (s.mode !== 'drag' || !body) return;
     (event.target as Element).releasePointerCapture?.(event.pointerId);
+    document.body.style.userSelect = '';
     grabbingRef.current = false;
     s.mode = 'released';
     s.restTime = 0;

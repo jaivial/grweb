@@ -175,6 +175,7 @@ export function HangingMedals({ medals, layouts, physics, collisions = null, con
                 physics={physics}
                 collisions={collisions}
                 active={visible.isIntersecting}
+                eventSource={containerRef.current ?? document.body}
                 onMedalHover={handleHover}
                 onReady={handleReady}
               />
