@@ -1,18 +1,13 @@
 import { FC, useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useAtom } from 'jotai';
 import { useCdnImage } from '@hooks/useCdnImage';
-import { useMatchingEntry } from '@hooks/useMediaQuery';
-import { HangingMedals, MedalStage, type HangingMedalSpec } from '@components/medals';
+import { HangingMedals, type HangingMedalSpec } from '@components/medals';
 import { hoveredPrizeMovementAtom } from '../atoms/prizes';
 import {
-  ABSOLUTE_WINNERS,
-  AbsoluteWinners,
+  AbsoluteWinnerCard,
   HANGING_LAYOUTS,
   MEDAL_ASSETS,
-  MEDAL_ENTRANCE,
   MEDAL_PHYSICS,
-  MEDAL_STAGE,
-  MOVEMENTS_FADE,
   PRIZES_COPY,
   PRIZE_MOVEMENTS,
   PrizeHeading,
@@ -68,19 +63,21 @@ const AnimatedItem: FC<{ children: React.ReactNode; direction: 'up' | 'down' | '
   return <div ref={ref} className={className} style={{ ...animationStyle, transitionDelay: `${delay}ms` }} data-ui={dataUi}>{children}</div>;
 };
 
-const AngledImage: FC<{ src: string; alt: string; rotation: 'left' | 'center' | 'right'; dataUi: string; highlighted?: boolean }> = ({ src, alt, rotation, dataUi, highlighted = false }) => {
+const AngledImage: FC<{ src: string; alt: string; rotation: 'left' | 'center' | 'right'; dataUi: string; highlighted?: boolean; accent?: boolean; tag: string; name: string }> = ({ src, alt, rotation, dataUi, highlighted = false, accent = false, tag, name }) => {
   const rotationClass = rotation === 'center' ? '' : rotation === 'left' ? 'sm:-rotate-6' : 'sm:rotate-6';
   const resolvedSrc = useCdnImage(src);
-  // Hover state: on the card itself, or while the medal hanging above it is hovered.
   const hoverClass = 'scale-[1.03] shadow-[0_0_32px_rgba(220,20,60,0.35)]';
+  // Figma: the centre card has a permanent red outline + glow.
+  const accentClass = accent ? 'shadow-[0_0_32px_rgba(196,43,62,0.35)] ring-1 ring-[#c42b3e]/80' : '';
 
   return (
     <div className={`relative ${rotationClass} transition-transform duration-500 group`} data-ui={`image-wrapper-${dataUi}`} data-highlighted={highlighted || undefined}>
-      <div className={`relative overflow-hidden rounded-lg transition-[transform,box-shadow] duration-300 ease-out group-hover:scale-[1.03] group-hover:shadow-[0_0_32px_rgba(220,20,60,0.35)] ${highlighted ? hoverClass : ''}`} data-ui={`image-container-${dataUi}`}>
-
-        <div className="relative overflow-hidden rounded-lg" data-ui={`image-mask-${dataUi}`} style={{ maskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, black 100%)', maskSize: '100% 100%', maskRepeat: 'no-repeat', maskPosition: 'center' }}>
-          <img src={resolvedSrc} alt={alt} className="w-full h-auto object-cover" data-ui={dataUi} style={{ filter: 'contrast(1.05) saturate(0.9)' }} loading="eager" decoding="async" />
-          <div className="absolute inset-0 pointer-events-none" data-ui={`image-edge-fade-${dataUi}`} style={{ background: 'linear-gradient(to right, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%), linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)' }} aria-hidden />
+      <div className={`relative overflow-hidden rounded-2xl transition-[transform,box-shadow] duration-300 ease-out group-hover:scale-[1.03] group-hover:shadow-[0_0_32px_rgba(220,20,60,0.35)] ${accentClass} ${highlighted ? hoverClass : ''}`} data-ui={`image-container-${dataUi}`}>
+        <img src={resolvedSrc} alt={alt} className="block h-auto w-full object-cover" data-ui={dataUi} style={{ filter: 'contrast(1.05) saturate(0.9)' }} loading="eager" decoding="async" />
+        <div className="pointer-events-none absolute inset-0" data-ui={`image-shade-${dataUi}`} style={{ background: 'linear-gradient(to bottom, rgba(20,17,18,0) 0%, rgba(20,17,18,0) 55%, rgba(20,17,18,0.92) 100%)' }} aria-hidden />
+        <div className="absolute inset-x-5 bottom-5 flex flex-col items-start gap-2" data-ui={`image-caption-${dataUi}`}>
+          <span className="rounded-full bg-[#c42b3e] px-2.5 py-1 text-xs uppercase leading-[1.2] tracking-[0.04em] text-white" data-ui={`image-tag-${dataUi}`}>{tag}</span>
+          <h3 className="font-contrail text-[30px] uppercase leading-[1.2] tracking-[0.05em] text-white" style={{ textShadow: '0 0 20px rgba(0,0,0,0.8)' }} data-ui={`image-name-${dataUi}`}>{name}</h3>
         </div>
       </div>
     </div>
@@ -102,87 +99,65 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
     return PRIZE_MOVEMENTS.map((movement) => ({ id: movement.id, label: `Oro · ${movement.name}`, phase: movement.phase, assets: MEDAL_ASSETS.gold, anchorRef: anchors[movement.id] }));
   }, []);
   const handleMedalHover = useCallback((id: string | null) => setHoveredMovement(id as MovementId | null), [setHoveredMovement]);
-  // Top fade over the canvas (z above it): the ribbons of block A emerge from the darkness.
-  const fade = useMatchingEntry(MOVEMENTS_FADE.heights);
-  const fadeStyle = useMemo<React.CSSProperties>(
-    () => ({
-      height: fade.height,
-      background: `linear-gradient(to bottom, ${MOVEMENTS_FADE.stops.map((stop) => `rgba(${MOVEMENTS_FADE.color}, ${stop.alpha}) ${stop.at}%`).join(', ')})`,
-    }),
-    [fade.height],
-  );
 
   return (
-    <section id="premios" ref={sectionRef} className={`relative isolate scroll-mt-[88px] overflow-hidden pt-[220px] sm:pt-[300px] 3xl:pt-[420px] ${className}`} style={{ minHeight: 'auto', background: '#0a0a0a', paddingBottom: '80px' }} data-section="prices-all-movements" data-ui="prices-all-movements-section">
-      {/* One WebGL canvas for every group of hanging medals of the section (a view per group). */}
-      <MedalStage eventSourceRef={sectionRef} config={MEDAL_STAGE}>
-      <div className="absolute left-1/2 top-0 h-[640px] w-[640px] -translate-x-1/2 -translate-y-1/3 rounded-full pointer-events-none" data-ui="medals-glow" style={{ background: 'radial-gradient(circle, rgba(139, 0, 0, 0.22) 0%, transparent 65%)' }} aria-hidden />
-      <HangingMedals id="movements" medals={medals} layouts={HANGING_LAYOUTS} physics={MEDAL_PHYSICS} containerRef={sectionRef} onMedalHover={handleMedalHover} entrance={MEDAL_ENTRANCE} />
-      <div className="absolute top-0 left-0 right-0 pointer-events-none z-[31]" data-ui="fade-overlay-top" style={fadeStyle} aria-hidden />
-      <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-10" data-ui="fade-overlay-bottom" style={{ background: 'linear-gradient(to top, #0a0a0a 0%, transparent 100%)' }} aria-hidden />
-      <div className="absolute top-0 bottom-0 left-0 w-16 pointer-events-none z-10" data-ui="fade-overlay-left" style={{ background: 'linear-gradient(to right, #0a0a0a 0%, transparent 100%)' }} aria-hidden />
-      <div className="absolute top-0 bottom-0 right-0 w-16 pointer-events-none z-10" data-ui="fade-overlay-right" style={{ background: 'linear-gradient(to left, #0a0a0a 0%, transparent 100%)' }} aria-hidden />
+    <section id="premios" ref={sectionRef} className={`relative isolate scroll-mt-[88px] overflow-hidden pt-[220px] sm:pt-[300px] 3xl:pt-[420px] ${className}`} style={{ minHeight: 'auto', background: '#141112', paddingBottom: '80px' }} data-section="prices-all-movements" data-ui="prices-all-movements-section">
+      {/* Figma 199:211/199:212: grain + accent glow (#C42B3E α.20) behind the medals, 640 px at y 120. */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.06] mix-blend-overlay" data-ui="bg-grain" style={{ maskImage: 'linear-gradient(to bottom, transparent 0, black 180px, black calc(100% - 160px), transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 180px, black calc(100% - 160px), transparent 100%)', backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} aria-hidden />
+      <div className="absolute left-1/2 top-[120px] h-[640px] w-[640px] -translate-x-1/2 rounded-full pointer-events-none" data-ui="medals-glow" style={{ background: 'radial-gradient(circle, rgba(196, 43, 62, 0.2) 0%, transparent 100%)' }} aria-hidden />
+      <HangingMedals medals={medals} layouts={HANGING_LAYOUTS} physics={MEDAL_PHYSICS} containerRef={sectionRef} onMedalHover={handleMedalHover} />
+      {/* Figma 199:238: the ribbons emerge from the dark (180 px, solid to 40 %, 55 % at 72 %). Above the medals (z-30) so the ribbon tops fade out. */}
+      <div className="absolute top-0 left-0 right-0 h-[180px] pointer-events-none z-[35]" data-ui="fade-overlay-top" style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #141112 40%, rgba(20,17,18,0.55) 72%, rgba(20,17,18,0) 100%)' }} aria-hidden />
+      <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none z-[45]" data-ui="fade-overlay-bottom" style={{ background: 'linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,0.6) 35%, rgba(10,10,10,0) 100%)' }} aria-hidden />
 
-      <div className="relative z-20 max-w-6xl mx-auto px-6 lg:px-12" data-ui="section-content">
-        <AnimatedItem direction="up" delay={100} dataUi="animated-title">
-          <div className="mb-12" data-ui="title-container">
-            <PrizeHeading eyebrow={PRIZES_COPY.movements.eyebrow} title={PRIZES_COPY.movements.title} titleAccent={PRIZES_COPY.movements.titleAccent} dataUi="section-title" />
+      <div className="relative max-w-6xl mx-auto px-6 lg:px-12" data-ui="section-content">
+        <AnimatedItem direction="up" delay={100} dataUi="animated-title" className="relative z-[40]">
+          <div className="mx-auto mb-12 max-w-[880px]" data-ui="title-container">
+            <PrizeHeading index="02" eyebrow={PRIZES_COPY.movements.eyebrow} title={PRIZES_COPY.movements.title} titleAccent={PRIZES_COPY.movements.titleAccent} dataUi="section-title" />
           </div>
         </AnimatedItem>
 
-        <AnimatedItem direction="up" delay={200} dataUi="animated-images">
+        <AnimatedItem direction="up" delay={200} dataUi="animated-images" className="relative z-20">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-12 sm:gap-6 md:gap-8 lg:gap-12 items-center justify-items-center mb-10" data-ui="images-grid">
             
             {/* Squat Image with Label */}
             <div ref={squatRef} className="flex flex-col items-center" data-ui="image-squat-wrapper">
               <div className="w-full max-w-[280px] sm:max-w-none" data-ui="squat-image-container">
-                <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2029%20mar%202026%2C%2021_55_55.png" alt="Atleta realizando sentadilla" rotation="left" dataUi="squat" highlighted={hoveredMovement === 'squat'} />
+                <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2029%20mar%202026%2C%2021_55_55.png" alt="Atleta realizando sentadilla" rotation="left" dataUi="squat" tag="Premio · 01" name="Sentadilla" highlighted={hoveredMovement === 'squat'} />
               </div>
-              <h3 className="mt-4 text-xl sm:text-2xl md:text-3xl sm:hidden" data-ui="movement-text-squat-mobile" style={movementLabelStyle}>Sentadilla</h3>
             </div>
 
             {/* Bench Image with Label */}
             <div ref={benchRef} className="flex flex-col items-center" data-ui="image-bench-wrapper">
               <div className="w-full max-w-[280px] sm:max-w-none -mt-4 sm:mt-0" data-ui="bench-image-container">
-                <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2023%20mar%202026%2C%2000_00_19.png" alt="Atleta realizando press de banca" rotation="center" dataUi="bench" highlighted={hoveredMovement === 'bench'} />
+                <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2023%20mar%202026%2C%2000_00_19.png" alt="Atleta realizando press de banca" rotation="center" dataUi="bench" accent tag="Premio · 02" name="Press de banca" highlighted={hoveredMovement === 'bench'} />
               </div>
-              <h3 className="mt-4 text-xl sm:text-2xl md:text-3xl sm:hidden" data-ui="movement-text-bench-mobile" style={movementLabelStyle}>Press de banca</h3>
             </div>
 
             {/* Deadlift Image with Label */}
             <div ref={deadliftRef} className="flex flex-col items-center" data-ui="image-deadlift-wrapper">
               <div className="w-full max-w-[280px] sm:max-w-none -mt-8 sm:mt-0" data-ui="deadlift-image-container">
-                <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_51_04.png" alt="Atleta realizando peso muerto" rotation="right" dataUi="deadlift" highlighted={hoveredMovement === 'deadlift'} />
+                <AngledImage src="https://jaimedigitalstudio.b-cdn.net/grcup/atheltephotos/ChatGPT%20Image%2022%20mar%202026%2C%2023_51_04.png" alt="Atleta realizando peso muerto" rotation="right" dataUi="deadlift" tag="Premio · 03" name="Peso muerto" highlighted={hoveredMovement === 'deadlift'} />
               </div>
-              <h3 className="mt-4 text-xl sm:text-2xl md:text-3xl sm:hidden" data-ui="movement-text-deadlift-mobile" style={movementLabelStyle}>Peso muerto</h3>
             </div>
 
           </div>
         </AnimatedItem>
 
-        <AnimatedItem direction="up" delay={300} dataUi="animated-subtitle">
+        <AnimatedItem direction="up" delay={300} dataUi="animated-subtitle" className="relative z-20">
           <div className="text-center mb-8" data-ui="subtitle-container"><p className="text-lg sm:text-xl md:text-2xl" data-ui="subtitle-text" style={subtitleStyle}>Demuestra quien manda en cada movimiento!</p></div>
         </AnimatedItem>
 
-        {/* Desktop-only movement labels row */}
-        <AnimatedItem direction="up" delay={400} dataUi="animated-movement-labels">
-          <div className="hidden sm:grid grid-cols-3 gap-4 md:gap-8 text-center" data-ui="movement-labels-grid">
-            <div data-ui="movement-sentadilla"><h3 className="text-xl sm:text-2xl md:text-3xl" data-ui="movement-text-sentadilla" style={movementLabelStyle}>Sentadilla</h3></div>
-            <div data-ui="movement-press"><h3 className="text-xl sm:text-2xl md:text-3xl" data-ui="movement-text-press" style={movementLabelStyle}>Press de banca</h3></div>
-            <div data-ui="movement-peso"><h3 className="text-xl sm:text-2xl md:text-3xl" data-ui="movement-text-peso" style={movementLabelStyle}>Peso muerto</h3></div>
-          </div>
-        </AnimatedItem>
+        
       </div>
 
-      {/* No z-index here: blocks B and C put their rail / clip above the medal canvas (z-30) and their own content in z-20. */}
-      <div className="relative mx-auto w-[calc(100%-40px)] max-w-[1200px]" data-ui="prizes-extra-content">
+      <div className="relative z-20 mx-auto w-[calc(100%-40px)] max-w-[1200px]" data-ui="prizes-extra-content">
         <WeightClassPrizes />
-        <AbsoluteWinners winners={ABSOLUTE_WINNERS} />
+        <AbsoluteWinnerCard />
       </div>
 
       <div className="absolute top-1/2 left-1/4 w-80 h-80 bg-dark-red/5 rounded-full blur-3xl pointer-events-none" data-ui="bg-glow-left" aria-hidden />
       <div className="absolute top-1/2 right-1/4 w-80 h-80 bg-red-accent/4 rounded-full blur-3xl pointer-events-none" data-ui="bg-glow-right" aria-hidden />
-      </MedalStage>
     </section>
   );
 };

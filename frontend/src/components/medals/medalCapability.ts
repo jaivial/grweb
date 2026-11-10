@@ -1,9 +1,9 @@
-import { hasWebGL } from '@utils/webgl';
-
 /**
  * Decides whether the 3D medals can run, or the static PNG + CSS fallback is shown instead.
  * Returns the reason for the fallback, or `null` when WebGL medals are fine.
  */
+import { hasWebGL } from '@utils/webgl';
+
 export type MedalFallbackReason = 'reduced-motion' | 'no-webgl' | 'save-data' | 'low-end-device';
 
 interface NavigatorHints {

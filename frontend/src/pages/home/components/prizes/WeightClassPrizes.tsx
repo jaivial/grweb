@@ -1,19 +1,16 @@
 import { memo, useCallback, useMemo, useRef, type KeyboardEvent } from 'react';
 import { useAtom } from 'jotai';
 import { HangingMedals, type HangingMedalSpec } from '@components/medals';
-import { useMatchingEntry, useMediaQuery } from '@hooks/useMediaQuery';
+import { useMediaQuery } from '@hooks/useMediaQuery';
 import { weightClassTabAtom } from '../../atoms/prizes';
 import { PrizeHeading } from './PrizeHeading';
-import { SteelRail } from './SteelRail';
+import { SmokeCloud } from './SmokeCloud';
 import {
   MEDAL_ASSETS,
-  MEDAL_ENTRANCE,
   MEDAL_PHYSICS,
-  PODIUM_BAND_GAP,
   PODIUM_COLLISIONS,
   PODIUM_LAYOUTS,
   PODIUM_MEDALS,
-  PODIUM_RAILS,
   PRIZES_COPY,
   WEIGHT_CLASS_GROUPS,
   formatWeightClass,
@@ -23,37 +20,44 @@ import {
 const COPY = PRIZES_COPY.weightClasses;
 /** Two columns (Hombres | Mujeres) from here; tabs above a two-column chip list below. */
 const COLUMNS_QUERY = '(min-width: 768px)';
+const TABLET_QUERY = '(min-width: 480px)';
+const DESKTOP_QUERY = '(min-width: 1024px)';
+/** Cloud layer height (Figma 400 on desktop), CSS px. */
+const CLOUD_HEIGHT = { desktop: 400, tablet: 300, mobile: 220 } as const;
 
 type Group = (typeof WEIGHT_CLASS_GROUPS)[number];
 
 /** The weight classes of one sex as plain text chips. */
 const WeightClassList = memo(function WeightClassList({ group, columns }: { group: Group; columns?: boolean }) {
   return (
-    <ul className={columns ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'} data-ui={`weight-class-${group.id}-list`}>
+    <ul className="flex flex-wrap justify-center gap-2" data-ui={`weight-class-${group.id}-list`}>
       {group.classes.map((weightClass) => (
         <li
           key={weightClass}
-          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-center font-contrail text-sm uppercase tracking-[0.02em] text-white/85 sm:text-base"
+          className="flex h-[53px] w-[104px] items-center justify-center rounded-lg border border-[#2e2729] bg-[#221d1f] text-center font-contrail text-lg uppercase leading-[1.5] tracking-[0.02em] text-white"
           data-ui={`weight-class-${group.id}-${weightClass}`}
         >
-          {formatWeightClass(weightClass)} kg
+          {formatWeightClass(weightClass)}KG
         </li>
       ))}
     </ul>
   );
 });
 
-const groupTitleClass = 'font-contrail text-xl uppercase tracking-[0.05em] text-white sm:text-2xl';
+const groupTitleClass = 'font-contrail text-2xl uppercase tracking-[0.02em] text-white';
 
 /** ≥ 768 px: Hombres | Mujeres side by side. */
 const WeightClassColumns = memo(function WeightClassColumns() {
   return (
-    <div className="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-12" data-ui="weight-class-columns">
+    <div className="mx-auto mt-10 grid max-w-[824px] grid-cols-2 gap-6" data-ui="weight-class-columns">
       {WEIGHT_CLASS_GROUPS.map((group) => (
-        <section key={group.id} aria-labelledby={`weight-class-${group.id}-title`} data-ui={`weight-class-group-${group.id}`}>
-          <h3 id={`weight-class-${group.id}-title`} className={`mb-4 ${groupTitleClass}`} data-ui={`weight-class-group-${group.id}-title`}>
-            {group.label}
-          </h3>
+        <section key={group.id} className="rounded-[20px] border border-[#2e2729] bg-[#221d1f]/85 p-7" aria-labelledby={`weight-class-${group.id}-title`} data-ui={`weight-class-group-${group.id}`}>
+          <div className="mb-4 flex items-center justify-between" data-ui={`weight-class-group-${group.id}-head`}>
+            <h3 id={`weight-class-${group.id}-title`} className={groupTitleClass} data-ui={`weight-class-group-${group.id}-title`}>
+              {group.label}
+            </h3>
+            <span className="text-xs font-medium uppercase tracking-[0.04em] text-[#6b7280]" data-ui={`weight-class-group-${group.id}-count`}>{group.classes.length} categorías</span>
+          </div>
           <WeightClassList group={group} />
         </section>
       ))}
@@ -118,44 +122,29 @@ const WeightClassTabs = memo(function WeightClassTabs() {
 });
 
 /**
- * Block B · «Premio por categoría de peso»: the podium (silver · gold · bronze) hangs from a
- * steel rail in the block's padding-top, then the heading and the weight classes as text. It is
- * its own view of the section's shared medal canvas, with its own IntersectionObserver and
- * physics world. The block must not create a stacking context (no z-index): the rail has to
- * sit above the canvas, the text stays in its own z-20 layer.
+ * Block B · «Premio por categoría de peso»: the podium (silver · gold · bronze) hangs in the
+ * block's padding-top, then the heading and the weight classes as text. Its canvas has its own
+ * IntersectionObserver and physics world, separate from block A.
  */
 export const WeightClassPrizes = memo(function WeightClassPrizes() {
   const blockRef = useRef<HTMLDivElement>(null);
   const showColumns = useMediaQuery(COLUMNS_QUERY);
-  const rail = useMatchingEntry(PODIUM_RAILS);
-  const layout = useMatchingEntry(PODIUM_LAYOUTS);
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const isTablet = useMediaQuery(TABLET_QUERY);
+  const cloudHeight = isDesktop ? CLOUD_HEIGHT.desktop : isTablet ? CLOUD_HEIGHT.tablet : CLOUD_HEIGHT.mobile;
   const medals = useMemo<HangingMedalSpec[]>(
-    () =>
-      PODIUM_MEDALS.map((medal) => ({ id: medal.id, label: medal.label, phase: medal.phase, entryOrder: medal.entryOrder, assets: MEDAL_ASSETS[medal.metal] })),
+    () => PODIUM_MEDALS.map((medal) => ({ id: medal.id, label: medal.label, phase: medal.phase, assets: MEDAL_ASSETS[medal.metal] })),
     [],
-  );
-  // padding-top = rail axis + band + gap (408 / 308 / 208): no layout shift when the band fills.
-  const blockStyle = useMemo(
-    () => ({ marginTop: rail.marginTop, paddingTop: (layout.anchorY ?? 0) + layout.canvasHeight + PODIUM_BAND_GAP }),
-    [rail.marginTop, layout.anchorY, layout.canvasHeight],
   );
 
   return (
-    <div ref={blockRef} className="relative" style={blockStyle} data-ui="weight-class-prizes">
-      <HangingMedals
-        id="podium"
-        medals={medals}
-        layouts={PODIUM_LAYOUTS}
-        physics={MEDAL_PHYSICS}
-        collisions={PODIUM_COLLISIONS}
-        containerRef={blockRef}
-        entrance={MEDAL_ENTRANCE}
-      />
-      <SteelRail rail={rail} dataUi="weight-class-rail" />
-      <div className="relative z-20" data-ui="weight-class-content">
-        <PrizeHeading eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
-        {showColumns ? <WeightClassColumns /> : <WeightClassTabs />}
-      </div>
+    // padding-top = PODIUM_LAYOUTS[].canvasHeight + 8 (338 / 528 / 708). Figma: 120 px between blocks.
+    <div ref={blockRef} className="relative mt-16 pt-[338px] sm:mt-20 sm:pt-[528px] 3xl:mt-[120px] 3xl:pt-[708px]" data-ui="weight-class-prizes">
+      <HangingMedals medals={medals} layouts={PODIUM_LAYOUTS} physics={MEDAL_PHYSICS} collisions={PODIUM_COLLISIONS} containerRef={blockRef} />
+      {/* Smoke above the ribbons (canvas z-30): they are born inside it. Figma: layer starts 30 px above the block. */}
+      <SmokeCloud height={cloudHeight} className="top-[-30px] z-40" />
+      <PrizeHeading index="03" eyebrow={COPY.eyebrow} title={COPY.title} titleAccent={COPY.titleAccent} lead={COPY.lead} dataUi="weight-class-heading" />
+      {showColumns ? <WeightClassColumns /> : <WeightClassTabs />}
     </div>
   );
 });

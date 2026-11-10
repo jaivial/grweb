@@ -8,81 +8,6 @@ export interface MedalAssets {
   image: string;
   /** Straight vertical strip of the lanyard, tiles vertically. */
   ribbon: string;
-  /** Per-metal overrides of the stage material (`MedalStageConfig.material`). */
-  material?: Partial<MedalMaterial>;
-}
-
-/** PBR finish of the medal metal, applied over the GLB material (its maps are kept). */
-export interface MedalMaterial {
-  /**
-   * glTF roughnessFactor. With `useRoughnessMap` it multiplies the G channel of the
-   * metallicRoughness map; without it, it is the flat roughness of the whole medal.
-   */
-  roughness: number;
-  useRoughnessMap: boolean;
-  /** Strength of the GLB normal map (1 = as authored; lower flattens the generated surface noise). */
-  normalScale: number;
-  metalness: number;
-  envMapIntensity: number;
-  /** 0 keeps MeshStandardMaterial; > 0 swaps to MeshPhysicalMaterial with a clear coat. */
-  clearcoat: number;
-  clearcoatRoughness: number;
-  /**
-   * 0–1: pulls the shading normal of the medal's front/back faces towards the face normal (+z),
-   * so the wavy generated surface reads as a flat polished face; bevels and edges keep theirs.
-   */
-  flattenFace: number;
-  /**
-   * Even metal colour: 0–1 pull of the base colour towards `faceColor` (the generated texture
-   * has blotchy light/dark patches that read as crumpled foil on a mirror finish). Red enamel
-   * is left out. 0 or no colour keeps the texture.
-   */
-  faceTint: number;
-  /** Metal colour (sRGB hex), per metal: the median of its base colour texture. */
-  faceColor?: string;
-  /**
-   * Red enamel (the «2»): texels whose base colour is red (max(g, b) / r below `maskTo`, fully
-   * below `maskFrom`) become dielectric (metalness 0) with this roughness and `color` (sRGB hex;
-   * darker than the texture so the studio light does not wash it to orange) and `sheen` (0–1
-   * share of its reflections and clear coat: the white studio strips over it read as pink): vivid
-   * red instead of red-tinted metal. The GLB metalness map marks everything as metal.
-   */
-  enamel: { roughness: number; maskFrom: number; maskTo: number; color: string; sheen: number };
-}
-
-/** One light panel of the studio environment the metal reflects (drei `Lightformer`). */
-export interface MedalLightformer {
-  form: 'rect' | 'ring' | 'circle';
-  intensity: number;
-  color?: string;
-  position: [number, number, number];
-  scale: number | [number, number, number];
-  /** Point the panel faces; omitted = its default orientation (facing +z). */
-  target?: [number, number, number];
-}
-
-/** Direct light of the medal scene (point lights have no distance falloff). */
-export interface MedalLight {
-  type: 'directional' | 'point';
-  position: [number, number, number];
-  intensity: number;
-  color: string;
-}
-
-/** Rendering of the shared medal canvas: resolution, tone mapping, finish and studio light. */
-export interface MedalStageConfig {
-  /** Device pixel ratio range of the shared canvas. */
-  dpr: [number, number];
-  toneMapping: 'aces' | 'agx' | 'neutral';
-  exposure: number;
-  material: MedalMaterial;
-  environment: {
-    /** Cube map size of the generated environment. */
-    resolution: number;
-    lightformers: readonly MedalLightformer[];
-  };
-  ambientIntensity: number;
-  lights: readonly MedalLight[];
 }
 
 /** Idle wind of a hanging medal (physical periodic force, not keyframes). */
@@ -112,11 +37,6 @@ export interface HangingLayout {
   id: string;
   /** Media query that selects this layout (first match wins, last entry is the default). */
   query: string;
-  /**
-   * Distance from the top of the container to the anchor line (a rail axis, a card edge), px.
-   * The band (canvas view) starts there, so anything above it is hidden. Default 0.
-   */
-  anchorY?: number;
   canvasHeight: number;
   ribbonLength: number;
   medalWidth: number;
@@ -130,36 +50,13 @@ export interface HangingLayout {
   followAnchors: boolean;
   /** Anchor x as a fraction of the container width (fallback when there is no measure). */
   anchorsPct: readonly number[];
+  /** Extra x offset (px) added to each medal's anchor, by medal index (e.g. medals hanging outside their column). */
+  anchorOffsets?: readonly number[];
   wind: MedalWind;
   /** Per-medal overrides of the defaults above, by medal index (e.g. a podium). */
   medals?: ReadonlyArray<Partial<MedalGeometry>>;
   /** Velocity change (u/s) of a click/tap without drag. */
   tapImpulse: number;
-  /** Duration of each medal's entrance drop at this breakpoint, ms. */
-  entranceMs: number;
-}
-
-/** cubic-bezier(x1, y1, x2, y2). */
-export type BezierCurve = readonly [number, number, number, number];
-
-/**
- * Entrance drop of a group of medals (once per page load): each medal falls from above the
- * anchor line, overshoots, rebounds once and hands over to the physics. Offsets are vertical,
- * relative to the rest position (positive = down), in units of the ribbon length L.
- */
-export interface MedalEntrance {
-  /** Fraction of the band that must be visible to start. */
-  threshold: number;
-  /** Delay between consecutive medals (`HangingMedalSpec.entryOrder`), ms. */
-  staggerMs: number;
-  /** Start offset = −(L + H + startGapPx): fully above the anchor line. */
-  startGapPx: number;
-  /** Overshoot (+·L) and the time (0-1) it is reached. */
-  overshoot: { at: number; l: number };
-  /** Single rebound (−·L) and the time it is reached. */
-  rebound: { at: number; l: number };
-  /** Easing of the fall (start → overshoot), of the rebound and of the settle. */
-  easing: { fall: BezierCurve; rebound: BezierCurve; settle: BezierCurve };
 }
 
 /** Simulation constants shared by every rig (world: `pxPerUnit` CSS px = 1 unit). */
@@ -196,8 +93,6 @@ export interface HangingMedalSpec {
   assets: MedalAssets;
   /** Element whose horizontal centre is the anchor when the layout follows anchors. */
   anchorRef?: RefObject<HTMLElement>;
-  /** Position in the entrance sequence (delay = entryOrder × staggerMs). Default: its index. */
-  entryOrder?: number;
 }
 
 /** Contact material when the medals of one canvas may hit each other (null/absent: no collisions). */
