@@ -107,7 +107,7 @@ const toneAlert: Record<GrTone, { box: string; icon: GrIconName; title: string }
       <div class="text-body-s" [class]="title() ? 'text-text-secondary' : 'text-text-primary'"><ng-content /></div>
       <ng-content select="[alertAction]" />
     </div>
-    <!-- Figma «Alert / Action=Sí»: action chip and close on the right -->
+    <!-- Figma «Alert / Action=Sí»: action chip and close on the right, vertically centred (give the slot self-center) -->
     <ng-content select="[alertEnd]" />
   `,
 })
@@ -137,16 +137,17 @@ export class GrEmpty {
   readonly text = input<string | null>(null);
 }
 
-/** GR Strength Cup logo (CDN). */
+/** GR Strength Cup logo (CDN, Figma «Logo» 588 × 366). `width` gives the Figma frame: the image is fitted and centred in it (FIT). */
 @Component({
   selector: 'gr-logo',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'inline-flex' },
-  template: `<img [src]="src" alt="GR Strength Cup" [style.height.px]="height()" class="w-auto select-none" draggable="false" fetchpriority="high" />`,
+  template: `<img [src]="src" alt="GR Strength Cup" [style.height.px]="height()" [style.width.px]="width()" class="object-contain select-none" [class.w-auto]="!width()" draggable="false" fetchpriority="high" />`,
 })
 export class GrLogo {
   readonly height = input(40);
-  protected readonly src = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  readonly width = input<number | null>(null);
+  protected readonly src = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
 }
 
 /** Tiny trend line for KPI tiles. */

@@ -54,7 +54,7 @@ export class GrToastCard {
   selector: 'gr-toaster',
   imports: [GrToastCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'pointer-events-none fixed inset-x-4 bottom-24 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:items-end', 'aria-live': 'polite' },
+  host: { class: 'pointer-events-none fixed inset-x-4 bottom-24 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:w-[360px] md:items-end', 'aria-live': 'polite' },
   template: `
     @for (t of toasts.items(); track t.id) {
       <gr-toast [tone]="t.tone" [title]="t.title" [text]="t.text" (closed)="toasts.dismiss(t.id)" />

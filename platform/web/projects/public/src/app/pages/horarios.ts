@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { GrAlert, GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrIcon, GrLiveStatus, GrSkeleton, GrStatus, type GrIconName, type GrLiveEstado } from '@grcup/ui';
 import { Favoritos, cat } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
@@ -30,7 +30,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
 /** /horarios (Figma page 41 · «Horarios v2 interactivo»): flights by day with live state, «Mi horario» with .ics, search. */
 @Component({
   selector: 'gr-horarios-page',
-  imports: [Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community, Newsletter],
+  imports: [Page, FormsModule, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, GrStatus, Fav, Related, Community, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = data();
@@ -61,7 +61,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
       } @else {
         @if (enDirecto(); as d) {
           <p class="mb-5 flex flex-wrap items-center gap-2 text-body-s text-text-secondary">
-            <span class="inline-flex h-7 items-center gap-1.5 rounded-pill border border-accent bg-accent/12 px-2.5 text-label-xs text-accent-text uppercase"><gr-icon name="radio" [size]="12" />En directo</span>{{ d }}
+            <gr-live-status [estado]="conexion()" />{{ d }}
           </p>
         }
         <div class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
@@ -111,12 +111,13 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
                       <span class="text-label-m" [class.text-text-secondary]="fin">Flight {{ f.codigo }} · {{ f.titulo }}</span>
                       <span class="text-body-xs text-text-tertiary">Plataforma {{ f.plataforma }} · {{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
                     </span>
+                    <!-- Figma «Badge» -->
                     @switch (f.estado) {
-                      @case ('en_curso') { <span [class]="pill + ' border-accent bg-accent/12 text-accent-text'"><gr-icon name="radio" [size]="12" />En curso</span> }
-                      @case ('finalizado') { <span [class]="pill + ' border-text-muted bg-text-muted/12 text-text-muted'"><gr-icon name="check" [size]="12" />Finalizado</span> }
+                      @case ('en_curso') { <gr-status tone="directo" icon="radio">En curso</gr-status> }
+                      @case ('finalizado') { <gr-status tone="finalizado" icon="check">Finalizado</gr-status> }
                       @default {
-                        @if (f.retrasoMin) { <span [class]="pill + ' border-warning bg-warning/12 text-warning'"><gr-icon name="clock" [size]="12" />+{{ f.retrasoMin }} min</span> }
-                        @else { <span [class]="pill + ' border-line-strong text-text-tertiary'">Programado</span> }
+                        @if (f.retrasoMin) { <gr-status tone="proximamente" icon="clock">+{{ f.retrasoMin }} min</gr-status> }
+                        @else { <gr-status tone="agotado">Programado</gr-status> }
                       }
                     }
                     <gr-icon name="chevron-down" [size]="18" class="text-text-tertiary transition-transform" [class.rotate-180]="abierto" />
@@ -219,7 +220,7 @@ export class HorariosPage {
   protected readonly mio = signal(false);
   protected readonly q = signal('');
   protected readonly abiertos = signal(new Set<string>());
-  protected readonly pill = 'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border px-2.5 text-label-xs uppercase';
+  protected readonly conexion = signal<GrLiveEstado>('en-directo');
   /** What is on the platform now (from /directo, browser only). */
   private readonly vivo = signal<Vivo | null>(null);
   protected readonly todos = signal(new Set<string>());
@@ -301,9 +302,11 @@ export class HorariosPage {
       let t: ReturnType<typeof setTimeout> | undefined;
       const recargar = () => {
         clearTimeout(t);
-        t = setTimeout(async () => this.aplicar(await this.api.get()), 400);
+        t = setTimeout(async () => this.aplicar(await this.api.get(true)), 400);
       };
       for (const ev of ['horarios.publicados', 'horarios.retirados', 'horarios.flight']) es.addEventListener(ev, recargar);
+      es.onopen = () => this.conexion.set('en-directo');
+      es.onerror = () => this.conexion.set(es.readyState === EventSource.CLOSED ? 'sin-conexion' : 'reconectando');
       // the «Ahora» line follows the competition desk — only while a flight of the schedule is on the platform
       let tv: ReturnType<typeof setTimeout> | undefined;
       const vivo = () => {

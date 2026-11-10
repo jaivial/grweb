@@ -20,19 +20,20 @@ import (
 
 // MiEntrada is the ticket page (Figma 38 · /entradas/confirmacion and /mi-entrada).
 type MiEntrada struct {
-	Codigo       string    `json:"codigo"`
-	QR           string    `json:"qr" doc:"Contenido del código QR"`
-	Nombre       string    `json:"nombre"`
-	Apellidos    string    `json:"apellidos"`
-	Email        string    `json:"email" doc:"Enmascarado"`
-	Personas     int       `json:"personas"`
-	Dentro       int       `json:"dentro"`
-	Estado       string    `json:"estado" enum:"reservada,usada,anulada"`
-	Sesion       SesionPub `json:"sesion"`
-	Lugar        string    `json:"lugar"`
-	PuedeCambiar bool      `json:"puedeCambiar"`
-	MaxPersonas  int       `json:"maxPersonas" doc:"Máximo al que puede subir (plazas libres y límite por reserva)"`
-	Compartir    string    `json:"compartir" doc:"Enlace para invitar a otras personas"`
+	Codigo       string     `json:"codigo"`
+	QR           string     `json:"qr" doc:"Contenido del código QR"`
+	Nombre       string     `json:"nombre"`
+	Apellidos    string     `json:"apellidos"`
+	Email        string     `json:"email" doc:"Enmascarado"`
+	Personas     int        `json:"personas"`
+	Dentro       int        `json:"dentro"`
+	Estado       string     `json:"estado" enum:"reservada,usada,anulada"`
+	ValidadaAt   *time.Time `json:"validadaAt,omitempty" doc:"Primer escaneo válido en la puerta (entradas usadas)"`
+	Sesion       SesionPub  `json:"sesion"`
+	Lugar        string     `json:"lugar"`
+	PuedeCambiar bool       `json:"puedeCambiar"`
+	MaxPersonas  int        `json:"maxPersonas" doc:"Máximo al que puede subir (plazas libres y límite por reserva)"`
+	Compartir    string     `json:"compartir" doc:"Enlace para invitar a otras personas"`
 }
 
 type tokIn struct {
@@ -80,6 +81,11 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 	}
 	if mail != nil {
 		m.Email = maskEmail(*mail)
+	}
+	if m.Estado == "usada" {
+		if err := s.a.DB.QueryRow(ctx, `SELECT min(escaneado_at) FROM escaneos WHERE entrada_id = $1 AND resultado IN ('valida', 'manual')`, id).Scan(&m.ValidadaAt); err != nil {
+			return m, err
+		}
 	}
 	rows, err := s.a.DB.Query(ctx, selSesion+` WHERE s.id = $1`, sid)
 	if err != nil {

@@ -27,7 +27,7 @@ export class Seo {
   private readonly doc = inject(DOCUMENT);
   private readonly res = inject(RESPONSE_INIT, { optional: true });
   readonly origin = 'https://grcup-qa.menustudioai.com';
-  readonly defaultImage = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  readonly defaultImage = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
   /** Ruta de la página que se está renderizando (la fija `set`). */
   readonly path = signal('');
 

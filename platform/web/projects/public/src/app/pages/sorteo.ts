@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, GrLogo, GrRaffleItem, GrRaffleNotice, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { Seo } from '../core/seo';
@@ -55,7 +55,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
 /** /sorteo (Figma page 07): the prize, the rules, how to take part, the result (with its verification) and the purchase form. */
 @Component({
   selector: 'gr-sorteo',
-  imports: [RouterLink, Navbar, Footer, FormsModule, GrButton, GrIcon, GrSkeleton, SecSorteo, SorteoTitulo],
+  imports: [RouterLink, Navbar, Footer, FormsModule, GrButton, GrIcon, GrRaffleItem, GrRaffleNotice, GrSkeleton, SecSorteo, SorteoTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let s = data();
@@ -135,15 +135,10 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
         <!-- Premio -->
         <section [class]="seccion + ' md:pt-0'">
           <gr-sorteo-titulo eyebrow="Premio del sorteo" titulo="Participa para ganar" acento="este premio" />
-          <article class="flex w-full max-w-[360px] flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
-            <div class="relative h-[200px] bg-[radial-gradient(60%_60%_at_50%_45%,#4a121c,#1b1112)]">
-              @if (s.premioImagen) { <img [src]="s.premioImagen" [alt]="s.premio" class="size-full object-cover" loading="lazy" /> }
-            </div>
-            <div class="flex flex-col gap-2 p-5">
-              <h3 class="text-ui-h5">{{ s.premio }}</h3>
-              <p class="text-body-s text-text-tertiary">{{ s.premioDetalle }}@if (s.premioValor) { {{ ' ' }}Valor aproximado {{ euros(s.premioValor) }}. }</p>
-            </div>
-          </article>
+          <!-- Figma «Tarjeta item rifa» + «Aviso · Rifa presencial» (the item showcase from the BO arrives with U13) -->
+          <gr-raffle-item class="w-full max-w-[360px]" [nombre]="s.premio" [descripcion]="s.premioDetalle" [imagen]="s.premioImagen || null"
+            [valor]="s.premioValor ? euros(s.premioValor) : null" [ganador]="s.ganador?.numero ?? null" />
+          <gr-raffle-notice class="w-full max-w-[360px]" [href]="null">Además, el día de la competición hay rifa en la sede: los boletos se compran allí y solo en efectivo.</gr-raffle-notice>
         </section>
 
         <!-- Inscríbete ahora -->

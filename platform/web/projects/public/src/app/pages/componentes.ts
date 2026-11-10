@@ -44,7 +44,8 @@ const ALERTA: Record<string, { tone: GrTone; icon: GrIconName; t: string; accion
   Warning: { tone: 'warning', icon: 'clock', t: 'Quedan 10 plazas. Las inscripciones cierran pronto.', accion: 'Más info', bg: 'bg-warning/15', fg: 'text-warning' },
   Error: { tone: 'danger', icon: 'circle-alert', t: 'El sorteo está cerrado. No se pueden comprar más boletos.', accion: 'Ver resultados', bg: 'bg-accent/15', fg: 'text-accent-text' },
 };
-const LOGO: Record<string, number> = { L: 145, M: 97, S: 44 };
+/** Figma «Logo» Size frames (h, w); the image is fitted in them. */
+const LOGO: Record<string, [number, number]> = { L: [145, 384], M: [97, 256], S: [44, 116] };
 /** Fixed «now» of the countdown states (Figma: 84 d 09 h 41 min 17 s before 19 Dec 2026 08:30). */
 const AHORA = { 'Cuenta atrás': Date.parse('2026-12-19T08:30:00+01:00') - ((84 * 24 + 9) * 3600 + 41 * 60 + 17) * 1000, Hoy: Date.parse('2026-12-19T12:00:00+01:00'), Finalizado: Date.parse('2026-12-22T12:00:00+01:00') } as Record<string, number>;
 
@@ -73,11 +74,11 @@ const DONDE: Record<string, string> = {
   '80:157805': 'pages/alta-atleta.ts',
 };
 
-/** Component-set frame of the Figma page: its size, bg/base, Figma's dashed outline; scrolls sideways on narrow screens. */
+/** Component-set frame of the Figma page: its size, bg/base, Figma's dashed outline; scrolls sideways on narrow screens (contain: its width never stretches the page, so nothing is cut on the left). */
 @Component({
   selector: 'gr-cs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block max-w-full overflow-x-auto' },
+  host: { class: 'block w-full max-w-full overflow-x-auto [contain:inline-size]' },
   template: `<div class="relative shrink-0 rounded-sm border border-dashed border-[#9747ff] bg-bg-base" [style.width.px]="w()" [style.height.px]="h()"><ng-content /></div>`,
 })
 class Cs {
@@ -122,7 +123,7 @@ class Cs {
                 }
                 @case ('80:155408') {
                   <gr-cs id="cs-logo" [w]="sets['logo'].w" [h]="sets['logo'].h">
-                    @for (l of logos; track $index) { <gr-logo class="absolute" [style.left.px]="l.x" [style.top.px]="l.y" [height]="logo[l.p['Size']]" /> }
+                    @for (l of logos; track $index) { <gr-logo class="absolute" [style.left.px]="l.x" [style.top.px]="l.y" [height]="logo[l.p['Size']][0]" [width]="logo[l.p['Size']][1]" /> }
                   </gr-cs>
                 }
                 @case ('80:155418') {
@@ -214,9 +215,9 @@ class Cs {
                       @let t = alerta[a.p['Tone']];
                       <gr-alert class="absolute! w-[520px]" [style.left.px]="a.x" [style.top.px]="a.y" [tone]="t.tone" [icon]="t.icon">{{ t.t }}
                         @if (a.p['Action'] === 'Sí') {
-                          <span alertEnd class="flex shrink-0 items-start gap-3">
+                          <span alertEnd class="flex shrink-0 items-center gap-3 self-center">
                             <a href="#" class="rounded-sm px-2.5 py-1.5 text-label-s" [class]="t.bg + ' ' + t.fg">{{ t.accion }}</a>
-                            <button type="button" class="mt-1.5 text-text-tertiary hover:text-text-primary" aria-label="Cerrar"><gr-icon name="x" [size]="16" /></button>
+                            <button type="button" class="flex text-text-tertiary hover:text-text-primary" aria-label="Cerrar"><gr-icon name="x" [size]="16" /></button>
                           </span>
                         }
                       </gr-alert>
@@ -237,6 +238,8 @@ class Cs {
                   <gr-cs id="cs-ticket" [w]="sets['ticket'].w" [h]="sets['ticket'].h">
                     <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[0][1]" [style.top.px]="sets['ticket'].v[0][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"
                       lugar="Pabellón Municipal de Almussafes" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" />
+                    <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[1][1]" [style.top.px]="sets['ticket'].v[1][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"
+                      lugar="Pabellón Municipal de Almussafes" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" [boletos]="['0412', '0413']" premio="Cinturón SBD" />
                     <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[3][1]" [style.top.px]="sets['ticket'].v[3][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"
                       lugar="Pabellón Municipal de Almussafes" titular="Laura Gómez + 2 acompañantes" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" estado="anulada" />
                     <gr-ticket class="absolute w-[350px]" [style.left.px]="sets['ticket'].v[2][1]" [style.top.px]="sets['ticket'].v[2][2]" linea1="Sábado 25 jul · Sesión de mañana" linea2="Puertas 8:30 · hasta las 14:30"

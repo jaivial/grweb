@@ -160,7 +160,7 @@ export class SecEntradas {
   readonly sorteo = input<SorteoHome | null>(null);
   protected readonly glow = GLOW;
   protected readonly ancho = ANCHO;
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
   protected readonly icons: GrIconName[] = ['ticket', 'users', 'trophy'];
   protected readonly avatares = ['LG', 'CS', 'MR', 'JT'];
   protected readonly num = num;

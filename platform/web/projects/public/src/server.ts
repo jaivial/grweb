@@ -67,8 +67,13 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// /_componentes renders client-side only (no meta robots in the shell): keep it out of the index with the header.
+app.use('/_componentes', (_req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
 app.get('/robots.txt', (_req, res) => {
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /pantalla/\nSitemap: ${ORIGIN}/sitemap.xml\n`);
+  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /pantalla/\nDisallow: /_componentes\nSitemap: ${ORIGIN}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml', async (_req, res) => {

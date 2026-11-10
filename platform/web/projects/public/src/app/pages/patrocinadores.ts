@@ -8,7 +8,7 @@ import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Related } from './landings';
 
-const LOGO_GR = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+const LOGO_GR = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
 const NIVEL: Record<string, string> = { principal: 'Principal', oro: 'Oro', plata: 'Plata', colaborador: 'Colaborador', institucional: 'Federación' };
 const ORDEN = ['principal', 'oro', 'plata', 'colaborador'];
 

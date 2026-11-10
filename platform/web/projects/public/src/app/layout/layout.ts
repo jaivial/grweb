@@ -48,7 +48,7 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
     { label: 'Atletas', desc: 'Perfiles y su horario', href: '/atletas' },
     { label: 'Horarios', desc: 'Flights y plataforma, en directo', href: '/horarios' },
     { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
-    { label: 'Sorteo', desc: '1 € por boleto', href: '/sorteo' },
+    { label: 'Sorteo', desc: 'Premio y boletos', href: '/sorteo' },
     { label: 'Galería', desc: 'Fotos de la competición', href: '/galeria' },
   ] },
   { titulo: 'Visita y comunidad', items: [
@@ -82,10 +82,10 @@ const UI = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
   template: `
-    <nav class="relative mx-auto flex h-[62px] max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[10px] md:h-[70px] md:px-6" aria-label="Principal">
+    <nav class="relative mx-auto flex h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[10px] md:h-[72px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
-      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-auto md:h-10" /></a>
+      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-24 object-contain md:h-10 md:w-[116px]" /></a>
       <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»), desktop all five -->
       <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-2">
         @for (l of links(); track l.href; let i = $index) {
@@ -104,11 +104,11 @@ const UI = {
       </ul>
       <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
       <a grButton variant="primary" href="/entradas" class="relative ml-auto md:ml-0">{{ ui().cta }}</a>
-      <button type="button" data-menu class="relative flex size-11 shrink-0 items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="ui().open" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
+      <button type="button" data-menu class="relative flex size-11 shrink-0 items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="ui().open" [attr.aria-expanded]="open()" aria-controls="menu-movil" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
     </nav>
     @if (mega()) {
       <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] flex-wrap gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card md:flex lg:flex-nowrap" (keydown.escape)="mega.set(false)">
-        @for (col of megaCols; track col.titulo) {
+        @for (col of megaCols(); track col.titulo) {
           <div class="flex w-[194px] flex-col gap-1 lg:w-[250px]">
             <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
             @for (it of col.items; track it.href) {
@@ -119,17 +119,18 @@ const UI = {
         <div class="flex w-full flex-col gap-2 self-start rounded-lg border lg:ml-auto lg:w-[240px] border-accent/60 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] p-5">
           <p class="text-label-xs text-text-secondary">Entrada gratuita</p>
           <p class="text-display-2xs">Vive la GR Cup en directo</p>
-          <p class="text-body-s text-text-secondary">Reserva gratis y súmate al sorteo por 1 €.</p>
-          <a grButton variant="primary" href="/entradas" class="mt-2 self-start">Reservar</a>
+          <p class="text-body-s text-text-secondary">{{ sorteo()?.estado === 'en_venta' ? 'Reserva gratis y súmate al sorteo por ' + euros(sorteo()!.precio) + '.' : 'Reserva gratis tu plaza en las gradas.' }}</p>
+          <!-- Figma: «Button / Display» 44 with glow -->
+          <a grButton variant="display" href="/entradas" class="mt-2 self-start md:h-11!">Reservar</a>
         </div>
       </div>
     }
     @if (open()) {
       <!-- Figma «Mobile menu v3»: logo, ES / EN and close; the four main links; the groups as an accordion (the first one
            open); the edition line and the booking button at the bottom -->
-      <div class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base px-5 pt-3 md:hidden" role="dialog" aria-modal="true" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
+      <div id="menu-movil" class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base px-5 pt-3 md:hidden" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
-          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-auto" /></a>
+          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
             <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
               <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
@@ -175,8 +176,25 @@ export class Navbar {
   private readonly el = inject(ElementRef<HTMLElement>);
   /** The mega menu closes with a click outside the navbar (and with Esc). */
   protected fuera(e: Event): void { if (this.mega() && !this.el.nativeElement.contains(e.target as Node)) this.mega.set(false); }
-  protected readonly megaCols = MEGA;
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png';
+  /** Raffle price and state for the mega menu (fetched the first time it opens; set in the backoffice). */
+  protected readonly sorteo = signal<{ estado: string; precio: number } | null>(null);
+  protected readonly euros = (c: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(c / 100).replace(',00', '');
+  protected readonly megaCols = computed(() => {
+    const s = this.sorteo();
+    const desc = !s ? 'Premio y boletos' : s.estado === 'sorteado' ? 'Ganador publicado' : s.estado === 'en_venta' ? `${this.euros(s.precio)} por boleto` : 'Premio y boletos';
+    return MEGA.map((c) => ({ ...c, items: c.items.map((it) => (it.href === '/sorteo' ? { ...it, desc } : it)) }));
+  });
+  private readonly http = inject(HttpClient);
+  /** Mobile menu is a modal: Tab / Shift+Tab cycle inside it. */
+  protected atrapar(e: Event): void {
+    const k = e as KeyboardEvent;
+    const f = [...(k.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('a[href], button:not([disabled])')];
+    if (!f.length) return;
+    const [primero, ultimo] = [f[0], f[f.length - 1]];
+    if (k.shiftKey && document.activeElement === primero) { k.preventDefault(); ultimo.focus(); }
+    else if (!k.shiftKey && document.activeElement === ultimo) { k.preventDefault(); primero.focus(); }
+  }
+  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
   protected readonly links = computed(() => LINKS[this.lang()]);
   private readonly comp = inject(Competition);
   private readonly router = inject(Router);
@@ -194,7 +212,15 @@ export class Navbar {
     return `Edición ${(c?.fechaInicio ?? '2026').slice(0, 4)} · ${f} · ${c?.sede?.ciudad || 'Almussafes'}`;
   });
   constructor() {
+    // current route also on the server: the SSR HTML already marks the active link (no flash, aria-current for crawlers)
+    this.actual.set(this.router.url.split(/[?#]/)[0]);
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      let pedido = false;
+      effect(() => {
+        if (!this.mega() || pedido) return;
+        pedido = true;
+        void firstValueFrom(this.http.get<{ estado: string; precio: number }>(`/api/competiciones/${COMPETITION_SLUG}/sorteo`)).then((x) => this.sorteo.set(x), () => undefined);
+      });
       // the menu is a modal: no page scroll behind it, and it closes on navigation
       // focus goes into the menu when it opens (to «close») and back to the hamburger when it closes; Esc closes it
       let estaba = false;
@@ -206,7 +232,6 @@ export class Navbar {
         estaba = abierto;
       });
       const sub = this.router.events.subscribe(() => { this.open.set(false); this.actual.set(this.router.url.split(/[?#]/)[0]); });
-      this.actual.set(this.router.url.split(/[?#]/)[0]);
       inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); document.body.style.overflow = ''; });
     }
   }
@@ -243,7 +268,7 @@ export class Overlays {
     @if (lang() === 'en') {
       <div class="mx-auto grid max-w-[1440px] gap-10 px-5 py-14 md:grid-cols-[1.4fr_1fr_1fr] md:px-8 xl:px-[120px]">
         <div>
-          <gr-logo [height]="44" />
+          <gr-logo [height]="56" [width]="150" />
           <p class="mt-4 max-w-sm text-body-s text-text-tertiary">Powerlifting championship in Almussafes (Valencia, Spain). Organised by GR Strength.</p>
         </div>
         <nav aria-label="Competition">
@@ -268,11 +293,11 @@ export class Overlays {
       <p class="border-t border-line-subtle px-5 py-5 text-center text-body-xs text-text-muted">© {{ year }} GR Strength · All rights reserved</p>
     } @else {
     <!-- Figma «Footer»: mobile 48/20/32 with 28 between blocks, desktop 72/80/32 with 48 -->
-    <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-28 md:gap-12 md:px-8 md:pt-[72px] md:pb-10 xl:px-[120px]">
+    <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-[46px] md:gap-12 md:px-8 md:pt-[72px] md:pb-10 xl:px-[120px]">
       <gr-newsletter [nivel]="nivelNewsletter()" />
       <div class="grid lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
         <div class="mb-6 flex flex-col gap-4 lg:mb-0">
-          <gr-logo [height]="56" />
+          <gr-logo [height]="56" [width]="150" />
           <p class="max-w-[300px] text-body-s text-text-tertiary">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo de material SBD para la comunidad.</p>
           <div class="flex gap-2">
             <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="instagram" [size]="18" /></a>
