@@ -77,7 +77,7 @@ const AngledImage: FC<{ src: string; alt: string; rotation: 'left' | 'center' | 
         <div className="pointer-events-none absolute inset-0" data-ui={`image-shade-${dataUi}`} style={{ background: 'linear-gradient(to bottom, rgba(20,17,18,0) 0%, rgba(20,17,18,0) 55%, rgba(20,17,18,0.92) 100%)' }} aria-hidden />
         <div className="absolute inset-x-5 bottom-5 flex flex-col items-start gap-2" data-ui={`image-caption-${dataUi}`}>
           <span className="rounded-full bg-[#c42b3e] px-2.5 py-1 text-xs uppercase leading-[1.2] tracking-[0.04em] text-white" data-ui={`image-tag-${dataUi}`}>{tag}</span>
-          <h3 className="font-contrail text-[30px] leading-[1.2] tracking-[0.05em] text-white" style={{ textShadow: '0 0 20px rgba(0,0,0,0.8)' }} data-ui={`image-name-${dataUi}`}>{name}</h3>
+          <h3 className="font-contrail text-[30px] uppercase leading-[1.2] tracking-[0.05em] text-white" style={{ textShadow: '0 0 20px rgba(0,0,0,0.8)' }} data-ui={`image-name-${dataUi}`}>{name}</h3>
         </div>
       </div>
     </div>
@@ -103,14 +103,12 @@ export const PricesAllMovementsSection: FC<PricesAllMovementsSectionProps> = ({ 
   return (
     <section id="premios" ref={sectionRef} className={`relative isolate scroll-mt-[88px] overflow-hidden pt-[220px] sm:pt-[300px] 3xl:pt-[420px] ${className}`} style={{ minHeight: 'auto', background: '#141112', paddingBottom: '80px' }} data-section="prices-all-movements" data-ui="prices-all-movements-section">
       {/* Figma 199:211/199:212: grain + accent glow (#C42B3E α.20) behind the medals, 640 px at y 120. */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.06] mix-blend-overlay" data-ui="bg-grain" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} aria-hidden />
+      <div className="absolute inset-0 pointer-events-none opacity-[0.06] mix-blend-overlay" data-ui="bg-grain" style={{ maskImage: 'linear-gradient(to bottom, transparent 0, black 180px, black calc(100% - 160px), transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 180px, black calc(100% - 160px), transparent 100%)', backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} aria-hidden />
       <div className="absolute left-1/2 top-[120px] h-[640px] w-[640px] -translate-x-1/2 rounded-full pointer-events-none" data-ui="medals-glow" style={{ background: 'radial-gradient(circle, rgba(196, 43, 62, 0.2) 0%, transparent 100%)' }} aria-hidden />
       <HangingMedals medals={medals} layouts={HANGING_LAYOUTS} physics={MEDAL_PHYSICS} containerRef={sectionRef} onMedalHover={handleMedalHover} />
       {/* Figma 199:238: the ribbons emerge from the dark (180 px, solid to 40 %, 55 % at 72 %). Above the medals (z-30) so the ribbon tops fade out. */}
       <div className="absolute top-0 left-0 right-0 h-[180px] pointer-events-none z-[35]" data-ui="fade-overlay-top" style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #141112 40%, rgba(20,17,18,0.55) 72%, rgba(20,17,18,0) 100%)' }} aria-hidden />
-      <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-10" data-ui="fade-overlay-bottom" style={{ background: 'linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,0) 100%)' }} aria-hidden />
-      <div className="absolute top-0 bottom-0 left-0 w-16 pointer-events-none z-10" data-ui="fade-overlay-left" style={{ background: 'linear-gradient(to right, #141112 0%, transparent 100%)' }} aria-hidden />
-      <div className="absolute top-0 bottom-0 right-0 w-16 pointer-events-none z-10" data-ui="fade-overlay-right" style={{ background: 'linear-gradient(to left, #141112 0%, transparent 100%)' }} aria-hidden />
+      <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none z-[45]" data-ui="fade-overlay-bottom" style={{ background: 'linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,0.6) 35%, rgba(10,10,10,0) 100%)' }} aria-hidden />
 
       <div className="relative max-w-6xl mx-auto px-6 lg:px-12" data-ui="section-content">
         <AnimatedItem direction="up" delay={100} dataUi="animated-title" className="relative z-[40]">
