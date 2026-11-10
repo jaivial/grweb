@@ -106,7 +106,7 @@ export class GrStepNumber {}
         @if (checked()) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
       </span>
       @if (kind() === 'instagram') { <gr-icon name="instagram" [size]="16" class="text-accent-text" /> }
-      <span class="min-w-0 flex-1"><ng-content /></span>
+      <span class="min-w-0 flex-1 [overflow-wrap:anywhere]"><ng-content /></span>
     </label>
   `,
 })
@@ -227,7 +227,7 @@ export class GrCountdown {
 @Component({
   selector: 'gr-raffle-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card' },
+  host: { class: 'flex min-w-0 flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card [overflow-wrap:anywhere]' },
   template: `
     @if (imagen()) {
       <img [src]="imagen()" [alt]="nombre()" loading="lazy" class="h-[200px] w-full shrink-0 border-b border-white/8 object-cover" />
@@ -262,7 +262,7 @@ export class GrRaffleItem {
 @Component({
   selector: 'gr-raffle-notice',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-2 rounded-lg border border-line-subtle bg-[#1a1517] p-5' },
+  host: { class: 'flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-[#1a1517] p-5 [overflow-wrap:anywhere]' },
   template: `
     <p class="text-label-m text-[#f2f2f3]">{{ titulo() }}</p>
     <p class="text-body-s leading-[1.2] text-[#a9adb4]"><ng-content /></p>
