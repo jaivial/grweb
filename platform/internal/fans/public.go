@@ -177,14 +177,19 @@ func (s *Svc) registerPublic() {
 	}
 	type yoOut struct {
 		Status    int
-		SetCookie []http.Cookie `header:"Set-Cookie" doc:"Solo cuando la sesión está a menos de 7 días de caducar: se re-emite"`
+		SetCookie []http.Cookie `header:"Set-Cookie" doc:"Se re-emite a menos de 7 días de caducar; se borra (Max-Age=0) si la sesión no vale"`
 		Body      Yo
 	}
 	huma.Register(api, huma.Operation{OperationID: "fans-yo", Method: http.MethodGet, Path: base + "/yo",
-		Summary: "Mi cuenta de directo (204 sin cookie ni cabecera: visitante anónimo, sin 401 en la consola)", Tags: tagFans},
+		Summary: "Mi cuenta de directo (204 sin sesión válida: visitante anónimo, sin 401 en la consola; borra la cookie caducada)", Tags: tagFans},
 		func(ctx context.Context, in *yoIn) (*yoOut, error) {
 			if in.Session == "" && in.Header == "" {
 				return &yoOut{Status: http.StatusNoContent}, nil
+			}
+			// Expired/invalid/revoked session: anonymous visitor, and the dead cookie is cleared.
+			anonimo := &yoOut{Status: http.StatusNoContent}
+			if in.Session != "" {
+				anonimo.SetCookie = []http.Cookie{*s.cookie("", -1)}
 			}
 			cid, err := s.comps.ID(ctx, in.Slug)
 			if err != nil {
@@ -192,16 +197,16 @@ func (s *Svc) registerPublic() {
 			}
 			f, err := s.sesion(ctx, cid, in.Session, in.Header)
 			if err != nil {
-				return nil, err
+				return anonimo, nil
 			}
 			row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1 AND competition_id = $2`, f.ID, cid))
 			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, fanauth.Problem(fanauth.ErrRevoked)
+				return anonimo, nil
 			} else if err != nil {
 				return nil, err
 			}
 			if row.Version > f.Ver { // revoked while Redis was unreachable: fail closed now
-				return nil, fanauth.Problem(fanauth.ErrRevoked)
+				return anonimo, nil
 			}
 			o := &yoOut{Body: s.yoDe(row)}
 			// Re-issue while the session is in use so an active fan is never logged out mid-event.
