@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
-import { COMPETITION_SLUG, Competition } from '../core/competition';
+import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
 import { Seo } from '../core/seo';
@@ -148,6 +148,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
         <aside id="reservar" #reservarEl class="scroll-mt-24 lg:col-start-2 lg:row-start-1">
           <div class="lg:sticky lg:top-28">
             @if (d === undefined) { <gr-skeleton class="h-[640px] rounded-2xl" /> }
+            @else if (d === null && fallo.limitado()) { <gr-alert tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert> }
             @else if (d === null) { <gr-alert tone="warning" title="No hemos podido cargar las entradas">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert> }
             @else if (todasAgotadas() && !sesSel()) {
               <!-- Figma «Todo agotado»: no form; the waiting list is per session -->
@@ -359,6 +360,7 @@ export class EntradasPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   protected readonly comp = inject(Competition);
+  protected readonly fallo = inject(FalloApi);
   private readonly reservarEl = viewChild<ElementRef<HTMLElement>>('reservarEl');
   protected readonly hora = hora;
   protected readonly estado = ESTADO;

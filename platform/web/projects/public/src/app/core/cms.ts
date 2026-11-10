@@ -3,7 +3,7 @@ import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { NavigationStart, Router } from '@angular/router';
 import { marked } from 'marked';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG, esLimitado, esNoEncontrado, marcarFallo } from './competition';
+import { COMPETITION_SLUG, FalloApi, esNoEncontrado } from './competition';
 
 export type Seccion = Record<string, unknown>;
 
@@ -99,18 +99,18 @@ const base = `/api/competiciones/${COMPETITION_SLUG}`;
 export class Cms {
   private readonly http = inject(HttpClient);
   private readonly res = inject(RESPONSE_INIT, { optional: true });
+  private readonly fallo = inject(FalloApi);
   private seo?: Promise<SeoMap | null>;
   /** True when the API failed (not a 4xx «not found»): pages show a retry message and SSR answers 503 (429 when rate limited), never a false 404. */
   readonly failed = signal(false);
-  /** The failure was the gateway's rate limit (429) for the visitor's network. */
-  readonly limitado = signal(false);
+  /** Some API call of the page (any service) got the gateway's rate limit (429) for the visitor's network. */
+  readonly limitado = this.fallo.limitado;
 
   constructor() {
     // In the browser this service outlives pages: a transient error must not mark the next page as failed.
     inject(Router).events.subscribe((e) => {
       if (e instanceof NavigationStart) {
         this.failed.set(false);
-        this.limitado.set(false);
       }
     });
   }
@@ -148,8 +148,7 @@ export class Cms {
     } catch (e) {
       if (esNoEncontrado(e)) return null;
       this.failed.set(true);
-      if (esLimitado(e)) this.limitado.set(true);
-      marcarFallo(this.res, e);
+      this.fallo.marcar(e);
       return null;
     }
   }

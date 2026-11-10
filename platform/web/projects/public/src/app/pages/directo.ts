@@ -7,7 +7,7 @@ import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
-import { COMPETITION_SLUG, type CompeticionPublica } from '../core/competition';
+import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Mov, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
 import { Seo } from '../core/seo';
@@ -153,7 +153,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
     <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabeceraMovil]="false">
       @let d = dir();
       @if (d === undefined) { <gr-skeleton class="h-[480px] rounded-lg" /> }
-      @else if (d === null) { <gr-alert tone="warning" title="No hemos podido cargar el directo">Vuelve a intentarlo en unos segundos.</gr-alert> }
+      @else if (d === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar el directo">Vuelve a intentarlo en unos segundos.</gr-alert> } }
       @else {
         @if (d.pausa && d.fase === 'en_directo') { <gr-alert class="mb-5" tone="warning" title="Pausa técnica">Volvemos enseguida.@if (d.retrasoMin) { Vamos con {{ d.retrasoMin }} min de retraso. }</gr-alert> }
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
@@ -312,6 +312,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
 })
 export class EnDirectoPage {
   private readonly api = inject(DirectoPublic);
+  protected readonly fallo = inject(FalloApi);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly dir = signal<Directo | null | undefined>(undefined);
   protected readonly tab = signal<'plataforma' | 'clasificacion' | 'horario'>('clasificacion');
@@ -506,7 +507,7 @@ export class ResultadosIndexPage {
         </div>
       }
       @if (r === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else if (r === null) { <gr-alert tone="warning" title="No hemos podido cargar los resultados">Vuelve a intentarlo en unos minutos.</gr-alert> }
+      @else if (r === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar los resultados">Vuelve a intentarlo en unos minutos.</gr-alert> } }
       @else if (!r.publicado) {
         <div class="rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
           <p class="text-ui-h4">Aún no hay resultados publicados</p>
@@ -585,6 +586,7 @@ export class ResultadosIndexPage {
 })
 export class ResultadosEdicionPage {
   private readonly api = inject(DirectoPublic);
+  protected readonly fallo = inject(FalloApi);
   private readonly cms = inject(Cms);
   protected readonly anio = signal(inject(ActivatedRoute).snapshot.paramMap.get('anio') ?? '');
   protected readonly res = signal<ResultadosPublicos | null | undefined>(undefined);

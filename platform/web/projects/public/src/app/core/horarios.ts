@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { COMPETITION_SLUG, marcarFallo } from './competition';
+import { COMPETITION_SLUG, FalloApi } from './competition';
 
 export interface PubAtleta { slug: string; nombre: string; club: string; divisionNombre: string; sexo: 'F' | 'M'; categoria: string; lote: number }
 export interface PubFlight {
@@ -18,7 +18,7 @@ export const ICS_URL = `/api/competiciones/${COMPETITION_SLUG}/horarios.ics`;
 @Injectable({ providedIn: 'root' })
 export class HorariosPublic {
   private readonly http = inject(HttpClient);
-  private readonly res = inject(RESPONSE_INIT, { optional: true });
+  private readonly fallo = inject(FalloApi);
   readonly failed = signal(false);
 
   async get(): Promise<Horarios | null> {
@@ -27,7 +27,7 @@ export class HorariosPublic {
       return await firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios`));
     } catch (e) {
       this.failed.set(true);
-      if (!(e instanceof HttpErrorResponse && e.status === 404)) marcarFallo(this.res, e);
+      if (!(e instanceof HttpErrorResponse && e.status === 404)) this.fallo.marcar(e);
       return null;
     }
   }

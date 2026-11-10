@@ -12,7 +12,7 @@ export interface SeoData {
   lang?: 'es' | 'en';
   /** hreflang alternates, e.g. [{ hreflang: 'es', path: '/' }, { hreflang: 'en', path: '/en' }, { hreflang: 'x-default', path: '/' }]. */
   alternates?: { hreflang: string; path: string }[];
-  /** «noindex» for private pages (athlete area). */
+  /** «noindex» for private pages (athlete area) and 404s (no canonical either). */
   robots?: string;
 }
 

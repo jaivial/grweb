@@ -296,7 +296,7 @@ export class BlogPostPage {
       if (!p) {
         this.p.set(null);
         this.cms.notFound();
-        seo.set({ title: this.cms.failed() ? 'GR Strength Cup' : 'Página no encontrada · GR Strength Cup', description: this.cms.failed() ? 'Contenido no disponible ahora mismo.' : 'La página no existe.', path: '/blog/' + slug });
+        seo.set({ title: this.cms.failed() ? 'GR Strength Cup' : 'Página no encontrada · GR Strength Cup', description: this.cms.failed() ? 'Contenido no disponible ahora mismo.' : 'La página no existe.', path: '/blog/' + slug, ...(this.cms.failed() ? {} : { robots: 'noindex' }) });
         return;
       }
       const r = renderMarkdown(p.cuerpo ?? '');

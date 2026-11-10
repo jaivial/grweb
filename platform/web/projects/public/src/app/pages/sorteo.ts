@@ -1,12 +1,12 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, RESPONSE_INIT, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon, GrLogo, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
-import { COMPETITION_SLUG, Competition, marcarFallo } from '../core/competition';
+import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { Seo } from '../core/seo';
 import { SecSorteo } from '../home/sorteo';
 import { Footer, Navbar, instagramOf } from '../layout/layout';
@@ -65,7 +65,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
       @else if (s === null) {
         <div class="mx-auto flex max-w-[640px] flex-col items-center gap-4 px-5 pt-[120px] pb-24 text-center md:pt-40">
           <h1 class="text-display-m md:text-display-l">Sorteo</h1>
-          <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-left text-body-s text-text-secondary" role="alert"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />No hemos podido cargar el sorteo. Vuelve a intentarlo en unos minutos.</p>
+          <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-left text-body-s text-text-secondary" role="alert"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />{{ fallo.limitado() ? 'Demasiadas visitas desde tu red: espera un minuto y vuelve a cargar la página.' : 'No hemos podido cargar el sorteo. Vuelve a intentarlo en unos minutos.' }}</p>
         </div>
       } @else {
         <!-- Figma «Section / Sorteo» (the same panel as the home, as the page's hero) -->
@@ -216,7 +216,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
 })
 export class SorteoPage {
   private readonly http = inject(HttpClient);
-  private readonly res = inject(RESPONSE_INIT, { optional: true });
+  protected readonly fallo = inject(FalloApi);
   private readonly comp = inject(Competition);
   protected readonly data = signal<Publico | null | undefined>(undefined);
   protected readonly cantidad = signal(1);
@@ -272,7 +272,7 @@ export class SorteoPage {
         this.cantidad.set(Math.min(Number.isInteger(pedidos) && pedidos >= 1 ? pedidos : (s.presets?.[0] ?? 1), s.maxPorPersona));
       } catch (e) {
         this.data.set(null);
-        if (!(e instanceof HttpErrorResponse && e.status === 404)) marcarFallo(this.res, e);
+        if (!(e instanceof HttpErrorResponse && e.status === 404)) this.fallo.marcar(e);
       }
       const s = this.data();
       await applySeo(cms, seo, '/sorteo', 'Sorteo · GR Strength Cup', s ? `Participa en el sorteo de un ${s.premio} por ${euros(s.precio)} el boleto. Sorteo en directo.` : 'Sorteo de la GR Strength Cup.');

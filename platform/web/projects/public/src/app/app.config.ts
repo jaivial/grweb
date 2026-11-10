@@ -3,12 +3,12 @@ import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/
 import { provideClientHydration, withEventReplay, withHttpTransferCacheOptions } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { routes } from './app.routes';
-import { apiBaseInterceptor } from './core/competition';
+import { apiBaseInterceptor, noEncontradoInterceptor } from './core/competition';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withFetch(), withInterceptors([apiBaseInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([noEncontradoInterceptor, apiBaseInterceptor])),
     provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'enabled' }), withComponentInputBinding()),
     provideClientHydration(withEventReplay(), withHttpTransferCacheOptions({ includePostRequests: false })),
   ],
