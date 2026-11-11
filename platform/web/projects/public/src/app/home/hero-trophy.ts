@@ -76,8 +76,8 @@ const PUFFS = [
         <h1 class="mt-[65px] max-w-[1000px] font-display text-[30px] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
         @if (fechas() || lugar()) {
           <p class="mt-[66px] flex flex-col items-center gap-1 md:mt-[63px]">
-            @if (fechas()) { <span class="text-[14px] leading-[15px] font-extrabold tracking-[0.08em] uppercase md:text-[20px] md:leading-[22px]">{{ fechas() }}</span> }
-            @if (lugar()) { <span class="text-[9px] leading-[10px] font-medium tracking-[0.1em] text-text-secondary uppercase md:text-[11px] md:leading-3">{{ lugar() }}</span> }
+            @if (fechas()) { <span class="font-archivo text-[14px] leading-[15px] font-extrabold tracking-[0.08em] uppercase md:text-[20px] md:leading-[22px]">{{ fechas() }}</span> }
+            @if (lugar()) { <span class="font-archivo text-[9px] leading-[10px] font-medium tracking-[0.1em] text-text-secondary uppercase md:text-[11px] md:leading-3">{{ lugar() }}</span> }
           </p>
         } @else if (metaPartes().length) {
           <p class="mt-10 flex flex-wrap items-center justify-center gap-2.5 text-label-xs text-text-secondary">
@@ -165,7 +165,8 @@ export class HeroTrophy {
   protected readonly pista = computed(() => (this.aparecido() && this.p() < 0.05 ? 1 : 0));
   protected readonly humo = computed(() => (this.reduced() ? 1 : 1 - ease(tramo(this.p(), T.humo)) * 0.85));
   protected readonly desvio = computed(() => ease(tramo(this.p(), T.humo)));
-  protected readonly trofeo = computed(() => (this.reduced() ? 0.35 : Math.min(1, tramo(this.p(), [0.03, 0.1]))));
+  // The trophy takes over while the intro text leaves (Figma 04: clean background behind the text at scroll 0)
+  protected readonly trofeo = computed(() => (this.reduced() ? 0 : ease(tramo(this.p(), T.textoFuera))));
   protected readonly nubes = computed(() => ease(tramo(this.p(), T.nubes)));
 
   private progress = 0;
