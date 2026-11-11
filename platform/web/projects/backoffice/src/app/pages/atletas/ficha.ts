@@ -189,7 +189,7 @@ const PUBLIC_WEB = webPublica();
                 <div class="mt-4 grid gap-4 md:grid-cols-2">
                   <gr-field label="Nombre" for="d-n"><input grInput id="d-n" [(ngModel)]="d.nombre" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Apellidos" for="d-a"><input grInput id="d-a" [(ngModel)]="d.apellidos" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Licencia AEP" for="d-l"><input grInput id="d-l" [(ngModel)]="d.licencia" [disabled]="!canEdit()" /></gr-field>
+                  <gr-field label="Licencia AEP" for="d-l" [error]="errLicencia()"><input grInput id="d-l" [(ngModel)]="d.licencia" (ngModelChange)="errLicencia.set('')" [invalid]="!!errLicencia()" [attr.aria-describedby]="errLicencia() ? 'd-l-error' : null" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Fecha de nacimiento" for="d-f" [hint]="a.edad !== undefined ? a.edad + ' años el día de la competición' : null"><input grInput id="d-f" type="date" [(ngModel)]="d.fechaNacimiento" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Sexo" for="d-s"><gr-select id="d-s" [(ngModel)]="d.sexo" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
                   <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@if (!d.categoria) { <option value="">Sin categoría</option> }@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (d.categoria && !categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
@@ -290,6 +290,8 @@ export class AtletaFichaPage {
   protected readonly enviando = signal(false);
   protected readonly subiendo = signal(false);
   protected readonly conflicto = signal(false);
+  /** 422 of the licence from the server, shown on its field (U06-R6-1). */
+  protected readonly errLicencia = signal('');
   private readonly rev = signal(0); // bumped when the form model is replaced or changed outside a template event
   protected p: Atleta['perfil'] = this.blankPerfil();
   protected d = this.blankDatos();
@@ -345,6 +347,7 @@ export class AtletaFichaPage {
     this.atleta.set(a);
     this.p = structuredClone(a.perfil);
     this.d = this.datosDe(a);
+    this.errLicencia.set('');
     this.registrarConsentimiento = false;
     this.rev.update((v) => v + 1);
   }
@@ -379,7 +382,13 @@ export class AtletaFichaPage {
       this.toasts.success('Ficha guardada');
     } catch (e) {
       if (e instanceof HttpErrorResponse && e.error?.code === 'CONFLICTO_EDICION') this.conflicto.set(true);
-      else this.toasts.error('No se pudo guardar', errText(e));
+      else {
+        if (e instanceof HttpErrorResponse && (e.error?.code === 'LICENCIA_INVALIDA' || e.error?.errors?.some?.((x: { location?: string }) => x.location === 'body.licencia'))) {
+          this.errLicencia.set(e.error?.detail ?? 'Licencia no válida');
+          document.getElementById('d-l')?.focus();
+        }
+        this.toasts.error('No se pudo guardar', errText(e));
+      }
     } finally {
       this.guardando.set(false);
     }

@@ -31,6 +31,12 @@ const catTexto = (c: string) => {
   return k ? `${sexo} ${cat(k)} kg` : c;
 };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/** Same rule as the server (athletes.NormLicencia + licenciaValida). */
+const normLicencia = (s: string) => s.replace(/[\s.-]/g, '').toUpperCase();
+const LICENCIA = /^[A-Z0-9]{3,20}$/;
+const MSG_LICENCIA = 'Solo letras sin tilde y números: de 3 a 20, sin contar guiones, puntos ni espacios';
+/** 422 codes without errors[] that belong to one field. */
+const CAMPO_DE_CODIGO: Record<string, string> = { LICENCIA_INVALIDA: 'licencia', EMAIL_INVALIDO: 'email', FECHA_INVALIDA: 'fechaNacimiento', EDAD_MINIMA: 'fechaNacimiento', NOMBRE_INVALIDO: 'nombre' };
 
 /** Shared look of the form controls (Figma 06b «Input»: 48 px, radius 10, padding 14). */
 const CAMPO = 'h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none';
@@ -334,7 +340,7 @@ export class InscripcionPage {
   });
   protected readonly resumenErrores = computed(() => {
     const e = this.err();
-    const l = this.campos.filter((f) => e[f.k]).map((f) => `${f.label}: ${f.corto}`);
+    const l = this.campos.filter((f) => e[f.k]).map((f) => `${f.label}: ${e[f.k] === f.error ? f.corto : e[f.k]}`);
     if (e['terminos']) l.push('Términos y privacidad: acéptalos para continuar');
     return l;
   });
@@ -431,13 +437,36 @@ export class InscripcionPage {
     if (!EMAIL.test(d.email.trim())) e['email'] = msg('email');
     if (!d.categoria) e['categoria'] = msg('categoria');
     if (!d.fechaNacimiento) e['fechaNacimiento'] = msg('fechaNacimiento');
-    if (d.licencia.trim().length < 3) e['licencia'] = msg('licencia');
+    const lic = normLicencia(d.licencia);
+    if (!lic) e['licencia'] = msg('licencia');
+    else if (!LICENCIA.test(lic)) e['licencia'] = MSG_LICENCIA;
     if (!this.acepta.terminos || !this.acepta.privacidad) e['terminos'] = 'Acepta los términos, el reglamento y la política de privacidad';
     return e;
   }
 
   protected revalidar(): void {
     if (this.intentado) this.err.set(this.validar());
+  }
+
+  private enfocarResumen(): void {
+    // the summary sits above the form: take the person there (Figma 06 «Errores de validación»)
+    afterNextRender(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }), { injector: this.injector });
+  }
+
+  /** Field errors of a 422 (errors[].location body.x, or a code tied to one field); true if any was shown. */
+  private erroresServidor(err: unknown): boolean {
+    const b = (err as { error?: { code?: string; detail?: string; errors?: { location?: string; message?: string }[] } }).error;
+    const e: Record<string, string> = {};
+    for (const x of b?.errors ?? []) {
+      const k = x.location?.replace(/^body\./, '');
+      if (k && this.campos.some((f) => f.k === k)) e[k] = x.message || b?.detail || '';
+    }
+    const k = CAMPO_DE_CODIGO[b?.code ?? ''];
+    if (k && !e[k]) e[k] = b?.detail ?? '';
+    if (!Object.keys(e).length) return false;
+    this.err.set(e);
+    this.enfocarResumen();
+    return true;
   }
 
   protected async enviar(): Promise<void> {
@@ -447,8 +476,7 @@ export class InscripcionPage {
     const e = this.validar();
     this.err.set(e);
     if (Object.keys(e).length) {
-      // the summary sits above the form: take the person there (Figma 06 «Errores de validación»)
-      afterNextRender(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }), { injector: this.injector });
+      this.enfocarResumen();
       return;
     }
     this.enviando.set(true);
@@ -470,6 +498,7 @@ export class InscripcionPage {
       const c = codigoError(err);
       if (c !== 'INSCRIPCION_EN_CURSO' && !c.startsWith('HTTP_0') && !c.startsWith('HTTP_5')) this.idem = ''; // a rejected form gets a new key once fixed
       if (c.startsWith('SESION_FAN')) return this.pedirAcceso();
+      if (this.erroresServidor(err)) return;
       this.error.set((err as { error?: { detail?: string } }).error?.detail ?? 'No se pudo completar la inscripción. Inténtalo en unos minutos.');
     } finally {
       this.enviando.set(false);

@@ -706,7 +706,7 @@ func (d *DatosIn) validate() error {
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
 	d.Categoria = NormCategoria(d.Categoria)
 	if d.Licencia != "" && !licenciaValida.MatchString(d.Licencia) {
-		return problem.Unprocessable("LICENCIA_INVALIDA", msgLicenciaInvalida)
+		return errLicencia()
 	}
 	if d.Email != "" && !strings.Contains(d.Email, "@") {
 		return problem.Unprocessable("EMAIL_INVALIDO", "El email no es válido.")
