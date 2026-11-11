@@ -580,7 +580,7 @@ export class SecLocalizacion {
 /** «Section / FAQ»: the featured questions as an accordion (the first one open) and the contact link. */
 @Component({
   selector: 'gr-sec-faq',
-  imports: [GrButton, GrIcon, GrCabecera],
+  imports: [RouterLink, GrButton, GrIcon, GrCabecera],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
@@ -599,7 +599,7 @@ export class SecLocalizacion {
       </ul>
       <div class="flex flex-col items-center gap-3 md:flex-row">
         <span class="text-body-m text-text-tertiary">¿No encuentras tu respuesta?</span>
-        <a grButton variant="outline" [href]="contacto() ? 'mailto:' + contacto() : '/preguntas-frecuentes'">Escríbenos</a>
+        @if (contacto()) { <a grButton variant="outline" [href]="'mailto:' + contacto()">Escríbenos</a> } @else { <a grButton variant="outline" routerLink="/preguntas-frecuentes">Escríbenos</a> }
       </div>
     </div>
   `,

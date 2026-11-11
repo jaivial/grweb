@@ -102,7 +102,7 @@ const UI = {
           </li>
         }
       </ul>
-      <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
+      <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
       <a grButton variant="primary" routerLink="/entradas" class="relative ml-auto md:ml-0">{{ ui().cta }}</a>
       <button type="button" data-menu class="relative flex size-11 shrink-0 items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="ui().open" [attr.aria-expanded]="open()" aria-controls="menu-movil" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
     </nav>
@@ -132,7 +132,7 @@ const UI = {
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
           <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
-            <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
+            <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
               <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
             <button type="button" data-cerrar-menu class="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5" [attr.aria-label]="ui().close" (click)="open.set(false)"><gr-icon name="x" [size]="22" /></button>
           </div>

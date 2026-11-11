@@ -78,7 +78,7 @@ export class Luces {
           @for (f of c().filas; track $index; let i = $index) {
             <tr class="border-b border-line-subtle last:border-0" [class.bg-accent-deep/20]="f.puesto === 1">
               <td class="px-4 py-3">@if (f.puesto) { <span class="flex size-7 items-center justify-center rounded-pill border text-mono-xs" [class]="f.medalla ? med[f.medalla] : 'border-line-strong'">{{ f.puesto }}</span> } @else { <span class="text-text-muted">–</span> }</td>
-              <td class="px-3 py-3"><p class="text-label-s">@if (f.slug) { <a [href]="'/atletas/' + f.slug" class="hover:text-accent-text">{{ f.nombre }}</a> } @else { {{ f.nombre }} }</p><p class="text-body-xs text-text-tertiary">{{ f.club || (f.nombre === 'Atleta' ? 'Perfil privado' : 'Independiente') }}</p></td>
+              <td class="px-3 py-3"><p class="text-label-s">@if (f.slug) { <a [routerLink]="'/atletas/' + f.slug" class="hover:text-accent-text">{{ f.nombre }}</a> } @else { {{ f.nombre }} }</p><p class="text-body-xs text-text-tertiary">{{ f.club || (f.nombre === 'Atleta' ? 'Perfil privado' : 'Independiente') }}</p></td>
               <td class="px-3 py-3 text-text-secondary">{{ c().categoria.replace('-', '−') }}</td>
               <td class="px-3 py-3 text-right font-mono text-text-secondary">{{ kg(f.pesoCorporal) }}</td>
               @for (m of movs; track m) { <td class="px-3 py-3 text-right font-mono" [title]="intentos(f, m)">{{ kg(f[m]) }}</td> }
@@ -112,7 +112,7 @@ export class Luces {
       }
     </ul>
   `,
-  imports: [GrIcon],
+  imports: [RouterLink, GrIcon],
 })
 export class Clasificacion {
   readonly c = input.required<Categoria>();
@@ -212,7 +212,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                   @if (enPlataforma(); as a) {
                     <section class="rounded-lg border border-accent/40 bg-[linear-gradient(150deg,#3a0f17,#1b1112_70%)] p-5" aria-live="polite">
                       <p class="flex justify-between text-label-xs text-text-tertiary uppercase"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
-                      <p class="mt-3 font-display text-[30px] leading-none uppercase italic">@if (a.slug) { <a [href]="'/atletas/' + a.slug" class="hover:text-accent-text">{{ a.nombre }}</a> } @else { {{ a.nombre }} }</p>
+                      <p class="mt-3 font-display text-[30px] leading-none uppercase italic">@if (a.slug) { <a [routerLink]="'/atletas/' + a.slug" class="hover:text-accent-text">{{ a.nombre }}</a> } @else { {{ a.nombre }} }</p>
                       <p class="mt-1 text-body-s text-text-secondary">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}</p>
                       <div class="mt-4 flex items-end justify-between gap-3">
                         <div><p class="text-label-s">{{ MOVN[a.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ ORD[a.numero] }} intento</p></div>
@@ -255,7 +255,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                 }
                 @case ('finalizado') {
                   <gr-alert tone="success" title="La competición ha terminado">Ya puedes consultar los resultados oficiales.
-                    <a [href]="'/resultados/' + anio()" class="mt-2 block text-label-s text-accent-text hover:underline">Ver resultados →</a></gr-alert>
+                    <a [routerLink]="'/resultados/' + anio()" class="mt-2 block text-label-s text-accent-text hover:underline">Ver resultados →</a></gr-alert>
                   <a routerLink="/ediciones/2025" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
                     <div class="relative h-40"><img [src]="foto2025" alt="" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
                     <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Celebrada</span>
@@ -446,7 +446,7 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
                       @if (x.c?.evento!.nivel) { <li class="flex items-center gap-2"><gr-icon name="trophy" [size]="14" class="text-accent-text" />{{ x.c?.evento!.nivel }}</li> }
                     </ul>
                     <div class="mt-auto pt-3">
-                      @if (x.publicado) { <a grButton variant="outline" [href]="'/resultados/' + x.e.anio" iconRight="arrow-right">Ver resultados</a> }
+                      @if (x.publicado) { <a grButton variant="outline" [routerLink]="'/resultados/' + x.e.anio" iconRight="arrow-right">Ver resultados</a> }
                       @else if (x.e.slug === slug) { <a grButton variant="primary" routerLink="/">Más información</a> }
                     </div>
                   </div>
@@ -707,7 +707,7 @@ export class ResultadosEdicionPage {
             @if (historia()) { <p class="text-body-m text-text-secondary">{{ historia() }}</p> }
             <!-- full-width stacked buttons on mobile (Figma 28 mobile) -->
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-2">
-              <a grButton variant="primary" class="max-sm:h-12 max-sm:w-full" [href]="'/resultados/' + anio()">Ver resultados</a>
+              <a grButton variant="primary" class="max-sm:h-12 max-sm:w-full" [routerLink]="'/resultados/' + anio()">Ver resultados</a>
               <a grButton variant="outline" class="max-sm:h-12 max-sm:w-full" routerLink="/galeria" iconRight="arrow-right">Ver galería</a>
             </div>
           </div>
