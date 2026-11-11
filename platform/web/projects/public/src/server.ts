@@ -5,7 +5,9 @@ import {
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
 import express from 'express';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { routes } from './app/app.routes';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -99,6 +101,31 @@ app.use(
     redirect: false,
   }),
 );
+
+/**
+ * Unknown routes (Figma 17 «404»): answer 404 with the client-side shell instead of a full SSR render, which costs
+ * ~6 API calls charged to the visitor's rate limit and ~10 ms of CPU each. The browser renders the 404 page itself.
+ * Known route patterns and the CMS pages published in the SEO map still render on the server.
+ */
+const PATRONES = routes.map((r) => (r.path ?? '').split('/').filter(Boolean)).filter((p) => p[0] !== '**' && p[0] !== ':pslug');
+const SHELL = (() => {
+  try {
+    return readFileSync(join(browserDistFolder, 'index.csr.html'), 'utf8');
+  } catch {
+    return null;
+  }
+})();
+async function desconocida(path: string): Promise<boolean> {
+  const segs = path.split('/').filter(Boolean);
+  if (!segs.length || PATRONES.some((p) => p.length === segs.length && p.every((x, i) => x.startsWith(':') || x === segs[i]))) return false;
+  if (segs.length > 1) return true;
+  const map = await seoMap();
+  return !!map && !map.rutas.includes(path); // without the SEO map, let the CMS page decide
+}
+app.use(async (req, res, next) => {
+  if (!SHELL || (req.method !== 'GET' && req.method !== 'HEAD') || !(await desconocida(req.path))) return next();
+  res.status(404).set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex' }).type('html').send(SHELL);
+});
 
 /**
  * Handle all other requests by rendering the Angular application.
