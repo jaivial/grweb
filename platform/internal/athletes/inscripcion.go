@@ -318,7 +318,7 @@ func (s *Svc) initPagos() {
 			return err
 		}
 		if md["fan"] != "" && md["fan"] != f.ID.String() {
-			return fanauth.ErrInvalid
+			return pagos.ErrOtraCuenta
 		}
 		return nil
 	}

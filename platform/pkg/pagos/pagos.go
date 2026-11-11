@@ -71,6 +71,9 @@ type RefundConClave interface {
 // ErrSignature means the webhook signature is missing, wrong or too old.
 var ErrSignature = errors.New("firma del webhook no válida")
 
+// ErrOtraCuenta: the payer is signed in with an account that is not the owner of the payment (403).
+var ErrOtraCuenta = errors.New("el pago pertenece a otra cuenta")
+
 const tolerance = 5 * time.Minute
 
 // Sign returns a Stripe-Signature header value for payload.
