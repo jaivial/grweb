@@ -12,5 +12,20 @@
   </head>
   <body class="min-h-dvh">
     <bo-root></bo-root>
+    <!-- Figma 17 «ErrorBoundary»: static fallback when the app itself cannot start (stale/missing chunk after a deploy, offline). -->
+    <div id="bo-arranque" role="alert" hidden style="position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 20px;text-align:center;background:#141112;color:#fff;font-family:system-ui,sans-serif">
+      <h1 tabindex="-1" style="margin:0;font-size:24px;font-weight:600">Algo salió mal</h1>
+      <p style="margin:0;font-size:14px;color:#9ca3af">No se pudo cargar el panel. Comprueba tu conexión y vuelve a intentarlo.</p>
+      <button type="button" onclick="location.reload()" style="height:44px;padding:0 20px;border:0;border-radius:8px;background:#c42b3e;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button>
+    </div>
+    <script>
+      window.boArranqueFallido = function () {
+        var d = document.getElementById('bo-arranque');
+        if (!d || !d.hidden || document.querySelector('bo-root > *')) return;
+        d.hidden = false; d.style.display = 'flex'; d.querySelector('h1').focus();
+      };
+      // a module script (main or one of its chunks) that fails to load never bootstraps the app
+      window.addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') window.boArranqueFallido(); }, true);
+    </script>
   </body>
 </html>

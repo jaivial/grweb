@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -267,10 +268,10 @@ func (s *Svc) registerPublic() {
 			}
 			ip := httpx.ClientIPFrom(ctx)
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "sorteo", ip), 30, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Demasiadas compras desde esta conexión. Inténtalo en un rato.")
+				return nil, tooMany(r, "Demasiadas compras desde esta conexión. Inténtalo en un rato.")
 			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "sorteo-email", sha(em)), 8, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Has intentado varias compras seguidas con este email. Inténtalo más tarde.")
+				return nil, tooMany(r, "Has intentado varias compras seguidas con este email. Inténtalo más tarde.")
 			}
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -622,4 +623,13 @@ func anonIP(ip string) string {
 		}
 	}
 	return ip
+}
+
+// tooMany answers 429 with Retry-After (seconds until the rate-limit window frees a slot).
+func tooMany(r ratelimit.Result, detail string) error {
+	seg := int(r.RetryAfter.Seconds()) + 1
+	if seg < 1 {
+		seg = 60
+	}
+	return huma.ErrorWithHeaders(problem.TooMany(detail), http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
 }

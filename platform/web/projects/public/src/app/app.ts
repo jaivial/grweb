@@ -1,7 +1,7 @@
 import { ViewportScroller } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationSkipped, NavigationStart, Router, RouterOutlet } from '@angular/router';
-import { GrPageLoader, GrToaster } from '@grcup/ui';
+import { GrPageLoader, GrToaster, GrToasts } from '@grcup/ui';
 
 @Component({
   selector: 'gr-root',
@@ -10,20 +10,36 @@ import { GrPageLoader, GrToaster } from '@grcup/ui';
   template: `<router-outlet /><gr-toaster [top]="true" />@if (cargando()) { <gr-page-loader /> }`,
 })
 export class App {
-  /** Figma 17 «Loader de página»: only when a navigation (lazy chunk, resolver) takes more than 300 ms. */
+  /** Figma 17 «Loader de página»: when an in-app navigation (chunk, resolver or the new page's data) takes more than 300 ms. */
   protected readonly cargando = signal(false);
 
   constructor() {
     // In-page links («routerLink="." fragment="…"»): leave room for the floating navbar (88 px) above the target.
     inject(ViewportScroller).setOffset([0, 104]);
+    const app = inject(ApplicationRef);
+    const toasts = inject(GrToasts);
     let t: ReturnType<typeof setTimeout> | undefined;
+    let id = 0;
+    const fin = (n: number) => {
+      if (n !== id) return;
+      clearTimeout(t);
+      this.cargando.set(false);
+    };
     inject(Router).events.subscribe((e) => {
       // not on the first navigation: the server HTML is already on screen while the app boots
-      if (e instanceof NavigationStart && e.id > 1) t = setTimeout(() => this.cargando.set(true), 300);
-      else if (e instanceof NavigationEnd || e instanceof NavigationError || e instanceof NavigationCancel || e instanceof NavigationSkipped) {
+      if (e instanceof NavigationStart && e.id > 1) {
         clearTimeout(t);
-        this.cargando.set(false);
-      }
+        id = e.id;
+        t = setTimeout(() => this.cargando.set(true), 300);
+      } else if (e instanceof NavigationEnd) {
+        // the page fetches its data after the route resolves: keep the loader until it settles (at most 10 s)
+        const n = e.id;
+        void Promise.race([app.whenStable(), new Promise((r) => setTimeout(r, 10_000))]).then(() => fin(n));
+      } else if (e instanceof NavigationError) {
+        fin(e.id);
+        // e.g. a stale lazy chunk after a deploy: tell the user and offer a full load of the target page
+        toasts.error('No se pudo abrir la página', 'Comprueba tu conexión.', { label: 'Reintentar', run: () => location.assign(e.url) });
+      } else if (e instanceof NavigationCancel || e instanceof NavigationSkipped) fin(e.id);
     });
   }
 }

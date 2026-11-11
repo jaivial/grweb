@@ -1,7 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon, GrLogo, GrRaffleItem, GrRaffleNotice, GrSkeleton, type GrIconName } from '@grcup/ui';
@@ -52,10 +51,10 @@ export class SorteoTitulo {
 /** Section frame of /sorteo: Figma 104/80 (desktop) and 64/20 (mobile). */
 const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 md:py-26';
 
-/** /sorteo (Figma page 07): the prize, the rules, how to take part, the result (with its verification) and the purchase form. */
+/** /sorteo (Figma page 07): the prize, the rules, how to take part and the result. Tickets are sold only at the venue, in cash. */
 @Component({
   selector: 'gr-sorteo',
-  imports: [RouterLink, Navbar, Footer, FormsModule, GrButton, GrIcon, GrRaffleItem, GrRaffleNotice, GrSkeleton, SecSorteo, SorteoTitulo],
+  imports: [RouterLink, Navbar, Footer, GrButton, GrIcon, GrRaffleItem, GrRaffleNotice, GrSkeleton, SecSorteo, SorteoTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let s = data();
@@ -70,7 +69,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
       } @else {
         <!-- Figma «Section / Sorteo» (the same panel as the home, as the page's hero) -->
         <div class="h-[76px] md:hidden"></div>
-        <gr-sec-sorteo [sorteo]="s" [pagina]="true" [cantidad]="cantidad()" (elegido)="cantidad.set($event)" />
+        <gr-sec-sorteo [sorteo]="s" [pagina]="true" />
 
         <!-- Normas del sorteo -->
         <section id="normas" [class]="seccion + ' scroll-mt-20'">
@@ -127,7 +126,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
             <p class="w-full max-w-[520px] rounded-md border border-accent bg-accent/8 p-6 text-left text-body-s">Cuantos más boletos compres, más oportunidades tienes de ganar.</p>
             <div class="flex flex-col items-center gap-10">
               <p class="text-body-s text-text-tertiary">¿Quieres ser nuestro próximo ganador?</p>
-              <a grButton variant="primary" size="l" routerLink="." fragment="participa">Participa ahora</a>
+              <a grButton variant="primary" size="l" routerLink="." fragment="participa">Cómo participar</a>
             </div>
           }
         </section>
@@ -141,67 +140,20 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
           <gr-raffle-notice class="w-full max-w-[360px]" [href]="null">Además, el día de la competición hay rifa en la sede: los boletos se compran allí y solo en efectivo.</gr-raffle-notice>
         </section>
 
-        <!-- Inscríbete ahora -->
+        <!-- Boletos: solo en la sede y en efectivo (no hay venta online) -->
         <section id="participa" [class]="seccion + ' scroll-mt-20'">
-          <gr-sorteo-titulo titulo="Inscríbete" acento="ahora" [texto]="'Completa el formulario para participar en el sorteo de la ' + nombreComp() + '.'" />
-          @if (s.estado === 'en_venta') {
-            <!-- Figma «Step progress» (mobile) -->
-            <ol class="flex w-full max-w-[350px] items-center gap-2 md:hidden" aria-label="Pasos">
-              @for (x of ['Boletos', 'Datos', 'Pago']; track x; let i = $index; let ultimo = $last) {
-                <li class="flex items-center gap-1.5 text-label-s" [class]="i === 0 ? 'text-text-primary' : 'text-text-muted'" [attr.aria-current]="i === 0 ? 'step' : null"><span class="flex size-6 items-center justify-center rounded-full text-label-xs" [class]="i === 0 ? 'bg-accent text-white' : 'bg-bg-raised'">{{ i + 1 }}</span>{{ x }}</li>
-                @if (!ultimo) { <li class="h-0.5 flex-1 bg-line-strong" aria-hidden="true"></li> }
-              }
-            </ol>
-          }
+          <gr-sorteo-titulo titulo="Boletos" acento="en la sede" [texto]="'Así participas en el sorteo de la ' + nombreComp() + '.'" />
           <div class="w-full max-w-[560px] rounded-[20px] border border-line-subtle bg-bg-card p-5 shadow-[0_24px_60px_rgb(0_0_0/0.45)] md:p-7">
-            @if (s.estado !== 'en_venta') {
-              <div class="flex flex-col items-center gap-3 py-2 text-center"><gr-icon name="lock" [size]="24" class="text-text-tertiary" /><p class="text-ui-h5">{{ estadoTitulo[s.estado] }}</p><p class="text-body-s text-text-secondary">{{ s.motivo }}</p>
-                <a href="#novedades" (click)="irNovedades($event)" class="text-label-s text-accent-text hover:underline">Avísame por email →</a></div>
-            } @else {
-              <form class="flex flex-col gap-5" (ngSubmit)="comprar()" novalidate>
-                @if (cancelado) { <p class="flex items-start gap-3 rounded-md border border-line-strong bg-bg-field p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-info" />Pago cancelado: no se ha cobrado nada. Puedes intentarlo de nuevo cuando quieras.</p> }
-                @if (s.pasarela === 'simulado') { <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-warning" />Modo pruebas: la pasarela es de pruebas y no se cobra nada.</p> }
-                @if (error()) { <p class="flex items-start gap-3 rounded-md border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
-                <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Nombre completo</span><input name="nombre" [(ngModel)]="f.nombre" autocomplete="name" required maxlength="120" placeholder="Tu nombre y apellidos" [class]="campo + (tocado() && f.nombre.trim().length < 2 ? ' border-accent-text' : ' border-line-strong')" /></label>
-                <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Correo electrónico</span><input name="email" type="email" [(ngModel)]="f.email" autocomplete="email" required placeholder="tu@email.com" [class]="campo + (tocado() && !emailOk() ? ' border-accent-text' : ' border-line-strong')" /></label>
-                <label class="flex flex-col gap-2"><span class="text-label-s text-text-secondary">Teléfono <span class="text-text-muted">(opcional)</span></span>
-                  <span class="flex h-12 items-center rounded-sm border border-line-strong bg-bg-field focus-within:border-accent-text"><span class="pl-3 text-body-m text-text-secondary">+34</span><span class="mx-2 h-6 w-px bg-line-strong"></span><input name="tel" type="tel" [(ngModel)]="f.telefono" autocomplete="tel-national" placeholder="600 000 000" class="h-full w-0 min-w-0 flex-1 bg-transparent pr-3 text-body-m outline-none placeholder:text-text-muted" /></span></label>
-
-                <!-- Figma «Ticket stepper» -->
-                <div class="flex flex-col items-center gap-3 rounded-md border border-line-subtle bg-bg-field p-5">
-                  <p class="flex w-full justify-between"><span class="text-label-s text-text-secondary">Número de boletos</span><span class="text-body-xs text-text-muted">{{ euros(s.precio) }} por boleto · máx. {{ s.maxPorPersona }}</span></p>
-                  <div class="flex items-center gap-7">
-                    <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-card disabled:opacity-40" [disabled]="cantidad() <= 1" (click)="cantidad.set(cantidad() - 1)" aria-label="Menos boletos"><gr-icon name="minus" [size]="16" /></button>
-                    <span class="min-w-8 text-center text-ui-h1 tabular-nums" aria-live="polite">{{ cantidad() }}</span>
-                    <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-card disabled:opacity-40" [disabled]="cantidad() >= s.maxPorPersona" (click)="cantidad.set(cantidad() + 1)" aria-label="Más boletos"><gr-icon name="plus" [size]="16" /></button>
-                  </div>
-                  <div class="flex gap-2">@for (p of s.presets; track p) { <button type="button" class="h-11 w-12 rounded-full text-label-xs" [class]="cantidad() === p ? 'bg-accent text-white' : 'bg-bg-raised text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="cantidad() === p" (click)="cantidad.set(p)">{{ p }}</button> }</div>
-                  <p class="mt-1 flex w-full items-center justify-between border-t border-line-subtle pt-4"><span class="text-body-s text-text-secondary">{{ cantidad() }} {{ cantidad() === 1 ? 'boleto' : 'boletos' }} × {{ euros(s.precio) }}</span><span class="text-ui-h4">{{ eur.format(total() / 100) }}</span></p>
-                </div>
-
-                <div class="flex flex-col gap-1">
-                  @for (k of checks; track k.k) {
-                    <label class="flex min-h-11 items-start gap-3 py-1 text-body-s" [class]="k.req ? 'text-text-primary' : 'text-text-secondary'">
-                      <span class="relative flex size-5 shrink-0 items-center justify-center">
-                        <input type="checkbox" [name]="k.k" [attr.name]="k.k" [(ngModel)]="f[k.k]" class="peer size-5 appearance-none rounded-xs border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" [class]="tocado() && k.req && !f[k.k] ? 'border-accent-text' : 'border-line-strong'" />
-                        @if (f[k.k]) { <gr-icon name="check" [size]="13" class="pointer-events-none absolute text-white" /> }
-                      </span>
-                      <span>
-                        @switch (k.k) {
-                          @case ('mayorEdad') { Tengo 18 años o más }
-                          @case ('aceptaBases') { He leído y acepto las <a href="/politica-concurso" target="_blank" class="text-accent-text hover:underline">bases del sorteo</a> y la <a href="/privacidad" target="_blank" class="text-accent-text hover:underline">política de privacidad</a> }
-                          @default { Quiero recibir novedades de la GR Strength Cup por email (opcional; te enviaremos un email para confirmarlo) }
-                        }
-                      </span>
-                    </label>
-                  }
-                </div>
-                <div class="flex flex-col gap-3">
-                  <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="enviando()">Inscribirme · {{ eur.format(total() / 100) }}</button>
-                  <p class="text-center text-body-xs text-text-muted"><gr-icon name="lock" [size]="13" class="mr-1.5 inline-block align-[-2px]" />Pago seguro con {{ s.pasarela === 'stripe' ? 'Stripe' : 'tarjeta' }}. Recibirás tus números por email.</p>
-                </div>
-              </form>
-            }
+            <div class="flex flex-col items-center gap-3 py-2 text-center">
+              @if (s.estado === 'en_venta') {
+                <gr-icon name="ticket" [size]="24" class="text-accent-text" /><p class="text-ui-h5">Boletos en la sede, solo en efectivo</p>
+                <p class="text-body-s text-text-secondary">No hay venta online: compra tus boletos el día de la competición en el pabellón, en efectivo. {{ euros(s.precio) }} por boleto · máx. {{ s.maxPorPersona }} por persona.</p>
+                <a href="/como-llegar" class="text-label-s text-accent-text hover:underline">Cómo llegar →</a>
+              } @else {
+                <gr-icon name="lock" [size]="24" class="text-text-tertiary" /><p class="text-ui-h5">{{ estadoTitulo[s.estado] }}</p><p class="text-body-s text-text-secondary">{{ s.motivo }}</p>
+                <a href="#novedades" (click)="irNovedades($event)" class="text-label-s text-accent-text hover:underline">Avísame por email →</a>
+              }
+            </div>
           </div>
         </section>
       }
@@ -214,29 +166,17 @@ export class SorteoPage {
   protected readonly fallo = inject(FalloApi);
   private readonly comp = inject(Competition);
   protected readonly data = signal<Publico | null | undefined>(undefined);
-  protected readonly cantidad = signal(1);
-  protected readonly enviando = signal(false);
-  protected readonly error = signal('');
-  protected readonly tocado = signal(false);
-  protected f: { nombre: string; email: string; telefono: string; mayorEdad: boolean; aceptaBases: boolean; novedades: boolean } = { nombre: '', email: '', telefono: '', mayorEdad: false, aceptaBases: false, novedades: false };
-  protected readonly checks = [{ k: 'mayorEdad' as const, req: true }, { k: 'aceptaBases' as const, req: true }, { k: 'novedades' as const, req: false }];
-  protected readonly campo = 'h-12 rounded-sm border bg-bg-field px-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none';
   protected readonly seccion = SECCION;
-  private readonly route = inject(ActivatedRoute);
-  protected readonly cancelado = this.route.snapshot.queryParamMap.has('cancelado');
   protected readonly euros = euros;
-  protected readonly eur = eur;
   protected readonly fechaLarga = fechaLarga;
   protected readonly lista = `${BASE}/lista.txt`;
-  protected readonly total = computed(() => (this.data()?.precio ?? 0) * this.cantidad());
   protected readonly nombreComp = computed(() => this.comp.data()?.nombre ?? 'GR Strength Cup');
   protected readonly estadoTitulo: Record<string, string> = { proximamente: 'La venta abrirá pronto', cerrada: 'La venta ha terminado', agotada: 'Boletos agotados', bloqueada: 'Venta en preparación', sorteado: 'El sorteo ya se hizo' };
   protected readonly pasos = computed<{ t: string; d: string; i: GrIconName }[]>(() => {
     const s = this.data();
     return [
-      { t: 'Elige tus boletos', d: `Selecciona cuántos boletos quieres (hasta ${s?.maxPorPersona ?? 10}). Cada boleto cuesta ${euros(s?.precio ?? 100)}.`, i: 'ticket' },
-      { t: 'Rellena tus datos', d: 'Tu nombre y tu email, para enviarte tus números.', i: 'user' },
-      { t: 'Completa el pago', d: 'Paga de forma segura con tarjeta. Al momento recibes tus números por email.', i: 'credit-card' },
+      { t: 'Ven a la sede', d: `El día de la competición, en el pabellón. Cada boleto cuesta ${euros(s?.precio ?? 100)} (hasta ${s?.maxPorPersona ?? 10} por persona).`, i: 'ticket' },
+            { t: 'Paga en efectivo', d: 'Solo en efectivo, en el punto de venta de la sede. Guarda tu boleto: el número es tu participación.', i: 'credit-card' },
       { t: 'Síguenos en Instagram', d: 'Opcional: allí anunciamos el sorteo y el ganador.', i: 'instagram' },
       { t: 'Espera al sorteo', d: 'Se hace en directo, con la lista y la semilla publicadas para que cualquiera lo compruebe.', i: 'clock' },
     ];
@@ -248,7 +188,7 @@ export class SorteoPage {
       { t: `${euros(s.precio)} por boleto`, d: 'Cada boleto es un número más en el sorteo.', i: 'ticket' },
       { t: `Hasta ${s.maxPorPersona} boletos por persona`, d: 'Para que participe más gente.', i: 'users' },
       { t: 'Un ganador', d: 'Un único premio: ' + (s.premio || 'por confirmar') + '.', i: 'trophy' },
-      { t: 'Pago seguro', d: 'Con tarjeta a través de la pasarela; nunca guardamos tus datos de pago.', i: 'lock' },
+      { t: 'Solo presencial', d: 'Los boletos se venden en la sede y solo en efectivo; no hay venta online.', i: 'lock' },
       { t: 'Selección aleatoria y verificable', d: 'Lista y semilla publicadas antes de sortear.', i: 'shield' },
       { t: 'Solo mayores de 18', d: 'Para participar tienes que tener 18 años o más.', i: 'gift' },
     ];
@@ -262,9 +202,6 @@ export class SorteoPage {
       try {
         const [s] = await Promise.all([firstValueFrom(this.http.get<Publico>(BASE)), this.comp.load()]);
         this.data.set(s);
-        // ?boletos=N comes from «Participar por N €» in the home panel
-        const pedidos = Number(this.route.snapshot.queryParamMap.get('boletos'));
-        this.cantidad.set(Math.min(Number.isInteger(pedidos) && pedidos >= 1 ? pedidos : (s.presets?.[0] ?? 1), s.maxPorPersona));
       } catch (e) {
         this.data.set(null);
         if (!(e instanceof HttpErrorResponse && e.status === 404)) this.fallo.marcar(e);
@@ -282,29 +219,9 @@ export class SorteoPage {
   }
   protected readonly cuando = cuando;
   protected n(v: number): string { return new Intl.NumberFormat('es-ES').format(v); }
-  protected emailOk(): boolean { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.f.email.trim()); }
   protected irNovedades(e: Event): void {
     e.preventDefault();
     document.querySelector('gr-newsletter input')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-  protected async comprar(): Promise<void> {
-    this.tocado.set(true);
-    this.error.set('');
-    if (this.f.nombre.trim().length < 2 || !this.emailOk()) return this.error.set('Revisa tu nombre y tu email.');
-    if (!this.f.mayorEdad || !this.f.aceptaBases) return this.error.set('Para participar tienes que ser mayor de edad y aceptar las bases y la privacidad.');
-    const tel = this.f.telefono.trim();
-    this.enviando.set(true);
-    try {
-      const r = await firstValueFrom(this.http.post<{ checkoutUrl: string }>(`${BASE}/compras`, {
-        nombre: this.f.nombre.trim(), email: this.f.email.trim(), telefono: tel ? (tel.startsWith('+') ? tel : '+34 ' + tel) : undefined, cantidad: this.cantidad(),
-        mayorEdad: true, aceptaBases: true, aceptaPrivacidad: true, novedades: this.f.novedades, origen: new URLSearchParams(location.search).get('utm_source') ?? undefined,
-      }));
-      location.href = r.checkoutUrl;
-    } catch (e) {
-      const d = e instanceof HttpErrorResponse ? (e.error?.detail as string | undefined) : undefined;
-      this.error.set(d ?? 'No se pudo iniciar el pago. Inténtalo de nuevo.');
-      this.enviando.set(false);
-    }
   }
 }
 

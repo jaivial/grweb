@@ -88,8 +88,8 @@ export class GrCinturon {
 
 /**
  * «Section / Sorteo» (Figma 03, used in the home and as the hero of /sorteo). Open: the belt turning with the scroll, the
- * floating «1 €» sticker, the per-person limit, pick 1/3/5/10 tickets (presets of the backoffice) and «Participar por N €»
- * (home → /sorteo?boletos=N#participa; on /sorteo it fills the form), the live sold counter and the countdown to the
+ * floating «1 €» sticker, the per-person limit, «Cómo participar» (tickets are sold
+ * only at the venue, in cash: there is no online purchase), the live sold counter and the countdown to the
  * draw. Coming soon: the same without picking. Drawn: the winning ticket. Closed, sold out or blocked: the reason.
  */
 @Component({
@@ -128,17 +128,7 @@ export class GrCinturon {
         @else { <h2 class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-m lg:text-display-l"><gr-titulo [titulo]="titulo()" /></h2> }
         <p class="text-body-m text-text-tertiary lg:text-body-l">{{ parrafo() }}</p>
         @if (r && venta) {
-          <div class="flex w-full flex-col items-center gap-2.5 lg:items-start" role="group" aria-labelledby="gr-sorteo-cuantos">
-            <p id="gr-sorteo-cuantos" class="text-label-s text-text-secondary">¿Cuántos boletos?</p>
-            <div class="grid w-full grid-cols-4 gap-2 lg:flex lg:w-auto">
-              @for (n of opciones(); track n) {
-                <button type="button" class="flex h-14 flex-col items-center justify-center rounded-md border transition-colors lg:w-[72px]" (click)="elegir(n)" [attr.aria-pressed]="n === elegidos()"
-                  [class]="n === elegidos() ? 'border-accent bg-accent/18 text-text-primary' : 'border-line-strong bg-bg-base text-text-secondary hover:border-text-muted'">
-                  <span class="text-ui-h4 leading-tight">{{ n }}</span><span class="text-body-xs text-text-muted">{{ n === 1 ? 'boleto' : 'boletos' }}</span>
-                </button>
-              }
-            </div>
-          </div>
+          <p class="inline-flex items-center gap-2 rounded-md border border-line-strong bg-bg-base px-4 py-3 text-body-s text-text-secondary"><gr-icon name="ticket" [size]="16" class="shrink-0 text-accent-text" />Boletos solo en la sede, el día de la competición, y en efectivo.</p>
         }
         @if (r?.ganador; as g) {
           <div class="flex w-full items-center gap-3.5 rounded-lg border border-line-strong bg-bg-base px-4.5 py-3.5 text-left lg:w-auto">
@@ -153,8 +143,8 @@ export class GrCinturon {
         }
         <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           @if (venta) {
-            @if (p) { <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="." fragment="participa" (click)="elegido.emit(elegidos())">Participar por {{ euros((r?.precio ?? 0) * elegidos()) }}</a> }
-            @else { <a grButton variant="display-gradient" size="l" class="gr-brillo" [href]="'/sorteo?boletos=' + elegidos() + '#participa'">Participar por {{ euros((r?.precio ?? 0) * elegidos()) }}</a> }
+            @if (p) { <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="." fragment="participa">Cómo participar</a> }
+            @else { <a grButton variant="display-gradient" size="l" class="gr-brillo" href="/sorteo#participa">Cómo participar</a> }
           } @else if (e === 'proximamente') {
             <button grButton variant="display-gradient" size="l" type="button" [disabled]="true">Muy pronto</button>
           } @else if (r?.ganador) {
@@ -179,9 +169,6 @@ export class SecSorteo {
   readonly sorteo = input<SorteoHome | null>(null);
   /** On /sorteo itself: the page's h1 and the actions go to the form and the rules of the page. */
   readonly pagina = input(false);
-  /** /sorteo: the tickets of the form (the panel shows them and the form takes the ones picked here). */
-  readonly cantidad = input<number | null>(null);
-  readonly elegido = output<number>();
   protected readonly glow = GLOW;
   protected readonly euros = euros;
   protected readonly num = num;
@@ -189,7 +176,6 @@ export class SecSorteo {
   private readonly http = inject(HttpClient);
   private readonly ahora = signal(Date.now());
   private readonly vivos = signal<number | null>(null);
-  private readonly pick = signal<number | null>(null);
   private t = (k: string) => ((this.s()?.[k] as string | undefined) ?? '');
 
   private readonly premio = computed(() => {
@@ -217,19 +203,7 @@ export class SecSorteo {
     const e = this.sorteo()?.estado;
     if (e === 'sorteado') return 'Ya tenemos ganador. Consulta el boleto premiado y las normas del sorteo.';
     if (e && e !== 'en_venta' && e !== 'proximamente') return 'La venta de boletos está cerrada. Consulta las normas del sorteo.';
-    return this.t('texto') || 'Elige cuántos boletos quieres y paga con tarjeta en un minuto. Cuantos más tengas, más opciones de ganar.';
-  });
-  /** Quick picks: the presets of the backoffice up to the per-person limit (1 · 3 · 5 · 10 by default). */
-  protected readonly opciones = computed(() => {
-    const r = this.sorteo();
-    const max = r?.maxPorPersona ?? 10;
-    const base = r?.presets?.length ? r.presets : [1, 3, 5, 10];
-    const out = [...new Set(base.filter((n) => n >= 1 && n <= max))].sort((a, b) => a - b);
-    return out.length ? out.slice(0, 4) : [1];
-  });
-  protected readonly elegidos = computed(() => {
-    const o = this.opciones();
-    return this.cantidad() ?? this.pick() ?? (o.includes(5) ? 5 : o[Math.min(o.length - 1, 2)]);
+    return this.t('texto') || 'Los boletos se compran en la sede el día de la competición, solo en efectivo. Cuantos más tengas, más opciones de ganar.';
   });
   protected readonly vendidos = computed(() => this.vivos() ?? this.sorteo()?.vendidos ?? 0);
   /** Countdown to the draw («Faltan 46 d 04 h»; under a day, hours and minutes). */
@@ -269,10 +243,5 @@ export class SecSorteo {
       io.observe(host.nativeElement);
       destroy.onDestroy(() => { clearInterval(reloj); clearInterval(sondeo); cancelAnimationFrame(anim); io.disconnect(); });
     });
-  }
-
-  protected elegir(n: number): void {
-    this.pick.set(n);
-    if (this.pagina()) this.elegido.emit(n);
   }
 }

@@ -13,6 +13,8 @@ import { ICS_URL } from '../core/horarios';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
 import { Lightbox } from '../layout/lightbox';
+import { Footer, Navbar } from '../layout/layout';
+import { NoEncontrada } from '../layout/no-encontrada';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
@@ -501,10 +503,12 @@ export class ResultadosIndexPage {
 /** /resultados/:anio (Figma page 25): best lifters by GL, podiums and the full ranking of every category, with filters. */
 @Component({
   selector: 'gr-resultados-edicion',
-  imports: [GrSelect, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community],
+  imports: [GrSelect, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community, Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = res();
+    <!-- Figma 17 «404»: an edition that does not exist -->
+    @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page title="Resultados" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" section="Resultados" [crumb]="anio()" [eyebrow]="r ? (r.competicion.sede + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
       [subtitle]="r?.publicado ? ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
       @if (r?.publicado) {
@@ -589,9 +593,16 @@ export class ResultadosIndexPage {
         <gr-community />
       </div>
     </gr-page>
+    }
   `,
 })
 export class ResultadosEdicionPage {
+  protected readonly noExiste = signal(false);
+  private noEncontrada(seo: Seo): void {
+    this.noExiste.set(true);
+    this.cms.notFound();
+    seo.set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
+  }
   private readonly api = inject(DirectoPublic);
   protected readonly fallo = inject(FalloApi);
   private readonly cms = inject(Cms);
@@ -640,7 +651,7 @@ export class ResultadosEdicionPage {
       const e = eds?.find((x) => String(x.anio) === this.anio());
       if (!e) {
         this.res.set(null);
-        if (eds) this.cms.notFound();
+        if (eds) this.noEncontrada(seo);
         return;
       }
       const r = await this.api.resultados(e.slug);
@@ -667,10 +678,12 @@ export class ResultadosEdicionPage {
 /** /ediciones/:anio (Figma page 28): the archive of a past edition: poster, facts, gallery and sponsors. */
 @Component({
   selector: 'gr-edicion',
-  imports: [Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related],
+  imports: [Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related, Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
+    <!-- Figma 17 «404»: an edition that does not exist -->
+    @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page title="GRStrength Cup" [accent]="anio()" eyebrow="Edición anterior" section="Ediciones" [crumb]="anio()" [subtitle]="resumen()">
       @if (c) {
         <div pageStamps class="flex flex-wrap gap-2">
@@ -732,9 +745,16 @@ export class ResultadosEdicionPage {
         </div>
       }
     </gr-page>
+    }
   `,
 })
 export class EdicionPage {
+  protected readonly noExiste = signal(false);
+  private noEncontrada(seo: Seo): void {
+    this.noExiste.set(true);
+    this.cms.notFound();
+    seo.set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
+  }
   private readonly api = inject(DirectoPublic);
   private readonly http = inject(HttpClient);
   private readonly cms = inject(Cms);
@@ -786,7 +806,7 @@ export class EdicionPage {
       const e = eds?.find((x) => String(x.anio) === this.anio() && x.estado === 'finalizado');
       if (!e) {
         this.comp.set(null);
-        if (eds) this.cms.notFound();
+        if (eds) this.noEncontrada(seo);
         return;
       }
       const [c, albums, pats] = await Promise.all([firstValueFrom(this.http.get<CompeticionPublica>(`/api/competiciones/${e.slug}`)).catch(() => null), this.cms.galeria(), this.cms.patrocinadores()]);

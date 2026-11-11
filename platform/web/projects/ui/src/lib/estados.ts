@@ -26,7 +26,7 @@ export class GrPageLoader {
   host: { class: 'flex min-h-[640px] flex-col items-center justify-center gap-4 px-5 text-center', role: 'alert' },
   template: `
     <span class="flex size-16 items-center justify-center rounded-full bg-accent/12 text-accent-text"><gr-icon name="circle-alert" [size]="28" /></span>
-    <h1 class="text-ui-h3">{{ titulo() }}</h1>
+    <h1 class="text-ui-h3 outline-none" tabindex="-1">{{ titulo() }}</h1>
     <p class="text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ texto() }}</p>
     <button grButton variant="primary" type="button" (click)="reintentar.emit()">Reintentar</button>
   `,

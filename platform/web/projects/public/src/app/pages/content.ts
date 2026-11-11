@@ -7,6 +7,7 @@ import { Cms, renderMarkdown, type Heading, type Pagina } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo, type SeoData } from '../core/seo';
 import { NoEncontrada } from '../layout/no-encontrada';
+import { Footer, Navbar } from '../layout/layout';
 import { Page } from '../layout/page';
 
 /** Applies the SEO of a route: the CMS override when there is one, else the page's own defaults. */
@@ -115,18 +116,20 @@ const location0 = (tipo: string) => LEGAL_PATHS[tipo] ?? '/';
 /** Generic CMS page (reglamento, categorías de peso, marcas mínimas…) and blog post. */
 @Component({
   selector: 'gr-content-page',
-  imports: [Page, GrSkeleton, NoEncontrada],
+  imports: [Page, GrSkeleton, NoEncontrada, Navbar, Footer],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <!-- Figma 17 «404»: the same page as an unknown route (no SEO header, glow or page padding) -->
+    @if (p() === null && !cms.failed()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page [title]="p()?.titulo ?? (p() === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="tipo() === 'blog' ? 'Blog' : 'Competición'" [subtitle]="p()?.resumen ?? ''"
       [stamp]="tipo() === 'blog' && p()?.publicadoAt ? fecha(p()!.publicadoAt!) : ''" [cabecera]="p() !== null || cms.failed()">
       @if (p() === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else if (p() === null) { @if (!cms.failed()) { <gr-no-encontrada class="-mt-[92px] md:-mt-[148px]" /> } }
-      @else {
+      @else if (p() !== null) {
         @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl" alt="" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
         <article class="prose-gr max-w-3xl text-body-m" [innerHTML]="html()"></article>
       }
     </gr-page>
+    }
   `,
 })
 export class ContentPage {
