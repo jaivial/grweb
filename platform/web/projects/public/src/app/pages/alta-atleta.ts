@@ -23,6 +23,8 @@ interface ConfigAlta {
   /** «cerrada» (el organizador la ha cerrado) o «legal» (faltan textos legales publicados). */
   motivoCierre: string;
   legal: Record<string, string>;
+  /** Texto exacto de la casilla «novedades» (el que el servidor hashea como prueba del consentimiento). */
+  textoNovedades: string;
   altcha: AltchaConfig;
   tiempo: string;
 }
@@ -75,7 +77,7 @@ const MAX_MARCA = 600;
       } @else if (vista() === 'exito') {
         <!-- Figma 75 «Éxito»: qué pasa ahora, en tres pasos -->
         <gr-alta-exito [contacto]="contacto()" />
-        <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
+        <div class="mt-18 flex flex-col gap-18 md:gap-24">
           <gr-related nivel="h3" [items]="relacionados" />
           <gr-community nivel="h3" />
         </div>
@@ -99,7 +101,7 @@ const MAX_MARCA = 600;
         </section>
 
         <!-- Formulario + resumen (Figma 75) -->
-        <div class="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,1.23fr)_minmax(0,1fr)] lg:gap-8">
+        <div class="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
           <div id="formulario" class="scroll-mt-24">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
@@ -113,7 +115,7 @@ const MAX_MARCA = 600;
                 } @else {
                   <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" (ngSubmit)="enviar()" novalidate>
                     <div>
-                      <p class="text-ui-h4 md:text-ui-h3">Solicitud de alta</p>
+                      <h2 class="text-display-xs italic md:text-display-s">Solicitud de alta</h2>
                       <p class="mt-1.5 text-body-s text-text-tertiary">Los campos marcados con * son obligatorios. El resto, opcional.</p>
                     </div>
 
@@ -129,7 +131,7 @@ const MAX_MARCA = 600;
 
                     <!-- Tus datos -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="text-ui-h5">Tus datos</legend>
+                      <legend class="mb-5 text-display-2xs italic">Tus datos</legend>
                       <div class="grid gap-4 sm:grid-cols-2">
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-nombre">Nombre *</label>
@@ -186,12 +188,12 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-nacimiento">Fecha de nacimiento *</label>
-                        <input id="c-nacimiento" name="fechaNacimiento" type="date" autocomplete="bday"
+                        <input id="c-nacimiento" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" placeholder="dd/mm/aaaa" maxlength="10"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none"
                           [class]="err()['fechaNacimiento'] ? 'border-accent-text' : 'border-line-strong'"
-                          [(ngModel)]="d.fechaNacimiento" (ngModelChange)="revalidar()"
+                          [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
                           [attr.aria-invalid]="!!err()['fechaNacimiento']" [attr.aria-describedby]="err()['fechaNacimiento'] ? 'e-nacimiento h-nacimiento' : 'h-nacimiento'" />
-                        <p id="h-nacimiento" class="text-body-xs text-text-tertiary">De 14 a 90 años.</p>
+                        <p id="h-nacimiento" class="text-body-xs text-text-tertiary">Formato dd/mm/aaaa. De 14 a 90 años.</p>
                         @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (esMenor()) {
@@ -212,7 +214,7 @@ const MAX_MARCA = 600;
 
                     <!-- Competición -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="text-ui-h5">Competición</legend>
+                      <legend class="mb-5 text-display-2xs italic">Competición</legend>
                       <div class="grid gap-4 sm:grid-cols-2">
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-club">Club (o «independiente»)</label>
@@ -246,13 +248,13 @@ const MAX_MARCA = 600;
 
                     <!-- Tu foto -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="text-ui-h5">Tu foto</legend>
+                      <legend class="mb-5 text-display-2xs italic">Tu foto</legend>
                       <gr-alta-foto [subiendo]="subiendo()" [procesando]="procesando()" [progreso]="progreso()" (cambio)="fotoCambia($event)" />
                     </fieldset>
 
                     <!-- Tu perfil -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="text-ui-h5">Tu perfil</legend>
+                      <legend class="mb-5 text-display-2xs italic">Tu perfil</legend>
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
                           <label class="text-label-s" for="c-frase">Frase de presentación</label>
@@ -306,7 +308,7 @@ const MAX_MARCA = 600;
 
                     <!-- Mejores marcas -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="text-ui-h5">Mejores marcas</legend>
+                      <legend class="mb-5 text-display-2xs italic">Mejores marcas</legend>
                       <p class="-mt-2 text-body-xs text-text-tertiary">Opcionales · en kilogramos · paso 0,5 · máximo 600.</p>
                       <div class="grid gap-4 sm:grid-cols-3">
                         @for (m of marcasCampos; track m.k) {
@@ -329,7 +331,7 @@ const MAX_MARCA = 600;
 
                     <!-- Consentimientos -->
                     <fieldset class="flex min-w-0 flex-col gap-3">
-                      <legend class="text-ui-h5">Consentimientos</legend>
+                      <legend class="mb-5 text-display-2xs italic">Consentimientos</legend>
                       @for (c of casillas(); track c.k) {
                         <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="c.req ? 'text-text-primary' : 'text-text-secondary'">
                           <span class="relative mt-px flex size-5 shrink-0 items-center justify-center">
@@ -343,7 +345,7 @@ const MAX_MARCA = 600;
                               @case ('terminos') { Acepto los <a href="/terminos" target="_blank" rel="noopener" class="text-accent-text hover:underline">términos de uso</a> y el <a href="/reglamento" target="_blank" rel="noopener" class="text-accent-text hover:underline">reglamento</a>. * }
                               @case ('privacidad') { He leído la <a href="/privacidad" target="_blank" rel="noopener" class="text-accent-text hover:underline">política de privacidad</a> y acepto el tratamiento de mis datos para gestionar mi alta. * }
                               @case ('imagen') { Autorizo publicar mi nombre, datos deportivos y foto en la web, la pantalla y el directo de la GR Cup (ver <a href="/consentimiento-datos" target="_blank" rel="noopener" class="text-accent-text hover:underline">consentimiento de imagen</a>). }
-                              @case ('novedades') { Quiero recibir novedades de la GR Cup por email (ver <a href="#novedades" class="text-accent-text hover:underline">texto de novedades</a>). }
+                              @case ('novedades') { {{ cfg()?.textoNovedades }} }
                               @case ('whatsapp') { Quiero recibir avisos de mi alta y de la competición por WhatsApp (ver <a href="/texto-whatsapp" target="_blank" rel="noopener" class="text-accent-text hover:underline">texto de WhatsApp</a>). }
                             }
                           </span>
@@ -355,7 +357,7 @@ const MAX_MARCA = 600;
 
                     <!-- Envío -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="text-ui-h5">Envío</legend>
+                      <legend class="mb-5 text-display-2xs italic">Envío</legend>
                       <!-- Trampa para robots: fuera de la vista y del recorrido del teclado. -->
                       <span class="absolute h-px w-px overflow-hidden opacity-0" aria-hidden="true">
                         <label for="c-web">No rellenes este campo</label>
@@ -409,6 +411,23 @@ export class AltaAtletaPage {
   protected readonly espera = signal('');
   protected readonly reinicioAltcha = signal(0);
   protected readonly altchaPago = signal('');
+  /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si es una fecha real. */
+  protected fechaTexto = '';
+
+  /** Máscara dd/mm/aaaa: solo dígitos, barras automáticas; la ISO se fija cuando la fecha existe. */
+  protected fechaCambia(el: HTMLInputElement): void {
+    const n = el.value.replace(/\D/g, '').slice(0, 8);
+    const t = [n.slice(0, 2), n.slice(2, 4), n.slice(4)].filter(Boolean).join('/');
+    el.value = this.fechaTexto = t;
+    let iso = '';
+    if (n.length === 8) {
+      const [dd, mm, aa] = [+n.slice(0, 2), +n.slice(2, 4), +n.slice(4)];
+      const f = new Date(aa, mm - 1, dd);
+      if (f.getFullYear() === aa && f.getMonth() === mm - 1 && f.getDate() === dd) iso = `${n.slice(4)}-${n.slice(2, 4)}-${n.slice(0, 2)}`;
+    }
+    this.d.fechaNacimiento = iso;
+    this.revalidar();
+  }
 
   protected readonly d: DatosAlta = {
     nombre: '', apellidos: '', email: '', telefono: '', sexo: 'F', fechaNacimiento: '',
@@ -458,7 +477,7 @@ export class AltaAtletaPage {
       { k: 'privacidad', req: true },
     ];
     if (this.legal('consentimiento')) out.push({ k: 'imagen', req: false });
-    if (this.legal('novedades')) out.push({ k: 'novedades', req: false });
+    if (this.legal('novedades') && c?.textoNovedades) out.push({ k: 'novedades', req: false });
     if (this.legal('whatsapp')) out.push({ k: 'whatsapp', req: false });
     void c;
     return out;
@@ -520,7 +539,7 @@ export class AltaAtletaPage {
     const e = this.err();
     const out: { campo: string; label: string; msg: string }[] = [];
     const add = (campo: string, label: string, msg: string) => {
-      if (e[campo]) out.push({ campo, label, msg: e[campo] });
+      if (e[campo]) out.push({ campo, label, msg });
     };
     add('nombre', 'Nombre', 'es obligatorio');
     add('apellidos', 'Apellidos', 'son obligatorios');
@@ -776,6 +795,11 @@ export class AltaAtletaPage {
       this.borrarBorrador();
       this.subiendo.set(false);
       window.scrollTo({ top: 0 });
+      // The page changes in place: move the focus to the new title so screen readers announce it.
+      setTimeout(() => {
+        const h = document.querySelector<HTMLElement>('h1');
+        if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+      });
       return;
     }
     const codigo = cuerpo.code ?? '';
@@ -885,6 +909,7 @@ export class AltaAtletaPage {
       if (!raw) return;
       const b = JSON.parse(raw) as { d?: Partial<DatosAlta>; acepta?: Partial<Aceptos> };
       if (b.d) Object.assign(this.d, b.d);
+      this.fechaTexto = this.d.fechaNacimiento.split('-').reverse().join('/');
       if (b.acepta) Object.assign(this.acepta, b.acepta);
     } catch {
       /* borrador ilegible: se empieza de cero */

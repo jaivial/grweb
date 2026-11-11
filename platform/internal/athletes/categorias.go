@@ -63,7 +63,7 @@ func DivisionPorEdad(nac time.Time, year int) string {
 // Edad at date d.
 func Edad(nac, d time.Time) int {
 	e := d.Year() - nac.Year()
-	if d.YearDay() < nac.YearDay() {
+	if d.Month() < nac.Month() || (d.Month() == nac.Month() && d.Day() < nac.Day()) {
 		e--
 	}
 	return e

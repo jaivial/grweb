@@ -9,7 +9,7 @@ import { GrButton, GrIcon } from '@grcup/ui';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="flex flex-col gap-8" aria-labelledby="exito-t">
-      <span class="flex size-16 items-center justify-center rounded-full bg-success/14 text-success"><gr-icon name="circle-check" [size]="30" /></span>
+      <span class="flex size-16 items-center justify-center rounded-full bg-success text-white"><gr-icon name="check" [size]="28" /></span>
       <div>
         <h2 id="exito-t" class="text-display-s md:text-display-m">Qué pasa ahora</h2>
         <p class="mt-2 text-body-m text-text-secondary md:text-body-l">Esto es lo que va a pasar desde ahora.</p>

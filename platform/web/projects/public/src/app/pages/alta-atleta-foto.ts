@@ -14,7 +14,7 @@ const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_MP = 48;
 const MAX_PRECOMPRESION_MP = 2;
 const LADO = { w: 960, h: 1200 };
-const TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
 
 /**
  * «Tu foto» del alta de atleta: arrastrar o elegir el fichero, previsualización en blanco y negro
@@ -33,7 +33,7 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/hei
           class="flex cursor-pointer flex-col items-center gap-2 rounded-[14px] border-2 border-dashed px-5 py-8 text-center transition-colors"
           [class]="arrastrando() ? 'border-accent-text bg-accent/8' : 'border-line-strong hover:border-text-muted'"
           (dragover)="arrastrando.set(true); $event.preventDefault()" (dragleave)="arrastrando.set(false)" (drop)="soltar($event)">
-          <input #entrada type="file" class="sr-only" accept="image/jpeg,image/png,image/webp,image/heic" [attr.aria-label]="'Foto de perfil (opcional). JPG, PNG, WebP o HEIC, máximo 8 MB y 48 megapíxeles'"
+          <input #entrada type="file" class="sr-only" accept="image/jpeg,image/png,image/webp" [attr.aria-label]="'Foto de perfil (opcional). JPG, PNG o WebP, máximo 8 MB y 48 megapíxeles'"
             (change)="elegir($event)" />
           <span class="flex size-10 items-center justify-center rounded-md bg-accent/14 text-accent-text"><gr-icon name="arrow-up" [size]="18" /></span>
           @if (arrastrando()) {
@@ -41,7 +41,7 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/hei
             <span class="text-body-xs text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
           } @else {
             <span class="text-label-m">Arrastra tu foto o pulsa para elegirla</span>
-            <span class="text-body-xs text-text-tertiary">JPG, PNG, WebP o HEIC · máx. 8 MB · máx. 48 MP</span>
+            <span class="text-body-xs text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
             <span class="max-w-[420px] text-body-xs text-text-muted">Opcional pero recomendada. La publicamos en blanco y negro, recortada a 4:5 para que todas las fichas sean uniformes.</span>
           }
         </label>
@@ -153,7 +153,7 @@ export class AltaFoto {
     if (f.size > MAX_BYTES) {
       return this.fallar(`La foto pesa ${this.mb(f.size)} MB y el máximo son 8 MB. Comprime la imagen o sube otra.`);
     }
-    if (f.type && !TIPOS.includes(f.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
+    if (f.type && !TIPOS.includes(f.type) && !/\.(jpe?g|png|webp)$/i.test(f.name)) {
       return this.fallar('Ese archivo no es una imagen. Sube un JPG, PNG o WebP.');
     }
     const img = await this.decodificar(f);

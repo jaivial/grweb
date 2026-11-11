@@ -40,7 +40,7 @@ import { Footer, Navbar, type Lang } from './layout';
               <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
             </nav>
             <div class="flex flex-col gap-3 md:gap-4">
-              @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">{{ eyebrow() }}</p> }
+              @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent" aria-hidden="true"></span>{{ eyebrow() }}</p> }
               <h1 class="text-display-m [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
               @if (subtitle()) { <p class="text-body-m text-text-tertiary md:text-body-l">{{ subtitle() }}</p> }
             </div>
