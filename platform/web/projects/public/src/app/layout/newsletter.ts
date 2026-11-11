@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, afterNextRender, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { GrCheckbox, GrIcon } from '@grcup/ui';
@@ -34,7 +34,7 @@ import { Novedades, mensajeError } from '../core/novedades';
                 [attr.aria-invalid]="campo() === 'email' || null" [attr.aria-describedby]="campo() === 'email' ? id + '-e' : null"
                 class="h-12 w-full rounded-sm border border-line-strong bg-bg-field pr-3 pl-9 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
             </label>
-            <button type="submit" class="h-12 shrink-0 rounded-sm bg-accent-grain px-6 text-label-m text-white disabled:opacity-60" [disabled]="enviando()">{{ enviando() ? 'Enviando…' : 'Suscribirme' }}</button>
+            <button type="submit" class="h-12 shrink-0 rounded-sm bg-accent-grain px-6 text-label-m text-white disabled:opacity-60" [disabled]="!hidratado() || enviando()">{{ enviando() ? 'Enviando…' : 'Suscribirme' }}</button>
           </div>
           <!-- Figma «Checkbox» (Kind Legal) -->
           <gr-checkbox name="acepta" [(checked)]="acepta" [invalid]="campo() === 'acepta'">
@@ -57,7 +57,13 @@ export class Newsletter {
   /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75); «p» en las que además ya tienen sus tres H3. */
   readonly nivel = input<'h2' | 'h3' | 'p'>('h2');
   protected readonly id = 'nl-' + Math.random().toString(36).slice(2, 8);
+  /** Until hydration the button is off: a native submit would lose the email silently (R18-3). */
+  protected readonly hidratado = signal(false);
   protected readonly enviando = signal(false);
+
+  constructor() {
+    afterNextRender(() => this.hidratado.set(true));
+  }
   protected readonly enviado = signal(false);
   protected readonly error = signal('');
   /** Field the current error belongs to (aria-invalid / aria-describedby). */
