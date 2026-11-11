@@ -188,12 +188,12 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-nacimiento">Fecha de nacimiento *</label>
-                        <input id="c-nacimiento" name="fechaNacimiento" type="date" autocomplete="bday"
+                        <input id="c-nacimiento" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" placeholder="dd/mm/aaaa" maxlength="10"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none"
                           [class]="err()['fechaNacimiento'] ? 'border-accent-text' : 'border-line-strong'"
-                          [(ngModel)]="d.fechaNacimiento" (ngModelChange)="revalidar()"
+                          [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
                           [attr.aria-invalid]="!!err()['fechaNacimiento']" [attr.aria-describedby]="err()['fechaNacimiento'] ? 'e-nacimiento h-nacimiento' : 'h-nacimiento'" />
-                        <p id="h-nacimiento" class="text-body-xs text-text-tertiary">De 14 a 90 años.</p>
+                        <p id="h-nacimiento" class="text-body-xs text-text-tertiary">Formato dd/mm/aaaa. De 14 a 90 años.</p>
                         @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (esMenor()) {
@@ -411,6 +411,23 @@ export class AltaAtletaPage {
   protected readonly espera = signal('');
   protected readonly reinicioAltcha = signal(0);
   protected readonly altchaPago = signal('');
+  /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si es una fecha real. */
+  protected fechaTexto = '';
+
+  /** Máscara dd/mm/aaaa: solo dígitos, barras automáticas; la ISO se fija cuando la fecha existe. */
+  protected fechaCambia(el: HTMLInputElement): void {
+    const n = el.value.replace(/\D/g, '').slice(0, 8);
+    const t = [n.slice(0, 2), n.slice(2, 4), n.slice(4)].filter(Boolean).join('/');
+    el.value = this.fechaTexto = t;
+    let iso = '';
+    if (n.length === 8) {
+      const [dd, mm, aa] = [+n.slice(0, 2), +n.slice(2, 4), +n.slice(4)];
+      const f = new Date(aa, mm - 1, dd);
+      if (f.getFullYear() === aa && f.getMonth() === mm - 1 && f.getDate() === dd) iso = `${n.slice(4)}-${n.slice(2, 4)}-${n.slice(0, 2)}`;
+    }
+    this.d.fechaNacimiento = iso;
+    this.revalidar();
+  }
 
   protected readonly d: DatosAlta = {
     nombre: '', apellidos: '', email: '', telefono: '', sexo: 'F', fechaNacimiento: '',
@@ -887,6 +904,7 @@ export class AltaAtletaPage {
       if (!raw) return;
       const b = JSON.parse(raw) as { d?: Partial<DatosAlta>; acepta?: Partial<Aceptos> };
       if (b.d) Object.assign(this.d, b.d);
+      this.fechaTexto = this.d.fechaNacimiento.split('-').reverse().join('/');
       if (b.acepta) Object.assign(this.acepta, b.acepta);
     } catch {
       /* borrador ilegible: se empieza de cero */
