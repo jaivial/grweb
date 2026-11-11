@@ -195,6 +195,7 @@ const PUBLIC_WEB = webPublica();
                   <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (!categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
                   <gr-field label="División" for="d-d"><gr-select id="d-d" [(ngModel)]="d.division" [disabled]="!canEdit()">@for (v of divisiones; track v.value) { <option [value]="v.value">{{ v.label }}</option> }</gr-select></gr-field>
                   <gr-field label="Estado" for="d-e"><gr-select id="d-e" [(ngModel)]="d.estado" [disabled]="!canEdit()"><option value="confirmado">Confirmado</option><option value="reserva">Reserva</option><option value="baja">Baja</option></gr-select></gr-field>
+                  <gr-field label="Competición" for="d-p"><gr-select id="d-p" [(ngModel)]="d.prueba" [disabled]="!canEdit()"><option value="">Aún no lo sabe</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
                   <gr-field label="Club" for="d-club"><input grInput id="d-club" [(ngModel)]="d.club" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Ciudad" for="d-city"><input grInput id="d-city" [(ngModel)]="d.ciudad" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Email" for="d-mail"><input grInput id="d-mail" type="email" [(ngModel)]="d.email" [disabled]="!canEdit()" /></gr-field>
@@ -299,7 +300,7 @@ export class AtletaFichaPage {
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     if (!a) return '';
-    return [`${a.sexo} ${cat(a.categoria)} kg`, a.divisionNombre, a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.flight ? `Flight ${a.flight}${a.horaInicio ? ' (' + this.hora(a.horaInicio) + ')' : ''}` : '']
+    return [`${a.sexo} ${cat(a.categoria)} kg`, a.divisionNombre, a.prueba ? 'Competición ' + a.prueba.toUpperCase().replace('AEP', 'AEP-') : '', a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.flight ? `Flight ${a.flight}${a.horaInicio ? ' (' + this.hora(a.horaInicio) + ')' : ''}` : '']
       .filter(Boolean).join(' · ');
   });
   protected categorias(): string[] {
@@ -498,12 +499,12 @@ export class AtletaFichaPage {
     };
   }
   private datosDe(a: Atleta) {
-    return { licencia: a.licencia, nombre: a.nombre, apellidos: a.apellidos, email: a.email, telefono: a.telefono, sexo: a.sexo, fechaNacimiento: a.fechaNacimiento ?? '', categoria: a.categoria, division: a.division, club: a.club, ciudad: a.ciudad, estado: a.estado };
+    return { licencia: a.licencia, nombre: a.nombre, apellidos: a.apellidos, email: a.email, telefono: a.telefono, sexo: a.sexo, fechaNacimiento: a.fechaNacimiento ?? '', categoria: a.categoria, division: a.division, club: a.club, ciudad: a.ciudad, estado: a.estado, prueba: a.prueba ?? '' };
   }
   private blankPerfil(): Atleta['perfil'] {
     return { slug: '', fotoUrl: '', focalX: 50, focalY: 50, frase: '', bio: '', instagram: '', entrenador: '', historial: '', marcas: {}, visible: true, mostrarMarcas: true, permiteSeguir: true, autorizacionUrl: '' };
   }
   private blankDatos() {
-    return { licencia: '', nombre: '', apellidos: '', email: '', telefono: '', sexo: 'F' as 'F' | 'M', fechaNacimiento: '', categoria: '', division: 'open', club: '', ciudad: '', estado: 'confirmado' as Atleta['estado'] };
+    return { licencia: '', nombre: '', apellidos: '', email: '', telefono: '', sexo: 'F' as 'F' | 'M', fechaNacimiento: '', categoria: '', division: 'open', club: '', ciudad: '', estado: 'confirmado' as Atleta['estado'], prueba: '' };
   }
 }

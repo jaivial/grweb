@@ -33,6 +33,7 @@ type row struct {
 	Club             string     `db:"club"`
 	Ciudad           string     `db:"ciudad"`
 	Estado           string     `db:"estado"`
+	Prueba           string     `db:"prueba"`
 	OrdenReserva     *int       `db:"orden_reserva"`
 	Origen           string     `db:"origen"`
 	Flight           string     `db:"flight"`
@@ -79,7 +80,7 @@ type row struct {
 }
 
 const selRow = `SELECT a.id, a.competition_id, a.licencia, a.nombre, a.apellidos, a.email::text AS email, a.telefono, a.sexo, a.fecha_nacimiento,
-	a.categoria, a.division, a.club, a.ciudad, a.estado, a.orden_reserva, a.origen, a.flight, a.plataforma, a.hora_inicio, a.pesaje_inicio, a.pesaje_fin,
+	a.categoria, a.division, a.club, a.ciudad, a.estado, a.prueba, a.orden_reserva, a.origen, a.flight, a.plataforma, a.hora_inicio, a.pesaje_inicio, a.pesaje_fin,
 	a.peso_corporal::float8 AS peso_corporal, a.rack_sq, a.rack_bp, a.seguros_bp, a.intento_sq::float8 AS intento_sq, a.intento_bp::float8 AS intento_bp,
 	a.intento_dl::float8 AS intento_dl, a.pesaje_estado, a.pesaje_sugerencia, a.pesado_at, a.pesado_por, a.version, a.created_at, a.updated_at,
 	p.slug, p.foto_url, p.focal_x, p.focal_y, p.frase, p.bio, p.instagram, p.entrenador, p.historial,
@@ -275,6 +276,7 @@ type Atleta struct {
 	Club            string       `json:"club"`
 	Ciudad          string       `json:"ciudad"`
 	Estado          string       `json:"estado" enum:"confirmado,reserva,baja"`
+	Prueba          string       `json:"prueba" doc:"Competición elegida en el alta: aep2, aep3 o vacío (aún no lo sabe)"`
 	OrdenReserva    *int         `json:"ordenReserva,omitempty"`
 	Origen          string       `json:"origen"`
 	Flight          string       `json:"flight"`
@@ -296,7 +298,7 @@ func (r row) admin(compDate time.Time) Atleta {
 	a := Atleta{
 		ID: r.ID, Licencia: r.Licencia, Nombre: r.Nombre, Apellidos: r.Apellidos, NombreCompleto: r.nombreCompleto(), Telefono: r.Telefono,
 		Sexo: r.Sexo, Edad: r.edad(compDate), Menor: r.menor(compDate), Categoria: r.Categoria, Division: r.Division, DivisionNombre: DivisionNombre(r.Division),
-		Club: r.Club, Ciudad: r.Ciudad, Estado: r.Estado, OrdenReserva: r.OrdenReserva, Origen: r.Origen,
+		Club: r.Club, Ciudad: r.Ciudad, Estado: r.Estado, Prueba: r.Prueba, OrdenReserva: r.OrdenReserva, Origen: r.Origen,
 		Flight: r.Flight, Plataforma: r.Plataforma, HoraInicio: r.HoraInicio, PesajeInicio: r.PesajeInicio, PesajeFin: r.PesajeFin,
 		Pesaje: Pesaje{Peso: r.PesoCorporal, RackSQ: r.RackSQ, RackBP: r.RackBP, SegurosBP: r.SegurosBP, Intentos: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL},
 			Estado: r.PesajeEstado, Sugerencia: r.PesajeSugerencia, At: r.PesadoAt, Por: r.PesadoPor},

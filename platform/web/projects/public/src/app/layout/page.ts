@@ -27,7 +27,7 @@ import { Footer, Navbar, type Lang } from './layout';
           <header class="flex flex-col items-center gap-3 text-center">
             @if (eyebrow()) { <p class="text-mono-xs text-text-tertiary">{{ eyebrow() }}</p> }
             <h1 class="text-display-s md:text-display-l" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
-            @if (subtitle()) { <p class="text-body-s text-text-secondary md:text-body-l">{{ subtitle() }}</p> }
+            @if (subtitle()) { @if (subtitleHtml()) { <p class="text-body-s text-text-secondary md:text-body-l" [innerHTML]="subtitleHtml()"></p> } @else { <p class="text-body-s text-text-secondary md:text-body-l">{{ subtitle() }}</p> } }
           </header>
         }
         <!-- Figma «Cabecera» v2: 92 (mobile) / 148 (desktop) from the top, breadcrumbs Body/S, eyebrow Label/XS with
@@ -41,8 +41,8 @@ import { Footer, Navbar, type Lang } from './layout';
             </nav>
             <div class="flex flex-col gap-3 md:gap-4">
               @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent" aria-hidden="true"></span>{{ eyebrow() }}</p> }
-              <h1 class="text-display-m [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
-              @if (subtitle()) { <p class="text-body-m text-text-tertiary md:text-body-l">{{ subtitle() }}</p> }
+              <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
+              @if (subtitle()) { @if (subtitleHtml()) { <p class="text-body-m text-text-tertiary md:text-body-l" [innerHTML]="subtitleHtml()"></p> } @else { <p class="text-body-m text-text-tertiary md:text-body-l">{{ subtitle() }}</p> } }
             </div>
             <!-- Figma «Meta»: the updated stamp and the badges in one row -->
             <div class="flex flex-wrap items-center gap-3 empty:hidden">
@@ -72,6 +72,10 @@ export class Page {
   readonly suffix = input('');
   readonly eyebrow = input('');
   readonly subtitle = input('');
+  /** Subtitle with inline markup (sanitized by Angular); wins over subtitle when set. */
+  readonly subtitleHtml = input('');
+  /** Display/L title on mobile too (Figma 75 Alta de atleta). */
+  readonly tituloMovilGrande = input(false);
   readonly crumb = input('');
   /** Middle breadcrumb (e.g. «Visita», «Comunidad»). */
   readonly section = input('');
