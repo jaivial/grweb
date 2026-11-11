@@ -19,8 +19,10 @@ const BodyReadTimeout = 2 * time.Minute
 // tooLarge answers 413 to a request whose declared body exceeds the limit and resets the connection.
 // net/http would instead half-close and keep the socket 500 ms without reading it: under a flood of big
 // bodies thousands of sockets pile up with full receive buffers (kernel memory charged to the pod) and
-// the container is OOMKilled. The RST frees the unread body at once.
+// the container is OOMKilled. The RST frees the unread body at once (draining it instead, even for 1 s,
+// measured 585 MB under the same flood).
 func tooLarge(w http.ResponseWriter) {
+	markStatus(w, http.StatusRequestEntityTooLarge)
 	conn, buf, err := http.NewResponseController(w).Hijack()
 	if err != nil { // HTTP/2 or a writer without Hijack: plain 413
 		problem.Write(w, errTooLarge)
@@ -42,5 +44,20 @@ func tooLarge(w http.ResponseWriter) {
 	_ = buf.Writer.Flush()
 	if tc, ok := conn.(*net.TCPConn); ok {
 		_ = tc.SetLinger(0)
+	}
+}
+
+// markStatus lets the Logger record the status of a hijacked response.
+func markStatus(w http.ResponseWriter, code int) {
+	for w != nil {
+		if sw, ok := w.(*statusWriter); ok {
+			sw.status = code
+			return
+		}
+		u, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			return
+		}
+		w = u.Unwrap()
 	}
 }
