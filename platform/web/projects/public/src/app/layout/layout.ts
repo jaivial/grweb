@@ -266,7 +266,7 @@ export class Overlays {
 /** Footer (Figma «Footer»). */
 @Component({
   selector: 'gr-footer',
-  imports: [GrLogo, GrIcon, Newsletter, Overlays],
+  imports: [RouterLink, GrLogo, GrIcon, Newsletter, Overlays],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block border-t border-line-subtle bg-bg-deep' },
   template: `
@@ -279,19 +279,19 @@ export class Overlays {
         <nav aria-label="Competition">
           <p class="text-mono-xs text-text-muted">Competition</p>
           <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
-            <li><a href="/en#compete" class="hover:text-text-primary">How to register</a></li>
-            <li><a href="/en#raffle" class="hover:text-text-primary">Raffle</a></li>
-            <li><a href="/en#travel" class="hover:text-text-primary">Getting there</a></li>
-            <li><a href="/" hreflang="es" class="hover:text-text-primary">Versión en español</a></li>
+            <li><a routerLink="/en" fragment="compete" class="hover:text-text-primary">How to register</a></li>
+            <li><a routerLink="/en" fragment="raffle" class="hover:text-text-primary">Raffle</a></li>
+            <li><a routerLink="/en" fragment="travel" class="hover:text-text-primary">Getting there</a></li>
+            <li><a routerLink="/" hreflang="es" class="hover:text-text-primary">Versión en español</a></li>
           </ul>
         </nav>
         <nav aria-label="Legal">
           <p class="text-mono-xs text-text-muted">Legal (in Spanish)</p>
           <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
-            <li><a href="/privacidad" hreflang="es" class="hover:text-text-primary">Privacy policy</a></li>
-            <li><a href="/terminos" hreflang="es" class="hover:text-text-primary">Terms</a></li>
-            <li><a href="/cookies" hreflang="es" class="hover:text-text-primary">Cookies</a></li>
-            <li><a href="/politica-concurso" hreflang="es" class="hover:text-text-primary">Raffle terms</a></li>
+            <li><a routerLink="/privacidad" hreflang="es" class="hover:text-text-primary">Privacy policy</a></li>
+            <li><a routerLink="/terminos" hreflang="es" class="hover:text-text-primary">Terms</a></li>
+            <li><a routerLink="/cookies" hreflang="es" class="hover:text-text-primary">Cookies</a></li>
+            <li><a routerLink="/politica-concurso" hreflang="es" class="hover:text-text-primary">Raffle terms</a></li>
           </ul>
         </nav>
       </div>
@@ -315,11 +315,11 @@ export class Overlays {
           <!-- Tablet/desktop: open column. Mobile: accordion. -->
           <nav class="hidden md:block" [attr.aria-label]="col.titulo">
             <p class="text-label-xs text-text-muted">{{ col.titulo }}</p>
-            <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+            <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
           </nav>
           <details class="group border-b border-line-subtle md:hidden">
             <summary class="flex h-15 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform group-open:rotate-180" /></summary>
-            <ul class="flex flex-col gap-3 pb-4 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [href]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+            <ul class="flex flex-col gap-3 pb-4 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
           </details>
         }
       </div>
