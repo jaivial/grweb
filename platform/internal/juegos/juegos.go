@@ -52,6 +52,7 @@ type Svc struct {
 	cache  *cache.Cache
 	marcMu sync.Mutex
 	marc   map[string]marcEntrada
+	resum  memo // public summaries of the home (10 s, singleflight)
 }
 
 type marcEntrada struct {

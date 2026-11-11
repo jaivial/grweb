@@ -12,6 +12,7 @@ import { routes } from './app/app.routes';
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
+app.disable('x-powered-by');
 const angularApp = new AngularNodeAppEngine();
 
 const API = process.env['API_INTERNAL_URL'] ?? 'http://127.0.0.1:18300';

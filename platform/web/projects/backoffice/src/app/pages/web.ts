@@ -463,7 +463,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       { clave: 'url', etiqueta: 'Web', tipo: 'url', ancho: 'mitad' }, { clave: 'logoUrl', etiqueta: 'Logo', tipo: 'imagen', ayuda: 'PNG o WebP con fondo transparente' },
       { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'texto', max: 200, ayuda: 'Una línea bajo el nombre en /patrocinadores (opcional)' }, { clave: 'activo', etiqueta: 'Mostrar en la web', tipo: 'bool' },
       { clave: 'mostrarEnHero', etiqueta: 'Mostrar en hero', tipo: 'bool', ayuda: 'Fila de logos bajo las fechas en la portada (BIZ-144)' }],
-    defaults: { nivel: 'colaborador', activo: true, mostrarEnHero: true },
+    defaults: { nivel: 'colaborador', activo: true, mostrarEnHero: false },
     empty: { title: 'Sin patrocinadores', text: 'Añade marcas y entidades con su logo y enlace.' },
   }, {
     title: 'Clubs', subtitle: 'Directorio de /clubs · las propuestas del formulario público llegan como «Pendiente»', path: '/web/clubs', item: 'club', reorder: true, filterBy: 'estado',

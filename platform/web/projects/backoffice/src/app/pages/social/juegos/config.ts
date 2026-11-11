@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrEmpty, GrToasts } from '@grcup/ui';
+import { GrAlert, GrButton, GrEmpty, GrInput, GrToasts } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, errText } from '../../../shared/ui';
@@ -40,7 +40,7 @@ const cfgPorDefecto: ConfigJuegos = {
  */
 @Component({
   selector: 'bo-juegos-config',
-  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoPageHeader, GrAlert, GrButton, GrEmpty, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoPageHeader, GrAlert, GrButton, GrEmpty, GrInput, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6" [class.pb-24]="!sucio()" [class.pb-44]="sucio()">
@@ -118,6 +118,22 @@ const cfgPorDefecto: ConfigJuegos = {
           </so-card>
         </div>
 
+        <so-card titulo="Cierre de apuestas" ayuda="Hora (Madrid) del día de la jornada · la home muestra la cuenta atrás · vacío: sin cuenta atrás">
+          @if (!jornadasAbiertas().length) {
+            <p class="text-body-s text-text-tertiary">No hay jornadas sin cerrar.</p>
+          }
+          <div class="flex flex-col gap-2.5">
+            @for (j of jornadasAbiertas(); track j.id) {
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="min-w-0 flex-1 truncate text-body-s text-text-secondary">{{ j.nombre }} · {{ j.dia }}</span>
+                <input grInput type="time" class="w-36 [color-scheme:dark]" [attr.aria-label]="'Hora de cierre de ' + j.nombre"
+                  [disabled]="!puede()" [value]="j.horaCierre ?? ''" #hc />
+                <button grButton size="s" [disabled]="!puede()" [loading]="guardandoCierre() === j.id" (click)="guardarCierre(j, hc.value)">Guardar</button>
+              </div>
+            }
+          </div>
+        </so-card>
+
         <so-card titulo="Puntos fantasy" ayuda="Lo que suma cada atleta de la plantilla en la jornada">
           @if (cambiosEn(puntosGrupos)) { <span cardActions class="inline-flex h-6 items-center rounded-2xs border border-warning/30 bg-warning/10 px-2 font-mono text-mono-xs text-warning">{{ cambiosEn(puntosGrupos) }} {{ cambiosEn(puntosGrupos) === 1 ? 'cambio' : 'cambios' }}</span> }
           <div class="grid gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
@@ -173,6 +189,8 @@ export class JuegosConfigPage {
   protected readonly form = signal<ConfigJuegos>({ ...cfgPorDefecto });
   protected readonly original = signal<ConfigJuegos>({ ...cfgPorDefecto });
   protected readonly jornadas = signal<Jornada[]>([]);
+  protected readonly jornadasAbiertas = computed(() => this.jornadas().filter((j) => j.estado !== 'cerrada'));
+  protected readonly guardandoCierre = signal('');
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
@@ -294,6 +312,21 @@ export class JuegosConfigPage {
 
   protected restaurar(): void {
     this.form.set({ ...this.original() });
+  }
+
+  protected async guardarCierre(j: Jornada, hora: string): Promise<void> {
+    const cid = this.cid();
+    if (!cid) return;
+    this.guardandoCierre.set(j.id);
+    try {
+      await this.api.jornada(cid, j.id, { horaCierre: hora });
+      this.jornadas.update((l) => l.map((x) => (x.id === j.id ? { ...x, horaCierre: hora } : x)));
+      this.toasts.success(hora ? `Cierre de ${j.nombre} a las ${hora}` : `Cierre de ${j.nombre} quitado`);
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo guardar la hora de cierre.'));
+    } finally {
+      this.guardandoCierre.set('');
+    }
   }
 
   protected async guardar(): Promise<void> {

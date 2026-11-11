@@ -21,11 +21,11 @@ const img = "/img/home/"
 
 var seedSecciones = map[string]any{
 	"hero":       map[string]any{"titulo": "Los ganadores nunca se rinden"},
-	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": "Fecha por confirmar"},
+	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": ""},
 	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas en competición"}, {"valor": "18", "etiqueta": "Categorías de peso"},
 		{"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},
-	"alta-atleta": map[string]any{"eyebrow": "GR Cup 2026 · Plantilla completa", "titulo": "Completa tu ficha de atleta",
-		"texto": "La plantilla de la GR Cup 2026 está completa. Si compites, completa tu ficha de atleta: foto, club y mejores marcas. La revisamos a mano y la publicamos en la lista de atletas.",
+	"alta-atleta": map[string]any{"eyebrow": "GR Cup 2026 · Alta de atleta", "titulo": "Crea tu perfil de atleta",
+		"texto": "Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y lo publicamos en la lista de atletas.",
 		"cta":   "Dar de alta mi atleta"},
 	"entradas": map[string]any{"eyebrow": "Entrada gratuita · aforo limitado", "titulo": "Ven a vivirlo *en directo*", "tituloAcento": "",
 		"texto": "La entrada es gratis, pero hay que reservarla: te llega un QR al email y entras sin colas. Una reserva sirve para ti y hasta 3 acompañantes.",
@@ -87,7 +87,13 @@ var seedPatro = []patroIn{
 	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", true, "", nil},
 	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", true, "", nil},
 	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", true, "", nil},
+	// BIZ-144: the three logos of the hero row (Figma 199:100283), the only ones with «Mostrar en hero» on.
+	{"GRStrength", "principal", "/img/home/patro-str.webp", "https://grstrength.com", true, "", &enHero},
+	{"GRS Powerlifting Coaching", "principal", "/img/home/patro-coa.webp", "", true, "", &enHero},
+	{"Ajuntament d'Almussafes", "institucional", "/img/home/patro-alm.webp", "https://www.almussafes.net", true, "", &enHero},
 }
+
+var enHero = true
 
 const logoValkyria = bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp"
 
@@ -284,8 +290,8 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 		}
 		if empty(tx, "patrocinadores") {
 			for i, p := range seedPatro {
-				if _, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, descripcion, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-					newID(), cid, p.Nombre, p.Nivel, p.LogoURL, p.URL, p.Activo, p.Descripcion, i+1); err != nil {
+				if _, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, descripcion, orden, mostrar_en_hero) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+					newID(), cid, p.Nombre, p.Nivel, p.LogoURL, p.URL, p.Activo, p.Descripcion, i+1, p.MostrarEnHero != nil && *p.MostrarEnHero); err != nil {
 					return err
 				}
 			}
@@ -386,9 +392,9 @@ func homeV2(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
 		}
 	}
 	for i, p := range seedPatro {
-		if _, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, orden)
-			SELECT $1,$2,$3,$4,$5,$6,$7,$8 WHERE NOT EXISTS (SELECT 1 FROM patrocinadores WHERE competition_id = $2 AND nombre = $3)`,
-			newID(), cid, p.Nombre, p.Nivel, p.LogoURL, p.URL, p.Activo, i+1); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, orden, mostrar_en_hero)
+			SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9 WHERE NOT EXISTS (SELECT 1 FROM patrocinadores WHERE competition_id = $2 AND nombre = $3)`,
+			newID(), cid, p.Nombre, p.Nivel, p.LogoURL, p.URL, p.Activo, i+1, p.MostrarEnHero != nil && *p.MostrarEnHero); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE patrocinadores SET orden = $3 WHERE competition_id = $1 AND nombre = $2`, cid, p.Nombre, i+1); err != nil {

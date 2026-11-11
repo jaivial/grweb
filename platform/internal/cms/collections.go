@@ -69,7 +69,7 @@ type patroIn struct {
 	Activo  bool   `json:"activo,omitempty"`
 	// One line under the name on /patrocinadores (optional).
 	Descripcion string `json:"descripcion,omitempty" maxLength:"200"`
-	// «Mostrar en hero» (BIZ-144). Absent: true when creating, unchanged when editing.
+	// «Mostrar en hero» (BIZ-144). Absent: false when creating, unchanged when editing.
 	MostrarEnHero *bool `json:"mostrarEnHero,omitempty"`
 }
 
@@ -283,7 +283,7 @@ func (s *Svc) registerCollections() {
 		},
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *patroIn) error {
 			_, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, descripcion, mostrar_en_hero, orden)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::boolean, true),(SELECT COALESCE(max(orden),0)+1 FROM patrocinadores WHERE competition_id = $2))`, id, cid, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion, in.MostrarEnHero)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::boolean, false),(SELECT COALESCE(max(orden),0)+1 FROM patrocinadores WHERE competition_id = $2))`, id, cid, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion, in.MostrarEnHero)
 			return err
 		},
 		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *patroIn) error {

@@ -11,6 +11,8 @@ export interface Jornada {
   dia: string;
   nombre: string;
   estado: EstadoJornada;
+  /** «HH:MM» (Europe/Madrid) de cierre de apuestas; la home muestra su cuenta atrás. */
+  horaCierre?: string;
 }
 
 export interface OpcionMercado {
@@ -122,7 +124,7 @@ export class JuegosApi {
     return firstValueFrom(this.http.post<{ id: string }>(`${this.b(cid)}/jornadas`, { dia, nombre }));
   }
 
-  jornada(cid: string, jid: string, cambios: { nombre?: string; estado?: EstadoJornada }): Promise<void> {
+  jornada(cid: string, jid: string, cambios: { nombre?: string; estado?: EstadoJornada; horaCierre?: string }): Promise<void> {
     return firstValueFrom(this.http.patch<void>(`${this.b(cid)}/jornadas/${jid}`, cambios));
   }
 

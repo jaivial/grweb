@@ -45,27 +45,45 @@ export class SecCifras {
   protected readonly items = computed(() => list<{ valor: string; etiqueta: string }>(this.s(), 'items'));
 }
 
-/** «Section / Alta de atleta»: la llamada a completar la ficha (la plantilla de la competición ya está completa). */
+/** «Section / Alta de atleta» (Figma 74 · SecAlta 171:82712/82732/82752): la tarjeta de alta y los 4 beneficios. */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton],
+  imports: [RouterLink, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-20 md:pt-16 md:pb-32' },
   template: `
     <div class="relative mx-auto flex max-w-[720px] flex-col items-center gap-4 overflow-hidden rounded-2xl border border-line-subtle bg-bg-card px-5 py-8 text-center md:gap-5 md:px-14 md:py-12">
       <div class="absolute inset-x-0 top-0 h-0.5 bg-[linear-gradient(90deg,transparent,#c42b3e,transparent)]"></div>
-      <span class="inline-flex h-7 items-center rounded-pill border border-line-strong bg-bg-raised px-3 text-label-xs text-text-secondary uppercase">{{ s()?.['eyebrow'] || 'GR Cup 2026 · Plantilla completa' }}</span>
-      <h2 class="text-display-m text-accent-text [text-shadow:0_0_24px_rgb(196_43_62/0.5)] md:text-display-xl">{{ s()?.['titulo'] || 'Completa tu ficha de atleta' }}</h2>
-      <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] || 'La plantilla de la GR Cup 2026 está completa. Si compites, completa tu ficha de atleta: foto, club y mejores marcas. La revisamos a mano y la publicamos en la lista de atletas.' }}</p>
+      <span class="inline-flex h-7 items-center rounded-pill border border-line-strong bg-bg-raised px-3 text-label-xs text-text-secondary uppercase">{{ s()?.['eyebrow'] || 'GR Cup 2026 · Alta de atleta' }}</span>
+      <h2 class="text-display-m text-accent-text [text-shadow:0_0_24px_rgb(196_43_62/0.5)] md:text-display-xl">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
+      <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] || 'Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y lo publicamos en la lista de atletas.' }}</p>
       <div class="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
         <a grButton variant="primary" size="l" routerLink="/alta-atleta">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
         <a grButton variant="outline" size="l" routerLink="/atletas">Ver atletas</a>
       </div>
     </div>
+    <div class="mx-auto mt-12 flex max-w-[1100px] flex-col items-center gap-8 md:mt-[72px] md:gap-10">
+      <h3 class="text-center font-display text-[28px] leading-[1.2] tracking-[0.02em] md:text-[36px]">Por qué darte de alta como atleta</h3>
+      <ul class="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+        @for (b of beneficios; track b.t) {
+          <li class="flex flex-col gap-2 rounded-xl border border-white/8 bg-white/3 p-6">
+            <span class="mb-2 flex size-11 items-center justify-center rounded-md bg-accent/16 text-accent-text"><gr-icon [name]="b.i" [size]="20" /></span>
+            <span class="text-[17px] leading-[21px] font-semibold">{{ b.t }}</span>
+            <span class="text-body-s text-text-tertiary">{{ b.d }}</span>
+          </li>
+        }
+      </ul>
+    </div>
   `,
 })
 export class SecAlta {
   readonly s = input<Seccion | undefined>();
+  protected readonly beneficios: { i: GrIconName; t: string; d: string }[] = [
+    { i: 'user', t: 'Área de atleta personalizada', d: 'Tu propia área como atleta en la GR Cup.' },
+    { i: 'activity', t: 'Tus datos en tiempo real', d: 'Consulta tus datos durante la competición, al momento.' },
+    { i: 'trophy', t: 'GRS Fantasy y porra general', d: 'Aparece como atleta en la GRS Fantasy y en la porra general.' },
+    { i: 'bell', t: 'Mejor atención del club', d: 'Canales de información, newsletters y avisos del club.' },
+  ];
 }
 
 /**
