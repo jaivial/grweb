@@ -38,7 +38,7 @@ type Pestana = 'chat' | 'donantes' | 'porra';
             </span>
             <span [class]="estadoClase()">{{ badge() }}</span>
             @if (vivo()) {
-              <span class="inline-flex items-center gap-1 whitespace-nowrap text-text-tertiary md:before:mr-0.5 md:before:text-text-muted md:before:content-['·']"><gr-icon name="users" [size]="12" />{{ conectados() }} conectados</span>
+              <span class="inline-flex items-center gap-1 whitespace-nowrap text-text-tertiary md:before:mr-0.5 md:before:text-text-muted md:before:content-['·']"><gr-icon name="users" [size]="12" />{{ conectados() }} {{ conectados() === '1' ? 'conectado' : 'conectados' }}</span>
             }
           </p>
         </div>

@@ -559,7 +559,7 @@ export class ResultadosIndexPage {
           <div class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
             @for (c of r.categorias; track c.clave) {
               <section class="w-[86%] shrink-0 snap-center rounded-xl border border-line-subtle bg-bg-card p-5 md:w-auto">
-                <header class="flex items-baseline justify-between"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} atletas</span></header>
+                <header class="flex items-baseline justify-between"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} {{ c.atletas === 1 ? 'atleta' : 'atletas' }}</span></header>
                 <div class="mt-4 grid grid-cols-3 items-end gap-2">
                   @for (p of podio(c); track $index) {
                     <div class="flex flex-col items-center gap-1 text-center">

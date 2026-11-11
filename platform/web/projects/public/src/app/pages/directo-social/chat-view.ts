@@ -111,7 +111,7 @@ interface Fila {
                         <span class="line-clamp-2 block text-label-xs break-words text-white/85 [overflow-wrap:anywhere]">{{ it.alias }} ha donado</span>
                         <span class="block font-display text-[24px] leading-none text-white italic">{{ euros(it.importe) }}</span>
                       </p>
-                      <gr-coin>+{{ nf(it.coins) }} coins</gr-coin>
+                      <gr-coin>+{{ nf(it.coins) }} {{ it.coins === 1 ? 'coin' : 'coins' }}</gr-coin>
                     </div>
                     @if (it.texto) { <p class="mt-2.5 rounded-sm bg-black/25 px-2.5 py-2 text-body-s break-words text-white [overflow-wrap:anywhere]">{{ sinIds(it.texto) }}</p> }
                   </div>
@@ -150,7 +150,7 @@ interface Fila {
                       <gr-coin>+{{ porraHito(it.mensajes) }} porra</gr-coin>
                       <gr-coin tipo="fantasy">+{{ nf(fantasyHito(it.mensajes)) }} fantasy</gr-coin>
                     </p>
-                    <p class="mt-2 text-body-xs text-text-secondary">por tus {{ it.mensajes }} mensajes de hoy en el chat</p>
+                    <p class="mt-2 text-body-xs text-text-secondary">por {{ it.mensajes === 1 ? 'tu mensaje' : 'tus ' + it.mensajes + ' mensajes' }} de hoy en el chat</p>
                   </div>
                 </li>
               }
