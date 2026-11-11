@@ -255,9 +255,9 @@ func (s *Svc) registerAdmin() {
 			id := newID()
 			b := in.Body
 			err := s.change(ctx, in.CID, "athletes.atleta_creado", map[string]any{"id": id, "nombre": b.Nombre + " " + b.Apellidos}, func(tx pgx.Tx) error {
-				if _, err := tx.Exec(ctx, `INSERT INTO atletas (id, competition_id, licencia, nombre, apellidos, email, telefono, sexo, fecha_nacimiento, categoria, division, club, ciudad, estado, origen)
-					VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,'manual')`, id, in.CID, b.Licencia, b.Nombre, b.Apellidos, b.Email, b.Telefono, b.Sexo, b.fecha(),
-					b.Categoria, b.Division, b.Club, b.Ciudad, b.Estado); err != nil {
+				if _, err := tx.Exec(ctx, `INSERT INTO atletas (id, competition_id, licencia, nombre, apellidos, email, telefono, sexo, fecha_nacimiento, categoria, division, club, ciudad, estado, origen, prueba)
+					VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,'manual',COALESCE($15,''))`, id, in.CID, b.Licencia, b.Nombre, b.Apellidos, b.Email, b.Telefono, b.Sexo, b.fecha(),
+					b.Categoria, b.Division, b.Club, b.Ciudad, b.Estado, b.Prueba); err != nil {
 					if db.IsUniqueViolation(err, "") {
 						return problem.Conflict("LICENCIA_DUPLICADA", "Ya hay un atleta con esa licencia en esta competición.")
 					}
@@ -296,9 +296,9 @@ func (s *Svc) registerAdmin() {
 					return err
 				}
 				if _, err := tx.Exec(ctx, `UPDATE atletas SET licencia=$3, nombre=$4, apellidos=$5, email=NULLIF($6,''), telefono=$7, sexo=$8, fecha_nacimiento=$9, categoria=$10,
-					division=$11, club=$12, ciudad=$13, estado=$14, orden_reserva = CASE WHEN $14 = 'reserva' THEN orden_reserva ELSE NULL END,
+					division=$11, club=$12, ciudad=$13, estado=$14, prueba = COALESCE($15, prueba), orden_reserva = CASE WHEN $14 = 'reserva' THEN orden_reserva ELSE NULL END,
 					version = version + 1, updated_at = now() WHERE competition_id=$1 AND id=$2`, in.CID, in.ID, b.Licencia, b.Nombre, b.Apellidos, b.Email, b.Telefono, b.Sexo, b.fecha(),
-					b.Categoria, b.Division, b.Club, b.Ciudad, b.Estado); err != nil {
+					b.Categoria, b.Division, b.Club, b.Ciudad, b.Estado, b.Prueba); err != nil {
 					if db.IsUniqueViolation(err, "") {
 						return problem.Conflict("LICENCIA_DUPLICADA", "Ya hay un atleta con esa licencia en esta competición.")
 					}
@@ -674,18 +674,19 @@ func (s *Svc) lock(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ifm string
 
 // DatosIn are the competition data of an athlete.
 type DatosIn struct {
-	Licencia        string `json:"licencia,omitempty" maxLength:"20"`
-	Nombre          string `json:"nombre" minLength:"1" maxLength:"80"`
-	Apellidos       string `json:"apellidos,omitempty" maxLength:"120"`
-	Email           string `json:"email,omitempty" maxLength:"254"`
-	Telefono        string `json:"telefono,omitempty" maxLength:"30"`
-	Sexo            string `json:"sexo" enum:"F,M"`
-	FechaNacimiento string `json:"fechaNacimiento,omitempty" doc:"AAAA-MM-DD"`
-	Categoria       string `json:"categoria" maxLength:"6"`
-	Division        string `json:"division" enum:"subjunior,junior,open,master1,master2,master3,master4"`
-	Club            string `json:"club,omitempty" maxLength:"120"`
-	Ciudad          string `json:"ciudad,omitempty" maxLength:"80"`
-	Estado          string `json:"estado" enum:"confirmado,reserva,baja"`
+	Licencia        string  `json:"licencia,omitempty" maxLength:"20"`
+	Nombre          string  `json:"nombre" minLength:"1" maxLength:"80"`
+	Apellidos       string  `json:"apellidos,omitempty" maxLength:"120"`
+	Email           string  `json:"email,omitempty" maxLength:"254"`
+	Telefono        string  `json:"telefono,omitempty" maxLength:"30"`
+	Sexo            string  `json:"sexo" enum:"F,M"`
+	FechaNacimiento string  `json:"fechaNacimiento,omitempty" doc:"AAAA-MM-DD"`
+	Categoria       string  `json:"categoria" maxLength:"6"`
+	Division        string  `json:"division" enum:"subjunior,junior,open,master1,master2,master3,master4"`
+	Club            string  `json:"club,omitempty" maxLength:"120"`
+	Ciudad          string  `json:"ciudad,omitempty" maxLength:"80"`
+	Estado          string  `json:"estado" enum:"confirmado,reserva,baja"`
+	Prueba          *string `json:"prueba,omitempty" doc:"aep2, aep3 o vacío; sin enviar se conserva"`
 }
 
 func (d *DatosIn) validate() error {
@@ -703,6 +704,9 @@ func (d *DatosIn) validate() error {
 	}
 	if err := ValidarCategoria(d.Sexo, d.Categoria, d.Division); err != nil {
 		return problem.Unprocessable("CATEGORIA_INVALIDA", "Categoría: "+err.Error()+".")
+	}
+	if d.Prueba != nil && *d.Prueba != "" && pruebaTexto(*d.Prueba) == "Aún no lo sabe" {
+		return problem.Unprocessable("PRUEBA_INVALIDA", "La competición debe ser AEP-2, AEP-3 o vacía.")
 	}
 	return nil
 }
@@ -726,6 +730,9 @@ func cambios(prev row, b DatosIn) string {
 	add("Club", prev.Club, b.Club)
 	add("Estado", prev.Estado, b.Estado)
 	add("Licencia", prev.Licencia, b.Licencia)
+	if b.Prueba != nil {
+		add("Competición", pruebaTexto(prev.Prueba), pruebaTexto(*b.Prueba))
+	}
 	return strings.Join(c, " · ")
 }
 

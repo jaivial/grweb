@@ -77,6 +77,8 @@ export interface Atleta {
   club: string;
   ciudad: string;
   estado: 'confirmado' | 'reserva' | 'baja';
+  /** Competición elegida en el alta: aep2, aep3 o vacío (aún no lo sabe). */
+  prueba: string;
   ordenReserva?: number;
   origen: string;
   flight: string;
