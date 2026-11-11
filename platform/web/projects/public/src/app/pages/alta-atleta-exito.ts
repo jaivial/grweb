@@ -14,7 +14,7 @@ import { GrButton, GrIcon } from '@grcup/ui';
         <h2 id="exito-t" class="text-display-s md:text-display-m">Qué pasa ahora</h2>
         <p class="mt-2 text-body-m text-text-secondary md:text-body-l">Esto es lo que va a pasar desde ahora.</p>
       </div>
-      <ol class="-mt-3 grid gap-4 md:grid-cols-3">
+      <ol class="-mt-6 grid items-start gap-4 md:grid-cols-3">
         @for (p of pasos; track p.n) {
           <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
             <span class="text-display-xs text-accent-text">{{ p.n }}</span>

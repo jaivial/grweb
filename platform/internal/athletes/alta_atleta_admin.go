@@ -804,6 +804,12 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			}
 		}
 		// The profile: the declared data, the corrections of the reviewer and never an empty value.
+		// The chosen competition goes to the athlete (an empty one never empties it).
+		if sol.Prueba != "" {
+			if _, err := tx.Exec(ctx, `UPDATE atletas SET prueba = $3 WHERE competition_id = $1 AND id = $2`, cid, *destino, sol.Prueba); err != nil {
+				return err
+			}
+		}
 		slug, err := s.actualizaPerfil(ctx, tx, cid, *destino, sol, cambios)
 		if err != nil {
 			return err
@@ -864,7 +870,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		if avisarEmail {
 			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": urlArea}); err != nil {
+				"nombre": sol.Nombre, "prueba": pruebaTexto(sol.Prueba), "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": urlArea}); err != nil {
 				return err
 			}
 		}
