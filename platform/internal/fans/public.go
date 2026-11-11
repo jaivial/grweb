@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +25,16 @@ import (
 )
 
 var tagFans = []string{"Directo social"}
+
+var rutaWeb = regexp.MustCompile(`^/[A-Za-z0-9/_.~?=&%-]*$`)
+
+// nextValido keeps only a path of this web (never another host: //evil, /\\evil, https://…).
+func nextValido(n string) string {
+	if len(n) > 200 || !rutaWeb.MatchString(n) || strings.HasPrefix(n, "//") || strings.HasPrefix(n, "/acceso") {
+		return ""
+	}
+	return n
+}
 
 // Yo is the fan session as the web sees it (GET /fans/yo and the redemption responses).
 type Yo struct {
@@ -97,6 +109,7 @@ func (s *Svc) registerPublic() {
 			Tipo         string `json:"tipo" enum:"atleta,publico"`
 			Alias        string `json:"alias" minLength:"3" maxLength:"20" doc:"Nombre público en el chat y las clasificaciones"`
 			AceptaNormas bool   `json:"aceptaNormas" doc:"Debe ser true: normas de participación del directo"`
+			Next         string `json:"next,omitempty" maxLength:"200" doc:"Ruta de la web a la que volver tras entrar (p. ej. /inscripcion?ref=…)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "fans-acceso", Method: http.MethodPost, Path: base + "/acceso",
@@ -137,8 +150,15 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			link := s.webURL + "/acceso?acceso=" + tok
+			plantilla := "fans-acceso"
+			if next := nextValido(in.Body.Next); next != "" {
+				link += "&next=" + url.QueryEscape(next)
+				if strings.HasPrefix(next, "/inscripcion") {
+					plantilla = "fans-acceso-inscripcion"
+				}
+			}
 			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				return emailSolicitado(ctx, tx, cid, email, "fans-acceso", map[string]string{"alias": alias, "tipo": in.Body.Tipo, "enlace": link})
+				return emailSolicitado(ctx, tx, cid, email, plantilla, map[string]string{"alias": alias, "tipo": in.Body.Tipo, "enlace": link})
 			}); err != nil {
 				return nil, err
 			}

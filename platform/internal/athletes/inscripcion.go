@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -173,7 +174,10 @@ func (s *Svc) precio(ctx context.Context, q querier, cid uuid.UUID, cfg Config, 
 	if code := normCodigo(cuponIn); code != "" {
 		d := &Descuento{Codigo: code}
 		p.Cupon = d
-		rows, err := q.Query(ctx, `SELECT id, codigo, tipo, valor, limite, caduca, activo, usos FROM cupones WHERE competition_id = $1 AND codigo = $2`, cid, code)
+		// Uses = paid ones plus payments in progress whose hold is still valid (an expired or failed one frees its use).
+		rows, err := q.Query(ctx, `SELECT id, codigo, tipo, valor, limite, caduca, activo,
+			usos + (SELECT count(*) FROM inscripciones i WHERE i.cupon_id = cupones.id AND i.estado = 'pendiente_pago' AND i.expira_at > now())::int AS usos
+			FROM cupones WHERE competition_id = $1 AND codigo = $2`, cid, code)
 		if err != nil {
 			return p, nil, nil, err
 		}
@@ -200,7 +204,8 @@ func (s *Svc) precio(ctx context.Context, q querier, cid uuid.UUID, cfg Config, 
 		d := &Descuento{Codigo: code}
 		p.Referido = d
 		rows, err := q.Query(ctx, `SELECT r.id, r.atleta_id, r.inscripcion_id, r.codigo, r.ajustes, a.nombre, a.apellidos, a.email::text AS email,
-			(SELECT count(*) FROM referido_usos u WHERE u.codigo_id = r.id AND u.estado <> 'anulada')::int AS usos
+			((SELECT count(*) FROM referido_usos u WHERE u.codigo_id = r.id AND u.estado <> 'anulada')
+			 + (SELECT count(*) FROM inscripciones i WHERE i.referido_id = r.id AND i.estado = 'pendiente_pago' AND i.expira_at > now()))::int AS usos
 			FROM referido_codigos r JOIN atletas a ON a.id = r.atleta_id WHERE r.competition_id = $1 AND r.codigo = $2`, cid, code)
 		if err != nil {
 			return p, nil, nil, err
@@ -289,6 +294,27 @@ func (s *Svc) initPagos() {
 	s.sim = &pagos.Simulado{Redis: s.a.Redis, Prefix: s.a.Keys.Of("pagos", "sim", "athletes", ""), Secret: hex.EncodeToString(m.Sum(nil)), Service: "athletes", WebURL: s.webURL}
 	s.sim.Deliver = func(ctx context.Context, payload []byte, sig string) error {
 		return s.webhook(ctx, payload, http.Header{"Stripe-Signature": []string{sig}})
+	}
+	s.sim.Log = s.a.Log
+	// Paying needs the fan session that started the registration (metadata «fan»; reserve offers sent by email
+	// carry none and only need a session of the competition).
+	s.sim.Authorize = func(r *http.Request, md map[string]string) error {
+		tok := r.Header.Get("X-GrCup-Fan")
+		if c, err := r.Cookie(fanauth.Cookie); err == nil && c.Value != "" {
+			tok = c.Value
+		}
+		cid, err := uuid.Parse(md["competicion"])
+		if err != nil {
+			return err
+		}
+		f, err := s.sesionFan(r.Context(), tok, "", cid)
+		if err != nil {
+			return err
+		}
+		if md["fan"] != "" && md["fan"] != f.ID.String() {
+			return fanauth.ErrInvalid
+		}
+		return nil
 	}
 	s.sim.Mount(s.a.Mux, "/api/pagos/simulado/athletes")
 }
@@ -437,7 +463,7 @@ func (s *Svc) registerInscripcion() {
 			if err != nil {
 				return nil, err
 			}
-			if err := s.sesionFan(ctx, in.Session, in.Fan, c.ID); err != nil {
+			if _, err := s.sesionFan(ctx, in.Session, in.Fan, c.ID); err != nil {
 				return nil, err
 			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "precio", httpx.ClientIPFrom(ctx)), 60, 10*time.Minute); !r.Allowed {
@@ -455,6 +481,7 @@ func (s *Svc) registerInscripcion() {
 		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Session string `cookie:"grcup_fan" maxLength:"4096"`
 		Fan     string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Idem    string `header:"Idempotency-Key" maxLength:"100" doc:"Repetir la petición con la misma clave devuelve la misma inscripción"`
 		Body    InscripcionIn
 	}
 	type estadoOut struct{ Body EstadoInscripcion }
@@ -464,15 +491,45 @@ func (s *Svc) registerInscripcion() {
 			if err != nil {
 				return nil, err
 			}
-			if err := s.sesionFan(ctx, in.Session, in.Fan, c.ID); err != nil {
-				return nil, err
-			}
-			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "inscripcion", httpx.ClientIPFrom(ctx)), 10, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Has enviado varias inscripciones seguidas. Inténtalo más tarde.")
-			}
-			out, err := s.crearInscripcion(ctx, c.ID, in.Body)
+			f, err := s.sesionFan(ctx, in.Session, in.Fan, c.ID)
 			if err != nil {
 				return nil, err
+			}
+			// Same key → same registration (double click, retry after a network error).
+			var idem string
+			if in.Idem != "" {
+				idem = s.a.Keys.Of("idem", "inscripcion", f.ID.String(), in.Idem)
+				if v, err := s.a.Redis.Get(ctx, idem).Result(); err == nil {
+					if id, err := uuid.Parse(v); err == nil {
+						e, err := s.estado(ctx, c.ID, id)
+						return &estadoOut{Body: e}, err
+					}
+					return nil, problem.Conflict("INSCRIPCION_EN_CURSO", "Estamos procesando tu inscripción. Espera unos segundos.")
+				}
+				if ok, err := s.a.Redis.SetNX(ctx, idem, "-", 2*time.Minute).Result(); err == nil && !ok {
+					return nil, problem.Conflict("INSCRIPCION_EN_CURSO", "Estamos procesando tu inscripción. Espera unos segundos.")
+				}
+			}
+			// Only created registrations count (a rejected form does not lock out a shared club or NAT IP).
+			kIP := s.a.Keys.Of("rl", "inscripcion", httpx.ClientIPFrom(ctx))
+			kMail := s.a.Keys.Of("rl", "inscripcion", "email", strings.ToLower(strings.TrimSpace(in.Body.Email)))
+			if n, _ := s.a.Redis.Get(ctx, kIP).Int(); n >= 30 {
+				s.soltarIdem(ctx, idem)
+				return nil, problem.TooMany("Se han hecho muchas inscripciones desde tu red. Inténtalo más tarde.")
+			}
+			if n, _ := s.a.Redis.Get(ctx, kMail).Int(); n >= 5 {
+				s.soltarIdem(ctx, idem)
+				return nil, problem.TooMany("Has enviado varias inscripciones con este email. Inténtalo más tarde.")
+			}
+			out, err := s.crearInscripcion(ctx, c.ID, f.ID, in.Body)
+			if err != nil {
+				s.soltarIdem(ctx, idem)
+				return nil, err
+			}
+			_, _ = ratelimit.Allow(ctx, s.a.Redis, kIP, 30, time.Hour)
+			_, _ = ratelimit.Allow(ctx, s.a.Redis, kMail, 5, time.Hour)
+			if idem != "" {
+				_ = s.a.Redis.Set(ctx, idem, out.ID.String(), 24*time.Hour).Err()
 			}
 			s.plazasCambiadas(ctx, c.ID)
 			return &estadoOut{Body: out}, nil
@@ -549,7 +606,7 @@ func (s *Svc) estado(ctx context.Context, cid, id uuid.UUID) (EstadoInscripcion,
 }
 
 // crearInscripcion validates the form, reserves the place and starts the payment (or confirms free / reserve).
-func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b InscripcionIn) (EstadoInscripcion, error) {
+func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b InscripcionIn) (EstadoInscripcion, error) {
 	pub, cfg, err := s.configPub(ctx, cid, true)
 	if err != nil {
 		return EstadoInscripcion{}, err
@@ -580,8 +637,17 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 	if year-nac.Year() < 14 {
 		return EstadoInscripcion{}, problem.Unprocessable("EDAD_MINIMA", "La edad mínima para competir es 14 años.")
 	}
+	if e := Edad(nac, time.Now()); e < 14 || e > 90 {
+		return EstadoInscripcion{}, problem.Unprocessable("FECHA_INVALIDA", "Esa fecha de nacimiento no parece correcta (debe estar entre los 14 y los 90 años).")
+	}
 	if err := d.validate(); err != nil {
 		return EstadoInscripcion{}, err
+	}
+	if !tieneLetra(d.Nombre) || !tieneLetra(d.Apellidos) {
+		return EstadoInscripcion{}, problem.Unprocessable("NOMBRE_INVALIDO", "El nombre y los apellidos deben contener letras.")
+	}
+	if !licenciaValida.MatchString(d.Licencia) {
+		return EstadoInscripcion{}, problem.Unprocessable("LICENCIA_INVALIDA", "La licencia AEP solo admite letras sin tilde, números y guiones (de 3 a 20).")
 	}
 	if d.Email == "" {
 		return EstadoInscripcion{}, problem.Unprocessable("EMAIL_INVALIDO", "Escribe tu email.")
@@ -670,7 +736,7 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 		}
 		checkout = pagos.CheckoutIn{Amount: precio.Total, Description: "Inscripción · " + s.nombreComp(ctx, cid), Email: d.Email,
 			SuccessURL: s.webURL + "/inscripcion/estado?id=" + id.String(), CancelURL: s.webURL + "/inscripcion?cancelado=" + id.String(),
-			Metadata: map[string]string{"inscripcion": id.String(), "competicion": cid.String(), "idempotencia": id.String()}, ExpiresAt: *expira,
+			Metadata: map[string]string{"inscripcion": id.String(), "competicion": cid.String(), "idempotencia": id.String(), "fan": fan.String()}, ExpiresAt: *expira,
 			Lines: lineasPago(precio)}
 		if prov == nil { // rolls back the registration: nothing is held without a way to pay
 			return problem.New(http.StatusServiceUnavailable, "PASARELA_NO_CONFIGURADA", "Los pagos todavía no están activados. Inténtalo más adelante.")
@@ -698,6 +764,16 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid uuid.UUID, b Inscripcion
 }
 
 // lineasPago is the breakdown shown on the payment page: fee, then each discount (Figma 06b «Pasarela simulada»).
+
+var licenciaValida = regexp.MustCompile(`^[A-Z0-9-]{3,20}$`)
+
+// soltarIdem frees an idempotency key whose request failed, so the same key can be retried.
+func (s *Svc) soltarIdem(ctx context.Context, k string) {
+	if k != "" {
+		_ = s.a.Redis.Del(ctx, k).Err()
+	}
+}
+
 func lineasPago(p Precio) []pagos.Line {
 	l := []pagos.Line{{Label: "Cuota de inscripción", Amount: p.Cuota}}
 	if p.Cupon != nil && p.Cupon.Valido && p.Cupon.Importe > 0 {
@@ -760,6 +836,17 @@ func (s *Svc) webhook(ctx context.Context, payload []byte, h http.Header) error 
 		}
 		switch {
 		case ev.Type == "checkout.session.completed" && ev.Paid:
+			// Already paid (another event of the same session, or Stripe re-sending): nothing to do.
+			var estado string
+			if err := tx.QueryRow(ctx, `SELECT estado FROM inscripciones WHERE id = $1 AND competition_id = $2 FOR UPDATE`, iid, cid).Scan(&estado); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return nil
+				}
+				return err
+			}
+			if estado == "pagada" {
+				return nil
+			}
 			if err := s.confirmarPago(ctx, tx, cid, iid, ev); err != nil {
 				return err
 			}
@@ -971,10 +1058,11 @@ func (s *Svc) recompensaReferido(ctx context.Context, tx pgx.Tx, cid, iid uuid.U
 	if reward == 0 || pago == "" {
 		estado, reward = "sin_devolucion", 0
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO referido_usos (id, codigo_id, inscripcion_id, recompensa, estado) VALUES ($1,$2,$3,$4,$5)`, uid, *refID, iid, reward, estado); err != nil {
+	tag, err := tx.Exec(ctx, `INSERT INTO referido_usos (id, codigo_id, inscripcion_id, recompensa, estado) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (inscripcion_id) DO NOTHING`, uid, *refID, iid, reward, estado)
+	if err != nil {
 		return nil, err
 	}
-	if estado != "pendiente" {
+	if tag.RowsAffected() == 0 || estado != "pendiente" {
 		return nil, nil
 	}
 	ins := *refIns
@@ -1131,19 +1219,19 @@ func (s *Svc) ofrecerPlaza(ctx context.Context, cid, aid uuid.UUID) (bool, error
 }
 
 // sesionFan requires the public account session (atleta or público) of this competition: cookie first, header second.
-func (s *Svc) sesionFan(ctx context.Context, cookie, hdr string, cid uuid.UUID) error {
+func (s *Svc) sesionFan(ctx context.Context, cookie, hdr string, cid uuid.UUID) (fanauth.Fan, error) {
 	tok := cookie
 	if tok == "" {
 		tok = hdr
 	}
 	f, err := s.fans.Verify(ctx, tok)
 	if err != nil {
-		return fanauth.Problem(err)
+		return f, fanauth.Problem(err)
 	}
 	if f.CompetitionID != cid {
-		return fanauth.Problem(fanauth.ErrInvalid)
+		return f, fanauth.Problem(fanauth.ErrInvalid)
 	}
-	return nil
+	return f, nil
 }
 
 // plazasCambiadas publishes the public place counter (SSE inscripcion.plazas_actualizadas, no personal data), so the
