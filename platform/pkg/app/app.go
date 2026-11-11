@@ -218,7 +218,7 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	if limit == 0 {
 		limit = 1 << 20
 	}
-	mws := []httpx.Middleware{httpx.RequestID, httpx.Recover(a.Log), httpx.Logger(a.Log), httpx.MaxBodyFor(limit, s.BodyLimitFor), auth.Middleware(a.Verifier)}
+	mws := []httpx.Middleware{httpx.RequestID, httpx.Recover(a.Log), httpx.Logger(a.Log), httpx.MaxBodyFor(limit, s.BodyLimitFor), httpx.RejectNUL, auth.Middleware(a.Verifier)}
 	mws = append(mws, s.Middlewares...)
 	mws = append(mws, a.Metrics.Middleware) // innermost: it sees the route pattern the mux matched
 	srv := &http.Server{
