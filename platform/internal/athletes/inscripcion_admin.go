@@ -168,6 +168,7 @@ func (s *Svc) registerInscripcionAdmin() {
 			if err != nil {
 				return nil, err
 			}
+			s.plazasCambiadas(ctx, in.CID)
 			c, err := s.config(ctx, s.a.DB, in.CID)
 			return &cfgOut{ETag: etag(c.Version), Body: c}, err
 		})

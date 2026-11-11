@@ -7,6 +7,7 @@ import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { CATEGORIAS_IPF, cat } from '../core/atletas';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
+import { FanSession, codigoError } from '../core/fan';
 import { Seo } from '../core/seo';
 import { instagramOf } from '../layout/layout';
 import { Page } from '../layout/page';
@@ -249,6 +250,8 @@ export class InscripcionPage {
   private readonly router = inject(Router);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly host = inject(ElementRef<HTMLElement>);
+  /** Registering (price check and submit) needs the public account session (atleta or público). */
+  private readonly fan = inject(FanSession);
   protected readonly eur = eur;
   protected readonly cat = cat;
   protected readonly fechaLarga = fechaLarga;
@@ -334,10 +337,21 @@ export class InscripcionPage {
       const [c, cp] = await Promise.all([firstValueFrom(this.http.get<ConfigPub>(base)).catch(() => null), comp.load()]);
       this.cfg.set(c);
       this.competicion.set(cp);
-      if (this.browser && this.referido && c?.modo === 'propia') void this.calcular(); // shared link …?ref=CODE
+      // shared link …?ref=CODE: price it now only with a session (never open the login modal on arrival)
+      if (this.browser && this.referido && c?.modo === 'propia') void this.fan.cargar().then((f) => f && this.calcular());
       seo.set({ title: 'Inscripción · GR Strength Cup', description: c?.modo === 'propia' ? `Inscríbete en la GR Strength Cup: ${eur(c.cuota)}, ${c.plazas} plazas.` : 'La inscripción en la GR Strength Cup la gestiona la AEP. Da de alta tu atleta para que tu ficha se publique.', path: '/inscripcion' });
     });
     if (this.browser) {
+      void this.fan.cargar();
+      // Live place counter (SSE inscripcion.plazas_actualizadas): no polling of GET …/inscripcion.
+      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+      es.addEventListener('inscripcion.plazas_actualizadas', (ev) => {
+        try {
+          const d = JSON.parse((ev as MessageEvent).data).datos as Pick<ConfigPub, 'plazas' | 'ocupadas' | 'estado' | 'reserva'>;
+          this.cfg.update((c) => (c ? { ...c, plazas: d.plazas, ocupadas: d.ocupadas, estado: d.estado, reserva: d.reserva } : c));
+        } catch { /* malformed event: keep the last state */ }
+      });
+      inject(DestroyRef).onDestroy(() => es.close());
       const p = new URLSearchParams(location.search);
       const ref = p.get('ref');
       if (ref) this.referido = ref; // shared link …/inscripcion?ref=LAURA412
@@ -355,11 +369,20 @@ export class InscripcionPage {
   }
 
   protected async calcular(): Promise<void> {
+    if (!(await this.sesion())) return;
     try {
       this.precio.set(await firstValueFrom(this.http.post<Precio>(`${base}/precio`, { cupon: this.cupon, referido: this.referido, email: this.d.email })));
     } catch (e) {
+      if (codigoError(e).startsWith('SESION_FAN')) return this.fan.abrirAcceso('inscripcion');
       this.error.set((e as { error?: { detail?: string } }).error?.detail ?? 'No se pudo comprobar el código.');
     }
+  }
+
+  /** True with a session; otherwise opens the login modal (the person resumes after signing in). */
+  private async sesion(): Promise<boolean> {
+    if (await this.fan.cargar()) return true;
+    this.fan.abrirAcceso('inscripcion');
+    return false;
   }
 
   protected quitar(k: 'cupon' | 'referido'): void {
@@ -396,6 +419,7 @@ export class InscripcionPage {
       setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }));
       return;
     }
+    if (!(await this.sesion())) return;
     const p = this.precio();
     if ((this.cupon && !p?.cupon?.valido) || (this.referido && !p?.referido?.valido)) {
       await this.calcular();
@@ -408,6 +432,7 @@ export class InscripcionPage {
       if (r.checkoutUrl) location.href = r.checkoutUrl;
       else void this.router.navigate(['/inscripcion/estado'], { queryParams: { id: r.id } });
     } catch (err) {
+      if (codigoError(err).startsWith('SESION_FAN')) return this.fan.abrirAcceso('inscripcion');
       this.error.set((err as { error?: { detail?: string } }).error?.detail ?? 'No se pudo completar la inscripción. Inténtalo en unos minutos.');
     } finally {
       this.enviando.set(false);

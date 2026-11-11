@@ -122,6 +122,10 @@ type gw struct {
 	// Concurrent multipart uploads of this replica (each one holds a connection, proxy buffers and an upstream
 	// request for seconds): over the cap the gateway answers 503 code=busy instead of growing until OOM.
 	subidas chan struct{}
+	// Per-IP share of the upload slots, so one client cannot exhaust the replica-wide cap.
+	subidasMu    sync.Mutex
+	subidasIP    map[string]int
+	subidasIPMax int
 
 	specMu   sync.Mutex
 	spec     []byte
@@ -147,6 +151,7 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.ssrLimit = int64(config.Int("RATE_LIMIT_SSR_IP_MIN", 3000))
 	g.sseLimit = int64(config.Int("SSE_CONN_IP_MAX", 2000))
 	g.subidas = make(chan struct{}, max(config.Int("UPLOADS_MAX", 32), 1))
+	g.subidasIP, g.subidasIPMax = map[string]int{}, max(config.Int("UPLOADS_IP_MAX", 8), 1)
 	g.upstream, g.proxies = map[string]*url.URL{}, map[string]*httputil.ReverseProxy{}
 	enabled := config.List("UPSTREAMS")
 	if len(enabled) == 0 {
@@ -253,6 +258,13 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 	// Clients never send internal headers.
 	r.Header.Del("X-GrCup-Service")
 	if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "multipart/") {
+		ip := httpx.ClientIPFrom(ctx)
+		if !g.reservarSubidaIP(ip) {
+			w.Header().Set("Retry-After", "10")
+			problem.Write(w, problem.New(http.StatusServiceUnavailable, "busy", "Tienes muchas subidas en curso. Espera a que terminen e inténtalo de nuevo."))
+			return
+		}
+		defer g.liberarSubidaIP(ip)
 		select {
 		case g.subidas <- struct{}{}:
 			defer func() { <-g.subidas }()
@@ -496,4 +508,25 @@ func (g *gw) buildSpec(ctx context.Context) []byte {
 		},
 	})
 	return out
+}
+
+// reservarSubidaIP takes one of the per-IP upload slots (UPLOADS_IP_MAX, default 8).
+func (g *gw) reservarSubidaIP(ip string) bool {
+	g.subidasMu.Lock()
+	defer g.subidasMu.Unlock()
+	if g.subidasIP[ip] >= g.subidasIPMax {
+		return false
+	}
+	g.subidasIP[ip]++
+	return true
+}
+
+func (g *gw) liberarSubidaIP(ip string) {
+	g.subidasMu.Lock()
+	defer g.subidasMu.Unlock()
+	if g.subidasIP[ip] <= 1 {
+		delete(g.subidasIP, ip)
+	} else {
+		g.subidasIP[ip]--
+	}
 }
