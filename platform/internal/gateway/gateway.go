@@ -9,6 +9,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -126,7 +127,26 @@ type gw struct {
 // Service returns the gateway definition.
 func Service() app.Service {
 	g := &gw{}
-	return app.Service{Name: "gateway", Title: "GR Cup · gateway", NeedsRedis: true, Setup: g.setup, BodyLimit: 64 << 20}
+	return app.Service{Name: "gateway", Title: "GR Cup · gateway", NeedsRedis: true, Setup: g.setup, BodyLimitFor: bodyLimit}
+}
+
+// bodyLimit is the request body limit of the owning service (same values as its BodyLimit/BodyLimitFor), so an
+// oversized body gets 413 at the edge before anything is proxied. Keep in sync with athletes, cms and openlifter.
+func bodyLimit(r *http.Request) int64 {
+	const mib = 1 << 20
+	svc, p := match(r.URL.Path), r.URL.Path
+	post := r.Method == http.MethodPost
+	switch {
+	case svc == "openlifter":
+		return 4 * mib
+	case svc == "athletes" && post && strings.HasSuffix(p, "/atletas/importaciones"):
+		return 6 * mib
+	case svc == "athletes" && post && (strings.HasSuffix(p, "/foto") || strings.HasSuffix(p, "/alta-atleta") || strings.HasSuffix(p, "/autorizacion")):
+		return 9 * mib
+	case svc == "cms" && post && strings.HasPrefix(p, "/api/admin/competiciones/") && (strings.HasSuffix(p, "/medios") || strings.HasSuffix(p, "/web/mapas/imagen")):
+		return 11 * mib
+	}
+	return mib
 }
 
 func (g *gw) setup(_ context.Context, a *app.App) error {
@@ -184,6 +204,12 @@ func (g *gw) newProxy(svc string, target *url.URL, t http.RoundTripper) *httputi
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			// A chunked body cut by the gateway's MaxBytesReader while proxying: 413, not 502.
+			var mbe *http.MaxBytesError
+			if errors.As(err, &mbe) {
+				httpx.TooLarge(w)
+				return
+			}
 			g.a.Log.Warn("upstream", "svc", svc, "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
 			problem.Write(w, problem.New(http.StatusBadGateway, "SERVICIO_NO_DISPONIBLE", "El servicio "+svc+" no responde. Inténtalo en unos segundos."))
 		},
