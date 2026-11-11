@@ -142,6 +142,12 @@ def volumes(spec):
             + "".join(f"\n        - name: {v[0]}\n          emptyDir: {{ sizeLimit: {v[1]} }}" for v in tmp))
 
 
+def gomemlimit(lim):
+    """~80% of the container memory limit: the GC works harder before the kernel OOM-kills the pod."""
+    mib = int(lim[:-2]) * (1024 if lim.endswith("Gi") else 1)
+    return f"{mib * 4 // 5}MiB"
+
+
 def manifest(name, spec):
     labels = f"app.kubernetes.io/name: {name}, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service"
     pod_labels = labels + f", grcup.dev/servicio: {name}" + (', grcup.dev/db: "true"' if spec["db"] else "")
@@ -209,7 +215,7 @@ spec:
           args: ["serve"]
           ports:
             - {{ name: http, containerPort: 8080 }}
-{env_block(name, spec)}
+{env_block(name, dict(spec, env={"GOMEMLIMIT": gomemlimit(lim), **spec.get("env", {})}))}
           readinessProbe:
             httpGet: {{ path: /readyz, port: http }}
             periodSeconds: 5

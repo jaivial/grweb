@@ -37,6 +37,7 @@ spec:
               valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
             - name: MINIMAX_API_KEY
               valueFrom: { secretKeyRef: { name: grcup-ai, key: MINIMAX_API_KEY } }
+            - { name: GOMEMLIMIT, value: "102MiB" }
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 5
