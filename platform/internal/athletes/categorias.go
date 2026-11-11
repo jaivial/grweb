@@ -182,10 +182,14 @@ func Slugify(s string) string {
 	return out
 }
 
-// NormLicencia uppercases and strips spaces ("val 0412" → "VAL0412" keeps the dash form "VAL-0412").
+// NormLicencia uppercases and strips spaces, dashes and dots ("val-0412", "VAL 0412" → "VAL0412")
+// so one AEP licence written in different ways is the same licence (U06-R4-1).
 func NormLicencia(s string) string {
-	return strings.ToUpper(strings.Join(strings.Fields(s), ""))
+	return strings.ToUpper(strings.NewReplacer("-", "", ".", "").Replace(strings.Join(strings.Fields(s), "")))
 }
+
+// licNormSQL is NormLicencia in SQL, for rows stored before U06-R4-1 (same expression as the 00013 index).
+const licNormSQL = `upper(regexp_replace(licencia, '[-.[:space:]]', '', 'g'))`
 
 // NormSexo maps "Mujer", "F", "Femenino", "W" → "F" and "Hombre", "M", "Masculino" → "M".
 func NormSexo(s string) string {

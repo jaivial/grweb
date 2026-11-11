@@ -673,7 +673,7 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 	}
 	// Same normalisation as the alta form: bidi/control characters dropped, phone checked and normalised.
 	una := func(v string) string { return strings.Join(strings.Fields(sinControl(v)), " ") } // one line, single spaces
-	d := DatosIn{Licencia: b.Licencia, Nombre: una(b.Nombre), Apellidos: una(b.Apellidos), Email: b.Email, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: una(b.Club), Estado: "confirmado"}
+	d := DatosIn{Licencia: NormLicencia(b.Licencia), Nombre: una(b.Nombre), Apellidos: una(b.Apellidos), Email: b.Email, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: una(b.Club), Estado: "confirmado"}
 	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(b.Telefono)); tel != "" {
 		if !telValido.MatchString(tel) {
 			return EstadoInscripcion{}, problem.Unprocessable("TELEFONO_INVALIDO", "Escribe un móvil válido.")
@@ -705,7 +705,7 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		return EstadoInscripcion{}, problem.Unprocessable("EMAIL_INVALIDO", "Escribe tu email.")
 	}
 	var dup int
-	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM atletas WHERE competition_id = $1 AND licencia = $2 AND estado <> 'baja'`, cid, d.Licencia).Scan(&dup); err != nil {
+	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM atletas WHERE competition_id = $1 AND `+licNormSQL+` = $2 AND estado <> 'baja'`, cid, d.Licencia).Scan(&dup); err != nil {
 		return EstadoInscripcion{}, err
 	}
 	if dup > 0 {

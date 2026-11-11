@@ -565,7 +565,7 @@ func (s *Svc) diff(ctx context.Context, cid, id uuid.UUID, mapeo map[string]stri
 	byLic := map[string]row{}
 	for _, r := range existing {
 		if r.Licencia != "" {
-			byLic[r.Licencia] = r
+			byLic[NormLicencia(r.Licencia)] = r
 		}
 	}
 	rows, err := s.a.DB.Query(ctx, `SELECT fila, datos FROM importacion_filas WHERE importacion_id = $1 ORDER BY fila`, id)

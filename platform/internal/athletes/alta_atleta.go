@@ -1400,7 +1400,7 @@ func (s *Svc) equipoAdmins(ctx context.Context, cid uuid.UUID) []Miembro {
 // unique), then the email (only when there is one), and finally a name suggestion for the reviewer.
 func (s *Svc) matchAtleta(ctx context.Context, cid uuid.UUID, d DatosAlta) (*uuid.UUID, string) {
 	if d.Licencia != "" {
-		rows, err := s.a.DB.Query(ctx, `SELECT id FROM atletas WHERE competition_id = $1 AND licencia = $2 AND estado <> 'baja' LIMIT 2`, cid, d.Licencia)
+		rows, err := s.a.DB.Query(ctx, `SELECT id FROM atletas WHERE competition_id = $1 AND `+licNormSQL+` = $2 AND estado <> 'baja' LIMIT 2`, cid, d.Licencia)
 		if err == nil {
 			ids, _ := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
 			if len(ids) == 1 {
