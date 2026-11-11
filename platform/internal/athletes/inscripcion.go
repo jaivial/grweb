@@ -3,6 +3,7 @@ package athletes
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net/http"
 	"regexp"
 	"strings"
@@ -1017,10 +1019,15 @@ func (s *Svc) codigoReferido(ctx context.Context, tx pgx.Tx, cid, aid, iid uuid.
 	if len(digits) > 3 {
 		digits = digits[len(digits)-3:]
 	}
-	for i := 0; i < 50; i++ {
+	// Up to 5 attempts: NAME+licence digits first, then NAME+3 random digits (crypto/rand) on a unique collision.
+	for i := 0; i < 5; i++ {
 		code := base + digits
 		if i > 0 || digits == "" {
-			code = fmt.Sprintf("%s%d", base, 100+int(newID().ID()%900))
+			n, err := rand.Int(rand.Reader, big.NewInt(900))
+			if err != nil {
+				return "", err
+			}
+			code = fmt.Sprintf("%s%d", base, 100+n.Int64())
 		}
 		tag, err := tx.Exec(ctx, `INSERT INTO referido_codigos (id, competition_id, atleta_id, inscripcion_id, codigo) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, newID(), cid, aid, iid, code)
 		if err != nil {
