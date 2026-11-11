@@ -55,6 +55,9 @@ var notifRules = map[string]notifRule{
 	"athletes.cupon_agotado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Cupón agotado", "«" + str(d["codigo"]) + "» ha llegado a su límite de usos.", "/atletas/inscripcion", "aviso", "atletas.editar", true
 	},
+	"athletes.alta_volumen_alto": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
+		return fmt.Sprintf("%v altas de atleta en 24 h", d["total"]), "Es mucho más de lo normal: revisa si son spam. El formulario sigue abierto.", "/atletas/solicitudes", "aviso", "atletas.editar", true
+	},
 	"checkin.duplicado": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		return "Entrada usada en dos puertas", "«" + str(d["codigo"]) + "» entró por dos puestos en menos de 2 minutos: revísalo en Taquilla.", "/checkin", "aviso", "checkin.escanear", true
 	},

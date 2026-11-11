@@ -53,11 +53,15 @@ const (
 	// «used» mark lives a bit longer so a solution can never be replayed while it is still valid.
 	caducidadAltcha = 10 * time.Minute
 	ttlAltchaUsado  = caducidadAltcha + time.Minute
-	// Limits of the public form (SPEC §4.2).
-	limiteIPAlta   = 5
-	limiteMailAlta = 3
-	limiteTelAlta  = 3
-	limiteDiaAlta  = 300
+	// Limits of the public form (SPEC §4.2). Per IP only the accepted (202) sends count, so a club on
+	// one WiFi is not blocked by its own typos; a looser cap on every POST stops floods of bad ones.
+	limiteIPAlta     = 20
+	limiteIPAltaPost = 60
+	limiteMailAlta   = 3
+	limiteTelAlta    = 3
+	// avisoDiaAlta is not a limit: reaching it only warns the team in the backoffice (a cheap attacker
+	// must never be able to close the form for everybody).
+	avisoDiaAlta = 300
 )
 
 // casillasAlta are the consent boxes of the form (in order).
@@ -466,7 +470,11 @@ func (s *Svc) registerAltaAtleta() {
 		Summary: "Enviar el alta de atleta (queda pendiente de revisión)", Tags: tagPub, DefaultStatus: http.StatusAccepted,
 		MaxBodyBytes: maxFotoAlta + (1 << 20)},
 		func(ctx context.Context, in *altaIn) (*AltaOut, error) {
-			return s.crearSolicitud(ctx, in.Slug, in.RawBody)
+			out, err := s.crearSolicitud(ctx, in.Slug, in.RawBody)
+			if err == nil && s.a.Redis != nil {
+				_, _ = ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "alta", httpx.ClientIPFrom(ctx)), limiteIPAlta, time.Hour)
+			}
+			return out, err
 		})
 	type fotoIn struct {
 		Slug  string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
@@ -614,11 +622,10 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	if err != nil {
 		return nil, err
 	}
-	// The global limit counts only the requests that pass the antibots and the validation (a bot
-	// must not be able to close the form for everybody).
-	if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "alta-global", c.ID.String()), limiteDiaAlta, 24*time.Hour); !r.Allowed {
-		s.borraFotoPrivada(fotoClave)
-		return nil, tooMany(r)
+	// The daily volume never closes the form: at avisoDiaAlta the team gets one notice in the bell.
+	aviso := false
+	if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "alta-global", c.ID.String()), avisoDiaAlta, 24*time.Hour); r.Count == avisoDiaAlta {
+		aviso = true
 	}
 	menor := fecha(d.FechaNacimiento) != nil && menorDeEdad(*fecha(d.FechaNacimiento))
 	// The team that gets the notice (identity knows who can edit the athletes).
@@ -649,6 +656,12 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			map[string]any{"id": id, "nombre": d.Nombre, "esMenor": menor, "match": matchTipo},
 			events.Competition(c.ID.String()), events.ForPermission("atletas.editar"))); err != nil {
 			return err
+		}
+		if aviso {
+			if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.alta_volumen_alto", map[string]any{"total": avisoDiaAlta},
+				events.Competition(c.ID.String()), events.ForPermission("atletas.editar"))); err != nil {
+				return err
+			}
 		}
 		// The contact and its consents (crm).
 		if err := contacto(ctx, tx, c.ID, s.eventoContacto(d, cons, anonIP(ip), ua)); err != nil {
@@ -700,28 +713,29 @@ func (s *Svc) respuestaFalsa() *AltaOut {
 	return out
 }
 
-// tooMany answers 429 with the seconds to wait.
-func tooMany(r ratelimit.Result) error {
-	seg := int(r.RetryAfter.Seconds()) + 1
-	if seg < 1 {
-		seg = 60
-	}
-	return huma.ErrorWithHeaders(problem.TooMany("Has enviado demasiadas altas. Espera unos minutos antes de intentarlo otra vez."),
-		http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
-}
-
-// limitaIPAlta applies the per-IP limit of the public alta before the body is read: a rejected POST never
-// parses (nor writes to /tmp) its multipart.
+// limitaIPAlta applies the per-IP limits of the public alta before the body is read: a rejected POST never
+// parses (nor writes to /tmp) its multipart. The accepted counter is only read here (it grows on a 202).
 func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/alta-atleta") && s.a != nil && s.a.Redis != nil {
 			ip := httpx.ClientIPFrom(r.Context())
-			if res, _ := ratelimit.Allow(r.Context(), s.a.Redis, s.a.Keys.Of("rl", "alta", ip), limiteIPAlta, time.Hour); !res.Allowed {
-				seg := int(res.RetryAfter.Seconds()) + 1
-				w.Header().Set("Retry-After", strconv.Itoa(seg))
-				problem.Write(w, problem.TooMany("Has enviado demasiadas altas. Espera unos minutos antes de intentarlo otra vez."))
+			key := s.a.Keys.Of("rl", "alta", ip)
+			var espera time.Duration
+			if n, err := s.a.Redis.Get(r.Context(), key).Int64(); err == nil && n >= limiteIPAlta {
+				espera, _ = s.a.Redis.PTTL(r.Context(), key).Result()
+			} else if res, _ := ratelimit.Allow(r.Context(), s.a.Redis, s.a.Keys.Of("rl", "alta-post", ip), limiteIPAltaPost, time.Hour); !res.Allowed {
+				espera = res.RetryAfter
+			} else {
+				next.ServeHTTP(w, r)
 				return
 			}
+			seg := int(espera.Seconds()) + 1
+			if seg < 1 {
+				seg = 60
+			}
+			w.Header().Set("Retry-After", strconv.Itoa(seg))
+			problem.Write(w, problem.TooMany("Se han enviado muchas altas desde esta conexión. Espera un rato antes de intentarlo otra vez."))
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
