@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon } from '@grcup/ui';
 
@@ -15,7 +15,7 @@ import { GrButton, GrIcon } from '@grcup/ui';
         <p class="mt-2 text-body-m text-text-secondary md:text-body-l">Esto es lo que va a pasar desde ahora.</p>
       </div>
       <ol class="-mt-6 grid items-start gap-4 md:grid-cols-3">
-        @for (p of pasos; track p.n) {
+        @for (p of pasos(); track p.n) {
           <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
             <span class="text-display-xs text-accent-text">{{ p.n }}</span>
             <span class="text-label-m">{{ p.t }}</span>
@@ -37,9 +37,15 @@ import { GrButton, GrIcon } from '@grcup/ui';
 })
 export class AltaExito {
   readonly contacto = input.required<string>();
-  protected readonly pasos = [
+  /** The athlete authorised publishing their profile: without it nothing promises a public ficha. */
+  readonly publica = input(false);
+  protected readonly pasos = computed(() => this.publica() ? [
     { n: '01', t: 'Revisión a mano', d: 'El equipo comprueba tu email contra la lista de inscritos de la AEP y revisa tus datos y tu foto.' },
     { n: '02', t: 'Email con el resultado', d: 'Te escribimos a tu email: si está aprobada, con el enlace a tu ficha; si falta algo, con la corrección que pedimos.' },
     { n: '03', t: 'Tu ficha en /atletas', d: 'Al aprobarla, tu ficha se publica en la lista de atletas y ya puedes editarla desde el área de atleta.' },
-  ];
+  ] : [
+    { n: '01', t: 'Revisión a mano', d: 'El equipo comprueba tu email contra la lista de inscritos de la AEP y revisa tus datos.' },
+    { n: '02', t: 'Email con el resultado', d: 'Te escribimos a tu email: si está aprobada, con el acceso a tu área de atleta; si falta algo, con la corrección que pedimos.' },
+    { n: '03', t: 'Tu ficha, privada', d: 'Al aprobarla tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.' },
+  ]);
 }

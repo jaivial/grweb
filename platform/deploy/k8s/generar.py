@@ -24,7 +24,7 @@ SERVICES = {
     "cms": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), env={"MEDIA_DIR": "/data/medios"},
                 # hostPath volumes (name, host path, mount path) and emptyDirs (name, size, mount path):
                 # /tmp holds multipart spool files of uploads (the root filesystem is read-only).
-                volumes=[("medios", "/var/lib/grcup-qa/medios", "/data/medios")], tmp=[("tmp", "64Mi", "/tmp")],
+                volumes=[("medios", "/var/lib/grcup-qa/medios", "/data/medios")], tmp=[("tmp", "256Mi", "/tmp")],
                 jobs=[("cms-seed", ["seed-grcup"], [])]),
     # Two 48 MP photos can need >600 MiB while decoded, rotated and converted; keep the required two-worker pipeline within the pod limit.
     "athletes": dict(db=True, hpa=(1, 3), mem=("128Mi", "1Gi"),
@@ -32,7 +32,7 @@ SERVICES = {
                      # (0600) until it is approved and the published copy when the competition has no CDN.
                      env={"ATLETAS_DIR": "/data/atletas"},
                      volumes=[("atletas", "/var/lib/grcup-qa/atletas", "/data/atletas")],
-                     tmp=[("tmp", "64Mi", "/tmp")],  # multipart spool (AEP list, photos)
+                     tmp=[("tmp", "256Mi", "/tmp")],  # multipart spool (AEP list, photos)
                      jobs=[("athletes-seed", ["seed-grcup"], [])]),
     "schedule": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("schedule-seed", ["seed-grcup"], [])]),
     "crm": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("crm-seed", ["seed-grcup"], [])]),

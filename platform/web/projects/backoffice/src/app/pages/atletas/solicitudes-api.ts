@@ -160,8 +160,8 @@ export class SolicitudesApi {
   enlazar(cid: string, id: string, version: number, cuerpo: { atletaId?: string; nuevo?: boolean }): Promise<SolicitudDetalle> {
     return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/enlazar`, cuerpo, { headers: this.cab(version) }));
   }
-  aprobar(cid: string, id: string, version: number, cuerpo: AprobarIn): Promise<{ atletaId: string; slug: string }> {
-    return firstValueFrom(this.http.post<{ atletaId: string; slug: string }>(`${this.base(cid)}/${id}/aprobar`, cuerpo, { headers: this.cab(version) }));
+  aprobar(cid: string, id: string, version: number, cuerpo: AprobarIn): Promise<{ atletaId: string; slug: string; publica: boolean; foto: boolean }> {
+    return firstValueFrom(this.http.post<{ atletaId: string; slug: string; publica: boolean; foto: boolean }>(`${this.base(cid)}/${id}/aprobar`, cuerpo, { headers: this.cab(version) }));
   }
   rechazar(cid: string, id: string, version: number, cuerpo: RechazarIn): Promise<SolicitudDetalle> {
     return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/rechazar`, cuerpo, { headers: this.cab(version) }));

@@ -170,6 +170,19 @@ func Recover(log *slog.Logger) Middleware {
 	}
 }
 
+// LimpiaMultipart removes the temp files of a parsed multipart form when the request ends (success, error or
+// rejection). It must be the innermost middleware: huma parses on this same *http.Request (no copies below it).
+func LimpiaMultipart(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if r.MultipartForm != nil {
+				_ = r.MultipartForm.RemoveAll()
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
 // MaxBody limits request bodies (default protection; uploads raise it per route).
 func MaxBody(n int64) Middleware { return MaxBodyFor(n, nil) }
 

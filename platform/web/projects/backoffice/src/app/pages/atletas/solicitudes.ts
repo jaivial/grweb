@@ -327,7 +327,11 @@ interface FilaConsentimiento {
             </gr-alert>
           }
           @if (d.estado === 'aprobada') {
-            <gr-alert tone="success" title="Aprobada y publicada">Perfil creado y foto publicada · enlace de acceso enviado al área de atleta.</gr-alert>
+            @if (publicable()) {
+              <gr-alert tone="success" title="Aprobada y publicada">Perfil creado y publicado con su foto (si la envió) · enlace de acceso enviado al área de atleta.</gr-alert>
+            } @else {
+              <gr-alert tone="success" title="Aprobada · ficha privada">Perfil creado sin publicar ({{ d.esMenor ? 'menor de edad' : 'sin consentimiento de imagen' }}): queda privado hasta que se active desde el área de atleta.</gr-alert>
+            }
           }
           @if (d.estado === 'rechazada') {
             <gr-alert tone="danger" title="Solicitud rechazada">
@@ -358,6 +362,7 @@ interface FilaConsentimiento {
             </section>
           }
 
+          @if (foto() || (d.estado !== 'aprobada' && d.estado !== 'rechazada')) {
           <section class="flex gap-4">
             @if (foto(); as url) {
               <img [src]="url" [alt]="'Foto de ' + nombreCompleto(d)" class="h-[300px] w-[240px] max-w-full rounded-md bg-bg-raised object-contain" />
@@ -365,13 +370,14 @@ interface FilaConsentimiento {
               <span class="flex h-[300px] w-[240px] max-w-full items-center justify-center rounded-md bg-bg-raised text-text-tertiary"><gr-icon name="camera" [size]="24" /></span>
             }
             <div class="min-w-0 flex-1">
-              <p class="text-body-xs text-text-tertiary">Foto tal como se publicará</p>
+              <p class="text-body-xs text-text-tertiary">{{ imagenAceptada() ? 'Foto tal como se publicará' : 'Foto enviada · no se publicará' }}</p>
               @if (foto()) {
                 <button type="button" class="mt-1 text-label-s text-accent-text hover:underline" (click)="ampliada.set(true)">Ampliar foto</button>
               }
-              <p class="mt-3 text-body-xs text-text-tertiary">Se publica en la ficha del atleta con su nombre y sus marcas.</p>
+              <p class="mt-3 text-body-xs text-text-tertiary">{{ imagenAceptada() ? 'Se publica en la ficha del atleta con su nombre y sus marcas.' : 'Sin consentimiento de imagen: al aprobar se descarta y la ficha queda privada.' }}</p>
             </div>
           </section>
+          }
 
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Datos declarados vs atleta enlazado</h3>
@@ -532,7 +538,7 @@ interface FilaConsentimiento {
     @if (ampliada() && foto(); as url) {
       <div class="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-black/90 p-4" (click)="ampliada.set(false)">
         <img [src]="url" [alt]="'Foto de ' + (detalle() ? nombreCompleto(detalle()!) : '')" class="max-h-[78vh] max-w-[92vw] rounded-md object-contain" (click)="$event.stopPropagation()" />
-        <p class="mt-4 text-body-s text-white/85">Foto tal como se publicará · {{ detalle() ? nombreCompleto(detalle()!) : '' }}</p>
+        <p class="mt-4 text-body-s text-white/85">{{ imagenAceptada() ? 'Foto tal como se publicará' : 'Foto enviada · no se publicará' }} · {{ detalle() ? nombreCompleto(detalle()!) : '' }}</p>
         <p class="text-body-xs text-white/50">Cierra con la tecla Esc o tocando fuera de la foto</p>
       </div>
     }
@@ -546,7 +552,7 @@ interface FilaConsentimiento {
             <h2 class="text-ui-h5">Aprobar y publicar</h2>
             <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="dialogo.set(null)"><gr-icon name="x" [size]="18" /></button>
           </div>
-          <p class="mt-3 text-body-s text-text-secondary">{{ destinoAprueba().texto }} y se publicará su perfil con la foto en blanco y negro.</p>
+          <p class="mt-3 text-body-s text-text-secondary">{{ destinoAprueba().texto }}{{ publicable() ? ' y se publicará su perfil con la foto en blanco y negro.' : (imagenAceptada() ? '. Es menor: el perfil queda privado hasta que se active desde el área de atleta.' : '. Sin consentimiento de imagen: el perfil queda privado y la foto no se publica.') }}</p>
           <div class="mt-5 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
             <span class="min-w-0"><span class="block text-label-s">Avisar por email</span><span class="block text-body-xs text-text-tertiary">Le llegará un email con el enlace a su ficha y el acceso a su área de atleta</span></span>
             <bo-toggle [(value)]="avisarEmail" label="Avisar por email" />
@@ -1057,6 +1063,16 @@ export class SolicitudesPage {
     return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Madrid' }).format(d);
   }
 
+  /** The athlete authorised publishing their name, data and photo (the profile can be public). */
+  protected imagenAceptada(): boolean {
+    return this.consentimientos().some((c) => c.clave === 'imagen' && c.aceptado);
+  }
+
+  /** The profile goes public on approval: image consent and not a minor (as the backend decides). */
+  protected publicable(): boolean {
+    return this.imagenAceptada() && !this.detalle()?.esMenor;
+  }
+
   protected consentimientos(): FilaConsentimiento[] {
     const d = this.detalle();
     if (!d) return [];
@@ -1118,11 +1134,11 @@ export class SolicitudesPage {
     try {
       const cambios = this.cambiosCorregidos(d);
       const destino = this.destinoAprueba();
-      await this.api.aprobar(this.cid(), d.id, d.version, {
+      const res = await this.api.aprobar(this.cid(), d.id, d.version, {
         ...destino.cuerpo, cambios, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp(),
       });
       this.dialogo.set(null);
-      this.toasts.success('Aprobada y publicada', this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
+      this.toasts.success(res.publica ? 'Aprobada y publicada' : 'Aprobada · ficha privada', this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
       await this.cargar();
       await this.recargarDetalle();
     } catch (e) {

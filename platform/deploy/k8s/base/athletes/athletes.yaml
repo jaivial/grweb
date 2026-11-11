@@ -104,7 +104,7 @@ spec:
         - name: atletas
           hostPath: { path: /var/lib/grcup-qa/atletas, type: DirectoryOrCreate }
         - name: tmp
-          emptyDir: { sizeLimit: 64Mi }
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service

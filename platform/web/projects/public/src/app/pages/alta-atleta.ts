@@ -75,14 +75,14 @@ const MAX_MARCA = 600;
       [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GR Cup 2026'"
       section="Atletas"
       crumb="Alta de atleta"
-      [subtitle]="exito() ? introExito : intro"
+      [subtitle]="exito() ? (publica() ? introExito : introExitoPrivada) : intro"
       [subtitleHtml]="exito() ? '' : introHtml"
       [tituloMovilGrande]="!exito()">
       @if (vista() === 'cargando') {
         <gr-skeleton class="h-[560px] rounded-[18px]" />
       } @else if (vista() === 'exito') {
         <!-- Figma 75 «Éxito»: qué pasa ahora, en tres pasos -->
-        <gr-alta-exito [contacto]="contacto()" />
+        <gr-alta-exito [contacto]="contacto()" [publica]="publica()" />
         <div class="mt-18 flex flex-col gap-18 md:gap-24">
           <gr-related nivel="h3" [items]="relacionados" />
           <gr-community nivel="h3" />
@@ -93,7 +93,7 @@ const MAX_MARCA = 600;
           <div>
             <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
             <h2 class="mt-3 text-display-m md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
-            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[15px] max-md:leading-[23px]">{{ introH2 }}</p>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introH2 }}</p>
           </div>
           <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
             @for (b of bloques; track b.t) {
@@ -433,6 +433,8 @@ export class AltaAtletaPage {
   protected readonly err = signal<Record<string, string>>({});
   protected readonly error = signal('');
   protected readonly exito = signal(false);
+  /** The athlete authorised publishing their profile (image consent): only then the success screen promises it. */
+  protected readonly publica = signal(false);
   protected readonly enviando = signal(false);
   protected readonly subiendo = signal(false);
   protected readonly procesando = signal(false);
@@ -549,13 +551,15 @@ export class AltaAtletaPage {
   ];
 
   protected readonly intro =
-    'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil público. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email cuando tu ficha esté publicada en la lista de atletas. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
+    'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil público. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email con el resultado. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
   /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
   protected readonly introHtml = this.intro.replace('dar de alta tu atleta', '<strong class="font-semibold text-text-primary">dar de alta tu atleta</strong>');
   protected readonly introH2 =
     'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que vive en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
   protected readonly introExito =
     'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email en cuanto tu ficha esté publicada en la lista de atletas. Si ya tienes tu cuenta, entra en el área de atleta para ver el estado de tu solicitud.';
+  protected readonly introExitoPrivada =
+    'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email con el resultado. Al aprobarla tu ficha quedará privada: podrás activar su publicación desde el área de atleta.';
 
   /** Casillas de consentimiento: las opcionales solo si su texto legal está publicado. */
   protected readonly casillas = computed(() => {
@@ -883,6 +887,7 @@ export class AltaAtletaPage {
     }
     if (xhr.status === 202 || xhr.status === 200) {
       this.exito.set(true);
+      this.publica.set(!!this.legal('consentimiento') && this.acepta.imagen && !this.esMenor());
       this.vista.set('exito');
       this.borrarBorrador();
       this.subiendo.set(false);
