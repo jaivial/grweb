@@ -19,7 +19,7 @@ import (
 func RejectNUL(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ct := strings.ToLower(r.Header.Get("Content-Type"))
-		if r.Body == nil || r.Body == http.NoBody || strings.HasPrefix(strings.TrimSpace(ct), "multipart/") {
+		if r.Body == nil || r.Body == http.NoBody || binario(ct) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -103,4 +103,15 @@ func buscaNUL(v any, path string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// binario: bodies that legitimately carry 0x00 bytes (files); their text parts are checked by the handler.
+func binario(ct string) bool {
+	ct = strings.TrimSpace(ct)
+	for _, p := range []string{"multipart/", "image/", "audio/", "video/", "application/octet-stream", "application/pdf", "application/zip"} {
+		if strings.HasPrefix(ct, p) {
+			return true
+		}
+	}
+	return false
 }
