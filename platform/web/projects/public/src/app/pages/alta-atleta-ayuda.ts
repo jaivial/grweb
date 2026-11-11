@@ -32,6 +32,7 @@ const AYUDA = [
           }
         </ul>
       </div>
+      @if (abierta()) {
       <div class="rounded-[10px] bg-bg-raised p-4">
         <p class="text-label-xs text-text-tertiary uppercase">Total en vivo</p>
         @for (m of marcas(); track m.k) {
@@ -39,6 +40,7 @@ const AYUDA = [
         }
         <p class="mt-2 flex items-center justify-between gap-4 border-t border-line-subtle pt-2 text-label-m"><span>Total</span><span class="tabular-nums" [class]="total() === null ? 'text-text-tertiary' : 'text-accent-text'">{{ total() === null ? '–' : total() }}</span></p>
       </div>
+      }
       <div>
         <p class="text-label-s uppercase">Textos legales</p>
         <ul class="mt-3 flex flex-col gap-2 text-body-s">
@@ -56,6 +58,8 @@ export class AltaAyuda {
   readonly contacto = input.required<string>();
   readonly marcas = input.required<{ k: string; c: string; n: string; v: string | null }[]>();
   readonly total = input<string | null>(null);
+  /** Con el alta cerrada no hay marcas que sumar: el total en vivo no se muestra. */
+  readonly abierta = input(true);
   readonly imagen = input(false);
   readonly whatsapp = input(false);
   protected readonly ayuda = AYUDA;

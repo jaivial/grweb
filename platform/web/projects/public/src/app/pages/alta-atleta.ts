@@ -35,7 +35,7 @@ interface ConfigAlta {
 
 /** Los datos del formulario (los mismos que viajan al servicio). */
 interface DatosAlta {
-  nombre: string; apellidos: string; email: string; telefono: string; sexo: 'F' | 'M'; fechaNacimiento: string;
+  nombre: string; apellidos: string; email: string; telefono: string; sexo: '' | 'F' | 'M'; fechaNacimiento: string;
   licencia: string; prueba: string; club: string; ciudad: string; entrenador: string; frase: string; bio: string; instagram: string;
   historial: string; marcaSQ: string | number; marcaBP: string | number; marcaDL: string | number; web: string;
 }
@@ -103,12 +103,12 @@ const MAX_MARCA = 600;
               </article>
             }
           </div>
-          <div><a grButton variant="primary" size="m" href="#formulario" iconRight="arrow-down">Ir al formulario</a></div>
+          @if (vista() === 'formulario') { <div><a grButton variant="primary" size="m" href="#formulario" iconRight="arrow-down">Ir al formulario</a></div> }
         </section>
 
         <!-- Formulario + resumen (Figma 75) -->
         <div class="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
-          <div id="formulario" class="scroll-mt-24">
+          <div id="formulario" class="scroll-mt-24 outline-none" tabindex="-1">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
               @case ('legal') { <gr-alta-aviso tipo="legal" [contacto]="contacto()" /> }
@@ -181,7 +181,7 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">Sexo *</span>
-                        <div class="flex gap-2" role="radiogroup" aria-labelledby="l-sexo">
+                        <div id="c-sexo" class="flex gap-2" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'F'" (click)="d.sexo = 'F'; revalidar()"
                             class="inline-flex h-10 items-center rounded-pill border px-5 text-label-s transition-colors"
                             [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Femenino</button>
@@ -189,6 +189,7 @@ const MAX_MARCA = 600;
                             class="inline-flex h-10 items-center rounded-pill border px-5 text-label-s transition-colors"
                             [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Masculino</button>
                         </div>
+                        @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-nacimiento">Fecha de nacimiento *</label>
@@ -309,7 +310,7 @@ const MAX_MARCA = 600;
                       @if (!esMenor()) {
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-instagram">Instagram</label>
-                          <input id="c-instagram" name="instagram" type="text" maxlength="30" placeholder="@tuusuario"
+                          <input id="c-instagram" name="instagram" type="text" maxlength="31" placeholder="@tuusuario"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['instagram'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.instagram" (ngModelChange)="revalidar()"
@@ -395,10 +396,10 @@ const MAX_MARCA = 600;
                         <p class="flex items-start gap-2 rounded-md border border-accent bg-accent/8 p-4 text-body-s text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0" />{{ error() }}</p>
                       }
                       @if (aviso() === 'limite' || aviso() === 'red') {
-                        <div class="flex flex-col gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary" role="alert">
+                        <div id="aviso-envio" tabindex="-1" class="flex flex-col gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary outline-none" role="alert">
                           <p class="flex items-start gap-2"><gr-icon [name]="aviso() === 'limite' ? 'clock' : 'circle-alert'" [size]="18" class="mt-0.5 shrink-0 text-warning" />
-                            @if (aviso() === 'limite') { Has enviado demasiadas solicitudes desde este dispositivo. Tus datos siguen aquí: podrás reintentarlo en {{ espera() }}. }
-                            @else { No hemos podido enviar tu solicitud (conexión o servicio ocupado). Tus datos y tu foto siguen aquí: pulsa «Reintentar». }
+                            @if (aviso() === 'limite') { Se han enviado muchas solicitudes desde esta conexión. Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: {{ bloqueado() ? 'podrás reintentarlo en ' + espera() + '.' : 'ya puedes reintentarlo.' }} }
+                            @else { No hemos podido enviar tu solicitud (conexión o servicio ocupado). Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: pulsa «Reintentar». }
                           </p>
                           <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
                         </div>
@@ -413,7 +414,7 @@ const MAX_MARCA = 600;
           </div>
 
           <!-- Resumen y ayuda -->
-          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
+          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
         </div>
 
         <!-- Preguntas frecuentes -->
@@ -527,14 +528,14 @@ export class AltaAtletaPage {
   }
 
   protected readonly d: DatosAlta = {
-    nombre: '', apellidos: '', email: '', telefono: '', sexo: 'F', fechaNacimiento: '',
+    nombre: '', apellidos: '', email: '', telefono: '', sexo: '', fechaNacimiento: '',
     licencia: '', prueba: '', club: '', ciudad: '', entrenador: '', frase: '', bio: '', instagram: '', historial: '',
     marcaSQ: '', marcaBP: '', marcaDL: '', web: '',
   };
   protected acepta: Aceptos = {
     terminos: false, privacidad: false, imagen: false, novedades: false, whatsapp: false,
   };
-  private foto: FotoAlta | null = null;
+  protected foto: FotoAlta | null = null;
   private intentado = false;
   /** Momento en el que se pidió la configuración (el token de tiempo debe tener al menos 3 s). */
   private configEn = 0;
@@ -639,13 +640,16 @@ export class AltaAtletaPage {
   protected readonly resumen = computed(() => {
     const e = this.err();
     const out: { campo: string; label: string; msg: string }[] = [];
-    const add = (campo: string, label: string, msg: string) => {
-      if (e[campo]) out.push({ campo, label, msg });
+    // The summary repeats the real reason of the field (lower case, without the final full stop).
+    const add = (campo: string, label: string, _corto?: string) => {
+      const m = e[campo];
+      if (m) out.push({ campo, label, msg: m.charAt(0).toLowerCase() + m.slice(1).replace(/\.$/, '') });
     };
     add('nombre', 'Nombre', 'es obligatorio');
     add('apellidos', 'Apellidos', 'son obligatorios');
     add('email', 'Email', 'introduce un email válido');
     add('telefono', 'Teléfono', 'si pides avisos por WhatsApp, necesitas tu teléfono');
+    add('sexo', 'Sexo');
     add('fechaNacimiento', 'Fecha de nacimiento', 'elige una fecha válida');
     add('prueba', 'Competición', 'está completa: elige otra o «Aún no lo sé»');
     add('frase', 'Frase', 'es demasiado larga');
@@ -771,6 +775,7 @@ export class AltaAtletaPage {
     if (!mail) e['email'] = 'Es obligatorio.';
     else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = 'Introduce un email válido.';
     if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = 'Si pides avisos por WhatsApp, necesitas tu teléfono.';
+    if (!d.sexo) e['sexo'] = 'Elige una opción.';
     if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? 'Escribe el año con 4 cifras (dd/mm/aaaa).' : 'Elige una fecha válida.';
     else {
       const n = new Date(d.fechaNacimiento + 'T00:00:00');
@@ -882,6 +887,7 @@ export class AltaAtletaPage {
       this.procesando.set(false);
       this.enviando.set(false);
       this.aviso.set('red');
+      this.enfocar('#aviso-envio');
     };
     xhr.onabort = xhr.onerror;
     xhr.send(fd);
@@ -917,14 +923,14 @@ export class AltaAtletaPage {
     }
     if (xhr.status === 409 || codigo === 'SOLICITUD_EN_CURSO') {
       this.aviso.set('duplicado');
+      this.enfocar('#formulario');
       return;
     }
     if (xhr.status === 429) {
-      const ra = xhr.getResponseHeader('Retry-After');
-      this.espera.set(this.minutos(ra));
-      this.bloqueado.set(true);
-      setTimeout(() => this.bloqueado.set(false), (Number(ra) > 0 ? Number(ra) : 60) * 1000);
+      const ra = Number(xhr.getResponseHeader('Retry-After'));
+      this.cuentaAtras(ra > 0 ? ra : 60);
       this.aviso.set('limite');
+      this.enfocar('#aviso-envio');
       return;
     }
     if (xhr.status === 503) {
@@ -934,10 +940,12 @@ export class AltaAtletaPage {
       }
       if (codigo === 'ALTA_CERRADA') {
         this.vista.set('cerrada');
+        this.enfocar('#formulario');
         return;
       }
       // busy, a service down or a proxy 503 without code: keep the filled form and offer a retry.
       this.aviso.set('red');
+      this.enfocar('#aviso-envio');
       return;
     }
     if (xhr.status === 400 && codigo === 'ANTIBOT') {
@@ -953,7 +961,7 @@ export class AltaAtletaPage {
         if (campo) e[campo] = det.message ?? 'Revisa este campo.';
       }
       this.err.set(e);
-      this.error.set(cuerpo.detail || 'Revisa los campos marcados.');
+      this.error.set('');
       setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }));
       return;
     }
@@ -965,14 +973,38 @@ export class AltaAtletaPage {
     // Cualquier otro error: se puede reintentar sin perder los datos.
     this.error.set(cuerpo.detail || 'No hemos podido enviar tu solicitud.');
     this.aviso.set('red');
+    this.enfocar('#aviso-envio');
   }
 
-  /** Minutos de espera (Retry-After en segundos). */
-  private minutos(cabecera: string | null): string {
-    const s = Number(cabecera ?? 0);
-    if (!s || isNaN(s)) return 'unos minutos';
-    const m = Math.max(1, Math.round(s / 60));
-    return m === 1 ? '1 minuto' : `${m} minutos`;
+  /** Mueve el foco al bloque que acaba de aparecer (el botón que lo tenía puede quedar deshabilitado). */
+  private enfocar(sel: string): void {
+    setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>(sel)?.focus({ preventScroll: false }));
+  }
+
+  /** Cuenta atrás del Retry-After de un 429: el texto se actualiza cada segundo y se desbloquea al llegar a 0. */
+  private reloj: ReturnType<typeof setInterval> | undefined;
+  private cuentaAtras(segundos: number): void {
+    clearInterval(this.reloj);
+    const fin = Date.now() + segundos * 1000;
+    const paso = () => {
+      const quedan = Math.ceil((fin - Date.now()) / 1000);
+      if (quedan <= 0) {
+        clearInterval(this.reloj);
+        this.bloqueado.set(false);
+        return;
+      }
+      this.espera.set(this.tiempo(quedan));
+    };
+    this.bloqueado.set(true);
+    paso();
+    this.reloj = setInterval(paso, 1000);
+  }
+
+  /** Tiempo de espera en texto (segundos por debajo del minuto). */
+  private tiempo(s: number): string {
+    if (s < 60) return s === 1 ? '1 segundo' : s + ' segundos';
+    const m = Math.ceil(s / 60);
+    return m === 1 ? '1 minuto' : m + ' minutos';
   }
 
   /** Teléfono en formato internacional (+34 por defecto). */
