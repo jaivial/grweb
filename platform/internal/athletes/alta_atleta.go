@@ -822,7 +822,8 @@ func (s *Svc) devuelvePostSinAltcha(ctx context.Context, ip string) {
 	if s.a == nil || s.a.Redis == nil {
 		return
 	}
-	if err := s.a.Redis.Decr(ctx, s.a.Keys.Of("rl", "alta-post", ip)).Err(); err != nil {
+	// Only if the key still exists: a DECR on an expired key would leave a negative counter without TTL.
+	if err := s.a.Redis.Eval(ctx, decrSiExiste, []string{s.a.Keys.Of("rl", "alta-post", ip)}).Err(); err != nil {
 		s.a.Log.Warn("alta de atleta · contador de POST no devuelto", "err", err)
 	}
 }
