@@ -9,6 +9,7 @@ import { Cms, renderMarkdown, type Heading, type Pagina } from '../core/cms';
 import { Competition } from '../core/competition';
 import { Seo } from '../core/seo';
 import { NoEncontrada } from '../layout/no-encontrada';
+import { Footer, Navbar } from '../layout/layout';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related } from './landings';
@@ -174,10 +175,12 @@ export class BlogPage {
  */
 @Component({
   selector: 'gr-blog-post-page',
-  imports: [Page, GrIcon, GrButton, GrSkeleton, NoEncontrada, RouterLink, Related, Community],
+  imports: [Page, GrIcon, GrButton, GrSkeleton, NoEncontrada, Navbar, Footer, RouterLink, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = p();
+    <!-- Figma 17 «404»: the same page as an unknown route (no SEO header, glow or page padding) -->
+    @if (a === null && !cms.failed()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page [title]="a?.titulo ?? (a === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="a ? (et(a.categoria) || 'Blog') : ''" section="Blog" [crumb]="a ? (et(a.categoria) || 'Artículo') : ''"
       [subtitle]="a?.resumen ?? ''" [stamp]="a?.fuente ? 'Fuente: ' + a.fuente : ''" [cabecera]="a !== null || cms.failed()">
       @if (a === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
@@ -246,6 +249,7 @@ export class BlogPage {
         </div>
       }
     </gr-page>
+    }
   `,
 })
 export class BlogPostPage {
