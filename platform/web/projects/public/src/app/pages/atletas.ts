@@ -104,7 +104,7 @@ export class Fav {
         <ul class="mt-8 hidden grid-cols-2 gap-4 md:grid lg:grid-cols-4">
           @for (a of visibles(); track a.slug) {
             <li>
-              <a [href]="'/atletas/' + a.slug" class="group relative flex h-full flex-col overflow-hidden rounded-lg border bg-bg-card transition-colors hover:border-line-strong" [class]="fav.slugs().includes(a.slug) ? 'border-accent/60' : 'border-line-subtle'">
+              <a [routerLink]="'/atletas/' + a.slug" class="group relative flex h-full flex-col overflow-hidden rounded-lg border bg-bg-card transition-colors hover:border-line-strong" [class]="fav.slugs().includes(a.slug) ? 'border-accent/60' : 'border-line-subtle'">
                 <span class="relative block aspect-[4/3] overflow-hidden bg-[linear-gradient(160deg,#3a0f17,#171213)]">
                   @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombre + ' ' + a.apellidos" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                   @else { <span class="absolute inset-0 flex items-center justify-center font-display text-[64px] text-white/90 italic">{{ ini(a) }}</span> }
@@ -131,7 +131,7 @@ export class Fav {
               <ul class="mt-2 flex flex-col">
                 @for (a of g.items; track a.slug) {
                   <li class="border-b border-line-subtle last:border-0">
-                    <a [href]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2">
+                    <a [routerLink]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2">
                       @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-10 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                       @else { <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(a) }}</span> }
                       <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.categoria ? ' · ' + a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
@@ -370,7 +370,7 @@ function catSort(a: string, b: string): number {
                 <ul class="mt-2">
                   @for (o of a.tambien; track o.slug) {
                     <li class="flex items-center gap-3 border-b border-line-subtle py-2 last:border-0">
-                      <a [href]="'/atletas/' + o.slug" class="flex min-w-0 flex-1 items-center gap-3">
+                      <a [routerLink]="'/atletas/' + o.slug" class="flex min-w-0 flex-1 items-center gap-3">
                         @if (o.fotoUrl) { <img [src]="o.fotoUrl" alt="" class="size-11 rounded-full object-cover" [style.object-position]="o.focalX + '% ' + o.focalY + '%'" loading="lazy" /> }
                         @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(o) }}</span> }
                         <span class="min-w-0"><span class="block truncate text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ o.club || 'Independiente' }} · {{ o.divisionNombre }}</span></span>
@@ -490,7 +490,7 @@ export class AtletaPage {
 /** /participantes (Figma page 26): confirmed athletes by block (flight once published), searchable. */
 @Component({
   selector: 'gr-participantes-page',
-  imports: [Page, FormsModule, GrIcon, GrSkeleton, Related, Community],
+  imports: [RouterLink, Page, FormsModule, GrIcon, GrSkeleton, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = data();
@@ -538,7 +538,7 @@ export class AtletaPage {
                   <thead class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><tr><th class="px-4 py-3 font-medium">Atleta</th><th class="px-4 py-3 font-medium">Club</th><th class="w-28 px-4 py-3 font-medium">Categoría</th><th class="w-20 px-4 py-3 font-medium">Flight</th><th class="w-36 px-4 py-3 font-medium">Pesaje</th></tr></thead>
                   <tbody>
                     @for (f of g.filas; track f.slug) {
-                      <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3.5"><a [href]="'/atletas/' + f.slug" class="text-label-m hover:text-accent-text">{{ f.nombre }}</a></td><td class="truncate px-4 py-3 text-body-s text-text-secondary">{{ f.club || 'Independiente' }}</td>
+                      <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3.5"><a [routerLink]="'/atletas/' + f.slug" class="text-label-m hover:text-accent-text">{{ f.nombre }}</a></td><td class="truncate px-4 py-3 text-body-s text-text-secondary">{{ f.club || 'Independiente' }}</td>
                         <td class="px-4 py-3 text-label-s text-accent-text">{{ cat(f.categoria) }} kg</td><td class="px-4 py-3 text-mono-s">{{ f.flight || '–' }}</td><td class="px-4 py-3 text-mono-s">{{ f.pesajeInicio ? hora(f.pesajeInicio) + ' – ' + hora(f.pesajeFin) : 'Por publicar' }}</td></tr>
                     }
                   </tbody>
@@ -546,7 +546,7 @@ export class AtletaPage {
               </div>
               <ul class="mt-3 overflow-hidden rounded-2xl border border-line-subtle bg-bg-card md:hidden">
                 @for (f of g.filas; track f.slug) {
-                  <li class="border-b border-line-subtle last:border-0"><a [href]="'/atletas/' + f.slug" class="flex min-h-14 items-center gap-3 px-4 py-2">
+                  <li class="border-b border-line-subtle last:border-0"><a [routerLink]="'/atletas/' + f.slug" class="flex min-h-14 items-center gap-3 px-4 py-2">
                     <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }}</span></span>
                     <span class="rounded-pill bg-accent-deep/40 px-2 py-0.5 text-mono-xs text-accent-text">{{ cat(f.categoria) }} kg</span>
                   </a></li>

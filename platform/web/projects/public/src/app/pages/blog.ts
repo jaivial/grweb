@@ -50,7 +50,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
             @if (destacado(); as d) {
               <div class="grid gap-6 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)] lg:gap-8">
                 <!-- Figma «Destacado»: 760 × 420 (350 × 420 on mobile), 24 px corners, title over the photo -->
-                <a [href]="'/blog/' + d.slug" class="group relative flex aspect-[350/420] flex-col justify-end overflow-hidden rounded-xl md:rounded-2xl border border-line-subtle md:aspect-[760/420]">
+                <a [routerLink]="'/blog/' + d.slug" class="group relative flex aspect-[350/420] flex-col justify-end overflow-hidden rounded-xl md:rounded-2xl border border-line-subtle md:aspect-[760/420]">
                   @if (d.portadaUrl) { <img [src]="d.portadaUrl" alt="" class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> }
                   <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_25%,rgb(14_12_13/0.95))]" aria-hidden="true"></span>
                   <span class="relative flex flex-col items-start gap-3 p-5 md:p-6">
@@ -63,7 +63,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
                   <div class="hidden flex-col gap-4 lg:flex">
                     <p class="text-label-xs text-text-muted uppercase">Más recientes</p>
                     @for (p of recientes(); track p.slug) {
-                      <a [href]="'/blog/' + p.slug" class="group flex gap-4">
+                      <a [routerLink]="'/blog/' + p.slug" class="group flex gap-4">
                         <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card">@if (p.portadaUrl) { <img [src]="p.portadaUrl" alt="" class="size-full object-cover" loading="lazy" /> }</span>
                         <span class="flex min-w-0 flex-col gap-1">
                           @if (p.categoria) { <span class="text-label-xs text-accent-text uppercase">{{ et(p.categoria) }}</span> }
@@ -81,7 +81,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
               <ul class="grid gap-3 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
                 @for (p of visibles(); track p.slug) {
                   <li [class.lg:hidden]="esReciente(p)">
-                    <a [href]="'/blog/' + p.slug" class="group flex h-full gap-4 rounded-lg border-line-subtle transition-colors md:flex-col md:gap-0 md:overflow-hidden md:border md:bg-bg-card md:hover:border-line-strong">
+                    <a [routerLink]="'/blog/' + p.slug" class="group flex h-full gap-4 rounded-lg border-line-subtle transition-colors md:flex-col md:gap-0 md:overflow-hidden md:border md:bg-bg-card md:hover:border-line-strong">
                       <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card md:aspect-[360/210] md:size-auto md:w-full md:rounded-none">@if (p.portadaUrl) { <img [src]="p.portadaUrl" alt="" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> }</span>
                       <span class="flex min-w-0 flex-1 flex-col gap-1.5 md:p-5">
                         @if (p.categoria) { <span class="text-label-xs text-accent-text uppercase">{{ et(p.categoria) }}</span> }

@@ -58,13 +58,13 @@ export class AvisoJuegos {
  */
 @Component({
   selector: 'gr-juegos-nav',
-  imports: [AvisoJuegos],
+  imports: [RouterLink, AvisoJuegos],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6' },
   template: `
     <nav class="flex w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [attr.aria-label]="juego() === 'porra' ? 'Porra' : 'GRS Fantasy'">
       @for (t of tabs(); track t.href) {
-        <a [href]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none md:px-4"
+        <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none md:px-4"
           [class]="t.id === activa() ? 'border border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border border-transparent text-text-tertiary hover:text-text-primary'"
           [attr.aria-current]="t.id === activa() ? 'page' : null">
           @if (t.id === activa()) { <span class="hidden size-1.5 shrink-0 rounded-full bg-accent sm:block" aria-hidden="true"></span> }
