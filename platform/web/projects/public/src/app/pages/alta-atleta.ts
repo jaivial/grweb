@@ -27,12 +27,16 @@ interface ConfigAlta {
   textoNovedades: string;
   altcha: AltchaConfig;
   tiempo: string;
+  /** Opciones de «¿En qué competición compites?» (plazas = cupo por prueba; 0 si no hay cupo). */
+  pruebas?: { codigo: string; nombre: string; fecha?: string; nivel: string; plazas: number; ocupadas: number }[];
+  /** Último día (AAAA-MM-DD) para elegir la competición desde el área de atleta. */
+  limiteEleccion?: string;
 }
 
 /** Los datos del formulario (los mismos que viajan al servicio). */
 interface DatosAlta {
   nombre: string; apellidos: string; email: string; telefono: string; sexo: 'F' | 'M'; fechaNacimiento: string;
-  licencia: string; club: string; ciudad: string; entrenador: string; frase: string; bio: string; instagram: string;
+  licencia: string; prueba: string; club: string; ciudad: string; entrenador: string; frase: string; bio: string; instagram: string;
   historial: string; marcaSQ: string | number; marcaBP: string | number; marcaDL: string | number; web: string;
 }
 /** Las casillas de consentimiento. */
@@ -115,7 +119,7 @@ const MAX_MARCA = 600;
                 } @else {
                   <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" (ngSubmit)="enviar()" novalidate>
                     <div>
-                      <h2 class="text-display-xs italic md:text-display-s">Solicitud de alta</h2>
+                      <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">Solicitud de alta</h2>
                       <p class="mt-1.5 text-body-s text-text-tertiary">Los campos marcados con * son obligatorios. El resto, opcional.</p>
                     </div>
 
@@ -188,7 +192,7 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-nacimiento">Fecha de nacimiento *</label>
-                        <input id="c-nacimiento" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" placeholder="dd/mm/aaaa" maxlength="10"
+                        <input id="c-nacimiento" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" placeholder="dd/mm/aaaa"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none"
                           [class]="err()['fechaNacimiento'] ? 'border-accent-text' : 'border-line-strong'"
                           [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
@@ -215,6 +219,26 @@ const MAX_MARCA = 600;
                     <!-- Competición -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
                       <legend class="mb-5 text-display-2xs italic">Competición</legend>
+                      @if (cfg()?.pruebas?.length) {
+                        <div class="flex min-w-0 flex-col gap-3" role="radiogroup" aria-labelledby="l-prueba">
+                          <span id="l-prueba" class="font-display text-base uppercase italic tracking-[0.02em]">¿En qué competición compites?</span>
+                          @for (o of opcionesPrueba(); track o.codigo) {
+                            <button type="button" role="radio" [attr.aria-checked]="d.prueba === o.codigo" (click)="d.prueba = o.codigo; revalidar()"
+                              class="flex w-full items-center gap-4 rounded-[10px] border px-4 py-3.5 text-left transition-colors"
+                              [class]="d.prueba === o.codigo ? 'border-accent-text bg-accent-deep/30' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
+                              <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2"
+                                [class]="d.prueba === o.codigo ? 'border-accent-text' : 'border-line-strong'">
+                                @if (d.prueba === o.codigo) { <span class="size-2.5 rounded-full bg-accent-text"></span> }
+                              </span>
+                              <span class="flex min-w-0 flex-1 flex-col">
+                                <span class="text-body-m font-semibold text-text-primary">{{ o.titulo }}</span>
+                                <span class="text-body-xs text-text-tertiary">{{ o.detalle }}</span>
+                              </span>
+                              <span class="shrink-0 rounded-full border px-2.5 py-0.5 text-label-xs" [class]="o.tono">{{ o.chip }}</span>
+                            </button>
+                          }
+                        </div>
+                      }
                       <div class="grid gap-4 sm:grid-cols-2">
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-club">Club (o «independiente»)</label>
@@ -414,24 +438,61 @@ export class AltaAtletaPage {
   /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si es una fecha real. */
   protected fechaTexto = '';
 
-  /** Máscara dd/mm/aaaa: solo dígitos, barras automáticas; la ISO se fija cuando la fecha existe. */
+  /**
+   * Máscara dd/mm/aaaa. Los dígitos llenan día (2), mes (2) y año (4); un separador que escribe la
+   * persona («/», «-», «.», espacio) cierra el campo y lo rellena con cero («3/1/1990» → 03/01/1990).
+   * Una ISO pegada o autocompletada (AAAA-MM-DD) se da la vuelta. La ISO se fija cuando la fecha existe.
+   */
   protected fechaCambia(el: HTMLInputElement): void {
-    const n = el.value.replace(/\D/g, '').slice(0, 8);
-    const t = [n.slice(0, 2), n.slice(2, 4), n.slice(4)].filter(Boolean).join('/');
+    const v = el.value.trim();
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v);
+    const fuente = m ? `${m[3]}/${m[2]}/${m[1]}` : v;
+    const f = ['', '', ''];
+    let i = 0;
+    for (const ch of fuente) {
+      if (/\d/.test(ch)) {
+        if (i < 2 && f[i].length === 2) i++;
+        if (f[i].length < (i === 2 ? 4 : 2)) f[i] += ch;
+      } else if (i < 2 && f[i].length) {
+        f[i] = f[i].padStart(2, '0');
+        i++;
+      }
+    }
+    const t = f[0] + (i >= 1 ? '/' + f[1] : '') + (i >= 2 ? '/' + f[2] : '');
     el.value = this.fechaTexto = t;
     let iso = '';
-    if (n.length === 8) {
-      const [dd, mm, aa] = [+n.slice(0, 2), +n.slice(2, 4), +n.slice(4)];
-      const f = new Date(aa, mm - 1, dd);
-      if (f.getFullYear() === aa && f.getMonth() === mm - 1 && f.getDate() === dd) iso = `${n.slice(4)}-${n.slice(2, 4)}-${n.slice(0, 2)}`;
+    if (f[0].length === 2 && f[1].length === 2 && f[2].length === 4) {
+      const [dd, mm, aa] = [+f[0], +f[1], +f[2]];
+      const d = new Date(aa, mm - 1, dd);
+      if (d.getFullYear() === aa && d.getMonth() === mm - 1 && d.getDate() === dd) iso = `${f[2]}-${f[1]}-${f[0]}`;
     }
     this.d.fechaNacimiento = iso;
     this.revalidar();
   }
 
+  /** Las tarjetas de «¿En qué competición compites?» con su chip (disponible, últimas plazas, completa). */
+  protected opcionesPrueba(): { codigo: string; titulo: string; detalle: string; chip: string; tono: string }[] {
+    const c = this.cfg();
+    const dia = (iso?: string) => iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
+    const verde = 'border-success/40 bg-success/10 text-success';
+    const out = (c?.pruebas ?? []).map((p) => {
+      const libre = p.plazas > 0 ? p.plazas - p.ocupadas : Infinity;
+      const [chip, tono] = libre <= 0 ? ['Completa', 'border-line-strong text-text-tertiary']
+        : libre <= Math.max(5, Math.ceil(p.plazas * 0.1)) ? ['Últimas plazas', 'border-accent-text/40 bg-accent-deep/20 text-accent-text'] : ['Disponible', verde];
+      const fecha = dia(p.fecha);
+      return {
+        codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, chip, tono,
+        detalle: [p.plazas > 0 ? `${Math.min(p.ocupadas, p.plazas)} de ${p.plazas} plazas` : '', p.nivel].filter(Boolean).join(' · '),
+      };
+    });
+    const lim = c?.limiteEleccion ? `, hasta el ${dia(c.limiteEleccion).replace(/^\S+ /, '')} a las 12:00` : '';
+    out.push({ codigo: '', titulo: 'Aún no lo sé', detalle: `La eliges luego en tu área de atleta${lim}`, chip: 'Opcional', tono: verde });
+    return out;
+  }
+
   protected readonly d: DatosAlta = {
     nombre: '', apellidos: '', email: '', telefono: '', sexo: 'F', fechaNacimiento: '',
-    licencia: '', club: '', ciudad: '', entrenador: '', frase: '', bio: '', instagram: '', historial: '',
+    licencia: '', prueba: '', club: '', ciudad: '', entrenador: '', frase: '', bio: '', instagram: '', historial: '',
     marcaSQ: '', marcaBP: '', marcaDL: '', web: '',
   };
   protected acepta: Aceptos = {
@@ -667,7 +728,7 @@ export class AltaAtletaPage {
     if (!mail) e['email'] = 'Es obligatorio.';
     else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = 'Introduce un email válido.';
     if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = 'Si pides avisos por WhatsApp, necesitas tu teléfono.';
-    if (!d.fechaNacimiento) e['fechaNacimiento'] = 'Elige una fecha válida.';
+    if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? 'Escribe el año con 4 cifras (dd/mm/aaaa).' : 'Elige una fecha válida.';
     else {
       const n = new Date(d.fechaNacimiento + 'T00:00:00');
       if (isNaN(n.getTime())) e['fechaNacimiento'] = 'Elige una fecha válida.';
@@ -728,6 +789,7 @@ export class AltaAtletaPage {
       sexo: this.d.sexo,
       fechaNacimiento: this.d.fechaNacimiento,
       licencia: this.d.licencia.trim(),
+      prueba: this.d.prueba,
       club: this.d.club.trim(),
       ciudad: this.d.ciudad.trim(),
       entrenador: this.d.entrenador.trim(),

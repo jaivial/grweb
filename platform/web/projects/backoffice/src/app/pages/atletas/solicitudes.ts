@@ -16,7 +16,7 @@ import {
 type Pestana = 'todas' | 'pendiente' | 'revision' | 'menor' | 'aprobada' | 'rechazada';
 type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
-/** The 17 fields of the public form, in the order of the review panel. */
+/** The 18 fields of the public form, in the order of the review panel. */
 const CAMPOS: { clave: string; etiqueta: string }[] = [
   { clave: 'nombre', etiqueta: 'Nombre' },
   { clave: 'apellidos', etiqueta: 'Apellidos' },
@@ -28,6 +28,7 @@ const CAMPOS: { clave: string; etiqueta: string }[] = [
   { clave: 'club', etiqueta: 'Club' },
   { clave: 'ciudad', etiqueta: 'Ciudad' },
   { clave: 'entrenador', etiqueta: 'Entrenador/a' },
+  { clave: 'prueba', etiqueta: 'Competición' },
   { clave: 'frase', etiqueta: 'Frase del perfil' },
   { clave: 'bio', etiqueta: 'Sobre ti' },
   { clave: 'instagram', etiqueta: 'Instagram' },
@@ -50,7 +51,7 @@ const CONSENTIMIENTOS: { clave: string; texto: string; etiqueta: string }[] = [
 const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: 'Email', nombre: 'Sugerida', manual: 'Enlazado', '': 'Sin coincidencia' };
 const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
 
-/** The 17 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
+/** The 18 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
 interface FilaCampo {
   clave: string;
   etiqueta: string;
@@ -970,6 +971,8 @@ export class SolicitudesPage {
         return v === null || v === undefined || v === '' ? '' : `${v} kg`;
       case 'fechaNacimiento':
         return v ? this.fechaLarga(String(v)) : '';
+      case 'prueba':
+        return v === 'aep2' ? 'AEP-2' : v === 'aep3' ? 'AEP-3' : 'Aún no lo sabe';
       case 'sexo':
         return v === 'F' ? 'F' : v === 'M' ? 'M' : '';
       case 'instagram':

@@ -77,6 +77,8 @@ export interface SolicitudDetalle extends SolicitudItem {
   licencia: string;
   ciudad: string;
   entrenador: string;
+  /** aep2, aep3 o vacío («Aún no lo sé»). */
+  prueba: string;
   frase: string;
   bio: string;
   instagram: string;

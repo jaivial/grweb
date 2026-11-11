@@ -201,7 +201,7 @@ var catalogo = []Plantilla{
 			Imagen:     "{{foto}}",
 			Cuerpo:     "Un atleta ha enviado el formulario de /alta-atleta. Revisa los datos declarados frente al atleta enlazado antes de aprobar o rechazar.\n\n**Nombre:** {{nombre}} {{apellidos}}\n\n**Email de la inscripción AEP:** {{email}}\n\n**Teléfono:** {{telefono}}\n\n**Licencia AEP:** {{licencia}}\n\n**Club · ciudad:** {{club}} · {{ciudad}}\n\n**Sexo · edad:** {{sexo}} · {{edad}} años\n\n**Fecha de nacimiento:** {{fechaNacimiento}}\n\n**Marcas SQ · BP · DL:** {{marcas}}\n\n**Frase:** {{frase}}\n\n**Coincidencia:** {{match}}\n\n{{menor}}",
 			BotonTexto: "Revisar solicitud", BotonURL: "{{urlRevisar}}",
-			Pie:  "La foto de este mensaje caduca en 7 días por seguridad. Este email contiene datos personales: no lo reenvíes.",
+			Pie:  "Este email contiene datos personales: no lo reenvíes.",
 			Nota: "Email automático del panel de solicitudes de atleta. La organización puede desactivar estos avisos en Backoffice › Emails y avisos."},
 		ContenidoWA{Texto: "*Nueva solicitud de alta · {{nombre}} {{apellidos}}*\n\n{{sexo}} · {{edad}} años · {{club}} · {{ciudad}}\n\n{{menor}}\n\n**Coincidencia:** {{match}}\n\nRevisar la solicitud: {{urlRevisar}}", Imagen: true}),
 	pwa("atleta-solicitud-aprobada", "Solicitud de alta aprobada", "Al aprobar una solicitud de alta (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
