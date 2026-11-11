@@ -23,6 +23,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/net/netutil"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/config"
@@ -50,6 +51,10 @@ type Service struct {
 	// BodyLimitFor raises the limit for specific requests (e.g. media uploads); 0 keeps BodyLimit.
 	BodyLimitFor func(*http.Request) int64
 	Middlewares  []httpx.Middleware // service-specific, inside the common chain
+	// MaxConns caps the open connections (0 = 512, <0 = no cap: gateway and streaming services hold one per client).
+	// Under a flood the CPU-throttled pod accepts faster than it answers: crm piled up 6000 sockets (~16 KB of
+	// heap each) and was OOMKilled. Beyond the cap the kernel keeps them in the accept queue, outside the pod's memory.
+	MaxConns int
 }
 
 // App is what a service receives in Setup.
@@ -241,6 +246,12 @@ func (a *App) serve(ctx context.Context, s Service) error {
 		if err != nil {
 			errc <- err
 			return
+		}
+		switch {
+		case s.MaxConns == 0:
+			ln = netutil.LimitListener(ln, 512)
+		case s.MaxConns > 0:
+			ln = netutil.LimitListener(ln, s.MaxConns)
 		}
 		errc <- srv.Serve(ln)
 	}()

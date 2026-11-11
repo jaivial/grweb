@@ -95,7 +95,7 @@ type slugEntry struct {
 // Service returns the realtime service definition.
 func Service() app.Service {
 	s := &Svc{hub: &hub{subs: map[chan msg]struct{}{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
-	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, Setup: s.setup}
+	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, MaxConns: -1, Setup: s.setup}
 }
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {

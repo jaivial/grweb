@@ -63,7 +63,7 @@ type Svc struct {
 // Service returns the chat service definition.
 func Service() app.Service {
 	s := &Svc{hub: &hub{salas: map[salaID]*sala{}, streams: map[string]struct{}{}}}
-	return app.Service{Name: "chat", Title: "GR Cup · chat (directo social)", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup}
+	return app.Service{Name: "chat", Title: "GR Cup · chat (directo social)", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, MaxConns: -1, Setup: s.setup}
 }
 
 func (s *Svc) setup(ctx context.Context, a *app.App) error {
