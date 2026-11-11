@@ -888,9 +888,14 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				return err
 			}
 		}
+		// "Aún no lo sabe" is the form option, not a competition: the empty variable hides the line.
+		prueba := ""
+		if sol.Prueba != "" {
+			prueba = pruebaTexto(sol.Prueba)
+		}
 		if avisarEmail {
 			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "prueba": pruebaTexto(sol.Prueba), "urlFicha": urlFicha, "privada": privada, "foto": foto, "urlArea": urlArea}); err != nil {
+				"nombre": sol.Nombre, "prueba": prueba, "urlFicha": urlFicha, "privada": privada, "foto": foto, "urlArea": urlArea}); err != nil {
 				return err
 			}
 		}

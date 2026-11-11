@@ -208,7 +208,7 @@ var catalogo = []Plantilla{
 		[]string{"nombre", "prueba", "urlFicha", "privada", "foto", "urlArea"},
 		map[string]string{"nombre": "Carlos", "prueba": "AEP-2", "urlFicha": "https://grcup.example/atletas/carlos-garcia-molina", "privada": "", "foto": "✓ Tu foto en blanco y negro ya está en tu ficha.", "urlArea": "https://grcup.example/area-atleta?t=…"},
 		Contenido{Asunto: "Tu ficha de atleta ya está aprobada", Preheader: "Ya puedes ver tu ficha en la GR Cup 2026", Titulo: "{{nombre}}, tu ficha de atleta ya está aprobada",
-			Cuerpo:     "Tu solicitud de alta está aprobada. Tu ficha queda lista con tu club y tus mejores marcas.\n\n{{foto}}\n\n✓ Competición: {{prueba}}.\n\n✓ Publicamos tu ficha en {{urlFicha}}.\n\n{{privada}}\n\n✓ Desde el área de atleta podrás editar tu foto, tus marcas y tu frase cuando quieras.\n\n✓ Te avisaremos por email cuando tu ficha sea visible en la lista de atletas.",
+			Cuerpo:     "Tu solicitud de alta está aprobada. Tu ficha queda lista con tu club y tus mejores marcas.\n\n{{foto}}\n\n✓ Competición: {{prueba}}.\n\n✓ Publicamos tu ficha en {{urlFicha}}.\n\n{{privada}}\n\n✓ Desde el área de atleta podrás editar tu foto, tus marcas y tu frase cuando quieras.",
 			BotonTexto: "Entrar en mi área de atleta", BotonURL: "{{urlArea}}",
 			Pie:  "Enlace personal: caduca en 30 minutos; luego puedes pedir otro desde el área de atleta.",
 			Nota: "Recibes este email porque tu solicitud de alta en la GR Cup 2026 ha sido aprobada."},
