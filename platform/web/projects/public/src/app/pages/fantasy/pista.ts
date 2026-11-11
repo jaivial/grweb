@@ -66,7 +66,7 @@ const TAM = { l: 'size-20', m: 'size-16', s: 'size-14' } as const;
           <span class="absolute -top-1 -right-1 flex size-[22px] items-center justify-center rounded-full bg-warning text-bg-deep" aria-hidden="true"><gr-icon name="lock" [size]="12" [stroke]="2.5" /></span>
         }
       </span>
-      <span class="line-clamp-2 w-full text-center text-[12px] leading-tight font-semibold text-text-primary [text-shadow:0_1px_6px_rgb(0_0_0/0.8)] lg:text-[14px]">{{ corto() }}</span>
+      <span class="line-clamp-2 w-full text-center text-[12px] [overflow-wrap:anywhere] leading-tight font-semibold text-text-primary [text-shadow:0_1px_6px_rgb(0_0_0/0.8)] lg:text-[14px]">{{ corto() }}</span>
     </button>
   `,
 })
