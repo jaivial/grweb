@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -841,6 +842,9 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Frase = strings.TrimSpace(d.Frase)
 	d.Bio = strings.TrimSpace(d.Bio)
 	d.Instagram = normInstagram(d.Instagram)
+	if f := fecha(d.FechaNacimiento); f != nil && menorDeEdad(*f) {
+		d.Instagram = "" // data minimisation: minors never get a public handle
+	}
 	d.Historial = strings.TrimSpace(d.Historial)
 	d.Sexo = strings.ToUpper(strings.TrimSpace(d.Sexo))
 	if d.FocalX <= 0 {
@@ -907,8 +911,8 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	if len([]rune(d.Bio)) > 280 {
 		add("bio", "La presentación es demasiado larga (280 caracteres como máximo).")
 	}
-	if len(d.Instagram) > 30 {
-		add("instagram", "El Instagram es demasiado largo (30 caracteres como máximo).")
+	if d.Instagram != "" && !reInstagram.MatchString(d.Instagram) {
+		add("instagram", "El Instagram solo admite letras, números, puntos y guiones bajos (30 como máximo).")
 	}
 	if len([]rune(d.Historial)) > 300 {
 		add("historial", "El historial es demasiado largo (300 caracteres como máximo).")
@@ -916,6 +920,8 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	for campo, v := range map[string]*float64{"marcaSQ": d.MarcaSQ, "marcaBP": d.MarcaBP, "marcaDL": d.MarcaDL} {
 		if v != nil && (*v < 0 || *v > 600) {
 			add(campo, "Las marcas deben estar entre 0 y 600 kg.")
+		} else if v != nil && *v*2 != float64(int64(*v*2)) {
+			add(campo, "Las marcas van en pasos de 0,5 kg.")
 		}
 	}
 	if d.FocalX < 0 || d.FocalX > 100 || d.FocalY < 0 || d.FocalY > 100 {
@@ -923,6 +929,9 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	}
 	return errs
 }
+
+// reInstagram is a valid handle (with or without «@»).
+var reInstagram = regexp.MustCompile(`^@?[A-Za-z0-9._]{1,30}$`)
 
 // emailValido is a light check of the email format (the strict one is the database).
 func emailValido(e string) bool {

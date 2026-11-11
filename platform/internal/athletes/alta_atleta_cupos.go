@@ -5,6 +5,7 @@ package athletes
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -130,6 +131,13 @@ func (s *Svc) registerAltaCupos() {
 			for k, n := range in.Body.Cupos {
 				if k == "" || !pruebaValida(k) || n < 0 || n > 100000 {
 					return nil, problem.Unprocessable("CUPO_NO_VALIDO", "Cupo no válido: "+k)
+				}
+			}
+			ocup := ocupadas(ctx, s.a.DB, in.CID)
+			for k, n := range in.Body.Cupos {
+				if n > 0 && n < ocup[k] {
+					return nil, problem.Unprocessable("CUPO_MENOR_QUE_OCUPADAS",
+						fmt.Sprintf("El cupo de %s no puede ser menor que las plazas ya ocupadas (%d).", pruebaTexto(k), ocup[k]))
 				}
 			}
 			for k, n := range in.Body.Cupos {

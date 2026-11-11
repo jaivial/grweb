@@ -58,7 +58,7 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'limite' |
         <h2 class="text-ui-h4 md:text-ui-h3">Has enviado demasiadas solicitudes</h2>
         <p class="text-body-s text-text-secondary">Por seguridad, hemos pausado los envíos desde este dispositivo un rato.</p>
         <p class="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary">
-          <gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Vuelve a intentarlo en {{ espera() }}. Tu solicitud anterior sigue guardada.
+          <gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Vuelve a intentarlo en {{ espera() }}.
         </p>
         <div class="flex flex-col gap-3 sm:flex-row">
           <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
