@@ -77,9 +77,9 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
           <gr-sorteo-titulo titulo="Normas" acento="del sorteo" texto="Simple, justo y transparente. Aquí tienes lo que necesitas saber; las bases completas están en la política del concurso." />
           <div class="grid w-full max-w-[1104px] gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
             @for (r of normas(); track r.t) {
-              <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
+              <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <span class="flex size-10 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="r.i" [size]="20" /></span>
-                <p class="mt-2 text-ui-h5">{{ r.t }}</p><p class="text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ r.d }}</p>
+                <p class="mt-2 text-ui-h5">{{ r.t }}</p><p class="min-w-0 text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ r.d }}</p>
               </div>
             }
           </div>
