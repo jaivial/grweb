@@ -101,7 +101,7 @@ const MAX_MARCA = 600;
         </section>
 
         <!-- Formulario + resumen (Figma 75) -->
-        <div class="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,1.23fr)_minmax(0,1fr)] lg:gap-8">
+        <div class="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
           <div id="formulario" class="scroll-mt-24">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
