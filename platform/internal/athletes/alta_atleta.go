@@ -985,11 +985,15 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	add := func(campo, msg string) {
 		errs = append(errs, &huma.ErrorDetail{Location: "body." + campo, Message: msg})
 	}
-	if n := len([]rune(d.Nombre)); n < 1 || n > 60 || !tieneLetra(d.Nombre) {
+	if n := len([]rune(d.Nombre)); n < 1 || n > 60 {
 		add("nombre", "Escribe tu nombre (60 caracteres como máximo).")
+	} else if !tieneLetra(d.Nombre) {
+		add("nombre", "El nombre debe contener letras.")
 	}
-	if n := len([]rune(d.Apellidos)); n < 1 || n > 60 || !tieneLetra(d.Apellidos) {
+	if n := len([]rune(d.Apellidos)); n < 1 || n > 60 {
 		add("apellidos", "Escribe tus apellidos (60 caracteres como máximo).")
+	} else if !tieneLetra(d.Apellidos) {
+		add("apellidos", "Los apellidos deben contener letras.")
 	}
 	if d.telInvalido {
 		add("telefono", "Escribe un móvil válido.")
@@ -1600,9 +1604,16 @@ func matchTexto(m string) string {
 // telValido: optional '+' and 9 to 15 digits, once spaces and hyphens are removed.
 var telValido = regexp.MustCompile(`^\+?[0-9]{9,15}$`)
 
-// tieneLetra reports whether v has at least one letter (a name made only of marks or symbols is empty).
+// tieneLetra reports whether v has at least one visible letter: the Hangul fillers (U+3164, U+FFA0,
+// U+115F, U+1160) are category Lo but render blank, like U+2800 and the Cf format characters.
 func tieneLetra(v string) bool {
-	return strings.IndexFunc(v, unicode.IsLetter) >= 0
+	return strings.IndexFunc(v, func(r rune) bool {
+		switch r {
+		case 0x3164, 0xFFA0, 0x115F, 0x1160, 0x2800:
+			return false
+		}
+		return unicode.IsLetter(r) && !unicode.Is(unicode.Cf, r)
+	}) >= 0
 }
 
 func normTel(t string) string {

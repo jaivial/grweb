@@ -779,9 +779,11 @@ export class AltaAtletaPage {
   private validar(): Record<string, string> {
     const d = this.d;
     const e: Record<string, string> = {};
-    if (!tieneLetra(d.nombre)) e['nombre'] = 'Es obligatorio.';
+    if (!d.nombre.trim()) e['nombre'] = 'Es obligatorio.';
+    else if (!tieneLetra(d.nombre)) e['nombre'] = 'El nombre debe contener letras.';
     else if (d.nombre.trim().length > MAX_NOMBRE) e['nombre'] = 'Es demasiado largo (60 caracteres como máximo).';
-    if (!tieneLetra(d.apellidos)) e['apellidos'] = 'Son obligatorios.';
+    if (!d.apellidos.trim()) e['apellidos'] = 'Son obligatorios.';
+    else if (!tieneLetra(d.apellidos)) e['apellidos'] = 'Los apellidos deben contener letras.';
     else if (d.apellidos.trim().length > MAX_APELLIDOS) e['apellidos'] = 'Son demasiado largos (60 caracteres como máximo).';
     const mail = d.email.trim();
     if (!mail) e['email'] = 'Es obligatorio.';
@@ -1085,9 +1087,9 @@ export class AltaAtletaPage {
 /** Móvil: '+' opcional y de 9 a 15 dígitos (sin espacios ni guiones). */
 const TEL = /^\+?\d{9,15}$/;
 
-/** Hay al menos una letra tras quitar los invisibles (zero-width, bidi, control). */
+/** Hay al menos una letra visible tras quitar los invisibles (control, Cf, relleno Hangul, U+2800). */
 function tieneLetra(v: string): boolean {
-  return /\p{L}/u.test(v.replace(/[\p{Cc}\p{Cf}]/gu, ''));
+  return /\p{L}/u.test(v.replace(/[\p{Cc}\p{Cf}\u3164\uFFA0\u115F\u1160\u2800]/gu, ''));
 }
 
 function competicionNombre(c: { nombre?: string } | null): string {
