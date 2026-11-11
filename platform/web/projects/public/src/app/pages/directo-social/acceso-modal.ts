@@ -45,7 +45,7 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
                 <p class="text-body-s text-text-secondary">Ábrelo en este dispositivo para entrar como {{ tipo() === 'atleta' ? 'ATLETA' : 'PÚBLICO' }}.</p>
               </div>
               <ol class="mt-4 flex flex-col gap-2.5">
-                @for (p of pasos; track p; let i = $index) {
+                @for (p of pasos(); track p; let i = $index) {
                   <li class="flex items-center gap-2.5 text-body-s text-text-secondary"><span class="flex size-6 shrink-0 items-center justify-center rounded-full border border-accent/50 bg-accent/18 text-[12px] font-medium text-accent-text">{{ i + 1 }}</span>{{ p }}</li>
                 }
               </ol>
@@ -145,13 +145,15 @@ export class AccesoModal {
     { v: 'atleta', l: 'Atleta', d: 'Insignia ATLETA con tu email de la AEP', i: 'trophy' },
     { v: 'publico', l: 'Público', d: 'Familia, clubs y afición', i: 'users' },
   ];
-  protected readonly pasos = ['Abre el email de GR Strength Cup', 'Pulsa «Entrar al directo»', 'Vuelves al chat con tu alias'];
+  private readonly inscripcion = computed(() => this.fan.motivoAcceso() === 'inscripcion');
+  protected readonly pasos = computed(() => ['Abre el email de GR Strength Cup',
+    ...(this.inscripcion() ? ['Pulsa «Continuar la inscripción»', 'Vuelves al formulario de inscripción'] : ['Pulsa «Entrar al directo»', 'Vuelves al chat con tu alias'])]);
 
-  protected readonly titulo = computed(() => (this.estado() === 'enviado' ? 'Revisa tu correo' : this.estado() === 'atleta' ? 'Entrar como atleta' : 'Entrar al directo'));
+  protected readonly titulo = computed(() => (this.estado() === 'enviado' ? 'Revisa tu correo' : this.estado() === 'atleta' ? 'Entrar como atleta' : this.inscripcion() ? 'Entra para inscribirte' : 'Entrar al directo'));
   protected readonly subtitulo = computed(() => {
     if (this.estado() === 'enviado') return 'Te hemos enviado un enlace mágico para entrar.';
     if (this.estado() === 'atleta') return 'Comprobamos tu email contra la inscripción de la AEP.';
-    return 'Chatea, dona y juega con tu cuenta de directo.';
+    return this.inscripcion() ? 'Necesitas tu cuenta de GR Strength Cup para inscribirte. Vuelves al formulario con lo que ya has rellenado.' : 'Chatea, dona y juega con tu cuenta de directo.';
   });
   protected readonly puedeEnviar = computed(() => this.alias().trim().length >= 3 && this.alias().trim().length <= 20 && this.email().includes('@') && this.normas());
 
@@ -181,7 +183,7 @@ export class AccesoModal {
     this.error.set(null);
     this.errorAlias.set(null);
     try {
-      await this.fan.pedirAcceso({ email: this.email().trim(), tipo: this.tipo(), alias: this.alias().trim(), aceptaNormas: this.normas() });
+      await this.fan.pedirAcceso({ email: this.email().trim(), tipo: this.tipo(), alias: this.alias().trim(), aceptaNormas: this.normas(), next: this.fan.volverA() ?? undefined });
       this.estado.set('enviado');
     } catch (e) {
       const codigo = codigoError(e);

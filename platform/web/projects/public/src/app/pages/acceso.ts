@@ -77,8 +77,10 @@ export class AccesoPage {
         .then((f) => {
           this.alias.set(f.alias);
           this.estado.set('ok');
-          // The account is already created: the direct is the natural destination.
-          setTimeout(() => void this.router.navigate(['/en-directo']), 900);
+          // Back to where the link was asked for (only a path of this web), else the live page.
+          const next = this.route.snapshot.queryParamMap.get('next') ?? '';
+          const destino = /^\/(?!\/)[A-Za-z0-9/_.~?=&%-]*$/.test(next) ? next : '/en-directo';
+          setTimeout(() => void this.router.navigateByUrl(destino), 900);
         })
         .catch((e) => {
           this.estado.set('error');

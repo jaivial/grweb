@@ -19,6 +19,8 @@ export interface AccesoIn {
   tipo: 'atleta' | 'publico';
   alias: string;
   aceptaNormas: boolean;
+  /** Web path to return to after the email link (validated by the API). */
+  next?: string;
 }
 
 /** Error code of the API (problem+json `code`), e.g. ATLETA_NO_ENCONTRADO, ALIAS_OCUPADO, ALIAS_NO_VALIDO. */
@@ -51,6 +53,8 @@ export class FanSession {
   readonly accesoAbierto = signal(false);
   /** What the user was trying to do when the modal opened (e.g. 'chat', 'donar', 'porra', 'fantasy'). */
   readonly motivoAcceso = signal<string | null>(null);
+  /** Path the email link brings the person back to (null: the live page). */
+  readonly volverA = signal<string | null>(null);
 
   private pendiente: Promise<Fan | null> | null = null;
 
@@ -70,8 +74,9 @@ export class FanSession {
     return this.pendiente;
   }
 
-  abrirAcceso(motivo: string | null = null): void {
+  abrirAcceso(motivo: string | null = null, volverA: string | null = null): void {
     this.motivoAcceso.set(motivo);
+    this.volverA.set(volverA);
     this.accesoAbierto.set(true);
   }
 

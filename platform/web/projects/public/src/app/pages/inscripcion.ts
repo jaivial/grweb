@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -15,7 +15,10 @@ import { Page } from '../layout/page';
 interface ConfigPub { modo: 'externa' | 'propia'; estado: 'abierta' | 'proximamente' | 'cerrada' | 'completa'; cuota: number; plazas: number; ocupadas: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: boolean; referidoTexto?: string; pasarela: 'stripe' | 'simulado' | 'ninguna'; pruebas: boolean }
 interface Descuento { codigo: string; valido: boolean; importe: number; texto: string; motivo?: string; invitadoPor?: string }
 interface Precio { cuota: number; cupon?: Descuento; referido?: Descuento; total: number }
-interface Estado { id: string; estado: 'pendiente_pago' | 'pagada' | 'gratuita' | 'reserva' | 'cancelada' | 'fallida'; total: number; email: string; tarjeta?: string; referencia?: string; codigoReferido?: string; checkoutUrl?: string; categoria: string; division?: string }
+interface Estado { id: string; estado: 'pendiente_pago' | 'pagada' | 'gratuita' | 'reserva' | 'cancelada' | 'fallida'; total: number; email: string; tarjeta?: string; referencia?: string; codigoReferido?: string; checkoutUrl?: string; categoria: string; division?: string; invitaTexto?: string }
+
+/** Form kept while the person signs in from the modal (the email link may open in another tab). */
+const BORRADOR = 'gr-inscripcion-borrador';
 
 const base = `/api/competiciones/${COMPETITION_SLUG}/inscripcion`;
 export const eur = (c?: number) => ((c ?? 0) / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -84,17 +87,21 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
         <section class="flex flex-col items-center gap-6 pt-2 text-center md:gap-8 md:pt-8">
           <p class="inline-flex h-7 items-center rounded-pill border border-text-tertiary bg-text-tertiary/12 px-3 text-label-xs text-text-tertiary uppercase">{{ v === 'completas' ? 'Inscripciones completas' : 'Inscripciones cerradas' }}</p>
           <h1 class="text-display-m [text-shadow:0_4px_24px_rgb(0_0_0/0.6)] md:text-display-xl">{{ v === 'completas' ? 'Plazas completas' : 'Inscripción cerrada' }}</h1>
-          @if (plazas()) {
+          @if (plazas() && v === 'completas') {
             <p class="flex items-end gap-2"><span class="font-display text-[60px] leading-none text-accent-text md:text-[72px]">{{ inscritos() }}</span><span class="pb-1 text-display-2xs text-text-tertiary md:text-display-xs">/ {{ plazas() }} atletas</span></p>
           }
           <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">
             @if (v === 'completas' && c?.modo !== 'propia') { La inscripción de la {{ nombreComp() }} se gestiona a través de la AEP y ya no quedan plazas. Si alguien se da de baja, la federación avisa por orden de la lista de espera. }
-            @else if (v === 'completas') { Ya no quedan plazas para la {{ nombreComp() }}. Si se libera alguna, avisaremos por orden de la lista de reserva. }
+            @else if (v === 'completas') { Ya no quedan plazas para la {{ nombreComp() }}. Si se libera alguna, lo anunciaremos en Instagram. }
             @else { La inscripción de la {{ nombreComp() }} está cerrada. Si tienes una duda sobre tu inscripción, escríbenos{{ contacto() ? ' a ' + contacto() : '' }}. }
           </p>
           <div class="flex w-full flex-col gap-3 md:w-auto md:flex-row">
-            <a grButton variant="primary" size="l" routerLink="/alta-atleta">Dar de alta tu atleta</a>
-            <a grButton variant="outline" size="l" routerLink="/atletas">Ver atletas</a>
+            @if (c?.modo === 'propia') {
+              <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas inscritos</a>
+            } @else {
+              <a grButton variant="primary" size="l" routerLink="/alta-atleta">Dar de alta tu atleta</a>
+              <a grButton variant="outline" size="l" routerLink="/atletas">Ver atletas</a>
+            }
             @if (v === 'completas' && c?.modo !== 'propia' && urlAep()) { <a grButton variant="outline" size="l" [href]="urlAep()" target="_blank" rel="noopener">Lista de espera en la AEP</a> }
           </div>
           <div class="grid w-full gap-4 pt-6 text-left md:max-w-[960px] md:grid-cols-2">
@@ -141,10 +148,6 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
         @if (c.pasarela === 'ninguna' && c.estado !== 'completa') {
           <p class="flex items-start gap-3 rounded-md border border-line-strong bg-bg-card p-4 text-body-s text-text-secondary"><gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-text-tertiary" />Todavía no podemos cobrar la inscripción online. Solo se aceptan códigos que la dejan gratis.</p>
         }
-        @if (c.estado === 'completa') {
-          <!-- Figma 06b «Plazas completas → reserva» -->
-          <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Las {{ c.plazas }} plazas están cubiertas. Puedes apuntarte a la lista de reserva: no se cobra nada hasta que haya plaza, y entonces te enviamos el enlace de pago.</p>
-        }
         @if (resumenErrores().length) {
           <!-- Figma 06 «Errores de validación» -->
           <div #errores tabindex="-1" class="rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
@@ -154,6 +157,10 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
         }
 
         <form class="flex flex-col gap-5 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" (ngSubmit)="enviar()" novalidate>
+          @if (c.estado === 'completa') {
+            <!-- Figma 06b «Plazas completas → reserva» (inside the form card) -->
+            <p class="flex items-start gap-3 rounded-md border border-warning bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Las {{ c.plazas }} plazas están cubiertas. Puedes apuntarte a la lista de reserva: no se cobra nada hasta que haya plaza, y entonces te enviamos el enlace de pago.</p>
+          }
           <div class="grid gap-4 md:grid-cols-2">
             @for (f of campos; track f.k) {
               <div class="flex min-w-0 flex-col gap-2">
@@ -175,7 +182,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
             }
           </div>
 
-          @if (c.cupones || c.referidos) {
+          @if ((c.cupones || c.referidos) && c.cuota > 0) {
             <fieldset class="flex min-w-0 flex-col gap-3">
               <legend class="mb-3 text-ui-h5">Descuentos</legend>
               <div class="grid gap-3 md:grid-cols-2">
@@ -250,6 +257,9 @@ export class InscripcionPage {
   private readonly router = inject(Router);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
+  /** Idempotency-Key of the current submission (kept on retries of the same data, renewed when it succeeds). */
+  private idem = '';
   /** Registering (price check and submit) needs the public account session (atleta or público). */
   private readonly fan = inject(FanSession);
   protected readonly eur = eur;
@@ -319,7 +329,7 @@ export class InscripcionPage {
     return [
       { k: 'Fecha', icon: 'calendar' as const, v: f ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(f)).replace(/ de /g, ' ') : 'Por confirmar' },
       { k: 'Sede', icon: 'map-pin' as const, v: `${this.competicion()?.sede?.ciudad || 'Almussafes'} (Valencia)` },
-      { k: 'Plazas', icon: 'user' as const, v: `${c?.plazas || '—'}${c?.modo === 'propia' ? ' · ' + eurCorto(c.cuota) : ''}` },
+      { k: 'Plazas', icon: 'user' as const, v: `${c?.plazas || '—'}${c?.modo === 'propia' && c.cuota > 0 ? ' · ' + eurCorto(c.cuota) : ''}` },
     ];
   });
   protected readonly resumenErrores = computed(() => {
@@ -355,6 +365,7 @@ export class InscripcionPage {
       const p = new URLSearchParams(location.search);
       const ref = p.get('ref');
       if (ref) this.referido = ref; // shared link …/inscripcion?ref=LAURA412
+      this.restaurar();
       const cancelado = route.snapshot.queryParamMap.get('cancelado');
       if (cancelado) {
         this.pagoCancelado.set({});
@@ -373,7 +384,7 @@ export class InscripcionPage {
     try {
       this.precio.set(await firstValueFrom(this.http.post<Precio>(`${base}/precio`, { cupon: this.cupon, referido: this.referido, email: this.d.email })));
     } catch (e) {
-      if (codigoError(e).startsWith('SESION_FAN')) return this.fan.abrirAcceso('inscripcion');
+      if (codigoError(e).startsWith('SESION_FAN')) return this.pedirAcceso();
       this.error.set((e as { error?: { detail?: string } }).error?.detail ?? 'No se pudo comprobar el código.');
     }
   }
@@ -381,8 +392,28 @@ export class InscripcionPage {
   /** True with a session; otherwise opens the login modal (the person resumes after signing in). */
   private async sesion(): Promise<boolean> {
     if (await this.fan.cargar()) return true;
-    this.fan.abrirAcceso('inscripcion');
+    this.pedirAcceso();
     return false;
+  }
+
+  /** Login modal with the way back to this form (and what was typed, restored on return). */
+  private pedirAcceso(): void {
+    try {
+      localStorage.setItem(BORRADOR, JSON.stringify({ d: this.d, cupon: this.cupon, referido: this.referido, t: Date.now() }));
+    } catch { /* private mode: the link still comes back here */ }
+    const q = new URLSearchParams();
+    if (this.referido) q.set('ref', this.referido);
+    this.fan.abrirAcceso('inscripcion', '/inscripcion' + (q.size ? '?' + q : ''));
+  }
+
+  private restaurar(): void {
+    try {
+      const b = JSON.parse(localStorage.getItem(BORRADOR) ?? 'null') as { d?: Partial<InscripcionPage['d']>; cupon?: string; referido?: string; t?: number } | null;
+      if (!b || Date.now() - (b.t ?? 0) > 2 * 3600_000) return;
+      Object.assign(this.d, b.d ?? {});
+      this.cupon ||= b.cupon ?? '';
+      this.referido ||= b.referido ?? '';
+    } catch { /* no draft */ }
   }
 
   protected quitar(k: 'cupon' | 'referido'): void {
@@ -410,29 +441,35 @@ export class InscripcionPage {
   }
 
   protected async enviar(): Promise<void> {
+    if (this.enviando()) return; // double click: one request
     this.error.set('');
     this.intentado = true;
     const e = this.validar();
     this.err.set(e);
     if (Object.keys(e).length) {
       // the summary sits above the form: take the person there (Figma 06 «Errores de validación»)
-      setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }));
+      afterNextRender(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }), { injector: this.injector });
       return;
-    }
-    if (!(await this.sesion())) return;
-    const p = this.precio();
-    if ((this.cupon && !p?.cupon?.valido) || (this.referido && !p?.referido?.valido)) {
-      await this.calcular();
-      const q = this.precio();
-      if ((this.cupon && !q?.cupon?.valido) || (this.referido && !q?.referido?.valido)) return this.error.set('Revisa los códigos de descuento (o quítalos) antes de continuar.');
     }
     this.enviando.set(true);
     try {
-      const r = await firstValueFrom(this.http.post<Estado>(base, { ...this.d, cupon: this.cupon, referido: this.referido, aceptaTerminos: true, aceptaPrivacidad: true, aceptaImagen: this.acepta.imagen }));
+      if (!(await this.sesion())) return;
+      const p = this.precio();
+      if ((this.cupon && !p?.cupon?.valido) || (this.referido && !p?.referido?.valido)) {
+        await this.calcular();
+        const q = this.precio();
+        if ((this.cupon && !q?.cupon?.valido) || (this.referido && !q?.referido?.valido)) return this.error.set('Revisa los códigos de descuento (o quítalos) antes de continuar.');
+      }
+      this.idem ||= crypto.randomUUID();
+      const r = await firstValueFrom(this.http.post<Estado>(base, { ...this.d, cupon: this.cupon, referido: this.referido, aceptaTerminos: true, aceptaPrivacidad: true, aceptaImagen: this.acepta.imagen }, { headers: { 'Idempotency-Key': this.idem } }));
+      this.idem = '';
+      try { localStorage.removeItem(BORRADOR); } catch { /* ignore */ }
       if (r.checkoutUrl) location.href = r.checkoutUrl;
       else void this.router.navigate(['/inscripcion/estado'], { queryParams: { id: r.id } });
     } catch (err) {
-      if (codigoError(err).startsWith('SESION_FAN')) return this.fan.abrirAcceso('inscripcion');
+      const c = codigoError(err);
+      if (c !== 'INSCRIPCION_EN_CURSO' && !c.startsWith('HTTP_0') && !c.startsWith('HTTP_5')) this.idem = ''; // a rejected form gets a new key once fixed
+      if (c.startsWith('SESION_FAN')) return this.pedirAcceso();
       this.error.set((err as { error?: { detail?: string } }).error?.detail ?? 'No se pudo completar la inscripción. Inténtalo en unos minutos.');
     } finally {
       this.enviando.set(false);
@@ -474,7 +511,7 @@ export class InscripcionPage {
           @if (e.codigoReferido) {
             <section class="flex flex-col gap-3 rounded-[18px] border border-line-subtle bg-bg-card p-6">
               <h2 class="text-label-m">Invita y recupera parte de tu cuota</h2>
-              <p class="text-body-xs text-text-tertiary">Tus amigos tienen descuento con tu código y te devolvemos una parte de lo que pagaste por cada uno.</p>
+              <p class="text-body-xs text-text-tertiary">{{ e.invitaTexto || 'Tus amigos tienen descuento con tu código y te devolvemos una parte de lo que pagaste por cada uno.' }}</p>
               <div class="flex h-12 items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field pl-3.5"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 truncate text-mono-s">{{ e.codigoReferido }}</span><button type="button" class="h-full px-3.5 text-label-s text-accent-text hover:underline" (click)="copiar(e.codigoReferido!)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
             </section>
           }
@@ -488,6 +525,7 @@ export class InscripcionPage {
           <a grButton variant="outline" size="l" [block]="true" routerLink="/">Volver al inicio</a>
         } @else {
           <!-- Figma 06b «Pago rechazado» -->
+          <h1 class="text-center text-display-s md:text-display-m">{{ e.estado === 'pendiente_pago' ? 'Pago pendiente' : 'Pago no completado' }}</h1>
           <div class="flex items-start gap-3 rounded-md border border-accent bg-accent/8 p-4 md:items-center" role="alert">
             <gr-icon name="circle-alert" [size]="20" class="shrink-0 text-accent-text" />
             <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center">
@@ -624,6 +662,7 @@ export class PagoSimuladoPage {
   }
 
   protected async pagar(tresDS: '' | 'ok' | 'fallo'): Promise<void> {
+    if (this.pagando()) return; // double click: one payment attempt
     this.pagando.set(true);
     this.mensaje.set('');
     try {
