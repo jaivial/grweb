@@ -75,7 +75,9 @@ const MAX_MARCA = 600;
       [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GR Cup 2026'"
       section="Atletas"
       crumb="Alta de atleta"
-      [subtitle]="exito() ? introExito : intro">
+      [subtitle]="exito() ? introExito : intro"
+      [subtitleHtml]="exito() ? '' : introHtml"
+      [tituloMovilGrande]="!exito()">
       @if (vista() === 'cargando') {
         <gr-skeleton class="h-[560px] rounded-[18px]" />
       } @else if (vista() === 'exito') {
@@ -90,13 +92,13 @@ const MAX_MARCA = 600;
         <section class="flex flex-col gap-7">
           <div>
             <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
-            <h2 class="mt-3 text-display-s md:text-display-l">Crea tu perfil de atleta de <span class="text-accent-text">powerlifting</span></h2>
-            <p class="mt-4 max-w-[900px] text-body-m text-text-tertiary md:text-body-l">{{ introH2 }}</p>
+            <h2 class="mt-3 text-display-s md:text-[38px] md:leading-[1.1]">Crea tu perfil de atleta de <span class="text-accent-text">powerlifting</span></h2>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-tertiary">{{ introH2 }}</p>
           </div>
           <div class="grid gap-6 md:grid-cols-3 md:gap-8">
             @for (b of bloques; track b.t) {
               <article class="flex flex-col gap-2">
-                <h3 class="text-ui-h5 md:text-ui-h4">{{ b.t }}</h3>
+                <h3 class="text-ui-h5">{{ b.t }}</h3>
                 <p class="text-body-s text-text-tertiary">{{ b.d }}</p>
               </article>
             }
@@ -548,6 +550,8 @@ export class AltaAtletaPage {
 
   protected readonly intro =
     'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil público. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email cuando tu ficha esté publicada en la lista de atletas. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
+  /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
+  protected readonly introHtml = this.intro.replace('dar de alta tu atleta', '<strong class="font-semibold text-text-primary">dar de alta tu atleta</strong>');
   protected readonly introH2 =
     'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que vive en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
   protected readonly introExito =
