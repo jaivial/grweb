@@ -933,7 +933,7 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Nombre = strings.TrimSpace(sinControl(d.Nombre))
 	d.Apellidos = strings.TrimSpace(sinControl(d.Apellidos))
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
-	if tel := strings.NewReplacer(" ", "", "-", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" && !telValido.MatchString(tel) {
+	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" && !telValido.MatchString(tel) {
 		d.telInvalido = true
 		d.Telefono = ""
 	} else {
@@ -1601,7 +1601,7 @@ func matchTexto(m string) string {
 }
 
 // normTel normalises a phone number to E.164 (+34 by default for Spanish numbers).
-// telValido: optional '+' and 9 to 15 digits, once spaces and hyphens are removed.
+// telValido: optional '+' and 9 to 15 digits, once spaces, hyphens, parentheses and dots are removed.
 var telValido = regexp.MustCompile(`^\+?[0-9]{9,15}$`)
 
 // tieneLetra reports whether v has at least one visible letter: the Hangul fillers (U+3164, U+FFA0,

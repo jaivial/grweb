@@ -789,7 +789,7 @@ export class AltaAtletaPage {
     if (!mail) e['email'] = 'Es obligatorio.';
     else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = 'Introduce un email válido.';
     if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = 'Si pides avisos por WhatsApp, necesitas tu teléfono.';
-    else if (d.telefono.trim() && !TEL.test(d.telefono.replace(/[\s-]/g, ''))) e['telefono'] = 'Escribe un móvil válido.';
+    else if (d.telefono.trim() && !TEL.test(d.telefono.replace(/[\s().-]/g, ''))) e['telefono'] = 'Escribe un móvil válido.';
     if (!d.sexo) e['sexo'] = 'Elige una opción.';
     if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? 'Escribe el año con 4 cifras (dd/mm/aaaa).' : 'Elige una fecha válida.';
     else {
@@ -1030,7 +1030,7 @@ export class AltaAtletaPage {
   private telefono(): string {
     const t = this.d.telefono.trim();
     if (!t) return '';
-    if (t.startsWith('+')) return t.replace(/[\s.-]/g, '');
+    if (t.startsWith('+')) return t.replace(/[\s().-]/g, '');
     const digitos = t.replace(/[^\d]/g, '');
     if (!digitos) return '';
     return '+34' + digitos;
@@ -1084,7 +1084,7 @@ export class AltaAtletaPage {
 }
 
 /** Nombre de la competición (para el JSON-LD). */
-/** Móvil: '+' opcional y de 9 a 15 dígitos (sin espacios ni guiones). */
+/** Móvil: '+' opcional y de 9 a 15 dígitos (sin espacios, guiones, paréntesis ni puntos). */
 const TEL = /^\+?\d{9,15}$/;
 
 /** Hay al menos una letra visible tras quitar los invisibles (control, Cf, relleno Hangul, U+2800). */
