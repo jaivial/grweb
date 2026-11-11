@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { GrErrorState, GrPageLoader, GrToastCard, GrToasts } from '@grcup/ui';
+import { Seo } from '../core/seo';
 import { Lightbox, type FotoLightbox } from '../layout/lightbox';
 import { NoEncontrada } from '../layout/no-encontrada';
 import { FOTOS_SEDE } from './como-llegar';
@@ -60,4 +61,7 @@ export class OverlaysPage {
   protected readonly reintentar = { label: 'Reintentar', run: () => this.toasts.info('Reintentando…') };
   protected foto = -1;
   protected readonly fotos: FotoLightbox[] = FOTOS_SEDE;
+  constructor() {
+    inject(Seo).set({ title: 'Overlays y estados · GR Strength Cup', description: 'Overlays y estados globales (uso interno).', path: '/_overlays', robots: 'noindex, nofollow' });
+  }
 }
