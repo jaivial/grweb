@@ -45,7 +45,6 @@ const AYUDA = [
           <li><a href="/terminos" target="_blank" rel="noopener" class="text-accent-text hover:underline">Términos de uso y reglamento</a></li>
           <li><a href="/privacidad" target="_blank" rel="noopener" class="text-accent-text hover:underline">Política de privacidad</a></li>
           @if (imagen()) { <li><a href="/consentimiento-datos" target="_blank" rel="noopener" class="text-accent-text hover:underline">Consentimiento de imagen</a></li> }
-          <li><a href="#novedades" class="text-accent-text hover:underline">Texto de novedades</a></li>
           @if (whatsapp()) { <li><a href="/texto-whatsapp" target="_blank" rel="noopener" class="text-accent-text hover:underline">Texto de WhatsApp</a></li> }
         </ul>
       </div>

@@ -23,6 +23,8 @@ interface ConfigAlta {
   /** «cerrada» (el organizador la ha cerrado) o «legal» (faltan textos legales publicados). */
   motivoCierre: string;
   legal: Record<string, string>;
+  /** Texto exacto de la casilla «novedades» (el que el servidor hashea como prueba del consentimiento). */
+  textoNovedades: string;
   altcha: AltchaConfig;
   tiempo: string;
 }
@@ -343,7 +345,7 @@ const MAX_MARCA = 600;
                               @case ('terminos') { Acepto los <a href="/terminos" target="_blank" rel="noopener" class="text-accent-text hover:underline">términos de uso</a> y el <a href="/reglamento" target="_blank" rel="noopener" class="text-accent-text hover:underline">reglamento</a>. * }
                               @case ('privacidad') { He leído la <a href="/privacidad" target="_blank" rel="noopener" class="text-accent-text hover:underline">política de privacidad</a> y acepto el tratamiento de mis datos para gestionar mi alta. * }
                               @case ('imagen') { Autorizo publicar mi nombre, datos deportivos y foto en la web, la pantalla y el directo de la GR Cup (ver <a href="/consentimiento-datos" target="_blank" rel="noopener" class="text-accent-text hover:underline">consentimiento de imagen</a>). }
-                              @case ('novedades') { Quiero recibir novedades de la GR Cup por email (ver <a href="#novedades" class="text-accent-text hover:underline">texto de novedades</a>). }
+                              @case ('novedades') { {{ cfg()?.textoNovedades }} }
                               @case ('whatsapp') { Quiero recibir avisos de mi alta y de la competición por WhatsApp (ver <a href="/texto-whatsapp" target="_blank" rel="noopener" class="text-accent-text hover:underline">texto de WhatsApp</a>). }
                             }
                           </span>
@@ -458,7 +460,7 @@ export class AltaAtletaPage {
       { k: 'privacidad', req: true },
     ];
     if (this.legal('consentimiento')) out.push({ k: 'imagen', req: false });
-    if (this.legal('novedades')) out.push({ k: 'novedades', req: false });
+    if (this.legal('novedades') && c?.textoNovedades) out.push({ k: 'novedades', req: false });
     if (this.legal('whatsapp')) out.push({ k: 'whatsapp', req: false });
     void c;
     return out;

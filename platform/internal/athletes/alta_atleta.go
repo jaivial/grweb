@@ -66,12 +66,12 @@ var legalDeCasilla = map[string]string{
 	"terminos": "terminos", "privacidad": "privacidad", "imagen": "consentimiento", "whatsapp": "whatsapp",
 }
 
-// versionNovedades is the version of the text of the «novedades» box (the crm keeps it: there is no
-// legal text of «novedades» in the cms).
-const versionNovedades = "novedades-2026-10"
+// versionNovedades is the version of the text of the «novedades» box of this form (there is no legal
+// text of «novedades» in the cms). The form shows textoNovedades verbatim (it comes in the config), so
+// the hash proves the exact words the athlete ticked. Changing the text means a new version.
+const versionNovedades = "alta-novedades-2026-11"
 
-// textoNovedades must stay identical to crm.TextoNovedades: its digest is part of the consent proof.
-const textoNovedades = "Quiero recibir novedades de GRStrength. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic."
+const textoNovedades = "Quiero recibir novedades de la GR Cup por email. Puedo darme de baja en 1 clic desde cualquier email."
 
 var hashNovedades = func() string {
 	h := sha256.Sum256([]byte(textoNovedades))
@@ -221,8 +221,10 @@ type ConfigAlta struct {
 	Abierta      bool              `json:"abierta"`
 	MotivoCierre string            `json:"motivoCierre"`
 	Legal        map[string]string `json:"legal"`
-	Altcha       AltchaCfg         `json:"altcha"`
-	Tiempo       string            `json:"tiempo"`
+	// TextoNovedades is the exact text of the «novedades» box (the one hashed in the consent proof).
+	TextoNovedades string    `json:"textoNovedades"`
+	Altcha         AltchaCfg `json:"altcha"`
+	Tiempo         string    `json:"tiempo"`
 }
 
 // AltaOut is the answer of the public form: the id of the request.
@@ -251,7 +253,7 @@ func (s *Svc) registerAltaAtleta() {
 			if err != nil {
 				return nil, err
 			}
-			out := ConfigAlta{Abierta: abierta, MotivoCierre: motivo, Legal: s.legalVersiones(ctx, c.ID),
+			out := ConfigAlta{Abierta: abierta, MotivoCierre: motivo, Legal: s.legalVersiones(ctx, c.ID), TextoNovedades: textoNovedades,
 				Altcha: s.retoAltcha(), Tiempo: s.tokenTiempo()}
 			return &configOut{Body: out}, nil
 		})
