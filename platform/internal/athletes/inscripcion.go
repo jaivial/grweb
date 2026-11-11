@@ -699,7 +699,7 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		return EstadoInscripcion{}, problem.Unprocessable("NOMBRE_INVALIDO", "El nombre y los apellidos deben contener letras.")
 	}
 	if !licenciaValida.MatchString(d.Licencia) {
-		return EstadoInscripcion{}, problem.Unprocessable("LICENCIA_INVALIDA", msgLicenciaInvalida)
+		return EstadoInscripcion{}, errLicencia()
 	}
 	if d.Email == "" {
 		return EstadoInscripcion{}, problem.Unprocessable("EMAIL_INVALIDO", "Escribe tu email.")
@@ -1333,4 +1333,11 @@ func (s *Svc) plazasCambiadas(ctx context.Context, cid uuid.UUID) {
 	if err != nil && ctx.Err() == nil {
 		s.a.Log.Warn("plazas actualizadas", "err", err)
 	}
+}
+
+// errLicencia is the 422 for a licence that breaks licenciaValida, located on the field (U06-R6-1).
+func errLicencia() *problem.Error {
+	p := problem.Unprocessable("LICENCIA_INVALIDA", msgLicenciaInvalida)
+	p.Errors = []*huma.ErrorDetail{{Location: "body.licencia", Message: msgLicenciaInvalida}}
+	return p
 }
