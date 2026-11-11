@@ -140,6 +140,7 @@ type DetalleSolicitud struct {
 	FechaNacimiento string               `json:"fechaNacimiento,omitempty"`
 	Ciudad          string               `json:"ciudad"`
 	Entrenador      string               `json:"entrenador"`
+	Prueba          string               `json:"prueba"`
 	Frase           string               `json:"frase"`
 	Bio             string               `json:"bio"`
 	Instagram       string               `json:"instagram"`
@@ -530,7 +531,7 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 	}
 	d := DetalleSolicitud{
 		ItemSolicitud: s.itemSolicitud(cid, sol),
-		Licencia:      sol.Licencia, Telefono: sol.Telefono, Sexo: sol.Sexo, Ciudad: sol.Ciudad, Entrenador: sol.Entrenador,
+		Licencia:      sol.Licencia, Telefono: sol.Telefono, Sexo: sol.Sexo, Ciudad: sol.Ciudad, Entrenador: sol.Entrenador, Prueba: sol.Prueba,
 		Frase: sol.Frase, Bio: sol.Bio, Instagram: sol.Instagram, Historial: sol.Historial,
 		MarcaSQ: sol.MarcaSQ, MarcaBP: sol.MarcaBP, MarcaDL: sol.MarcaDL,
 		FocalX: int(sol.FocalX), FocalY: int(sol.FocalY),
@@ -657,7 +658,7 @@ func (s *Svc) lockSolicitud(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, i
 			&sol.Telefono, &sol.Sexo, &sol.FechaNacimiento, &sol.Club, &sol.Ciudad, &sol.Frase, &sol.Bio, &sol.Instagram,
 			&sol.Entrenador, &sol.Historial, &sol.MarcaSQ, &sol.MarcaBP, &sol.MarcaDL, &sol.FocalX, &sol.FocalY, &sol.EsMenor,
 			&sol.FotoClave, &sol.FotoSHA256, &sol.AutorizacionClave, &sol.Estado, &sol.Notas, &sol.MotivoRechazo, &sol.RevisadoAt,
-			&sol.RevisadoPor, &sol.Consentimientos, &sol.ConsentimientoAt, &sol.IP, &sol.UserAgent, &sol.Version, &sol.CreatedAt, &sol.UpdatedAt)
+			&sol.RevisadoPor, &sol.Consentimientos, &sol.ConsentimientoAt, &sol.IP, &sol.UserAgent, &sol.Version, &sol.CreatedAt, &sol.UpdatedAt, &sol.Prueba)
 	if err == pgx.ErrNoRows {
 		return sol, problem.NotFound("Esa solicitud no existe.")
 	}

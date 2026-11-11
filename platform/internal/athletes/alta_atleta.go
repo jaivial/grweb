@@ -31,6 +31,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
@@ -106,6 +107,7 @@ type solicitud struct {
 	Bio               string     `db:"bio"`
 	Instagram         string     `db:"instagram"`
 	Entrenador        string     `db:"entrenador"`
+	Prueba            string     `db:"prueba"`
 	Historial         string     `db:"historial"`
 	MarcaSQ           *float64   `db:"marca_sq"`
 	MarcaBP           *float64   `db:"marca_bp"`
@@ -163,7 +165,7 @@ const selSolicitud = `SELECT id, competition_id, match_atleta_id, match_tipo, li
 	marca_sq::float8 AS marca_sq, marca_bp::float8 AS marca_bp, marca_dl::float8 AS marca_dl,
 	focal_x, focal_y, es_menor, foto_clave, foto_sha256, autorizacion_clave, estado, notas, motivo_rechazo,
 	revisado_at, revisado_por, consentimientos::text AS consentimientos, consentimiento_at, ip, user_agent,
-	version, created_at, updated_at FROM solicitudes_atleta`
+	version, created_at, updated_at, prueba FROM solicitudes_atleta`
 
 // getSolicitud reads a request of the competition.
 func getSolicitud(ctx context.Context, q querier, cid, id uuid.UUID) (solicitud, error) {
@@ -192,6 +194,7 @@ type DatosAlta struct {
 	Club            string          `json:"club"`
 	Ciudad          string          `json:"ciudad"`
 	Entrenador      string          `json:"entrenador"`
+	Prueba          string          `json:"prueba"`
 	Frase           string          `json:"frase"`
 	Bio             string          `json:"bio"`
 	Instagram       string          `json:"instagram"`
@@ -225,6 +228,67 @@ type ConfigAlta struct {
 	TextoNovedades string    `json:"textoNovedades"`
 	Altcha         AltchaCfg `json:"altcha"`
 	Tiempo         string    `json:"tiempo"`
+	// Pruebas are the options of «¿En qué competición compites?».
+	Pruebas []PruebaAlta `json:"pruebas"`
+	// LimiteEleccion is the last day to choose the competition from the athlete area (AAAA-MM-DD).
+	LimiteEleccion string `json:"limiteEleccion,omitempty"`
+}
+
+// PruebaAlta is one competition of the event the athlete can say they compete in.
+type PruebaAlta struct {
+	Codigo   string `json:"codigo"`
+	Nombre   string `json:"nombre"`
+	Fecha    string `json:"fecha,omitempty"`
+	Nivel    string `json:"nivel"`
+	Plazas   int    `json:"plazas"`
+	Ocupadas int    `json:"ocupadas"`
+}
+
+// pruebasAlta: AEP-2 the first day of the event, AEP-3 the second one.
+var pruebasAlta = []struct{ codigo, nombre string }{{"aep2", "AEP-2"}, {"aep3", "AEP-3"}}
+
+// pruebas returns the options with the requests (not rejected) that chose each one, and the last day
+// to choose from the athlete area.
+func (s *Svc) pruebas(ctx context.Context, c compref.Comp) ([]PruebaAlta, string) {
+	ocup := map[string]int{}
+	rows, err := s.a.DB.Query(ctx, `SELECT prueba, count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba <> '' AND estado <> 'rechazada' GROUP BY prueba`, c.ID)
+	if err == nil {
+		for rows.Next() {
+			var k string
+			var n int
+			if rows.Scan(&k, &n) == nil {
+				ocup[k] = n
+			}
+		}
+		rows.Close()
+	}
+	ini, _ := time.Parse(time.DateOnly, c.FechaInicio)
+	out := make([]PruebaAlta, 0, len(pruebasAlta))
+	for i, p := range pruebasAlta {
+		f := ""
+		if !ini.IsZero() {
+			f = ini.AddDate(0, 0, i).Format(time.DateOnly)
+		}
+		out = append(out, PruebaAlta{Codigo: p.codigo, Nombre: p.nombre, Fecha: f, Nivel: "nivel regional", Plazas: c.Inscripcion.Plazas, Ocupadas: ocup[p.codigo]})
+	}
+	limite := ""
+	if !ini.IsZero() {
+		limite = ini.AddDate(0, 0, -10).Format(time.DateOnly)
+	}
+	return out, limite
+}
+
+// pruebaValida: empty («Aún no lo sé») or one of the options.
+func pruebaValida(k string) bool {
+	if k == "" {
+		return true
+	}
+	for _, p := range pruebasAlta {
+		if p.codigo == k {
+			return true
+		}
+	}
+	return false
 }
 
 // AltaOut is the answer of the public form: the id of the request.
@@ -255,6 +319,7 @@ func (s *Svc) registerAltaAtleta() {
 			}
 			out := ConfigAlta{Abierta: abierta, MotivoCierre: motivo, Legal: s.legalVersiones(ctx, c.ID), TextoNovedades: textoNovedades,
 				Altcha: s.retoAltcha(), Tiempo: s.tokenTiempo()}
+			out.Pruebas, out.LimiteEleccion = s.pruebas(ctx, c)
 			return &configOut{Body: out}, nil
 		})
 
@@ -429,11 +494,11 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email, telefono, sexo,
 			fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl, focal_x, focal_y, es_menor,
-			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29)`,
+			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29,$30)`,
 			id, c.ID, matchID, matchTipo, d.Licencia, d.Nombre, d.Apellidos, d.Email, d.Telefono, d.Sexo, fecha(d.FechaNacimiento),
 			d.Club, d.Ciudad, d.Frase, d.Bio, d.Instagram, d.Entrenador, d.Historial, d.MarcaSQ, d.MarcaBP, d.MarcaDL, d.FocalX, d.FocalY, menor,
-			fotoClave, fotoSHA, string(consJSON), anonIP(ip), ua)
+			fotoClave, fotoSHA, string(consJSON), anonIP(ip), ua, d.Prueba)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -618,6 +683,7 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Club = strings.TrimSpace(d.Club)
 	d.Ciudad = strings.TrimSpace(d.Ciudad)
 	d.Entrenador = strings.TrimSpace(d.Entrenador)
+	d.Prueba = strings.ToLower(strings.TrimSpace(d.Prueba))
 	d.Frase = strings.TrimSpace(d.Frase)
 	d.Bio = strings.TrimSpace(d.Bio)
 	d.Instagram = normInstagram(d.Instagram)
@@ -677,6 +743,9 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	}
 	if len([]rune(d.Entrenador)) > 80 {
 		add("entrenador", "El nombre del entrenador es demasiado largo.")
+	}
+	if !pruebaValida(d.Prueba) {
+		add("prueba", "Elige AEP-2, AEP-3 o «Aún no lo sé».")
 	}
 	if len([]rune(d.Frase)) > 80 {
 		add("frase", "La frase es demasiado larga (80 caracteres como máximo).")
@@ -1142,6 +1211,9 @@ func (s *Svc) varsWANueva(d DatosAlta, match string, menor bool, slug string) ma
 }
 
 // marcas writes the three lifts (kg) and the total when there are three.
+// kgES writes a mark the Spanish way (210,5).
+func kgES(v float64) string { return strings.Replace(strconv.FormatFloat(v, 'f', -1, 64), ".", ",", 1) }
+
 func marcas(sq, bp, dl *float64) string {
 	partes := []string{}
 	total := 0.0
@@ -1152,12 +1224,12 @@ func marcas(sq, bp, dl *float64) string {
 			tres = false
 			continue
 		}
-		partes = append(partes, strconv.FormatFloat(*v, 'f', -1, 64))
+		partes = append(partes, kgES(*v))
 		total += *v
 	}
 	out := strings.Join(partes, " / ") + " kg"
 	if tres {
-		out += " · total " + strconv.FormatFloat(total, 'f', -1, 64) + " kg"
+		out += " · total " + kgES(total) + " kg"
 	}
 	return out
 }
