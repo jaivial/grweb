@@ -101,6 +101,8 @@ export class HomePage {
   private readonly fallo = inject(FalloApi);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly timers: ReturnType<typeof setTimeout>[] = [];
+  /** Calls waiting for their Retry-After: the «too many visits» notice stays until all of them succeed. */
+  private pendientes = 0;
 
   constructor() {
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
@@ -154,8 +156,8 @@ export class HomePage {
     }));
 
     // «Top 3 · en vivo» and the odds (Figma 05-home-juegos): the public SSE of the competition announces bets,
-    // markets, clauses and rankings; the two summaries are fetched again (debounced, and once more after the 10 s
-    // server cache so the last change is never missed).
+    // markets, clauses and rankings; the two summaries are fetched again (throttled to one refresh per second while
+    // events keep coming, plus a trailing one after the 10 s server cache so the last change is never missed).
     const vivo = inject(JuegosEnVivo);
     const destroy = inject(DestroyRef);
     destroy.onDestroy(() => this.timers.forEach(clearTimeout));
@@ -165,7 +167,7 @@ export class HomePage {
     });
     let primera = true;
     let espera: ReturnType<typeof setTimeout> | undefined;
-    let segunda: ReturnType<typeof setTimeout> | undefined;
+    let final: ReturnType<typeof setTimeout> | undefined;
     effect(() => {
       vivo.version();
       if (primera || !this.browser) {
@@ -173,11 +175,16 @@ export class HomePage {
         return;
       }
       untracked(() => {
-        clearTimeout(espera);
-        clearTimeout(segunda);
-        espera = setTimeout(() => this.refrescarJuegos(), 1000);
-        segunda = setTimeout(() => this.refrescarJuegos(), 11500);
-        this.timers.push(espera, segunda);
+        if (!espera) {
+          espera = setTimeout(() => {
+            espera = undefined;
+            this.refrescarJuegos();
+          }, 1000);
+          this.timers.push(espera);
+        }
+        clearTimeout(final);
+        final = setTimeout(() => this.refrescarJuegos(), 11500);
+        this.timers.push(final);
       });
     });
   }
@@ -200,13 +207,17 @@ export class HomePage {
   private reintentar<T>(e: unknown, p: string, set: (v: T) => void, intento: number): void {
     if (!this.browser || !esLimitado(e) || intento >= 3) return;
     this.fallo.limitado.set(true);
+    if (intento === 0) this.pendientes++;
     const seg = Math.min(120, Math.max(1, Number((e as { headers?: HttpHeaders }).headers?.get('Retry-After')) || 20));
     this.timers.push(setTimeout(() => this.http.get<T>(this.api(p)).subscribe({
       next: (v) => {
         set(v);
-        this.fallo.limitado.set(false);
+        if (--this.pendientes === 0) this.fallo.limitado.set(false);
       },
-      error: (e2: unknown) => this.reintentar(e2, p, set, intento + 1),
+      error: (e2: unknown) => {
+        if (esLimitado(e2) && intento + 1 < 3) this.reintentar(e2, p, set, intento + 1);
+        else this.pendientes--; // gave up: the notice stays (the page still lacks data)
+      },
     }), seg * 1000));
   }
 }
