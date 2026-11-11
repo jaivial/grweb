@@ -69,9 +69,10 @@ func Install() {
 				}
 			}
 			slog.Error("error interno", attrs...)
-			p := Internal()
-			p.Status, p.Title, p.Code = status, http.StatusText(status), CodeFor(status)
-			return p
+			if status == http.StatusInternalServerError {
+				return Internal()
+			}
+			return New(status, "", msg)
 		}
 		details := make([]*huma.ErrorDetail, 0, len(errs))
 		for _, err := range errs {

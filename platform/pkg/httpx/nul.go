@@ -21,9 +21,15 @@ func RejectNUL(next http.Handler) http.Handler {
 			return
 		}
 		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			// the handler's decoder must see the same read error (e.g. too large → 413), not a truncated body
+			r.Body = io.NopCloser(io.MultiReader(bytes.NewReader(b), errReader{err}))
+			next.ServeHTTP(w, r)
+			return
+		}
 		r.Body = io.NopCloser(bytes.NewReader(b))
-		if err != nil || !tieneNUL(b) {
-			next.ServeHTTP(w, r) // read errors (e.g. too large) are reported by the handler's own decoder
+		if !tieneNUL(b) {
+			next.ServeHTTP(w, r)
 			return
 		}
 		p := problem.Unprocessable("VALIDACION", "El texto contiene un carácter no permitido (NUL).")
@@ -31,6 +37,10 @@ func RejectNUL(next http.Handler) http.Handler {
 		problem.Write(w, p)
 	})
 }
+
+type errReader struct{ err error }
+
+func (e errReader) Read([]byte) (int, error) { return 0, e.err }
 
 // tieneNUL reports a raw 0x00 byte or a \u0000 escape inside a JSON string (an escaped backslash is skipped).
 func tieneNUL(b []byte) bool {
