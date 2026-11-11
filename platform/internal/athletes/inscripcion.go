@@ -780,8 +780,6 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 	return out, nil
 }
 
-// lineasPago is the breakdown shown on the payment page: fee, then each discount (Figma 06b «Pasarela simulada»).
-
 var licenciaValida = regexp.MustCompile(`^[A-Z0-9-]{3,20}$`)
 
 // soltarIdem frees an idempotency key whose request failed, so the same key can be retried.
@@ -791,6 +789,7 @@ func (s *Svc) soltarIdem(ctx context.Context, k string) {
 	}
 }
 
+// lineasPago is the breakdown shown on the payment page: fee, then each discount (Figma 06b «Pasarela simulada»).
 func lineasPago(p Precio) []pagos.Line {
 	l := []pagos.Line{{Label: "Cuota de inscripción", Amount: p.Cuota}}
 	if p.Cupon != nil && p.Cupon.Valido && p.Cupon.Importe > 0 {
