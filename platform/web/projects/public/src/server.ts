@@ -165,7 +165,7 @@ app.use((req, res, next) => {
     : (() => {
     const x = render(req).then((pg) => {
       if (pg && cacheable(pg)) {
-        if (paginas.size > 500) paginas.clear(); // bounded: random query strings must not grow memory
+        if (paginas.size > 200) paginas.clear(); // bounded: random query strings must not grow memory
         paginas.set(key, pg);
       }
       return pg;
