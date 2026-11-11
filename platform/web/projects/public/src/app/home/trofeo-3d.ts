@@ -104,9 +104,11 @@ export class Trofeo3d {
     let visible = true;
     const io = new IntersectionObserver((e) => (visible = e.some((x) => x.isIntersecting)));
     io.observe(canvas);
-    const reloj = new THREE.Clock();
+    let antes = performance.now(); // THREE.Clock is deprecated (r1xx): plain timestamps
     renderer.setAnimationLoop(() => {
-      const dt = reloj.getDelta();
+      const t = performance.now();
+      const dt = (t - antes) / 1000;
+      antes = t;
       if (!visible || document.hidden) return;
       giro.rotation.y += (dt * Math.PI * 2) / VUELTA_S;
       renderer.render(scene, camara);
