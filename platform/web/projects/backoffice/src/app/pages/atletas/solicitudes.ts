@@ -370,11 +370,11 @@ interface FilaConsentimiento {
               <span class="flex h-[300px] w-[240px] max-w-full items-center justify-center rounded-md bg-bg-raised text-text-tertiary"><gr-icon name="camera" [size]="24" /></span>
             }
             <div class="min-w-0 flex-1">
-              <p class="text-body-xs text-text-tertiary">{{ imagenAceptada() ? 'Foto tal como se publicará' : 'Foto enviada · no se publicará' }}</p>
+              <p class="text-body-xs text-text-tertiary">{{ !foto() ? 'Sin foto' : imagenAceptada() ? 'Foto tal como se publicará' : 'Foto enviada · no se publicará' }}</p>
               @if (foto()) {
                 <button type="button" class="mt-1 text-label-s text-accent-text hover:underline" (click)="ampliada.set(true)">Ampliar foto</button>
+                <p class="mt-3 text-body-xs text-text-tertiary">{{ imagenAceptada() ? 'Se publica en la ficha del atleta con su nombre y sus marcas.' : 'Sin consentimiento de imagen: al aprobar se descarta y la ficha queda privada.' }}</p>
               }
-              <p class="mt-3 text-body-xs text-text-tertiary">{{ imagenAceptada() ? 'Se publica en la ficha del atleta con su nombre y sus marcas.' : 'Sin consentimiento de imagen: al aprobar se descarta y la ficha queda privada.' }}</p>
             </div>
           </section>
           }
@@ -780,6 +780,11 @@ export class SolicitudesPage {
     const v = this.cupoEdit();
     if (Object.values(v).some((n) => !Number.isInteger(n) || n < 0 || n > 100000)) {
       this.toasts.error('Cupo no válido', 'Escribe un número entero de plazas (0 o más).');
+      return;
+    }
+    const bajo = this.cupos().find((c) => v[c.codigo] > 0 && v[c.codigo] < c.ocupadas);
+    if (bajo) {
+      this.toasts.error('Cupo demasiado bajo', `${bajo.nombre} ya tiene ${bajo.ocupadas} plazas ocupadas: el cupo no puede ser menor (o pon 0 = sin límite).`);
       return;
     }
     this.guardandoCupos.set(true);
