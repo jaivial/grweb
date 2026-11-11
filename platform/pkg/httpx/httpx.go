@@ -102,9 +102,7 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 
 // Flush keeps SSE streaming working through the wrapper.
 func (w *statusWriter) Flush() {
-	if f, ok := w.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
+	_ = http.NewResponseController(w.ResponseWriter).Flush()
 }
 
 // Unwrap lets http.ResponseController reach the underlying writer.

@@ -22,7 +22,8 @@ import (
 func RejectNUL(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ct := strings.ToLower(r.Header.Get("Content-Type"))
-		if r.Body == nil || r.Body == http.NoBody || binario(ct) {
+		// ContentLength 0: no body (MaxBodyFor replaces http.NoBody, so that check alone never matches a GET).
+		if r.Body == nil || r.Body == http.NoBody || r.ContentLength == 0 || binario(ct) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -132,6 +133,15 @@ func (w *nulWriter) Write(b []byte) (int, error) {
 }
 
 func (w *nulWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// Flush keeps SSE streaming working through the wrapper.
+func (w *nulWriter) Flush() {
+	if w.sc.hit && !w.wrote {
+		return
+	}
+	w.wrote = true
+	_ = http.NewResponseController(w.ResponseWriter).Flush()
+}
 
 // NULProblem is the 422 VALIDACION for a JSON document b holding NUL; root prefixes the location.
 func NULProblem(b []byte, root string) *problem.Error {
