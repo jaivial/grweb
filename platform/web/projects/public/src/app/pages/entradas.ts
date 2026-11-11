@@ -478,7 +478,8 @@ export class EntradasPage {
     return filas.sort((a, b) => a.hora.localeCompare(b.hora));
   });
   /** Step 4: only while the raffle is on sale and there is a payment gateway. */
-  protected readonly sorteoAbierto = computed(() => { const s = this.sorteo(); return s && s.estado === 'en_venta' && s.pasarela !== 'ninguna' ? s : null; });
+  /** Raffle tickets are sold only at the venue, in cash: never offered with the online booking. */
+  protected readonly sorteoAbierto = computed((): SorteoVenta | null => null);
   protected readonly maxBoletos = computed(() => Math.min(10, this.sorteoAbierto()?.maxPorPersona ?? 0));
   /** Mobile bottom bar: below the hero, while the form is off screen. */
   protected readonly barra = computed(() => this.bajoHero() && !this.formVisible() && !!this.data());
