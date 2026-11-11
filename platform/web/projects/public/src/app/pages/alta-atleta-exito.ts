@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon } from '@grcup/ui';
 
-/** Figma 75 «Éxito»: qué pasa ahora, en tres pasos. */
+/** Figma 75 «Éxito»: qué pasa ahora, paso a paso. */
 @Component({
   selector: 'gr-alta-exito',
   imports: [RouterLink, GrButton, GrIcon],
@@ -14,7 +14,7 @@ import { GrButton, GrIcon } from '@grcup/ui';
         <h2 id="exito-t" class="text-display-s md:text-display-m">Qué pasa ahora</h2>
         <p class="mt-2 text-body-m text-text-secondary md:text-body-l">Esto es lo que va a pasar desde ahora.</p>
       </div>
-      <ol class="-mt-6 grid items-start gap-4 md:grid-cols-3">
+      <ol class="-mt-6 grid items-start gap-4" [class]="pasos().length === 4 ? 'md:grid-cols-2' : 'md:grid-cols-3'">
         @for (p of pasos(); track p.n) {
           <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
             <span class="text-display-xs text-accent-text">{{ p.n }}</span>
@@ -39,13 +39,23 @@ export class AltaExito {
   readonly contacto = input.required<string>();
   /** The athlete authorised publishing their profile: without it nothing promises a public ficha. */
   readonly publica = input(false);
-  protected readonly pasos = computed(() => this.publica() ? [
-    { n: '01', t: 'Revisión a mano', d: 'El equipo comprueba tu email contra la lista de inscritos de la AEP y revisa tus datos y tu foto.' },
-    { n: '02', t: 'Email con el resultado', d: 'Te escribimos a tu email: si está aprobada, con el enlace a tu ficha; si falta algo, con la corrección que pedimos.' },
-    { n: '03', t: 'Tu ficha en /atletas', d: 'Al aprobarla, tu ficha se publica en la lista de atletas y ya puedes editarla desde el área de atleta.' },
-  ] : [
-    { n: '01', t: 'Revisión a mano', d: 'El equipo comprueba tu email contra la lista de inscritos de la AEP y revisa tus datos.' },
-    { n: '02', t: 'Email con el resultado', d: 'Te escribimos a tu email: si está aprobada, con el acceso a tu área de atleta; si falta algo, con la corrección que pedimos.' },
-    { n: '03', t: 'Tu ficha, privada', d: 'Al aprobarla tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.' },
-  ]);
+  /** The request has a photo: only then the review mentions it. */
+  readonly foto = input(false);
+  /** The athlete is a minor: the signed authorisation of the guardian is needed before approving. */
+  readonly menor = input(false);
+  protected readonly pasos = computed(() => {
+    const p: { t: string; d: string }[] = [
+      { t: 'Revisión a mano', d: 'El equipo comprueba tu email contra la lista de inscritos de la AEP y revisa tus datos' + (this.foto() ? ' y tu foto.' : '.') },
+    ];
+    if (this.menor()) {
+      p.push({ t: 'Autorización del tutor', d: 'Eres menor de edad: necesitamos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email; también puedes enviarla a ' + this.contacto() + '. Sin ella no podemos aprobar tu alta.' });
+    }
+    p.push(this.publica()
+      ? { t: 'Email con el resultado', d: 'Te escribimos a tu email: si está aprobada, con el enlace a tu ficha; si falta algo, con la corrección que pedimos.' }
+      : { t: 'Email con el resultado', d: 'Te escribimos a tu email: si está aprobada, con el acceso a tu área de atleta; si falta algo, con la corrección que pedimos.' });
+    p.push(this.publica()
+      ? { t: 'Tu ficha en /atletas', d: 'Al aprobarla, tu ficha se publica en la lista de atletas y ya puedes editarla desde el área de atleta.' }
+      : { t: 'Tu ficha, privada', d: 'Al aprobarla tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.' });
+    return p.map((x, i) => ({ n: String(i + 1).padStart(2, '0'), ...x }));
+  });
 }
