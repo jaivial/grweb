@@ -919,7 +919,12 @@ export class AltaAtletaPage {
         this.vista.set('legal');
         return;
       }
-      this.vista.set('cerrada');
+      if (codigo === 'ALTA_CERRADA') {
+        this.vista.set('cerrada');
+        return;
+      }
+      // busy, a service down or a proxy 503 without code: keep the filled form and offer a retry.
+      this.aviso.set('red');
       return;
     }
     if (xhr.status === 400 && codigo === 'ANTIBOT') {
