@@ -862,6 +862,15 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		// The notices to the athlete (optional). WhatsApp requires the consent recorded on submission.
 		avisarWA := avisarWhatsApp && sol.Telefono != "" && cons["whatsapp"].Aceptado
 		urlArea := s.webURL + "/area-atleta"
+		// Without the image consent (or for a minor) the profile is not public: never promise its URL.
+		urlFicha, privada := s.webURL+"/atletas/"+slug, ""
+		var visible bool
+		if err := tx.QueryRow(ctx, `SELECT visible FROM perfiles WHERE atleta_id = $1`, *destino).Scan(&visible); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if !visible {
+			urlFicha, privada = "", "Tu ficha aún no es pública: autoriza la publicación de tu nombre, tus datos deportivos y tu foto desde el área de atleta para que aparezca en la web."
+		}
 		if avisarEmail || avisarWA {
 			urlArea, err = s.newAreaLink(ctx, tx, *destino)
 			if err != nil {
@@ -870,13 +879,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		if avisarEmail {
 			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "prueba": pruebaTexto(sol.Prueba), "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": urlArea}); err != nil {
+				"nombre": sol.Nombre, "prueba": pruebaTexto(sol.Prueba), "urlFicha": urlFicha, "privada": privada, "urlArea": urlArea}); err != nil {
 				return err
 			}
 		}
 		if avisarWA {
 			if err := whatsapp(ctx, tx, cid, sol.Telefono, false, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "urlFicha": s.webURL + "/atletas/" + slug, "urlArea": urlArea}, ""); err != nil {
+				"nombre": sol.Nombre, "urlFicha": urlFicha, "privada": privada, "urlArea": urlArea}, ""); err != nil {
 				return err
 			}
 		}
