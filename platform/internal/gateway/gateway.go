@@ -127,7 +127,7 @@ type gw struct {
 // Service returns the gateway definition.
 func Service() app.Service {
 	g := &gw{}
-	return app.Service{Name: "gateway", Title: "GR Cup · gateway", NeedsRedis: true, Setup: g.setup, BodyLimitFor: bodyLimit}
+	return app.Service{Name: "gateway", Title: "GR Cup · gateway", NeedsRedis: true, MaxConns: -1, Setup: g.setup, BodyLimitFor: bodyLimit}
 }
 
 // bodyLimit is the request body limit of the owning service (same values as its BodyLimit/BodyLimitFor), so an
