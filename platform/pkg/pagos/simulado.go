@@ -6,6 +6,7 @@ import (
 	"encoding/base32"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -23,9 +24,20 @@ type Simulado struct {
 	WebURL  string // public web base (hosted page)
 	// Deliver posts the signed webhook to the service (in-process: same verification path as Stripe's).
 	Deliver func(ctx context.Context, payload []byte, signature string) error
+	// Authorize, when set, must accept the request before a payment is attempted (e.g. the owner's session).
+	Authorize func(r *http.Request, metadata map[string]string) error
+	// Log receives delivery failures (default slog.Default()).
+	Log *slog.Logger
 }
 
 func (s *Simulado) Name() string { return "simulado" }
+
+func (s *Simulado) log() *slog.Logger {
+	if s.Log != nil {
+		return s.Log
+	}
+	return slog.Default()
+}
 
 type simSession struct {
 	ID          string            `json:"id"`
@@ -154,8 +166,26 @@ func (s *Simulado) Mount(mux *http.ServeMux, base string) {
 			return
 		}
 		ctx := r.Context()
-		ss, err := s.load(ctx, r.PathValue("id"))
+		id := r.PathValue("id")
+		ss, err := s.load(ctx, id)
 		if err != nil {
+			write(w, http.StatusNotFound, map[string]string{"code": "SESION_NO_ENCONTRADA", "detail": "Este pago no existe o ha caducado."})
+			return
+		}
+		if s.Authorize != nil {
+			if err := s.Authorize(r, ss.Metadata); err != nil {
+				write(w, http.StatusUnauthorized, map[string]string{"code": "SESION_FAN_REQUERIDA", "detail": "Entra con tu cuenta para pagar."})
+				return
+			}
+		}
+		// One payment attempt per session at a time (double click, several tabs): the others wait for its result.
+		lock := s.Prefix + "lock:" + id
+		if ok, err := s.Redis.SetNX(ctx, lock, "1", 30*time.Second).Result(); err != nil || !ok {
+			write(w, http.StatusConflict, map[string]string{"code": "PAGO_EN_CURSO", "detail": "Estamos procesando tu pago. Espera unos segundos."})
+			return
+		}
+		defer s.Redis.Del(context.WithoutCancel(ctx), lock)
+		if ss, err = s.load(ctx, id); err != nil { // re-read under the lock
 			write(w, http.StatusNotFound, map[string]string{"code": "SESION_NO_ENCONTRADA", "detail": "Este pago no existe o ha caducado."})
 			return
 		}
@@ -187,22 +217,33 @@ func (s *Simulado) Mount(mux *http.ServeMux, base string) {
 			write(w, http.StatusOK, map[string]string{"estado": "invalida", "mensaje": "Modo pruebas: usa una de las tarjetas de prueba."})
 			return
 		}
-		ss.Status, ss.PaymentID, ss.Card = "paid", "sim_pi_"+rnd(10), "Visa ···· "+card[len(card)-4:]
-		if err := s.save(ctx, ss); err != nil {
-			write(w, http.StatusServiceUnavailable, map[string]string{"code": "SERVICIO_NO_DISPONIBLE", "detail": "No se pudo completar el pago. Inténtalo de nuevo."})
+		ss.PaymentID, ss.Card = "sim_pi_"+rnd(10), "Visa ···· "+card[len(card)-4:]
+		fallo := func() {
+			write(w, http.StatusServiceUnavailable, map[string]string{"code": "SERVICIO_NO_DISPONIBLE", "detail": "No se pudo completar el pago. No se ha cobrado nada: inténtalo de nuevo."})
+		}
+		// Refunds look the session up by payment id: written before the webhook can confirm the payment.
+		if err := s.Redis.Set(ctx, s.pkey(ss.PaymentID), ss.ID, time.Until(ss.ExpiresAt)+30*24*time.Hour).Err(); err != nil {
+			s.log().Error("pago simulado", "sesion", ss.ID, "err", err)
+			fallo()
 			return
 		}
-		_ = s.Redis.Set(ctx, s.pkey(ss.PaymentID), ss.ID, time.Until(ss.ExpiresAt)+30*24*time.Hour).Err()
 		ev := stripeEvent{ID: "sim_evt_" + rnd(10), Type: "checkout.session.completed", Created: time.Now().Unix()}
 		ev.Data.Object.ID, ev.Data.Object.PaymentIntent, ev.Data.Object.PaymentStatus = ss.ID, ss.PaymentID, "paid"
 		ev.Data.Object.AmountTotal, ev.Data.Object.Metadata, ev.Data.Object.Card = ss.Amount, ss.Metadata, ss.Card
 		payload, _ := json.Marshal(ev)
-		// Like Stripe, the webhook is delivered after the payment; a failed delivery is retried by the next visit
-		// to the success page (the service can also re-check the session).
+		// The session is only marked paid once the service has applied the webhook: a failed delivery leaves it
+		// open (nothing charged) and the person can retry.
 		if s.Deliver != nil {
 			if err := s.Deliver(context.WithoutCancel(ctx), payload, Sign(s.Secret, payload, time.Now())); err != nil {
-				_ = s.Redis.Set(ctx, s.Prefix+"pendiente:"+ss.ID, payload, 24*time.Hour).Err()
+				s.log().Error("webhook simulado no aplicado", "servicio", s.Service, "sesion", ss.ID, "evento", ev.ID, "err", err)
+				fallo()
+				return
 			}
+		}
+		ss.Status = "paid"
+		if err := s.save(context.WithoutCancel(ctx), ss); err != nil {
+			// The service already confirmed the payment: the page reads the truth from the service.
+			s.log().Error("pago simulado aplicado pero sin guardar la sesión", "sesion", ss.ID, "err", err)
 		}
 		write(w, http.StatusOK, map[string]string{"estado": "pagado", "redirect": strings.ReplaceAll(ss.SuccessURL, "{CHECKOUT_SESSION_ID}", ss.ID)})
 	})
@@ -214,7 +255,9 @@ func (s *Simulado) Redeliver(ctx context.Context, sessionID string) {
 	if err != nil || s.Deliver == nil {
 		return
 	}
-	if s.Deliver(ctx, b, Sign(s.Secret, b, time.Now())) == nil {
+	if err := s.Deliver(ctx, b, Sign(s.Secret, b, time.Now())); err != nil {
+		s.log().Error("re-entrega de webhook simulado", "servicio", s.Service, "sesion", sessionID, "err", err)
+	} else {
 		_ = s.Redis.Del(ctx, s.Prefix+"pendiente:"+sessionID).Err()
 	}
 }
