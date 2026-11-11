@@ -170,6 +170,15 @@ func (g *gw) newProxy(svc string, target *url.URL, t http.RoundTripper) *httputi
 			pr.SetXForwarded()
 			pr.Out.Host = target.Host
 		},
+		ModifyResponse: func(res *http.Response) error {
+			// The gateway's RequestID middleware already set X-Request-Id (same id, forwarded upstream): avoid a duplicate header.
+			res.Header.Del("X-Request-Id")
+			// Every 429 tells the client when to retry, also the per-endpoint limits of the services.
+			if res.StatusCode == http.StatusTooManyRequests && res.Header.Get("Retry-After") == "" {
+				res.Header.Set("Retry-After", "60")
+			}
+			return nil
+		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			g.a.Log.Warn("upstream", "svc", svc, "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
 			problem.Write(w, problem.New(http.StatusBadGateway, "SERVICIO_NO_DISPONIBLE", "El servicio "+svc+" no responde. Inténtalo en unos segundos."))
