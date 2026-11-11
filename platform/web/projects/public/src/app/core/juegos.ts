@@ -33,6 +33,8 @@ export interface Jornada {
   dia: string;
   nombre: string;
   estado: EstadoJornada;
+  /** Instante de cierre de las apuestas (hora de cierre del backoffice), si lo hay. */
+  cierreAt?: string;
 }
 
 /** Una opción de mercado de porra: el atleta, lo apostado y su cuota orientativa en vivo. */
