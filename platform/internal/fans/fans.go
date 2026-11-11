@@ -44,7 +44,7 @@ const (
 	// límites of link requests (§3): 5 per email and hour, 20 per IP and hour. The link itself
 	// expires in 30 minutes (`interval '30 minutes'` in the INSERT below).
 	limiteEmail = 5
-	limiteIP    = 20
+	limiteIP    = 200 // per IP and hour: a venue wifi or carrier NAT shares one IP; the per-email limit stops abuse per recipient
 )
 
 // Svc holds the service dependencies.

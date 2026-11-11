@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -114,10 +115,10 @@ func (s *Svc) registerPublic() {
 			}
 			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "fans", "ip", httpx.ClientIPFrom(ctx)), limiteIP, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Has pedido varios accesos desde tu red. Espera unos minutos.")
+				return nil, demasiados(r, "Se han pedido muchos accesos desde tu red")
 			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "fans", "email", emailHash(email)[:16]), limiteEmail, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Ya hemos enviado varios enlaces a este email esta hora. Revisa tu bandeja (y la carpeta de spam).")
+				return nil, demasiados(r, "Ya hemos enviado varios enlaces a este email. Revisa tu bandeja (y la carpeta de spam)")
 			}
 			if in.Body.Tipo == fanauth.TipoAtleta {
 				aid, err := s.atletas.porEmail(ctx, cid, email)
@@ -381,4 +382,18 @@ func (s *Svc) crearFan(ctx context.Context, cid uuid.UUID, acc struct {
 		return fanRow{}, err
 	}
 	return scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, id))
+}
+
+// demasiados answers 429 with Retry-After and the real wait in the message.
+func demasiados(r ratelimit.Result, motivo string) error {
+	seg := int(r.RetryAfter.Seconds()) + 1
+	if seg < 1 {
+		seg = 60
+	}
+	espera := "1 minuto"
+	if m := (seg + 59) / 60; m > 1 {
+		espera = strconv.Itoa(m) + " minutos"
+	}
+	return huma.ErrorWithHeaders(problem.TooMany(motivo+". Podrás volver a intentarlo en "+espera+"."),
+		http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
 }
