@@ -153,8 +153,12 @@ func (s *Simulado) Mount(mux *http.ServeMux, base string) {
 		if estado == "open" && time.Now().After(ss.ExpiresAt) {
 			estado = "caducada"
 		}
-		write(w, http.StatusOK, map[string]any{"id": ss.ID, "descripcion": ss.Description, "importe": ss.Amount, "email": ss.Email, "estado": estado,
-			"cancelUrl": ss.CancelURL, "lineas": ss.Lines, "pruebas": true, "tarjetas": [][2]string{{"4242 4242 4242 4242", "pago correcto"}, {"4000 0000 0000 0002", "tarjeta rechazada"}, {"4000 0000 0000 3220", "pide 3D Secure"}}})
+		out := map[string]any{"id": ss.ID, "descripcion": ss.Description, "importe": ss.Amount, "email": ss.Email, "estado": estado,
+			"cancelUrl": ss.CancelURL, "lineas": ss.Lines, "pruebas": true, "tarjetas": [][2]string{{"4242 4242 4242 4242", "pago correcto"}, {"4000 0000 0000 0002", "tarjeta rechazada"}, {"4000 0000 0000 3220", "pide 3D Secure"}}}
+		if estado == "paid" { // already paid: the page links to the result instead of the card form
+			out["successUrl"] = strings.ReplaceAll(ss.SuccessURL, "{CHECKOUT_SESSION_ID}", ss.ID)
+		}
+		write(w, http.StatusOK, out)
 	})
 	mux.HandleFunc("POST "+base+"/{id}/pagar", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {

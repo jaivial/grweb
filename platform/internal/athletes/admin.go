@@ -855,8 +855,18 @@ func createPerfil(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, name string
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO perfiles (atleta_id, competition_id, slug) VALUES ($1,$2,$3)`, id, cid, slug)
-	return err
+	// Two namesakes saved at once can both pick the same free slug: retry inside a savepoint with a random suffix.
+	for i := 0; ; i++ {
+		err = pgx.BeginFunc(ctx, tx, func(sp pgx.Tx) error {
+			_, err := sp.Exec(ctx, `INSERT INTO perfiles (atleta_id, competition_id, slug) VALUES ($1,$2,$3)`, id, cid, slug)
+			return err
+		})
+		if i >= 5 || !db.IsUniqueViolation(err, "perfiles_competition_id_slug_key") {
+			return err
+		}
+		r := newID().String()
+		slug = Slugify(name) + "-" + r[len(r)-6:]
+	}
 }
 
 // legalVigente returns the version and hash of a legal text in force (cms public API), for consent records.
