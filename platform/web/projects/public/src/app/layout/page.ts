@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { GrAlert, GrIcon } from '@grcup/ui';
 import { Cms } from '../core/cms';
@@ -10,7 +11,7 @@ import { Footer, Navbar, type Lang } from './layout';
  */
 @Component({
   selector: 'gr-page',
-  imports: [Navbar, Footer, GrIcon, GrAlert],
+  imports: [RouterLink, Navbar, Footer, GrIcon, GrAlert],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-navbar [lang]="lang()" />
@@ -34,7 +35,7 @@ import { Footer, Navbar, type Lang } from './layout';
         @if (cabecera() && !centrado()) {
           <header class="max-w-[900px] flex-col gap-3 md:flex md:gap-4" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
             <nav class="flex flex-wrap items-center gap-1.5 text-body-s text-text-tertiary" aria-label="Migas">
-              <a href="/" class="hover:text-text-primary">Inicio</a>
+              <a routerLink="/" class="hover:text-text-primary">Inicio</a>
               @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
               <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
             </nav>

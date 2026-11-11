@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * fantasy/mercado.ts — /fantasy/mercado (Figma «72 · /fantasy» · Mercado): el mercado de atletas con la cláusula
  * en vivo, los filtros, la plantilla de un vistazo, el feed de movimientos y el modal de clausulazo.
@@ -21,7 +22,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
 
 @Component({
   selector: 'gr-mercado-fantasy-page',
-  imports: [Page, FormsModule, GrAlert, GrButton, GrIcon, GrSelect, GrSkeleton, AthleteSheet, ClausulazoModal, CoinBalance, FeedRow, MarketRow, GrupoChips, JuegosNav],
+  imports: [RouterLink, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSelect, GrSkeleton, AthleteSheet, ClausulazoModal, CoinBalance, FeedRow, MarketRow, GrupoChips, JuegosNav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mercado" [suffix]="jornadaTxt()" crumb="Mercado" section="Juegos"
@@ -62,7 +63,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
           <div class="min-w-0">
             <!-- Mi plantilla de un vistazo (móvil y tablet; en escritorio va en la columna) -->
             @if (equipo()) {
-              <a href="/fantasy" class="mb-4 flex items-center gap-3 rounded-md border border-info/30 bg-info/5 px-4 py-3 lg:hidden">
+              <a routerLink="/fantasy" class="mb-4 flex items-center gap-3 rounded-md border border-info/30 bg-info/5 px-4 py-3 lg:hidden">
                 <span class="min-w-0 flex-1">
                   <span class="block text-mono-xs text-info">Mi plantilla · {{ fichados() }}/{{ plantillaMax() }}</span>
                   <span class="mt-1.5 block h-1.5 overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full rounded-pill bg-info" [style.width.%]="porcentajePlantilla()"></span></span>

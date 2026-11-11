@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * porra/porra.ts — /porra (Figma «71 · /porra» · Mercados): los mercados de la jornada con su bote y sus cuotas
  * en vivo, el boleto de apuesta, el selector de jornada y los premios como gancho.
@@ -19,7 +20,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
 
 @Component({
   selector: 'gr-porra-page',
-  imports: [Page, GrAlert, GrButton, GrIcon, GrSkeleton, BoletoApuesta, CoinBalance, GrupoChips, JuegosNav, MarketCard, PremioCard],
+  imports: [RouterLink, Page, GrAlert, GrButton, GrIcon, GrSkeleton, BoletoApuesta, CoinBalance, GrupoChips, JuegosNav, MarketCard, PremioCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Porra" [suffix]="jornadaTxt()" crumb="Porra" section="Juegos" [subtitle]="subtitulo()">
@@ -125,7 +126,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
         <section class="mt-14" aria-labelledby="premios-porra">
           <div class="flex flex-wrap items-end justify-between gap-2">
             <h2 id="premios-porra" class="text-display-xs">Premios de la jornada</h2>
-            <a href="/porra/clasificacion" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text hover:underline underline-offset-4 md:h-auto">Ver la clasificación<gr-icon name="chevron-right" [size]="16" /></a>
+            <a routerLink="/porra/clasificacion" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text hover:underline underline-offset-4 md:h-auto">Ver la clasificación<gr-icon name="chevron-right" [size]="16" /></a>
           </div>
           <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             @for (p of premios(); track p.id) { <gr-premio-card [premio]="p" /> }

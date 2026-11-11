@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, effect, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { FanSession, codigoError, detalleError } from '../core/fan';
 import { Page } from '../layout/page';
@@ -11,7 +11,7 @@ import { Page } from '../layout/page';
  */
 @Component({
   selector: 'gr-acceso-page',
-  imports: [Page, GrButton, GrIcon, GrSkeleton],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     @keyframes gr-progreso { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -34,7 +34,7 @@ import { Page } from '../layout/page';
             <p class="text-body-s text-text-secondary">{{ error() }}</p>
             <div class="mt-3 flex w-full flex-col gap-2">
               <button type="button" grButton variant="primary" size="l" [block]="true" icon="mail" (click)="pedirOtro()">Pedir un enlace nuevo</button>
-              <a grButton variant="outline" [block]="true" href="/en-directo">Ir al directo</a>
+              <a grButton variant="outline" [block]="true" routerLink="/en-directo">Ir al directo</a>
             </div>
             <p class="mt-1 flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="12" />Cada enlace sirve una vez y caduca en 30 min</p>
           } @else {
@@ -42,7 +42,7 @@ import { Page } from '../layout/page';
             <p class="mt-1 font-display text-[28px] leading-tight uppercase italic">¡Ya estás dentro!</p>
             <p class="text-body-s text-text-secondary">Te llevamos al directo con tu alias <span class="font-semibold text-text-primary">{{ alias() }}</span>.</p>
             <span class="mt-2 block h-1 w-full overflow-hidden rounded-full bg-bg-raised" aria-hidden="true"><span class="gr-progreso block h-full rounded-full bg-accent-grain"></span></span>
-            <a grButton variant="primary" size="l" [block]="true" href="/en-directo" iconRight="arrow-right" class="mt-2">Ir al directo</a>
+            <a grButton variant="primary" size="l" [block]="true" routerLink="/en-directo" iconRight="arrow-right" class="mt-2">Ir al directo</a>
           }
         </div>
       </div>

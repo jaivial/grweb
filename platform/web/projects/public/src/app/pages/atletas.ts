@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, type FichaPub, type ListaPub, type Participantes } from '../core/atletas';
 import { Cms } from '../core/cms';
@@ -38,7 +38,7 @@ export class Fav {
 /** /atletas (Figma page 39): search, filters, athlete cards (list grouped by class on mobile), load more. */
 @Component({
   selector: 'gr-atletas-page',
-  imports: [GrSelect, Page, FormsModule, GrIcon, GrButton, GrSkeleton, Fav, Related, Community],
+  imports: [RouterLink, GrSelect, Page, FormsModule, GrIcon, GrButton, GrSkeleton, Fav, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -158,7 +158,7 @@ export class Fav {
             <span class="flex size-11 shrink-0 items-center justify-center rounded-sm bg-accent-deep/60 text-accent-text"><gr-icon name="user" [size]="18" /></span>
             <div><h2 class="text-ui-h5">¿Compites? Completa tu perfil</h2><p class="mt-1 text-body-s text-text-secondary">Da de alta tu atleta con el email de tu inscripción en la AEP: foto, club, mejores marcas y tus alturas de rack para agilizar el pesaje.</p></div>
           </div>
-          <a grButton iconRight="arrow-right" href="/alta-atleta" class="shrink-0">Dar de alta mi atleta</a>
+          <a grButton iconRight="arrow-right" routerLink="/alta-atleta" class="shrink-0">Dar de alta mi atleta</a>
         </section>
         <gr-related [items]="relacionados" />
         <gr-community />
@@ -254,7 +254,7 @@ function catSort(a: string, b: string): number {
 /** /atletas/:slug (Figma page 40): profile, «Avísame cuando compita», openers, day, best lifts, others in the class. */
 @Component({
   selector: 'gr-atleta-page',
-  imports: [Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, Fav],
+  imports: [RouterLink, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, Fav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = ficha();
@@ -265,7 +265,7 @@ function catSort(a: string, b: string): number {
       @if (a === undefined) {
         <div class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"><gr-skeleton class="h-[520px] rounded-lg" /><gr-skeleton class="h-96 rounded-lg" /></div>
       } @else if (a === null) {
-        @if (!api.failed()) { <p class="text-body-m text-text-tertiary">Este atleta no existe o ya no está inscrito. <a href="/atletas" class="text-accent-text underline">Ver todos los atletas</a></p> }
+        @if (!api.failed()) { <p class="text-body-m text-text-tertiary">Este atleta no existe o ya no está inscrito. <a routerLink="/atletas" class="text-accent-text underline">Ver todos los atletas</a></p> }
         @else if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar el atleta">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert> }
       } @else {
         <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
@@ -307,7 +307,7 @@ function catSort(a: string, b: string): number {
                         <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s focus:border-accent-text focus:outline-none" /></label>
                       <button grButton variant="primary" type="submit" [loading]="enviando()">Avisarme</button>
                     </div>
-                    <label class="flex min-h-11 items-start gap-3 text-body-xs text-text-secondary"><input type="checkbox" name="acepta" [(ngModel)]="acepta" class="mt-0.5 size-5 accent-[#C42B3E]" />Acepto recibir este aviso. <a href="/privacidad" class="text-accent-text underline">Privacidad</a></label>
+                    <label class="flex min-h-11 items-start gap-3 text-body-xs text-text-secondary"><input type="checkbox" name="acepta" [(ngModel)]="acepta" class="mt-0.5 size-5 accent-[#C42B3E]" />Acepto recibir este aviso. <a routerLink="/privacidad" class="text-accent-text underline">Privacidad</a></label>
                     @if (avisoError()) { <p class="text-body-xs text-accent-text" role="alert">{{ avisoError() }}</p> }
                   </form>
                 }

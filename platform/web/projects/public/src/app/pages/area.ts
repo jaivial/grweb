@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { cat, hora, kg } from '../core/atletas';
@@ -36,7 +36,7 @@ const api = '/api/area-atleta';
 /** /area-atleta (Figma page 42): password-less access, panel, profile editor and weigh-in preview. Not indexed. */
 @Component({
   selector: 'gr-area-atleta',
-  imports: [FormsModule, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [RouterLink, FormsModule, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = panel();
@@ -60,7 +60,7 @@ const api = '/api/area-atleta';
               </form>
               <aside class="mt-6 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <p class="text-label-m">¿Aún no tienes ficha?</p>
-                <p class="mt-1 text-body-s text-text-tertiary">Da de alta tu atleta con el email de tu inscripción en la AEP y el equipo publica tu ficha. <a href="/alta-atleta" class="text-accent-text hover:underline">Alta de atleta</a></p>
+                <p class="mt-1 text-body-s text-text-tertiary">Da de alta tu atleta con el email de tu inscripción en la AEP y el equipo publica tu ficha. <a routerLink="/alta-atleta" class="text-accent-text hover:underline">Alta de atleta</a></p>
               </aside>
               <aside class="mt-4 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <p class="text-label-m">¿No te llega?</p>

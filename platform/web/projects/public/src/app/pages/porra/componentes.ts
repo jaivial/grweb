@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * porra/componentes.ts — piezas compartidas de /porra y /fantasy (Figma «71 · /porra», rediseño UI v2): barra del
  * juego, aviso legal, saldo de monedas, chips de filtro, botón de cuota, tarjeta de mercado, boleto de apuesta, gancho
@@ -317,7 +318,7 @@ export class MarketCard {
 /** El boleto de apuesta (Figma «Bet slip»): un ticket con la selección, el importe, lo que cobrarías y la confirmación. */
 @Component({
   selector: 'gr-boleto-apuesta',
-  imports: [FormsModule, GrButton, GrIcon, GrSelect, AvisoJuegos],
+  imports: [RouterLink, FormsModule, GrButton, GrIcon, GrSelect, AvisoJuegos],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents', '(document:keydown.escape)': 'cerrar.emit()' },
   template: `
@@ -387,7 +388,7 @@ export class MarketCard {
             <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
               <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() }}</span>
             </p>
-            <a grButton variant="secondary" size="l" [block]="true" href="/porra/mis-apuestas" iconRight="arrow-right">Ver mis apuestas</a>
+            <a grButton variant="secondary" size="l" [block]="true" routerLink="/porra/mis-apuestas" iconRight="arrow-right">Ver mis apuestas</a>
           } @else {
             <button grButton variant="primary" size="l" [block]="true" [loading]="cargando()" [disabled]="!puedeApostar()" (click)="confirmar.emit({ atletaId: elegido()?.atletaId ?? '', importe: importe() })">
               {{ insuficiente() ? 'Saldo insuficiente' : !elegido() ? 'Elige un atleta' : 'Confirmar apuesta de ' + monedas(importe()) }}

@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
 import { GrButton, GrSkeleton } from '@grcup/ui';
 import { Cms, type Patrocinador } from '../core/cms';
@@ -21,7 +22,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
  */
 @Component({
   selector: 'gr-patrocinadores-page',
-  imports: [Page, GrButton, GrSkeleton, GrCabecera, Related],
+  imports: [RouterLink, Page, GrButton, GrSkeleton, GrCabecera, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Patrocinadores" accent="y colaboradores" eyebrow="Comunidad" section="Comunidad" crumb="Patrocinadores" subtitle="Las marcas, clubs y entidades que hacen posible la GRStrength Cup.">
@@ -93,7 +94,7 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
             <h2 class="mt-3 text-display-xs md:text-display-m">Haz posible la competición</h2>
             <p class="mt-2 text-body-s text-text-secondary md:text-body-m">Jueces, cargadores, mesa técnica y foto: apúntate como voluntario.</p>
           </div>
-          <a grButton variant="primary" size="l" href="/voluntarios" class="mt-5 w-full md:mt-0 md:w-auto">Quiero ayudar</a>
+          <a grButton variant="primary" size="l" routerLink="/voluntarios" class="mt-5 w-full md:mt-0 md:w-auto">Quiero ayudar</a>
         </section>
       </div>
     </gr-page>

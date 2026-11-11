@@ -87,7 +87,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
             <p class="text-ui-h2 text-accent-text">{{ euros(s.precio) }} por boleto</p>
             <p class="text-body-xs text-text-tertiary">Más boletos, más posibilidades · máx. {{ s.maxPorPersona }} por persona</p>
           </div>
-          <a href="/politica-concurso" class="text-label-s text-accent-text hover:underline">Leer las bases del sorteo →</a>
+          <a routerLink="/politica-concurso" class="text-label-s text-accent-text hover:underline">Leer las bases del sorteo →</a>
         </section>
 
         <!-- Cómo participar: zigzag timeline on desktop, a rail on the left on mobile -->
@@ -148,7 +148,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
               @if (s.estado === 'en_venta') {
                 <gr-icon name="ticket" [size]="24" class="text-accent-text" /><p class="text-ui-h5">Boletos en la sede, solo en efectivo</p>
                 <p class="text-body-s text-text-secondary">No hay venta online: compra tus boletos el día de la competición en el pabellón, en efectivo. {{ euros(s.precio) }} por boleto · máx. {{ s.maxPorPersona }} por persona.</p>
-                <a href="/como-llegar" class="text-label-s text-accent-text hover:underline">Cómo llegar →</a>
+                <a routerLink="/como-llegar" class="text-label-s text-accent-text hover:underline">Cómo llegar →</a>
               } @else {
                 <gr-icon name="lock" [size]="24" class="text-text-tertiary" /><p class="text-ui-h5">{{ estadoTitulo[s.estado] }}</p><p class="text-body-s text-text-secondary">{{ s.motivo }}</p>
                 <a href="#novedades" (click)="irNovedades($event)" class="text-label-s text-accent-text hover:underline">Avísame por email →</a>
@@ -228,7 +228,7 @@ export class SorteoPage {
 /** /sorteo/confirmacion?compra=…&t=… — after paying (Figma 09 «/success»): summary, next steps, share; waits for the payment confirmation. */
 @Component({
   selector: 'gr-sorteo-confirmacion',
-  imports: [Page, GrButton, GrIcon, GrLogo],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrLogo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = compra();
@@ -248,8 +248,8 @@ export class SorteoPage {
             <h1 class="text-ui-h4">{{ c === null ? 'No encontramos esta compra' : 'Algo salió mal' }}</h1>
             <p class="max-w-[440px] text-body-s text-text-tertiary">{{ c === null ? 'Revisa el enlace del email. Si has pagado y no te llega, escríbenos.' : 'El pago no se completó y no se ha cobrado nada. Si crees que es un error, escríbenos.' }}</p>
             <div class="mt-2 flex flex-wrap justify-center gap-3">
-              <a grButton variant="primary" href="/sorteo#participa">Reintentar</a>
-              <a grButton variant="outline" href="/">Volver al inicio</a>
+              <a grButton variant="primary" routerLink="/sorteo" fragment="participa">Reintentar</a>
+              <a grButton variant="outline" routerLink="/">Volver al inicio</a>
             </div>
           </div>
         } @else if (c.estado === 'reembolsada') {
@@ -257,7 +257,7 @@ export class SorteoPage {
             <span class="flex size-12 items-center justify-center rounded-full bg-info/15 text-info"><gr-icon name="info" [size]="22" /></span>
             <h1 class="text-ui-h4">Compra reembolsada</h1>
             <p class="text-body-s text-text-tertiary">Te hemos devuelto el importe y estos boletos ya no participan.</p>
-            <a grButton variant="outline" href="/sorteo">Volver al sorteo</a>
+            <a grButton variant="outline" routerLink="/sorteo">Volver al sorteo</a>
           </div>
         } @else {
           <!-- Figma 09 «Pago completado» -->
@@ -290,7 +290,7 @@ export class SorteoPage {
               <button type="button" class="flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:border-white" (click)="copiar()"><gr-icon name="copy" [size]="16" />{{ copiado() ? 'Copiado' : 'Copiar enlace' }}</button>
             </div>
           </div>
-          <a grButton variant="primary" size="l" href="/">Volver al inicio</a>
+          <a grButton variant="primary" size="l" routerLink="/">Volver al inicio</a>
         }
       </div>
     </gr-page>

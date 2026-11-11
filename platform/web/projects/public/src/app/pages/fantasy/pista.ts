@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * fantasy/pista.ts — la alineación de /fantasy como una pista de fútbol sala (Figma «72 · /fantasy»: componentes
  * «Jugador · pista», «Pista · fútbol sala» y «Hoja · jugador»). En la pista solo va el avatar, el nombre corto y
@@ -105,7 +106,7 @@ const POSICIONES = [
  */
 @Component({
   selector: 'gr-pista-futsal',
-  imports: [GrIcon, JugadorPista],
+  imports: [RouterLink, GrIcon, JugadorPista],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   styles: `
@@ -134,7 +135,7 @@ const POSICIONES = [
             @if (titulares()[i]; as a) {
               <gr-jugador-pista [atleta]="a" [puntos]="puntosDe()(a)" tamano="l" (abrir)="abrir.emit({ atleta: a, origen: $event })" />
             } @else {
-              <a href="/fantasy/mercado" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" [attr.aria-label]="'Hueco libre (' + p.nombre + '): fichar en el mercado'">
+              <a routerLink="/fantasy/mercado" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" [attr.aria-label]="'Hueco libre (' + p.nombre + '): fichar en el mercado'">
                 <span class="flex size-16 items-center justify-center rounded-full border-[1.5px] border-dashed border-white/40 bg-bg-deep/35 text-text-secondary transition-colors group-hover:border-white/70 group-hover:text-white lg:size-20">
                   <gr-icon name="plus" [size]="24" />
                 </span>

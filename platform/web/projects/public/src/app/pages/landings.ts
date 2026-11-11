@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
@@ -420,7 +421,7 @@ export class ClubsPage {
 /** /en (Figma page 35): English landing for international lifters and visitors (hreflang es/en + x-default). */
 @Component({
   selector: 'gr-en-page',
-  imports: [Navbar, Footer, GrButton, GrIcon, GrSkeleton, GrCabecera, Community],
+  imports: [RouterLink, Navbar, Footer, GrButton, GrIcon, GrSkeleton, GrCabecera, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = land();
@@ -434,7 +435,7 @@ export class ClubsPage {
           <div>
             <!-- Figma «Language switch»: 111 × 46 pill, the active language in red -->
             <p class="inline-flex rounded-full border border-line-strong p-1 text-label-xs" aria-label="Language">
-              <a href="/" hreflang="es" class="inline-flex h-9 items-center rounded-full px-3.5 text-text-tertiary hover:text-text-primary">ES</a>
+              <a routerLink="/" hreflang="es" class="inline-flex h-9 items-center rounded-full px-3.5 text-text-tertiary hover:text-text-primary">ES</a>
               <span class="inline-flex h-9 items-center rounded-full bg-accent/20 px-3.5 text-text-primary" aria-current="page">EN</span>
             </p>
             @if (l === undefined) {
@@ -454,8 +455,8 @@ export class ClubsPage {
                 }
               </ul>
               <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a grButton variant="primary" size="l" href="/alta-atleta" hreflang="es" iconRight="arrow-right">{{ str(h, 'cta') || 'Athlete sign-up (Spanish)' }}</a>
-                <a grButton size="l" href="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'Enter the raffle' }}</a>
+                <a grButton variant="primary" size="l" routerLink="/alta-atleta" hreflang="es" iconRight="arrow-right">{{ str(h, 'cta') || 'Athlete sign-up (Spanish)' }}</a>
+                <a grButton size="l" routerLink="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'Enter the raffle' }}</a>
               </div>
             }
           </div>
@@ -476,7 +477,7 @@ export class ClubsPage {
                     }
                   </ul>
                   @if (str(s, 'cta')) {
-                    <a grButton variant="primary" size="l" href="/alta-atleta" hreflang="es" class="self-start">{{ str(s, 'cta') }}</a>
+                    <a grButton variant="primary" size="l" routerLink="/alta-atleta" hreflang="es" class="self-start">{{ str(s, 'cta') }}</a>
                   }
                 </section>
               }
@@ -490,8 +491,8 @@ export class ClubsPage {
                       <p class="text-display-xs md:text-display-s">{{ str(s, 'subtitulo') }}</p>
                       <p class="text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>
                       <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <a grButton variant="display-gradient" size="l" href="/sorteo" hreflang="es">{{ str(s, 'cta') || 'Buy tickets' }}</a>
-                        <a grButton variant="ghost" href="/politica-concurso" hreflang="es">Raffle terms (Spanish)</a>
+                        <a grButton variant="display-gradient" size="l" routerLink="/sorteo" hreflang="es">{{ str(s, 'cta') || 'Buy tickets' }}</a>
+                        <a grButton variant="ghost" routerLink="/politica-concurso" hreflang="es">Raffle terms (Spanish)</a>
                       </div>
                     </div>
                   </div>

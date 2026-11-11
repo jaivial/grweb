@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GrButton, GrCountdown, GrIcon, type GrIconName } from '@grcup/ui';
 import type { Patrocinador } from '../core/cms';
@@ -19,7 +20,7 @@ export const fechaCorta = (iso?: string | null) => {
  */
 @Component({
   selector: 'gr-campeonato',
-  imports: [GrIcon, GrButton, GrCountdown, GrEyebrow, GrTitulo],
+  imports: [RouterLink, GrIcon, GrButton, GrCountdown, GrEyebrow, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative z-10 -mt-[400px] block motion-reduce:mt-0', id: 'campeonato' },
   template: `
@@ -50,8 +51,8 @@ export const fechaCorta = (iso?: string | null) => {
       @if (aviso()) { <span class="inline-flex h-7 items-center rounded-pill border border-info/60 bg-info/12 px-3 text-label-xs text-info">{{ aviso() }}</span> }
       @if (c?.fechaInicio) { <gr-countdown [target]="c!.fechaInicio!" [fin]="c!.fechaFin" [zona]="c!.zonaHoraria || 'Europe/Madrid'" [hora]="horaPuertas(c!.evento.puertas)" /> }
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-        @if (c?.modulos?.['entradas'] !== false) { <a grButton variant="primary" size="l" href="/entradas">Reserva tu entrada gratis</a> }
-        @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="glass" size="l" href="/atletas" iconRight="arrow-right">Ver atletas</a> }
+        @if (c?.modulos?.['entradas'] !== false) { <a grButton variant="primary" size="l" routerLink="/entradas">Reserva tu entrada gratis</a> }
+        @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="glass" size="l" routerLink="/atletas" iconRight="arrow-right">Ver atletas</a> }
       </div>
       @if (patrocinadores().length) {
         <gr-eyebrow class="mt-6 md:mt-10" [texto]="tituloPatrocinadores() || 'Patrocinadores y colaboradores'" />

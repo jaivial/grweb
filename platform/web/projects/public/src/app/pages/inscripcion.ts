@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { CATEGORIAS_IPF, cat } from '../core/atletas';
@@ -37,7 +37,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
 /** /inscripcion (Figma pages 06 and 06b): AEP link (external mode) or own registration with payment, coupon and referral. */
 @Component({
   selector: 'gr-inscripcion-page',
-  imports: [GrSelect, Page, FormsModule, GrButton, GrIcon, GrSkeleton],
+  imports: [RouterLink, GrSelect, Page, FormsModule, GrButton, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = cfg();
@@ -92,8 +92,8 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
             @else { La inscripción de la {{ nombreComp() }} está cerrada. Si tienes una duda sobre tu inscripción, escríbenos{{ contacto() ? ' a ' + contacto() : '' }}. }
           </p>
           <div class="flex w-full flex-col gap-3 md:w-auto md:flex-row">
-            <a grButton variant="primary" size="l" href="/alta-atleta">Dar de alta tu atleta</a>
-            <a grButton variant="outline" size="l" href="/atletas">Ver atletas</a>
+            <a grButton variant="primary" size="l" routerLink="/alta-atleta">Dar de alta tu atleta</a>
+            <a grButton variant="outline" size="l" routerLink="/atletas">Ver atletas</a>
             @if (v === 'completas' && c?.modo !== 'propia' && urlAep()) { <a grButton variant="outline" size="l" [href]="urlAep()" target="_blank" rel="noopener">Lista de espera en la AEP</a> }
           </div>
           <div class="grid w-full gap-4 pt-6 text-left md:max-w-[960px] md:grid-cols-2">
@@ -101,14 +101,14 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
               <span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="user" [size]="20" /></span>
               <h2 class="text-ui-h5">¿Ya estás inscrito/a?</h2>
               <p class="text-body-s text-text-tertiary">Entra en tu área de atleta con el email {{ c?.modo === 'propia' ? 'de tu inscripción' : 'de la AEP' }}: completa tu perfil, revisa tu flight y deja tus alturas de rack.</p>
-              <a grButton variant="glass" href="/area-atleta" iconRight="arrow-right" class="mt-auto">Área de atleta</a>
+              <a grButton variant="glass" routerLink="/area-atleta" iconRight="arrow-right" class="mt-auto">Área de atleta</a>
             </article>
             @if (entradas()) {
               <article class="flex flex-col items-start gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="ticket" [size]="20" /></span>
                 <h2 class="text-ui-h5">¿Vienes a animar?</h2>
                 <p class="text-body-s text-text-tertiary">La entrada es gratuita con reserva. Te llega un QR por email{{ sorteo() ? ' y puedes sumarte al sorteo' : '' }}.</p>
-                <a grButton variant="glass" href="/entradas" iconRight="arrow-right" class="mt-auto">Reservar entrada</a>
+                <a grButton variant="glass" routerLink="/entradas" iconRight="arrow-right" class="mt-auto">Reservar entrada</a>
               </article>
             }
           </div>
@@ -418,7 +418,7 @@ export class InscripcionPage {
 /** /inscripcion/estado?id=… — confirmation after paying (polls while the webhook arrives). Figma 06b «/inscripcion/confirmada». */
 @Component({
   selector: 'gr-inscripcion-estado',
-  imports: [Page, GrButton, GrIcon],
+  imports: [RouterLink, Page, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let e = estado();
@@ -433,7 +433,7 @@ export class InscripcionPage {
         } @else if (e === null) {
           <div class="flex flex-col items-center gap-3 text-center">
             <h1 class="text-display-s md:text-display-m">No encontramos esta inscripción</h1>
-            <p class="text-body-m text-text-secondary">Si has pagado, te llegará un email de confirmación. Si no, vuelve a <a href="/inscripcion" class="text-accent-text hover:underline">inscribirte</a>.</p>
+            <p class="text-body-m text-text-secondary">Si has pagado, te llegará un email de confirmación. Si no, vuelve a <a routerLink="/inscripcion" class="text-accent-text hover:underline">inscribirte</a>.</p>
           </div>
         } @else if (e.estado === 'pagada' || e.estado === 'gratuita') {
           <div class="flex flex-col items-center gap-2.5 text-center">
@@ -453,14 +453,14 @@ export class InscripcionPage {
               <div class="flex h-12 items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field pl-3.5"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 truncate text-mono-s">{{ e.codigoReferido }}</span><button type="button" class="h-full px-3.5 text-label-s text-accent-text hover:underline" (click)="copiar(e.codigoReferido!)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
             </section>
           }
-          <a grButton variant="outline" size="l" [block]="true" href="/area-atleta">Ir a mi área de atleta</a>
+          <a grButton variant="outline" size="l" [block]="true" routerLink="/area-atleta">Ir a mi área de atleta</a>
         } @else if (e.estado === 'reserva') {
           <div class="flex flex-col items-center gap-2.5 text-center">
             <span class="flex size-16 items-center justify-center rounded-full border border-warning bg-warning/12 text-warning"><gr-icon name="clock" [size]="30" /></span>
             <h1 class="mt-2.5 text-display-m">Estás en la reserva</h1>
             <p class="text-body-m text-text-secondary">No se ha cobrado nada. Si queda una plaza libre, te escribiremos a {{ e.email }} con el enlace de pago.</p>
           </div>
-          <a grButton variant="outline" size="l" [block]="true" href="/">Volver al inicio</a>
+          <a grButton variant="outline" size="l" [block]="true" routerLink="/">Volver al inicio</a>
         } @else {
           <!-- Figma 06b «Pago rechazado» -->
           <div class="flex items-start gap-3 rounded-md border border-accent bg-accent/8 p-4 md:items-center" role="alert">
@@ -470,7 +470,7 @@ export class InscripcionPage {
               @if (e.checkoutUrl) { <a [href]="e.checkoutUrl" class="flex h-9 shrink-0 items-center rounded-sm bg-accent/15 px-2.5 text-label-s text-accent-text hover:bg-accent/25">Reintentar el pago</a> }
             </div>
           </div>
-          <a href="/inscripcion" class="self-center py-2 text-label-s text-text-secondary hover:text-text-primary">{{ e.estado === 'pendiente_pago' ? 'Volver a la inscripción' : 'Cambiar los datos' }}</a>
+          <a routerLink="/inscripcion" class="self-center py-2 text-label-s text-text-secondary hover:text-text-primary">{{ e.estado === 'pendiente_pago' ? 'Volver a la inscripción' : 'Cambiar los datos' }}</a>
         }
       </div>
     </gr-page>
@@ -522,7 +522,7 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
 /** /pago/simulado?s=<service>:<session> — test gateway that imitates Stripe Checkout (Figma 06b). */
 @Component({
   selector: 'gr-pago-simulado',
-  imports: [FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton],
+  imports: [RouterLink, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-h-screen bg-bg-base' },
   template: `
@@ -530,7 +530,7 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
     <p class="flex h-9 items-center justify-center bg-warning/15 text-mono-xs text-warning">MODO PRUEBAS · NO SE COBRA NADA</p>
     @if (s === undefined) { <div class="mx-auto max-w-md p-8"><gr-skeleton class="h-80 rounded-lg" /></div> }
     @else if (s === null || s.estado === 'caducada') {
-      <div class="mx-auto max-w-md p-8"><gr-alert tone="warning" title="Este pago ha caducado">Vuelve a la web y empieza de nuevo la inscripción.</gr-alert><a grButton class="mt-4" href="/inscripcion">Volver a la inscripción</a></div>
+      <div class="mx-auto max-w-md p-8"><gr-alert tone="warning" title="Este pago ha caducado">Vuelve a la web y empieza de nuevo la inscripción.</gr-alert><a grButton class="mt-4" routerLink="/inscripcion">Volver a la inscripción</a></div>
     } @else {
       <!-- Figma 06b «Pasarela simulada»: summary half (surface) and payment half, 420 px columns -->
       <div class="grid md:min-h-[calc(100vh-36px)] md:grid-cols-2">

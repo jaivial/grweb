@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -30,7 +31,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
 /** /horarios (Figma page 41 · «Horarios v2 interactivo»): flights by day with live state, «Mi horario» with .ics, search. */
 @Component({
   selector: 'gr-horarios-page',
-  imports: [Page, FormsModule, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, GrStatus, Fav, Related, Community, Newsletter],
+  imports: [RouterLink, Page, FormsModule, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, GrStatus, Fav, Related, Community, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = data();
@@ -50,7 +51,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               <span class="flex size-14 items-center justify-center rounded-full border border-accent/40 bg-accent-deep/30 text-accent-text"><gr-icon name="clock" [size]="24" /></span>
               <h2 class="text-display-xs md:text-display-s">Próximamente</h2>
               <p class="max-w-md text-body-m text-text-secondary">Publicaremos los flights cuando cerremos el listado de la AEP (unas 2 semanas antes). Mientras, puedes ver quién compite y seguir a tus atletas.</p>
-              <a href="/atletas" class="mt-2 inline-flex h-11 items-center gap-2 rounded-sm bg-accent-grain px-5 text-label-s text-white">Ver los atletas<gr-icon name="arrow-right" [size]="16" /></a>
+              <a routerLink="/atletas" class="mt-2 inline-flex h-11 items-center gap-2 rounded-sm bg-accent-grain px-5 text-label-s text-white">Ver los atletas<gr-icon name="arrow-right" [size]="16" /></a>
             </section>
             <gr-newsletter titulo="Te avisamos de lo importante" texto="Horarios, sorteo y próximas competiciones de GRStrength. Como mucho un email al mes." origen="/horarios" [compacta]="true" />
           </div>
@@ -93,7 +94,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="flex items-center gap-2 text-ui-h5"><gr-icon name="star" [size]="18" class="text-accent-text" />Mi horario<span class="ml-auto text-body-xs text-text-muted">0 atletas</span></h2>
                 <p class="text-body-s text-text-secondary">Sigue a atletas (☆) y aquí verás cuándo compiten, con los retrasos ya aplicados. Se guarda en este navegador, sin registrarte.</p>
-                <a href="/atletas" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong bg-bg-raised text-label-s hover:border-white">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
+                <a routerLink="/atletas" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong bg-bg-raised text-label-s hover:border-white">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
               </section>
             }
             @for (r of filas(); track r.flight?.id ?? r.t + r.item?.titulo) {

@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -89,7 +90,7 @@ class Cs {
 /** /_componentes (internal, noindex, not in the sitemap): the shared components laid out as Figma page 02 · Componentes, for visual QA. */
 @Component({
   selector: 'gr-componentes-page',
-  imports: [
+  imports: [RouterLink, 
     FormsModule, Cs, GrAlert, GrButton, GrCheckbox, GrCountdown, GrIcon, GrIconButton, GrInput, GrLiveStatus, GrLogo, GrRaffleItem, GrRaffleNotice, GrSelect, GrStatus,
     GrStepNumber, GrToastCard, GrWeightChip, Navbar, Footer, Newsletter, TicketCard,
   ],
@@ -156,7 +157,7 @@ class Cs {
                     @for (c of checks; track $index) {
                       <gr-checkbox class="absolute w-[360px]" [style.left.px]="c.x" [style.top.px]="c.y" [kind]="c.p['Kind'] === 'Instagram' ? 'instagram' : 'legal'" [checked]="c.p['Checked'] === 'On'">
                         @if (c.p['Kind'] === 'Instagram') { Os sigo en Instagram <span class="text-accent-text">&#64;grstrength</span> }
-                        @else { He leído y acepto la <a href="/privacidad" class="text-accent-text">política de tratamiento de mis datos</a> }
+                        @else { He leído y acepto la <a routerLink="/privacidad" class="text-accent-text">política de tratamiento de mis datos</a> }
                       </gr-checkbox>
                     }
                   </gr-cs>

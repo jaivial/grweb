@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * porra/mis-apuestas.ts — /porra/mis-apuestas (Figma «71 · /porra» · Mis apuestas): el boleto de la jornada con lo que
  * sigue en juego, lo cobrado y lo perdido.
@@ -19,7 +20,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
 
 @Component({
   selector: 'gr-mis-apuestas-page',
-  imports: [Page, GrAlert, GrBadge, GrButton, GrIcon, GrSkeleton, CoinBalance, GrupoChips, JuegosNav],
+  imports: [RouterLink, Page, GrAlert, GrBadge, GrButton, GrIcon, GrSkeleton, CoinBalance, GrupoChips, JuegosNav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mis apuestas" [suffix]="jornadaTxt()" crumb="Mis apuestas" section="Juegos"
@@ -49,7 +50,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
           <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="ticket" [size]="24" /></span>
           <p class="text-display-xs">Tu boleto está vacío</p>
           <p class="max-w-md text-body-s text-text-tertiary">Elige un mercado, pulsa una cuota y haz tu primera apuesta con monedas virtuales. Si aciertas, te llevas tu parte del bote.</p>
-          <a grButton variant="primary" href="/porra" iconRight="arrow-right">Ver los mercados</a>
+          <a grButton variant="primary" routerLink="/porra" iconRight="arrow-right">Ver los mercados</a>
         </div>
       } @else {
         <!-- Figma «Resumen»: en juego, cobrado, devuelto y perdido -->
