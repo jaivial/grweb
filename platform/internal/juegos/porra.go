@@ -338,6 +338,9 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	if !j.jugable() {
 		return uuid.Nil, problem.Conflict("JORNADA_NO_JUGABLE", "La jornada no está abierta para jugar.")
 	}
+	if j.apuestasCerradas() {
+		return uuid.Nil, problem.Conflict("APUESTAS_CERRADAS", "Las apuestas de esta jornada ya están cerradas.")
+	}
 	if importe < int64(cfg.PorraMin) || importe > int64(cfg.PorraMax) {
 		return uuid.Nil, problem.Unprocessable("IMPORTE_NO_VALIDO", "Cada apuesta va de "+itoa(cfg.PorraMin)+" a "+itoa(cfg.PorraMax)+" monedas.")
 	}

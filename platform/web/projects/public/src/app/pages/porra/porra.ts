@@ -35,7 +35,11 @@ type FiltroSexo = 'todos' | 'F' | 'M';
 
       <gr-juegos-nav class="mb-6 md:mb-8" juego="porra" activa="mercados" />
 
-      @if (soloLectura()) {
+      @if (apuestasCerradas()) {
+        <gr-alert class="mb-6" tone="info" title="Apuestas cerradas">
+          La hora de cierre de esta jornada ({{ jornadaNombre() }}) ya ha pasado: puedes consultar los mercados, pero no apostar.
+        </gr-alert>
+      } @else if (soloLectura()) {
         <gr-alert class="mb-6" tone="info" title="Jornada cerrada">
           Esta jornada ({{ jornadaNombre() }}) ya no admite apuestas: puedes consultarla, pero no jugar.
         </gr-alert>
@@ -194,7 +198,13 @@ export class PorraPage {
   });
   protected readonly mercadosVisibles = computed(() => (this.verTodos() ? this.filtrados() : this.filtrados().slice(0, 6)));
   /** Con la jornada cerrada los mercados solo se consultan. */
-  protected readonly soloLectura = computed(() => this.jornadaActiva()?.estado === 'cerrada');
+  private readonly ahora = signal(Date.now());
+  /** La hora de cierre de las apuestas ya pasó. */
+  protected readonly apuestasCerradas = computed(() => {
+    const c = this.jornadaActiva()?.cierreAt;
+    return !!c && Date.parse(c) <= this.ahora();
+  });
+  protected readonly soloLectura = computed(() => this.jornadaActiva()?.estado === 'cerrada' || this.apuestasCerradas());
   /** Cuántos mercados filtrados hay en un estado (abierto · cerrado · liquidado). */
   protected n(estado: string): number {
     return this.filtrados().filter((m) => m.estado === estado).length;
@@ -222,11 +232,13 @@ export class PorraPage {
       const t = setInterval(() => {
         if (!document.hidden) void this.store.recargarMercados();
       }, 20000);
+      const reloj = setInterval(() => this.ahora.set(Date.now()), 1000);
       void this.fan.cargar().then(() => {
         void this.estado.cargarCartera();
       });
       inject(DestroyRef).onDestroy(() => {
         clearInterval(t);
+        clearInterval(reloj);
         this.vivo.desconectar();
       });
     }

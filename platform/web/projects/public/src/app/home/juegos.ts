@@ -94,7 +94,7 @@ export class EyebrowJuego {
               <span [class]="etiqueta">Bote de la jornada{{ r?.jornada ? ' · ' + r!.jornada!.nombre : '' }}</span>
               <span class="flex items-baseline gap-2"><span class="font-display text-[48px] leading-[60px] tracking-[0.04em]">{{ monedas(r?.bote ?? 0) }}</span><span class="text-[14px] font-medium text-text-tertiary">monedas</span></span>
               <span class="h-1.5 overflow-hidden rounded-pill bg-white/8"><span class="block h-full rounded-pill bg-[linear-gradient(90deg,#c42b3e,#e6606b)]" [style.width.%]="r?.bote ? 100 : 0"></span></span>
-              <span class="text-[13px] text-[#d1d5db]">{{ num(r?.participantes ?? 0) }} participantes · {{ r?.mercadosAbiertos ?? 0 }} mercados abiertos</span>
+              <span class="text-[13px] text-[#d1d5db]">{{ num(r?.participantes ?? 0) }} participantes · {{ cerrada() ? 'apuestas cerradas' : (r?.mercadosAbiertos ?? 0) + ((r?.mercadosAbiertos ?? 0) === 1 ? ' mercado abierto' : ' mercados abiertos') }}</span>
             </div>
             @if (cuenta(); as t) {
               <!-- Figma «Cierre de apuestas»: h · min · s until the close set in the backoffice -->
@@ -133,22 +133,24 @@ export class EyebrowJuego {
       @if (r?.destacado; as d) {
         <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-1 md:flex-row md:items-center md:gap-0">
-            <span [class]="etiqueta">Mercado abierto · {{ d.titulo }}{{ r?.jornada ? ' · ' + r!.jornada!.nombre : '' }}</span>
-            <a routerLink="/porra" class="text-[14px] font-semibold text-accent-text hover:underline md:ml-1">Ver los {{ r!.mercadosAbiertos }} mercados →</a>
+            <span [class]="etiqueta">{{ cerrada() ? 'Apuestas cerradas' : 'Mercado abierto' }} · {{ d.titulo }}{{ r?.jornada ? ' · ' + r!.jornada!.nombre : '' }}</span>
+            <a routerLink="/porra" class="text-[14px] font-semibold text-accent-text hover:underline md:ml-1">{{ cerrada() || r!.mercadosAbiertos !== 1 ? 'Ver los mercados →' : 'Ver el mercado →' }}</a>
           </div>
           <ul class="grid gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             @for (o of d.opciones; track o.atletaId) {
-              <li [class]="card + ' flex flex-col gap-3 p-5 transition-[border-color,box-shadow] hover:border-[#e6606b]/50 hover:bg-white/7 hover:shadow-[0_0_32px_rgb(230_96_107/0.28)] focus-within:border-[#e6606b] motion-reduce:transition-none'">
+              <li [class]="card + ' flex min-w-0 flex-col gap-3 p-5 transition-[border-color,box-shadow] hover:border-[#e6606b]/50 hover:bg-white/7 hover:shadow-[0_0_32px_rgb(230_96_107/0.28)] focus-within:border-[#e6606b] motion-reduce:transition-none'">
                 <span [class]="etiqueta">{{ (d.categoria || '').replace('-', '−') }}{{ d.categoria ? ' kg · ' : '' }}{{ d.sexo }}</span>
-                <span class="flex items-center gap-3">
+                <span class="flex min-w-0 items-center gap-3">
                   <span class="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#e6606b]/50 bg-[#c42b3e]/22 font-mono text-[14px] font-medium">{{ ini(o.nombre) }}</span>
-                  <span class="font-display text-[22px] leading-7 tracking-[0.04em]">{{ o.nombre }}</span>
+                  <span class="min-w-0 truncate font-display text-[22px] leading-7 tracking-[0.04em]" [title]="o.nombre">{{ o.nombre }}</span>
                 </span>
                 <span class="flex items-end border-t border-white/8 pt-3">
                   <span class="flex flex-col"><span class="text-[10px] tracking-[0.08em] text-text-tertiary uppercase">Cuota</span><span class="font-mono text-[18px] font-medium">{{ cuota(o.cuota) }}</span></span>
-                  <a routerLink="/porra" [queryParams]="{ mercado: d.mercadoId }" class="ml-1 flex items-center gap-2 rounded-pill border border-white/12 bg-white/6 px-3 py-2 text-[13px] font-semibold text-[#d1d5db] hover:bg-white/10" [attr.aria-label]="'Elegir a ' + o.nombre">
-                    <span class="size-3.5 rounded-full border-[1.5px] border-white/60" aria-hidden="true"></span>Elegir
-                  </a>
+                  @if (!cerrada()) {
+                    <a routerLink="/porra" [queryParams]="{ mercado: d.mercadoId }" class="ml-1 flex items-center gap-2 rounded-pill border border-white/12 bg-white/6 px-3 py-2 text-[13px] font-semibold text-[#d1d5db] hover:bg-white/10" [attr.aria-label]="'Elegir a ' + o.nombre">
+                      <span class="size-3.5 rounded-full border-[1.5px] border-white/60" aria-hidden="true"></span>Elegir
+                    </a>
+                  }
                 </span>
               </li>
             }
@@ -179,6 +181,11 @@ export class SecPorra {
     const pad = (n: number) => String(n).padStart(2, '0');
     return { h: pad(Math.floor(s / 3600)), m: pad(Math.floor((s % 3600) / 60)), s: pad(s % 60) };
   });
+  /** The close of the bets already passed (cierreAt in the past): no more bets. */
+  protected readonly cerrada = computed(() => {
+    const c = this.resumen()?.cierreAt;
+    return !!c && Date.parse(c) <= this.ahora();
+  });
   protected readonly ancho = ANCHO;
   protected readonly card = CARD;
   protected readonly etiqueta = ETIQUETA;
@@ -188,7 +195,7 @@ export class SecPorra {
   protected readonly ini = iniciales;
   protected readonly cuota = cuotaTxt;
   protected readonly dia = diaCorto;
-  protected readonly estado = computed(() => ({ en_juego: 'En juego ahora', abierta: 'Abierta · apuesta antes de cada flight', cerrada: 'Cerrada · mira la clasificación' } as Record<string, string>)[this.resumen()?.jornada?.estado ?? ''] ?? 'Las apuestas abren el día de la competición');
+  protected readonly estado = computed(() => this.cerrada() ? 'Apuestas cerradas · mira la clasificación' : ({ en_juego: 'En juego ahora', abierta: 'Abierta · apuesta antes de cada flight', cerrada: 'Cerrada · mira la clasificación' } as Record<string, string>)[this.resumen()?.jornada?.estado ?? ''] ?? 'Las apuestas abren el día de la competición');
 }
 
 /**

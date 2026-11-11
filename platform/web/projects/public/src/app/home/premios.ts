@@ -30,20 +30,26 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
     <div class="pointer-events-none absolute top-10 left-1/2 size-[640px] -translate-x-1/2 bg-[radial-gradient(closest-side,rgb(196_43_62/0.2),transparent)] lg:top-[120px]" aria-hidden="true"></div>
 
     <!-- A · hanging gold medals (z over the cards) -->
-    <div class="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center -space-x-[41px] lg:space-x-[140px]" aria-hidden="true">
+    <div class="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-center lg:space-x-[140px]" aria-hidden="true">
       @for (m of colgantesA; track m.src) {
         <!-- tablet/phone: the long ribbons are 474 px in Figma (the render is 392 at 150 px): push them down so the discs hang over the cards -->
-        <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] lg:w-[300px]" [class.max-lg:mt-[62px]]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
+        <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] lg:w-[300px]" [class.max-lg:hidden]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
       }
     </div>
     <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-28 bg-[linear-gradient(180deg,#141112_0%,#141112_40%,rgb(20_17_18/0.55)_72%,transparent)] lg:h-[180px]" aria-hidden="true"></div>
 
     <div [class]="ancho + ' flex flex-col items-center pt-[220px] lg:pt-[420px]'">
       <div class="flex w-full flex-col items-center gap-7 lg:gap-12">
-        <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-none" [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
+        <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
         <ul class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
           @for (p of items(); track p.titulo; let i = $index) {
-            <li class="w-[300px] shrink-0 snap-start lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
+            <li class="relative w-[300px] shrink-0 snap-start max-lg:pt-[100px] lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
+              @if (i < 2) {
+                <!-- tablet/phone (Figma): the side medals hang from the first two cards, below the title -->
+                <div class="pointer-events-none absolute top-0 left-1/2 z-10 h-[160px] w-[120px] -translate-x-1/2 overflow-hidden [mask-image:linear-gradient(transparent,#000_35%)] lg:hidden" aria-hidden="true">
+                  <img grMedalla [amp]="colgantesA[0].amp" [periodo]="colgantesA[0].per" [fase]="colgantesA[0].fase + i * 0.33" src="/img/home/medalla-oro-larga.webp" alt="" width="120" height="300" class="colgante absolute bottom-0 left-0 h-auto w-[120px]" loading="lazy" decoding="async" />
+                </div>
+              }
               <div class="relative aspect-[300/360] w-full overflow-hidden rounded-lg border shadow-card lg:aspect-[300/420] lg:w-[300px]"
                 [class]="(i === 1 ? 'border-accent shadow-glow-deep' : 'border-white/8') + ' ' + giro[i % 3]">
                 <img [src]="p.imagen" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
@@ -72,7 +78,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
           <div class="pointer-events-none absolute inset-x-[-50vw] -top-3 h-[240px] bg-[radial-gradient(60%_50%_at_50%_30%,#141112_40%,transparent)] lg:h-[400px] lg:-top-[30px]"></div>
         </div>
         <div class="relative z-10 -mt-6 flex w-full max-w-[350px] flex-col items-center gap-5 lg:-mt-12 lg:max-w-none lg:gap-10">
-          <gr-cabecera [eyebrow]="t('catEyebrow') || 'Categorías de peso'" [titulo]="t('catTitulo') || 'Premio por *categoría de peso*'"
+          <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('catEyebrow') || 'Categorías de peso'" [titulo]="t('catTitulo') || 'Premio por *categoría de peso*'"
             [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
           <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 lg:hidden" role="tablist" aria-label="Sexo">
             @for (g of generos; track g.k) {
@@ -94,9 +100,9 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 
       <!-- C · absolute winners (GL Points) -->
       <div class="mt-20 flex w-full flex-col items-center gap-7 lg:mt-[120px] lg:gap-10">
-        <gr-cabecera [eyebrow]="t('absEyebrow') || 'Clasificación absoluta'" [titulo]="t('absTitulo') || 'Ganadores absolutos · *GL Points*'"
+        <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('absEyebrow') || 'Clasificación absoluta'" [titulo]="t('absTitulo') || 'Ganadores absolutos · *GL Points*'"
           [texto]="t('absTexto') || 'Mejor atleta masculino y mejor atleta femenina por puntos GL.'" />
-        <ul class="grid w-full gap-6 md:grid-cols-1 lg:grid-cols-2">
+        <ul class="grid w-full gap-6 md:grid-cols-2">
           @for (a of absolutos; track a.label; let i = $index) {
             <li class="flex flex-col overflow-hidden rounded-[32px] border border-[#d4af37]/35 bg-[#221d1f] bg-[radial-gradient(70%_60%_at_50%_45%,rgb(212_175_55/0.22),transparent)]">
               <!-- both start facing the camera (Figma); a small offset so they do not turn in lockstep -->

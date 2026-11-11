@@ -5,6 +5,7 @@ package juegos
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -36,19 +37,29 @@ type jornada struct {
 	Dia           string    `json:"dia"`
 	Nombre        string    `json:"nombre"`
 	Estado        string    `json:"estado" enum:"borrador,abierta,en_juego,cerrada"`
+	// CierreAt is dia + hora_cierre (Europe/Madrid); nil without a close time.
+	CierreAt *time.Time `json:"cierreAt,omitempty"`
 }
 
 // selJornada is the column list of jornadas; every caller appends " FROM jornadas …".
-const selJornada = `SELECT id, competition_id, dia::text, nombre, estado`
+const selJornada = `SELECT id, competition_id, dia::text, nombre, estado, (dia + hora_cierre) AT TIME ZONE 'Europe/Madrid'`
 
 func scanJornada(r pgx.Row) (jornada, error) {
 	var j jornada
-	err := r.Scan(&j.ID, &j.CompetitionID, &j.Dia, &j.Nombre, &j.Estado)
+	err := r.Scan(&j.ID, &j.CompetitionID, &j.Dia, &j.Nombre, &j.Estado, &j.CierreAt)
 	return j, err
 }
 
 // jugable: the jornada accepts bets, signings and rewards.
 func (j jornada) jugable() bool { return j.Estado == "abierta" || j.Estado == "en_juego" }
+
+// apuestasCerradas: the close time of the bets (hora_cierre) already passed.
+func (j jornada) apuestasCerradas() bool { return j.CierreAt != nil && !time.Now().Before(*j.CierreAt) }
+
+// out is the public view of the jornada.
+func (j jornada) out() jornadaOut {
+	return jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado, CierreAt: j.CierreAt}
+}
 
 // abrirCarteraTx creates the wallet lazily (first visit to the game of that jornada) with its welcome balance,
 // idempotently: the `alta` movement has a unique ref, so a retry never credits twice. Returns the current balance.

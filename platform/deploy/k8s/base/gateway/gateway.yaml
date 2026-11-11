@@ -35,6 +35,7 @@ spec:
             - { name: RATE_LIMIT_IP_MIN, value: "600" }
             # GETs of the SSR (carry SSR_SECRET): own per-visitor bucket; a home render costs ~6 API calls.
             - { name: RATE_LIMIT_SSR_IP_MIN, value: "3000" }
+            - { name: SSE_CONN_IP_MAX, value: "2000" }
             - name: SSR_SECRET
               valueFrom: { secretKeyRef: { name: grcup-ssr, key: SSR_SECRET, optional: true } }
             - name: REDIS_PASSWORD

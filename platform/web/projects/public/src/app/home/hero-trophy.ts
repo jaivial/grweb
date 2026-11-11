@@ -70,7 +70,7 @@ const PUFFS = [
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (BIZ-144 · Hero 2026): AEP logo, GR CUP 2026 logo, tagline, dates + place and the hero sponsors -->
-      <div class="absolute inset-x-0 top-16 flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[72px] motion-reduce:transition-none" [style.opacity]="texto()">
+      <div class="absolute inset-x-0 top-[84px] flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[78px] motion-reduce:transition-none" [style.opacity]="texto()">
         <img src="/img/home/aep-hero.webp" alt="AEP · Asociación Española de Powerlifting" width="108" height="40" class="h-8 w-auto select-none md:h-10" draggable="false" />
         <img [src]="logo" alt="GR Strength Cup 2026" class="mt-[57px] h-[125px] w-auto select-none md:mt-[63px] md:h-[198px]" draggable="false" fetchpriority="high" />
         <h1 class="mt-[65px] max-w-[1000px] font-display text-[30px] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
@@ -108,8 +108,8 @@ const PUFFS = [
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
           <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
             role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
-            <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
-            <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
+            <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" [class.invisible]="precargaFuera()" />
+            <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface" [class.invisible]="precargaFuera()"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
             <p class="text-body-s text-text-tertiary" [class.invisible]="precargaFuera()">@if (progresoIndeterminado()) { Cargando vídeo… } @else { {{ criticoPct() }} % }</p>
           </div>
         }

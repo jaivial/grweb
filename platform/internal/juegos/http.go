@@ -5,6 +5,7 @@ package juegos
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -100,7 +101,11 @@ type jornadaOut struct {
 	Estado string    `json:"estado" enum:"borrador,abierta,en_juego,cerrada"`
 	// HoraCierre «HH:MM» (Europe/Madrid) of the close of the bets; only in the backoffice list.
 	HoraCierre string `json:"horaCierre,omitempty"`
+	// CierreAt: instant of the close of the bets (public views).
+	CierreAt *time.Time `json:"cierreAt,omitempty"`
 }
+
+func ptr[T any](v T) *T { return &v }
 
 // apuestaVista is one bet of mis-apuestas.
 type apuestaVista struct {
@@ -171,7 +176,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado FROM jornadas WHERE competition_id = $1 ORDER BY dia DESC`, c.ID)
+			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado, (dia + hora_cierre) AT TIME ZONE 'Europe/Madrid' FROM jornadas WHERE competition_id = $1 ORDER BY dia DESC`, c.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -180,7 +185,7 @@ func (s *Svc) registerPublic() {
 			o.Body.Jornadas = []jornadaOut{}
 			for rows.Next() {
 				var j jornadaOut
-				if err := rows.Scan(&j.ID, &j.Dia, &j.Nombre, &j.Estado); err != nil {
+				if err := rows.Scan(&j.ID, &j.Dia, &j.Nombre, &j.Estado, &j.CierreAt); err != nil {
 					return nil, err
 				}
 				o.Body.Jornadas = append(o.Body.Jornadas, j)
@@ -210,7 +215,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o := &jornadaDetalleOut{}
-			o.Body.Jornada = jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Jornada = j.out()
 			o.Body.Atletas, err = s.mercadoFantasy(ctx, c.ID, j, uuid.Nil)
 			return o, err
 		})
@@ -238,7 +243,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o := &mercadosOut{}
-			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Jornada = ptr(j.out())
 			o.Body.Mercados = ms
 			return o, nil
 		})
@@ -379,7 +384,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o := &clasPorraOut{}
-			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Jornada = ptr(j.out())
 			top, miPuesto := s.rankingPorra(ctx, *j, fanID)
 			o.Body.Top = publicaPorra(top)
 			o.Body.MiPuesto = miPuesto
@@ -422,7 +427,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o := &mercadoFantasyOut{}
-			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Jornada = ptr(j.out())
 			o.Body.Atletas = ats
 			return o, nil
 		})
@@ -458,7 +463,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o := &equipoOut{}
-			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Jornada = ptr(j.out())
 			o.Body.Atletas = []atletaMercado{}
 			for _, a := range ats {
 				if a.EsMio {
@@ -614,7 +619,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o := &clasFantasyOut{}
-			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+			o.Body.Jornada = ptr(j.out())
 			top, miPuesto := s.rankingFantasy(ctx, *j, fanID)
 			o.Body.Top = publicaFantasy(top)
 			o.Body.MiPuesto = miPuesto
