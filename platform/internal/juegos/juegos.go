@@ -79,6 +79,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
 	s.registerPublic()
 	s.registerPublicExtra()
+	s.registerResumen()
 	s.registerAdmin()
 	return nil
 }
