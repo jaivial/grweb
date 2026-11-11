@@ -23,7 +23,7 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'limite' |
           <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">Escríbenos a {{ contacto() }}</a>
         </div>
       </section>
-    @} @else if (tipo() === 'legal') {
+    } @else if (tipo() === 'legal') {
       <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7">
         <h2 class="text-ui-h4 md:text-ui-h3">El formulario no está disponible temporalmente</h2>
         <p class="text-body-s text-text-secondary">Falta publicar el texto legal que hay que aceptar para darse de alta. En cuanto el organizador lo publique, el formulario vuelve a estar disponible aquí mismo.</p>
@@ -35,13 +35,13 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'limite' |
           <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">Escríbenos a {{ contacto() }}</a>
         </div>
       </section>
-    @} @else if (tipo() === 'error') {
+    } @else if (tipo() === 'error') {
       <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7">
         <h2 class="text-ui-h4 md:text-ui-h3">No hemos podido cargar el formulario</h2>
         <p class="text-body-s text-text-secondary">Es un problema temporal: vuelve a intentarlo en unos minutos.</p>
         <button grButton variant="primary" size="l" type="button" (click)="reintentar.emit()">Reintentar</button>
       </section>
-    @} @else if (tipo() === 'duplicado') {
+    } @else if (tipo() === 'duplicado') {
       <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7" role="alert">
         <h2 class="text-ui-h4 md:text-ui-h3">Ya tienes una solicitud en revisión</h2>
         <p class="text-body-s text-text-secondary">Con este email ya hay una solicitud de alta esperando revisión. No hace falta enviar otra.</p>
@@ -53,7 +53,7 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'limite' |
           <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">¿No es la tuya? Escríbenos a {{ contacto() }}</a>
         </div>
       </section>
-    @} @else if (tipo() === 'limite') {
+    } @else if (tipo() === 'limite') {
       <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7" role="alert">
         <h2 class="text-ui-h4 md:text-ui-h3">Has enviado demasiadas solicitudes</h2>
         <p class="text-body-s text-text-secondary">Por seguridad, hemos pausado los envíos desde este dispositivo un rato.</p>
@@ -65,7 +65,7 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'limite' |
           <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">Si crees que es un error, escríbenos a {{ contacto() }}</a>
         </div>
       </section>
-    @} @else if (tipo() === 'red') {
+    } @else if (tipo() === 'red') {
       <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7" role="alert">
         <h2 class="text-ui-h4 md:text-ui-h3">No hemos podido enviar tu solicitud</h2>
         <p class="text-body-s text-text-secondary">Ha habido un problema de conexión. No pasa nada: tus datos siguen guardados en esta página.</p>
