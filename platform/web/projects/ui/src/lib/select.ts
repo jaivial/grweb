@@ -10,6 +10,8 @@ import { GrIcon } from './icon';
 export interface GrOpcion { valor: string; etiqueta: string; deshabilitada: boolean; oculta: boolean }
 
 let siguiente = 0;
+/** The open dropdown of the page: opening another one closes it (only one menu at a time). */
+let abiertoAhora: GrSelect | null = null;
 const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /**
@@ -46,8 +48,7 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
       [class]="claseControl()" (click)="alternar()" (keydown)="tecla($event)" (blur)="alSalir()">
       @if (tipo() === 'filtro' && etiqueta() && valor() && seleccion()) { <span class="shrink-0 text-text-tertiary">{{ prefijo() }}</span> }
       <span class="min-w-0 flex-1 truncate text-left" [class.text-text-muted]="tipo() === 'campo' && !seleccion()">{{ texto() }}</span>
-      <gr-icon name="chevron-down" [size]="16" class="shrink-0 transition-transform duration-150" [class.rotate-180]="abierto()"
-        [class]="tipo() === 'filtro' && activa() ? 'text-accent-text' : 'text-text-tertiary'" />
+      <gr-icon name="chevron-down" [size]="16" [class]="claseIcono()" />
     </button>
     @if (abierto()) {
       @if (hoja()) {
@@ -147,6 +148,8 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     return this.lista().find((o) => o.valor === '')?.etiqueta || this.etiqueta() || '';
   });
   protected readonly titulo = computed(() => this.etiqueta() || this.ariaLabel() || this.lista().find((o) => o.valor === '')?.etiqueta || 'Elige una opción');
+  protected readonly claseIcono = computed(() => 'size-4 shrink-0 transition-transform duration-150 ' + (this.abierto() ? 'rotate-180 ' : '') +
+    (this.tipo() === 'filtro' && this.activa() ? 'text-accent-text' : 'text-text-tertiary'));
   protected readonly claseControl = computed(() => {
     const base = 'inline-flex w-full min-w-0 items-center gap-1.5 rounded-sm border text-left transition-[border-color,box-shadow,background-color] duration-150 ' +
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-50 ';
@@ -161,7 +164,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
   });
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.limpiar());
+    inject(DestroyRef).onDestroy(() => { this.limpiar(); if (abiertoAhora === this) abiertoAhora = null; });
   }
 
   /** Reads the projected options after every check of the parent (they can change with the data). */
@@ -190,6 +193,8 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
 
   private abrir(activo = this.indiceSel()): void {
     if (this.bloqueado() || !this.browser) return;
+    if (abiertoAhora && abiertoAhora !== this) abiertoAhora.cerrar(false);
+    abiertoAhora = this;
     this.hoja.set(window.matchMedia('(max-width: 767px)').matches);
     this.activo.set(activo >= 0 ? activo : this.mover(-1, 1));
     this.pos.set({ top: 0, left: 0, ancho: 0, listo: false });
@@ -226,6 +231,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
 
   protected cerrar(devolverFoco: boolean): void {
     if (!this.abierto()) return;
+    if (abiertoAhora === this) abiertoAhora = null;
     this.limpiar();
     this.abierto.set(false);
     this.onTouched();
