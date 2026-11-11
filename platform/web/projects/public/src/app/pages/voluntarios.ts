@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrIcon, GrInput, type GrIconName } from '@grcup/ui';
@@ -28,7 +29,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
  */
 @Component({
   selector: 'gr-voluntarios-page',
-  imports: [Page, FormsModule, GrIcon, GrInput, GrButton, GrAlert, GrCabecera, Related],
+  imports: [RouterLink, Page, FormsModule, GrIcon, GrInput, GrButton, GrAlert, GrCabecera, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Hazte" accent="voluntario" eyebrow="Voluntariado" section="Comunidad" crumb="Voluntarios"
@@ -70,7 +71,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                 <span class="flex size-14 items-center justify-center rounded-full bg-success/12 text-success"><gr-icon name="circle-check" [size]="26" /></span>
                 <p class="text-display-xs">¡Gracias por apuntarte!</p>
                 <p class="max-w-sm text-body-s text-text-secondary">Te escribiremos a {{ email }} con el briefing y los turnos unas semanas antes de la competición.</p>
-                <a grButton variant="outline" href="/">Volver al inicio</a>
+                <a grButton variant="outline" routerLink="/">Volver al inicio</a>
               </div>
             } @else {
               <form class="mt-5 flex flex-col gap-4" (ngSubmit)="enviar()" novalidate>

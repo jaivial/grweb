@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { FanSession } from '../../core/fan';
@@ -10,7 +11,7 @@ import { GrCoin } from './ui';
  */
 @Component({
   selector: 'gr-porra-view',
-  imports: [GrIcon, GrButton, GrSkeleton, GrCoin],
+  imports: [RouterLink, GrIcon, GrButton, GrSkeleton, GrCoin],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex min-h-0 flex-1 flex-col' },
   template: `
@@ -79,8 +80,8 @@ import { GrCoin } from './ui';
 
     <!-- llamadas -->
     <div class="flex shrink-0 flex-col gap-2 border-t border-line-subtle bg-bg-card px-4 pt-3 pb-4">
-      <a grButton variant="primary" size="l" [block]="true" href="/porra" iconRight="arrow-right">Ir a la porra</a>
-      <a class="flex min-h-14 items-center gap-3 rounded-md border border-info/40 bg-info/6 px-3 py-2.5 transition-colors hover:border-info/70" href="/fantasy">
+      <a grButton variant="primary" size="l" [block]="true" routerLink="/porra" iconRight="arrow-right">Ir a la porra</a>
+      <a class="flex min-h-14 items-center gap-3 rounded-md border border-info/40 bg-info/6 px-3 py-2.5 transition-colors hover:border-info/70" routerLink="/fantasy">
         <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-info/14 text-info"><gr-icon name="star" [size]="18" /></span>
         <span class="min-w-0 flex-1">
           <span class="block text-label-s text-text-primary">GRS Fantasy</span>

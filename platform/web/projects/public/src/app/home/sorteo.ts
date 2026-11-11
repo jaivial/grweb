@@ -144,15 +144,15 @@ export class GrCinturon {
         <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           @if (venta) {
             @if (p) { <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="." fragment="participa">Cómo participar</a> }
-            @else { <a grButton variant="display-gradient" size="l" class="gr-brillo" href="/sorteo#participa">Cómo participar</a> }
+            @else { <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="/sorteo" fragment="participa">Cómo participar</a> }
           } @else if (e === 'proximamente') {
             <button grButton variant="display-gradient" size="l" type="button" [disabled]="true">Muy pronto</button>
           } @else if (r?.ganador) {
             @if (p) { <a grButton variant="display-gradient" size="l" routerLink="." fragment="resultados">Ver el ganador</a> }
-            @else { <a grButton variant="display-gradient" size="l" href="/sorteo#resultados">Ver el ganador</a> }
+            @else { <a grButton variant="display-gradient" size="l" routerLink="/sorteo" fragment="resultados">Ver el ganador</a> }
           }
           @if (p) { <a grButton variant="outline" size="l" routerLink="." fragment="normas">Ver normas</a> }
-          @else { <a grButton variant="outline" size="l" href="/sorteo#normas">Ver normas</a> }
+          @else { <a grButton variant="outline" size="l" routerLink="/sorteo" fragment="normas">Ver normas</a> }
         </div>
         @if (r) {
           <p class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 lg:justify-start">

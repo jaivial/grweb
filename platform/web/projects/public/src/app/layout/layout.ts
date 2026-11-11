@@ -121,7 +121,7 @@ const UI = {
           <p class="text-display-2xs">Vive la GR Cup en directo</p>
           <p class="text-body-s text-text-secondary">{{ sorteo()?.estado === 'en_venta' ? 'Reserva gratis y súmate al sorteo por ' + euros(sorteo()!.precio) + '.' : 'Reserva gratis tu plaza en las gradas.' }}</p>
           <!-- Figma: «Button / Display» 44 with glow -->
-          <a grButton variant="display" href="/entradas" class="mt-2 self-start md:h-11!">Reservar</a>
+          <a grButton variant="display" routerLink="/entradas" class="mt-2 self-start md:h-11!">Reservar</a>
         </div>
       </div>
     }
@@ -162,7 +162,7 @@ const UI = {
         }
         <div class="-mx-5 mt-auto flex shrink-0 flex-col gap-3 border-t border-line-subtle px-5 pt-4 pb-[max(28px,env(safe-area-inset-bottom))]">
           @if (lang() === 'es') { <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ edicion() }}</p> }
-          <a grButton variant="primary" size="l" href="/entradas" [block]="true" (click)="open.set(false)">{{ ui().ctaMenu }}</a>
+          <a grButton variant="primary" size="l" routerLink="/entradas" [block]="true" (click)="open.set(false)">{{ ui().ctaMenu }}</a>
         </div>
       </div>
     }
@@ -307,7 +307,7 @@ export class Overlays {
           <div class="flex gap-2">
             <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="instagram" [size]="18" /></a>
             @if (contacto()) { <a [href]="'mailto:' + contacto()" aria-label="Email" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="mail" [size]="18" /></a> }
-            <a href="/en" hreflang="en" class="flex h-11 shrink-0 items-center gap-2 rounded-sm border border-line-subtle px-3 text-body-s text-text-secondary hover:text-text-primary"><gr-icon name="globe" [size]="16" class="text-text-tertiary" />Español · English</a>
+            <a routerLink="/en" hreflang="en" class="flex h-11 shrink-0 items-center gap-2 rounded-sm border border-line-subtle px-3 text-body-s text-text-secondary hover:text-text-primary"><gr-icon name="globe" [size]="16" class="text-text-tertiary" />Español · English</a>
           </div>
           <p class="text-body-s text-text-tertiary">{{ contacto() }}{{ contacto() ? ' · ' : '' }}{{ handle() }}</p>
         </div>
@@ -340,7 +340,7 @@ export class Overlays {
       <!-- Figma «Bottom CTA bar / Entrada» (mobile) and «Back to top» -->
       <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
         <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Aforo limitado · 1 minuto</span></span>
-        <a href="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
+        <a routerLink="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
       <button type="button" (click)="arriba()" aria-label="Volver arriba" class="fixed right-4 bottom-[104px] z-40 flex size-12 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card md:hidden"><gr-icon name="arrow-up" [size]="20" /></button>
     }

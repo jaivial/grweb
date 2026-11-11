@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * fantasy/como-se-juega.ts — /fantasy/como-se-juega (Figma «72 · /fantasy» · Cómo se juega): las reglas de GRS
  * Fantasy y la tabla de puntos (contrato §6.3).
@@ -18,7 +19,7 @@ interface BloqueReglas {
 
 @Component({
   selector: 'gr-como-se-juega-page',
-  imports: [Page, GrButton, GrIcon, JuegosNav],
+  imports: [RouterLink, Page, GrButton, GrIcon, JuegosNav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Cómo se juega" accent="" suffix="· GRS Fantasy" crumb="Cómo se juega" section="Juegos"
@@ -80,8 +81,8 @@ interface BloqueReglas {
       <div class="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-line-strong bg-bg-surface px-6 py-8 text-center">
         <p class="text-display-xs">¿Listo para fichar?</p>
         <div class="flex flex-wrap justify-center gap-3">
-          <a grButton variant="primary" href="/fantasy/mercado" iconRight="arrow-right">Ir al mercado</a>
-          <a grButton variant="outline" href="/fantasy">Ver mi equipo</a>
+          <a grButton variant="primary" routerLink="/fantasy/mercado" iconRight="arrow-right">Ir al mercado</a>
+          <a grButton variant="outline" routerLink="/fantasy">Ver mi equipo</a>
         </div>
       </div>
     </gr-page>

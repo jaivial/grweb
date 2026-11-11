@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
@@ -47,7 +48,7 @@ export class SecCifras {
 /** «Section / Alta de atleta»: la llamada a completar la ficha (la plantilla de la competición ya está completa). */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [GrButton],
+  imports: [RouterLink, GrButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-20 md:pt-16 md:pb-32' },
   template: `
@@ -57,8 +58,8 @@ export class SecCifras {
       <h2 class="text-display-m text-accent-text [text-shadow:0_0_24px_rgb(196_43_62/0.5)] md:text-display-xl">{{ s()?.['titulo'] || 'Completa tu ficha de atleta' }}</h2>
       <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] || 'La plantilla de la GR Cup 2026 está completa. Si compites, completa tu ficha de atleta: foto, club y mejores marcas. La revisamos a mano y la publicamos en la lista de atletas.' }}</p>
       <div class="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-        <a grButton variant="primary" size="l" href="/alta-atleta">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
-        <a grButton variant="outline" size="l" href="/atletas">Ver atletas</a>
+        <a grButton variant="primary" size="l" routerLink="/alta-atleta">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
+        <a grButton variant="outline" size="l" routerLink="/atletas">Ver atletas</a>
       </div>
     </div>
   `,
@@ -73,7 +74,7 @@ export class SecAlta {
  */
 @Component({
   selector: 'gr-sec-entradas',
-  imports: [GrButton, GrIcon, GrEyebrow, GrTitulo],
+  imports: [RouterLink, GrButton, GrIcon, GrEyebrow, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -94,8 +95,8 @@ export class SecAlta {
           }
         </ul>
         <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="primary" size="l" href="/entradas">Reserva tu entrada gratis</a>
-          <a grButton variant="glass" size="l" href="/horarios" iconRight="arrow-right">Ver horarios</a>
+          <a grButton variant="primary" size="l" routerLink="/entradas">Reserva tu entrada gratis</a>
+          <a grButton variant="glass" size="l" routerLink="/horarios" iconRight="arrow-right">Ver horarios</a>
         </div>
         @if (entradas()?.personas) {
           <div class="flex items-center gap-3">
@@ -377,7 +378,7 @@ export class SecAfiliaciones {
 /** «Section / Categorías»: men's and women's weight classes (a segmented switch on mobile) and the minimum totals. */
 @Component({
   selector: 'gr-sec-categorias',
-  imports: [GrButton, GrIcon, GrCabecera],
+  imports: [RouterLink, GrButton, GrIcon, GrCabecera],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -405,7 +406,7 @@ export class SecAfiliaciones {
       <div class="flex w-full max-w-[824px] flex-col items-center gap-3 rounded-lg border border-accent/60 bg-accent/6 p-5 text-center md:flex-row md:gap-6 md:px-7 md:text-left">
         <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/14 text-accent-text"><gr-icon name="trophy" [size]="20" /></span>
         <span class="flex flex-1 flex-col gap-1"><span class="text-label-m">{{ t('ctaTitulo') || 'Consulta las marcas mínimas' }}</span><span class="text-body-s text-text-tertiary">{{ t('ctaTexto') || 'Para clasificar para otras competiciones AEP (PDF oficial).' }}</span></span>
-        <a grButton variant="glass" href="/marcas-minimas" iconRight="arrow-right">Ver marcas mínimas</a>
+        <a grButton variant="glass" routerLink="/marcas-minimas" iconRight="arrow-right">Ver marcas mínimas</a>
       </div>
     </div>
   `,
@@ -428,7 +429,7 @@ interface Bloque { sexo: 'M' | 'F'; pesos: string[]; inicio: string; fin: string
  */
 @Component({
   selector: 'gr-sec-horarios',
-  imports: [GrButton, GrCabecera, GrIcon],
+  imports: [RouterLink, GrButton, GrCabecera, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
@@ -472,7 +473,7 @@ interface Bloque { sexo: 'M' | 'F'; pesos: string[]; inicio: string; fin: string
             }
           </ul>
         }
-        <a grButton variant="glass" href="/horarios" iconRight="arrow-right" class="self-center">Ver horario completo</a>
+        <a grButton variant="glass" routerLink="/horarios" iconRight="arrow-right" class="self-center">Ver horario completo</a>
       </div>
     </div>
   `,

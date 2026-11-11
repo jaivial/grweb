@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * fantasy/mi-equipo.ts — /fantasy (Figma «72 · /fantasy» · Mi equipo): la plantilla con 5 titulares y hasta 3
  * suplentes, el valor del equipo, los puntos de la jornada y los cambios de alineación.
@@ -17,7 +18,7 @@ import { JuegosNav } from '../porra/componentes';
 
 @Component({
   selector: 'gr-mi-equipo-page',
-  imports: [Page, GrAlert, GrButton, GrIcon, GrSkeleton, HojaJugador, JugadorPista, JuegosNav, PistaFutsal],
+  imports: [RouterLink, Page, GrAlert, GrButton, GrIcon, GrSkeleton, HojaJugador, JugadorPista, JuegosNav, PistaFutsal],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRS Fantasy" accent="" [suffix]="jornadaTxt()" crumb="Mi equipo" section="Juegos"
@@ -94,7 +95,7 @@ import { JuegosNav } from '../porra/componentes';
                 }
                 @for (i of huecosBanquillo(); track i) {
                   <li>
-                    <a href="/fantasy/mercado" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" aria-label="Hueco libre del banquillo: fichar en el mercado">
+                    <a routerLink="/fantasy/mercado" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" aria-label="Hueco libre del banquillo: fichar en el mercado">
                       <span class="flex size-16 items-center justify-center rounded-full border-[1.5px] border-dashed border-line-strong text-text-tertiary transition-colors group-hover:border-text-muted group-hover:text-text-primary"><gr-icon name="plus" [size]="22" /></span>
                       <span class="text-[12px] font-semibold text-text-tertiary">Fichar</span>
                     </a>
@@ -107,7 +108,7 @@ import { JuegosNav } from '../porra/componentes';
               <section class="flex flex-col gap-3 rounded-lg border border-accent/45 bg-accent-deep/25 p-4 lg:p-5">
                 <p class="text-label-m text-text-primary">Te quedan {{ plazasLibres() }} {{ plazasLibres() === 1 ? 'plaza' : 'plazas' }} y {{ monedas(saldo() ?? 0) }} monedas</p>
                 <p class="hidden text-body-s text-text-secondary lg:block">Ficha libres a su valor o paga un clausulazo al dueño.</p>
-                <a grButton variant="primary" href="/fantasy/mercado" iconRight="arrow-right" class="w-full lg:w-auto lg:self-start">Ir al mercado</a>
+                <a grButton variant="primary" routerLink="/fantasy/mercado" iconRight="arrow-right" class="w-full lg:w-auto lg:self-start">Ir al mercado</a>
               </section>
             }
 

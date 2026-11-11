@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GrIcon, GrSkeleton } from '@grcup/ui';
 import { Novedades, mensajeError, type BajaInfo } from '../core/novedades';
 import { Seo } from '../core/seo';
@@ -9,7 +9,7 @@ import { Page } from '../layout/page';
 /** /novedades/confirmar?t= (double opt-in link of the email). Confirms in the browser only (link scanners never confirm). */
 @Component({
   selector: 'gr-novedades-confirmar',
-  imports: [Page, GrIcon, GrSkeleton],
+  imports: [RouterLink, Page, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Novedades" crumb="Confirmar suscripción">
@@ -21,7 +21,7 @@ import { Page } from '../layout/page';
               <span class="flex size-14 items-center justify-center rounded-full bg-success/15 text-success"><gr-icon name="circle-check" [size]="26" /></span>
               <h2 class="text-display-2xs">¡Suscripción confirmada!</h2>
               <p class="text-body-m text-text-secondary">Te escribiremos a {{ email() }} con fechas, horarios, sorteo y próximas competiciones. Un email al mes como mucho; cada uno lleva su enlace de baja.</p>
-              <a href="/" class="mt-2 inline-flex h-11 items-center gap-2 rounded-sm bg-accent-grain px-5 text-label-s text-white">Volver a la web<gr-icon name="arrow-right" [size]="16" /></a>
+              <a routerLink="/" class="mt-2 inline-flex h-11 items-center gap-2 rounded-sm bg-accent-grain px-5 text-label-s text-white">Volver a la web<gr-icon name="arrow-right" [size]="16" /></a>
             </section>
           }
           @default {

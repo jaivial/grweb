@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, PendingTasks, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { GrIcon } from '@grcup/ui';
 import { Cms } from '../core/cms';
@@ -31,7 +31,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 /** /categorias-de-peso (Figma page 21): category finder, the 18 classes, age divisions and the weigh-in. */
 @Component({
   selector: 'gr-categorias-page',
-  imports: [Page, FormsModule, GrIcon, GrCabecera, GrCallout, GrHechos, GrChipsAncla, Related, Community],
+  imports: [RouterLink, Page, FormsModule, GrIcon, GrCabecera, GrCallout, GrHechos, GrChipsAncla, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Categorías de" accent="peso y edad" eyebrow="Competición" section="Competición" crumb="Categorías de peso"
@@ -66,7 +66,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
                       <p class="text-body-s text-text-secondary">{{ r.margen }}</p>
                     </div>
                   }
-                  <a href="/marcas-minimas" class="text-label-s text-accent-text hover:underline">Ver marcas mínimas {{ r.nombre }} →</a>
+                  <a routerLink="/marcas-minimas" class="text-label-s text-accent-text hover:underline">Ver marcas mínimas {{ r.nombre }} →</a>
                 } @else if (peso().trim()) {
                   <p class="text-body-s text-text-tertiary">Escribe un peso entre 30 y 250 kg (por ejemplo, 81,4).</p>
                 } @else {

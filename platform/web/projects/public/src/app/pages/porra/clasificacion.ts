@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * porra/clasificacion.ts — /porra/clasificacion (Figma «71 · /porra» · Clasificación): el ranking de la jornada
  * (saldo de porra) con el puesto del usuario fijado y los premios como gancho.
@@ -16,7 +17,7 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
 
 @Component({
   selector: 'gr-porra-clasificacion-page',
-  imports: [Page, GrButton, GrIcon, GrSkeleton, CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Clasificación" [suffix]="jornadaTxt()" crumb="Clasificación" section="Juegos"
@@ -39,7 +40,7 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
               <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="trophy" [size]="24" /></span>
               <p class="text-display-xs">El podio está libre</p>
               <p class="max-w-md text-body-s text-text-tertiary">En cuanto alguien apueste, aquí verás el ranking en vivo. La primera apuesta puede ser la tuya.</p>
-              <a grButton variant="primary" href="/porra" iconRight="arrow-right">Ir a los mercados</a>
+              <a grButton variant="primary" routerLink="/porra" iconRight="arrow-right">Ir a los mercados</a>
             </div>
           } @else {
             <gr-podio class="mb-6" [plazas]="podio()" />

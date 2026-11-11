@@ -165,7 +165,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             <div class="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               @if (todasAgotadas()) {
                 <a grButton variant="primary" size="l" routerLink="." fragment="reservar">Apuntarme a la lista de espera</a>
-                <a grButton variant="outline" size="l" href="/en-directo" iconRight="arrow-right">Seguirlo en directo</a>
+                <a grButton variant="outline" size="l" routerLink="/en-directo" iconRight="arrow-right">Seguirlo en directo</a>
               } @else {
                 <a grButton variant="primary" size="l" routerLink="." fragment="reservar">Reservar mi entrada</a>
                 <a grButton variant="outline" size="l" routerLink="." fragment="como-funciona" iconRight="arrow-right">Cómo funciona</a>
@@ -221,7 +221,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <label class="relative block"><span class="sr-only">Email</span><gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3.5 -translate-y-1/2 text-text-tertiary" />
                     <input type="email" autocomplete="email" class="pl-10" [class]="campo(false)" placeholder="tu@email.com" [(ngModel)]="f.email" name="we" /></label>
                   <ng-container [ngTemplateOutlet]="personas" />
-                  <gr-checkbox name="wp" [(checked)]="f.privacidad">He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</gr-checkbox>
+                  <gr-checkbox name="wp" [(checked)]="f.privacidad">He leído y acepto la <a routerLink="/privacidad" class="text-accent-text underline">política de privacidad</a> *</gr-checkbox>
                   @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
                   <button grButton variant="primary" size="l" type="button" class="w-full" [loading]="enviando()" (click)="apuntarme()">Apuntarme a la lista de espera</button>
                   @if (abiertas().length) { <button type="button" class="h-11 text-label-s text-text-tertiary hover:text-text-primary" (click)="elegir(abiertas()[0])">Elegir otra sesión</button> }
@@ -295,10 +295,10 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   </fieldset>
                 }
                 <div class="flex flex-col gap-3 text-body-s">
-                  <gr-checkbox name="priv" [(checked)]="f.privacidad" [invalid]="!!err('privacidad')"><span [class.text-accent-text]="err('privacidad')">He leído y acepto la <a href="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></gr-checkbox>
+                  <gr-checkbox name="priv" [(checked)]="f.privacidad" [invalid]="!!err('privacidad')"><span [class.text-accent-text]="err('privacidad')">He leído y acepto la <a routerLink="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></gr-checkbox>
                   @if (boletos()) {
                     <gr-checkbox name="edad" [(checked)]="f.mayorEdad" [invalid]="!!err('edad')"><span [class.text-accent-text]="err('edad')">Tengo 18 años o más (para el sorteo) *</span></gr-checkbox>
-                    <gr-checkbox name="bases" [(checked)]="f.bases" [invalid]="!!err('bases')"><span [class.text-accent-text]="err('bases')">Acepto las <a href="/politica-concurso" class="text-accent-text underline">bases del sorteo</a> *</span></gr-checkbox>
+                    <gr-checkbox name="bases" [(checked)]="f.bases" [invalid]="!!err('bases')"><span [class.text-accent-text]="err('bases')">Acepto las <a routerLink="/politica-concurso" class="text-accent-text underline">bases del sorteo</a> *</span></gr-checkbox>
                   }
                   <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
@@ -337,7 +337,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <li class="flex items-baseline gap-5 border-b border-line-subtle py-3.5 last:border-b-0"><span class="w-12 shrink-0 font-mono text-mono-s text-accent-text">{{ x.hora }}</span><span class="text-body-m">{{ x.titulo }}</span></li>
                 }
               </ol>
-              <a grButton variant="outline" href="/horarios" iconRight="arrow-right" class="w-full sm:w-auto sm:self-start">Ver horarios en directo</a>
+              <a grButton variant="outline" routerLink="/horarios" iconRight="arrow-right" class="w-full sm:w-auto sm:self-start">Ver horarios en directo</a>
             </section>
           }
           @if (faq().length) {
@@ -615,18 +615,18 @@ export class EntradasPage {
 /** /entradas/confirmacion (Figma 38): «¡Tienes entrada!», QR, calendar, news and «Invita a tu gente». */
 @Component({
   selector: 'gr-entrada-confirmacion',
-  imports: [Page, GrAlert, GrIcon, GrSkeleton, TicketCard, Newsletter],
+  imports: [RouterLink, Page, GrAlert, GrIcon, GrSkeleton, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="¡Tienes entrada!" crumb="Confirmación" [hideTitle]="true">
       <div class="mx-auto flex max-w-md flex-col gap-4">
         @let m = mia();
         @if (m === undefined) { <gr-skeleton class="h-[560px] rounded-xl" /> }
-        @else if (m === null) { <section class="rounded-xl border border-line-subtle bg-bg-card p-6 text-center"><h1 class="text-display-2xs">Enlace caducado</h1><p class="mt-2 text-body-s text-text-secondary">Abre el enlace de tu email o pídelo de nuevo en <a href="/mi-entrada" class="text-accent-text underline">Mi entrada</a>.</p></section> }
+        @else if (m === null) { <section class="rounded-xl border border-line-subtle bg-bg-card p-6 text-center"><h1 class="text-display-2xs">Enlace caducado</h1><p class="mt-2 text-body-s text-text-secondary">Abre el enlace de tu email o pídelo de nuevo en <a routerLink="/mi-entrada" class="text-accent-text underline">Mi entrada</a>.</p></section> }
         @else {
           <div class="flex flex-col items-center text-center"><span class="flex size-12 items-center justify-center rounded-full border border-success/50 text-success"><gr-icon name="check" [size]="22" /></span>
             <h1 class="mt-3 text-display-s">¡Tienes entrada!</h1><p class="mt-2 text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p></div>
-          @if (aviso(); as a) { <gr-alert tone="warning" [title]="a.t">{{ a.d }} <a href="/sorteo" class="text-accent-text underline">Ir al sorteo</a></gr-alert> }
+          @if (aviso(); as a) { <gr-alert tone="warning" [title]="a.t">{{ a.d }} <a routerLink="/sorteo" class="text-accent-text underline">Ir al sorteo</a></gr-alert> }
           <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr"
             [boletos]="sorteo().boletos" [premio]="sorteo().premio" />
           <div class="grid grid-cols-2 gap-2">
@@ -703,7 +703,7 @@ export class ConfirmacionPage {
 /** /entradas/oferta (waiting-list offer email): confirm the offered places before they pass to the next person. */
 @Component({
   selector: 'gr-entrada-oferta',
-  imports: [Page, GrIcon, GrSkeleton],
+  imports: [RouterLink, Page, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Hay plaza para ti" crumb="Lista de espera">
@@ -711,7 +711,7 @@ export class ConfirmacionPage {
         @let o = oferta();
         @if (o === undefined) { <gr-skeleton class="h-64 rounded-xl" /> }
         @else if (o === null || o.estado !== 'oferta') {
-          <section class="rounded-xl border border-line-subtle bg-bg-card p-6 text-center"><h2 class="text-display-2xs">Esta oferta ya no vale</h2><p class="mt-2 text-body-s text-text-secondary">{{ error() || 'Ha caducado o ya la has usado. Si quedan plazas, puedes reservar en Entradas.' }}</p><a href="/entradas" class="mt-4 inline-flex h-11 items-center rounded-sm bg-accent-grain px-5 text-label-s text-white">Ver entradas</a></section>
+          <section class="rounded-xl border border-line-subtle bg-bg-card p-6 text-center"><h2 class="text-display-2xs">Esta oferta ya no vale</h2><p class="mt-2 text-body-s text-text-secondary">{{ error() || 'Ha caducado o ya la has usado. Si quedan plazas, puedes reservar en Entradas.' }}</p><a routerLink="/entradas" class="mt-4 inline-flex h-11 items-center rounded-sm bg-accent-grain px-5 text-label-s text-white">Ver entradas</a></section>
         } @else {
           <section class="rounded-xl border border-accent/50 bg-bg-card p-6 text-center">
             <gr-icon name="ticket" [size]="28" class="text-accent-text" />
@@ -760,7 +760,7 @@ export class OfertaPage {
 /** /mi-entrada (Figma 38): the ticket by magic link — change people, resend, calendar, cancel; expired link → new one. */
 @Component({
   selector: 'gr-mi-entrada',
-  imports: [Page, FormsModule, GrIcon, GrSkeleton, TicketCard],
+  imports: [RouterLink, Page, FormsModule, GrIcon, GrSkeleton, TicketCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mi entrada" crumb="Mi entrada" [subtitle]="mia()?.email ?? ''">
@@ -779,7 +779,7 @@ export class OfertaPage {
           </section>
         } @else {
           <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
-          @if (m.estado === 'anulada') { <p class="rounded-lg border border-line-strong p-3 text-center text-body-s text-text-secondary">Entrada anulada. Si fue un error, <a href="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p> }
+          @if (m.estado === 'anulada') { <p class="rounded-lg border border-line-strong p-3 text-center text-body-s text-text-secondary">Entrada anulada. Si fue un error, <a routerLink="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p> }
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
               <h2 class="text-label-m">¿Cambia algo?</h2>

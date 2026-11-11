@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
@@ -62,7 +63,7 @@ const AYUDA = [
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto],
+  imports: [RouterLink, Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
@@ -97,8 +98,8 @@ const AYUDA = [
             Revisa tu email: te hemos enviado la confirmación de tu solicitud. Si no la ves en unos minutos, mira en la carpeta de spam.
           </p>
           <div class="flex flex-col gap-3 sm:flex-row">
-            <a grButton variant="primary" size="l" href="/atletas">Ver atletas</a>
-            <a grButton variant="outline" size="l" href="/area-atleta">Ir al área de atleta</a>
+            <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
+            <a grButton variant="outline" size="l" routerLink="/area-atleta">Ir al área de atleta</a>
           </div>
           <p class="text-body-s text-text-tertiary">¿Necesitas cambiar algo antes de que revisemos tu solicitud? Escríbenos a <a [href]="'mailto:' + contacto()" class="text-accent-text hover:underline">{{ contacto() }}</a>.</p>
         </section>
@@ -137,7 +138,7 @@ const AYUDA = [
                     <gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-info" />Cuando vuelva a abrirse, esta página mostrará el formulario de nuevo.
                   </p>
                   <div class="flex flex-col gap-3 sm:flex-row">
-                    <a grButton variant="primary" size="l" href="/atletas">Ver atletas</a>
+                    <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
                     <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">Escríbenos a {{ contacto() }}</a>
                   </div>
                 </section>
@@ -150,7 +151,7 @@ const AYUDA = [
                     <gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Si necesitas el alta antes de eso, escríbenos a {{ contacto() }} y lo resolvemos por email.
                   </p>
                   <div class="flex flex-col gap-3 sm:flex-row">
-                    <a grButton variant="primary" size="l" href="/atletas">Ver atletas</a>
+                    <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
                     <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">Escríbenos a {{ contacto() }}</a>
                   </div>
                 </section>
@@ -171,7 +172,7 @@ const AYUDA = [
                       <gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-info" />Te avisamos por email en cuanto la revisemos. Puedes corregir los datos si te escribimos.
                     </p>
                     <div class="flex flex-col gap-3 sm:flex-row">
-                      <a grButton variant="primary" size="l" href="/atletas">Ver atletas</a>
+                      <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
                       <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">¿No es la tuya? Escríbenos a {{ contacto() }}</a>
                     </div>
                   </section>
@@ -183,7 +184,7 @@ const AYUDA = [
                       <gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Vuelve a intentarlo en {{ espera() }}. Tu solicitud anterior sigue guardada.
                     </p>
                     <div class="flex flex-col gap-3 sm:flex-row">
-                      <a grButton variant="primary" size="l" href="/atletas">Ver atletas</a>
+                      <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
                       <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">Si crees que es un error, escríbenos a {{ contacto() }}</a>
                     </div>
                   </section>

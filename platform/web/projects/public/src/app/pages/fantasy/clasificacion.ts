@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 /**
  * fantasy/clasificacion.ts — /fantasy/clasificacion (Figma «72 · /fantasy» · Clasificación): el ranking por puntos
  * con el puesto del usuario fijado, el premio como gancho y el feed de movimientos del mercado.
@@ -17,7 +18,7 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
 
 @Component({
   selector: 'gr-fantasy-clasificacion-page',
-  imports: [Page, GrButton, GrIcon, GrSkeleton, CoinBalance, FeedRow, JuegosNav, LeaderboardRow, Podio, PremioCard],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, FeedRow, JuegosNav, LeaderboardRow, Podio, PremioCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Clasificación" [suffix]="jornadaTxt()" crumb="Clasificación" section="Juegos"
@@ -40,7 +41,7 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
               <span class="flex size-14 items-center justify-center rounded-full border border-info/50 bg-info/12 text-info"><gr-icon name="trophy" [size]="24" /></span>
               <p class="text-display-xs">El podio está libre</p>
               <p class="max-w-md text-body-s text-text-tertiary">En cuanto se juegue la jornada, aquí verás el ranking por puntos. Monta tu equipo antes de que empiece.</p>
-              <a grButton variant="primary" href="/fantasy/mercado" iconRight="arrow-right">Ir al mercado</a>
+              <a grButton variant="primary" routerLink="/fantasy/mercado" iconRight="arrow-right">Ir al mercado</a>
             </div>
           } @else {
             <gr-podio class="mb-6" [plazas]="podio()" />
@@ -67,7 +68,7 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
                   <li class="min-w-0"><gr-feed-row [mov]="m" [nombreAtleta]="nombre(m.atletaId)" /></li>
                 }
               </ul>
-              <a href="/fantasy/mercado" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-accent-text hover:underline underline-offset-4 md:h-auto">Ir al mercado<gr-icon name="chevron-right" [size]="16" /></a>
+              <a routerLink="/fantasy/mercado" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-accent-text hover:underline underline-offset-4 md:h-auto">Ir al mercado<gr-icon name="chevron-right" [size]="16" /></a>
             } @else {
               <p class="mt-2 text-body-xs text-text-tertiary">Todavía no hay movimientos en el mercado.</p>
             }

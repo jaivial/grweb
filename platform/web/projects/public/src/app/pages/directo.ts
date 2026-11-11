@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrIcon, GrLiveStatus, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
@@ -153,7 +153,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
  *  provisional ranking) and finished (replay, results, previous edition). */
 @Component({
   selector: 'gr-en-directo',
-  imports: [Page, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, Luces, Clasificacion, Related, Community, PanelSocial],
+  imports: [RouterLink, Page, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, Luces, Clasificacion, Related, Community, PanelSocial],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabeceraMovil]="false">
@@ -246,17 +246,17 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                     <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                       <p class="text-mono-xs text-text-tertiary">Primer bloque</p>
                       <p class="mt-2 text-label-m first-letter:uppercase">{{ diaHora(p.inicio) }} · {{ p.titulo }}</p>
-                      <a href="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a>
+                      <a routerLink="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a>
                     </section>
                   } @else {
-                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">Los horarios se publican unas 2 semanas antes</p><a href="/horarios" class="mt-3 inline-flex text-label-s text-accent-text">Ver horarios →</a></section>
+                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">Los horarios se publican unas 2 semanas antes</p><a routerLink="/horarios" class="mt-3 inline-flex text-label-s text-accent-text">Ver horarios →</a></section>
                   }
                   <a [href]="ics" class="flex h-12 items-center justify-center gap-2 rounded-md bg-accent text-label-m text-white shadow-glow hover:bg-accent-hover"><gr-icon name="calendar-plus" [size]="18" />Recordármelo</a>
                 }
                 @case ('finalizado') {
                   <gr-alert tone="success" title="La competición ha terminado">Ya puedes consultar los resultados oficiales.
                     <a [href]="'/resultados/' + anio()" class="mt-2 block text-label-s text-accent-text hover:underline">Ver resultados →</a></gr-alert>
-                  <a href="/ediciones/2025" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
+                  <a routerLink="/ediciones/2025" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
                     <div class="relative h-40"><img [src]="foto2025" alt="" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
                     <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Celebrada</span>
                       <p class="mt-2 font-display text-[22px] uppercase italic">GRStrength Cup 2025</p>
@@ -304,7 +304,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                 @case ('horario') {
                   <div class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.retrasoMin ? 'Vamos con ' + d.retrasoMin + ' min de retraso' : 'Vamos en hora' }}</p>
                     <p class="mt-1 text-body-s text-text-tertiary">Los horarios se actualizan con el retraso en directo y marcan el flight que está en la plataforma.</p>
-                    <a href="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a></div>
+                    <a routerLink="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a></div>
                 }
               }
             </div>
@@ -418,7 +418,7 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
 /** /resultados (Figma page 25): every edition and how the rankings work. */
 @Component({
   selector: 'gr-resultados-index',
-  imports: [Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Related, Community],
+  imports: [RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Resultados de la" accent="GRStrength Cup" eyebrow="Clasificaciones" subtitle="Clasificaciones completas por categoría, podios y mejores levantadores de cada edición.">
@@ -447,7 +447,7 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
                     </ul>
                     <div class="mt-auto pt-3">
                       @if (x.publicado) { <a grButton variant="outline" [href]="'/resultados/' + x.e.anio" iconRight="arrow-right">Ver resultados</a> }
-                      @else if (x.e.slug === slug) { <a grButton variant="primary" href="/">Más información</a> }
+                      @else if (x.e.slug === slug) { <a grButton variant="primary" routerLink="/">Más información</a> }
                     </div>
                   </div>
                 </article>
@@ -503,7 +503,7 @@ export class ResultadosIndexPage {
 /** /resultados/:anio (Figma page 25): best lifters by GL, podiums and the full ranking of every category, with filters. */
 @Component({
   selector: 'gr-resultados-edicion',
-  imports: [GrSelect, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community, Navbar, Footer, NoEncontrada],
+  imports: [RouterLink, GrSelect, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community, Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = res();
@@ -523,7 +523,7 @@ export class ResultadosIndexPage {
         <div class="rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
           <p class="text-ui-h4">Aún no hay resultados publicados</p>
           <p class="mx-auto mt-2 max-w-lg text-body-s text-text-secondary">Cada categoría se publica aquí al terminar. Mientras tanto, sigue la competición en directo.</p>
-          <a href="/en-directo" class="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-label-s text-white hover:bg-accent-hover"><gr-icon name="radio" [size]="16" />Ver en directo</a>
+          <a routerLink="/en-directo" class="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-label-s text-white hover:bg-accent-hover"><gr-icon name="radio" [size]="16" />Ver en directo</a>
         </div>
       } @else {
         <!-- GL points need the body weight: editions imported from the previous web have none -->
@@ -678,7 +678,7 @@ export class ResultadosEdicionPage {
 /** /ediciones/:anio (Figma page 28): the archive of a past edition: poster, facts, gallery and sponsors. */
 @Component({
   selector: 'gr-edicion',
-  imports: [Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related, Navbar, Footer, NoEncontrada],
+  imports: [RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related, Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -708,7 +708,7 @@ export class ResultadosEdicionPage {
             <!-- full-width stacked buttons on mobile (Figma 28 mobile) -->
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-2">
               <a grButton variant="primary" class="max-sm:h-12 max-sm:w-full" [href]="'/resultados/' + anio()">Ver resultados</a>
-              <a grButton variant="outline" class="max-sm:h-12 max-sm:w-full" href="/galeria" iconRight="arrow-right">Ver galería</a>
+              <a grButton variant="outline" class="max-sm:h-12 max-sm:w-full" routerLink="/galeria" iconRight="arrow-right">Ver galería</a>
             </div>
           </div>
         </div>
@@ -740,7 +740,7 @@ export class ResultadosEdicionPage {
         <section class="overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 md:flex md:items-center md:justify-between md:p-10">
           <div><p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">Edición {{ siguiente() }}</p>
             <h2 class="mt-3 text-display-xs md:text-display-m">Compite en la GRStrength Cup</h2><p class="mt-2 text-body-s text-text-secondary">Plazas limitadas. La inscripción se hace a través de la AEP.</p></div>
-          <a grButton variant="primary" size="l" href="/inscripcion" class="mt-5 max-sm:w-full md:mt-0">Inscribirse</a>
+          <a grButton variant="primary" size="l" routerLink="/inscripcion" class="mt-5 max-sm:w-full md:mt-0">Inscribirse</a>
         </section>
         </div>
       }

@@ -237,7 +237,7 @@ export class BlogPage {
                     <p class="text-display-xs">{{ c.nombre }}</p>
                     <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="14" class="text-accent-text" />{{ c.sede.ciudad }}@if (c.sede.provincia) { ({{ c.sede.provincia }}) }</p>
                     @if (c.evento.nivel) { <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="trophy" [size]="14" class="text-accent-text" />Nivel {{ c.evento.nivel }}</p> }
-                    <a grButton variant="primary" href="/" class="mt-1">Más información</a>
+                    <a grButton variant="primary" routerLink="/" class="mt-1">Más información</a>
                   </div>
                 </div>
               }
