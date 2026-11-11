@@ -621,9 +621,6 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		return nil, tooMany(r)
 	}
 	menor := fecha(d.FechaNacimiento) != nil && menorDeEdad(*fecha(d.FechaNacimiento))
-	if menor {
-		d.Instagram = "" // data minimisation: minors never get a public handle
-	}
 	// The team that gets the notice (identity knows who can edit the athletes).
 	equipo := s.equipoAdmins(ctx, c.ID)
 	matchID, matchTipo := s.matchAtleta(ctx, c.ID, d)
@@ -845,6 +842,9 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Frase = strings.TrimSpace(d.Frase)
 	d.Bio = strings.TrimSpace(d.Bio)
 	d.Instagram = normInstagram(d.Instagram)
+	if f := fecha(d.FechaNacimiento); f != nil && menorDeEdad(*f) {
+		d.Instagram = "" // data minimisation: minors never get a public handle
+	}
 	d.Historial = strings.TrimSpace(d.Historial)
 	d.Sexo = strings.ToUpper(strings.TrimSpace(d.Sexo))
 	if d.FocalX <= 0 {
