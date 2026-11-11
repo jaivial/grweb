@@ -124,8 +124,7 @@ const location0 = (tipo: string) => LEGAL_PATHS[tipo] ?? '/';
     <gr-page [title]="p()?.titulo ?? (p() === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="tipo() === 'blog' ? 'Blog' : 'Competición'" [subtitle]="p()?.resumen ?? ''"
       [stamp]="tipo() === 'blog' && p()?.publicadoAt ? fecha(p()!.publicadoAt!) : ''" [cabecera]="p() !== null || cms.failed()">
       @if (p() === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else if (p() === null) { @if (!cms.failed()) { <gr-no-encontrada class="-mt-[92px] md:-mt-[148px]" /> } }
-      @else {
+      @else if (p() !== null) {
         @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl" alt="" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
         <article class="prose-gr max-w-3xl text-body-m" [innerHTML]="html()"></article>
       }

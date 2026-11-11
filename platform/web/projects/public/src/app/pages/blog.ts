@@ -184,8 +184,7 @@ export class BlogPage {
     <gr-page [title]="a?.titulo ?? (a === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="a ? (et(a.categoria) || 'Blog') : ''" section="Blog" [crumb]="a ? (et(a.categoria) || 'Artículo') : ''"
       [subtitle]="a?.resumen ?? ''" [stamp]="a?.fuente ? 'Fuente: ' + a.fuente : ''" [cabecera]="a !== null || cms.failed()">
       @if (a === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else if (a === null) { @if (!cms.failed()) { <gr-no-encontrada class="-mt-[92px] md:-mt-[148px]" /> } }
-      @else {
+      @else if (a !== null) {
         <div class="flex flex-col gap-16 md:gap-20">
           <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)] lg:gap-10">
             <div class="flex min-w-0 flex-col gap-6 md:gap-8">
