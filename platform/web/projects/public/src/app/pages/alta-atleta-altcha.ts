@@ -67,7 +67,11 @@ export class GrAltcha {
         primera = false;
         return;
       }
-      untracked(() => this.verificar());
+      // Reto nuevo: el anterior ya no vale aunque estuviera verificado.
+      untracked(() => {
+        this.estado.set('idle');
+        void this.verificar();
+      });
     });
   }
 
