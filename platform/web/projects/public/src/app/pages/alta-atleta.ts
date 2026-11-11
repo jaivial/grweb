@@ -93,7 +93,7 @@ const MAX_MARCA = 600;
           <div>
             <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
             <h2 class="mt-3 text-display-m md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
-            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[15px] max-md:leading-[23px]">{{ introH2 }}</p>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introH2 }}</p>
           </div>
           <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
             @for (b of bloques; track b.t) {
