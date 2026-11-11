@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
+import { Injectable, RESPONSE_INIT, TransferState, inject, makeStateKey, signal } from '@angular/core';
 import { NavigationStart, Router } from '@angular/router';
 import { marked } from 'marked';
 import { firstValueFrom } from 'rxjs';
@@ -100,6 +100,7 @@ export class Cms {
   private readonly http = inject(HttpClient);
   private readonly res = inject(RESPONSE_INIT, { optional: true });
   private readonly fallo = inject(FalloApi);
+  private readonly ts = inject(TransferState);
   private seo?: Promise<SeoMap | null>;
   /** True when the API failed (not a 4xx «not found»): pages show a retry message and SSR answers 503 (429 when rate limited), never a false 404. */
   readonly failed = signal(false);
@@ -125,7 +126,15 @@ export class Cms {
   faq(): Promise<Faq[] | null> { return this.get<Faq[]>('/faq'); }
   patrocinadores(): Promise<Patrocinador[] | null> { return this.get<Patrocinador[]>('/patrocinadores'); }
   legal(tipo: string): Promise<Legal | null> { return this.get<Legal>(`/legal/${tipo}`); }
-  pagina(slug: string): Promise<Pagina | null> { return this.get<Pagina>(`/paginas/${slug}`); }
+  /** Invalid slugs never reach the API, and a slug SSR already answered 404 is not fetched again on hydration (no console error, no rate limit spent). */
+  async pagina(slug: string): Promise<Pagina | null> {
+    if (!/^[a-z0-9-]+$/.test(slug)) return null;
+    const k = makeStateKey<boolean>('pagina404:' + slug);
+    if (!this.res && this.ts.hasKey(k)) { this.ts.remove(k); return null; }
+    const p = await this.get<Pagina>(`/paginas/${slug}`);
+    if (this.res && !p && !this.failed()) this.ts.set(k, true);
+    return p;
+  }
   post(slug: string): Promise<Pagina | null> { return this.get<Pagina>(`/blog/${slug}`); }
   blog(): Promise<Pagina[] | null> { return this.get<Pagina[]>('/blog'); }
   galeria(): Promise<Album[] | null> { return this.get<Album[]>('/galeria'); }
