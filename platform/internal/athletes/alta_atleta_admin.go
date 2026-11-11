@@ -867,7 +867,8 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		avisarWA := avisarWhatsApp && sol.Telefono != "" && cons["whatsapp"].Aceptado
 		urlArea := s.webURL + "/area-atleta"
 		// Without the image consent (or for a minor) the profile is not public: never promise its URL.
-		urlFicha, privada := s.webURL+"/atletas/"+slug, ""
+		urlFicha := s.webURL + "/atletas/" + slug
+		privada := "✓ Publicamos tu ficha en " + urlFicha + "."
 		var visible bool
 		if err := tx.QueryRow(ctx, `SELECT visible FROM perfiles WHERE atleta_id = $1`, *destino).Scan(&visible); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err

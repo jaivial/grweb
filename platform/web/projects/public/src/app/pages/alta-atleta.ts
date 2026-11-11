@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
@@ -75,14 +75,14 @@ const MAX_MARCA = 600;
       [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GR Cup 2026'"
       section="Atletas"
       crumb="Alta de atleta"
-      [subtitle]="exito() ? (publica() ? introExito : introExitoPrivada) : intro"
-      [subtitleHtml]="exito() ? '' : introHtml"
+      [subtitle]="exito() ? (publica() ? introExito : introExitoPrivada) : cerrada() ? introCerrada : intro"
+      [subtitleHtml]="exito() || cerrada() ? '' : introHtml"
       [tituloMovilGrande]="!exito()">
       @if (vista() === 'cargando') {
         <gr-skeleton class="h-[560px] rounded-[18px]" />
       } @else if (vista() === 'exito') {
         <!-- Figma 75 «Éxito»: qué pasa ahora, en tres pasos -->
-        <gr-alta-exito [contacto]="contacto()" [publica]="publica()" />
+        <gr-alta-exito [contacto]="contacto()" [publica]="publica()" [foto]="fotoExito()" [menor]="menorExito()" />
         <div class="mt-18 flex flex-col gap-18 md:gap-24">
           <gr-related nivel="h3" [items]="relacionados" />
           <gr-community nivel="h3" />
@@ -117,7 +117,7 @@ const MAX_MARCA = 600;
                 @if (aviso() === 'duplicado') {
                   <gr-alta-aviso tipo="duplicado" [contacto]="contacto()" />
                 } @else {
-                  <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" (ngSubmit)="enviar()" novalidate>
+                  <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
                     <div>
                       <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">Solicitud de alta</h2>
                       <p class="mt-1.5 text-body-s text-text-tertiary">Los campos marcados con * son obligatorios. El resto, opcional.</p>
@@ -398,13 +398,13 @@ const MAX_MARCA = 600;
                       @if (aviso() === 'limite' || aviso() === 'red') {
                         <div id="aviso-envio" tabindex="-1" class="flex flex-col gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary outline-none" role="alert">
                           <p class="flex items-start gap-2"><gr-icon [name]="aviso() === 'limite' ? 'clock' : 'circle-alert'" [size]="18" class="mt-0.5 shrink-0 text-warning" />
-                            @if (aviso() === 'limite') { Se han enviado muchas solicitudes desde esta conexión. Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: {{ bloqueado() ? 'podrás reintentarlo en ' + espera() + '.' : 'ya puedes reintentarlo.' }} }
+                            @if (aviso() === 'limite') { {{ limiteTexto() || 'Se han enviado muchas solicitudes desde esta conexión.' }} Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: {{ bloqueado() ? 'podrás reintentarlo en ' + espera() + '.' : 'ya puedes reintentarlo.' }} }
                             @else { No hemos podido enviar tu solicitud (conexión o servicio ocupado). Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: pulsa «Reintentar». }
                           </p>
                           <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
                         </div>
                       }
-                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="enviando() || bloqueado()">Enviar mi alta</button></div>
+                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
                       <p class="text-body-xs text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
                   </form>
@@ -443,6 +443,11 @@ export class AltaAtletaPage {
   protected readonly exito = signal(false);
   /** The athlete authorised publishing their profile (image consent): only then the success screen promises it. */
   protected readonly publica = signal(false);
+  /** Until Angular hydrates, a native submit would send the data by itself: the button stays disabled. */
+  protected readonly hidratado = signal(false);
+  /** What was sent, for the success screen (the form is reset afterwards). */
+  protected readonly fotoExito = signal(false);
+  protected readonly menorExito = signal(false);
   protected readonly enviando = signal(false);
   protected readonly subiendo = signal(false);
   protected readonly procesando = signal(false);
@@ -450,6 +455,8 @@ export class AltaAtletaPage {
   protected readonly espera = signal('');
   /** Envío pausado hasta que pase el Retry-After de un 429. */
   protected readonly bloqueado = signal(false);
+  /** The text of a 429 per email or phone (empty: the limit of the connection). */
+  protected readonly limiteTexto = signal('');
   protected readonly reinicioAltcha = signal(0);
   protected readonly altchaPago = signal('');
   /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si es una fecha real. */
@@ -562,6 +569,10 @@ export class AltaAtletaPage {
 
   protected readonly intro =
     'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil público. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email con el resultado. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
+  /** The intro when the alta is closed: it never invites to fill in the form. */
+  protected readonly introCerrada =
+    'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. El alta de atletas está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.';
+  protected readonly cerrada = computed(() => this.vista() === 'cerrada' || this.vista() === 'legal');
   /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
   protected readonly introHtml = this.intro.replace('dar de alta tu atleta', '<strong class="font-semibold text-text-primary">dar de alta tu atleta</strong>');
   protected readonly introH2 =
@@ -668,6 +679,7 @@ export class AltaAtletaPage {
   });
 
   constructor() {
+    afterNextRender(() => this.hidratado.set(true));
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
       const [c, , mapa] = await Promise.all([
@@ -904,6 +916,8 @@ export class AltaAtletaPage {
     if (xhr.status === 202 || xhr.status === 200) {
       this.exito.set(true);
       this.publica.set(!!this.legal('consentimiento') && this.acepta.imagen && !this.esMenor());
+      this.fotoExito.set(!!this.foto);
+      this.menorExito.set(this.esMenor());
       this.vista.set('exito');
       this.borrarBorrador();
       this.subiendo.set(false);
@@ -929,6 +943,7 @@ export class AltaAtletaPage {
     if (xhr.status === 429) {
       const ra = Number(xhr.getResponseHeader('Retry-After'));
       this.cuentaAtras(ra > 0 ? ra : 60);
+      this.limiteTexto.set(codigo === 'LIMITE_EMAIL' || codigo === 'LIMITE_TELEFONO' ? (cuerpo.detail ?? '') : '');
       this.aviso.set('limite');
       this.enfocar('#aviso-envio');
       return;

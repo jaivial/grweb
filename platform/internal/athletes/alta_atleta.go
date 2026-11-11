@@ -470,11 +470,7 @@ func (s *Svc) registerAltaAtleta() {
 		Summary: "Enviar el alta de atleta (queda pendiente de revisión)", Tags: tagPub, DefaultStatus: http.StatusAccepted,
 		MaxBodyBytes: maxFotoAlta + (1 << 20)},
 		func(ctx context.Context, in *altaIn) (*AltaOut, error) {
-			out, err := s.crearSolicitud(ctx, in.Slug, in.RawBody)
-			if err == nil && s.a.Redis != nil {
-				_, _ = ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "alta", httpx.ClientIPFrom(ctx)), limiteIPAlta, time.Hour)
-			}
-			return out, err
+			return s.crearSolicitud(ctx, in.Slug, in.RawBody)
 		})
 	type fotoIn struct {
 		Slug  string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
@@ -577,19 +573,6 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	if err := s.validaAltcha(ctx, d.Altcha); err != nil {
 		return nil, err
 	}
-	// Limits per email and per phone: silent, so they cannot be used to find out who is registered.
-	if d.Email != "" {
-		if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "alta-mail", hashToken(d.Email)[:16]), limiteMailAlta, 24*time.Hour); !r.Allowed {
-			s.a.Log.Info("alta de atleta · límite por email", "ip", anonIP(ip))
-			return s.respuestaFalsa(), nil
-		}
-	}
-	if d.Telefono != "" {
-		if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "alta-tel", hashToken(d.Telefono)[:16]), limiteTelAlta, 24*time.Hour); !r.Allowed {
-			s.a.Log.Info("alta de atleta · límite por teléfono", "ip", anonIP(ip))
-			return s.respuestaFalsa(), nil
-		}
-	}
 	// Strict validation of the fields.
 	if errs := s.validaDatos(d); len(errs) > 0 {
 		return nil, validacion("Revisa los campos marcados.", errs...)
@@ -616,6 +599,18 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	if existentes > 0 {
 		return nil, problem.Conflict("SOLICITUD_EN_CURSO", "Ya tienes una solicitud en revisión. Te avisaremos por email.")
 	}
+	// The limits per IP, email and phone count only created requests: an atomic INCR reserves the slot
+	// now and it is given back (DECR) if the request is not created.
+	reservas, perr := s.reservaLimites(ctx, ip, d)
+	if perr != nil {
+		return nil, perr
+	}
+	creada := false
+	defer func() {
+		if !creada {
+			s.liberaLimites(reservas)
+		}
+	}()
 	// The photo: processed to the standard piece and kept private until it is approved.
 	id := newID()
 	fotoClave, fotoSHA, err := s.procesaFoto(ctx, c.ID, id, form, d.FocalX, d.FocalY)
@@ -668,7 +663,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			return err
 		}
 		// The email to the athlete.
-		if err := email(ctx, tx, c.ID, d.Email, "atleta-solicitud-recibida", s.varsRecibida(d, fotoClave != "")); err != nil {
+		if err := email(ctx, tx, c.ID, d.Email, "atleta-solicitud-recibida", s.varsRecibida(d, fotoClave != "", menor, publicaPerfil(cons, menor))); err != nil {
 			return err
 		}
 		// The email to the team, with the photo (signed URL: it is not public until it is approved).
@@ -699,12 +694,63 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		}
 		return nil, err
 	}
+	creada = true
 	s.a.Log.Info("alta de atleta recibida", "id", id.String(), "competicion", c.ID.String(), "menor", menor, "match", matchTipo,
 		"foto", fotoClave != "", "request_id", httpx.RequestIDFrom(ctx))
 	out := &AltaOut{}
 	out.Body.ID = id.String()
 	return out, nil
 }
+
+// reservaLimites counts the request on the per-IP, per-email and per-phone limits (atomic INCR). If one is
+// over its limit every reserved slot is given back and a truthful 429 is returned.
+func (s *Svc) reservaLimites(ctx context.Context, ip string, d DatosAlta) ([]string, error) {
+	if s.a.Redis == nil {
+		return nil, nil
+	}
+	type lim struct {
+		key     string
+		limite  int64
+		ventana time.Duration
+		codigo  string
+		msg     string
+	}
+	ls := []lim{{s.a.Keys.Of("rl", "alta", ip), limiteIPAlta, time.Hour, "DEMASIADAS_PETICIONES", "Se han enviado muchas altas desde esta conexión. Espera un rato antes de intentarlo otra vez."}}
+	if d.Email != "" {
+		ls = append(ls, lim{s.a.Keys.Of("rl", "alta-mail", hashToken(d.Email)[:16]), limiteMailAlta, 24 * time.Hour, "LIMITE_EMAIL", "Ya se han enviado varias altas con este email hoy. Escríbenos si necesitas ayuda."})
+	}
+	if d.Telefono != "" {
+		ls = append(ls, lim{s.a.Keys.Of("rl", "alta-tel", hashToken(d.Telefono)[:16]), limiteTelAlta, 24 * time.Hour, "LIMITE_TELEFONO", "Ya se han enviado varias altas con este teléfono hoy. Escríbenos si necesitas ayuda."})
+	}
+	var hechas []string
+	for _, l := range ls {
+		r, err := ratelimit.Allow(ctx, s.a.Redis, l.key, l.limite, l.ventana)
+		if err != nil {
+			continue // fail-open: nothing was counted
+		}
+		hechas = append(hechas, l.key)
+		if !r.Allowed {
+			s.liberaLimites(hechas)
+			s.a.Log.Info("alta de atleta · límite", "clave", l.key, "ip", anonIP(ip))
+			seg := int(r.RetryAfter.Seconds()) + 1
+			if seg < 1 {
+				seg = 60
+			}
+			return nil, huma.ErrorWithHeaders(problem.New(http.StatusTooManyRequests, l.codigo, l.msg), http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
+		}
+	}
+	return hechas, nil
+}
+
+// liberaLimites gives back the slots reserved by reservaLimites. Only an existing key is decremented: an
+// expired one must not come back as -1 without a TTL.
+func (s *Svc) liberaLimites(keys []string) {
+	for _, k := range keys {
+		_ = s.a.Redis.Eval(context.Background(), decrSiExiste, []string{k}).Err()
+	}
+}
+
+const decrSiExiste = "if redis.call('EXISTS', KEYS[1]) == 1 then return redis.call('DECR', KEYS[1]) end return 0"
 
 // respuestaFalsa is the answer a bot gets: the same 202, but nothing was created.
 func (s *Svc) respuestaFalsa() *AltaOut {
@@ -714,7 +760,8 @@ func (s *Svc) respuestaFalsa() *AltaOut {
 }
 
 // limitaIPAlta applies the per-IP limits of the public alta before the body is read: a rejected POST never
-// parses (nor writes to /tmp) its multipart. The accepted counter is only read here (it grows on a 202).
+// parses (nor writes to /tmp) its multipart. The created counter is only read here (it grows atomically in
+// reservaLimites, only for requests that are created); fake answers to bots count only on the 60 POST/h cap.
 func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/alta-atleta") && s.a != nil && s.a.Redis != nil {
@@ -1365,11 +1412,40 @@ func (s *Svc) eventoContacto(d DatosAlta, cons map[string]Consentimiento, ip, ua
 }
 
 // varsRecibida are the variables of the email to the athlete.
-func (s *Svc) varsRecibida(d DatosAlta, foto bool) map[string]string {
+func (s *Svc) varsRecibida(d DatosAlta, foto, menor, publica bool) map[string]string {
 	return map[string]string{
 		"nombre": d.Nombre, "email": d.Email, "telefono": d.Telefono, "club": d.Club, "ciudad": d.Ciudad,
-		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "urlAtletas": s.webURL + "/atletas",
+		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "pasos": pasosRecibida(foto, menor, publica),
+		"urlAtletas": s.webURL + "/atletas",
 	}
+}
+
+// publicaPerfil says if the profile is public on approval: image consent and not a minor (as the success screen).
+func publicaPerfil(cons map[string]Consentimiento, menor bool) bool {
+	_, ok := cons["imagen"]
+	return ok && !menor
+}
+
+// pasosRecibida are the numbered next steps of the email to the athlete: the same process as the success screen.
+func pasosRecibida(foto, menor, publica bool) string {
+	revision := "Comprobamos tus datos con la lista de inscritos de la AEP."
+	if foto {
+		revision = "Comprobamos tus datos y tu foto con la lista de inscritos de la AEP."
+	}
+	p := []string{revision}
+	if menor {
+		p = append(p, "Eres menor de edad: necesitamos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email; sin ella no podemos aprobar tu alta.")
+	}
+	p = append(p, "Te avisamos por email con el resultado y el acceso a tu área de atleta.")
+	if publica {
+		p = append(p, "Publicamos tu ficha en /atletas.")
+	} else {
+		p = append(p, "Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.")
+	}
+	for i := range p {
+		p[i] = strconv.Itoa(i+1) + ". " + p[i]
+	}
+	return strings.Join(p, "\n\n")
 }
 
 // varsNueva are the variables of the email to the team (with the photo: a signed URL, not public).
