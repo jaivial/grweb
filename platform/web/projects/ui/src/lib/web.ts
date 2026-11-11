@@ -235,8 +235,8 @@ export class GrCountdown {
       <span class="grain-acento flex h-[200px] shrink-0 items-center justify-center bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] font-display text-[72px] leading-none text-accent-text" aria-hidden="true">?</span>
     }
     <div class="flex flex-col items-start gap-2 p-5">
-      <h3 class="text-ui-h5">{{ nombre() }}</h3>
-      @if (descripcion()) { <p class="text-body-s text-text-tertiary">{{ descripcion() }}</p> }
+      <h3 class="min-w-0 text-ui-h5 [overflow-wrap:anywhere]">{{ nombre() }}</h3>
+      @if (descripcion()) { <p class="min-w-0 text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ descripcion() }}</p> }
       <p class="flex flex-wrap items-center gap-2">
         <span class="inline-flex h-[23px] items-center rounded-pill bg-accent-text/16 px-2.5 text-[12px] font-semibold text-accent-text">× {{ unidades() }} {{ unidades() === 1 ? 'unidad' : 'unidades' }}</span>
         @if (valor()) { <span class="text-[13px] font-medium text-text-secondary">Valor aprox. {{ valor() }}</span> }
