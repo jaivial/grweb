@@ -176,9 +176,10 @@ func (s *Svc) precio(ctx context.Context, q querier, cid uuid.UUID, cfg Config, 
 	if code := normCodigo(cuponIn); code != "" {
 		d := &Descuento{Codigo: code}
 		p.Cupon = d
-		// Uses = paid ones plus payments in progress whose hold is still valid (an expired or failed one frees its use).
+		// Uses = paid ones plus payments in progress whose hold is still valid plus the reserve list (a reserve keeps
+		// its discount when it is offered a place, so it holds the use too). An expired or failed one frees it.
 		rows, err := q.Query(ctx, `SELECT id, codigo, tipo, valor, limite, caduca, activo,
-			usos + (SELECT count(*) FROM inscripciones i WHERE i.cupon_id = cupones.id AND i.estado = 'pendiente_pago' AND i.expira_at > now())::int AS usos
+			usos + (SELECT count(*) FROM inscripciones i WHERE i.cupon_id = cupones.id AND (i.estado = 'reserva' OR (i.estado = 'pendiente_pago' AND i.expira_at > now())))::int AS usos
 			FROM cupones WHERE competition_id = $1 AND codigo = $2`, cid, code)
 		if err != nil {
 			return p, nil, nil, err
@@ -1219,9 +1220,23 @@ func (s *Svc) ofrecerPlaza(ctx context.Context, cid, aid uuid.UUID) (bool, error
 		return false, problem.New(http.StatusServiceUnavailable, "PASARELA_NO_CONFIGURADA", "Los pagos no están activados: no se puede enviar el enlace de pago.")
 	}
 	exp := time.Now().Add(23*time.Hour + 50*time.Minute) // Stripe allows at most 24 h
-	tag, err := s.a.DB.Exec(ctx, `UPDATE inscripciones SET estado = 'pendiente_pago', expira_at = $2, updated_at = now() WHERE id = $1 AND estado IN ('reserva', 'cancelada', 'fallida')`, iid, exp)
-	if err != nil || tag.RowsAffected() == 0 {
-		return false, problem.Conflict("OFERTA_EN_CURSO", "La inscripción ha cambiado mientras tanto. Recarga la ficha.")
+	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		// Same lock as crearInscripcion: the coupon limit is re-checked atomically before offering the place.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 7))`, cid.String()); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `UPDATE inscripciones SET estado = 'pendiente_pago', expira_at = $2, updated_at = now() WHERE id = $1 AND estado IN ('reserva', 'cancelada', 'fallida')`, iid, exp)
+		if err != nil || tag.RowsAffected() == 0 {
+			return problem.Conflict("OFERTA_EN_CURSO", "La inscripción ha cambiado mientras tanto. Recarga la ficha.")
+		}
+		// A coupon used up by others meanwhile (paid, in progress or on the reserve list) is dropped: full price.
+		return tx.QueryRow(ctx, `UPDATE inscripciones i SET total = i.total + i.desc_cupon, desc_cupon = 0, cupon_id = NULL, cupon_codigo = ''
+			FROM cupones c WHERE i.id = $1 AND c.id = i.cupon_id AND c.limite IS NOT NULL
+			AND c.usos + (SELECT count(*) FROM inscripciones o WHERE o.cupon_id = c.id AND o.id <> i.id AND (o.estado = 'reserva' OR (o.estado = 'pendiente_pago' AND o.expira_at > now()))) >= c.limite
+			RETURNING i.total`, iid).Scan(&total)
+	})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
 	}
 	co, err := prov.CreateCheckout(ctx, pagos.CheckoutIn{Amount: total, Description: "Inscripción · " + s.nombreComp(ctx, cid), Email: mail,
 		SuccessURL: s.webURL + "/inscripcion/estado?id=" + iid.String(), CancelURL: s.webURL + "/inscripcion?cancelado=" + iid.String(),
