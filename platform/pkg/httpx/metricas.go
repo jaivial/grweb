@@ -140,7 +140,5 @@ func (m *Metrics) P95() (float64, uint64) {
 
 // Flush keeps SSE streaming working through the wrapper.
 func (w *metricWriter) Flush() {
-	if f, ok := w.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
+	_ = http.NewResponseController(w.ResponseWriter).Flush()
 }

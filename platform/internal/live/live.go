@@ -21,6 +21,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/app"
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/bodylimit"
 	"github.com/jaivial/grweb/platform/pkg/cache"
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/config"
@@ -63,7 +64,7 @@ type espCache struct {
 // Service returns the live service definition.
 func Service() app.Service {
 	s := &Svc{esp: map[uuid.UUID]espCache{}}
-	return app.Service{Name: "live", Title: "GR Cup · live", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
+	return app.Service{Name: "live", Title: "GR Cup · live", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup, BodyLimitFor: bodylimit.For("live"),
 		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "etl-mysql": s.etlMySQL}}
 }
 

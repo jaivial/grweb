@@ -13,7 +13,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"io/fs"
-	"net/http"
 	"strings"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/app"
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/bodylimit"
 	"github.com/jaivial/grweb/platform/pkg/cache"
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/config"
@@ -48,8 +48,8 @@ var bearer = []map[string][]string{{"bearer": {}}}
 
 // maxImport is the request limit of an AEP list upload (5 MB file + multipart overhead); photos go up to 8 MB.
 const (
-	maxImport = 6 << 20
-	maxFoto   = 9 << 20
+	maxImport = bodylimit.Import
+	maxFoto   = bodylimit.Foto
 )
 
 // Svc holds the service dependencies.
@@ -81,24 +81,8 @@ func Service() app.Service {
 	s := &Svc{}
 	return app.Service{
 		Name: "athletes", Title: "GR Cup · athletes", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
-		BodyLimitFor: func(r *http.Request) int64 {
-			if r.Method != http.MethodPost {
-				return 0
-			}
-			switch {
-			case strings.HasSuffix(r.URL.Path, "/atletas/importaciones"):
-				return maxImport
-			case r.URL.Path == "/api/area-atleta/foto" || strings.HasSuffix(r.URL.Path, "/foto"):
-				return maxFoto
-			// The public form of the «alta de atleta» (photo of 8 MB + the data of the form).
-			case strings.HasSuffix(r.URL.Path, "/alta-atleta"):
-				return maxFoto
-			// The signed authorisation of a minor (private file).
-			case strings.HasSuffix(r.URL.Path, "/autorizacion"):
-				return maxFoto
-			}
-			return 0
-		},
+		BodyLimitFor: bodylimit.For("athletes"),
+
 		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "enlace-area": s.cmdEnlaceArea, "etl-mysql": s.etlMySQL},
 		// The user agent of the request (the proof of the consents of the public form), the rewrite of
 		// the history of an athlete (see «reescribeHistorial») and the size of the public form.

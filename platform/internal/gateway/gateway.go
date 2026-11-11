@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/jaivial/grweb/platform/pkg/app"
+	"github.com/jaivial/grweb/platform/pkg/bodylimit"
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -130,27 +131,13 @@ func Service() app.Service {
 	return app.Service{Name: "gateway", Title: "GR Cup · gateway", NeedsRedis: true, MaxConns: -1, Setup: g.setup, BodyLimitFor: bodyLimit}
 }
 
-// bodyLimit is the request body limit of the owning service (same values as its BodyLimit/BodyLimitFor), so an
-// oversized body gets 413 at the edge before anything is proxied. Keep in sync with athletes, cms and openlifter.
-func bodyLimit(r *http.Request) int64 {
-	const mib = 1 << 20
-	svc, p := match(r.URL.Path), r.URL.Path
-	post := r.Method == http.MethodPost
-	switch {
-	case svc == "openlifter":
-		return 4 * mib
-	case svc == "athletes" && post && strings.HasSuffix(p, "/atletas/importaciones"):
-		return 6 * mib
-	case svc == "athletes" && post && (strings.HasSuffix(p, "/foto") || strings.HasSuffix(p, "/alta-atleta") || strings.HasSuffix(p, "/autorizacion")):
-		return 9 * mib
-	case svc == "cms" && post && strings.HasPrefix(p, "/api/admin/competiciones/") && (strings.HasSuffix(p, "/medios") || strings.HasSuffix(p, "/web/mapas/imagen")):
-		return 11 * mib
-	}
-	return mib
-}
+// bodyLimit is the limit of the owning service (shared table), so an oversized body gets 413 at the edge
+// before anything is proxied.
+func bodyLimit(r *http.Request) int64 { return bodylimit.Of(match(r.URL.Path), r) }
 
 func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.a = a
+	httpx.DrainTooLarge = 12 << 20 // = nginx client_max_body_size: a 413 reaches the client, not nginx's 502
 	g.cors = config.List("CORS_ORIGINS")
 	g.ipLimit = int64(config.Int("RATE_LIMIT_IP_MIN", 600))
 	g.ssrSecret = []byte(config.Str("SSR_SECRET", ""))

@@ -708,7 +708,7 @@ func tooMany(r ratelimit.Result) error {
 	if seg < 1 {
 		seg = 60
 	}
-	return huma.ErrorWithHeaders(problem.TooMany("Has enviado demasiados altas. Espera unos minutos antes de intentarlo otra vez."),
+	return huma.ErrorWithHeaders(problem.TooMany("Has enviado demasiadas altas. Espera unos minutos antes de intentarlo otra vez."),
 		http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
 }
 

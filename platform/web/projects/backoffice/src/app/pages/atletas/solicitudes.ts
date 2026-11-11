@@ -752,6 +752,7 @@ export class SolicitudesPage {
   }
 
   async cargarCupos(): Promise<void> {
+    if (!this.puede()) return;
     try {
       this.ponCupos((await this.api.cupos(this.cid())).cupos);
     } catch {
@@ -761,7 +762,7 @@ export class SolicitudesPage {
 
   /** Live (SSE): refresh only the occupied counts; keeps any unsaved quota the admin is typing. */
   private async refrescarOcupadas(): Promise<void> {
-    if (!this.cid()) return;
+    if (!this.cid() || !this.puede()) return;
     try {
       this.cupos.set((await this.api.cupos(this.cid())).cupos);
     } catch {
