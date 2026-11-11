@@ -345,13 +345,21 @@ func (s *Svc) muevePlaza(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, 
 			return err
 		}
 		var n int
-		// the athlete's own place (the approved request that created it) is the one being moved
-		if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'
-			AND (match_atleta_id IS DISTINCT FROM $3 OR estado <> 'aprobada')`, cid, prueba, atleta).Scan(&n); err != nil {
+		// the athlete already holds a place there (its approved request): nothing moves, no free place needed
+		var ya bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM solicitudes_atleta WHERE competition_id = $1 AND match_atleta_id = $2 AND estado = 'aprobada' AND prueba = $3)`,
+			cid, atleta, prueba).Scan(&ya); err != nil {
 			return err
 		}
-		if lim := s.cupos(ctx, tx, cid, c.Inscripcion.Plazas)[prueba]; lim > 0 && n >= lim {
-			return problem.Conflict("CUPO_COMPLETO", "Esa competición tiene el cupo completo. Confirma para asignarla igualmente.")
+		// the athlete's own place (the approved request that created it) is the one being moved
+		if !ya {
+			if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'
+			AND (match_atleta_id IS DISTINCT FROM $3 OR estado <> 'aprobada')`, cid, prueba, atleta).Scan(&n); err != nil {
+				return err
+			}
+			if lim := s.cupos(ctx, tx, cid, c.Inscripcion.Plazas)[prueba]; lim > 0 && n >= lim {
+				return problem.Conflict("CUPO_COMPLETO", "Esa competición tiene el cupo completo. Confirma para asignarla igualmente.")
+			}
 		}
 	}
 	// Only the approved request of this athlete: pending requests of other people that merely matched it
