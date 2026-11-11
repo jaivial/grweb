@@ -95,15 +95,15 @@ const MAX_MARCA = 600;
             <h2 class="mt-3 text-display-s md:text-[38px] md:leading-[1.1]">Crea tu perfil de atleta de <span class="text-accent-text">powerlifting</span></h2>
             <p class="mt-4 max-w-[800px] text-body-m text-text-tertiary">{{ introH2 }}</p>
           </div>
-          <div class="grid gap-6 md:grid-cols-3 md:gap-8">
+          <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
             @for (b of bloques; track b.t) {
               <article class="flex flex-col gap-2">
-                <h3 class="text-ui-h5">{{ b.t }}</h3>
+                <h3 class="text-ui-h5 lg:text-[17px]">{{ b.t }}</h3>
                 <p class="text-body-s text-text-tertiary">{{ b.d }}</p>
               </article>
             }
           </div>
-          <div><a grButton variant="primary" size="l" href="#formulario" iconRight="arrow-down">Ir al formulario</a></div>
+          <div><a grButton variant="primary" size="m" href="#formulario" iconRight="arrow-down">Ir al formulario</a></div>
         </section>
 
         <!-- Formulario + resumen (Figma 75) -->
