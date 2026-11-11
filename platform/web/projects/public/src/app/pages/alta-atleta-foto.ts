@@ -30,7 +30,7 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
       @if (!foto()) {
         <!-- Figma «Tu foto»: zona de arrastre -->
         <label
-          class="flex cursor-pointer flex-col items-center gap-2 rounded-[14px] border-2 border-dashed px-5 py-8 text-center transition-colors"
+          class="flex cursor-pointer flex-col items-center gap-2 rounded-[14px] border-2 border-dashed px-5 py-8 text-center transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-text"
           [class]="arrastrando() ? 'border-accent-text bg-accent/8' : 'border-line-strong hover:border-text-muted'"
           (dragover)="arrastrando.set(true); $event.preventDefault()" (dragleave)="arrastrando.set(false)" (drop)="soltar($event)">
           <input #entrada type="file" class="sr-only" accept="image/jpeg,image/png,image/webp" [attr.aria-label]="'Foto de perfil (opcional). JPG, PNG o WebP, máximo 8 MB y 48 megapíxeles'"
