@@ -654,7 +654,14 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 	if !b.AceptaTerminos || !b.AceptaPrivacidad {
 		return EstadoInscripcion{}, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para inscribirte tienes que aceptar los términos, el reglamento y la política de privacidad.")
 	}
-	d := DatosIn{Licencia: b.Licencia, Nombre: b.Nombre, Apellidos: b.Apellidos, Email: b.Email, Telefono: b.Telefono, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: b.Club, Estado: "confirmado"}
+	// Same normalisation as the alta form: bidi/control characters dropped, phone checked and normalised.
+	d := DatosIn{Licencia: b.Licencia, Nombre: sinControl(b.Nombre), Apellidos: sinControl(b.Apellidos), Email: b.Email, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: sinControl(b.Club), Estado: "confirmado"}
+	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(b.Telefono)); tel != "" {
+		if !telValido.MatchString(tel) {
+			return EstadoInscripcion{}, problem.Unprocessable("TELEFONO_INVALIDO", "Escribe un móvil válido.")
+		}
+		d.Telefono = normTel(tel)
+	}
 	nac, ok := ParseFecha(b.FechaNacimiento)
 	if !ok {
 		return EstadoInscripcion{}, problem.Unprocessable("FECHA_INVALIDA", "La fecha de nacimiento debe ser AAAA-MM-DD.")
