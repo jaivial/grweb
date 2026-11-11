@@ -517,24 +517,31 @@ func (s *Svc) registerInscripcion() {
 					return nil, problem.Conflict("INSCRIPCION_EN_CURSO", "Estamos procesando tu inscripción. Espera unos segundos.")
 				}
 			}
-			// Only created registrations count (a rejected form does not lock out a shared club or NAT IP).
+			// Atomic INCR before creating (parallel requests cannot all pass a GET check); a rejected or failed
+			// registration gives its hit back, so a rejected form does not lock out a shared club or NAT IP.
 			kIP := s.a.Keys.Of("rl", "inscripcion", httpx.ClientIPFrom(ctx))
 			kMail := s.a.Keys.Of("rl", "inscripcion", "email", strings.ToLower(strings.TrimSpace(in.Body.Email)))
-			if n, _ := s.a.Redis.Get(ctx, kIP).Int(); n >= 30 {
+			devolver := func(ks ...string) {
+				for _, k := range ks {
+					_ = s.a.Redis.Eval(context.Background(), decrSiExiste, []string{k}).Err()
+				}
+			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, kIP, 30, time.Hour); !r.Allowed {
+				devolver(kIP)
 				s.soltarIdem(ctx, idem)
 				return nil, problem.TooMany("Se han hecho muchas inscripciones desde tu red. Inténtalo más tarde.")
 			}
-			if n, _ := s.a.Redis.Get(ctx, kMail).Int(); n >= 5 {
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, kMail, 5, time.Hour); !r.Allowed {
+				devolver(kIP, kMail)
 				s.soltarIdem(ctx, idem)
 				return nil, problem.TooMany("Has enviado varias inscripciones con este email. Inténtalo más tarde.")
 			}
 			out, err := s.crearInscripcion(ctx, c.ID, f.ID, in.Body)
 			if err != nil {
+				devolver(kIP, kMail)
 				s.soltarIdem(ctx, idem)
 				return nil, err
 			}
-			_, _ = ratelimit.Allow(ctx, s.a.Redis, kIP, 30, time.Hour)
-			_, _ = ratelimit.Allow(ctx, s.a.Redis, kMail, 5, time.Hour)
 			if idem != "" {
 				_ = s.a.Redis.Set(ctx, idem, out.ID.String(), 24*time.Hour).Err()
 			}
@@ -703,6 +710,14 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		if precio.Referido != nil && !precio.Referido.Valido {
 			return problem.Unprocessable("REFERIDO_INVALIDO", precio.Referido.Motivo)
 		}
+		// One account cannot hold many places: at most 2 payments in progress per fan (counted inside the lock).
+		var pend int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM inscripciones WHERE competition_id = $1 AND fan_id = $2 AND estado = 'pendiente_pago' AND expira_at > now()`, cid, fan).Scan(&pend); err != nil {
+			return err
+		}
+		if pend >= maxPendientesFan {
+			return problem.TooMany("Ya tienes 2 pagos de inscripción a medias. Termínalos o espera 30 minutos a que caduquen.")
+		}
 		var n int
 		if err := tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM atletas WHERE competition_id = $1 AND estado = 'confirmado')
 			+ (SELECT count(*) FROM inscripciones WHERE competition_id = $1 AND estado = 'pendiente_pago' AND expira_at > now())`, cid).Scan(&n); err != nil {
@@ -740,8 +755,8 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		}
 		dj, _ := json.Marshal(datos)
 		cj, _ := json.Marshal(cons)
-		if _, err := tx.Exec(ctx, `INSERT INTO inscripciones (id, competition_id, datos, email, licencia, cuota, desc_cupon, desc_referido, total, cupon_id, cupon_codigo, referido_id, estado, proveedor, consentimientos, expira_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, id, cid, dj, d.Email, d.Licencia, precio.Cuota, dcup, dref, precio.Total, cupID, cupCode, refID, estado, provName(prov), cj, expira); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO inscripciones (id, competition_id, datos, email, licencia, cuota, desc_cupon, desc_referido, total, cupon_id, cupon_codigo, referido_id, estado, proveedor, consentimientos, expira_at, fan_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, id, cid, dj, d.Email, d.Licencia, precio.Cuota, dcup, dref, precio.Total, cupID, cupCode, refID, estado, provName(prov), cj, expira, fan); err != nil {
 			if strings.Contains(err.Error(), "inscripciones_licencia_viva") {
 				return problem.Conflict("YA_INSCRITO", "Ya hay una inscripción en curso con esa licencia. Si no terminaste el pago, espera 30 minutos o escríbenos.")
 			}
@@ -784,6 +799,9 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 }
 
 var licenciaValida = regexp.MustCompile(`^[A-Z0-9-]{3,20}$`)
+
+// maxPendientesFan caps the registrations a fan account can have waiting for payment at the same time.
+const maxPendientesFan = 2
 
 // soltarIdem frees an idempotency key whose request failed, so the same key can be retried.
 func (s *Svc) soltarIdem(ctx context.Context, k string) {
