@@ -45,6 +45,8 @@ type patroPub struct {
 	URL     string `json:"url" db:"url"`
 	// One line under the name on /patrocinadores.
 	Descripcion string `json:"descripcion" db:"descripcion"`
+	// Shown in the logo row of the home hero (BIZ-144).
+	MostrarEnHero bool `json:"mostrarEnHero" db:"mostrar_en_hero"`
 }
 
 type paginaPub struct {
@@ -120,13 +122,26 @@ func (s *Svc) registerPublic() {
 		CacheControl string `header:"Cache-Control"`
 		Body         []patroPub
 	}
+	type patroPubIn struct {
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Hero bool   `query:"hero" required:"false" doc:"Solo los marcados «Mostrar en hero» (BIZ-144)"`
+	}
 	huma.Register(api, huma.Operation{OperationID: "patrocinadores-public", Method: http.MethodGet, Path: pub + "/patrocinadores", Summary: "Patrocinadores activos", Tags: tagPub},
-		func(ctx context.Context, in *slugIn) (*patroOut, error) {
+		func(ctx context.Context, in *patroPubIn) (*patroOut, error) {
 			cid, err := s.cidFor(ctx, in.Slug)
 			if err != nil {
 				return nil, err
 			}
 			list, err := cached(ctx, s, cid, "patrocinadores", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid) })
+			if err == nil && in.Hero {
+				hero := []patroPub{}
+				for _, p := range list {
+					if p.MostrarEnHero {
+						hero = append(hero, p)
+					}
+				}
+				list = hero
+			}
 			return &patroOut{CacheControl: cacheHdr, Body: list}, err
 		})
 
@@ -470,7 +485,7 @@ func collect[T any](rows pgx.Rows) ([]T, error) {
 }
 
 func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID) ([]patroPub, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
+	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion, mostrar_en_hero FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
 	if err != nil {
 		return nil, err
 	}
