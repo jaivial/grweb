@@ -58,7 +58,13 @@ import { SecSorteo, type SorteoHome } from './sorteo';
               @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
               @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
             }
-            @case ('organizacion') { <gr-sec-organizacion [s]="h.secciones[k]" /> }
+            @case ('organizacion') {
+              @if (!h.orden.includes('premios')) {
+                @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
+                @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
+              }
+              <gr-sec-organizacion [s]="h.secciones[k]" />
+            }
             @case ('afiliaciones') { <gr-sec-afiliaciones [s]="h.secciones[k]" /> }
             @case ('sorteo') { @if (c?.modulos?.['sorteo'] && sorteo()) { <gr-sec-sorteo [s]="h.secciones[k]" [sorteo]="sorteo()" /> } }
             @case ('categorias') { <gr-sec-categorias [s]="h.secciones[k]" /> }

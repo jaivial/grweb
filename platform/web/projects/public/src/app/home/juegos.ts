@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { GrButton } from '@grcup/ui';
 import type { AtletaMercado } from '../core/juegos';
 import { iniciales } from '../pages/porra/componentes';
@@ -166,7 +166,7 @@ export class SecPorra {
   template: `
     <div [class]="ancho + ' flex flex-col-reverse gap-10 lg:flex-row lg:items-center lg:gap-16'">
       <div class="w-full lg:w-[680px] lg:shrink-0">
-        <gr-pista-futsal [titulares]="titulares()" [puntosDe]="puntosDe" />
+        <gr-pista-futsal [titulares]="titulares()" [puntosDe]="puntosDe" (abrir)="router.navigateByUrl('/fantasy')" />
       </div>
       <div class="flex w-full flex-col items-start gap-5">
         <img src="/img/home/logo-fantasy.webp" alt="GRS Fantasy" width="280" height="132" class="h-auto w-[240px] md:w-[280px]" loading="lazy" decoding="async" />
@@ -192,6 +192,7 @@ export class SecPorra {
 })
 export class SecFantasy {
   readonly resumen = input<ResumenFantasy | null>(null);
+  protected readonly router = inject(Router);
   protected readonly ancho = ANCHO;
   protected readonly titulares = computed<AtletaPista[]>(() =>
     (this.resumen()?.alineacionDestacada?.atletas ?? []).map((a) => ({
