@@ -326,7 +326,7 @@ func (s *Svc) reservaPrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, total
 		return err
 	}
 	if n >= s.cupos(ctx, tx, cid, total)[prueba] {
-		return problem.Conflict("PRUEBA_COMPLETA", "Esa competición ya está completa: elige otra o «Aún no lo sé».")
+		return validacion("Revisa los campos marcados.", &huma.ErrorDetail{Location: "body.prueba", Message: "Esa competición ya está completa: elige otra o «Aún no lo sé»."})
 	}
 	return nil
 }

@@ -101,7 +101,7 @@ const MAX_MARCA = 600;
               </article>
             }
           </div>
-          <a grButton variant="primary" size="l" href="#formulario" class="self-start" iconRight="arrow-down">Ir al formulario</a>
+          <div><a grButton variant="primary" size="l" href="#formulario" iconRight="arrow-down">Ir al formulario</a></div>
         </section>
 
         <!-- Formulario + resumen (Figma 75) -->
@@ -220,12 +220,14 @@ const MAX_MARCA = 600;
                     <fieldset class="flex min-w-0 flex-col gap-4">
                       <legend class="mb-5 text-display-2xs italic">Competición</legend>
                       @if (cfg()?.pruebas?.length) {
-                        <div class="flex min-w-0 flex-col gap-3" role="radiogroup" aria-labelledby="l-prueba">
+                        <div id="c-prueba" class="flex min-w-0 flex-col gap-3" role="radiogroup" aria-labelledby="l-prueba" [attr.aria-describedby]="err()['prueba'] ? 'e-prueba' : null" (keydown)="teclaPrueba($event)">
                           <span id="l-prueba" class="font-display text-base uppercase italic tracking-[0.02em]">¿En qué competición compites?</span>
                           @for (o of opcionesPrueba(); track o.codigo) {
                             <button type="button" role="radio" [attr.aria-checked]="d.prueba === o.codigo" (click)="d.prueba = o.codigo; revalidar()"
-                              class="flex w-full items-center gap-4 rounded-[10px] border px-4 py-3.5 text-left transition-colors"
-                              [class]="d.prueba === o.codigo ? 'border-accent-text bg-accent-deep/30' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
+                              [disabled]="o.completa" [attr.aria-disabled]="o.completa || null" [attr.data-prueba]="o.codigo"
+                              [attr.aria-label]="o.titulo + '. ' + o.detalle + '. ' + o.chip" [attr.tabindex]="o.codigo === pruebaFoco() ? 0 : -1"
+                              class="flex w-full items-center gap-4 rounded-[10px] border px-4 py-3.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                              [class]="d.prueba === o.codigo ? 'border-accent-text bg-accent-deep/30' : o.completa ? 'border-line-subtle bg-bg-card' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
                               <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2"
                                 [class]="d.prueba === o.codigo ? 'border-accent-text' : 'border-line-strong'">
                                 @if (d.prueba === o.codigo) { <span class="size-2.5 rounded-full bg-accent-text"></span> }
@@ -237,6 +239,7 @@ const MAX_MARCA = 600;
                               <span class="shrink-0 rounded-full border px-2.5 py-0.5 text-label-xs" [class]="o.tono">{{ o.chip }}</span>
                             </button>
                           }
+                          @if (err()['prueba']) { <p id="e-prueba" class="text-body-xs text-accent-text">{{ err()['prueba'] }}</p> }
                         </div>
                       }
                       <div class="grid gap-4 sm:grid-cols-2">
@@ -391,7 +394,7 @@ const MAX_MARCA = 600;
                       @if (error()) {
                         <p class="flex items-start gap-2 rounded-md border border-accent bg-accent/8 p-4 text-body-s text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0" />{{ error() }}</p>
                       }
-                      <button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="enviando()">Enviar mi alta</button>
+                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="enviando()">Enviar mi alta</button></div>
                       <p class="text-body-xs text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
                   </form>
@@ -471,7 +474,7 @@ export class AltaAtletaPage {
   }
 
   /** Las tarjetas de «¿En qué competición compites?» con su chip (disponible, últimas plazas, completa). */
-  protected opcionesPrueba(): { codigo: string; titulo: string; detalle: string; chip: string; tono: string }[] {
+  protected opcionesPrueba(): { codigo: string; titulo: string; detalle: string; chip: string; tono: string; completa: boolean }[] {
     const c = this.cfg();
     const dia = (iso?: string) => iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
     const verde = 'border-success/40 bg-success/10 text-success';
@@ -481,13 +484,33 @@ export class AltaAtletaPage {
         : libre <= Math.max(5, Math.ceil(p.plazas * 0.1)) ? ['Últimas plazas', 'border-accent-text/40 bg-accent-deep/20 text-accent-text'] : ['Disponible', verde];
       const fecha = dia(p.fecha);
       return {
-        codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, chip, tono,
+        codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, chip, tono, completa: libre <= 0,
         detalle: [p.plazas > 0 ? `${Math.min(p.ocupadas, p.plazas)} de ${p.plazas} plazas` : '', p.nivel].filter(Boolean).join(' · '),
       };
     });
     const lim = c?.limiteEleccion ? `, hasta el ${dia(c.limiteEleccion).replace(/^\S+ /, '')} a las 12:00` : '';
-    out.push({ codigo: '', titulo: 'Aún no lo sé', detalle: `La eliges luego en tu área de atleta${lim}`, chip: 'Opcional', tono: verde });
+    out.push({ codigo: '', titulo: 'Aún no lo sé', detalle: `La eliges luego en tu área de atleta${lim}`, chip: 'Opcional', tono: verde, completa: false });
     return out;
+  }
+
+  /** La opción que entra en el recorrido del teclado (radiogroup: un solo tab stop). */
+  protected pruebaFoco(): string {
+    const ops = this.opcionesPrueba().filter((o) => !o.completa);
+    return ops.some((o) => o.codigo === this.d.prueba) ? this.d.prueba : (ops[0]?.codigo ?? '');
+  }
+
+  /** Flechas en el radiogroup: mueven y eligen la opción siguiente o anterior (saltando las completas). */
+  protected teclaPrueba(ev: KeyboardEvent): void {
+    const paso = ev.key === 'ArrowDown' || ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowUp' || ev.key === 'ArrowLeft' ? -1 : 0;
+    if (!paso) return;
+    ev.preventDefault();
+    const ops = this.opcionesPrueba().filter((o) => !o.completa);
+    if (!ops.length) return;
+    const i = ops.findIndex((o) => o.codigo === this.pruebaFoco());
+    const sig = ops[(i + paso + ops.length) % ops.length];
+    this.d.prueba = sig.codigo;
+    this.revalidar();
+    (ev.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-prueba="' + sig.codigo + '"]')?.focus();
   }
 
   protected readonly d: DatosAlta = {
@@ -607,6 +630,7 @@ export class AltaAtletaPage {
     add('email', 'Email', 'introduce un email válido');
     add('telefono', 'Teléfono', 'si pides avisos por WhatsApp, necesitas tu teléfono');
     add('fechaNacimiento', 'Fecha de nacimiento', 'elige una fecha válida');
+    add('prueba', 'Competición', 'está completa: elige otra o «Aún no lo sé»');
     add('frase', 'Frase', 'es demasiado larga');
     add('bio', 'Sobre ti', 'es demasiado largo');
     add('instagram', 'Instagram', 'es demasiado largo');
