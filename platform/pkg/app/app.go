@@ -237,7 +237,12 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	errc := make(chan error, 1)
 	go func() {
 		a.Log.Info("escuchando", "addr", a.Cfg.HTTPAddr, "env", a.Cfg.Env)
-		errc <- srv.ListenAndServe()
+		ln, err := httpx.Listen(ctx, a.Cfg.HTTPAddr)
+		if err != nil {
+			errc <- err
+			return
+		}
+		errc <- srv.Serve(ln)
 	}()
 	select {
 	case err := <-errc:
