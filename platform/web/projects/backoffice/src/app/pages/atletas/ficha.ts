@@ -300,7 +300,7 @@ export class AtletaFichaPage {
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     if (!a) return '';
-    return [`${a.sexo} ${cat(a.categoria)} kg`, a.divisionNombre, a.prueba ? 'Competición ' + a.prueba.toUpperCase().replace('AEP', 'AEP-') : '', a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.flight ? `Flight ${a.flight}${a.horaInicio ? ' (' + this.hora(a.horaInicio) + ')' : ''}` : '']
+    return [a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : 'Sin categoría', a.divisionNombre, a.prueba ? 'Competición ' + a.prueba.toUpperCase().replace('AEP', 'AEP-') : '', a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.flight ? `Flight ${a.flight}${a.horaInicio ? ' (' + this.hora(a.horaInicio) + ')' : ''}` : '']
       .filter(Boolean).join(' · ');
   });
   protected categorias(): string[] {

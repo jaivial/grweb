@@ -12,11 +12,14 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
-// RejectNUL answers 422 VALIDACION to any JSON body holding a NUL character (U+0000) in a string:
-// PostgreSQL text cannot store it, so it must never reach a handler of any service.
+// RejectNUL answers 422 VALIDACION to any body holding a NUL character (U+0000): JSON (whatever the
+// Content-Type casing/parameters, or none, since huma decodes it as JSON by default), form-urlencoded
+// (%00) or any other text. PostgreSQL text cannot store it. Multipart bodies carry binary files, so
+// their text parts are checked by the decoder of each handler (see HasNUL).
 func RejectNUL(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Body == nil || r.Body == http.NoBody || !strings.Contains(r.Header.Get("Content-Type"), "json") {
+		ct := strings.ToLower(r.Header.Get("Content-Type"))
+		if r.Body == nil || r.Body == http.NoBody || binario(ct) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -28,22 +31,27 @@ func RejectNUL(next http.Handler) http.Handler {
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(b))
-		if !tieneNUL(b) {
+		if !HasNUL(b) && !(strings.Contains(ct, "x-www-form-urlencoded") && bytes.Contains(bytes.ToLower(b), []byte("%00"))) {
 			next.ServeHTTP(w, r)
 			return
 		}
-		p := problem.Unprocessable("VALIDACION", "El texto contiene un carácter no permitido (NUL).")
-		p.Errors = []*huma.ErrorDetail{{Location: rutaNUL(b), Message: "carácter no permitido (U+0000)"}}
-		problem.Write(w, p)
+		problem.Write(w, NULProblem(b, "body"))
 	})
+}
+
+// NULProblem is the 422 VALIDACION for a JSON document b holding NUL; root prefixes the location.
+func NULProblem(b []byte, root string) *problem.Error {
+	p := problem.Unprocessable("VALIDACION", "El texto contiene un carácter no permitido (NUL).")
+	p.Errors = []*huma.ErrorDetail{{Location: rutaNUL(b, root), Message: "carácter no permitido (U+0000)"}}
+	return p
 }
 
 type errReader struct{ err error }
 
 func (e errReader) Read([]byte) (int, error) { return 0, e.err }
 
-// tieneNUL reports a raw 0x00 byte or a \u0000 escape inside a JSON string (an escaped backslash is skipped).
-func tieneNUL(b []byte) bool {
+// HasNUL reports a raw 0x00 byte or a \u0000 escape inside a JSON string (an escaped backslash is skipped).
+func HasNUL(b []byte) bool {
 	if bytes.IndexByte(b, 0) >= 0 {
 		return true
 	}
@@ -62,16 +70,16 @@ func tieneNUL(b []byte) bool {
 	return false
 }
 
-// rutaNUL returns the location (body.campo.0.x) of the first string holding NUL, or "body".
-func rutaNUL(b []byte) string {
+// rutaNUL returns the location (root.campo.0.x) of the first string holding NUL, or root.
+func rutaNUL(b []byte, root string) string {
 	var v any
 	if json.Unmarshal(b, &v) != nil {
-		return "body"
+		return root
 	}
-	if p, ok := buscaNUL(v, "body"); ok {
+	if p, ok := buscaNUL(v, root); ok {
 		return p
 	}
-	return "body"
+	return root
 }
 
 func buscaNUL(v any, path string) (string, bool) {
@@ -95,4 +103,15 @@ func buscaNUL(v any, path string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// binario: bodies that legitimately carry 0x00 bytes (files); their text parts are checked by the handler.
+func binario(ct string) bool {
+	ct = strings.TrimSpace(ct)
+	for _, p := range []string{"multipart/", "image/", "audio/", "video/", "application/octet-stream", "application/pdf", "application/zip"} {
+		if strings.HasPrefix(ct, p) {
+			return true
+		}
+	}
+	return false
 }

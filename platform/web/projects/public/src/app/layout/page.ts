@@ -22,7 +22,7 @@ import { Footer, Navbar, type Lang } from './layout';
       <!-- One wrapper and ONE plain <ng-content>: projecting through an <ng-template> + ngTemplateOutlet broke hydration
            (NG0501) on pages whose content starts with control flow. The layout only changes classes. -->
       <div [class]="centrado() ? 'relative mx-auto flex max-w-[800px] flex-col gap-5 px-5 pt-[120px] pb-18 md:gap-7 md:pt-40 md:pb-30'
-        : 'relative mx-auto max-w-[1440px] px-5 pt-[92px] pb-18 md:px-8 md:pt-[148px] xl:px-[120px] xl:pb-26'">
+        : 'relative mx-auto max-w-[1440px] px-5 pb-18 md:px-8 md:pt-[148px] xl:px-[120px] xl:pb-26 ' + (tituloMovilGrande() ? 'pt-[149px]' : 'pt-[92px]')">
         @if (cabecera() && centrado()) {
           <header class="flex flex-col items-center gap-3 text-center">
             @if (eyebrow()) { <p class="text-mono-xs text-text-tertiary">{{ eyebrow() }}</p> }
@@ -41,8 +41,8 @@ import { Footer, Navbar, type Lang } from './layout';
             </nav>
             <div class="flex flex-col gap-3 md:gap-4">
               @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent" aria-hidden="true"></span>{{ eyebrow() }}</p> }
-              <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span class="text-accent-text">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
-              @if (subtitle()) { @if (subtitleHtml()) { <p class="text-body-m text-text-tertiary md:text-body-l" [innerHTML]="subtitleHtml()"></p> } @else { <p class="text-body-m text-text-tertiary md:text-body-l">{{ subtitle() }}</p> } }
+              <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span [class]="tituloMovilGrande() ? 'text-accent' : 'text-accent-text'">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
+              @if (subtitle()) { @if (subtitleHtml()) { <p class="md:text-body-l" [class]="tituloMovilGrande() ? 'text-body-l text-text-secondary' : 'text-body-m text-text-tertiary'" [innerHTML]="subtitleHtml()"></p> } @else { <p class="md:text-body-l" [class]="tituloMovilGrande() ? 'text-body-l text-text-secondary' : 'text-body-m text-text-tertiary'">{{ subtitle() }}</p> } }
             </div>
             <!-- Figma «Meta»: the updated stamp and the badges in one row -->
             <div class="flex flex-wrap items-center gap-3 empty:hidden">
