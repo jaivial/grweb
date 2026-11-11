@@ -730,6 +730,8 @@ export class AltaAtletaPage {
       this.reinicioAltcha.update((n) => n + 1);
     } catch {
       this.error.set('No hemos podido pedir una verificación nueva. Vuelve a intentarlo en unos segundos.');
+      // Even without a new challenge the widget must leave «Verificado» so the user can retry.
+      this.reinicioAltcha.update((n) => n + 1);
     }
   }
 
