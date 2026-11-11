@@ -332,7 +332,7 @@ export class Overlays {
         </ul>
       }
       <div class="flex flex-col items-center gap-1 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:gap-3 md:text-left">
-        <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a href="/cookies" class="hover:text-text-secondary">Cookies</a></p>
+        <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a routerLink="/cookies" class="hover:text-text-secondary">Cookies</a></p>
         <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p>
       </div>
     </div>
