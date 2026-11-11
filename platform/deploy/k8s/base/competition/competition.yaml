@@ -62,6 +62,7 @@ spec:
               valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
             - name: CRYPTO_KEY
               valueFrom: { secretKeyRef: { name: grcup-crypto, key: CRYPTO_KEY } }
+            - { name: GOMEMLIMIT, value: "204MiB" }
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 5

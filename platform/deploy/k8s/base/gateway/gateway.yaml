@@ -31,6 +31,7 @@ spec:
           envFrom:
             - configMapRef: { name: grcup-config }
           env:
+            - { name: GOMEMLIMIT, value: "204MiB" } # ~80% of the 256Mi limit
             - { name: UPSTREAMS, value: "identity,competition,audit,realtime,cms,athletes,schedule,crm,messaging,ticketing,live,ai,raffle,fans,chat,donaciones,patrocinio,juegos,openlifter" }
             - { name: RATE_LIMIT_IP_MIN, value: "600" }
             # GETs of the SSR (carry SSR_SECRET): own per-visitor bucket; a home render costs ~6 API calls.

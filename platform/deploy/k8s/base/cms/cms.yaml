@@ -73,6 +73,7 @@ spec:
               valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
             - name: INTERNAL_TOKEN_SECRET
               valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
+            - { name: GOMEMLIMIT, value: "204MiB" }
             - { name: MEDIA_DIR, value: "/data/medios" }
           readinessProbe:
             httpGet: { path: /readyz, port: http }

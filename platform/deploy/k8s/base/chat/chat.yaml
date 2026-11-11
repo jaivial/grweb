@@ -60,8 +60,8 @@ spec:
               valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
             - name: INTERNAL_TOKEN_SECRET
               valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
-            - { name: CHAT_MAX_CONEXIONES, value: "4000" }
             - { name: GOMEMLIMIT, value: "800MiB" }
+            - { name: CHAT_MAX_CONEXIONES, value: "4000" }
             - { name: CHAT_ORIGENES, value: "grcup-qa.menustudioai.com,grcup-qa.menustudioai.com:*" }
           readinessProbe:
             httpGet: { path: /readyz, port: http }

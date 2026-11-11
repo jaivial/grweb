@@ -295,7 +295,12 @@ func (s *Svc) registerAdmin() {
 				if err != nil {
 					return err
 				}
-				if b.Prueba != nil && *b.Prueba != prev.Prueba {
+				if b.Prueba != nil {
+					p := strings.ToLower(strings.TrimSpace(*b.Prueba))
+					b.Prueba = &p
+				}
+				// keeping the same competition never asks for a free place
+				if b.Prueba != nil && *b.Prueba != strings.ToLower(strings.TrimSpace(prev.Prueba)) {
 					if err := s.muevePlaza(ctx, tx, in.CID, in.ID, *b.Prueba, b.ForzarCupo); err != nil {
 						return err
 					}
