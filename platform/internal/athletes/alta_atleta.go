@@ -663,7 +663,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			return err
 		}
 		// The email to the athlete.
-		if err := email(ctx, tx, c.ID, d.Email, "atleta-solicitud-recibida", s.varsRecibida(d, fotoClave != "")); err != nil {
+		if err := email(ctx, tx, c.ID, d.Email, "atleta-solicitud-recibida", s.varsRecibida(d, fotoClave != "", menor, publicaPerfil(cons, menor))); err != nil {
 			return err
 		}
 		// The email to the team, with the photo (signed URL: it is not public until it is approved).
@@ -1408,11 +1408,40 @@ func (s *Svc) eventoContacto(d DatosAlta, cons map[string]Consentimiento, ip, ua
 }
 
 // varsRecibida are the variables of the email to the athlete.
-func (s *Svc) varsRecibida(d DatosAlta, foto bool) map[string]string {
+func (s *Svc) varsRecibida(d DatosAlta, foto, menor, publica bool) map[string]string {
 	return map[string]string{
 		"nombre": d.Nombre, "email": d.Email, "telefono": d.Telefono, "club": d.Club, "ciudad": d.Ciudad,
-		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "urlAtletas": s.webURL + "/atletas",
+		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "pasos": pasosRecibida(foto, menor, publica),
+		"urlAtletas": s.webURL + "/atletas",
 	}
+}
+
+// publicaPerfil says if the profile is public on approval: image consent and not a minor (as the success screen).
+func publicaPerfil(cons map[string]Consentimiento, menor bool) bool {
+	_, ok := cons["imagen"]
+	return ok && !menor
+}
+
+// pasosRecibida are the numbered next steps of the email to the athlete: the same process as the success screen.
+func pasosRecibida(foto, menor, publica bool) string {
+	revision := "Comprobamos tus datos con la lista de inscritos de la AEP."
+	if foto {
+		revision = "Comprobamos tus datos y tu foto con la lista de inscritos de la AEP."
+	}
+	p := []string{revision}
+	if menor {
+		p = append(p, "Eres menor de edad: necesitamos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email; sin ella no podemos aprobar tu alta.")
+	}
+	p = append(p, "Te avisamos por email con el resultado y el acceso a tu área de atleta.")
+	if publica {
+		p = append(p, "Publicamos tu ficha en /atletas.")
+	} else {
+		p = append(p, "Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.")
+	}
+	for i := range p {
+		p[i] = strconv.Itoa(i+1) + ". " + p[i]
+	}
+	return strings.Join(p, "\n\n")
 }
 
 // varsNueva are the variables of the email to the team (with the photo: a signed URL, not public).
