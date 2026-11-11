@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -51,6 +52,8 @@ func ifMatch(h string) int {
 // afterChange invalidates the public cache of a competition.
 func (s *Svc) afterChange(ctx context.Context, c Competicion) {
 	s.cache.Del(ctx, "pub:"+c.Slug, "list")
+	// Every pod of every service invalidates its compref cache (places, dates, state) within a second.
+	_ = s.a.Redis.Incr(ctx, compref.VerKey(s.a.Keys.Of)).Err()
 }
 
 func (s *Svc) registerPublic() {

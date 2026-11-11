@@ -1,5 +1,6 @@
 // Package compref resolves the public slug of a competition to its id and basic data, for services that serve
-// public pages (cms, athletes…). Lookups are cached for 5 minutes per pod. Drafts and archived competitions are
+// public pages (cms, athletes…). Lookups are cached for 5 minutes per pod; with Versioned, a change saved in the
+// competition service (VerKey bumped in Redis) invalidates every pod within a second. Drafts and archived competitions are
 // not public (404). Only an upstream 404 becomes 404: timeouts and 5xx answer 503 so crawlers do not drop pages.
 package compref
 
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
@@ -55,8 +57,12 @@ func (c Comp) Year() int {
 
 type entry struct {
 	c   Comp
+	ver string
 	exp time.Time
 }
+
+// VerKey is the Redis key the competition service increments on every change (same key prefix in every service).
+func VerKey(prefix func(...string) string) string { return prefix("compref", "ver") }
 
 // Resolver caches slug → competition lookups against the competition service.
 type Resolver struct {
@@ -64,6 +70,10 @@ type Resolver struct {
 	log    *slog.Logger
 	mu     sync.Mutex
 	m      map[string]entry
+	rdb    *redis.Client
+	verKey string
+	ver    string
+	verExp time.Time
 }
 
 // New returns a resolver that asks competition through client.
@@ -71,13 +81,42 @@ func New(client *svcclient.Client, log *slog.Logger) *Resolver {
 	return &Resolver{client: client, log: log, m: map[string]entry{}}
 }
 
+// Versioned makes cached entries depend on the shared version key (see VerKey).
+func (r *Resolver) Versioned(rdb *redis.Client, key string) *Resolver {
+	r.rdb, r.verKey = rdb, key
+	return r
+}
+
+// version is the shared version, read from Redis at most once a second (empty without Redis or on error).
+func (r *Resolver) version(ctx context.Context) string {
+	if r.rdb == nil {
+		return ""
+	}
+	r.mu.Lock()
+	if time.Now().Before(r.verExp) {
+		v := r.ver
+		r.mu.Unlock()
+		return v
+	}
+	r.mu.Unlock()
+	v, err := r.rdb.Get(ctx, r.verKey).Result()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err != nil && err != redis.Nil {
+		return r.ver // Redis down: keep the last known version (entries still expire after 5 min)
+	}
+	r.ver, r.verExp = v, time.Now().Add(time.Second)
+	return v
+}
+
 // Public returns the public competition of slug.
 func (r *Resolver) Public(ctx context.Context, slug string) (Comp, error) {
 	if !slugRe.MatchString(slug) {
 		return Comp{}, problem.NotFound("Competición no encontrada.")
 	}
+	ver := r.version(ctx)
 	r.mu.Lock()
-	if e, ok := r.m[slug]; ok && time.Now().Before(e.exp) {
+	if e, ok := r.m[slug]; ok && time.Now().Before(e.exp) && e.ver == ver {
 		r.mu.Unlock()
 		return e.c, nil
 	}
@@ -95,7 +134,7 @@ func (r *Resolver) Public(ctx context.Context, slug string) (Comp, error) {
 		return Comp{}, problem.NotFound("Competición no encontrada.")
 	}
 	r.mu.Lock()
-	r.m[slug] = entry{c: c, exp: time.Now().Add(5 * time.Minute)}
+	r.m[slug] = entry{c: c, ver: ver, exp: time.Now().Add(5 * time.Minute)}
 	r.mu.Unlock()
 	return c, nil
 }
@@ -118,8 +157,9 @@ func (r *Resolver) ByIDFresh(ctx context.Context, id uuid.UUID) (Comp, error) {
 
 func (r *Resolver) byID(ctx context.Context, id uuid.UUID, fresh bool) (Comp, error) {
 	key := "id:" + id.String()
+	ver := r.version(ctx)
 	r.mu.Lock()
-	if e, ok := r.m[key]; ok && time.Now().Before(e.exp) && !fresh {
+	if e, ok := r.m[key]; ok && time.Now().Before(e.exp) && e.ver == ver && !fresh {
 		r.mu.Unlock()
 		return e.c, nil
 	}
@@ -133,7 +173,7 @@ func (r *Resolver) byID(ctx context.Context, id uuid.UUID, fresh bool) (Comp, er
 		return Comp{}, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No podemos cargar la competición ahora mismo. Inténtalo en unos segundos.")
 	}
 	r.mu.Lock()
-	r.m[key] = entry{c: c, exp: time.Now().Add(5 * time.Minute)}
+	r.m[key] = entry{c: c, ver: ver, exp: time.Now().Add(5 * time.Minute)}
 	r.mu.Unlock()
 	return c, nil
 }

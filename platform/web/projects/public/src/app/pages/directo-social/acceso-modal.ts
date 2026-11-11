@@ -81,6 +81,7 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
               </ul>
 
               <!-- atleta o público -->
+              @if (!inscripcion()) {
               <p class="mt-5 text-label-s text-text-primary" id="acceso-tipo">¿Cómo entras?</p>
               <div class="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-labelledby="acceso-tipo">
                 @for (o of tipos; track o.v) {
@@ -95,6 +96,7 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
                   </button>
                 }
               </div>
+              }
 
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">Alias *</span>
@@ -112,7 +114,7 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
 
               <label class="mt-3 flex min-h-11 cursor-pointer items-center gap-3">
                 <input type="checkbox" class="size-5 shrink-0 accent-[#c42b3e]" [ngModel]="normas()" (ngModelChange)="normas.set($event)" />
-                <span class="text-body-s text-text-secondary">Acepto las normas del chat: sin enlaces, sin insultos, sin spam.</span>
+                <span class="text-body-s text-text-secondary">{{ inscripcion() ? 'Acepto las normas de participación de GR Strength Cup.' : 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.' }}</span>
               </label>
 
               <button type="button" grButton variant="primary" size="l" [block]="true" class="mt-4" [loading]="enviando()" [disabled]="!puedeEnviar()" (click)="enviar()">Enviarme el enlace</button>
@@ -145,7 +147,7 @@ export class AccesoModal {
     { v: 'atleta', l: 'Atleta', d: 'Insignia ATLETA con tu email de la AEP', i: 'trophy' },
     { v: 'publico', l: 'Público', d: 'Familia, clubs y afición', i: 'users' },
   ];
-  private readonly inscripcion = computed(() => this.fan.motivoAcceso() === 'inscripcion');
+  protected readonly inscripcion = computed(() => this.fan.motivoAcceso() === 'inscripcion');
   protected readonly pasos = computed(() => ['Abre el email de GR Strength Cup',
     ...(this.inscripcion() ? ['Pulsa «Continuar la inscripción»', 'Vuelves al formulario de inscripción'] : ['Pulsa «Entrar al directo»', 'Vuelves al chat con tu alias'])]);
 
@@ -162,6 +164,8 @@ export class AccesoModal {
     effect(() => {
       if (!this.fan.accesoAbierto()) return;
       this.estado.set('formulario');
+      // Registering: there is no athlete yet (AEP badge would give ATLETA_NO_ENCONTRADO), so the account is público.
+      if (this.fan.motivoAcceso() === 'inscripcion') this.tipo.set('publico');
       this.error.set(null);
       this.errorAlias.set(null);
     });

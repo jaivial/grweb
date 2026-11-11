@@ -25,6 +25,7 @@ type Simulado struct {
 	// Deliver posts the signed webhook to the service (in-process: same verification path as Stripe's).
 	Deliver func(ctx context.Context, payload []byte, signature string) error
 	// Authorize, when set, must accept the request before a payment is attempted (e.g. the owner's session).
+	// Returning ErrOtraCuenta answers 403 (signed in, but not the owner) instead of 401.
 	Authorize func(r *http.Request, metadata map[string]string) error
 	// Log receives delivery failures (default slog.Default()).
 	Log *slog.Logger
@@ -174,6 +175,10 @@ func (s *Simulado) Mount(mux *http.ServeMux, base string) {
 		}
 		if s.Authorize != nil {
 			if err := s.Authorize(r, ss.Metadata); err != nil {
+				if errors.Is(err, ErrOtraCuenta) {
+					write(w, http.StatusForbidden, map[string]string{"code": "OTRA_CUENTA", "detail": "Esta inscripción pertenece a otra cuenta: entra con el email con el que te inscribiste."})
+					return
+				}
 				write(w, http.StatusUnauthorized, map[string]string{"code": "SESION_FAN_REQUERIDA", "detail": "Entra con tu cuenta para pagar."})
 				return
 			}

@@ -99,7 +99,7 @@ func (s *Svc) init(a *app.App) {
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "athletes", "competition", a.Cfg.InternalToken)
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "athletes", "cms", a.Cfg.InternalToken)
 	s.identity = svcclient.New(config.Str("UPSTREAM_IDENTITY", "http://identity:8080"), "athletes", "identity", a.Cfg.InternalToken)
-	s.comps = compref.New(s.comp, a.Log)
+	s.comps = compref.New(s.comp, a.Log).Versioned(a.Redis, compref.VerKey(a.Keys.Of))
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "athletes", "")}
 	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
 	// The accreditation QR is signed with a key derived from the internal secret (never leaves the service).
@@ -137,6 +137,14 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAltaAtletaAdmin()
 	s.registerAltaCupos()
 	a.Go(s.expirador)
+	// Places changed in the backoffice (competition service): publish the new counter to the open pages.
+	a.Go((&events.Consumer{Redis: a.Redis, Stream: a.Stream(), Group: "athletes-plazas", Start: "$", Types: []string{"competition.inscripcion_actualizada"},
+		Handle: func(ctx context.Context, e events.Event) error {
+			if cid, err := uuid.Parse(e.CompetitionID); err == nil {
+				s.plazasCambiadas(ctx, cid)
+			}
+			return nil
+		}, Log: a.Log}).Run)
 	a.Go(s.avisosSalida)
 	a.Go(s.purgaSolicitudes)
 	return nil

@@ -3,6 +3,7 @@ package athletes
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net/http"
 	"regexp"
 	"strings"
@@ -174,9 +176,10 @@ func (s *Svc) precio(ctx context.Context, q querier, cid uuid.UUID, cfg Config, 
 	if code := normCodigo(cuponIn); code != "" {
 		d := &Descuento{Codigo: code}
 		p.Cupon = d
-		// Uses = paid ones plus payments in progress whose hold is still valid (an expired or failed one frees its use).
+		// Uses = paid ones plus payments in progress whose hold is still valid plus the reserve list (a reserve keeps
+		// its discount when it is offered a place, so it holds the use too). An expired or failed one frees it.
 		rows, err := q.Query(ctx, `SELECT id, codigo, tipo, valor, limite, caduca, activo,
-			usos + (SELECT count(*) FROM inscripciones i WHERE i.cupon_id = cupones.id AND i.estado = 'pendiente_pago' AND i.expira_at > now())::int AS usos
+			usos + (SELECT count(*) FROM inscripciones i WHERE i.cupon_id = cupones.id AND (i.estado = 'reserva' OR (i.estado = 'pendiente_pago' AND i.expira_at > now())))::int AS usos
 			FROM cupones WHERE competition_id = $1 AND codigo = $2`, cid, code)
 		if err != nil {
 			return p, nil, nil, err
@@ -315,7 +318,7 @@ func (s *Svc) initPagos() {
 			return err
 		}
 		if md["fan"] != "" && md["fan"] != f.ID.String() {
-			return fanauth.ErrInvalid
+			return pagos.ErrOtraCuenta
 		}
 		return nil
 	}
@@ -514,24 +517,31 @@ func (s *Svc) registerInscripcion() {
 					return nil, problem.Conflict("INSCRIPCION_EN_CURSO", "Estamos procesando tu inscripción. Espera unos segundos.")
 				}
 			}
-			// Only created registrations count (a rejected form does not lock out a shared club or NAT IP).
+			// Atomic INCR before creating (parallel requests cannot all pass a GET check); a rejected or failed
+			// registration gives its hit back, so a rejected form does not lock out a shared club or NAT IP.
 			kIP := s.a.Keys.Of("rl", "inscripcion", httpx.ClientIPFrom(ctx))
 			kMail := s.a.Keys.Of("rl", "inscripcion", "email", strings.ToLower(strings.TrimSpace(in.Body.Email)))
-			if n, _ := s.a.Redis.Get(ctx, kIP).Int(); n >= 30 {
+			devolver := func(ks ...string) {
+				for _, k := range ks {
+					_ = s.a.Redis.Eval(context.Background(), decrSiExiste, []string{k}).Err()
+				}
+			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, kIP, 30, time.Hour); !r.Allowed {
+				devolver(kIP)
 				s.soltarIdem(ctx, idem)
 				return nil, problem.TooMany("Se han hecho muchas inscripciones desde tu red. Inténtalo más tarde.")
 			}
-			if n, _ := s.a.Redis.Get(ctx, kMail).Int(); n >= 5 {
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, kMail, 5, time.Hour); !r.Allowed {
+				devolver(kIP, kMail)
 				s.soltarIdem(ctx, idem)
 				return nil, problem.TooMany("Has enviado varias inscripciones con este email. Inténtalo más tarde.")
 			}
 			out, err := s.crearInscripcion(ctx, c.ID, f.ID, in.Body)
 			if err != nil {
+				devolver(kIP, kMail)
 				s.soltarIdem(ctx, idem)
 				return nil, err
 			}
-			_, _ = ratelimit.Allow(ctx, s.a.Redis, kIP, 30, time.Hour)
-			_, _ = ratelimit.Allow(ctx, s.a.Redis, kMail, 5, time.Hour)
 			if idem != "" {
 				_ = s.a.Redis.Set(ctx, idem, out.ID.String(), 24*time.Hour).Err()
 			}
@@ -611,7 +621,11 @@ func (s *Svc) estado(ctx context.Context, cid, id uuid.UUID) (EstadoInscripcion,
 			r := cfg.Referidos
 			t := "Tus amigos tienen un " + strings.TrimPrefix(descTexto(r.DescTipo, r.DescValor), "−") + " de descuento con tu código"
 			if r.Recompensa > 0 {
-				t += " y te devolvemos " + pagos.Euros(r.Recompensa) + " por cada uno"
+				imp := pagos.Euros(r.Recompensa)
+				if r.Recompensa%100 == 0 {
+					imp = fmt.Sprintf("%d €", r.Recompensa/100) // Figma 06b: «5 €»
+				}
+				t += " y te devolvemos " + imp + " por cada uno"
 				if r.MaxUsos > 0 {
 					t += fmt.Sprintf(" (hasta %d)", r.MaxUsos)
 				}
@@ -644,7 +658,15 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 	if !b.AceptaTerminos || !b.AceptaPrivacidad {
 		return EstadoInscripcion{}, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para inscribirte tienes que aceptar los términos, el reglamento y la política de privacidad.")
 	}
-	d := DatosIn{Licencia: b.Licencia, Nombre: b.Nombre, Apellidos: b.Apellidos, Email: b.Email, Telefono: b.Telefono, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: b.Club, Estado: "confirmado"}
+	// Same normalisation as the alta form: bidi/control characters dropped, phone checked and normalised.
+	una := func(v string) string { return strings.Join(strings.Fields(sinControl(v)), " ") } // one line, single spaces
+	d := DatosIn{Licencia: b.Licencia, Nombre: una(b.Nombre), Apellidos: una(b.Apellidos), Email: b.Email, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: una(b.Club), Estado: "confirmado"}
+	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(b.Telefono)); tel != "" {
+		if !telValido.MatchString(tel) {
+			return EstadoInscripcion{}, problem.Unprocessable("TELEFONO_INVALIDO", "Escribe un móvil válido.")
+		}
+		d.Telefono = normTel(tel)
+	}
 	nac, ok := ParseFecha(b.FechaNacimiento)
 	if !ok {
 		return EstadoInscripcion{}, problem.Unprocessable("FECHA_INVALIDA", "La fecha de nacimiento debe ser AAAA-MM-DD.")
@@ -700,6 +722,14 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		if precio.Referido != nil && !precio.Referido.Valido {
 			return problem.Unprocessable("REFERIDO_INVALIDO", precio.Referido.Motivo)
 		}
+		// One account cannot hold many places: at most 2 payments in progress per fan (counted inside the lock).
+		var pend int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM inscripciones WHERE competition_id = $1 AND fan_id = $2 AND estado = 'pendiente_pago' AND expira_at > now()`, cid, fan).Scan(&pend); err != nil {
+			return err
+		}
+		if pend >= maxPendientesFan {
+			return problem.TooMany("Ya tienes 2 pagos de inscripción a medias. Termínalos o espera 30 minutos a que caduquen.")
+		}
 		var n int
 		if err := tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM atletas WHERE competition_id = $1 AND estado = 'confirmado')
 			+ (SELECT count(*) FROM inscripciones WHERE competition_id = $1 AND estado = 'pendiente_pago' AND expira_at > now())`, cid).Scan(&n); err != nil {
@@ -737,8 +767,8 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		}
 		dj, _ := json.Marshal(datos)
 		cj, _ := json.Marshal(cons)
-		if _, err := tx.Exec(ctx, `INSERT INTO inscripciones (id, competition_id, datos, email, licencia, cuota, desc_cupon, desc_referido, total, cupon_id, cupon_codigo, referido_id, estado, proveedor, consentimientos, expira_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, id, cid, dj, d.Email, d.Licencia, precio.Cuota, dcup, dref, precio.Total, cupID, cupCode, refID, estado, provName(prov), cj, expira); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO inscripciones (id, competition_id, datos, email, licencia, cuota, desc_cupon, desc_referido, total, cupon_id, cupon_codigo, referido_id, estado, proveedor, consentimientos, expira_at, fan_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, id, cid, dj, d.Email, d.Licencia, precio.Cuota, dcup, dref, precio.Total, cupID, cupCode, refID, estado, provName(prov), cj, expira, fan); err != nil {
 			if strings.Contains(err.Error(), "inscripciones_licencia_viva") {
 				return problem.Conflict("YA_INSCRITO", "Ya hay una inscripción en curso con esa licencia. Si no terminaste el pago, espera 30 minutos o escríbenos.")
 			}
@@ -781,6 +811,9 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 }
 
 var licenciaValida = regexp.MustCompile(`^[A-Z0-9-]{3,20}$`)
+
+// maxPendientesFan caps the registrations a fan account can have waiting for payment at the same time.
+const maxPendientesFan = 2
 
 // soltarIdem frees an idempotency key whose request failed, so the same key can be retried.
 func (s *Svc) soltarIdem(ctx context.Context, k string) {
@@ -1017,10 +1050,15 @@ func (s *Svc) codigoReferido(ctx context.Context, tx pgx.Tx, cid, aid, iid uuid.
 	if len(digits) > 3 {
 		digits = digits[len(digits)-3:]
 	}
-	for i := 0; i < 50; i++ {
+	// Up to 5 attempts: NAME+licence digits first, then NAME+3 random digits (crypto/rand) on a unique collision.
+	for i := 0; i < 5; i++ {
 		code := base + digits
 		if i > 0 || digits == "" {
-			code = fmt.Sprintf("%s%d", base, 100+int(newID().ID()%900))
+			n, err := rand.Int(rand.Reader, big.NewInt(900))
+			if err != nil {
+				return "", err
+			}
+			code = fmt.Sprintf("%s%d", base, 100+n.Int64())
 		}
 		tag, err := tx.Exec(ctx, `INSERT INTO referido_codigos (id, competition_id, atleta_id, inscripcion_id, codigo) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, newID(), cid, aid, iid, code)
 		if err != nil {
@@ -1212,9 +1250,23 @@ func (s *Svc) ofrecerPlaza(ctx context.Context, cid, aid uuid.UUID) (bool, error
 		return false, problem.New(http.StatusServiceUnavailable, "PASARELA_NO_CONFIGURADA", "Los pagos no están activados: no se puede enviar el enlace de pago.")
 	}
 	exp := time.Now().Add(23*time.Hour + 50*time.Minute) // Stripe allows at most 24 h
-	tag, err := s.a.DB.Exec(ctx, `UPDATE inscripciones SET estado = 'pendiente_pago', expira_at = $2, updated_at = now() WHERE id = $1 AND estado IN ('reserva', 'cancelada', 'fallida')`, iid, exp)
-	if err != nil || tag.RowsAffected() == 0 {
-		return false, problem.Conflict("OFERTA_EN_CURSO", "La inscripción ha cambiado mientras tanto. Recarga la ficha.")
+	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		// Same lock as crearInscripcion: the coupon limit is re-checked atomically before offering the place.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 7))`, cid.String()); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `UPDATE inscripciones SET estado = 'pendiente_pago', expira_at = $2, updated_at = now() WHERE id = $1 AND estado IN ('reserva', 'cancelada', 'fallida')`, iid, exp)
+		if err != nil || tag.RowsAffected() == 0 {
+			return problem.Conflict("OFERTA_EN_CURSO", "La inscripción ha cambiado mientras tanto. Recarga la ficha.")
+		}
+		// A coupon used up by others meanwhile (paid, in progress or on the reserve list) is dropped: full price.
+		return tx.QueryRow(ctx, `UPDATE inscripciones i SET total = i.total + i.desc_cupon, desc_cupon = 0, cupon_id = NULL, cupon_codigo = ''
+			FROM cupones c WHERE i.id = $1 AND c.id = i.cupon_id AND c.limite IS NOT NULL
+			AND c.usos + (SELECT count(*) FROM inscripciones o WHERE o.cupon_id = c.id AND o.id <> i.id AND (o.estado = 'reserva' OR (o.estado = 'pendiente_pago' AND o.expira_at > now()))) >= c.limite
+			RETURNING i.total`, iid).Scan(&total)
+	})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
 	}
 	co, err := prov.CreateCheckout(ctx, pagos.CheckoutIn{Amount: total, Description: "Inscripción · " + s.nombreComp(ctx, cid), Email: mail,
 		SuccessURL: s.webURL + "/inscripcion/estado?id=" + iid.String(), CancelURL: s.webURL + "/inscripcion?cancelado=" + iid.String(),
