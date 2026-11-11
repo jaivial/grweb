@@ -6,5 +6,6 @@ import { RenderMode, ServerRoute } from '@angular/ssr';
 // shell, so it cannot be used to load the SSR nodes.
 export const serverRoutes: ServerRoute[] = [
   { path: '_componentes', renderMode: RenderMode.Client },
+  { path: '_overlays', renderMode: RenderMode.Client },
   { path: '**', renderMode: RenderMode.Server },
 ];

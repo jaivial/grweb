@@ -215,7 +215,7 @@ export class ComoLlegarPage {
 
 const VALENCIA = [39.4699, -0.3763];
 const PRACTICA = ['parking', 'accesibilidad'];
-const FOTOS_SEDE = [
+export const FOTOS_SEDE = [
   { imagen: '/img/home/sede-exterior-s.webp', alt: 'Entrada del pabellón' },
   { imagen: '/img/home/sede-grada.webp', alt: 'La grada' },
   { imagen: '/img/home/sede-instalaciones.webp', alt: 'Instalaciones' },
