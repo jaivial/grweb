@@ -98,7 +98,7 @@ const PUFFS = [
             role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
             <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
             <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
-            <p class="text-body-xs text-text-tertiary">@if (progresoIndeterminado()) { Cargando vídeo… } @else { {{ criticoPct() }} % }</p>
+            <p class="text-body-s text-text-tertiary">@if (progresoIndeterminado()) { Cargando vídeo… } @else { {{ criticoPct() }} % }</p>
           </div>
         }
       }

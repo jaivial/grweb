@@ -93,6 +93,8 @@ export const routes: Routes = [
   { path: '_styleguide', component: StyleguidePage },
   // Internal component sheet for visual QA (Figma 02 · Componentes); noindex and not in the sitemap.
   { path: '_componentes', loadComponent: () => import('./pages/componentes').then((m) => m.ComponentesPage) },
+  // Internal overlay / global state sheet for visual QA (Figma 17); noindex and not in the sitemap.
+  { path: '_overlays', loadComponent: () => import('./pages/overlays').then((m) => m.OverlaysPage) },
   // CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
   { path: ':pslug', component: ContentPage },
   { path: '**', component: NotFoundPage },
