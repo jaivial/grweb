@@ -43,7 +43,12 @@ export class App {
         // e.g. a stale lazy chunk after a deploy: tell the user and offer a full load of the target page
         toasts.error('No se pudo abrir la página', 'Comprueba tu conexión.', { label: 'Reintentar', run: () => location.assign(e.url) });
       } else if (e instanceof NavigationCancel || e instanceof NavigationSkipped) fin(e.id);
-      else if (e instanceof Scroll && !e.anchor && typeof window !== 'undefined') {
+      else if (e instanceof Scroll && e.anchor && !e.position && typeof window !== 'undefined') {
+        // In-app link to /x#anchor: the router tries before the new page has its (async) sections; try again once it settles.
+        const n = ++scrollN;
+        const anchor = e.anchor;
+        void Promise.race([app.whenStable(), new Promise((r) => setTimeout(r, 10_000))]).then(() => requestAnimationFrame(() => n === scrollN && scroller.scrollToAnchor(anchor)));
+      } else if (e instanceof Scroll && !e.anchor && typeof window !== 'undefined') {
         // New page → top at once; back/forward → saved position once the page has its data (and height).
         const n = ++scrollN;
         const pos = e.position;
