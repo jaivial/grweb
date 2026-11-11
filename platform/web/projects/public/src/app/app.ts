@@ -18,7 +18,8 @@ export class App {
     inject(ViewportScroller).setOffset([0, 104]);
     let t: ReturnType<typeof setTimeout> | undefined;
     inject(Router).events.subscribe((e) => {
-      if (e instanceof NavigationStart) t = setTimeout(() => this.cargando.set(true), 300);
+      // not on the first navigation: the server HTML is already on screen while the app boots
+      if (e instanceof NavigationStart && e.id > 1) t = setTimeout(() => this.cargando.set(true), 300);
       else if (e instanceof NavigationEnd || e instanceof NavigationError || e instanceof NavigationCancel || e instanceof NavigationSkipped) {
         clearTimeout(t);
         this.cargando.set(false);
