@@ -517,6 +517,9 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		return nil, problem.Unprocessable("VALIDACION", "Faltan los datos del formulario.")
 	}
 	var d DatosAlta
+	if httpx.HasNUL([]byte(partes[0])) {
+		return nil, httpx.NULProblem([]byte(partes[0]), "body")
+	}
 	if err := json.Unmarshal([]byte(partes[0]), &d); err != nil {
 		return nil, problem.Unprocessable("VALIDACION", "Los datos del formulario no son válidos.")
 	}
