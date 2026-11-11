@@ -38,6 +38,14 @@ export interface SolicitudItem {
   createdAt: string;
   version: number;
 }
+/** Own places of one competition of the alta (no row in the server: total places / number of competitions). */
+export interface CupoPrueba {
+  codigo: string;
+  nombre: string;
+  plazas: number;
+  ocupadas: number;
+  porDefecto: boolean;
+}
 export interface SolicitudLista {
   items: SolicitudItem[];
   total: number;
@@ -135,6 +143,12 @@ export class SolicitudesApi {
   }
   detalle(cid: string, id: string): Promise<SolicitudDetalle> {
     return firstValueFrom(this.http.get<SolicitudDetalle>(`${this.base(cid)}/${id}`));
+  }
+  cupos(cid: string): Promise<{ cupos: CupoPrueba[] }> {
+    return firstValueFrom(this.http.get<{ cupos: CupoPrueba[] }>(`${this.base(cid)}/cupos`));
+  }
+  guardarCupos(cid: string, cupos: Record<string, number>): Promise<{ cupos: CupoPrueba[] }> {
+    return firstValueFrom(this.http.put<{ cupos: CupoPrueba[] }>(`${this.base(cid)}/cupos`, { cupos }));
   }
   /** Private photo (the session travels in the header, so it comes as a blob). */
   foto(cid: string, id: string): Promise<Blob> {
