@@ -35,6 +35,7 @@ server {
 
     location ~ ^/api/competiciones/[^/]+/alta-atleta$ {
         limit_req zone=alta_atleta_prod burst=5 nodelay;
+        limit_req_status 429; # el formulario lo muestra como «demasiadas altas», no como «cerrada»
         client_max_body_size 10m;
         proxy_pass http://10.43.241.10:8080;
         include /etc/nginx/snippets/grcup-proxy.conf;
@@ -88,6 +89,7 @@ server {
 
     location ~ ^/api/competiciones/[^/]+/alta-atleta$ {
         limit_req zone=alta_atleta_prod burst=5 nodelay;
+        limit_req_status 429; # el formulario lo muestra como «demasiadas altas», no como «cerrada»
         client_max_body_size 10m;
         proxy_pass http://10.43.241.10:8080;
         include /etc/nginx/snippets/grcup-proxy.conf;
