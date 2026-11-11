@@ -92,14 +92,14 @@ const MAX_MARCA = 600;
         <section class="flex flex-col gap-7">
           <div>
             <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
-            <h2 class="mt-3 text-display-s md:text-[38px] md:leading-[1.1]">Crea tu perfil de atleta de <span class="text-accent-text">powerlifting</span></h2>
-            <p class="mt-4 max-w-[800px] text-body-m text-text-tertiary">{{ introH2 }}</p>
+            <h2 class="mt-3 text-display-s md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary">{{ introH2 }}</p>
           </div>
           <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
             @for (b of bloques; track b.t) {
               <article class="flex flex-col gap-2">
                 <h3 class="text-ui-h5 lg:text-[17px]">{{ b.t }}</h3>
-                <p class="text-body-s text-text-tertiary">{{ b.d }}</p>
+                <p class="text-body-s text-text-secondary">{{ b.d }}</p>
               </article>
             }
           </div>
