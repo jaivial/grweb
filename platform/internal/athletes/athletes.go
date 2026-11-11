@@ -27,6 +27,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/pagos"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -65,6 +66,8 @@ type Svc struct {
 	boURL        string
 	cookieSecure bool
 	sim          *pagos.Simulado
+	// fans verifies the public account session (atleta or público) required to register.
+	fans *fanauth.Verifier
 	// Public «alta de atleta»: keys of the antibot challenge, of the time token and of the
 	// signed URLs of the private photos (all derived from the internal secret).
 	altchaKey string
@@ -98,6 +101,7 @@ func (s *Svc) init(a *app.App) {
 	s.identity = svcclient.New(config.Str("UPSTREAM_IDENTITY", "http://identity:8080"), "athletes", "identity", a.Cfg.InternalToken)
 	s.comps = compref.New(s.comp, a.Log)
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "athletes", "")}
+	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
 	// The accreditation QR is signed with a key derived from the internal secret (never leaves the service).
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/athletes/qr/v1"))

@@ -24,6 +24,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/pagos"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -420,8 +421,10 @@ func (s *Svc) registerInscripcion() {
 		})
 
 	type precioIn struct {
-		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Body struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Fan     string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    struct {
 			Cupon    string `json:"cupon,omitempty" maxLength:"40"`
 			Referido string `json:"referido,omitempty" maxLength:"40"`
 			Email    string `json:"email,omitempty" maxLength:"254"`
@@ -432,6 +435,9 @@ func (s *Svc) registerInscripcion() {
 		func(ctx context.Context, in *precioIn) (*precioOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
+				return nil, err
+			}
+			if err := s.sesionFan(ctx, in.Session, in.Fan, c.ID); err != nil {
 				return nil, err
 			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "precio", httpx.ClientIPFrom(ctx)), 60, 10*time.Minute); !r.Allowed {
@@ -446,14 +452,19 @@ func (s *Svc) registerInscripcion() {
 		})
 
 	type crearIn struct {
-		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Body InscripcionIn
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Fan     string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    InscripcionIn
 	}
 	type estadoOut struct{ Body EstadoInscripcion }
 	huma.Register(api, huma.Operation{OperationID: "inscripcion-crear", Method: http.MethodPost, Path: pub, Summary: "Inscribirse (devuelve la URL de pago, o confirma si es gratis o va a reserva)", Tags: tagPub, DefaultStatus: http.StatusCreated},
 		func(ctx context.Context, in *crearIn) (*estadoOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
+				return nil, err
+			}
+			if err := s.sesionFan(ctx, in.Session, in.Fan, c.ID); err != nil {
 				return nil, err
 			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "inscripcion", httpx.ClientIPFrom(ctx)), 10, time.Hour); !r.Allowed {
@@ -463,6 +474,7 @@ func (s *Svc) registerInscripcion() {
 			if err != nil {
 				return nil, err
 			}
+			s.plazasCambiadas(ctx, c.ID)
 			return &estadoOut{Body: out}, nil
 		})
 
@@ -769,6 +781,7 @@ func (s *Svc) webhook(ctx context.Context, payload []byte, h http.Header) error 
 		f()
 	}
 	s.bump(ctx, cid)
+	s.plazasCambiadas(ctx, cid)
 	return nil
 }
 
@@ -1012,7 +1025,19 @@ func (s *Svc) expirador(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			if _, err := s.a.DB.Exec(ctx, `UPDATE inscripciones SET estado = 'cancelada', updated_at = now() WHERE estado = 'pendiente_pago' AND expira_at < now() - interval '5 minutes'`); err != nil && ctx.Err() == nil {
+			rows, err := s.a.DB.Query(ctx, `UPDATE inscripciones SET estado = 'cancelada', updated_at = now() WHERE estado = 'pendiente_pago' AND expira_at < now() - interval '5 minutes' RETURNING competition_id`)
+			if err == nil {
+				cids, cerr := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+				err = cerr
+				seen := map[uuid.UUID]bool{}
+				for _, cid := range cids {
+					if !seen[cid] {
+						seen[cid] = true
+						s.plazasCambiadas(ctx, cid)
+					}
+				}
+			}
+			if err != nil && ctx.Err() == nil {
 				s.a.Log.Warn("expirador de pagos", "err", err)
 			}
 			s.reintentarDevoluciones(ctx)
@@ -1103,4 +1128,36 @@ func (s *Svc) ofrecerPlaza(ctx context.Context, cid, aid uuid.UUID) (bool, error
 		}
 		return hist(ctx, tx, aid, "Plaza ofrecida", "Enlace de pago enviado ("+pagos.Euros(total)+", caduca en 24 h)")
 	})
+}
+
+// sesionFan requires the public account session (atleta or público) of this competition: cookie first, header second.
+func (s *Svc) sesionFan(ctx context.Context, cookie, hdr string, cid uuid.UUID) error {
+	tok := cookie
+	if tok == "" {
+		tok = hdr
+	}
+	f, err := s.fans.Verify(ctx, tok)
+	if err != nil {
+		return fanauth.Problem(err)
+	}
+	if f.CompetitionID != cid {
+		return fanauth.Problem(fanauth.ErrInvalid)
+	}
+	return nil
+}
+
+// plazasCambiadas publishes the public place counter (SSE inscripcion.plazas_actualizadas, no personal data), so the
+// page does not poll GET …/inscripcion. Best effort: a failure only delays the counter until the next reload.
+func (s *Svc) plazasCambiadas(ctx context.Context, cid uuid.UUID) {
+	p, _, err := s.configPub(ctx, cid, true)
+	if err == nil {
+		err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			return events.Enqueue(ctx, tx, events.New(ctx, "inscripcion.plazas_actualizadas",
+				map[string]any{"plazas": p.Plazas, "ocupadas": p.Ocupadas, "estado": p.Estado, "reserva": p.Reserva},
+				events.Competition(cid.String()), events.Audience(events.Public), events.Subject("inscripcion")))
+		})
+	}
+	if err != nil && ctx.Err() == nil {
+		s.a.Log.Warn("plazas actualizadas", "err", err)
+	}
 }
