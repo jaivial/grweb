@@ -332,6 +332,32 @@ func (s *Svc) reservaPrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, total
 	return nil
 }
 
+// muevePlaza moves the place of the athlete's alta request to another competition, in the same
+// transaction as the edit and under the lock of the destination: 409 CUPO_COMPLETO when it is full,
+// unless the admin forces it.
+func (s *Svc) muevePlaza(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, prueba string, forzar bool) error {
+	if prueba != "" && !forzar {
+		c, err := s.comps.ByID(ctx, cid)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('alta-prueba:' || $1::text || ':' || $2))`, cid.String(), prueba); err != nil {
+			return err
+		}
+		var n int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'
+			AND match_atleta_id IS DISTINCT FROM $3`, cid, prueba, atleta).Scan(&n); err != nil {
+			return err
+		}
+		if lim := s.cupos(ctx, tx, cid, c.Inscripcion.Plazas)[prueba]; lim > 0 && n >= lim {
+			return problem.Conflict("CUPO_COMPLETO", "Esa competición tiene el cupo completo. Confirma para asignarla igualmente.")
+		}
+	}
+	_, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET prueba = $3, version = version + 1, updated_at = now()
+		WHERE competition_id = $1 AND match_atleta_id = $2 AND estado <> 'rechazada'`, cid, atleta, prueba)
+	return err
+}
+
 // pruebaValida: empty («Aún no lo sé») or one of the options.
 func pruebaValida(k string) bool {
 	if k == "" {

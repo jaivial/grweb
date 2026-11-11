@@ -295,6 +295,11 @@ func (s *Svc) registerAdmin() {
 				if err != nil {
 					return err
 				}
+				if b.Prueba != nil && *b.Prueba != prev.Prueba {
+					if err := s.muevePlaza(ctx, tx, in.CID, in.ID, *b.Prueba, b.ForzarCupo); err != nil {
+						return err
+					}
+				}
 				if _, err := tx.Exec(ctx, `UPDATE atletas SET licencia=$3, nombre=$4, apellidos=$5, email=NULLIF($6,''), telefono=$7, sexo=$8, fecha_nacimiento=$9, categoria=$10,
 					division=$11, club=$12, ciudad=$13, estado=$14, prueba = COALESCE($15, prueba), orden_reserva = CASE WHEN $14 = 'reserva' THEN orden_reserva ELSE NULL END,
 					version = version + 1, updated_at = now() WHERE competition_id=$1 AND id=$2`, in.CID, in.ID, b.Licencia, b.Nombre, b.Apellidos, b.Email, b.Telefono, b.Sexo, b.fecha(),
@@ -687,6 +692,7 @@ type DatosIn struct {
 	Ciudad          string  `json:"ciudad,omitempty" maxLength:"80"`
 	Estado          string  `json:"estado" enum:"confirmado,reserva,baja"`
 	Prueba          *string `json:"prueba,omitempty" doc:"aep2, aep3 o vacío; sin enviar se conserva"`
+	ForzarCupo      bool    `json:"forzarCupo,omitempty" doc:"Asignar la competición aunque su cupo esté completo (decisión explícita del admin)"`
 }
 
 func (d *DatosIn) validate() error {
@@ -702,8 +708,11 @@ func (d *DatosIn) validate() error {
 			return problem.Unprocessable("FECHA_INVALIDA", "La fecha de nacimiento debe ser AAAA-MM-DD.")
 		}
 	}
-	if err := ValidarCategoria(d.Sexo, d.Categoria, d.Division); err != nil {
-		return problem.Unprocessable("CATEGORIA_INVALIDA", "Categoría: "+err.Error()+".")
+	// Empty category is kept (athletes approved from the alta have none yet).
+	if d.Categoria != "" {
+		if err := ValidarCategoria(d.Sexo, d.Categoria, d.Division); err != nil {
+			return problem.Unprocessable("CATEGORIA_INVALIDA", "Categoría: "+err.Error()+".")
+		}
 	}
 	if d.Prueba != nil && *d.Prueba != "" && pruebaTexto(*d.Prueba) == "Aún no lo sabe" {
 		return problem.Unprocessable("PRUEBA_INVALIDA", "La competición debe ser AEP-2, AEP-3 o vacía.")
