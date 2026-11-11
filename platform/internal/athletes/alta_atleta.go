@@ -844,22 +844,22 @@ func historialRuta(p string) (string, bool) {
 
 // normalizaDatos trims and normalises what the athlete wrote.
 func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
-	d.Nombre = strings.TrimSpace(d.Nombre)
-	d.Apellidos = strings.TrimSpace(d.Apellidos)
+	d.Nombre = strings.TrimSpace(sinControl(d.Nombre))
+	d.Apellidos = strings.TrimSpace(sinControl(d.Apellidos))
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
 	d.Telefono = normTel(d.Telefono)
 	d.Licencia = NormLicencia(d.Licencia)
-	d.Club = strings.TrimSpace(d.Club)
-	d.Ciudad = strings.TrimSpace(d.Ciudad)
-	d.Entrenador = strings.TrimSpace(d.Entrenador)
+	d.Club = strings.TrimSpace(sinControl(d.Club))
+	d.Ciudad = strings.TrimSpace(sinControl(d.Ciudad))
+	d.Entrenador = strings.TrimSpace(sinControl(d.Entrenador))
 	d.Prueba = strings.ToLower(strings.TrimSpace(d.Prueba))
-	d.Frase = strings.TrimSpace(d.Frase)
-	d.Bio = strings.TrimSpace(d.Bio)
+	d.Frase = strings.TrimSpace(sinControl(d.Frase))
+	d.Bio = strings.TrimSpace(sinControl(d.Bio))
 	d.Instagram = normInstagram(d.Instagram)
 	if f := fecha(d.FechaNacimiento); f != nil && menorDeEdad(*f) {
 		d.Instagram = "" // data minimisation: minors never get a public handle
 	}
-	d.Historial = strings.TrimSpace(d.Historial)
+	d.Historial = strings.TrimSpace(sinControl(d.Historial))
 	d.Sexo = strings.ToUpper(strings.TrimSpace(d.Sexo))
 	if d.FocalX <= 0 {
 		d.FocalX = 50
@@ -871,6 +871,21 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 		d.Consentimientos = map[string]bool{}
 	}
 	return d
+}
+
+// sinControl drops the control and bidi characters (U+202A–U+202E, U+2066–U+2069, marks): they can flip
+// how the rest of the text reads in the backoffice and the emails. Line breaks and tabs stay.
+func sinControl(v string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r == 0x0a || r == 0x09: // line break and tab stay
+			return r
+		case r < 0x20 || (r >= 0x7f && r <= 0x9f), r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069,
+			r == 0x200e || r == 0x200f || r == 0x061c:
+			return -1
+		}
+		return r
+	}, v)
 }
 
 // validaDatos checks the lengths, the enums and the formats of the form.
