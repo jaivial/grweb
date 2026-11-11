@@ -398,7 +398,7 @@ const MAX_MARCA = 600;
                       @if (aviso() === 'limite' || aviso() === 'red') {
                         <div id="aviso-envio" tabindex="-1" class="flex flex-col gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary outline-none" role="alert">
                           <p class="flex items-start gap-2"><gr-icon [name]="aviso() === 'limite' ? 'clock' : 'circle-alert'" [size]="18" class="mt-0.5 shrink-0 text-warning" />
-                            @if (aviso() === 'limite') { Se han enviado muchas solicitudes desde esta conexión. Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: {{ bloqueado() ? 'podrás reintentarlo en ' + espera() + '.' : 'ya puedes reintentarlo.' }} }
+                            @if (aviso() === 'limite') { {{ limiteTexto() || 'Se han enviado muchas solicitudes desde esta conexión.' }} Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: {{ bloqueado() ? 'podrás reintentarlo en ' + espera() + '.' : 'ya puedes reintentarlo.' }} }
                             @else { No hemos podido enviar tu solicitud (conexión o servicio ocupado). Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: pulsa «Reintentar». }
                           </p>
                           <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
@@ -455,6 +455,8 @@ export class AltaAtletaPage {
   protected readonly espera = signal('');
   /** Envío pausado hasta que pase el Retry-After de un 429. */
   protected readonly bloqueado = signal(false);
+  /** The text of a 429 per email or phone (empty: the limit of the connection). */
+  protected readonly limiteTexto = signal('');
   protected readonly reinicioAltcha = signal(0);
   protected readonly altchaPago = signal('');
   /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si es una fecha real. */
@@ -941,6 +943,7 @@ export class AltaAtletaPage {
     if (xhr.status === 429) {
       const ra = Number(xhr.getResponseHeader('Retry-After'));
       this.cuentaAtras(ra > 0 ? ra : 60);
+      this.limiteTexto.set(codigo === 'LIMITE_EMAIL' || codigo === 'LIMITE_TELEFONO' ? (cuerpo.detail ?? '') : '');
       this.aviso.set('limite');
       this.enfocar('#aviso-envio');
       return;

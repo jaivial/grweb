@@ -712,14 +712,15 @@ func (s *Svc) reservaLimites(ctx context.Context, ip string, d DatosAlta) ([]str
 		key     string
 		limite  int64
 		ventana time.Duration
+		codigo  string
 		msg     string
 	}
-	ls := []lim{{s.a.Keys.Of("rl", "alta", ip), limiteIPAlta, time.Hour, "Se han enviado muchas altas desde esta conexión. Espera un rato antes de intentarlo otra vez."}}
+	ls := []lim{{s.a.Keys.Of("rl", "alta", ip), limiteIPAlta, time.Hour, "DEMASIADAS_PETICIONES", "Se han enviado muchas altas desde esta conexión. Espera un rato antes de intentarlo otra vez."}}
 	if d.Email != "" {
-		ls = append(ls, lim{s.a.Keys.Of("rl", "alta-mail", hashToken(d.Email)[:16]), limiteMailAlta, 24 * time.Hour, "Ya se han enviado varias altas con este email hoy. Escríbenos si necesitas ayuda."})
+		ls = append(ls, lim{s.a.Keys.Of("rl", "alta-mail", hashToken(d.Email)[:16]), limiteMailAlta, 24 * time.Hour, "LIMITE_EMAIL", "Ya se han enviado varias altas con este email hoy. Escríbenos si necesitas ayuda."})
 	}
 	if d.Telefono != "" {
-		ls = append(ls, lim{s.a.Keys.Of("rl", "alta-tel", hashToken(d.Telefono)[:16]), limiteTelAlta, 24 * time.Hour, "Ya se han enviado varias altas con este teléfono hoy. Escríbenos si necesitas ayuda."})
+		ls = append(ls, lim{s.a.Keys.Of("rl", "alta-tel", hashToken(d.Telefono)[:16]), limiteTelAlta, 24 * time.Hour, "LIMITE_TELEFONO", "Ya se han enviado varias altas con este teléfono hoy. Escríbenos si necesitas ayuda."})
 	}
 	var hechas []string
 	for _, l := range ls {
@@ -735,18 +736,21 @@ func (s *Svc) reservaLimites(ctx context.Context, ip string, d DatosAlta) ([]str
 			if seg < 1 {
 				seg = 60
 			}
-			return nil, huma.ErrorWithHeaders(problem.TooMany(l.msg), http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
+			return nil, huma.ErrorWithHeaders(problem.New(http.StatusTooManyRequests, l.codigo, l.msg), http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
 		}
 	}
 	return hechas, nil
 }
 
-// liberaLimites gives back the slots reserved by reservaLimites.
+// liberaLimites gives back the slots reserved by reservaLimites. Only an existing key is decremented: an
+// expired one must not come back as -1 without a TTL.
 func (s *Svc) liberaLimites(keys []string) {
 	for _, k := range keys {
-		_ = s.a.Redis.Decr(context.Background(), k).Err()
+		_ = s.a.Redis.Eval(context.Background(), decrSiExiste, []string{k}).Err()
 	}
 }
+
+const decrSiExiste = "if redis.call('EXISTS', KEYS[1]) == 1 then return redis.call('DECR', KEYS[1]) end return 0"
 
 // respuestaFalsa is the answer a bot gets: the same 202, but nothing was created.
 func (s *Svc) respuestaFalsa() *AltaOut {
