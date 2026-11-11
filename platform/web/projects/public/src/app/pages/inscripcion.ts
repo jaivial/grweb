@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -491,6 +491,7 @@ export class InscripcionPage {
             <span class="size-14 animate-spin rounded-full border-4 border-accent/25 border-t-accent" aria-hidden="true"></span>
             <h1 class="mt-1 text-display-s md:text-display-m">Confirmando el pago…</h1>
             <p class="text-body-m text-text-secondary">No cierres esta página. Tardamos unos segundos en recibir la confirmación del banco.</p>
+            @if (aviso()) { <p class="text-body-s text-warning" role="status">No pudimos comprobar el pago, reintentando…</p> }
           </div>
         } @else if (e === null) {
           <div class="flex flex-col items-center gap-3 text-center">
@@ -545,6 +546,8 @@ export class InscripcionEstadoPage {
   protected readonly catTexto = catTexto;
   protected readonly estado = signal<Estado | null | undefined>(undefined);
   protected readonly intentos = signal(0);
+  /** A transient error (network, 5xx, 429) while checking: keep polling with backoff instead of «not found». */
+  protected readonly aviso = signal(false);
   protected readonly copiado = signal(false);
   private timer?: ReturnType<typeof setTimeout>;
 
@@ -558,16 +561,24 @@ export class InscripcionEstadoPage {
       this.estado.set(null);
       return;
     }
+    let fallos = 0;
     const poll = async () => {
       try {
         const e = await firstValueFrom(this.http.get<Estado>(`${base}/${id}`));
+        fallos = 0;
+        this.aviso.set(false);
         this.estado.set(e);
         if (e.estado === 'pendiente_pago' && this.intentos() < 10) {
           this.intentos.update((n) => n + 1);
           this.timer = setTimeout(poll, 2000);
         }
-      } catch {
-        this.estado.set(null);
+      } catch (err) {
+        if (err instanceof HttpErrorResponse && err.status === 404) {
+          this.estado.set(null);
+          return;
+        }
+        this.aviso.set(true);
+        this.timer = setTimeout(poll, Math.min(2000 * 2 ** fallos++, 30000));
       }
     };
     void poll();
