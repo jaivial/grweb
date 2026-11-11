@@ -100,7 +100,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
               <li class="relative flex items-center gap-4 md:gap-8" [class.md:flex-row-reverse]="!par">
                 <div class="order-2 flex min-w-0 flex-1 flex-col gap-2 rounded-md border border-line-subtle bg-bg-card p-6 md:order-none md:max-w-[428px]">
                   <span class="flex size-7 items-center justify-center rounded-full bg-accent text-label-xs">{{ i + 1 }}</span>
-                  <h3 class="mt-1 text-ui-h4">{{ p.t }}</h3><p class="text-body-s text-text-tertiary">{{ p.d }}</p>
+                  <h3 class="mt-1 text-ui-h4">{{ p.t }}</h3><p class="text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ p.d }}</p>
                 </div>
                 <span class="relative z-10 order-1 flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-accent bg-bg-base text-text-primary md:order-none"><gr-icon [name]="p.i" [size]="18" /></span>
                 <span class="hidden flex-1 md:block md:max-w-[428px]"></span>
@@ -116,7 +116,7 @@ const SECCION = 'flex flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 
             @if (s.ganador; as g) {
               <p class="text-mono-xs tracking-[0.2em] text-text-tertiary">BOLETO GANADOR</p>
               <p class="font-display text-[72px] leading-none text-accent-text italic">{{ g.numero }}</p>
-              <p class="text-ui-h4">{{ g.nombre }}</p><p class="text-body-s text-text-tertiary">¡Enhorabuena! · {{ s.premio }}</p>
+              <p class="w-full text-ui-h4 [overflow-wrap:anywhere]">{{ g.nombre }}</p><p class="w-full text-body-s text-text-tertiary [overflow-wrap:anywhere]">¡Enhorabuena! · {{ s.premio }}</p>
             } @else {
               <span class="flex size-16 items-center justify-center rounded-full bg-[radial-gradient(circle,rgb(196_43_62/0.25),transparent_70%)] text-accent-text"><gr-icon name="trophy" [size]="28" /></span>
               <p class="mt-1 text-display-xs">Ganador pendiente</p>

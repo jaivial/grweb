@@ -208,7 +208,7 @@ func (s *Svc) registerPublic() {
 			if row.Version > f.Ver { // revoked while Redis was unreachable: fail closed now
 				return anonimo, nil
 			}
-			o := &yoOut{Body: s.yoDe(row)}
+			o := &yoOut{Status: http.StatusOK, Body: s.yoDe(row)}
 			// Re-issue while the session is in use so an active fan is never logged out mid-event.
 			if time.Until(time.Unix(f.Exp, 0)) < reemision {
 				if tok, err := s.firmar(row); err == nil {
