@@ -96,7 +96,8 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
         <ul class="grid w-full gap-6 md:grid-cols-1 lg:grid-cols-2">
           @for (a of absolutos; track a.label; let i = $index) {
             <li class="flex flex-col overflow-hidden rounded-[32px] border border-[#d4af37]/35 bg-[#221d1f] bg-[radial-gradient(70%_60%_at_50%_45%,rgb(212_175_55/0.22),transparent)]">
-              <gr-trofeo-3d class="mx-auto mt-6 h-[260px] w-full max-w-[448px] md:h-[300px] lg:mt-10 lg:h-[400px]" [alt]="a.alt" [fase]="i * 1.7" />
+              <!-- both start facing the camera (Figma); a small offset so they do not turn in lockstep -->
+              <gr-trofeo-3d class="mx-auto mt-6 h-[260px] w-full max-w-[448px] md:h-[300px] lg:mt-10 lg:h-[400px]" [alt]="a.alt" [fase]="i * -0.25" />
               <div class="flex flex-col gap-2 p-6 text-center lg:p-10">
                 <span class="text-body-m text-[#d4af37] md:text-body-l">{{ a.titulo }}</span>
                 <span class="font-display text-[36px] leading-[44px] tracking-[0.06em] uppercase md:text-[48px] md:leading-[53px]">{{ a.label }}</span>
