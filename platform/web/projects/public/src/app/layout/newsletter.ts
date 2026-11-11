@@ -25,7 +25,7 @@ import { Novedades, mensajeError } from '../core/novedades';
           <div><p class="text-label-m">Revisa tu email</p><p class="text-body-s text-text-secondary">Te hemos enviado un enlace para confirmar la suscripción. Si no llega, mira en spam.</p></div>
         </div>
       } @else {
-        <form class="flex flex-col gap-3" (submit)="$event.preventDefault(); enviar()" novalidate>
+        <form class="flex flex-col gap-3" method="post" (submit)="$event.preventDefault(); enviar()" novalidate>
           <div class="flex flex-col gap-2" [class.sm:flex-row]="!compacta()">
             <label class="relative min-w-0 flex-1">
               <span class="sr-only">Tu email</span>

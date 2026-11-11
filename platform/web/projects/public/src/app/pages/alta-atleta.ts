@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
@@ -117,7 +117,7 @@ const MAX_MARCA = 600;
                 @if (aviso() === 'duplicado') {
                   <gr-alta-aviso tipo="duplicado" [contacto]="contacto()" />
                 } @else {
-                  <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" (ngSubmit)="enviar()" novalidate>
+                  <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
                     <div>
                       <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">Solicitud de alta</h2>
                       <p class="mt-1.5 text-body-s text-text-tertiary">Los campos marcados con * son obligatorios. El resto, opcional.</p>
@@ -404,7 +404,7 @@ const MAX_MARCA = 600;
                           <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
                         </div>
                       }
-                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="enviando() || bloqueado()">Enviar mi alta</button></div>
+                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
                       <p class="text-body-xs text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
                   </form>
@@ -443,6 +443,8 @@ export class AltaAtletaPage {
   protected readonly exito = signal(false);
   /** The athlete authorised publishing their profile (image consent): only then the success screen promises it. */
   protected readonly publica = signal(false);
+  /** Until Angular hydrates, a native submit would send the data by itself: the button stays disabled. */
+  protected readonly hidratado = signal(false);
   protected readonly enviando = signal(false);
   protected readonly subiendo = signal(false);
   protected readonly procesando = signal(false);
@@ -668,6 +670,7 @@ export class AltaAtletaPage {
   });
 
   constructor() {
+    afterNextRender(() => this.hidratado.set(true));
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
       const [c, , mapa] = await Promise.all([
