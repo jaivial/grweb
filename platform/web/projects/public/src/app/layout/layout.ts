@@ -139,7 +139,7 @@ const UI = {
         </div>
         <ul class="flex flex-col">
           @for (l of accesos(); track l.href) {
-            <li><a [href]="l.href" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs" [class.text-accent-text]="l.destacado">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" [class.text-accent-text!]="l.destacado" /></a></li>
+            <li><a [href]="l.href" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs decoration-accent decoration-2 underline-offset-8" [class.text-accent-text]="l.destacado" [class.underline]="activo(l.href)" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" [class.text-accent-text!]="l.destacado" /></a></li>
           }
         </ul>
         @if (lang() === 'es') {
