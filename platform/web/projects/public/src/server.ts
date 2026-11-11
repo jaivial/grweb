@@ -129,13 +129,56 @@ app.use(async (req, res, next) => {
 });
 
 /**
+ * Micro-cache of the rendered pages (per pod, SSR_CACHE_TTL_MS, default 5 s): the SSR is anonymous (no cookie reaches
+ * the API), so a page is the same for every visitor for a few seconds. Concurrent requests for the same URL share one
+ * render, and only plain 200s without Set-Cookie/no-store are kept (429/503/404 always render again).
+ */
+const TTL = Number(process.env['SSR_CACHE_TTL_MS'] ?? 5000);
+interface Pagina { at: number; status: number; headers: [string, string][]; body: Buffer }
+const paginas = new Map<string, Pagina>();
+const enCurso = new Map<string, Promise<Pagina | null>>();
+async function render(req: express.Request): Promise<Pagina | null> {
+  const r = await angularApp.handle(req);
+  if (!r) return null;
+  return { at: Date.now(), status: r.status, headers: [...r.headers.entries()], body: Buffer.from(await r.arrayBuffer()) };
+}
+const cacheable = (p: Pagina) =>
+  p.status === 200 && !p.headers.some(([k, v]) => k === 'set-cookie' || (k === 'cache-control' && /no-store|private/.test(v)));
+
+/**
  * Handle all other requests by rendering the Angular application.
  */
 app.use((req, res, next) => {
-  angularApp
-    .handle(req)
-    .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
-    .catch(next);
+  if (TTL <= 0 || (req.method !== 'GET' && req.method !== 'HEAD')) {
+    angularApp
+      .handle(req)
+      .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
+      .catch(next);
+    return;
+  }
+  const key = req.method + ' ' + req.originalUrl;
+  const hit = paginas.get(key);
+  const compartida = enCurso.get(key);
+  const p = hit && Date.now() - hit.at < TTL ? Promise.resolve(hit) : compartida
+    // another visitor's render that is not shareable (e.g. their 429): render this one on its own
+    ? compartida.then((pg) => (pg && !cacheable(pg) ? render(req) : pg))
+    : (() => {
+    const x = render(req).then((pg) => {
+      if (pg && cacheable(pg)) {
+        if (paginas.size > 500) paginas.clear(); // bounded: random query strings must not grow memory
+        paginas.set(key, pg);
+      }
+      return pg;
+    }).finally(() => enCurso.delete(key));
+    enCurso.set(key, x);
+    return x;
+  })();
+  p.then((pg) => {
+    if (!pg) return next();
+    res.status(pg.status);
+    for (const [k, v] of pg.headers) res.append(k, v);
+    res.end(req.method === 'HEAD' ? undefined : pg.body);
+  }).catch(next);
 });
 
 /**
