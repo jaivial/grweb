@@ -188,8 +188,11 @@ func MaxBodyFor(n int64, fn func(*http.Request) int64) Middleware {
 					}
 				}
 				if r.ContentLength > limit {
-					problem.Write(w, problem.New(http.StatusRequestEntityTooLarge, "DEMASIADO_GRANDE", "El cuerpo de la petición es demasiado grande."))
+					tooLarge(w)
 					return
+				}
+				if r.ContentLength != 0 { // slow bodies cannot hold the connection (no ReadTimeout: it would cut websockets)
+					_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(BodyReadTimeout))
 				}
 				r.Body = http.MaxBytesReader(w, r.Body, limit)
 			}
