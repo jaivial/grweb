@@ -200,7 +200,14 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 		bucket, limit = "gw-ssr", g.ssrLimit
 	}
 	r.Header.Del("X-GrCup-SSR")
-	if r.Method == http.MethodGet && publicSSE.MatchString(r.URL.Path) {
+	if esSSE(r) {
+		// Real SSE opens skip the request bucket but still pay a per-IP opening rate (own bucket, as high as the
+		// open-connection cap), so open/close loops or bogus slugs cannot reach the upstream unlimited.
+		if res, err := ratelimit.Allow(ctx, g.a.Redis, g.a.Keys.Of("rl", "gw-sse", httpx.ClientIPFrom(ctx)), g.sseLimit, time.Minute); err == nil && !res.Allowed {
+			w.Header().Set("Retry-After", strconv.Itoa(int(res.RetryAfter.Seconds())+1))
+			problem.Write(w, problem.TooMany("Demasiadas conexiones en directo desde tu red. Espera un momento."))
+			return
+		}
 		release, ok := g.abrirSSE(ctx)
 		if !ok {
 			w.Header().Set("Retry-After", "5")
@@ -246,7 +253,16 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 	proxy.ServeHTTP(w, r)
 }
 
-var publicSSE = regexp.MustCompile(`^/api/competiciones/[^/]+/stream$`)
+// publicSSE is the only stream route registered by realtime for anonymous clients (slug charset only, so encoded
+// or odd paths fall back to the normal bucket).
+var publicSSE = regexp.MustCompile(`^/api/competiciones/[a-z0-9-]{1,80}/stream$`)
+
+// esSSE tells a real public SSE open: GET, exact registered path (RawPath empty: nothing percent-encoded) and an
+// Accept that asks for text/event-stream. Anything else to /stream counts in the normal request bucket.
+func esSSE(r *http.Request) bool {
+	return r.Method == http.MethodGet && r.URL.RawPath == "" && publicSSE.MatchString(r.URL.Path) &&
+		strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/event-stream")
+}
 
 // abrirSSE counts one open public SSE connection of the client IP (Redis, shared by every gateway replica).
 // The key expires after an hour without new connections so a crashed replica never leaks the counter for good.
