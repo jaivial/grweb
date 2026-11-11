@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { NavigationStart, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
 
@@ -52,6 +53,11 @@ export class FanSession {
   readonly motivoAcceso = signal<string | null>(null);
 
   private pendiente: Promise<Fan | null> | null = null;
+
+  constructor() {
+    // The modal is global (one instance in the layout): any navigation, back/forward included, closes it.
+    inject(Router).events.subscribe((e) => e instanceof NavigationStart && this.accesoAbierto() && this.cerrarAcceso());
+  }
 
   /** Loads the session once (browser only; SSR renders the anonymous state). */
   cargar(forzar = false): Promise<Fan | null> {
