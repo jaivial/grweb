@@ -103,7 +103,7 @@ const MAX_MARCA = 600;
               </article>
             }
           </div>
-          @if (vista() === 'formulario') { <div><a grButton variant="primary" size="m" href="#formulario" iconRight="arrow-down">Ir al formulario</a></div> }
+          @if (vista() === 'formulario') { <div><a grButton variant="primary" size="m" href="#formulario">Ir al formulario</a></div> }
         </section>
 
         <!-- Formulario + resumen (Figma 75) -->
@@ -414,7 +414,7 @@ const MAX_MARCA = 600;
           </div>
 
           <!-- Resumen y ayuda -->
-          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
+          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" />
         </div>
 
         <!-- Preguntas frecuentes -->
@@ -553,7 +553,7 @@ export class AltaAtletaPage {
   protected readonly maxMarca = MAX_MARCA;
   protected readonly bloques = [
     { t: 'Qué datos pedimos en el registro de atletas', d: 'El formulario pide solo lo que una ficha de competidor necesita: nombre y apellidos, email (el mismo con el que te inscribiste en la AEP, sirve para reconocerte), club o «independiente», ciudad, sexo y fecha de nacimiento, tus mejores marcas de sentadilla, press de banca y peso muerto, y una foto tuya. La imagen se estandariza para la web: se publica en blanco y negro, recortada y comprimida para que todas las fichas sean uniformes y carguen rápido. Si no tienes marcas homologadas todavía, puedes dejarlas vacías y completarlas después desde el área de atleta. Nada de este formulario es un pago ni una inscripción: la cuota y la licencia de la AEP se gestionaron al inscribirte. Los campos marcados con * son obligatorios; el resto puedes dejarlos para más tarde.' },
-    { t: 'Darse de alta como atleta AEP: revisión paso a paso', d: 'Cada alta entra como una solicitud que revisa el equipo de la GR Cup antes de publicarse: envías el formulario, recibes un email de confirmación en tu correo, el equipo aprueba (o pide una corrección) y tu ficha aparece en /atletas. La revisión existe porque el alta es pública y alguien que no compite podría registrarse de broma; comprobamos que tu email consta en la lista de inscritos de la AEP y que los datos de categoría y división cuadran. Si algo no encaja, te escribimos para corregirlo antes de publicar. Cuando tu perfil está aprobado, entras en el área de atleta, donde después podrás editar tu foto, tus marcas y tu frase de presentación.' },
+    { t: 'Darse de alta como atleta AEP: revisión paso a paso', d: 'Cada alta entra como una solicitud que revisa el equipo de la GR Cup antes de publicarse: envías el formulario, recibes un email de confirmación en tu correo, el equipo aprueba (o pide una corrección) y tu ficha queda privada: no aparece en /atletas hasta que actives su publicación. La revisión existe porque el alta es pública y alguien que no compite podría registrarse de broma; comprobamos que tu email consta en la lista de inscritos de la AEP y que los datos de categoría y división cuadran. Si algo no encaja, te escribimos para corregirlo antes de publicar. Cuando tu perfil está aprobado, entras en el área de atleta, donde después podrás editar tu foto, tus marcas y tu frase de presentación.' },
     { t: 'Privacidad: quién ve los datos de tu perfil', d: 'Tu perfil público muestra solo lo deportivo: nombre, club, ciudad, categoría, marcas y foto. Tu email y tu teléfono (si los facilitas para avisos de pesaje) nunca se publican: sirven para que la organización te confirme el alta y te avise de horarios. Al enviar el formulario marcas las casillas de términos de uso, cesión de datos de imagen y política de comunicaciones; guardamos la prueba de cada consentimiento con fecha y versión del texto, como exige el RGPD. Puedes pedir la baja o la corrección de tu ficha en cualquier momento desde el área de atleta o escribiendo al email de contacto; la foto se retira de la web y del CDN cuando pides la baja. La política completa está en la página de privacidad enlazada al pie del formulario.' },
   ];
   protected readonly relacionados: RelatedLink[] = [
@@ -568,7 +568,7 @@ export class AltaAtletaPage {
   ];
 
   protected readonly intro =
-    'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil público. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email con el resultado. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
+    'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil, que queda privado hasta que actives su publicación. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email con el resultado. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
   /** The intro when the alta is closed: it never invites to fill in the form. */
   protected readonly introCerrada =
     'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. El alta de atletas está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.';
@@ -576,9 +576,9 @@ export class AltaAtletaPage {
   /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
   protected readonly introHtml = this.intro.replace('dar de alta tu atleta', '<strong class="font-semibold text-text-primary">dar de alta tu atleta</strong>');
   protected readonly introH2 =
-    'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que vive en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
+    'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que, cuando actives su publicación, aparece en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
   protected readonly introExito =
-    'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email en cuanto tu ficha esté publicada en la lista de atletas. Si ya tienes tu cuenta, entra en el área de atleta para ver el estado de tu solicitud.';
+    'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email en cuanto esté aprobada. Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación. Si ya tienes tu cuenta, entra en el área de atleta para ver el estado de tu solicitud.';
   protected readonly introExitoPrivada =
     'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email con el resultado. Al aprobarla tu ficha quedará privada: podrás activar su publicación desde el área de atleta.';
 
