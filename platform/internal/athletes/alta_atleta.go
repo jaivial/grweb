@@ -805,10 +805,12 @@ func (s *Svc) cuentaPostSinAltcha(ctx context.Context, ip string) {
 		return
 	}
 	key := s.a.Keys.Of("rl", "alta-post", ip)
-	pipe := s.a.Redis.TxPipeline()
-	pipe.Incr(ctx, key)
-	pipe.ExpireNX(ctx, key, ventanaAltaPost)
-	if _, err := pipe.Exec(ctx); err != nil {
+	// INCR + EXPIRE on the first hit (EXPIRE NX needs Redis 7; this works on Redis 6).
+	n, err := s.a.Redis.Incr(ctx, key).Result()
+	if err == nil && n == 1 {
+		err = s.a.Redis.Expire(ctx, key, ventanaAltaPost).Err()
+	}
+	if err != nil {
 		s.a.Log.Warn("alta de atleta · contador de POST no actualizado", "err", err)
 	}
 }
