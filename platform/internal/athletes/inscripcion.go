@@ -352,6 +352,11 @@ func (s *Svc) ocupadas(ctx context.Context, cid uuid.UUID) (int, error) {
 	return n, err
 }
 
+// cfgPubTTL bounds how late a time-based change (opening/closing, an expired held place) shows on the public GET.
+const cfgPubTTL = 5 * time.Second
+
+func cfgPubKey(cid uuid.UUID) string { return "inscripcion-pub:" + cid.String() }
+
 func (s *Svc) configPub(ctx context.Context, cid uuid.UUID, fresh ...bool) (ConfigPub, Config, error) {
 	cfg, err := s.config(ctx, s.a.DB, cid)
 	if err != nil {
@@ -449,7 +454,15 @@ func (s *Svc) registerInscripcion() {
 			if err != nil {
 				return nil, err
 			}
-			p, _, err := s.configPub(ctx, c.ID)
+			// Hot path (thousands of rps on opening day): a few seconds in Redis; plazasCambiadas rewrites it on every change.
+			var p ConfigPub
+			if s.cache.Get(ctx, cfgPubKey(c.ID), &p) {
+				return &cfgOut{Body: p}, nil
+			}
+			p, _, err = s.configPub(ctx, c.ID)
+			if err == nil {
+				s.cache.Set(ctx, cfgPubKey(c.ID), p, cfgPubTTL)
+			}
 			return &cfgOut{Body: p}, err
 		})
 
@@ -1307,6 +1320,7 @@ func (s *Svc) sesionFan(ctx context.Context, cookie, hdr string, cid uuid.UUID) 
 func (s *Svc) plazasCambiadas(ctx context.Context, cid uuid.UUID) {
 	p, _, err := s.configPub(ctx, cid, true)
 	if err == nil {
+		s.cache.Set(ctx, cfgPubKey(cid), p, cfgPubTTL)
 		err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 			return events.Enqueue(ctx, tx, events.New(ctx, "inscripcion.plazas_actualizadas",
 				map[string]any{"plazas": p.Plazas, "ocupadas": p.Ocupadas, "estado": p.Estado, "reserva": p.Reserva},
