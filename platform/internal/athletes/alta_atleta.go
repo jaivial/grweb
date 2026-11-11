@@ -345,17 +345,43 @@ func (s *Svc) muevePlaza(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, 
 			return err
 		}
 		var n int
+		// the athlete's own place (the approved request that created it) is the one being moved
 		if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'
-			AND match_atleta_id IS DISTINCT FROM $3`, cid, prueba, atleta).Scan(&n); err != nil {
+			AND (match_atleta_id IS DISTINCT FROM $3 OR estado <> 'aprobada')`, cid, prueba, atleta).Scan(&n); err != nil {
 			return err
 		}
 		if lim := s.cupos(ctx, tx, cid, c.Inscripcion.Plazas)[prueba]; lim > 0 && n >= lim {
 			return problem.Conflict("CUPO_COMPLETO", "Esa competición tiene el cupo completo. Confirma para asignarla igualmente.")
 		}
 	}
-	_, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET prueba = $3, version = version + 1, updated_at = now()
-		WHERE competition_id = $1 AND match_atleta_id = $2 AND estado <> 'rechazada'`, cid, atleta, prueba)
-	return err
+	// Only the approved request of this athlete: pending requests of other people that merely matched it
+	// as a possible duplicate keep their own choice.
+	var ids []uuid.UUID
+	rows, err := tx.Query(ctx, `UPDATE solicitudes_atleta SET prueba = $3, version = version + 1, updated_at = now()
+		WHERE competition_id = $1 AND match_atleta_id = $2 AND estado = 'aprobada' RETURNING id`, cid, atleta, prueba)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	// The panel of requests refreshes its places live (SSE).
+	for _, id := range ids {
+		if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_plaza", map[string]any{"id": id, "prueba": prueba},
+			events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // pruebaValida: empty («Aún no lo sé») or one of the options.
