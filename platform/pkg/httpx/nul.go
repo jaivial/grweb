@@ -16,6 +16,9 @@ import (
 // Content-Type casing/parameters, or none, since huma decodes it as JSON by default), form-urlencoded
 // (%00) or any other text. PostgreSQL text cannot store it. Multipart bodies carry binary files, so
 // their text parts are checked by the decoder of each handler (see HasNUL).
+//
+// The body is scanned while the handler reads it (no copy of the whole body): at the first NUL the
+// read fails, whatever the handler then writes is dropped and the 422 is answered instead.
 func RejectNUL(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ct := strings.ToLower(r.Header.Get("Content-Type"))
@@ -23,21 +26,112 @@ func RejectNUL(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		b, err := io.ReadAll(r.Body)
-		if err != nil {
-			// the handler's decoder must see the same read error (e.g. too large → 413), not a truncated body
-			r.Body = io.NopCloser(io.MultiReader(bytes.NewReader(b), errReader{err}))
-			next.ServeHTTP(w, r)
-			return
+		sc := &nulScanner{rc: r.Body, form: strings.Contains(ct, "x-www-form-urlencoded")}
+		r.Body = sc
+		nw := &nulWriter{ResponseWriter: w, sc: sc}
+		next.ServeHTTP(nw, r)
+		if sc.hit && !nw.wrote {
+			problem.Write(w, NULProblem(sc.head, "body"))
 		}
-		r.Body = io.NopCloser(bytes.NewReader(b))
-		if !HasNUL(b) && !(strings.Contains(ct, "x-www-form-urlencoded") && bytes.Contains(bytes.ToLower(b), []byte("%00"))) {
-			next.ServeHTTP(w, r)
-			return
-		}
-		problem.Write(w, NULProblem(b, "body"))
 	})
 }
+
+var errNUL = problem.Unprocessable("VALIDACION", "El texto contiene un carácter no permitido (NUL).")
+
+// nulHead: bytes kept to locate the field holding NUL (only for the 422 location).
+const nulHead = 64 << 10
+
+// nulScanner passes the body through and fails the read at the first raw 0x00, JSON escape \u0000
+// or (form) %00, even when the sequence is split across reads.
+type nulScanner struct {
+	rc   io.ReadCloser
+	form bool
+	esc  int // 0 none, 1 after '\\', 2.. after '\\u' + (esc-2) zeros
+	pct  int // 0 none, 1 after '%', 2 after '%0'
+	hit  bool
+	head []byte
+}
+
+func (s *nulScanner) Close() error { return s.rc.Close() }
+
+func (s *nulScanner) Read(p []byte) (int, error) {
+	if s.hit {
+		return 0, errNUL
+	}
+	n, err := s.rc.Read(p)
+	if len(s.head) < nulHead {
+		s.head = append(s.head, p[:min(n, nulHead-len(s.head))]...)
+	}
+	for _, c := range p[:n] {
+		if c == 0 || s.step(c) {
+			s.hit = true
+			return 0, errNUL
+		}
+	}
+	return n, err
+}
+
+// step advances the escape state machines; true when a NUL escape completes.
+func (s *nulScanner) step(c byte) bool {
+	switch {
+	case s.esc == 0:
+		if c == '\\' {
+			s.esc = 1
+		}
+	case s.esc == 1:
+		s.esc = 0
+		if c == 'u' {
+			s.esc = 2
+		}
+	case c == '0':
+		if s.esc++; s.esc == 6 {
+			return true
+		}
+	default:
+		s.esc = 0
+		if c == '\\' {
+			s.esc = 1
+		}
+	}
+	if s.form {
+		switch {
+		case c == '%':
+			s.pct = 1
+		case c == '0' && s.pct > 0:
+			if s.pct++; s.pct == 3 {
+				return true
+			}
+		default:
+			s.pct = 0
+		}
+	}
+	return false
+}
+
+// nulWriter drops the handler's response once the body was found holding NUL.
+type nulWriter struct {
+	http.ResponseWriter
+	sc    *nulScanner
+	wrote bool
+}
+
+func (w *nulWriter) WriteHeader(code int) {
+	if w.sc.hit && !w.wrote {
+		return
+	}
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *nulWriter) Write(b []byte) (int, error) {
+	if w.sc.hit && !w.wrote {
+		return len(b), nil
+	}
+	w.wrote = true
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *nulWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // NULProblem is the 422 VALIDACION for a JSON document b holding NUL; root prefixes the location.
 func NULProblem(b []byte, root string) *problem.Error {
@@ -45,10 +139,6 @@ func NULProblem(b []byte, root string) *problem.Error {
 	p.Errors = []*huma.ErrorDetail{{Location: rutaNUL(b, root), Message: "carácter no permitido (U+0000)"}}
 	return p
 }
-
-type errReader struct{ err error }
-
-func (e errReader) Read([]byte) (int, error) { return 0, e.err }
 
 // HasNUL reports a raw 0x00 byte or a \u0000 escape inside a JSON string (an escaped backslash is skipped).
 func HasNUL(b []byte) bool {
