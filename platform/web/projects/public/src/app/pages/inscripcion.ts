@@ -485,7 +485,7 @@ export class InscripcionPage {
   template: `
     @let e = estado();
     <gr-page title="Inscripción" [centrado]="true" [cabecera]="false">
-      <div class="mx-auto flex w-full max-w-[560px] flex-col gap-5 md:pt-4">
+      <div class="-mt-4 mx-auto flex w-full max-w-[560px] flex-col gap-5 md:mt-0 md:pt-4">
         @if (e === undefined || (e?.estado === 'pendiente_pago' && intentos() < 10)) {
           <div class="flex flex-col items-center gap-3 py-4 text-center" aria-live="polite">
             <span class="size-14 animate-spin rounded-full border-4 border-accent/25 border-t-accent" aria-hidden="true"></span>

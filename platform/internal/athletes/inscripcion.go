@@ -621,7 +621,11 @@ func (s *Svc) estado(ctx context.Context, cid, id uuid.UUID) (EstadoInscripcion,
 			r := cfg.Referidos
 			t := "Tus amigos tienen un " + strings.TrimPrefix(descTexto(r.DescTipo, r.DescValor), "−") + " de descuento con tu código"
 			if r.Recompensa > 0 {
-				t += " y te devolvemos " + pagos.Euros(r.Recompensa) + " por cada uno"
+				imp := pagos.Euros(r.Recompensa)
+				if r.Recompensa%100 == 0 {
+					imp = fmt.Sprintf("%d €", r.Recompensa/100) // Figma 06b: «5 €»
+				}
+				t += " y te devolvemos " + imp + " por cada uno"
 				if r.MaxUsos > 0 {
 					t += fmt.Sprintf(" (hasta %d)", r.MaxUsos)
 				}
