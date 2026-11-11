@@ -32,7 +32,8 @@ spec:
           envFrom:
             - configMapRef: { name: grcup-config }
           env:
-            - { name: GOMEMLIMIT, value: "204MiB" } # ~80% of the 256Mi limit
+            - { name: GOMEMLIMIT, value: "307MiB" } # ~80% of the 384Mi limit
+            - { name: UPLOADS_MAX, value: "32" } # concurrent multipart uploads per replica; over it 503 code=busy
             - { name: UPSTREAMS, value: "identity,competition,audit,realtime,cms,athletes,schedule,crm,messaging,ticketing,live,ai,raffle,fans,chat,donaciones,patrocinio,juegos,openlifter" }
             - { name: RATE_LIMIT_IP_MIN, value: "600" }
             # GETs of the SSR (carry SSR_SECRET): own per-visitor bucket; a home render costs ~6 API calls.
@@ -63,7 +64,7 @@ spec:
             capabilities: { drop: [ALL] }
           resources:
             requests: { cpu: 50m, memory: 48Mi }
-            limits: { cpu: "1", memory: 256Mi }
+            limits: { cpu: "1", memory: 384Mi }
 ---
 apiVersion: v1
 kind: Service

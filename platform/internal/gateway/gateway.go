@@ -119,6 +119,9 @@ type gw struct {
 	// Public SSE (/api/competiciones/{slug}/stream) does not spend the request bucket: a whole venue can share one
 	// IP (NAT of the wifi). It has its own cap of open connections per IP instead.
 	sseLimit int64
+	// Concurrent multipart uploads of this replica (each one holds a connection, proxy buffers and an upstream
+	// request for seconds): over the cap the gateway answers 503 code=busy instead of growing until OOM.
+	subidas chan struct{}
 
 	specMu   sync.Mutex
 	spec     []byte
@@ -143,12 +146,15 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.ssrSecret = []byte(config.Str("SSR_SECRET", ""))
 	g.ssrLimit = int64(config.Int("RATE_LIMIT_SSR_IP_MIN", 3000))
 	g.sseLimit = int64(config.Int("SSE_CONN_IP_MAX", 2000))
+	g.subidas = make(chan struct{}, max(config.Int("UPLOADS_MAX", 32), 1))
 	g.upstream, g.proxies = map[string]*url.URL{}, map[string]*httputil.ReverseProxy{}
 	enabled := config.List("UPSTREAMS")
 	if len(enabled) == 0 {
 		enabled = AllServices
 	}
-	transport := &http.Transport{MaxIdleConnsPerHost: 64, IdleConnTimeout: 90 * time.Second, ResponseHeaderTimeout: 60 * time.Second}
+	// Bodies are streamed (never buffered): fixed 32 KB copy buffers from a shared pool.
+	transport := &http.Transport{MaxIdleConnsPerHost: 64, IdleConnTimeout: 90 * time.Second, ResponseHeaderTimeout: 60 * time.Second,
+		WriteBufferSize: 32 << 10, ReadBufferSize: 32 << 10}
 	for _, svc := range enabled {
 		raw := config.Str("UPSTREAM_"+strings.ToUpper(svc), "http://"+svc+":8080")
 		u, err := url.Parse(raw)
@@ -171,6 +177,7 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 func (g *gw) newProxy(svc string, target *url.URL, t http.RoundTripper) *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{
 		Transport:     t,
+		BufferPool:    bufPool{},
 		FlushInterval: -1, // stream SSE immediately
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			// nginx overwrites X-Forwarded-For with the real client: keep it as the first hop.
@@ -245,6 +252,16 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	// Clients never send internal headers.
 	r.Header.Del("X-GrCup-Service")
+	if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "multipart/") {
+		select {
+		case g.subidas <- struct{}{}:
+			defer func() { <-g.subidas }()
+		default:
+			w.Header().Set("Retry-After", "10")
+			problem.Write(w, problem.New(http.StatusServiceUnavailable, "busy", "Hay muchas subidas en curso. Vuelve a intentarlo en unos segundos."))
+			return
+		}
+	}
 	if tok := bearer(r.Header.Get("Authorization")); tok != "" {
 		if strings.HasPrefix(tok, "grc_") {
 			jwt, err := g.exchange(ctx, tok)
@@ -269,6 +286,14 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 // publicSSE is the only stream route registered by realtime for anonymous clients (slug charset only, so encoded
 // or odd paths fall back to the normal bucket).
 var publicSSE = regexp.MustCompile(`^/api/competiciones/[a-z0-9-]{1,80}/stream$`)
+
+// bufPool shares the 32 KB copy buffers of every proxied body (httputil.BufferPool).
+type bufPool struct{}
+
+var buffers = sync.Pool{New: func() any { b := make([]byte, 32<<10); return &b }}
+
+func (bufPool) Get() []byte  { return *buffers.Get().(*[]byte) }
+func (bufPool) Put(b []byte) { buffers.Put(&b) }
 
 // esSSE tells a real public SSE open: GET, exact registered path (RawPath empty: nothing percent-encoded) and an
 // Accept that asks for text/event-stream. Anything else to /stream counts in the normal request bucket.
