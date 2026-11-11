@@ -104,7 +104,7 @@ spec:
         - name: medios
           hostPath: { path: /var/lib/grcup-qa/medios, type: DirectoryOrCreate }
         - name: tmp
-          emptyDir: { sizeLimit: 64Mi }
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service

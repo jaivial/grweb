@@ -226,7 +226,8 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	}
 	mws := []httpx.Middleware{httpx.RequestID, httpx.Recover(a.Log), httpx.Logger(a.Log), httpx.MaxBodyFor(limit, s.BodyLimitFor), httpx.RejectNUL, auth.Middleware(a.Verifier)}
 	mws = append(mws, s.Middlewares...)
-	mws = append(mws, a.Metrics.Middleware) // innermost: it sees the route pattern the mux matched
+	mws = append(mws, a.Metrics.Middleware) // it sees the route pattern the mux matched
+	mws = append(mws, httpx.LimpiaMultipart) // innermost: same *http.Request huma parses the multipart on
 	srv := &http.Server{
 		Addr:              a.Cfg.HTTPAddr,
 		Handler:           httpx.Chain(a.Mux, mws...),

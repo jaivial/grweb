@@ -86,7 +86,8 @@ func Service() app.Service {
 		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "enlace-area": s.cmdEnlaceArea, "etl-mysql": s.etlMySQL},
 		// The user agent of the request (the proof of the consents of the public form), the rewrite of
 		// the history of an athlete (see «reescribeHistorial») and the size of the public form.
-		Middlewares: []httpx.Middleware{conUserAgent, reescribeHistorial, limitaFotoAlta},
+		// The rate limit of the alta goes first: a 429 never reads (nor spools) the body.
+		Middlewares: []httpx.Middleware{conUserAgent, s.limitaIPAlta, reescribeHistorial, limitaFotoAlta},
 	}
 }
 

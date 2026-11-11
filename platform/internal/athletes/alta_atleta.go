@@ -541,10 +541,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		return nil, problem.New(http.StatusServiceUnavailable, "ALTA_CERRADA",
 			"El alta de atleta está cerrada en esta competición. Mira la lista de atletas.")
 	}
-	ip := httpx.ClientIPFrom(ctx)
-	if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "alta", ip), limiteIPAlta, time.Hour); !r.Allowed {
-		return nil, tooMany(r)
-	}
+	ip := httpx.ClientIPFrom(ctx) // the rate limit per IP runs in «limitaIPAlta», before the body is read
 	// The data of the form.
 	partes := form.Value["datos"]
 	if len(partes) == 0 || strings.TrimSpace(partes[0]) == "" {
@@ -710,6 +707,23 @@ func tooMany(r ratelimit.Result) error {
 	}
 	return huma.ErrorWithHeaders(problem.TooMany("Has enviado demasiadas altas. Espera unos minutos antes de intentarlo otra vez."),
 		http.Header{"Retry-After": []string{strconv.Itoa(seg)}})
+}
+
+// limitaIPAlta applies the per-IP limit of the public alta before the body is read: a rejected POST never
+// parses (nor writes to /tmp) its multipart.
+func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/alta-atleta") && s.a != nil && s.a.Redis != nil {
+			ip := httpx.ClientIPFrom(r.Context())
+			if res, _ := ratelimit.Allow(r.Context(), s.a.Redis, s.a.Keys.Of("rl", "alta", ip), limiteIPAlta, time.Hour); !res.Allowed {
+				seg := int(res.RetryAfter.Seconds()) + 1
+				w.Header().Set("Retry-After", strconv.Itoa(seg))
+				problem.Write(w, problem.TooMany("Has enviado demasiadas altas. Espera unos minutos antes de intentarlo otra vez."))
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // validacion builds a 422 with the errors per field.
