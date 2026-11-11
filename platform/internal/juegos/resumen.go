@@ -138,11 +138,8 @@ func (s *Svc) cargarResumenPorra(ctx context.Context, cid uuid.UUID) (resumenPor
 	if err != nil || j == nil {
 		return o, err
 	}
-	o.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-	if err := s.a.DB.QueryRow(ctx, `SELECT (dia + hora_cierre) AT TIME ZONE 'Europe/Madrid' FROM jornadas WHERE id = $1 AND hora_cierre IS NOT NULL`, j.ID).
-		Scan(&o.CierreAt); err != nil && !db.IsNoRows(err) {
-		return o, err
-	}
+	o.Jornada = ptr(j.out())
+	o.CierreAt = j.CierreAt
 	ms, err := s.mercadosVista(ctx, cid, j)
 	if err != nil {
 		return o, err
@@ -187,7 +184,7 @@ func (s *Svc) cargarResumenFantasy(ctx context.Context, cid uuid.UUID) (resumenF
 	if err != nil || j == nil {
 		return o, err
 	}
-	o.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+	o.Jornada = ptr(j.out())
 	if err := s.a.DB.QueryRow(ctx, `SELECT count(DISTINCT dueno_fan_id), count(dueno_fan_id) FROM fantasy_atletas WHERE jornada_id = $1`, j.ID).
 		Scan(&o.EquiposCreados, &o.AtletasFichados); err != nil {
 		return o, err

@@ -338,11 +338,7 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	if !j.jugable() {
 		return uuid.Nil, problem.Conflict("JORNADA_NO_JUGABLE", "La jornada no está abierta para jugar.")
 	}
-	var cerrada bool
-	if err := tx.QueryRow(ctx, `SELECT hora_cierre IS NOT NULL AND now() >= (dia + hora_cierre) AT TIME ZONE 'Europe/Madrid' FROM jornadas WHERE id = $1`, j.ID).Scan(&cerrada); err != nil {
-		return uuid.Nil, err
-	}
-	if cerrada {
+	if j.apuestasCerradas() {
 		return uuid.Nil, problem.Conflict("APUESTAS_CERRADAS", "Las apuestas de esta jornada ya están cerradas.")
 	}
 	if importe < int64(cfg.PorraMin) || importe > int64(cfg.PorraMax) {
