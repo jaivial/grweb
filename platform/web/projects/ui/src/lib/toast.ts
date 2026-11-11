@@ -33,7 +33,10 @@ const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', er
   selector: 'gr-toast',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'pointer-events-auto flex w-full max-w-[360px] items-start gap-3 rounded-md border border-line-strong bg-bg-raised p-4 shadow-card', role: 'status' },
+  host: {
+    '[class]': "'pointer-events-auto flex w-full max-w-[360px] items-start gap-3 border border-line-strong p-4 shadow-card ' + (edge() ? 'rounded-md bg-bg-raised' : 'rounded-sm bg-[#1a1a1a]')",
+    role: 'status',
+  },
   template: `
     <gr-icon [name]="icons[tone()]" [size]="20" [class]="tone() === 'success' ? 'text-success' : tone() === 'error' ? 'text-accent-text' : 'text-info'" />
     <div class="min-w-0 flex-1">
@@ -50,6 +53,8 @@ export class GrToastCard {
   readonly title = input.required<string>();
   readonly text = input<string | undefined>(undefined);
   readonly closable = input(true);
+  /** Public site look (Figma 17 «Toast / Edge»); the backoffice keeps «BO / Toast». */
+  readonly edge = input(false);
   readonly action = input<GrToast['action']>(undefined);
   readonly closed = output<void>();
   protected readonly icons = icons;
@@ -65,7 +70,7 @@ export class GrToastCard {
   },
   template: `
     @for (t of toasts.items(); track t.id) {
-      <gr-toast [tone]="t.tone" [title]="t.title" [text]="t.text" [action]="t.action" [closable]="!top()" (closed)="toasts.dismiss(t.id)" />
+      <gr-toast [tone]="t.tone" [title]="t.title" [text]="t.text" [action]="t.action" [closable]="!top()" [edge]="top()" (closed)="toasts.dismiss(t.id)" />
     }
   `,
 })

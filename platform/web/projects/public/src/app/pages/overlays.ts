@@ -23,8 +23,8 @@ import { FOTOS_SEDE } from './como-llegar';
       <section class="flex flex-col gap-6" aria-label="Toasts">
         <h2 class="text-ui-h3">Toasts</h2>
         <div class="flex flex-col gap-2">
-          <gr-toast tone="success" [closable]="false" title="Inscripción enviada correctamente. Revisa tu correo (y la carpeta de spam) para confirmar tu plaza en la competición." />
-          <gr-toast tone="error" title="No se pudo conectar con el servidor" [action]="reintentar" />
+          <gr-toast tone="success" [closable]="false" [edge]="true" title="Inscripción enviada correctamente. Revisa tu correo (y la carpeta de spam) para confirmar tu plaza en la competición." />
+          <gr-toast tone="error" [edge]="true" title="No se pudo conectar con el servidor" [action]="reintentar" />
         </div>
         <div class="flex flex-wrap gap-3">
           <button type="button" class="rounded-sm border border-line-strong px-4 py-2 text-label-s hover:bg-bg-raised" (click)="toasts.success('Inscripción enviada correctamente. Revisa tu correo (y la carpeta de spam) para confirmar tu plaza en la competición.')">Lanzar toast de éxito</button>
