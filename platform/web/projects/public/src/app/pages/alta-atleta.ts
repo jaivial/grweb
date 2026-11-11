@@ -414,7 +414,7 @@ const MAX_MARCA = 600;
           </div>
 
           <!-- Resumen y ayuda -->
-          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" />
+          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
         </div>
 
         <!-- Preguntas frecuentes -->

@@ -48,7 +48,7 @@ const AYUDA = [
           <li><a href="/privacidad" target="_blank" rel="noopener" class="text-accent-text hover:underline">Política de privacidad</a></li>
           @if (imagen()) { <li><a href="/consentimiento-datos" target="_blank" rel="noopener" class="text-accent-text hover:underline">Consentimiento de imagen</a></li> }
           <li><a href="/privacidad" target="_blank" rel="noopener" class="text-accent-text hover:underline">Texto de novedades</a></li>
-          <li><a href="/texto-whatsapp" target="_blank" rel="noopener" class="text-accent-text hover:underline">Texto de WhatsApp</a></li>
+          @if (whatsapp()) { <li><a href="/texto-whatsapp" target="_blank" rel="noopener" class="text-accent-text hover:underline">Texto de WhatsApp</a></li> }
         </ul>
       </div>
       <p class="text-body-s text-text-tertiary">¿Dudas? Escribe a <a [href]="'mailto:' + contacto()" class="text-accent-text hover:underline">{{ contacto() }}</a></p>
@@ -62,5 +62,6 @@ export class AltaAyuda {
   /** Con el alta cerrada no hay marcas que sumar: el total en vivo no se muestra. */
   readonly abierta = input(true);
   readonly imagen = input(false);
+  readonly whatsapp = input(false);
   protected readonly ayuda = AYUDA;
 }
