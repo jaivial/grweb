@@ -522,7 +522,7 @@ export class AltaAtletaPage {
     const e = this.err();
     const out: { campo: string; label: string; msg: string }[] = [];
     const add = (campo: string, label: string, msg: string) => {
-      if (e[campo]) out.push({ campo, label, msg: e[campo] });
+      if (e[campo]) out.push({ campo, label, msg });
     };
     add('nombre', 'Nombre', 'es obligatorio');
     add('apellidos', 'Apellidos', 'son obligatorios');
