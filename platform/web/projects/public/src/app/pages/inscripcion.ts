@@ -638,8 +638,8 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
     } @else {
       <!-- Figma 06b «Pasarela simulada»: summary half (surface) and payment half, 420 px columns -->
       <div class="grid md:min-h-[calc(100vh-36px)] md:grid-cols-2">
-        <section class="flex flex-col gap-4 px-5 pt-6 md:bg-bg-surface md:px-16 md:pt-24 md:pb-16 xl:pl-[120px]">
-          <div class="flex w-full flex-col gap-4 md:max-w-[420px]">
+        <section class="flex flex-col gap-4 px-5 pt-[21px] md:bg-bg-surface md:px-16 md:pt-24 md:pb-16 xl:pl-[120px]">
+          <div class="flex w-full flex-col gap-3 md:max-w-[420px] md:gap-4">
             <a [href]="s.cancelUrl" class="-my-2.5 flex h-11 items-center gap-1.5 self-start text-label-s text-text-secondary hover:text-text-primary"><gr-icon name="arrow-left" [size]="16" />GR Strength Cup</a>
             <p class="text-body-m text-text-secondary">{{ s.descripcion }}</p>
             <p class="text-display-m md:text-display-l">{{ eur(s.importe) }}</p>
@@ -651,7 +651,7 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
             }
           </div>
         </section>
-        <section class="flex flex-col gap-4 px-5 pt-6 pb-10 md:px-16 md:pt-24 md:pb-16">
+        <section class="flex flex-col gap-4 px-5 pt-[21px] pb-10 md:px-16 md:pt-24 md:pb-16">
           <div class="flex w-full flex-col gap-4 md:max-w-[420px]">
           <h1 class="text-ui-h5">Pagar con tarjeta</h1>
           <label class="flex flex-col gap-2"><span class="text-label-s">Email</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="email" [(ngModel)]="email" autocomplete="email" /></label>
@@ -660,7 +660,7 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
           <label class="flex flex-col gap-2"><span class="text-label-s">Nombre en la tarjeta</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="nombre" autocomplete="cc-name" [(ngModel)]="nombre" /></label>
           <div class="flex flex-col gap-1.5 rounded-[10px] bg-bg-raised p-3">
             <p class="text-label-xs text-text-tertiary uppercase">Tarjetas de prueba</p>
-            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between py-0.5 text-left hover:text-accent-text" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-xs text-text-tertiary">{{ t[1] }}</span></button> }
+            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between text-left hover:text-accent-text md:py-0.5" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-xs text-text-tertiary">{{ t[1] }}</span></button> }
           </div>
           @if (mensaje()) { <gr-alert [tone]="tresDS() ? 'info' : 'danger'" [title]="tresDS() ? '3D Secure' : 'Pago no completado'">{{ mensaje() }}</gr-alert> }
           @if (tresDS()) {
