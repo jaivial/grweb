@@ -77,7 +77,7 @@ const MAX_MARCA = 600;
       } @else if (vista() === 'exito') {
         <!-- Figma 75 «Éxito»: qué pasa ahora, en tres pasos -->
         <gr-alta-exito [contacto]="contacto()" />
-        <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
+        <div class="mt-18 flex flex-col gap-18 md:gap-24">
           <gr-related nivel="h3" [items]="relacionados" />
           <gr-community nivel="h3" />
         </div>
@@ -795,6 +795,11 @@ export class AltaAtletaPage {
       this.borrarBorrador();
       this.subiendo.set(false);
       window.scrollTo({ top: 0 });
+      // The page changes in place: move the focus to the new title so screen readers announce it.
+      setTimeout(() => {
+        const h = document.querySelector<HTMLElement>('h1');
+        if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+      });
       return;
     }
     const codigo = cuerpo.code ?? '';
