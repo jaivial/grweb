@@ -10,7 +10,7 @@ export interface GrToast {
   action?: { label: string; run: () => void };
 }
 
-/** Toast queue (Figma «Toast»: 360 max, #1a1a1a, line/strong, body S; «BO / Toast» placement): bottom-right on desktop, bottom on mobile, raised 96 px over drawer/form action bars; container ignores clicks, 5 s, announced politely. */
+/** Toast queue (Figma «Toast»: 360 max, #1a1a1a, line/strong, body S; «BO / Toast» placement): bottom-right on desktop, bottom on mobile, raised 96 px over drawer/form action bars; container ignores clicks, 5 s; errors announced as alerts, the rest politely. */
 @Injectable({ providedIn: 'root' })
 export class GrToasts {
   private seq = 0;
@@ -35,7 +35,8 @@ const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', er
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class]': "'pointer-events-auto flex w-full max-w-[360px] items-start gap-3 border border-line-strong p-4 shadow-card ' + (edge() ? 'rounded-md bg-bg-raised' : 'rounded-sm bg-[#1a1a1a]')",
-    role: 'status',
+    // errors interrupt (alert / assertive); the rest are polite status messages
+    '[attr.role]': "tone() === 'error' ? 'alert' : 'status'",
   },
   template: `
     <gr-icon [name]="icons[tone()]" [size]="20" [class]="tone() === 'success' ? 'text-success' : tone() === 'error' ? 'text-accent-text' : 'text-info'" />
