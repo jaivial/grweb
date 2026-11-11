@@ -53,7 +53,7 @@ const MAX_APELLIDOS = 60;
 const MAX_BIO = 280;
 const MAX_FRASE = 80;
 const MAX_HISTORIAL = 300;
-const MAX_INSTAGRAM = 30;
+const RE_INSTAGRAM = /^@?[A-Za-z0-9._]{1,30}$/;
 const MAX_CAMPO = 80;
 const MAX_LICENCIA = 20;
 const MAX_MARCA = 600;
@@ -114,10 +114,8 @@ const MAX_MARCA = 600;
               @case ('legal') { <gr-alta-aviso tipo="legal" [contacto]="contacto()" /> }
               @case ('error') { <gr-alta-aviso tipo="error" [contacto]="contacto()" (reintentar)="recargar()" /> }
               @default {
-                @if (aviso() === 'duplicado' || aviso() === 'limite') {
-                  <gr-alta-aviso [tipo]="aviso() === 'duplicado' ? 'duplicado' : 'limite'" [contacto]="contacto()" [espera]="espera()" />
-                } @else if (aviso() === 'red') {
-                  <gr-alta-aviso tipo="red" [contacto]="contacto()" (reintentar)="enviar()" (cancelar)="aviso.set('ninguno')" />
+                @if (aviso() === 'duplicado') {
+                  <gr-alta-aviso tipo="duplicado" [contacto]="contacto()" />
                 } @else {
                   <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" (ngSubmit)="enviar()" novalidate>
                     <div>
@@ -396,7 +394,16 @@ const MAX_MARCA = 600;
                       @if (error()) {
                         <p class="flex items-start gap-2 rounded-md border border-accent bg-accent/8 p-4 text-body-s text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0" />{{ error() }}</p>
                       }
-                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="enviando()">Enviar mi alta</button></div>
+                      @if (aviso() === 'limite' || aviso() === 'red') {
+                        <div class="flex flex-col gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary" role="alert">
+                          <p class="flex items-start gap-2"><gr-icon [name]="aviso() === 'limite' ? 'clock' : 'circle-alert'" [size]="18" class="mt-0.5 shrink-0 text-warning" />
+                            @if (aviso() === 'limite') { Has enviado demasiadas solicitudes desde este dispositivo. Tus datos siguen aquí: podrás reintentarlo en {{ espera() }}. }
+                            @else { No hemos podido enviar tu solicitud (conexión o servicio ocupado). Tus datos y tu foto siguen aquí: pulsa «Reintentar». }
+                          </p>
+                          <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
+                        </div>
+                      }
+                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="enviando() || bloqueado()">Enviar mi alta</button></div>
                       <p class="text-body-xs text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
                   </form>
@@ -440,6 +447,8 @@ export class AltaAtletaPage {
   protected readonly procesando = signal(false);
   protected readonly progreso = signal(0);
   protected readonly espera = signal('');
+  /** Envío pausado hasta que pase el Retry-After de un 429. */
+  protected readonly bloqueado = signal(false);
   protected readonly reinicioAltcha = signal(0);
   protected readonly altchaPago = signal('');
   /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si es una fecha real. */
@@ -780,13 +789,14 @@ export class AltaAtletaPage {
     if (d.entrenador.trim().length > MAX_CAMPO) e['entrenador'] = 'Es demasiado largo.';
     if (d.frase.length > MAX_FRASE) e['frase'] = 'Es demasiado larga (80 caracteres como máximo).';
     if (d.bio.length > MAX_BIO) e['bio'] = 'Es demasiado largo (280 caracteres como máximo).';
-    if (d.instagram.length > MAX_INSTAGRAM) e['instagram'] = 'Es demasiado largo (30 caracteres como máximo).';
+    if (!this.esMenor() && d.instagram.trim() && !RE_INSTAGRAM.test(d.instagram.trim())) e['instagram'] = 'Solo letras, números, puntos y guiones bajos (30 como máximo).';
     if (d.historial.length > MAX_HISTORIAL) e['historial'] = 'Es demasiado largo (300 caracteres como máximo).';
     for (const m of this.marcasCampos) {
       const v = this.texto(m.k);
       if (!v) continue;
       const n = Number(v);
       if (isNaN(n) || n < 0 || n > MAX_MARCA) e[m.k] = 'La marca debe estar entre 0 y 600 kg.';
+      else if (!Number.isInteger(n * 2)) e[m.k] = 'Las marcas van en pasos de 0,5 kg.';
     }
     if (!this.acepta.terminos || !this.acepta.privacidad) e['consentimiento'] = 'Acepta los términos de uso y la política de privacidad.';
     return e;
@@ -910,7 +920,10 @@ export class AltaAtletaPage {
       return;
     }
     if (xhr.status === 429) {
-      this.espera.set(this.minutos(xhr.getResponseHeader('Retry-After')));
+      const ra = xhr.getResponseHeader('Retry-After');
+      this.espera.set(this.minutos(ra));
+      this.bloqueado.set(true);
+      setTimeout(() => this.bloqueado.set(false), (Number(ra) > 0 ? Number(ra) : 60) * 1000);
       this.aviso.set('limite');
       return;
     }
