@@ -197,6 +197,9 @@ func (s *Svc) precio(ctx context.Context, q querier, cid uuid.UUID, cfg Config, 
 		default:
 			cup = &list[0]
 			d.Valido, d.Importe, d.Texto = true, aplicar(cup.Tipo, cup.Valor, p.Total), descTexto(cup.Tipo, cup.Valor)
+			if cup.Tipo != "porcentaje" {
+				d.Texto = descTexto(cup.Tipo, d.Importe) // a fixed amount above the fee only discounts the fee
+			}
 			p.Total -= d.Importe
 		}
 	}
@@ -421,6 +424,7 @@ type EstadoInscripcion struct {
 	CheckoutURL string    `json:"checkoutUrl,omitempty" doc:"Página de pago, mientras la plaza siga reservada"`
 	Categoria   string    `json:"categoria"`
 	Division    string    `json:"division,omitempty" doc:"Nombre de la división: Open, Junior… (por la edad en el año de la competición)"`
+	InvitaTexto string    `json:"invitaTexto,omitempty" doc:"«Tus amigos tienen un 10 % de descuento con tu código y te devolvemos 5,00 € por cada uno (hasta 10).»"`
 }
 
 func maskEmail(e string) string {
@@ -601,6 +605,19 @@ func (s *Svc) estado(ctx context.Context, cid, id uuid.UUID) (EstadoInscripcion,
 	}
 	if atleta != nil {
 		_ = s.a.DB.QueryRow(ctx, `SELECT codigo FROM referido_codigos WHERE atleta_id = $1`, *atleta).Scan(&e.CodigoRef)
+	}
+	if e.CodigoRef != "" {
+		if cfg, err := s.config(ctx, s.a.DB, cid); err == nil && cfg.Referidos.Activo {
+			r := cfg.Referidos
+			t := "Tus amigos tienen un " + strings.TrimPrefix(descTexto(r.DescTipo, r.DescValor), "−") + " de descuento con tu código"
+			if r.Recompensa > 0 {
+				t += " y te devolvemos " + pagos.Euros(r.Recompensa) + " por cada uno"
+				if r.MaxUsos > 0 {
+					t += fmt.Sprintf(" (hasta %d)", r.MaxUsos)
+				}
+			}
+			e.InvitaTexto = t + "."
+		}
 	}
 	return e, nil
 }
