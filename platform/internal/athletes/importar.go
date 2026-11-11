@@ -283,6 +283,8 @@ func leerFila(datos, mapeo map[string]string, year int) (parsed, string) {
 	switch {
 	case p.Licencia == "":
 		return p, "Falta la licencia"
+	case !licenciaValida.MatchString(p.Licencia):
+		return p, "Licencia «" + p.Licencia + "» no válida: de 3 a 20 letras o números, sin contar guiones, puntos ni espacios"
 	case p.Nombre == "":
 		return p, "Falta el nombre"
 	case p.Sexo == "":
