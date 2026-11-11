@@ -17,7 +17,7 @@ export const FAQS = [
     <section class="mt-18 flex flex-col gap-6 md:mt-24">
       <div>
         <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>Preguntas rápidas</p>
-        <h2 class="mt-3 text-display-s md:text-display-l">Tu ficha de atleta en la competición de powerlifting de <span class="text-accent-text">Valencia</span></h2>
+        <h2 class="mt-3 text-display-s md:text-display-m">Tu ficha de atleta en la competición de powerlifting de <span class="text-accent-text">Valencia</span></h2>
         <p class="mt-4 max-w-[900px] text-body-m text-text-tertiary md:text-body-l">{{ introH22 }}</p>
       </div>
       <ul class="flex flex-col gap-3">
