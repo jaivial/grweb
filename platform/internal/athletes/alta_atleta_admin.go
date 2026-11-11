@@ -176,6 +176,9 @@ type AprobarOut struct {
 	Body struct {
 		AtletaID uuid.UUID `json:"atletaId"`
 		Slug     string    `json:"slug"`
+		// Publica: the profile is visible on the web; Foto: the photo of the request was published.
+		Publica bool `json:"publica"`
+		Foto    bool `json:"foto"`
 	}
 }
 
@@ -517,7 +520,8 @@ func (s *Svc) itemSolicitud(cid uuid.UUID, sol solicitud) ItemSolicitud {
 		Edad: sol.edad(), EsMenor: sol.EsMenor, Autorizacion: sol.AutorizacionClave != "", Match: sol.MatchTipo,
 		AtletaID: sol.MatchAtletaID, Estado: sol.Estado, CreatedAt: sol.CreatedAt, Version: sol.Version,
 	}
-	if sol.FotoClave != "" {
+	// A reviewed request no longer keeps its private photo (published or deleted on review).
+	if sol.FotoClave != "" && sol.Estado != "aprobada" && sol.Estado != "rechazada" {
 		it.FotoMiniatura = "/api/admin/competiciones/" + cid.String() + "/atletas/solicitudes/" + sol.ID.String() + "/foto"
 	}
 	return it
@@ -844,7 +848,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		if err := hist(ctx, tx, *destino, "Perfil creado o actualizado desde una solicitud de alta", "revisado por "+por); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'aprobada', match_atleta_id = $3,
+		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'aprobada', match_atleta_id = $3, foto_clave = '',
 			revisado_at = now(), revisado_por = $4, version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
 			cid, id, destino, por); err != nil {
 			return err
@@ -870,6 +874,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		if !visible {
 			urlFicha, privada = "", "Tu ficha aún no es pública: autoriza la publicación de tu nombre, tus datos deportivos y tu foto desde el área de atleta para que aparezca en la web."
+			if fotoPublicada == "" {
+				privada = "Tu ficha aún no es pública: desde el área de atleta autoriza la publicación de tu nombre, tus datos deportivos y tu foto, y sube tu foto, para que aparezca en la web."
+			}
+		}
+		foto := ""
+		if fotoPublicada != "" {
+			foto = "✓ Tu foto en blanco y negro ya está en tu ficha."
 		}
 		if avisarEmail || avisarWA {
 			urlArea, err = s.newAreaLink(ctx, tx, *destino)
@@ -879,7 +890,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		if avisarEmail {
 			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "prueba": pruebaTexto(sol.Prueba), "urlFicha": urlFicha, "privada": privada, "urlArea": urlArea}); err != nil {
+				"nombre": sol.Nombre, "prueba": pruebaTexto(sol.Prueba), "urlFicha": urlFicha, "privada": privada, "foto": foto, "urlArea": urlArea}); err != nil {
 				return err
 			}
 		}
@@ -891,6 +902,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		out.Body.AtletaID = *destino
 		out.Body.Slug = slug
+		out.Body.Publica, out.Body.Foto = visible, fotoPublicada != ""
 		return nil
 	})
 	if err != nil {
@@ -1096,7 +1108,7 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 		}
 		cons := sol.consentMap()
 		fotoClave = sol.FotoClave
-		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'rechazada', motivo_rechazo = $3, revisado_at = now(), revisado_por = $4,
+		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'rechazada', motivo_rechazo = $3, foto_clave = '', revisado_at = now(), revisado_por = $4,
 			version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`, cid, id, motivo, por); err != nil {
 			return err
 		}
