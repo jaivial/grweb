@@ -220,7 +220,7 @@ export class SecPorra {
         <dl class="grid w-full gap-3 md:grid-cols-3">
           @for (d of datos(); track d.l) {
             <div class="flex min-w-0 flex-col gap-1 rounded-xl border border-white/8 bg-white/4 px-4 py-3.5">
-              <dt class="order-last line-clamp-2 text-[12px] text-text-tertiary">{{ d.l }}</dt>
+              <dt class="order-last line-clamp-2 text-[12px] text-text-tertiary [overflow-wrap:anywhere]" [title]="d.l">{{ d.l }}</dt>
               <dd class="truncate font-mono text-[22px] leading-[29px] font-medium" [title]="d.v">{{ d.v }}</dd>
             </div>
           }
