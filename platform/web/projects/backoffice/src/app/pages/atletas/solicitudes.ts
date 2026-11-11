@@ -156,7 +156,7 @@ interface FilaConsentimiento {
               </div>
               @for (c of cupos(); track c.codigo) {
                 <label class="flex w-36 flex-col gap-1.5">
-                  <span class="text-label-s">{{ c.nombre }} · {{ c.ocupadas }} ocupadas</span>
+                  <span class="text-label-s">{{ c.nombre }} · {{ c.ocupadas }} {{ c.ocupadas === 1 ? 'ocupada' : 'ocupadas' }}</span>
                   <input grInput type="number" min="0" max="100000" [disabled]="!puede()" [ngModel]="cupoEdit()[c.codigo]"
                     (ngModelChange)="ponCupo(c.codigo, $event)" [attr.aria-describedby]="c.porDefecto ? 'cupo-def-' + c.codigo : null" />
                   @if (c.porDefecto) { <span [id]="'cupo-def-' + c.codigo" class="text-body-xs text-text-tertiary">Por defecto</span> }
