@@ -414,7 +414,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	} else {
 		id = newID()
 		lat, lng := 39.3253, -0.4127
-		sede := Sede{Nombre: "Pavelló Poliesportiu d'Almussafes", Direccion: "Avda. Laura Méndez, s/n", CP: "46440", Ciudad: "Almussafes", Provincia: "Valencia", Lat: &lat, Lng: &lng,
+		sede := Sede{Nombre: "Pavelló Municipal d'Almussafes", Direccion: "Avda. Laura Méndez, s/n", CP: "46440", Ciudad: "Almussafes", Provincia: "Valencia", Lat: &lat, Lng: &lng,
 			MapsURL: "https://www.google.com/maps?daddr=Avda+Laura+M%C3%A9ndez,+s/n,+46440+Almussafes,+Valencia"}
 		evento := Evento{Descripcion: "La competición de powerlifting más esperada del año", Nivel: "AEP-2 · AEP-3", Organizador: "GR Strength",
 			EmailContacto: "admin@grstrength.com", Puertas: "08:30", AforoPabellon: 1200, Instagram: "https://instagram.com/grstrength"}
@@ -426,7 +426,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		}
 		err = db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, nombre_corto, edicion, estado, fecha_inicio, fecha_fin, sede, evento, modulos, inscripcion, como_llegar)
-				VALUES ($1,'grcup','GR Strength Cup 2026','GR Cup',2,'proximamente','2026-12-19','2026-12-19',$2,$3,$4,$5,$6)`, id, sede, evento, mods, insc, llegar); err != nil {
+				VALUES ($1,'grcup','GR Strength Cup 2026','GR Cup',2,'proximamente','2026-12-19','2026-12-20',$2,$3,$4,$5,$6)`, id, sede, evento, mods, insc, llegar); err != nil {
 				return err
 			}
 			if err := seedChecklist(ctx, tx, id); err != nil {

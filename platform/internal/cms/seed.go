@@ -21,7 +21,7 @@ const img = "/img/home/"
 
 var seedSecciones = map[string]any{
 	"hero":       map[string]any{"titulo": "Los ganadores nunca se rinden"},
-	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": "Fecha por confirmar"},
+	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": ""},
 	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas en competición"}, {"valor": "18", "etiqueta": "Categorías de peso"},
 		{"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},
 	"alta-atleta": map[string]any{"eyebrow": "GR Cup 2026 · Plantilla completa", "titulo": "Completa tu ficha de atleta",
