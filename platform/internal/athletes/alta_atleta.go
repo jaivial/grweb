@@ -54,9 +54,11 @@ const (
 	caducidadAltcha = 10 * time.Minute
 	ttlAltchaUsado  = caducidadAltcha + time.Minute
 	// Limits of the public form (SPEC §4.2). Per IP only the accepted (202) sends count, so a club on
-	// one WiFi is not blocked by its own typos; a looser cap on every POST stops floods of bad ones.
+	// one WiFi is not blocked by its own typos; a cap on POST without a valid altcha stops floods of bad
+	// ones in a fixed 10 min window (a block lasts 10 min at most; a solved altcha never counts).
 	limiteIPAlta     = 20
-	limiteIPAltaPost = 60
+	limiteIPAltaPost = 30
+	ventanaAltaPost  = 10 * time.Minute
 	limiteMailAlta   = 3
 	limiteTelAlta    = 3
 	// avisoDiaAlta is not a limit: reaching it only warns the team in the backoffice (a cheap attacker
@@ -547,6 +549,12 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			"El alta de atleta está cerrada en esta competición. Mira la lista de atletas.")
 	}
 	ip := httpx.ClientIPFrom(ctx) // the rate limit per IP runs in «limitaIPAlta», before the body is read
+	altchaOK := false
+	defer func() {
+		if !altchaOK {
+			s.cuentaPostSinAltcha(ctx, ip)
+		}
+	}()
 	// The data of the form.
 	partes := form.Value["datos"]
 	if len(partes) == 0 || strings.TrimSpace(partes[0]) == "" {
@@ -573,6 +581,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	if err := s.validaAltcha(ctx, d.Altcha); err != nil {
 		return nil, err
 	}
+	altchaOK = true
 	// Strict validation of the fields.
 	if errs := s.validaDatos(d); len(errs) > 0 {
 		return nil, validacion("Revisa los campos marcados.", errs...)
@@ -761,7 +770,8 @@ func (s *Svc) respuestaFalsa() *AltaOut {
 
 // limitaIPAlta applies the per-IP limits of the public alta before the body is read: a rejected POST never
 // parses (nor writes to /tmp) its multipart. The created counter is only read here (it grows atomically in
-// reservaLimites, only for requests that are created); fake answers to bots count only on the 60 POST/h cap.
+// reservaLimites, only for requests that are created); POST without a valid altcha count on the 30 POST /
+// 10 min cap (cuentaPostSinAltcha), which is only read here.
 func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/alta-atleta") && s.a != nil && s.a.Redis != nil {
@@ -770,8 +780,8 @@ func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 			var espera time.Duration
 			if n, err := s.a.Redis.Get(r.Context(), key).Int64(); err == nil && n >= limiteIPAlta {
 				espera, _ = s.a.Redis.PTTL(r.Context(), key).Result()
-			} else if res, _ := ratelimit.Allow(r.Context(), s.a.Redis, s.a.Keys.Of("rl", "alta-post", ip), limiteIPAltaPost, time.Hour); !res.Allowed {
-				espera = res.RetryAfter
+			} else if n, err := s.a.Redis.Get(r.Context(), s.a.Keys.Of("rl", "alta-post", ip)).Int64(); err == nil && n >= limiteIPAltaPost {
+				espera, _ = s.a.Redis.PTTL(r.Context(), s.a.Keys.Of("rl", "alta-post", ip)).Result()
 			} else {
 				next.ServeHTTP(w, r)
 				return
@@ -786,6 +796,21 @@ func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// cuentaPostSinAltcha counts a POST that did not pass the altcha (bots, garbage) in a fixed window: the
+// expiry is set only by the first one, so a block never lasts more than ventanaAltaPost.
+func (s *Svc) cuentaPostSinAltcha(ctx context.Context, ip string) {
+	if s.a == nil || s.a.Redis == nil {
+		return
+	}
+	key := s.a.Keys.Of("rl", "alta-post", ip)
+	pipe := s.a.Redis.TxPipeline()
+	pipe.Incr(ctx, key)
+	pipe.ExpireNX(ctx, key, ventanaAltaPost)
+	if _, err := pipe.Exec(ctx); err != nil {
+		s.a.Log.Warn("alta de atleta · contador de POST no actualizado", "err", err)
+	}
 }
 
 // validacion builds a 422 with the errors per field.
