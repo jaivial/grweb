@@ -32,7 +32,7 @@ export interface RelatedLink {
     @if (nivel() === 'h3') { <h3 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
     @else { <h2 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2> }
     <!-- every card the same size: equal columns, one fixed height, one line per text -->
-    <ul class="mt-5 grid auto-rows-fr gap-3 md:grid-cols-3 md:gap-4">
+    <ul class="mt-5 grid auto-rows-fr gap-3 lg:grid-cols-3 lg:gap-4">
       @for (l of items(); track l.ruta; let i = $index) {
         <li class="min-w-0">
           <a [href]="l.ruta" [attr.title]="l.titulo + ' · ' + l.texto" class="flex h-[84px] items-center gap-4 rounded-lg border border-line-subtle bg-bg-card px-4 transition-colors hover:border-line-strong">

@@ -192,10 +192,10 @@ const PUBLIC_WEB = webPublica();
                   <gr-field label="Licencia AEP" for="d-l"><input grInput id="d-l" [(ngModel)]="d.licencia" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Fecha de nacimiento" for="d-f" [hint]="a.edad !== undefined ? a.edad + ' años el día de la competición' : null"><input grInput id="d-f" type="date" [(ngModel)]="d.fechaNacimiento" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Sexo" for="d-s"><gr-select id="d-s" [(ngModel)]="d.sexo" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
-                  <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (!categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
+                  <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@if (!d.categoria) { <option value="">Sin categoría</option> }@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (d.categoria && !categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
                   <gr-field label="División" for="d-d"><gr-select id="d-d" [(ngModel)]="d.division" [disabled]="!canEdit()">@for (v of divisiones; track v.value) { <option [value]="v.value">{{ v.label }}</option> }</gr-select></gr-field>
                   <gr-field label="Estado" for="d-e"><gr-select id="d-e" [(ngModel)]="d.estado" [disabled]="!canEdit()"><option value="confirmado">Confirmado</option><option value="reserva">Reserva</option><option value="baja">Baja</option></gr-select></gr-field>
-                  <gr-field label="Competición" for="d-p"><gr-select id="d-p" [(ngModel)]="d.prueba" [disabled]="!canEdit()"><option value="">Aún no lo sabe</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
+                  <gr-field label="Competición" for="d-p"><gr-select id="d-p" aria-label="Competición" [(ngModel)]="d.prueba" [disabled]="!canEdit()"><option value="">Aún no lo sabe</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
                   <gr-field label="Club" for="d-club"><input grInput id="d-club" [(ngModel)]="d.club" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Ciudad" for="d-city"><input grInput id="d-city" [(ngModel)]="d.ciudad" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Email" for="d-mail"><input grInput id="d-mail" type="email" [(ngModel)]="d.email" [disabled]="!canEdit()" /></gr-field>
@@ -367,8 +367,10 @@ export class AtletaFichaPage {
     let a = this.atleta();
     if (!cid || !a) return;
     this.guardando.set(true);
+    // a new attempt replaces the error of the previous one (the toast shown is always the server's latest)
+    this.toasts.items.update((l) => l.filter((t) => t.title !== 'No se pudo guardar'));
     try {
-      if (JSON.stringify(this.d) !== JSON.stringify(this.datosDe(a))) a = await this.api.guardarDatos(cid, a, this.d);
+      if (JSON.stringify(this.d) !== JSON.stringify(this.datosDe(a))) a = await this.guardarDatos(cid, a);
       if (JSON.stringify(this.perfilBody()) !== JSON.stringify(this.perfilBody(a.perfil)) || this.registrarConsentimiento) {
         a = await this.api.guardarPerfil(cid, a, { ...this.perfilBody(), registrarConsentimiento: this.registrarConsentimiento });
       }
@@ -380,6 +382,18 @@ export class AtletaFichaPage {
       else this.toasts.error('No se pudo guardar', errText(e));
     } finally {
       this.guardando.set(false);
+    }
+  }
+
+  /** PUT of the data; a full destination competition (409 CUPO_COMPLETO) asks before forcing the place. */
+  private async guardarDatos(cid: string, a: Atleta): Promise<Atleta> {
+    try {
+      return await this.api.guardarDatos(cid, a, this.d);
+    } catch (e) {
+      if (!(e instanceof HttpErrorResponse && e.error?.code === 'CUPO_COMPLETO')) throw e;
+      const ok = await this.confirmSvc.ask({ title: 'Cupo completo', text: `${this.d.prueba.toUpperCase().replace('AEP', 'AEP-')} ya tiene todas sus plazas ocupadas. Si la asignas, superará el cupo.`, confirm: 'Asignar igualmente' });
+      if (!ok) throw e;
+      return this.api.guardarDatos(cid, a, { ...this.d, forzarCupo: true });
     }
   }
 

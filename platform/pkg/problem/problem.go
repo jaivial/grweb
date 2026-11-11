@@ -4,6 +4,7 @@ package problem
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -59,6 +60,20 @@ func CodeFor(status int) string {
 // Install replaces huma's default error constructor so validation and framework errors share the model.
 func Install() {
 	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
+		// 5xx never exposes internal causes (SQL, stack, driver text) to the client: log them, answer generic.
+		if status >= 500 {
+			attrs := []any{"status", status, "msg", msg}
+			for _, err := range errs {
+				if err != nil {
+					attrs = append(attrs, "err", err.Error())
+				}
+			}
+			slog.Error("error interno", attrs...)
+			if status == http.StatusInternalServerError {
+				return Internal()
+			}
+			return New(status, "", msg)
+		}
 		details := make([]*huma.ErrorDetail, 0, len(errs))
 		for _, err := range errs {
 			if err == nil {
