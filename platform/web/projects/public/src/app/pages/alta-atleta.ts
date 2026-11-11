@@ -208,7 +208,7 @@ const MAX_MARCA = 600;
                       }
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-licencia">Licencia AEP</label>
-                        <input id="c-licencia" name="licencia" type="text" maxlength="20" placeholder="E-12345"
+                        <input id="c-licencia" name="licencia" type="text" maxlength="40" placeholder="E-12345"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['licencia'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.licencia" (ngModelChange)="revalidar()"

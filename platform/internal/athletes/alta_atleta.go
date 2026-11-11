@@ -1018,8 +1018,8 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 			}
 		}
 	}
-	if len(d.Licencia) > 20 {
-		add("licencia", "La licencia AEP es demasiado larga.")
+	if d.Licencia != "" && !licenciaValida.MatchString(d.Licencia) {
+		add("licencia", msgLicenciaInvalida)
 	}
 	if len([]rune(d.Club)) > 80 {
 		add("club", "El club es demasiado largo.")

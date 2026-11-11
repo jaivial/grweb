@@ -684,7 +684,7 @@ func (s *Svc) lock(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ifm string
 
 // DatosIn are the competition data of an athlete.
 type DatosIn struct {
-	Licencia        string  `json:"licencia,omitempty" maxLength:"20"`
+	Licencia        string  `json:"licencia,omitempty" maxLength:"40"` // 3-20 checked after NormLicencia in validate
 	Nombre          string  `json:"nombre" minLength:"1" maxLength:"80"`
 	Apellidos       string  `json:"apellidos,omitempty" maxLength:"120"`
 	Email           string  `json:"email,omitempty" maxLength:"254"`
@@ -705,6 +705,9 @@ func (d *DatosIn) validate() error {
 	d.Nombre, d.Apellidos, d.Club, d.Ciudad = strings.TrimSpace(d.Nombre), strings.TrimSpace(d.Apellidos), strings.TrimSpace(d.Club), strings.TrimSpace(d.Ciudad)
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
 	d.Categoria = NormCategoria(d.Categoria)
+	if d.Licencia != "" && !licenciaValida.MatchString(d.Licencia) {
+		return problem.Unprocessable("LICENCIA_INVALIDA", msgLicenciaInvalida)
+	}
 	if d.Email != "" && !strings.Contains(d.Email, "@") {
 		return problem.Unprocessable("EMAIL_INVALIDO", "El email no es válido.")
 	}

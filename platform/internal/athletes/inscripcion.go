@@ -411,7 +411,7 @@ type InscripcionIn struct {
 	Sexo             string `json:"sexo" enum:"F,M"`
 	FechaNacimiento  string `json:"fechaNacimiento" doc:"AAAA-MM-DD"`
 	Categoria        string `json:"categoria" maxLength:"6"`
-	Licencia         string `json:"licencia" minLength:"3" maxLength:"20"`
+	Licencia         string `json:"licencia" maxLength:"40"` // length 3-20 is checked after NormLicencia (licenciaValida)
 	Club             string `json:"club,omitempty" maxLength:"120"`
 	Cupon            string `json:"cupon,omitempty" maxLength:"40"`
 	Referido         string `json:"referido,omitempty" maxLength:"40"`
@@ -699,7 +699,7 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		return EstadoInscripcion{}, problem.Unprocessable("NOMBRE_INVALIDO", "El nombre y los apellidos deben contener letras.")
 	}
 	if !licenciaValida.MatchString(d.Licencia) {
-		return EstadoInscripcion{}, problem.Unprocessable("LICENCIA_INVALIDA", "La licencia AEP solo admite letras sin tilde, números y guiones (de 3 a 20).")
+		return EstadoInscripcion{}, problem.Unprocessable("LICENCIA_INVALIDA", msgLicenciaInvalida)
 	}
 	if d.Email == "" {
 		return EstadoInscripcion{}, problem.Unprocessable("EMAIL_INVALIDO", "Escribe tu email.")
@@ -823,7 +823,10 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 	return out, nil
 }
 
-var licenciaValida = regexp.MustCompile(`^[A-Z0-9-]{3,20}$`)
+// licenciaValida checks a NormLicencia'd licence: 3-20 letters/digits once dashes, dots and spaces are removed.
+var licenciaValida = regexp.MustCompile(`^[A-Z0-9]{3,20}$`)
+
+const msgLicenciaInvalida = "La licencia AEP solo admite letras sin tilde, números y guiones (de 3 a 20 letras o números, sin contar guiones, puntos ni espacios)."
 
 // maxPendientesFan caps the registrations a fan account can have waiting for payment at the same time.
 const maxPendientesFan = 2
