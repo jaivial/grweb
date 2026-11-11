@@ -97,13 +97,13 @@ const UI = {
               </button>
             } @else {
               <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
-              <a [href]="l.href" class="group inline-flex flex-col items-center gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
+              <a [routerLink]="ruta(l.href)" [fragment]="frag(l.href)" class="group inline-flex flex-col items-center gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
       </ul>
       <a [href]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
-      <a grButton variant="primary" href="/entradas" class="relative ml-auto md:ml-0">{{ ui().cta }}</a>
+      <a grButton variant="primary" routerLink="/entradas" class="relative ml-auto md:ml-0">{{ ui().cta }}</a>
       <button type="button" data-menu class="relative flex size-11 shrink-0 items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="ui().open" [attr.aria-expanded]="open()" aria-controls="menu-movil" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
     </nav>
     @if (mega()) {
@@ -112,7 +112,7 @@ const UI = {
           <div class="flex w-[194px] flex-col gap-1 lg:w-[250px]">
             <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
             @for (it of col.items; track it.href) {
-              <a [href]="it.href" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
+              <a [routerLink]="ruta(it.href)" (click)="mega.set(false)" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
             }
           </div>
         }
@@ -139,7 +139,7 @@ const UI = {
         </div>
         <ul class="flex flex-col">
           @for (l of accesos(); track l.href) {
-            <li><a [href]="l.href" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs decoration-accent decoration-2 underline-offset-8" [class.text-accent-text]="l.destacado" [class.underline]="activo(l.href)" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" [class.text-accent-text!]="l.destacado" /></a></li>
+            <li><a [routerLink]="ruta(l.href)" [fragment]="frag(l.href)" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs decoration-accent decoration-2 underline-offset-8" [class.text-accent-text]="l.destacado" [class.underline]="activo(l.href)" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" [class.text-accent-text!]="l.destacado" /></a></li>
           }
         </ul>
         @if (lang() === 'es') {
@@ -152,7 +152,7 @@ const UI = {
                 @if (grupo() === gi) {
                   <ul class="flex flex-col gap-1">
                     @for (it of g.items; track it.href) {
-                      <li><a [href]="it.href" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
+                      <li><a [routerLink]="ruta(it.href)" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
                     }
                   </ul>
                 }
@@ -202,6 +202,9 @@ export class Navbar {
   protected readonly grupo = signal(0);
   protected readonly actual = signal('');
   /** Active on its own page and on its subpages (/atletas/:slug), by whole path segment. */
+  /** SPA links (Figma 17 «Loader de página» can only show on in-app navigations): path and #fragment apart. */
+  protected ruta(href: string): string { return href.split('#')[0] || '/'; }
+  protected frag(href: string): string | undefined { return href.split('#')[1]; }
   protected activo(href: string): boolean { const a = this.actual(); return a === href || a.startsWith(href + '/'); }
   protected readonly grupos = GRUPOS_MOVIL;
   /** The four main links of the mobile menu (the booking one in red). */
