@@ -3,6 +3,7 @@ package juegos
 import (
 	"context"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,18 @@ import (
 // keeps the call to action). The home refetches them when the public SSE announces a change.
 
 const ttlResumen = 10 * time.Second
+
+// ttlFresco is the max age accepted when the home asks with Cache-Control: no-cache (after a public SSE change):
+// the new bet shows within ~1-2 s while the load stays bounded to one query per second, competition and pod.
+const ttlFresco = time.Second
+
+// ttlPedido picks the accepted age from the request Cache-Control.
+func ttlPedido(cc string) time.Duration {
+	if strings.Contains(cc, "no-cache") {
+		return ttlFresco
+	}
+	return ttlResumen
+}
 
 type opcionResumen struct {
 	AtletaID uuid.UUID `json:"atletaId"`
@@ -85,13 +98,13 @@ type memo struct {
 }
 
 type memoItem struct {
-	v   any
-	exp time.Time
+	v  any
+	at time.Time
 }
 
 func (c *memo) get(key string, ttl time.Duration, load func() (any, error)) (any, error) {
 	c.mu.Lock()
-	if it, ok := c.m[key]; ok && time.Now().Before(it.exp) {
+	if it, ok := c.m[key]; ok && time.Since(it.at) < ttl {
 		c.mu.Unlock()
 		return it.v, nil
 	}
@@ -107,11 +120,11 @@ func (c *memo) get(key string, ttl time.Duration, load func() (any, error)) (any
 		}
 		now := time.Now()
 		for k, it := range c.m { // few keys (two per competition): sweep the expired ones on write
-			if now.After(it.exp) {
+			if now.Sub(it.at) >= ttlResumen {
 				delete(c.m, k)
 			}
 		}
-		c.m[key] = memoItem{v: v, exp: now.Add(ttl)}
+		c.m[key] = memoItem{v: v, at: now}
 		c.mu.Unlock()
 		return v, nil
 	})
@@ -243,7 +256,8 @@ func (s *Svc) registerResumen() {
 	api := s.a.API
 	base := "/api/competiciones/{slug}/juegos"
 	type slugIn struct {
-		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Slug         string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		CacheControl string `header:"Cache-Control"`
 	}
 	type porraOut struct {
 		CacheControl string `header:"Cache-Control"`
@@ -256,7 +270,7 @@ func (s *Svc) registerResumen() {
 			if err != nil {
 				return nil, err
 			}
-			v, err := s.resum.get("porra:"+c.ID.String(), ttlResumen, func() (any, error) {
+			v, err := s.resum.get("porra:"+c.ID.String(), ttlPedido(in.CacheControl), func() (any, error) {
 				return s.cargarResumenPorra(context.WithoutCancel(ctx), c.ID)
 			})
 			if err != nil {
@@ -276,7 +290,7 @@ func (s *Svc) registerResumen() {
 			if err != nil {
 				return nil, err
 			}
-			v, err := s.resum.get("fantasy:"+c.ID.String(), ttlResumen, func() (any, error) {
+			v, err := s.resum.get("fantasy:"+c.ID.String(), ttlPedido(in.CacheControl), func() (any, error) {
 				return s.cargarResumenFantasy(context.WithoutCancel(ctx), c.ID)
 			})
 			if err != nil {
