@@ -72,6 +72,8 @@ type Svc struct {
 	firmaKey  []byte
 	// Volume of the service where the private files of the requests are kept.
 	fotoDir string
+	// altaCfg caches the stable part of the public config of the alta (2 s, singleflight).
+	altaCfg configMemo
 }
 
 // Service returns the athletes service definition.
@@ -144,6 +146,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerInscripcionAdmin()
 	s.registerAltaAtleta()
 	s.registerAltaAtletaAdmin()
+	s.registerAltaCupos()
 	a.Go(s.expirador)
 	a.Go(s.avisosSalida)
 	a.Go(s.purgaSolicitudes)

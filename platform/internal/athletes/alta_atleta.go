@@ -247,21 +247,55 @@ type PruebaAlta struct {
 // pruebasAlta: AEP-2 the first day of the event, AEP-3 the second one.
 var pruebasAlta = []struct{ codigo, nombre string }{{"aep2", "AEP-2"}, {"aep3", "AEP-3"}}
 
-// pruebas returns the options with the requests (not rejected) that chose each one, and the last day
-// to choose from the athlete area.
-func (s *Svc) pruebas(ctx context.Context, c compref.Comp) ([]PruebaAlta, string) {
-	ocup := map[string]int{}
-	rows, err := s.a.DB.Query(ctx, `SELECT prueba, count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba <> '' AND estado <> 'rechazada' GROUP BY prueba`, c.ID)
-	if err == nil {
-		for rows.Next() {
-			var k string
-			var n int
-			if rows.Scan(&k, &n) == nil {
-				ocup[k] = n
-			}
-		}
-		rows.Close()
+// cupos returns the own places of each competition: the ones set in the backoffice or, without a row,
+// the total places of the inscription split between the competitions.
+func (s *Svc) cupos(ctx context.Context, q interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, cid uuid.UUID, total int) map[string]int {
+	out := map[string]int{}
+	for _, p := range pruebasAlta {
+		out[p.codigo] = total / len(pruebasAlta)
 	}
+	rows, err := q.Query(ctx, `SELECT prueba, plazas FROM alta_cupos WHERE competition_id = $1`, cid)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		var n int
+		if rows.Scan(&k, &n) == nil {
+			out[k] = n
+		}
+	}
+	return out
+}
+
+// ocupadas counts the requests (not rejected) that chose each competition.
+func ocupadas(ctx context.Context, q interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, cid uuid.UUID) map[string]int {
+	ocup := map[string]int{}
+	rows, err := q.Query(ctx, `SELECT prueba, count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba <> '' AND estado <> 'rechazada' GROUP BY prueba`, cid)
+	if err != nil {
+		return ocup
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		var n int
+		if rows.Scan(&k, &n) == nil {
+			ocup[k] = n
+		}
+	}
+	return ocup
+}
+
+// pruebas returns the options with their own places and the requests that chose each one, and the
+// last day to choose from the athlete area.
+func (s *Svc) pruebas(ctx context.Context, c compref.Comp) ([]PruebaAlta, string) {
+	ocup := ocupadas(ctx, s.a.DB, c.ID)
+	cupo := s.cupos(ctx, s.a.DB, c.ID, c.Inscripcion.Plazas)
 	ini, _ := time.Parse(time.DateOnly, c.FechaInicio)
 	out := make([]PruebaAlta, 0, len(pruebasAlta))
 	for i, p := range pruebasAlta {
@@ -269,13 +303,32 @@ func (s *Svc) pruebas(ctx context.Context, c compref.Comp) ([]PruebaAlta, string
 		if !ini.IsZero() {
 			f = ini.AddDate(0, 0, i).Format(time.DateOnly)
 		}
-		out = append(out, PruebaAlta{Codigo: p.codigo, Nombre: p.nombre, Fecha: f, Nivel: "nivel regional", Plazas: c.Inscripcion.Plazas, Ocupadas: ocup[p.codigo]})
+		out = append(out, PruebaAlta{Codigo: p.codigo, Nombre: p.nombre, Fecha: f, Nivel: "nivel regional", Plazas: cupo[p.codigo], Ocupadas: ocup[p.codigo]})
 	}
 	limite := ""
 	if !ini.IsZero() {
 		limite = ini.AddDate(0, 0, -10).Format(time.DateOnly)
 	}
 	return out, limite
+}
+
+// reservaPrueba checks, inside the transaction of the request and under a lock per competition and
+// option, that the chosen competition still has places (two concurrent requests cannot take the last one).
+func (s *Svc) reservaPrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, total int, prueba string) error {
+	if prueba == "" {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('alta-prueba:' || $1::text || ':' || $2))`, cid.String(), prueba); err != nil {
+		return err
+	}
+	var n int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'`, cid, prueba).Scan(&n); err != nil {
+		return err
+	}
+	if n >= s.cupos(ctx, tx, cid, total)[prueba] {
+		return problem.Conflict("PRUEBA_COMPLETA", "Esa competición ya está completa: elige otra o «Aún no lo sé».")
+	}
+	return nil
 }
 
 // pruebaValida: empty («Aún no lo sé») or one of the options.
@@ -289,6 +342,16 @@ func pruebaValida(k string) bool {
 		}
 	}
 	return false
+}
+
+// pruebaTexto is the name of the chosen competition for the messages.
+func pruebaTexto(k string) string {
+	for _, p := range pruebasAlta {
+		if p.codigo == k {
+			return p.nombre
+		}
+	}
+	return "Aún no lo sabe"
 }
 
 // AltaOut is the answer of the public form: the id of the request.
@@ -309,17 +372,27 @@ func (s *Svc) registerAltaAtleta() {
 	huma.Register(api, huma.Operation{OperationID: "alta-atleta-config", Method: http.MethodGet, Path: pub + "/config",
 		Summary: "Configuración del alta de atleta (módulo, textos legales, reto antibots y token de tiempo)", Tags: tagPub},
 		func(ctx context.Context, in *configIn) (*configOut, error) {
-			c, err := s.comps.Public(ctx, in.Slug)
+			// The loader runs detached from the request: a cancelled client must not fail the shared call.
+			out, err := s.altaCfg.get(in.Slug, func() (ConfigAlta, error) {
+				lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+				defer cancel()
+				c, err := s.comps.Public(lctx, in.Slug)
+				if err != nil {
+					return ConfigAlta{}, err
+				}
+				abierta, motivo, err := s.estadoAlta(lctx, c.ID, in.Slug)
+				if err != nil {
+					return ConfigAlta{}, err
+				}
+				out := ConfigAlta{Abierta: abierta, MotivoCierre: motivo, Legal: s.legalVersiones(lctx, c.ID), TextoNovedades: textoNovedades}
+				out.Pruebas, out.LimiteEleccion = s.pruebas(lctx, c)
+				return out, nil
+			})
 			if err != nil {
 				return nil, err
 			}
-			abierta, motivo, err := s.estadoAlta(ctx, c.ID, in.Slug)
-			if err != nil {
-				return nil, err
-			}
-			out := ConfigAlta{Abierta: abierta, MotivoCierre: motivo, Legal: s.legalVersiones(ctx, c.ID), TextoNovedades: textoNovedades,
-				Altcha: s.retoAltcha(), Tiempo: s.tokenTiempo()}
-			out.Pruebas, out.LimiteEleccion = s.pruebas(ctx, c)
+			// The challenge and the time token are personal: never cached.
+			out.Altcha, out.Tiempo = s.retoAltcha(), s.tokenTiempo()
 			return &configOut{Body: out}, nil
 		})
 
@@ -492,6 +565,9 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	ua := userAgentDe(ctx)
 
 	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		if err := s.reservaPrueba(ctx, tx, c.ID, c.Inscripcion.Plazas, d.Prueba); err != nil {
+			return err
+		}
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email, telefono, sexo,
 			fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl, focal_x, focal_y, es_menor,
 			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba)
@@ -1187,7 +1263,7 @@ func (s *Svc) varsNueva(d DatosAlta, match string, menor bool, fotoURL, slug str
 		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadTexto(d.FechaNacimiento),
 		"fechaNacimiento": fechaCorta(d.FechaNacimiento), "marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL),
 		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor),
-		"foto": fotoURL, "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
+		"prueba": pruebaTexto(d.Prueba), "foto": fotoURL, "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
 	}
 }
 
