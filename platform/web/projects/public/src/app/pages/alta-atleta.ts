@@ -103,7 +103,7 @@ const MAX_MARCA = 600;
               </article>
             }
           </div>
-          @if (vista() === 'formulario') { <div><a grButton variant="primary" size="m" href="#formulario" iconRight="arrow-down">Ir al formulario</a></div> }
+          @if (vista() === 'formulario') { <div><a grButton variant="primary" size="m" href="#formulario">Ir al formulario</a></div> }
         </section>
 
         <!-- Formulario + resumen (Figma 75) -->
