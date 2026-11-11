@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
@@ -983,6 +983,7 @@ export class AltaAtletaPage {
 
   /** Cuenta atrás del Retry-After de un 429: el texto se actualiza cada segundo y se desbloquea al llegar a 0. */
   private reloj: ReturnType<typeof setInterval> | undefined;
+  private readonly paraReloj = inject(DestroyRef).onDestroy(() => clearInterval(this.reloj));
   private cuentaAtras(segundos: number): void {
     clearInterval(this.reloj);
     const fin = Date.now() + segundos * 1000;
