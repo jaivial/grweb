@@ -324,7 +324,8 @@ export class SorteoConfirmacionPage {
   }
   constructor() {
     const q = inject(ActivatedRoute).snapshot.queryParamMap;
-    const url = `${BASE}/compras/${q.get('compra')}?t=${encodeURIComponent(q.get('t') ?? '')}`;
+    const id = q.get('compra');
+    const url = `${BASE}/compras/${encodeURIComponent(id ?? '')}?t=${encodeURIComponent(q.get('t') ?? '')}`;
     inject(Seo).set({ title: 'Tus boletos · GR Strength Cup', description: 'Confirmación de tus boletos del sorteo.', path: '/sorteo/confirmacion', robots: 'noindex' });
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     this.enlace.set(location.origin + '/sorteo');
@@ -332,6 +333,8 @@ export class SorteoConfirmacionPage {
     void firstValueFrom(this.http.get<Publico>(BASE)).then((s) => this.fechaSorteo.set(s.fechaSorteo), () => undefined);
     let n = 0;
     const cargar = async () => {
+      // without a purchase id there is nothing to ask: straight to «No encontramos esta compra»
+      if (!id) return this.compra.set(null);
       try {
         const c = await firstValueFrom(this.http.get<EstadoCompra>(url));
         this.compra.set(c);
