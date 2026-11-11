@@ -225,6 +225,7 @@ func (a *App) serve(ctx context.Context, s Service) error {
 		Addr:              a.Cfg.HTTPAddr,
 		Handler:           httpx.Chain(a.Mux, mws...),
 		ReadHeaderTimeout: 10 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 		IdleTimeout:       120 * time.Second,
 	}
 
