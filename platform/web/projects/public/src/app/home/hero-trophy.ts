@@ -2,7 +2,7 @@ import {
   ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, output, signal, viewChild,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { GrIcon, GrLogo } from '@grcup/ui';
+import { GrIcon } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
 
 const FRAMES = 313;
@@ -37,7 +37,7 @@ const PUFFS = [
  */
 @Component({
   selector: 'gr-hero-trophy',
-  imports: [GrIcon, GrLogo],
+  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block', '[style.height]': 'reduced() ? "100dvh" : "500vh"' },
   template: `
@@ -67,20 +67,32 @@ const PUFFS = [
         }
       </div>
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-[linear-gradient(180deg,rgb(58_58_58/0)_0%,rgb(42_42_42/0.85)_50%,#141112_100%)]" [style.opacity]="nubes()"></div>
-      <div class="pointer-events-none absolute inset-x-0 top-[68%] flex flex-col items-center gap-3 px-5 text-center" [style.opacity]="siguiente()">
-        <gr-logo [height]="44" />
-        <p class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">Campeonato de powerlifting</p>
-      </div>
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
-      <!-- Intro text: logo, tagline and date · place -->
-      <div class="absolute inset-x-0 top-[30%] flex flex-col items-center gap-4 px-5 text-center transition-opacity duration-700 md:top-[31%] md:gap-5" [style.opacity]="texto()">
-        <img [src]="logo" alt="GR Strength Cup" class="h-11 w-auto select-none md:h-[97px]" draggable="false" fetchpriority="high" />
-        <h1 class="text-display-m [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-hero">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
-        @if (metaPartes().length) {
-          <p class="flex flex-wrap items-center justify-center gap-2.5 text-label-xs text-text-secondary">
+      <!-- Intro (BIZ-144 · Hero 2026): AEP logo, GR CUP 2026 logo, tagline, dates + place and the hero sponsors -->
+      <div class="absolute inset-x-0 top-16 flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[72px] motion-reduce:transition-none" [style.opacity]="texto()">
+        <img src="/img/home/aep-hero.webp" alt="AEP · Asociación Española de Powerlifting" width="108" height="40" class="h-8 w-auto select-none md:h-10" draggable="false" />
+        <img [src]="logo" alt="GR Strength Cup 2026" class="mt-[57px] h-[125px] w-auto select-none md:mt-[63px] md:h-[198px]" draggable="false" fetchpriority="high" />
+        <h1 class="mt-[65px] max-w-[1000px] font-display text-[30px] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
+        @if (fechas() || lugar()) {
+          <p class="mt-[66px] flex flex-col items-center gap-1 md:mt-[63px]">
+            @if (fechas()) { <span class="text-[14px] leading-[15px] font-extrabold tracking-[0.08em] uppercase md:text-[20px] md:leading-[22px]">{{ fechas() }}</span> }
+            @if (lugar()) { <span class="text-[9px] leading-[10px] font-medium tracking-[0.1em] text-text-secondary uppercase md:text-[11px] md:leading-3">{{ lugar() }}</span> }
+          </p>
+        } @else if (metaPartes().length) {
+          <p class="mt-10 flex flex-wrap items-center justify-center gap-2.5 text-label-xs text-text-secondary">
             @for (m of metaPartes(); track $index) { @if ($index) { <span class="size-1 rounded-full bg-accent" aria-hidden="true"></span> }<span>{{ m }}</span> }
           </p>
+        }
+        @if (patrocinadores().length) {
+          <ul class="mt-16 flex flex-wrap items-center justify-center gap-2 md:mt-[63px] md:gap-4" aria-label="Organizan y colaboran">
+            @for (p of patrocinadores(); track p.nombre) {
+              <li class="flex h-11 w-[104px] items-center justify-center p-1.5 md:h-14 md:w-[176px]">
+                @if (p.url) { <a [href]="p.url" target="_blank" rel="noopener" class="size-full"><img [src]="p.logoUrl" [alt]="p.nombre" class="size-full object-contain" loading="lazy" decoding="async" /></a> }
+                @else { <img [src]="p.logoUrl" [alt]="p.nombre" class="size-full object-contain" loading="lazy" decoding="async" /> }
+              </li>
+            }
+          </ul>
         }
       </div>
       @if (!reduced()) {
@@ -121,6 +133,11 @@ export class HeroTrophy {
   readonly meta = input('');
   /** Title from the CMS (section «hero»). */
   readonly titulo = input('');
+  /** BIZ-144: «19 Y 20 DICIEMBRE DE 2026» and «ALMUSSAFES (VALENCIA) · PAVELLÓ …» (competition data). */
+  readonly fechas = input('');
+  readonly lugar = input('');
+  /** BIZ-144: sponsors flagged «Mostrar en hero» (GET …/patrocinadores?hero=true). */
+  readonly patrocinadores = input<{ nombre: string; logoUrl: string; url: string }[]>([]);
   /** Emits true once the intro has been scrolled through (the navbar shows from then on). */
   readonly done = output<boolean>();
 
@@ -150,7 +167,6 @@ export class HeroTrophy {
   protected readonly desvio = computed(() => ease(tramo(this.p(), T.humo)));
   protected readonly trofeo = computed(() => (this.reduced() ? 0.35 : Math.min(1, tramo(this.p(), [0.03, 0.1]))));
   protected readonly nubes = computed(() => ease(tramo(this.p(), T.nubes)));
-  protected readonly siguiente = computed(() => ease(tramo(this.p(), [0.6, 0.667])) * (1 - tramo(this.p(), [0.75, 0.85])));
 
   private progress = 0;
   private shown = 0;

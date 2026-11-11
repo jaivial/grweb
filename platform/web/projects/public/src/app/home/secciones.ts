@@ -244,54 +244,6 @@ export class SecAtletas {
   })));
 }
 
-/** «Section / Premios»: trophy, header and one tilted card per lift (a swipeable track with dots on mobile). */
-@Component({
-  selector: 'gr-sec-premios',
-  imports: [GrCabecera, GrTitulo],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: SECCION + ' bg-bg-base' },
-  template: `
-    <div [class]="glow + ' top-0 left-1/2 size-[640px] -translate-x-1/2'"></div>
-    <div [class]="ancho + ' flex flex-col items-center gap-7 md:gap-12'">
-      <img src="/img/home/trofeo.webp" alt="" class="h-[82px] w-24 object-contain md:h-[129px] md:w-[150px]" loading="lazy" />
-      <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
-      <ul class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 lg:flex lg:w-auto lg:justify-center lg:gap-10" (scroll)="alDesplazar($event)">
-        @for (p of items(); track p.titulo; let i = $index) {
-          <li class="w-[258px] shrink-0 snap-center md:w-auto lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
-            <div class="relative aspect-[300/420] w-full overflow-hidden rounded-lg shadow-card transition-transform duration-300 lg:w-[300px]"
-              [class]="(i === 1 ? 'border border-accent shadow-glow-deep md:-translate-y-0' : foto) + ' ' + giro[i % 3]">
-              <img [src]="p.imagen" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
-              <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_55%,rgb(14_12_13/0.92))] p-5">
-                <span class="inline-flex h-[22px] w-fit items-center rounded-pill bg-[linear-gradient(120deg,#c42b3e,#6e1420)] px-2.5 text-label-xs">Premio · {{ (i + 1).toString().padStart(2, '0') }}</span>
-                <span class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">{{ p.titulo }}</span>
-              </div>
-            </div>
-          </li>
-        }
-      </ul>
-      <div class="flex items-center gap-1.5 md:hidden" aria-hidden="true">
-        @for (p of items(); track p.titulo; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
-      </div>
-      @if (t('lema')) { <p class="text-center text-display-body text-text-secondary md:text-display-xs"><gr-titulo [titulo]="t('lema')" /></p> }
-    </div>
-  `,
-})
-export class SecPremios {
-  readonly s = input<Seccion | undefined>();
-  protected readonly glow = GLOW;
-  protected readonly ancho = ANCHO;
-  protected readonly foto = FOTO;
-  /** Figma: −4° · 0 · +4° (with their vertical offsets inside the 340 × 480 holders). */
-  protected readonly giro = ['lg:-rotate-4 lg:-translate-y-2.5', 'lg:translate-y-0', 'lg:rotate-4 lg:translate-y-2.5'];
-  protected readonly activa = signal(0);
-  protected t = (k: string) => str(this.s(), k);
-  protected readonly items = computed(() => list<{ titulo: string; imagen: string }>(this.s(), 'items'));
-  protected alDesplazar(e: Event): void {
-    const el = e.target as HTMLElement;
-    this.activa.set(Math.round(el.scrollLeft / 270));
-  }
-}
-
 /** «Section / Organización»: header and the 2 × 2 bento of captioned photos (a swipeable track on mobile). */
 @Component({
   selector: 'gr-sec-organizacion',

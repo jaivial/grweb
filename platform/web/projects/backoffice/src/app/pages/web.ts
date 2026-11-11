@@ -461,8 +461,9 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
     columns: [{ key: 'logoUrl', label: 'Logo', kind: 'image' }, { key: 'nombre', label: 'Nombre' }, { key: 'nivel', label: 'Nivel', kind: 'badge', hideMobile: true }, { key: 'activo', label: 'Activo', kind: 'bool' }],
     fields: [{ clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto', max: 120 }, { clave: 'nivel', etiqueta: 'Nivel', tipo: 'select', ancho: 'mitad', opciones: [['principal', 'Principal'], ['oro', 'Oro'], ['plata', 'Plata'], ['colaborador', 'Colaborador'], ['institucional', 'Institucional']].map(([value, label]) => ({ value, label })) },
       { clave: 'url', etiqueta: 'Web', tipo: 'url', ancho: 'mitad' }, { clave: 'logoUrl', etiqueta: 'Logo', tipo: 'imagen', ayuda: 'PNG o WebP con fondo transparente' },
-      { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'texto', max: 200, ayuda: 'Una línea bajo el nombre en /patrocinadores (opcional)' }, { clave: 'activo', etiqueta: 'Mostrar en la web', tipo: 'bool' }],
-    defaults: { nivel: 'colaborador', activo: true },
+      { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'texto', max: 200, ayuda: 'Una línea bajo el nombre en /patrocinadores (opcional)' }, { clave: 'activo', etiqueta: 'Mostrar en la web', tipo: 'bool' },
+      { clave: 'mostrarEnHero', etiqueta: 'Mostrar en hero', tipo: 'bool', ayuda: 'Fila de logos bajo las fechas en la portada (BIZ-144)' }],
+    defaults: { nivel: 'colaborador', activo: true, mostrarEnHero: true },
     empty: { title: 'Sin patrocinadores', text: 'Añade marcas y entidades con su logo y enlace.' },
   }, {
     title: 'Clubs', subtitle: 'Directorio de /clubs · las propuestas del formulario público llegan como «Pendiente»', path: '/web/clubs', item: 'club', reorder: true, filterBy: 'estado',
