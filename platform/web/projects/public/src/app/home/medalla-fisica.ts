@@ -7,10 +7,12 @@ import { DestroyRef, Directive, ElementRef, PLATFORM_ID, afterNextRender, inject
  * k 120 / c 12 towards the pointer, max 65°), release with the gesture's speed (clamped), a tap (< 6 px, < 200 ms)
  * gives an impulse of ~20°, and rest (|ω| < 0.05 for 1.2 s) brings the wind back with a 600 ms blend. Paused off
  * screen. prefers-reduced-motion: no wind and damping ×3 (still draggable). Without JS (server HTML) the CSS
- * «vaiven» keyframes of the section are the fallback; the directive replaces them once it runs.
+ * «vaiven» keyframes of the section are the fallback; the directive replaces them once it runs. Only the medal disc
+ * (bottom of the image, not the transparent ribbon box) is grabbed: the image stays pointer-events: none and the
+ * hit test runs on document listeners, so the carousel and the text under the ribbons keep working.
  * (2D approximation of the R3F + Rapier spec: same parameters, no WebGL, no extra dependency.)
  */
-@Directive({ selector: 'img[grMedalla]', host: { class: 'pointer-events-auto cursor-grab touch-pan-y select-none' } })
+@Directive({ selector: 'img[grMedalla]', host: { class: 'pointer-events-none select-none' } })
 export class MedallaFisica {
   /** Idle swing (degrees), period (s) and phase (0–1) of page 79's table. */
   readonly amp = input(4);
@@ -37,6 +39,11 @@ export class MedallaFisica {
       const pivote = () => {
         const r = el.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top };
+      };
+      /** The disc: central 70 % of the width, the bottom «width × 0.7» of the image. */
+      const enDisco = (x: number, y: number) => {
+        const r = el.getBoundingClientRect();
+        return x > r.left + r.width * 0.15 && x < r.right - r.width * 0.15 && y < r.bottom && y > r.bottom - r.width * 0.7;
       };
       const paso = (ahora: number) => {
         const dt = Math.min(0.033, (ahora - (antes || ahora)) / 1000);
@@ -72,21 +79,26 @@ export class MedallaFisica {
       };
 
       const abajo = (e: PointerEvent) => {
+        if (!visible || drag || !enDisco(e.clientX, e.clientY)) return;
         drag = { x0: e.clientX, y0: e.clientY, t0: performance.now(), px: e.clientX, py: e.clientY };
         viento = 0;
-        el.setPointerCapture(e.pointerId);
-        el.style.cursor = 'grabbing';
+        document.documentElement.style.cursor = 'grabbing';
+        document.documentElement.style.userSelect = 'none';
       };
       const mueve = (e: PointerEvent) => {
-        if (!drag) return;
+        if (!drag) {
+          if (visible && e.pointerType === 'mouse') hover = enDisco(e.clientX, e.clientY);
+          return;
+        }
         drag.px = e.clientX;
         drag.py = e.clientY;
       };
-      const arriba = (e: PointerEvent) => {
+      const arriba = (e: PointerEvent, cancelado = false) => {
         if (!drag) return;
-        const tap = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6 && performance.now() - drag.t0 < 200;
+        const tap = !cancelado && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6 && performance.now() - drag.t0 < 200;
         drag = null;
-        el.style.cursor = '';
+        document.documentElement.style.cursor = '';
+        document.documentElement.style.userSelect = '';
         if (tap) {
           // impulse at the touched side: ~20° swing (a bit less on phones, as the spec's 2.4 vs 1.6)
           const lado = e.clientX < pivote().x ? 1 : -1;
@@ -96,13 +108,13 @@ export class MedallaFisica {
         }
         quieto = 0;
       };
-      el.addEventListener('pointerdown', abajo);
-      el.addEventListener('pointermove', mueve);
-      el.addEventListener('pointerup', arriba);
-      el.addEventListener('pointercancel', arriba);
-      el.addEventListener('pointerenter', () => (hover = true));
-      el.addEventListener('pointerleave', () => (hover = false));
-      el.addEventListener('dragstart', (e) => e.preventDefault());
+      // a touch pan cancels the pointer: the medal is released without the tap impulse and the page scrolls
+      const cancela = (e: PointerEvent) => arriba(e, true);
+      const sube = (e: PointerEvent) => arriba(e);
+      document.addEventListener('pointerdown', abajo, { passive: true });
+      document.addEventListener('pointermove', mueve, { passive: true });
+      document.addEventListener('pointerup', sube, { passive: true });
+      document.addEventListener('pointercancel', cancela, { passive: true });
       const io = new IntersectionObserver((es) => {
         visible = es.some((x) => x.isIntersecting);
         if (visible) arrancar();
@@ -112,6 +124,10 @@ export class MedallaFisica {
       destroy.onDestroy(() => {
         parar();
         io.disconnect();
+        document.removeEventListener('pointerdown', abajo);
+        document.removeEventListener('pointermove', mueve);
+        document.removeEventListener('pointerup', sube);
+        document.removeEventListener('pointercancel', cancela);
       });
     });
   }
