@@ -779,15 +779,17 @@ export class AltaAtletaPage {
   private validar(): Record<string, string> {
     const d = this.d;
     const e: Record<string, string> = {};
-    if (!tieneLetra(d.nombre)) e['nombre'] = 'Es obligatorio.';
+    if (!d.nombre.trim()) e['nombre'] = 'Es obligatorio.';
+    else if (!tieneLetra(d.nombre)) e['nombre'] = 'El nombre debe contener letras.';
     else if (d.nombre.trim().length > MAX_NOMBRE) e['nombre'] = 'Es demasiado largo (60 caracteres como máximo).';
-    if (!tieneLetra(d.apellidos)) e['apellidos'] = 'Son obligatorios.';
+    if (!d.apellidos.trim()) e['apellidos'] = 'Son obligatorios.';
+    else if (!tieneLetra(d.apellidos)) e['apellidos'] = 'Los apellidos deben contener letras.';
     else if (d.apellidos.trim().length > MAX_APELLIDOS) e['apellidos'] = 'Son demasiado largos (60 caracteres como máximo).';
     const mail = d.email.trim();
     if (!mail) e['email'] = 'Es obligatorio.';
     else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = 'Introduce un email válido.';
     if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = 'Si pides avisos por WhatsApp, necesitas tu teléfono.';
-    else if (d.telefono.trim() && !TEL.test(d.telefono.replace(/[\s-]/g, ''))) e['telefono'] = 'Escribe un móvil válido.';
+    else if (d.telefono.trim() && !TEL.test(d.telefono.replace(/[\s().-]/g, ''))) e['telefono'] = 'Escribe un móvil válido.';
     if (!d.sexo) e['sexo'] = 'Elige una opción.';
     if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? 'Escribe el año con 4 cifras (dd/mm/aaaa).' : 'Elige una fecha válida.';
     else {
@@ -1028,7 +1030,7 @@ export class AltaAtletaPage {
   private telefono(): string {
     const t = this.d.telefono.trim();
     if (!t) return '';
-    if (t.startsWith('+')) return t.replace(/[\s.-]/g, '');
+    if (t.startsWith('+')) return t.replace(/[\s().-]/g, '');
     const digitos = t.replace(/[^\d]/g, '');
     if (!digitos) return '';
     return '+34' + digitos;
@@ -1082,12 +1084,12 @@ export class AltaAtletaPage {
 }
 
 /** Nombre de la competición (para el JSON-LD). */
-/** Móvil: '+' opcional y de 9 a 15 dígitos (sin espacios ni guiones). */
+/** Móvil: '+' opcional y de 9 a 15 dígitos (sin espacios, guiones, paréntesis ni puntos). */
 const TEL = /^\+?\d{9,15}$/;
 
-/** Hay al menos una letra tras quitar los invisibles (zero-width, bidi, control). */
+/** Hay al menos una letra visible tras quitar los invisibles (control, Cf, relleno Hangul, U+2800). */
 function tieneLetra(v: string): boolean {
-  return /\p{L}/u.test(v.replace(/[\p{Cc}\p{Cf}]/gu, ''));
+  return /\p{L}/u.test(v.replace(/[\p{Cc}\p{Cf}\u3164\uFFA0\u115F\u1160\u2800]/gu, ''));
 }
 
 function competicionNombre(c: { nombre?: string } | null): string {

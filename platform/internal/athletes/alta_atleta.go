@@ -553,8 +553,8 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	ip := httpx.ClientIPFrom(ctx) // the rate limit per IP runs in «limitaIPAlta», before the body is read
 	altchaOK := false
 	defer func() {
-		if !altchaOK {
-			s.cuentaPostSinAltcha(ctx, ip)
+		if altchaOK {
+			s.devuelvePostSinAltcha(ctx, ip)
 		}
 	}()
 	// The data of the form.
@@ -772,8 +772,9 @@ func (s *Svc) respuestaFalsa() *AltaOut {
 
 // limitaIPAlta applies the per-IP limits of the public alta before the body is read: a rejected POST never
 // parses (nor writes to /tmp) its multipart. The created counter is only read here (it grows atomically in
-// reservaLimites, only for requests that are created); POST without a valid altcha count on the 30 POST /
-// 10 min cap (cuentaPostSinAltcha), which is only read here.
+// reservaLimites, only for requests that are created). Every POST reserves a slot of the 30 POST / 10 min
+// cap here with an atomic INCR (parallel bursts cannot pass the check together); the slot is given back
+// (devuelvePostSinAltcha) when the altcha turns out valid.
 func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/alta-atleta") && s.a != nil && s.a.Redis != nil {
@@ -782,7 +783,7 @@ func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 			var espera time.Duration
 			if n, err := s.a.Redis.Get(r.Context(), key).Int64(); err == nil && n >= limiteIPAlta {
 				espera, _ = s.a.Redis.PTTL(r.Context(), key).Result()
-			} else if n, err := s.a.Redis.Get(r.Context(), s.a.Keys.Of("rl", "alta-post", ip)).Int64(); err == nil && n >= limiteIPAltaPost {
+			} else if s.reservaPostSinAltcha(r.Context(), ip) > limiteIPAltaPost {
 				espera, _ = s.a.Redis.PTTL(r.Context(), s.a.Keys.Of("rl", "alta-post", ip)).Result()
 			} else {
 				next.ServeHTTP(w, r)
@@ -800,12 +801,9 @@ func (s *Svc) limitaIPAlta(next http.Handler) http.Handler {
 	})
 }
 
-// cuentaPostSinAltcha counts a POST that did not pass the altcha (bots, garbage) in a fixed window: the
-// expiry is set only by the first one, so a block never lasts more than ventanaAltaPost.
-func (s *Svc) cuentaPostSinAltcha(ctx context.Context, ip string) {
-	if s.a == nil || s.a.Redis == nil {
-		return
-	}
+// reservaPostSinAltcha counts a POST in a fixed window and returns the new count (0 on a Redis error, so
+// the request passes): the expiry is set only by the first one, so a block never lasts more than ventanaAltaPost.
+func (s *Svc) reservaPostSinAltcha(ctx context.Context, ip string) int64 {
 	key := s.a.Keys.Of("rl", "alta-post", ip)
 	// INCR + EXPIRE on the first hit (EXPIRE NX needs Redis 7; this works on Redis 6).
 	n, err := s.a.Redis.Incr(ctx, key).Result()
@@ -814,6 +812,19 @@ func (s *Svc) cuentaPostSinAltcha(ctx context.Context, ip string) {
 	}
 	if err != nil {
 		s.a.Log.Warn("alta de atleta · contador de POST no actualizado", "err", err)
+		return 0
+	}
+	return n
+}
+
+// devuelvePostSinAltcha gives back the slot reserved by limitaIPAlta: the POST passed the altcha.
+func (s *Svc) devuelvePostSinAltcha(ctx context.Context, ip string) {
+	if s.a == nil || s.a.Redis == nil {
+		return
+	}
+	// Only if the key still exists: a DECR on an expired key would leave a negative counter without TTL.
+	if err := s.a.Redis.Eval(ctx, decrSiExiste, []string{s.a.Keys.Of("rl", "alta-post", ip)}).Err(); err != nil {
+		s.a.Log.Warn("alta de atleta · contador de POST no devuelto", "err", err)
 	}
 }
 
@@ -923,7 +934,7 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Nombre = strings.TrimSpace(sinControl(d.Nombre))
 	d.Apellidos = strings.TrimSpace(sinControl(d.Apellidos))
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
-	if tel := strings.NewReplacer(" ", "", "-", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" && !telValido.MatchString(tel) {
+	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" && !telValido.MatchString(tel) {
 		d.telInvalido = true
 		d.Telefono = ""
 	} else {
@@ -975,11 +986,15 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	add := func(campo, msg string) {
 		errs = append(errs, &huma.ErrorDetail{Location: "body." + campo, Message: msg})
 	}
-	if n := len([]rune(d.Nombre)); n < 1 || n > 60 || !tieneLetra(d.Nombre) {
+	if n := len([]rune(d.Nombre)); n < 1 || n > 60 {
 		add("nombre", "Escribe tu nombre (60 caracteres como máximo).")
+	} else if !tieneLetra(d.Nombre) {
+		add("nombre", "El nombre debe contener letras.")
 	}
-	if n := len([]rune(d.Apellidos)); n < 1 || n > 60 || !tieneLetra(d.Apellidos) {
+	if n := len([]rune(d.Apellidos)); n < 1 || n > 60 {
 		add("apellidos", "Escribe tus apellidos (60 caracteres como máximo).")
+	} else if !tieneLetra(d.Apellidos) {
+		add("apellidos", "Los apellidos deben contener letras.")
 	}
 	if d.telInvalido {
 		add("telefono", "Escribe un móvil válido.")
@@ -1587,12 +1602,19 @@ func matchTexto(m string) string {
 }
 
 // normTel normalises a phone number to E.164 (+34 by default for Spanish numbers).
-// telValido: optional '+' and 9 to 15 digits, once spaces and hyphens are removed.
+// telValido: optional '+' and 9 to 15 digits, once spaces, hyphens, parentheses and dots are removed.
 var telValido = regexp.MustCompile(`^\+?[0-9]{9,15}$`)
 
-// tieneLetra reports whether v has at least one letter (a name made only of marks or symbols is empty).
+// tieneLetra reports whether v has at least one visible letter: the Hangul fillers (U+3164, U+FFA0,
+// U+115F, U+1160) are category Lo but render blank, like U+2800 and the Cf format characters.
 func tieneLetra(v string) bool {
-	return strings.IndexFunc(v, unicode.IsLetter) >= 0
+	return strings.IndexFunc(v, func(r rune) bool {
+		switch r {
+		case 0x3164, 0xFFA0, 0x115F, 0x1160, 0x2800:
+			return false
+		}
+		return unicode.IsLetter(r) && !unicode.Is(unicode.Cf, r)
+	}) >= 0
 }
 
 func normTel(t string) string {
