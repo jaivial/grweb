@@ -132,7 +132,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "patrocinadores", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid) })
+			list, err := cached(ctx, s, cid, "patrocinadores-v2", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid) })
 			if err == nil && in.Hero {
 				hero := []patroPub{}
 				for _, p := range list {
