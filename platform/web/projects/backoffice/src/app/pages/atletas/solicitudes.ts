@@ -728,8 +728,9 @@ export class SolicitudesPage {
         this.toasts.info(`Nueva solicitud de ${d?.nombre ?? 'un atleta'}`, d?.match === 'nombre' ? 'Coincidencia sugerida · toca para revisarla' : 'Toca para revisarla');
       }
       this.refrescar();
+      void this.refrescarOcupadas();
     });
-    const rs = this.live.resync.subscribe(() => void this.cargar());
+    const rs = this.live.resync.subscribe(() => { void this.cargar(); void this.refrescarOcupadas(); });
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.t);
       clearTimeout(this.tEnlace);
@@ -755,6 +756,16 @@ export class SolicitudesPage {
       this.ponCupos((await this.api.cupos(this.cid())).cupos);
     } catch {
       this.cupos.set([]);
+    }
+  }
+
+  /** Live (SSE): refresh only the occupied counts; keeps any unsaved quota the admin is typing. */
+  private async refrescarOcupadas(): Promise<void> {
+    if (!this.cid()) return;
+    try {
+      this.cupos.set((await this.api.cupos(this.cid())).cupos);
+    } catch {
+      // keep the last known counts
     }
   }
 
