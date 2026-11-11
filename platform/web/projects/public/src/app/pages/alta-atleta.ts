@@ -641,29 +641,29 @@ export class AltaAtletaPage {
     const e = this.err();
     const out: { campo: string; label: string; msg: string }[] = [];
     // The summary repeats the real reason of the field (lower case, without the final full stop).
-    const add = (campo: string, label: string, _corto?: string) => {
+    const add = (campo: string, label: string) => {
       const m = e[campo];
       if (m) out.push({ campo, label, msg: m.charAt(0).toLowerCase() + m.slice(1).replace(/\.$/, '') });
     };
-    add('nombre', 'Nombre', 'es obligatorio');
-    add('apellidos', 'Apellidos', 'son obligatorios');
-    add('email', 'Email', 'introduce un email válido');
-    add('telefono', 'Teléfono', 'si pides avisos por WhatsApp, necesitas tu teléfono');
+    add('nombre', 'Nombre');
+    add('apellidos', 'Apellidos');
+    add('email', 'Email');
+    add('telefono', 'Teléfono');
     add('sexo', 'Sexo');
-    add('fechaNacimiento', 'Fecha de nacimiento', 'elige una fecha válida');
-    add('prueba', 'Competición', 'está completa: elige otra o «Aún no lo sé»');
-    add('frase', 'Frase', 'es demasiado larga');
-    add('bio', 'Sobre ti', 'es demasiado largo');
-    add('instagram', 'Instagram', 'es demasiado largo');
-    add('historial', 'Historial', 'es demasiado largo');
-    add('club', 'Club', 'es demasiado largo');
-    add('ciudad', 'Ciudad', 'es demasiado larga');
-    add('entrenador', 'Entrenador', 'es demasiado largo');
-    add('licencia', 'Licencia', 'es demasiado larga');
-    add('marcaSQ', 'Sentadilla', 'la marca no es válida');
-    add('marcaBP', 'Press de banca', 'la marca no es válida');
-    add('marcaDL', 'Peso muerto', 'la marca no es válida');
-    add('consentimiento', 'Consentimientos', 'acepta los términos y la privacidad para continuar');
+    add('fechaNacimiento', 'Fecha de nacimiento');
+    add('prueba', 'Competición');
+    add('frase', 'Frase');
+    add('bio', 'Sobre ti');
+    add('instagram', 'Instagram');
+    add('historial', 'Historial');
+    add('club', 'Club');
+    add('ciudad', 'Ciudad');
+    add('entrenador', 'Entrenador');
+    add('licencia', 'Licencia');
+    add('marcaSQ', 'Sentadilla');
+    add('marcaBP', 'Press de banca');
+    add('marcaDL', 'Peso muerto');
+    add('consentimiento', 'Consentimientos');
     return out;
   });
 
