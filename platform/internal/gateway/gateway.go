@@ -114,6 +114,9 @@ type gw struct {
 	// separate, larger per-visitor bucket, because one page view costs ~6 API calls on the server.
 	ssrSecret []byte
 	ssrLimit  int64
+	// Public SSE (/api/competiciones/{slug}/stream) does not spend the request bucket: a whole venue can share one
+	// IP (NAT of the wifi). It has its own cap of open connections per IP instead.
+	sseLimit int64
 
 	specMu   sync.Mutex
 	spec     []byte
@@ -132,6 +135,7 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.ipLimit = int64(config.Int("RATE_LIMIT_IP_MIN", 600))
 	g.ssrSecret = []byte(config.Str("SSR_SECRET", ""))
 	g.ssrLimit = int64(config.Int("RATE_LIMIT_SSR_IP_MIN", 3000))
+	g.sseLimit = int64(config.Int("SSE_CONN_IP_MAX", 2000))
 	g.upstream, g.proxies = map[string]*url.URL{}, map[string]*httputil.ReverseProxy{}
 	enabled := config.List("UPSTREAMS")
 	if len(enabled) == 0 {
@@ -196,7 +200,15 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 		bucket, limit = "gw-ssr", g.ssrLimit
 	}
 	r.Header.Del("X-GrCup-SSR")
-	if res, err := ratelimit.Allow(ctx, g.a.Redis, g.a.Keys.Of("rl", bucket, httpx.ClientIPFrom(ctx)), limit, time.Minute); err == nil && !res.Allowed {
+	if r.Method == http.MethodGet && publicSSE.MatchString(r.URL.Path) {
+		release, ok := g.abrirSSE(ctx)
+		if !ok {
+			w.Header().Set("Retry-After", "5")
+			problem.Write(w, problem.TooMany("Demasiadas conexiones en directo desde tu red. Espera un momento."))
+			return
+		}
+		defer release()
+	} else if res, err := ratelimit.Allow(ctx, g.a.Redis, g.a.Keys.Of("rl", bucket, httpx.ClientIPFrom(ctx)), limit, time.Minute); err == nil && !res.Allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(int(res.RetryAfter.Seconds())+1))
 		problem.Write(w, problem.TooMany("Demasiadas peticiones desde tu red. Espera un momento."))
 		return
@@ -232,6 +244,33 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+var publicSSE = regexp.MustCompile(`^/api/competiciones/[^/]+/stream$`)
+
+// abrirSSE counts one open public SSE connection of the client IP (Redis, shared by every gateway replica).
+// The key expires after an hour without new connections so a crashed replica never leaks the counter for good.
+// Fail-open when Redis is down.
+func (g *gw) abrirSSE(ctx context.Context) (func(), bool) {
+	if g.a.Redis == nil {
+		return func() {}, true
+	}
+	key := g.a.Keys.Of("sse", "ip", httpx.ClientIPFrom(ctx))
+	n, err := g.a.Redis.Incr(ctx, key).Result()
+	if err != nil {
+		return func() {}, true
+	}
+	_ = g.a.Redis.Expire(ctx, key, time.Hour).Err()
+	release := func() {
+		c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = g.a.Redis.Decr(c, key).Err()
+	}
+	if n > g.sseLimit {
+		release()
+		return nil, false
+	}
+	return release, true
 }
 
 // exchange swaps a personal access token for a short JWT minted by identity (cached in Redis).
