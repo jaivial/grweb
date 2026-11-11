@@ -3,7 +3,7 @@ import { GrIcon } from '@grcup/ui';
 
 /** Preguntas frecuentes del alta (también van al JSON-LD FAQPage). */
 export const FAQS = [
-  { q: '¿Cuánto tarda la revisión de mi alta?', a: 'El equipo revisa cada solicitud a mano; te avisamos por email cuando tu ficha esté publicada.' },
+  { q: '¿Cuánto tarda la revisión de mi alta?', a: 'El equipo revisa cada solicitud a mano; te avisamos por email cuando tu ficha esté aprobada. Al aprobarla queda privada: no aparece en /atletas hasta que actives su publicación.' },
   { q: '¿Puedo editar mi perfil después de darlo de alta?', a: 'Sí. Después podrás editar tu perfil desde el área de atleta.' },
   { q: '¿Tiene coste darse de alta como atleta?', a: 'No. El alta es gratuita; la inscripción y la licencia las gestiona la AEP.' },
 ];
