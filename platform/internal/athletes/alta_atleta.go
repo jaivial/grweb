@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	altcha "github.com/altcha-org/altcha-lib-go"
 	"github.com/danielgtaylor/huma/v2"
@@ -195,6 +196,7 @@ type DatosAlta struct {
 	Apellidos       string          `json:"apellidos"`
 	Email           string          `json:"email"`
 	Telefono        string          `json:"telefono"`
+	telInvalido     bool            // set by normalizaDatos: a non-empty phone that is not valid
 	Sexo            string          `json:"sexo"`
 	FechaNacimiento string          `json:"fechaNacimiento"`
 	Licencia        string          `json:"licencia"`
@@ -805,10 +807,12 @@ func (s *Svc) cuentaPostSinAltcha(ctx context.Context, ip string) {
 		return
 	}
 	key := s.a.Keys.Of("rl", "alta-post", ip)
-	pipe := s.a.Redis.TxPipeline()
-	pipe.Incr(ctx, key)
-	pipe.ExpireNX(ctx, key, ventanaAltaPost)
-	if _, err := pipe.Exec(ctx); err != nil {
+	// INCR + EXPIRE on the first hit (EXPIRE NX needs Redis 7; this works on Redis 6).
+	n, err := s.a.Redis.Incr(ctx, key).Result()
+	if err == nil && n == 1 {
+		err = s.a.Redis.Expire(ctx, key, ventanaAltaPost).Err()
+	}
+	if err != nil {
 		s.a.Log.Warn("alta de atleta · contador de POST no actualizado", "err", err)
 	}
 }
@@ -919,7 +923,12 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Nombre = strings.TrimSpace(sinControl(d.Nombre))
 	d.Apellidos = strings.TrimSpace(sinControl(d.Apellidos))
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
-	d.Telefono = normTel(d.Telefono)
+	if tel := strings.NewReplacer(" ", "", "-", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" && !telValido.MatchString(tel) {
+		d.telInvalido = true
+		d.Telefono = ""
+	} else {
+		d.Telefono = normTel(tel)
+	}
 	d.Licencia = NormLicencia(d.Licencia)
 	d.Club = strings.TrimSpace(sinControl(d.Club))
 	d.Ciudad = strings.TrimSpace(sinControl(d.Ciudad))
@@ -953,7 +962,7 @@ func sinControl(v string) string {
 		case r == 0x0a || r == 0x09: // line break and tab stay
 			return r
 		case r < 0x20 || (r >= 0x7f && r <= 0x9f), r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069,
-			r == 0x200e || r == 0x200f || r == 0x061c:
+			r >= 0x200b && r <= 0x200f, r == 0x061c, r == 0x2060, r == 0xfeff:
 			return -1
 		}
 		return r
@@ -966,11 +975,14 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	add := func(campo, msg string) {
 		errs = append(errs, &huma.ErrorDetail{Location: "body." + campo, Message: msg})
 	}
-	if n := len([]rune(d.Nombre)); n < 1 || n > 60 {
+	if n := len([]rune(d.Nombre)); n < 1 || n > 60 || !tieneLetra(d.Nombre) {
 		add("nombre", "Escribe tu nombre (60 caracteres como máximo).")
 	}
-	if n := len([]rune(d.Apellidos)); n < 1 || n > 60 {
+	if n := len([]rune(d.Apellidos)); n < 1 || n > 60 || !tieneLetra(d.Apellidos) {
 		add("apellidos", "Escribe tus apellidos (60 caracteres como máximo).")
+	}
+	if d.telInvalido {
+		add("telefono", "Escribe un móvil válido.")
 	}
 	if d.Email == "" || len(d.Email) > 254 || !emailValido(d.Email) {
 		add("email", "Escribe un email válido (el mismo con el que te inscribiste en la AEP).")
@@ -1575,6 +1587,14 @@ func matchTexto(m string) string {
 }
 
 // normTel normalises a phone number to E.164 (+34 by default for Spanish numbers).
+// telValido: optional '+' and 9 to 15 digits, once spaces and hyphens are removed.
+var telValido = regexp.MustCompile(`^\+?[0-9]{9,15}$`)
+
+// tieneLetra reports whether v has at least one letter (a name made only of marks or symbols is empty).
+func tieneLetra(v string) bool {
+	return strings.IndexFunc(v, unicode.IsLetter) >= 0
+}
+
 func normTel(t string) string {
 	var b strings.Builder
 	for i, r := range strings.TrimSpace(t) {

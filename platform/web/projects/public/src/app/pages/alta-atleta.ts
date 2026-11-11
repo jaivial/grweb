@@ -414,7 +414,7 @@ const MAX_MARCA = 600;
           </div>
 
           <!-- Resumen y ayuda -->
-          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" />
+          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
         </div>
 
         <!-- Preguntas frecuentes -->
@@ -779,14 +779,15 @@ export class AltaAtletaPage {
   private validar(): Record<string, string> {
     const d = this.d;
     const e: Record<string, string> = {};
-    if (!d.nombre.trim()) e['nombre'] = 'Es obligatorio.';
+    if (!tieneLetra(d.nombre)) e['nombre'] = 'Es obligatorio.';
     else if (d.nombre.trim().length > MAX_NOMBRE) e['nombre'] = 'Es demasiado largo (60 caracteres como máximo).';
-    if (!d.apellidos.trim()) e['apellidos'] = 'Son obligatorios.';
+    if (!tieneLetra(d.apellidos)) e['apellidos'] = 'Son obligatorios.';
     else if (d.apellidos.trim().length > MAX_APELLIDOS) e['apellidos'] = 'Son demasiado largos (60 caracteres como máximo).';
     const mail = d.email.trim();
     if (!mail) e['email'] = 'Es obligatorio.';
     else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = 'Introduce un email válido.';
     if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = 'Si pides avisos por WhatsApp, necesitas tu teléfono.';
+    else if (d.telefono.trim() && !TEL.test(d.telefono.replace(/[\s-]/g, ''))) e['telefono'] = 'Escribe un móvil válido.';
     if (!d.sexo) e['sexo'] = 'Elige una opción.';
     if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? 'Escribe el año con 4 cifras (dd/mm/aaaa).' : 'Elige una fecha válida.';
     else {
@@ -1081,6 +1082,14 @@ export class AltaAtletaPage {
 }
 
 /** Nombre de la competición (para el JSON-LD). */
+/** Móvil: '+' opcional y de 9 a 15 dígitos (sin espacios ni guiones). */
+const TEL = /^\+?\d{9,15}$/;
+
+/** Hay al menos una letra tras quitar los invisibles (zero-width, bidi, control). */
+function tieneLetra(v: string): boolean {
+  return /\p{L}/u.test(v.replace(/[\p{Cc}\p{Cf}]/gu, ''));
+}
+
 function competicionNombre(c: { nombre?: string } | null): string {
   return c?.nombre || 'GR Strength Cup 2026';
 }
