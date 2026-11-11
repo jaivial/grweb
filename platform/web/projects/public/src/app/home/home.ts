@@ -9,11 +9,13 @@ import type { Horarios } from '../core/horarios';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 import { NoEncontrada } from '../layout/no-encontrada';
-import { Campeonato, fechaCorta } from './campeonato';
+import { Campeonato, fechaCorta, fechasHero } from './campeonato';
 import { HeroTrophy } from './hero-trophy';
 import {
-  SecAfiliaciones, SecAlta, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecLocalizacion, SecOrganizacion, SecPremios,
+  SecAfiliaciones, SecAlta, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecLocalizacion, SecOrganizacion,
 } from './secciones';
+import { SecPremios } from './premios';
+import { SecFantasy, SecPorra, type ResumenFantasy, type ResumenPorra } from './juegos';
 import { SecSorteo, type SorteoHome } from './sorteo';
 
 /**
@@ -24,14 +26,14 @@ import { SecSorteo, type SorteoHome } from './sorteo';
 @Component({
   selector: 'gr-home',
   imports: [Navbar, Footer, GrAlert, HeroTrophy, Campeonato, SecCifras, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
-    SecSorteo, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
+    SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = cms();
     @let c = comp.data();
     <gr-navbar [hidden]="!introDone()" />
     <main>
-      <gr-hero-trophy [meta]="heroMeta()" [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" (done)="introDone.set($event)" />
+      <gr-hero-trophy [meta]="heroMeta()" [fechas]="heroFechas()" [lugar]="heroLugar()" [patrocinadores]="heroPatro()" [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" (done)="introDone.set($event)" />
       <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || 'Campeonato de powerlifting'"
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
@@ -50,8 +52,19 @@ import { SecSorteo, type SorteoHome } from './sorteo';
             @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" [sorteo]="c?.modulos?.['sorteo'] ? sorteo() : null" /> } }
             @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
             @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
-            @case ('premios') { <gr-sec-premios [s]="h.secciones[k]" /> }
-            @case ('organizacion') { <gr-sec-organizacion [s]="h.secciones[k]" /> }
+            @case ('premios') {
+              <gr-sec-premios [s]="h.secciones[k]" />
+              <!-- Figma 05-home-juegos: Porra and Fantasy right after «Premios v2» (hidden when the games service does not answer) -->
+              @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
+              @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
+            }
+            @case ('organizacion') {
+              @if (!h.orden.includes('premios')) {
+                @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
+                @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
+              }
+              <gr-sec-organizacion [s]="h.secciones[k]" />
+            }
             @case ('afiliaciones') { <gr-sec-afiliaciones [s]="h.secciones[k]" /> }
             @case ('sorteo') { @if (c?.modulos?.['sorteo'] && sorteo()) { <gr-sec-sorteo [s]="h.secciones[k]" [sorteo]="sorteo()" /> } }
             @case ('categorias') { <gr-sec-categorias [s]="h.secciones[k]" /> }
@@ -72,9 +85,14 @@ export class HomePage {
   protected readonly introDone = signal(false);
   protected readonly cms = signal<HomeCms | null>(null);
   protected heroMeta = signal('');
+  protected readonly heroFechas = signal('');
+  protected readonly heroLugar = signal('');
+  protected readonly heroPatro = signal<{ nombre: string; logoUrl: string; url: string }[]>([]);
   protected readonly sorteo = signal<SorteoHome | null>(null);
   protected readonly entradas = signal<Entradas | null>(null);
   protected readonly horarios = signal<Horarios | null>(null);
+  protected readonly porra = signal<ResumenPorra | null>(null);
+  protected readonly fantasy = signal<ResumenFantasy | null>(null);
 
   constructor() {
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
@@ -83,7 +101,14 @@ export class HomePage {
     const opt = <T,>(p: string) => firstValueFrom(http.get<T>(api(p))).catch(() => null);
     void inject(PendingTasks).run(() => Promise.all([
       this.comp.load(), this.cmsApi.home(), opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
-    ]).then(([c, h, sorteo, entradas, horarios]) => {
+      opt<ResumenPorra>('/juegos/porra/resumen'), opt<ResumenFantasy>('/juegos/fantasy/resumen'),
+      opt<{ nombre: string; logoUrl: string; url: string }[]>('/patrocinadores?hero=true'),
+    ]).then(([c, h, sorteo, entradas, horarios, porra, fantasy, patro]) => {
+      this.porra.set(porra);
+      this.fantasy.set(fantasy);
+      this.heroPatro.set((patro ?? []).filter((p) => p.logoUrl));
+      this.heroFechas.set(fechasHero(c?.fechaInicio, c?.fechaFin));
+      this.heroLugar.set(c?.sede ? [c.sede.ciudad && (c.sede.provincia ? `${c.sede.ciudad} (${c.sede.provincia})` : c.sede.ciudad), c.sede.nombre].filter(Boolean).join(' · ') : '');
       this.cms.set(h);
       this.sorteo.set(sorteo);
       this.entradas.set(entradas);

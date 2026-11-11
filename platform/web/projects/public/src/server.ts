@@ -158,6 +158,8 @@ app.use((req, res, next) => {
   }
   const key = req.method + ' ' + req.originalUrl;
   const hit = paginas.get(key);
+  // LRU: a hit moves the entry to the end of the Map (insertion order = least recently used first)
+  if (hit) { paginas.delete(key); paginas.set(key, hit); }
   const compartida = enCurso.get(key);
   const p = hit && Date.now() - hit.at < TTL ? Promise.resolve(hit) : compartida
     // another visitor's render that is not shareable (e.g. their 429): render this one on its own
@@ -165,8 +167,10 @@ app.use((req, res, next) => {
     : (() => {
     const x = render(req).then((pg) => {
       if (pg && cacheable(pg)) {
-        if (paginas.size > 200) paginas.clear(); // bounded: random query strings must not grow memory
+        paginas.delete(key);
         paginas.set(key, pg);
+        // bounded LRU: random query strings must not grow memory; evict the least recently used entry
+        if (paginas.size > 200) paginas.delete(paginas.keys().next().value!);
       }
       return pg;
     }).finally(() => enCurso.delete(key));

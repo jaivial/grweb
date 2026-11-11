@@ -6,6 +6,16 @@ import type { CompeticionPublica } from '../core/competition';
 import { GLOW, GrEyebrow, GrTitulo } from './bloques';
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** BIZ-144 hero: «19 Y 20 DICIEMBRE DE 2026» (same month) · «30 NOVIEMBRE Y 1 DICIEMBRE DE 2026» · «19 DICIEMBRE DE 2026». */
+export const fechasHero = (ini?: string | null, fin?: string | null) => {
+  if (!ini) return '';
+  const [y, m, d] = ini.slice(0, 10).split('-').map(Number);
+  const [y2, m2, d2] = (fin || ini).slice(0, 10).split('-').map(Number);
+  const txt = y2 !== y ? `${d} ${MESES[m - 1]} de ${y} y ${d2} ${MESES[m2 - 1]} de ${y2}`
+    : m2 !== m ? `${d} ${MESES[m - 1]} y ${d2} ${MESES[m2 - 1]} de ${y}`
+    : d2 !== d ? `${d} y ${d2} ${MESES[m - 1]} de ${y}` : `${d} ${MESES[m - 1]} de ${y}`;
+  return txt.toUpperCase();
+};
 /** «19 diciembre 2026» (Figma event meta). */
 export const fechaCorta = (iso?: string | null) => {
   if (!iso) return '';
