@@ -487,7 +487,7 @@ export class AltaAtletaPage {
       const fecha = dia(p.fecha);
       return {
         codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, chip, tono, completa: libre <= 0,
-        detalle: [p.plazas > 0 ? `${Math.min(p.ocupadas, p.plazas)} de ${p.plazas} plazas` : '', p.nivel].filter(Boolean).join(' · '),
+        detalle: [p.plazas > 0 ? `${Math.min(p.ocupadas, p.plazas)} de ${p.plazas} ${p.plazas === 1 ? 'plaza' : 'plazas'}` : '', p.nivel].filter(Boolean).join(' · '),
       };
     });
     const lim = c?.limiteEleccion ? `, hasta el ${dia(c.limiteEleccion).replace(/^\S+ /, '')} a las 12:00` : '';
