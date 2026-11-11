@@ -18,6 +18,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -46,6 +47,10 @@ const (
 	// The time token proves the form was open a while (a bot fills it in a second).
 	tiempoMinimo = 3 * time.Second
 	tiempoMaximo = 24 * time.Hour
+	// An altcha challenge expires 10 min after it is issued (the expiry goes signed in the salt); the
+	// «used» mark lives a bit longer so a solution can never be replayed while it is still valid.
+	caducidadAltcha = 10 * time.Minute
+	ttlAltchaUsado  = caducidadAltcha + time.Minute
 	// Limits of the public form (SPEC §4.2).
 	limiteIPAlta   = 5
 	limiteMailAlta = 3
@@ -722,10 +727,12 @@ func fecha(s string) *time.Time {
 
 // retoAltcha builds the challenge of the widget (signed with an internal key).
 func (s *Svc) retoAltcha() AltchaCfg {
+	expira := time.Now().Add(caducidadAltcha)
 	ch, err := altcha.CreateChallenge(altcha.ChallengeOptions{
 		Algorithm: altcha.SHA256,
 		HMACKey:   s.altchaKey,
 		MaxNumber: 100000,
+		Expires:   &expira,
 	})
 	if err != nil {
 		s.a.Log.Warn("reto altcha no generado", "err", err)
@@ -739,8 +746,8 @@ func (s *Svc) validaAltcha(ctx context.Context, payload string) error {
 	if strings.TrimSpace(payload) == "" {
 		return problem.BadRequest("ANTIBOT", "No hemos podido verificar que eres una persona. Recarga la página e inténtalo de nuevo.")
 	}
-	ok, err := altcha.VerifySolutionSafe(payload, s.altchaKey, false)
-	if err != nil || !ok {
+	ok, err := altcha.VerifySolutionSafe(payload, s.altchaKey, true)
+	if err != nil || !ok || !s.altchaConCaducidad(payload) {
 		s.a.Log.Info("alta de atleta · altcha inválido", "request_id", httpx.RequestIDFrom(ctx))
 		return problem.BadRequest("ANTIBOT", "No hemos podido verificar que eres una persona. Recarga la página e inténtalo de nuevo.")
 	}
@@ -749,7 +756,7 @@ func (s *Svc) validaAltcha(ctx context.Context, payload string) error {
 	if desafio == "" {
 		return problem.BadRequest("ANTIBOT", "No hemos podido verificar que eres una persona. Recarga la página e inténtalo de nuevo.")
 	}
-	if ok, _ := s.a.Redis.SetNX(ctx, s.a.Keys.Of("rl", "altcha", desafio), "1", time.Hour).Result(); !ok {
+	if ok, _ := s.a.Redis.SetNX(ctx, s.a.Keys.Of("rl", "altcha", desafio), "1", ttlAltchaUsado).Result(); !ok {
 		s.a.Log.Info("alta de atleta · altcha reutilizado", "request_id", httpx.RequestIDFrom(ctx))
 		return problem.BadRequest("ANTIBOT", "Esta verificación ya se ha usado. Recarga la página e inténtalo de nuevo.")
 	}
@@ -767,6 +774,25 @@ func (s *Svc) desafioDe(payload string) string {
 		return ""
 	}
 	return p.Challenge
+}
+
+// altchaConCaducidad: the salt must carry an expiry (the library accepts salts without one, so a
+// challenge issued without «expires» would never expire).
+func (s *Svc) altchaConCaducidad(payload string) bool {
+	b, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return false
+	}
+	var p altcha.Payload
+	if json.Unmarshal(b, &p) != nil {
+		return false
+	}
+	_, q, ok := strings.Cut(p.Salt, "?")
+	if !ok {
+		return false
+	}
+	v, err := url.ParseQuery(q)
+	return err == nil && v.Get("expires") != ""
 }
 
 // tokenTiempo proves the form was open a while (it travels with the config and comes back in the form).
