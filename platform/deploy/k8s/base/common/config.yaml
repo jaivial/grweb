@@ -13,6 +13,8 @@ data:
   JWKS_URL: http://identity:8080/.well-known/jwks.json
   JWT_ISSUER: grcup-identity
   LOG_LEVEL: info
+  # k8s probes on their own listener (port salud), outside the connection cap of :8080.
+  HEALTH_ADDR: ":8081"
   BACKOFFICE_URL: https://grcup-qa-bo.menustudioai.com
   PUBLIC_WEB_URL: https://grcup-qa.menustudioai.com
   PUBLIC_API_URL: https://grcup-qa-api.menustudioai.com

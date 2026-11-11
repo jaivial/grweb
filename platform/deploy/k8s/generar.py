@@ -215,12 +215,18 @@ spec:
           args: ["serve"]
           ports:
             - {{ name: http, containerPort: 8080 }}
+            - {{ name: salud, containerPort: 8081 }}
 {env_block(name, dict(spec, env={"GOMEMLIMIT": gomemlimit(lim), **spec.get("env", {})}))}
+          # Own listener (HEALTH_ADDR), outside the connection cap of :8080: a flood must not fail the probes.
+          startupProbe:
+            httpGet: {{ path: /healthz, port: salud }}
+            periodSeconds: 2
+            failureThreshold: 30
           readinessProbe:
-            httpGet: {{ path: /readyz, port: http }}
+            httpGet: {{ path: /readyz, port: salud }}
             periodSeconds: 5
           livenessProbe:
-            httpGet: {{ path: /healthz, port: http }}
+            httpGet: {{ path: /healthz, port: salud }}
             periodSeconds: 10
           # The endpoint leaves the Service before SIGTERM: in-flight requests finish, new ones go elsewhere.
           lifecycle:
