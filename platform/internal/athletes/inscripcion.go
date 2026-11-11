@@ -659,7 +659,8 @@ func (s *Svc) crearInscripcion(ctx context.Context, cid, fan uuid.UUID, b Inscri
 		return EstadoInscripcion{}, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para inscribirte tienes que aceptar los términos, el reglamento y la política de privacidad.")
 	}
 	// Same normalisation as the alta form: bidi/control characters dropped, phone checked and normalised.
-	d := DatosIn{Licencia: b.Licencia, Nombre: sinControl(b.Nombre), Apellidos: sinControl(b.Apellidos), Email: b.Email, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: sinControl(b.Club), Estado: "confirmado"}
+	una := func(v string) string { return strings.Join(strings.Fields(sinControl(v)), " ") } // one line, single spaces
+	d := DatosIn{Licencia: b.Licencia, Nombre: una(b.Nombre), Apellidos: una(b.Apellidos), Email: b.Email, Sexo: b.Sexo, FechaNacimiento: b.FechaNacimiento, Categoria: b.Categoria, Club: una(b.Club), Estado: "confirmado"}
 	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(b.Telefono)); tel != "" {
 		if !telValido.MatchString(tel) {
 			return EstadoInscripcion{}, problem.Unprocessable("TELEFONO_INVALIDO", "Escribe un móvil válido.")

@@ -100,12 +100,12 @@ func (r *Resolver) version(ctx context.Context) string {
 	}
 	r.mu.Unlock()
 	v, err := r.rdb.Get(ctx, r.verKey).Result()
-	if err != nil && err != redis.Nil {
-		return r.ver
-	}
 	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err != nil && err != redis.Nil {
+		return r.ver // Redis down: keep the last known version (entries still expire after 5 min)
+	}
 	r.ver, r.verExp = v, time.Now().Add(time.Second)
-	r.mu.Unlock()
 	return v
 }
 
