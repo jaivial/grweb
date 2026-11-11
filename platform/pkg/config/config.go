@@ -13,6 +13,7 @@ type Common struct {
 	Service       string
 	Env           string // dev | qa | prod
 	HTTPAddr      string
+	HealthAddr    string // own listener for the k8s probes, outside the connection cap of HTTPAddr ("" = off)
 	DatabaseURL   string
 	AutoMigrate   bool
 	RedisAddr     string
@@ -33,6 +34,7 @@ func Load(service string) Common {
 		Service:       service,
 		Env:           env,
 		HTTPAddr:      Str("HTTP_ADDR", ":8080"),
+		HealthAddr:    Str("HEALTH_ADDR", ""),
 		DatabaseURL:   Str("DATABASE_URL", ""),
 		AutoMigrate:   Bool("AUTO_MIGRATE", false),
 		RedisAddr:     Str("REDIS_ADDR", ""),

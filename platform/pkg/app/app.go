@@ -198,7 +198,8 @@ func (a *App) serve(ctx context.Context, s Service) error {
 		a.Verifier.WithRevocation(a.Redis, a.Keys)
 	}
 
-	a.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	// Also on the main port: audit's «Salud» calls /readyz through the Service.
+	a.Mux.HandleFunc("GET /healthz", healthz)
 	a.Mux.HandleFunc("GET /readyz", a.readyz)
 	// Observability (internal port only: the gateway proxies /api): Prometheus text and a summary for «Salud».
 	a.Metrics = httpx.NewMetrics()
@@ -255,9 +256,26 @@ func (a *App) serve(ctx context.Context, s Service) error {
 		}
 		errc <- srv.Serve(ln)
 	}()
+	// Probes on their own listener: under a flood the main one sits at its LimitListener cap and the kubelet's
+	// 1 s probes timed out (crm restarted by liveness, 0/1 Ready).
+	var hsrv *http.Server
+	if a.Cfg.HealthAddr != "" {
+		hm := http.NewServeMux()
+		hm.HandleFunc("GET /healthz", healthz)
+		hm.HandleFunc("GET /readyz", a.readyz)
+		hsrv = &http.Server{Addr: a.Cfg.HealthAddr, Handler: hm, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}
+		go func() {
+			if err := hsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				errc <- fmt.Errorf("salud %s: %w", a.Cfg.HealthAddr, err)
+			}
+		}()
+	}
 	select {
 	case err := <-errc:
 		cancelWorkers()
+		if hsrv != nil {
+			_ = hsrv.Close()
+		}
 		if !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
@@ -266,11 +284,16 @@ func (a *App) serve(ctx context.Context, s Service) error {
 		sctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(sctx)
+		if hsrv != nil {
+			_ = hsrv.Shutdown(sctx)
+		}
 		cancelWorkers()
 	}
 	a.wg.Wait()
 	return nil
 }
+
+func healthz(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }
 
 // interno only serves in-cluster callers: the host nginx in front of the gateway always adds X-Forwarded-For and
 // X-Real-IP, so a request carrying them came from the internet (the gateway runs on this same package).

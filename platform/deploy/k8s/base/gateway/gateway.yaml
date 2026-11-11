@@ -28,6 +28,7 @@ spec:
           args: ["serve"]
           ports:
             - { name: http, containerPort: 8080 }
+            - { name: salud, containerPort: 8081 }
           envFrom:
             - configMapRef: { name: grcup-config }
           env:
@@ -43,11 +44,16 @@ spec:
               valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
             - name: INTERNAL_TOKEN_SECRET
               valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
+          # Own listener (HEALTH_ADDR), outside the connection cap of :8080: a flood must not fail the probes.
+          startupProbe:
+            httpGet: { path: /healthz, port: salud }
+            periodSeconds: 2
+            failureThreshold: 30
           readinessProbe:
-            httpGet: { path: /readyz, port: http }
+            httpGet: { path: /readyz, port: salud }
             periodSeconds: 5
           livenessProbe:
-            httpGet: { path: /healthz, port: http }
+            httpGet: { path: /healthz, port: salud }
             periodSeconds: 10
           lifecycle:
             preStop: { sleep: { seconds: 5 } }
