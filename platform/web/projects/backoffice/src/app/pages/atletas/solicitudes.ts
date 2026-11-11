@@ -152,7 +152,7 @@ interface FilaConsentimiento {
             <section class="flex flex-wrap items-end gap-4 rounded-lg border border-line-subtle bg-bg-card p-5" aria-labelledby="cupos-t">
               <div class="flex min-w-0 basis-full flex-col gap-1 md:basis-auto md:flex-1">
                 <h2 id="cupos-t" class="text-ui-h5">Cupo por competición</h2>
-                <p class="text-body-xs text-text-tertiary">Plazas del formulario de alta. Sin cupo propio se reparten las plazas totales entre las competiciones. Una competición llena se muestra «Completa» y no se puede elegir.</p>
+                <p class="text-body-xs text-text-tertiary">Plazas del formulario de alta. Sin cupo propio se reparten las plazas totales entre las competiciones. Una competición llena se muestra «Completa» y no se puede elegir. 0 = sin límite.</p>
               </div>
               @for (c of cupos(); track c.codigo) {
                 <label class="flex w-36 flex-col gap-1.5">

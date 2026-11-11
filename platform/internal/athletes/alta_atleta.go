@@ -325,7 +325,8 @@ func (s *Svc) reservaPrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, total
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'`, cid, prueba).Scan(&n); err != nil {
 		return err
 	}
-	if n >= s.cupos(ctx, tx, cid, total)[prueba] {
+	// 0 places = no limit (the same rule the form uses).
+	if lim := s.cupos(ctx, tx, cid, total)[prueba]; lim > 0 && n >= lim {
 		return validacion("Revisa los campos marcados.", &huma.ErrorDetail{Location: "body.prueba", Message: "Esa competición ya está completa: elige otra o «Aún no lo sé»."})
 	}
 	return nil
