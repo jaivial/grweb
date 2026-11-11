@@ -456,7 +456,10 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			return err
 		}
 		// The email to the team, with the photo (signed URL: it is not public until it is approved).
-		fotoURL := s.urlFotoFirmada(c.ID, id, c.Slug)
+		fotoURL := ""
+		if fotoClave != "" {
+			fotoURL = s.urlFotoFirmada(c.ID, id, c.Slug)
+		}
 		for _, m := range equipo {
 			if err := email(ctx, tx, c.ID, m.Email, "atleta-solicitud-nueva", s.varsNueva(d, matchTipo, menor, fotoURL, c.Slug)); err != nil {
 				return err

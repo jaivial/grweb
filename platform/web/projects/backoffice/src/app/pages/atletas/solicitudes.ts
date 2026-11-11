@@ -834,6 +834,7 @@ export class SolicitudesPage {
     if (!cid) return;
     for (const s of items) {
       if (this.miniaturas()[s.id]) continue;
+      if (!s.fotoMiniatura) continue;
       if (s.fotoMiniatura && /^(https?:|data:)/.test(s.fotoMiniatura)) {
         this.miniaturas.update((m) => ({ ...m, [s.id]: s.fotoMiniatura }));
         continue;
@@ -888,11 +889,13 @@ export class SolicitudesPage {
         URL.revokeObjectURL(this.fotoUrl()!);
         this.fotoUrl.set(null);
       }
-      try {
-        const blob = await this.api.foto(cid, id);
-        this.fotoUrl.set(URL.createObjectURL(blob));
-      } catch {
-        this.fotoUrl.set(null);
+      if (det.fotoMiniatura) {
+        try {
+          const blob = await this.api.foto(cid, id);
+          this.fotoUrl.set(URL.createObjectURL(blob));
+        } catch {
+          this.fotoUrl.set(null);
+        }
       }
     } catch (e) {
       this.error.set(errText(e, 'No se pudo abrir la solicitud.'));
