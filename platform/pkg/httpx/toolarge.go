@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"syscall"
@@ -43,6 +44,11 @@ func Listen(ctx context.Context, addr string) (net.Listener, error) {
 // measured 585 MB under the same flood).
 func tooLarge(w http.ResponseWriter) { TooLarge(w) }
 
+// DrainTooLarge, when > 0, makes TooLarge close gracefully instead of resetting: it half-closes and discards
+// up to that many bytes of the unread body (2 s max). Set by the gateway: behind nginx an RST while nginx is
+// still sending the body turns the 413 into a 502. nginx's client_max_body_size bounds what it can send.
+var DrainTooLarge int64
+
 // TooLarge writes the 413 problem and resets the connection (exported for the gateway's proxy errors).
 func TooLarge(w http.ResponseWriter) {
 	markStatus(w, http.StatusRequestEntityTooLarge)
@@ -65,9 +71,17 @@ func TooLarge(w http.ResponseWriter) {
 	_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
 	_, _ = buf.Writer.Write(b.Bytes())
 	_ = buf.Writer.Flush()
-	if tc, ok := conn.(*net.TCPConn); ok {
-		_ = tc.SetLinger(0)
+	tc, ok := conn.(*net.TCPConn)
+	if !ok {
+		return
 	}
+	if DrainTooLarge > 0 {
+		_ = tc.CloseWrite()
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_, _ = io.CopyN(io.Discard, buf.Reader, DrainTooLarge)
+		return
+	}
+	_ = tc.SetLinger(0)
 }
 
 // markStatus lets the Logger record the status of a hijacked response.

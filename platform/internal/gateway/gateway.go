@@ -137,6 +137,7 @@ func bodyLimit(r *http.Request) int64 { return bodylimit.Of(match(r.URL.Path), r
 
 func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.a = a
+	httpx.DrainTooLarge = 12 << 20 // = nginx client_max_body_size: a 413 reaches the client, not nginx's 502
 	g.cors = config.List("CORS_ORIGINS")
 	g.ipLimit = int64(config.Int("RATE_LIMIT_IP_MIN", 600))
 	g.ssrSecret = []byte(config.Str("SSR_SECRET", ""))

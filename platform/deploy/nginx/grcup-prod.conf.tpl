@@ -31,7 +31,7 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     add_header Strict-Transport-Security "max-age=31536000" always;
     add_header X-Content-Type-Options "nosniff" always;
-    client_max_body_size 16m;
+    client_max_body_size 12m;
 
     location ~ ^/api/competiciones/[^/]+/alta-atleta$ {
         limit_req zone=alta_atleta_prod burst=5 nodelay;
@@ -61,7 +61,7 @@ server {
     add_header Strict-Transport-Security "max-age=31536000" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
-    client_max_body_size 64m;
+    client_max_body_size 12m;
 
     location /api/ {
         proxy_pass http://10.43.241.10:8080;
@@ -84,7 +84,7 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     add_header Strict-Transport-Security "max-age=31536000" always;
     add_header X-Content-Type-Options "nosniff" always;
-    client_max_body_size 64m;
+    client_max_body_size 12m;
 
     location ~ ^/api/competiciones/[^/]+/alta-atleta$ {
         limit_req zone=alta_atleta_prod burst=5 nodelay;
