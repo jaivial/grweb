@@ -98,6 +98,8 @@ type jornadaOut struct {
 	Dia    string    `json:"dia"`
 	Nombre string    `json:"nombre"`
 	Estado string    `json:"estado" enum:"borrador,abierta,en_juego,cerrada"`
+	// HoraCierre «HH:MM» (Europe/Madrid) of the close of the bets; only in the backoffice list.
+	HoraCierre string `json:"horaCierre,omitempty"`
 }
 
 // apuestaVista is one bet of mis-apuestas.

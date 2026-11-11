@@ -63,7 +63,7 @@ func (s *Svc) registerAdmin() {
 			if err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado FROM jornadas WHERE competition_id = $1 ORDER BY dia DESC`, in.CID)
+			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado, COALESCE(to_char(hora_cierre, 'HH24:MI'), '') FROM jornadas WHERE competition_id = $1 ORDER BY dia DESC`, in.CID)
 			if err != nil {
 				return nil, err
 			}
@@ -72,7 +72,7 @@ func (s *Svc) registerAdmin() {
 			o.Body.Jornadas = []jornadaOut{}
 			for rows.Next() {
 				var j jornadaOut
-				if err := rows.Scan(&j.ID, &j.Dia, &j.Nombre, &j.Estado); err != nil {
+				if err := rows.Scan(&j.ID, &j.Dia, &j.Nombre, &j.Estado, &j.HoraCierre); err != nil {
 					return nil, err
 				}
 				o.Body.Jornadas = append(o.Body.Jornadas, j)
@@ -117,21 +117,25 @@ func (s *Svc) registerAdmin() {
 		Body struct {
 			Nombre *string `json:"nombre,omitempty" minLength:"1" maxLength:"40"`
 			Estado *string `json:"estado,omitempty" enum:"borrador,abierta,en_juego,cerrada"`
+			// «HH:MM» (Europe/Madrid) when the bets close; "" removes it.
+			HoraCierre *string `json:"horaCierre,omitempty" pattern:"^(([01][0-9]|2[0-3]):[0-5][0-9])?$"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-jornada-patch", Method: http.MethodPatch, Path: base + "/jornadas/{jid}",
-		Summary: "Renombrar una jornada o cambiar su estado", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent},
+		Summary: "Renombrar una jornada, cambiar su estado o su hora de cierre de apuestas", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *jornadaPatchIn) (*struct{}, error) {
 			if err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			b := in.Body
-			if b.Nombre == nil && b.Estado == nil {
+			if b.Nombre == nil && b.Estado == nil && b.HoraCierre == nil {
 				return nil, problem.BadRequest("NADA_QUE_CAMBIAR", "Nada que cambiar.")
 			}
 			tag, err := s.a.DB.Exec(ctx, `UPDATE jornadas SET
-				nombre = COALESCE($3, nombre), estado = COALESCE($4, estado), version = version + 1, updated_at = now()
-				WHERE id = $1 AND competition_id = $2`, in.JID, in.CID, b.Nombre, b.Estado)
+				nombre = COALESCE($3, nombre), estado = COALESCE($4, estado),
+				hora_cierre = CASE WHEN $5::text IS NULL THEN hora_cierre WHEN $5::text = '' THEN NULL ELSE $5::text::time END,
+				version = version + 1, updated_at = now()
+				WHERE id = $1 AND competition_id = $2`, in.JID, in.CID, b.Nombre, b.Estado, b.HoraCierre)
 			if err != nil {
 				return nil, err
 			}
