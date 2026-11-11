@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, RESPONSE_INIT, TransferState, inject, makeStateKey, signal } from '@angular/core';
+import { DOCUMENT, Injectable, RESPONSE_INIT, TransferState, inject, makeStateKey, signal } from '@angular/core';
 import { NavigationStart, Router } from '@angular/router';
 import { marked } from 'marked';
 import { firstValueFrom } from 'rxjs';
@@ -101,6 +101,7 @@ export class Cms {
   private readonly res = inject(RESPONSE_INIT, { optional: true });
   private readonly fallo = inject(FalloApi);
   private readonly ts = inject(TransferState);
+  private readonly doc = inject(DOCUMENT);
   private seo?: Promise<SeoMap | null>;
   /** True when the API failed (not a 4xx «not found»): pages show a retry message and SSR answers 503 (429 when rate limited), never a false 404. */
   readonly failed = signal(false);
@@ -131,6 +132,12 @@ export class Cms {
     if (!/^[a-z0-9-]+$/.test(slug)) return null;
     const k = makeStateKey<boolean>('pagina404:' + slug);
     if (!this.res && this.ts.hasKey(k)) { this.ts.remove(k); return null; }
+    // 404 shell from server.ts (unknown route): only valid for the first load of that same path
+    const m = this.res ? null : this.doc.querySelector('meta[name="gr-404"]');
+    if (m) {
+      m.remove();
+      if (this.doc.location.pathname.replace(/\/+$/, '') === '/' + slug) return null;
+    }
     const p = await this.get<Pagina>(`/paginas/${slug}`);
     if (this.res && !p && !this.failed()) this.ts.set(k, true);
     return p;

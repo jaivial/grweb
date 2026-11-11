@@ -110,7 +110,8 @@ app.use(
 const PATRONES = routes.map((r) => (r.path ?? '').split('/').filter(Boolean)).filter((p) => p[0] !== '**' && p[0] !== ':pslug');
 const SHELL = (() => {
   try {
-    return readFileSync(join(browserDistFolder, 'index.csr.html'), 'utf8');
+    // marker read by Cms.pagina(): the server already answered 404, so the client must not ask the CMS again
+    return readFileSync(join(browserDistFolder, 'index.csr.html'), 'utf8').replace('</head>', '<meta name="gr-404" content="1"></head>');
   } catch {
     return null;
   }
