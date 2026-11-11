@@ -75,13 +75,15 @@ export class JugadorPista {
   /** Puntos de la jornada (null: no se pinta el chip, p. ej. en el banquillo). */
   readonly puntos = input<number | null>(null);
   readonly tamano = input<'l' | 'm' | 's'>('m');
+  /** Every avatar in the brand red (home, Figma 05-home-juegos) instead of the colour by name. */
+  readonly rojo = input(false);
   readonly abrir = output<Event>();
 
   protected readonly sinFoto = signal(false);
   protected readonly foto = computed(() => (this.sinFoto() ? '' : this.atleta().fotoUrl || ''));
   protected readonly tam = computed(() => TAM[this.tamano()] + (this.tamano() === 'l' ? ' max-lg:size-16' : ''));
   protected readonly ini = computed(() => iniciales(this.atleta().nombre));
-  protected readonly color = computed(() => colorAvatar(this.atleta().nombre));
+  protected readonly color = computed(() => (this.rojo() ? 'bg-[color-mix(in_oklab,var(--color-accent)_80%,black)]' : colorAvatar(this.atleta().nombre)));
   protected readonly corto = computed(() => nombreCorto(this.atleta().nombre));
   protected readonly txt = computed(() => puntosTxt(this.puntos() ?? 0));
   protected readonly etiqueta = computed(() => {
@@ -133,7 +135,7 @@ const POSICIONES = [
         @for (p of posiciones; track p.nombre; let i = $index) {
           <li class="absolute -translate-x-1/2" [style.left]="p.left" [style.top]="p.top">
             @if (titulares()[i]; as a) {
-              <gr-jugador-pista [atleta]="a" [puntos]="puntosDe()(a)" tamano="l" (abrir)="abrir.emit({ atleta: a, origen: $event })" />
+              <gr-jugador-pista [atleta]="a" [puntos]="puntosDe()(a)" [rojo]="rojo()" tamano="l" (abrir)="abrir.emit({ atleta: a, origen: $event })" />
             } @else {
               <a routerLink="/fantasy/mercado" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" [attr.aria-label]="'Hueco libre (' + p.nombre + '): fichar en el mercado'">
                 <span class="flex size-16 items-center justify-center rounded-full border-[1.5px] border-dashed border-white/40 bg-bg-deep/35 text-text-secondary transition-colors group-hover:border-white/70 group-hover:text-white lg:size-20">
@@ -152,6 +154,8 @@ export class PistaFutsal {
   /** Los titulares en orden de posición (pívot, alas, cierre, portero); los que falten son huecos. */
   readonly titulares = input<AtletaPista[]>([]);
   readonly puntosDe = input<(a: AtletaPista) => number | null>(() => null);
+  /** Brand-red avatars (home). */
+  readonly rojo = input(false);
   readonly abrir = output<{ atleta: AtletaPista; origen: Event }>();
   protected readonly posiciones = POSICIONES;
 }
