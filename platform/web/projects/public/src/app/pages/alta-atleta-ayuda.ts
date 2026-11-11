@@ -16,7 +16,7 @@ const AYUDA = [
   host: { class: 'contents' },
   template: `
     <aside class="flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-6 lg:sticky lg:top-24" aria-label="Resumen y ayuda">
-      <p class="text-ui-h5">Resumen y ayuda</p>
+      <h2 class="text-display-xs italic md:text-display-s">Resumen y ayuda</h2>
       <div class="flex items-start gap-3 rounded-md border border-info/30 bg-info/8 p-4">
         <gr-icon name="zap" [size]="18" class="mt-0.5 shrink-0 text-info" />
         <div class="min-w-0">
