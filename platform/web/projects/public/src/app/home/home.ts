@@ -1,11 +1,15 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { ChangeDetectionStrategy, Component, PendingTasks, RESPONSE_INIT, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import {
+  ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, RESPONSE_INIT, afterNextRender, effect, inject, signal, untracked,
+} from '@angular/core';
 import { GrAlert, fmtLongDate } from '@grcup/ui';
 import { Cms, type HomeCms } from '../core/cms';
-import { COMPETITION_SLUG, Competition } from '../core/competition';
+import { COMPETITION_SLUG, Competition, FalloApi, esLimitado } from '../core/competition';
 import type { Entradas } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
+import { JuegosEnVivo } from '../core/juegos';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 import { NoEncontrada } from '../layout/no-encontrada';
@@ -93,16 +97,22 @@ export class HomePage {
   protected readonly horarios = signal<Horarios | null>(null);
   protected readonly porra = signal<ResumenPorra | null>(null);
   protected readonly fantasy = signal<ResumenFantasy | null>(null);
+  private readonly http = inject(HttpClient);
+  private readonly fallo = inject(FalloApi);
+  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly timers: ReturnType<typeof setTimeout>[] = [];
 
   constructor() {
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
-    const http = inject(HttpClient);
-    const api = (p: string) => `/api/competiciones/${COMPETITION_SLUG}${p}`;
-    const opt = <T,>(p: string) => firstValueFrom(http.get<T>(api(p))).catch(() => null);
+    const opt = <T,>(p: string, set: (v: T) => void) => firstValueFrom(this.http.get<T>(this.api(p))).catch((e: unknown) => {
+      this.reintentar(e, p, set, 0);
+      return null;
+    });
     void inject(PendingTasks).run(() => Promise.all([
-      this.comp.load(), this.cmsApi.home(), opt<SorteoHome>('/sorteo'), opt<Entradas>('/entradas'), opt<Horarios>('/horarios?resumen=true'),
-      opt<ResumenPorra>('/juegos/porra/resumen'), opt<ResumenFantasy>('/juegos/fantasy/resumen'),
-      opt<{ nombre: string; logoUrl: string; url: string }[]>('/patrocinadores?hero=true'),
+      this.comp.load(), this.cmsApi.home(), opt<SorteoHome>('/sorteo', (v) => this.sorteo.set(v)), opt<Entradas>('/entradas', (v) => this.entradas.set(v)),
+      opt<Horarios>('/horarios?resumen=true', (v) => this.horarios.set(v)),
+      opt<ResumenPorra>('/juegos/porra/resumen', (v) => this.porra.set(v)), opt<ResumenFantasy>('/juegos/fantasy/resumen', (v) => this.fantasy.set(v)),
+      opt<{ nombre: string; logoUrl: string; url: string }[]>('/patrocinadores?hero=true', (v) => this.heroPatro.set(v.filter((p) => p.logoUrl))),
     ]).then(([c, h, sorteo, entradas, horarios, porra, fantasy, patro]) => {
       this.porra.set(porra);
       this.fantasy.set(fantasy);
@@ -142,8 +152,63 @@ export class HomePage {
           : undefined,
       });
     }));
+
+    // «Top 3 · en vivo» and the odds (Figma 05-home-juegos): the public SSE of the competition announces bets,
+    // markets, clauses and rankings; the two summaries are fetched again (debounced, and once more after the 10 s
+    // server cache so the last change is never missed).
+    const vivo = inject(JuegosEnVivo);
+    const destroy = inject(DestroyRef);
+    destroy.onDestroy(() => this.timers.forEach(clearTimeout));
+    afterNextRender(() => {
+      vivo.conectar();
+      destroy.onDestroy(() => vivo.desconectar());
+    });
+    let primera = true;
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    let segunda: ReturnType<typeof setTimeout> | undefined;
+    effect(() => {
+      vivo.version();
+      if (primera || !this.browser) {
+        primera = false;
+        return;
+      }
+      untracked(() => {
+        clearTimeout(espera);
+        clearTimeout(segunda);
+        espera = setTimeout(() => this.refrescarJuegos(), 1000);
+        segunda = setTimeout(() => this.refrescarJuegos(), 11500);
+        this.timers.push(espera, segunda);
+      });
+    });
   }
 
+  private api(p: string): string {
+    return `/api/competiciones/${COMPETITION_SLUG}${p}`;
+  }
+
+  /** The live summaries again, skipping the browser's 10 s HTTP cache (the server keeps its own). */
+  private refrescarJuegos(): void {
+    const headers = new HttpHeaders({ 'Cache-Control': 'no-cache' });
+    this.http.get<ResumenPorra>(this.api('/juegos/porra/resumen'), { headers }).subscribe({ next: (v) => this.porra.set(v), error: () => undefined });
+    this.http.get<ResumenFantasy>(this.api('/juegos/fantasy/resumen'), { headers }).subscribe({ next: (v) => this.fantasy.set(v), error: () => undefined });
+  }
+
+  /**
+   * A 429 of the gateway (the visitor's network over its quota) in the browser: show the «too many visits» notice
+   * and try again after its Retry-After (at most three times); the notice goes away when the retry succeeds.
+   */
+  private reintentar<T>(e: unknown, p: string, set: (v: T) => void, intento: number): void {
+    if (!this.browser || !esLimitado(e) || intento >= 3) return;
+    this.fallo.limitado.set(true);
+    const seg = Math.min(120, Math.max(1, Number((e as { headers?: HttpHeaders }).headers?.get('Retry-After')) || 20));
+    this.timers.push(setTimeout(() => this.http.get<T>(this.api(p)).subscribe({
+      next: (v) => {
+        set(v);
+        this.fallo.limitado.set(false);
+      },
+      error: (e2: unknown) => this.reintentar(e2, p, set, intento + 1),
+    }), seg * 1000));
+  }
 }
 
 
