@@ -7,7 +7,6 @@ import (
 	"context"
 	"embed"
 	"io/fs"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/app"
+	"github.com/jaivial/grweb/platform/pkg/bodylimit"
 	"github.com/jaivial/grweb/platform/pkg/cache"
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/config"
@@ -53,13 +53,8 @@ func Service() app.Service {
 	s := &Svc{}
 	return app.Service{
 		Name: "cms", Title: "GR Cup · cms", Migrations: mustMigrations(), NeedsDB: true, NeedsRedis: true, Setup: s.setup,
-		// 1 MiB for every request except media uploads (10 MB files + multipart overhead).
-		BodyLimitFor: func(r *http.Request) int64 {
-			if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, "/api/admin/competiciones/") && (strings.HasSuffix(r.URL.Path, "/medios") || strings.HasSuffix(r.URL.Path, "/web/mapas/imagen")) || r.URL.Path == "/internal/medios") {
-				return maxUpload
-			}
-			return 0
-		},
+		BodyLimitFor: bodylimit.For("cms"),
+
 		Commands: map[string]func(context.Context, *app.App, []string) error{"seed-grcup": s.seedGRCup, "etl-mysql": s.etlMySQL},
 	}
 }
@@ -90,7 +85,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 }
 
 // maxUpload is the request limit of a media upload (10 MB file + multipart overhead).
-const maxUpload = 11 << 20
+const maxUpload = bodylimit.Upload
 
 // cidFor resolves a public slug to the competition id (see compref: 404 for drafts/archived, 503 when competition fails).
 func (s *Svc) cidFor(ctx context.Context, slug string) (uuid.UUID, error) {

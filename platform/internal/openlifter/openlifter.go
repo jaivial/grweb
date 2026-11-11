@@ -25,6 +25,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/app"
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/bodylimit"
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -59,7 +60,7 @@ func Service() app.Service {
 	if err != nil {
 		panic(err)
 	}
-	return app.Service{Name: "openlifter", Title: "GR Cup · openlifter", Migrations: m, NeedsDB: true, NeedsRedis: true, Setup: s.setup, BodyLimit: 4 << 20}
+	return app.Service{Name: "openlifter", Title: "GR Cup · openlifter", Migrations: m, NeedsDB: true, NeedsRedis: true, Setup: s.setup, BodyLimitFor: bodylimit.For("openlifter")}
 }
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {
