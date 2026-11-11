@@ -47,7 +47,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
     @let c = cfg();
     @let v = vista();
     <gr-page title="¡Inscríbete a la" [accent]="tituloComp() + '!'" eyebrow="Inscripción" [centrado]="true" [cabecera]="v === 'formulario' || v === 'cargando'"
-      subtitle="Rellena tus datos y paga tu plaza en un minuto. Te confirmamos por email.">
+      [subtitle]="c?.cuota === 0 ? 'Rellena tus datos y confirma tu plaza en un minuto. Te confirmamos por email.' : 'Rellena tus datos y paga tu plaza en un minuto. Te confirmamos por email.'">
       @if (v === 'cargando') { <gr-skeleton class="h-96 rounded-[18px]" /> }
       @if (v === 'error') {
         <section class="flex flex-col items-center gap-4 pt-2 text-center md:pt-8">
@@ -486,7 +486,7 @@ export class InscripcionPage {
     @let e = estado();
     <gr-page title="Inscripción" [centrado]="true" [cabecera]="false">
       <div class="-mt-4 mx-auto flex w-full max-w-[560px] flex-col gap-5 md:mt-0 md:pt-4">
-        @if (e === undefined || (e?.estado === 'pendiente_pago' && intentos() < 10)) {
+        @if (e === undefined || (e?.estado === 'pendiente_pago' && !esperando())) {
           <div class="flex flex-col items-center gap-3 py-4 text-center" aria-live="polite">
             <span class="size-14 animate-spin rounded-full border-4 border-accent/25 border-t-accent" aria-hidden="true"></span>
             <h1 class="mt-1 text-display-s md:text-display-m">Confirmando el pago…</h1>
@@ -524,17 +524,25 @@ export class InscripcionPage {
             <p class="text-body-m text-text-secondary">No se ha cobrado nada. Si queda una plaza libre, te escribiremos a {{ e.email }} con el enlace de pago.</p>
           </div>
           <a grButton variant="outline" size="l" [block]="true" routerLink="/">Volver al inicio</a>
+        } @else if (e.estado === 'pendiente_pago') {
+          <!-- Reached from the gateway's success URL: the charge went through, only the webhook is late. Never offer to pay again. -->
+          <div class="flex flex-col items-center gap-3 py-4 text-center" aria-live="polite">
+            <span class="flex size-16 items-center justify-center rounded-full border border-warning bg-warning/12 text-warning"><gr-icon name="clock" [size]="30" /></span>
+            <h1 class="mt-1 text-display-s md:text-display-m">Seguimos esperando la confirmación</h1>
+            <p class="text-body-m text-text-secondary">El banco está tardando más de lo normal. No vuelvas a pagar: te llegará un email a {{ e.email }} en cuanto se confirme.</p>
+          </div>
+          <button grButton variant="primary" size="l" [block]="true" (click)="comprobar()">Comprobar de nuevo</button>
         } @else {
           <!-- Figma 06b «Pago rechazado» -->
-          <h1 class="text-center text-display-s md:text-display-m">{{ e.estado === 'pendiente_pago' ? 'Pago pendiente' : 'Pago no completado' }}</h1>
+          <h1 class="text-center text-display-s md:text-display-m">Pago no completado</h1>
           <div class="flex items-start gap-3 rounded-md border border-accent bg-accent/8 p-4 md:items-center" role="alert">
             <gr-icon name="circle-alert" [size]="20" class="shrink-0 text-accent-text" />
             <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center">
-              <p class="flex-1 text-body-s">{{ e.estado === 'pendiente_pago' ? 'Aún no hemos recibido la confirmación del pago. Si has pagado, te llegará un email en unos minutos.' : 'El pago no se ha completado y no se ha cobrado nada.' }}{{ e.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>
+              <p class="flex-1 text-body-s">El pago no se ha completado y no se ha cobrado nada.{{ e.checkoutUrl ? ' Tu plaza sigue reservada unos minutos.' : '' }}</p>
               @if (e.checkoutUrl) { <a [href]="e.checkoutUrl" class="flex h-9 shrink-0 items-center rounded-sm bg-accent/15 px-2.5 text-label-s text-accent-text hover:bg-accent/25">Reintentar el pago</a> }
             </div>
           </div>
-          <a routerLink="/inscripcion" class="self-center py-2 text-label-s text-text-secondary hover:text-text-primary">{{ e.estado === 'pendiente_pago' ? 'Volver a la inscripción' : 'Cambiar los datos' }}</a>
+          <a routerLink="/inscripcion" class="self-center py-2 text-label-s text-text-secondary hover:text-text-primary">Cambiar los datos</a>
         }
       </div>
     </gr-page>
@@ -545,11 +553,14 @@ export class InscripcionEstadoPage {
   protected readonly eur = eur;
   protected readonly catTexto = catTexto;
   protected readonly estado = signal<Estado | null | undefined>(undefined);
-  protected readonly intentos = signal(0);
+  /** Polled for 2 minutes without the webhook: stop and let the athlete check by hand. */
+  protected readonly esperando = signal(false);
   /** A transient error (network, 5xx, 429) while checking: keep polling with backoff instead of «not found». */
   protected readonly aviso = signal(false);
   protected readonly copiado = signal(false);
   private timer?: ReturnType<typeof setTimeout>;
+  private poll?: () => Promise<void>;
+  private desde = 0;
 
   constructor() {
     inject(Seo).set({ title: 'Inscripción · GR Strength Cup', description: 'Confirmación de tu inscripción.', path: '/inscripcion/estado', robots: 'noindex' });
@@ -557,23 +568,27 @@ export class InscripcionEstadoPage {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
     if (!browser) return;
     const id = new URLSearchParams(location.search).get('id');
-    if (!id) {
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       this.estado.set(null);
       return;
     }
     let fallos = 0;
+    let n = 0;
     const poll = async () => {
       try {
-        const e = await firstValueFrom(this.http.get<Estado>(`${base}/${id}`));
+        const e = await firstValueFrom(this.http.get<Estado>(`${base}/${encodeURIComponent(id)}`));
         fallos = 0;
         this.aviso.set(false);
         this.estado.set(e);
-        if (e.estado === 'pendiente_pago' && this.intentos() < 10) {
-          this.intentos.update((n) => n + 1);
-          this.timer = setTimeout(poll, 2000);
+        if (e.estado === 'pendiente_pago') {
+          if (Date.now() - this.desde >= 120_000) {
+            this.esperando.set(true);
+            return;
+          }
+          this.timer = setTimeout(poll, Math.min(2000 * 1.5 ** n++, 15000));
         }
       } catch (err) {
-        if (err instanceof HttpErrorResponse && err.status === 404) {
+        if (err instanceof HttpErrorResponse && [400, 404, 422].includes(err.status)) {
           this.estado.set(null);
           return;
         }
@@ -581,7 +596,18 @@ export class InscripcionEstadoPage {
         this.timer = setTimeout(poll, Math.min(2000 * 2 ** fallos++, 30000));
       }
     };
-    void poll();
+    this.poll = async () => {
+      n = 0;
+      this.desde = Date.now();
+      return poll();
+    };
+    void this.poll();
+  }
+
+  protected comprobar(): void {
+    clearTimeout(this.timer);
+    this.esperando.set(false);
+    void this.poll?.();
   }
 
   protected async copiar(code: string): Promise<void> {
@@ -591,7 +617,7 @@ export class InscripcionEstadoPage {
   }
 }
 
-interface SesionSim { id: string; descripcion: string; importe: number; email: string; estado: string; cancelUrl: string; pruebas: boolean; tarjetas: [string, string][]; lineas?: { concepto: string; importe: number }[] }
+interface SesionSim { id: string; descripcion: string; importe: number; email: string; estado: string; cancelUrl: string; successUrl?: string; pruebas: boolean; tarjetas: [string, string][]; lineas?: { concepto: string; importe: number }[] }
 
 /** /pago/simulado?s=<service>:<session> — test gateway that imitates Stripe Checkout (Figma 06b). */
 @Component({
@@ -605,6 +631,10 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
     @if (s === undefined) { <div class="mx-auto max-w-md p-8"><gr-skeleton class="h-80 rounded-lg" /></div> }
     @else if (s === null || s.estado === 'caducada') {
       <div class="mx-auto max-w-md p-8"><gr-alert tone="warning" title="Este pago ha caducado">Vuelve a la web y empieza de nuevo la inscripción.</gr-alert><a grButton class="mt-4" routerLink="/inscripcion">Volver a la inscripción</a></div>
+    } @else if (s.estado === 'paid') {
+      <div class="mx-auto max-w-md p-8"><gr-alert tone="success" title="Pago completado">Este pago ya está hecho; no se cobrará otra vez.</gr-alert>
+        @if (s.successUrl) { <a grButton variant="primary" class="mt-4" [href]="s.successUrl">Ver el estado de mi inscripción</a> } @else { <a grButton class="mt-4" routerLink="/">Volver al inicio</a> }
+      </div>
     } @else {
       <!-- Figma 06b «Pasarela simulada»: summary half (surface) and payment half, 420 px columns -->
       <div class="grid md:min-h-[calc(100vh-36px)] md:grid-cols-2">
