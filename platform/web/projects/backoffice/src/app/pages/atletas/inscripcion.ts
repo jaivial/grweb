@@ -41,8 +41,8 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
       <bo-page-header title="Inscripción" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas', 'Inscripción']">
         @if (tab() === 'config') { <a actions grButton icon="external-link" [href]="web + '/inscripcion'" target="_blank" rel="noopener">Ver /inscripcion</a> }
         @if (tab() === 'config' && (canEdit() || canEditAep())) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
-        @if (tab() === 'cupones' && canEdit()) { <button actions grButton variant="primary" icon="plus" (click)="editarCupon(null)">Nuevo cupón</button> }
-        @if (tab() === 'referidos' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
+        @if (tab() === 'cupones' && canEdit() && !soloLectura()) { <button actions grButton variant="primary" icon="plus" (click)="editarCupon(null)">Nuevo cupón</button> }
+        @if (tab() === 'referidos' && canEdit() && !soloLectura()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
       </bo-page-header>
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" role="tablist" aria-label="Inscripción">
         @for (t of tabs; track t.key) {
@@ -151,7 +151,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                     }
                   } @else {
                     <p class="font-display text-[26px] uppercase italic">¡Inscríbete!</p>
-                    <p class="-mt-2 text-body-xs text-text-secondary">{{ euros(c.cuota) }}{{ plazas() ? ' · ' + plazas() + ' plazas' : '' }}{{ c.cierra ? (cerrada(c.cierra) ? ' · cerrada' : ' · cierra el ' + fecha(c.cierra).slice(0, 5)) : '' }}</p>
+                    <p class="-mt-2 text-body-xs text-text-secondary">{{ euros(c.cuota) }}{{ plazas() ? ' · ' + plazas() + ' plazas' : '' }}{{ c.cierra ? (cerrada(c.cierra) ? ' · cerrada' : ' · cierra el ' + fecha(c.cierra)) : '' }}</p>
                     @for (f of ['Nombre y apellidos', 'Email', 'Categoría de peso']; track f) { <span class="flex h-9 items-center rounded-sm border border-line-subtle px-2.5 text-body-xs text-text-tertiary">{{ f }}</span> }
                     @let cp = cuponEjemplo();
                     @if (c.cupones && cp) {
@@ -181,11 +181,12 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
             </div>
           }
           @if (l?.length) {
-            <div class="flex flex-wrap items-center gap-2 lg:flex-nowrap">
-              <label class="relative w-full md:w-[280px] md:shrink-0"><span class="sr-only">Buscar código</span><gr-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" /><input grInput class="pl-9" placeholder="Buscar código…" [ngModel]="qCupon()" (ngModelChange)="qCupon.set($event)" /></label>
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="relative w-full md:w-[240px] md:shrink-0"><span class="sr-only">Buscar código</span><gr-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" /><input grInput class="pl-9" placeholder="Buscar código…" [ngModel]="qCupon()" (ngModelChange)="qCupon.set($event)" /></label>
               <gr-select tipo="filtro" class="shrink-0" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
               <gr-select tipo="filtro" class="shrink-0" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
               <gr-select tipo="filtro" class="shrink-0" aria-label="Caducidad" [ngModel]="fCaduca()" (ngModelChange)="fCaduca.set($event)"><option value="">Caducidad</option><option value="con">Con fecha</option><option value="sin">Sin fecha</option><option value="caducado">Caducados</option></gr-select>
+              <gr-select tipo="filtro" class="shrink-0" aria-label="Uso" [ngModel]="fUso()" (ngModelChange)="fUso.set($event)"><option value="">Uso</option><option value="sin">Sin usos</option><option value="con">Con usos</option><option value="agotado">Agotados</option></gr-select>
               <span class="ml-auto whitespace-nowrap text-body-xs text-text-tertiary">{{ cuponesFiltrados().length }} de {{ l.length }} cupones</span>
               <button grButton size="s" icon="download" (click)="exportarCupones()">Exportar</button>
             </div>
@@ -212,7 +213,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                 @for (cp of cuponesFiltrados(); track cp.id) {
                   <li class="rounded-lg border border-line-subtle bg-bg-card"><button type="button" class="flex w-full flex-col gap-2 p-4 text-left focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" (click)="editarCupon(cp)">
                     <span class="flex items-center justify-between"><span class="text-mono-s">{{ cp.codigo }}</span><gr-badge [tone]="estadoCupon[cp.estado]">{{ cp.estado | titlecase }}</gr-badge></span>
-                    <span class="text-body-m text-text-secondary">{{ desc(cp.tipo, cp.valor) }}{{ cp.caduca ? (cp.estado === 'caducado' || cp.estado === 'agotado' ? ' · caducó ' : ' · caduca ') + fecha(cp.caduca).slice(0, 5) : ' · sin caducidad' }}</span>
+                    <span class="text-body-m text-text-secondary">{{ desc(cp.tipo, cp.valor) }}{{ cp.caduca ? (cp.estado === 'caducado' || cp.estado === 'agotado' ? ' · caducó ' : ' · caduca ') + fecha(cp.caduca) : ' · sin caducidad' }}</span>
                     <span class="text-body-xs text-text-tertiary">{{ cp.usos }} / {{ cp.limite ?? 'sin límite' }} usos</span>
                   </button></li>
                 }
@@ -298,11 +299,11 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
             <section class="rounded-lg border border-line-subtle bg-bg-card">
               @if (!p.items.length) { <gr-empty class="py-10" icon="ticket" title="Aún no hay pagos" text="Las inscripciones desde /inscripcion aparecerán aquí." /> }
               @else {
-                <header class="hidden border-b border-line-subtle px-4 py-3 text-mono-xs uppercase tracking-wide text-text-tertiary md:flex md:gap-3"><span class="w-28">Fecha</span><span class="w-[258px]">Atleta</span><span class="hidden flex-1 lg:block">Concepto</span><span class="w-24 text-right">Importe</span><span class="w-36">Estado</span><span class="hidden w-28 lg:block">Referencia</span><span class="w-4"></span></header>
+                <header class="hidden border-b border-line-subtle px-4 py-3 text-mono-xs uppercase tracking-wide text-text-tertiary md:flex md:gap-3"><span class="w-32">Fecha</span><span class="w-[258px]">Atleta</span><span class="hidden flex-1 lg:block">Concepto</span><span class="w-24 text-right">Importe</span><span class="w-36">Estado</span><span class="hidden w-28 lg:block">Referencia</span><span class="w-4"></span></header>
                 <ul>
                   @for (x of p.items; track x.id) {
                     <li class="border-b border-line-subtle last:border-0"><button type="button" aria-haspopup="dialog" class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left hover:bg-bg-raised/60 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_rgb(230_96_107/0.9)]" (click)="abrirPago(x)">
-                      <span class="hidden w-28 text-mono-xs md:block">{{ fechaHora(x.fecha) }}</span>
+                      <span class="hidden w-32 text-mono-xs md:block">{{ fechaHora(x.fecha) }}</span>
                       <span class="flex min-w-0 flex-1 items-center gap-2.5 md:w-[258px] md:flex-none"><gr-avatar class="hidden md:flex" [name]="x.atleta" /><span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary"><span class="lg:hidden">{{ concepto(x) }}</span><span class="hidden lg:inline">{{ x.email }}</span></span></span></span>
                       <span class="hidden min-w-0 flex-1 truncate text-body-s lg:block">{{ concepto(x) }}</span>
                       <span class="shrink-0 text-right text-mono-s md:w-24">{{ euros(x.total) }}</span>
@@ -337,9 +338,9 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
         @if (cupon.usos) { <p class="text-body-xs text-text-tertiary">Ya tiene {{ cupon.usos }} usos: el descuento no se puede cambiar.</p> }
       </div>
       <ng-container drawerActions>
-        @if (cupon.id && !cupon.usos) { <button grButton variant="danger" class="mr-auto" (click)="borrarCupon()">Borrar</button> }
+        @if (cupon.id && !cupon.usos && !soloLectura()) { <button grButton variant="danger" class="mr-auto" (click)="borrarCupon()">Borrar</button> }
         <button grButton variant="ghost" (click)="cuponOpen.set(false)">Cancelar</button>
-        <button grButton variant="primary" [loading]="guardando()" (click)="guardarCupon()">{{ cupon.id ? 'Guardar' : 'Crear cupón' }}</button>
+        @if (!soloLectura()) { <button grButton variant="primary" [loading]="guardando()" (click)="guardarCupon()">{{ cupon.id ? 'Guardar' : 'Crear cupón' }}</button> }
       </ng-container>
     </bo-drawer>
 
@@ -482,6 +483,9 @@ export class InscripcionPage {
   protected codigoNorm(): string { return this.cupon.codigo.normalize('NFD').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
   protected cerrada(iso: string): boolean { return new Date(iso).getTime() < Date.now(); }
   protected readonly fCaduca = signal('');
+  protected readonly fUso = signal('');
+  /** AEP mode: the coupons and referrals stay visible but are read-only. */
+  protected readonly soloLectura = computed(() => this.modoGuardado() !== 'propia');
   protected exportarCupones(): void {
     const rows = [['codigo', 'tipo', 'valor', 'usos', 'limite', 'caduca', 'ahorro', 'estado'], ...this.cuponesFiltrados().map((c) => [c.codigo, c.tipo, c.tipo === 'porcentaje' ? c.valor : c.valor / 100, c.usos, c.limite ?? '', c.caduca ?? '', c.ahorro / 100, c.estado])];
     const a = document.createElement('a');
@@ -494,9 +498,10 @@ export class InscripcionPage {
   protected readonly fEstado = signal('');
   protected readonly fTipo = signal('');
   protected readonly cuponesFiltrados = computed(() => {
-    const q = this.qCupon().trim().toUpperCase(), e = this.fEstado(), t = this.fTipo(), k = this.fCaduca();
+    const q = this.qCupon().trim().toUpperCase(), e = this.fEstado(), t = this.fTipo(), k = this.fCaduca(), u = this.fUso();
     return (this.cupones() ?? []).filter((c) => (!q || c.codigo.includes(q)) && (!e || c.estado === e) && (!t || c.tipo === t)
-      && (!k || (k === 'con' ? !!c.caduca : k === 'sin' ? !c.caduca : c.estado === 'caducado')));
+      && (!k || (k === 'con' ? !!c.caduca : k === 'sin' ? !c.caduca : c.estado === 'caducado'))
+      && (!u || (u === 'sin' ? !c.usos : u === 'con' ? c.usos > 0 : c.estado === 'agotado')));
   });
   protected readonly activos = computed(() => (this.cupones() ?? []).filter((c) => c.estado === 'activo').length);
   protected readonly usosTotales = computed(() => (this.cupones() ?? []).reduce((a, c) => a + c.usos, 0));
@@ -719,7 +724,7 @@ export class InscripcionPage {
     return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso));
   }
   protected fechaHora(iso: string): string {
-    return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso));
+    return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso));
   }
   protected local(iso?: string): string {
     if (!iso) return '';
