@@ -52,7 +52,11 @@ export interface SolicitudLista {
   contadores: Contadores;
   kpis?: Kpis;
 }
-
+export interface CuposOut {
+  cupos: CupoPrueba[];
+  /** Places of the whole event (0 = no limit): approving fails with 409 when they are full. */
+  global?: { plazas: number; ocupadas: number };
+}
 export interface Diferencia {
   /** Technical name of the field (nombre, apellidos, email…) — the panel keys on it. */
   clave: string;
@@ -144,11 +148,18 @@ export class SolicitudesApi {
   detalle(cid: string, id: string): Promise<SolicitudDetalle> {
     return firstValueFrom(this.http.get<SolicitudDetalle>(`${this.base(cid)}/${id}`));
   }
-  cupos(cid: string): Promise<{ cupos: CupoPrueba[] }> {
-    return firstValueFrom(this.http.get<{ cupos: CupoPrueba[] }>(`${this.base(cid)}/cupos`));
+  cupos(cid: string): Promise<CuposOut> {
+    return firstValueFrom(this.http.get<CuposOut>(`${this.base(cid)}/cupos`));
   }
-  guardarCupos(cid: string, cupos: Record<string, number>): Promise<{ cupos: CupoPrueba[] }> {
-    return firstValueFrom(this.http.put<{ cupos: CupoPrueba[] }>(`${this.base(cid)}/cupos`, { cupos }));
+  guardarCupos(cid: string, cupos: Record<string, number>): Promise<CuposOut> {
+    return firstValueFrom(this.http.put<CuposOut>(`${this.base(cid)}/cupos`, { cupos }));
+  }
+  /** Global places of the event live in the competition (Inscripción › Plazas): the PUT replaces the whole block. */
+  async guardarPlazas(cid: string, plazas: number): Promise<void> {
+    const base = `/api/admin/competiciones/${cid}`;
+    const comp = await firstValueFrom(this.http.get<{ version: number; inscripcion?: Record<string, unknown> }>(base));
+    await firstValueFrom(this.http.put(`${base}/inscripcion`, { ...(comp.inscripcion ?? {}), plazas },
+      { headers: new HttpHeaders({ 'If-Match': `W/"${comp.version}"` }) }));
   }
   /** Private photo (the session travels in the header, so it comes as a blob). */
   foto(cid: string, id: string): Promise<Blob> {
