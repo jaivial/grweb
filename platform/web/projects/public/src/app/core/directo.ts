@@ -22,7 +22,7 @@ export interface Directo {
   proximo?: { titulo: string; inicio: string }; resultadosPublicados: boolean;
 }
 export interface ResultadosPublicos {
-  competicion: { slug: string; nombre: string; fechaInicio?: string; fechaFin?: string; sede: string; estado: string };
+  competicion: { slug: string; nombre: string; fechaInicio?: string; fechaFin?: string; sede: string; estado: string; actaUrl?: string };
   publicado: boolean; ejemplo: boolean; actualizado?: string; categorias: Categoria[]; mejores: Partial<Record<'F' | 'M', Fila>>;
 }
 export interface Pantalla { directo: Directo; pantalla: { siguientes: boolean; carrusel: boolean; qr: boolean }; nombre: string }
