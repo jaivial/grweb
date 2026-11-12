@@ -24,7 +24,9 @@ import { Community, Related, type RelatedLink } from './landings';
         <!-- Figma «Anchor chips» (mobile) -->
         <nav class="sticky top-[76px] z-20 -mx-5 -mt-4 mb-6 flex gap-2 overflow-x-auto border-b border-line-subtle bg-bg-base/95 px-5 py-3 backdrop-blur [scrollbar-width:none] md:hidden" aria-label="Secciones">
           @for (s of anclas; track s.id) {
+            @if (s.id !== 'aparcamiento' || practica().length) {
             <a routerLink="." [fragment]="s.id" class="flex h-9 shrink-0 items-center rounded-full border px-4 text-label-s" [class]="activa() === s.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ s.t }}</a>
+            }
           }
         </nav>
         <div class="flex flex-col gap-12 md:gap-20">
@@ -80,6 +82,7 @@ import { Community, Related, type RelatedLink } from './landings';
             </section>
           }
 
+          @if (practica().length) {
           <!-- 03 · Aparcamiento y accesibilidad -->
           <section id="aparcamiento" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
             <gr-cabecera eyebrow="Información práctica" titulo="Aparcamiento *y accesibilidad*" [centro]="false" tam="m" />
@@ -97,6 +100,7 @@ import { Community, Related, type RelatedLink } from './landings';
               }
             </div>
           </section>
+          }
 
           <!-- 04 · Fotos del pabellón -->
           <section id="fotos" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
@@ -169,10 +173,7 @@ export class ComoLlegarPage {
   });
   protected readonly transporte = computed(() => (this.comp()?.comoLlegar ?? []).filter((t) => !PRACTICA.includes(t.tipo)));
   protected readonly practica = computed(() => {
-    const l = (this.comp()?.comoLlegar ?? []).filter((t) => PRACTICA.includes(t.tipo));
-    if (!l.some((t) => t.tipo === 'parking')) l.unshift({ tipo: 'parking', titulo: 'Aparcamiento', detalle: 'Te confirmaremos dónde aparcar cerca del pabellón.', estado: 'por_confirmar' });
-    if (!l.some((t) => t.tipo === 'accesibilidad')) l.push({ tipo: 'accesibilidad', titulo: 'Accesibilidad', detalle: 'Te confirmaremos los accesos y las zonas para personas con movilidad reducida.', estado: 'por_confirmar' });
-    return l;
+    return (this.comp()?.comoLlegar ?? []).filter((t) => PRACTICA.includes(t.tipo));
   });
   constructor() {
     const competition = inject(Competition);
