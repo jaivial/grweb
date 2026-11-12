@@ -32,7 +32,7 @@ export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, 
         <header class="flex flex-col items-start gap-3 lg:col-start-2">
           <p class="inline-flex h-[22px] items-center rounded-full bg-accent/12 px-2.5 text-label-xs text-accent-text uppercase">Legal</p>
           <h1 class="text-ui-h2 md:text-ui-h1">{{ d?.titulo ?? titulo() }}</h1>
-          @if (d) { <p class="text-mono-s text-text-muted">Última actualización: {{ fecha(d.publicadoAt) }} · versión {{ d.version }}</p> }
+          @if (d) { <p class="text-mono-s text-text-muted">Última actualización: {{ fechaMes(d.publicadoAt) }} · versión {{ d.version }}</p> }
         </header>
         @if (d === undefined) {
           <gr-skeleton class="h-96 rounded-lg lg:col-start-2" />
@@ -69,6 +69,8 @@ export class LegalPage {
   /** Highlighted entry: the section on screen, else the first one (QA U18-R1-3: none was active on load at 1440). */
   protected readonly actual = computed(() => this.activo() || this.toc()[0]?.id);
   protected fecha = fmtLongDate;
+  /** Figma 12–15 write the month capitalized: «1 de Abril de 2026». */
+  protected fechaMes = (iso: string | null | undefined) => this.fecha(iso).replace(/ de (\p{Ll})/u, (_, m: string) => ' de ' + m.toUpperCase());
   constructor() {
     const seo = inject(Seo);
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
