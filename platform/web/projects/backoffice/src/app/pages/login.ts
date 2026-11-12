@@ -51,7 +51,11 @@ export class AccessLayout {}
           <!-- Figma 51 «Acceso · estados» · enlace enviado (202) -->
           <p class="mt-6 text-body-s text-text-secondary">Hemos enviado un enlace de acceso a <strong class="text-text-primary">{{ email }}</strong>. Caduca en 15 minutos y solo sirve una vez.</p>
           <div class="mt-6 flex flex-col gap-3">
-            <a grButton variant="primary" [block]="true" icon="mail" href="https://mail.google.com/" target="_blank" rel="noopener">Abrir Gmail</a>
+            @if (esGmail()) {
+              <a grButton variant="primary" [block]="true" icon="mail" href="https://mail.google.com/" target="_blank" rel="noopener">Abrir Gmail</a>
+            } @else {
+              <a grButton variant="primary" [block]="true" icon="mail" href="mailto:">Abrir mi correo</a>
+            }
             <button grButton variant="ghost" type="button" [block]="true" [disabled]="espera() > 0" [loading]="busy()" (click)="submit()">¿No llega? {{ espera() > 0 ? 'Reenviar en ' + mmss(espera()) : 'Reenviar enlace' }}</button>
           </div>
         } @else {
@@ -93,6 +97,9 @@ export class LoginPage {
   readonly siguiente = input<string>('');
   readonly error_ = input<string>('', { alias: 'error' });
   protected email = '';
+  protected esGmail(): boolean {
+    return /@(gmail|googlemail)\.com$/i.test(this.email.trim());
+  }
   protected password = '';
   protected recordar = true;
   protected readonly mode = signal<'password' | 'magic'>('password');

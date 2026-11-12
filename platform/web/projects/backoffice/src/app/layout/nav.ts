@@ -23,6 +23,11 @@ export const NAV: NavGroup[] = [
       { label: 'Inicio', path: 'inicio', icon: 'home', mobileTab: true },
       { label: 'Directo', path: 'directo', icon: 'radio', perm: 'directo.operar', mobileTab: true },
       { label: 'Check-in y taquilla', path: 'checkin', icon: 'scan', perm: 'checkin.escanear', mobileTab: true },
+      // extras not in Figma 47, placed in their group after the Figma items (live operations)
+      { label: 'Chat', path: 'chat', icon: 'message', perm: 'directo.operar' },
+      { label: 'Juegos', path: 'juegos', icon: 'zap', perm: 'directo.operar' },
+      { label: 'Premios', path: 'premios', icon: 'star', perm: 'directo.operar' },
+      { label: 'Fans', path: 'fans', icon: 'sparkles', perm: 'directo.operar' },
     ],
   },
   {
@@ -33,17 +38,7 @@ export const NAV: NavGroup[] = [
       { label: 'Atletas', path: 'atletas', icon: 'user', perm: 'atletas.editar', contador: 'solicitudes' },
       { label: 'Horarios y flights', path: 'horarios', icon: 'clock', perm: 'horarios.publicar' },
       { label: 'Resultados', path: 'resultados', icon: 'award', perm: 'resultados.publicar' },
-    ],
-  },
-  {
-    label: 'Directo social',
-    items: [
-      { label: 'Chat', path: 'chat', icon: 'send', perm: 'directo.operar' },
-      { label: 'Patrocinio', path: 'patrocinio', icon: 'layout', perm: 'web.editar' },
-      { label: 'Juegos', path: 'juegos', icon: 'trophy', perm: 'directo.operar' },
-      { label: 'Donaciones', path: 'donaciones', icon: 'heart', perm: 'sorteo.gestionar' },
-      { label: 'Premios', path: 'premios', icon: 'gift', perm: 'directo.operar' },
-      { label: 'Fans', path: 'fans', icon: 'users', perm: 'directo.operar' },
+      { label: 'Patrocinio', path: 'patrocinio', icon: 'image', perm: 'web.editar' },
     ],
   },
   {
@@ -52,10 +47,11 @@ export const NAV: NavGroup[] = [
       { label: 'Entradas y aforo', path: 'entradas', icon: 'ticket', perm: 'entradas.gestionar', mobileTab: true },
       { label: 'Sorteo', path: 'sorteo', icon: 'gift', perm: 'sorteo.gestionar' },
       { label: 'Contactos', path: 'contactos', icon: 'users', perm: 'contactos.ver' },
-      { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar' },
-      { label: 'Voluntarios', path: 'voluntarios', icon: 'heart', perm: 'web.editar' },
       { label: 'Campañas', path: 'campanas', icon: 'send', perm: 'campanas.enviar' },
       { label: 'Emails y avisos', path: 'emails', icon: 'mail', perm: 'campanas.enviar' },
+      { label: 'Donaciones', path: 'donaciones', icon: 'heart', perm: 'sorteo.gestionar' },
+      { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar' },
+      { label: 'Voluntarios', path: 'voluntarios', icon: 'user-plus', perm: 'web.editar' },
     ],
   },
   {
