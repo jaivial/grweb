@@ -259,6 +259,7 @@ export class AtletasPage {
   protected readonly filtrado = computed(() => !!(this.q() || this.sexo() || this.categoria() || this.flight() || this.incompletos()));
   protected limpiar(): void {
     this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.flight.set(''); this.incompletos.set(false);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { q: null }, queryParamsHandling: 'merge', replaceUrl: true });
     this.recargar(1);
   }
   protected readonly pagina = signal(1);
