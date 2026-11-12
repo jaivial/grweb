@@ -10,6 +10,9 @@ import { Competitions } from '../core/competitions';
 import { BoCollection, type CollectionConfig } from '../shared/collection';
 import { BoSchemaForm, type FieldDef } from '../shared/schema-form';
 import { BoDrawer, BoPageHeader, BoTabs, BoToggle, Confirm, errText } from '../shared/ui';
+import { WebHeroEditor } from './web-hero';
+import { WebSponsorsTab } from './web-sponsors';
+import { WebSeoExtra } from './web-seo';
 
 /** Static routes of the public app (projects/public/src/app/app.routes.ts); a redirect from one of them hides that page. */
 const RUTAS_PUBLICAS = new Set(['/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos',
@@ -34,6 +37,8 @@ export interface Seccion {
   estado: 'publicada' | 'cambios' | 'sin_publicar';
   /** Draft revision: sent as If-Match so two editors do not overwrite each other. */
   rev: number;
+  /** «Programar»: publication scheduled at this time. */
+  programadaAt?: string;
   campos: FieldDef[];
 }
 
@@ -71,11 +76,17 @@ export class WebSections {
     }
     const n = ++this.seq;
     const list = await firstValueFrom(this.http.get<Seccion[]>(`/api/admin/competiciones/${cid}/web/secciones`, { params: { pagina } }));
-    if (n === this.seq) this.items.set(list); // a later load (another page) wins: never show a stale page
+    if (n === this.seq) this.items.set(list.map(campos)); // a later load (another page) wins: never show a stale page
   }
   async save(id: string, body: { borrador?: unknown; visible?: boolean }, rev?: number): Promise<Seccion> {
     const headers = rev ? { 'If-Match': `W/"${rev}"` } : undefined;
-    const s = await firstValueFrom(this.http.put<Seccion>(`/api/admin/competiciones/${this.cid}/web/secciones/${id}`, body, { headers }));
+    const s = campos(await firstValueFrom(this.http.put<Seccion>(`/api/admin/competiciones/${this.cid}/web/secciones/${id}`, body, { headers })));
+    this.items.update((l) => (l ?? []).map((x) => (x.id === id ? s : x)));
+    return s;
+  }
+  /** «Descartar borrador»: back to the published content, schedule cancelled. */
+  async discard(id: string): Promise<Seccion> {
+    const s = campos(await firstValueFrom(this.http.post<Seccion>(`/api/admin/competiciones/${this.cid}/web/secciones/${id}/descartar`, {})));
     this.items.update((l) => (l ?? []).map((x) => (x.id === id ? s : x)));
     return s;
   }
@@ -88,11 +99,18 @@ export class WebSections {
       await this.load(this.cid); // order is part of the draft: refresh the «cambios» badges (or undo on error)
     }
   }
-  async publish(claves: string[] = []): Promise<string[]> {
-    const r = await firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${this.cid}/web/publicar`, { pagina: this.pagina(), claves }));
+  /** Publishes now, or at programadaAt («Programar»). */
+  async publish(claves: string[] = [], programadaAt?: string): Promise<string[]> {
+    const r = await firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${this.cid}/web/publicar`, { pagina: this.pagina(), claves, programadaAt }));
     await this.load(this.cid);
     return r.publicadas;
   }
+}
+
+/** The API sends select options as plain values; the form wants { value, label }. */
+function campos(s: Seccion): Seccion {
+  const fix = (l: FieldDef[]): FieldDef[] => l.map((c) => ({ ...c, opciones: c.opciones?.map((o) => (typeof o === 'object' ? o : { value: o, label: o })), campos: c.campos && fix(c.campos) }));
+  return { ...s, campos: fix(s.campos ?? []) };
 }
 
 /** «Web y contenidos» (Figma page 54): header, publish action and tabs. */
@@ -133,7 +151,8 @@ export class WebPage {
     return [
       { label: 'Home y landings', path: 'home' },
       { label: 'FAQ', path: 'faq', count: n['faq'] },
-      { label: 'Patrocinadores y clubs', path: 'patrocinadores', count: n['patrocinadores'] },
+      { label: 'Patrocinadores', path: 'patrocinadores', count: n['patrocinadores'] },
+      { label: 'Clubs', path: 'clubs', count: n['clubs'] },
       { label: 'Páginas y SEO', path: 'seo', count: n['seo'] },
       { label: 'Blog y galería', path: 'blog' },
       { label: 'Mapas de acceso', path: 'mapas' },
@@ -153,7 +172,7 @@ export class WebPage {
   }
 
   private async loadCounts(cid: string): Promise<void> {
-    const paths = { faq: '/web/faq', patrocinadores: '/web/patrocinadores', seo: '/web/seo', voluntarios: '/voluntarios' };
+    const paths = { faq: '/web/faq', patrocinadores: '/web/patrocinadores', clubs: '/web/clubs', seo: '/web/seo', voluntarios: '/voluntarios' };
     const res = await Promise.allSettled(Object.values(paths).map((p) => firstValueFrom(this.http.get<unknown[]>(`/api/admin/competiciones/${cid}${p}`))));
     this.counts.set(Object.fromEntries(Object.keys(paths).map((k, i) => { const r = res[i]; return [k, r.status === 'fulfilled' && Array.isArray(r.value) ? r.value.length : null]; })));
   }
@@ -178,9 +197,12 @@ export class WebPage {
 /** Figma «Web · home» + «Web · editar hero». */
 @Component({
   selector: 'bo-web-home',
-  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrBadge, GrButton, GrIcon, GrSkeleton, GrAlert, BoToggle, BoDrawer, BoSchemaForm],
+  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrBadge, GrButton, GrIcon, GrSkeleton, GrAlert, BoToggle, BoDrawer, BoSchemaForm, WebHeroEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    @if (heroSec(); as h) {
+      <bo-web-hero [seccion]="h" (closed)="heroId.set('')" />
+    } @else {
     <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
     <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card">
       <header class="px-5 pt-5 pb-3 md:px-6 md:pt-6">
@@ -239,6 +261,7 @@ export class WebPage {
       </div>
     </aside>
     </div>
+    }
 
     <bo-drawer [(open)]="drawer" [title]="current()?.nombre ?? ''" [badge]="current() && current()!.estado !== 'publicada' ? estado[current()!.estado].label : ''">
       @if (error()) {
@@ -279,13 +302,16 @@ export class WebHomeTab {
     const b = s.borrador ?? {};
     const t = (k: string) => (typeof b[k] === 'string' ? (b[k] as string) : '');
     const cta = b['cta'] as { texto?: string } | undefined;
-    return { antetitulo: t('antetitulo') || t('nivel'), titulo: t('titulo'), subtitulo: t('subtitulo') || t('fecha'), cta: cta?.texto || t('ctaTexto') || t('cta') || 'Reserva tu entrada gratis' };
+    return { antetitulo: t('eyebrow') || t('antetitulo'), titulo: t('titulo'), subtitulo: t('subtitulo') || t('fecha'), cta: cta?.texto || t('ctaTexto') || t('cta') || 'Reserva tu entrada gratis' };
   });
   protected readonly resto = computed(() => (this.secs.items() ?? []).filter((x) => x.visible).slice(1, 4));
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'web.editar'));
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
 
   protected readonly conflict = signal(false);
+  /** Figma 54 «Web · editar hero»: the home hero opens its own editor instead of the drawer. */
+  protected readonly heroId = signal('');
+  protected readonly heroSec = computed(() => (this.heroId() ? (this.secs.items() ?? []).find((s) => s.id === this.heroId()) ?? null : null));
   protected readonly paginas = PAGINAS;
   protected readonly paginaLabel = computed(() => ({ home: 'la home', publico: '/publico', en: '/en (inglés)' })[this.secs.pagina()]);
 
@@ -295,6 +321,10 @@ export class WebHomeTab {
   }
 
   protected open(s: Seccion): void {
+    if (s.clave === 'hero' && this.secs.pagina() === 'home') {
+      this.heroId.set(s.id);
+      return;
+    }
     this.current.set(s);
     this.draft.set(structuredClone(s.borrador ?? {}));
     this.error.set('');
@@ -358,6 +388,9 @@ interface LegalVersion {
   contenido: string;
   publicadoAt?: string;
   createdAt: string;
+  /** Acceptances recorded under this version (cms forms). */
+  aceptaciones: number;
+  pedirAceptacion: boolean;
 }
 interface LegalGroup {
   tipo: string;
@@ -367,12 +400,50 @@ interface LegalGroup {
   versiones: LegalVersion[];
 }
 
-/** Figma «Web · textos legales»: versioned, immutable once published. */
+type Linea = { tipo: 'igual' | 'mas' | 'menos'; texto: string };
+/** Line diff (LCS) of two texts, ignoring blank lines: Figma «Cambios vX → vY». */
+function diffLineas(a: string, b: string): Linea[] {
+  const x = a.split('\n').map((l) => l.trim()).filter(Boolean);
+  const y = b.split('\n').map((l) => l.trim()).filter(Boolean);
+  const m = Array.from({ length: x.length + 1 }, () => new Array<number>(y.length + 1).fill(0));
+  for (let i = x.length - 1; i >= 0; i--) for (let j = y.length - 1; j >= 0; j--) m[i][j] = x[i] === y[j] ? m[i + 1][j + 1] + 1 : Math.max(m[i + 1][j], m[i][j + 1]);
+  const out: Linea[] = [];
+  let i = 0, j = 0;
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { out.push({ tipo: 'igual', texto: x[i] }); i++; j++; }
+    else if (m[i + 1][j] >= m[i][j + 1]) out.push({ tipo: 'menos', texto: x[i++] });
+    else out.push({ tipo: 'mas', texto: y[j++] });
+  }
+  while (i < x.length) out.push({ tipo: 'menos', texto: x[i++] });
+  while (j < y.length) out.push({ tipo: 'mas', texto: y[j++] });
+  return out;
+}
+
+/** Figma «Web · textos legales»: versioned, immutable once published; changes vX → vY and «Pedir nueva aceptación» on publish. */
 @Component({
   selector: 'bo-web-legal',
-  imports: [GrBadge, GrButton, GrSkeleton, GrAlert, GrEmpty, BoDrawer, BoSchemaForm],
+  imports: [GrBadge, GrButton, GrSkeleton, GrAlert, GrEmpty, BoDrawer, BoSchemaForm, BoToggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': 'pub.set(null)' },
   template: `
+    @if (cmp(); as c) {
+      <section class="mb-4 rounded-lg border border-line-subtle bg-bg-card p-5" aria-live="polite">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-ui-h5">Cambios {{ ver(c.de.version) }} → {{ ver(c.a.version) }}</h2>
+            <p class="mt-0.5 text-body-xs text-text-tertiary">{{ c.g.nombre }} · {{ c.cambios }} {{ c.cambios === 1 ? 'párrafo modificado' : 'párrafos modificados' }}{{ c.cambios ? ' · se requiere nueva aceptación' : '' }}</p>
+          </div>
+          <button grButton size="s" variant="ghost" (click)="cmp.set(null)">Cerrar</button>
+        </div>
+        <ul class="mt-4 flex flex-col gap-1.5">
+          @for (l of c.lineas; track $index) {
+            <li class="rounded-sm px-3 py-2 text-body-s"
+              [class]="l.tipo === 'mas' ? 'bg-success/10 text-text-primary' : l.tipo === 'menos' ? 'bg-danger/10 text-text-secondary line-through' : 'text-text-tertiary'">
+              <span class="sr-only">{{ l.tipo === 'mas' ? 'Añadido: ' : l.tipo === 'menos' ? 'Quitado: ' : '' }}</span>{{ l.texto }}</li>
+          }
+        </ul>
+      </section>
+    }
     @if (groups() === null) {
       <div class="grid gap-4 md:grid-cols-2">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-40 rounded-lg" /> }</div>
     } @else {
@@ -386,9 +457,10 @@ interface LegalGroup {
             <ul class="mt-4 flex flex-1 flex-col gap-2">
               @for (v of g.versiones.slice(0, 3); track v.id) {
                 <li class="flex items-center justify-between gap-3 rounded-sm border border-line-subtle bg-bg-surface px-3 py-2">
-                  <span class="flex min-w-0 items-baseline gap-2"><span class="text-mono-s">{{ ver(v.version) }}</span><span class="text-body-xs text-text-tertiary">{{ v.publicadoAt ? 'publicada ' + date(v.publicadoAt) : 'borrador' }}</span></span>
+                  <span class="flex min-w-0 items-baseline gap-2"><span class="text-mono-s">{{ ver(v.version) }}</span><span class="text-body-xs text-text-tertiary">{{ v.publicadoAt ? (v.id === g.vigente?.id ? 'publicada ' : 'archivada · ') + date(v.publicadoAt) + ' · ' + v.aceptaciones + ' aceptaciones' : 'borrador' }}</span></span>
+                  @if (anterior(g, v); as de) { <button grButton size="s" variant="ghost" (click)="comparar(g, de, v)">Comparar</button> }
                   @if (!v.publicadoAt && canEdit()) { <button grButton size="s" (click)="edit(g, v)">Editar</button> }
-                  @if (!v.publicadoAt && canPublish()) { <button grButton size="s" variant="primary" (click)="publish(g, v)">Publicar</button> }
+                  @if (!v.publicadoAt && canPublish()) { <button grButton size="s" variant="primary" (click)="pedir.set(true); pub.set({ g, v })">Publicar</button> }
                 </li>
               } @empty { <li><gr-empty icon="shield" title="Sin versiones" text="Crea la primera versión del texto." /></li> }
             </ul>
@@ -406,6 +478,23 @@ interface LegalGroup {
         <button grButton variant="primary" [loading]="saving()" (click)="save()">Guardar borrador</button>
       </ng-container>
     </bo-drawer>
+    @if (pub(); as p) {
+      <div class="fixed inset-0 z-40 bg-black/60" (click)="pub.set(null)"></div>
+      <div class="fixed top-1/2 left-1/2 z-50 w-[min(520px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-line-strong bg-bg-card p-6 shadow-card" role="dialog" aria-modal="true" aria-labelledby="legal-pub-t">
+        <h2 id="legal-pub-t" class="text-ui-h5">Publicar {{ p.g.tipo }} {{ ver(p.v.version) }}</h2>
+        <p class="mt-3 text-body-s text-text-secondary">La web mostrará la nueva versión al momento.
+          @if (p.g.vigente) { Las {{ p.g.vigente.aceptaciones }} aceptaciones de {{ ver(p.g.vigente.version) }} se conservan como prueba; }
+          @if (pedir()) { cada persona aceptará {{ ver(p.v.version) }} en su próxima reserva o compra. } No se envía email masivo.</p>
+        <div class="mt-5 flex items-center justify-between gap-4">
+          <div><p class="text-label-s">Pedir nueva aceptación</p><p class="text-body-xs text-text-tertiary">En la próxima reserva, compra o acceso al área del atleta</p></div>
+          <bo-toggle [value]="pedir()" label="Pedir nueva aceptación" (changed)="pedir.set($event)" />
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button grButton variant="ghost" (click)="pub.set(null)">Cancelar</button>
+          <button grButton variant="primary" [loading]="publishing()" (click)="publish(p.g, p.v)">Publicar versión</button>
+        </div>
+      </div>
+    }
   `,
 })
 export class WebLegalTab {
@@ -413,8 +502,11 @@ export class WebLegalTab {
   private readonly auth = inject(Auth);
   private readonly comps = inject(Competitions);
   private readonly toasts = inject(GrToasts);
-  private readonly confirm = inject(Confirm);
   protected readonly groups = signal<LegalGroup[] | null>(null);
+  protected readonly cmp = signal<{ g: LegalGroup; de: LegalVersion; a: LegalVersion; lineas: Linea[]; cambios: number } | null>(null);
+  protected readonly pub = signal<{ g: LegalGroup; v: LegalVersion } | null>(null);
+  protected readonly pedir = signal(true);
+  protected readonly publishing = signal(false);
   protected readonly drawer = signal(false);
   protected readonly group = signal<LegalGroup | null>(null);
   protected readonly editing = signal<LegalVersion | null>(null);
@@ -443,6 +535,16 @@ export class WebLegalTab {
   /** «v2026-11», but «whatsapp-2026-11»: a version that names itself does not need the prefix. */
   protected ver(version: string): string {
     return /^\d/.test(version) ? 'v' + version : version;
+  }
+
+  /** The version a draft is compared with: the one in force; for published ones, the previous published one. */
+  protected anterior(g: LegalGroup, v: LegalVersion): LegalVersion | undefined {
+    if (!v.publicadoAt) return g.vigente;
+    return g.versiones.filter((x) => x.publicadoAt && x.publicadoAt < v.publicadoAt!).sort((a, b) => b.publicadoAt!.localeCompare(a.publicadoAt!))[0];
+  }
+  protected comparar(g: LegalGroup, de: LegalVersion, a: LegalVersion): void {
+    const lineas = diffLineas(de.contenido, a.contenido);
+    this.cmp.set({ g, de, a, lineas, cambios: Math.max(lineas.filter((l) => l.tipo === 'mas').length, lineas.filter((l) => l.tipo === 'menos').length) });
   }
 
   private async load(): Promise<void> {
@@ -478,18 +580,17 @@ export class WebLegalTab {
   }
 
   protected async publish(g: LegalGroup, v: LegalVersion): Promise<void> {
-    const ok = await this.confirm.ask({
-      title: `Publicar ${g.nombre.toLowerCase()} ${this.ver(v.version)}`,
-      text: 'La web mostrará la nueva versión al momento. Las aceptaciones anteriores se conservan como prueba; cada persona aceptará esta versión en su próxima reserva o compra. No se envía ningún email masivo.',
-      confirm: 'Publicar versión',
-    });
-    if (!ok) return;
+    this.publishing.set(true);
     try {
-      await firstValueFrom(this.http.post(`${this.base()}/${g.tipo}/versiones/${v.id}/publicar`, {}));
+      await firstValueFrom(this.http.post(`${this.base()}/${g.tipo}/versiones/${v.id}/publicar`, { pedirAceptacion: this.pedir() }));
+      this.pub.set(null);
+      this.cmp.set(null);
       this.toasts.success('Versión publicada');
       await this.load();
     } catch (e) {
       this.toasts.error('No se pudo publicar', errText(e));
+    } finally {
+      this.publishing.set(false);
     }
   }
 }
@@ -508,25 +609,17 @@ const estadoBlog = (r: Record<string, unknown>): { label: string; tone: GrTone }
 /** Collections configured from the CMS API (Figma «Web · FAQ», «patrocinadores», «SEO», «blog y galería»). */
 export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   faq: [{
-    title: 'Preguntas frecuentes', subtitle: 'Las destacadas aparecen en la home', path: '/web/faq', item: 'pregunta', femenino: true, reorder: true, filterBy: 'categoria',
+    title: 'Preguntas frecuentes', subtitle: 'Las destacadas aparecen en la home', path: '/web/faq', item: 'pregunta', femenino: true, reorder: true, filterBy: 'categoria', filterStyle: 'select', publishKey: 'publicada',
     columns: [{ key: 'pregunta', label: 'Pregunta' }, { key: 'categoria', label: 'Categoría', hideMobile: true }, { key: 'destacada', label: 'Home', kind: 'badge', value: (r) => (r['destacada'] ? 'Destacada' : '—'), tone: (r) => (r['destacada'] ? 'accent' : 'neutral'), hideMobile: true },
       { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
-    fields: [{ clave: 'pregunta', etiqueta: 'Pregunta', tipo: 'texto', max: 200 }, { clave: 'respuesta', etiqueta: 'Respuesta', tipo: 'markdown', ayuda: 'Admite negrita y enlaces' },
-      { clave: 'categoria', etiqueta: 'Categoría', tipo: 'select', ancho: 'mitad', opciones: ['General', 'Entradas', 'Competición', 'Sorteo', 'Llegar', 'Accesibilidad'].map((v) => ({ value: v, label: v })) },
-      { clave: 'destacada', etiqueta: 'Destacar en la home', tipo: 'bool', ayuda: 'Aparece en «Preguntas frecuentes» de la home' }, { clave: 'publicada', etiqueta: 'Publicada', tipo: 'bool' }],
+    fields: [{ clave: 'pregunta', etiqueta: 'Pregunta', tipo: 'texto', max: 90 }, { clave: 'respuesta', etiqueta: 'Respuesta', tipo: 'markdown', max: 600, ayuda: 'Admite negrita y enlaces' },
+      { clave: 'categoria', etiqueta: 'Categoría', tipo: 'select', ancho: 'mitad', opciones: ['General', 'Entradas', 'Competición', 'Atletas', 'Sorteo', 'Llegar', 'Accesibilidad'].map((v) => ({ value: v, label: v })),
+        aviso: (v) => (v === 'Sorteo' ? 'Aviso legal: lo que digas del sorteo debe coincidir con las bases publicadas (/politica-concurso).' : null) },
+      { clave: 'destacada', etiqueta: 'Destacar en la home', tipo: 'bool', ayuda: 'Aparece en «Preguntas frecuentes» de la home' }],
     defaults: { categoria: 'General', publicada: true, destacada: false },
     empty: { title: 'Sin preguntas', text: 'Añade las dudas más habituales: entradas, horarios, sorteo, cómo llegar.' },
   }],
-  patrocinadores: [{
-    title: 'Patrocinadores', subtitle: 'Logos de la home y de /patrocinadores, en este orden', path: '/web/patrocinadores', item: 'patrocinador', reorder: true, filterBy: 'nivel',
-    columns: [{ key: 'logoUrl', label: 'Logo', kind: 'image' }, { key: 'nombre', label: 'Nombre' }, { key: 'nivel', label: 'Nivel', kind: 'badge', hideMobile: true }, { key: 'activo', label: 'Activo', kind: 'bool' }],
-    fields: [{ clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto', max: 120 }, { clave: 'nivel', etiqueta: 'Nivel', tipo: 'select', ancho: 'mitad', opciones: [['principal', 'Principal'], ['oro', 'Oro'], ['plata', 'Plata'], ['colaborador', 'Colaborador'], ['institucional', 'Institucional']].map(([value, label]) => ({ value, label })) },
-      { clave: 'url', etiqueta: 'Web', tipo: 'url', ancho: 'mitad' }, { clave: 'logoUrl', etiqueta: 'Logo', tipo: 'imagen', ayuda: 'PNG o WebP con fondo transparente' },
-      { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'texto', max: 200, ayuda: 'Una línea bajo el nombre en /patrocinadores (opcional)' }, { clave: 'activo', etiqueta: 'Mostrar en la web', tipo: 'bool' },
-      { clave: 'mostrarEnHero', etiqueta: 'Mostrar en hero', tipo: 'bool', ayuda: 'Fila de logos bajo las fechas en la portada (BIZ-144)' }],
-    defaults: { nivel: 'colaborador', activo: true, mostrarEnHero: false },
-    empty: { title: 'Sin patrocinadores', text: 'Añade marcas y entidades con su logo y enlace.' },
-  }, {
+  clubs: [{
     title: 'Clubs', subtitle: 'Directorio de /clubs · las propuestas del formulario público llegan como «Pendiente»', path: '/web/clubs', item: 'club', reorder: true, filterBy: 'estado',
     columns: [{ key: 'logoUrl', label: 'Logo', kind: 'image' }, { key: 'nombre', label: 'Club' }, { key: 'ciudad', label: 'Ciudad', hideMobile: true, value: (r) => [r['ciudad'], r['provincia']].filter(Boolean).join(' · ') },
       { key: 'contactoEmail', label: 'Contacto', hideMobile: true },
@@ -546,14 +639,6 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   }],
   seo: [
     {
-      title: 'Páginas de contenido', subtitle: 'Reglamento, categorías, marcas mínimas… (/{slug})', path: '/web/paginas', item: 'página', femenino: true, reorder: true,
-      columns: [{ key: 'titulo', label: 'Página' }, { key: 'slug', label: 'Ruta', kind: 'mono', value: (r) => '/' + r['slug'] }, { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
-      fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140 }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ayuda: 'Minúsculas y guiones', ancho: 'mitad' }, { clave: 'portadaUrl', etiqueta: 'Portada', tipo: 'imagen' },
-        { clave: 'resumen', etiqueta: 'Resumen', tipo: 'area', max: 300 }, { clave: 'cuerpo', etiqueta: 'Contenido', tipo: 'markdown' }, { clave: 'publicada', etiqueta: 'Publicada', tipo: 'bool' }],
-      defaults: { publicada: false },
-      empty: { title: 'Sin páginas', text: 'Crea páginas como el reglamento o las categorías de peso.' },
-    },
-    {
       title: 'SEO por ruta', subtitle: 'Title y description que ve Google', path: '/web/seo', item: 'ruta', femenino: true,
       columns: [{ key: 'ruta', label: 'URL', kind: 'mono' }, { key: 'title', label: 'Title', kind: 'meter', max: 60, hideMobile: true },
         { key: 'description', label: 'Description', kind: 'meter', max: 160, hideMobile: true },
@@ -565,13 +650,21 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       empty: { title: 'Sin SEO a medida', text: 'Las páginas usan textos automáticos hasta que los definas aquí.' },
     },
     {
-      title: 'Redirecciones', subtitle: 'Enlaces antiguos que llevan a la página nueva', path: '/web/redirecciones', item: 'redirección', femenino: true,
+      title: 'Redirecciones 301', subtitle: 'Enlaces antiguos que llevan a la página nueva', path: '/web/redirecciones', item: 'redirección', femenino: true,
       columns: [{ key: 'desde', label: 'Desde', kind: 'mono' }, { key: 'hacia', label: 'Hacia', kind: 'mono' }, { key: 'codigo', label: 'Código', kind: 'badge', hideMobile: true }],
       fields: [{ clave: 'desde', etiqueta: 'Desde', tipo: 'texto', ayuda: '/ruta-antigua', ancho: 'mitad',
         aviso: (v) => (RUTAS_PUBLICAS.has(v.trim().toLowerCase().replace(/(.)\/+$/, '$1')) ? 'Es una página de la web: la redirección la tapará.' : null) }, { clave: 'hacia', etiqueta: 'Hacia', tipo: 'texto', ayuda: '/ruta-nueva o https://…', ancho: 'mitad' },
         { clave: 'codigo', etiqueta: 'Tipo', tipo: 'select', opciones: [{ value: 301, label: '301 · permanente' }, { value: 302, label: '302 · temporal' }] }],
       defaults: { codigo: 301 },
       empty: { title: 'Sin redirecciones', text: 'Útiles al cambiar de dominio o de ruta.' },
+    },
+    {
+      title: 'Páginas de contenido', subtitle: 'Reglamento, categorías, marcas mínimas… (/{slug})', path: '/web/paginas', item: 'página', femenino: true, reorder: true,
+      columns: [{ key: 'titulo', label: 'Página' }, { key: 'slug', label: 'Ruta', kind: 'mono', value: (r) => '/' + r['slug'] }, { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
+      fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140 }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ayuda: 'Minúsculas y guiones', ancho: 'mitad' }, { clave: 'portadaUrl', etiqueta: 'Portada', tipo: 'imagen' },
+        { clave: 'resumen', etiqueta: 'Resumen', tipo: 'area', max: 300 }, { clave: 'cuerpo', etiqueta: 'Contenido', tipo: 'markdown' }, { clave: 'publicada', etiqueta: 'Publicada', tipo: 'bool' }],
+      defaults: { publicada: false },
+      empty: { title: 'Sin páginas', text: 'Crea páginas como el reglamento o las categorías de peso.' },
     },
   ],
   blog: [
@@ -611,10 +704,16 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
 /** A tab made of one or more collections (route param `coleccion`). */
 @Component({
   selector: 'bo-web-collections',
-  imports: [BoCollection],
+  imports: [BoCollection, WebSponsorsTab, WebSeoExtra],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-6' },
-  template: `@for (c of configs(); track c.path) { <bo-collection [config]="c" /> } @empty { <p class="text-body-s text-text-tertiary">Sección desconocida.</p> }`,
+  template: `
+    @if (coleccion() === 'patrocinadores') { <bo-web-sponsors /> }
+    @for (c of configs(); track c.path; let first = $first) {
+      <bo-collection [config]="c" />
+      @if (first && coleccion() === 'seo') { <bo-web-seo-extra /> }
+    } @empty { @if (coleccion() !== 'patrocinadores') { <p class="text-body-s text-text-tertiary">Sección desconocida.</p> } }
+  `,
 })
 export class WebCollectionsTab {
   readonly coleccion = input('');

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -49,6 +50,11 @@ type patroPub struct {
 	Descripcion string `json:"descripcion" db:"descripcion"`
 	// Shown in the logo row of the home hero (BIZ-144).
 	MostrarEnHero bool `json:"mostrarEnHero" db:"mostrar_en_hero"`
+	// Team photo (Figma 54) with its focal point (object-position %) and alternative text.
+	FotoURL string `json:"fotoUrl" db:"foto_url"`
+	FocalX  int    `json:"focalX" db:"focal_x"`
+	FocalY  int    `json:"focalY" db:"focal_y"`
+	Alt     string `json:"alt" db:"alt"`
 }
 
 // blogPorPagina is the /blog page size (Figma 34: «Cargar más (24 de 96)» and 8 pages).
@@ -108,7 +114,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			h, err := cached(ctx, s, cid, "home", ttlContent, func() (Home, error) { return s.home(ctx, cid) })
+			h, err := cached(ctx, s, cid, "home-v2", ttlContent, func() (Home, error) { return s.home(ctx, cid, in.Slug) })
 			return &homeOut{CacheControl: cacheHdr, Body: h}, err
 		})
 
@@ -146,7 +152,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "patrocinadores-v2", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid) })
+			list, err := cached(ctx, s, cid, "patrocinadores-v3", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid, in.Slug) })
 			if err == nil && in.Hero {
 				hero := []patroPub{}
 				for _, p := range list {
@@ -557,15 +563,33 @@ func collect[T any](rows pgx.Rows) ([]T, error) {
 	return list, err
 }
 
-func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID) ([]patroPub, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion, mostrar_en_hero FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
+// patrocinadores lists the active sponsors; their links carry ?utm_source={slug}&utm_medium=web (Figma 54).
+func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID, slug string) ([]patroPub, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
 	if err != nil {
 		return nil, err
 	}
-	return collect[patroPub](rows)
+	list, err := collect[patroPub](rows)
+	for i := range list {
+		list[i].URL = conUTM(list[i].URL, slug)
+	}
+	return list, err
 }
 
-func (s *Svc) home(ctx context.Context, cid uuid.UUID) (Home, error) {
+// conUTM adds utm_source/utm_medium to an absolute link that has no utm_source yet.
+func conUTM(raw, source string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.Query().Has("utm_source") {
+		return raw
+	}
+	q := u.Query()
+	q.Set("utm_source", source)
+	q.Set("utm_medium", "web")
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+func (s *Svc) home(ctx context.Context, cid uuid.UUID, slug string) (Home, error) {
 	h := Home{Version: s.version(ctx, cid)}
 	var err error
 	if h.Secciones, h.Orden, err = s.publishedSections(ctx, cid, "home"); err != nil {
@@ -578,7 +602,7 @@ func (s *Svc) home(ctx context.Context, cid uuid.UUID) (Home, error) {
 	if h.FaqDestacadas, err = collect[faqPub](rows); err != nil {
 		return h, err
 	}
-	h.Patrocinadores, err = s.patrocinadores(ctx, cid)
+	h.Patrocinadores, err = s.patrocinadores(ctx, cid, slug)
 	return h, err
 }
 

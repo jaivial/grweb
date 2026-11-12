@@ -58,12 +58,16 @@ type patroRow struct {
 	// One line under the name on /patrocinadores.
 	Descripcion string `json:"descripcion" db:"descripcion"`
 	// Shown in the logo row of the home hero (BIZ-144).
-	MostrarEnHero bool `json:"mostrarEnHero" db:"mostrar_en_hero"`
+	MostrarEnHero bool   `json:"mostrarEnHero" db:"mostrar_en_hero"`
+	FotoURL       string `json:"fotoUrl" db:"foto_url"`
+	FocalX        int    `json:"focalX" db:"focal_x"`
+	FocalY        int    `json:"focalY" db:"focal_y"`
+	Alt           string `json:"alt" db:"alt"`
 }
 
 type patroIn struct {
 	Nombre  string `json:"nombre" minLength:"1" maxLength:"120"`
-	Nivel   string `json:"nivel" enum:"principal,oro,plata,colaborador,institucional"`
+	Nivel   string `json:"nivel" enum:"organizador,federacion,institucional,principal,oro,plata,colaborador"`
 	LogoURL string `json:"logoUrl,omitempty" maxLength:"500"`
 	URL     string `json:"url,omitempty" maxLength:"500"`
 	Activo  bool   `json:"activo,omitempty"`
@@ -71,6 +75,11 @@ type patroIn struct {
 	Descripcion string `json:"descripcion,omitempty" maxLength:"200"`
 	// «Mostrar en hero» (BIZ-144). Absent: false when creating, unchanged when editing.
 	MostrarEnHero *bool `json:"mostrarEnHero,omitempty"`
+	// Team photo with focal point (%) and alternative text (Figma 54 · patrocinadores).
+	FotoURL string `json:"fotoUrl,omitempty" maxLength:"500"`
+	FocalX  int    `json:"focalX" required:"false" minimum:"0" maximum:"100" default:"50"`
+	FocalY  int    `json:"focalY" required:"false" minimum:"0" maximum:"100" default:"50"`
+	Alt     string `json:"alt,omitempty" maxLength:"200"`
 }
 
 // ---- SEO and redirects ----
@@ -273,22 +282,24 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[patroRow, patroIn]{
 		name: "patrocinadores", path: "/web/patrocinadores", table: "patrocinadores", tag: tagWeb, perm: "web.editar", order: "orden, nombre",
-		cols: "id, nombre, nivel, logo_url, url, orden, activo, descripcion, mostrar_en_hero",
+		cols: "id, nombre, nivel, logo_url, url, orden, activo, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt",
 		validate: func(in *patroIn) error {
-			trimAll(&in.Nombre, &in.LogoURL, &in.URL, &in.Descripcion)
-			if !validURL(in.URL, false) || !validURL(in.LogoURL, true) {
+			trimAll(&in.Nombre, &in.LogoURL, &in.URL, &in.Descripcion, &in.FotoURL, &in.Alt)
+			if !validURL(in.URL, false) || !validURL(in.LogoURL, true) || !validURL(in.FotoURL, true) {
 				return problem.Unprocessable("URL_INVALIDA", "Revisa los enlaces (https://…).")
 			}
 			return nil
 		},
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *patroIn) error {
-			_, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, descripcion, mostrar_en_hero, orden)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::boolean, false),(SELECT COALESCE(max(orden),0)+1 FROM patrocinadores WHERE competition_id = $2))`, id, cid, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion, in.MostrarEnHero)
+			_, err := tx.Exec(ctx, `INSERT INTO patrocinadores (id, competition_id, nombre, nivel, logo_url, url, activo, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt, orden)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::boolean, false),$10,$11,$12,$13,(SELECT COALESCE(max(orden),0)+1 FROM patrocinadores WHERE competition_id = $2))`,
+				id, cid, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion, in.MostrarEnHero, in.FotoURL, in.FocalX, in.FocalY, in.Alt)
 			return err
 		},
 		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *patroIn) error {
-			_, err := tx.Exec(ctx, `UPDATE patrocinadores SET nombre=$3, nivel=$4, logo_url=$5, url=$6, activo=$7, descripcion=$8, mostrar_en_hero=COALESCE($9::boolean, mostrar_en_hero), updated_at=now() WHERE competition_id=$1 AND id=$2`,
-				cid, id, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion, in.MostrarEnHero)
+			_, err := tx.Exec(ctx, `UPDATE patrocinadores SET nombre=$3, nivel=$4, logo_url=$5, url=$6, activo=$7, descripcion=$8, mostrar_en_hero=COALESCE($9::boolean, mostrar_en_hero),
+				foto_url=$10, focal_x=$11, focal_y=$12, alt=$13, updated_at=now() WHERE competition_id=$1 AND id=$2`,
+				cid, id, in.Nombre, in.Nivel, in.LogoURL, in.URL, in.Activo, in.Descripcion, in.MostrarEnHero, in.FotoURL, in.FocalX, in.FocalY, in.Alt)
 			return err
 		},
 	})

@@ -20,12 +20,13 @@ import (
 
 // Campo describes one editable field of a home section; the backoffice renders the form from it.
 type Campo struct {
-	Clave    string  `json:"clave"`
-	Etiqueta string  `json:"etiqueta"`
-	Tipo     string  `json:"tipo" enum:"texto,area,imagen,numero,lista"`
-	Ayuda    string  `json:"ayuda,omitempty"`
-	Max      int     `json:"max,omitempty"`
-	Campos   []Campo `json:"campos,omitempty" doc:"Subcampos de cada elemento (tipo lista)"`
+	Clave    string   `json:"clave"`
+	Etiqueta string   `json:"etiqueta"`
+	Tipo     string   `json:"tipo" enum:"texto,area,imagen,numero,lista,select"`
+	Ayuda    string   `json:"ayuda,omitempty"`
+	Max      int      `json:"max,omitempty"`
+	Campos   []Campo  `json:"campos,omitempty" doc:"Subcampos de cada elemento (tipo lista)"`
+	Opciones []string `json:"opciones,omitempty" doc:"Valores posibles (tipo select)"`
 }
 
 // SeccionDef is a section of a page built from sections (Figma 03 «Secciones Home», 29 «/publico», 35 «/en»).
@@ -46,7 +47,16 @@ var (
 
 // Secciones lists the sections the public home can show, in the default order of Figma page 05.
 var Secciones = []SeccionDef{
-	{Clave: "hero", Nombre: "Hero", Descripcion: "Intro con la animación del trofeo", Campos: []Campo{cTitulo}},
+	// Figma 54 «Web · editar hero»: texts over the trophy animation and the background image (mobile, no animation).
+	{Clave: "hero", Nombre: "Hero", Descripcion: "Intro con la animación del trofeo", Campos: []Campo{
+		{Clave: "eyebrow", Etiqueta: "Antetítulo", Tipo: "texto", Max: 32},
+		{Clave: "fecha", Etiqueta: "Fecha visible", Tipo: "texto", Max: 40},
+		{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 40, Ayuda: "En móvil se corta a partir de 40 caracteres"},
+		{Clave: "ctaTexto", Etiqueta: "Texto del botón", Tipo: "texto", Max: 28},
+		{Clave: "ctaDestino", Etiqueta: "Destino", Tipo: "select", Opciones: []string{"/entradas", "/sorteo", "/inscripcion", "/alta-atleta", "/publico", "/horarios"}},
+		{Clave: "imagen", Etiqueta: "Imagen de fondo (móvil sin animación)", Tipo: "imagen", Ayuda: "JPG/WebP · el CDN genera 480/960/1600 px"},
+		{Clave: "focalX", Etiqueta: "Punto focal X (%)", Tipo: "numero"},
+		{Clave: "focalY", Etiqueta: "Punto focal Y (%)", Tipo: "numero"}}},
 	{Clave: "campeonato", Nombre: "Campeonato", Descripcion: "Nivel, datos, aviso, cuenta atrás y cinta de patrocinadores", Campos: []Campo{
 		{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 90, Ayuda: "Lo leen los lectores de pantalla; en pantalla se ve el nivel (el hero ya dice «Campeonato de powerlifting»)"},
 		{Clave: "subtitulo", Etiqueta: "Nivel (título visible)", Tipo: "texto", Max: 120, Ayuda: "Vacío: el nivel del evento"},
@@ -163,7 +173,9 @@ type seccionRow struct {
 	PublicadoAt *time.Time      `json:"publicadoAt,omitempty" db:"publicado_at"`
 	Version     int             `json:"version" db:"version"`
 	Rev         int             `json:"rev" db:"rev" doc:"Revisión del borrador (ETag / If-Match)"`
-	UpdatedAt   time.Time       `json:"updatedAt" db:"updated_at"`
+	// «Programar» (Figma 54): the draft is published automatically at this time.
+	ProgramadaAt *time.Time `json:"programadaAt,omitempty" db:"programada_at"`
+	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 type seccionView struct {
@@ -174,7 +186,7 @@ type seccionView struct {
 	Estado      string  `json:"estado" enum:"publicada,cambios,sin_publicar" doc:"Si el borrador (contenido, visibilidad u orden) difiere de lo publicado"`
 }
 
-const selSeccion = `SELECT id, pagina, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at FROM secciones`
+const selSeccion = `SELECT id, pagina, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at, programada_at FROM secciones`
 
 func view(r seccionRow) seccionView {
 	v := seccionView{seccionRow: r}
@@ -325,16 +337,18 @@ func (s *Svc) registerSecciones() {
 	type pubIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
-			Pagina string   `json:"pagina,omitempty" enum:"home,publico,en" default:"home"`
-			Claves []string `json:"claves,omitempty" doc:"Secciones a publicar; vacío = todas las que tienen cambios"`
+			Pagina       string     `json:"pagina,omitempty" enum:"home,publico,en" default:"home"`
+			Claves       []string   `json:"claves,omitempty" doc:"Secciones a publicar; vacío = todas las que tienen cambios"`
+			ProgramadaAt *time.Time `json:"programadaAt,omitempty" doc:"«Programar»: publica estas secciones a esa hora (futura) en vez de ahora"`
 		}
 	}
 	type pubOut struct {
 		Body struct {
-			Publicadas []string `json:"publicadas"`
+			Publicadas  []string `json:"publicadas"`
+			Programadas []string `json:"programadas,omitempty"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "web-publish", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/publicar", Summary: "Publicar los borradores de una página (home, /publico o /en)", Tags: tags, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "web-publish", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/publicar", Summary: "Publicar (o programar) los borradores de una página (home, /publico o /en)", Tags: tags, Security: bearer},
 		func(ctx context.Context, in *pubIn) (*pubOut, error) {
 			p, err := auth.Require(ctx, in.CID.String(), "web.publicar")
 			if err != nil {
@@ -342,47 +356,164 @@ func (s *Svc) registerSecciones() {
 			}
 			out := &pubOut{}
 			out.Body.Publicadas = []string{}
+			pagina := in.Body.Pagina
+			if pagina == "" {
+				pagina = "home"
+			}
+			if at := in.Body.ProgramadaAt; at != nil {
+				if !at.After(time.Now()) {
+					return nil, problem.Unprocessable("FECHA_PASADA", "Elige una fecha y hora futuras para programar.")
+				}
+				err = s.change(ctx, in.CID, "cms.web_programada", map[string]any{"pagina": pagina, "claves": in.Body.Claves, "at": at}, func(tx pgx.Tx) error {
+					rows, err := tx.Query(ctx, `UPDATE secciones SET programada_at = $3 WHERE competition_id = $1 AND pagina = $2 AND (cardinality($4::text[]) = 0 OR clave = ANY($4)) RETURNING clave`,
+						in.CID, pagina, *at, in.Body.Claves)
+					if err != nil {
+						return err
+					}
+					out.Body.Programadas, err = pgx.CollectRows(rows, pgx.RowTo[string])
+					return err
+				})
+				return out, err
+			}
 			var by *uuid.UUID
 			if p.UserID != uuid.Nil {
 				by = &p.UserID
 			}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				pagina := in.Body.Pagina
-				if pagina == "" {
-					pagina = "home"
-				}
-				rows, err := tx.Query(ctx, selSeccion+` WHERE competition_id = $1 AND pagina = $2 FOR UPDATE`, in.CID, pagina)
-				if err != nil {
-					return err
-				}
-				list, err := pgx.CollectRows(rows, pgx.RowToStructByName[seccionRow])
-				if err != nil {
-					return err
-				}
-				for _, r := range list {
-					want := len(in.Body.Claves) == 0 || contains(in.Body.Claves, r.Clave)
-					if !want || !pending(r) {
-						continue
-					}
-					if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, pub_visible = visible, pub_orden = orden, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
-						return err
-					}
-					if _, err := tx.Exec(ctx, `INSERT INTO secciones_versiones (id, seccion_id, datos, publicado_por) VALUES ($1,$2,$3,$4)`, newID(), r.ID, r.Borrador, by); err != nil {
-						return err
-					}
-					out.Body.Publicadas = append(out.Body.Publicadas, r.Clave)
-				}
-				if len(out.Body.Publicadas) == 0 {
+				var err error
+				out.Body.Publicadas, err = publishPage(ctx, tx, in.CID, pagina, in.Body.Claves, by)
+				if err == nil && len(out.Body.Publicadas) == 0 {
 					return problem.Conflict("SIN_CAMBIOS", "No hay cambios pendientes de publicar.")
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "web.publicada", map[string]any{"pagina": pagina, "secciones": out.Body.Publicadas},
-					events.Competition(in.CID.String()), events.Audience(events.Public)))
+				return err
 			})
 			if err == nil {
 				s.bump(ctx, in.CID)
 			}
 			return out, err
 		})
+
+	type descIn struct {
+		CID uuid.UUID `path:"cid"`
+		ID  uuid.UUID `path:"id"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "secciones-discard", Method: http.MethodPost, Path: base + "/{id}/descartar", Summary: "Descartar el borrador: vuelve a lo publicado y anula la programación", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *descIn) (*oneOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			var out seccionView
+			err := s.change(ctx, in.CID, "cms.seccion_descartada", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE(publicado, '{}'::jsonb), visible = pub_visible, programada_at = NULL, rev = rev + 1, updated_at = now()
+					WHERE competition_id = $1 AND id = $2`, in.CID, in.ID)
+				if err != nil {
+					return err
+				}
+				if tag.RowsAffected() == 0 {
+					return problem.NotFound("Sección no encontrada.")
+				}
+				rows, err := tx.Query(ctx, selSeccion+` WHERE id = $1`, in.ID)
+				if err != nil {
+					return err
+				}
+				r, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[seccionRow])
+				out = view(r)
+				return err
+			})
+			return &oneOut{ETag: etag(out.Rev), Body: out}, err
+		})
+}
+
+// publishPage publishes the pending drafts of a page (all, or only claves) and clears their schedule.
+func publishPage(ctx context.Context, tx pgx.Tx, cid uuid.UUID, pagina string, claves []string, by *uuid.UUID) ([]string, error) {
+	rows, err := tx.Query(ctx, selSeccion+` WHERE competition_id = $1 AND pagina = $2 FOR UPDATE`, cid, pagina)
+	if err != nil {
+		return nil, err
+	}
+	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[seccionRow])
+	if err != nil {
+		return nil, err
+	}
+	done := []string{}
+	for _, r := range list {
+		if len(claves) > 0 && !contains(claves, r.Clave) {
+			continue
+		}
+		if r.ProgramadaAt != nil {
+			if _, err := tx.Exec(ctx, `UPDATE secciones SET programada_at = NULL WHERE id = $1`, r.ID); err != nil {
+				return nil, err
+			}
+		}
+		if !pending(r) {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, pub_visible = visible, pub_orden = orden, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO secciones_versiones (id, seccion_id, datos, publicado_por) VALUES ($1,$2,$3,$4)`, newID(), r.ID, r.Borrador, by); err != nil {
+			return nil, err
+		}
+		done = append(done, r.Clave)
+	}
+	if len(done) == 0 {
+		return done, nil
+	}
+	return done, events.Enqueue(ctx, tx, events.New(ctx, "web.publicada", map[string]any{"pagina": pagina, "secciones": done},
+		events.Competition(cid.String()), events.Audience(events.Public)))
+}
+
+// runProgramadas publishes the scheduled sections that are due, every 30 s. Safe with several replicas:
+// the page rows are locked (FOR UPDATE) before the due claves are re-read inside the same transaction.
+func (s *Svc) runProgramadas(ctx context.Context) {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		rows, err := s.a.DB.Query(ctx, `SELECT DISTINCT competition_id, pagina FROM secciones WHERE programada_at <= now()`)
+		if err != nil {
+			s.a.Log.Error("secciones programadas", "err", err)
+			continue
+		}
+		type due struct {
+			CID    uuid.UUID
+			Pagina string
+		}
+		list, err := pgx.CollectRows(rows, pgx.RowToStructByPos[due])
+		if err != nil {
+			s.a.Log.Error("secciones programadas", "err", err)
+			continue
+		}
+		for _, d := range list {
+			var done []string
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if _, err := tx.Exec(ctx, `SELECT 1 FROM secciones WHERE competition_id = $1 AND pagina = $2 FOR UPDATE`, d.CID, d.Pagina); err != nil {
+					return err
+				}
+				rows, err := tx.Query(ctx, `SELECT clave FROM secciones WHERE competition_id = $1 AND pagina = $2 AND programada_at <= now()`, d.CID, d.Pagina)
+				if err != nil {
+					return err
+				}
+				claves, err := pgx.CollectRows(rows, pgx.RowTo[string])
+				if err != nil || len(claves) == 0 {
+					return err
+				}
+				done, err = publishPage(ctx, tx, d.CID, d.Pagina, claves, nil)
+				return err
+			})
+			if err != nil {
+				s.a.Log.Error("publicar secciones programadas", "err", err, "competicion", d.CID.String())
+				continue
+			}
+			if len(done) > 0 {
+				s.bump(ctx, d.CID)
+				s.a.Log.Info("secciones programadas publicadas", "competicion", d.CID.String(), "pagina", d.Pagina, "secciones", done)
+			}
+		}
+	}
 }
 
 func nullRaw(b json.RawMessage) any {

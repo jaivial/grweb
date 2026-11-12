@@ -83,7 +83,9 @@ type Obj = Record<string, unknown>;
                 @case ('numero') { <input grInput [id]="id" type="number" inputmode="numeric" [value]="get(f.clave) ?? ''" (input)="set(f.clave, num($any($event.target).value))" /> }
                 @case ('fecha') { <input grInput [id]="id" type="datetime-local" [value]="local(f.clave)" (input)="set(f.clave, iso($any($event.target).value))" /> }
                 @case ('select') {
-                  <gr-select [id]="id" [value]="get(f.clave)" (valorChange)="set(f.clave, opcion(f, $event))">
+                  <gr-select [id]="id" [value]="get(f.clave)" [attr.aria-describedby]="aviso ? id + '-aviso' : null" (valorChange)="set(f.clave, opcion(f, $event))">
+                    <!-- a stored value that is not in the list (e.g. an old category) stays visible and selectable -->
+                    @if (str(f.clave) && !enOpciones(f)) { <option [value]="get(f.clave)">{{ str(f.clave) }}</option> }
                     @for (o of f.opciones ?? []; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
                   </gr-select>
                 }
@@ -134,6 +136,7 @@ export class BoSchemaForm {
   }
   /** gr-select emits strings: give back the option's own value (a number stays a number). */
   protected opcion(f: FieldDef, v: string): unknown { return f.opciones?.find((o) => String(o.value) === v)?.value ?? v; }
+  protected enOpciones(f: FieldDef): boolean { return !!f.opciones?.some((o) => String(o.value) === this.str(f.clave)); }
   protected num(v: string): number | null { return v === '' ? null : Number(v); }
   protected local(k: string): string { const v = this.str(k); return v ? v.slice(0, 16) : ''; }
   protected iso(v: string): string | null { return v ? new Date(v).toISOString() : null; }

@@ -105,4 +105,3 @@ func (s *Svc) registerSitemap() {
 		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
-

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrSelect, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
 import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
@@ -36,6 +36,10 @@ export interface CollectionConfig {
   noCreate?: boolean;
   noDelete?: boolean;
   filterBy?: string;
+  /** 'select': one dropdown («Todas · 24») instead of chips (Figma «Web · FAQ»). */
+  filterStyle?: 'chips' | 'select';
+  /** Boolean field that publishes the item: the drawer offers «Guardar borrador» (false) and «Publicar» (true) instead of a switch. */
+  publishKey?: string;
   perm?: string;
 }
 
@@ -45,7 +49,7 @@ export interface CollectionConfig {
  */
 @Component({
   selector: 'bo-collection',
-  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrButton, GrIcon, GrBadge, GrEmpty, GrSkeleton, GrAlert, BoDrawer, BoSchemaForm],
+  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrButton, GrIcon, GrBadge, GrEmpty, GrSelect, GrSkeleton, GrAlert, BoDrawer, BoSchemaForm],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block rounded-lg border border-line-subtle bg-bg-card' },
   template: `
@@ -58,7 +62,13 @@ export interface CollectionConfig {
       @if (!c.noCreate && canEdit()) { <button grButton size="s" icon="plus" (click)="edit(null)">Añadir {{ c.item }}</button> }
     </header>
 
-    @if (c.filterBy && filters().length > 1) {
+    @if (c.filterBy && filters().length > 1 && c.filterStyle === 'select') {
+      <div class="px-5 pt-4">
+        <gr-select tipo="filtro" class="block max-w-xs" aria-label="Filtrar" [value]="filter()" (valorChange)="filter.set($event)">
+          @for (f of filters(); track f.value) { <option [value]="f.value">{{ f.label }} · {{ f.count }}</option> }
+        </gr-select>
+      </div>
+    } @else if (c.filterBy && filters().length > 1) {
       <div class="flex flex-wrap gap-2 px-5 pt-4" role="group" aria-label="Filtrar">
         @for (f of filters(); track f.value) {
           <button type="button" (click)="filter.set(f.value)" class="inline-flex h-9 items-center gap-1.5 rounded-pill border px-3 text-label-s"
@@ -105,19 +115,23 @@ export interface CollectionConfig {
                 </span>
               }
             </button>
-            <gr-icon name="chevron-right" [size]="16" class="text-text-muted" />
+            <gr-icon name="chevron-right" [size]="16" class="text-text-muted" aria-hidden="true" />
           </li>
         }
       </ul>
     }
 
-    <bo-drawer [(open)]="drawer" [title]="editing() ? 'Editar ' + c.item : (c.femenino ? 'Nueva ' : 'Nuevo ') + c.item">
+    <bo-drawer [(open)]="drawer" [title]="editing() ? 'Editar ' + c.item : (c.femenino ? 'Nueva ' : 'Nuevo ') + c.item"
+      [badge]="c.publishKey && editing() && !editing()![c.publishKey] ? 'Cambios sin publicar' : ''">
       @if (formError()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ formError() }}</gr-alert> }
-      <bo-schema-form [fields]="c.fields" [(value)]="draft" />
+      <bo-schema-form [fields]="formFields()" [(value)]="draft" />
       <ng-container drawerActions>
         @if (editing() && !c.noDelete && canEdit()) { <button grButton variant="danger" class="mr-auto" (click)="remove()">Borrar</button> }
         <button grButton variant="ghost" (click)="drawer.set(false)">Cancelar</button>
-        @if (canEdit()) { <button grButton variant="primary" [loading]="saving()" (click)="save()">Guardar</button> }
+        @if (canEdit() && c.publishKey) {
+          <button grButton [loading]="saving()" (click)="save(false)">Guardar borrador</button>
+          <button grButton variant="primary" [loading]="saving()" (click)="save(true)">Publicar</button>
+        } @else if (canEdit()) { <button grButton variant="primary" [loading]="saving()" (click)="save()">Guardar</button> }
       </ng-container>
     </bo-drawer>
   `,
@@ -139,6 +153,8 @@ export class BoCollection {
   protected readonly saving = signal(false);
   protected readonly formError = signal('');
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, this.config().perm ?? 'web.editar'));
+  /** The publish switch becomes the «Guardar borrador» / «Publicar» buttons. */
+  protected readonly formFields = computed(() => this.config().fields.filter((f) => f.clave !== this.config().publishKey));
 
   protected readonly filters = computed(() => {
     const key = this.config().filterBy;
@@ -186,15 +202,18 @@ export class BoCollection {
     this.drawer.set(true);
   }
 
-  protected async save(): Promise<void> {
+  protected async save(publicar?: boolean): Promise<void> {
     this.saving.set(true);
     this.formError.set('');
     try {
       const r = this.editing();
-      if (r) await this.res().update(r.id, this.draft());
-      else await this.res().create(this.draft());
+      const key = this.config().publishKey;
+      const body = key && publicar !== undefined ? { ...this.draft(), [key]: publicar } : this.draft();
+      if (r) await this.res().update(r.id, body);
+      else await this.res().create(body);
       this.drawer.set(false);
-      this.toasts.success(r ? 'Cambios guardados' : `${this.config().item[0].toUpperCase()}${this.config().item.slice(1)} ${this.config().femenino ? 'creada' : 'creado'}`);
+      if (key && publicar !== undefined) this.toasts.success(publicar ? 'Publicada' : 'Borrador guardado', publicar ? 'Ya se ve en la web.' : 'No se ve en la web hasta publicar.');
+      else this.toasts.success(r ? 'Cambios guardados' : `${this.config().item[0].toUpperCase()}${this.config().item.slice(1)} ${this.config().femenino ? 'creada' : 'creado'}`);
     } catch (e) {
       this.formError.set(camposText(e, this.config().fields) ?? errText(e));
     } finally {

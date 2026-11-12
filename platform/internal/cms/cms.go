@@ -125,6 +125,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerRGPD()
 	s.registerPublicExtra()
 	s.registerSitemap()
+	a.Go(s.runProgramadas)
 	return nil
 }
 
