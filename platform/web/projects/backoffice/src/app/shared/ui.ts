@@ -53,11 +53,13 @@ export interface BoTab {
     <nav class="flex min-w-max gap-1" aria-label="Secciones">
       @for (t of tabs(); track t.path) {
         <a [routerLink]="t.path" routerLinkActive #a="routerLinkActive" [routerLinkActiveOptions]="{ exact: false }" [attr.aria-current]="a.isActive ? 'page' : null"
-          class="relative flex h-11 items-center gap-2 px-3 text-label-s whitespace-nowrap transition-colors"
-          [class]="a.isActive ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
+          class="relative flex h-11 items-center gap-2 px-3 text-label-s whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
+          [class]="a.isActive ? 'rounded-t-sm text-text-primary' : 'rounded-sm text-text-tertiary hover:bg-bg-raised'">
           {{ t.label }}
-          @if (t.count !== undefined && t.count !== null) { <span class="rounded-2xs bg-bg-raised px-1.5 text-mono-xs text-text-secondary">{{ t.count }}</span> }
-          @if (a.isActive) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
+          @if (t.count !== undefined && t.count !== null) {
+            <span class="flex h-5 items-center rounded-xs px-1.5 text-mono-xs" [class]="a.isActive ? 'bg-accent/20 text-accent-text' : 'bg-bg-raised text-text-tertiary'">{{ t.count }}</span>
+          }
+          @if (a.isActive) { <span class="absolute inset-x-0 bottom-0 h-0.5 bg-accent"></span> }
         </a>
       }
     </nav>
