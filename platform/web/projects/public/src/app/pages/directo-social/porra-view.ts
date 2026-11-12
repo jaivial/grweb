@@ -100,6 +100,8 @@ export class PorraView {
   readonly jornadaId = input<string>('');
   /** Name of the jornada shown. */
   readonly jornadaNombre = input<string>('');
+  /** The panel has the list of jornadas (until then nothing is asked). */
+  readonly cargada = input<boolean>(true);
 
   protected readonly mercados = signal<Mercado[]>([]);
   protected readonly cartera = signal<Cartera | null>(null);
@@ -113,9 +115,17 @@ export class PorraView {
   constructor() {
     effect(() => {
       const jid = this.jornadaId();
+      if (!this.cargada()) return;
+      if (!jid) {
+        // no jornada today nor an open one: empty state, without asking the API (it answers 404)
+        this.mercados.set([]);
+        this.error.set(null);
+        this.cargando.set(false);
+        return;
+      }
       this.cargando.set(true);
       void this.juegos
-        .porraMercados(jid || undefined)
+        .porraMercados(jid)
         .then((r) => {
           this.mercados.set((r.mercados ?? []).filter((m) => m.estado === 'abierto'));
           this.jornadaApi.set(r.jornada ? { nombre: r.jornada.nombre, dia: r.jornada.dia } : null);
@@ -125,14 +135,14 @@ export class PorraView {
         .finally(() => this.cargando.set(false));
     });
     effect(() => {
-      if (!this.fan.conSesion()) {
+      if (!this.fan.conSesion() || !this.jornadaId()) {
         this.cartera.set(null);
         return;
       }
       const jid = this.jornadaId();
       this.cargandoCartera.set(true);
       void this.juegos
-        .cartera(jid || undefined)
+        .cartera(jid)
         .then((c) => this.cartera.set(c))
         .catch(() => this.cartera.set(null))
         .finally(() => this.cargandoCartera.set(false));
