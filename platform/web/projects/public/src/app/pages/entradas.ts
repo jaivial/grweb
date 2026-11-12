@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrCheckbox, GrIcon, GrLogo, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
+import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { FanSession } from '../core/fan';
@@ -32,7 +32,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
  */
 @Component({
   selector: 'gr-ticket',
-  imports: [GrIcon, GrLogo],
+  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -40,7 +40,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
     @let b = e !== 'anulada' ? boletos() : [];
     <article class="relative overflow-hidden rounded-[20px] border shadow-card [overflow-wrap:anywhere]" [class]="b.length ? 'border-accent/55 bg-[linear-gradient(to_bottom_right,#4e121d,#150b0d)]' : 'border-line-strong bg-bg-card'">
       <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
-        <header class="flex h-8 items-center justify-between gap-3"><gr-logo [height]="32" [width]="84" />
+        <header class="flex h-8 items-center justify-between gap-3"><img src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png" alt="GRStrength Cup" width="84" height="32" class="h-8 w-[84px] object-contain" />
           <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ pill[e].t }}</span></header>
         <p class="text-display-xs" [class.text-text-muted]="e === 'anulada'">{{ evento() }}</p>
         <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
@@ -628,7 +628,7 @@ export class EntradasPage {
               <div class="flex flex-col items-center gap-3 text-center">
                 <span class="flex size-16 items-center justify-center rounded-full border border-line-strong bg-white/5 text-text-secondary"><gr-icon name="x" [size]="24" /></span>
                 <h1 class="text-display-s">Entrada anulada</h1>
-                <p class="text-body-m text-text-secondary">Su QR ya no vale. Si fue un error, <a routerLink="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p>
+                <p class="text-body-m text-text-secondary">Tu QR ya no vale. Si fue un error, <a routerLink="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p>
               </div>
             } @else {
             <div class="flex flex-col items-center gap-3 text-center">
@@ -656,6 +656,7 @@ export class EntradasPage {
                   <button grButton variant="outline" size="m" type="button" [disabled]="novEnviando()" (click)="avisame(false)">No, gracias</button></div>
               }
             </section>
+            @if (m.estado !== 'anulada') {
             <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-label-m">Invita a tu gente</h2><p class="text-body-xs text-text-tertiary">Comparte tu enlace: sabremos cuántas entradas trae tu invitación.</p>
               <div class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 py-3 text-body-s [overflow-wrap:anywhere]">{{ corto(m.compartir) }}</span><button type="button" class="text-label-s text-accent-text hover:underline" (click)="copiar(m.compartir)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
@@ -667,6 +668,7 @@ export class EntradasPage {
               </div>
             </section>
             <a [href]="'/mi-entrada?t=' + token" class="text-center text-label-s text-accent-text hover:underline xl:hidden">Gestionar mi entrada →</a>
+            }
           </div>
         </div>
       }
@@ -783,7 +785,7 @@ export class OfertaPage {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mi entrada" crumb="Mi entrada" [migasMovil]="false" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
-      <div class="mx-auto flex max-w-[350px] flex-col gap-6 md:max-w-[480px]">
+      <div class="mx-auto flex max-w-[350px] flex-col gap-6 max-md:-mt-[11px] md:max-w-[480px]">
         @let m = mia();
         @if (m === undefined) { <gr-skeleton class="h-[560px] rounded-xl" /> }
         @else if (m === null) {
