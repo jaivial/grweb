@@ -94,6 +94,7 @@ export class FanSession {
     const f = await firstValueFrom(this.http.post<Fan>(`${this.base}/canjear`, { token }));
     this.yo.set(f);
     this.cargada.set(true);
+    this.pendiente = Promise.resolve(f);
     return f;
   }
 
@@ -108,11 +109,13 @@ export class FanSession {
       await firstValueFrom(this.http.post(`${this.base}/salir`, {}));
     } finally {
       this.yo.set(null);
+      this.pendiente = null;
     }
   }
 
   /** Call when an API answers 401 SESION_FAN_REQUERIDA / SESION_FAN_REVOCADA: drops the local session. */
   sesionPerdida(): void {
     this.yo.set(null);
+    this.pendiente = null;
   }
 }
