@@ -31,12 +31,27 @@ export class Realtime {
   private cid = '';
   private readonly fallos = signal(0);
   private readonly activo = signal(false);
+  /** Browser network state (window online/offline): offline is shown at once, coming back reconnects at once. */
+  private readonly online = signal(typeof navigator === 'undefined' || navigator.onLine !== false);
+  private wake: (() => void) | null = null;
+
+  constructor() {
+    if (typeof window === 'undefined') return;
+    window.addEventListener('offline', () => {
+      this.online.set(false);
+      this.connected.set(false);
+    });
+    window.addEventListener('online', () => {
+      this.online.set(true);
+      if (this.cid && this.activo() && !this.connected()) this.reconnect();
+    });
+  }
 
   readonly connected = signal(false);
   /** Failed reconnection attempts since the last successful open. */
   readonly intentos = this.fallos.asReadonly();
   readonly status = computed<RealtimeStatus>(() =>
-    !this.activo() ? 'paused' : this.connected() ? 'connected' : this.fallos() >= 3 ? 'offline' : 'reconnecting');
+    !this.activo() ? 'paused' : !this.online() ? 'offline' : this.connected() ? 'connected' : this.fallos() >= 3 ? 'offline' : 'reconnecting');
   readonly events = new Subject<LiveEvent>();
   readonly resync = new Subject<void>();
 
@@ -52,6 +67,7 @@ export class Realtime {
   disconnect(): void {
     this.ctrl?.abort();
     this.ctrl = null;
+    this.wake?.();
     this.connected.set(false);
     this.activo.set(false);
   }
@@ -72,7 +88,10 @@ export class Realtime {
     while (!ctrl.signal.aborted) {
       const token = await this.auth.freshToken();
       if (!token) {
+        // no session: stop and show «paused» instead of an endless «Reconectando…»
         this.connected.set(false);
+        this.activo.set(false);
+        if (this.ctrl === ctrl) this.ctrl = null;
         return;
       }
       try {
@@ -115,7 +134,14 @@ export class Realtime {
         this.fallos.update((n) => n + 1);
         // exponential back-off with jitter, capped at 30 s
         const base = Math.min(30000, 2000 * 2 ** Math.min(this.fallos() - 1, 4));
-        await new Promise((r) => setTimeout(r, base + Math.random() * 2000));
+        await new Promise<void>((r) => {
+          const t = setTimeout(r, base + Math.random() * 2000);
+          this.wake = () => {
+            clearTimeout(t);
+            r();
+          };
+        });
+        this.wake = null;
       }
     }
   }
