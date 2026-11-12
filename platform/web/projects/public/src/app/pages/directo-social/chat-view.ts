@@ -155,7 +155,7 @@ interface Fila {
                 </li>
               }
               @case ('sistema') {
-                @if (fan.conSesion() || !it.id.startsWith('hola-')) {
+                @if (fan.conSesion() || !it.texto.startsWith('Te has unido')) {
                 <li class="flex items-center gap-3 px-4 py-2.5" role="separator" [attr.aria-label]="it.texto">
                   <span class="h-px flex-1 bg-line-subtle"></span>
                   <span class="max-w-[75%] text-center text-body-xs text-text-tertiary">{{ it.texto }}</span>
