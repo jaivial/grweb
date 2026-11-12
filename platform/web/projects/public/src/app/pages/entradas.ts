@@ -459,9 +459,9 @@ export class EntradasPage {
   /** Raffle tickets are sold only at the venue, in cash: never offered with the online booking. */
   protected readonly sorteoAbierto = computed((): SorteoVenta | null => null);
   protected readonly maxBoletos = computed(() => Math.min(10, this.sorteoAbierto()?.maxPorPersona ?? 0));
-  /** Mobile bottom bar: below the hero, while the form is off screen. */
   /** SSR markup: submitting is blocked until Angular takes over (no native submit with personal data). */
   protected readonly hidratado = signal(false);
+  /** Mobile bottom bar: below the hero, while the form is off screen. */
   protected readonly barra = computed(() => this.bajoHero() && !this.formVisible() && !!this.data());
 
   constructor() {
