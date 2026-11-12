@@ -31,7 +31,7 @@ import type { SolicitudItem } from './solicitudes-api';
                 <span class="flex items-center gap-3">
                   @if (miniatura(s.id); as url) { <img [src]="url" alt="" class="h-12 w-10 shrink-0 rounded-xs bg-bg-raised object-cover" loading="lazy" /> }
                   @else { <span class="flex h-12 w-10 shrink-0 items-center justify-center rounded-xs bg-bg-raised text-text-tertiary"><gr-icon name="user" [size]="18" /></span> }
-                  <span class="min-w-0"><span class="block truncate text-label-s">{{ nombreCompleto(s) }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ s.email }}</span></span>
+                  <span class="min-w-0"><button type="button" class="block max-w-full truncate rounded-2xs text-left text-label-s focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [attr.aria-label]="'Revisar solicitud de ' + nombreCompleto(s)" (click)="$event.stopPropagation(); revisar.emit(s)">{{ nombreCompleto(s) }}</button><span class="block truncate text-body-xs text-text-tertiary">{{ s.email }}</span></span>
                 </span>
               </td>
               <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge></td>
@@ -39,7 +39,7 @@ import type { SolicitudItem } from './solicitudes-api';
               <td class="px-3 py-3 text-body-s">{{ s.edad }}</td>
               <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
               <td class="px-3 py-3"><gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge></td>
-              <td class="px-2 py-3"><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></td>
+              <td class="px-2 py-3"><span class="flex size-8 items-center justify-center rounded-sm text-text-tertiary" aria-hidden="true">…</span></td>
             </tr>
           }
         </tbody>
@@ -64,14 +64,14 @@ import type { SolicitudItem } from './solicitudes-api';
                 <span class="flex items-center gap-3">
                   @if (miniatura(s.id); as url) { <img [src]="url" alt="" class="h-12 w-10 shrink-0 rounded-xs bg-bg-raised object-cover" loading="lazy" /> }
                   @else { <span class="flex h-12 w-10 shrink-0 items-center justify-center rounded-xs bg-bg-raised text-text-tertiary"><gr-icon name="user" [size]="18" /></span> }
-                  <span class="min-w-0"><span class="block truncate text-label-s">{{ nombreCompleto(s) }}</span>
+                  <span class="min-w-0"><button type="button" class="block max-w-full truncate rounded-2xs text-left text-label-s focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [attr.aria-label]="'Revisar solicitud de ' + nombreCompleto(s)" (click)="$event.stopPropagation(); revisar.emit(s)">{{ nombreCompleto(s) }}</button>
                     <span class="block truncate text-body-xs text-text-tertiary">{{ s.club || 'Independiente' }} · {{ s.edad }} años</span></span>
                 </span>
               </td>
               <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge></td>
               <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
               <td class="px-3 py-3"><gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge></td>
-              <td class="px-2 py-3"><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></td>
+              <td class="px-2 py-3"><span class="flex size-8 items-center justify-center rounded-sm text-text-tertiary" aria-hidden="true">…</span></td>
             </tr>
           }
         </tbody>

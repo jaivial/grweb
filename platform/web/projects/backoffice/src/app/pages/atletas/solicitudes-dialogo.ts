@@ -86,7 +86,7 @@ import { BoToggle } from '../../shared/ui';
           </div>
           <div class="mt-6 flex justify-end gap-2">
             <button grButton variant="ghost" (click)="cerrar.emit()">Cancelar</button>
-            <button grButton variant="danger" [loading]="ocupado()" [disabled]="borrarTexto.trim().toUpperCase() !== 'BORRAR'" (click)="borrar.emit()">Borrar definitivamente</button>
+            <button grButton variant="danger" [loading]="ocupado()" [disabled]="borrarTexto.trim() !== 'BORRAR'" (click)="!ocupado() && borrar.emit()">Borrar definitivamente</button>
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@ export class SolicitudesDialogo {
   readonly destino = input('');
   readonly ocupado = input(false);
   readonly avisarEmail = model(true);
-  readonly avisarWhatsApp = model(true);
+  readonly avisarWhatsApp = model(false);
   readonly cerrar = output();
   readonly aprobar = output();
   readonly rechazar = output<string>();
@@ -113,6 +113,6 @@ export class SolicitudesDialogo {
     return this.motivo.length > 0 && this.motivo.trim().length < 3 ? 'Escribe al menos 3 caracteres' : null;
   }
   protected borrarError(): string | null {
-    return this.borrarTexto.length > 0 && this.borrarTexto.trim().toUpperCase() !== 'BORRAR' ? 'Escribe BORRAR' : null;
+    return this.borrarTexto.length > 0 && this.borrarTexto.trim() !== 'BORRAR' ? 'Escribe BORRAR en mayúsculas' : null;
   }
 }

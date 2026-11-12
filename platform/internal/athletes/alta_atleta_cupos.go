@@ -103,7 +103,23 @@ func (s *Svc) registerAltaCupos() {
 	type cuposOut struct {
 		Body struct {
 			Cupos []CupoPrueba `json:"cupos"`
+			// Global places of the event (Inscripción › Plazas): approving fails with 409 when they are full.
+			Global struct {
+				Plazas   int `json:"plazas" doc:"0 = sin límite"`
+				Ocupadas int `json:"ocupadas" doc:"Atletas confirmados + pagos en curso"`
+			} `json:"global"`
 		}
+	}
+	conGlobal := func(ctx context.Context, cid uuid.UUID, out *cuposOut) (*cuposOut, error) {
+		c, err := s.comps.ByID(ctx, cid)
+		if err != nil {
+			return nil, err
+		}
+		out.Body.Global.Plazas = c.Inscripcion.Plazas
+		if out.Body.Global.Ocupadas, err = s.ocupadas(ctx, cid); err != nil {
+			return nil, err
+		}
+		return out, nil
 	}
 	huma.Register(api, huma.Operation{OperationID: "solicitudes-atleta-cupos", Method: http.MethodGet, Path: path,
 		Summary: "Cupo propio de cada competición del alta", Tags: tagAdmin, Security: bearer},
@@ -114,7 +130,10 @@ func (s *Svc) registerAltaCupos() {
 			out := &cuposOut{}
 			var err error
 			out.Body.Cupos, err = s.listaCupos(ctx, in.CID)
-			return out, err
+			if err != nil {
+				return nil, err
+			}
+			return conGlobal(ctx, in.CID, out)
 		})
 	type guardaIn struct {
 		CID  uuid.UUID `path:"cid"`
@@ -150,6 +169,9 @@ func (s *Svc) registerAltaCupos() {
 			out := &cuposOut{}
 			var err error
 			out.Body.Cupos, err = s.listaCupos(ctx, in.CID)
-			return out, err
+			if err != nil {
+				return nil, err
+			}
+			return conGlobal(ctx, in.CID, out)
 		})
 }
