@@ -150,7 +150,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
           }
           @case ('modulos') {
             <section class="grid gap-3 md:grid-cols-2">
-              @for (m of mods(); track m.clave) {
+              @for (m of mods(); track m) {
                 <div class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4" [class.opacity-60]="m.bloqueado">
                   <div class="min-w-0 flex-1"><p class="text-label-s">{{ m.nombre }}</p><p class="text-body-xs text-text-tertiary">{{ m.bloqueado ? (m.motivo || 'Bloqueado') : m.descripcion }}</p></div>
                   @if (m.bloqueado) { <gr-badge tone="warning">Bloqueado</gr-badge> }
@@ -185,17 +185,17 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
       }
     </div>
     @if (apagar(); as m) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="apagar.set(null)" (keydown.escape)="apagar.set(null)">
+      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="cancelarApagar()" (keydown.escape)="cancelarApagar()">
         <div class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Desactivar ' + m.nombre"
           cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
           <div class="flex items-start justify-between gap-3">
             <h2 class="text-ui-h5">Desactivar {{ m.nombre }}</h2>
-            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="apagar.set(null)"><gr-icon name="x" [size]="18" /></button>
+            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="cancelarApagar()"><gr-icon name="x" [size]="18" /></button>
           </div>
           <p class="mt-3 text-body-s text-text-secondary">La sección desaparecerá de la web pública. Desactivar no borra datos: lo ya registrado sigue siendo válido. No se avisará a nadie.</p>
           <gr-field label="Escribe DESACTIVAR para confirmar" hint="Queda en el registro de auditoría" class="mt-4"><input grInput [(ngModel)]="confirmar" autocomplete="off" /></gr-field>
           <div class="mt-6 flex justify-end gap-2">
-            <button grButton variant="ghost" (click)="apagar.set(null)">Cancelar</button>
+            <button grButton variant="ghost" (click)="cancelarApagar()">Cancelar</button>
             <button grButton variant="danger" [disabled]="confirmar.trim() !== 'DESACTIVAR'" (click)="confirmarApagar(m)">Desactivar {{ m.nombre.toLowerCase() }}</button>
           </div>
         </div>
@@ -382,10 +382,15 @@ export class EventoPage {
       // turning a module off hides a public section: confirm first (Figma 96:12197)
       this.confirmar = '';
       this.apagar.set(m);
-      this.mods.set([...this.mods()]);
+      this.mods.set(this.mods().map((x) => ({ ...x }))); // keep the switch on until the user confirms
       return;
     }
     await this.ponerModulo(m, activo);
+  }
+  /** Closing the dialog without confirming: recreate the toggles so the switch shows the real (still active) state. */
+  protected cancelarApagar(): void {
+    this.apagar.set(null);
+    this.mods.set(this.mods().map((x) => ({ ...x })));
   }
   protected async confirmarApagar(m: ModItem): Promise<void> {
     this.apagar.set(null);
@@ -398,7 +403,7 @@ export class EventoPage {
       this.toasts.success(`${m.nombre}: ${activo ? 'activo' : 'desactivado'}`);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo cambiar el módulo.'));
-      this.mods.set([...this.mods()]);
+      this.mods.set(this.mods().map((x) => ({ ...x })));
     }
   }
 }
