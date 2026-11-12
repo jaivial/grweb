@@ -21,6 +21,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
 )
 
@@ -44,6 +45,7 @@ type Svc struct {
 	cache    *cache.Cache
 	mediaDir string
 	webURL   string // public web (links in emails)
+	fans     *fanauth.Verifier
 
 	comps *compref.Resolver
 }
@@ -66,6 +68,22 @@ func (s *Svc) init(a *app.App) {
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "cms", "")}
 	s.mediaDir = config.Str("MEDIA_DIR", "/data/medios")
 	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
+	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
+}
+
+// fan verifies the fan session of the competition (D-MIEMBROS: public forms need one): cookie first, header second.
+func (s *Svc) fan(ctx context.Context, cookie, hdr string, cid uuid.UUID) (fanauth.Fan, error) {
+	if cookie == "" {
+		cookie = hdr
+	}
+	f, err := s.fans.Verify(ctx, cookie)
+	if err != nil {
+		return fanauth.Fan{}, fanauth.Problem(err)
+	}
+	if f.CompetitionID != cid {
+		return fanauth.Fan{}, fanauth.Problem(fanauth.ErrInvalid)
+	}
+	return f, nil
 }
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {

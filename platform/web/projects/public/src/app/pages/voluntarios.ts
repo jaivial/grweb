@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrIcon, GrInput, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Competition } from '../core/competition';
+import { FanSession } from '../core/fan';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
 import { Page } from '../layout/page';
@@ -20,6 +21,7 @@ const ROLES: Rol[] = [
   { id: 'foto', t: 'Foto y vídeo', d: 'Contenido para redes y la galería.', req: 'Equipo propio', icono: 'camera' },
   { id: 'acreditaciones', t: 'Acreditaciones y logística', d: 'Pesaje, acreditaciones y atención al público.', req: '', icono: 'users' },
 ];
+const BORRADOR = 'grcup_borrador_voluntario';
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 /**
@@ -97,7 +99,6 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                 </fieldset>
                 <label class="flex flex-col gap-1.5" for="v-exp"><span class="text-label-s">Experiencia <span class="text-text-tertiary">(opcional)</span></span>
                   <textarea grInput id="v-exp" name="experiencia" rows="3" maxlength="1000" placeholder="Cuéntanos si has sido juez, cargador o voluntario antes…" class="min-h-24 py-2.5" [(ngModel)]="experiencia"></textarea></label>
-                <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="menor" [(ngModel)]="esMenor" class="mt-0.5 size-5 shrink-0 accent-[#C42B3E]" />Soy menor de edad (pediremos la autorización de mi madre, padre o tutor)</label>
                 <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="priv" [(ngModel)]="acepta" [attr.aria-invalid]="falta() && !acepta" class="mt-0.5 size-5 shrink-0 accent-[#C42B3E]" /><span>He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de tratamiento de mis datos</a></span></label>
                 @if (error()) { <gr-alert tone="danger" title="No se pudo enviar" role="alert">{{ error() }}</gr-alert> }
                 <button grButton variant="primary" size="l" type="submit" class="w-full" [loading]="enviando()">Enviar solicitud</button>
@@ -113,6 +114,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 export class VoluntariosPage {
   private readonly cms = inject(Cms);
   private readonly comp = inject(Competition);
+  private readonly fan = inject(FanSession);
   protected readonly roles = ROLES;
   protected readonly beneficios = ['Camiseta oficial de voluntario', 'Comida durante la jornada', 'Certificado de voluntariado', 'Ver la competición desde dentro'];
   protected readonly rel = [
@@ -124,7 +126,6 @@ export class VoluntariosPage {
   protected email = '';
   protected telefono = '';
   protected experiencia = '';
-  protected esMenor = false;
   protected acepta = false;
   private readonly rolesElegidos = signal(new Set<string>());
   protected readonly disponible = signal(new Set<string>());
@@ -145,6 +146,15 @@ export class VoluntariosPage {
 
   constructor() {
     const seo = inject(Seo);
+    // back from the access email: restore what was typed (D-MIEMBROS)
+    const b = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(BORRADOR);
+    if (b) {
+      sessionStorage.removeItem(BORRADOR);
+      const d = JSON.parse(b);
+      Object.assign(this, { nombre: d.nombre, email: d.email, telefono: d.telefono, experiencia: d.experiencia });
+      this.rolesElegidos.set(new Set(d.roles));
+      this.disponible.set(new Set(d.dias));
+    }
     void inject(PendingTasks).run(async () => {
       await this.comp.load();
       await applySeo(this.cms, seo, '/voluntarios', 'Voluntarios · GR Strength Cup', 'Jueces, cargadores, mesa técnica, foto y acreditaciones: apúntate como voluntario en la GR Strength Cup.');
@@ -161,6 +171,12 @@ export class VoluntariosPage {
     this.falta.set(true);
     if (this.nombre.trim().length < 2 || !this.emailOk()) return this.error.set('Escribe tu nombre y un email válido.');
     if (!this.acepta) return this.error.set('Tienes que aceptar la política de tratamiento de datos para enviar la solicitud.');
+    // D-MIEMBROS: the request needs a fan session; the access email brings the person back here.
+    if (!(await this.fan.cargar())) {
+      sessionStorage.setItem(BORRADOR, JSON.stringify({ nombre: this.nombre, email: this.email, telefono: this.telefono, experiencia: this.experiencia,
+        roles: [...this.rolesElegidos()], dias: [...this.disponible()] }));
+      return this.fan.abrirAcceso('formulario', '/voluntarios', this.email.trim());
+    }
     const tel = this.telefono.trim();
     this.enviando.set(true);
     try {
@@ -168,7 +184,7 @@ export class VoluntariosPage {
         nombre: this.nombre.trim(), email: this.email.trim(), telefono: tel && !tel.startsWith('+') ? '+34 ' + tel : tel,
         disponibilidad: this.dias().filter((d) => this.disponible().has(d)).join(', '),
         roles: ROLES.map((r) => r.id).filter((id) => this.rolesElegidos().has(id)), experiencia: this.experiencia.trim(),
-        esMenor: this.esMenor, aceptaPrivacidad: this.acepta,
+        aceptaPrivacidad: this.acepta,
       });
       this.enviado.set(true);
       setTimeout(() => document.getElementById('apuntate')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));

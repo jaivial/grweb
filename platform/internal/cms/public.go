@@ -290,8 +290,10 @@ func (s *Svc) registerPublic() {
 		})
 
 	type volIn struct {
-		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Body struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    struct {
 			Nombre           string   `json:"nombre" minLength:"2" maxLength:"120"`
 			Email            string   `json:"email" format:"email" maxLength:"254"`
 			Telefono         string   `json:"telefono,omitempty" maxLength:"30"`
@@ -306,6 +308,9 @@ func (s *Svc) registerPublic() {
 		func(ctx context.Context, in *volIn) (*struct{}, error) {
 			cid, err := s.cidFor(ctx, in.Slug)
 			if err != nil {
+				return nil, err
+			}
+			if _, err := s.fan(ctx, in.Session, in.Header, cid); err != nil {
 				return nil, err
 			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "voluntarios", httpx.ClientIPFrom(ctx)), 5, time.Hour); !r.Allowed {
@@ -413,8 +418,10 @@ func (s *Svc) registerPublicExtra() {
 		})
 
 	type clubSolIn struct {
-		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Body struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    struct {
 			Nombre           string `json:"nombre" minLength:"2" maxLength:"120"`
 			Ciudad           string `json:"ciudad" minLength:"2" maxLength:"80"`
 			Provincia        string `json:"provincia,omitempty" maxLength:"40"`
@@ -433,6 +440,9 @@ func (s *Svc) registerPublicExtra() {
 			if err != nil {
 				return nil, err
 			}
+			if _, err := s.fan(ctx, in.Session, in.Header, cid); err != nil {
+				return nil, err
+			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "clubs", httpx.ClientIPFrom(ctx)), 3, time.Hour); !r.Allowed {
 				return nil, problem.TooMany("Has enviado varias propuestas seguidas. Inténtalo más tarde.")
 			}
@@ -446,12 +456,23 @@ func (s *Svc) registerPublicExtra() {
 			var version string
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
+			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			contacto := strings.TrimSpace(in.Body.ContactoNombre)
 			return nil, s.change(ctx, cid, "cms.club_solicitado", map[string]any{"id": id, "nombre": b.Nombre}, func(tx pgx.Tx) error {
-				_, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, consentimiento_at, legal_version, orden)
+				if _, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, consentimiento_at, legal_version, orden)
 					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pendiente',$9,$10,$11,now(),$12, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
-					id, cid, b.Nombre, b.Ciudad, b.Provincia, b.Web, b.Instagram, in.Body.AfiliadoAEP, strings.ToLower(strings.TrimSpace(in.Body.Email)),
-					strings.TrimSpace(in.Body.ContactoNombre), strings.TrimSpace(in.Body.Mensaje), version)
-				return err
+					id, cid, b.Nombre, b.Ciudad, b.Provincia, b.Web, b.Instagram, in.Body.AfiliadoAEP, email,
+					contacto, strings.TrimSpace(in.Body.Mensaje), version); err != nil {
+					return err
+				}
+				if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.contacto", map[string]any{"email": email, "nombre": contacto, "origen": "club",
+					"consentimientos": []map[string]any{{"finalidad": "privacidad", "estado": "confirmado", "version": version, "origen": "/clubs · formulario", "ip": httpx.ClientIPFrom(ctx)}},
+					"actividad":       map[string]any{"tipo": "club", "titulo": "Propuso un club", "detalle": b.Nombre + " · " + b.Ciudad}},
+					events.Competition(cid.String()), events.Audience(events.Internal))); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "cms.email_solicitado", map[string]any{"para": email, "plantilla": "club-recibido",
+					"vars": map[string]string{"nombre": contacto, "club": b.Nombre}}, events.Competition(cid.String()), events.Audience(events.Internal)))
 			})
 		})
 }
