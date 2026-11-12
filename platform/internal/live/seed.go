@@ -39,7 +39,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	// Already seeded with body weights (GL): keep. Rows without any GL (e.g. an import of the old web, which has no
 	// body weights or clubs) are replaced by the Figma 25 data, so «Mejor levantador/a» and the GL column exist.
 	var n int
-	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1 AND datos::text LIKE '%"gl":%'`, c25.ID).Scan(&n); err != nil {
+	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1 AND jsonb_path_exists(datos, '$.filas[*].gl')`, c25.ID).Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
