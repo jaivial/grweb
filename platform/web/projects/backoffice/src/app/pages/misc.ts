@@ -38,7 +38,11 @@ export class ComingSoonPage {
       <gr-empty [icon]="e().icon" [title]="e().title" [text]="e().text">
         @switch (code()) {
           @case (403) {
-            <button grButton (click)="back()"><gr-icon name="chevron-left" [size]="16" />Volver</button>
+            @if (motivo() === 'sin-competicion') {
+              <button grButton (click)="logout()"><gr-icon name="log-out" [size]="16" />Salir</button>
+            } @else {
+              <button grButton (click)="back()"><gr-icon name="chevron-left" [size]="16" />Volver</button>
+            }
             <a grButton variant="primary" [href]="solicitar()">Solicitar acceso</a>
           }
           @case (500) {
@@ -61,6 +65,7 @@ export class ErrorPage {
   readonly code = input<403 | 404 | 500>(404);
   /** 403: section + permission that were denied (compGuard); 500: X-Request-Id of the failed request. */
   readonly seccion = input('');
+  readonly motivo = input('');
   readonly ref = input('');
   private readonly item = computed(() => ALL_ITEMS.find((i) => i.path === this.seccion()));
   protected readonly e = computed((): { icon: GrIconName; title: string; text: string } => {
@@ -68,6 +73,8 @@ export class ErrorPage {
     const rol = this.auth.rolEn(this.comps.current()?.id) || 'actual';
     switch (this.code()) {
       case 403:
+        if (this.motivo() === 'sin-competicion')
+          return { icon: 'shield-alert', title: 'No tienes acceso a ninguna competición', text: 'Tu cuenta todavía no pertenece al equipo de ninguna competición. Pídeselo a un Admin de la competición.' };
         return it
           ? { icon: 'shield-alert', title: `No tienes acceso a ${it.label}`, text: `Tu rol (${rol}) no incluye ${it.perm}. Pídeselo a un Admin de la competición.` }
           : { icon: 'shield-alert', title: 'No tienes acceso a esta sección', text: `Tu rol (${rol}) no incluye este permiso. Pídeselo a un Admin de la competición.` };
@@ -88,5 +95,9 @@ export class ErrorPage {
   }
   protected home(): void {
     void this.router.navigateByUrl('/');
+  }
+  protected async logout(): Promise<void> {
+    await this.auth.logout();
+    void this.router.navigateByUrl('/login');
   }
 }

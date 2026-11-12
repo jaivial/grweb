@@ -50,7 +50,8 @@ const homeRedirect: CanActivateFn = async () => {
   await auth.bootstrap();
   if (!auth.isLoggedIn()) return router.createUrlTree(['/login']);
   const list = await comps.load();
-  return list.length ? router.createUrlTree(['/', list[0].slug, 'inicio']) : router.createUrlTree(['/404']);
+  // No membership: Figma 51 «Error · 403» (never /404, whose «Ir al Inicio» would loop back here).
+  return list.length ? router.createUrlTree(['/', list[0].slug, 'inicio']) : router.createUrlTree(['/403'], { queryParams: { motivo: 'sin-competicion' } });
 };
 
 /** Resolves /:comp against the user's competitions and checks the section permission. */
@@ -64,11 +65,15 @@ const compGuard: CanActivateChildFn = async (child) => {
   while (r?.parent && !r.parent.paramMap.has('comp')) r = r.parent;
   const slug = r?.parent?.paramMap.get('comp');
   const c = list.find((x) => x.slug === slug);
-  if (!c) return router.createUrlTree(['/404']);
+  if (!c) {
+    if (auth.user()?.root) return router.createUrlTree(['/404']);
+    return router.createUrlTree(['/403'], list.length ? {} : { queryParams: { motivo: 'sin-competicion' } });
+  }
   comps.slug.set(c.slug);
   const path = r?.routeConfig?.path ?? '';
   const seccion = path === ':seccion' ? (r?.paramMap.get('seccion') ?? '') : path;
   const item = ALL_ITEMS.find((i) => i.path === seccion);
+  if (path === ':seccion' && !item) return router.createUrlTree(['/404']);
   if (item?.perm && !auth.can(c.id, item.perm)) return router.createUrlTree(['/403'], { queryParams: { seccion: item.path } });
   return true;
 };
