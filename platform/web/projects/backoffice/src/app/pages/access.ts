@@ -106,7 +106,10 @@ export class DevicePage implements OnInit {
           <div><h1 class="text-ui-h4">Únete al equipo</h1><p class="text-body-xs text-text-tertiary">Invitación al backoffice de la GR Cup</p></div>
         </div>
         @if (loading()) { <div class="mt-8 flex justify-center"><gr-spinner /></div> }
-        @else if (!info()) { <gr-alert class="mt-6" tone="danger" title="Invitación no válida">{{ error() || 'La invitación no existe, ya se usó o ha caducado. Pide una nueva a quien te invitó.' }}</gr-alert> }
+        @else if (!info()) {
+          <gr-alert class="mt-6" tone="danger" title="Invitación no válida">{{ error() || 'La invitación no existe, ya se usó o ha caducado. Pide una nueva a quien te invitó.' }}</gr-alert>
+          <a grButton class="mt-4" [block]="true" href="/login">Ir a entrar</a>
+        }
         @else {
           <p class="mt-5 text-body-s text-text-secondary">Entrarás como <strong class="text-text-primary">{{ info()!.email }}</strong> con el rol <strong class="text-text-primary">{{ info()!.rol }}</strong>.</p>
           <form class="mt-5 flex flex-col gap-4" (ngSubmit)="accept()">
