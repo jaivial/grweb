@@ -5,6 +5,7 @@ package raffle
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -184,6 +185,34 @@ func etagOK(ifMatch string, version int) bool {
 	return strings.Trim(ifMatch, `"W/`) == fmt.Sprint(version)
 }
 
+// writeProblem answers from a huma middleware (before huma validates the request).
+func writeProblem(hc huma.Context, p *problem.Error) {
+	hc.SetHeader("Content-Type", "application/problem+json")
+	hc.SetStatus(p.Status)
+	_ = json.NewEncoder(hc.BodyWriter()).Encode(p)
+}
+
+// autenticado rejects anonymous callers with 401 before the body is validated.
+func autenticado(hc huma.Context, next func(huma.Context)) {
+	if _, err := auth.User(hc.Context()); err != nil {
+		var pe *problem.Error
+		if !errors.As(err, &pe) {
+			pe = problem.Unauthorized("NO_AUTENTICADO", "Inicia sesión para continuar.")
+		}
+		writeProblem(hc, pe)
+		return
+	}
+	next(hc)
+}
+
+// faltaIfMatch is 428 when the optimistic-lock header is missing.
+func faltaIfMatch(v string) error {
+	if strings.TrimSpace(v) == "" {
+		return problem.New(http.StatusPreconditionRequired, "FALTA_IF_MATCH", "Falta la cabecera If-Match con la versión que editas.")
+	}
+	return nil
+}
+
 func (s *Svc) registerRifa() {
 	api := s.a.API
 
@@ -221,6 +250,13 @@ func (s *Svc) registerRifa() {
 			if err != nil {
 				return nil, err
 			}
+			cfg, err := s.rifaConfig(ctx, s.a.DB, c.ID)
+			if err != nil {
+				return nil, err
+			}
+			if !cfg.Visible {
+				return nil, problem.New(http.StatusNotFound, "RIFA_NO_PUBLICADA", "La rifa todavía no está publicada.")
+			}
 			it, err := s.rifaItems(ctx, c.ID, false)
 			if err != nil {
 				return nil, err
@@ -230,6 +266,7 @@ func (s *Svc) registerRifa() {
 
 	// ---- backoffice ----
 	base := "/api/admin/competiciones/{cid}/rifa"
+	adminMw := huma.Middlewares{autenticado}
 	gestionar := func(ctx context.Context, cid uuid.UUID) error {
 		_, err := auth.Require(ctx, cid.String(), "sorteo.gestionar")
 		return err
@@ -241,7 +278,7 @@ func (s *Svc) registerRifa() {
 		ETag string `header:"ETag"`
 		Body *RifaConfig
 	}
-	huma.Register(api, huma.Operation{OperationID: "rifa-config", Method: http.MethodGet, Path: base + "/config", Summary: "Configuración de la rifa presencial", Tags: tagRifa, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "rifa-config", Method: http.MethodGet, Path: base + "/config", Summary: "Configuración de la rifa presencial", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
 		func(ctx context.Context, in *cidIn) (*cfgOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
 				return nil, err
@@ -251,12 +288,15 @@ func (s *Svc) registerRifa() {
 		})
 	type cfgIn struct {
 		CID     uuid.UUID `path:"cid"`
-		IfMatch string    `header:"If-Match" required:"true"`
+		IfMatch string    `header:"If-Match"`
 		Body    RifaConfig
 	}
-	huma.Register(api, huma.Operation{OperationID: "rifa-config-guardar", Method: http.MethodPut, Path: base + "/config", Summary: "Guardar precio del boleto, lugar, horario y visibilidad", Tags: tagRifa, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "rifa-config-guardar", Method: http.MethodPut, Path: base + "/config", Summary: "Guardar precio del boleto, lugar, horario y visibilidad", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
 		func(ctx context.Context, in *cfgIn) (*cfgOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			if err := faltaIfMatch(in.IfMatch); err != nil {
 				return nil, err
 			}
 			b := in.Body
@@ -289,7 +329,7 @@ func (s *Svc) registerRifa() {
 			return &cfgOut{ETag: fmt.Sprintf(`"%d"`, c.Version), Body: &c}, err
 		})
 
-	huma.Register(api, huma.Operation{OperationID: "rifa-items-admin", Method: http.MethodGet, Path: base + "/items", Summary: "Todos los objetos (también los ocultos)", Tags: tagRifa, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "rifa-items-admin", Method: http.MethodGet, Path: base + "/items", Summary: "Todos los objetos (también los ocultos)", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
 		func(ctx context.Context, in *cidIn) (*rifaListOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
 				return nil, err
@@ -305,7 +345,7 @@ func (s *Svc) registerRifa() {
 		CID  uuid.UUID `path:"cid"`
 		Body RifaItemIn
 	}
-	huma.Register(api, huma.Operation{OperationID: "rifa-item-crear", Method: http.MethodPost, Path: base + "/items", Summary: "Añadir un objeto (al final)", Tags: tagRifa, Security: bearer, DefaultStatus: http.StatusCreated},
+	huma.Register(api, huma.Operation{OperationID: "rifa-item-crear", Method: http.MethodPost, Path: base + "/items", Summary: "Añadir un objeto (al final)", Tags: tagRifa, Security: bearer, DefaultStatus: http.StatusCreated, Middlewares: adminMw},
 		func(ctx context.Context, in *crearIn) (*rifaListOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
 				return nil, err
@@ -325,12 +365,15 @@ func (s *Svc) registerRifa() {
 	type editarIn struct {
 		CID     uuid.UUID `path:"cid"`
 		ID      uuid.UUID `path:"id"`
-		IfMatch string    `header:"If-Match" required:"true"`
+		IfMatch string    `header:"If-Match"`
 		Body    RifaItemIn
 	}
-	huma.Register(api, huma.Operation{OperationID: "rifa-item-editar", Method: http.MethodPatch, Path: base + "/items/{id}", Summary: "Editar un objeto (reemplaza los campos editables)", Tags: tagRifa, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "rifa-item-editar", Method: http.MethodPatch, Path: base + "/items/{id}", Summary: "Editar un objeto (reemplaza los campos editables)", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
 		func(ctx context.Context, in *editarIn) (*rifaListOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			if err := faltaIfMatch(in.IfMatch); err != nil {
 				return nil, err
 			}
 			b := in.Body
@@ -351,11 +394,14 @@ func (s *Svc) registerRifa() {
 	type borrarIn struct {
 		CID     uuid.UUID `path:"cid"`
 		ID      uuid.UUID `path:"id"`
-		IfMatch string    `header:"If-Match" required:"true"`
+		IfMatch string    `header:"If-Match"`
 	}
-	huma.Register(api, huma.Operation{OperationID: "rifa-item-borrar", Method: http.MethodDelete, Path: base + "/items/{id}", Summary: "Quitar un objeto", Tags: tagRifa, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "rifa-item-borrar", Method: http.MethodDelete, Path: base + "/items/{id}", Summary: "Quitar un objeto", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
 		func(ctx context.Context, in *borrarIn) (*rifaListOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			if err := faltaIfMatch(in.IfMatch); err != nil {
 				return nil, err
 			}
 			return s.cambioItems(ctx, in.CID, func(tx pgx.Tx) error {
@@ -373,12 +419,28 @@ func (s *Svc) registerRifa() {
 			IDs []uuid.UUID `json:"ids" maxItems:"500" doc:"Todos los objetos en el orden nuevo"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "rifa-items-orden", Method: http.MethodPut, Path: base + "/items/orden", Summary: "Reordenar los objetos", Tags: tagRifa, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "rifa-items-orden", Method: http.MethodPut, Path: base + "/items/orden", Summary: "Reordenar los objetos", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
 		func(ctx context.Context, in *ordenIn) (*rifaListOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			return s.cambioItems(ctx, in.CID, func(tx pgx.Tx) error {
+				// The list must be an exact permutation of every object of the competition.
+				var total int
+				if err := tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM rifa_items WHERE competition_id = $1 FOR UPDATE) t`, in.CID).Scan(&total); err != nil {
+					return err
+				}
+				vistos := map[uuid.UUID]bool{}
+				for _, id := range in.Body.IDs {
+					vistos[id] = true
+				}
+				var validos int
+				if err := tx.QueryRow(ctx, `SELECT count(*) FROM rifa_items WHERE competition_id = $1 AND id = ANY($2)`, in.CID, in.Body.IDs).Scan(&validos); err != nil {
+					return err
+				}
+				if len(vistos) != len(in.Body.IDs) || len(in.Body.IDs) != total || validos != total {
+					return problem.Unprocessable("ORDEN_NO_VALIDO", "Envía todos los objetos una sola vez, en el orden nuevo.")
+				}
 				for i, id := range in.Body.IDs {
 					if _, err := tx.Exec(ctx, `UPDATE rifa_items SET orden = $3, updated_at = now() WHERE competition_id = $1 AND id = $2`, in.CID, id, i+1); err != nil {
 						return err
@@ -396,7 +458,7 @@ func (s *Svc) registerRifa() {
 			Nombre string `json:"nombre,omitempty" maxLength:"80" doc:"Se publica como «Nombre I.»"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "rifa-item-ganador", Method: http.MethodPost, Path: base + "/items/{id}/ganador", Summary: "Publicar (o quitar) el boleto ganador de un objeto", Tags: tagRifa, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "rifa-item-ganador", Method: http.MethodPost, Path: base + "/items/{id}/ganador", Summary: "Publicar (o quitar) el boleto ganador de un objeto", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
 		func(ctx context.Context, in *ganadorIn) (*rifaListOut, error) {
 			if err := gestionar(ctx, in.CID); err != nil {
 				return nil, err
