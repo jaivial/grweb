@@ -23,7 +23,7 @@ const etiqueta = (c?: string) => (c ? CATEGORIA[c]?.[0] ?? '' : '');
 /** Cover of posts without one (cards and featured). */
 const PORTADA = '/img/blog/trofeo-edicion.webp';
 /** Spanish-only pages: hreflang es + x-default to themselves. */
-export const ES = (path: string) => [{ hreflang: 'es', path }, { hreflang: 'x-default', path }];
+const ES = (path: string) => [{ hreflang: 'es', path }, { hreflang: 'x-default', path }];
 const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '') : '');
 
 /**
@@ -78,6 +78,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
                 }
               </div>
             }
+            @if (!posts()!.length) { <p class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">No hay artículos en esta categoría.</p> }
             @if (visibles().length) {
               <!-- desktop: cards; mobile: rows with an 88 px thumbnail -->
               <ul class="grid gap-3 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
