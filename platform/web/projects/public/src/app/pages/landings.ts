@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, type Club, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
+import { FanSession } from '../core/fan';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
 import { Footer, Navbar, instagramOf, type Lang } from '../layout/layout';
@@ -215,6 +216,7 @@ function eventLd(c: CompeticionPublica, lang: Lang): Record<string, unknown> {
 
 const PROVINCIAS = ['Valencia', 'Alicante', 'Castellón', 'Murcia', 'Baleares'];
 const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', colaborador: 'Club colaborador', club: 'Club' };
+const BORRADOR_CLUB = 'grcup_borrador_club';
 
 /** /clubs (Figma page 32): searchable club directory by province and a moderated «Añadir mi club» form. */
 @Component({
@@ -262,7 +264,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
                 <p class="flex flex-wrap gap-1.5">@for (t of tags(c); track t) { <span class="inline-flex h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-secondary uppercase">{{ t }}</span> }</p>
               }
               <div class="mt-auto flex min-h-11 items-center justify-between gap-3 border-t border-line-subtle pt-2">
-                <span class="text-body-xs text-text-tertiary">{{ rol[c.rol] }}{{ c.afiliadoAep ? ' · AEP' : '' }}</span>
+                <span class="text-body-xs text-text-tertiary">{{ rol[c.rol] }}</span>
                 @if (c.web || c.instagram) {
                   <a [href]="c.web || c.instagram" target="_blank" rel="noopener" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Ver club <gr-icon name="external-link" [size]="14" /></a>
                 }
@@ -340,6 +342,7 @@ const ROL: Record<Club['rol'], string> = { organizador: 'Club organizador', cola
 })
 export class ClubsPage {
   private readonly cms = inject(Cms);
+  private readonly fan = inject(FanSession);
   protected readonly clubs = signal<Club[] | null>(null);
   protected readonly q = signal('');
   protected readonly prov = signal('Todas');
@@ -368,6 +371,9 @@ export class ClubsPage {
 
   constructor() {
     const seo = inject(Seo);
+    // back from the access email: restore what was typed (D-MIEMBROS)
+    const borrador = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(BORRADOR_CLUB);
+    if (borrador) { sessionStorage.removeItem(BORRADOR_CLUB); this.f = { ...this.f, ...JSON.parse(borrador) }; }
     void inject(PendingTasks).run(async () => {
       const list = await this.cms.clubs();
       this.clubs.set(list ?? []);
@@ -400,6 +406,11 @@ export class ClubsPage {
       this.error.set(e['acepta'] && Object.keys(e).length === 1 ? 'Tienes que aceptar la política de privacidad para enviar la solicitud.' : 'Revisa los campos marcados.');
       document.getElementById(({ nombre: 'c-nombre', ciudad: 'c-ciudad', provincia: 'c-prov', web: 'c-web', instagram: 'c-ig', contacto: 'c-contacto', email: 'c-email' } as Record<string, string>)[Object.keys(e)[0]] ?? '')?.focus();
       return;
+    }
+    // D-MIEMBROS: proposing a club needs a fan session; the access email brings the person back here.
+    if (!(await this.fan.cargar())) {
+      sessionStorage.setItem(BORRADOR_CLUB, JSON.stringify(f));
+      return this.fan.abrirAcceso('formulario', '/clubs', f.email.trim());
     }
     this.busy.set(true);
     try {
