@@ -21,13 +21,14 @@ type salaResumen struct {
 	ID     uuid.UUID `json:"id"`
 	Nombre string    `json:"nombre"`
 	Estado string    `json:"estado" enum:"abierta,en_juego,cancelada,cerrada,finalizada"`
+	Plazas int       `json:"plazas"`
 }
 
 func resumenDe(sl *salaRow) *salaResumen {
 	if sl == nil {
 		return nil
 	}
-	return &salaResumen{ID: sl.ID, Nombre: sl.Nombre, Estado: sl.Estado}
+	return &salaResumen{ID: sl.ID, Nombre: sl.Nombre, Estado: sl.Estado, Plazas: sl.Plazas}
 }
 
 // solicitudVista is one request in the host's tray.
@@ -40,9 +41,9 @@ type solicitudVista struct {
 // errEmpezada is the 409 of every room change once the first session of the day has started.
 var errEmpezada = problem.Conflict("SALA_EMPEZADA", "La jornada ya ha empezado: no se pueden crear salas, entrar, salir ni cambiar jugadores.")
 
-// atletasDelDia counts the athletes of the day (the scoreboard, or what was already synced if it is down).
+// atletasDelDia counts the athletes of the day (the scoreboard, or what was already synced if it is down or empty).
 func (s *Svc) atletasDelDia(ctx context.Context, cid uuid.UUID, j jornada) int {
-	if m, err := s.marcador(ctx, cid, j.Dia); err == nil {
+	if m, err := s.marcador(ctx, cid, j.Dia); err == nil && len(m.Atletas) > 0 {
 		return len(m.Atletas)
 	}
 	var n int
