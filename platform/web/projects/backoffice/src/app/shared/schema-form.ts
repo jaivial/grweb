@@ -66,7 +66,7 @@ type Obj = Record<string, unknown>;
             <gr-field [label]="f.etiqueta" [for]="id" [hint]="f.ayuda ?? null">
               @if (f.max) { <bo-count fieldAside [value]="str(f.clave)" [max]="f.max" /> }
               @switch (f.tipo) {
-                @case ('area') { <textarea grInput [id]="id" rows="4" class="h-auto! py-2" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea> }
+                @case ('area') { <textarea grInput [id]="id" rows="4" class="h-auto! py-2" [attr.maxlength]="f.max || null" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea> }
                 @case ('markdown') {
                   <div class="flex flex-col gap-2">
                     <div class="flex gap-1 text-label-s">
@@ -101,7 +101,7 @@ type Obj = Record<string, unknown>;
                     @if (str(f.clave)) { <img [src]="vista(str(f.clave))" alt="" class="max-h-40 w-auto self-start rounded-sm border border-line-subtle object-cover" /> }
                   </div>
                 }
-                @default { <input grInput [id]="id" [type]="f.tipo === 'url' ? 'url' : 'text'" [value]="str(f.clave)" [attr.aria-describedby]="aviso ? id + '-aviso' : null" (input)="set(f.clave, $any($event.target).value)" /> }
+                @default { <input grInput [id]="id" [attr.maxlength]="f.max || null" [type]="f.tipo === 'url' ? 'url' : 'text'" [value]="str(f.clave)" [attr.aria-describedby]="aviso ? id + '-aviso' : null" (input)="set(f.clave, $any($event.target).value)" /> }
               }
               @if (aviso) { <p class="flex items-start gap-1.5 text-body-xs text-warning" [id]="id + '-aviso'"><gr-icon name="triangle-alert" [size]="14" class="mt-px shrink-0" />{{ aviso }}</p> }
             </gr-field>
