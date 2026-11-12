@@ -249,7 +249,8 @@ export class HorariosPage {
     const fl = (this.data()?.dias ?? []).flatMap((d) => d.flights);
     const parts = [
       ...fl.filter((f) => f.estado === 'en_curso').map((f) => `Flight ${f.codigo} en la plataforma`),
-      ...fl.filter((f) => f.estado === 'programado' && f.retrasoMin).map((f) => `Flight ${f.codigo} con +${f.retrasoMin} min`),
+      // Figma 41: only the next delayed flight, so the line stays one row on mobile
+      ...fl.filter((f) => f.estado === 'programado' && f.retrasoMin).sort((a, b) => a.inicioEstimado.localeCompare(b.inicioEstimado)).slice(0, 1).map((f) => `Flight ${f.codigo} con +${f.retrasoMin} min`),
     ];
     return parts.join(' · ');
   });
