@@ -535,6 +535,7 @@ export class AtletaPage {
 
   /** Back from the email link: finishes the follow / alert started without a session, then syncs the stars. */
   private async retomar(a: FichaPub): Promise<void> {
+    if (!(await this.fan.cargar())) return; // no session yet: keep the intention for when they come back logged in
     const i = this.fav.intencion(a.slug);
     if (i?.accion === 'seguir' && !this.fav.has(a.slug)) await this.fav.seguir(a.slug);
     if (i?.accion === 'avisar' && i.email) {
