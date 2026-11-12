@@ -6,7 +6,7 @@ import {
 } from '../shared/kit';
 
 const H2 = 'text-ui-h5';
-const ROW = 'flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]';
+const ROW = 'flex items-start gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]';
 
 /** Figma 50 «BO · Componentes · dominio y tiempo real» (1.ª parte): aforo, flights, directo, puerta, permisos, RGPD, plantillas y secciones. */
 @Component({
@@ -52,14 +52,14 @@ const ROW = 'flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]';
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="d-scan">
       <h2 id="d-scan" [class]="h2">Scan result</h2>
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">@for (s of scans; track s[0]) { <bo-scan-result [estado]="s[0]" [titulo]="s[1]" [detalle]="s[2]" [boton]="s[3]" /> }</div>
+      <div class="flex flex-wrap items-start gap-4">@for (s of scans; track s[0]) { <bo-scan-result class="min-h-[268px] w-full max-w-[358px]" [estado]="s[0]" [titulo]="s[1]" [detalle]="s[2]" [boton]="s[3]" /> }</div>
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="d-perm">
       <h2 id="d-perm" [class]="h2">Permission cell · Consent proof</h2>
       <div class="flex gap-4">@for (p of permisos; track $index) { <bo-permission-cell [value]="p" /> }</div>
-      <div class="grid gap-4 lg:grid-cols-2">
+      <div class="flex flex-wrap items-start gap-4">
         @for (c of consents; track c[0]) {
-          <bo-consent-proof finalidad="Novedades por email" [estado]="c[0]" texto="Novedades v2026-10 · sha256 9f3a…c1" origen="/entradas · formulario de reserva" fecha="12/06/2026 18:22:04 (Europe/Madrid)" ip="83.45.x.x (anonimizada)" [nota]="c[1]" />
+          <bo-consent-proof class="w-full max-w-[440px]" finalidad="Novedades por email" [estado]="c[0]" texto="Novedades v2026-10 · sha256 9f3a…c1" origen="/entradas · formulario de reserva" fecha="12/06/2026 18:22:04 (Europe/Madrid)" ip="83.45.x.x (anonimizada)" [nota]="c[1]" />
         }
       </div>
     </section>
