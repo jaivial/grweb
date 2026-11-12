@@ -12,6 +12,7 @@ export interface Fan {
   tipo: 'atleta' | 'publico';
   atletaId?: string;
   insignia?: string;
+  email?: string;
 }
 
 export interface AccesoIn {
@@ -55,6 +56,8 @@ export class FanSession {
   readonly motivoAcceso = signal<string | null>(null);
   /** Path the email link brings the person back to (null: the live page). */
   readonly volverA = signal<string | null>(null);
+  /** Email already typed on the page that opens the modal (prefills it). */
+  readonly emailAcceso = signal('');
 
   private pendiente: Promise<Fan | null> | null = null;
 
@@ -74,8 +77,9 @@ export class FanSession {
     return this.pendiente;
   }
 
-  abrirAcceso(motivo: string | null = null, volverA: string | null = null): void {
+  abrirAcceso(motivo: string | null = null, volverA: string | null = null, email = ''): void {
     this.motivoAcceso.set(motivo);
+    this.emailAcceso.set(email);
     this.volverA.set(volverA);
     this.accesoAbierto.set(true);
   }
