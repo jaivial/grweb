@@ -14,6 +14,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
 )
@@ -34,6 +35,7 @@ type MiEntrada struct {
 	PuedeCambiar bool       `json:"puedeCambiar"`
 	MaxPersonas  int        `json:"maxPersonas" doc:"Máximo al que puede subir (plazas libres y límite por reserva)"`
 	Compartir    string     `json:"compartir" doc:"Enlace para invitar a otras personas"`
+	Novedades    string     `json:"novedades" enum:"si,no," doc:"Respuesta a las novedades: si, no o vacío (sin responder)"`
 }
 
 type tokIn struct {
@@ -75,8 +77,9 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 	var m MiEntrada
 	var sid uuid.UUID
 	var mail *string
-	if err := s.a.DB.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, dentro, estado, sesion_id FROM entradas WHERE id = $1`, id).
-		Scan(&m.Codigo, &m.Nombre, &m.Apellidos, &mail, &m.Personas, &m.Dentro, &m.Estado, &sid); err != nil {
+	if err := s.a.DB.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, dentro, estado, sesion_id,
+		CASE WHEN consentimientos->>'novedades' = 'true' THEN 'si' WHEN consentimientos->>'novedadesNo' = 'true' THEN 'no' ELSE '' END FROM entradas WHERE id = $1`, id).
+		Scan(&m.Codigo, &m.Nombre, &m.Apellidos, &mail, &m.Personas, &m.Dentro, &m.Estado, &sid, &m.Novedades); err != nil {
 		return m, err
 	}
 	if mail != nil {
@@ -97,7 +100,9 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 	}
 	now := time.Now()
 	m.Sesion = x.pub(now)
-	m.QR = s.qr(c.ID, m.Codigo)
+	if m.Estado != "anulada" {
+		m.QR = s.qr(c.ID, m.Codigo)
+	}
 	m.Lugar = strings.Join(nonEmpty(c.Sede.Nombre, c.Sede.Ciudad), ", ")
 	m.PuedeCambiar = m.Estado == "reservada" && now.Before(x.Inicio)
 	m.MaxPersonas = min(x.MaxPorReserva, m.Personas+m.Sesion.Libres)
@@ -198,6 +203,53 @@ func (s *Svc) registerMiEntrada() {
 			return &struct{ Body MiEntrada }{m}, err
 		})
 
+	type avisameIn struct {
+		Body struct {
+			Token  string `json:"token" minLength:"20" maxLength:"80"`
+			Acepta bool   `json:"acepta" doc:"true: empieza el doble opt-in al email de la entrada; false: no volver a preguntar"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "mi-entrada-avisame", Method: http.MethodPost, Path: "/api/mi-entrada/avisame", Summary: "Responder a las novedades con el email de la entrada", Tags: tags},
+		func(ctx context.Context, in *avisameIn) (*struct{ Body MiEntrada }, error) {
+			var c compref.Comp
+			var id uuid.UUID
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				var cid uuid.UUID
+				var err error
+				if id, cid, c, err = s.porToken(ctx, tx, in.Body.Token, true); err != nil {
+					return err
+				}
+				var mail *string
+				var nombre, ape, cod string
+				var resp bool
+				if err := tx.QueryRow(ctx, `SELECT email::text, nombre, apellidos, codigo, COALESCE(consentimientos->>'novedades' = 'true' OR consentimientos->>'novedadesNo' = 'true', false) FROM entradas WHERE id = $1`, id).
+					Scan(&mail, &nombre, &ape, &cod, &resp); err != nil {
+					return err
+				}
+				if resp {
+					return nil // already answered: never a second opt-in email
+				}
+				if !in.Body.Acepta {
+					_, err := tx.Exec(ctx, `UPDATE entradas SET consentimientos = consentimientos || '{"novedadesNo": true}', updated_at = now() WHERE id = $1`, id)
+					return err
+				}
+				if mail == nil {
+					return problem.Conflict("SIN_EMAIL", "Esta entrada no tiene email.")
+				}
+				ip := httpx.ClientIPFrom(ctx)
+				if _, err := tx.Exec(ctx, `UPDATE entradas SET consentimientos = consentimientos || jsonb_build_object('novedades', true, 'novedadesAt', now()), updated_at = now() WHERE id = $1`, id); err != nil {
+					return err
+				}
+				return contacto(ctx, tx, cid, map[string]any{"email": *mail, "nombre": strings.TrimSpace(nombre + " " + ape), "origen": "entradas", "novedades": true, "ip": ip,
+					"actividad": map[string]any{"tipo": "novedades", "titulo": "Pidió las novedades", "detalle": "/entradas/confirmacion · " + cod}})
+			})
+			if err != nil {
+				return nil, err
+			}
+			m, err := s.miEntrada(ctx, c, id)
+			return &struct{ Body MiEntrada }{m}, err
+		})
+
 	type icsOut struct {
 		ContentType string `header:"Content-Type"`
 		Disposition string `header:"Content-Disposition"`
@@ -212,6 +264,9 @@ func (s *Svc) registerMiEntrada() {
 			m, err := s.miEntrada(ctx, c, id)
 			if err != nil {
 				return nil, err
+			}
+			if m.Estado == "anulada" {
+				return nil, problem.New(http.StatusGone, "ENTRADA_ANULADA", "Esta entrada está anulada.")
 			}
 			ts := func(t time.Time) string { return t.UTC().Format("20060102T150405Z") }
 			esc := strings.NewReplacer(`\`, `\\`, ";", `\;`, ",", `\,`, "\n", `\n`)

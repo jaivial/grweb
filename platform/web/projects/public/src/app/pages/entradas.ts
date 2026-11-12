@@ -15,7 +15,6 @@ import { GrCabecera } from '../home/bloques';
 import { Footer, Navbar } from '../layout/layout';
 import { Newsletter } from '../layout/newsletter';
 import { Page } from '../layout/page';
-import { Novedades } from '../core/novedades';
 import { applySeo } from './content';
 
 const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
@@ -117,7 +116,7 @@ export class TicketCard {
 }
 
 const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
-  `${m.nombre} ${m.apellidos.split(' ')[0] ?? ''}`.trim() + (m.personas > 1 ? ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}` : '');
+  `${m.nombre} ${m.apellidos}`.trim() + (m.personas > 1 ? ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}` : '');
 
 // ============================================================ /entradas ===
 
@@ -623,18 +622,28 @@ export class EntradasPage {
           <p class="text-body-m text-text-secondary">Pide uno nuevo en <a routerLink="/mi-entrada" class="text-accent-text underline">Mi entrada</a>.</p>
         </section>
       } @else {
-        <div class="mx-auto flex max-w-[350px] flex-col gap-6 md:max-w-[480px] xl:grid xl:max-w-none xl:grid-cols-[542px_563px] xl:items-start xl:gap-4">
+        <div class="mx-auto flex max-w-[350px] flex-col gap-6 md:max-w-[480px] xl:grid xl:max-w-none xl:grid-cols-[542px_563px] xl:items-start xl:justify-center xl:gap-4">
           <div class="flex flex-col gap-6 xl:items-center">
+            @if (m.estado === 'anulada') {
+              <div class="flex flex-col items-center gap-3 text-center">
+                <span class="flex size-16 items-center justify-center rounded-full border border-line-strong bg-white/5 text-text-secondary"><gr-icon name="x" [size]="24" /></span>
+                <h1 class="text-display-s">Entrada anulada</h1>
+                <p class="text-body-m text-text-secondary">Su QR ya no vale. Si fue un error, <a routerLink="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p>
+              </div>
+            } @else {
             <div class="flex flex-col items-center gap-3 text-center">
               <span class="flex size-16 items-center justify-center rounded-full border border-success/50 bg-success/12 text-success"><gr-icon name="check" [size]="24" /></span>
               <h1 class="text-display-s">¡Tienes entrada!</h1>
-              <p class="text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}.<span class="xl:hidden"> Si no la ves en 2 minutos, mira en spam.</span></p>
+              <p class="text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p>
             </div>
-            <gr-ticket class="w-full xl:w-[342px]" [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" />
+            }
+            <gr-ticket class="w-full xl:w-[342px]" [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
+            @if (m.estado !== 'anulada') {
             <div class="grid w-full grid-cols-2 gap-2 xl:w-[342px]">
               <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />Al calendario</a>
               <button type="button" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent" (click)="imprimir()"><gr-icon name="download" [size]="16" />Descargar PDF</button>
             </div>
+            }
           </div>
           <div class="flex flex-col gap-6 xl:pt-10">
             <section class="flex flex-col gap-3"><h2 class="text-ui-h5">Rifa del evento</h2>
@@ -643,8 +652,8 @@ export class EntradasPage {
               <div class="flex gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/15 text-accent-text"><gr-icon name="mail" [size]="18" /></span>
                 <div><h2 class="text-label-m">¿Te avisamos de la próxima?</h2><p class="mt-1 text-body-xs text-text-tertiary">{{ nov() === 'si' ? 'Hecho: revisa tu correo para confirmarlo.' : nov() === 'no' ? 'Vale, no te escribiremos.' : 'No marcaste novedades. Un clic y te mandamos la confirmación.' }}</p></div></div>
               @if (!nov()) {
-                <div class="flex gap-2"><button grButton variant="primary" size="m" type="button" [loading]="novEnviando()" (click)="avisame(m.email)">Sí, avisadme</button>
-                  <button grButton variant="outline" size="m" type="button" (click)="nov.set('no')">No, gracias</button></div>
+                <div class="flex gap-2"><button grButton variant="primary" size="m" type="button" [loading]="novEnviando()" [disabled]="novEnviando()" (click)="avisame(true)">Sí, avisadme</button>
+                  <button grButton variant="outline" size="m" type="button" [disabled]="novEnviando()" (click)="avisame(false)">No, gracias</button></div>
               }
             </section>
             <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
@@ -657,7 +666,7 @@ export class EntradasPage {
                 <button type="button" [class]="chip" (click)="copiar(m.compartir)"><gr-icon name="external-link" [size]="16" />Copiar enlace</button>
               </div>
             </section>
-            <a [href]="'/mi-entrada?t=' + token" class="text-center text-label-s text-accent-text hover:underline xl:text-left">Gestionar mi entrada →</a>
+            <a [href]="'/mi-entrada?t=' + token" class="text-center text-label-s text-accent-text hover:underline xl:hidden">Gestionar mi entrada →</a>
           </div>
         </div>
       }
@@ -666,7 +675,6 @@ export class EntradasPage {
 })
 export class ConfirmacionPage {
   private readonly api = inject(EntradasPublic);
-  private readonly novedades = inject(Novedades);
   protected readonly hora = hora;
   protected readonly dia = dia;
   protected readonly tit = titular;
@@ -681,16 +689,15 @@ export class ConfirmacionPage {
     inject(Seo).set({ title: 'Tu entrada · GR Strength Cup', description: 'Tu entrada gratuita con su QR.', path: '/entradas/confirmacion', robots: 'noindex' });
     this.token = inject(ActivatedRoute).snapshot.queryParamMap.get('t') ?? '';
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
-    void this.api.mia(this.token).then((m) => this.mia.set(m), () => this.mia.set(null));
+    void this.api.mia(this.token).then((m) => { this.mia.set(m); this.nov.set(m.novedades); }, () => this.mia.set(null));
   }
   protected corto(u: string): string {
     return u.replace(/^https?:\/\//, '');
   }
-  protected async avisame(email: string): Promise<void> {
+  protected async avisame(acepta: boolean): Promise<void> {
     this.novEnviando.set(true);
     try {
-      await this.novedades.suscribir(email, true, '/entradas/confirmacion');
-      this.nov.set('si');
+      this.nov.set((await this.api.avisame(this.token, acepta)).novedades);
     } catch {
       this.nov.set('');
     } finally {
@@ -775,7 +782,7 @@ export class OfertaPage {
   imports: [RouterLink, Page, FormsModule, GrButton, GrIcon, GrSkeleton, TicketCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Mi entrada" crumb="Mi entrada" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
+    <gr-page title="Mi entrada" crumb="Mi entrada" [migasMovil]="false" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
       <div class="mx-auto flex max-w-[350px] flex-col gap-6 md:max-w-[480px]">
         @let m = mia();
         @if (m === undefined) { <gr-skeleton class="h-[560px] rounded-xl" /> }
@@ -794,7 +801,6 @@ export class OfertaPage {
           </section>
         } @else {
           <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
-          @if (m.estado === 'anulada') { <p class="rounded-lg border border-line-strong p-3 text-center text-body-s text-text-secondary">Entrada anulada. Si fue un error, <a routerLink="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p> }
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-ui-h5">¿Cambia algo?</h2>
@@ -806,7 +812,7 @@ export class OfertaPage {
           @if (msg()) { <p class="rounded-md border border-success/40 bg-success/10 p-3 text-body-s text-success" role="status">{{ msg() }}</p> }
           @if (m.estado !== 'anulada') {
             <ul class="flex flex-col">
-              <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white" (click)="reenviar()"><gr-icon name="send" [size]="18" /><span class="flex-1">Reenviar la entrada por email</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li>
+              <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white disabled:opacity-50" [disabled]="reenviando()" (click)="reenviar()"><gr-icon name="send" [size]="18" /><span class="flex-1">Reenviar la entrada por email</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li>
               <li><a routerLink="/rifa" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="ticket" [size]="18" /><span class="flex-1">Rifa presencial: ver objetos</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
               <li><a [href]="ics()" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="calendar" [size]="18" /><span class="flex-1">Añadir al calendario (.ics)</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
               @if (m.puedeCambiar) { <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m text-accent-text" (click)="anularOpen.set(true)"><gr-icon name="x" [size]="18" /><span class="flex-1">Anular entrada y liberar la plaza</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li> }
@@ -819,7 +825,7 @@ export class OfertaPage {
       <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 sm:items-center sm:px-4" (click)="anularOpen.set(false)">
         <div class="mx-5 mb-[82px] w-full max-w-[350px] rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card sm:mb-0" role="alertdialog" aria-modal="true" aria-label="Anular tu entrada" (click)="$event.stopPropagation()">
           <div class="flex items-start justify-between gap-3"><h2 class="text-ui-h3">¿Anular tu entrada?</h2><button type="button" class="flex size-8 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="anularOpen.set(false)"><gr-icon name="x" [size]="18" /></button></div>
-          <p class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la {{ m.sesion.nombre.toLowerCase() }} para la lista de espera.</p>
+          <p class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la sesión del {{ sesionLarga(m.sesion.nombre) }} para la lista de espera.</p>
           <div class="mt-5 flex justify-end gap-2"><button grButton variant="outline" size="m" type="button" (click)="anularOpen.set(false)">Volver</button>
             <button grButton variant="primary" size="m" type="button" (click)="anular()">Sí, anular</button></div>
         </div>
@@ -835,12 +841,17 @@ export class MiEntradaPage {
   protected readonly tit = titular;
   protected readonly max = Math.max;
   protected readonly min = Math.min;
+  /** «Sábado mañana» → «sábado por la mañana». */
+  protected sesionLarga(n: string): string {
+    return n.toLowerCase().replace(/ (mañana|tarde|noche)$/, ' por la $1');
+  }
   protected readonly mia = signal<MiEntrada | null | undefined>(undefined);
   protected readonly personas = signal(1);
   protected readonly ocupado = signal(false);
   protected readonly msg = signal('');
   protected readonly anularOpen = signal(false);
   protected readonly pedido = signal(false);
+  protected readonly reenviando = signal(false);
   protected readonly token: string;
   protected readonly ics = computed(() => this.api.ics(this.token));
   protected email = '';
@@ -870,18 +881,21 @@ export class MiEntradaPage {
     }
   }
   protected async reenviar(): Promise<void> {
+    if (this.reenviando()) return;
+    this.reenviando.set(true);
     try {
       await this.api.reenviar(this.token);
       this.msg.set('Te la hemos reenviado. Llega en unos minutos.');
     } catch (e) {
       this.msg.set(errorDe(e).detail);
     }
+    setTimeout(() => this.reenviando.set(false), 30_000); // cooldown: one email per 30 s
   }
   protected async anular(): Promise<void> {
     this.anularOpen.set(false);
     try {
       this.set(await this.api.anular(this.token));
-      this.msg.set('Entrada anulada. Gracias por liberar la plaza.');
+      this.msg.set('');
     } catch (e) {
       this.msg.set(errorDe(e).detail);
     }

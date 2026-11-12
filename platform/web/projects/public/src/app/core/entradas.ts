@@ -14,7 +14,7 @@ export interface ReservaIn {
 }
 export interface MiEntrada {
   codigo: string; qr: string; nombre: string; apellidos: string; email: string; personas: number; dentro: number; estado: 'reservada' | 'usada' | 'anulada'; validadaAt?: string; sesion: SesionPub; lugar: string;
-  puedeCambiar: boolean; maxPersonas: number; compartir: string;
+  puedeCambiar: boolean; maxPersonas: number; compartir: string; novedades: '' | 'si' | 'no';
 }
 export interface Oferta { sesion: SesionPub; personas: number; expira: string; estado: string }
 
@@ -45,6 +45,7 @@ export class EntradasPublic {
   personas(t: string, personas: number): Promise<MiEntrada> { return firstValueFrom(this.http.put<MiEntrada>('/api/mi-entrada', { token: t, personas })); }
   reenviar(t: string): Promise<void> { return firstValueFrom(this.http.post<void>('/api/mi-entrada/reenviar', { token: t })); }
   anular(t: string): Promise<MiEntrada> { return firstValueFrom(this.http.post<MiEntrada>('/api/mi-entrada/anular', { token: t })); }
+  avisame(t: string, acepta: boolean): Promise<MiEntrada> { return firstValueFrom(this.http.post<MiEntrada>('/api/mi-entrada/avisame', { token: t, acepta })); }
   ics(t: string): string { return `/api/mi-entrada/calendario.ics?t=${encodeURIComponent(t)}`; }
 }
 
