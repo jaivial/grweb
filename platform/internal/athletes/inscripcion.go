@@ -1318,6 +1318,27 @@ func (s *Svc) sesionFan(ctx context.Context, cookie, hdr string, cid uuid.UUID) 
 	return f, nil
 }
 
+// hayPlaza fails with 409 when confirming one more athlete would pass the places (U09-R1-2). Same lock and count as
+// the own registration, so admin confirmations cannot race it.
+func (s *Svc) hayPlaza(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 7))`, cid.String()); err != nil {
+		return err
+	}
+	pub, _, err := s.configPub(ctx, cid, true)
+	if err != nil || pub.Plazas <= 0 {
+		return err
+	}
+	var n int
+	if err := tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM atletas WHERE competition_id = $1 AND estado = 'confirmado')
+		+ (SELECT count(*) FROM inscripciones WHERE competition_id = $1 AND estado = 'pendiente_pago' AND expira_at > now())`, cid).Scan(&n); err != nil {
+		return err
+	}
+	if n >= pub.Plazas {
+		return problem.Conflict("INSCRIPCION_COMPLETA", fmt.Sprintf("No quedan plazas (%d/%d). Sube las plazas o deja al atleta en reserva.", n, pub.Plazas))
+	}
+	return nil
+}
+
 // plazasCambiadas publishes the public place counter (SSE inscripcion.plazas_actualizadas, no personal data), so the
 // page does not poll GET …/inscripcion. Best effort: a failure only delays the counter until the next reload.
 func (s *Svc) plazasCambiadas(ctx context.Context, cid uuid.UUID) {
