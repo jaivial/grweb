@@ -14,7 +14,9 @@ type Row = { id: string } & Record<string, unknown>;
 export interface ColumnDef {
   key: string;
   label: string;
-  kind?: 'text' | 'badge' | 'bool' | 'image' | 'mono' | 'date';
+  kind?: 'text' | 'badge' | 'bool' | 'image' | 'mono' | 'date' | 'meter';
+  /** 'meter': recommended length (Figma «Web · SEO»: 60 title / 160 description). */
+  max?: number;
   tone?: (r: Row) => GrTone;
   value?: (r: Row) => string;
   hideMobile?: boolean;
@@ -90,6 +92,14 @@ export interface CollectionConfig {
                     @case ('image') { @if (val(r, col)) { <img [src]="val(r, col)" alt="" class="h-10 w-auto max-w-32 rounded-xs object-contain" loading="lazy" /> } }
                     @case ('mono') { <span class="block truncate text-mono-s text-text-secondary">{{ val(r, col) }}</span> }
                     @case ('date') { <span class="block truncate text-body-xs text-text-tertiary">{{ date(val(r, col)) }}</span> }
+                    @case ('meter') {
+                      <span class="flex items-center gap-3" [attr.aria-label]="col.label + ': ' + val(r, col).length + ' de ' + col.max + ' caracteres'">
+                        <span class="h-1 min-w-0 flex-1 overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full rounded-pill"
+                          [class]="val(r, col).length > (col.max ?? 0) ? 'bg-danger' : val(r, col).length < (col.max ?? 0) / 4 ? 'bg-warning' : 'bg-success'"
+                          [style.width.%]="val(r, col).length > (col.max ?? 0) ? 100 : (val(r, col).length / (col.max || 1)) * 100"></span></span>
+                        <span class="shrink-0 text-mono-xs text-text-secondary">{{ val(r, col).length }}/{{ col.max }}</span>
+                      </span>
+                    }
                     @default { <span class="block truncate" [class]="first ? 'text-label-s text-text-primary' : 'text-body-s text-text-secondary'">{{ val(r, col) }}</span> }
                   }
                 </span>

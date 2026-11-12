@@ -111,12 +111,13 @@ export class WebSections {
           </button>
         }
       </bo-page-header>
-      <bo-tabs [tabs]="tabs" />
+      <bo-tabs [tabs]="tabs()" />
       <router-outlet />
     </div>
   `,
 })
 export class WebPage {
+  private readonly http = inject(HttpClient);
   protected readonly comps = inject(Competitions);
   protected readonly secs = inject(WebSections);
   private readonly auth = inject(Auth);
@@ -125,21 +126,36 @@ export class WebPage {
   protected readonly publishing = signal(false);
   protected readonly previewUrl = computed(() => webPublica() + (PAGINAS.find((p) => p.value === this.secs.pagina())?.ruta ?? '/'));
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
-  protected readonly tabs = [
-    { label: 'Home y landings', path: 'home' },
-    { label: 'FAQ', path: 'faq' },
-    { label: 'Patrocinadores y clubs', path: 'patrocinadores' },
-    { label: 'Páginas y SEO', path: 'seo' },
-    { label: 'Blog y galería', path: 'blog' },
-    { label: 'Mapas de acceso', path: 'mapas' },
-    { label: 'Textos legales', path: 'legal' },
-  ];
+  /** Figma «Web · home»: FAQ 24 · Patrocinadores 9 · Páginas y SEO 28 · Voluntarios 7 (null while loading or on error). */
+  private readonly counts = signal<Record<string, number | null>>({});
+  protected readonly tabs = computed(() => {
+    const n = this.counts();
+    return [
+      { label: 'Home y landings', path: 'home' },
+      { label: 'FAQ', path: 'faq', count: n['faq'] },
+      { label: 'Patrocinadores y clubs', path: 'patrocinadores', count: n['patrocinadores'] },
+      { label: 'Páginas y SEO', path: 'seo', count: n['seo'] },
+      { label: 'Blog y galería', path: 'blog' },
+      { label: 'Mapas de acceso', path: 'mapas' },
+      { label: 'Textos legales', path: 'legal' },
+      // its own page (Figma 68); /:comp/web/voluntarios redirects there
+      { label: 'Voluntarios', path: 'voluntarios', count: n['voluntarios'] },
+    ];
+  });
 
   constructor() {
     effect(() => {
       const cid = this.comps.current()?.id;
-      if (cid) void this.secs.load(cid);
+      if (!cid) return;
+      void this.secs.load(cid);
+      void this.loadCounts(cid);
     });
+  }
+
+  private async loadCounts(cid: string): Promise<void> {
+    const paths = { faq: '/web/faq', patrocinadores: '/web/patrocinadores', seo: '/web/seo', voluntarios: '/voluntarios' };
+    const res = await Promise.allSettled(Object.values(paths).map((p) => firstValueFrom(this.http.get<unknown[]>(`/api/admin/competiciones/${cid}${p}`))));
+    this.counts.set(Object.fromEntries(Object.keys(paths).map((k, i) => { const r = res[i]; return [k, r.status === 'fulfilled' && Array.isArray(r.value) ? r.value.length : null]; })));
   }
 
   protected async publish(): Promise<void> {
@@ -165,18 +181,20 @@ export class WebPage {
   imports: [CdkDropList, CdkDrag, CdkDragHandle, GrBadge, GrButton, GrIcon, GrSkeleton, GrAlert, BoToggle, BoDrawer, BoSchemaForm],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="rounded-lg border border-line-subtle bg-bg-card">
-      <div class="flex flex-wrap gap-2 border-b border-line-subtle px-5 py-3" role="group" aria-label="Página">
-        @for (p of paginas; track p.value) {
-          <button type="button" (click)="cambiar(p.value)" [attr.aria-pressed]="secs.pagina() === p.value" class="inline-flex h-9 items-center gap-1.5 rounded-pill border px-3 text-label-s"
-            [class]="secs.pagina() === p.value ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">
-            {{ p.label }} <span class="text-mono-xs text-text-tertiary">{{ p.ruta }}</span>
-          </button>
-        }
-      </div>
-      <header class="border-b border-line-subtle px-5 py-4">
+    <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+    <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card">
+      <header class="px-5 pt-5 pb-3 md:px-6 md:pt-6">
         <h2 class="text-ui-h5">Secciones de {{ paginaLabel() }}</h2>
         <p class="mt-0.5 text-body-xs text-text-tertiary">{{ secs.items()?.length ?? 0 }} secciones · {{ visibles() }} visibles · arrastra para cambiar el orden · el orden y la visibilidad se aplican al publicar</p>
+        <div class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-md border border-line-subtle bg-bg-surface p-1" role="group" aria-label="Página">
+          @for (p of paginas; track p.value) {
+            <button type="button" (click)="cambiar(p.value)" [attr.aria-pressed]="secs.pagina() === p.value"
+              class="inline-flex h-9 items-center gap-1.5 rounded-sm px-4 text-label-s transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
+              [class]="secs.pagina() === p.value ? 'bg-bg-raised text-text-primary' : 'text-text-secondary hover:text-text-primary'">
+              {{ p.label }} <span>{{ p.ruta }}</span>
+            </button>
+          }
+        </div>
       </header>
       @if (secs.items() === null) {
         <div class="flex flex-col gap-2 p-5">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16" /> }</div>
@@ -184,7 +202,7 @@ export class WebPage {
         <ul class="flex flex-col gap-2 p-3" cdkDropList [cdkDropListDisabled]="!canEdit()" (cdkDropListDropped)="drop($event)">
           @for (s of secs.items(); track s.id) {
             <li cdkDrag class="flex items-center gap-3 rounded-md border border-line-subtle bg-bg-surface p-2.5 md:p-3">
-              <span cdkDragHandle class="hidden size-8 cursor-grab items-center justify-center text-text-muted sm:flex" aria-label="Arrastrar"><gr-icon name="menu" [size]="16" /></span>
+              <span cdkDragHandle class="hidden size-8 cursor-grab items-center justify-center text-text-muted sm:flex" aria-label="Arrastrar"><gr-icon name="grip" [size]="16" /></span>
               <span class="hidden h-11 w-16 shrink-0 rounded-sm bg-[linear-gradient(135deg,#5a1520,#1b1718)] sm:block" aria-hidden="true"></span>
               <button type="button" class="min-w-0 flex-1 text-left" (click)="open(s)">
                 <span class="block truncate text-label-s">{{ s.nombre }}</span>
@@ -192,11 +210,35 @@ export class WebPage {
               </button>
               <gr-badge [tone]="estado[s.estado].tone" class="hidden md:inline-flex">{{ estado[s.estado].label }}</gr-badge>
               <bo-toggle [value]="s.visible" [label]="'Mostrar ' + s.nombre" [disabled]="!canEdit()" (changed)="visible(s, $event)" />
+              <button type="button" class="hidden size-9 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-raised hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] sm:flex"
+                [attr.aria-label]="'Editar ' + s.nombre" (click)="open(s)"><gr-icon name="more" [size]="16" /></button>
             </li>
           }
         </ul>
       }
     </section>
+    <!-- Figma «Web · home» › Vista previa: draft of the page in a phone frame (desktop only) -->
+    <aside class="hidden xl:block" aria-label="Vista previa">
+      <h2 class="text-ui-h5">Vista previa</h2>
+      <p class="mt-0.5 text-body-xs text-text-tertiary">Borrador · móvil</p>
+      <div class="mt-3 rounded-[28px] border-4 border-line-strong bg-bg-base p-4">
+        <div class="mx-auto mb-3 h-1.5 w-16 rounded-pill bg-line-strong"></div>
+        @if (hero(); as h) {
+          <div class="rounded-md bg-[linear-gradient(180deg,#5a1520,#1b1718)] px-3 py-5 text-center">
+            @if (h.antetitulo) { <p class="text-mono-xs uppercase tracking-wider text-text-secondary">{{ h.antetitulo }}</p> }
+            <p class="mt-2 font-display text-[26px] leading-tight uppercase">{{ h.titulo || comps.current()?.nombre }}</p>
+            @if (h.subtitulo) { <p class="mt-2 text-body-xs text-text-secondary">{{ h.subtitulo }}</p> }
+            @if (h.cta) { <span class="mt-3 inline-flex h-8 items-center rounded-sm bg-accent px-3 text-label-s">{{ h.cta }}</span> }
+          </div>
+        }
+        <ul class="mt-2 flex flex-col gap-2">
+          @for (s of resto(); track s.id) {
+            <li class="rounded-md bg-bg-card px-3 py-2.5"><p class="text-mono-xs uppercase tracking-wider text-accent-text">{{ s.nombre }}</p><p class="mt-0.5 truncate text-body-xs text-text-secondary">{{ s.descripcion }}</p></li>
+          }
+        </ul>
+      </div>
+    </aside>
+    </div>
 
     <bo-drawer [(open)]="drawer" [title]="current()?.nombre ?? ''" [badge]="current() && current()!.estado !== 'publicada' ? estado[current()!.estado].label : ''">
       @if (error()) {
@@ -220,7 +262,7 @@ export class WebPage {
 export class WebHomeTab {
   protected readonly secs = inject(WebSections);
   private readonly auth = inject(Auth);
-  private readonly comps = inject(Competitions);
+  protected readonly comps = inject(Competitions);
   private readonly toasts = inject(GrToasts);
   protected readonly estado = ESTADO;
   protected readonly ago = fmtAgo;
@@ -230,6 +272,16 @@ export class WebHomeTab {
   protected readonly saving = signal(false);
   protected readonly error = signal('');
   protected readonly visibles = computed(() => (this.secs.items() ?? []).filter((s) => s.visible).length);
+  /** Phone preview: the first visible section as hero (draft texts), then the next three. */
+  protected readonly hero = computed(() => {
+    const s = (this.secs.items() ?? []).find((x) => x.visible);
+    if (!s) return null;
+    const b = s.borrador ?? {};
+    const t = (k: string) => (typeof b[k] === 'string' ? (b[k] as string) : '');
+    const cta = b['cta'] as { texto?: string } | undefined;
+    return { antetitulo: t('antetitulo') || t('nivel'), titulo: t('titulo'), subtitulo: t('subtitulo') || t('fecha'), cta: cta?.texto || t('ctaTexto') || t('cta') };
+  });
+  protected readonly resto = computed(() => (this.secs.items() ?? []).filter((x) => x.visible).slice(1, 4));
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'web.editar'));
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
 
@@ -442,7 +494,16 @@ export class WebLegalTab {
   }
 }
 
-const si = (v: unknown) => (v ? 'Sí' : 'No');
+/** «20/06 10:00» (Figma «Web · blog y galería»), «—» without a date. */
+const fechaCorta = (v: unknown): string => {
+  if (!v) return '—';
+  const d = new Date(String(v));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+/** A published post with a future date is «Programada». */
+const estadoBlog = (r: Record<string, unknown>): { label: string; tone: GrTone } =>
+  !r['publicada'] ? { label: 'Borrador', tone: 'neutral' } : r['publicarAt'] && new Date(String(r['publicarAt'])) > new Date() ? { label: 'Programada', tone: 'info' } : { label: 'Publicada', tone: 'success' };
 
 /** Collections configured from the CMS API (Figma «Web · FAQ», «patrocinadores», «SEO», «blog y galería»). */
 export const COLLECTIONS: Record<string, CollectionConfig[]> = {
@@ -494,7 +555,10 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
     },
     {
       title: 'SEO por ruta', subtitle: 'Title y description que ve Google', path: '/web/seo', item: 'ruta', femenino: true,
-      columns: [{ key: 'ruta', label: 'Ruta', kind: 'mono' }, { key: 'title', label: 'Title' }, { key: 'indexable', label: 'Indexable', kind: 'badge', value: (r) => si(r['indexable']), tone: (r) => (r['indexable'] ? 'success' : 'warning'), hideMobile: true }],
+      columns: [{ key: 'ruta', label: 'URL', kind: 'mono' }, { key: 'title', label: 'Title', kind: 'meter', max: 60, hideMobile: true },
+        { key: 'description', label: 'Description', kind: 'meter', max: 160, hideMobile: true },
+        { key: 'indexable', label: 'Índice', kind: 'badge', value: (r) => (r['indexable'] ? 'Index' : 'Noindex'), tone: (r) => (r['indexable'] ? 'success' : 'neutral') },
+        { key: 'imagenUrl', label: 'Imagen social', kind: 'badge', value: (r) => (r['imagenUrl'] ? 'OK' : 'Falta'), tone: (r) => (r['imagenUrl'] ? 'success' : 'warning'), hideMobile: true }],
       fields: [{ clave: 'ruta', etiqueta: 'Ruta', tipo: 'texto', ayuda: 'Empieza por /' }, { clave: 'title', etiqueta: 'Title', tipo: 'texto', max: 70 }, { clave: 'description', etiqueta: 'Description', tipo: 'area', max: 170 },
         { clave: 'imagenUrl', etiqueta: 'Imagen para redes', tipo: 'imagen', ayuda: '1200 × 630' }, { clave: 'indexable', etiqueta: 'Indexable en buscadores', tipo: 'bool' }],
       defaults: { indexable: true },
@@ -513,7 +577,8 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   blog: [
     {
       title: 'Blog', subtitle: 'Noticias de la competición', path: '/web/blog', item: 'entrada', femenino: true,
-      columns: [{ key: 'titulo', label: 'Entrada' }, { key: 'publicarAt', label: 'Programada', kind: 'date', hideMobile: true }, { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
+      columns: [{ key: 'titulo', label: 'Artículo' }, { key: 'publicarAt', label: 'Fecha', kind: 'mono', value: (r) => fechaCorta(r['publicarAt'] ?? r['publicadaAt']), hideMobile: true },
+        { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => estadoBlog(r).label, tone: (r) => estadoBlog(r).tone }],
       fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140 }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ayuda: '/blog/{ruta}', ancho: 'mitad' }, { clave: 'publicarAt', etiqueta: 'Programar publicación', tipo: 'fecha', ancho: 'mitad' },
         { clave: 'categoria', etiqueta: 'Categoría', tipo: 'select', ancho: 'mitad', opciones: [['', 'Sin categoría'], ['noticias', 'Noticias'], ['calendario', 'Calendario'], ['guia', 'Guía'], ['normativa', 'Normativa'], ['marcas', 'Marcas'], ['cronica', 'Crónica'], ['entrenamiento', 'Entrenamiento']].map(([value, label]) => ({ value, label })) },
         { clave: 'fuente', etiqueta: 'Fuente', tipo: 'texto', max: 200, ancho: 'mitad', ayuda: 'Línea bajo el título, p. ej. «Calendario de competiciones AEP 2026»' },
