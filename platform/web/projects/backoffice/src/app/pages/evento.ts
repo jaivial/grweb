@@ -196,7 +196,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
           <gr-field label="Escribe DESACTIVAR para confirmar" hint="Queda en el registro de auditoría" class="mt-4"><input grInput [(ngModel)]="confirmar" autocomplete="off" /></gr-field>
           <div class="mt-6 flex justify-end gap-2">
             <button grButton variant="ghost" (click)="apagar.set(null)">Cancelar</button>
-            <button grButton variant="danger" [disabled]="confirmar.trim().toUpperCase() !== 'DESACTIVAR'" (click)="confirmarApagar(m)">Desactivar {{ m.nombre.toLowerCase() }}</button>
+            <button grButton variant="danger" [disabled]="confirmar.trim() !== 'DESACTIVAR'" (click)="confirmarApagar(m)">Desactivar {{ m.nombre.toLowerCase() }}</button>
           </div>
         </div>
       </div>
