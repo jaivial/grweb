@@ -120,9 +120,12 @@ export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas =
   host: { class: 'contents' },
   template: `
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas"><a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
-    <div class="flex flex-col gap-2.5">
-      <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
-      @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary">{{ descripcion() }}</p> }
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+      <div class="flex min-w-0 flex-col gap-2.5">
+        <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
+        @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary">{{ descripcion() }}</p> }
+      </div>
+      <ng-content />
     </div>
   `,
 })

@@ -15,27 +15,30 @@ import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { AvisoConexion, BarraSala, FeedRow, SinSala, colorNota } from './componentes';
+import { AvisoConexion, BarraSala, FantasyCabecera, FeedRow, SinSala, colorNota } from './componentes';
 import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPodio } from '../porra/componentes';
 
 @Component({
   selector: 'gr-fantasy-clasificacion-page',
-  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, CoinBalance, FeedRow, JuegosNav, LeaderboardRow, Podio, PremioCard, SinSala],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, CoinBalance, FantasyCabecera, FeedRow, JuegosNav, LeaderboardRow, Podio, PremioCard, SinSala],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Clasificación" [suffix]="jornadaTxt()" crumb="Clasificación" section="Juegos"
-      subtitle="Media de las 5 notas de tu alineación. Ganadores = top N con premio. Desempate: valor de la alineación → saldo → llegada.">
-      <div pageStamps class="flex flex-wrap items-center gap-3">
-        <gr-coin-balance [valor]="saldo()" moneda="fantasy" motivo="fantasy" />
-      </div>
+    <gr-page title="Clasificación" [juego]="true">
+      <gr-fantasy-cabecera [titulo]="'Clasificación ' + jornadaTxt()" [migas]="['Clasificación']" descripcion="Media de las 5 notas de tu alineación. Ganadores = top N con premio. Desempate: valor de la alineación → saldo → llegada.">
+        @if (premios()[0]; as p) {
+          <gr-premio-card class="w-full shrink-0 lg:w-[340px]" [premio]="p" />
+        } @else {
+          <gr-coin-balance class="shrink-0 self-start lg:self-center" [valor]="saldo()" moneda="fantasy" motivo="fantasy" />
+        }
+      </gr-fantasy-cabecera>
 
-      <gr-juegos-nav class="mb-4 md:mb-7" juego="fantasy" activa="clasificacion" />
+      <gr-juegos-nav juego="fantasy" activa="clasificacion" />
       @if (store.sala(); as s) {
-        <gr-barra-sala class="mb-4 md:mb-7" [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" activa="clasificacion" />
+        <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="s.miembros ?? 0" [plazas]="s.plazas ?? 0" activa="clasificacion" />
       }
-      @if (vivo.caida()) { <gr-aviso-conexion class="mb-4 md:mb-7" /> }
+      @if (vivo.caida()) { <gr-aviso-conexion /> }
 
-      <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div>
         <div class="min-w-0">
           @if (store.cargandoClas() && !store.clas()) {
             <div class="flex flex-col gap-2" aria-busy="true">
@@ -75,12 +78,6 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
           </section>
         </div>
 
-        @if (premios().length) {
-          <aside class="flex flex-col gap-4">
-            <p class="text-mono-xs text-accent-text">Lo que te llevas</p>
-            @for (p of premios().slice(0, 3); track p.id) { <gr-premio-card [premio]="p" /> }
-          </aside>
-        }
       </div>
     </gr-page>
   `,
