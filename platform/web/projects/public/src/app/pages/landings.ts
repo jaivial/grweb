@@ -321,6 +321,7 @@ const BORRADOR_CLUB = 'grcup_borrador_club';
                 <input type="checkbox" name="priv" [(ngModel)]="f.acepta" class="mt-1 size-5 shrink-0 accent-[#C42B3E]" [attr.aria-invalid]="!!err('acepta') || null" />
                 <span>He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de privacidad</a> *</span>
               </label>
+              @if (err('acepta')) { <span class="-mt-3 flex items-center gap-1.5 text-body-xs text-accent-text md:col-span-2" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ err('acepta') }}</span> }
               @if (error()) { <gr-alert class="md:col-span-2" tone="danger" title="No se pudo enviar">{{ error() }}</gr-alert> }
               <div class="flex flex-col gap-3 md:col-span-2 md:flex-row md:items-center md:gap-4">
                 <button grButton variant="primary" size="l" type="submit" [loading]="busy()" class="w-full md:w-auto">Enviar solicitud</button>
