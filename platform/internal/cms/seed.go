@@ -255,11 +255,11 @@ Para participar en el sorteo debes:
 
 Al comprar tickets aceptas lo siguiente:
 
-- Cada ticket purchased representa una entrada válida para el sorteo
+- Cada entrada adquirida representa una entrada válida para el sorteo
 - Los tickets no son reembolsables una vez comprado
 - El precio del ticket es de 0,50 € por unidad
 - Puedes comprar múltiples tickets para aumentar tus probabilidades
-- Los tickets purchased se confirmarán mediante email
+- Los entradas adquiridas se confirmarán mediante email
 
 ## Selección del Ganador
 
@@ -280,7 +280,7 @@ Una vez confirmado el ganador, nos pondremos en contacto para coordinar la entre
 
 ## Limitación de Responsabilidad
 
-GR Strength no será responsable de cualquier pérdida, daño o inconveniente causado por la participación en el sorteo, excepto en случаях de negligencia grave o incumplimiento contractual. Nuestra responsabilidad total no excederá en ningún caso el valor del ticket purchased.
+GR Strength no será responsable de cualquier pérdida, daño o inconveniente causado por la participación en el sorteo, excepto en casos de negligencia grave o incumplimiento contractual. Nuestra responsabilidad total no excederá en ningún caso el valor del entrada adquirida.
 
 ## Modificaciones
 
@@ -313,7 +313,7 @@ Con tu consentimiento, recopilamos los siguientes datos personales:
 - Correo electrónico: Para enviarte la confirmación de tu participación y notificaciones importantes sobre el sorteo
 - Número de teléfono: Para contactarte en caso de resultar ganador
 - Confirmación de seguimiento en Instagram: Para verificar el cumplimiento de los requisitos de participación
-- Cantidad de tickets purchased: Para procesar tu participación en el sorteo
+- Cantidad de entradas adquiridas: Para procesar tu participación en el sorteo
 
 ## Finalidad del Tratamiento
 
@@ -331,7 +331,7 @@ El tratamiento de tus datos personales se realiza bajo la siguiente base legal:
 
 - Tu consentimiento explícito (Art. 6.1.a RGPD): Al marcar la casilla de aceptación de este consentimiento, autorizas expresamente a GR Strength a tratar tus datos personales para los fines descritos.
 
-El suministro de datos es voluntary, pero necesario para participar en el sorteo. Si no proporcionas los datos requeridos, no podrás participar en el sorteo del GR Cup 2026.
+El suministro de datos es voluntario, pero necesario para participar en el sorteo. Si no proporcionas los datos requeridos, no podrás participar en el sorteo del GR Cup 2026.
 
 ## Destinatarios de los Datos
 
@@ -356,7 +356,7 @@ Tienes los siguientes derechos sobre tus datos personales:
 
 - Acceso: Obtener confirmación de si estamos tratando tus datos y acceder a los mismos.
 - Rectificación: Corregir datos inexactos o incompletos.
-- Supresión: Solicitar la eliminación de tus datos cuando ya no sean necesarios para los fines最初的.
+- Supresión: Solicitar la eliminación de tus datos cuando ya no sean necesarios para los fines iniciales.
 - Limitación: Solicitar que limitemos el tratamiento de tus datos en determinadas circunstancias.
 - Oposición: Oponerte al tratamiento de tus datos.
 - Portabilidad: Recibir tus datos en un formato estructurado y transferirlos a otro responsable.
@@ -375,7 +375,7 @@ Implementamos medidas de seguridad técnicas y organizativa apropiadas para prot
 
 ## Transferencias Internacionales
 
-Certains de nuestros proveedores de servicios (como Stripe) pueden transferir tus datos a países fuera del Espacio Económico Europeo (EEE). En tales casos, nos aseguramos de que existen garantías adecuadas, como cláusulas contractuales tipo aprobadas por la Comisión Europea.
+Algunos de nuestros proveedores de servicios (como Stripe) pueden transferir tus datos a países fuera del Espacio Económico Europeo (EEE). En tales casos, nos aseguramos de que existen garantías adecuadas, como cláusulas contractuales tipo aprobadas por la Comisión Europea.
 
 ## Derecho a Reclamar
 
@@ -390,7 +390,7 @@ Si tienes preguntas sobre este Consentimiento de Datos o sobre cómo tratamos tu
 admin@grstrength.com`},
 	"bases-sorteo": {"Política del Concurso", `## Aceptación de las Bases
 
-Al participar en el sorteo del GR Cup 2026, aceptas íntegramente estas bases y condiciones. Si no estás de acuerdo con alguno de los términos aquí establecidos, por favor no participes en el sorteo. La participación implica la aceptación penuh de estas condiciones.
+Al participar en el sorteo del GR Cup 2026, aceptas íntegramente estas bases y condiciones. Si no estás de acuerdo con alguno de los términos aquí establecidos, por favor no participes en el sorteo. La participación implica la aceptación plena de estas condiciones.
 
 ## Organizador del Concurso
 
@@ -429,7 +429,7 @@ No pueden participar: Empleados de GR Strength ni sus familiares directos (hasta
 Cada ticket de participación tiene un precio de 0,50 € (cincuenta céntimos de euro), IVA incluido.
 
 - Puedes comprar tantos tickets como desees para aumentar tus probabilidades de ganar
-- Cada ticket purchased genera una entrada única en el sorteo
+- Cada entrada adquirida genera una entrada única en el sorteo
 - Los tickets no son transferibles ni canjeables por dinero en efectivo
 - Los tickets no son reembolsables una vez completada la compra
 - El pago se realiza exclusivamente a través de Stripe Checkout con tarjeta de crédito o débito
@@ -457,7 +457,7 @@ El ganador del sorteo será seleccionado mediante selección aleatoria pura util
 - El proceso de selección será grabado en video para garantizar la transparencia
 - Se generará un registro digital del resultado del sorteo
 
-Probabilidades de ganar: Las probabilidades de ganar son proporcionales al número de tickets purchased. Si compras 1 ticket de un total de 100 tickets vendidos, tu probabilidad de ganar es de 1%.
+Probabilidades de ganar: Las probabilidades de ganar son proporcionales al número de entradas adquiridas. Si compras 1 ticket de un total de 100 tickets vendidos, tu probabilidad de ganar es de 1%.
 
 ## Notificación y Entrega del Premio
 
@@ -481,26 +481,26 @@ GR Strength se compromete a garantizar la integridad del sorteo. Está estrictam
 - Manipular el proceso de selección del ganador
 - Cualquier otra acción que infrinja la legislación vigente
 
-Consecuencias: Si se detecta cualquier intento de fraude, GR Strength se reserva el derecho de disqualificar al participante infractor, cancelar sus tickets sin reembolso, y emprender las acciones legales pertinentes.
+Consecuencias: Si se detecta cualquier intento de fraude, GR Strength se reserva el derecho de descalificar al participante infractor, cancelar sus tickets sin reembolso, y emprender las acciones legales pertinentes.
 
 ## Limitación de Responsabilidad
 
 GR Strength no será responsable de:
 
-- Fallos técnicos, errores de software o硬件 que puedan afectar al proceso de compra o al sorteo
+- Fallos técnicos, errores de software o hardware que puedan afectar al proceso de compra o al sorteo
 - Inscripciones perdidas, retrasadas, incompletas o defectuosas por causas técnicas
 - Interrupciones del servicio de Internet o de la plataforma de pago
 - Datos proporcionados incorrectamente por el participante
-- Cualquier daño indirecto, incidental o consequential derivados de la participación en el sorteo
+- Cualquier daño indirecto, incidental o consecuente derivados de la participación en el sorteo
 
-La responsabilidad total de GR Strength en relación con este sorteo no excederá, en ningún caso, el valor total de los tickets purchased por el participante afectado.
+La responsabilidad total de GR Strength en relación con este sorteo no excederá, en ningún caso, el valor total de los entradas adquiridas por el participante afectado.
 
 ## Modificaciones y Cancelación
 
 GR Strength se reserva el derecho de:
 
 - Modificar estas bases: Cualquier cambio será comunicado con antelación razonable a través de la página web y correo electrónico a los participantes registrados
-- Cancelar el sorteo: En caso de circunstancias imprevistas, fuerza mayor, o problemas técnicos graves, GR Strength puede cancelar el sorteo. En tal caso, se reembolsará el importe de los tickets purchased a todos los participantes
+- Cancelar el sorteo: En caso de circunstancias imprevistas, fuerza mayor, o problemas técnicos graves, GR Strength puede cancelar el sorteo. En tal caso, se reembolsará el importe de los entradas adquiridas a todos los participantes
 - Suspender temporalmente: El sorteo puede ser suspendido temporalmente para resolver problemas técnicos
 
 La participación continuada tras la comunicación de modificaciones implica la aceptación de las nuevas bases.
