@@ -105,6 +105,8 @@ export interface CompeticionPublica {
   modulos: Record<string, boolean>;
   inscripcion: { modo: string; url: string; estado: string; plazas?: number };
   comoLlegar: { tipo: string; titulo: string; detalle: string; nota?: string; estado: string }[];
+  /** Official AEP report (PDF), when the «aep» integration has it. */
+  actaUrl?: string;
 }
 
 /** Slug of the competition this site serves (one public site per competition). */

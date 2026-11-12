@@ -96,7 +96,7 @@ func edicion2025() (*plan, tabla) {
 	}
 	list := []e{
 		{"Laura Gómez", "GRStrength", "F", "-63", "Open", 62.4, 140, 82.5, 170},
-		{"Marta Ruiz", "CF Isabel Alfas", "F", "-63", "Open", 62.9, 135, 77.5, 165},
+		{"Marta Ruiz", "CF Isabel Atlas", "F", "-63", "Open", 62.9, 135, 77.5, 165},
 		{"Ana Pérez", "Gym Mediterráneo", "F", "-63", "Júnior", 61.7, 125, 75, 160},
 		{"Lucía Martín", "Independiente", "F", "-63", "Open", 62.1, 120, 70, 150},
 		{"Noelia Serrano", "Club Paterna", "F", "-63", "Máster 1", 63.0, 110, 62.5, 135},
@@ -106,7 +106,7 @@ func edicion2025() (*plan, tabla) {
 		{"Cristina Gil", "Powerhouse Palma", "F", "-69", "Open", 68.2, 147.5, 85, 177.5},
 		{"Raquel Moreno", "Gym Mediterráneo", "F", "-69", "Máster 1", 67.5, 125, 72.5, 152.5},
 		{"Alba Ortega", "Independiente", "F", "-69", "Open", 66.8, 130, 70, 160},
-		{"Carlos Sánchez", "CF Isabel Alfas", "M", "-83", "Open", 82.6, 220, 137.5, 240},
+		{"Carlos Sánchez", "CF Isabel Atlas", "M", "-83", "Open", 82.6, 220, 137.5, 240},
 		{"Pablo Romero", "GRStrength", "M", "-83", "Open", 82.1, 205, 135, 245},
 		{"Iván Serrano", "Iron Gym Valencia", "M", "-83", "Júnior", 81.4, 200, 127.5, 230},
 		{"Sergio Blanco", "Barbell Club Murcia", "M", "-83", "Open", 82.9, 190, 130, 225},
@@ -114,7 +114,7 @@ func edicion2025() (*plan, tabla) {
 		{"Diego Herrera", "GRStrength", "M", "-74", "Júnior", 72.9, 182.5, 117.5, 215},
 		{"Mario Prieto", "Club Paterna", "M", "-74", "Open", 73.8, 175, 122.5, 210},
 		{"Andrés Molina", "Gym Mediterráneo", "M", "-93", "Open", 92.4, 235, 152.5, 265},
-		{"Rubén Cano", "CF Isabel Alfas", "M", "-93", "Máster 1", 91.7, 215, 145, 250},
+		{"Rubén Cano", "CF Isabel Atlas", "M", "-93", "Máster 1", 91.7, 215, 145, 250},
 		{"Hugo Delgado", "Independiente", "M", "-93", "Open", 90.8, 210, 140, 255},
 		{"Óscar Lozano", "Iron Gym Valencia", "M", "-105", "Open", 103.9, 250, 165, 280},
 		{"Víctor Pardo", "Powerhouse Palma", "M", "-105", "Open", 104.2, 240, 157.5, 285},

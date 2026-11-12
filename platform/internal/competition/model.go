@@ -151,6 +151,7 @@ type Publica struct {
 	} `json:"inscripcion"`
 	ComoLlegar []ComoLlegar `json:"comoLlegar"`
 	LogoURL    string       `json:"logoUrl"`
+	ActaURL    string       `json:"actaUrl,omitempty" doc:"Acta oficial (PDF) de la AEP: integración aep (Figma 25 «Descargar acta oficial»)"`
 }
 
 func (c Competicion) publica() Publica {

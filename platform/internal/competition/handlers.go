@@ -107,6 +107,8 @@ func (s *Svc) registerPublic() {
 				return nil, problem.NotFound("Competición no encontrada.")
 			}
 			out.Body = c.publica()
+			// the AEP report URL is a non-secret field of the «aep» integration
+			_ = s.a.DB.QueryRow(ctx, `SELECT coalesce(config->>'urlActa', '') FROM integraciones WHERE competition_id = $1 AND tipo = 'aep'`, c.ID).Scan(&out.Body.ActaURL)
 			s.cache.Set(ctx, "pub:"+in.Slug, out.Body, time.Minute)
 			return out, nil
 		})
