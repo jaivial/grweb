@@ -75,11 +75,36 @@ export class BoSelect {
     this.open.set(false);
   }
   protected key(e: KeyboardEvent): void {
-    const n = this.options().length;
+    const opts = this.options();
+    const n = opts.length;
+    // next enabled option from `from` stepping `d` (wraps); disabled options are skipped
+    const step = (from: number, d: number) => {
+      for (let k = 1; k <= n; k++) {
+        const i = (((from + d * k) % n) + n) % n;
+        if (!opts[i].disabled) return i;
+      }
+      return -1;
+    };
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       if (!this.open()) return this.toggle();
-      this.active.update((i) => (i + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
+      const d = e.key === 'ArrowDown' ? 1 : -1;
+      this.active.update((i) => step(i < 0 && d < 0 ? 0 : i, d));
+    } else if ((e.key === 'Home' || e.key === 'End') && this.open()) {
+      e.preventDefault();
+      this.active.set(e.key === 'Home' ? step(-1, 1) : step(n, -1));
+    } else if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // typeahead: first enabled option after the active one whose label starts with the typed char
+      const ch = e.key.toLocaleLowerCase('es');
+      const start = this.active();
+      for (let k = 1; k <= n; k++) {
+        const i = (start + k + n) % n;
+        if (!opts[i].disabled && opts[i].label.toLocaleLowerCase('es').startsWith(ch)) {
+          if (!this.open()) this.toggle();
+          this.active.set(i);
+          break;
+        }
+      }
     } else if ((e.key === 'Enter' || e.key === ' ') && this.open() && this.active() >= 0) {
       e.preventDefault();
       this.pick(this.options()[this.active()]);
