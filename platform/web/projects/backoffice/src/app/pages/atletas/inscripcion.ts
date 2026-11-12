@@ -305,8 +305,8 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                       <span class="hidden w-28 text-mono-xs md:block">{{ fechaHora(x.fecha) }}</span>
                       <span class="flex min-w-0 flex-1 items-center gap-2.5 md:w-[258px] md:flex-none"><gr-avatar class="hidden md:flex" [name]="x.atleta" /><span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary"><span class="lg:hidden">{{ concepto(x) }}</span><span class="hidden lg:inline">{{ x.email }}</span></span></span></span>
                       <span class="hidden min-w-0 flex-1 truncate text-body-s lg:block">{{ concepto(x) }}</span>
-                      <span class="w-24 text-right text-mono-s">{{ euros(x.total) }}</span>
-                      <span class="w-36"><gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge></span>
+                      <span class="shrink-0 text-right text-mono-s md:w-24">{{ euros(x.total) }}</span>
+                      <span class="shrink-0 md:w-36"><gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge></span>
                       <span class="hidden w-28 truncate text-mono-xs normal-case text-text-secondary lg:block">{{ x.referencia }}</span>
                       <span class="hidden size-8 items-center justify-center rounded-sm text-text-tertiary md:flex" aria-hidden="true"><gr-icon name="more" [size]="16" /></span>
                     </button></li>
