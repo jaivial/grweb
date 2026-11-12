@@ -119,11 +119,13 @@ export class InicioPage {
     const euros = 'sorteo.recaudado' in k ? `${fmtNumber(n('sorteo.recaudado') / 100)} € recaudados` : 'vendidos';
     // «/150» only makes sense against all the athletes (Todo or event day), not the ones of a period.
     const atletas = 'atletas.confirmados' in k && n('atletas.plazas') && (this.evento() || this.periodo() === 'todo') ? `${v('atletas.confirmados')} / ${fmtNumber(n('atletas.plazas'))}` : v('atletas.confirmados');
+    const exceso = atletas !== v('atletas.confirmados') ? n('atletas.confirmados') - n('atletas.plazas') : 0;
+    const avisoExceso = exceso > 0 ? `⚠ ${fmtNumber(exceso)} por encima de las plazas · ` : '';
     if (this.evento()) {
       // Figma 96:9197 · día del evento
       return [
         { label: 'Personas dentro', value: 'entradas.dentro' in k ? `${fmtNumber(n('entradas.dentro'))} / ${fmtNumber(n('entradas.personas'))}` : null, caption: 'con entrada', delta: null, trend: [] as number[] },
-        { label: 'Atletas confirmados', value: atletas, caption: `${n('atletas.reserva')} en reserva`, delta: null, trend: [] },
+        { label: 'Atletas confirmados', value: atletas, caption: `${avisoExceso}${n('atletas.reserva')} en reserva`, delta: null, trend: [] },
         { label: 'Entradas reservadas', value: v('entradas.reservas'), caption: 'reservas activas', delta: null, trend: [] },
         { label: 'Boletos del sorteo', value: v('sorteo.boletos'), caption: euros, delta: null, trend: [] },
       ];
@@ -145,7 +147,7 @@ export class InicioPage {
       ...('contactos.total' in k
         ? [{ label: 'Aceptan novedades', value: total ? `${Math.round((100 * n('contactos.novedades')) / total)} %` : '0 %', caption: `${fmtNumber(n('contactos.novedades'))} de ${fmtNumber(total)} · ${c}`, delta: deltaTasa(), trend: trend('contactos.novedades') }]
         : []),
-      { label: 'Atletas confirmados', value: atletas, caption: `${n('atletas.bajas')} bajas · ${n('atletas.reserva')} en reserva`, delta: null, trend: trend('atletas.confirmados') },
+      { label: 'Atletas confirmados', value: atletas, caption: `${avisoExceso}${n('atletas.bajas')} bajas · ${n('atletas.reserva')} en reserva`, delta: null, trend: trend('atletas.confirmados') },
     ];
   });
   /** Bars of «Reservas por día» (from the tickets summary: 14 days, the last one is today) with their milestones. */
