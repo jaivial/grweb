@@ -20,6 +20,8 @@ const CATEGORIA: Record<string, [string, string]> = {
   marcas: ['Marcas', 'Marcas'], cronica: ['Crónica', 'Crónicas'], entrenamiento: ['Entrenamiento', 'Entrenamiento'],
 };
 const etiqueta = (c?: string) => (c ? CATEGORIA[c]?.[0] ?? '' : '');
+/** Filter chips of Figma 34 (Todos + these four). */
+const CHIPS = ['calendario', 'guia', 'normativa', 'cronica'];
 /** Cover of posts without one (cards and featured). */
 const PORTADA = '/img/blog/trofeo-edicion.webp';
 /** Spanish-only pages: hreflang es + x-default to themselves. */
@@ -134,7 +136,7 @@ export class BlogPage {
   protected readonly cat = computed(() => this.query()?.cat ?? '');
   protected readonly pagina = computed(() => this.datos()?.pagina ?? 1);
   protected readonly total = computed(() => this.datos()?.total ?? 0);
-  protected readonly chips = computed(() => Object.keys(CATEGORIA).filter((c) => this.datos()?.categorias.includes(c)));
+  protected readonly chips = computed(() => CHIPS.filter((c) => this.datos()?.categorias.includes(c)));
   protected readonly destacado = computed(() => (this.pagina() === 1 ? this.posts()?.[0] ?? null : null));
   /** Beside the featured post on desktop; in the list on smaller screens. */
   protected readonly recientes = computed(() => (this.pagina() === 1 ? (this.posts() ?? []).slice(1, 4) : []));
@@ -159,9 +161,13 @@ export class BlogPage {
         const d = await this.cms.blog(q.page, q.cat);
         this.mas.set([]);
         this.datos.set(d ?? { items: [], total: 0, pagina: q.page, porPagina: 12, categorias: [] });
+        // Page 2+ and category views are their own URLs: self-referencing canonical + hreflang.
+        const qs = new URLSearchParams({ ...(q.cat ? { categoria: q.cat } : {}), ...(q.page > 1 ? { page: String(q.page) } : {}) }).toString();
+        const self = '/blog' + (qs ? '?' + qs : '');
         await applySeo(this.cms, seo, '/blog', 'Guías de powerlifting · Blog de la GR Strength Cup', 'Calendario, normativa y consejos para competir en powerlifting en la Comunitat Valenciana.', undefined, {
-          alternates: ES('/blog'),
-          jsonLd: { '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog de la GR Strength Cup', url: seo.origin + '/blog', inLanguage: 'es',
+          path: self,
+          alternates: ES(self),
+          jsonLd: { '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog de la GR Strength Cup', url: seo.origin + self, inLanguage: 'es',
             blogPost: (d?.items ?? []).map((p) => ({ '@type': 'BlogPosting', headline: p.titulo, url: seo.origin + '/blog/' + p.slug, ...(p.publicadoAt ? { datePublished: p.publicadoAt } : {}) })) },
         });
       });
@@ -210,13 +216,15 @@ export class BlogPage {
               </p>
               @if (a.portadaUrl) { <img [src]="a.portadaUrl" alt="" class="aspect-[760/400] w-full rounded-xl object-cover" /> }
               @if (toc().length > 1) {
-                <!-- mobile: contents before the text (desktop: sticky column) -->
-                <nav class="rounded-lg border border-line-subtle bg-bg-card p-4 lg:hidden" aria-label="Contenido">
-                  <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
-                  <ol class="flex flex-col gap-1 text-body-s">
+                <!-- mobile: collapsed «Contenido» accordion before the text (desktop: sticky column) -->
+                <details class="group rounded-lg border border-line-subtle bg-bg-card lg:hidden">
+                  <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-label-s [&::-webkit-details-marker]:hidden">
+                    Contenido<gr-icon name="chevron-down" [size]="16" class="text-text-tertiary transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+                  </summary>
+                  <ol class="flex flex-col gap-1 px-4 pb-3 text-body-s" aria-label="Contenido">
                     @for (h of toc(); track h.id; let i = $index) { <li><a routerLink="." [fragment]="h.id" class="flex min-h-11 items-center text-text-secondary hover:text-text-primary">{{ i + 1 }}. {{ h.text }}</a></li> }
                   </ol>
-                </nav>
+                </details>
               }
               <article class="prose-gr prose-blog min-w-0" [innerHTML]="html()"></article>
               <div class="flex flex-col gap-3 border-t border-line-subtle pt-6">
@@ -229,7 +237,7 @@ export class BlogPage {
                 </div>
               </div>
             </div>
-            <aside class="flex flex-col gap-6 lg:sticky lg:top-28">
+            <aside class="hidden flex-col gap-6 lg:sticky lg:top-28 lg:flex">
               @if (toc().length > 1) {
                 <nav class="hidden rounded-lg border border-line-subtle bg-bg-card p-4 lg:block" aria-label="Contenido del artículo">
                   <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
@@ -242,7 +250,8 @@ export class BlogPage {
               }
               @if (comp.data(); as c) {
                 <!-- Figma «Edition card»: the next edition with its date and level -->
-                <div class="overflow-hidden rounded-xl border border-line-subtle bg-bg-card">
+                <!-- desktop only: Figma 34-post-390 has no edition card -->
+                <div class="hidden overflow-hidden rounded-xl border border-line-subtle bg-bg-card lg:block">
                   <div class="relative h-40 overflow-hidden bg-bg-deep md:h-[200px]">
                     <img src="/img/blog/trofeo-edicion.webp" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
                     <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgb(14_12_13/0.9))]" aria-hidden="true"></span>

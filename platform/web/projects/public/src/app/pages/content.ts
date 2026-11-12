@@ -14,7 +14,7 @@ import { Page } from '../layout/page';
 export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, description: string, image?: string, extra: Partial<SeoData> = {}): Promise<void> {
   const map = await cms.seoMap();
   const o = map?.paginas.find((p) => p.ruta === path);
-  seo.set({ ...extra, title: o?.title || title, description: o?.description || description, path, image: o?.imagenUrl || image });
+  seo.set({ ...extra, title: o?.title || title, description: o?.description || description, path: extra.path ?? path, image: o?.imagenUrl || image });
 }
 
 
