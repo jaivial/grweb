@@ -262,7 +262,7 @@ const api = '/api/area-atleta';
                 @let sel = (eleccion() || pr.elegida) === o.codigo;
                 @let llena = o.plazas > 0 && o.ocupadas >= o.plazas && pr.elegida !== o.codigo;
                 @let ultimas = o.plazas > 0 && o.plazas - o.ocupadas <= 5;
-                @if ((!pr.cerrada && !pr.cambioOrg) || pr.elegida === o.codigo) {
+                @if ((!pr.cerrada && (!pr.cambioOrg || verEleccion())) || pr.elegida === o.codigo) {
                   <button type="button" role="radio" [attr.aria-checked]="sel" [disabled]="pr.cerrada || llena || guardandoPrueba()" (click)="eleccion.set(o.codigo)"
                     class="flex items-center gap-4 rounded-md border-2 p-4 text-left focus-visible:outline-2 focus-visible:outline-accent" [class]="sel ? 'border-accent bg-accent/8' : 'border-line-subtle bg-white/2 hover:border-line-strong'" [class.opacity-50]="llena">
                     <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sel ? 'border-accent' : 'border-line-strong'">@if (sel) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
