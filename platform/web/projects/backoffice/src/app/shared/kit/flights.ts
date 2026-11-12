@@ -19,7 +19,7 @@ const CHIP: Record<BoChip, string> = {
     <gr-icon name="grip" [size]="14" class="shrink-0 text-text-muted" />
     <span class="min-w-0 flex-1">
       <span class="block truncate text-[14px] leading-[18px] font-semibold" [class]="estado() === 'withdrawn' ? 'text-text-muted ' : 'text-text-primary'">{{ nombre() }}</span>
-      <span class="block truncate text-[12px] leading-[17px]" [class]="estado() === 'conflict' ? 'text-warning' : 'text-text-tertiary'">{{ detalle() }}</span>
+      <span class="block text-[12px] leading-[17px]" [class]="estado() === 'conflict' ? 'text-warning' : 'truncate text-text-tertiary'" [attr.title]="detalle()">{{ detalle() }}</span>
     </span>
     @if (estado() === 'conflict') { <gr-icon name="triangle-alert" [size]="14" class="shrink-0 text-warning" label="Conflicto" /> }
   `,
