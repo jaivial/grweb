@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -6,6 +6,8 @@ import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, type FichaPub, type ListaPub, type Participantes } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi, type CompeticionPublica } from '../core/competition';
+import { FanSession } from '../core/fan';
+import { ICS_URL } from '../core/horarios';
 import { Seo } from '../core/seo';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
@@ -42,20 +44,21 @@ export class Fav {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
-    <gr-page title="Los" [accent]="(l?.resumen?.total || '') + ' atletas'" suffix="de la GR Cup" eyebrow="Competición 2026" crumb="Atletas"
-      subtitle="Busca a quien vienes a animar, mira su categoría y a qué hora compite. Sigue a tus atletas y tendrás tu propio horario.">
-      <p pageStamps class="flex flex-wrap gap-2">
+    <gr-page title="Los" [accent]="(l?.resumen?.total || '') + ' atletas'" suffix="de la GR Cup" eyebrow="Competición 2026" crumb="Atletas" [migasMovil]="!vacioMovil()"
+      [subtitle]="vacioMovil() ? '' : 'Busca a quien vienes a animar, mira su categoría y a qué hora compite. Sigue a tus atletas y tendrás tu propio horario.'">
+      <p pageStamps class="flex-wrap gap-2" [class]="vacioMovil() ? 'hidden' : 'flex'">
         @if (l?.actualizado) { <span class="inline-flex min-h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado el {{ fecha(l!.actualizado) }} · Fuente: inscritos AEP</span> }
         @if (plazas() && l?.resumen?.total) { <span class="inline-flex h-8 items-center rounded-pill border border-line-strong bg-white/5 px-3 text-label-xs text-text-tertiary">Inscripciones {{ l!.resumen.total >= plazas()! ? 'completas' : 'abiertas' }} · {{ Math.min(l!.resumen.total, plazas()!) }}/{{ plazas() }}</span> }
       </p>
 
-      <div #buscador class="flex scroll-mt-20 flex-col gap-3">
+      <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">
           <label class="relative min-w-0 flex-1 basis-full lg:max-w-[400px] lg:basis-72">
             <span class="sr-only">Buscar atleta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input type="search" placeholder="Busca por nombre o club" [ngModel]="q()" (ngModelChange)="q.set($event); limite.set(24)"
-              class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
+              class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-11 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
+            @if (q()) { <button type="button" (click)="q.set(''); limite.set(24)" aria-label="Borrar búsqueda" class="absolute top-1/2 right-2.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-text-tertiary hover:bg-white/15 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent-text"><gr-icon name="x" [size]="14" /></button> }
           </label>
           @for (s of sexos; track s.v) {
             <button type="button" (click)="sexo.set(s.v); limite.set(24)" [attr.aria-pressed]="sexo() === s.v" class="inline-flex h-11 items-center gap-1.5 rounded-pill border px-3.5 text-label-s"
@@ -147,7 +150,7 @@ export class Fav {
                     <a [routerLink]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2.5">
                       @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-11 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                       @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-m">{{ ini(a) }}</span> }
-                      <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="line-clamp-2 block text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : 'Sin categoría' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
+                      <span class="min-w-0 flex-1"><span class="block text-label-m break-words">{{ a.nombre }} {{ a.apellidos }}</span><span class="line-clamp-2 block text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : 'Sin categoría' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
                       <span class="font-mono text-[13px] text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
                       <gr-fav [slug]="a.slug" [nombre]="a.nombre" />
                     </a>
@@ -184,7 +187,6 @@ export class AtletasPage {
   protected readonly hora = hora;
   protected readonly sexoTxt = sexoTxt;
   protected readonly Math = Math;
-  private readonly buscador = viewChild<ElementRef<HTMLElement>>('buscador');
   protected readonly ini = iniciales;
   protected readonly lista = signal<ListaPub | null | undefined>(undefined);
   protected readonly error = signal(false);
@@ -218,6 +220,8 @@ export class AtletasPage {
     if (o === 'categoria') return [...list].sort((a, b) => catSort(a.sexo + ' ' + a.categoria, b.sexo + ' ' + b.categoria) || a.apellidos.localeCompare(b.apellidos, 'es'));
     return list; // the API already sorts by start time, then class
   });
+  private readonly movil = signal(false);
+  protected readonly vacioMovil = computed(() => this.movil() && !!this.q() && !!this.lista() && !this.filtrados().length);
   protected readonly visibles = computed(() => this.filtrados().slice(0, this.limite()));
   protected readonly grupos = computed(() => {
     const out: { titulo: string; items: AtletaPub[] }[] = [];
@@ -256,10 +260,10 @@ export class AtletasPage {
           division: this.division() || null, orden: o === 'horario' ? null : o, mis: this.soloFav() ? '1' : null };
         void router.navigate([], { queryParams, replaceUrl: true, preserveFragment: true });
       });
-      // Mobile: an empty result sits under the hero; bring the search and the message into view (U09-R1-6).
-      effect(() => {
-        if (this.lista() && !this.filtrados().length && this.q() && innerWidth < 768) this.buscador()?.nativeElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
-      });
+      // Mobile: an empty search compacts the header so the message sits in view (Figma 39 · 390 vacío).
+      const mq = matchMedia('(max-width: 767px)');
+      this.movil.set(mq.matches);
+      mq.addEventListener('change', (e) => this.movil.set(e.matches));
     }
     void inject(PendingTasks).run(async () => {
       const [l, c] = await Promise.all([this.cargar(), competition.load()]);
@@ -304,7 +308,8 @@ function norm(s: string): string {
 function catSort(a: string, b: string): number {
   const k = (s: string) => {
     const [sexo, c] = s.split(' ');
-    return [sexo, c ? Number(c.replace('+', '')) + (c.startsWith('+') ? 0.5 : 0) : Infinity] as const; // «Sin categoría» last
+    // Numeric weight («-47» → 47); «+» classes after every «-» one; «Sin categoría» last.
+    return [sexo, c ? Math.abs(parseFloat(c.replace('+', ''))) + (c.startsWith('+') ? 1000 : 0) : Infinity] as const;
   };
   const [sa, wa] = k(a);
   const [sb, wb] = k(b);
@@ -340,18 +345,18 @@ function catSort(a: string, b: string): number {
               </div>
               <div class="p-5">
                 <p class="flex flex-wrap gap-1.5">
-                  @if (a.categoria) { <span class="inline-flex h-7 items-center rounded-pill border border-accent/50 bg-accent-deep/30 px-2.5 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
-                  @if (a.divisionNombre) { <span class="inline-flex h-7 items-center rounded-pill border border-line-strong px-2.5 text-mono-xs">{{ a.divisionNombre }}</span> }
-                  <span class="inline-flex h-7 items-center gap-1 rounded-pill border border-line-strong px-2.5 text-mono-xs"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Horario por publicar' }}</span>
+                  @if (a.categoria) { <span class="inline-flex h-7 items-center rounded-pill border border-accent/50 bg-accent-deep/30 px-2.5 text-mono-xs text-accent-text uppercase">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
+                  @if (a.divisionNombre) { <span class="inline-flex h-7 items-center rounded-pill border border-line-strong px-2.5 text-mono-xs uppercase">{{ a.divisionNombre }}</span> }
+                  <span class="inline-flex h-7 items-center gap-1 rounded-pill border border-line-strong px-2.5 text-mono-xs uppercase"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Horario por publicar' }}</span>
                 </p>
                 <p class="mt-3 flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</p>
                 <div class="mt-4 flex gap-2">
-                  <button type="button" (click)="fav.toggle(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center justify-center gap-2 rounded-md border text-label-m"
+                  <button type="button" (click)="fav.toggle(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
                     [class]="fav.slugs().includes(a.slug) ? 'border-accent bg-accent-deep/40 text-accent-text' : 'border-line-strong'">
                     <svg viewBox="0 0 24 24" width="16" height="16" [attr.fill]="fav.slugs().includes(a.slug) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
                     {{ fav.slugs().includes(a.slug) ? 'Siguiendo' : 'Seguir' }}
                   </button>
-                  <button type="button" class="flex size-11 items-center justify-center rounded-md border border-line-strong" aria-label="Compartir" (click)="compartir(a)"><gr-icon name="send" [size]="16" /></button>
+                  <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text" aria-label="Compartir" (click)="compartir(a)"><gr-icon name="share" [size]="16" /></button>
                 </div>
                 @if (copiado()) { <p class="mt-2 text-body-xs text-success" aria-live="polite">Enlace copiado</p> }
               </div>
@@ -398,9 +403,10 @@ function catSort(a: string, b: string): number {
               <div class="flex items-center justify-between gap-3"><h2 class="text-ui-h5">Su día</h2>@if (diaTxt()) { <span class="text-body-xs text-text-tertiary">{{ diaTxt() }}</span> }</div>
               @if (a.horaInicio || a.pesajeInicio) {
                 <ol class="mt-3">
-                  @if (a.pesajeInicio) { <li class="flex gap-4 border-b border-line-subtle py-3"><span class="w-12 text-mono-s">{{ hora(a.pesajeInicio) }}</span><span><span class="block text-label-m">Pesaje</span><span class="block text-body-xs text-text-tertiary">{{ hora(a.pesajeInicio) }}–{{ hora(a.pesajeFin) }} · trae DNI y licencia</span></span></li> }
-                  @if (a.horaInicio) { <li class="flex gap-4 py-3"><span class="w-12 text-mono-s">{{ hora(a.horaInicio) }}</span><span><span class="block text-label-m">Empieza su flight</span><span class="block text-body-xs text-text-tertiary">Flight {{ a.flight }}{{ a.plataforma ? ' · Plataforma ' + a.plataforma : '' }}</span></span></li> }
+                  @if (a.pesajeInicio) { <li class="flex items-center gap-4 border-b border-line-subtle py-3"><span class="w-12 text-mono-s">{{ hora(a.pesajeInicio) }}</span><span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg-raised"><gr-icon name="scale" [size]="16" /></span><span><span class="block text-label-m">Pesaje</span><span class="block text-body-xs text-text-tertiary">{{ hora(a.pesajeInicio) }}–{{ hora(a.pesajeFin) }} · trae DNI y licencia</span></span></li> }
+                  @if (a.horaInicio) { <li class="flex items-center gap-4 py-3"><span class="w-12 text-mono-s">{{ hora(a.horaInicio) }}</span><span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg-raised"><gr-icon name="zap" [size]="16" /></span><span><span class="block text-label-m">Empieza su flight</span><span class="block text-body-xs text-text-tertiary">Flight {{ a.flight }}{{ a.plataforma ? ' · Plataforma ' + a.plataforma : '' }}</span></span></li> }
                 </ol>
+                <a [href]="ics + '?atletas=' + a.slug" download class="mt-4 flex h-11 items-center justify-center gap-2 rounded-md border border-line-strong bg-bg-raised text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text">Añadir a mi calendario <gr-icon name="arrow-right" [size]="16" /></a>
                 <p class="mt-2 text-body-xs text-text-tertiary">Las horas se recalculan solas si el flight va con retraso.</p>
               } @else {
                 <p class="mt-3 text-body-s text-text-secondary">El horario se publica cuando la organización cierre los flights. Si le sigues, lo verás aquí y en tu horario.</p>
@@ -421,7 +427,7 @@ function catSort(a: string, b: string): number {
                 @if (a.bio || a.frase) { <p class="mt-3 text-body-m text-text-secondary">{{ a.bio || a.frase }}</p> }
                 <dl class="mt-4 flex flex-col gap-2 text-body-s">
                   @if (a.entrenador) { <div class="flex gap-2"><gr-icon name="user" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Entrenador/a:</dt><dd>{{ a.entrenador }}</dd></div> }
-                  @if (a.instagram) { <div class="flex gap-2"><gr-icon name="camera" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Instagram:</dt><dd><a [href]="'https://www.instagram.com/' + a.instagram.replace('@', '') + '/'" target="_blank" rel="noopener nofollow" class="hover:text-accent-text">{{ a.instagram }}</a></dd></div> }
+                  @if (a.instagram) { <div class="flex gap-2"><gr-icon name="instagram" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Instagram:</dt><dd><a [href]="'https://www.instagram.com/' + a.instagram.replace('@', '') + '/'" target="_blank" rel="noopener nofollow" class="hover:text-accent-text">{{ a.instagram }}</a></dd></div> }
                   @if (a.historial) { <div class="flex gap-2"><gr-icon name="trophy" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Historial:</dt><dd>{{ a.historial }}</dd></div> }
                 </dl>
               </section>
@@ -460,6 +466,8 @@ export class AtletaPage {
   protected readonly kg = kg;
   protected readonly hora = hora;
   protected readonly ini = iniciales;
+  protected readonly ics = ICS_URL;
+  private readonly fan = inject(FanSession);
   protected readonly lifts: { k: 'sq' | 'bp' | 'dl'; label: string; short: string }[] = [{ k: 'sq', label: 'Sentadilla', short: 'SQ' }, { k: 'bp', label: 'Press de banca', short: 'BP' }, { k: 'dl', label: 'Peso muerto', short: 'DL' }];
   protected readonly ficha = signal<FichaPub | null | undefined>(undefined);
   protected readonly diaTxt = signal('');
@@ -524,11 +532,14 @@ export class AtletaPage {
     this.avisoError.set('');
     if (!this.email.includes('@')) return this.avisoError.set('Escribe un email válido.');
     if (!this.acepta) return this.avisoError.set('Marca la casilla para recibir el aviso.');
+    // Seguir needs the fan (or athlete) session: without it, the login modal opens and brings the person back here.
+    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('seguir', '/atletas/' + a.slug, this.email);
     this.enviando.set(true);
     try {
       await this.api.seguir(a.slug, this.email);
       this.avisoEnviado.set(true);
     } catch (e) {
+      if ((e as { status?: number }).status === 401) return this.fan.abrirAcceso('seguir', '/atletas/' + a.slug, this.email);
       this.avisoError.set((e as { error?: { detail?: string } }).error?.detail ?? 'Inténtalo de nuevo en unos minutos.');
     } finally {
       this.enviando.set(false);
