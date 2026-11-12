@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, output, signal, viewChild,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { GrIcon } from '@grcup/ui';
+import { RouterLink } from '@angular/router';
+import { GrButton, GrIcon } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
 
 const FRAMES = 313;
+export interface HeroCms { eyebrow?: string; fecha?: string; ctaTexto?: string; ctaDestino?: string; imagen?: string; focalX?: number; focalY?: number }
 const FPS = 24;
 const VIDEO_MOBILE = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-scroll/copa-600x900.mp4';
 const VIDEO_DESKTOP = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-scroll/copa-720x1080.mp4';
@@ -37,7 +39,7 @@ const PUFFS = [
  */
 @Component({
   selector: 'gr-hero-trophy',
-  imports: [GrIcon],
+  imports: [GrIcon, GrButton, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block', '[style.height]': 'reduced() ? "100dvh" : "500vh"' },
   template: `
@@ -51,6 +53,10 @@ const PUFFS = [
         <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
         <img [src]="imagenTrofeo()" alt="" fetchpriority="high" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
       </div>
+      <!-- U30 · Figma 54: background image with focal point, shown when there is no animation (reduced motion) -->
+      @if (reduced() && hero().imagen) {
+        <img [src]="hero().imagen" alt="" class="absolute inset-0 size-full object-cover opacity-60" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
+      }
       <!-- Smoke of the intro (clears and drifts away) -->
       <div class="pointer-events-none absolute inset-0" aria-hidden="true" [style.opacity]="humo()">
         @for (p of puffs; track $index) {
@@ -73,16 +79,20 @@ const PUFFS = [
       <div class="absolute inset-x-0 top-[84px] flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[78px] motion-reduce:transition-none" [style.opacity]="texto()">
         <img src="/img/home/aep-hero.webp" alt="AEP · Asociación Española de Powerlifting" width="108" height="40" class="h-8 w-auto select-none md:h-10" draggable="false" />
         <img [src]="logo" alt="GR Strength Cup 2026" class="mt-[57px] h-[125px] w-auto select-none md:mt-[63px] md:h-[198px]" draggable="false" fetchpriority="high" />
-        <h1 class="mt-[65px] max-w-[1000px] font-display text-[30px] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
-        @if (fechas() || lugar()) {
+        @if (hero().eyebrow) { <p class="mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
+        <h1 class="max-w-[1000px] font-display text-[30px] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-[65px]'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
+        @if (hero().fecha || fechas() || lugar()) {
           <p class="mt-[66px] flex flex-col items-center gap-1 md:mt-[63px]">
-            @if (fechas()) { <span class="font-archivo text-[14px] leading-[15px] font-extrabold tracking-[0.08em] uppercase md:text-[20px] md:leading-[22px]">{{ fechas() }}</span> }
+            @if (hero().fecha || fechas()) { <span class="font-archivo text-[14px] leading-[15px] font-extrabold tracking-[0.08em] uppercase md:text-[20px] md:leading-[22px]">{{ hero().fecha || fechas() }}</span> }
             @if (lugar()) { <span class="font-archivo text-[9px] leading-[10px] font-medium tracking-[0.1em] text-text-secondary uppercase md:text-[11px] md:leading-3">{{ lugar() }}</span> }
           </p>
         } @else if (metaPartes().length) {
           <p class="mt-10 flex flex-wrap items-center justify-center gap-2.5 text-label-xs text-text-secondary">
             @for (m of metaPartes(); track $index) { @if ($index) { <span class="size-1 rounded-full bg-accent" aria-hidden="true"></span> }<span>{{ m }}</span> }
           </p>
+        }
+        @if (hero().ctaTexto && hero().ctaDestino) {
+          <a grButton variant="primary" size="l" class="pointer-events-auto mt-8" [routerLink]="hero().ctaDestino">{{ hero().ctaTexto }}</a>
         }
         @if (patrocinadores().length) {
           <ul class="mt-16 flex flex-wrap items-center justify-center gap-2 md:mt-[63px] md:gap-4" aria-label="Organizan y colaboran">
@@ -133,6 +143,8 @@ export class HeroTrophy {
   readonly meta = input('');
   /** Title from the CMS (section «hero»). */
   readonly titulo = input('');
+  /** U30 · Figma 54 «Web · editar hero»: antetítulo, fecha visible, CTA (texto/destino) and background image with focal point. */
+  readonly hero = input<HeroCms>({});
   /** BIZ-144: «19 Y 20 DICIEMBRE DE 2026» and «ALMUSSAFES (VALENCIA) · PAVELLÓ …» (competition data). */
   readonly fechas = input('');
   readonly lugar = input('');
