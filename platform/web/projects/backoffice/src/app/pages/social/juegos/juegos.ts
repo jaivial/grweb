@@ -64,8 +64,8 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
       } @else {
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           <gr-kpi label="En porra" [value]="num(clasif().porra.length)" caption="jugadores en el top 50" />
-          <gr-kpi label="En fantasy" [value]="num(clasif().fantasy.length)" caption="jugadores en el top 50" />
-          <gr-kpi label="Monedas" [value]="monedas()" caption="porra + fantasy del top" />
+          <gr-kpi label="En fantasy" [value]="num(jugadoresFantasyTotal())" [caption]="clasif().fantasy.length + (clasif().fantasy.length === 1 ? ' sala' : ' salas')" />
+          <gr-kpi label="Monedas" [value]="monedas()" caption="porra del top + líderes de fantasy" />
           <gr-kpi label="Apuestas" [value]="num(apuestas())" [caption]="bote() + ' en botes'" />
           <gr-kpi label="Deuda fantasy" [value]="num(clasif().pendienteFantasy)" caption="reembolsos pendientes" />
         </div>
@@ -174,16 +174,18 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                   } @empty { <li class="py-6 text-center text-body-s text-text-tertiary">Todavía no hay jugadores.</li> }
                 </ol>
               </so-card>
-              <so-card titulo="Fantasy" ayuda="Puntos del día · top 50">
+              <so-card titulo="Fantasy" ayuda="Salas del día · quién va ganando (nota media)">
                 <gr-badge cardActions tone="accent">En vivo</gr-badge>
                 <ol class="-mt-1 flex flex-col divide-y divide-line-subtle">
-                  @for (f of clasif().fantasy.slice(0, 8); track f.fanId) {
+                  @for (f of clasif().fantasy.slice(0, 8); track f.id) {
                     <li class="flex items-center gap-3 py-2">
-                      <so-puesto [n]="f.puesto" />
-                      <span class="min-w-0 flex-1 truncate text-body-s">{{ f.alias || 'Sin alias' }}</span>
-                      <span class="shrink-0 font-mono text-mono-s text-text-secondary">{{ f.puntos }} pts</span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-body-s">{{ f.nombre }}</span>
+                        <span class="block truncate text-body-xs text-text-tertiary">{{ f.miembros }}/{{ f.plazas }} · {{ f.lider ? '@' + (f.lider.alias || 'sin alias') : 'sin clasificar' }}</span>
+                      </span>
+                      <span class="shrink-0 font-mono text-mono-s text-text-secondary">{{ f.lider ? nota(f.lider.nota) : '—' }}</span>
                     </li>
-                  } @empty { <li class="py-6 text-center text-body-s text-text-tertiary">Todavía no hay jugadores.</li> }
+                  } @empty { <li class="py-6 text-center text-body-s text-text-tertiary">Todavía no hay salas.</li> }
                 </ol>
               </so-card>
             </div>
@@ -272,7 +274,7 @@ export class JuegosPage {
   protected readonly bote = computed(() => compacto(this.mercados().reduce((a, m) => a + m.bote, 0)));
   protected readonly monedas = computed(() => {
     const p = this.clasif().porra.reduce((a, f) => a + f.saldo, 0);
-    const f = this.clasif().fantasy.reduce((a, x) => a + x.saldo, 0);
+    const f = this.clasif().fantasy.reduce((a, x) => a + (x.lider?.saldo ?? 0), 0);
     return compacto(p + f);
   });
 
@@ -323,8 +325,13 @@ export class JuegosPage {
   protected jugadores(j: Jornada): number {
     return j.id === this.seleccionada() ? this.clasif().porra.length : 0;
   }
+  /** Los jugadores de fantasy de la jornada: la suma de los miembros de sus salas. */
+  protected readonly jugadoresFantasyTotal = computed(() => this.clasif().fantasy.reduce((a, s) => a + s.miembros, 0));
+  protected nota(v: number): string {
+    return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  }
   protected jugadoresFantasy(j: Jornada): number {
-    return j.id === this.seleccionada() ? this.clasif().fantasy.length : 0;
+    return j.id === this.seleccionada() ? this.jugadoresFantasyTotal() : 0;
   }
 
   protected tipo(m: Mercado): string {

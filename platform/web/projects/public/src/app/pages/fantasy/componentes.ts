@@ -1,12 +1,244 @@
 /**
- * fantasy/componentes.ts — piezas compartidas de /fantasy (Figma «72 · /fantasy»): tendencia de la cláusula,
- * sparkline, fila de mercado, feed de movimientos, modal de clausulazo y ficha del atleta.
+ * fantasy/componentes.ts — piezas compartidas de /fantasy (Figma «72 · /fantasy» y «81 · /fantasy/salas»): la nota
+ * 0–10 con su color por tramo, los avisos de estado, la barra de sala, la tendencia de la cláusula, sparkline, fila
+ * de mercado, feed de movimientos, modal de clausulazo y ficha del atleta.
  */
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { GrButton, GrIcon } from '@grcup/ui';
-import { iniciales } from '../porra/componentes';
-import { type AtletaMercado, type AtletaDetalle, type MovimientoFeed, pctClausula } from '../../core/juegos';
+import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
+import { GrSelector, iniciales, type OpcionSelector } from '../porra/componentes';
+import {
+  type AtletaAlineado, type AtletaDetalle, type AtletaMercado, type ConceptoNota, type EstadoSala, type EventoNota, type Mov, type MovimientoFeed, type Nota,
+  type TramoNota, MOV_PORRA, deltaNota, nota1, nota2, pctClausula, tramoNota,
+} from '../../core/juegos';
 import { monedas } from '../porra/formato';
+
+/** Color del número y del borde de una nota por tramo (tokens color/nota/*). */
+export const TEXTO_NOTA: Record<TramoNota, string> = {
+  gris: 'text-nota-gris', rojo: 'text-nota-rojo', ambar: 'text-nota-ambar', azul: 'text-nota-azul', verde: 'text-nota-verde', morado: 'text-nota-morado',
+};
+export const BORDE_NOTA: Record<TramoNota, string> = {
+  gris: 'border-nota-gris', rojo: 'border-nota-rojo', ambar: 'border-nota-ambar', azul: 'border-nota-azul', verde: 'border-nota-verde', morado: 'border-nota-morado',
+};
+/** La clase de color del número de una nota media (2 decimales) según su tramo. */
+export const colorNota = (valor: number, tieneNota = true): string => TEXTO_NOTA[tramoNota(valor, tieneNota)];
+
+/**
+ * La nota de un atleta (Figma «Nota», set 204:112349): píldora sobre bg/deep con borde de 2 px y número del color
+ * del tramo. `s` es el chip pequeño que cuelga del avatar en la pista.
+ */
+@Component({
+  selector: 'gr-nota',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': 'clases()', '[attr.aria-label]': '"Nota " + txt()', role: 'img' },
+  template: `{{ txt() }}`,
+})
+export class GrNota {
+  /** La nota del atleta (null o sin `tieneNota`: gris, «0,0»). */
+  readonly nota = input<Nota | null>(null);
+  readonly tamano = input<'m' | 's'>('m');
+  protected readonly tramo = computed(() => tramoNota(this.nota()?.valor ?? 0, this.nota()?.tieneNota ?? false));
+  protected readonly txt = computed(() => nota1(this.nota()?.valor ?? 0));
+  protected readonly clases = computed(
+    () =>
+      'inline-flex shrink-0 items-center justify-center rounded-pill border-2 bg-bg-deep font-mono tabular-nums ' +
+      (this.tamano() === 's' ? 'h-6 px-[7px] text-[12px] leading-none font-bold ' : 'h-[34px] px-3 text-[13px] leading-[1.4] ') +
+      BORDE_NOTA[this.tramo()] + ' ' + TEXTO_NOTA[this.tramo()],
+  );
+}
+
+const TONO_AVISO: Record<'neutro' | 'exito' | 'aviso' | 'error', { borde: string; icono: string; nombre: GrIconName }> = {
+  neutro: { borde: 'border-line-strong', icono: 'text-text-secondary', nombre: 'bell' },
+  exito: { borde: 'border-success', icono: 'text-success', nombre: 'circle-check' },
+  aviso: { borde: 'border-warning', icono: 'text-warning', nombre: 'circle-alert' },
+  error: { borde: 'border-crimson', icono: 'text-crimson', nombre: 'circle-alert' },
+};
+
+/**
+ * Un aviso de estado (Figma «Aviso · …»): fondo casi negro (bg/deep), borde de 1 px e icono del tono; el título va
+ * en texto primario y el detalle en secundario (nunca en el color del tono).
+ */
+@Component({
+  selector: 'gr-aviso',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': '"flex items-start gap-3 rounded-md border bg-bg-deep px-4 py-3 " + t().borde', '[attr.role]': 'tono() === "error" || tono() === "aviso" ? "alert" : "status"' },
+  template: `
+    <gr-icon [name]="icono() ?? t().nombre" [size]="20" class="shrink-0" [class]="t().icono" />
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <p class="text-label-s text-text-primary">{{ titulo() }}</p>
+      <div class="text-body-s text-text-secondary empty:hidden"><ng-content /></div>
+    </div>
+    <ng-content select="[avisoAccion]" />
+  `,
+})
+export class GrAviso {
+  readonly tono = input<'neutro' | 'exito' | 'aviso' | 'error'>('neutro');
+  readonly titulo = input.required<string>();
+  readonly icono = input<GrIconName | null>(null);
+  protected readonly t = computed(() => TONO_AVISO[this.tono()]);
+}
+
+/** El aviso de conexión en vivo perdida (el único indicador «en vivo» que queda: no hay «actualizado hace X»). */
+@Component({
+  selector: 'gr-aviso-conexion',
+  imports: [GrAviso],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
+  template: `<gr-aviso tono="aviso" titulo="Sin conexión en tiempo real">Reconectando… los datos pueden estar desactualizados.</gr-aviso>`,
+})
+export class AvisoConexion {}
+
+/** El distintivo de estado de una sala (Figma «Badge»): texto y tono. */
+export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas = 0): { txt: string; clase: string } {
+  const acento = 'border-accent/45 bg-accent/12 text-accent-text';
+  switch (estado) {
+    case 'esperando':
+      return { txt: 'Esperando (mín. 2)', clase: 'border-info/45 bg-info/12 text-info' };
+    case 'llena':
+      return { txt: 'Llena', clase: 'border-text-tertiary/45 bg-text-tertiary/12 text-text-tertiary' };
+    case 'en_juego':
+      return { txt: 'En juego', clase: acento };
+    case 'cancelada':
+      return { txt: 'Cancelada', clase: 'border-text-muted/45 bg-text-muted/12 text-text-muted' };
+    case 'cerrada':
+    case 'finalizada':
+      return { txt: 'Cerrada', clase: 'border-text-muted/45 bg-text-muted/12 text-text-muted' };
+    default:
+      return plazas > 0 && plazas - miembros === 1 ? { txt: 'Últimas plazas', clase: acento } : { txt: 'Abierta', clase: 'border-success/45 bg-success/12 text-success' };
+  }
+}
+
+/**
+ * La barra de sala (Figma «Barra de sala»): la sala en la que se juega, sus pestañas (Resumen · Mi equipo · Mercado ·
+ * Clasificación) y «Cambiar de sala». En móvil las pestañas son un selector con desplegable.
+ */
+@Component({
+  selector: 'gr-barra-sala',
+  imports: [GrIcon, GrSelector],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-surface p-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4' },
+  template: `
+    <p class="flex min-w-0 items-center gap-3">
+      <gr-icon name="users" [size]="20" class="shrink-0 text-text-secondary" />
+      <span class="flex min-w-0 flex-col gap-0.5">
+        <span class="text-mono-xs text-text-muted">Sala</span>
+        <span class="truncate text-label-s text-text-primary">{{ nombre() }}</span>
+      </span>
+      <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-label-xs" [class]="badge().clase">{{ badge().txt }}</span>
+      @if (plazas()) { <span class="shrink-0 text-mono-s text-text-secondary tabular-nums">{{ miembros() }}/{{ plazas() }}</span> }
+    </p>
+    <gr-selector class="lg:hidden" etiqueta="Sala" [opciones]="opciones()" [valor]="activa()" />
+    <nav class="hidden gap-1 rounded-pill border border-line-subtle bg-bg-surface p-1 lg:flex" aria-label="Sala">
+      @for (t of opciones(); track t.v) {
+        <a [href]="t.href" class="flex h-10 w-[120px] items-center justify-center rounded-pill text-label-s whitespace-nowrap transition-colors"
+          [class]="t.v === activa() ? 'border border-line-strong bg-bg-raised text-text-primary' : 'border border-transparent text-text-tertiary hover:text-text-primary'"
+          [attr.aria-current]="t.v === activa() ? 'page' : null">{{ t.l }}</a>
+      }
+    </nav>
+    <a href="/fantasy/salas" class="inline-flex h-[30px] shrink-0 items-center gap-2 self-start rounded-pill border border-line-strong px-3 text-label-xs text-text-secondary hover:text-text-primary lg:self-auto">
+      Cambiar de sala<gr-icon name="chevron-down" [size]="16" />
+    </a>
+  `,
+})
+export class BarraSala {
+  readonly salaId = input.required<string>();
+  readonly nombre = input.required<string>();
+  readonly estado = input<EstadoSala | 'abierta'>('abierta');
+  readonly miembros = input(0);
+  readonly plazas = input(0);
+  readonly activa = input<'resumen' | 'equipo' | 'mercado' | 'clasificacion'>('resumen');
+  protected readonly badge = computed(() => badgeSala(this.estado(), this.miembros(), this.plazas()));
+  protected readonly opciones = computed<OpcionSelector[]>(() => {
+    const base = '/fantasy/salas/' + this.salaId();
+    return [
+      { v: 'resumen', l: 'Resumen', href: base },
+      { v: 'equipo', l: 'Mi equipo', href: base + '/equipo' },
+      { v: 'mercado', l: 'Mercado', href: base + '/mercado' },
+      { v: 'clasificacion', l: 'Clasificación', href: base + '/clasificacion' },
+    ];
+  });
+}
+
+/** Sin sala no hay mercado, equipo ni clasificación propios: se invita a ir al lobby (Figma «Estado vacío»). */
+@Component({
+  selector: 'gr-sin-sala',
+  imports: [GrButton, GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-8 text-center' },
+  template: `
+    <gr-icon name="users" [size]="32" class="text-text-secondary" />
+    <p class="text-ui-h5 text-text-primary">Aún no estás en ninguna sala hoy</p>
+    <p class="max-w-xl text-body-s text-text-secondary">El mercado, tu alineación y la clasificación van por sala. Solicita unirte a una o crea la tuya: necesitas al menos 2 jugadores para empezar.</p>
+    <a grButton variant="primary" href="/fantasy/salas">Ver salas</a>
+  `,
+})
+export class SinSala {}
+
+/** Las posiciones de la alineación (solo visuales), en el orden de la pista. */
+export const POSICION_CORTA = ['Pívot', 'Ala izq.', 'Ala der.', 'Cierre', 'Portero'];
+
+/**
+ * La alineación de un jugador como lista (Figma «Alineación» del popover, de la sala y del palmarés): avatar,
+ * nombre, posición y la nota de cada atleta, y la media al pie.
+ */
+@Component({
+  selector: 'gr-alineacion-lista',
+  imports: [GrNota],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-col gap-2' },
+  template: `
+    @for (a of atletas(); track a.atletaId; let i = $index) {
+      <p class="flex items-center gap-3 rounded-md bg-bg-card px-3 py-2">
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-700 text-mono-xs text-text-primary">{{ ini(a.nombre) }}</span>
+        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span class="truncate text-label-s text-text-primary">{{ a.nombre }}</span>
+          <span class="text-mono-xs text-text-muted">{{ posiciones[i] ?? '' }}</span>
+        </span>
+        <gr-nota [nota]="a.nota" />
+      </p>
+    } @empty {
+      <p class="rounded-md bg-bg-card px-3 py-3 text-body-xs text-text-muted">Todavía no ha fichado a nadie.</p>
+    }
+    @if (atletas().length) {
+      <p class="flex items-center gap-2 px-3 py-2">
+        <span class="min-w-0 flex-1 text-mono-xs text-text-muted">{{ pie() }}</span>
+        <span class="text-ui-h5 tabular-nums" [class]="color()">{{ mediaTxt() }}</span>
+      </p>
+    }
+  `,
+})
+export class AlineacionLista {
+  readonly atletas = input.required<AtletaAlineado[]>();
+  /** La media de la alineación (la del backend) y cuántos atletas tienen ya nota. */
+  readonly media = input(0);
+  readonly conNota = input(5);
+  /** Jornada cerrada: la media es la final (÷ 5). */
+  readonly final = input(false);
+  protected readonly posiciones = POSICION_CORTA;
+  protected readonly pie = computed(() => (this.final() ? 'Nota final (5 notas ÷ 5)' : `Media provisional (${this.conNota()} ${this.conNota() === 1 ? 'nota' : 'notas'} ÷ ${this.conNota()})`));
+  protected readonly mediaTxt = computed(() => nota2(this.media()));
+  protected readonly color = computed(() => colorNota(this.media(), this.final() || this.conNota() > 0));
+  protected ini(n: string): string {
+    return iniciales(n);
+  }
+}
+
+/** La etiqueta de cada concepto del desglose de la nota (Figma «Desglose de la nota»). */
+export function lineasNota(n: Nota | null | undefined, nulo = 0.3): { concepto: string; valor: string; clase: string }[] {
+  if (!n) return [];
+  const de = (c: ConceptoNota) => n.desglose.find((d) => d.concepto === c)?.valor;
+  const bonus = (c: ConceptoNota, l: string) => (de(c) ? [{ concepto: l, valor: '+' + nota1(de(c)!), clase: 'text-success' }] : []);
+  return [
+    { concepto: `A · Intentos válidos (${n.validos} de 9)`, valor: nota1(de('intentos') ?? 0), clase: 'text-success' },
+    { concepto: `Nulos (${n.nulos} × −${nota1(nulo)})`, valor: n.nulos ? '−' + nota1(Math.abs(de('nulos') ?? n.nulos * nulo)) : nota1(0), clase: n.nulos ? 'text-nota-rojo' : 'text-text-muted' },
+    { concepto: 'Blanqueo (3 nulos en un movimiento)', valor: n.blanqueo ? 'nota = 0,0' : 'no ocurrió', clase: n.blanqueo ? 'text-nota-rojo' : 'text-text-muted' },
+    { concepto: 'B · Puesto en su categoría', valor: nota1(de('puesto') ?? 0), clase: de('puesto') ? 'text-success' : 'text-text-muted' },
+    ...bonus('pleno', 'C · Pleno 9/9'),
+    ...bonus('record_personal', 'C · Récord personal'),
+    ...bonus('record_competicion', 'C · Récord de la competición'),
+    ...bonus('total', 'C · Total completado'),
+  ];
+}
 
 /** La flecha de la cláusula (Figma «Clause trend chip»): sube, baja o se queda. */
 @Component({
@@ -81,6 +313,7 @@ export class SparklineClausula {
         @switch (accion()) {
           @case ('fichar') { <button grButton variant="primary" [block]="true" (click)="fichar.emit()">Fichar</button> }
           @case ('clausulazo') { <button type="button" class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-accent/60 bg-accent-deep/85 font-display text-[17px] text-white uppercase shadow-glow-deep transition-colors hover:bg-accent-deep md:h-10" (click)="clausulazo.emit()"><gr-icon name="zap" [size]="15" class="text-accent-text" />Clausulazo</button> }
+          @case ('cerrado') { <span class="flex h-11 w-full items-center justify-center rounded-md bg-accent-deep/85 px-1 text-center font-display text-[13px] leading-tight text-white uppercase opacity-40 md:h-11" role="note" [attr.aria-label]="'Clausulazo cerrado desde las ' + cierre()">Cerrado desde las {{ cierre() }}</span> }
           @case ('vender') { <button grButton variant="outline" [block]="true" (click)="vender.emit()">Vender</button> }
           @default { <span class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-warning/30 bg-warning/8 text-label-xs text-warning md:h-10"><gr-icon name="lock" [size]="13" />Protegido</span> }
         }
@@ -93,7 +326,9 @@ export class MarketRow {
   readonly atleta = input.required<AtletaMercado>();
   readonly serie = input<number[]>([]);
   readonly delta = input(0);
-  readonly accion = input<'fichar' | 'clausulazo' | 'vender' | 'protegido'>('fichar');
+  readonly accion = input<'fichar' | 'clausulazo' | 'vender' | 'protegido' | 'cerrado'>('fichar');
+  /** La hora desde la que los clausulazos están cerrados (última sesión del día). */
+  readonly cierre = input('');
   /** Segundos que le quedan de protección (cuenta atrás «Protegido · mm:ss»). */
   readonly restante = input<number | null>(null);
   readonly fichar = output<void>();
@@ -193,6 +428,9 @@ export class FeedRow {
           <button type="button" class="-m-2 flex size-11 items-center justify-center rounded-sm text-text-secondary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="20" /></button>
         </header>
         <div class="flex flex-col gap-3.5 p-5">
+          @if (sala()) {
+            <p class="flex items-center gap-2 text-mono-xs text-text-secondary"><gr-icon name="users" [size]="16" class="shrink-0" /><span class="min-w-0 truncate">Sala · {{ sala() }}</span></p>
+          }
           <p class="flex items-center gap-3 rounded-md border border-line-strong bg-bg-card px-3 py-3">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-accent/80 bg-bg-raised font-display text-[16px] italic">{{ ini() }}</span>
             <span class="min-w-0 flex-1">
@@ -222,28 +460,32 @@ export class FeedRow {
               <span class="block font-mono text-[18px] font-bold tabular-nums" [class]="despues() < 0 ? 'text-accent-text' : 'text-warning'">{{ despues() < 0 ? 'Sin saldo' : monedas(despuesMostrado()) }}</span>
             </p>
           </div>
-          <ul class="flex flex-col gap-2 rounded-md border border-warning/35 bg-warning/8 px-3.5 py-3 text-body-xs text-text-secondary">
+          <ul class="flex flex-col gap-2 rounded-md border border-warning bg-bg-deep px-3.5 py-3 text-body-xs text-text-secondary">
             <li class="flex items-start gap-2"><gr-icon name="credit-card" [size]="15" class="mt-px shrink-0 text-warning" /><span>Cobra <b class="text-text-primary">{{ dueno() }}</b>: el dinero va íntegro al dueño anterior.</span></li>
             @if (proteccionMin() > 0) {
               <li class="flex items-start gap-2"><gr-icon name="shield" [size]="15" class="mt-px shrink-0 text-warning" /><span>Después queda <b class="text-text-primary">protegido {{ proteccionMin() }} min</b>: nadie te lo puede clausular.</span></li>
             }
             <li class="flex items-start gap-2"><gr-icon name="zap" [size]="15" class="mt-px shrink-0 text-warning" /><span>Clausulazos usados: <b class="font-mono text-text-primary">{{ clausulazosUsados() }} de {{ maxClausulazos() }}</b> esta jornada · sin deuda.</span></li>
           </ul>
-          @if (error()) {
-            <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
-              <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />{{ error() }}
+          @if (cerrado()) {
+            <p class="flex items-center gap-2 rounded-md border border-warning bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+              <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-warning" />Clausulazos cerrados desde las {{ cerrado() }}. La última sesión del día ya empezó; se reabren el próximo día de competición.
+            </p>
+          } @else if (error()) {
+            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+              <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />{{ error() }}
             </p>
           } @else if (despues() < 0) {
-            <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
-              <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />Te faltan {{ monedas(-despues()) }} monedas para pagar la cláusula.
+            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+              <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />Te faltan {{ monedas(-despues()) }} monedas para pagar la cláusula.
             </p>
           } @else if (clausulazosUsados() >= maxClausulazos()) {
-            <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
-              <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />Ya has usado tus {{ maxClausulazos() }} clausulazos de esta jornada.
+            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+              <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />Ya has usado tus {{ maxClausulazos() }} clausulazos de esta jornada.
             </p>
           }
           <button grButton variant="display-gradient" size="m" class="h-12!" [block]="true" icon="zap" [loading]="cargando()" [disabled]="!puede()" (click)="pagar.emit()">
-            Pagar {{ monedas(atleta().clausula) }} y fichar
+            {{ cerrado() ? 'Clausulazo no disponible' : 'Pagar ' + monedas(atleta().clausula) + ' y fichar' }}
           </button>
         </div>
       </div>
@@ -260,6 +502,10 @@ export class ClausulazoModal {
   readonly maxClausulazos = input(3);
   /** Minutos de protección tras un fichaje (de la configuración pública). */
   readonly proteccionMin = input(10);
+  /** El contexto de sala («Los Cuervos de Gonzalo · 7/8»). */
+  readonly sala = input('');
+  /** La hora desde la que los clausulazos están cerrados (vacío = abiertos). */
+  readonly cerrado = input('');
 
   readonly cerrar = output<void>();
   readonly pagar = output<void>();
@@ -276,13 +522,13 @@ export class ClausulazoModal {
   });
   protected readonly despues = computed(() => this.saldo() - this.atleta().clausula);
   protected readonly despuesMostrado = computed(() => Math.max(0, this.despues()));
-  protected readonly puede = computed(() => this.despues() >= 0 && this.clausulazosUsados() < this.maxClausulazos());
+  protected readonly puede = computed(() => !this.cerrado() && this.despues() >= 0 && this.clausulazosUsados() < this.maxClausulazos());
 }
 
 /** La ficha del atleta (Figma «Ficha del atleta»): la curva de la cláusula y el desglose de puntos. */
 @Component({
   selector: 'gr-athlete-sheet',
-  imports: [GrIcon, ClauseTrend],
+  imports: [GrIcon, GrNota, ClauseTrend],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents', '(document:keydown.escape)': 'cerrar.emit()' },
   template: `
@@ -317,23 +563,33 @@ export class ClausulazoModal {
           <p class="mt-2 text-body-xs text-text-tertiary">{{ resumenCurva() }}</p>
         </section>
 
-        <section class="rounded-md border border-line-subtle bg-bg-card p-3">
-          <p class="flex items-center justify-between gap-3 text-mono-xs text-text-tertiary uppercase">
-            <span>Desglose de puntos</span><span class="text-success">{{ totalPuntos() >= 0 ? '+' : '' }}{{ totalPuntos() }} pts</span>
+        @if (evento(); as ev) {
+          <section class="flex flex-col gap-3 rounded-lg border bg-bg-deep p-4" [class]="ev.blanqueo ? 'border-crimson' : ev.valido ? 'border-success' : 'border-warning'" aria-live="polite">
+            <p class="flex items-center gap-2 text-mono-xs" [class]="ev.blanqueo ? 'text-text-primary' : 'text-text-secondary'">
+              <span class="size-2 shrink-0 rounded-full" [class]="ev.blanqueo ? 'bg-crimson' : ev.valido ? 'bg-success' : 'bg-warning'" aria-hidden="true"></span>{{ ev.cabecera }}
+            </p>
+            <p class="text-ui-h4 text-text-primary">{{ ev.titulo }}</p>
+            @if (ev.blanqueo) {
+              <p class="flex items-center gap-3 text-mono-s text-text-secondary">@if (ev.antes !== null) { <span>Nota {{ n2(ev.antes) }} →</span> } <gr-nota [nota]="notaAtleta()" /></p>
+              <p class="text-body-xs text-text-primary">3 nulos en un mismo movimiento: nota 0,0 absoluto. Se anula todo y la cláusula baja un 30 %.</p>
+            } @else {
+              <p class="text-mono-s text-text-secondary">{{ ev.linea }}</p>
+            }
+          </section>
+        }
+
+        <section class="flex flex-col gap-2 rounded-md bg-bg-surface p-3" aria-labelledby="ficha-desglose">
+          <p class="flex items-center justify-between gap-3">
+            <span id="ficha-desglose" class="text-label-xs text-text-muted">Desglose de la nota</span>
+            <gr-nota [nota]="notaAtleta()" />
           </p>
-          @if (puntos().length) {
-            <ul class="mt-2 flex flex-col gap-1.5">
-              @for (p of puntos(); track p.ref) {
-                <li class="flex items-center justify-between gap-3 text-body-xs">
-                  <span class="min-w-0 truncate text-text-secondary">{{ p.concepto }}</span>
-                  <span class="shrink-0 font-mono" [class]="p.puntos >= 0 ? 'text-success' : 'text-accent-text'">{{ p.puntos >= 0 ? '+' : '' }}{{ p.puntos }}</span>
-                </li>
-              }
-            </ul>
-            <p class="mt-2 text-body-xs text-text-tertiary">Los puntos de cada intento cuentan al titular en el momento del veredicto.</p>
-          } @else {
-            <p class="mt-2 text-body-xs text-text-tertiary">Todavía no hay puntos registrados para este atleta.</p>
+          @for (l of lineas(); track l.concepto) {
+            <p class="flex items-center justify-between gap-3">
+              <span class="min-w-0 text-body-xs text-text-secondary" [class.line-through]="blanqueo() && l.concepto.slice(0, 8) !== 'Blanqueo'">{{ l.concepto }}</span>
+              <span class="shrink-0 text-mono-s tabular-nums" [class]="l.clase">{{ l.valor }}</span>
+            </p>
           }
+          <p class="text-body-xs text-text-muted">{{ blanqueo() ? 'Los componentes se muestran tachados: blanqueo = nota 0,0.' : 'La nota se actualiza con cada veredicto; el puesto, al publicarse la categoría. Blanqueo = nota 0,0.' }}</p>
         </section>
 
         @if (fichajes().length) {
@@ -361,9 +617,16 @@ export class AthleteSheet {
   readonly detalle = input<AtletaDetalle | null>(null);
   readonly cargando = input(false);
   readonly fichajes = input<MovimientoFeed[]>([]);
+  /** El dueño en la sala («@tú», «@alias» o «libre»): la ficha del atleta no lo trae. */
+  readonly duenoTxt = input('');
+  /** El último cambio de nota en vivo de este atleta (para «Nota 4,88 → 5,43 (+0,56)»). */
+  readonly enVivo = input<EventoNota | null>(null);
+  /** Lo que resta cada intento nulo (de la configuración pública). */
+  readonly nulo = input(0.3);
   readonly cerrar = output<void>();
 
   protected readonly ancho = 320;
+  protected readonly n2 = nota2;
   protected readonly atleta = computed(() => this.detalle()?.atleta ?? null);
   protected readonly clausulaActual = computed(() => this.atleta()?.clausula ?? 0);
   protected readonly delta = computed(() => {
@@ -372,6 +635,7 @@ export class AthleteSheet {
   });
   protected readonly dueno = computed(() => {
     const a = this.atleta();
+    if (this.duenoTxt()) return this.duenoTxt();
     if (!a) return '—';
     if (a.esMio) return '@tú';
     if (a.duenoAlias) return '@' + a.duenoAlias;
@@ -383,8 +647,30 @@ export class AthleteSheet {
     if (!a) return '';
     return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;
   });
-  protected readonly puntos = computed(() => this.detalle()?.puntos ?? []);
-  protected readonly totalPuntos = computed(() => this.puntos().reduce((s, p) => s + p.puntos, 0));
+  protected readonly notaAtleta = computed<Nota | null>(() => this.atleta()?.nota ?? null);
+  protected readonly blanqueo = computed(() => this.notaAtleta()?.blanqueo === true);
+  protected readonly lineas = computed(() => lineasNota(this.notaAtleta(), this.nulo()));
+  /** El último intento con veredicto (los movimientos van en orden: sentadilla, banca, peso muerto). */
+  protected readonly evento = computed(() => {
+    const it = this.detalle()?.intentos;
+    const n = this.notaAtleta();
+    if (!it || !n?.tieneNota) return null;
+    let ultimo: { mov: Mov; n: number; peso: number; resultado: string } | null = null;
+    for (const mov of ['sq', 'bp', 'dl'] as Mov[]) for (const i of it[mov] ?? []) if (i.resultado === 'valido' || i.resultado === 'nulo') ultimo = { mov, ...i };
+    if (!ultimo) return null;
+    const vivo = this.enVivo()?.atletaId === this.atleta()?.atletaId ? this.enVivo() : null;
+    const kg = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }).format(ultimo.peso) + ' kg';
+    const valido = ultimo.resultado === 'valido';
+    const donde = `${MOV_PORRA[ultimo.mov].toUpperCase()} · ${ultimo.n}.º INTENTO`;
+    return {
+      blanqueo: n.blanqueo,
+      valido,
+      cabecera: (n.blanqueo ? 'En directo · ' : 'Último evento · ') + donde,
+      titulo: n.blanqueo ? `NO LIFT · BOMB-OUT (${kg})` : `${valido ? 'GOOD LIFT' : 'NO LIFT'} · ${kg}`,
+      antes: vivo ? vivo.nota - vivo.delta : null,
+      linea: vivo ? `Nota ${nota2(vivo.nota - vivo.delta)} → ${nota2(vivo.nota)} (${deltaNota(vivo.delta)})` : `Nota ${nota2(n.valor)}`,
+    };
+  });
   /** La serie de la curva: del historial más antiguo al más reciente. */
   protected readonly serie = computed(() => {
     const h = [...(this.detalle()?.clausulas ?? [])].reverse();

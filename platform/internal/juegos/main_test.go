@@ -2,6 +2,7 @@ package juegos
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
 // The concurrency tests the client asked for run against a real PostgreSQL when TEST_DATABASE_URL is set
@@ -111,20 +113,69 @@ func nuevaJornada(t *testing.T, q querier, estado string) (uuid.UUID, jornada) {
 	return cid, j
 }
 
-// atletaFantasiaDePrueba inserts one fantasy athlete (optionally owned).
-func atletaFantasiaDePrueba(t *testing.T, q querier, cid, jid uuid.UUID, dueno *uuid.UUID, titular bool, clausula int64) uuid.UUID {
+// atletaFantasiaDePrueba inserts one fantasy athlete, optionally owned by a fan inside a room.
+func atletaFantasiaDePrueba(t *testing.T, q querier, cid, jid, sala uuid.UUID, dueno *uuid.UUID, clausula int64) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
 	aid := uuid.Must(uuid.NewV7())
 	if clausula <= 0 {
 		clausula = 200000
 	}
-	_, err := q.Exec(ctx, `INSERT INTO fantasy_atletas (jornada_id, competition_id, atleta_id, nombre_publico, sexo, categoria, clausula, dueno_fan_id, titular)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, jid, cid, aid, "Atleta de prueba", "M", "-93", clausula, dueno, titular)
+	_, err := q.Exec(ctx, `INSERT INTO fantasy_atletas (jornada_id, competition_id, atleta_id, nombre_publico, sexo, categoria, clausula)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)`, jid, cid, aid, "Atleta de prueba", "M", "-93", clausula)
+	if err == nil && dueno != nil {
+		_, err = q.Exec(ctx, `INSERT INTO sala_atletas (sala_id, jornada_id, atleta_id, dueno_fan_id, dueno_alias) VALUES ($1,$2,$3,$4,'dueno')`, sala, jid, aid, *dueno)
+	}
 	if err != nil {
 		t.Fatalf("atleta de prueba: %v", err)
 	}
 	return aid
+}
+
+// salaDePrueba inserts a room with the given members (the first one is the host; no size check on purpose: the
+// concurrency tests seat more fans than a real room holds).
+func salaDePrueba(t *testing.T, q querier, cid uuid.UUID, j jornada, plazas int, fans ...uuid.UUID) uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	sid := uuid.Must(uuid.NewV7())
+	if len(fans) == 0 {
+		fans = []uuid.UUID{uuid.Must(uuid.NewV7())}
+	}
+	if _, err := q.Exec(ctx, `INSERT INTO salas (id, competition_id, jornada_id, nombre, nombre_norm, anfitrion_fan_id, plazas, codigo)
+		VALUES ($1,$2,$3,$4,$4,$5,$6,$7)`, sid, cid, j.ID, "sala "+sid.String()[24:], fans[0], plazas, nuevoCodigo()); err != nil {
+		t.Fatalf("sala de prueba: %v", err)
+	}
+	sociosDePrueba(t, q, j, sid, fans...)
+	return sid
+}
+
+// sociosDePrueba seats fans in a room and opens their fantasy wallets.
+func sociosDePrueba(t *testing.T, q querier, j jornada, sala uuid.UUID, fans ...uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	for _, f := range fans {
+		if _, err := q.Exec(ctx, `INSERT INTO sala_miembros (sala_id, jornada_id, fan_id, miembro_id, alias) VALUES ($1,$2,$3,$4,$5)`,
+			sala, j.ID, f, uuid.Must(uuid.NewV7()), "fan"+f.String()[30:]); err != nil {
+			t.Fatalf("socio de prueba: %v", err)
+		}
+		if _, err := abrirCarteraTx(ctx, q, j, f, Fantasy); err != nil {
+			t.Fatalf("cartera de prueba: %v", err)
+		}
+	}
+}
+
+// farFuture keeps a fixed scoreboard in the cache of the service during a test.
+var farFuture = time.Now().Add(time.Hour)
+
+func nuevoFan() uuid.UUID { return uuid.Must(uuid.NewV7()) }
+
+func codigoDe(t *testing.T, err error) string {
+	t.Helper()
+	var p *problem.Error
+	if !errors.As(err, &p) {
+		return fmt.Sprint(err)
+	}
+	return p.Code
 }
 
 // madridTz is the jornada timezone (Europe/Madrid, contract §2).

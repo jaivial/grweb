@@ -31,6 +31,8 @@
   --color-medal-gold: #d4af37;
   --color-medal-silver: #c0c4cc;
   --color-medal-bronze: #c8835a;
+  --color-crimson: #dc143c; /* color/legacy/crimson: bordes e iconos de error */
+  /* Nota 0–10 por tramo (color/nota/*): borde y número del componente «Nota» */
   --color-nota-gris: #9ca3af;
   --color-nota-rojo: #f87171;
   --color-nota-ambar: #d97706;

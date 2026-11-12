@@ -69,6 +69,16 @@ export const routes: Routes = [
   { path: 'fantasy/mercado', component: MercadoFantasyPage },
   { path: 'fantasy/clasificacion', component: FantasyClasificacionPage },
   { path: 'fantasy/como-se-juega', component: ComoSeJuegaPage },
+  // Salas de GRS Fantasy (Figma 81): lobby, sala, unirse con el enlace del anfitrión y palmarés. Mi equipo, el
+  // mercado y la clasificación van por sala (sin :id, la mía del día). Las pantallas nuevas se cargan bajo demanda
+  // para no engordar el bundle inicial.
+  { path: 'fantasy/salas', loadComponent: () => import('./pages/fantasy/salas').then((m) => m.SalasPage) },
+  { path: 'fantasy/salas/:id', loadComponent: () => import('./pages/fantasy/sala').then((m) => m.SalaPage) },
+  { path: 'fantasy/salas/:id/equipo', component: MiEquipoPage },
+  { path: 'fantasy/salas/:id/mercado', component: MercadoFantasyPage },
+  { path: 'fantasy/salas/:id/clasificacion', component: FantasyClasificacionPage },
+  { path: 'fantasy/unirse/:codigo', loadComponent: () => import('./pages/fantasy/unirse').then((m) => m.UnirsePage) },
+  { path: 'fantasy/palmares', loadComponent: () => import('./pages/fantasy/palmares').then((m) => m.PalmaresPage) },
   { path: 'resultados', component: ResultadosIndexPage },
   { path: 'resultados/:anio', component: ResultadosEdicionPage },
   { path: 'ediciones/:anio', component: EdicionPage },

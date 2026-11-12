@@ -131,18 +131,32 @@ func (s *Svc) registerAdmin() {
 			if b.Nombre == nil && b.Estado == nil && b.HoraCierre == nil {
 				return nil, problem.BadRequest("NADA_QUE_CAMBIAR", "Nada que cambiar.")
 			}
-			tag, err := s.a.DB.Exec(ctx, `UPDATE jornadas SET
-				nombre = COALESCE($3, nombre), estado = COALESCE($4, estado),
-				hora_cierre = CASE WHEN $5::text IS NULL THEN hora_cierre WHEN $5::text = '' THEN NULL ELSE $5::text::time END,
-				version = version + 1, updated_at = now()
-				WHERE id = $1 AND competition_id = $2`, in.JID, in.CID, b.Nombre, b.Estado, b.HoraCierre)
-			if err != nil {
-				return nil, err
-			}
-			if tag.RowsAffected() == 0 {
-				return nil, problem.NotFound("Jornada no encontrada.")
-			}
-			return nil, nil
+			// BIZ-143: the rooms follow the jornada, in the same transaction (a failure leaves the jornada as it was).
+			// en_juego starts them (1-member rooms are cancelled, pending requests expire); cerrada writes the palmarés.
+			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `UPDATE jornadas SET
+					nombre = COALESCE($3, nombre), estado = COALESCE($4, estado),
+					hora_cierre = CASE WHEN $5::text IS NULL THEN hora_cierre WHEN $5::text = '' THEN NULL ELSE $5::text::time END,
+					version = version + 1, updated_at = now()
+					WHERE id = $1 AND competition_id = $2`, in.JID, in.CID, b.Nombre, b.Estado, b.HoraCierre)
+				if err != nil {
+					return err
+				}
+				if tag.RowsAffected() == 0 {
+					return problem.NotFound("Jornada no encontrada.")
+				}
+				if b.Estado == nil || (*b.Estado != "en_juego" && *b.Estado != "cerrada") {
+					return nil
+				}
+				j, err := scanJornada(tx.QueryRow(ctx, selJornada+" FROM jornadas WHERE id = $1", in.JID))
+				if err != nil {
+					return err
+				}
+				if *b.Estado == "cerrada" {
+					return s.finalizarSalasTx(ctx, tx, in.CID, j)
+				}
+				return iniciarSalasTx(ctx, tx, in.CID, j)
+			})
 		})
 
 	// ---- mercados ----
@@ -482,8 +496,8 @@ func (s *Svc) registerAdmin() {
 	// ---- clasificaciones e histórico ----
 	type clasificacionesOut struct {
 		Body struct {
-			Porra   []filaPorra   `json:"porra"`
-			Fantasy []filaFantasy `json:"fantasy"`
+			Porra   []filaPorra `json:"porra"`
+			Fantasy []salaVista `json:"fantasy" doc:"Salas de la jornada con su líder (la clasificación de fantasy es por sala)"`
 			// PendienteFantasy is the pending debt of the jornada (the refunds that could not take the fantasy
 			// reward back): it stays noted and the staff sees it (contract §5).
 			PendienteFantasy int64 `json:"pendienteFantasy"`
@@ -501,7 +515,9 @@ func (s *Svc) registerAdmin() {
 			}
 			o := &clasificacionesOut{}
 			o.Body.Porra, _ = s.rankingPorra(ctx, *j, uuid.Nil)
-			o.Body.Fantasy, _ = s.rankingFantasy(ctx, *j, uuid.Nil)
+			if o.Body.Fantasy, err = s.lobbyAdmin(ctx, in.CID, *j); err != nil {
+				return nil, err
+			}
 			if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(sum(pendiente), 0) FROM movimientos
 				WHERE jornada_id = $1 AND moneda = 'fantasy'`, j.ID).Scan(&o.Body.PendienteFantasy); err != nil {
 				return nil, err

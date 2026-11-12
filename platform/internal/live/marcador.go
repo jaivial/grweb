@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -16,9 +17,10 @@ import (
 
 // MarcadorIntento is one attempt of the scoreboard.
 type MarcadorIntento struct {
-	N         int     `json:"n"`
-	Peso      float64 `json:"peso"`
-	Resultado string  `json:"resultado" enum:"pendiente,valido,nulo,renuncia"`
+	N         int        `json:"n"`
+	Peso      float64    `json:"peso"`
+	Resultado string     `json:"resultado" enum:"pendiente,valido,nulo,renuncia"`
+	JuzgadoAt *time.Time `json:"juzgadoAt,omitempty"`
 }
 
 // MarcadorAtleta is one athlete of the scoreboard: identity, attempts, best lifts, total, GL and places.
@@ -227,7 +229,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 						terminado = false
 						continue
 					}
-					ma.Intentos[mv] = append(ma.Intentos[mv], MarcadorIntento{N: n, Peso: it.Peso, Resultado: it.Resultado})
+					ma.Intentos[mv] = append(ma.Intentos[mv], MarcadorIntento{N: n, Peso: it.Peso, Resultado: it.Resultado, JuzgadoAt: it.JuzgadoAt})
 					if !it.resuelto() {
 						terminado = false
 					}
