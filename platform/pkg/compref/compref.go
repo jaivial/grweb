@@ -35,6 +35,7 @@ type Comp struct {
 	FechaInicio string    `json:"fechaInicio,omitempty"`
 	FechaFin    string    `json:"fechaFin,omitempty"`
 	ZonaHoraria string    `json:"zonaHoraria"`
+	ActaURL     string    `json:"actaUrl,omitempty"`
 	Sede        struct {
 		Nombre    string `json:"nombre"`
 		Direccion string `json:"direccion"`

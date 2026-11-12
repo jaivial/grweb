@@ -275,13 +275,25 @@ func (s *Svc) registerInternal() {
 		Slug string `path:"slug"`
 	}
 	type compOutI struct{ Body Competicion }
+	type compSlugOutI struct {
+		Body struct {
+			Competicion
+			ActaURL string `json:"actaUrl,omitempty" doc:"Acta oficial (PDF) de la integración aep"`
+		}
+	}
 	huma.Register(api, huma.Operation{OperationID: "internal-competition-by-slug", Method: http.MethodGet, Path: "/internal/competiciones/slug/{slug}", Summary: "Competición por slug", Tags: tags, Hidden: true},
-		func(ctx context.Context, in *slugIn) (*compOutI, error) {
+		func(ctx context.Context, in *slugIn) (*compSlugOutI, error) {
 			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err
 			}
 			c, err := getComp(ctx, s.a.DB, "slug", in.Slug)
-			return &compOutI{Body: c}, err
+			if err != nil {
+				return nil, err
+			}
+			o := &compSlugOutI{}
+			o.Body.Competicion = c
+			_ = s.a.DB.QueryRow(ctx, `SELECT coalesce(config->>'urlActa', '') FROM integraciones WHERE competition_id = $1 AND tipo = 'aep'`, c.ID).Scan(&o.Body.ActaURL)
+			return o, nil
 		})
 	huma.Register(api, huma.Operation{OperationID: "internal-competition-get", Method: http.MethodGet, Path: "/internal/competiciones/{cid}", Summary: "Competición por id", Tags: tags, Hidden: true},
 		func(ctx context.Context, in *cidIn) (*compOutI, error) {
