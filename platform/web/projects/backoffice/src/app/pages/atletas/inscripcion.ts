@@ -8,7 +8,7 @@ import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, G
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, Confirm, TituloMovil, errText } from '../../shared/ui';
 
 interface Referidos { activo: boolean; modo: 'basico' | 'acumulativo'; descTipo: 'porcentaje' | 'importe'; descValor: number; recompensa: number; maxUsos: number; acumModo: 'basica' | 'multiplicador'; multiplicador: number }
 interface Config { modo: 'externa' | 'propia'; cuota: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: Referidos; version: number }
@@ -173,7 +173,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
         @case ('cupones') {
           @let l = cupones();
           @if (l) {
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-4">
               <gr-kpi label="Cupones activos" [value]="activos() + ''" [caption]="'de ' + l.length" />
               <gr-kpi label="Inscripciones con cupón" [value]="usosTotales() + ''" caption="pagadas o gratuitas" />
               <gr-kpi label="Descuento aplicado" [value]="euros(ahorroTotal())" caption="en inscripciones confirmadas" />
@@ -407,6 +407,13 @@ export class InscripcionPage {
   protected readonly estadosCupon: Cupon['estado'][] = ['activo', 'pausado', 'agotado', 'caducado'];
   protected concepto(x: Pago): string { return 'Inscripción' + (x.cupon ? ' · cupón ' + x.cupon : '') + (x.referido ? ' · referido ' + x.referido : ''); }
   protected readonly tabs: { key: Tab; label: string }[] = [{ key: 'config', label: 'Configuración' }, { key: 'cupones', label: 'Cupones' }, { key: 'referidos', label: 'Referidos' }, { key: 'pagos', label: 'Pagos' }];
+  private readonly titulo = inject(TituloMovil);
+  /** Mobile topbar reads the open tab (Figma «Móvil · cupones»: «Cupones»). */
+  private readonly tituloSync = effect(() => {
+    const t = this.tab();
+    this.titulo.texto.set(t === 'config' ? '' : this.tabs.find((x) => x.key === t)!.label);
+  });
+  ngOnDestroy(): void { this.titulo.texto.set(''); }
   protected readonly modos: { value: 'externa' | 'propia'; label: string; desc: string }[] = [
     { value: 'externa', label: 'Inscripción en la AEP', desc: 'Los atletas se inscriben en la web de la federación con su licencia. /inscripcion explica el paso y enlaza a la AEP.' },
     { value: 'propia', label: 'Inscripción propia con pago', desc: 'Formulario en /inscripcion con cuota, plazas, cupones, referidos y pago con tarjeta.' },
