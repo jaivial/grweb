@@ -482,7 +482,9 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 func (s *Svc) seed2025(ctx context.Context, a *app.App) (uuid.UUID, error) {
 	var id uuid.UUID
 	if err := a.DB.QueryRow(ctx, `SELECT id FROM competiciones WHERE slug = 'grcup-2025'`).Scan(&id); err == nil {
-		return id, nil
+		// brand name as in Figma 25/28 (editions seeded before it was fixed)
+		_, err := a.DB.Exec(ctx, `UPDATE competiciones SET nombre = 'GRStrength Cup 2025' WHERE id = $1 AND nombre = 'GR Strength Cup 2025'`, id)
+		return id, err
 	}
 	id = newID()
 	sede := Sede{Ciudad: "Llíria", Provincia: "Valencia"} // the 2025 poster names only the town
@@ -491,7 +493,7 @@ func (s *Svc) seed2025(ctx context.Context, a *app.App) (uuid.UUID, error) {
 	insc := Inscripcion{Modo: "externa", Estado: "cerrada"}
 	err := db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, nombre_corto, edicion, estado, fecha_inicio, fecha_fin, sede, evento, modulos, inscripcion, como_llegar)
-			VALUES ($1,'grcup-2025','GR Strength Cup 2025','GR Cup 2025',1,'finalizado','2025-03-01','2025-03-02',$2,$3,$4,$5,'[]')`, id, sede, evento, defaultModulos(), insc); err != nil {
+			VALUES ($1,'grcup-2025','GRStrength Cup 2025','GR Cup 2025',1,'finalizado','2025-03-01','2025-03-02',$2,$3,$4,$5,'[]')`, id, sede, evento, defaultModulos(), insc); err != nil {
 			return err
 		}
 		if err := seedChecklist(ctx, tx, id); err != nil {
