@@ -416,14 +416,17 @@ func (s *Svc) register() {
 		})
 
 	type dashIn struct {
-		CID  uuid.UUID `path:"cid"`
-		Modo string    `query:"modo" enum:"campana,evento" default:"campana"`
+		CID     uuid.UUID `path:"cid"`
+		Modo    string    `query:"modo" enum:"campana,evento" default:"campana"`
+		Periodo string    `query:"periodo" enum:"hoy,7d,todo" default:"todo" doc:"Filtra por fecha de creación; previo = periodo anterior"`
 	}
 	type dashOut struct {
 		Body struct {
-			Modo string           `json:"modo"`
-			KPIs map[string]int64 `json:"kpis"`
-			Hora time.Time        `json:"hora"`
+			Modo   string             `json:"modo"`
+			KPIs   map[string]int64   `json:"kpis"`
+			Previo map[string]int64   `json:"previo" doc:"Mismos KPIs en el periodo anterior (todo: hace una semana)"`
+			Serie  map[string][]int64 `json:"serie" doc:"Sparkline de 7 puntos por KPI"`
+			Hora   time.Time          `json:"hora"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "dashboard-get", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/dashboard", Summary: "KPIs del Inicio (antes del evento o día del evento)", Tags: tagAudit, Security: bearer},
@@ -439,6 +442,7 @@ func (s *Svc) register() {
 			defer rows.Close()
 			out := &dashOut{}
 			out.Body.Modo, out.Body.KPIs, out.Body.Hora = in.Modo, map[string]int64{}, time.Now().UTC()
+			out.Body.Previo, out.Body.Serie = map[string]int64{}, map[string][]int64{}
 			for rows.Next() {
 				var k string
 				var v int64
@@ -460,14 +464,24 @@ func (s *Svc) register() {
 					defer wg.Done()
 					cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 					defer cancel()
-					var m map[string]int64
-					if err := c.Do(cctx, http.MethodGet, "/internal/competiciones/"+in.CID.String()+"/kpis", nil, &m); err != nil {
+					var m struct {
+						Valores map[string]int64   `json:"valores"`
+						Previo  map[string]int64   `json:"previo"`
+						Serie   map[string][]int64 `json:"serie"`
+					}
+					if err := c.Do(cctx, http.MethodGet, "/internal/competiciones/"+in.CID.String()+"/kpis?periodo="+in.Periodo, nil, &m); err != nil {
 						s.a.Log.Warn("kpis de inicio no disponibles", "servicio", n, "err", err)
 						return
 					}
 					mu.Lock()
-					for k, v := range m {
+					for k, v := range m.Valores {
 						out.Body.KPIs[k] = v
+					}
+					for k, v := range m.Previo {
+						out.Body.Previo[k] = v
+					}
+					for k, v := range m.Serie {
+						out.Body.Serie[k] = v
 					}
 					mu.Unlock()
 				}()
@@ -475,9 +489,12 @@ func (s *Svc) register() {
 			wg.Wait()
 			// Figma 96:10320: each role sees only the cards of its permissions.
 			cid := in.CID.String()
-			for k := range out.Body.KPIs {
-				if (k == "sorteo.recaudado" && !p.Can(cid, "sorteo.gestionar")) || (strings.HasPrefix(k, "contactos.") && !p.Can(cid, "contactos.ver")) {
-					delete(out.Body.KPIs, k)
+			for _, m := range []map[string]int64{out.Body.KPIs, out.Body.Previo} {
+				for k := range m {
+					if (k == "sorteo.recaudado" && !p.Can(cid, "sorteo.gestionar")) || (strings.HasPrefix(k, "contactos.") && !p.Can(cid, "contactos.ver")) {
+						delete(m, k)
+						delete(out.Body.Serie, k)
+					}
 				}
 			}
 			return out, nil

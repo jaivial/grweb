@@ -322,7 +322,10 @@ export class EntradasPage {
     effect(() => {
       if (!this.cid()) return;
       untracked(() => {
-        void this.cargar();
+        // «Nueva entrada manual» from the Inicio lands here with ?manual=1.
+        void this.cargar().then(() => {
+          if (this.canEdit() && this.route.snapshot.queryParamMap.get('manual') === '1') this.abrirManual();
+        });
         if (this.tab() === 'reservas') void this.cargarLista();
         if (this.tab() === 'espera') void this.api.espera(this.cid()).then((w) => this.espera.set(w));
       });

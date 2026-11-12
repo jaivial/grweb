@@ -91,6 +91,8 @@ export interface Notificacion {
 export interface Dashboard {
   modo: string;
   kpis: Record<string, number>;
+  previo?: Record<string, number>;
+  serie?: Record<string, number[]>;
   hora: string;
 }
 
