@@ -82,10 +82,10 @@ const GRUPOS = [
           }
         }
       </div>
-      <aside class="flex flex-col gap-4 lg:sticky lg:top-6" aria-label="Editor de patrocinador">
+      <aside class="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6" aria-label="Editor de patrocinador">
         @if (abierto()) {
           <div>
-            <h2 class="text-ui-h5">{{ editing() ? (draft()['nombre'] || editing()!.nombre) + ' · ' + nivel(str('nivel')).label.toLowerCase() : 'Nuevo patrocinador' }}</h2>
+            <h2 class="text-ui-h5 break-words [overflow-wrap:anywhere]">{{ editing() ? (draft()['nombre'] || editing()!.nombre) + ' · ' + nivel(str('nivel')).label.toLowerCase() : 'Nuevo patrocinador' }}</h2>
             <p class="mt-0.5 text-body-xs text-text-tertiary">Logo, foto del equipo y enlace</p>
           </div>
           @if (error()) { <gr-alert tone="danger" title="No se pudo guardar">{{ error() }}</gr-alert> }
