@@ -80,7 +80,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 			return err
 		}
 		plan := generar(cfg, loc, ats)
-		if err := s.reemplazar(ctx, tx, c.ID, cfg, plan); err != nil {
+		if err := s.reemplazar(ctx, tx, c.ID, cfg, plan, nil); err != nil {
 			return err
 		}
 		if len(cfg.Dias) == 0 {

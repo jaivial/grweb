@@ -458,6 +458,7 @@ type AtletaPlan struct {
 	Categoria      string    `json:"categoria"`
 	DivisionNombre string    `json:"divisionNombre"`
 	Club           string    `json:"club"`
+	Prueba         string    `json:"prueba" doc:"Competición elegida: aep2, aep3 o vacío"`
 	TotalPrevisto  *float64  `json:"totalPrevisto,omitempty"`
 	Seguidores     int       `json:"seguidores"`
 	// Competition desk (live): weigh-in data.
@@ -490,7 +491,7 @@ func (s *Svc) registerInternal() {
 			o := &out{Body: make([]AtletaPlan, 0, len(list))}
 			for _, r := range list {
 				a := AtletaPlan{ID: r.ID, Nombre: r.nombreCompleto(), Publico: r.publico(d), ConEmail: r.Email != nil && *r.Email != "", Sexo: r.Sexo, Categoria: r.Categoria,
-					DivisionNombre: DivisionNombre(r.Division), Club: r.Club, TotalPrevisto: r.totalPrevisto(), Seguidores: r.Seguidores,
+					DivisionNombre: DivisionNombre(r.Division), Club: r.Club, Prueba: r.Prueba, TotalPrevisto: r.totalPrevisto(), Seguidores: r.Seguidores,
 					PesoCorporal: r.PesoCorporal, Primeros: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, RackSQ: r.RackSQ, RackBP: r.RackBP, Licencia: r.Licencia}
 				if a.Publico {
 					a.Slug, a.Frase, a.FotoURL = r.Slug, r.Frase, r.fotoPublica(d)
