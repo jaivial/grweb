@@ -228,7 +228,7 @@ const BORRADOR_CLUB = 'grcup_borrador_club';
       subtitle="Clubs y gimnasios de la Comunitat Valenciana, Murcia y Baleares donde entrenar powerlifting y prepararte para competir.">
       <span pageStamps class="inline-flex h-7 items-center rounded-full border border-info/40 bg-info/10 px-3 text-label-xs text-info uppercase">Directorio en construcción</span>
       <div class="flex flex-col gap-4">
-        <label class="relative block max-w-sm">
+        <label class="relative block max-w-[420px]">
           <span class="sr-only">Buscar un club</span>
           <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
           <input type="search" placeholder="Busca un club o una ciudad…" [value]="q()" (input)="q.set($any($event.target).value)"
@@ -265,9 +265,7 @@ const BORRADOR_CLUB = 'grcup_borrador_club';
               }
               <div class="mt-auto flex min-h-11 items-center justify-between gap-3 border-t border-line-subtle pt-2">
                 <span class="text-body-xs text-text-tertiary">{{ rol[c.rol] }}</span>
-                @if (c.web || c.instagram) {
-                  <a [href]="c.web || c.instagram" target="_blank" rel="noopener" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Ver club <gr-icon name="external-link" [size]="14" /></a>
-                }
+                <a [href]="enlace(c)" target="_blank" rel="noopener" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Ver club <gr-icon name="external-link" [size]="14" /></a>
               </div>
             </li>
           } @empty {
@@ -281,14 +279,14 @@ const BORRADOR_CLUB = 'grcup_borrador_club';
             <p class="flex"><span class="inline-flex h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-secondary uppercase">Añade tu club</span></p>
             <div class="mt-auto flex min-h-11 items-center justify-between gap-3 border-t border-line-subtle pt-2">
               <span class="text-body-xs text-text-tertiary">Directorio abierto</span>
-              <button type="button" (click)="openForm()" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Añadir mi club <gr-icon name="arrow-right" [size]="14" /></button>
+              <button type="button" (click)="openForm()" aria-label="Ver club: añadir mi club" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Ver club <gr-icon name="external-link" [size]="14" /></button>
             </div>
           </li>
         </ul>
       }
 
       <!-- Figma 32 «Solicitud de club»: always visible; the backoffice reviews it (Clubs › Solicitudes) -->
-      <section id="anadir" class="mt-12 scroll-mt-32 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-8" aria-labelledby="anadir-titulo">
+      <section id="anadir" class="mt-12 scroll-mt-32 rounded-2xl border border-line-subtle bg-bg-card p-5 md:p-8 xl:-mx-10" aria-labelledby="anadir-titulo">
         @if (sent()) {
           <div class="mx-auto flex max-w-[520px] flex-col items-center gap-3 rounded-xl border border-success/50 bg-success/6 px-6 py-8 text-center" role="status">
             <span class="flex size-11 items-center justify-center rounded-full bg-success/14 text-success"><gr-icon name="circle-check" [size]="22" /></span>
@@ -323,6 +321,7 @@ const BORRADOR_CLUB = 'grcup_borrador_club';
                 <input type="checkbox" name="priv" [(ngModel)]="f.acepta" class="mt-1 size-5 shrink-0 accent-[#C42B3E]" [attr.aria-invalid]="!!err('acepta') || null" />
                 <span>He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de privacidad</a> *</span>
               </label>
+              @if (err('acepta')) { <span class="-mt-3 flex items-center gap-1.5 text-body-xs text-accent-text md:col-span-2" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ err('acepta') }}</span> }
               @if (error()) { <gr-alert class="md:col-span-2" tone="danger" title="No se pudo enviar">{{ error() }}</gr-alert> }
               <div class="flex flex-col gap-3 md:col-span-2 md:flex-row md:items-center md:gap-4">
                 <button grButton variant="primary" size="l" type="submit" [loading]="busy()" class="w-full md:w-auto">Enviar solicitud</button>
@@ -349,9 +348,9 @@ export class ClubsPage {
   protected readonly provincias = ['Todas', ...PROVINCIAS];
   protected readonly rol = ROL;
   protected readonly relacionados: RelatedLink[] = [
-    // Figma's «Tu primera competición» / «Calendario 2026» pages do not exist: closest real pages
-    { titulo: 'Tu primera competición', texto: 'Preguntas frecuentes', ruta: '/preguntas-frecuentes' },
-    { titulo: 'Categorías de peso', texto: '¿En cuál compites?', ruta: '/categorias-de-peso' },
+    // Figma 32 texts; its «Tu primera competición» / «Calendario 2026» pages do not exist: closest real pages
+    { titulo: 'Tu primera competición', texto: 'Guía paso a paso', ruta: '/preguntas-frecuentes' },
+    { titulo: 'Calendario 2026', texto: 'Competiciones de la zona', ruta: '/horarios' },
     { titulo: 'Patrocinadores', texto: 'Marcas colaboradoras', ruta: '/patrocinadores' },
   ];
   protected readonly visibles = computed(() => {
@@ -367,6 +366,8 @@ export class ClubsPage {
   protected err = (k: string) => this.errores()[k] ?? '';
   protected readonly ventajas = ['La revisamos en 2–3 días', 'Te avisamos por email cuando esté publicada', 'Gratis: nombre, ciudad, web, redes y si está afiliado a la AEP'];
   protected tags = (c: Club) => c.etiquetas.split(',').map((t) => t.trim()).filter(Boolean);
+  // «Ver club» on every card (Figma 32): web, else Instagram, else a search for the club
+  protected enlace = (c: Club) => c.web || (c.instagram.startsWith('http') ? c.instagram : c.instagram ? 'https://www.instagram.com/' + c.instagram.replace(/^@/, '') : 'https://www.google.com/search?q=' + encodeURIComponent(c.nombre + ' ' + c.ciudad));
   protected initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
 
   constructor() {
@@ -415,7 +416,7 @@ export class ClubsPage {
     this.busy.set(true);
     try {
       await this.cms.proponerClub({ nombre: f.nombre.trim(), ciudad: f.ciudad.trim(), provincia: f.provincia, web: f.web.trim(), instagram: f.instagram.trim(), email: f.email.trim(),
-        contactoNombre: f.contacto.trim(), mensaje: f.mensaje.trim(), afiliadoAep: f.aep === 'si', aceptaPrivacidad: f.acepta });
+        contactoNombre: f.contacto.trim(), mensaje: f.mensaje.trim(), afiliadoAep: f.aep ? f.aep === 'si' : null, aceptaPrivacidad: f.acepta });
       this.enviado = { nombre: f.nombre.trim(), email: f.email.trim() };
       this.sent.set(true);
       document.getElementById('anadir')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

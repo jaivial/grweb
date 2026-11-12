@@ -75,7 +75,7 @@ export interface Club {
   instagram: string;
   etiquetas: string;
   rol: 'organizador' | 'colaborador' | 'club';
-  afiliadoAep: boolean;
+  afiliadoAep: boolean | null;
 }
 
 /** An access map of /mapa-de-accesos (uploaded in the backoffice; title, subtitle and description are optional). */

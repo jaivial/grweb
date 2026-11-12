@@ -1,5 +1,5 @@
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrAlert, GrButton, GrIcon, GrInput, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
@@ -55,6 +55,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                 </li>
               }
             </ul>
+            @if (falta() && !rolesElegidos().size) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />Elige al menos un rol.</span> }
             <div class="rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
               <div class="flex items-center justify-between gap-3">
                 <h2 class="text-label-m">Qué te llevas</h2>
@@ -79,8 +80,10 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
               <form class="mt-5 flex flex-col gap-4" (ngSubmit)="enviar()" novalidate>
                 <label class="flex flex-col gap-1.5" for="v-nombre"><span class="text-label-s">Nombre y apellidos <span class="text-accent-text">*</span></span>
                   <input grInput id="v-nombre" name="nombre" autocomplete="name" required placeholder="Tu nombre" [(ngModel)]="nombre" [attr.aria-invalid]="falta() && nombre.trim().length < 2" /></label>
+                @if (falta() && nombre.trim().length < 2) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />Escribe tu nombre y apellidos.</span> }
                 <label class="flex flex-col gap-1.5" for="v-email"><span class="text-label-s">Email <span class="text-accent-text">*</span></span>
                   <input grInput id="v-email" name="email" type="email" autocomplete="email" required placeholder="tu@email.com" [(ngModel)]="email" [attr.aria-invalid]="falta() && !emailOk()" /></label>
+                @if (falta() && !emailOk()) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />Escribe un email válido.</span> }
                 <label class="flex flex-col gap-1.5" for="v-tel"><span class="text-label-s">Teléfono</span>
                   <span class="flex h-11 items-center overflow-hidden rounded-md border border-line-strong bg-bg-field focus-within:border-accent-text">
                     <span class="flex h-full items-center border-r border-line-subtle px-3 text-body-m text-text-secondary">+34</span>
@@ -100,6 +103,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                 <label class="flex flex-col gap-1.5" for="v-exp"><span class="text-label-s">Experiencia <span class="text-text-tertiary">(opcional)</span></span>
                   <textarea grInput id="v-exp" name="experiencia" rows="3" maxlength="1000" placeholder="Cuéntanos si has sido juez, cargador o voluntario antes…" class="min-h-24 py-2.5" [(ngModel)]="experiencia"></textarea></label>
                 <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="priv" [(ngModel)]="acepta" [attr.aria-invalid]="falta() && !acepta" class="mt-0.5 size-5 shrink-0 accent-[#C42B3E]" /><span>He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de tratamiento de mis datos</a></span></label>
+                @if (falta() && !acepta) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />Marca la casilla para enviar la solicitud.</span> }
                 @if (error()) { <gr-alert tone="danger" title="No se pudo enviar" role="alert">{{ error() }}</gr-alert> }
                 <button grButton variant="primary" size="l" type="submit" class="w-full" [loading]="enviando()">Enviar solicitud</button>
               </form>
@@ -115,6 +119,7 @@ export class VoluntariosPage {
   private readonly cms = inject(Cms);
   private readonly comp = inject(Competition);
   private readonly fan = inject(FanSession);
+  private readonly cdr = inject(ChangeDetectorRef);
   protected readonly roles = ROLES;
   protected readonly beneficios = ['Camiseta oficial de voluntario', 'Comida durante la jornada', 'Certificado de voluntariado', 'Ver la competición desde dentro'];
   protected readonly rel = [
@@ -127,7 +132,7 @@ export class VoluntariosPage {
   protected telefono = '';
   protected experiencia = '';
   protected acepta = false;
-  private readonly rolesElegidos = signal(new Set<string>());
+  protected readonly rolesElegidos = signal(new Set<string>());
   protected readonly disponible = signal(new Set<string>());
   protected readonly enviando = signal(false);
   protected readonly enviado = signal(false);
@@ -146,15 +151,17 @@ export class VoluntariosPage {
 
   constructor() {
     const seo = inject(Seo);
-    // back from the access email: restore what was typed (D-MIEMBROS)
-    const b = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(BORRADOR);
-    if (b) {
+    // back from the access email: restore what was typed (D-MIEMBROS). After render so hydration can't reset the checkboxes.
+    afterNextRender(() => {
+      const b = sessionStorage.getItem(BORRADOR);
+      if (!b) return;
       sessionStorage.removeItem(BORRADOR);
       const d = JSON.parse(b);
-      Object.assign(this, { nombre: d.nombre, email: d.email, telefono: d.telefono, experiencia: d.experiencia });
+      Object.assign(this, { nombre: d.nombre, email: d.email, telefono: d.telefono, experiencia: d.experiencia, acepta: !!d.acepta });
       this.rolesElegidos.set(new Set(d.roles));
       this.disponible.set(new Set(d.dias));
-    }
+      this.cdr.markForCheck();
+    });
     void inject(PendingTasks).run(async () => {
       await this.comp.load();
       await applySeo(this.cms, seo, '/voluntarios', 'Voluntarios · GR Strength Cup', 'Jueces, cargadores, mesa técnica, foto y acreditaciones: apúntate como voluntario en la GR Strength Cup.');
@@ -169,11 +176,10 @@ export class VoluntariosPage {
   protected async enviar(): Promise<void> {
     this.error.set('');
     this.falta.set(true);
-    if (this.nombre.trim().length < 2 || !this.emailOk()) return this.error.set('Escribe tu nombre y un email válido.');
-    if (!this.acepta) return this.error.set('Tienes que aceptar la política de tratamiento de datos para enviar la solicitud.');
+    if (this.nombre.trim().length < 2 || !this.emailOk() || !this.rolesElegidos().size || !this.acepta) return this.error.set('Revisa los campos marcados.');
     // D-MIEMBROS: the request needs a fan session; the access email brings the person back here.
     if (!(await this.fan.cargar())) {
-      sessionStorage.setItem(BORRADOR, JSON.stringify({ nombre: this.nombre, email: this.email, telefono: this.telefono, experiencia: this.experiencia,
+      sessionStorage.setItem(BORRADOR, JSON.stringify({ nombre: this.nombre, email: this.email, telefono: this.telefono, experiencia: this.experiencia, acepta: this.acepta,
         roles: [...this.rolesElegidos()], dias: [...this.disponible()] }));
       return this.fan.abrirAcceso('formulario', '/voluntarios', this.email.trim());
     }
