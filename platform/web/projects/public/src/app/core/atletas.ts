@@ -138,7 +138,8 @@ export class Favoritos {
 
   pedirAcceso(i: Intencion): void {
     if (this.browser) sessionStorage.setItem(INTENCION, JSON.stringify(i));
-    this.fan.abrirAcceso('seguir', '/atletas/' + i.slug, i.email ?? '');
+    // the magic link brings the fan back to the page they followed from (/horarios, /atletas/…)
+    this.fan.abrirAcceso('seguir', this.browser ? location.pathname : '/atletas/' + i.slug, i.email ?? '');
   }
 
   /** Takes (and clears) the pending action for this athlete, if any. */
