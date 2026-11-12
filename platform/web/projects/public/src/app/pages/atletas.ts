@@ -20,7 +20,7 @@ const sexoTxt = { F: 'Femenino', M: 'Masculino' };
   selector: 'gr-fav',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button type="button" (click)="$event.preventDefault(); $event.stopPropagation(); fav.toggle(slug())" [attr.aria-pressed]="on()" [attr.aria-label]="(on() ? 'Dejar de seguir a ' : 'Seguir a ') + nombre()"
+    <button type="button" (click)="$event.preventDefault(); $event.stopPropagation(); fav.seguir(slug())" [attr.aria-pressed]="on()" [attr.aria-label]="(on() ? 'Dejar de seguir a ' : 'Seguir a ') + nombre()"
       class="flex size-11 items-center justify-center rounded-full transition-colors" [class]="plano() ? (on() ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary') : on() ? 'bg-accent text-white shadow-glow' : 'bg-black/40 text-white backdrop-blur hover:bg-black/60'">
       <svg viewBox="0 0 24 24" [attr.width]="plano() ? 16 : 18" [attr.height]="plano() ? 16 : 18" [attr.fill]="on() ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
     </button>
@@ -351,7 +351,7 @@ function catSort(a: string, b: string): number {
                 </p>
                 <p class="mt-3 flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</p>
                 <div class="mt-4 flex gap-2">
-                  <button type="button" (click)="fav.toggle(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
+                  <button type="button" (click)="fav.seguir(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
                     [class]="fav.slugs().includes(a.slug) ? 'border-accent bg-accent-deep/40 text-accent-text' : 'border-line-strong'">
                     <svg viewBox="0 0 24 24" width="16" height="16" [attr.fill]="fav.slugs().includes(a.slug) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
                     {{ fav.slugs().includes(a.slug) ? 'Siguiendo' : 'Seguir' }}
@@ -525,7 +525,20 @@ export class AtletaPage {
           /* expired or used link: the form is still there */
         }
       }
+      if (this.browser) void this.retomar(f);
     });
+  }
+
+  /** Back from the email link: finishes the follow / alert started without a session, then syncs the stars. */
+  private async retomar(a: FichaPub): Promise<void> {
+    const i = this.fav.intencion(a.slug);
+    if (i?.accion === 'seguir' && !this.fav.has(a.slug)) await this.fav.seguir(a.slug);
+    if (i?.accion === 'avisar' && i.email) {
+      this.email = i.email;
+      this.acepta = true;
+      await this.avisar(a);
+    }
+    await this.fav.sincronizar();
   }
 
   protected async avisar(a: FichaPub): Promise<void> {
@@ -533,13 +546,13 @@ export class AtletaPage {
     if (!this.email.includes('@')) return this.avisoError.set('Escribe un email válido.');
     if (!this.acepta) return this.avisoError.set('Marca la casilla para recibir el aviso.');
     // Seguir needs the fan (or athlete) session: without it, the login modal opens and brings the person back here.
-    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('seguir', '/atletas/' + a.slug, this.email);
+    if (!(await this.fan.cargar())) return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email });
     this.enviando.set(true);
     try {
       await this.api.seguir(a.slug, this.email);
       this.avisoEnviado.set(true);
     } catch (e) {
-      if ((e as { status?: number }).status === 401) return this.fan.abrirAcceso('seguir', '/atletas/' + a.slug, this.email);
+      if ((e as { status?: number }).status === 401) { this.fan.sesionPerdida(); return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email }); }
       this.avisoError.set((e as { error?: { detail?: string } }).error?.detail ?? 'Inténtalo de nuevo en unos minutos.');
     } finally {
       this.enviando.set(false);

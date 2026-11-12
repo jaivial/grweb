@@ -149,14 +149,17 @@ export class AccesoModal {
   ];
   protected readonly inscripcion = computed(() => this.fan.motivoAcceso() === 'inscripcion');
   protected readonly entradas = computed(() => this.fan.motivoAcceso() === 'entradas');
+  protected readonly seguir = computed(() => this.fan.motivoAcceso() === 'seguir');
   protected readonly pasos = computed(() => ['Abre el email de GR Strength Cup',
-    ...(this.inscripcion() ? ['Pulsa «Continuar la inscripción»', 'Vuelves al formulario de inscripción'] : this.entradas() ? ['Pulsa el enlace del email', 'Vuelves a tu reserva con lo que ya has rellenado'] : ['Pulsa «Entrar al directo»', 'Vuelves al chat con tu alias'])]);
+    ...(this.inscripcion() ? ['Pulsa «Continuar la inscripción»', 'Vuelves al formulario de inscripción'] : this.entradas() ? ['Pulsa el enlace del email', 'Vuelves a tu reserva con lo que ya has rellenado']
+      : this.seguir() ? ['Pulsa el enlace del email', 'Vuelves a la ficha y le sigues sin repetir nada'] : ['Pulsa «Entrar al directo»', 'Vuelves al chat con tu alias'])]);
 
-  protected readonly titulo = computed(() => (this.estado() === 'enviado' ? 'Revisa tu correo' : this.estado() === 'atleta' ? 'Entrar como atleta' : this.inscripcion() ? 'Entra para inscribirte' : this.entradas() ? 'Entra para reservar' : 'Entrar al directo'));
+  protected readonly titulo = computed(() => (this.estado() === 'enviado' ? 'Revisa tu correo' : this.estado() === 'atleta' ? 'Entrar como atleta' : this.inscripcion() ? 'Entra para inscribirte' : this.entradas() ? 'Entra para reservar' : this.seguir() ? 'Entra para seguir al atleta' : 'Entrar al directo'));
   protected readonly subtitulo = computed(() => {
     if (this.estado() === 'enviado') return 'Te hemos enviado un enlace mágico para entrar.';
     if (this.estado() === 'atleta') return 'Comprobamos tu email contra la inscripción de la AEP.';
-    return this.inscripcion() ? 'Necesitas tu cuenta de GR Strength Cup para inscribirte. Vuelves al formulario con lo que ya has rellenado.' : this.entradas() ? 'Tu entrada va asociada a tu cuenta de GR Strength Cup. Vuelves a la reserva con lo que ya has rellenado.' : 'Chatea, dona y juega con tu cuenta de directo.';
+    return this.inscripcion() ? 'Necesitas tu cuenta de GR Strength Cup para inscribirte. Vuelves al formulario con lo que ya has rellenado.' : this.entradas() ? 'Tu entrada va asociada a tu cuenta de GR Strength Cup. Vuelves a la reserva con lo que ya has rellenado.'
+      : this.seguir() ? 'Sigue a tus atletas con tu cuenta de GR Strength Cup: te avisamos por email antes de que compitan.' : 'Chatea, dona y juega con tu cuenta de directo.';
   });
   protected readonly puedeEnviar = computed(() => this.alias().trim().length >= 3 && this.alias().trim().length <= 20 && this.email().includes('@') && this.normas());
 
