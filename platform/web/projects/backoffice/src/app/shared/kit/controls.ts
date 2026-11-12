@@ -43,7 +43,7 @@ export class BoCheckbox {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <button type="button" role="switch" [attr.aria-checked]="value()" [disabled]="disabled() || loading()" [attr.aria-busy]="loading() || null" (click)="flip()"
+    <button type="button" role="switch" [attr.aria-checked]="value()" [attr.aria-label]="label()" [disabled]="disabled() || loading()" [attr.aria-busy]="loading() || null" (click)="flip()"
       class="group flex w-full items-center gap-4 py-3 text-left focus-visible:outline-none disabled:cursor-not-allowed">
       <span class="flex min-w-0 flex-1 flex-col gap-1" [class.opacity-40]="disabled()">
         <span class="text-label-s text-text-primary">{{ label() }}</span>

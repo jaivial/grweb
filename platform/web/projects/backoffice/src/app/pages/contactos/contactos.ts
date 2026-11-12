@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
+import { BoPagination } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, Confirm, errText } from '../../shared/ui';
 import {
   ContactosApi, ESTADO_EMAIL, ESTADO_WA, FINALIDAD, TIPO_SUP, fecha, fechaLarga, iniciales,
@@ -28,7 +29,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Contactos» (Figma page 61): list with KPIs and filters, segments and unsubscribes/suppressions. */
 @Component({
   selector: 'bo-contactos',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -106,10 +107,7 @@ function descargar(blob: Blob, nombre: string): void {
             </ul>
             <div class="flex items-center justify-between text-body-xs text-text-tertiary">
               <span>Mostrando {{ (l.pagina - 1) * l.por + 1 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ l.total }} · teléfonos enmascarados{{ canExport() ? '' : ' (sin permiso de exportar)' }}</span>
-              <span class="flex gap-1">
-                <button grButton size="s" variant="ghost" icon="chevron-left" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)" aria-label="Anterior"></button>
-                <button grButton size="s" variant="ghost" icon="chevron-right" [disabled]="l.pagina * l.por >= l.total" (click)="filtrar({ pagina: l.pagina + 1 }, false)" aria-label="Siguiente"></button>
-              </span>
+              <bo-pagination [page]="l.pagina" [pages]="pages(l)" (change)="filtrar({ pagina: $event }, false)" />
             </div>
           } @else { <gr-skeleton class="h-96 rounded-lg" /> }
         }
@@ -257,6 +255,9 @@ export class ContactosPage {
     });
   }
 
+  protected pages(l: { total: number; por: number }): number {
+    return Math.max(1, Math.ceil(l.total / l.por));
+  }
   protected n(v: number): string {
     return v.toLocaleString('es-ES');
   }

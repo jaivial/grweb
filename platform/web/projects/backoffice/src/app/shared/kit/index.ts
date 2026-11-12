@@ -5,3 +5,5 @@ export * from './media';
 export * from './select';
 export * from './status';
 export * from './tags';
+export * from './data';
+export * from './feedback';

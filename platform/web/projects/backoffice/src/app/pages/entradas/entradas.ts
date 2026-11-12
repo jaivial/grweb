@@ -5,6 +5,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, G
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
+import { BoPagination } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
@@ -25,7 +26,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -131,10 +132,7 @@ function descargar(blob: Blob, nombre: string): void {
             </section>
             <div class="flex items-center justify-between text-body-xs text-text-tertiary">
               <span>Mostrando {{ l.items.length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ n(l.total) }}</span>
-              <span class="flex gap-1">
-                <button grButton size="s" variant="ghost" icon="chevron-left" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)" aria-label="Anterior"></button>
-                <button grButton size="s" variant="ghost" icon="chevron-right" [disabled]="l.pagina * l.por >= l.total" (click)="filtrar({ pagina: l.pagina + 1 }, false)" aria-label="Siguiente"></button>
-              </span>
+              <bo-pagination [page]="l.pagina" [pages]="pages(l)" (change)="filtrar({ pagina: $event }, false)" />
             </div>
           } @else { <gr-skeleton class="h-96 rounded-lg" /> }
         }
@@ -341,6 +339,9 @@ export class EntradasPage {
   }
   protected ruta(t: Tab): string[] {
     return ['/', this.comps.current()?.slug ?? '', 'entradas', ...(t === 'sesiones' ? [] : [t])];
+  }
+  protected pages(l: { total: number; por: number }): number {
+    return Math.max(1, Math.ceil(l.total / l.por));
   }
   protected n(v: number): string {
     return (v ?? 0).toLocaleString('es-ES');
