@@ -5,7 +5,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, G
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPagination } from '../../shared/kit';
+import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
@@ -26,7 +26,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -91,32 +91,26 @@ function descargar(blob: Blob, nombre: string): void {
         }
 
         @case ('reservas') {
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="relative min-w-0 flex-1 basis-64 md:max-w-xs"><span class="sr-only">Buscar</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-              <input grInput class="pl-9" placeholder="Nombre, email, teléfono o código" [ngModel]="f().q" (ngModelChange)="filtrar({ q: $event })" /></label>
-            <gr-select tipo="filtro" aria-label="Sesión" [ngModel]="f().sesion ?? ''" (ngModelChange)="filtrar({ sesion: $event })"><option value="">Todas las sesiones</option>@for (x of r?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</gr-select>
-            <gr-select tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los estados</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></gr-select>
-            <gr-select tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">Todos los orígenes</option>@for (o of lista()?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
-          </div>
-          @if (sel().size) {
-            <div class="flex flex-wrap items-center gap-2 rounded-md border border-line-strong bg-bg-raised px-3 py-2 text-body-s">
-              <span class="flex-1">{{ sel().size }} seleccionadas</span>
-              <button grButton size="s" icon="mail" (click)="bulk('reenviar')">Reenviar</button>
-              <button grButton size="s" (click)="moverOpen.set(true)">Mover de sesión</button>
-              <button grButton size="s" variant="danger" (click)="anularOpen.set(true)">Anular</button>
-              <button grButton size="s" variant="ghost" (click)="limpiarSel()">Deseleccionar</button>
-            </div>
-          }
+          <bo-table-toolbar noun="entradas" [total]="lista()?.total ?? 0" [selected]="sel().size" [loading]="lista() === undefined" [filtered]="filtrado()"
+            (clear)="limpiarSel()" (reset)="filtrar({ q: '', sesion: '', estado: '', origen: '' })">
+            <bo-search filters class="w-full md:w-[280px]" placeholder="Nombre, email, teléfono o código" [shortcut]="false" [value]="f().q ?? ''" (valueChange)="filtrar({ q: $event })" />
+            <gr-select filters tipo="filtro" aria-label="Sesión" [ngModel]="f().sesion ?? ''" (ngModelChange)="filtrar({ sesion: $event })"><option value="">Todas las sesiones</option>@for (x of r?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</gr-select>
+            <gr-select filters tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los estados</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></gr-select>
+            <gr-select filters tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">Todos los orígenes</option>@for (o of lista()?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
+            <button bulk grButton variant="secondary" icon="mail" (click)="bulk('reenviar')">Reenviar email</button>
+            <button bulk grButton variant="secondary" (click)="moverOpen.set(true)">Mover</button>
+            <button bulk grButton variant="danger" (click)="anularOpen.set(true)">Anular</button>
+          </bo-table-toolbar>
           @let l = lista();
           @if (l === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar las reservas"><button grButton (click)="cargarLista()">Reintentar</button></gr-empty> }
           @else if (l) {
             <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
               <table class="w-full min-w-[860px] text-left text-body-s">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="w-10 px-3 py-3"></th><th class="px-3 py-3">Titular</th><th class="px-3 py-3">Código</th><th class="px-3 py-3">Sesión</th><th class="px-3 py-3 text-center">Pers.</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Fecha</th></tr></thead>
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><span class="sr-only">Selección</span></th><th class="px-3 py-3">Titular</th><th class="px-3 py-3">Código</th><th class="px-3 py-3">Sesión</th><th class="px-3 py-3 text-center">Pers.</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Fecha</th></tr></thead>
                 <tbody>
                   @for (e of l.items; track e.id) {
-                    <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.opacity-55]="e.estado === 'anulada'" (click)="ver(e.id)">
-                      <td class="px-3 py-2.5" (click)="$event.stopPropagation()">@if (e.estado !== 'anulada') { <input type="checkbox" class="size-4 accent-[#c42b3e]" [checked]="sel().has(e.id)" (change)="toggle(e.id)" [attr.aria-label]="'Seleccionar ' + e.codigo" /> }</td>
+                    <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="e.estado === 'anulada' ? row.disabled : sel().has(e.id) ? row.selected : row.default" (click)="ver(e.id)">
+                      <td class="px-3 py-2.5" (click)="$event.stopPropagation()">@if (e.estado !== 'anulada') { <bo-checkbox [value]="sel().has(e.id)" (valueChange)="toggle(e.id)" [aria]="'Seleccionar ' + e.codigo" /> }</td>
                       <td class="px-3 py-2.5"><p class="text-label-s">{{ e.nombre }} {{ e.apellidos }}</p><p class="truncate text-body-xs text-text-tertiary">{{ e.email || (e.manual ? 'Reserva manual' : '') }}</p></td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs">{{ e.codigo }}</td>
                       <td class="px-3 py-2.5 text-text-secondary">{{ e.sesion }}</td>
@@ -126,7 +120,7 @@ function descargar(blob: Blob, nombre: string): void {
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ e.origen }}</td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fechaCorta(e.createdAt) }}</td>
                     </tr>
-                  } @empty { <tr><td colspan="9" class="px-4 py-10 text-center text-text-tertiary">Nada coincide con los filtros.</td></tr> }
+                  } @empty { <tr><td colspan="9" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nada coincide con los filtros' : 'Todavía no hay reservas'" [text]="filtrado() ? 'Prueba con el código o el email, o limpia los filtros.' : 'Aparecerán aquí en cuanto se abran las entradas.'" /></td></tr> }
                 </tbody>
               </table>
             </section>
@@ -134,7 +128,7 @@ function descargar(blob: Blob, nombre: string): void {
               <span>Mostrando {{ l.items.length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ n(l.total) }}</span>
               <bo-pagination [page]="l.pagina" [pages]="pages(l)" (change)="filtrar({ pagina: $event }, false)" />
             </div>
-          } @else { <gr-skeleton class="h-96 rounded-lg" /> }
+          } @else { <bo-skeleton /> }
         }
 
         @case ('espera') {
@@ -297,6 +291,8 @@ export class EntradasPage {
   protected readonly tab = signal<Tab>((this.route.snapshot.data['tab'] as Tab) ?? 'sesiones');
   protected readonly resumen = signal<Resumen | null>(null);
   protected readonly lista = signal<Lista | null | undefined>(undefined);
+  protected readonly row = BO_ROW;
+  protected readonly filtrado = computed(() => { const f = this.f(); return !!(f.q || f.sesion || f.estado || f.origen); });
   protected readonly espera = signal<Espera | null>(null);
   protected readonly f = signal<{ sesion?: string; estado?: string; origen?: string; q?: string; pagina?: number }>({ pagina: 1, sesion: this.route.snapshot.queryParamMap.get('sesion') ?? undefined, q: this.route.snapshot.queryParamMap.get('q') ?? undefined });
   protected readonly sel = signal(new Set<string>());

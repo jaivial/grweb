@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, type GrTone } from '@grcup/ui';
 import { BoToggle, Confirm } from '../shared/ui';
+import { ComponentesNav } from './componentes-nav';
 import {
   BO_ROW, BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
   BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip, type BoApi, type BoLive, type BoMenuItem, type BoPublish,
@@ -10,7 +11,7 @@ import {
 @Component({
   selector: 'bo-componentes-page',
   imports: [
-    GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
+    ComponentesNav, GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
     BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard, BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -208,7 +209,7 @@ import {
       <bo-save-bar state="error" title="No se pudieron guardar los cambios" text="Error 500 · tus cambios siguen aquí"><button grButton variant="ghost">Copiar cambios</button><button grButton>Reintentar</button></bo-save-bar>
       <bo-save-bar state="conflict" title="Laura García editó esta página hace 1 min" text="Revisa sus cambios antes de guardar los tuyos"><button grButton variant="secondary">Ver cambios</button><button grButton variant="danger">Sobrescribir</button></bo-save-bar>
     </section>
-    <section class="mt-8 grid gap-4 pb-16 md:grid-cols-2 xl:grid-cols-5" aria-labelledby="c-pr">
+    <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-labelledby="c-pr">
       <h2 id="c-pr" class="text-ui-h5 md:col-span-2 xl:col-span-5">Progress</h2>
       <bo-progress title='Enviando newsletter "Horarios publicados"' [value]="612" [total]="2430" note="Quedan ~4 min · 120 emails/min" />
       <bo-progress kind="indeterminate" title="Preparando exportación" note="Te avisaremos cuando esté lista" />
@@ -216,6 +217,7 @@ import {
       <bo-progress kind="error" title="Envío detenido" [value]="1512" [total]="2430" note="SMTP 535 · revisa la configuración y reanuda" />
       <bo-progress kind="paused" title="Envío en pausa" [value]="1215" [total]="2430" note="Pausado por Nico · 18:40" />
     </section>
+    <bo-componentes-nav />
 
   `,
 })
