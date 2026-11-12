@@ -103,8 +103,8 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
             @for (n of normas; track n) { <li class="flex gap-3 text-body-s text-text-secondary md:text-body-m"><span class="mt-2 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ n }}</li> }
           </ul>
           <div id="pdf" class="flex scroll-mt-36 flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <!-- Figma 22: «Descargar PDF oficial (AEP)»; the AEP has no stable PDF URL, so it opens its official rules page -->
-            <a href="https://powerliftingspain.es/directrices-normativas-reglamentos/" target="_blank" rel="noopener" class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-accent-grain px-6 text-label-m text-white sm:w-auto"><gr-icon name="download" [size]="16" />Descargar PDF oficial (AEP)</a>
+            <!-- the AEP has no stable PDF URL: the link opens its official rules page, so it says so -->
+            <a href="https://powerliftingspain.es/directrices-normativas-reglamentos/" target="_blank" rel="noopener" class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-accent-grain px-6 text-label-m text-white sm:w-auto"><gr-icon name="external-link" [size]="16" />Ver normativa AEP</a>
             <span class="text-mono-xs text-text-muted">powerliftingspain.es · directrices, normativas y reglamentos</span>
           </div>
         </section>

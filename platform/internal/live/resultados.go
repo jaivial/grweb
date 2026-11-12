@@ -289,6 +289,7 @@ type ResultadosPublicos struct {
 		FechaFin    string `json:"fechaFin,omitempty"`
 		Sede        string `json:"sede"`
 		Estado      string `json:"estado"`
+		ActaURL     string `json:"actaUrl,omitempty" doc:"Acta oficial (PDF) de la AEP"`
 	} `json:"competicion"`
 	Publicado   bool             `json:"publicado"`
 	Ejemplo     bool             `json:"ejemplo" doc:"Datos de ejemplo (sin acta real todavía)"`
@@ -312,8 +313,13 @@ func (s *Svc) resultadosPublicos(ctx context.Context, slug string) (*ResultadosP
 		return nil, err
 	}
 	o.Competicion.Slug, o.Competicion.Nombre, o.Competicion.FechaInicio, o.Competicion.FechaFin, o.Competicion.Estado = c.Slug, c.Nombre, c.FechaInicio, c.FechaFin, c.Estado
-	o.Competicion.Sede = strings.Trim(c.Sede.Nombre+" · "+c.Sede.Ciudad, " ·")
+	o.Competicion.Sede, o.Competicion.ActaURL = strings.Trim(c.Sede.Nombre+" · "+c.Sede.Ciudad, " ·"), c.ActaURL
 	o.Categorias, o.Mejores = []Categoria{}, map[string]*Fila{}
+	if c.Estado != "hoy" && c.Estado != "finalizado" {
+		// an edition not held yet publishes nothing (leftover or test rows stay private)
+		s.cache.Set(ctx, key, o, time.Minute)
+		return &o, nil
+	}
 	for _, r := range pubs {
 		o.Categorias = append(o.Categorias, r.datos)
 		if r.pub.Por == "Datos de ejemplo" {

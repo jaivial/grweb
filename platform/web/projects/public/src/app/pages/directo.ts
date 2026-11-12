@@ -532,11 +532,11 @@ export class ResultadosIndexPage {
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page title="Resultados" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" section="Resultados" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
-      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
+      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
       @if (r?.publicado) {
         <div pageStamps class="flex flex-wrap gap-2">
           <!-- Figma 25: «Fuente: acta oficial AEP (PDF)» + «Datos de ejemplo» -->
-          <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ comp()?.actaUrl ? 'Fuente: acta oficial AEP (PDF)' : 'Clasificación publicada · el acta oficial la valida la AEP' }}</span>
+          <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Fuente: acta oficial AEP (PDF)</span>
           @if (r!.ejemplo) { <span class="inline-flex h-7 items-center self-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span> }
         </div>
       }
@@ -591,12 +591,13 @@ export class ResultadosIndexPage {
             @for (c of r.categorias; track c.clave) {
               <section class="w-[86%] shrink-0 snap-center rounded-xl border border-line-subtle bg-bg-card p-5 md:w-auto">
                 <header class="flex items-baseline justify-between"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} {{ c.atletas === 1 ? 'atleta' : 'atletas' }}</span></header>
-                <div class="mt-4 grid grid-cols-3 items-end gap-2">
-                  @for (p of podio(c); track $index) {
+                <!-- only the steps with an athlete (no empty «3» in a category of two) -->
+                <div class="mt-4 grid items-end gap-2" [style.grid-template-columns]="'repeat(' + podio(c).length + ', minmax(0, 1fr))'">
+                  @for (p of podio(c); track p.pos) {
                     <div class="flex flex-col items-center gap-1 text-center">
-                      @if (p) { <p class="w-full truncate text-label-s">{{ p.nombre }}</p><p class="text-mono-xs text-text-tertiary">{{ kg(p.total) }} kg</p> }
-                      <div class="flex w-full items-center justify-center rounded-t-md border font-display text-[34px] italic" [style.height.px]="[96, 124, 76][$index]"
-                        [class]="$index === 1 ? 'border-accent/60 bg-accent-deep/60 text-[#e3c25a]' : $index === 0 ? 'border-line-strong bg-bg-raised' : 'border-[#b0703e]/50 bg-[#b0703e]/15 text-[#d79a66]'">{{ [2, 1, 3][$index] }}</div>
+                      <p class="w-full text-label-s [overflow-wrap:anywhere]">{{ p.f.nombre }}</p><p class="text-mono-xs text-text-tertiary">{{ kg(p.f.total) }} kg</p>
+                      <div class="flex w-full items-center justify-center rounded-t-md border font-display text-[34px] italic" [style.height.px]="[0, 124, 96, 76][p.pos]"
+                        [class]="p.pos === 1 ? 'border-accent/60 bg-accent-deep/60 text-[#e3c25a]' : p.pos === 2 ? 'border-line-strong bg-bg-raised' : 'border-[#b0703e]/50 bg-[#b0703e]/15 text-[#d79a66]'">{{ p.pos }}</div>
                     </div>
                   }
                 </div>
@@ -612,7 +613,7 @@ export class ResultadosIndexPage {
           <gr-clasificacion class="mt-3 block" [c]="c" [abrir]="$first" />
         } @empty { <p class="mt-6 text-body-s text-text-tertiary">Nadie coincide con la búsqueda.</p> }
         <div id="descargar" class="mt-6 flex scroll-mt-28 flex-wrap gap-2">
-          @if (comp()?.actaUrl) { <a grButton variant="primary" [href]="comp()!.actaUrl" target="_blank" rel="noopener">Descargar acta oficial (PDF)</a> }
+          @if (acta(); as u) { <a grButton variant="primary" [href]="u" target="_blank" rel="noopener">Descargar acta oficial (PDF)</a> }
           <button grButton variant="outline" type="button" icon="send" (click)="compartir()">{{ copiado() ? 'Enlace copiado' : 'Compartir resultados' }}</button>
         </div>
       }
@@ -651,8 +652,10 @@ export class ResultadosEdicionPage {
   protected readonly tabs = computed(() => {
     const r = this.res();
     const conGL = !!(r?.mejores['F'] || r?.mejores['M']);
-    return [...(conGL ? [{ id: 'mejores', l: 'Mejores' }] : []), { id: 'podios', l: 'Podios' }, { id: 'clasificacion', l: 'Clasificación' }, { id: 'descargar', l: this.comp()?.actaUrl ? 'Descargar acta' : 'Compartir' }];
+    return [...(conGL ? [{ id: 'mejores', l: 'Mejores' }] : []), { id: 'podios', l: 'Podios' }, { id: 'clasificacion', l: 'Clasificación' }, { id: 'descargar', l: 'Descargas' }];
   });
+  /** Official AEP report: from the results API, else from the edition. */
+  protected readonly acta = computed(() => this.res()?.competicion.actaUrl || this.comp()?.actaUrl || '');
   protected ir(e: Event, id: string): void {
     e.preventDefault();
     this.tab.set(id);
@@ -688,9 +691,9 @@ export class ResultadosEdicionPage {
       })
       .filter((c) => c.filas.length);
   });
-  protected podio(c: Categoria): (Fila | undefined)[] {
+  protected podio(c: Categoria): { f: Fila; pos: number }[] {
     const t = c.filas.filter((f) => f.puesto);
-    return [t[1], t[0], t[2]];
+    return [2, 1, 3].filter((pos) => t[pos - 1]).map((pos) => ({ f: t[pos - 1], pos }));
   }
   constructor() {
     const seo = inject(Seo);
@@ -780,7 +783,7 @@ export class ResultadosEdicionPage {
           <section class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="'Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:flex md:flex-wrap md:gap-4">
-              @for (p of sponsors(); track p.nombre) { <li class="flex h-20 items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-5 py-4 md:w-[200px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" loading="lazy" /></li> }
+              @for (p of sponsors(); track p.nombre) { <li class="flex h-20 items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-5 py-4 md:w-[200px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" /></li> }
             </ul>
             <p class="text-body-xs text-text-tertiary">Logos del cartel de la edición {{ anio() }}.</p>
           </section>
@@ -861,7 +864,8 @@ export class EdicionPage {
       const [c, albums, pats] = await Promise.all([firstValueFrom(this.http.get<CompeticionPublica>(`/api/competiciones/${e.slug}`)).catch(() => null), this.cms.galeria(), this.cms.patrocinadores()]);
       this.comp.set(c);
       this.fotos.set(albums?.find((a) => a.slug === `gr-cup-${this.anio()}`)?.fotos ?? []);
-      this.sponsors.set(pats ?? []);
+      // one tile per logo (the CMS repeats some, e.g. AEP), as on the poster (Figma 28)
+      this.sponsors.set((pats ?? []).filter((p, i, a) => p.logoUrl && a.findIndex((x) => x.logoUrl === p.logoUrl || x.nombre === p.nombre) === i));
       if (c) {
         await applySeo(this.cms, seo, `/ediciones/${this.anio()}`, `${c.nombre} · ${c.sede.ciudad} · Edición anterior`, `${fechas(c.fechaInicio, c.fechaFin)} en ${c.sede.ciudad}. ${c.evento.descripcion}`, this.cartel() || undefined, {
           jsonLd: { '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nombre, sport: 'Powerlifting', startDate: c.fechaInicio, endDate: c.fechaFin, eventStatus: 'https://schema.org/EventScheduled',
