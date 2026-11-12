@@ -166,8 +166,10 @@ func (s *Svc) registerPublic() {
 		})
 
 	type reservaIn struct {
-		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Body ReservaIn
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    ReservaIn
 	}
 	huma.Register(api, huma.Operation{OperationID: "entradas-reservar", Method: http.MethodPost, Path: pub, Summary: "Reservar entradas gratuitas (409 AGOTADA → lista de espera)", Tags: tagPub, DefaultStatus: http.StatusCreated},
 		func(ctx context.Context, in *reservaIn) (*struct{ Body Reservada }, error) {
@@ -189,6 +191,10 @@ func (s *Svc) registerPublic() {
 			}
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
+				return nil, err
+			}
+			// D-MIEMBROS: booking needs a fan (or athlete) session of this competition.
+			if _, err := s.fan(ctx, in.Session, in.Header, c.ID); err != nil {
 				return nil, err
 			}
 			out := Reservada{}
@@ -256,8 +262,10 @@ func (s *Svc) registerPublic() {
 		})
 
 	type esperaIn struct {
-		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Body struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    struct {
 			SesionID         uuid.UUID `json:"sesionId"`
 			Email            string    `json:"email" maxLength:"254"`
 			Nombre           string    `json:"nombre,omitempty" maxLength:"120"`
@@ -280,6 +288,10 @@ func (s *Svc) registerPublic() {
 			}
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
+				return nil, err
+			}
+			// D-MIEMBROS: booking needs a fan (or athlete) session of this competition.
+			if _, err := s.fan(ctx, in.Session, in.Header, c.ID); err != nil {
 				return nil, err
 			}
 			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {

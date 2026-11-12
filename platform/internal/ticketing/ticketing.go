@@ -11,6 +11,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/hex"
+	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"io/fs"
 	"math/big"
 	"strings"
@@ -52,6 +53,7 @@ type Svc struct {
 	qrKey  []byte
 	tokKey []byte
 	webURL string
+	fans   *fanauth.Verifier
 }
 
 // Service returns the ticketing service definition.
@@ -67,6 +69,7 @@ func (s *Svc) init(a *app.App) {
 	s.comps = compref.New(comp, a.Log)
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "ticketing", "cms", a.Cfg.InternalToken)
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "ticketing", "")}
+	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
 	m := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	m.Write([]byte("grcup/ticketing/qr/v1"))
 	s.qrKey = m.Sum(nil)
@@ -231,3 +234,18 @@ func diaTxt(t time.Time) string {
 func hm(t time.Time) string { return t.In(madrid).Format("15:04") }
 
 func dbTx(ctx context.Context, s *Svc, fn func(tx pgx.Tx) error) error { return db.Tx(ctx, s.a.DB, fn) }
+
+// fan verifies the fan session (cookie first, header second) and that it belongs to the competition.
+func (s *Svc) fan(ctx context.Context, sess, hdr string, cid uuid.UUID) (fanauth.Fan, error) {
+	if sess == "" {
+		sess = hdr
+	}
+	f, err := s.fans.Verify(ctx, sess)
+	if err != nil {
+		return fanauth.Fan{}, fanauth.Problem(err)
+	}
+	if f.CompetitionID != cid {
+		return fanauth.Fan{}, fanauth.Problem(fanauth.ErrInvalid)
+	}
+	return f, nil
+}
