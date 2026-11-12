@@ -3,9 +3,9 @@ package athletes
 import (
 	"bytes"
 	"context"
-	"errors"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
