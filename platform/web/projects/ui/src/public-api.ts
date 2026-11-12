@@ -3,6 +3,7 @@
  * Styles: import `projects/ui/src/styles/tokens.css` after Tailwind in each app.
  */
 export * from './lib/icon';
+export * from './lib/skin';
 export * from './lib/button';
 export * from './lib/primitives';
 export * from './lib/controls';

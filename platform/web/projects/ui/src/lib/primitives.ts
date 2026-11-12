@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { GrIcon, type GrIconName } from './icon';
+import { GR_SKIN } from './skin';
 
-export type GrTone = 'neutral' | 'accent' | 'success' | 'warning' | 'info' | 'danger';
+export type GrTone = 'neutral' | 'accent' | 'success' | 'warning' | 'info' | 'danger' | 'live';
 
 const toneBadge: Record<GrTone, string> = {
   neutral: 'bg-bg-raised text-text-secondary border-line-strong',
@@ -10,18 +11,40 @@ const toneBadge: Record<GrTone, string> = {
   warning: 'bg-warning/10 text-warning border-warning/30',
   info: 'bg-info/10 text-info border-info/30',
   danger: 'bg-accent-deep/40 text-accent-text border-accent-text/30',
+  live: 'bg-live/10 text-live border-live/30',
 };
 
-/** Status badge (mono, uppercase). Per the design system badges carry no dot. */
+/* Figma 48 «BO / Badge»: Soft (fill 14 %) or Outline (stroke 55 %), 24 high, r6, 12 Medium +4 % uppercase. */
+const boTone: Record<GrTone, string> = {
+  neutral: 'text-text-tertiary bg-text-tertiary/14 border-text-tertiary/55',
+  success: 'text-success bg-success/14 border-success/55',
+  warning: 'text-warning bg-warning/14 border-warning/55',
+  danger: 'text-error bg-error/14 border-error/55',
+  info: 'text-info bg-info/14 border-info/55',
+  accent: 'text-accent-text bg-accent-text/14 border-accent-text/55',
+  live: 'text-live bg-live/14 border-live/55',
+};
+
+/** Status badge (mono, uppercase). Per the design system badges carry no dot. In the backoffice it follows «BO / Badge». */
 @Component({
   selector: 'gr-badge',
+  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': '"inline-flex h-6 items-center gap-1 rounded-2xs border px-2 text-mono-xs whitespace-nowrap " + cls()' },
-  template: `<ng-content />`,
+  host: { '[class]': 'cls()' },
+  template: `@if (bo && tone() === 'live') { <gr-icon name="radio" [size]="12" /> }<ng-content />`,
 })
 export class GrBadge {
   readonly tone = input<GrTone>('neutral');
-  protected readonly cls = computed(() => toneBadge[this.tone()]);
+  /** BO only: «Outline» style instead of «Soft». */
+  readonly outline = input(false);
+  protected readonly bo = inject(GR_SKIN) === 'bo';
+  protected readonly cls = computed(() =>
+    this.bo
+      ? 'inline-flex h-6 items-center gap-1 rounded-xs px-2 font-sans text-[12px] leading-[14px] font-medium tracking-[0.04em] uppercase whitespace-nowrap ' +
+        boTone[this.tone()].split(' ').filter((c) => (this.outline() ? !c.startsWith('bg-') : !c.startsWith('border-'))).join(' ') +
+        (this.outline() ? ' border' : '')
+      : 'inline-flex h-6 items-center gap-1 rounded-2xs border px-2 text-mono-xs whitespace-nowrap ' + toneBadge[this.tone()],
+  );
 }
 
 /** Card surface (bg/card, line/subtle, radius 16). */
@@ -89,6 +112,7 @@ const toneAlert: Record<GrTone, { box: string; icon: GrIconName; title: string }
   warning: { box: 'border-warning/45 bg-warning/8', icon: 'triangle-alert', title: 'text-warning' },
   info: { box: 'border-info/45 bg-info/8', icon: 'circle-alert', title: 'text-info' },
   danger: { box: 'border-accent/45 bg-accent/8', icon: 'circle-alert', title: 'text-accent-text' },
+  live: { box: 'border-accent/45 bg-accent/8', icon: 'circle-alert', title: 'text-accent-text' },
 };
 
 /**

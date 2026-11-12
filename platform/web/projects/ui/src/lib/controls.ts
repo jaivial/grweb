@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Directive, ElementRef, computed, inject, input, model } from '@angular/core';
 import { GrIcon, type GrIconName } from './icon';
 import { GrSparkline } from './primitives';
+import { GR_SKIN } from './skin';
 
 let fieldSeq = 0;
 
@@ -20,15 +21,24 @@ let fieldSeq = 0;
     '[class.h-12]': '!area && grSize() === "l"',
     '[class.text-body-s]': 'grSize() === "m"',
     '[class.text-body-m]': 'grSize() === "l"',
-    '[class.focus:border-accent-text]': 'grSize() === "m"',
-    '[class.focus:ring-2]': 'grSize() === "m"',
-    '[class.focus:ring-accent/30]': 'grSize() === "m"',
+    '[class.focus:border-accent-text]': 'grSize() === "m" && !bo',
+    '[class.focus:ring-2]': 'grSize() === "m" && !bo',
+    '[class.focus:ring-accent/30]': 'grSize() === "m" && !bo',
+    // Figma 48 «BO / Field»: r12, hover #5a4f51, focus accent + 3 px halo, error #f87171, read-only dashed
+    '[class.rounded-md!]': 'bo',
+    '[class.hover:border-line-hover]': 'bo && !invalid()',
+    '[class.focus:border-accent!]': 'bo && !invalid()',
+    '[class.focus:shadow-[0_0_0_3px_rgb(230_96_107/0.35)]]': 'bo',
+    '[class.read-only:border-dashed]': 'bo',
+    '[class.read-only:bg-transparent]': 'bo',
+    '[class.disabled:opacity-45!]': 'bo',
     '[class.focus:border-accent]': 'grSize() === "l"',
     '[class.focus:shadow-[0_0_0_3px_rgb(196_43_62/0.25)]]': 'grSize() === "l"',
     '[class.py-2]': 'area',
     '[class.min-h-24]': 'area',
     '[class.border-line-strong]': '!invalid()',
-    '[class.border-accent-text]': 'invalid() && grSize() === "m"',
+    '[class.border-accent-text]': 'invalid() && grSize() === "m" && !bo',
+    '[class.border-error]': 'invalid() && bo',
     '[class.border-accent]': 'invalid() && grSize() === "l"',
     '[attr.aria-invalid]': 'invalid() || null',
   },
@@ -36,6 +46,7 @@ let fieldSeq = 0;
 export class GrInput {
   readonly invalid = input(false);
   readonly grSize = input<'m' | 'l'>('m');
+  protected readonly bo = inject(GR_SKIN) === 'bo';
   protected readonly area = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.tagName === 'TEXTAREA';
 }
 
@@ -47,12 +58,12 @@ export class GrInput {
   host: { class: 'flex flex-col gap-2' },
   template: `
     <div class="flex items-center justify-between gap-3">
-      <label [attr.for]="for()" class="text-label-s text-text-primary">{{ label() }}@if (optional()) {<span class="ml-1 text-body-xs font-normal text-text-muted">(opcional)</span>}</label>
+      <label [attr.for]="for()" class="text-label-s" [class]="bo ? 'text-text-secondary' : 'text-text-primary'">{{ label() }}@if (optional()) {<span class="ml-1 text-body-xs font-normal text-text-muted">(opcional)</span>}</label>
       <ng-content select="[fieldAside]" />
     </div>
     <ng-content />
     @if (error()) {
-      <p class="flex items-center gap-1.5 text-body-xs text-accent-text" [id]="for() + '-error'" role="alert"><gr-icon name="circle-alert" [size]="14" />{{ error() }}</p>
+      <p class="flex items-center gap-1.5 text-body-xs" [class]="bo ? 'text-error' : 'text-accent-text'" [id]="for() + '-error'" role="alert"><gr-icon name="circle-alert" [size]="14" />{{ error() }}</p>
     } @else if (hint()) {
       <p class="text-body-xs text-text-tertiary" [id]="for() + '-hint'">{{ hint() }}</p>
     }
@@ -64,6 +75,7 @@ export class GrField {
   readonly hint = input<string | null>(null);
   readonly error = input<string | null>(null);
   readonly optional = input(false);
+  protected readonly bo = inject(GR_SKIN) === 'bo';
 }
 
 export interface GrSegment<T extends string = string> {
@@ -75,12 +87,12 @@ export interface GrSegment<T extends string = string> {
 @Component({
   selector: 'gr-segmented',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'inline-flex rounded-md border border-line-subtle bg-bg-surface p-1', role: 'radiogroup', '[attr.aria-label]': 'label()' },
+  host: { class: 'inline-flex gap-1 rounded-md border border-line-subtle bg-bg-field p-1', role: 'radiogroup', '[attr.aria-label]': 'label()' },
   template: `
     @for (o of options(); track o.value) {
       <button type="button" role="radio" [attr.aria-checked]="o.value === value()" (click)="value.set(o.value)"
-        class="h-9 rounded-sm px-4 text-label-s transition-colors md:h-8"
-        [class]="o.value === value() ? 'bg-bg-raised text-text-primary shadow-[0_1px_0_rgb(255_255_255/0.06)_inset]' : 'text-text-tertiary hover:text-text-primary'">{{ o.label }}</button>
+        class="h-9 rounded-xs px-4 text-[14px] leading-[17px] font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none md:h-8"
+        [class]="o.value === value() ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary hover:text-text-secondary'">{{ o.label }}</button>
     }
   `,
 })

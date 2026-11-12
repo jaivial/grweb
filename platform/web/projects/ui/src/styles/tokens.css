@@ -70,6 +70,13 @@
   --breakpoint-2xl: 90rem;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Backoffice v7 (Figma 48 «BO · Componentes · base») */
+  --color-error: #f87171;
+  --color-live: #a78bfa;
+  --color-bg-hover: #342d2f;
+  --color-line-hover: #5a4f51;
+  --color-bg-tooltip: #3a3234;
 }
 
 /* ---- Text styles (Figma) ---- */

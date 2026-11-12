@@ -33,6 +33,15 @@ const guestGuard: CanActivateFn = async () => {
   return auth.isLoggedIn() ? router.createUrlTree(['/']) : true;
 };
 
+/** Admin-only (root) pages, e.g. the /_componentes visual QA catalogue. */
+const rootGuard: CanActivateFn = async (_r, state) => {
+  const auth = inject(Auth);
+  const router = inject(Router);
+  await auth.bootstrap();
+  if (!auth.isLoggedIn()) return router.createUrlTree(['/login'], { queryParams: { siguiente: state.url } });
+  return auth.user()?.root ? true : router.createUrlTree(['/403']);
+};
+
 /** `/` → login, or the first competition of the user (guards of one route run in parallel: one guard, in order). */
 const homeRedirect: CanActivateFn = async () => {
   const router = inject(Router);
@@ -72,6 +81,7 @@ export const routes: Routes = [
   { path: '403', component: ErrorPage, data: { code: 403 }, title: 'Sin permiso' },
   { path: '404', component: ErrorPage, data: { code: 404 }, title: 'No encontrado' },
   { path: '500', component: ErrorPage, data: { code: 500 }, title: 'Error' },
+  { path: '_componentes', canActivate: [rootGuard], loadComponent: () => import('./pages/componentes').then((m) => m.ComponentesPage), title: 'Componentes base · Backoffice GR Cup' },
   { path: '', pathMatch: 'full', canActivate: [homeRedirect], children: [] },
   {
     path: ':comp',
