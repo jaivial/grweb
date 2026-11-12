@@ -8,7 +8,7 @@ import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, G
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, Confirm, TituloMovil, errText } from '../../shared/ui';
 
 interface Referidos { activo: boolean; modo: 'basico' | 'acumulativo'; descTipo: 'porcentaje' | 'importe'; descValor: number; recompensa: number; maxUsos: number; acumModo: 'basica' | 'multiplicador'; multiplicador: number }
 interface Config { modo: 'externa' | 'propia'; cuota: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: Referidos; version: number }
@@ -46,8 +46,8 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
       </bo-page-header>
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" role="tablist" aria-label="Inscripción">
         @for (t of tabs; track t.key) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.key" (click)="cambiar(t.key); $any($event.currentTarget).scrollIntoView({ block: 'nearest', inline: 'nearest' })" [disabled]="t.key !== 'config' && modoGuardado() !== 'propia'"
-            [attr.title]="t.key !== 'config' && modoGuardado() !== 'propia' ? 'Solo con la inscripción propia con pago' : null"
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.key" (click)="cambiar(t.key); $any($event.currentTarget).scrollIntoView({ block: 'nearest', inline: 'nearest' })" [disabled]="bloqueada(t.key)"
+            [attr.title]="bloqueada(t.key) ? 'Solo con la inscripción propia con pago' : null"
             class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s disabled:cursor-not-allowed disabled:opacity-40" [class]="tab() === t.key ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
             {{ t.label }}
             @if (t.key === 'cupones' && cupones()) { <span class="rounded-2xs bg-bg-raised px-1.5 text-mono-xs">{{ cupones()!.length }}</span> }
@@ -173,7 +173,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
         @case ('cupones') {
           @let l = cupones();
           @if (l) {
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-4">
               <gr-kpi label="Cupones activos" [value]="activos() + ''" [caption]="'de ' + l.length" />
               <gr-kpi label="Inscripciones con cupón" [value]="usosTotales() + ''" caption="pagadas o gratuitas" />
               <gr-kpi label="Descuento aplicado" [value]="euros(ahorroTotal())" caption="en inscripciones confirmadas" />
@@ -183,9 +183,9 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
           @if (l?.length) {
             <div class="flex flex-wrap items-center gap-2 lg:flex-nowrap">
               <label class="relative w-full md:w-[280px] md:shrink-0"><span class="sr-only">Buscar código</span><gr-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" /><input grInput class="pl-9" placeholder="Buscar código…" [ngModel]="qCupon()" (ngModelChange)="qCupon.set($event)" /></label>
-              <gr-select class="block w-36 shrink-0" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
-              <gr-select class="block w-36 shrink-0" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
-              <gr-select class="block w-36 shrink-0" aria-label="Caducidad" [ngModel]="fCaduca()" (ngModelChange)="fCaduca.set($event)"><option value="">Caducidad</option><option value="con">Con fecha</option><option value="sin">Sin fecha</option><option value="caducado">Caducados</option></gr-select>
+              <gr-select tipo="filtro" class="shrink-0" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
+              <gr-select tipo="filtro" class="shrink-0" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
+              <gr-select tipo="filtro" class="shrink-0" aria-label="Caducidad" [ngModel]="fCaduca()" (ngModelChange)="fCaduca.set($event)"><option value="">Caducidad</option><option value="con">Con fecha</option><option value="sin">Sin fecha</option><option value="caducado">Caducados</option></gr-select>
               <span class="ml-auto whitespace-nowrap text-body-xs text-text-tertiary">{{ cuponesFiltrados().length }} de {{ l.length }} cupones</span>
               <button grButton size="s" icon="download" (click)="exportarCupones()">Exportar</button>
             </div>
@@ -305,8 +305,8 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                       <span class="hidden w-28 text-mono-xs md:block">{{ fechaHora(x.fecha) }}</span>
                       <span class="flex min-w-0 flex-1 items-center gap-2.5 md:w-[258px] md:flex-none"><gr-avatar class="hidden md:flex" [name]="x.atleta" /><span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary"><span class="lg:hidden">{{ concepto(x) }}</span><span class="hidden lg:inline">{{ x.email }}</span></span></span></span>
                       <span class="hidden min-w-0 flex-1 truncate text-body-s lg:block">{{ concepto(x) }}</span>
-                      <span class="w-24 text-right text-mono-s">{{ euros(x.total) }}</span>
-                      <span class="w-36"><gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge></span>
+                      <span class="shrink-0 text-right text-mono-s md:w-24">{{ euros(x.total) }}</span>
+                      <span class="shrink-0 md:w-36"><gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge></span>
                       <span class="hidden w-28 truncate text-mono-xs normal-case text-text-secondary lg:block">{{ x.referencia }}</span>
                       <span class="hidden size-8 items-center justify-center rounded-sm text-text-tertiary md:flex" aria-hidden="true"><gr-icon name="more" [size]="16" /></span>
                     </button></li>
@@ -323,7 +323,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
     <bo-drawer [(open)]="cuponOpen" [title]="cupon.id ? 'Editar cupón' : 'Nuevo cupón'">
       @if (errorDrawer()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ errorDrawer() }}</gr-alert> }
       <div class="flex flex-col gap-4">
-        <gr-field label="Código" for="c-cod" [hint]="cupon.codigo && codigoNorm() !== cupon.codigo ? 'Se guardará como ' + (codigoNorm() || '—') : 'Mayúsculas y números · único en la competición'" [error]="errCodigo()"><input grInput id="c-cod" [(ngModel)]="cupon.codigo" (ngModelChange)="errCodigo.set('')" [invalid]="!!errCodigo()" maxlength="30" /></gr-field>
+        <gr-field label="Código" for="c-cod" [hint]="cupon.codigo && codigoNorm() !== cupon.codigo ? 'Se guardará como ' + (codigoNorm() || '—') : 'Mayúsculas y números · único en la competición'" [error]="errCodigo()"><input grInput id="c-cod" autocomplete="off" [(ngModel)]="cupon.codigo" (ngModelChange)="errCodigo.set('')" [invalid]="!!errCodigo()" maxlength="30" /></gr-field>
         <gr-segmented label="Tipo" [options]="tiposCupon" [(value)]="cupon.tipo" />
         <div class="grid grid-cols-2 gap-3">
           <gr-field [label]="cupon.tipo === 'porcentaje' ? 'Descuento (%)' : 'Descuento (€)'" for="c-val"><input grInput id="c-val" type="number" min="1" [(ngModel)]="cupon.valorUI" /></gr-field>
@@ -407,6 +407,13 @@ export class InscripcionPage {
   protected readonly estadosCupon: Cupon['estado'][] = ['activo', 'pausado', 'agotado', 'caducado'];
   protected concepto(x: Pago): string { return 'Inscripción' + (x.cupon ? ' · cupón ' + x.cupon : '') + (x.referido ? ' · referido ' + x.referido : ''); }
   protected readonly tabs: { key: Tab; label: string }[] = [{ key: 'config', label: 'Configuración' }, { key: 'cupones', label: 'Cupones' }, { key: 'referidos', label: 'Referidos' }, { key: 'pagos', label: 'Pagos' }];
+  private readonly titulo = inject(TituloMovil);
+  /** Mobile topbar reads the open tab (Figma «Móvil · cupones»: «Cupones»). */
+  private readonly tituloSync = effect(() => {
+    const t = this.tab();
+    this.titulo.texto.set(t === 'config' ? '' : this.tabs.find((x) => x.key === t)!.label);
+  });
+  ngOnDestroy(): void { this.titulo.texto.set(''); }
   protected readonly modos: { value: 'externa' | 'propia'; label: string; desc: string }[] = [
     { value: 'externa', label: 'Inscripción en la AEP', desc: 'Los atletas se inscriben en la web de la federación con su licencia. /inscripcion explica el paso y enlaza a la AEP.' },
     { value: 'propia', label: 'Inscripción propia con pago', desc: 'Formulario en /inscripcion con cuota, plazas, cupones, referidos y pago con tarjeta.' },
@@ -465,6 +472,10 @@ export class InscripcionPage {
     return cp.tipo === 'porcentaje' ? Math.round((c.cuota * cp.valor) / 100) : Math.min(c.cuota, cp.valor);
   }
   protected readonly Math = Math;
+  /** AEP mode with no coupons or payments: nothing to show. With data (e.g. back to AEP after selling) the tabs stay open. */
+  protected bloqueada(t: Tab): boolean {
+    return t !== 'config' && this.modoGuardado() !== 'propia' && !this.cupones()?.length && !this.pagos()?.items.length;
+  }
   protected readonly hayPagadas = computed(() => (this.pagos()?.items ?? []).some((p) => p.estado === 'pagada'));
   protected readonly reservas = computed(() => (this.pagos()?.items ?? []).filter((p) => p.estado === 'reserva').length);
   protected readonly errCodigo = signal('');
@@ -538,7 +549,7 @@ export class InscripcionPage {
   }
 
   protected cambiar(t: Tab): void {
-    if (t !== 'config' && this.modoGuardado() !== 'propia') return;
+    if (this.bloqueada(t)) return;
     this.tab.set(t);
   }
 
