@@ -207,9 +207,17 @@ func (s *Svc) ingest(ctx context.Context, tx pgx.Tx, cid uuid.UUID, in ContactoI
 		if origen == "" {
 			origen = "web"
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO contactos (id, competition_id, email, telefono, nombre, origen, created_at, actividad_at) VALUES ($1,$2,NULLIF($3,''),NULLIF($4,''),$5,$6,$7,$7)`,
-			id, cid, email, tel, strings.TrimSpace(in.Nombre), origen, at); err != nil {
+		// ON CONFLICT: two concurrent sign-ups of the same address (double click) must not 500 on contactos_email.
+		ct, err := tx.Exec(ctx, `INSERT INTO contactos (id, competition_id, email, telefono, nombre, origen, created_at, actividad_at) VALUES ($1,$2,NULLIF($3,''),NULLIF($4,''),$5,$6,$7,$7) ON CONFLICT DO NOTHING`,
+			id, cid, email, tel, strings.TrimSpace(in.Nombre), origen, at)
+		if err != nil {
 			return id, err
+		}
+		if ct.RowsAffected() == 0 {
+			if err := tx.QueryRow(ctx, `SELECT id, relacion FROM contactos WHERE competition_id = $1 AND ((email = $2 AND $2 <> '') OR (telefono = $3 AND $3 <> '')) AND anonimizado_at IS NULL
+				ORDER BY (email = $2) DESC LIMIT 1 FOR UPDATE`, cid, email, tel).Scan(&id, &rel); err != nil {
+				return id, err
+			}
 		}
 	} else if err != nil {
 		return id, err

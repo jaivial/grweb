@@ -72,6 +72,7 @@ export class Newsletter {
   protected acepta = false;
 
   protected async enviar(): Promise<void> {
+    if (this.enviando()) return; // double click: one POST
     this.error.set('');
     this.campo.set(null);
     const e = this.email.trim();
