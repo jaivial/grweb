@@ -2,6 +2,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { urlSort } from '../../shared/url-sort';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton, GrToasts, fmtNumber, fmtShortDate, type GrTone, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
@@ -250,17 +251,17 @@ export class AtletasPage {
     this.recargar(1);
   }
   protected readonly pagina = signal(1);
-  protected readonly orden = signal<'nombre' | 'categoria' | 'completo'>('nombre');
-  protected readonly dir = signal<'asc' | 'desc'>('asc');
+  private readonly srt = urlSort(['nombre', 'categoria', 'completo'] as const, 'nombre', 'asc');
+  protected readonly orden = this.srt.orden;
+  protected readonly dir = this.srt.dir;
   protected readonly sel = signal(new Set<string>());
   protected readonly todos = computed(() => {
     const ids = this.filas().map((a) => a.id), n = ids.filter((id) => this.sel().has(id)).length;
     return n && n === ids.length ? true : n ? 'mixed' : false;
   });
-  protected sortDe(c: string): 'asc' | 'desc' | null { return this.orden() === c ? this.dir() : null; }
+  protected sortDe(c: string): 'asc' | 'desc' | null { return this.srt.sortDe(c); }
   protected ordenar(c: 'nombre' | 'categoria' | 'completo'): void {
-    this.dir.set(this.orden() === c && this.dir() === 'asc' ? 'desc' : 'asc');
-    this.orden.set(c);
+    this.srt.toggle(c);
     void this.recargar(1);
   }
   protected limpiarSel(): void { this.sel.set(new Set()); }

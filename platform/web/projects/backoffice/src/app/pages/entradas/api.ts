@@ -50,7 +50,7 @@ export class EntradasApi {
     return firstValueFrom(this.http.put<Resumen>(`${this.b(cid)}/sesiones/${id}`, s, { headers: new HttpHeaders({ 'If-Match': `W/"${version}"` }), params: forzar ? { forzar: 'true' } : {} }));
   }
   borrarSesion(cid: string, id: string): Promise<Resumen> { return firstValueFrom(this.http.delete<Resumen>(`${this.b(cid)}/sesiones/${id}`)); }
-  lista(cid: string, f: { sesion?: string; estado?: string; origen?: string; q?: string; pagina?: number }): Promise<Lista> {
+  lista(cid: string, f: { sesion?: string; estado?: string; origen?: string; q?: string; pagina?: number; orden?: string; dir?: string }): Promise<Lista> {
     let p = new HttpParams();
     for (const [k, v] of Object.entries(f)) if (v) p = p.set(k, String(v));
     return firstValueFrom(this.http.get<Lista>(this.b(cid), { params: p }));
