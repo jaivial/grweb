@@ -398,7 +398,7 @@ export class EntradasPage {
     { i: 'radio', t: 'Sigue a tus atletas', d: 'Horarios en directo en el móvil y aviso 30 min antes de que compitan.' },
   ];
   protected readonly pasos = [
-    { t: 'Reserva en 1 minuto', d: 'Elige sesión y cuántos venís. Si quieres, súmate al sorteo.' },
+    { t: 'Reserva en 1 minuto', d: 'Elige sesión y cuántos venís. Te llega el QR al momento.' },
     { t: 'Recibe tu QR', d: 'Por email y en «Mi entrada». Añádelo al calendario.' },
     { t: 'Enséñalo en la puerta', d: 'Lo escaneamos desde el móvil y entras. No hace falta imprimirlo.' },
   ];

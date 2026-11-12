@@ -20,7 +20,7 @@ import {
 } from './secciones';
 import { SecPremios } from './premios';
 import { SecFantasy, SecPorra, type ResumenFantasy, type ResumenPorra } from './juegos';
-import { SecSorteo, type SorteoHome } from './sorteo';
+import { SecSorteo } from './sorteo';
 
 /**
  * «/ — Home» (Figma page 05, desktop · tablet · mobile). Data from the competition and the CMS («Web · home»: order,
@@ -53,7 +53,7 @@ import { SecSorteo, type SorteoHome } from './sorteo';
             @case ('cifras') { <gr-sec-cifras [s]="h.secciones[k]" /> }
             @case ('alta-atleta') { <gr-sec-alta [s]="h.secciones[k]" /> }
             @case ('inscripciones') { @if (!h.orden.includes('alta-atleta')) { <gr-sec-alta [s]="h.secciones[k]" /> } }
-            @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" [sorteo]="c?.modulos?.['sorteo'] ? sorteo() : null" /> } }
+            @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" /> } }
             @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
             @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
             @case ('premios') {
@@ -70,7 +70,7 @@ import { SecSorteo, type SorteoHome } from './sorteo';
               <gr-sec-organizacion [s]="h.secciones[k]" />
             }
             @case ('afiliaciones') { <gr-sec-afiliaciones [s]="h.secciones[k]" /> }
-            @case ('sorteo') { @if (c?.modulos?.['sorteo'] && sorteo()) { <gr-sec-sorteo [s]="h.secciones[k]" [sorteo]="sorteo()" /> } }
+            @case ('sorteo') { @if (c?.modulos?.['sorteo']) { <gr-sec-sorteo [s]="h.secciones[k]" /> } }
             @case ('categorias') { <gr-sec-categorias [s]="h.secciones[k]" /> }
             @case ('horarios') { @if (horarios()?.publicado) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } }
             @case ('localizacion') { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> }
@@ -92,7 +92,6 @@ export class HomePage {
   protected readonly heroFechas = signal('');
   protected readonly heroLugar = signal('');
   protected readonly heroPatro = signal<{ nombre: string; logoUrl: string; url: string }[]>([]);
-  protected readonly sorteo = signal<SorteoHome | null>(null);
   protected readonly entradas = signal<Entradas | null>(null);
   protected readonly horarios = signal<Horarios | null>(null);
   protected readonly porra = signal<ResumenPorra | null>(null);
@@ -111,18 +110,17 @@ export class HomePage {
       return null;
     });
     void inject(PendingTasks).run(() => Promise.all([
-      this.comp.load(), this.cmsApi.home(), opt<SorteoHome>('/sorteo', (v) => this.sorteo.set(v)), opt<Entradas>('/entradas', (v) => this.entradas.set(v)),
+      this.comp.load(), this.cmsApi.home(), opt<Entradas>('/entradas', (v) => this.entradas.set(v)),
       opt<Horarios>('/horarios?resumen=true', (v) => this.horarios.set(v)),
       opt<ResumenPorra>('/juegos/porra/resumen', (v) => this.porra.set(v)), opt<ResumenFantasy>('/juegos/fantasy/resumen', (v) => this.fantasy.set(v)),
       opt<{ nombre: string; logoUrl: string; url: string }[]>('/patrocinadores?hero=true', (v) => this.heroPatro.set(v.filter((p) => p.logoUrl))),
-    ]).then(([c, h, sorteo, entradas, horarios, porra, fantasy, patro]) => {
+    ]).then(([c, h, entradas, horarios, porra, fantasy, patro]) => {
       this.porra.set(porra);
       this.fantasy.set(fantasy);
       this.heroPatro.set((patro ?? []).filter((p) => p.logoUrl));
       this.heroFechas.set(fechasHero(c?.fechaInicio, c?.fechaFin));
       this.heroLugar.set(c?.sede ? [c.sede.ciudad && (c.sede.provincia ? `${c.sede.ciudad} (${c.sede.provincia})` : c.sede.ciudad), c.sede.nombre].filter(Boolean).join(' · ') : '');
       this.cms.set(h);
-      this.sorteo.set(sorteo);
       this.entradas.set(entradas);
       this.horarios.set(horarios);
       this.heroMeta.set([fechaCorta(c?.fechaInicio), c?.sede?.ciudad, c?.sede?.provincia].filter(Boolean).join(' · '));
