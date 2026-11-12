@@ -92,7 +92,7 @@ const api = '/api/area-atleta';
               <header class="flex items-center gap-3 md:gap-4">
                 <span class="size-14 shrink-0 overflow-hidden rounded-full bg-bg-raised md:size-[72px]">
                   @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" alt="" class="size-full object-cover" [style.object-position]="p.atleta.perfil.focalX + '% ' + p.atleta.perfil.focalY + '%'" /> }
-                  @else { <span class="flex size-full items-center justify-center text-label-l">{{ p.atleta.nombre[0] }}{{ p.atleta.apellidos[0] }}</span> }
+                  @else { <span class="flex size-full items-center justify-center text-label-l">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
                 </span>
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <h1 class="truncate text-display-xs md:text-display-m">Hola, {{ p.atleta.nombre }}</h1>
@@ -174,7 +174,7 @@ const api = '/api/area-atleta';
                 <div class="mt-6 flex gap-4">
                   <button type="button" class="relative size-24 shrink-0 overflow-hidden rounded-full bg-bg-raised" (click)="focal($event)" [disabled]="!p.atleta.perfil.fotoUrl" aria-label="Encuadre: pulsa en tu cara">
                     @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" alt="" class="size-full object-cover" [style.object-position]="fx + '% ' + fy + '%'" /> }
-                    @else { <span class="flex size-full items-center justify-center text-label-l text-text-tertiary">{{ p.atleta.nombre[0] }}{{ p.atleta.apellidos[0] }}</span> }
+                    @else { <span class="flex size-full items-center justify-center text-label-l text-text-tertiary">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
                   </button>
                   <div class="min-w-0">
                     <p class="text-label-m">Foto de perfil</p>
@@ -266,7 +266,7 @@ const api = '/api/area-atleta';
                   <button type="button" role="radio" [attr.aria-checked]="sel" [disabled]="pr.cerrada || llena || guardandoPrueba()" (click)="eleccion.set(o.codigo)"
                     class="flex items-center gap-4 rounded-md border-2 p-4 text-left focus-visible:outline-2 focus-visible:outline-accent" [class]="sel ? 'border-accent bg-accent/8' : 'border-line-subtle bg-white/2 hover:border-line-strong'" [class.opacity-50]="llena">
                     <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sel ? 'border-accent' : 'border-line-strong'">@if (sel) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
-                    <span class="flex min-w-0 flex-1 flex-col gap-1"><span class="text-[16px] font-semibold">{{ o.nombre }}@if (o.fecha) { · <span class="whitespace-nowrap">{{ dia(o.fecha) }}</span> }</span><span class="text-body-xs text-text-tertiary">{{ sel && p?.atleta?.flight ? 'Flight ' + p!.atleta.flight + (p!.atleta.pesajeInicio ? ' · pesaje ' + hora(p!.atleta.pesajeInicio) : '') + (p!.atleta.horaInicio ? ' · salida ' + hora(p!.atleta.horaInicio) : '') : (o.plazas > 0 ? o.ocupadas + ' de ' + o.plazas + ' plazas' : 'Sin límite de plazas') + (sede() ? ' · ' + sede() : '') }}</span></span>
+                    <span class="flex min-w-0 flex-1 flex-col gap-1"><span class="text-[16px] font-semibold">{{ o.nombre }}@if (o.fecha) { · <span class="whitespace-nowrap">{{ dia(o.fecha) }}</span> }</span><span class="text-body-xs text-text-tertiary">{{ sel && p?.atleta?.flight ? 'Flight ' + p!.atleta.flight + (p!.atleta.pesajeInicio ? ' · pesaje ' + hora(p!.atleta.pesajeInicio) : '') + (p!.atleta.horaInicio ? ' · salida ' + hora(p!.atleta.horaInicio) : '') : (o.plazas > 0 ? (o.ocupadas > o.plazas ? o.plazas : o.ocupadas) + ' de ' + o.plazas + ' plazas' : 'Sin límite de plazas') + (sede() ? ' · ' + sede() : '') }}</span></span>
                     <span class="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-pill border px-2 text-[11px] font-medium uppercase tracking-wide md:px-2.5 md:text-[12px]" [class]="llena ? 'border-line-strong text-text-tertiary' : !sel && ultimas ? 'border-accent/40 bg-accent/10 text-accent-text' : 'border-success/40 bg-success/12 text-success'">{{ pr.cerrada ? 'Cerrada' : llena ? 'Completa' : pr.elegida === o.codigo ? 'Tu competición' : ultimas ? 'Últimas plazas' : 'Disponible' }}</span>
                   </button>
                 }
