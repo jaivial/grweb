@@ -7,3 +7,7 @@ export * from './status';
 export * from './tags';
 export * from './data';
 export * from './feedback';
+export * from './shell';
+export * from './palette';
+export * from './blocks';
+export * from './table';
