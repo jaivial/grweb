@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, computed, inject, input, signal } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { GrSkeleton, fmtLongDate } from '@grcup/ui';
 import { Cms, renderMarkdown, type Heading, type Pagina } from '../core/cms';
@@ -42,10 +42,10 @@ export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, 
         } @else {
           @if (toc().length) {
             <nav class="flex h-fit flex-col gap-1 rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:col-start-1 lg:row-span-2 lg:row-start-1" aria-label="Contenido">
-              <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
+              <p class="pb-2 text-body-s font-semibold text-text-primary">Contenido</p>
               <ol class="flex flex-col gap-1 text-body-s">
                 @for (h of toc(); track h.id; let i = $index) {
-                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-1 pl-[18px] pr-2.5 lg:py-2" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary before:absolute before:inset-y-2 before:left-2 before:w-0.5 before:rounded-full before:bg-accent' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">{{ i + 1 }}. {{ h.text }}</a></li>
+                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm px-2.5 py-1 lg:py-2" [class]="actual() === h.id ? 'bg-accent/12 text-text-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="actual() === h.id ? 'location' : null">{{ h.id === 'contacto' ? '' : i + 1 + '. ' }}{{ h.text }}</a></li>
                 }
               </ol>
             </nav>
@@ -66,6 +66,8 @@ export class LegalPage {
   protected readonly toc = signal<Heading[]>([]);
   /** Section on screen (highlighted in the contents card). */
   protected readonly activo = signal('');
+  /** Highlighted entry: the section on screen, else the first one (QA U18-R1-3: none was active on load at 1440). */
+  protected readonly actual = computed(() => this.activo() || this.toc()[0]?.id);
   protected fecha = fmtLongDate;
   constructor() {
     const seo = inject(Seo);

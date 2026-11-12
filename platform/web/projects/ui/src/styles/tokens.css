@@ -242,6 +242,9 @@
   .prose-legal h2 { counter-increment: legal; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 600; line-height: 1.25; margin-top: 36px; }
   @media (min-width: 768px) { .prose-legal { font-size: 16px; } .prose-legal h2 { font-size: 24px; } }
   .prose-legal h2::before { content: counter(legal); flex: none; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--color-accent); background: rgb(196 43 62 / 0.15); color: var(--color-accent-text); font-size: 13px; font-weight: 600; }
+  /* Figma 12–15: the closing «Contacto» block has no number */
+  .prose-legal h2#contacto { counter-increment: none; }
+  .prose-legal h2#contacto::before { content: none; }
   .prose-legal h2 ~ h2 { border-top: 1px solid var(--color-line-subtle); padding-top: 36px; margin-top: 32px; }
   .prose-legal h3 { font-size: 18px; margin-top: 24px; }
   .prose-legal ul { list-style: none; padding-left: 4px; }
