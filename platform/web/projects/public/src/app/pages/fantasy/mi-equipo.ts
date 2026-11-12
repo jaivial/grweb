@@ -28,7 +28,7 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
       <gr-juegos-nav juego="fantasy" activa="equipo" />
 
       @if (sala(); as s) {
-        <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="store.clas()?.filas.length ?? 0" [plazas]="s.plazas ?? 0" activa="equipo" />
+        <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="s.miembros ?? store.clas()?.filas.length ?? 0" [plazas]="s.plazas ?? 0" activa="equipo" />
       }
       @if (vivo.caida()) { <gr-aviso-conexion /> }
       @if (error()) {
