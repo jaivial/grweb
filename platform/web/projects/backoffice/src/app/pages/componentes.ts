@@ -1,11 +1,18 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { GrBadge, GrButton, GrField, GrIconButton, GrInput, type GrTone } from '@grcup/ui';
 import { BoToggle } from '../shared/ui';
+import {
+  BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
+  BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip, type BoApi, type BoLive, type BoMenuItem, type BoPublish,
+} from '../shared/kit';
 
 /** Figma 48 «BO · Componentes · base»: catalogue of every BO base component and state, for visual QA (root only). */
 @Component({
   selector: 'bo-componentes-page',
-  imports: [GrBadge, GrButton, GrField, GrIconButton, GrInput, BoToggle],
+  imports: [
+    GrBadge, GrButton, GrField, GrIconButton, GrInput, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
+    BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard, BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-h-dvh bg-bg-base px-4 py-8 text-text-primary md:px-10' },
   template: `
@@ -44,6 +51,75 @@ import { BoToggle } from '../shared/ui';
       <bo-toggle label="Activo" [(value)]="on" />
       <bo-toggle label="Desactivado" [disabled]="true" />
     </section>
+    <section class="mt-8 flex flex-wrap items-center gap-6" aria-labelledby="c-cb">
+      <h2 id="c-cb" class="w-full text-ui-h5">Checkbox</h2>
+      <bo-checkbox [(value)]="cb" label="Off" /><bo-checkbox [value]="true" label="On" /><bo-checkbox value="mixed" label="Mixed" />
+      <bo-checkbox [value]="true" [disabled]="true" label="Disabled" /><bo-checkbox [error]="true" label="Error" />
+    </section>
+    <section class="mt-8 grid gap-x-8 md:grid-cols-2" aria-labelledby="c-tr">
+      <h2 id="c-tr" class="text-ui-h5 md:col-span-2">Toggle row</h2>
+      <bo-toggle-row [(value)]="on" label="Avisar a los atletas al publicar" description="Envía un email con su flight y hora de pesaje" />
+      <bo-toggle-row label="Avisar a los atletas al publicar" description="Envía un email con su flight y hora de pesaje" [disabled]="true" />
+      <bo-toggle-row [value]="true" label="Avisar a los atletas al publicar" description="Envía un email con su flight y hora de pesaje" [loading]="true" />
+    </section>
+    <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-labelledby="c-rc" role="radiogroup">
+      <h2 id="c-rc" class="text-ui-h5 md:col-span-2 xl:col-span-4">Radio card</h2>
+      @for (m of modos; track m) {
+        <bo-radio-card name="modo" [option]="m" [(value)]="modo" title="Sorteo ponderado" description="Cada boleto es una papeleta: más boletos, más probabilidad." [disabled]="m === 'd'" />
+      }
+    </section>
+    <section class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4" aria-labelledby="c-sel">
+      <h2 id="c-sel" class="text-ui-h5 md:col-span-2 xl:col-span-4">Select</h2>
+      <bo-select label="Sesión" [options]="sesiones" [(value)]="sesion" />
+      <bo-select label="Sesión" [options]="sesiones" value="sab-m" [disabled]="true" />
+      <bo-select label="Sesión" [options]="sesiones" placeholder="Selecciona una sesión" error="Obligatorio" />
+    </section>
+    <section class="mt-8 grid gap-4 md:grid-cols-2" aria-labelledby="c-se">
+      <h2 id="c-se" class="text-ui-h5 md:col-span-2">Search field</h2>
+      <bo-search /><bo-search value="laura gómez" /><bo-search value="laura gómez" [loading]="true" />
+    </section>
+    <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-tab">
+      <h2 id="c-tab" class="text-ui-h5">Tab · Filter pill</h2>
+      <div role="tablist" class="flex flex-wrap gap-2">
+        @for (t of [0, 1, 2]; track t) { <button boTab [active]="tab() === t" [count]="t ? 138 : null" (click)="tab.set(t)">Confirmadas</button> }
+        <button boTab [count]="138" disabled>Confirmadas</button>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <bo-filter-pill label="Estado" /><bo-filter-pill label="Estado" [count]="1" /><bo-filter-pill label="Estado" [count]="2" /><bo-filter-pill label="Estado" [disabled]="true" />
+      </div>
+    </section>
+    <section class="mt-8 grid gap-6 md:grid-cols-2" aria-labelledby="c-tag">
+      <h2 id="c-tag" class="text-ui-h5 md:col-span-2">Tag input · Date range</h2>
+      <bo-tag-input label="Etiquetas del contacto" [(value)]="tags" />
+      <bo-tag-input label="Etiquetas del contacto" [value]="tags()" error="Máximo 10 etiquetas" />
+      <div><bo-date-range [(value)]="rango" launch="2026-01-15" /></div>
+    </section>
+    <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-labelledby="c-dz">
+      <h2 id="c-dz" class="text-ui-h5 md:col-span-2 xl:col-span-5">Dropzone</h2>
+      <bo-dropzone title="Arrastra el acta de la AEP o haz clic" hint=".xlsx · .csv · máx. 10 MB" accept=".xlsx,.csv" />
+      <bo-dropzone state="uploading" status="acta-aep3-valencia.xlsx · 64 %" subStatus="412 KB de 640 KB" [progress]="64" />
+      <bo-dropzone state="success" status="acta-aep3-valencia.xlsx · 148 filas" subStatus="Listo para mapear columnas" />
+      <bo-dropzone state="error" status="Formato no admitido" subStatus="Sube un .xlsx o .csv exportado desde la AEP" />
+    </section>
+    <section class="mt-8 max-w-[480px]" aria-labelledby="c-if">
+      <h2 id="c-if" class="mb-4 text-ui-h5">Image focal</h2>
+      <bo-image-focal src="img/componentes/focal.webp" alt="Atleta del GRStrength" [(value)]="focal" />
+    </section>
+    <section class="mt-8 flex flex-wrap items-start gap-6" aria-labelledby="c-menu">
+      <h2 id="c-menu" class="w-full text-ui-h5">Tooltip · Menu</h2>
+      <bo-tooltip text="Plazas de la sesión (aforo del pabellón)"><button grButton variant="secondary">Aforo</button></bo-tooltip>
+      <bo-tooltip text="Buscar" kbd="⌘K"><button grIconButton icon="search" label="Buscar"></button></bo-tooltip>
+      <bo-menu [items]="filaMenu" />
+      <bo-menu [items]="userMenu">
+        <div menuHeader class="flex flex-col gap-1 px-2 pt-2 pb-1"><span class="text-label-s">Nico García</span><span class="text-body-xs text-text-tertiary">nico&#64;grstrength.com</span></div>
+      </bo-menu>
+    </section>
+    <section class="mt-8 flex flex-col gap-4 pb-16" aria-labelledby="c-st">
+      <h2 id="c-st" class="text-ui-h5">API type · Live status · Publish status</h2>
+      <div class="flex flex-wrap gap-4">@for (a of apis; track a) { <bo-api-type [type]="a" /> }</div>
+      <div class="flex flex-wrap gap-3">@for (l of lives; track l) { <bo-live-status [status]="l" [viewers]="342" /> }</div>
+      <div class="flex flex-wrap gap-3">@for (p of pubs; track p) { <bo-publish-status [status]="p" when="12 jun 10:00" /> }</div>
+    </section>
   `,
 })
 export class ComponentesPage {
@@ -51,4 +127,34 @@ export class ComponentesPage {
   protected readonly iconKinds = ['ghost', 'secondary', 'primary', 'danger'] as const;
   protected readonly tones: GrTone[] = ['neutral', 'accent', 'success', 'warning', 'info', 'danger', 'live'];
   protected readonly on = signal(true);
+  protected readonly cb = signal<boolean | 'mixed'>(false);
+  protected readonly modos = ['a', 'b', 'c', 'd'];
+  protected readonly modo = signal<string | null>('c');
+  protected readonly sesiones = [
+    { value: 'sab-m', label: 'Sábado mañana' },
+    { value: 'sab-t', label: 'Sábado tarde' },
+    { value: 'dom-m', label: 'Domingo mañana' },
+    { value: 'dom-t', label: 'Domingo tarde · agotada', disabled: true },
+  ];
+  protected readonly sesion = signal<string | null>('sab-m');
+  protected readonly tab = signal(2);
+  protected readonly tags = signal(['ig_story', 'club_grstrength', 'voluntario']);
+  protected readonly rango = signal({ from: '2026-06-01', to: '2026-06-30' });
+  protected readonly focal = signal({ x: 50, y: 18 });
+  protected readonly filaMenu: BoMenuItem[] = [
+    { id: 'ver', label: 'Ver detalle', icon: 'eye' },
+    { id: 'editar', label: 'Editar', icon: 'pencil' },
+    { id: 'reenviar', label: 'Reenviar email', icon: 'send' },
+    { id: 'copiar', label: 'Copiar código', icon: 'copy' },
+    { id: 'anular', label: 'Anular entrada', icon: 'trash', danger: true },
+  ];
+  protected readonly userMenu: BoMenuItem[] = [
+    { id: 'perfil', label: 'Mi perfil', icon: 'user' },
+    { id: 'comp', label: 'Cambiar competición', icon: 'refresh' },
+    { id: 'atajos', label: 'Atajos de teclado', icon: 'keyboard' },
+    { id: 'salir', label: 'Cerrar sesión', icon: 'log-out' },
+  ];
+  protected readonly apis: BoApi[] = ['REST', 'SSE', 'WEBHOOK', 'JOB', 'HUB'];
+  protected readonly lives: BoLive[] = ['connected', 'reconnecting', 'offline', 'paused'];
+  protected readonly pubs: BoPublish[] = ['draft', 'pending', 'scheduled', 'publishing', 'published', 'error'];
 }
