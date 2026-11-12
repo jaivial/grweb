@@ -475,6 +475,9 @@ func (s *Svc) registerPublicExtra() {
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
 			contacto := strings.TrimSpace(in.Body.ContactoNombre)
+			if l := strings.ToLower(contacto); strings.ContainsAny(contacto, "<>{}[]\\/@") || strings.Contains(l, "http") || strings.Contains(l, "www.") || strings.Contains(l, "://") {
+				return nil, problem.Unprocessable("NOMBRE_INVALIDO", "El nombre de contacto no puede contener HTML ni enlaces.")
+			}
 			return nil, s.change(ctx, cid, "cms.club_solicitado", map[string]any{"id": id, "nombre": b.Nombre}, func(tx pgx.Tx) error {
 				if _, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, consentimiento_at, legal_version, orden)
 					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pendiente',$9,$10,$11,now(),$12, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
