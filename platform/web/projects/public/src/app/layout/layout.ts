@@ -358,7 +358,7 @@ export class Footer {
   protected arriba(): void { window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
   private readonly scrolled = signal(false);
   private readonly url = signal('');
-  /** Mobile CTA bar: after the first screen, not on flows with their own bottom action. */
+  /** Mobile CTA bar (Figma Mobile, every public page): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
     !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
@@ -374,13 +374,14 @@ export class Footer {
     void firstValueFrom(this.http.get<Patrocinador[]>(`/api/competiciones/${COMPETITION_SLUG}/patrocinadores`)).then((l) => this.logos.set((l ?? []).filter((p) => p.logoUrl).slice(0, 10)), () => undefined);
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       this.url.set(this.router.url);
-      const sub = this.router.events.subscribe(() => this.url.set(this.router.url));
-      // after the first screen — and on the home, once the trophy intro is over (the bar would cover it)
+      const sub = this.router.events.subscribe(() => { this.url.set(this.router.url); setTimeout(onScroll); });
+      // always — except on the home while the trophy intro is on screen (the bar would cover it)
       const onScroll = () => {
         const hero = document.querySelector('gr-hero-trophy')?.getBoundingClientRect();
-        this.scrolled.set(window.scrollY > 480 && (!hero || hero.bottom < window.innerHeight * 0.5));
+        this.scrolled.set(!hero || (window.scrollY > 480 && hero.bottom < window.innerHeight * 0.5));
       };
       window.addEventListener('scroll', onScroll, { passive: true });
+      setTimeout(onScroll);
       inject(DestroyRef).onDestroy(() => {
         sub.unsubscribe();
         window.removeEventListener('scroll', onScroll);
