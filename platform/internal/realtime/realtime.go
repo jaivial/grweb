@@ -107,6 +107,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	a.Go(s.contar)
 	a.Mux.HandleFunc("GET /api/competiciones/{slug}/stream", s.public)
 	a.Mux.HandleFunc("GET /api/admin/competiciones/{cid}/stream", s.admin)
+	a.Mux.HandleFunc("POST /api/admin/competiciones/{cid}/presencia", s.presencia)
 	return nil
 }
 
