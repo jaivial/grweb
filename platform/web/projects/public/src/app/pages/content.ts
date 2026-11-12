@@ -45,7 +45,7 @@ export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, 
               <p class="pb-2 text-body-s font-semibold text-text-primary">Contenido</p>
               <ol class="flex flex-col text-body-s md:gap-1">
                 @for (h of toc(); track h.id; let i = $index) {
-                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex h-[29px] items-center rounded-sm px-1 md:h-auto md:px-2.5 md:py-1 lg:py-2" [class]="actual() === h.id ? 'bg-accent/12 text-text-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="actual() === h.id ? 'location' : null">{{ h.id === 'contacto' ? '' : i + 1 + '. ' }}{{ h.text }}</a></li>
+                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex min-h-[29px] items-center rounded-sm px-1 py-1 md:min-h-0 md:px-2.5 md:py-1 lg:py-2" [class]="actual() === h.id ? 'bg-accent/12 text-text-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="actual() === h.id ? 'location' : null">{{ h.id === 'contacto' ? '' : i + 1 + '. ' }}{{ h.text }}</a></li>
                 }
               </ol>
             </nav>
