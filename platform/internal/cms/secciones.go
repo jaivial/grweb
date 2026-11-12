@@ -3,6 +3,7 @@ package cms
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -210,7 +211,14 @@ func validBorrador(pagina, clave string, raw json.RawMessage) error {
 	if json.Unmarshal(raw, &obj) != nil {
 		return problem.Unprocessable("JSON_INVALIDO", "El contenido debe ser un objeto JSON.")
 	}
-	return validCampos(def.Campos, obj)
+	if err := validCampos(def.Campos, obj); err != nil {
+		var pe *problem.Error
+		if errors.As(err, &pe) {
+			pe.Detail = def.Nombre + ": " + pe.Detail
+		}
+		return err
+	}
+	return nil
 }
 
 type seccionRow struct {
