@@ -222,7 +222,7 @@ func (s *Svc) registerMiEntrada() {
 				var mail *string
 				var nombre, ape, cod string
 				var resp bool
-				if err := tx.QueryRow(ctx, `SELECT email::text, nombre, apellidos, codigo, consentimientos->>'novedades' = 'true' OR consentimientos->>'novedadesNo' = 'true' FROM entradas WHERE id = $1`, id).
+				if err := tx.QueryRow(ctx, `SELECT email::text, nombre, apellidos, codigo, COALESCE(consentimientos->>'novedades' = 'true' OR consentimientos->>'novedadesNo' = 'true', false) FROM entradas WHERE id = $1`, id).
 					Scan(&mail, &nombre, &ape, &cod, &resp); err != nil {
 					return err
 				}
