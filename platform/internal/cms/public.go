@@ -3,6 +3,7 @@ package cms
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -310,11 +311,9 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := s.fan(ctx, in.Session, in.Header, cid); err != nil {
+			email, err := s.fanEmail(ctx, in.Session, in.Header, cid)
+			if err != nil {
 				return nil, err
-			}
-			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "voluntarios", httpx.ClientIPFrom(ctx)), 5, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Has enviado varias solicitudes seguidas. Inténtalo más tarde.")
 			}
 			if !in.Body.AceptaPrivacidad {
 				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar la solicitud tienes que aceptar la política de privacidad.")
@@ -330,20 +329,27 @@ func (s *Svc) registerPublic() {
 				}
 				roles, nombres = append(roles, r), append(nombres, nombre)
 			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "voluntarios", httpx.ClientIPFrom(ctx)), 5, time.Hour); !r.Allowed {
+				return nil, problem.TooMany("Has enviado varias solicitudes seguidas. Inténtalo más tarde.")
+			}
 			detalle := strings.Join(append(nombres, in.Body.Disponibilidad), " · ")
 			var version string
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
-			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
 			return nil, s.change(ctx, cid, "cms.voluntario_solicitado", map[string]any{"id": id, "esMenor": in.Body.EsMenor}, func(tx pgx.Tx) error {
-				// one request per (competition, email): a resend updates it and does not send a second acknowledgement
+				// one request per (competition, fan email): a resend updates it only while pendiente and does not send a second acknowledgement
 				var nuevo bool
-				if err := tx.QueryRow(ctx, `INSERT INTO voluntarios (id, competition_id, nombre, email, telefono, disponibilidad, roles, experiencia, es_menor, consentimiento_at, legal_version)
+				err := tx.QueryRow(ctx, `INSERT INTO voluntarios (id, competition_id, nombre, email, telefono, disponibilidad, roles, experiencia, es_menor, consentimiento_at, legal_version)
 					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10)
 					ON CONFLICT (competition_id, email) DO UPDATE SET nombre = EXCLUDED.nombre, telefono = EXCLUDED.telefono, disponibilidad = EXCLUDED.disponibilidad,
 						roles = EXCLUDED.roles, experiencia = EXCLUDED.experiencia, es_menor = EXCLUDED.es_menor, consentimiento_at = now(), legal_version = EXCLUDED.legal_version, updated_at = now()
+					WHERE voluntarios.estado = 'pendiente'
 					RETURNING xmax = 0`, id, cid, strings.TrimSpace(in.Body.Nombre), email, in.Body.Telefono, in.Body.Disponibilidad, roles,
-					strings.TrimSpace(in.Body.Experiencia), in.Body.EsMenor, version).Scan(&nuevo); err != nil {
+					strings.TrimSpace(in.Body.Experiencia), in.Body.EsMenor, version).Scan(&nuevo)
+				if errors.Is(err, pgx.ErrNoRows) {
+					return problem.Conflict("SOLICITUD_REVISADA", "Tu solicitud ya está revisada y no se puede cambiar desde aquí. Escríbenos si necesitas modificarla.")
+				}
+				if err != nil {
 					return err
 				}
 				if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.contacto", map[string]any{"email": email, "telefono": in.Body.Telefono, "nombre": strings.TrimSpace(in.Body.Nombre),
@@ -451,11 +457,9 @@ func (s *Svc) registerPublicExtra() {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := s.fan(ctx, in.Session, in.Header, cid); err != nil {
+			email, err := s.fanEmail(ctx, in.Session, in.Header, cid)
+			if err != nil {
 				return nil, err
-			}
-			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "clubs", httpx.ClientIPFrom(ctx)), 3, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Has enviado varias propuestas seguidas. Inténtalo más tarde.")
 			}
 			if !in.Body.AceptaPrivacidad {
 				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar el club tienes que aceptar la política de privacidad.")
@@ -464,10 +468,12 @@ func (s *Svc) registerPublicExtra() {
 			if err := validClub(&b); err != nil {
 				return nil, err
 			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "clubs", httpx.ClientIPFrom(ctx)), 3, time.Hour); !r.Allowed {
+				return nil, problem.TooMany("Has enviado varias propuestas seguidas. Inténtalo más tarde.")
+			}
 			var version string
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
-			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
 			contacto := strings.TrimSpace(in.Body.ContactoNombre)
 			return nil, s.change(ctx, cid, "cms.club_solicitado", map[string]any{"id": id, "nombre": b.Nombre}, func(tx pgx.Tx) error {
 				if _, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, consentimiento_at, legal_version, orden)
