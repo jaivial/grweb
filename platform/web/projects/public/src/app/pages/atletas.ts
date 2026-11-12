@@ -264,7 +264,6 @@ export class AtletasPage {
       const mq = matchMedia('(max-width: 767px)');
       this.movil.set(mq.matches);
       mq.addEventListener('change', (e) => this.movil.set(e.matches));
-      void this.fav.sincronizar();
     }
     void inject(PendingTasks).run(async () => {
       const [l, c] = await Promise.all([this.cargar(), competition.load()]);
@@ -533,7 +532,7 @@ export class AtletaPage {
     });
   }
 
-  /** Back from the email link: finishes the follow / alert started without a session, then syncs the stars. */
+  /** Back from the email link: finishes the follow / alert started by an explicit click. Local stars are never sent (U10-R2-1). */
   private async retomar(a: FichaPub): Promise<void> {
     if (!(await this.fan.cargar())) return; // no session yet: keep the intention for when they come back logged in
     const i = this.fav.intencion(a.slug);
