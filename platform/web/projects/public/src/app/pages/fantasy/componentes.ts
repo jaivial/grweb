@@ -4,6 +4,7 @@
  * de mercado, feed de movimientos, modal de clausulazo y ficha del atleta.
  */
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
 import { GrSelector, iniciales, type OpcionSelector } from '../porra/componentes';
 import {
@@ -106,6 +107,29 @@ export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas =
     default:
       return plazas > 0 && plazas - miembros === 1 ? { txt: 'Últimas plazas', clase: acento } : { txt: 'Abierta', clase: 'border-success/45 bg-success/12 text-success' };
   }
+}
+
+/**
+ * La cabecera de las páginas de fantasy con `<gr-page [juego]="true">` (Figma 72/81 a 1440): migas con puntos
+ * «Inicio · Juegos · Fantasy · …», título Display/M y entradilla. Host «contents»: se apila con el gap de la página.
+ */
+@Component({
+  selector: 'gr-fantasy-cabecera',
+  imports: [RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
+  template: `
+    <nav class="text-body-xs text-text-tertiary" aria-label="Migas"><a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
+    <div class="flex flex-col gap-2.5">
+      <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
+      @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary">{{ descripcion() }}</p> }
+    </div>
+  `,
+})
+export class FantasyCabecera {
+  readonly titulo = input.required<string>();
+  readonly descripcion = input('');
+  readonly migas = input<string[]>([]);
 }
 
 /**
@@ -311,7 +335,7 @@ export class SparklineClausula {
       </span>
       <span class="w-32 shrink-0">
         @switch (accion()) {
-          @case ('fichar') { <button grButton variant="primary" [block]="true" (click)="fichar.emit()">Fichar</button> }
+          @case ('fichar') { <button grButton variant="primary" [block]="true" [disabled]="!!bloqueo()" [attr.title]="bloqueo() || null" (click)="fichar.emit()">{{ bloqueo() || 'Fichar' }}</button> }
           @case ('clausulazo') { <button type="button" class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-accent/60 bg-accent-deep/85 font-display text-[17px] text-white uppercase shadow-glow-deep transition-colors hover:bg-accent-deep md:h-10" (click)="clausulazo.emit()"><gr-icon name="zap" [size]="15" class="text-accent-text" />Clausulazo</button> }
           @case ('cerrado') { <span class="flex h-11 w-full items-center justify-center rounded-md bg-accent-deep/85 px-1 text-center font-display text-[13px] leading-tight text-white uppercase opacity-40 md:h-11" role="note" [attr.aria-label]="'Clausulazo cerrado desde las ' + cierre()">Cerrado desde las {{ cierre() }}</span> }
           @case ('vender') { <button grButton variant="outline" [block]="true" (click)="vender.emit()">Vender</button> }
@@ -331,6 +355,8 @@ export class MarketRow {
   readonly cierre = input('');
   /** Segundos que le quedan de protección (cuenta atrás «Protegido · mm:ss»). */
   readonly restante = input<number | null>(null);
+  /** Por qué no se puede fichar (alineación completa o sin saldo); vacío = se puede. */
+  readonly bloqueo = input('');
   readonly fichar = output<void>();
   readonly clausulazo = output<void>();
   readonly vender = output<void>();

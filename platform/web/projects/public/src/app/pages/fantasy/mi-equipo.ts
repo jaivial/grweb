@@ -15,23 +15,24 @@ import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { HojaJugador, PistaFutsal, type AtletaPista } from './pista';
 import { JuegosNav } from '../porra/componentes';
-import { AvisoConexion, BarraSala, GrAviso, SinSala, colorNota } from './componentes';
+import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota } from './componentes';
 
 @Component({
   selector: 'gr-mi-equipo-page',
-  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, GrAviso, HojaJugador, JuegosNav, PistaFutsal, SinSala],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, FantasyCabecera, GrAviso, HojaJugador, JuegosNav, PistaFutsal, SinSala],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="GRS Fantasy" accent="" suffix="· Mi equipo" crumb="Mi equipo" section="Juegos"
-      subtitle="Tu alineación de fútbol sala: exactamente 5 atletas, sin suplentes. Cada atleta tiene una nota de 0,0 a 10,0 y tu nota es la media de los 5.">
-      <gr-juegos-nav class="mb-4 md:mb-7" juego="fantasy" activa="equipo" />
+    <gr-page title="GRS Fantasy · Mi equipo" [juego]="true">
+      <gr-fantasy-cabecera titulo="GRS Fantasy · Mi equipo" [migas]="['Mi equipo']"
+        descripcion="Tu alineación de fútbol sala: exactamente 5 atletas, sin suplentes. Cada atleta tiene una nota de 0,0 a 10,0 y tu nota es la media de los 5." />
+      <gr-juegos-nav juego="fantasy" activa="equipo" />
 
       @if (sala(); as s) {
-        <gr-barra-sala class="mb-4 md:mb-7" [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" activa="equipo" />
+        <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="store.clas()?.filas.length ?? 0" [plazas]="s.plazas ?? 0" activa="equipo" />
       }
-      @if (vivo.caida()) { <gr-aviso-conexion class="mb-4 md:mb-7" /> }
+      @if (vivo.caida()) { <gr-aviso-conexion /> }
       @if (error()) {
-        <gr-aviso class="mb-4 md:mb-7" tono="error" titulo="No hemos podido completar la operación">{{ error() }}</gr-aviso>
+        <gr-aviso tono="error" titulo="No hemos podido completar la operación">{{ error() }}</gr-aviso>
       }
 
       @if (store.cargando()) {
@@ -89,13 +90,16 @@ import { AvisoConexion, BarraSala, GrAviso, SinSala, colorNota } from './compone
               </dl>
             </section>
 
-            @if (plazasLibres() > 0) {
-              <section class="flex flex-col gap-3 rounded-lg border border-accent/45 bg-accent-deep/25 p-5">
+            <section class="flex flex-col gap-3 rounded-lg border border-accent/45 bg-accent-deep/25 p-5">
+              @if (plazasLibres() > 0) {
                 <p class="text-label-m text-text-primary">Te quedan {{ plazasLibres() }} {{ plazasLibres() === 1 ? 'plaza' : 'plazas' }} y {{ monedas(saldo() ?? 0) }} monedas</p>
                 <p class="text-body-s text-text-secondary">Ficha libres a su valor o paga un clausulazo al dueño.</p>
+              } @else {
+                <p class="text-label-m text-text-primary">Alineación completa · te quedan {{ monedas(saldo() ?? 0) }} monedas</p>
+                <p class="text-body-s text-text-secondary">Vende a un atleta para liberar plaza o paga un clausulazo para cambiarlo.</p>
+              }
                 <a grButton variant="primary" [routerLink]="rutaMercado()" iconRight="arrow-right" class="w-full lg:w-auto lg:self-start">Ir al mercado</a>
-              </section>
-            }
+            </section>
 
             <p class="text-body-xs text-text-tertiary">Toca un jugador para ver su ficha o venderlo. Las posiciones son solo visuales.</p>
           </aside>

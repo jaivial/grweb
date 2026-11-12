@@ -161,6 +161,8 @@ export interface SalaResumen {
   id: string;
   nombre: string;
   estado: 'abierta' | 'en_juego' | 'cancelada' | 'cerrada' | 'finalizada';
+  /** Plazas de la sala (para el contador «6/8»). */
+  plazas?: number;
 }
 
 /** El estado de los clausulazos: se cierran al empezar la última sesión del día (o si no hay horario). */
@@ -376,6 +378,7 @@ const MENSAJES: Record<string, string> = {
   MAX_CLAUSULAZOS: 'Ya has usado todos los clausulazos de la jornada.',
   PLANTILLA_LLENA: 'Tu alineación está completa: vende a alguien antes.',
   YA_CON_DUENO: 'Otro usuario ya tiene a ese atleta. Puedes pagar su cláusula.',
+  YA_ES_TUYO: 'Ese atleta ya está en tu alineación.',
   ATLETA_LIBRE: 'Ese atleta está libre: cómpralo, no hace falta clausulazo.',
   ATLETA_AJENO: 'Ese atleta no es tuyo.',
   ATLETA_PROPIO: 'El atleta ya es tuyo.',
@@ -486,11 +489,11 @@ export class Juegos {
 
   // ---- fantasy (todo va por sala: sin `sala` es la mía del día) ----
   fantasyMercado(jornadaId?: string, sala?: string): Promise<{ jornada?: Jornada; sala?: SalaResumen; atletas: AtletaMercado[]; clausulazo?: Clausulazo }> {
-    return this.get(`${this.base}/fantasy/mercado${this.qs({ jornada: jornadaId, sala })}`);
+    return this.getFresco(`${this.base}/fantasy/mercado${this.qs({ jornada: jornadaId, sala })}`);
   }
 
   fantasyMiEquipo(jornadaId?: string): Promise<MiEquipo> {
-    return this.get(`${this.base}/fantasy/mi-equipo${this.q(jornadaId)}`);
+    return this.getFresco(`${this.base}/fantasy/mi-equipo${this.q(jornadaId)}`);
   }
 
   fantasyComprar(atletaId: string, jornadaId?: string): Promise<{ ok: boolean; saldo: number }> {
@@ -506,7 +509,7 @@ export class Juegos {
   }
 
   fantasyClasificacion(jornadaId?: string, sala?: string): Promise<{ jornada?: Jornada; sala?: SalaResumen; filas: FilaSala[]; miPuesto: number; miNota: number }> {
-    return this.get(`${this.base}/fantasy/clasificacion${this.qs({ jornada: jornadaId, sala })}`);
+    return this.getFresco(`${this.base}/fantasy/clasificacion${this.qs({ jornada: jornadaId, sala })}`);
   }
 
   fantasyAtleta(atletaId: string, jornadaId?: string): Promise<AtletaDetalle> {
@@ -515,13 +518,13 @@ export class Juegos {
 
   // ---- salas ----
   salas(q?: string, jornadaId?: string): Promise<Lobby> {
-    return this.get(`${this.base}/fantasy/salas${this.qs({ q, jornada: jornadaId })}`);
+    return this.getFresco(`${this.base}/fantasy/salas${this.qs({ q, jornada: jornadaId })}`);
   }
   crearSala(nombre: string, publica: boolean, jornadaId?: string): Promise<{ salaId: string }> {
     return this.post(`${this.base}/fantasy/salas`, { nombre, publica, jornada: jornadaId || undefined });
   }
   sala(id: string): Promise<SalaDetalle> {
-    return this.get(`${this.base}/fantasy/salas/${id}`);
+    return this.getFresco(`${this.base}/fantasy/salas/${id}`);
   }
   editarSala(id: string, cambios: { nombre?: string; plazas?: number; publica?: boolean; regenerarEnlace?: boolean }): Promise<{ codigo: string }> {
     return firstValueFrom(this.http.patch<{ codigo: string }>(`${this.base}/fantasy/salas/${id}`, cambios));
@@ -545,7 +548,7 @@ export class Juegos {
     return this.post<void>(`${this.base}/fantasy/salas/${id}/solicitudes/${solicitudId}`, { aceptar });
   }
   invitacion(codigo: string): Promise<Invitacion> {
-    return this.get(`${this.base}/fantasy/invitaciones/${encodeURIComponent(codigo)}`);
+    return this.getFresco(`${this.base}/fantasy/invitaciones/${encodeURIComponent(codigo)}`);
   }
   entrarConInvitacion(codigo: string): Promise<{ salaId: string }> {
     return this.post(`${this.base}/fantasy/invitaciones/${encodeURIComponent(codigo)}/entrar`, {});
@@ -572,7 +575,7 @@ export class Juegos {
     if (atletaId) q.set('atleta', atletaId);
     if (sala) q.set('sala', sala);
     const s = q.toString();
-    const r = await this.get<{ fichajes?: unknown } | unknown[]>(`${this.base}/fantasy/fichajes${s ? '?' + s : ''}`);
+    const r = await this.getFresco<{ fichajes?: unknown } | unknown[]>(`${this.base}/fantasy/fichajes${s ? '?' + s : ''}`);
     const lista = Array.isArray(r) ? r : ((r as { fichajes?: unknown[] })?.fichajes ?? []);
     return { fichajes: lista.map((x) => this.fichajeDe(x as Record<string, unknown>)) };
   }
@@ -633,6 +636,10 @@ export class Juegos {
     for (const [k, v] of Object.entries(o)) if (v) q.set(k, v);
     const s = q.toString();
     return s ? '?' + s : '';
+  }
+  /** Datos que dependen de la sesión del fan: el SSR no lleva su cookie (Path=/api), así que no se reutiliza su respuesta. */
+  private getFresco<T>(url: string): Promise<T> {
+    return firstValueFrom(this.http.get<T>(url, { transferCache: false }));
   }
   private get<T>(url: string): Promise<T> {
     return firstValueFrom(this.http.get<T>(url));

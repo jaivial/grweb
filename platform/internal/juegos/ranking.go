@@ -32,7 +32,11 @@ type filaPorraPublic struct {
 func publicaPorra(filas []filaPorra) []filaPorraPublic {
 	out := make([]filaPorraPublic, 0, len(filas))
 	for _, f := range filas {
-		out = append(out, filaPorraPublic{Puesto: f.Puesto, Alias: f.Alias, Saldo: f.Saldo})
+		alias := f.Alias
+		if alias == "" {
+			alias = "Jugador " + itoa(f.Puesto) // fans without alias yet (never empty in the public ranking)
+		}
+		out = append(out, filaPorraPublic{Puesto: f.Puesto, Alias: alias, Saldo: f.Saldo})
 	}
 	return out
 }

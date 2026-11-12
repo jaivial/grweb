@@ -21,13 +21,14 @@ type salaResumen struct {
 	ID     uuid.UUID `json:"id"`
 	Nombre string    `json:"nombre"`
 	Estado string    `json:"estado" enum:"abierta,en_juego,cancelada,cerrada,finalizada"`
+	Plazas int       `json:"plazas"`
 }
 
 func resumenDe(sl *salaRow) *salaResumen {
 	if sl == nil {
 		return nil
 	}
-	return &salaResumen{ID: sl.ID, Nombre: sl.Nombre, Estado: sl.Estado}
+	return &salaResumen{ID: sl.ID, Nombre: sl.Nombre, Estado: sl.Estado, Plazas: sl.Plazas}
 }
 
 // solicitudVista is one request in the host's tray.
@@ -40,9 +41,9 @@ type solicitudVista struct {
 // errEmpezada is the 409 of every room change once the first session of the day has started.
 var errEmpezada = problem.Conflict("SALA_EMPEZADA", "La jornada ya ha empezado: no se pueden crear salas, entrar, salir ni cambiar jugadores.")
 
-// atletasDelDia counts the athletes of the day (the scoreboard, or what was already synced if it is down).
+// atletasDelDia counts the athletes of the day (the scoreboard, or what was already synced if it is down or empty).
 func (s *Svc) atletasDelDia(ctx context.Context, cid uuid.UUID, j jornada) int {
-	if m, err := s.marcador(ctx, cid, j.Dia); err == nil {
+	if m, err := s.marcador(ctx, cid, j.Dia); err == nil && len(m.Atletas) > 0 {
 		return len(m.Atletas)
 	}
 	var n int
@@ -222,9 +223,12 @@ func (s *Svc) registerSalas() {
 		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
 		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Body    struct {
-			Nombre  string    `json:"nombre" minLength:"3" maxLength:"32"`
-			Publica *bool     `json:"publica,omitempty" doc:"Por defecto true; false = solo con enlace"`
-			Jornada uuid.UUID `json:"jornada,omitempty"`
+			Nombre  string `json:"nombre" minLength:"3" maxLength:"32"`
+			Publica *bool  `json:"publica,omitempty" doc:"Por defecto true; false = solo con enlace"`
+			// Visibilidad is the Figma 81 form of publica (wins over it when both come).
+			Visibilidad *string   `json:"visibilidad,omitempty" enum:"publica,solo_enlace"`
+			Plazas      *int      `json:"plazas,omitempty" minimum:"2" maximum:"10" doc:"Por defecto el máximo del día (atletas ÷ 5, tope 10)"`
+			Jornada     uuid.UUID `json:"jornada,omitempty"`
 		}
 	}
 	type salaIDOut struct {
@@ -252,9 +256,19 @@ func (s *Svc) registerSalas() {
 			if !ok {
 				return nil, problem.Conflict("ATLETAS_INSUFICIENTES", "Hoy no hay atletas suficientes para una sala: hay "+itoa(atletas)+" y hacen falta al menos "+itoa(2*cfg.PlantillaMax)+".")
 			}
+			if p := in.Body.Plazas; p != nil {
+				if *p > plazas {
+					return nil, problem.Unprocessable("PLAZAS_NO_VALIDAS", "Las plazas deben estar entre 2 y el máximo de hoy ("+itoa(plazas)+").")
+				}
+				plazas = *p
+			}
+			publica := in.Body.Publica == nil || *in.Body.Publica
+			if v := in.Body.Visibilidad; v != nil {
+				publica = *v == "publica"
+			}
 			o := &salaIDOut{}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				sl, err := crearSalaTx(ctx, tx, cid, *j, f.ID, f.Alias, nombre, in.Body.Publica == nil || *in.Body.Publica, plazas)
+				sl, err := crearSalaTx(ctx, tx, cid, *j, f.ID, f.Alias, nombre, publica, plazas)
 				if err != nil {
 					return err
 				}
@@ -378,104 +392,110 @@ func (s *Svc) registerSalas() {
 			SolicitudesPendientes int `json:"solicitudesPendientes"`
 		}
 	}
+	verInvitacion := func(ctx context.Context, in *codigoIn) (*invitacionOut, error) {
+		c, err := s.comps.Public(ctx, in.Slug)
+		if err != nil {
+			return nil, err
+		}
+		fanID, err := s.fanOpcional(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
+		if err != nil {
+			return nil, err
+		}
+		sl, j, err := s.salaPorCodigo(ctx, c.ID, in.Codigo)
+		if err != nil {
+			return nil, err
+		}
+		clas, err := s.clasificarSalas(ctx, s.a.DB, c.ID, *j, []*salaRow{sl}, fanID)
+		if err != nil {
+			return nil, err
+		}
+		sols, err := misSolicitudes(ctx, s.a.DB, j.ID, fanID)
+		if err != nil {
+			return nil, err
+		}
+		o := &invitacionOut{}
+		o.Body.Jornada = jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
+		miembro := false
+		for _, f := range clas[sl.ID] {
+			miembro = miembro || f.EsYo
+		}
+		o.Body.Sala = vistaDe(sl, clas[sl.ID], miembro, sols[sl.ID])
+		for _, e := range sols {
+			if e.Estado == "pendiente" {
+				o.Body.SolicitudesPendientes++
+			}
+		}
+		o.Body.Miembros = []miembroVista{}
+		for _, f := range clas[sl.ID] {
+			mv := miembroVista{Alias: f.Alias, EsAnfitrion: f.EsAnfitrion}
+			if f.EsAnfitrion {
+				o.Body.Miembros = append([]miembroVista{mv}, o.Body.Miembros...)
+			} else {
+				o.Body.Miembros = append(o.Body.Miembros, mv)
+			}
+		}
+		h := s.horario(ctx, c.ID, j.Dia)
+		o.Body.Horario = h.vista()
+		otra, err := miSala(ctx, s.a.DB, j.ID, fanID)
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case miembro:
+			o.Body.Estado = "ya_miembro"
+		case sl.Estado == "cerrada" || sl.Estado == "cancelada" || sl.Estado == "finalizada" || j.Estado == "cerrada":
+			o.Body.Estado = "cerrada"
+		case sl.Estado == "en_juego" || h.empezado(*j, time.Now()):
+			o.Body.Estado = "empezada"
+		case sols[sl.ID] != nil && sols[sl.ID].Estado == "expulsada":
+			o.Body.Estado = "expulsado"
+		case len(clas[sl.ID]) >= sl.Plazas:
+			o.Body.Estado = "llena"
+		case fanID == uuid.Nil:
+			o.Body.Estado = "sin_sesion"
+		case otra != nil:
+			o.Body.Estado = "otra_sala"
+		default:
+			o.Body.Estado = "disponible"
+		}
+		return o, nil
+	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-invitacion", Method: http.MethodGet, Path: base + "/invitaciones/{codigo}",
-		Summary: "Vista previa de un enlace de invitación (404 si no es válido o se regeneró)", Tags: tagJuegos, Description: descSesionFanOpcional},
-		func(ctx context.Context, in *codigoIn) (*invitacionOut, error) {
-			c, err := s.comps.Public(ctx, in.Slug)
-			if err != nil {
-				return nil, err
-			}
-			fanID, err := s.fanOpcional(ctx, c.ID, &sesionFan{Session: in.Session, Header: in.Header})
-			if err != nil {
-				return nil, err
-			}
-			sl, j, err := s.salaPorCodigo(ctx, c.ID, in.Codigo)
-			if err != nil {
-				return nil, err
-			}
-			clas, err := s.clasificarSalas(ctx, s.a.DB, c.ID, *j, []*salaRow{sl}, fanID)
-			if err != nil {
-				return nil, err
-			}
-			sols, err := misSolicitudes(ctx, s.a.DB, j.ID, fanID)
-			if err != nil {
-				return nil, err
-			}
-			o := &invitacionOut{}
-			o.Body.Jornada = jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-			miembro := false
-			for _, f := range clas[sl.ID] {
-				miembro = miembro || f.EsYo
-			}
-			o.Body.Sala = vistaDe(sl, clas[sl.ID], miembro, sols[sl.ID])
-			for _, e := range sols {
-				if e.Estado == "pendiente" {
-					o.Body.SolicitudesPendientes++
-				}
-			}
-			o.Body.Miembros = []miembroVista{}
-			for _, f := range clas[sl.ID] {
-				mv := miembroVista{Alias: f.Alias, EsAnfitrion: f.EsAnfitrion}
-				if f.EsAnfitrion {
-					o.Body.Miembros = append([]miembroVista{mv}, o.Body.Miembros...)
-				} else {
-					o.Body.Miembros = append(o.Body.Miembros, mv)
-				}
-			}
-			h := s.horario(ctx, c.ID, j.Dia)
-			o.Body.Horario = h.vista()
-			otra, err := miSala(ctx, s.a.DB, j.ID, fanID)
-			if err != nil {
-				return nil, err
-			}
-			switch {
-			case miembro:
-				o.Body.Estado = "ya_miembro"
-			case sl.Estado == "cerrada" || sl.Estado == "cancelada" || sl.Estado == "finalizada" || j.Estado == "cerrada":
-				o.Body.Estado = "cerrada"
-			case sl.Estado == "en_juego" || h.empezado(*j, time.Now()):
-				o.Body.Estado = "empezada"
-			case sols[sl.ID] != nil && sols[sl.ID].Estado == "expulsada":
-				o.Body.Estado = "expulsado"
-			case len(clas[sl.ID]) >= sl.Plazas:
-				o.Body.Estado = "llena"
-			case fanID == uuid.Nil:
-				o.Body.Estado = "sin_sesion"
-			case otra != nil:
-				o.Body.Estado = "otra_sala"
-			default:
-				o.Body.Estado = "disponible"
-			}
-			return o, nil
-		})
+		Summary: "Vista previa de un enlace de invitación (404 si no es válido o se regeneró)", Tags: tagJuegos, Description: descSesionFanOpcional}, verInvitacion)
+	// alias del contrato de Figma 81
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-unirse-ver", Method: http.MethodGet, Path: base + "/unirse/{codigo}",
+		Summary: "Vista previa de un enlace de invitación (alias de /invitaciones/{codigo})", Tags: tagJuegos, Description: descSesionFanOpcional}, verInvitacion)
 
-	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-invitacion-entrar", Method: http.MethodPost, Path: base + "/invitaciones/{codigo}/entrar",
-		Summary: "Entrar en una sala con el enlace del anfitrión (directo, sin aprobación)", Tags: tagJuegos, Description: descSesionFan},
-		func(ctx context.Context, in *codigoIn) (*salaIDOut, error) {
-			c, err := s.comps.Public(ctx, in.Slug)
+	entrarInvitacion := func(ctx context.Context, in *codigoIn) (*salaIDOut, error) {
+		c, err := s.comps.Public(ctx, in.Slug)
+		if err != nil {
+			return nil, err
+		}
+		// The jornada is the one of the room of the code, like the preview: a link of another day still works.
+		sala, _, err := s.salaPorCodigo(ctx, c.ID, in.Codigo)
+		if err != nil {
+			return nil, err
+		}
+		cid, j, f, err := antesDeEmpezar(ctx, in.Slug, &sesionFan{Session: in.Session, Header: in.Header}, uuid.Nil, sala.ID)
+		if err != nil {
+			return nil, err
+		}
+		o := &salaIDOut{}
+		err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			sl, err := unirsePorCodigoTx(ctx, tx, cid, *j, f.ID, f.Alias, in.Codigo)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			// The jornada is the one of the room of the code, like the preview: a link of another day still works.
-			sala, _, err := s.salaPorCodigo(ctx, c.ID, in.Codigo)
-			if err != nil {
-				return nil, err
-			}
-			cid, j, f, err := antesDeEmpezar(ctx, in.Slug, &sesionFan{Session: in.Session, Header: in.Header}, uuid.Nil, sala.ID)
-			if err != nil {
-				return nil, err
-			}
-			o := &salaIDOut{}
-			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				sl, err := unirsePorCodigoTx(ctx, tx, cid, *j, f.ID, f.Alias, in.Codigo)
-				if err != nil {
-					return err
-				}
-				o.Body.SalaID = sl.ID
-				return nil
-			})
-			return o, err
+			o.Body.SalaID = sl.ID
+			return nil
 		})
+		return o, err
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-invitacion-entrar", Method: http.MethodPost, Path: base + "/invitaciones/{codigo}/entrar",
+		Summary: "Entrar en una sala con el enlace del anfitrión (directo, sin aprobación)", Tags: tagJuegos, Description: descSesionFan}, entrarInvitacion)
+	// alias del contrato de Figma 81
+	huma.Register(api, huma.Operation{OperationID: "juegos-fantasy-unirse", Method: http.MethodPost, Path: base + "/unirse/{codigo}",
+		Summary: "Entrar en una sala con el enlace del anfitrión (alias de /invitaciones/{codigo}/entrar)", Tags: tagJuegos, Description: descSesionFan}, entrarInvitacion)
 
 	// ---- solicitudes ----
 	type solicitudOut struct {

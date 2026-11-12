@@ -201,8 +201,10 @@ func (s *Svc) cargarResumenFantasy(ctx context.Context, cid uuid.UUID) (resumenF
 	o.Jornada = ptr(j.out())
 	// BIZ-143: teams live in the rooms (one owner per athlete inside each room); the home ranks the players of
 	// every public room of the jornada by the grade of their lineup.
-	if err := s.a.DB.QueryRow(ctx, `SELECT (SELECT count(*) FROM sala_miembros WHERE jornada_id = $1),
-		(SELECT count(*) FROM sala_atletas WHERE jornada_id = $1 AND dueno_fan_id IS NOT NULL)`, j.ID).
+	// teams = players of public rooms with at least one signing (members with an empty lineup do not count)
+	if err := s.a.DB.QueryRow(ctx, `SELECT (SELECT count(DISTINCT (a.sala_id, a.dueno_fan_id)) FROM sala_atletas a JOIN salas s ON s.id = a.sala_id
+			WHERE a.jornada_id = $1 AND s.publica AND a.dueno_fan_id IS NOT NULL),
+		(SELECT count(*) FROM sala_atletas a JOIN salas s ON s.id = a.sala_id WHERE a.jornada_id = $1 AND s.publica AND a.dueno_fan_id IS NOT NULL)`, j.ID).
 		Scan(&o.EquiposCreados, &o.AtletasFichados); err != nil {
 		return o, err
 	}
