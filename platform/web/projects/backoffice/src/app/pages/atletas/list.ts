@@ -135,10 +135,11 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                           <span class="min-w-0"><span class="block truncate text-label-s">{{ a.nombreCompleto }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.divisionNombre }}</span></span>
                         </a>
                       </td>
-                      <td class="px-3 py-3 text-mono-s">{{ a.sexo }} {{ cat(a.categoria) }}</td>
+                      <td class="px-3 py-3 text-mono-s">{{ a.sexo }} @if (a.categoria) { {{ cat(a.categoria) }} } @else { <span class="text-text-tertiary">Sin elegir</span> }</td>
                       <td class="px-3 py-3 text-mono-s">{{ a.flight || '–' }}</td>
                       <td class="px-3 py-3">
-                        @if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">{{ a.estado === 'reserva' ? 'Reserva' : 'Revisar' }}</gr-badge> }
+                        @if (sinCategoria(a) && a.estado !== 'baja') { <gr-badge tone="warning">Sin categoría</gr-badge> }
+                        @else if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">{{ a.estado === 'reserva' ? 'Reserva' : 'Revisar' }}</gr-badge> }
                         @else { <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge> }
                       </td>
                       <td class="px-3 py-3"><span class="flex items-center gap-2"><span class="h-1.5 flex-1 rounded-pill bg-bg-raised"><span class="block h-full rounded-pill" [class]="a.completo >= 70 ? 'bg-success' : 'bg-warning'" [style.width.%]="a.completo"></span></span><span class="w-10 text-right text-mono-xs text-text-secondary">{{ a.completo }} %</span></span></td>
@@ -230,6 +231,7 @@ export class AtletasPage {
   protected readonly imagen = IMAGEN;
   protected readonly cat = cat;
   protected readonly fmtNumber = fmtNumber;
+  protected sinCategoria(a: ItemLista): boolean { return a.avisos?.some((i) => i.tipo === 'categoria_invalida') ?? false; }
   protected readonly tabs: { key: Pestana; label: string }[] = [
     { key: 'todos', label: 'Todos' }, { key: 'confirmados', label: 'Confirmados' }, { key: 'reserva', label: 'Reserva' }, { key: 'bajas', label: 'Bajas' }, { key: 'incidencias', label: 'Con incidencias' },
   ];

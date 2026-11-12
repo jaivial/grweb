@@ -37,7 +37,7 @@ import { SecSorteo } from './sorteo';
     @let c = comp.data();
     <gr-navbar [hidden]="!introDone()" />
     <main>
-      <gr-hero-trophy [meta]="heroMeta()" [fechas]="heroFechas()" [lugar]="heroLugar()" [patrocinadores]="heroPatro()" [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" (done)="introDone.set($event)" />
+      <gr-hero-trophy [meta]="heroMeta()" [fechas]="heroFechas()" [lugar]="heroLugar()" [patrocinadores]="heroPatro()" [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" [hero]="$any(h?.secciones?.['hero']) || {}" (done)="introDone.set($event)" />
       <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || 'Campeonato de powerlifting'"
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
