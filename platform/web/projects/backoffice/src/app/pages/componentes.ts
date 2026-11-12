@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, type GrTone } from '@grcup/ui';
 import { BoToggle, Confirm } from '../shared/ui';
 import { ComponentesNav } from './componentes-nav';
+import { ComponentesDominio } from './componentes-dominio';
+import { ComponentesEditor } from './componentes-editor';
 import {
   BO_ROW, BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
   BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip, type BoApi, type BoLive, type BoMenuItem, type BoPublish,
@@ -11,7 +13,7 @@ import {
 @Component({
   selector: 'bo-componentes-page',
   imports: [
-    ComponentesNav, GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
+    ComponentesNav, ComponentesDominio, ComponentesEditor, GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
     BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard, BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -218,6 +220,8 @@ import {
       <bo-progress kind="paused" title="Envío en pausa" [value]="1215" [total]="2430" note="Pausado por Nico · 18:40" />
     </section>
     <bo-componentes-nav />
+    <bo-componentes-dominio />
+    <bo-componentes-editor />
 
   `,
 })

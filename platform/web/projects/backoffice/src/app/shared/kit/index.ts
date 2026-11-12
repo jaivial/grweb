@@ -12,3 +12,8 @@ export * from './palette';
 export * from './blocks';
 export * from './table';
 export * from './feed';
+export * from './aforo';
+export * from './flights';
+export * from './cms';
+export * from './editor';
+export * from './builder';

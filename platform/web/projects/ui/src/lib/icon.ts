@@ -4,7 +4,8 @@ import {
   ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
   GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
   Plus, Pause, Play, Monitor, Copy, Maximize2, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
-  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, Bus, Bike, SquareParking, Accessibility, SlidersHorizontal, Share2, Infinity as InfinityIcon, QrCode, Shuffle, Hourglass, Upload, Funnel, Crosshair, Keyboard, ChevronUp, Ellipsis, Inbox, WandSparkles, ChartColumn, type IconNode,
+  TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, Bus, Bike, SquareParking, Accessibility, SlidersHorizontal, Share2, Infinity as InfinityIcon, QrCode, Shuffle, Hourglass, Upload, Funnel, Crosshair, Keyboard, ChevronUp, Ellipsis, Inbox, WandSparkles, ChartColumn,
+  Tablet, Code, Redo2, PenTool, CheckCheck, Columns2, Heading, Type, MousePointer, Timer, Square, FileText, Palette, MessageCircle, Image, List, TicketCheck, type IconNode,
 } from 'lucide';
 
 /** Instagram glyph (lucide 1.x dropped brand icons; same geometry as the old lucide «instagram»). */
@@ -29,6 +30,8 @@ export const GR_ICONS = {
   'calendar-plus': CalendarPlus, pause: Pause, play: Play, monitor: Monitor, copy: Copy, maximize: Maximize2,
   instagram: Instagram, building: Building2, heart: Heart, link: Link, 'credit-card': CreditCard, bus: Bus, bike: Bike, parking: SquareParking, accessibility: Accessibility, sliders: SlidersHorizontal, infinity: InfinityIcon, shuffle: Shuffle, qr: QrCode, hourglass: Hourglass,
   upload: Upload, filter: Funnel, crosshair: Crosshair, keyboard: Keyboard, 'chevron-up': ChevronUp, more: Ellipsis,
+  tablet: Tablet, code: Code, redo: Redo2, 'pen-tool': PenTool, 'check-check': CheckCheck, columns: Columns2, heading: Heading, type: Type, pointer: MousePointer,
+  timer: Timer, square: Square, 'file-text': FileText, palette: Palette, message: MessageCircle, image: Image, list: List, 'ticket-check': TicketCheck,
 } satisfies Record<string, IconNode>;
 
 export type GrIconName = keyof typeof GR_ICONS;
