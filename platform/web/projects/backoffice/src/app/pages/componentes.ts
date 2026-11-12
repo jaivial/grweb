@@ -25,7 +25,7 @@ import {
           <div class="flex flex-wrap items-center gap-3">
             <button grButton [variant]="b.v" [class]="lg ? 'h-11! px-5!' : ''">{{ b.t }}</button>
             <button grButton [variant]="b.v" [class]="(lg ? 'h-11! px-5! ' : '') + b.hover" tabindex="-1">{{ b.t }}</button>
-            <button grButton [variant]="b.v" [class]="(lg ? 'h-11! px-5! ' : '') + b.hover + ' brightness-90'" tabindex="-1">{{ b.t }}</button>
+            <button grButton [variant]="b.v" [class]="(lg ? 'h-11! px-5! ' : '') + b.pressed" tabindex="-1">{{ b.t }}</button>
             <button grButton [variant]="b.v" [class]="lg ? 'h-11! px-5!' : ''" [disabled]="true">{{ b.t }}</button>
             <button grButton [variant]="b.v" [class]="lg ? 'h-11! px-5!' : ''" [loading]="true">{{ b.t }}</button>
           </div>
@@ -151,10 +151,10 @@ import {
 export class ComponentesPage {
   /* Static hover/pressed previews mirror the :hover classes of the BO skin (ui/button.ts). */
   protected readonly buttons = [
-    { v: 'primary', t: 'Guardar cambios', hover: 'brightness-115' },
-    { v: 'secondary', t: 'Exportar CSV', hover: 'bg-bg-hover!' },
-    { v: 'ghost', t: 'Cancelar', hover: 'bg-bg-raised!' },
-    { v: 'danger', t: 'Anular entrada', hover: 'bg-error/18!' },
+    { v: 'primary', t: 'Guardar cambios', hover: 'brightness-115', pressed: 'brightness-90' },
+    { v: 'secondary', t: 'Exportar CSV', hover: 'bg-bg-hover!', pressed: 'bg-bg-hover! brightness-90' },
+    { v: 'ghost', t: 'Cancelar', hover: 'bg-bg-raised!', pressed: 'bg-bg-raised! brightness-90' },
+    { v: 'danger', t: 'Anular entrada', hover: 'bg-error/18!', pressed: 'bg-error/18! brightness-90' },
   ] as const;
   protected readonly iconSizes = [null, 'm'] as const;
   protected readonly iconButtons = [
