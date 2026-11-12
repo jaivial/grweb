@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,7 +78,7 @@ type FichaPub struct {
 	Bio              string      `json:"bio"`
 	Instagram        string      `json:"instagram"`
 	Entrenador       string      `json:"entrenador"`
-	Historial        string      `json:"historial"`
+	Historial        []Historia  `json:"historial" doc:"Competiciones anteriores (una por línea del texto del perfil)"`
 	Marcas           *Marcas     `json:"marcas,omitempty" doc:"Mejores marcas declaradas (si el atleta las muestra)"`
 	TotalPrevisto    *float64    `json:"totalPrevisto,omitempty"`
 	PrimerosIntentos Marcas      `json:"primerosIntentos"`
@@ -206,7 +208,7 @@ func (s *Svc) registerPublic() {
 				r := list[0]
 				f := FichaPub{AtletaPub: r.pub(d), PrimerosIntentos: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, PesajeInicio: r.PesajeInicio, PesajeFin: r.PesajeFin,
 					Seguidores: r.Seguidores, PermiteSeguir: r.PermiteSeguir, Tambien: []AtletaPub{}}
-				f.Frase, f.Bio, f.Instagram, f.Entrenador, f.Historial = r.Frase, r.Bio, r.Instagram, r.Entrenador, r.Historial
+				f.Frase, f.Bio, f.Instagram, f.Entrenador, f.Historial = r.Frase, r.Bio, r.Instagram, r.Entrenador, historial(r.Historial)
 				if r.MostrarMarcas && (r.MarcaSQ != nil || r.MarcaBP != nil || r.MarcaDL != nil) {
 					f.Marcas = &Marcas{r.MarcaSQ, r.MarcaBP, r.MarcaDL}
 					f.TotalPrevisto = r.totalPrevisto()
@@ -225,6 +227,10 @@ func (s *Svc) registerPublic() {
 				}
 				return f, nil
 			})
+			var se huma.StatusError
+			if errors.As(err, &se) && se.GetStatus() == http.StatusNotFound {
+				s.listaObsoleta(ctx, c.ID, in.ASlug)
+			}
 			return &fichaOut{CacheControl: cache, Body: out}, err
 		})
 
@@ -526,4 +532,54 @@ func (s *Svc) registerInternal() {
 	s.registerHorarios()
 	s.registerResultados()
 	s.registerRGPD()
+}
+
+// Historia is one past competition of the public profile (arch 40: {anio, competicion, total}).
+type Historia struct {
+	Anio        int      `json:"anio,omitempty"`
+	Competicion string   `json:"competicion"`
+	Total       *float64 `json:"total,omitempty"`
+}
+
+var (
+	reAnio  = regexp.MustCompile(`\b(19|20)\d{2}\b`)
+	reTotal = regexp.MustCompile(`(\d+(?:[.,]\d+)?)\s*kg\b`)
+)
+
+// historial splits the free text of the profile (one competition per line or «;») into items: the year and
+// the «… kg» total are read when present, the line is kept as the competition.
+func historial(txt string) []Historia {
+	out := []Historia{}
+	for _, l := range strings.FieldsFunc(txt, func(r rune) bool { return r == '\n' || r == ';' }) {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		h := Historia{Competicion: l}
+		if m := reAnio.FindString(l); m != "" {
+			h.Anio, _ = strconv.Atoi(m)
+		}
+		if m := reTotal.FindStringSubmatch(l); m != nil {
+			if v, err := strconv.ParseFloat(strings.Replace(m[1], ",", ".", 1), 64); err == nil {
+				h.Total = &v
+			}
+		}
+		out = append(out, h)
+	}
+	return out
+}
+
+// listaObsoleta bumps the public version when the cached list still links a profile that is now hidden or gone
+// (e.g. perfiles.visible changed outside the admin API), so /atletas and «También en» stop linking a 404 (U10-R1-10).
+func (s *Svc) listaObsoleta(ctx context.Context, cid uuid.UUID, slug string) {
+	var l ListaPub
+	if !s.cache.Get(ctx, cid.String()+":"+s.version(ctx, cid)+":lista", &l) {
+		return
+	}
+	for _, a := range l.Atletas {
+		if a.Slug == slug {
+			s.bump(ctx, cid)
+			return
+		}
+	}
 }

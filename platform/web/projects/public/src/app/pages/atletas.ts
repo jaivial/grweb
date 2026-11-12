@@ -264,6 +264,7 @@ export class AtletasPage {
       const mq = matchMedia('(max-width: 767px)');
       this.movil.set(mq.matches);
       mq.addEventListener('change', (e) => this.movil.set(e.matches));
+      void this.fav.sincronizar();
     }
     void inject(PendingTasks).run(async () => {
       const [l, c] = await Promise.all([this.cargar(), competition.load()]);
@@ -421,14 +422,14 @@ function catSort(a: string, b: string): number {
                 </ul>
               </section>
             }
-            @if (a.bio || a.frase || a.entrenador || a.instagram || a.historial) {
+            @if (a.bio || a.frase || a.entrenador || a.instagram || a.historial.length) {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="text-ui-h5">Sobre {{ a.nombre }}</h2>
                 @if (a.bio || a.frase) { <p class="mt-3 text-body-m text-text-secondary">{{ a.bio || a.frase }}</p> }
                 <dl class="mt-4 flex flex-col gap-2 text-body-s">
                   @if (a.entrenador) { <div class="flex gap-2"><gr-icon name="user" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Entrenador/a:</dt><dd>{{ a.entrenador }}</dd></div> }
                   @if (a.instagram) { <div class="flex gap-2"><gr-icon name="instagram" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Instagram:</dt><dd><a [href]="'https://www.instagram.com/' + a.instagram.replace('@', '') + '/'" target="_blank" rel="noopener nofollow" class="hover:text-accent-text">{{ a.instagram }}</a></dd></div> }
-                  @if (a.historial) { <div class="flex gap-2"><gr-icon name="trophy" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Historial:</dt><dd>{{ a.historial }}</dd></div> }
+                  @if (a.historial.length) { <div class="flex gap-2"><gr-icon name="trophy" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Historial:</dt><dd>@for (h of a.historial; track $index) { <span class="block">{{ h.competicion }}</span> }</dd></div> }
                 </dl>
               </section>
             }

@@ -38,7 +38,7 @@ export interface FichaPub extends AtletaPub {
   bio: string;
   instagram: string;
   entrenador: string;
-  historial: string;
+  historial: { anio?: number; competicion: string; total?: number }[];
   marcas?: Marcas;
   totalPrevisto?: number;
   primerosIntentos: Marcas;
