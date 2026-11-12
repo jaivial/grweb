@@ -114,7 +114,7 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
 
               <label class="mt-3 flex min-h-11 cursor-pointer items-center gap-3">
                 <input type="checkbox" class="size-5 shrink-0 accent-[#c42b3e]" [ngModel]="normas()" (ngModelChange)="normas.set($event)" />
-                <span class="text-body-s text-text-secondary">{{ inscripcion() ? 'Acepto las normas de participación de GR Strength Cup.' : 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.' }}</span>
+                <span class="text-body-s text-text-secondary">{{ inscripcion() || entradas() ? 'Acepto las normas de participación de GR Strength Cup.' : 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.' }}</span>
               </label>
 
               <button type="button" grButton variant="primary" size="l" [block]="true" class="mt-4" [loading]="enviando()" [disabled]="!puedeEnviar()" (click)="enviar()">Enviarme el enlace</button>
