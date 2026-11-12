@@ -5,31 +5,30 @@ import { RouterLink } from '@angular/router';
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
-import { GrAlert, GrBadge, GrButton, GrIcon, type GrIconName, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, type GrIconName, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { JuegosEstado, PorraStore, type Apuesta, type Mercado, mensajeError } from '../../core/juegos';
+import { JuegosEstado, PorraStore, type Apuesta, type Mercado, cuota as cuotaFmt } from '../../core/juegos';
 import { monedas } from './formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { CoinBalance, GrupoChips, JuegosNav } from './componentes';
+import { CoinBalance, PorraCabecera } from './componentes';
 
 type Filtro = 'todas' | 'abiertas' | 'ganadas' | 'devueltas' | 'perdidas';
 type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
 
 @Component({
   selector: 'gr-mis-apuestas-page',
-  imports: [RouterLink, Page, GrAlert, GrBadge, GrButton, GrIcon, GrSkeleton, CoinBalance, GrupoChips, JuegosNav],
+  imports: [RouterLink, Page, GrAlert, GrButton, GrIcon, GrSkeleton, CoinBalance, PorraCabecera],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Mis apuestas" [suffix]="jornadaTxt()" crumb="Mis apuestas" section="Juegos"
-      subtitle="Tu boleto de la jornada: lo que sigue en juego, lo cobrado, lo devuelto y lo perdido. Se liquida al publicarse los resultados.">
-      <div pageStamps class="flex flex-wrap items-center gap-3">
-        <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
-      </div>
-
-      <gr-juegos-nav class="mb-6 md:mb-8" juego="porra" activa="apuestas" />
+    <gr-page title="Mis apuestas" [juego]="true">
+      <gr-porra-cabecera [titulo]="'Mis apuestas ' + jornadaTxt()" crumb="Mis apuestas" activa="apuestas" [descMovil]="true"
+        descripcion="Tu boleto de la jornada: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.">
+        <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" />
+      </gr-porra-cabecera>
+      <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" />
 
       @if (!fan.conSesion()) {
         <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
@@ -54,54 +53,50 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
         </div>
       } @else {
         <!-- Figma «Resumen»: en juego, cobrado, devuelto y perdido -->
-        <div class="mb-6 grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+        <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
           @for (k of kpis(); track k.label) {
-            <div class="flex min-w-0 flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
-              <p class="text-mono-xs text-text-tertiary">{{ k.label }}</p>
-              <p class="truncate font-mono text-[22px] leading-none font-bold tabular-nums md:text-[30px]" [class]="k.color">{{ k.valor }}</p>
-              <p class="truncate text-body-xs text-text-tertiary">{{ k.nota }}</p>
+            <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-4">
+              <p class="text-mono-xs text-text-secondary">{{ k.label }}</p>
+              <p class="truncate font-mono text-[20px] leading-[1.3] font-bold tabular-nums md:text-[28px]" [class]="k.color">{{ k.valor }}</p>
+              <p class="truncate text-body-xs text-text-secondary">{{ k.nota }}</p>
             </div>
           }
         </div>
 
-        <gr-grupo-chips class="mb-4" etiqueta="Filtro de apuestas" [opciones]="opcionesFiltro()" [valor]="filtro()" (valorChange)="filtro.set($event)" />
+        <div class="hidden flex-wrap gap-2 md:flex" role="group" aria-label="Filtro de apuestas">
+          @for (o of opcionesFiltro(); track o.v) {
+            <button type="button" class="h-8 rounded-pill border px-3 text-label-xs transition-colors" [attr.aria-pressed]="o.v === filtro()" (click)="filtro.set(o.v)"
+              [class]="o.v === filtro() ? 'border-accent bg-accent/16 text-accent-text' : 'border-transparent bg-bg-field text-text-secondary hover:text-text-primary'">{{ o.l }} ({{ o.n }})</button>
+          }
+        </div>
+        <label class="relative block md:hidden">
+          <span class="sr-only">Filtro de apuestas</span>
+          <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="filtro.set($any($event.target).value)">
+            @for (o of opcionesFiltro(); track o.v) { <option [value]="o.v" [selected]="o.v === filtro()">{{ o.l }} ({{ o.n }})</option> }
+          </select>
+          <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3.5 right-4" />
+        </label>
 
-        <ul class="flex flex-col gap-2">
+        <ul class="flex flex-col gap-3">
           @for (a of visibles(); track a.id) {
-            <li class="flex min-w-0 flex-col gap-3 rounded-md border bg-bg-card px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
-              [class]="estadoApuesta(a) === 'Ganada' ? 'border-success/35' : 'border-line-subtle'">
-              <span class="flex min-w-0 items-center gap-3">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-sm border" [class]="icono(a).cls"><gr-icon [name]="icono(a).name" [size]="18" /></span>
-                <span class="min-w-0">
-                  <span class="flex items-center gap-2"><span class="truncate text-label-s text-text-primary">{{ a.mercado }}</span><gr-badge class="shrink-0" [tone]="tono(a)">{{ estadoApuesta(a) }}</gr-badge></span>
-                  <span class="block truncate text-body-xs text-text-tertiary">{{ a.atleta || '—' }}</span>
-                </span>
+            <li class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 md:flex md:items-center md:gap-4">
+              <span class="inline-flex h-6 items-center self-start justify-self-start rounded-xs px-2.5 text-[12px] font-medium tracking-[0.04em] uppercase md:self-center" [class]="tag(a)">{{ estadoApuesta(a) }}</span>
+              <span class="row-start-1 col-start-2 text-right font-mono text-[13px] font-bold text-text-primary tabular-nums md:hidden">{{ monedas(a.importe) }}</span>
+              <span class="col-span-2 flex min-w-0 flex-col gap-0.5 md:flex-1">
+                <span class="truncate text-body-s text-text-primary">{{ a.mercado }}</span>
+                <span class="truncate text-body-xs text-text-muted">{{ a.atleta || '—' }}</span>
               </span>
-              <span class="flex shrink-0 items-end justify-between gap-6 border-t border-line-subtle pt-3 sm:justify-end sm:border-0 sm:pt-0">
-                <span class="sm:text-right">
-                  <span class="block font-mono text-[15px] font-bold text-text-primary tabular-nums">{{ monedas(a.importe) }}</span>
-                  <span class="block text-mono-xs text-text-muted">Apostado</span>
-                </span>
-                <span class="min-w-[9rem] text-right">
-                  @switch (estadoApuesta(a)) {
-                    @case ('Ganada') {
-                      <span class="block font-mono text-[15px] font-bold text-success tabular-nums">+{{ monedas(cobro(a)) }}</span>
-                      <span class="block text-mono-xs text-text-muted">Cobrado</span>
-                    }
-                    @case ('Perdida') {
-                      <span class="block font-mono text-[15px] font-bold text-text-tertiary">Sin acierto</span>
-                      <span class="block text-mono-xs text-text-muted">Bote a los acertantes</span>
-                    }
-                    @case ('Devuelta') {
-                      <span class="block font-mono text-[15px] font-bold text-info tabular-nums">+{{ monedas(a.importe) }}</span>
-                      <span class="block text-mono-xs text-text-muted">Devuelto</span>
-                    }
-                    @default {
-                      <span class="block font-mono text-[15px] font-bold text-accent-text tabular-nums">~{{ monedas(cuota(a)) }}</span>
-                      <span class="block text-mono-xs text-text-muted">Si acierta</span>
-                    }
-                  }
-                </span>
+              <span class="hidden shrink-0 flex-col items-end md:flex">
+                <span class="font-mono text-[13px] font-bold text-text-primary tabular-nums">{{ monedas(a.importe) }}</span>
+                <span class="font-mono text-[11px] text-text-tertiary">importe apostado</span>
+              </span>
+              <span class="col-span-2 flex min-w-0 flex-col md:w-[220px] md:shrink-0 md:items-end">
+                @switch (estadoApuesta(a)) {
+                  @case ('Ganada') { <span class="text-body-xs text-success md:text-body-s">+{{ monedas(cobro(a)) }} cobrados</span> }
+                  @case ('Perdida') { <span class="text-body-xs text-text-muted md:text-body-s">Sin acierto</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">pierdes el importe apostado</span> }
+                  @case ('Devuelta') { <span class="text-body-xs text-info md:text-body-s">+{{ monedas(a.importe) }} devueltos</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">nadie acertó · bote de vuelta</span> }
+                  @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">Si gana: {{ monedas(cuota(a)) }}</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">ahora {{ cuotaTxt(a) }}</span> }
+                }
               </span>
             </li>
           } @empty {
@@ -224,6 +219,17 @@ export class MisApuestasPage {
   protected tono(a: Apuesta): 'success' | 'danger' | 'neutral' | 'info' | 'accent' {
     const e = this.estadoApuesta(a);
     return e === 'Ganada' ? 'success' : e === 'Perdida' ? 'neutral' : e === 'Devuelta' ? 'info' : 'accent';
+  }
+  /** La etiqueta de estado (Figma: abierta roja, ganada verde, devuelta azul, perdida gris). */
+  protected tag(a: Apuesta): string {
+    const e = this.estadoApuesta(a);
+    return e === 'Ganada' ? 'bg-success/14 text-success' : e === 'Perdida' ? 'bg-bg-raised text-text-tertiary' : e === 'Devuelta' ? 'bg-info/14 text-info' : 'bg-accent/18 text-accent-text';
+  }
+  /** La cuota en vivo del atleta apostado. */
+  protected cuotaTxt(a: Apuesta): string {
+    const m = this.mercado(a);
+    const o = m?.opciones.find((x) => x.atletaId === a.atletaId);
+    return o && o.apostado > 0 ? cuotaFmt(o.cuota || m!.bote / o.apostado) : '—';
   }
   /** El icono de la fila según el estado de la apuesta. */
   protected icono(a: Apuesta): { name: GrIconName; cls: string } {

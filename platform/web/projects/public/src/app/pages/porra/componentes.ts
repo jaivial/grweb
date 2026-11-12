@@ -30,9 +30,9 @@ export function iniciales(nombre: string | null | undefined): string {
  * exporta todavía, así que viven aquí, en un único sitio.
  */
 export const MEDALLA = {
-  1: { texto: 'text-[#d4af37]', borde: 'border-[#d4af37]', fondo: 'bg-[#d4af37]/14', anillo: 'border-[#d4af37]/80' },
-  2: { texto: 'text-[#c0c4cc]', borde: 'border-[#c0c4cc]', fondo: 'bg-[#c0c4cc]/12', anillo: 'border-[#c0c4cc]/80' },
-  3: { texto: 'text-[#c8835a]', borde: 'border-[#c8835a]', fondo: 'bg-[#c8835a]/14', anillo: 'border-[#c8835a]/80' },
+  1: { solido: 'bg-[#d4af37]', texto: 'text-[#d4af37]', borde: 'border-[#d4af37]', fondo: 'bg-[#d4af37]/14', anillo: 'border-[#d4af37]/80' },
+  2: { solido: 'bg-[#c0c4cc]', texto: 'text-[#c0c4cc]', borde: 'border-[#c0c4cc]', fondo: 'bg-[#c0c4cc]/12', anillo: 'border-[#c0c4cc]/80' },
+  3: { solido: 'bg-[#c8835a]', texto: 'text-[#c8835a]', borde: 'border-[#c8835a]', fondo: 'bg-[#c8835a]/14', anillo: 'border-[#c8835a]/80' },
 } as const;
 
 /** El aviso legal obligatorio (contrato §6.1), como una línea discreta con escudo (Figma «Aviso juego»). */
@@ -544,17 +544,15 @@ export interface PlazaPodio {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <ol class="mx-auto grid max-w-[760px] grid-cols-3 items-end gap-2 sm:gap-3" aria-label="Podio">
+    <ol class="mx-auto grid max-w-[760px] grid-cols-3 items-end gap-3" aria-label="Podio">
       @for (p of orden(); track p.puesto) {
         <li class="flex min-w-0 flex-col items-center gap-1.5 sm:gap-2" [class.order-first]="p.puesto === 2" [class.order-last]="p.puesto === 3">
           @if (p.puesto === 1) { <gr-icon name="trophy" [size]="22" [class]="m(1).texto" /> }
-          <span class="flex shrink-0 items-center justify-center rounded-full border-2 bg-bg-raised font-display text-text-primary italic shadow-[0_6px_16px_rgb(0_0_0/0.45)]"
-            [class]="m(p.puesto).anillo + (p.puesto === 1 ? ' size-14 text-[22px] sm:size-[72px] sm:text-[26px]' : ' size-12 text-[18px] sm:size-[60px] sm:text-[22px]') + (p.yo ? ' ring-2 ring-accent ring-offset-2 ring-offset-bg-base' : '')">{{ ini(p.alias) }}</span>
+          <span class="flex shrink-0 items-center justify-center rounded-full border-2 bg-bg-raised font-display text-text-primary shadow-[0_6px_16px_rgb(0_0_0/0.45)]"
+            [class]="m(p.puesto).anillo + (p.puesto === 1 ? ' size-[72px] text-[26px]' : ' size-[60px] text-[22px]') + (p.yo ? ' ring-2 ring-accent ring-offset-2 ring-offset-bg-base' : '')">{{ ini(p.alias) }}</span>
           <span class="w-full truncate text-center text-label-s text-text-primary">{{ p.alias ? '@' + p.alias : 'Anónimo' }}@if (p.yo) { <span class="sr-only"> (tú)</span> }</span>
           <span class="font-mono font-bold tabular-nums" [class]="m(p.puesto).texto + (p.puesto === 1 ? ' text-[16px] sm:text-[20px]' : ' text-[14px] sm:text-[17px]')">{{ p.valor }}</span>
-          <span class="flex w-full items-start justify-center rounded-t-md border-t-2 pt-2 font-display italic" [class]="m(p.puesto).borde + ' ' + m(p.puesto).fondo + ' ' + m(p.puesto).texto + (p.puesto === 1 ? ' h-24 text-[40px] sm:h-[104px]' : p.puesto === 2 ? ' h-[72px] text-[32px] sm:h-[76px]' : ' h-14 text-[32px]')">
-            <span class="leading-none">{{ p.puesto }}</span>
-          </span>
+          <span class="block w-full rounded-t-xs" aria-hidden="true" [class]="m(p.puesto).solido + (p.puesto === 1 ? ' h-[104px]' : p.puesto === 2 ? ' h-[76px]' : ' h-14')"></span>
         </li>
       }
     </ol>
@@ -648,7 +646,7 @@ export class LeaderboardRow {
     <div class="flex items-start justify-between gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">
         <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
-        @if (descripcion()) { <p class="hidden max-w-[1064px] text-body-m text-text-secondary md:block">{{ descripcion() }}</p> }
+        @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary md:block" [class.hidden]="!descMovil()">{{ descripcion() }}</p> }
       </div>
       <div class="hidden shrink-0 flex-col items-end gap-2.5 md:flex"><ng-content select="[aside]" /></div>
     </div>
@@ -700,6 +698,8 @@ export class PorraCabecera {
   private readonly router = inject(Router);
   readonly titulo = input.required<string>();
   readonly descripcion = input('');
+  /** La entradilla también en móvil (Mis apuestas y Clasificación sí; Mercados no). */
+  readonly descMovil = input(false);
   /** La miga tras «Porra» (vacía en /porra). */
   readonly crumb = input('');
   readonly activa = input<'mercados' | 'apuestas' | 'clasificacion'>('mercados');

@@ -23,7 +23,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Porra" [juego]="true">
-      <gr-porra-cabecera [titulo]="'Porra ' + jornadaTxt()" activa="mercados"
+      <gr-porra-cabecera [titulo]="'Porra ' + jornadaTxt() + (jornadaActiva()?.estado === 'cerrada' ? ' · Cerrada' : '')" activa="mercados"
         descripcion="Apuesta con monedas virtuales a la ganadora de cada categoría, al mejor IPF GL por sexo y a cada movimiento. La cuota se mueve en vivo con cada intento que registra la mesa (OpenLifter) y queda fijada en el momento de apostar.">
         <ng-container aside>
           <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
@@ -34,14 +34,11 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       </gr-porra-cabecera>
       <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" />
 
-      @if (apuestasCerradas()) {
-        <gr-alert tone="info" title="Apuestas cerradas">
-          La hora de cierre de esta jornada ({{ jornadaNombre() }}) ya ha pasado: puedes consultar los mercados, pero no apostar.
-        </gr-alert>
-      } @else if (soloLectura()) {
-        <gr-alert tone="info" title="Jornada cerrada">
-          Esta jornada ({{ jornadaNombre() }}) ya no admite apuestas: puedes consultarla, pero no jugar.
-        </gr-alert>
+      @if (soloLectura()) {
+        <p class="flex items-start gap-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 text-body-s text-text-secondary" role="status">
+          <gr-icon name="eye" [size]="16" class="mt-0.5 shrink-0 text-info" />
+          <span>@if (jornadaActiva()?.estado === 'cerrada') { Estás viendo el histórico de {{ jornadaNombre() }} en solo lectura.@if (otraAbierta(); as o) { Para apostar, cambia a {{ o }} · en juego.} } @else { La hora de cierre de {{ jornadaNombre() }} ya ha pasado: puedes consultar los mercados, pero no apostar. }</span>
+        </p>
       }
 
       @if (verCartera() && cartera()) {
@@ -226,6 +223,11 @@ export class PorraPage {
     return !!c && Date.parse(c) <= this.ahora();
   });
   protected readonly soloLectura = computed(() => this.jornadaActiva()?.estado === 'cerrada' || this.apuestasCerradas());
+  /** La jornada abierta o en juego distinta de la mostrada (para el aviso del histórico). */
+  protected readonly otraAbierta = computed(() => {
+    const j = this.jornadas().find((x) => x.id !== this.jornadaActiva()?.id && (x.estado === 'abierta' || x.estado === 'en_juego'));
+    return j ? this.etiquetaJornada(j) : '';
+  });
   protected readonly hito5 = computed(() => monedas(this.estado.config()?.hito5Porra ?? 100));
   protected readonly hito10 = computed(() => monedas(this.estado.config()?.hito10Porra ?? 500));
   /** Chip de filtro (Figma «Filtro»): activo rojo translúcido con borde; inactivo sobre campo. */
