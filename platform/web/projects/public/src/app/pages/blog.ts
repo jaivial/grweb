@@ -167,6 +167,8 @@ export class BlogPage {
         await applySeo(this.cms, seo, '/blog', 'Guías de powerlifting · Blog de la GR Strength Cup', 'Calendario, normativa y consejos para competir en powerlifting en la Comunitat Valenciana.', undefined, {
           path: self,
           alternates: ES(self),
+          // ?page past the last page renders an empty list: noindex instead of a soft-404 (U24-R1-6)
+          ...(d && q.page > 1 && !d.items.length ? { robots: 'noindex' } : {}),
           jsonLd: { '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog de la GR Strength Cup', url: seo.origin + self, inLanguage: 'es',
             blogPost: (d?.items ?? []).map((p) => ({ '@type': 'BlogPosting', headline: p.titulo, url: seo.origin + '/blog/' + p.slug, ...(p.publicadoAt ? { datePublished: p.publicadoAt } : {}) })) },
         });
