@@ -279,7 +279,7 @@ const BORRADOR_CLUB = 'grcup_borrador_club';
             <p class="flex"><span class="inline-flex h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-secondary uppercase">Añade tu club</span></p>
             <div class="mt-auto flex min-h-11 items-center justify-between gap-3 border-t border-line-subtle pt-2">
               <span class="text-body-xs text-text-tertiary">Directorio abierto</span>
-              <button type="button" (click)="openForm()" aria-label="Añadir mi club" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Ver club <gr-icon name="external-link" [size]="14" /></button>
+              <button type="button" (click)="openForm()" aria-label="Ver club: añadir mi club" class="inline-flex h-11 items-center gap-1 text-label-s text-accent-text">Ver club <gr-icon name="external-link" [size]="14" /></button>
             </div>
           </li>
         </ul>
