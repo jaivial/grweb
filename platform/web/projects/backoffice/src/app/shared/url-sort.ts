@@ -15,6 +15,11 @@ export function urlSort<T extends string>(cols: readonly T[], def: T, defDir: Di
   const d = q.get('dir');
   const orden = signal<T>(o && cols.includes(o) ? o : def);
   const dir = signal<Dir>(d === 'asc' || d === 'desc' ? d : orden() === def ? defDir : firstDir(orden()));
+  // invalid ?orden/?dir: normalise the URL (drop them, or rewrite dir if only it is wrong)
+  if ((o !== null && orden() !== o) || (d !== null && dir() !== d)) {
+    const ok = o !== null && orden() === o;
+    void router.navigate([], { relativeTo: route, queryParams: { orden: ok ? o : null, dir: ok ? dir() : null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
   return {
     orden: orden.asReadonly(),
     dir: dir.asReadonly(),

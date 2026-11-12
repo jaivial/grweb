@@ -45,7 +45,7 @@ type Resumen struct {
 	Nuevas7d  int            `json:"nuevas7d"`
 	Personas  int            `json:"personas"`
 	Media     float64        `json:"media" doc:"Personas por reserva"`
-	Ocupacion float64        `json:"ocupacion" doc:"% medio sobre las sesiones publicadas"`
+	Ocupacion float64        `json:"ocupacion" doc:"% de plazas ocupadas sobre el total de las sesiones publicadas"`
 	Plazas    int            `json:"plazas"`
 	Espera    int            `json:"espera"`
 	EsperaTop string         `json:"esperaTop" doc:"Sesión con más lista de espera"`
@@ -162,7 +162,7 @@ func (s *Svc) resumen(ctx context.Context, cid uuid.UUID) (Resumen, error) {
 		return r, err
 	}
 	now := time.Now()
-	var pubs, occ int
+	var usadas int
 	var top int
 	for _, x := range l {
 		r.Sesiones = append(r.Sesiones, admin(x, now))
@@ -171,13 +171,12 @@ func (s *Svc) resumen(ctx context.Context, cid uuid.UUID) (Resumen, error) {
 			top, r.EsperaTop = x.EnEspera, x.Nombre
 		}
 		if x.Publicada {
-			pubs++
-			occ += x.Usadas * 100 / x.Aforo
+			usadas += x.Usadas
 			r.Plazas += x.Aforo
 		}
 	}
-	if pubs > 0 {
-		r.Ocupacion = float64(occ / pubs)
+	if r.Plazas > 0 {
+		r.Ocupacion = float64(usadas * 100 / r.Plazas)
 	}
 	if err := s.a.DB.QueryRow(ctx, `SELECT count(*), COALESCE(sum(personas), 0), count(*) FILTER (WHERE created_at > now() - interval '7 days') FROM entradas WHERE competition_id = $1 AND estado <> 'anulada'`, cid).
 		Scan(&r.Reservas, &r.Personas, &r.Nuevas7d); err != nil {
