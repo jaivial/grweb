@@ -76,6 +76,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublic()
 	s.registerAdmin()
 	s.registerSorteos()
+	s.registerRifa()
 	s.registerRGPD()
 	a.Go(s.caducar)
 	return nil
