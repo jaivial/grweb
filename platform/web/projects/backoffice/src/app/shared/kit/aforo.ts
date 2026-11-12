@@ -129,7 +129,7 @@ const SCAN: Record<BoScan, { t: string; i: GrIconName; c: string; box: string; p
   selector: 'bo-scan-result',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': '"flex flex-col items-center gap-2 rounded-[20px] border p-4 text-center " + s().box', role: 'status', 'aria-live': 'assertive' },
+  host: { '[class]': '"flex flex-col items-center gap-3 rounded-[20px] border p-5 text-center " + s().box', role: 'status', 'aria-live': 'assertive' },
   template: `
     <span class="flex size-14 items-center justify-center rounded-full bg-current/15" [class]="s().c"><gr-icon [name]="s().i" [size]="24" [spin]="estado() === 'searching'" /></span>
     <p class="text-[24px] leading-[30px] font-bold" [class]="s().c">{{ s().t }}</p>

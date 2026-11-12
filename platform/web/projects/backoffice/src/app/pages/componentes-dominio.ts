@@ -57,7 +57,7 @@ const ROW = 'flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]';
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="d-perm">
       <h2 id="d-perm" [class]="h2">Permission cell · Consent proof</h2>
       <div class="flex gap-4">@for (p of permisos; track $index) { <bo-permission-cell [value]="p" /> }</div>
-      <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
+      <div class="grid gap-4 lg:grid-cols-2">
         @for (c of consents; track c[0]) {
           <bo-consent-proof finalidad="Novedades por email" [estado]="c[0]" texto="Novedades v2026-10 · sha256 9f3a…c1" origen="/entradas · formulario de reserva" fecha="12/06/2026 18:22:04 (Europe/Madrid)" ip="83.45.x.x (anonimizada)" [nota]="c[1]" />
         }
