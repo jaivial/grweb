@@ -1,7 +1,7 @@
 import { webPublica } from '../core/web';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { A11yModule } from '@angular/cdk/a11y';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer as DomSanitizerRef } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -80,7 +80,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
                     <gr-field label="Slug (URL)" hint="No se puede cambiar: rompería enlaces y QR"><input grInput [value]="c.slug" disabled /></gr-field>
                     <gr-field label="Nivel"><gr-select [(ngModel)]="d.evento.nivel" (ngModelChange)="tocar()" [disabled]="!puede()">
                       @for (n of niveles(); track n) { <option [value]="n">{{ n }}</option> }</gr-select></gr-field>
-                    <gr-field label="Edición"><input grInput type="number" min="1" [(ngModel)]="d.edicion" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Edición"><input grInput inputmode="numeric" [value]="d.edicion ? d.edicion + '.ª edición' : ''" (input)="tocar()" (change)="d.edicion = num($any($event.target).value) || d.edicion; $any($event.target).value = d.edicion + '.ª edición'" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Nombre corto" hint="Pestañas y emails"><input grInput [(ngModel)]="d.nombreCorto" (ngModelChange)="tocar()" maxlength="40" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Logo (URL)"><div class="flex gap-2"><input grInput class="flex-1" [(ngModel)]="d.logoUrl" (ngModelChange)="tocar()" [disabled]="!puede()" />
                       <label class="flex h-10 cursor-pointer items-center rounded-md border border-line-strong px-3 text-label-s hover:bg-bg-raised"><gr-icon name="camera" [size]="14" /><input type="file" accept="image/*" class="sr-only" (change)="subirLogo($event)" [disabled]="!puede()" /></label></div></gr-field>
@@ -103,7 +103,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
                     <gr-field label="Dirección" class="sm:col-span-2"><input grInput [(ngModel)]="d.sede.direccion" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Código postal"><input grInput [(ngModel)]="d.sede.cp" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Ciudad"><input grInput [(ngModel)]="d.sede.ciudad" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Aforo del pabellón" [error]="err('aforo')"><input grInput type="number" min="0" [(ngModel)]="d.evento.aforoPabellon" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Aforo del pabellón" [error]="err('aforo')"><input grInput inputmode="numeric" [value]="miles(d.evento.aforoPabellon)" (input)="tocar()" (change)="d.evento.aforoPabellon = num($any($event.target).value); $any($event.target).value = miles(d.evento.aforoPabellon)" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Coordenadas"><input grInput [ngModel]="coords()" (ngModelChange)="setCoords($event)" placeholder="39.3253, -0.4127" [disabled]="!puede()" /></gr-field>
                     <p class="text-body-xs text-text-tertiary sm:col-span-2">Las sesiones no pueden superar este número a la vez</p>
                   </div></section>
@@ -219,6 +219,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
 })
 export class EventoPage {
   private readonly http = inject(HttpClient);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly comps = inject(Competitions);
   private readonly auth = inject(Auth);
   private readonly toasts = inject(GrToasts);
@@ -307,6 +308,9 @@ export class EventoPage {
     void this.router.navigate([], { queryParams: { tab: t }, replaceUrl: true });
   }
   protected tocar(): void { this.cambios.set(true); }
+  protected num(v: string): number { return parseInt(v.replace(/\D/g, ''), 10) || 0; }
+  /** «1.200 personas» (Figma) */
+  protected miles(n: number): string { return n ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' personas' : ''; }
   /** Level options (Figma: select); keeps a legacy free-text value selectable. */
   protected niveles(): string[] { return this.d.evento.nivel && !NIVELES.includes(this.d.evento.nivel) ? [this.d.evento.nivel, ...NIVELES] : NIVELES; }
   /** «sáb 25 jul 2026» */
@@ -358,6 +362,8 @@ export class EventoPage {
   }
 
   protected async guardar(): Promise<void> {
+    // sync every field from the DOM first: a value set without an input event (autofill, scripted clears) must still be saved
+    this.host.nativeElement.querySelectorAll('input:not([type=file]):not([type=date]):not([readonly]), textarea').forEach((i) => { i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); });
     const errs = ['fechaFin', 'aforo', 'url', 'puertas', 'fin'].map((x) => this.err(x)).filter(Boolean);
     this.errores.set(errs);
     if (errs.length) return;
