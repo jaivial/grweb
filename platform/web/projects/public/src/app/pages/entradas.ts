@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -127,6 +127,8 @@ interface Fila { hora: string; titulo: string }
 const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 /** «2 €», «2,50 €» (cents in). */
 const euros = (c: number) => eur.format(c / 100).replace(',00', '');
+/** Booking draft kept across the magic-link login. */
+const BORRADOR = 'gr.entradas.borrador';
 const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text-text-primary placeholder:text-text-muted focus:border-accent-text focus:outline-none';
 
 /**
@@ -176,7 +178,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               <div class="flex items-center gap-3">
                 <span class="flex -space-x-2" aria-hidden="true">@for (i of [0, 1, 2, 3]; track i) { <span class="flex size-8 items-center justify-center rounded-full border-2 border-bg-base text-text-secondary" [class]="avatar[i]"><gr-icon name="user" [size]="14" /></span> }</span>
                 <span class="flex flex-col"><span class="text-body-s"><b class="font-semibold">{{ n(d!.personas) }} personas</b> ya tienen entrada</span>
-                  <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="radio" [size]="12" class="text-success" />Se actualiza cada minuto</span></span>
+                  <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="radio" [size]="12" class="text-success" />Actualizado en directo</span></span>
               </div>
             }
           </div>
@@ -230,7 +232,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               </section>
             } @else {
               <!-- a card from tablet up; on phones the form sits on the page (Figma 37 mobile) -->
-              <form class="flex flex-col gap-6 md:rounded-2xl md:border md:border-line-strong md:bg-bg-card md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
+              <form method="post" class="flex flex-col gap-6 md:rounded-2xl md:border md:border-line-strong md:bg-bg-card md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
                 <div class="flex flex-col gap-3">
                   <h2 class="text-display-xs md:text-display-s">Reserva tu entrada</h2>
                   <p class="flex flex-wrap gap-1.5">
@@ -278,7 +280,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
                 </div>
-                <button grButton variant="primary" size="l" type="submit" class="w-full" [loading]="enviando()">{{ boletos() ? 'Reservar y pagar ' + euros(boletos() * (sorteoAbierto()?.precio ?? 0)) : 'Reservar entrada gratis' }}</button>
+                <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">{{ boletos() ? 'Reservar y pagar ' + euros(boletos() * (sorteoAbierto()?.precio ?? 0)) : 'Reservar entrada gratis' }}</button>
                 <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ boletos() ? 'La entrada se reserva ya; los boletos se pagan con tarjeta en el paso siguiente.' : 'Solo usamos tus datos para tu entrada. Sin spam.' }}</p>
               </form>
             }
@@ -367,7 +369,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
     <ng-template #aforo let-s>
       <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card/90 p-4">
         <p class="flex items-center justify-between gap-3 text-label-s"><span class="flex items-center gap-2"><gr-icon name="users" [size]="16" class="text-accent-text" />Aforo · {{ s.nombre }}</span><span class="font-mono text-mono-s text-text-secondary">{{ n(s.ocupadas) }} / {{ n(s.aforo) }}</span></p>
-        <div class="h-1.5 rounded-full bg-white/10"><div class="h-full rounded-full bg-accent" [style.width.%]="min(100, s.ocupadas * 100 / s.aforo)"></div></div>
+        <div class="h-1.5 rounded-full bg-white/10"><div class="h-full rounded-full" [class]="s.estado === 'agotada' ? 'bg-text-tertiary' : 'bg-accent'" [style.width.%]="min(100, s.ocupadas * 100 / s.aforo)"></div></div>
         <p class="flex items-center gap-1.5 text-body-s text-text-secondary">@if (!s.libres) { <gr-icon name="bell" [size]="14" class="text-text-tertiary" /> }{{ s.libres ? 'Quedan ' + n(s.libres) + ' entradas para esta sesión' : 'Agotadas · apúntate a la lista de espera' }}</p>
       </div>
     </ng-template>
@@ -457,6 +459,8 @@ export class EntradasPage {
   /** Raffle tickets are sold only at the venue, in cash: never offered with the online booking. */
   protected readonly sorteoAbierto = computed((): SorteoVenta | null => null);
   protected readonly maxBoletos = computed(() => Math.min(10, this.sorteoAbierto()?.maxPorPersona ?? 0));
+  /** SSR markup: submitting is blocked until Angular takes over (no native submit with personal data). */
+  protected readonly hidratado = signal(false);
   /** Mobile bottom bar: below the hero, while the form is off screen. */
   protected readonly barra = computed(() => this.bajoHero() && !this.formVisible() && !!this.data());
 
@@ -478,15 +482,21 @@ export class EntradasPage {
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       const destroy = inject(DestroyRef);
+      const cd = inject(ChangeDetectorRef);
       afterNextRender(() => {
+        this.hidratado.set(true);
+        const b = sessionStorage.getItem(BORRADOR);
+        if (b) { sessionStorage.removeItem(BORRADOR); try { Object.assign(this.f, JSON.parse(b)); } catch { /* ignore a broken draft */ } }
+        void this.fan.cargar().then((y) => { if (y?.email && !this.f.email) this.f.email = y.email; cd.markForCheck(); });
         const el = this.reservarEl()?.nativeElement;
         const io = new IntersectionObserver(([e]) => this.formVisible.set(e.isIntersecting), { rootMargin: '0px 0px -30% 0px' });
         if (el) io.observe(el);
         const onScroll = () => this.bajoHero.set(window.scrollY > 560);
         window.addEventListener('scroll', onScroll, { passive: true });
-        // capacity every minute while the page is open (the «personas» line says so)
-        const t = setInterval(() => { if (!document.hidden) void this.api.sesiones().then((x) => { if (x) this.data.set(x); }); }, 60_000);
-        destroy.onDestroy(() => { io.disconnect(); window.removeEventListener('scroll', onScroll); clearInterval(t); });
+        // live capacity (arch 37): the public stream announces every change of a session
+        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+        es.addEventListener('aforo.actualizado', () => void this.api.sesiones().then((x) => { if (x) this.data.set(x); }));
+        destroy.onDestroy(() => { io.disconnect(); window.removeEventListener('scroll', onScroll); es.close(); });
       });
     }
   }
@@ -526,7 +536,11 @@ export class EntradasPage {
   protected async reservar(): Promise<void> {
     if (!this.validar()) return;
     // D-MIEMBROS: booking needs a fan session; the access modal brings the person back here.
-    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('entradas', '/entradas');
+    if (!(await this.fan.cargar())) {
+      // keep what was typed: the email link reloads the page
+      sessionStorage.setItem(BORRADOR, JSON.stringify(this.f));
+      return this.fan.abrirAcceso('entradas', '/entradas', this.f.email.trim());
+    }
     this.enviando.set(true);
     const qp = this.route.snapshot.queryParamMap;
     const utm: Record<string, string> = {};

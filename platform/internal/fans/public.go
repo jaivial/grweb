@@ -43,6 +43,7 @@ type Yo struct {
 	Tipo     string    `json:"tipo" enum:"atleta,publico"`
 	AtletaID uuid.UUID `json:"atletaId,omitempty" doc:"Relleno cuando el email coincide con una inscripción"`
 	Insignia string    `json:"insignia,omitempty" doc:"«Atleta» o vacío (público)"`
+	Email    string    `json:"email" doc:"Email de la propia sesión (rellena formularios)"`
 }
 
 // sesionOut is a response that (re)issues the session cookie.
@@ -52,7 +53,7 @@ type sesionOut struct {
 }
 
 func (s *Svc) yoDe(f fanRow) Yo {
-	y := Yo{ID: f.ID, Alias: f.Alias, Tipo: f.Tipo, AtletaID: atletaOpcional(f)}
+	y := Yo{ID: f.ID, Alias: f.Alias, Tipo: f.Tipo, AtletaID: atletaOpcional(f), Email: f.Email}
 	if f.Tipo == fanauth.TipoAtleta && f.AtletaID != uuid.Nil {
 		y.Insignia = "Atleta"
 	}
