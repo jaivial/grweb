@@ -143,7 +143,10 @@ export class ReglamentoPage {
     const cms = inject(Cms);
     const seo = inject(Seo);
     void inject(PendingTasks).run(() => applySeo(cms, seo, '/reglamento', 'Reglamento de powerlifting · GR Strength Cup',
-      'Cómo funciona una competición AEP: niveles AEP-1, AEP-2 y AEP-3, intentos y jueces, ejecución de sentadilla, press de banca y peso muerto, y equipamiento raw.'));
+      'Cómo funciona una competición AEP: niveles AEP-1, AEP-2 y AEP-3, intentos y jueces, ejecución de sentadilla, press de banca y peso muerto, y equipamiento raw.', undefined,
+      // Figma 20: Article schema.
+      { jsonLd: { '@context': 'https://schema.org', '@type': 'Article', headline: 'Reglamento de powerlifting 2026', inLanguage: 'es',
+        publisher: { '@type': 'Organization', name: 'GR Strength Cup' } } }));
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       // the contents card follows the section on screen (the first one in the band below the navbar)
       const vistos = new Set<string>();

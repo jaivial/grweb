@@ -39,7 +39,7 @@ async function seoMap(): Promise<SeoMap | null> {
   return seoCache.data;
 }
 
-const STATIC_ROUTES = ['/', '/en', '/atletas', '/participantes', '/horarios', '/entradas', '/sorteo', '/en-directo', '/resultados', '/resultados/2025', '/ediciones/2025', '/publico', '/clubs', '/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos', '/politica-concurso', '/alta-atleta'];
+const STATIC_ROUTES = ['/', '/en', '/categorias-de-peso', '/marcas-minimas', '/reglamento', '/atletas', '/participantes', '/horarios', '/entradas', '/sorteo', '/en-directo', '/resultados', '/resultados/2025', '/ediciones/2025', '/publico', '/clubs', '/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos', '/politica-concurso', '/alta-atleta'];
 
 /** Redirects managed from the backoffice («Páginas y SEO · Redirecciones»). */
 app.use(async (req, res, next) => {
@@ -80,6 +80,16 @@ app.get('/robots.txt', (_req, res) => {
 });
 
 app.get('/sitemap.xml', async (_req, res) => {
+  // The cms builds it (GET /api/sitemap, Figma 20); the local list is the fallback while the API is down.
+  try {
+    const r = await fetch(`${API}/api/sitemap?competicion=${SLUG}&origen=${encodeURIComponent(ORIGIN)}`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(await r.text());
+      return;
+    }
+  } catch {
+    // fall through
+  }
   const map = await seoMap();
   const noindex = new Set((map?.paginas ?? []).filter((p) => !p.indexable).map((p) => p.ruta));
   const urls = [...new Set([...STATIC_ROUTES, ...(map?.rutas ?? [])])].filter((u) => !noindex.has(u));

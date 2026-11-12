@@ -175,6 +175,9 @@ export class MarcasPage {
     const cms = inject(Cms);
     const seo = inject(Seo);
     void inject(PendingTasks).run(() => applySeo(cms, seo, '/marcas-minimas', 'Marcas mínimas AEP-1 · GR Strength Cup',
-      'Totales mínimos AEP-1 por categoría y división (júnior, absoluto, máster 1), cómo se acreditan y comprobador de marca. En la GR Strength Cup no se exige marca.'));
+      'Totales mínimos AEP-1 por categoría y división (júnior, absoluto, máster 1), cómo se acreditan y comprobador de marca. En la GR Strength Cup no se exige marca.', undefined,
+      // Figma 20: Dataset schema (the minimum totals table).
+      { jsonLd: { '@context': 'https://schema.org', '@type': 'Dataset', name: 'Marcas mínimas AEP-1 2026',
+        description: 'Totales mínimos AEP-1 por categoría de peso y división de edad.', creator: { '@type': 'Organization', name: 'Asociación Española de Powerlifting' } } }));
   }
 }
