@@ -34,7 +34,7 @@ import { Footer, Navbar, type Lang } from './layout';
              the dash, Display/M → Display/XL title, tertiary Body/M → Body/L intro, «Updated stamp» -->
         @if (cabecera() && !centrado()) {
           <header class="max-w-[900px] flex-col gap-3 md:flex md:gap-4" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
-            <nav class="flex flex-wrap items-center gap-1.5 text-body-s text-text-tertiary" aria-label="Migas">
+            <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" aria-label="Migas">
               <a routerLink="/" class="hover:text-text-primary">Inicio</a>
               @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
               <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
@@ -85,4 +85,6 @@ export class Page {
   readonly cabecera = input(true);
   /** false: the header only shows from tablet (the page brings its own mobile title, e.g. /en-directo under the video). */
   readonly cabeceraMovil = input(true);
+  /** false: breadcrumbs only from tablet (Figma 38 /mi-entrada mobile has none). */
+  readonly migasMovil = input(true);
 }
