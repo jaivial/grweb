@@ -148,9 +148,10 @@ func (s *Svc) registerPublic() {
 				o.Atletas = make([]AtletaPub, 0, len(list))
 				clubs, flights, plats := map[string]bool{}, map[string]bool{}, map[int]bool{}
 				for _, r := range list {
-					if r.publico(d) {
-						o.Atletas = append(o.Atletas, r.pub(d))
+					if !r.publico(d) {
+						continue
 					}
+					o.Atletas = append(o.Atletas, r.pub(d))
 					if r.Sexo == "F" {
 						o.Resumen.Mujeres++
 					} else {
@@ -169,7 +170,7 @@ func (s *Svc) registerPublic() {
 						o.Actualizado = r.UpdatedAt
 					}
 				}
-				o.Resumen.Total, o.Resumen.Clubs, o.Resumen.Flights, o.Resumen.Plataformas = len(list), len(clubs), len(flights), len(plats)
+				o.Resumen.Total, o.Resumen.Clubs, o.Resumen.Flights, o.Resumen.Plataformas = len(o.Atletas), len(clubs), len(flights), len(plats)
 				sortPub(o.Atletas)
 				return o, nil
 			})

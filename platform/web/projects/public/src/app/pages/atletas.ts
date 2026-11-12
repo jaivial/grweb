@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, type FichaPub, type ListaPub, type Participantes } from '../core/atletas';
 import { Cms } from '../core/cms';
@@ -42,15 +42,14 @@ export class Fav {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
-    <gr-page title="Los" [accent]="(plazas() || l?.resumen?.total || '') + ' atletas'" suffix="de la GR Cup" eyebrow="Competición 2026" crumb="Atletas"
+    <gr-page title="Los" [accent]="(l?.resumen?.total || '') + ' atletas'" suffix="de la GR Cup" eyebrow="Competición 2026" crumb="Atletas"
       subtitle="Busca a quien vienes a animar, mira su categoría y a qué hora compite. Sigue a tus atletas y tendrás tu propio horario.">
       <p pageStamps class="flex flex-wrap gap-2">
         @if (l?.actualizado) { <span class="inline-flex min-h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado el {{ fecha(l!.actualizado) }} · Fuente: inscritos AEP</span> }
-        <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-label-xs text-info">Datos de ejemplo</span>
-        @if (plazas() && l?.resumen?.total) { <span class="inline-flex h-8 items-center rounded-pill border border-line-strong bg-white/5 px-3 text-label-xs text-text-tertiary">Inscripciones {{ l!.resumen.total >= plazas()! ? 'completas' : 'abiertas' }} · {{ l!.resumen.total }}/{{ plazas() }}</span> }
+        @if (plazas() && l?.resumen?.total) { <span class="inline-flex h-8 items-center rounded-pill border border-line-strong bg-white/5 px-3 text-label-xs text-text-tertiary">Inscripciones {{ l!.resumen.total >= plazas()! ? 'completas' : 'abiertas' }} · {{ Math.min(l!.resumen.total, plazas()!) }}/{{ plazas() }}</span> }
       </p>
 
-      <div class="flex flex-col gap-3">
+      <div #buscador class="flex scroll-mt-20 flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">
           <label class="relative min-w-0 flex-1 basis-full lg:max-w-[400px] lg:basis-72">
             <span class="sr-only">Buscar atleta</span>
@@ -65,12 +64,12 @@ export class Fav {
             </button>
           }
           <button type="button" class="inline-flex h-11 items-center gap-1.5 rounded-pill border border-line-strong px-3.5 text-label-s md:hidden" (click)="filtros.set(!filtros())" [attr.aria-expanded]="filtros()">
-            <gr-icon name="menu" [size]="14" />Filtros
+            <gr-icon name="sliders" [size]="14" />Filtros
           </button>
         </div>
         <div class="flex-wrap gap-2" [class]="filtros() ? 'flex' : 'hidden md:flex'">
           <gr-select tipo="filtro" etiqueta="Categoría" aria-label="Categoría" [ngModel]="categoria()" (ngModelChange)="categoria.set($event); limite.set(24)">
-            <option value="">Todas</option>@for (c of categorias(); track c) { <option [value]="c">{{ c[0] }} {{ cat(c.slice(2)) }} kg</option> }
+            <option value="">Todas</option>@for (c of categorias(); track c) { <option [value]="c">{{ c.slice(2) ? c[0] + ' ' + cat(c.slice(2)) + ' kg' : 'Sin categoría' }}</option> }
           </gr-select>
           <gr-select tipo="filtro" etiqueta="Club" aria-label="Club" class="max-w-64" [ngModel]="club()" (ngModelChange)="club.set($event); limite.set(24)">
             <option value="">Todos</option>@for (c of clubs(); track c) { <option [value]="c">{{ c }}</option> }
@@ -94,7 +93,7 @@ export class Fav {
           <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.total }}</p><p class="text-body-xs text-text-tertiary">atletas</p></li>
           <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.mujeres }} · {{ l.resumen.hombres }}</p><p class="text-body-xs text-text-tertiary">mujeres · hombres</p></li>
           <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.clubs }}</p><p class="text-body-xs text-text-tertiary">clubs</p></li>
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.flights || '–' }}</p><p class="text-body-xs text-text-tertiary">{{ l.resumen.flights ? 'flights · ' + l.resumen.plataformas + ' plataforma' : 'flights por publicar' }}</p></li>
+          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.flights || '–' }}</p><p class="text-body-xs text-text-tertiary">{{ l.resumen.flights ? 'flights · ' + l.resumen.plataformas + (l.resumen.plataformas === 1 ? ' plataforma' : ' plataformas') : 'flights por publicar' }}</p></li>
         </ul>
       }
 
@@ -128,7 +127,7 @@ export class Fav {
                   <span class="text-label-m">{{ a.nombre }} {{ a.apellidos }}</span>
                   <span class="mt-1.5 text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</span>
                   <span class="mt-3 mb-3 flex flex-wrap gap-1.5">
-                    @if (a.categoria) { <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 bg-accent/10 px-2 text-label-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
+                    <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 bg-accent/10 px-2 text-label-xs text-accent-text">{{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : 'Sin categoría' }}</span>
                     @if (a.divisionNombre) { <span class="inline-flex h-6 items-center rounded-pill border border-line-strong bg-white/5 px-2 text-label-xs text-text-tertiary">{{ a.divisionNombre }}</span> }
                   </span>
                   <span class="mt-auto flex items-center gap-1.5 border-t border-line-subtle pt-3 text-body-xs text-text-secondary"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') : 'Horario por publicar' }}</span>
@@ -148,7 +147,7 @@ export class Fav {
                     <a [routerLink]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2.5">
                       @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-11 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                       @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-m">{{ ini(a) }}</span> }
-                      <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.categoria ? ' · ' + a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
+                      <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="line-clamp-2 block text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : 'Sin categoría' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
                       <span class="font-mono text-[13px] text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
                       <gr-fav [slug]="a.slug" [nombre]="a.nombre" />
                     </a>
@@ -184,6 +183,8 @@ export class AtletasPage {
   protected readonly cat = cat;
   protected readonly hora = hora;
   protected readonly sexoTxt = sexoTxt;
+  protected readonly Math = Math;
+  private readonly buscador = viewChild<ElementRef<HTMLElement>>('buscador');
   protected readonly ini = iniciales;
   protected readonly lista = signal<ListaPub | null | undefined>(undefined);
   protected readonly error = signal(false);
@@ -204,13 +205,13 @@ export class AtletasPage {
     { titulo: 'Entradas', texto: 'Gratis con reserva', ruta: '/entradas' },
   ];
   protected readonly plazas = computed(() => this.comp()?.inscripcion?.plazas);
-  protected readonly categorias = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.sexo + ' ' + a.categoria))].sort(catSort));
+  protected readonly categorias = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.sexo + ' ' + a.categoria.trim()))].sort(catSort));
   protected readonly clubs = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.club).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
   protected readonly divisiones = computed(() => [...new Set((this.lista()?.atletas ?? []).map((a) => a.divisionNombre))]);
   protected readonly filtrados = computed(() => {
     const q = norm(this.q());
     const list = (this.lista()?.atletas ?? []).filter((a) =>
-      (!this.sexo() || a.sexo === this.sexo()) && (!this.categoria() || a.sexo + ' ' + a.categoria === this.categoria()) && (!this.club() || a.club === this.club()) &&
+      (!this.sexo() || a.sexo === this.sexo()) && (!this.categoria() || a.sexo + ' ' + a.categoria.trim() === this.categoria()) && (!this.club() || a.club === this.club()) &&
       (!this.division() || a.divisionNombre === this.division()) && (!this.soloFav() || this.fav.slugs().includes(a.slug)) && (!q || norm(`${a.nombre} ${a.apellidos} ${a.club}`).includes(q)));
     const o = this.orden();
     if (o === 'nombre') return [...list].sort((a, b) => (a.apellidos + a.nombre).localeCompare(b.apellidos + b.nombre, 'es'));
@@ -221,7 +222,7 @@ export class AtletasPage {
   protected readonly grupos = computed(() => {
     const out: { titulo: string; items: AtletaPub[] }[] = [];
     for (const a of this.visibles()) {
-      const catTxt = a.categoria ? `${sexoTxt[a.sexo]} ${cat(a.categoria)} kg` : sexoTxt[a.sexo];
+      const catTxt = a.categoria.trim() ? `${sexoTxt[a.sexo]} ${cat(a.categoria)} kg` : `${sexoTxt[a.sexo]} · Sin categoría`;
       const t = `${catTxt}${a.flight ? ' · Flight ' + a.flight : ''}`;
       const g = out.at(-1);
       if (g && g.titulo === t) g.items.push(a);
@@ -234,12 +235,38 @@ export class AtletasPage {
     const seo = inject(Seo);
     const cms = inject(Cms);
     const competition = inject(Competition);
+    const route = inject(ActivatedRoute);
+    const router = inject(Router);
+    // Filters and search live in the query params: back from a profile, reload and share keep them (U09-R1-3).
+    const qp = route.snapshot.queryParamMap;
+    this.q.set(qp.get('q') ?? '');
+    const sx = qp.get('sexo');
+    if (sx === 'F' || sx === 'M') this.sexo.set(sx);
+    this.categoria.set(qp.get('categoria') ?? '');
+    this.club.set(qp.get('club') ?? '');
+    this.division.set(qp.get('division') ?? '');
+    const od = qp.get('orden');
+    if (od === 'nombre' || od === 'categoria') this.orden.set(od);
+    this.soloFav.set(qp.get('mis') === '1');
+    const browser = isPlatformBrowser(inject(PLATFORM_ID));
+    if (browser) {
+      effect(() => {
+        const o = this.orden();
+        const queryParams = { q: this.q().trim() || null, sexo: this.sexo() || null, categoria: this.categoria() || null, club: this.club() || null,
+          division: this.division() || null, orden: o === 'horario' ? null : o, mis: this.soloFav() ? '1' : null };
+        void router.navigate([], { queryParams, replaceUrl: true, preserveFragment: true });
+      });
+      // Mobile: an empty result sits under the hero; bring the search and the message into view (U09-R1-6).
+      effect(() => {
+        if (this.lista() && !this.filtrados().length && this.q() && innerWidth < 768) this.buscador()?.nativeElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+    }
     void inject(PendingTasks).run(async () => {
       const [l, c] = await Promise.all([this.cargar(), competition.load()]);
       this.comp.set(c);
       await applySeo(cms, seo, '/atletas', 'Atletas · GR Strength Cup', `Los ${l?.resumen.total ?? ''} atletas de la GR Strength Cup: categoría, club y horario de cada uno.`);
     });
-    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+    if (browser) {
       // Live: a published schedule changes flights and start times (public SSE).
       const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
       let t: ReturnType<typeof setTimeout> | undefined;
@@ -265,7 +292,7 @@ export class AtletasPage {
   }
 
   protected fecha(iso: string): string {
-    return new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(iso));
+    return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso));
   }
 }
 
@@ -277,7 +304,7 @@ function norm(s: string): string {
 function catSort(a: string, b: string): number {
   const k = (s: string) => {
     const [sexo, c] = s.split(' ');
-    return [sexo, Number(c.replace('+', '')) + (c.startsWith('+') ? 0.5 : 0)] as const;
+    return [sexo, c ? Number(c.replace('+', '')) + (c.startsWith('+') ? 0.5 : 0) : Infinity] as const; // «Sin categoría» last
   };
   const [sa, wa] = k(a);
   const [sb, wb] = k(b);

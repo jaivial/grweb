@@ -785,7 +785,7 @@ export class OfertaPage {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mi entrada" crumb="Mi entrada" [migasMovil]="false" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
-      <div class="mx-auto flex max-w-[350px] flex-col gap-6 max-md:-mt-[11px] md:max-w-[480px]">
+      <div class="mx-auto flex max-w-[350px] flex-col gap-6 max-md:-mt-[27px] md:max-w-[480px]">
         @let m = mia();
         @if (m === undefined) { <gr-skeleton class="h-[560px] rounded-xl" /> }
         @else if (m === null) {

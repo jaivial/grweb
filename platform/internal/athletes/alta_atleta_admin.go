@@ -929,6 +929,9 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 // creaAtleta creates the athlete of an approved request (origen «manual»).
 func (s *Svc) creaAtleta(ctx context.Context, tx pgx.Tx, cid uuid.UUID, anio int, sol solicitud) (uuid.UUID, error) {
 	id := newID()
+	if err := s.hayPlaza(ctx, tx, cid); err != nil {
+		return id, err
+	}
 	division := "open"
 	if sol.FechaNacimiento != nil {
 		division = DivisionPorEdad(*sol.FechaNacimiento, anio)

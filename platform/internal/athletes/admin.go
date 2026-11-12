@@ -403,6 +403,9 @@ func (s *Svc) registerAdmin() {
 				if r.Estado != "reserva" {
 					return problem.Conflict("NO_ES_RESERVA", "Solo se puede promocionar a atletas en reserva.")
 				}
+				if err := s.hayPlaza(ctx, tx, in.CID); err != nil {
+					return err
+				}
 				if _, err := tx.Exec(ctx, `UPDATE atletas SET estado = 'confirmado', orden_reserva = NULL, version = version + 1, updated_at = now() WHERE id = $1`, in.ID); err != nil {
 					return err
 				}
