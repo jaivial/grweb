@@ -146,6 +146,9 @@ type listaIn struct {
 	Canal  string    `query:"canal" enum:",email,whatsapp"`
 	Estado string    `query:"estado" enum:",confirmado,pendiente,revocado,rebotado,no"`
 	Rel    string    `query:"relacion" enum:",atleta,seguidor,voluntario,reserva,novedades"`
+	IDs    string    `query:"ids" maxLength:"4000" doc:"Selected contact ids, comma separated (bulk export)"`
+	Orden  string    `query:"orden" enum:",nombre,actividad"`
+	Dir    string    `query:"dir" enum:",asc,desc"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
 	Por    int       `query:"por" minimum:"1" maximum:"5000" default:"25"`
 }
@@ -186,7 +189,28 @@ func filtro(in listaIn) (string, []any) {
 	case "seguidor":
 		w = append(w, `jsonb_typeof(c.relacion -> 'sigue') = 'array' AND jsonb_array_length(c.relacion -> 'sigue') > 0`)
 	}
+	if in.IDs != "" {
+		ids := []uuid.UUID{}
+		for _, x := range strings.Split(in.IDs, ",") {
+			if id, err := uuid.Parse(strings.TrimSpace(x)); err == nil {
+				ids = append(ids, id)
+			}
+		}
+		add(`c.id = ANY(?)`, ids)
+	}
 	return strings.Join(w, " AND "), args
+}
+
+// orden is the ORDER BY of the list (whitelisted column + direction); default: latest activity first.
+func orden(in listaIn) string {
+	col := map[string]string{"nombre": "lower(COALESCE(NULLIF(c.nombre, ''), c.email::text))", "actividad": "c.actividad_at"}[in.Orden]
+	if col == "" {
+		return "c.actividad_at DESC"
+	}
+	if in.Dir == "desc" {
+		return col + " DESC, c.id"
+	}
+	return col + " ASC, c.id"
 }
 
 func (s *Svc) kpis(ctx context.Context, cid uuid.UUID) (Kpis, error) {
@@ -323,7 +347,7 @@ func (s *Svc) registerContactos() {
 			if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM contactos c WHERE `+where, args...).Scan(&o.Body.Total); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, selItem+` WHERE `+where+fmt.Sprintf(` ORDER BY c.actividad_at DESC LIMIT %d OFFSET %d`, o.Body.Por, (in.Pagina-1)*o.Body.Por), args...)
+			rows, err := s.a.DB.Query(ctx, selItem+` WHERE `+where+fmt.Sprintf(` ORDER BY %s LIMIT %d OFFSET %d`, orden(*in), o.Body.Por, (in.Pagina-1)*o.Body.Por), args...)
 			if err != nil {
 				return nil, err
 			}

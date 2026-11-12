@@ -200,6 +200,7 @@ export class AtletasApi {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
-  exportar(cid: string): Promise<void> { return this.descargar(`${this.base(cid)}/exportar.csv`, 'atletas.csv'); }
+  /** Whole list, or only `ids` (bulk «Exportar selección»). */
+  exportar(cid: string, ids: string[] = []): Promise<void> { return this.descargar(`${this.base(cid)}/exportar.csv` + (ids.length ? '?ids=' + ids.join(',') : ''), 'atletas.csv'); }
   plantilla(cid: string): Promise<void> { return this.descargar(`${this.base(cid)}/importaciones/plantilla.xlsx`, 'plantilla-acta-aep.xlsx'); }
 }

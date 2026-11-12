@@ -5,7 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
-import { BO_ROW, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
+import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, Confirm, errText } from '../../shared/ui';
 import {
   ContactosApi, ESTADO_EMAIL, ESTADO_WA, FINALIDAD, TIPO_SUP, fecha, fechaLarga, iniciales,
@@ -30,7 +30,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Contactos» (Figma page 61): list with KPIs and filters, segments and unsubscribes/suppressions. */
 @Component({
   selector: 'bo-contactos',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -65,7 +65,8 @@ function descargar(blob: Blob, nombre: string): void {
             </div>
           } @else { <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-32 rounded-lg" /> }</div> }
 
-          <bo-table-toolbar noun="contactos" [total]="l?.total ?? 0" [loading]="l === undefined" [filtered]="filtrado()" (reset)="filtrar({ q: '', origen: '', canal: '', estado: '', relacion: '' })">
+          <bo-table-toolbar noun="contactos" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="l === undefined" [filtered]="filtrado()" (clear)="limpiarSel()" (reset)="filtrar({ q: '', origen: '', canal: '', estado: '', relacion: '' })">
+            @if (canExport()) { <button bulk grButton variant="secondary" icon="download" [loading]="exportando()" (click)="exportar([...sel()])">Exportar selección</button> }
             <bo-search filters class="w-full md:w-[280px]" placeholder="Buscar por email, teléfono o nombre" [shortcut]="false" [value]="f().q ?? ''" (valueChange)="filtrar({ q: $event })" />
             <gr-select filters tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">+ Origen</option>@for (o of l?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
             <gr-select filters tipo="filtro" aria-label="Canal" [ngModel]="f().canal ?? ''" (ngModelChange)="filtrar({ canal: $event })"><option value="">+ Canal</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></gr-select>
@@ -77,10 +78,11 @@ function descargar(blob: Blob, nombre: string): void {
           @else if (l) {
             <section class="hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:block">
               <table class="w-full table-fixed text-left text-body-s">
-                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-[30%] px-4 py-3">Contacto</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">WhatsApp</th><th class="w-[22%] px-3 py-3">Relación</th><th class="px-3 py-3">Última actividad</th></tr></thead>
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-12 px-4 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todos los de esta página" /></th><th boSort class="w-[30%] py-3" [sort]="sortDe('nombre')" (toggle)="ordenar('nombre')">Contacto</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">WhatsApp</th><th class="w-[22%] px-3 py-3">Relación</th><th boSort class="py-3" [sort]="sortDe('actividad')" (toggle)="ordenar('actividad')">Última actividad</th></tr></thead>
                 <tbody>
                   @for (c of l.items; track c.id) {
-                    <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="c.emailEstado === 'rebotado' ? row.error : row.default" (click)="abrir(c)">
+                    <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="c.emailEstado === 'rebotado' ? row.error : sel().has(c.id) ? row.selected : row.default" (click)="abrir(c)">
+                      <td class="px-4 py-2.5" (click)="$event.stopPropagation()"><bo-checkbox [value]="sel().has(c.id)" (valueChange)="toggleSel(c.id)" [aria]="'Seleccionar ' + (c.nombre || c.email)" /></td>
                       <td class="px-4 py-2.5"><div class="flex items-center gap-3"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-deep/40 text-mono-xs">{{ ini(c.nombre || c.email) }}</span>
                         <div class="min-w-0"><p class="truncate text-label-s">{{ c.nombre || c.email }}</p><p class="truncate text-body-xs text-text-tertiary">{{ c.nombre ? c.email : '' }}{{ c.telefono ? (c.nombre ? ' · ' : '') + c.telefono : '' }}</p></div></div></td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-secondary">{{ c.origen }}</td>
@@ -89,7 +91,7 @@ function descargar(blob: Blob, nombre: string): void {
                       <td class="truncate px-3 py-2.5 text-text-secondary">{{ c.relacion || '—' }}</td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fecha(c.ultimaActividad) }}</td>
                     </tr>
-                  } @empty { <tr><td colspan="6" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nadie coincide con los filtros' : 'Todavía no hay contactos'" [text]="filtrado() ? 'Prueba con otro email o limpia los filtros.' : 'Se crean al reservar entradas o suscribirse a novedades.'" /></td></tr> }
+                  } @empty { <tr><td colspan="7" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nadie coincide con los filtros' : 'Todavía no hay contactos'" [text]="filtrado() ? 'Prueba con otro email o limpia los filtros.' : 'Se crean al reservar entradas o suscribirse a novedades.'" /></td></tr> }
                 </tbody>
               </table>
             </section>
@@ -269,7 +271,26 @@ export class ContactosPage {
     let t = 0;
     return serie.map((x) => (t += x));
   }
+  protected readonly sel = signal(new Set<string>());
+  protected readonly todos = computed(() => {
+    const ids = (this.lista()?.items ?? []).map((c) => c.id), n = ids.filter((id) => this.sel().has(id)).length;
+    return n && n === ids.length ? true : n ? 'mixed' : false;
+  });
+  protected sortDe(c: string): 'asc' | 'desc' | null { return (this.f().orden ?? 'actividad') === c ? (this.f().dir ?? (c === 'actividad' ? 'desc' : 'asc')) : null; }
+  protected ordenar(c: 'nombre' | 'actividad'): void {
+    this.filtrar({ orden: c, dir: this.sortDe(c) === 'asc' ? 'desc' : 'asc' });
+  }
+  protected limpiarSel(): void { this.sel.set(new Set()); }
+  protected toggleSel(id: string): void {
+    const s = new Set(this.sel());
+    if (!s.delete(id)) s.add(id);
+    this.sel.set(s);
+  }
+  protected selTodos(): void {
+    this.sel.set(this.todos() === true ? new Set() : new Set((this.lista()?.items ?? []).map((c) => c.id)));
+  }
   protected async cargar(): Promise<void> {
+    this.sel.set(new Set());
     try {
       this.lista.set(await this.api.lista(this.cid(), this.f()));
     } catch {
@@ -284,10 +305,10 @@ export class ContactosPage {
   protected abrir(c: ContactoItem): void {
     void this.router.navigate([c.id], { relativeTo: this.route });
   }
-  protected async exportar(): Promise<void> {
+  protected async exportar(ids: string[] = []): Promise<void> {
     this.exportando.set(true);
     try {
-      descargar(await this.api.exportar(this.cid(), { ...this.f(), pagina: undefined }), 'contactos.csv');
+      descargar(await this.api.exportar(this.cid(), ids.length ? { ids: ids.join(',') } : { ...this.f(), pagina: undefined }), 'contactos.csv');
       this.toasts.success('CSV exportado', 'Queda registrado en la auditoría.');
     } catch (e) {
       this.toasts.error('No se pudo exportar', errText(e));

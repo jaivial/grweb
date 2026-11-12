@@ -7,7 +7,7 @@ import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleto
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BO_ROW, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
+import { BO_ROW, BoCheckbox, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText } from '../../shared/ui';
 import { AtletasApi, cat, type ItemLista, type Lista } from './api';
 
@@ -28,11 +28,11 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
-    <div class="mx-auto flex max-w-[1180px] flex-col gap-6">
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-6">
       <bo-page-header title="Atletas" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas']">
         @if (canEdit()) { <a actions grButton icon="ticket" routerLink="inscripcion">Inscripción</a> }
         @if (canWeigh()) { <a actions grButton icon="scale" routerLink="pesaje">Pesaje</a> }
@@ -84,7 +84,8 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 
         @if (pestana() !== 'incidencias' || reservas().length) {
           @if (pestana() !== 'incidencias') {
-            <bo-table-toolbar noun="atletas" [total]="l?.total ?? 0" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()">
+            <bo-table-toolbar noun="atletas" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()" (clear)="limpiarSel()">
+              @if (canEdit()) { <button bulk grButton variant="secondary" icon="download" [loading]="exporting()" (click)="exportar([...sel()])">Exportar selección</button> }
               <bo-search filters class="w-full md:w-[280px]" placeholder="Buscar atleta, club o licencia…" [shortcut]="false" [value]="q()" (valueChange)="buscar($event)" [loading]="cargando() && !!q()" />
               <gr-select filters tipo="filtro" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
                 <option value="">Sexo</option><option value="F">Femenino</option><option value="M">Masculino</option>
@@ -110,12 +111,13 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
               <table class="w-full table-fixed text-left">
                 <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase">
                   <tr>
+                    @if (pestana() !== 'incidencias') { <th class="w-12 px-4 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todos los de esta página" /></th> }
                     @if (pestana() === 'incidencias') { <th class="w-16 px-4 py-3 font-normal">Orden</th> }
-                    <th class="px-4 py-3 font-normal">Atleta</th>
-                    <th class="w-24 px-3 py-3 font-normal">Categoría</th>
+                    @if (pestana() === 'incidencias') { <th class="px-4 py-3 font-normal">Atleta</th> } @else { <th boSort class="px-4 py-3" [sort]="sortDe('nombre')" (toggle)="ordenar('nombre')">Atleta</th> }
+                    @if (pestana() === 'incidencias') { <th class="w-24 px-3 py-3 font-normal">Categoría</th> } @else { <th boSort class="w-28 py-3" [sort]="sortDe('categoria')" (toggle)="ordenar('categoria')">Categoría</th> }
                     <th class="w-16 px-3 py-3 font-normal">Flight</th>
                     <th class="w-32 px-3 py-3 font-normal">Estado AEP</th>
-                    <th class="w-40 px-3 py-3 font-normal">Perfil público</th>
+                    @if (pestana() === 'incidencias') { <th class="w-40 px-3 py-3 font-normal">Perfil público</th> } @else { <th boSort class="w-40 py-3" [sort]="sortDe('completo')" (toggle)="ordenar('completo')">Perfil público</th> }
                     <th class="w-24 px-3 py-3 font-normal">Imagen</th>
                     <th class="w-24 px-3 py-3 text-right font-normal">Seguidores</th>
                     <th [class]="pestana() === 'incidencias' ? 'w-36' : 'w-12'"><span class="sr-only">Acciones</span></th>
@@ -123,7 +125,8 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                 </thead>
                 <tbody>
                   @for (a of filas(); track a.id) {
-                    <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="a.estado === 'baja' ? row.disabled : row.default" (click)="abrir(a.id)">
+                    <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="a.estado === 'baja' ? row.disabled : sel().has(a.id) ? row.selected : row.default" (click)="abrir(a.id)">
+                      @if (pestana() !== 'incidencias') { <td class="px-4 py-3" (click)="$event.stopPropagation()"><bo-checkbox [value]="sel().has(a.id)" (valueChange)="toggleSel(a.id)" [aria]="'Seleccionar ' + a.nombreCompleto" /></td> }
                       @if (pestana() === 'incidencias') { <td class="px-4 py-3 text-mono-s">{{ a.ordenReserva }}</td> }
                       <td class="px-4 py-3">
                         <a [routerLink]="a.id" class="flex min-w-0 items-center gap-3" (click)="$event.stopPropagation()">
@@ -147,8 +150,8 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       </td>
                     </tr>
                   } @empty {
-                    @if (cargando()) { <tr><td colspan="9"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
-                    @else { <tr><td colspan="9" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
+                    @if (cargando()) { <tr><td colspan="10"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
+                    @else { <tr><td colspan="10" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
                   }
                 </tbody>
               </table>
@@ -247,6 +250,28 @@ export class AtletasPage {
     this.recargar(1);
   }
   protected readonly pagina = signal(1);
+  protected readonly orden = signal<'nombre' | 'categoria' | 'completo'>('nombre');
+  protected readonly dir = signal<'asc' | 'desc'>('asc');
+  protected readonly sel = signal(new Set<string>());
+  protected readonly todos = computed(() => {
+    const ids = this.filas().map((a) => a.id), n = ids.filter((id) => this.sel().has(id)).length;
+    return n && n === ids.length ? true : n ? 'mixed' : false;
+  });
+  protected sortDe(c: string): 'asc' | 'desc' | null { return this.orden() === c ? this.dir() : null; }
+  protected ordenar(c: 'nombre' | 'categoria' | 'completo'): void {
+    this.dir.set(this.orden() === c && this.dir() === 'asc' ? 'desc' : 'asc');
+    this.orden.set(c);
+    void this.recargar(1);
+  }
+  protected limpiarSel(): void { this.sel.set(new Set()); }
+  protected toggleSel(id: string): void {
+    const s = new Set(this.sel());
+    if (!s.delete(id)) s.add(id);
+    this.sel.set(s);
+  }
+  protected selTodos(): void {
+    this.sel.set(this.todos() === true ? new Set() : new Set(this.filas().map((a) => a.id)));
+  }
   protected readonly promo = signal<ItemLista | null>(null);
   protected readonly avisar = signal(true);
   protected readonly promoBusy = signal(false);
@@ -314,6 +339,7 @@ export class AtletasPage {
     const cid = this.comps.current()?.id;
     if (!cid) return;
     this.pagina.set(pagina);
+    if (!silencioso) this.sel.set(new Set());
     if (!silencioso) this.cargando.set(true);
     try {
       if (this.pestana() === 'incidencias') {
@@ -332,7 +358,7 @@ export class AtletasPage {
         }))));
       } else {
         this.lista.set(await this.api.lista(cid, {
-          pestana: this.pestana(), q: this.q(), sexo: this.sexo(), categoria: this.categoria(), flight: this.flight(), perfil: this.incompletos() ? 'incompleto' : '', pagina, por: this.por,
+          pestana: this.pestana(), q: this.q(), sexo: this.sexo(), categoria: this.categoria(), flight: this.flight(), perfil: this.incompletos() ? 'incompleto' : '', orden: this.orden(), dir: this.dir(), pagina, por: this.por,
         }));
       }
     } catch (e) {
@@ -368,12 +394,12 @@ export class AtletasPage {
     }
   }
 
-  protected async exportar(): Promise<void> {
+  protected async exportar(ids: string[] = []): Promise<void> {
     const cid = this.comps.current()?.id;
     if (!cid) return;
     this.exporting.set(true);
     try {
-      await this.api.exportar(cid);
+      await this.api.exportar(cid, ids);
     } catch (e) {
       this.toasts.error('No se pudo exportar', errText(e));
     } finally {

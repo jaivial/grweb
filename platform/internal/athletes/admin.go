@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -109,6 +110,7 @@ func (s *Svc) registerAdmin() {
 		Perfil    string    `query:"perfil" enum:"incompleto,sin_foto,"`
 		Q         string    `query:"q" maxLength:"80"`
 		Orden     string    `query:"orden" enum:"nombre,categoria,completo,reserva" default:"nombre"`
+		Dir       string    `query:"dir" enum:"asc,desc" default:"asc"`
 		Pagina    int       `query:"pagina" minimum:"1" default:"1"`
 		Por       int       `query:"por" minimum:"1" maximum:"500" default:"25"`
 	}
@@ -208,6 +210,9 @@ func (s *Svc) registerAdmin() {
 			_ = s.a.DB.QueryRow(ctx, `SELECT max(updated_at) FROM importaciones WHERE competition_id = $1 AND estado = 'confirmada'`, in.CID).Scan(&imp)
 			out.Importado = imp
 			sortRows(filtered, in.Orden)
+			if in.Dir == "desc" {
+				slices.Reverse(filtered)
+			}
 			out.Total = len(filtered)
 			from, to := (in.Pagina-1)*in.Por, in.Pagina*in.Por
 			for i := from; i < to && i < len(filtered); i++ {
@@ -588,6 +593,16 @@ func (s *Svc) registerAdmin() {
 		if err != nil {
 			problem.Write(w, problem.Internal())
 			return
+		}
+		// ?ids=a,b,c exports only the rows selected in the table (bulk action).
+		if raw := r.URL.Query().Get("ids"); raw != "" {
+			sel := map[uuid.UUID]bool{}
+			for _, x := range strings.Split(raw, ",") {
+				if id, err := uuid.Parse(strings.TrimSpace(x)); err == nil {
+					sel[id] = true
+				}
+			}
+			list = slices.DeleteFunc(list, func(a row) bool { return !sel[a.ID] })
 		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="atletas.csv"`)
