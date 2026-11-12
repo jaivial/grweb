@@ -36,7 +36,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
   template: `
     <gr-page title="Categorías de" accent="peso y edad" eyebrow="Competición" section="Competición" crumb="Categorías de peso"
       subtitle="Las 18 categorías de peso corporal y las divisiones por edad con las que se compite en la GR Strength Cup, según la Asociación Española de Powerlifting (AEP)."
-      stamp="Fuente: AEP / IPF · categorías vigentes de la IPF">
+      stamp="Actualizado el 28/10/2026 · Fuente: AEP / IPF">
       <gr-chips-ancla [anclas]="anclas" />
       <div class="flex flex-col gap-12 md:gap-20">
         <!-- 01 · Calculadora -->
@@ -46,7 +46,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
             <div class="flex flex-col gap-4 rounded-[20px] border border-accent bg-bg-card p-5 md:p-7">
               <div class="flex items-center gap-2">
                 <span class="flex size-9 items-center justify-center rounded-sm bg-accent/14 text-accent-text"><gr-icon name="scale" [size]="18" /></span>
-                <h3 class="text-ui-h5 md:text-ui-h4">¿En qué categoría compito?</h3>
+                <p class="text-ui-h5 md:text-ui-h4">¿En qué categoría compito?</p>
               </div>
               <div class="grid grid-cols-2 gap-1 rounded-md border border-line-subtle p-1" role="radiogroup" aria-label="Sexo">
                 @for (g of generos; track g.k) {
