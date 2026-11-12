@@ -357,6 +357,7 @@ export class AreaAtletaPage {
     this.guardandoPrueba.set(true);
     try {
       await this.set(await firstValueFrom(this.http.put<Panel>(`${api}/prueba`, { prueba: this.eleccion() })));
+      this.verEleccion.set(false);
       this.aviso('Competición guardada: ' + this.nombrePrueba(this.eleccion()));
     } catch (e) {
       const actual = this.panel()?.prueba?.elegida;
