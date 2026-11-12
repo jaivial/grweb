@@ -114,10 +114,11 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
 
               <label class="mt-3 flex min-h-11 cursor-pointer items-center gap-3">
                 <input type="checkbox" class="size-5 shrink-0 accent-[#c42b3e]" [ngModel]="normas()" (ngModelChange)="normas.set($event)" />
-                <span class="text-body-s text-text-secondary">{{ inscripcion() || entradas() ? 'Acepto las normas de participación de GR Strength Cup.' : 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.' }}</span>
+                <span class="text-body-s text-text-secondary">{{ inscripcion() || entradas() || seguir() ? 'Acepto las normas de participación de GR Strength Cup.' : 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.' }}</span>
               </label>
+              @if (errorNormas()) { <span class="mt-1 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />Marca la casilla para continuar.</span> }
 
-              <button type="button" grButton variant="primary" size="l" [block]="true" class="mt-4" [loading]="enviando()" [disabled]="!puedeEnviar()" (click)="enviar()">Enviarme el enlace</button>
+              <button type="button" grButton variant="primary" size="l" [block]="true" class="mt-4" [loading]="enviando()" (click)="enviar()">Enviarme el enlace</button>
               <p class="mt-3 flex items-center justify-center gap-1.5 text-center text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Sin contraseñas · el enlace caduca en 30 min</p>
             }
           }
@@ -136,6 +137,7 @@ export class AccesoModal {
   protected readonly normas = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly errorAlias = signal<string | null>(null);
+  protected readonly errorNormas = signal(false);
   protected readonly enviando = signal(false);
 
   protected readonly garantias: { i: GrIconName; t: string }[] = [
@@ -168,11 +170,12 @@ export class AccesoModal {
     effect(() => {
       if (!this.fan.accesoAbierto()) return;
       this.estado.set('formulario');
-      // Registering: there is no athlete yet (AEP badge would give ATLETA_NO_ENCONTRADO), so the account is público.
-      if (this.fan.motivoAcceso() === 'inscripcion') this.tipo.set('publico');
+      // Always preselect «Público» (U10-R2-2); registering has no athlete yet, so it stays público.
+      this.tipo.set('publico');
       if (this.fan.emailAcceso()) this.email.set(this.fan.emailAcceso());
       this.error.set(null);
       this.errorAlias.set(null);
+      this.errorNormas.set(false);
     });
   }
 
@@ -187,10 +190,19 @@ export class AccesoModal {
   }
 
   protected async enviar(): Promise<void> {
-    if (!this.puedeEnviar() || this.enviando()) return;
+    if (this.enviando()) return;
+    if (!this.puedeEnviar()) {
+      // Field errors instead of a silent no-op (U10-R2-2).
+      const a = this.alias().trim().length;
+      this.errorAlias.set(a < 3 || a > 20 ? 'El alias debe tener entre 3 y 20 caracteres.' : null);
+      this.error.set(this.email().includes('@') ? null : 'Escribe un email válido.');
+      this.errorNormas.set(!this.normas());
+      return;
+    }
     this.enviando.set(true);
     this.error.set(null);
     this.errorAlias.set(null);
+    this.errorNormas.set(false);
     try {
       await this.fan.pedirAcceso({ email: this.email().trim(), tipo: this.tipo(), alias: this.alias().trim(), aceptaNormas: this.normas(), next: this.fan.volverA() ?? undefined });
       this.estado.set('enviado');
