@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
-import { FanSession, codigoError, detalleError } from '../core/fan';
+import { DESTINO_INTERNO, FanSession, codigoError, detalleError } from '../core/fan';
 import { Page } from '../layout/page';
 
 /**
@@ -40,9 +40,9 @@ import { Page } from '../layout/page';
           } @else {
             <span class="flex size-16 items-center justify-center rounded-full border-2 border-success/50 bg-success/14 text-success shadow-[0_0_28px_rgb(34_197_94/0.35)]"><gr-icon name="check" [size]="30" /></span>
             <p class="mt-1 font-display text-[28px] leading-tight uppercase italic">¡Ya estás dentro!</p>
-            <p class="text-body-s text-text-secondary">Te llevamos al directo con tu alias <span class="font-semibold text-text-primary">{{ alias() }}</span>.</p>
+            <p class="text-body-s text-text-secondary">{{ destino() === '/en-directo' ? 'Te llevamos al directo' : 'Te llevamos de vuelta' }} con tu alias <span class="font-semibold text-text-primary">{{ alias() }}</span>.</p>
             <span class="mt-2 block h-1 w-full overflow-hidden rounded-full bg-bg-raised" aria-hidden="true"><span class="gr-progreso block h-full rounded-full bg-accent-grain"></span></span>
-            <a grButton variant="primary" size="l" [block]="true" routerLink="/en-directo" iconRight="arrow-right" class="mt-2">Ir al directo</a>
+            <a grButton variant="primary" size="l" [block]="true" [href]="destino()" iconRight="arrow-right" class="mt-2">{{ destino() === '/en-directo' ? 'Ir al directo' : 'Continuar' }}</a>
           }
         </div>
       </div>
@@ -62,6 +62,8 @@ export class AccesoPage {
   protected readonly estado = signal<'cargando' | 'error' | 'ok'>('cargando');
   protected readonly error = signal<string | null>(null);
   protected readonly alias = signal('');
+  /** Where the fan goes after redeeming: the internal destination saved with the link (an invitation to a room) or the direct. */
+  protected readonly destino = signal('/en-directo');
 
   constructor() {
     effect(() => {
@@ -78,9 +80,9 @@ export class AccesoPage {
           this.alias.set(f.alias);
           this.estado.set('ok');
           // Back to where the link was asked for (only a path of this web), else the live page.
-          const next = this.route.snapshot.queryParamMap.get('next') ?? '';
-          const destino = /^\/(?!\/)[A-Za-z0-9/_.~?=&%-]*$/.test(next) ? next : '/en-directo';
-          setTimeout(() => void this.router.navigateByUrl(destino), 900);
+          const next = f.next || (this.route.snapshot.queryParamMap.get('next') ?? '');
+          if (/^\/(?!\/)[A-Za-z0-9/_.~?=&%-]*$/.test(next)) this.destino.set(next);
+          setTimeout(() => void this.router.navigateByUrl(this.destino()), 900);
         })
         .catch((e) => {
           this.estado.set('error');

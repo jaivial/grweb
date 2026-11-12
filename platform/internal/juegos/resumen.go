@@ -3,6 +3,7 @@ package juegos
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -61,16 +62,16 @@ type resumenPorra struct {
 }
 
 type atletaAlineacion struct {
-	AtletaID    uuid.UUID `json:"atletaId"`
-	Nombre      string    `json:"nombre"`
-	Categoria   string    `json:"categoria"`
-	Puntos      int       `json:"puntos"`
-	Compitiendo bool      `json:"compitiendo"`
+	AtletaID    uuid.UUID  `json:"atletaId"`
+	Nombre      string     `json:"nombre"`
+	Categoria   string     `json:"categoria"`
+	Nota        notaAtleta `json:"nota"`
+	Compitiendo bool       `json:"compitiendo"`
 }
 
 type alineacionDestacada struct {
 	Alias   string             `json:"alias"`
-	Puntos  int                `json:"puntos"`
+	Nota    float64            `json:"nota" doc:"Media de la alineación (0,00–10,00)"`
 	Atletas []atletaAlineacion `json:"atletas"`
 }
 
@@ -198,58 +199,67 @@ func (s *Svc) cargarResumenFantasy(ctx context.Context, cid uuid.UUID) (resumenF
 		return o, err
 	}
 	o.Jornada = ptr(j.out())
-	if err := s.a.DB.QueryRow(ctx, `SELECT count(DISTINCT dueno_fan_id), count(dueno_fan_id) FROM fantasy_atletas WHERE jornada_id = $1`, j.ID).
+	// BIZ-143: teams live in the rooms (one owner per athlete inside each room); the home ranks the players of
+	// every public room of the jornada by the grade of their lineup.
+	if err := s.a.DB.QueryRow(ctx, `SELECT (SELECT count(*) FROM sala_miembros WHERE jornada_id = $1),
+		(SELECT count(*) FROM sala_atletas WHERE jornada_id = $1 AND dueno_fan_id IS NOT NULL)`, j.ID).
 		Scan(&o.EquiposCreados, &o.AtletasFichados); err != nil {
 		return o, err
 	}
-	todos, _ := s.rankingFantasy(ctx, *j, uuid.Nil)
-	// only fans with a team (a wallet alone is not a team: QA U04-R1-13)
-	top := make([]filaFantasy, 0, 3)
-	for _, f := range todos {
-		if len(top) == 3 {
-			break
-		}
-		if f.Valor > 0 || f.Puntos != 0 {
-			top = append(top, f)
-		}
-	}
-	o.Top3 = publicaFantasy(top)
-	if len(top) == 0 {
-		return o, nil
-	}
-	lider := top[0]
-	var media float64
-	if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(avg(t), 0)::float8 FROM (SELECT sum(p.puntos) t FROM puntos p JOIN jornadas jj ON jj.id = p.jornada_id
-		WHERE jj.competition_id = $1 AND p.fan_id = $2 GROUP BY p.jornada_id) x`, cid, lider.FanID).Scan(&media); err != nil {
+	rows, err := s.a.DB.Query(ctx, selSala+` WHERE s.jornada_id = $1 AND s.publica AND s.estado IN ('abierta', 'en_juego', 'finalizada')
+		ORDER BY s.created_at LIMIT 200`, j.ID)
+	if err != nil {
 		return o, err
 	}
-	o.MejorNota = &mejorNota{Alias: lider.Alias, NotaMedia: media}
+	var salas []*salaRow
+	for rows.Next() {
+		sl, err := scanSala(rows)
+		if err != nil {
+			rows.Close()
+			return o, err
+		}
+		salas = append(salas, sl)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil || len(salas) == 0 {
+		return o, err
+	}
+	clas, err := s.clasificarSalas(ctx, s.a.DB, cid, *j, salas, uuid.Nil)
+	if err != nil {
+		return o, err
+	}
+	var todos []filaSala
+	for _, fs := range clas {
+		for _, f := range fs {
+			if len(f.Alineacion) > 0 {
+				todos = append(todos, f)
+			}
+		}
+	}
+	sort.SliceStable(todos, func(a, b int) bool { return todos[a].Nota > todos[b].Nota })
+	for i, f := range todos {
+		if i == 3 {
+			break
+		}
+		o.Top3 = append(o.Top3, filaFantasyPublic{Puesto: i + 1, Alias: f.Alias, Nota: f.Nota, Valor: f.Valor, Saldo: f.Saldo})
+	}
+	if len(todos) == 0 {
+		return o, nil
+	}
+	lider := todos[0]
+	o.MejorNota = &mejorNota{Alias: lider.Alias, NotaMedia: lider.Nota}
 	enCurso := map[uuid.UUID]bool{}
-	if ats, err := s.mercadoFantasy(ctx, cid, *j, uuid.Nil); err == nil {
+	if ats, err := s.mercadoFantasy(ctx, cid, *j, uuid.Nil, uuid.Nil); err == nil {
 		for _, a := range ats {
 			enCurso[a.AtletaID] = a.FlightEnCurso
 		}
 	}
-	rows, err := s.a.DB.Query(ctx, `SELECT fa.atleta_id, fa.nombre_publico, fa.categoria, COALESCE(sum(p.puntos), 0)::int
-		FROM fantasy_atletas fa
-		LEFT JOIN puntos p ON p.jornada_id = fa.jornada_id AND p.atleta_id = fa.atleta_id AND p.fan_id = fa.dueno_fan_id
-		WHERE fa.jornada_id = $1 AND fa.dueno_fan_id = $2 AND fa.titular
-		GROUP BY fa.atleta_id, fa.nombre_publico, fa.categoria ORDER BY 4 DESC, 2 LIMIT 5`, j.ID, lider.FanID)
-	if err != nil {
-		return o, err
-	}
-	defer rows.Close()
-	al := &alineacionDestacada{Alias: lider.Alias, Puntos: lider.Puntos, Atletas: []atletaAlineacion{}}
-	for rows.Next() {
-		var a atletaAlineacion
-		if err := rows.Scan(&a.AtletaID, &a.Nombre, &a.Categoria, &a.Puntos); err != nil {
-			return o, err
-		}
-		a.Compitiendo = enCurso[a.AtletaID]
-		al.Atletas = append(al.Atletas, a)
+	al := &alineacionDestacada{Alias: lider.Alias, Nota: lider.Nota, Atletas: []atletaAlineacion{}}
+	for _, a := range lider.Alineacion {
+		al.Atletas = append(al.Atletas, atletaAlineacion{AtletaID: a.AtletaID, Nombre: a.Nombre, Categoria: a.Categoria, Nota: a.Nota, Compitiendo: enCurso[a.AtletaID]})
 	}
 	o.AlineacionDestacada = al
-	return o, rows.Err()
+	return o, nil
 }
 
 func (s *Svc) registerResumen() {

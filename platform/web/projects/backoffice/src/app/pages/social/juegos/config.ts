@@ -7,7 +7,7 @@ import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, errText } from '../../../shared/ui';
 import { SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas, num } from '../ui';
-import { JuegosApi, type ConfigJuegos, type Jornada } from './api';
+import { JuegosApi, type ConfigJuegos, type Jornada, type PuntosCfg } from './api';
 
 interface Campo {
   label: string;
@@ -25,10 +25,10 @@ interface Grupo {
 const cfgPorDefecto: ConfigJuegos = {
   porraMin: 100, porraMax: 50000,
   hito5Porra: 100, hito10Porra: 500, hito5Fantasy: 10000, hito10Fantasy: 50000, fantasyPorEuro: 10000,
-  maxHitos: 100, maxClausulazos: 3, proteccionMin: 10, plantillaMax: 8, titularesMax: 5,
+  maxHitos: 100, maxClausulazos: 3, proteccionMin: 10, plantillaMax: 5, titularesMax: 5,
   clausulaInicial: 200000, clausulaMin: 50000, clausulaMax: 5000000,
   pctValido: 5, pctNulo: -4, pctBlanqueo: -30, pctDemanda: 3, pctPuesto: [25, 15, 8],
-  puntos: { intentoValido: 3, pleno: 5, blanqueo: -15, cat: [20, 14, 10, 5, 2], gl: [25, 18, 12, 4], mov: [10, 6, 3] },
+  puntos: { intentos: 5, puesto: [3, 2.4, 1.8, 1.2, 0.6], pleno: 0.5, recordPersonal: 0.6, recordCompeticion: 1, total: 0.3, nulo: 0.3, pctClausula: 4 },
   activo: true, version: 1, updatedPor: '',
 };
 
@@ -134,7 +134,7 @@ const cfgPorDefecto: ConfigJuegos = {
           </div>
         </so-card>
 
-        <so-card titulo="Puntos fantasy" ayuda="Lo que suma cada atleta de la plantilla en la jornada">
+        <so-card titulo="Nota fantasy (0–10)" ayuda="Nota de cada atleta = intentos + puesto + bonus − nulos · en décimas (5 = 0,5) · blanqueo = 0,0">
           @if (cambiosEn(puntosGrupos)) { <span cardActions class="inline-flex h-6 items-center rounded-2xs border border-warning/30 bg-warning/10 px-2 font-mono text-mono-xs text-warning">{{ cambiosEn(puntosGrupos) }} {{ cambiosEn(puntosGrupos) === 1 ? 'cambio' : 'cambios' }}</span> }
           <div class="grid gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
             @for (col of puntosCols; track $index) {
@@ -196,32 +196,25 @@ export class JuegosConfigPage {
   protected readonly error = signal('');
 
   private readonly g = (t: string, campos: Campo[]): Grupo => ({ t, campos });
+  /** Los pesos de la nota son decimales (0,5): el formulario los edita en décimas enteras (5) y los guarda divididos entre 10. */
+  private readonly decima = (label: string, lee: (p: PuntosCfg) => number, escribe: (p: PuntosCfg, v: number) => PuntosCfg): Campo => ({
+    label, unidad: 'déc.', valor: (c) => Math.round(lee(c.puntos) * 10), cambia: (c, v) => ({ ...c, puntos: escribe(c.puntos, v / 10) }),
+  });
+  private readonly puesto = (i: number, label: string): Campo => this.decima(label, (p) => p.puesto[i] ?? 0, (p, v) => ({ ...p, puesto: p.puesto.map((x, k) => (k === i ? v : x)) }));
   protected readonly puntosGrupos: Grupo[] = [
-    this.g('INTENTOS', [
-      { label: 'Intento válido (máx. 9)', unidad: 'pts', valor: (c) => c.puntos.intentoValido, cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, intentoValido: v } }) },
-      { label: 'Pleno 9/9 (bonus)', unidad: 'pts', valor: (c) => c.puntos.pleno, cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, pleno: v } }) },
-      { label: 'Blanqueo (3 nulos)', unidad: 'pts', valor: (c) => c.puntos.blanqueo, cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, blanqueo: v } }) },
+    this.g('A · INTENTOS', [
+      this.decima('Nota máxima por 9/9 válidos', (p) => p.intentos, (p, v) => ({ ...p, intentos: v })),
+      this.decima('Resta por intento nulo', (p) => p.nulo, (p, v) => ({ ...p, nulo: v })),
     ]),
-    this.g('MOVIMIENTOS', [
-      { label: '1.º', unidad: 'pts', valor: (c) => c.puntos.mov[0], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, mov: [v, ...c.puntos.mov.slice(1)] } }) },
-      { label: '2.º', unidad: 'pts', valor: (c) => c.puntos.mov[1], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, mov: [c.puntos.mov[0], v, c.puntos.mov[2]] } }) },
-      { label: '3.º', unidad: 'pts', valor: (c) => c.puntos.mov[2], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, mov: [...c.puntos.mov.slice(0, 2), v] } }) },
-    ]),
-    this.g('PUESTO EN CATEGORÍA', [
-      { label: '1.º', unidad: 'pts', valor: (c) => c.puntos.cat[0], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, cat: [...c.puntos.cat.slice(0, 0), v, ...c.puntos.cat.slice(1)] } }) },
-      { label: '2.º', unidad: 'pts', valor: (c) => c.puntos.cat[1], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, cat: [c.puntos.cat[0], v, ...c.puntos.cat.slice(2)] } }) },
-      { label: '3.º', unidad: 'pts', valor: (c) => c.puntos.cat[2], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, cat: [...c.puntos.cat.slice(0, 2), v, ...c.puntos.cat.slice(3)] } }) },
-      { label: '4.º–5.º', unidad: 'pts', valor: (c) => c.puntos.cat[3], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, cat: [...c.puntos.cat.slice(0, 3), v, c.puntos.cat[4]] } }) },
-      { label: 'Resto que acaba', unidad: 'pts', valor: (c) => c.puntos.cat[4], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, cat: [...c.puntos.cat.slice(0, 4), v] } }) },
-    ]),
-    this.g('IPF GL DEL SEXO', [
-      { label: '1.º', unidad: 'pts', valor: (c) => c.puntos.gl[0], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, gl: [v, ...c.puntos.gl.slice(1)] } }) },
-      { label: '2.º', unidad: 'pts', valor: (c) => c.puntos.gl[1], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, gl: [c.puntos.gl[0], v, ...c.puntos.gl.slice(2)] } }) },
-      { label: '3.º', unidad: 'pts', valor: (c) => c.puntos.gl[2], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, gl: [...c.puntos.gl.slice(0, 2), v, c.puntos.gl[3]] } }) },
-      { label: '4.º–10.º', unidad: 'pts', valor: (c) => c.puntos.gl[3], cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, gl: [...c.puntos.gl.slice(0, 3), v] } }) },
+    this.g('B · PUESTO EN CATEGORÍA', [this.puesto(0, '1.º'), this.puesto(1, '2.º'), this.puesto(2, '3.º'), this.puesto(3, '4.º'), this.puesto(4, '5.º')]),
+    this.g('C · BONUS (TOPE 2,0)', [
+      this.decima('Pleno 9/9', (p) => p.pleno, (p, v) => ({ ...p, pleno: v })),
+      this.decima('Récord personal', (p) => p.recordPersonal, (p, v) => ({ ...p, recordPersonal: v })),
+      this.decima('Récord de la competición', (p) => p.recordCompeticion, (p, v) => ({ ...p, recordCompeticion: v })),
+      this.decima('Total completado', (p) => p.total, (p, v) => ({ ...p, total: v })),
     ]),
   ];
-  protected readonly puntosCols: Grupo[][] = [[this.puntosGrupos[0], this.puntosGrupos[1]], [this.puntosGrupos[2]], [this.puntosGrupos[3]]];
+  protected readonly puntosCols: Grupo[][] = [[this.puntosGrupos[0]], [this.puntosGrupos[1]], [this.puntosGrupos[2]]];
   protected readonly clausulaGrupos: Grupo[] = [
     this.g('VALOR DE LA CLÁUSULA · MONEDAS', [
       { label: 'Inicial', unidad: '', valor: (c) => c.clausulaInicial, cambia: (c, v) => ({ ...c, clausulaInicial: v }) },
@@ -232,19 +225,13 @@ export class JuegosConfigPage {
       { label: 'Protección tras fichar', unidad: 'min', valor: (c) => c.proteccionMin, cambia: (c, v) => ({ ...c, proteccionMin: v }) },
       { label: 'Clausulazos por fan', unidad: 'máx.', valor: (c) => c.maxClausulazos, cambia: (c, v) => ({ ...c, maxClausulazos: v }) },
     ]),
-    this.g('VARIACIÓN POR INTENTO', [
-      { label: 'Intento válido', unidad: '%', valor: (c) => c.pctValido, cambia: (c, v) => ({ ...c, pctValido: v }) },
-      { label: 'Intento nulo', unidad: '%', valor: (c) => c.pctNulo, cambia: (c, v) => ({ ...c, pctNulo: v }) },
+    this.g('VARIACIÓN DE LA CLÁUSULA', [
+      { label: 'Por punto de nota ganado o perdido', unidad: '%', valor: (c) => c.puntos.pctClausula, cambia: (c, v) => ({ ...c, puntos: { ...c.puntos, pctClausula: v } }) },
       { label: 'Blanqueo', unidad: '%', valor: (c) => c.pctBlanqueo, cambia: (c, v) => ({ ...c, pctBlanqueo: v }) },
       { label: 'Compra o clausulazo', unidad: '%', valor: (c) => c.pctDemanda, cambia: (c, v) => ({ ...c, pctDemanda: v }) },
     ]),
-    this.g('AJUSTE POR PUESTO FINAL', [
-      { label: '1.º', unidad: '%', valor: (c) => c.pctPuesto[0], cambia: (c, v) => ({ ...c, pctPuesto: [v, c.pctPuesto[1], c.pctPuesto[2]] }) },
-      { label: '2.º', unidad: '%', valor: (c) => c.pctPuesto[1], cambia: (c, v) => ({ ...c, pctPuesto: [c.pctPuesto[0], v, c.pctPuesto[2]] }) },
-      { label: '3.º', unidad: '%', valor: (c) => c.pctPuesto[2], cambia: (c, v) => ({ ...c, pctPuesto: [c.pctPuesto[0], c.pctPuesto[1], v] }) },
-    ]),
   ];
-  protected readonly clausulaCols: Grupo[][] = [[this.clausulaGrupos[0], this.clausulaGrupos[1]], [this.clausulaGrupos[2]], [this.clausulaGrupos[3]]];
+  protected readonly clausulaCols: Grupo[][] = [[this.clausulaGrupos[0]], [this.clausulaGrupos[1]], [this.clausulaGrupos[2]]];
   protected readonly limiteCampos: Campo[] = [
     { label: 'Apuesta mínima', unidad: '', valor: (c) => c.porraMin, cambia: (c, v) => ({ ...c, porraMin: v }) },
     { label: 'Apuesta máxima', unidad: '', valor: (c) => c.porraMax, cambia: (c, v) => ({ ...c, porraMax: v }) },

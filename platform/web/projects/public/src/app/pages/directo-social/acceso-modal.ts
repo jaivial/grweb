@@ -42,7 +42,7 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
               <div class="mt-5 flex flex-col items-center gap-2.5 rounded-lg border border-line-subtle bg-bg-surface px-4 py-5 text-center">
                 <span class="flex size-14 items-center justify-center rounded-full bg-accent-grain text-white shadow-glow"><gr-icon name="mail" [size]="24" /></span>
                 <p class="text-label-s break-all text-text-primary">Enviado a {{ email() }}</p>
-                <p class="text-body-s text-text-secondary">Ábrelo en este dispositivo para entrar como {{ tipo() === 'atleta' ? 'ATLETA' : 'PÚBLICO' }}.</p>
+                <p class="text-body-s text-text-secondary">{{ fan.destino() ? 'Puedes abrirlo en otro dispositivo: te lleva igualmente a la sala.' : 'Ábrelo en este dispositivo para entrar como ' + (tipo() === 'atleta' ? 'ATLETA' : 'PÚBLICO') + '.' }}</p>
               </div>
               <ol class="mt-4 flex flex-col gap-2.5">
                 @for (p of pasos(); track p; let i = $index) {
@@ -154,7 +154,7 @@ export class AccesoModal {
   protected readonly seguir = computed(() => this.fan.motivoAcceso() === 'seguir');
   protected readonly pasos = computed(() => ['Abre el email de GR Strength Cup',
     ...(this.inscripcion() ? ['Pulsa «Continuar la inscripción»', 'Vuelves al formulario de inscripción'] : this.entradas() ? ['Pulsa el enlace del email', 'Vuelves a tu reserva con lo que ya has rellenado']
-      : this.seguir() ? ['Pulsa el enlace del email', 'Vuelves a la ficha y le sigues sin repetir nada'] : ['Pulsa «Entrar al directo»', 'Vuelves al chat con tu alias'])]);
+      : this.seguir() ? ['Pulsa el enlace del email', 'Vuelves a la ficha y le sigues sin repetir nada'] : ['Pulsa «Entrar al directo»', this.fan.destino() ? 'Vuelves a la sala con tu alias' : 'Vuelves al chat con tu alias'])]);
 
   protected readonly titulo = computed(() => (this.estado() === 'enviado' ? 'Revisa tu correo' : this.estado() === 'atleta' ? 'Entrar como atleta' : this.inscripcion() ? 'Entra para inscribirte' : this.entradas() ? 'Entra para reservar' : this.seguir() ? 'Entra para seguir al atleta' : 'Entrar al directo'));
   protected readonly subtitulo = computed(() => {

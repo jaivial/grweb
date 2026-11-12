@@ -84,41 +84,166 @@ export interface FilaPorra {
   saldo: number;
 }
 
-/** Una fila de la clasificación de fantasy (puntos, valor de la plantilla y saldo). */
-export interface FilaFantasy {
-  puesto: number;
-  alias: string;
-  puntos: number;
+/** Un concepto del desglose de la nota de un atleta (A intentos, B puesto, C bonus, nulos y blanqueo). */
+export type ConceptoNota = 'intentos' | 'puesto' | 'pleno' | 'record_personal' | 'record_competicion' | 'total' | 'nulos' | 'blanqueo';
+
+/** La nota 0,0–10,0 de un atleta con su desglose (`tieneNota` = ya ha hecho algún intento). */
+export interface Nota {
   valor: number;
-  saldo: number;
+  tieneNota: boolean;
+  blanqueo: boolean;
+  validos: number;
+  nulos: number;
+  desglose: { concepto: ConceptoNota; valor: number }[];
 }
 
-/** Un atleta del mercado de fantasy. */
+/** Un atleta del mercado de fantasy (el dueño es el de MI sala o el de la sala pedida). */
 export interface AtletaMercado {
   atletaId: string;
   nombre: string;
+  fotoUrl?: string;
   sexo: Sexo;
   categoria: string;
   clausula: number;
-  dueno?: string;
   duenoAlias?: string;
-  titular: boolean;
   protegido: boolean;
   /** Hasta cuándo está protegido (RFC3339); lo devuelve el backend para la cuenta atrás. */
   protegidoHasta?: string;
   libre: boolean;
   esMio: boolean;
   flightEnCurso: boolean;
+  nota: Nota;
 }
 
-/** Mi plantilla: atletas, valor, saldo y clausulazos gastados. */
+/** Un atleta de una alineación (popover del lobby, sala y palmarés). */
+export interface AtletaAlineado {
+  atletaId: string;
+  nombre: string;
+  fotoUrl?: string;
+  categoria: string;
+  clausula: number;
+  nota: Nota;
+}
+
+/** Una fila de la clasificación de una sala: la nota es la media de la alineación y `conNota` los atletas que ya puntúan. */
+export interface FilaSala {
+  puesto: number;
+  miembroId: string;
+  alias: string;
+  nota: number;
+  conNota: number;
+  valor: number;
+  saldo: number;
+  esAnfitrion: boolean;
+  esYo: boolean;
+  alineacion: AtletaAlineado[];
+}
+
+export type EstadoSala = 'esperando' | 'lista' | 'llena' | 'en_juego' | 'cancelada' | 'cerrada' | 'finalizada';
+export type EstadoSolicitud = 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada' | 'caducada' | 'sala_llena' | 'expulsada';
+
+/** Una sala del lobby con su líder y, si la hay, mi solicitud. */
+export interface SalaVista {
+  id: string;
+  nombre: string;
+  anfitrion: string;
+  plazas: number;
+  miembros: number;
+  publica: boolean;
+  esMia: boolean;
+  estado: EstadoSala;
+  lider?: FilaSala;
+  miSolicitud?: EstadoSolicitud;
+}
+
+/** La sala en la que se juega (mercado, mi equipo y clasificación van por sala). */
+export interface SalaResumen {
+  id: string;
+  nombre: string;
+  estado: 'abierta' | 'en_juego' | 'cancelada' | 'cerrada' | 'finalizada';
+}
+
+/** El estado de los clausulazos: se cierran al empezar la última sesión del día (o si no hay horario). */
+export interface Clausulazo {
+  abierto: boolean;
+  cierre?: string;
+  motivo?: 'sin_horario' | 'ultima_sesion';
+}
+
+/** `GET /fantasy/salas`: el lobby del día. */
+export interface Lobby {
+  jornada?: Jornada;
+  salas: SalaVista[];
+  miSala?: string;
+  atletas: number;
+  plazasMax: number;
+  puedeCrear: boolean;
+  empezada: boolean;
+  solicitudesMax: number;
+  solicitudesPendientes: number;
+}
+
+/** `GET /fantasy/salas/{id}`: la sala con sus jugadores; el código solo lo ven los miembros y las solicitudes, el anfitrión. */
+export interface SalaDetalle {
+  jornada?: Jornada;
+  sala: SalaVista;
+  filas: FilaSala[];
+  codigo?: string;
+  solicitudes: { id: string; alias: string; createdAt: string }[];
+  clausulazo: Clausulazo;
+  empezada: boolean;
+  plazasMax: number;
+}
+
+export type EstadoInvitacion = 'disponible' | 'sin_sesion' | 'ya_miembro' | 'otra_sala' | 'llena' | 'empezada' | 'cerrada' | 'expulsado';
+
+/** `GET /fantasy/invitaciones/{codigo}`: la sala a la que lleva el enlace del anfitrión y si se puede entrar. */
+export interface Invitacion {
+  jornada?: Jornada;
+  sala: SalaVista;
+  estado: EstadoInvitacion;
+  solicitudesPendientes: number;
+}
+
+/** Una fila del palmarés (nota final de la alineación). */
+export interface FilaPalmares {
+  puesto: number;
+  alias: string;
+  nota: number;
+  valor: number;
+  saldo: number;
+  alineacion: AtletaAlineado[];
+}
+
+/** Una sala del palmarés de un día con sus ganadores (varios si comparten puesto). */
+export interface SalaPalmares {
+  salaId: string;
+  nombre: string;
+  estado: 'finalizada' | 'cancelada';
+  jugadores: number;
+  ganadores: FilaPalmares[];
+}
+
+/** Un día del palmarés (jornada cerrada). */
+export interface DiaPalmares {
+  jornadaId: string;
+  dia: string;
+  nombre: string;
+  salas: SalaPalmares[];
+}
+
+/** Mi alineación en mi sala del día: exactamente 5 atletas, sin suplentes. `sala` ausente = no estoy en ninguna sala. */
 export interface MiEquipo {
   jornada?: Jornada;
+  sala?: SalaResumen;
   atletas: AtletaMercado[];
-  titulares: number;
+  alineacion: number;
+  nota: number;
+  conNota: number;
   valor: number;
   saldo: number;
   clausulazos: number;
+  clausulazo?: Clausulazo;
 }
 
 /** Un cambio de cláusula (para la gráfica y la flecha de tendencia). */
@@ -129,18 +254,18 @@ export interface HistorialClausula {
   createdAt: string;
 }
 
-/** Un concepto de puntos de un atleta. */
-export interface Punto {
-  concepto: string;
-  puntos: number;
-  ref: string;
+/** Un intento de un atleta en un movimiento. */
+export interface Intento {
+  n: number;
+  peso: number;
+  resultado: string;
 }
 
-/** La ficha de un atleta: cláusula actual, historial y desglose de puntos. */
+/** La ficha de un atleta: cláusula actual, nota con desglose, intentos e historial de la cláusula. */
 export interface AtletaDetalle {
   atleta?: AtletaMercado;
+  intentos?: Partial<Record<Mov, Intento[]>>;
   clausulas: HistorialClausula[];
-  puntos: Punto[];
 }
 
 /** Un movimiento del libro (cartera). */
@@ -169,16 +294,19 @@ export interface Fichaje {
   aliasA: string;
   precio: number;
   createdAt: string;
+  salaId?: string;
 }
 
-/** La configuración pública de los juegos (mín./máx. de apuesta, clausulazos, protección y tabla de puntos). */
-export interface PuntosConfig {
-  intentoValido?: number;
+/** La tabla de la nota 0–10 de la configuración pública (`puntos` en el backend). */
+export interface NotaConfig {
+  intentos?: number;
+  puesto?: number[];
   pleno?: number;
-  blanqueo?: number;
-  cat?: number[];
-  gl?: number[];
-  mov?: number[];
+  recordPersonal?: number;
+  recordCompeticion?: number;
+  total?: number;
+  nulo?: number;
+  pctClausula?: number;
 }
 
 /** `GET /juegos/config`: solo los valores públicos (los internos no se exponen). */
@@ -194,7 +322,7 @@ export interface ConfigJuegos {
   clausulaInicial?: number;
   clausulaMin?: number;
   clausulaMax?: number;
-  puntos?: PuntosConfig;
+  puntos?: NotaConfig;
   activo?: boolean;
   version?: number;
 }
@@ -212,44 +340,24 @@ export interface Premio {
   patrocinador?: string;
 }
 
-/** Puntos de la tabla por defecto del contrato §6.3 (respaldo si no llega la config pública). */
-export const TABLA_PUNTOS: { concepto: string; detalle: string; puntos: string }[] = [
-  { concepto: 'Intento válido (máx. 9)', detalle: '+3 cada uno', puntos: '+3' },
-  { concepto: 'Pleno 9/9 (bonus)', detalle: '', puntos: '+5' },
-  { concepto: 'Blanqueo (3 nulos en un movimiento)', detalle: '', puntos: '−15' },
-  { concepto: 'Puesto en su categoría', detalle: '1.º +20 · 2.º +14 · 3.º +10 · 4.º–5.º +5 · resto que acaba +2', puntos: '' },
-  { concepto: 'Puesto IPF GL de su sexo', detalle: '1.º +25 · 2.º +18 · 3.º +12 · 4.º–10.º +4', puntos: '' },
-  { concepto: 'Puesto por movimiento (sexo)', detalle: '1.º +10 · 2.º +6 · 3.º +3', puntos: '' },
-];
+const nf1c = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-const signo = (n: number): string => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n);
-
-/** La tabla de puntos con los valores de la configuración pública (si no, la del contrato §6.3). */
-export function tablaPuntos(cfg: ConfigJuegos | null): { concepto: string; detalle: string; puntos: string }[] {
-  const p = cfg?.puntos;
-  if (!p) return TABLA_PUNTOS;
-  const cat = p.cat ?? [];
-  const gl = p.gl ?? [];
-  const mov = p.mov ?? [];
+/** La tabla de la nota (Figma «Tabla de la nota») con los valores de la configuración pública. */
+export function tablaNota(cfg: ConfigJuegos | null): { concepto: string; detalle: string; valor: string; tono: '' | 'rojo'; fondo: boolean }[] {
+  const p = cfg?.puntos ?? {};
+  const d = (n: number) => nf1c.format(n);
+  const puesto = p.puesto?.length ? p.puesto : [3, 2.4, 1.8, 1.2, 0.6];
+  const intentos = p.intentos ?? 5;
   return [
-    { concepto: 'Intento válido (máx. 9)', detalle: `${signo(p.intentoValido ?? 3)} cada uno`, puntos: signo(p.intentoValido ?? 3) },
-    { concepto: 'Pleno 9/9 (bonus)', detalle: '', puntos: signo(p.pleno ?? 5) },
-    { concepto: 'Blanqueo (3 nulos en un movimiento)', detalle: '', puntos: signo(p.blanqueo ?? -15) },
-    {
-      concepto: 'Puesto en su categoría',
-      detalle: `1.º ${signo(cat[0] ?? 20)} · 2.º ${signo(cat[1] ?? 14)} · 3.º ${signo(cat[2] ?? 10)} · 4.º–5.º ${signo(cat[3] ?? 5)} · resto que acaba ${signo(cat[4] ?? 2)}`,
-      puntos: '',
-    },
-    {
-      concepto: 'Puesto IPF GL de su sexo',
-      detalle: `1.º ${signo(gl[0] ?? 25)} · 2.º ${signo(gl[1] ?? 18)} · 3.º ${signo(gl[2] ?? 12)} · 4.º–10.º ${signo(gl[3] ?? 4)}`,
-      puntos: '',
-    },
-    {
-      concepto: 'Puesto por movimiento (sexo)',
-      detalle: `1.º ${signo(mov[0] ?? 10)} · 2.º ${signo(mov[1] ?? 6)} · 3.º ${signo(mov[2] ?? 3)}`,
-      puntos: '',
-    },
+    { concepto: 'A · Intentos válidos', detalle: `Cada intento válido suma ≈ ${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(Math.round((intentos / 9) * 100) / 100)}.`, valor: `${d(intentos)} × válidos ÷ 9`, tono: '', fondo: false },
+    { concepto: 'Intento nulo (no lift)', detalle: 'Cada intento nulo resta nota.', valor: `−${d(p.nulo ?? 0.3)} por nulo`, tono: 'rojo', fondo: false },
+    { concepto: 'B · Puesto en su categoría', detalle: '1.º a 5.º; provisional en directo, definitivo al publicarse la categoría.', valor: puesto.map(d).join(' · '), tono: '', fondo: false },
+    { concepto: 'C · Pleno 9/9', detalle: '9 intentos válidos.', valor: '+' + d(p.pleno ?? 0.5), tono: '', fondo: false },
+    { concepto: 'C · Récord personal', detalle: 'Supera su mejor marca registrada.', valor: '+' + d(p.recordPersonal ?? 0.6), tono: '', fondo: false },
+    { concepto: 'C · Récord de la competición', detalle: 'Sustituye al récord personal; no se acumulan.', valor: '+' + d(p.recordCompeticion ?? 1), tono: '', fondo: false },
+    { concepto: 'C · Total completado', detalle: 'Al menos 1 intento válido en cada movimiento.', valor: '+' + d(p.total ?? 0.3), tono: '', fondo: false },
+    { concepto: 'Tope y redondeo', detalle: 'Nota = A + B + C − nulos, 1 decimal; C máx. 2,0.', valor: '0,0 – 10,0', tono: '', fondo: false },
+    { concepto: 'Blanqueo / descalificación', detalle: '3 nulos en un mismo movimiento (bomb-out) o DQ: 0,0 absoluto que anula todo.', valor: 'nota = 0,0', tono: 'rojo', fondo: true },
   ];
 }
 
@@ -266,14 +374,27 @@ const MENSAJES: Record<string, string> = {
   ATLETA_NO_EN_MERCADO: 'Ese atleta no participa en este mercado.',
   ATLETA_PROTEGIDO: 'El atleta está protegido un rato después de su último fichaje.',
   MAX_CLAUSULAZOS: 'Ya has usado todos los clausulazos de la jornada.',
-  PLANTILLA_LLENA: 'Tu plantilla está completa: vende a alguien antes.',
+  PLANTILLA_LLENA: 'Tu alineación está completa: vende a alguien antes.',
   YA_CON_DUENO: 'Otro usuario ya tiene a ese atleta. Puedes pagar su cláusula.',
   ATLETA_LIBRE: 'Ese atleta está libre: cómpralo, no hace falta clausulazo.',
   ATLETA_AJENO: 'Ese atleta no es tuyo.',
   ATLETA_PROPIO: 'El atleta ya es tuyo.',
-  ALINEACION_BLOQUEADA: 'Hay un atleta tuyo levantando ahora: no puedes moverlo de titular.',
-  NO_TUYOS: 'Solo puedes alinear atletas de tu plantilla.',
-  MUCHOS_TITULARES: 'Solo puedes alinear 5 titulares.',
+  SIN_SALA: 'Aún no estás en ninguna sala hoy: únete a una o crea la tuya.',
+  CLAUSULAZO_CERRADO: 'Los clausulazos están cerrados: ya empezó la última sesión del día.',
+  NOMBRE_NO_VALIDO: 'Este nombre contiene palabras no permitidas o ya existe hoy. Elige otro (3–32 caracteres).',
+  NOMBRE_OCUPADO: 'Este nombre contiene palabras no permitidas o ya existe hoy. Elige otro (3–32 caracteres).',
+  PLAZAS_NO_VALIDAS: 'Ese número de plazas supera el cupo de atletas del día.',
+  YA_EN_SALA: 'Ya estás en otra sala hoy. Solo puedes estar en una sala por día.',
+  YA_MIEMBRO: 'Ya eres miembro de esta sala.',
+  ATLETAS_INSUFICIENTES: 'Hoy no hay atletas suficientes para crear una sala.',
+  SALA_EMPEZADA: 'La sala ya ha empezado: no admite cambios ni jugadores.',
+  SALA_LLENA: 'La sala está llena.',
+  SALA_NO_DISPONIBLE: 'La sala ya no está disponible.',
+  MAX_SOLICITUDES: 'Ya tienes 3 solicitudes pendientes. Cancela una para solicitar otra sala.',
+  SOLICITUD_RECHAZADA: 'El anfitrión no ha aceptado tu solicitud. No puedes volver a solicitar esta sala hoy.',
+  SOLICITUD_NO_PENDIENTE: 'Esa solicitud ya no está pendiente.',
+  SIN_PERMISO: 'Solo el anfitrión puede hacer eso.',
+  ANFITRION: 'El anfitrión no se puede expulsar.',
   MARCADOR_NO_DISPONIBLE: 'No se pudo leer el marcador del directo. Reintenta en unos segundos.',
   SESION_FAN_REQUERIDA: 'Entra con tu cuenta de atleta o público para participar.',
   SESION_FAN_REVOCADA: 'Tu sesión ha caducado. Entra de nuevo.',
@@ -293,7 +414,24 @@ export function mensajeError(e: unknown): string {
 const nf = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const nf2 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
+/** «8,6» (nota de un atleta en tarjetas: 1 decimal). */
+export const nota1 = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : nf1.format(v));
+/** «7,90» (medias de alineación y eventos: 2 decimales). */
+export const nota2 = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : nf2.format(v));
+/** «+0,56» · «−0,30» (cambio de nota de un evento). */
+export const deltaNota = (v: number): string => (v > 0 ? '+' : v < 0 ? '−' : '') + nf2.format(Math.abs(v));
+/** El tramo de color de una nota (Figma «Nota»: gris < 1 o sin nota · rojo < 5 · ámbar < 6 · azul < 8 · verde < 9 · morado). */
+export type TramoNota = 'gris' | 'rojo' | 'ambar' | 'azul' | 'verde' | 'morado';
+export function tramoNota(valor: number, tieneNota = true): TramoNota {
+  if (!tieneNota || valor < 1) return 'gris';
+  if (valor < 5) return 'rojo';
+  if (valor < 6) return 'ambar';
+  if (valor < 8) return 'azul';
+  if (valor < 9) return 'verde';
+  return 'morado';
+}
+/** «17:30» (hora local de un instante ISO). */
+export const horaTxt = (iso: string | undefined): string => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso)) : '');
 /** «128.400» (monedas, sin decimales). */
 export const monedas = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : nf.format(v));
 /** «×2,4» (cuota orientativa). */
@@ -346,9 +484,9 @@ export class Juegos {
     return fresco ? firstValueFrom(this.http.get<{ jornada?: Jornada; top: FilaPorra[]; miPuesto: number; miSaldo: number }>(url, { transferCache: false })) : this.get(url);
   }
 
-  // ---- fantasy ----
-  fantasyMercado(jornadaId?: string): Promise<{ jornada?: Jornada; atletas: AtletaMercado[] }> {
-    return this.get(`${this.base}/fantasy/mercado${this.q(jornadaId)}`);
+  // ---- fantasy (todo va por sala: sin `sala` es la mía del día) ----
+  fantasyMercado(jornadaId?: string, sala?: string): Promise<{ jornada?: Jornada; sala?: SalaResumen; atletas: AtletaMercado[]; clausulazo?: Clausulazo }> {
+    return this.get(`${this.base}/fantasy/mercado${this.qs({ jornada: jornadaId, sala })}`);
   }
 
   fantasyMiEquipo(jornadaId?: string): Promise<MiEquipo> {
@@ -367,17 +505,56 @@ export class Juegos {
     return this.post(`${this.base}/fantasy/clausulazo`, { atletaId, jornada: jornadaId || undefined });
   }
 
-  /** Cambia la alineación: la lista completa de titulares (el backend la ignora en los que ya lo son). */
-  fantasyAlineacion(titulares: string[], jornadaId?: string): Promise<void> {
-    return this.post<void>(`${this.base}/fantasy/alineacion`, { titulares, jornada: jornadaId || undefined });
-  }
-
-  fantasyClasificacion(jornadaId?: string): Promise<{ jornada?: Jornada; top: FilaFantasy[]; miPuesto: number; miPuntos: number }> {
-    return this.get(`${this.base}/fantasy/clasificacion${this.q(jornadaId)}`);
+  fantasyClasificacion(jornadaId?: string, sala?: string): Promise<{ jornada?: Jornada; sala?: SalaResumen; filas: FilaSala[]; miPuesto: number; miNota: number }> {
+    return this.get(`${this.base}/fantasy/clasificacion${this.qs({ jornada: jornadaId, sala })}`);
   }
 
   fantasyAtleta(atletaId: string, jornadaId?: string): Promise<AtletaDetalle> {
     return this.get(`${this.base}/fantasy/atletas/${atletaId}${this.q(jornadaId)}`);
+  }
+
+  // ---- salas ----
+  salas(q?: string, jornadaId?: string): Promise<Lobby> {
+    return this.get(`${this.base}/fantasy/salas${this.qs({ q, jornada: jornadaId })}`);
+  }
+  crearSala(nombre: string, publica: boolean, jornadaId?: string): Promise<{ salaId: string }> {
+    return this.post(`${this.base}/fantasy/salas`, { nombre, publica, jornada: jornadaId || undefined });
+  }
+  sala(id: string): Promise<SalaDetalle> {
+    return this.get(`${this.base}/fantasy/salas/${id}`);
+  }
+  editarSala(id: string, cambios: { nombre?: string; plazas?: number; publica?: boolean; regenerarEnlace?: boolean }): Promise<{ codigo: string }> {
+    return firstValueFrom(this.http.patch<{ codigo: string }>(`${this.base}/fantasy/salas/${id}`, cambios));
+  }
+  salirSala(id: string): Promise<void> {
+    return this.post<void>(`${this.base}/fantasy/salas/${id}/salir`, {});
+  }
+  cerrarSala(id: string): Promise<void> {
+    return this.post<void>(`${this.base}/fantasy/salas/${id}/cerrar`, {});
+  }
+  expulsar(id: string, miembroId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.base}/fantasy/salas/${id}/miembros/${miembroId}`));
+  }
+  solicitar(id: string): Promise<{ solicitudId: string }> {
+    return this.post(`${this.base}/fantasy/salas/${id}/solicitudes`, {});
+  }
+  cancelarSolicitud(id: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.base}/fantasy/salas/${id}/solicitudes/mia`));
+  }
+  responderSolicitud(id: string, solicitudId: string, aceptar: boolean): Promise<void> {
+    return this.post<void>(`${this.base}/fantasy/salas/${id}/solicitudes/${solicitudId}`, { aceptar });
+  }
+  invitacion(codigo: string): Promise<Invitacion> {
+    return this.get(`${this.base}/fantasy/invitaciones/${encodeURIComponent(codigo)}`);
+  }
+  entrarConInvitacion(codigo: string): Promise<{ salaId: string }> {
+    return this.post(`${this.base}/fantasy/invitaciones/${encodeURIComponent(codigo)}/entrar`, {});
+  }
+  palmares(): Promise<{ dias: DiaPalmares[] }> {
+    return this.get(`${this.base}/fantasy/palmares`);
+  }
+  palmaresSala(id: string): Promise<{ jornada?: Jornada; sala: SalaResumen; filas: FilaPalmares[] }> {
+    return this.get(`${this.base}/fantasy/palmares/${id}`);
   }
 
   // ---- premios ----
@@ -389,10 +566,11 @@ export class Juegos {
    * Los últimos fichajes del mercado (y de un atleta si se filtra). Tolera las dos formas de respuesta
    * (`{fichajes: […]}` o un array suelto) y los dos nombres de los alias (`aliasDe`/`deAlias`).
    */
-  async fichajes(jornadaId?: string, atletaId?: string): Promise<{ fichajes: Fichaje[] }> {
+  async fichajes(jornadaId?: string, atletaId?: string, sala?: string): Promise<{ fichajes: Fichaje[] }> {
     const q = new URLSearchParams();
     if (jornadaId) q.set('jornada', jornadaId);
     if (atletaId) q.set('atleta', atletaId);
+    if (sala) q.set('sala', sala);
     const s = q.toString();
     const r = await this.get<{ fichajes?: unknown } | unknown[]>(`${this.base}/fantasy/fichajes${s ? '?' + s : ''}`);
     const lista = Array.isArray(r) ? r : ((r as { fichajes?: unknown[] })?.fichajes ?? []);
@@ -409,6 +587,7 @@ export class Juegos {
       aliasA: str(x['aliasA']) || str(x['aAlias']),
       precio: Number(x['precio'] ?? 0),
       createdAt: str(x['createdAt']) || str(x['fecha']),
+      salaId: str(x['salaId']) || undefined,
     };
   }
 
@@ -432,12 +611,14 @@ export class Juegos {
       clausulaMin: num(c['clausulaMin']),
       clausulaMax: num(c['clausulaMax']),
       puntos: {
-        intentoValido: num(p['intentoValido']),
+        intentos: num(p['intentos']),
+        puesto: arr(p['puesto']),
         pleno: num(p['pleno']),
-        blanqueo: num(p['blanqueo']),
-        cat: arr(p['cat']),
-        gl: arr(p['gl']),
-        mov: arr(p['mov']),
+        recordPersonal: num(p['recordPersonal']),
+        recordCompeticion: num(p['recordCompeticion']),
+        total: num(p['total']),
+        nulo: num(p['nulo']),
+        pctClausula: num(p['pctClausula']),
       },
       activo: typeof c['activo'] === 'boolean' ? c['activo'] : undefined,
       version: num(c['version']),
@@ -446,6 +627,12 @@ export class Juegos {
 
   private q(jornadaId?: string): string {
     return jornadaId ? `?jornada=${encodeURIComponent(jornadaId)}` : '';
+  }
+  private qs(o: Record<string, string | undefined>): string {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(o)) if (v) q.set(k, v);
+    const s = q.toString();
+    return s ? '?' + s : '';
   }
   private get<T>(url: string): Promise<T> {
     return firstValueFrom(this.http.get<T>(url));
@@ -484,13 +671,15 @@ export class JuegosEstado {
   readonly porraMax = computed(() => this.config()?.porraMax ?? 50000);
   readonly maxClausulazos = computed(() => this.config()?.maxClausulazos ?? 3);
   readonly proteccionMin = computed(() => this.config()?.proteccionMin ?? 10);
-  readonly plantillaMax = computed(() => this.config()?.plantillaMax ?? 8);
-  readonly titularesMax = computed(() => this.config()?.titularesMax ?? 5);
+  /** La alineación: exactamente 5 atletas, sin suplentes. */
+  readonly plantillaMax = computed(() => this.config()?.plantillaMax ?? 5);
   readonly clausulaInicial = computed(() => this.config()?.clausulaInicial ?? 200000);
   readonly clausulaMin = computed(() => this.config()?.clausulaMin ?? 50000);
   readonly clausulaMax = computed(() => this.config()?.clausulaMax ?? 5000000);
-  /** La tabla de puntos con los valores configurados. */
-  readonly tablaPuntos = computed(() => tablaPuntos(this.config()));
+  /** La tabla de la nota con los valores configurados. */
+  readonly tablaNota = computed(() => tablaNota(this.config()));
+  /** Lo que resta cada intento nulo. */
+  readonly nulo = computed(() => this.config()?.puntos?.nulo ?? 0.3);
 
   /** La jornada mostrada (la elegida o, si no, la activa). */
   readonly jornada = computed<Jornada | null>(() => {
@@ -566,13 +755,42 @@ export interface MovimientoFeed {
   precio: number;
   fecha: string;
   id?: string;
+  salaId?: string;
+}
+
+/** Un cambio de sala en vivo (`fantasy.sala`). */
+export interface EventoSala {
+  jornadaId: string;
+  salaId: string;
+  tipo: 'creada' | 'miembros' | 'editada' | 'en_juego' | 'cancelada' | 'cerrada' | 'finalizada';
+}
+/** Una solicitud de unión en vivo (`fantasy.solicitud`). */
+export interface EventoSolicitud {
+  jornadaId: string;
+  salaId: string;
+  solicitudId: string;
+  alias: string;
+  tipo: EstadoSolicitud;
+}
+/** Un cambio de nota en vivo (`fantasy.nota`). */
+export interface EventoNota {
+  jornadaId: string;
+  atletaId: string;
+  nota: number;
+  delta: number;
+  validos: number;
+  nulos: number;
+  blanqueo: boolean;
+  fecha: string;
 }
 
 /** Une los fichajes cargados del API con los que llegan por SSE, sin repetir y del más nuevo al más viejo. */
-export function fusionaFichajes(cargados: MovimientoFeed[], enVivo: MovimientoFeed[]): MovimientoFeed[] {
+export function fusionaFichajes(cargados: MovimientoFeed[], enVivo: MovimientoFeed[], salaId?: string): MovimientoFeed[] {
   const vistos = new Set<string>();
   const out: MovimientoFeed[] = [];
   for (const f of [...enVivo, ...cargados]) {
+    // los fichajes de otras salas no cuentan en esta
+    if (salaId && f.salaId && f.salaId !== salaId) continue;
     const k = `${f.tipo}|${f.atletaId}|${f.fecha}|${f.precio}`;
     if (vistos.has(k)) continue;
     vistos.add(k);
@@ -601,7 +819,8 @@ export function pctClausula(clausula: number, delta: number): number {
 
 /**
  * Tiempo real de los juegos: se suscribe al SSE público de la competición (realtime reenvía los eventos
- * `fantasy.clausula`, `fantasy.fichaje`, `porra.mercado` y `juegos.clasificacion`) y los deja en signals.
+ * `fantasy.clausula`, `fantasy.fichaje`, `fantasy.sala`, `fantasy.solicitud`, `fantasy.nota`, `porra.mercado` y
+ * `juegos.clasificacion`) y los deja en signals.
  * Solo en el navegador: con SSR no hay EventSource.
  */
 @Injectable({ providedIn: 'root' })
@@ -611,6 +830,15 @@ export class JuegosEnVivo {
   private usos = 0;
 
   readonly conectado = signal(false);
+  /** La conexión en vivo se ha perdido (el navegador reintenta solo): las pantallas avisan «Sin conexión en tiempo real». */
+  readonly caida = signal(false);
+  /** El último evento de sala, de solicitud y de nota (para avisos y recargas). */
+  readonly sala = signal<EventoSala | null>(null);
+  readonly solicitud = signal<EventoSolicitud | null>(null);
+  readonly nota = signal<EventoNota | null>(null);
+  /** Cambian con cada evento de sala/solicitud y de nota (para recargar el lobby, la sala y las medias). */
+  readonly versionSalas = signal(0);
+  readonly versionNotas = signal(0);
   /** Último valor de la cláusula por atleta (para la flecha y la sparkline). */
   readonly clausulas = signal<Map<string, CambioClausula>>(new Map());
   /** Serie de valores de la cláusula por atleta (para la sparkline). */
@@ -631,10 +859,19 @@ export class JuegosEnVivo {
     if (this.es) return;
     const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
     this.es = es;
-    es.onopen = () => this.conectado.set(true);
-    es.onerror = () => this.conectado.set(false);
+    es.onopen = () => {
+      this.conectado.set(true);
+      this.caida.set(false);
+    };
+    es.onerror = () => {
+      this.conectado.set(false);
+      this.caida.set(true);
+    };
     es.addEventListener('fantasy.clausula', (e) => this.clausula(e));
     es.addEventListener('fantasy.fichaje', (e) => this.fichaje(e));
+    es.addEventListener('fantasy.sala', (e) => this.eventoSala(e));
+    es.addEventListener('fantasy.solicitud', (e) => this.eventoSolicitud(e));
+    es.addEventListener('fantasy.nota', (e) => this.eventoNota(e));
     es.addEventListener('porra.mercado', (e) => this.mercado(e));
     es.addEventListener('juegos.clasificacion', (e) => this.clasificacion(e));
   }
@@ -647,6 +884,7 @@ export class JuegosEnVivo {
     this.es?.close();
     this.es = null;
     this.conectado.set(false);
+    this.caida.set(false);
   }
 
   /** Registra un valor de cláusula (para la serie y la flecha). */
@@ -684,6 +922,8 @@ export class JuegosEnVivo {
   private fichaje(e: Event): void {
     const d = this.datos(e);
     if (!d) return;
+    // sala «solo enlace»: el evento no trae alias ni precio; solo avisa de que hay que recargar
+    if (d['privada']) return this.version.update((v) => v + 1);
     const tipo = (d['tipo'] as TipoFichaje) ?? 'compra';
     const mov: MovimientoFeed = {
       tipo,
@@ -692,9 +932,47 @@ export class JuegosEnVivo {
       aliasA: String(d['aliasA'] ?? ''),
       precio: Number(d['precio'] ?? 0),
       fecha: new Date().toISOString(),
+      salaId: typeof d['salaId'] === 'string' ? (d['salaId'] as string) : undefined,
     };
     this.feed.update((l) => [mov, ...l].slice(0, 30));
     this.version.update((v) => v + 1);
+  }
+
+  private eventoSala(e: Event): void {
+    const d = this.datos(e);
+    if (!d) return;
+    this.sala.set({ jornadaId: String(d['jornadaId'] ?? ''), salaId: String(d['salaId'] ?? ''), tipo: String(d['tipo'] ?? 'editada') as EventoSala['tipo'] });
+    this.versionSalas.update((v) => v + 1);
+  }
+
+  private eventoSolicitud(e: Event): void {
+    const d = this.datos(e);
+    if (!d) return;
+    this.solicitud.set({
+      jornadaId: String(d['jornadaId'] ?? ''),
+      salaId: String(d['salaId'] ?? ''),
+      solicitudId: String(d['solicitudId'] ?? ''),
+      alias: String(d['alias'] ?? ''),
+      tipo: String(d['tipo'] ?? 'pendiente') as EstadoSolicitud,
+    });
+    this.versionSalas.update((v) => v + 1);
+  }
+
+  private eventoNota(e: Event): void {
+    const d = this.datos(e);
+    const atletaId = typeof d?.['atletaId'] === 'string' ? (d['atletaId'] as string) : '';
+    if (!d || !atletaId) return;
+    this.nota.set({
+      jornadaId: String(d['jornadaId'] ?? ''),
+      atletaId,
+      nota: Number(d['nota'] ?? 0),
+      delta: Number(d['delta'] ?? 0),
+      validos: Number(d['validos'] ?? 0),
+      nulos: Number(d['nulos'] ?? 0),
+      blanqueo: d['blanqueo'] === true,
+      fecha: new Date().toISOString(),
+    });
+    this.versionNotas.update((v) => v + 1);
   }
 
   private mercado(e: Event): void {
@@ -807,7 +1085,7 @@ export class PorraStore {
   }
 }
 
-/** Datos de GRS Fantasy compartidos por /fantasy, /fantasy/mercado y /fantasy/clasificacion. */
+/** Datos de GRS Fantasy compartidos por /fantasy, /fantasy/mercado y /fantasy/clasificacion (todo por sala). */
 @Injectable({ providedIn: 'root' })
 export class FantasyStore {
   private readonly juegos = inject(Juegos);
@@ -819,8 +1097,12 @@ export class FantasyStore {
   readonly error = signal<string | null>(null);
   readonly atletas = signal<AtletaMercado[]>([]);
   readonly jornada = signal<Jornada | null>(null);
-  /** Cuándo se cargó el mercado por última vez (para el «actualizado hace X s»). */
-  readonly cargadoEn = signal<number | null>(null);
+  /** La sala pedida por la URL (/fantasy/salas/:id/…); vacío = mi sala del día. */
+  readonly salaPedida = signal('');
+  /** La sala en la que se juega (null = no estoy en ninguna y no se pidió otra). */
+  readonly sala = signal<SalaResumen | null>(null);
+  /** Si los clausulazos siguen abiertos y a qué hora se cierran. */
+  readonly clausulazo = signal<Clausulazo | null>(null);
 
   readonly cargandoEquipo = signal(false);
   readonly equipo = signal<MiEquipo | null>(null);
@@ -830,23 +1112,22 @@ export class FantasyStore {
   readonly detalle = signal<AtletaDetalle | null>(null);
 
   readonly cargandoClas = signal(false);
-  readonly clas = signal<{ top: FilaFantasy[]; miPuesto: number; miPuntos: number } | null>(null);
-  /** Las fichas ya cargadas por atleta (para los puntos en vivo de la plantilla). */
-  readonly detalles = signal<Map<string, AtletaDetalle>>(new Map());
+  readonly clas = signal<{ filas: FilaSala[]; miPuesto: number; miNota: number } | null>(null);
   /** Los últimos fichajes del mercado (los del API; el SSE los añade encima). */
   readonly fichajes = signal<MovimientoFeed[]>([]);
   /** Los fichajes de un atleta (para el historial de su ficha). */
   readonly fichajesAtleta = signal<MovimientoFeed[]>([]);
 
-  /** El mercado de atletas de la jornada elegida. */
+  /** El mercado de atletas de la sala (la pedida o la mía) en la jornada elegida. */
   async cargar(): Promise<void> {
     this.cargando.set(true);
     const jid = this.estado.jornadaActual();
     try {
-      const m = await this.juegos.fantasyMercado(jid);
+      const m = await this.juegos.fantasyMercado(jid, this.salaPedida() || undefined);
       this.atletas.set(m.atletas ?? []);
       this.jornada.set(m.jornada ?? null);
-      this.cargadoEn.set(Date.now());
+      this.sala.set(m.sala ?? null);
+      this.clausulazo.set(m.clausulazo ?? null);
       this.error.set(null);
       // la serie de cláusulas del sparkline arranca con el valor actual
       for (const a of m.atletas ?? []) this.vivo.fijarClausula(a.atletaId, a.clausula);
@@ -857,7 +1138,19 @@ export class FantasyStore {
     }
   }
 
-  /** Mi plantilla (solo con sesión). */
+  /** Recarga el mercado sin esqueleto (notas y dueños cambian en vivo). */
+  async recargar(): Promise<void> {
+    try {
+      const m = await this.juegos.fantasyMercado(this.estado.jornadaActual(), this.salaPedida() || undefined);
+      this.atletas.set(m.atletas ?? []);
+      this.sala.set(m.sala ?? null);
+      this.clausulazo.set(m.clausulazo ?? null);
+    } catch {
+      /* se mantiene lo anterior */
+    }
+  }
+
+  /** Mi alineación (solo con sesión). */
   async cargarEquipo(): Promise<void> {
     if (!this.fan.conSesion()) {
       this.equipo.set(null);
@@ -874,7 +1167,7 @@ export class FantasyStore {
     }
   }
 
-  /** La ficha de un atleta: historial de la cláusula y desglose de puntos. */
+  /** La ficha de un atleta: historial de la cláusula, intentos y desglose de la nota. */
   async cargarDetalle(atletaId: string): Promise<void> {
     this.cargandoDetalle.set(true);
     this.detalle.set(null);
@@ -887,29 +1180,11 @@ export class FantasyStore {
     }
   }
 
-  /** Las fichas de varios atletas a la vez (los titulares de la plantilla). */
-  async cargarDetalles(atletaIds: string[]): Promise<void> {
-    const ids = atletaIds.filter((id) => !this.detalles().has(id));
-    if (!ids.length) return;
-    const fichas = await Promise.all(
-      ids.map(async (id) => {
-        try {
-          return { id, d: await this.juegos.fantasyAtleta(id, this.estado.jornadaActual()) };
-        } catch {
-          return null;
-        }
-      }),
-    );
-    const copia = new Map(this.detalles());
-    for (const f of fichas) if (f) copia.set(f.id, f.d);
-    this.detalles.set(copia);
-  }
-
   /** Los últimos fichajes del mercado (si el backend todavía no expone el endpoint, se queda vacío). */
   async cargarFichajes(atletaId?: string): Promise<void> {
     try {
       if (!this.estado.jornadas().length) await this.estado.cargar();
-      const r = await this.juegos.fichajes(this.estado.jornadaActual(), atletaId);
+      const r = await this.juegos.fichajes(this.estado.jornadaActual(), atletaId, this.salaPedida() || this.sala()?.id);
       const lista = (r.fichajes ?? []).map((f) => ({ ...f, fecha: f.createdAt })) as MovimientoFeed[];
       if (atletaId) this.fichajesAtleta.set(lista);
       else this.fichajes.set(lista);
@@ -919,12 +1194,13 @@ export class FantasyStore {
     }
   }
 
-  /** La clasificación de fantasy (público; «mi puesto» si hay sesión). */
+  /** La clasificación de la sala (pública; «mi puesto» si hay sesión). */
   async cargarClasificacion(): Promise<void> {
     this.cargandoClas.set(true);
     try {
-      const c = await this.juegos.fantasyClasificacion(this.estado.jornadaActual());
-      this.clas.set({ top: c.top ?? [], miPuesto: c.miPuesto ?? 0, miPuntos: c.miPuntos ?? 0 });
+      const c = await this.juegos.fantasyClasificacion(this.estado.jornadaActual(), this.salaPedida() || undefined);
+      this.clas.set({ filas: c.filas ?? [], miPuesto: c.miPuesto ?? 0, miNota: c.miNota ?? 0 });
+      if (c.sala) this.sala.set(c.sala);
     } catch {
       this.clas.set(null);
     } finally {

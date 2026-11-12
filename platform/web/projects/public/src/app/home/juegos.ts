@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { GrButton } from '@grcup/ui';
-import type { AtletaMercado } from '../core/juegos';
+import type { AtletaMercado, Nota } from '../core/juegos';
 import { iniciales } from '../pages/porra/componentes';
 import { monedas } from '../pages/porra/formato';
 import { PistaFutsal, type AtletaPista } from '../pages/fantasy/pista';
@@ -27,8 +27,8 @@ export interface ResumenFantasy {
   atletasFichados: number;
   /** Leader of the jornada and their average score per jornada (Figma «mejor nota»). */
   mejorNota: { alias: string; notaMedia: number } | null;
-  top3: { puesto: number; alias: string; puntos: number }[];
-  alineacionDestacada: { alias: string; puntos: number; atletas: { atletaId: string; nombre: string; categoria: string; puntos: number; compitiendo: boolean }[] } | null;
+  top3: { puesto: number; alias: string; nota: number }[];
+  alineacionDestacada: { alias: string; nota: number; atletas: { atletaId: string; nombre: string; categoria: string; nota: Nota; compitiendo: boolean }[] } | null;
 }
 
 /** «sáb 21 nov». */
@@ -210,7 +210,7 @@ export class SecPorra {
   template: `
     <div [class]="ancho + ' flex flex-col-reverse gap-10 lg:flex-row lg:items-center lg:gap-16'">
       <div class="w-full lg:w-[680px] lg:shrink-0">
-        <gr-pista-futsal [titulares]="titulares()" [puntosDe]="puntosDe" [rojo]="true" (abrir)="router.navigateByUrl('/fantasy')" />
+        <gr-pista-futsal [titulares]="titulares()" [rojo]="true" (abrir)="router.navigateByUrl('/fantasy')" />
       </div>
       <div class="flex w-full flex-col items-start gap-5">
         <img src="/img/home/logo-fantasy.webp" alt="GRS Fantasy" width="280" height="132" class="h-auto w-[240px] md:w-[280px]" loading="lazy" decoding="async" />
@@ -241,11 +241,9 @@ export class SecFantasy {
   protected readonly ancho = ANCHO;
   protected readonly titulares = computed<AtletaPista[]>(() =>
     (this.resumen()?.alineacionDestacada?.atletas ?? []).map((a) => ({
-      atletaId: a.atletaId, nombre: a.nombre, sexo: a.categoria.startsWith('M') ? 'M' : 'F', categoria: a.categoria, clausula: 0, titular: true, protegido: false, libre: false, esMio: false, flightEnCurso: a.compitiendo,
+      atletaId: a.atletaId, nombre: a.nombre, sexo: a.categoria.startsWith('M') ? 'M' : 'F', categoria: a.categoria, clausula: 0, titular: true, protegido: false, libre: false, esMio: false, flightEnCurso: a.compitiendo, nota: a.nota,
     }) as AtletaMercado),
   );
-  private readonly puntos = computed(() => new Map((this.resumen()?.alineacionDestacada?.atletas ?? []).map((a) => [a.atletaId, a.puntos])));
-  protected readonly puntosDe = (a: AtletaPista) => this.puntos().get(a.atletaId) ?? null;
   protected readonly datos = computed(() => {
     const r = this.resumen();
     const m = r?.mejorNota;

@@ -15,6 +15,9 @@ export interface Fan {
   email?: string;
 }
 
+/** Destino interno al que vuelve el fan tras canjear el enlace mágico (solo rutas /fantasy/…; el backend ignora el resto). */
+export const DESTINO_INTERNO = /^\/fantasy(\/[A-Za-z0-9_-]+)*$/;
+
 export interface AccesoIn {
   email: string;
   tipo: 'atleta' | 'publico';
@@ -58,6 +61,8 @@ export class FanSession {
   readonly volverA = signal<string | null>(null);
   /** Email already typed on the page that opens the modal (prefills it). */
   readonly emailAcceso = signal('');
+  /** Fantasy destination of the link (an invitation to a room): the modal tells it travels to any device. */
+  readonly destino = computed(() => { const v = this.volverA(); return v && DESTINO_INTERNO.test(v) ? v : null; });
 
   private pendiente: Promise<Fan | null> | null = null;
 
@@ -90,12 +95,12 @@ export class FanSession {
 
   /** Asks for the magic link (always 202 when accepted). Throws HttpErrorResponse with `code` on errors. */
   async pedirAcceso(i: AccesoIn): Promise<void> {
-    await firstValueFrom(this.http.post(`${this.base}/acceso`, i));
+    await firstValueFrom(this.http.post(`${this.base}/acceso`, { ...i, next: i.next ?? this.volverA() ?? undefined }));
   }
 
   /** Redeems the token of the email link (page /acceso?acceso=…); sets the cookie and the session. */
-  async canjear(token: string): Promise<Fan> {
-    const f = await firstValueFrom(this.http.post<Fan>(`${this.base}/canjear`, { token }));
+  async canjear(token: string): Promise<Fan & { next?: string }> {
+    const f = await firstValueFrom(this.http.post<Fan & { next?: string }>(`${this.base}/canjear`, { token }));
     this.yo.set(f);
     this.cargada.set(true);
     this.pendiente = Promise.resolve(f);

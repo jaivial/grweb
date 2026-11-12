@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
  * juego, aviso legal, saldo de monedas, chips de filtro, botón de cuota, tarjeta de mercado, boleto de apuesta, gancho
  * de premios, podio y fila de clasificación.
  */
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrSelect } from '@grcup/ui';
 import { FanSession } from '../../core/fan';
@@ -52,22 +52,87 @@ export class AvisoJuegos {
   readonly corto = input(false);
 }
 
+/** Una opción de un selector: con `href` es un enlace (navegación); sin él, un botón que emite `elegir`. */
+export interface OpcionSelector {
+  v: string;
+  l: string;
+  href?: string;
+}
+
+let selectorSeq = 0;
+
+/**
+ * Selector con desplegable (Figma «Selector · …» y «Desplegable»): en móvil sustituye a toda barra de pestañas (de
+ * juego, de sala, filtros con pestañas y días del palmarés): un campo con la opción activa y el chevron. Se cierra
+ * con Escape o al pulsar fuera.
+ */
+@Component({
+  selector: 'gr-selector',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'relative block', '(document:keydown.escape)': 'abierto.set(false)', '(document:click)': 'fuera($event)' },
+  template: `
+    <button type="button" class="flex h-12 w-full items-center gap-3 rounded-md border bg-bg-field px-4 text-left text-label-s text-text-primary"
+      [class]="abierto() ? 'border-line-accent' : 'border-line-strong'" [attr.aria-expanded]="abierto()" [attr.aria-controls]="id"
+      [attr.aria-label]="(etiqueta() ? etiqueta() + ': ' : '') + actual()" (click)="abierto.set(!abierto())">
+      <span class="min-w-0 flex-1 truncate">{{ actual() }}</span>
+      <gr-icon name="chevron-down" [size]="20" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="abierto()" />
+    </button>
+    @if (abierto()) {
+      <ul [id]="id" class="absolute inset-x-0 top-full z-30 mt-2 flex flex-col gap-1 rounded-md border border-line-strong bg-bg-raised p-2 shadow-card">
+        @for (o of opciones(); track o.v) {
+          <li>
+            @if (o.href) {
+              <a [href]="o.href" class="flex h-11 items-center gap-3 rounded-sm px-3 text-label-s" [class]="o.v === valor() ? 'bg-bg-field text-text-primary' : 'text-text-secondary'" [attr.aria-current]="o.v === valor() ? 'page' : null">
+                <span class="min-w-0 flex-1 truncate">{{ o.l }}</span>@if (o.v === valor()) { <gr-icon name="check" [size]="20" /> }
+              </a>
+            } @else {
+              <button type="button" class="flex h-11 w-full items-center gap-3 rounded-sm px-3 text-left text-label-s" [class]="o.v === valor() ? 'bg-bg-field text-text-primary' : 'text-text-secondary'" [attr.aria-pressed]="o.v === valor()" (click)="elige(o.v)">
+                <span class="min-w-0 flex-1 truncate">{{ o.l }}</span>@if (o.v === valor()) { <gr-icon name="check" [size]="20" /> }
+              </button>
+            }
+          </li>
+        }
+      </ul>
+    }
+  `,
+})
+export class GrSelector {
+  readonly opciones = input.required<OpcionSelector[]>();
+  readonly valor = input('');
+  /** Para qué es el selector (lo lee el lector de pantalla). */
+  readonly etiqueta = input('');
+  readonly elegir = output<string>();
+  protected readonly abierto = signal(false);
+  protected readonly id = 'gr-selector-' + ++selectorSeq;
+  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+  protected readonly actual = computed(() => this.opciones().find((o) => o.v === this.valor())?.l ?? this.opciones()[0]?.l ?? '');
+  protected elige(v: string): void {
+    this.abierto.set(false);
+    this.elegir.emit(v);
+  }
+  protected fuera(e: Event): void {
+    if (this.abierto() && !this.el.nativeElement.contains(e.target as Node)) this.abierto.set(false);
+  }
+}
+
 /**
  * La barra del juego (Figma «Barra de juego»): las pestañas de la porra o de GRS Fantasy y el aviso legal. Son
- * enlaces normales (SSR y SEO); en móvil las pestañas ocupan el ancho y fantasy usa rótulos cortos.
+ * enlaces normales (SSR y SEO). En GRS Fantasy, en móvil las pestañas son un selector con desplegable (sin scroll
+ * horizontal); la pestaña activa no lleva punto.
  */
 @Component({
   selector: 'gr-juegos-nav',
-  imports: [RouterLink, AvisoJuegos],
+  imports: [RouterLink, AvisoJuegos, GrSelector],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6' },
+  host: { class: 'flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4' },
   template: `
-    <nav class="flex w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [attr.aria-label]="juego() === 'porra' ? 'Porra' : 'GRS Fantasy'">
+    @if (juego() === 'fantasy') { <gr-selector class="md:hidden" etiqueta="GRS Fantasy" [opciones]="opciones()" [valor]="activa()" /> }
+    <nav class="w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [class]="juego() === 'fantasy' ? 'hidden gap-1 md:flex' : 'flex'" [attr.aria-label]="juego() === 'porra' ? 'Porra' : 'GRS Fantasy'">
       @for (t of tabs(); track t.href) {
-        <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none md:px-4"
-          [class]="t.id === activa() ? 'border border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border border-transparent text-text-tertiary hover:text-text-primary'"
+        <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none"
+          [class]="(juego() === 'fantasy' ? 'md:w-[120px] md:px-0 ' : 'md:px-4 ') + (t.id === activa() ? 'border border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border border-transparent text-text-tertiary hover:text-text-primary')"
           [attr.aria-current]="t.id === activa() ? 'page' : null">
-          @if (t.id === activa()) { <span class="hidden size-1.5 shrink-0 rounded-full bg-accent sm:block" aria-hidden="true"></span> }
           <span class="truncate sm:hidden">{{ t.corto }}</span><span class="hidden truncate sm:inline">{{ t.label }}</span>
         </a>
       }
@@ -78,7 +143,7 @@ export class AvisoJuegos {
 })
 export class JuegosNav {
   readonly juego = input<'porra' | 'fantasy'>('porra');
-  /** La pestaña activa: mercados · apuestas · clasificacion (porra) o equipo · mercado · clasificacion · reglas (fantasy). */
+  /** La pestaña activa: mercados · apuestas · clasificacion (porra) o salas · equipo · mercado · clasificacion · palmares · reglas (fantasy). */
   readonly activa = input('');
   protected readonly tabs = computed(() =>
     this.juego() === 'porra'
@@ -88,12 +153,15 @@ export class JuegosNav {
           { id: 'clasificacion', href: '/porra/clasificacion', label: 'Clasificación', corto: 'Ranking' },
         ]
       : [
-          { id: 'equipo', href: '/fantasy', label: 'Mi equipo', corto: 'Equipo' },
+          { id: 'salas', href: '/fantasy/salas', label: 'Salas', corto: 'Salas' },
+          { id: 'equipo', href: '/fantasy', label: 'Mi equipo', corto: 'Mi equipo' },
           { id: 'mercado', href: '/fantasy/mercado', label: 'Mercado', corto: 'Mercado' },
-          { id: 'clasificacion', href: '/fantasy/clasificacion', label: 'Clasificación', corto: 'Ranking' },
-          { id: 'reglas', href: '/fantasy/como-se-juega', label: 'Cómo se juega', corto: 'Reglas' },
+          { id: 'clasificacion', href: '/fantasy/clasificacion', label: 'Clasificación', corto: 'Clasificación' },
+          { id: 'palmares', href: '/fantasy/palmares', label: 'Palmarés', corto: 'Palmarés' },
+          { id: 'reglas', href: '/fantasy/como-se-juega', label: 'Cómo se juega', corto: 'Cómo se juega' },
         ],
   );
+  protected readonly opciones = computed<OpcionSelector[]>(() => this.tabs().map((t) => ({ v: t.id, l: t.label, href: t.href })));
 }
 
 /** El saldo de monedas (Figma «Coin balance»): la moneda con brillo, la cifra y la cartera. Sin sesión, «Entrar para jugar». */
@@ -140,7 +208,7 @@ export class CoinBalance {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
   template: `
-    <div class="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-x-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden"
+    <div [class]="envuelve() ? 'flex flex-wrap gap-2' : '-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-x-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden'"
       role="group" [attr.aria-label]="etiqueta() || null">
       @for (o of opciones(); track o.v) {
         <button type="button" class="h-11 shrink-0 snap-start rounded-pill border px-4 text-label-xs transition-colors md:h-9"
@@ -154,6 +222,8 @@ export class GrupoChips<T extends string = string> {
   readonly opciones = input.required<{ v: T; l: string; n?: number }[]>();
   readonly valor = input<T | ''>('');
   readonly etiqueta = input('');
+  /** En móvil los chips se ajustan en varias líneas en vez de ir en una fila con scroll horizontal. */
+  readonly envuelve = input(false);
   readonly valorChange = output<T>();
 }
 
@@ -553,6 +623,8 @@ export interface PlazaPodio {
   alias: string;
   valor: string;
   yo: boolean;
+  /** Color del valor (p. ej. el del tramo de la nota); si no, el de la medalla. */
+  valorClase?: string;
 }
 
 /** El podio de la clasificación (Figma «Leaderboard podium»): 2.º · 1.º · 3.º con los colores de medalla. */
@@ -569,7 +641,7 @@ export interface PlazaPodio {
           <span class="flex shrink-0 items-center justify-center rounded-full border-2 bg-bg-raised font-display text-text-primary shadow-[0_6px_16px_rgb(0_0_0/0.45)]"
             [class]="m(p.puesto).anillo + (p.puesto === 1 ? ' size-[72px] text-[26px]' : ' size-[60px] text-[22px]') + (p.yo ? ' ring-2 ring-accent ring-offset-2 ring-offset-bg-base' : '')">{{ ini(p.alias) }}</span>
           <span class="w-full truncate text-center text-label-s text-text-primary">{{ p.alias ? '@' + p.alias : 'Anónimo' }}@if (p.yo) { <span class="sr-only"> (tú)</span> }</span>
-          <span class="font-mono font-bold tabular-nums" [class]="m(p.puesto).texto + (p.puesto === 1 ? ' text-[16px] sm:text-[20px]' : ' text-[14px] sm:text-[17px]')">{{ p.valor }}</span>
+          <span class="font-mono font-bold tabular-nums" [class]="(p.valorClase || m(p.puesto).texto) + (p.puesto === 1 ? ' text-[16px] sm:text-[20px]' : ' text-[14px] sm:text-[17px]')">{{ p.valor }}</span>
           <span class="block w-full rounded-t-xs" aria-hidden="true" [class]="m(p.puesto).solido + (p.puesto === 1 ? ' h-[104px]' : p.puesto === 2 ? ' h-[76px]' : ' h-14')"></span>
         </li>
       }
@@ -602,7 +674,7 @@ export class Podio {
       @if (nota()) { <span class="block truncate text-body-xs" [class]="yo() ? 'text-accent-text' : 'text-text-tertiary'">{{ nota() }}</span> }
     </span>
     <span class="shrink-0 text-right">
-      <span class="block font-mono text-[16px] font-bold tabular-nums sm:text-[18px]" [class]="yo() ? 'text-accent-text' : 'text-text-primary'">{{ valor() }}</span>
+      <span class="block font-mono text-[16px] font-bold tabular-nums sm:text-[18px]" [class]="valorClase() || (yo() ? 'text-accent-text' : 'text-text-primary')">{{ valor() }}</span>
       <span class="block text-mono-xs text-text-muted">{{ valorLabel() }}</span>
     </span>
     @if (yo()) { <span class="hidden shrink-0 rounded-2xs bg-accent px-2 py-1 text-mono-xs text-white sm:inline">Tu puesto</span> }
@@ -614,6 +686,9 @@ export class LeaderboardRow {
   readonly nota = input('');
   readonly yo = input(false);
   readonly valorLabel = input('saldo porra');
+  /** El valor ya formateado (p. ej. la nota media «7,92») y su color; si no, se pinta el saldo o los puntos de la fila. */
+  readonly valorTxt = input('');
+  readonly valorClase = input('');
 
   protected readonly clases = computed(
     () =>
@@ -626,6 +701,7 @@ export class LeaderboardRow {
   });
   protected readonly valor = computed(() => {
     const f = this.fila();
+    if (this.valorTxt()) return this.valorTxt();
     if (f.puntos !== undefined) return f.puntos + ' pts';
     return monedas(f.saldo ?? 0);
   });
