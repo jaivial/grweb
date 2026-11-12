@@ -156,13 +156,20 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
   imports: [RouterLink, Page, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, Luces, Clasificacion, Related, Community, PanelSocial],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabeceraMovil]="false">
+    <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabecera]="false">
+      <!-- Figma 70 desktop: the title and the breadcrumbs in one row, 16 px above the player -->
+      <header class="mb-4 hidden items-end justify-between gap-6 md:flex">
+        <h1 class="[text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl">GRStrength Cup <span class="text-accent-text">en directo</span></h1>
+        <nav class="flex shrink-0 items-center gap-1.5 pb-2 text-body-s text-text-tertiary" aria-label="Migas">
+          <a routerLink="/" class="hover:text-text-primary">Inicio</a><gr-icon name="chevron-right" [size]="14" /><span>El evento</span><gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">En directo</span>
+        </nav>
+      </header>
       @let d = dir();
       @if (d === undefined) { <gr-skeleton class="h-[480px] rounded-lg" /> }
       @else if (d === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar el directo">Vuelve a intentarlo en unos segundos.</gr-alert> } }
       @else {
         @if (d.pausa && d.fase === 'en_directo') { <gr-alert class="mb-5" tone="warning" title="Pausa técnica">Volvemos enseguida.@if (d.retrasoMin) { Vamos con {{ d.retrasoMin }} min de retraso. }</gr-alert> }
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
           <!-- Video -->
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
           <section class="relative -mx-5 -mt-4 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
@@ -208,7 +215,9 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
               @switch (d.fase) {
                 @case ('en_directo') {
                   <!-- Figma «Live status»: state of the real-time connection -->
-                  <gr-live-status class="self-start" [estado]="conexion()" />
+                  <!-- Figma 70 shows the live badge on the player: the pill only appears when the connection drops -->
+                  @if (conexion() !== 'en-directo') { <gr-live-status class="self-start" [estado]="conexion()" /> }
+                  <div class="flex flex-col gap-4 lg:grid lg:grid-cols-[324px_minmax(0,1fr)] lg:items-start">
                   @if (enPlataforma(); as a) {
                     <section class="rounded-lg border border-accent/40 bg-[linear-gradient(150deg,#3a0f17,#1b1112_70%)] p-5" aria-live="polite">
                       <p class="flex justify-between text-label-xs text-text-tertiary uppercase"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
@@ -226,15 +235,16 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                   }
                   <!-- on mobile «Siguientes» lives in the «Plataforma» tab (Figma 27) -->
                   <section class="hidden lg:block">
-                    <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
-                    <ul class="mt-2 divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card">
+                    <p class="text-label-s">Siguientes</p>
+                    <ul class="mt-2 divide-y divide-line-subtle">
                       @for (s of d.siguientes; track $index) {
-                        <li class="flex items-center gap-3 px-4 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill border border-line-strong text-mono-xs">{{ s.numero }}</span>
+                        <li class="flex items-center gap-3 px-4 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill border border-line-strong text-mono-xs">{{ $index + 1 }}</span>
                           <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
                           <span class="font-mono text-mono-s">{{ kg(s.peso) }} kg</span></li>
                       } @empty { <li class="px-4 py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
                     </ul>
                   </section>
+                  </div>
                 }
                 @case ('antes') {
                   @if (futuro()) {
