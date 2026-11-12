@@ -97,7 +97,7 @@ import {
     <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-labelledby="c-dz">
       <h2 id="c-dz" class="text-ui-h5 md:col-span-2 xl:col-span-5">Dropzone</h2>
       <bo-dropzone title="Arrastra el acta de la AEP o haz clic" hint=".xlsx · .csv · máx. 10 MB" accept=".xlsx,.csv" />
-      <bo-dropzone state="uploading" status="acta-aep3-valencia.xlsx · 64 %" subStatus="412 KB de 640 KB" [progress]="64" />
+      <bo-dropzone state="uploading" status="acta-aep3-valencia.xlsx" subStatus="412 KB de 640 KB" [progress]="64" />
       <bo-dropzone state="success" status="acta-aep3-valencia.xlsx · 148 filas" subStatus="Listo para mapear columnas" />
       <bo-dropzone state="error" status="Formato no admitido" subStatus="Sube un .xlsx o .csv exportado desde la AEP" />
     </section>

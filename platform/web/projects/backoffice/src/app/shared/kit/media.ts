@@ -17,7 +17,11 @@ export type BoDropState = 'idle' | 'uploading' | 'success' | 'error';
       [class]="frame()" (dragover)="$event.preventDefault(); over.set(true)" (dragleave)="over.set(false)" (drop)="drop($event)">
       <input type="file" class="sr-only" [accept]="accept()" (change)="pick($event)" [disabled]="state() === 'uploading'" />
       <span class="mb-1 flex size-10 items-center justify-center rounded-md" [class]="tone()"><gr-icon [name]="icon()" [size]="20" [spin]="state() === 'uploading' && !over()" /></span>
-      <span class="text-label-s text-text-primary">{{ heading() }}</span>
+      @if (view() === 'uploading') {
+        <span class="flex max-w-full text-label-s text-text-primary"><span class="truncate">{{ status() }}</span><span class="shrink-0 whitespace-pre"> · {{ progress() }}&nbsp;%</span></span>
+      } @else {
+        <span class="text-label-s text-text-primary">{{ heading() }}</span>
+      }
       <span class="text-body-xs" [class]="state() === 'error' && !over() ? 'text-error' : 'text-text-tertiary'" aria-live="polite">{{ detail() }}</span>
       @if (state() === 'uploading' && !over()) {
         <span class="mt-1 h-1.5 w-60 max-w-full overflow-hidden rounded-pill bg-bg-raised" role="progressbar" [attr.aria-valuenow]="progress()" aria-valuemin="0" aria-valuemax="100">
@@ -31,14 +35,14 @@ export class BoDropzone {
   readonly state = input<BoDropState>('idle');
   readonly title = input('Arrastra el archivo o haz clic');
   readonly hint = input('');
-  /** Shown while uploading / on success / on error (e.g. «acta.xlsx · 64 %», «Sube un .xlsx o .csv»). */
+  /** Shown while uploading (file name; « · NN %» is appended on the same line) / on success / on error. */
   readonly status = input('');
   readonly subStatus = input('');
   readonly progress = input(0);
   readonly accept = input('');
   readonly file = output<File>();
   protected readonly over = signal(false);
-  private readonly view = computed(() => (this.over() ? 'over' : this.state()));
+  protected readonly view = computed(() => (this.over() ? 'over' : this.state()));
   protected readonly frame = computed(() => ({
     idle: 'border-dashed border-line-strong bg-bg-field hover:border-line-hover',
     over: 'border-dashed border-accent bg-accent/8',
