@@ -92,11 +92,11 @@ export class Fav {
       </div>
 
       @if (l) {
-        <ul class="mt-16 hidden grid-cols-4 gap-2 md:grid lg:gap-4">
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.total }}</p><p class="text-body-xs text-text-tertiary">atletas</p></li>
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.mujeres }} · {{ l.resumen.hombres }}</p><p class="text-body-xs text-text-tertiary">mujeres · hombres</p></li>
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.clubs }}</p><p class="text-body-xs text-text-tertiary">clubs</p></li>
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.flights || '–' }}</p><p class="text-body-xs text-text-tertiary">{{ l.resumen.flights ? 'flights · ' + l.resumen.plataformas + (l.resumen.plataformas === 1 ? ' plataforma' : ' plataformas') : 'flights por publicar' }}</p></li>
+        <ul class="mt-[88px] hidden grid-cols-4 gap-2 md:grid lg:gap-4">
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.total }}</p><p class="text-body-xs text-text-tertiary">atletas</p></li>
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.mujeres }} · {{ l.resumen.hombres }}</p><p class="text-body-xs text-text-tertiary">mujeres · hombres</p></li>
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.clubs }}</p><p class="text-body-xs text-text-tertiary">clubs</p></li>
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.flights || '–' }}</p><p class="text-body-xs text-text-tertiary">{{ l.resumen.flights ? 'flights · ' + l.resumen.plataformas + (l.resumen.plataformas === 1 ? ' plataforma' : ' plataformas') : 'flights por publicar' }}</p></li>
         </ul>
       }
 
@@ -109,7 +109,7 @@ export class Fav {
       } @else if (error()) {
         <div class="mt-8 flex flex-col items-start gap-4"><gr-alert tone="warning" title="No hemos podido cargar los atletas">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert><button grButton icon="refresh" (click)="cargar()">Reintentar</button></div>
       } @else if (!filtrados().length) {
-        <div class="mt-12 flex flex-col items-center gap-3 py-8 text-center" role="status">
+        <div class="mt-[-5px] flex flex-col items-center gap-3 py-8 text-center md:mt-12" role="status">
           <gr-icon name="search" [size]="28" class="text-text-tertiary" />
           <p class="text-ui-h5">Ningún atleta coincide{{ q() ? ' con "' + q() + '"' : '' }}</p>
           <p class="max-w-sm text-body-s text-text-tertiary">Prueba con el apellido o el club. Si compites y no apareces, avisa a la organización: el listado sale de la AEP.</p>
