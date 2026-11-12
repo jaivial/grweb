@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import {
-  GrAvatar, GrBadge, GrIcon, GrIconButton, GrIconTile, GrLogo, GrToasts, daysUntil, fmtAgo, fmtShortDate, type GrIconName,
+  GrAvatar, GrIcon, GrIconButton, GrIconTile, GrLogo, GrToasts, daysUntil, fmtAgo, fmtShortDate, type GrIconName,
 } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
@@ -10,19 +10,21 @@ import { Notifications } from '../core/notifications';
 import { Realtime } from '../core/realtime';
 import { SolicitudesContador } from '../core/solicitudes';
 import type { Notificacion } from '../core/api';
+import { BoCommandPalette, BoLiveStatus, BoNavItem, BoNotificationItem, BoWorkspaceSwitcher, type BoPaletteItem, type BoTone, type BoWorkspace } from '../shared/kit';
 import { ALL_ITEMS, NAV, type NavItem } from './nav';
+import { PaletteSearch } from './palette-search';
 import { Outside } from './outside';
 
-const nivelIcon: Record<Notificacion['nivel'], { icon: GrIconName; tone: 'info' | 'success' | 'warning' | 'accent' }> = {
+const nivelIcon: Record<Notificacion['nivel'], { icon: GrIconName; tone: BoTone }> = {
   info: { icon: 'bell', tone: 'info' },
   ok: { icon: 'circle-check', tone: 'success' },
   aviso: { icon: 'triangle-alert', tone: 'warning' },
-  error: { icon: 'circle-x', tone: 'accent' },
+  error: { icon: 'circle-x', tone: 'error' },
 };
 
 @Component({
   selector: 'bo-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, GrIcon, GrIconButton, GrAvatar, GrLogo, GrBadge, GrIconTile, Outside],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, GrIcon, GrIconButton, GrAvatar, GrLogo, GrIconTile, Outside, BoNavItem, BoWorkspaceSwitcher, BoCommandPalette, BoLiveStatus, BoNotificationItem],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown)': 'onKey($event)' },
   templateUrl: './shell.html',
@@ -38,7 +40,6 @@ export class Shell {
 
   protected readonly collapsed = signal(typeof localStorage !== 'undefined' && localStorage.getItem('bo.collapsed') === '1');
   protected readonly mobileMenu = signal(false);
-  protected readonly switcher = signal(false);
   protected readonly notifPanel = signal(false);
   protected readonly userMenu = signal(false);
   protected readonly palette = signal(false);
@@ -49,17 +50,21 @@ export class Shell {
   protected readonly cid = computed(() => this.comp()?.id);
   protected readonly visible = (it: NavItem) => !it.perm || this.auth.can(this.cid(), it.perm);
   protected readonly nav = computed(() => NAV.map((g) => ({ ...g, items: g.items.filter((i) => this.visible(i)) })).filter((g) => g.items.length));
-  protected readonly tabs = computed(() => ALL_ITEMS.filter((i) => i.mobileTab && this.visible(i)).slice(0, 4));
+  /** Figma 49 tab bar order: Inicio · Check-in · Directo · Entradas · Más. */
+  protected readonly tabs = computed(() => ['inicio', 'checkin', 'directo', 'entradas'].map((p) => ALL_ITEMS.find((i) => i.path === p)!).filter((i) => this.visible(i)));
+  protected tabLabel(t: NavItem): string { return t.path === 'checkin' ? 'Check-in' : t.label.split(' ')[0]; }
+  protected readonly search = inject(PaletteSearch);
+  protected readonly workspaces = computed<BoWorkspace[]>(() => this.comps.list().map((c) => ({
+    slug: c.slug, nombre: c.nombreCorto || c.nombre,
+    detalle: c.estado === 'archivada' ? 'archivada · solo lectura' : [c.slug, c.fechaInicio && fmtShortDate(c.fechaInicio), this.auth.rolEn(c.id)].filter(Boolean).join(' · '),
+  })));
+  protected readonly workspace = computed(() => this.workspaces().find((w) => w.slug === this.comp()?.slug) ?? null);
+  protected readonly paletteHint = computed(() => (/^grc-/i.test(this.query()) ? 'Los códigos de entrada tienen 4 caracteres tras GRC- · prueba con el email' : 'Prueba con el nombre, el email o el código de la entrada'));
   protected readonly pageTitle = computed(() => {
     const url = this.url();
     if (url.includes('/atletas/solicitudes')) return 'Solicitudes';
     if (url.includes('/sistema/whatsapp')) return 'WhatsApp';
     return ALL_ITEMS.find((i) => url.includes(`/${i.path}`))?.label ?? 'Backoffice';
-  });
-  protected readonly results = computed(() => {
-    const q = this.query().trim().toLowerCase();
-    const items = ALL_ITEMS.filter((i) => this.visible(i));
-    return q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items;
   });
   protected readonly countdown = computed(() => {
     const c = this.comp();
@@ -119,9 +124,26 @@ export class Shell {
   }
 
   protected openPalette(): void {
-    this.query.set('');
+    this.onQuery('');
     this.palette.set(true);
-    setTimeout(() => document.getElementById('bo-palette-input')?.focus());
+  }
+
+  protected onQuery(q: string): void {
+    this.query.set(q);
+    void this.search.search(this.cid(), this.comp()?.slug, q);
+  }
+
+  protected pick(it: BoPaletteItem, newTab: boolean): void {
+    const url = this.search.url(it);
+    if (!url) return;
+    this.search.remember(it);
+    this.palette.set(false);
+    if (newTab) window.open(url, '_blank', 'noopener');
+    else void this.router.navigateByUrl(url);
+  }
+
+  protected nuevaCompeticion(): void {
+    void this.router.navigate(['/', this.comp()?.slug, 'evento']);
   }
 
   /** Live badge of a section of the menu (athlete requests waiting for a review). */
@@ -131,18 +153,7 @@ export class Shell {
     return n > 0 ? n : null;
   }
 
-  protected go(it: NavItem): void {
-    this.palette.set(false);
-    void this.router.navigate(['/', this.comp()?.slug, it.path]);
-  }
-
-  protected paletteEnter(): void {
-    const first = this.results()[0];
-    if (first) this.go(first);
-  }
-
   protected switchTo(slug: string): void {
-    this.switcher.set(false);
     void this.router.navigate(['/', slug, 'inicio']);
   }
 

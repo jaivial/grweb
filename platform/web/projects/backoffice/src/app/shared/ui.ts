@@ -102,14 +102,17 @@ export class BoToggle {
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-40 bg-black/60" (click)="close()"></div>
-      <aside class="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-line-strong bg-bg-card shadow-card sm:w-[480px]" role="dialog" aria-modal="true" [attr.aria-label]="title()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
-        <header class="flex items-center gap-3 border-b border-line-subtle px-5 py-4">
-          <h2 class="min-w-0 flex-1 truncate text-ui-h5">{{ title() }}</h2>
+      <aside class="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-line-strong bg-bg-card shadow-card sm:w-[480px] sm:rounded-l-[20px]" role="dialog" aria-modal="true" [attr.aria-label]="title()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
+        <header class="flex items-center gap-3 border-b border-line-subtle px-6 py-5">
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <h2 class="truncate text-[20px] leading-[26px] font-semibold">{{ title() }}</h2>
+            @if (sub()) { <p class="truncate text-body-xs text-text-tertiary">{{ sub() }}</p> }
+          </div>
           @if (badge()) { <gr-badge [tone]="badgeTone()">{{ badge() }}</gr-badge> }
           <button grIconButton icon="x" label="Cerrar" (click)="close()"></button>
         </header>
-        <div class="flex-1 overflow-y-auto px-5 py-5"><ng-content /></div>
-        <footer class="flex flex-wrap justify-end gap-2 border-t border-line-subtle bg-bg-card px-5 py-4"><ng-content select="[drawerActions]" /></footer>
+        <div class="flex-1 overflow-y-auto p-6"><ng-content /></div>
+        <footer class="flex flex-wrap justify-end gap-2 border-t border-line-subtle bg-bg-card px-6 py-4 sm:rounded-bl-[20px]"><ng-content select="[drawerActions]" /></footer>
       </aside>
     }
   `,
@@ -117,6 +120,7 @@ export class BoToggle {
 export class BoDrawer {
   readonly open = model(false);
   readonly title = input('');
+  readonly sub = input('');
   readonly badge = input('');
   readonly badgeTone = input<GrTone>('warning');
   close(): void {
