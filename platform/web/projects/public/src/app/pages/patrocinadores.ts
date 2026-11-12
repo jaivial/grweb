@@ -10,7 +10,9 @@ import { applySeo } from './content';
 import { Related } from './landings';
 
 const LOGO_GR = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
-const NIVEL: Record<string, string> = { principal: 'Principal', oro: 'Oro', plata: 'Plata', colaborador: 'Colaborador', institucional: 'Federación' };
+const NIVEL: Record<string, string> = { principal: 'Principal', oro: 'Oro', plata: 'Plata', colaborador: 'Colaborador', institucional: 'Federación', federacion: 'Federación', organizador: 'Organizador' };
+/** Levels shown with the organiser and the federation (backoffice «Organizadores y afiliaciones»). */
+const AFILIACION = ['institucional', 'federacion', 'organizador'];
 const ORDEN = ['principal', 'oro', 'plata', 'colaborador'];
 
 interface Tarjeta { nombre: string; insignia: string; logo: string; url: string; texto: string; nivel?: string }
@@ -120,12 +122,12 @@ export class PatrocinadoresPage {
   ];
   /** The institutions (AEP) and the organiser, built from the event. */
   protected readonly federacion = computed<Tarjeta[]>(() => {
-    const inst = (this.items() ?? []).filter((p) => p.nivel === 'institucional').map((p) => this.tarjeta(p));
+    const inst = (this.items() ?? []).filter((p) => AFILIACION.includes(p.nivel) && !mismo(p.nombre, this.organizador())).map((p) => this.tarjeta(p));
     const org = this.organizador();
     return [...inst, { nombre: org, insignia: 'Organizador', logo: LOGO_GR, url: '', texto: `Club organizador de la ${this.comp.data()?.nombre ?? 'GR Strength Cup'}.` }];
   });
   protected readonly marcas = computed<Tarjeta[]>(() =>
-    (this.items() ?? []).filter((p) => p.nivel !== 'institucional' && !mismo(p.nombre, this.organizador()))
+    (this.items() ?? []).filter((p) => !AFILIACION.includes(p.nivel) && !mismo(p.nombre, this.organizador()))
       .sort((a, b) => ORDEN.indexOf(a.nivel) - ORDEN.indexOf(b.nivel)).map((p) => this.tarjeta(p)),
   );
   private readonly organizador = computed(() => this.comp.data()?.evento.organizador || 'GR Strength');
