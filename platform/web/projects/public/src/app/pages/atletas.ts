@@ -264,7 +264,6 @@ export class AtletasPage {
       const mq = matchMedia('(max-width: 767px)');
       this.movil.set(mq.matches);
       mq.addEventListener('change', (e) => this.movil.set(e.matches));
-      void this.fav.sincronizar();
     }
     void inject(PendingTasks).run(async () => {
       const [l, c] = await Promise.all([this.cargar(), competition.load()]);
@@ -341,9 +340,10 @@ function catSort(a: string, b: string): number {
         <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
           <div class="flex flex-col gap-6">
             <section class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
-              <div class="relative aspect-[4/5] bg-[linear-gradient(160deg,#3a0f17,#171213)]">
+              <!-- Without photo, mobile keeps the Figma ≈300 px card instead of a 4:5 block of initials (U10-R2-4). -->
+              <div class="relative bg-[linear-gradient(160deg,#3a0f17,#171213)]" [class]="a.fotoUrl ? 'aspect-[4/5]' : 'min-h-[300px] lg:aspect-[4/5]'">
                 @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombre + ' ' + a.apellidos" class="size-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" fetchpriority="high" /> }
-                @else { <span class="absolute inset-0 flex items-center justify-center font-display text-[96px] text-white/85 italic">{{ ini(a) }}</span> }
+                @else { <span class="absolute inset-x-0 top-0 bottom-1/3 flex items-center justify-center font-display text-[64px] text-white/85 italic lg:inset-0 lg:text-[96px]">{{ ini(a) }}</span> }
                 <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5 pt-16"><p class="font-display text-[40px] leading-[0.95] uppercase italic">{{ a.nombre }} {{ a.apellidos }}</p></div>
               </div>
               <div class="p-5">
@@ -533,7 +533,7 @@ export class AtletaPage {
     });
   }
 
-  /** Back from the email link: finishes the follow / alert started without a session, then syncs the stars. */
+  /** Back from the email link: finishes the follow / alert started by an explicit click. Local stars are never sent (U10-R2-1). */
   private async retomar(a: FichaPub): Promise<void> {
     if (!(await this.fan.cargar())) return; // no session yet: keep the intention for when they come back logged in
     const i = this.fav.intencion(a.slug);
@@ -543,7 +543,6 @@ export class AtletaPage {
       this.acepta = true;
       await this.avisar(a);
     }
-    await this.fav.sincronizar();
   }
 
   protected async avisar(a: FichaPub): Promise<void> {
