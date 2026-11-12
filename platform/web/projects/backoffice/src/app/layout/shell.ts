@@ -1,3 +1,4 @@
+import { TituloMovil } from '../shared/ui';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
@@ -37,8 +38,10 @@ export class Shell {
   protected readonly solicitudes = inject(SolicitudesContador);
   private readonly toasts = inject(GrToasts);
   private readonly router = inject(Router);
+  private readonly tituloMovil = inject(TituloMovil);
 
-  protected readonly collapsed = signal(typeof localStorage !== 'undefined' && localStorage.getItem('bo.collapsed') === '1');
+  /** Figma 47/55: expanded sidebar at 1440. The saved «contraer» choice only applies to narrower desktops. */
+  protected readonly collapsed = signal(typeof localStorage !== 'undefined' && localStorage.getItem('bo.collapsed') === '1' && typeof window !== 'undefined' && window.innerWidth < 1440);
   protected readonly mobileMenu = signal(false);
   protected readonly notifPanel = signal(false);
   protected readonly userMenu = signal(false);
@@ -64,7 +67,10 @@ export class Shell {
   protected readonly paletteHint = computed(() => (/^grc-/i.test(this.query()) ? 'Los códigos de entrada tienen 4 caracteres tras GRC- · prueba con el email' : 'Prueba con el nombre, el email o el código de la entrada'));
   protected readonly pageTitle = computed(() => {
     const url = this.url();
+    const extra = this.tituloMovil.texto();
+    if (extra) return extra;
     if (url.includes('/atletas/solicitudes')) return 'Solicitudes';
+    if (url.includes('/atletas/pesaje')) return 'Pesaje';
     if (url.includes('/sistema/whatsapp')) return 'WhatsApp';
     return ALL_ITEMS.find((i) => url.includes(`/${i.path}`))?.label ?? 'Backoffice';
   });

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrIcon, GrToasts, type GrTone, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrIcon, GrInput, GrToasts, type GrTone, GrSelect } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, errText } from '../../shared/ui';
@@ -18,7 +18,7 @@ const RESULTADO: Record<FilaDiff['accion'] | 'baja', { label: string; tone: GrTo
 /** «Importar acta de la AEP» (Figma page 55 · «Atletas · importar AEP»): upload → map columns → review the diff → confirm. */
 @Component({
   selector: 'bo-atletas-importar',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrIcon],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrIcon, GrInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let imp = importacion();
@@ -66,7 +66,7 @@ const RESULTADO: Record<FilaDiff['accion'] | 'baja', { label: string; tone: GrTo
                     <option value="">— No importar —</option>
                     @for (col of imp?.columnas ?? []; track col) { <option [value]="col">{{ col }}</option> }
                   </gr-select>
-                  <span class="truncate text-mono-xs text-text-tertiary">{{ ejemplo(c.clave) }}</span>
+                  <span class="truncate text-mono-xs normal-case text-text-tertiary">{{ ejemplo(c.clave) }}</span>
                 </li>
               }
             </ul>
@@ -123,9 +123,16 @@ const RESULTADO: Record<FilaDiff['accion'] | 'baja', { label: string; tone: GrTo
               </ul>
               @if (!filasVista().length) { <p class="px-5 py-8 text-center text-body-s text-text-tertiary">No hay cambios: el acta coincide con los atletas actuales.</p> }
             </section>
+            @if (bajasMasivas()) {
+              <gr-alert tone="danger" [title]="'Esta acta da de baja a ' + imp.resumen.bajas + ' atletas'">
+                El acta solo trae {{ imp.resumen.nuevos + imp.resumen.cambios + imp.resumen.iguales }} {{ imp.resumen.nuevos + imp.resumen.cambios + imp.resumen.iguales === 1 ? 'fila válida' : 'filas válidas' }}: todos los demás atletas pasarán a «Baja» y perderán su plaza. Comprueba que es el acta completa.
+                <label class="mt-3 flex flex-col gap-1.5 text-label-s text-text-primary" for="i-conf">Escribe {{ imp.resumen.bajas }} para confirmar las bajas
+                  <input grInput id="i-conf" class="max-w-40" inputmode="numeric" autocomplete="off" [ngModel]="confBajas()" (ngModelChange)="confBajas.set($event)" /></label>
+              </gr-alert>
+            }
             <div class="flex justify-end gap-2">
               <button grButton variant="ghost" (click)="paso.set(2)">Atrás</button>
-              <button grButton variant="primary" [disabled]="!aplicables()" [loading]="trabajando()" (click)="confirmar()">Importar {{ aplicables() }} {{ aplicables() === 1 ? 'fila' : 'filas' }}</button>
+              <button grButton variant="primary" [disabled]="!aplicables() || (bajasMasivas() && confBajas().trim() !== imp.resumen.bajas + '')" [loading]="trabajando()" (click)="confirmar()">Importar {{ aplicables() }} {{ aplicables() === 1 ? 'fila' : 'filas' }}</button>
             </div>
           }
         }
@@ -182,6 +189,12 @@ export class AtletasImportarPage {
     const r = this.importacion()?.resumen;
     return r ? r.nuevos + r.cambios + r.bajas : 0;
   });
+  /** Many removals from a short file (e.g. 1 valid row → 148 bajas): typed confirmation, the number of bajas. */
+  protected readonly bajasMasivas = computed(() => {
+    const r = this.importacion()?.resumen;
+    return !!r && r.bajas >= 5 && r.bajas > r.nuevos + r.cambios + r.iguales;
+  });
+  protected readonly confBajas = signal('');
   protected readonly totalTrabajo = computed(() => this.importacion()?.resumen ? this.aplicables() : 0);
   protected readonly pct = computed(() => {
     const t = this.totalTrabajo();
@@ -257,6 +270,7 @@ export class AtletasImportarPage {
     try {
       const r = await this.api.mapear(cid, imp.id, this.mapeo());
       this.importacion.set({ ...r, muestra: imp.muestra });
+      this.confBajas.set('');
       this.paso.set(3);
     } catch (e) {
       this.error.set(errText(e));

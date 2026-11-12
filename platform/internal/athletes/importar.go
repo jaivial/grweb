@@ -243,8 +243,10 @@ func excelFecha(s string) (time.Time, bool) {
 }
 
 // leerFila maps a row and validates it against the competition year (division from the birth date).
+// It reports every problem of the row, joined with « · », not only the first one.
 func leerFila(datos, mapeo map[string]string, year int) (parsed, string) {
 	var p parsed
+	var errs []string
 	p.Licencia = licVista(valor(datos, mapeo, "licencia"))
 	p.Nombre, p.Apellidos = valor(datos, mapeo, "nombre"), valor(datos, mapeo, "apellidos")
 	if full := valor(datos, mapeo, "nombreCompleto"); p.Nombre == "" && full != "" {
@@ -259,11 +261,12 @@ func leerFila(datos, mapeo map[string]string, year int) (parsed, string) {
 	if f := valor(datos, mapeo, "fechaNacimiento"); f != "" {
 		t, ok := excelFecha(f)
 		if !ok {
-			return p, "Fecha de nacimiento «" + f + "» no válida"
-		}
-		p.FechaNacimiento = t.Format("2006-01-02")
-		if p.Division == "" {
-			p.Division = DivisionPorEdad(t, year)
+			errs = append(errs, "Fecha de nacimiento «"+f+"» no válida")
+		} else {
+			p.FechaNacimiento = t.Format("2006-01-02")
+			if p.Division == "" {
+				p.Division = DivisionPorEdad(t, year)
+			}
 		}
 	}
 	switch e := strings.ToLower(valor(datos, mapeo, "estado")); {
@@ -274,35 +277,45 @@ func leerFila(datos, mapeo map[string]string, year int) (parsed, string) {
 	case strings.HasPrefix(e, "baja") || strings.HasPrefix(e, "anul") || strings.HasPrefix(e, "cancel"):
 		p.Estado = "baja"
 	default:
-		return p, "Estado «" + e + "» desconocido"
+		errs = append(errs, "Estado «"+e+"» desconocido")
 	}
 	if o := valor(datos, mapeo, "ordenReserva"); o != "" && p.Estado == "reserva" {
 		if n, err := strconv.Atoi(o); err == nil {
 			p.OrdenReserva = &n
 		}
 	}
-	switch {
-	case p.Licencia == "":
-		return p, "Falta la licencia"
-	case !licenciaValida.MatchString(NormLicencia(p.Licencia)):
-		return p, "Licencia «" + p.Licencia + "» no válida: de 3 a 20 letras o números, sin contar guiones, puntos ni espacios"
-	case p.Nombre == "":
-		return p, "Falta el nombre"
-	case p.Sexo == "":
-		return p, "Sexo no reconocido"
-	case p.FechaNacimiento == "" && p.Division == "":
-		return p, "Falta fecha de nacimiento"
+	if p.Licencia == "" {
+		errs = append(errs, "Falta la licencia")
+	} else if !licenciaValida.MatchString(NormLicencia(p.Licencia)) {
+		errs = append(errs, "Licencia «"+p.Licencia+"» no válida: de 3 a 20 letras o números, sin contar guiones, puntos ni espacios")
+	}
+	if p.Nombre == "" {
+		errs = append(errs, "Falta el nombre")
+	}
+	if p.Sexo == "" {
+		if s := valor(datos, mapeo, "sexo"); s != "" {
+			errs = append(errs, "Sexo «"+s+"» no reconocido")
+		} else {
+			errs = append(errs, "Falta el sexo")
+		}
+	}
+	if p.FechaNacimiento == "" && p.Division == "" && valor(datos, mapeo, "fechaNacimiento") == "" {
+		errs = append(errs, "Falta fecha de nacimiento")
 	}
 	if p.Division == "" {
 		p.Division = "open"
 	}
 	if p.Email != "" && !strings.Contains(p.Email, "@") {
-		return p, "Email «" + p.Email + "» no válido"
+		errs = append(errs, "Email «"+p.Email+"» no válido")
 	}
-	if err := ValidarCategoria(p.Sexo, p.Categoria, p.Division); err != nil {
-		return p, "Categoría: " + err.Error()
+	if p.Sexo != "" {
+		if err := ValidarCategoria(p.Sexo, p.Categoria, p.Division); err != nil {
+			errs = append(errs, "Categoría: "+err.Error())
+		}
+	} else if c := valor(datos, mapeo, "categoria"); c != "" && p.Categoria == "" {
+		errs = append(errs, "Categoría «"+c+"» no válida")
 	}
-	return p, ""
+	return p, strings.Join(errs, " · ")
 }
 
 func diffCambios(prev row, p parsed) []string {

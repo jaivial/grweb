@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { GrAlert, GrAvatar, GrButton, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
-import { errText } from '../../shared/ui';
+import { TituloMovil, errText } from '../../shared/ui';
 import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } from './api';
 
 /** Weigh-in desk (Figma page 55 · «Móvil · pesaje»): search, body weight with a live class check, rack heights. */
@@ -84,6 +84,12 @@ export class PesajePage {
   protected readonly resultados = signal<ItemLista[]>([]);
   protected readonly buscando = signal(false);
   protected readonly atleta = signal<Atleta | null>(null);
+  private readonly titulo = inject(TituloMovil);
+  private readonly tituloSync = effect(() => {
+    const f = this.atleta()?.flight;
+    this.titulo.texto.set(f ? 'Pesaje · Flight ' + f : 'Pesaje');
+  });
+  ngOnDestroy(): void { this.titulo.texto.set(''); }
   protected readonly peso = signal('');
   protected rackSq = '';
   protected rackBp = '';
