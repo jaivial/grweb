@@ -112,6 +112,7 @@ const toneAlert: Record<GrTone, { box: string; icon: GrIconName; title: string }
   warning: { box: 'border-warning/45 bg-warning/8', icon: 'triangle-alert', title: 'text-warning' },
   info: { box: 'border-info/45 bg-info/8', icon: 'circle-alert', title: 'text-info' },
   danger: { box: 'border-accent/45 bg-accent/8', icon: 'circle-alert', title: 'text-accent-text' },
+  live: { box: 'border-accent/45 bg-accent/8', icon: 'circle-alert', title: 'text-accent-text' },
 };
 
 /**
