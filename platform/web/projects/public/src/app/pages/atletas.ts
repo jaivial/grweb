@@ -20,7 +20,7 @@ const sexoTxt = { F: 'Femenino', M: 'Masculino' };
   selector: 'gr-fav',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button type="button" (click)="$event.preventDefault(); $event.stopPropagation(); fav.toggle(slug())" [attr.aria-pressed]="on()" [attr.aria-label]="(on() ? 'Dejar de seguir a ' : 'Seguir a ') + nombre()"
+    <button type="button" (click)="$event.preventDefault(); $event.stopPropagation(); fav.seguir(slug())" [attr.aria-pressed]="on()" [attr.aria-label]="(on() ? 'Dejar de seguir a ' : 'Seguir a ') + nombre()"
       class="flex size-11 items-center justify-center rounded-full transition-colors" [class]="plano() ? (on() ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary') : on() ? 'bg-accent text-white shadow-glow' : 'bg-black/40 text-white backdrop-blur hover:bg-black/60'">
       <svg viewBox="0 0 24 24" [attr.width]="plano() ? 16 : 18" [attr.height]="plano() ? 16 : 18" [attr.fill]="on() ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
     </button>
@@ -92,11 +92,11 @@ export class Fav {
       </div>
 
       @if (l) {
-        <ul class="mt-16 hidden grid-cols-4 gap-2 md:grid lg:gap-4">
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.total }}</p><p class="text-body-xs text-text-tertiary">atletas</p></li>
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.mujeres }} · {{ l.resumen.hombres }}</p><p class="text-body-xs text-text-tertiary">mujeres · hombres</p></li>
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.clubs }}</p><p class="text-body-xs text-text-tertiary">clubs</p></li>
-          <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.flights || '–' }}</p><p class="text-body-xs text-text-tertiary">{{ l.resumen.flights ? 'flights · ' + l.resumen.plataformas + (l.resumen.plataformas === 1 ? ' plataforma' : ' plataformas') : 'flights por publicar' }}</p></li>
+        <ul class="mt-[88px] hidden grid-cols-4 gap-2 md:grid lg:gap-4">
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.total }}</p><p class="text-body-xs text-text-tertiary">atletas</p></li>
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.mujeres }} · {{ l.resumen.hombres }}</p><p class="text-body-xs text-text-tertiary">mujeres · hombres</p></li>
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.clubs }}</p><p class="text-body-xs text-text-tertiary">clubs</p></li>
+          <li class="rounded-md border border-line-subtle bg-bg-card px-4 py-[18px]"><p class="text-ui-h3">{{ l.resumen.flights || '–' }}</p><p class="text-body-xs text-text-tertiary">{{ l.resumen.flights ? 'flights · ' + l.resumen.plataformas + (l.resumen.plataformas === 1 ? ' plataforma' : ' plataformas') : 'flights por publicar' }}</p></li>
         </ul>
       }
 
@@ -109,7 +109,7 @@ export class Fav {
       } @else if (error()) {
         <div class="mt-8 flex flex-col items-start gap-4"><gr-alert tone="warning" title="No hemos podido cargar los atletas">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert><button grButton icon="refresh" (click)="cargar()">Reintentar</button></div>
       } @else if (!filtrados().length) {
-        <div class="mt-12 flex flex-col items-center gap-3 py-8 text-center" role="status">
+        <div class="mt-[-5px] flex flex-col items-center gap-3 py-8 text-center md:mt-12" role="status">
           <gr-icon name="search" [size]="28" class="text-text-tertiary" />
           <p class="text-ui-h5">Ningún atleta coincide{{ q() ? ' con "' + q() + '"' : '' }}</p>
           <p class="max-w-sm text-body-s text-text-tertiary">Prueba con el apellido o el club. Si compites y no apareces, avisa a la organización: el listado sale de la AEP.</p>
@@ -264,6 +264,7 @@ export class AtletasPage {
       const mq = matchMedia('(max-width: 767px)');
       this.movil.set(mq.matches);
       mq.addEventListener('change', (e) => this.movil.set(e.matches));
+      void this.fav.sincronizar();
     }
     void inject(PendingTasks).run(async () => {
       const [l, c] = await Promise.all([this.cargar(), competition.load()]);
@@ -326,6 +327,8 @@ function catSort(a: string, b: string): number {
   template: `
     @let a = ficha();
     <gr-page [title]="a ? a.nombre + ' ' + a.apellidos : a === null && !api.failed() ? 'Atleta no encontrado' : ''" [hideTitle]="!!a" section="Atletas" [crumb]="a ? a.nombre + ' ' + a.apellidos : 'Atleta'">
+      <!-- Figma 40: the hero sits closer to the breadcrumbs than a titled page (U10-R1-3) -->
+      <div [class]="a !== null ? '-mt-8 md:-mt-10' : ''">
       @if (avisoConfirmado()) { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso confirmado">Te escribiremos 30 minutos antes de que {{ avisoConfirmado() }} salga a la plataforma.</gr-alert> }
       @if (baja() === 'ok') { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso desactivado">Ya no te escribiremos sobre {{ a?.nombre || 'este atleta' }}. Puedes volver a activarlo cuando quieras.</gr-alert> }
       @if (baja() === 'error') { <gr-alert tone="warning" class="-mt-4 mb-8" title="No hemos podido desactivar el aviso">El enlace no es válido o ya se usó. Si sigues recibiendo emails, responde a cualquiera de ellos.</gr-alert> }
@@ -351,7 +354,7 @@ function catSort(a: string, b: string): number {
                 </p>
                 <p class="mt-3 flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</p>
                 <div class="mt-4 flex gap-2">
-                  <button type="button" (click)="fav.toggle(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
+                  <button type="button" (click)="fav.seguir(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
                     [class]="fav.slugs().includes(a.slug) ? 'border-accent bg-accent-deep/40 text-accent-text' : 'border-line-strong'">
                     <svg viewBox="0 0 24 24" width="16" height="16" [attr.fill]="fav.slugs().includes(a.slug) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
                     {{ fav.slugs().includes(a.slug) ? 'Siguiendo' : 'Seguir' }}
@@ -388,8 +391,8 @@ function catSort(a: string, b: string): number {
               <p class="text-body-xs text-text-tertiary">Se confirman en el pesaje. Los siguientes se deciden en la plataforma.</p>
               <ul class="mt-3">
                 @for (m of lifts; track m.k) {
-                  <li class="flex items-center gap-3 border-b border-line-subtle py-3 last:border-0">
-                    <span class="w-32 text-label-m">{{ m.label }}</span>
+                  <li class="flex flex-col items-start gap-2 border-b border-line-subtle py-3 last:border-0 md:flex-row md:items-center md:gap-3">
+                    <span class="text-label-m md:w-32 md:shrink-0">{{ m.label }}</span>
                     <span class="flex gap-2">
                       <span class="flex h-9 w-16 items-center justify-center rounded-sm border border-line-strong text-mono-s">{{ a.primerosIntentos[m.k] ? kg(a.primerosIntentos[m.k]) : '–' }}</span>
                       <span class="flex h-9 w-16 items-center justify-center rounded-sm border border-line-subtle text-mono-s text-text-muted">–</span>
@@ -421,14 +424,14 @@ function catSort(a: string, b: string): number {
                 </ul>
               </section>
             }
-            @if (a.bio || a.frase || a.entrenador || a.instagram || a.historial) {
+            @if (a.bio || a.frase || a.entrenador || a.instagram || a.historial.length) {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="text-ui-h5">Sobre {{ a.nombre }}</h2>
                 @if (a.bio || a.frase) { <p class="mt-3 text-body-m text-text-secondary">{{ a.bio || a.frase }}</p> }
                 <dl class="mt-4 flex flex-col gap-2 text-body-s">
                   @if (a.entrenador) { <div class="flex gap-2"><gr-icon name="user" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Entrenador/a:</dt><dd>{{ a.entrenador }}</dd></div> }
                   @if (a.instagram) { <div class="flex gap-2"><gr-icon name="instagram" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Instagram:</dt><dd><a [href]="'https://www.instagram.com/' + a.instagram.replace('@', '') + '/'" target="_blank" rel="noopener nofollow" class="hover:text-accent-text">{{ a.instagram }}</a></dd></div> }
-                  @if (a.historial) { <div class="flex gap-2"><gr-icon name="trophy" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Historial:</dt><dd>{{ a.historial }}</dd></div> }
+                  @if (a.historial.length) { <div class="flex gap-2"><gr-icon name="trophy" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Historial:</dt><dd>@for (h of a.historial; track $index) { <span class="block">{{ h.competicion }}</span> }</dd></div> }
                 </dl>
               </section>
             }
@@ -441,7 +444,7 @@ function catSort(a: string, b: string): number {
                       <a [routerLink]="'/atletas/' + o.slug" class="flex min-w-0 flex-1 items-center gap-3">
                         @if (o.fotoUrl) { <img [src]="o.fotoUrl" alt="" class="size-11 rounded-full object-cover" [style.object-position]="o.focalX + '% ' + o.focalY + '%'" loading="lazy" /> }
                         @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(o) }}</span> }
-                        <span class="min-w-0"><span class="block truncate text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ o.club || 'Independiente' }} · {{ o.divisionNombre }}</span></span>
+                        <span class="min-w-0 break-words"><span class="block text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block text-body-xs text-text-tertiary">{{ o.club || 'Independiente' }} · {{ o.divisionNombre }}</span></span>
                       </a>
                       @if (o.horaInicio) { <span class="text-mono-s">{{ hora(o.horaInicio) }}</span> }
                       <gr-fav [slug]="o.slug" [nombre]="o.nombre" />
@@ -453,6 +456,7 @@ function catSort(a: string, b: string): number {
           </div>
         </div>
       }
+      </div>
     </gr-page>
   `,
 })
@@ -525,7 +529,21 @@ export class AtletaPage {
           /* expired or used link: the form is still there */
         }
       }
+      if (this.browser) void this.retomar(f);
     });
+  }
+
+  /** Back from the email link: finishes the follow / alert started without a session, then syncs the stars. */
+  private async retomar(a: FichaPub): Promise<void> {
+    if (!(await this.fan.cargar())) return; // no session yet: keep the intention for when they come back logged in
+    const i = this.fav.intencion(a.slug);
+    if (i?.accion === 'seguir' && !this.fav.has(a.slug)) await this.fav.seguir(a.slug);
+    if (i?.accion === 'avisar' && i.email) {
+      this.email = i.email;
+      this.acepta = true;
+      await this.avisar(a);
+    }
+    await this.fav.sincronizar();
   }
 
   protected async avisar(a: FichaPub): Promise<void> {
@@ -533,13 +551,13 @@ export class AtletaPage {
     if (!this.email.includes('@')) return this.avisoError.set('Escribe un email válido.');
     if (!this.acepta) return this.avisoError.set('Marca la casilla para recibir el aviso.');
     // Seguir needs the fan (or athlete) session: without it, the login modal opens and brings the person back here.
-    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('seguir', '/atletas/' + a.slug, this.email);
+    if (!(await this.fan.cargar())) return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email });
     this.enviando.set(true);
     try {
       await this.api.seguir(a.slug, this.email);
       this.avisoEnviado.set(true);
     } catch (e) {
-      if ((e as { status?: number }).status === 401) return this.fan.abrirAcceso('seguir', '/atletas/' + a.slug, this.email);
+      if ((e as { status?: number }).status === 401) { this.fan.sesionPerdida(); return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email }); }
       this.avisoError.set((e as { error?: { detail?: string } }).error?.detail ?? 'Inténtalo de nuevo en unos minutos.');
     } finally {
       this.enviando.set(false);

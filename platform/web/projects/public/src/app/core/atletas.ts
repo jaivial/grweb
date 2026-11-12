@@ -3,6 +3,7 @@ import { Injectable, PLATFORM_ID, RESPONSE_INIT, inject, signal } from '@angular
 import { isPlatformBrowser } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG, FalloApi, esNoEncontrado } from './competition';
+import { FanSession } from './fan';
 
 export interface Marcas {
   sq?: number;
@@ -37,7 +38,7 @@ export interface FichaPub extends AtletaPub {
   bio: string;
   instagram: string;
   entrenador: string;
-  historial: string;
+  historial: { anio?: number; competicion: string; total?: number }[];
   marcas?: Marcas;
   totalPrevisto?: number;
   primerosIntentos: Marcas;
@@ -97,10 +98,20 @@ export class AtletasPublic {
   }
 }
 
-/** Starred athletes («Sigue a tus atletas y tendrás tu propio horario»), kept on this device only. */
+/** Pending action of an anonymous visitor, resumed when the email link brings them back (U10-R1-2). */
+export interface Intencion { accion: 'seguir' | 'avisar'; slug: string; email?: string }
+const INTENCION = 'gr-intencion';
+
+/**
+ * Starred athletes («Sigue a tus atletas y tendrás tu propio horario»). The star lives on this device; following
+ * needs the fan session: without it the login modal opens and the follow is resumed after the email link;
+ * with it the follow is sent to the API (POST …/seguir) and the local stars are synced once (U10-R1-1).
+ */
 @Injectable({ providedIn: 'root' })
 export class Favoritos {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly api = inject(AtletasPublic);
+  private readonly fan = inject(FanSession);
   readonly slugs = signal<string[]>(this.read());
 
   has(slug: string): boolean { return this.slugs().includes(slug); }
@@ -109,10 +120,67 @@ export class Favoritos {
     this.slugs.set(next);
     if (this.browser) localStorage.setItem('gr-favoritos', JSON.stringify(next));
   }
-  private read(): string[] {
+
+  /** Star button: unstar locally, or follow (login first when there is no session). */
+  async seguir(slug: string): Promise<void> {
+    if (this.has(slug)) return this.toggle(slug);
+    const f = await this.fan.cargar();
+    if (!f?.email) return this.pedirAcceso({ accion: 'seguir', slug });
+    try {
+      await this.api.seguir(slug, f.email);
+      this.marcarSync(slug);
+    } catch (e) {
+      const st = (e as { status?: number }).status;
+      if (st === 401) { this.fan.sesionPerdida(); return this.pedirAcceso({ accion: 'seguir', slug }); }
+      // 409 (no admite seguidores) / 429: the star stays as a personal schedule on this device.
+    }
+    if (!this.has(slug)) this.toggle(slug);
+  }
+
+  /** With a session, sends the stars made before logging in (once each). */
+  async sincronizar(): Promise<void> {
+    const f = await this.fan.cargar();
+    if (!f?.email) return;
+    const hechos = this.leer('gr-favoritos-sync');
+    for (const s of this.slugs().filter((x) => !hechos.includes(x))) {
+      try {
+        await this.api.seguir(s, f.email);
+        this.marcarSync(s);
+      } catch (e) {
+        const st = (e as { status?: number }).status;
+        if (st === 409 || st === 404) this.marcarSync(s); // cannot be followed: do not retry
+        if (st === 429 || st === 401) return;
+      }
+    }
+  }
+
+  pedirAcceso(i: Intencion): void {
+    if (this.browser) sessionStorage.setItem(INTENCION, JSON.stringify(i));
+    this.fan.abrirAcceso('seguir', '/atletas/' + i.slug, i.email ?? '');
+  }
+
+  /** Takes (and clears) the pending action for this athlete, if any. */
+  intencion(slug: string): Intencion | null {
+    if (!this.browser) return null;
+    try {
+      const i = JSON.parse(sessionStorage.getItem(INTENCION) ?? 'null') as Intencion | null;
+      if (i?.slug !== slug) return null;
+      sessionStorage.removeItem(INTENCION);
+      return i;
+    } catch {
+      return null;
+    }
+  }
+
+  private marcarSync(slug: string): void {
+    const h = this.leer('gr-favoritos-sync');
+    if (this.browser && !h.includes(slug)) localStorage.setItem('gr-favoritos-sync', JSON.stringify([...h, slug]));
+  }
+  private read(): string[] { return this.leer('gr-favoritos'); }
+  private leer(k: string): string[] {
     if (!this.browser) return [];
     try {
-      return JSON.parse(localStorage.getItem('gr-favoritos') ?? '[]') as string[];
+      return JSON.parse(localStorage.getItem(k) ?? '[]') as string[];
     } catch {
       return [];
     }
