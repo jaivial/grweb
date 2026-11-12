@@ -46,8 +46,8 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
       </bo-page-header>
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" role="tablist" aria-label="Inscripción">
         @for (t of tabs; track t.key) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.key" (click)="cambiar(t.key); $any($event.currentTarget).scrollIntoView({ block: 'nearest', inline: 'nearest' })" [disabled]="t.key !== 'config' && modoGuardado() !== 'propia'"
-            [attr.title]="t.key !== 'config' && modoGuardado() !== 'propia' ? 'Solo con la inscripción propia con pago' : null"
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.key" (click)="cambiar(t.key); $any($event.currentTarget).scrollIntoView({ block: 'nearest', inline: 'nearest' })" [disabled]="bloqueada(t.key)"
+            [attr.title]="bloqueada(t.key) ? 'Solo con la inscripción propia con pago' : null"
             class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s disabled:cursor-not-allowed disabled:opacity-40" [class]="tab() === t.key ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
             {{ t.label }}
             @if (t.key === 'cupones' && cupones()) { <span class="rounded-2xs bg-bg-raised px-1.5 text-mono-xs">{{ cupones()!.length }}</span> }
@@ -465,6 +465,10 @@ export class InscripcionPage {
     return cp.tipo === 'porcentaje' ? Math.round((c.cuota * cp.valor) / 100) : Math.min(c.cuota, cp.valor);
   }
   protected readonly Math = Math;
+  /** AEP mode with no coupons or payments: nothing to show. With data (e.g. back to AEP after selling) the tabs stay open. */
+  protected bloqueada(t: Tab): boolean {
+    return t !== 'config' && this.modoGuardado() !== 'propia' && !this.cupones()?.length && !this.pagos()?.items.length;
+  }
   protected readonly hayPagadas = computed(() => (this.pagos()?.items ?? []).some((p) => p.estado === 'pagada'));
   protected readonly reservas = computed(() => (this.pagos()?.items ?? []).filter((p) => p.estado === 'reserva').length);
   protected readonly errCodigo = signal('');
@@ -538,7 +542,7 @@ export class InscripcionPage {
   }
 
   protected cambiar(t: Tab): void {
-    if (t !== 'config' && this.modoGuardado() !== 'propia') return;
+    if (this.bloqueada(t)) return;
     this.tab.set(t);
   }
 
