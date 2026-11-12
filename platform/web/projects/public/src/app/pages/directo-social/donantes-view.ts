@@ -134,7 +134,7 @@ export class DonantesView {
   protected readonly media = computed(() => {
     const r = this.ranking();
     const donativos = (r?.items ?? []).reduce((s, d) => s + d.donativos, 0);
-    return donativos ? euros2.format((r?.totalRecaudado ?? 0) / donativos) : euros2.format(0);
+    return donativos ? euros2.format((r?.totalRecaudado ?? 0) / 100 / donativos) : euros2.format(0);
   });
   /** The image of the prize failed: the brand block is shown instead. */
   private readonly imagenFalla = signal<ReadonlySet<string>>(new Set());
@@ -199,6 +199,6 @@ export class DonantesView {
   }
 
   protected euros0(v: number): string {
-    return euros0.format(v);
+    return euros0.format(v / 100); // the API answers in cents
   }
 }
