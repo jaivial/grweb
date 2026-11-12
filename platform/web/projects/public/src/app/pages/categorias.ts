@@ -188,7 +188,11 @@ export class CategoriasPage {
     const sub = inject(ActivatedRoute).fragment.subscribe((f) => { if (f === 'hombres') this.tabla.set('M'); else if (f === 'mujeres') this.tabla.set('F'); });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
     void inject(PendingTasks).run(() => applySeo(cms, seo, '/categorias-de-peso', 'Categorías de peso y edad · GR Strength Cup',
-      'Las 18 categorías de peso de la AEP (9 masculinas y 9 femeninas), las divisiones por edad y cómo es el pesaje. Calcula en qué categoría compites.'));
+      'Las 18 categorías de peso de la AEP (9 masculinas y 9 femeninas), las divisiones por edad y cómo es el pesaje. Calcula en qué categoría compites.', undefined,
+      // Figma 20: ItemList schema of the 18 weight classes.
+      { jsonLd: { '@context': 'https://schema.org', '@type': 'ItemList', name: 'Categorías de peso AEP/IPF',
+        itemListElement: (['M', 'F'] as const).flatMap((s) => CLASES[s].map((c) => (s === 'M' ? 'Masculino ' : 'Femenino ') + nombre(c.k)))
+          .map((name, i) => ({ '@type': 'ListItem', position: i + 1, name })) } }));
   }
 
   /** «hasta 53,0 kg», «53,01 – 59,0 kg», «más de 120,0 kg». */

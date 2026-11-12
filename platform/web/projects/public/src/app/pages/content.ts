@@ -28,7 +28,7 @@ export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, 
     <gr-page [title]="d?.titulo ?? titulo()" [cabecera]="false">
       <!-- Figma 12–15: 260 px contents card (sticky) and the 760 px document, 1100 px together; on mobile the
            header comes first, then the contents, then the text -->
-      <div class="mx-auto grid max-w-[1100px] grid-cols-[minmax(0,1fr)] gap-6 md:pt-6 lg:grid-cols-[260px_minmax(0,760px)] lg:gap-x-12 lg:gap-y-9">
+      <div class="mx-auto grid max-w-[1100px] grid-cols-[minmax(0,1fr)] gap-6 pt-7 md:pt-6 lg:grid-cols-[260px_minmax(0,760px)] lg:gap-x-12 lg:gap-y-9">
         <header class="flex flex-col items-start gap-3 lg:col-start-2">
           <p class="inline-flex h-[22px] items-center rounded-full bg-accent/12 px-2.5 text-label-xs text-accent-text uppercase">Legal</p>
           <h1 class="text-ui-h2 md:text-ui-h1">{{ d?.titulo ?? titulo() }}</h1>
@@ -43,9 +43,9 @@ export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, 
           @if (toc().length) {
             <nav class="flex h-fit flex-col gap-1 rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:col-start-1 lg:row-span-2 lg:row-start-1" aria-label="Contenido">
               <p class="pb-2 text-body-s font-semibold text-text-primary">Contenido</p>
-              <ol class="flex flex-col gap-1 text-body-s">
+              <ol class="flex flex-col text-body-s md:gap-1">
                 @for (h of toc(); track h.id; let i = $index) {
-                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm px-2.5 py-1 lg:py-2" [class]="actual() === h.id ? 'bg-accent/12 text-text-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="actual() === h.id ? 'location' : null">{{ h.id === 'contacto' ? '' : i + 1 + '. ' }}{{ h.text }}</a></li>
+                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex h-[29px] items-center rounded-sm px-1 md:h-auto md:px-2.5 md:py-1 lg:py-2" [class]="actual() === h.id ? 'bg-accent/12 text-text-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="actual() === h.id ? 'location' : null">{{ h.id === 'contacto' ? '' : i + 1 + '. ' }}{{ h.text }}</a></li>
                 }
               </ol>
             </nav>

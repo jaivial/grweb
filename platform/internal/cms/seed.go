@@ -276,7 +276,7 @@ Los pagos son procesados por Stripe, nuestro proveedor de servicios de pago exte
 
 ## Entrega del Premio
 
-Una vez confirmado el ganador, nos pondremos en contacto para coordinar la entrega del premio. El premio es intransferible y no puede canjearse por dinero en efectivo. Los costes de envío o recogida varierán según la ubicación del ganador.
+Una vez confirmado el ganador, nos pondremos en contacto para coordinar la entrega del premio. El premio es intransferible y no puede canjearse por dinero en efectivo. Los costes de envío o recogida variarán según la ubicación del ganador.
 
 ## Limitación de Responsabilidad
 

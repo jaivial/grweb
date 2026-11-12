@@ -81,6 +81,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAutorizacion()
 	s.registerRGPD()
 	s.registerPublicExtra()
+	s.registerSitemap()
 	return nil
 }
 
