@@ -959,7 +959,12 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, iid uuid.UUID, 
 		var usos int
 		var limite *int
 		var codigo string
-		if err := tx.QueryRow(ctx, `UPDATE cupones SET usos = usos + 1, updated_at = now() WHERE id = $1 RETURNING usos, limite, codigo`, *cupon).Scan(&usos, &limite, &codigo); err != nil {
+		// Atomic: the counter never passes the limit (a late payment is still honoured, just not counted twice over).
+		err := tx.QueryRow(ctx, `UPDATE cupones SET usos = usos + 1, updated_at = now() WHERE id = $1 AND (limite IS NULL OR usos < limite) RETURNING usos, limite, codigo`, *cupon).Scan(&usos, &limite, &codigo)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return s.alta(ctx, tx, cid, iid, "confirmado")
+		}
+		if err != nil {
 			return err
 		}
 		if limite != nil && usos >= *limite {

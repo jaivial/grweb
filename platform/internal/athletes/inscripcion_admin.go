@@ -159,6 +159,15 @@ func (s *Svc) registerInscripcionAdmin() {
 						return problem.Conflict("PAGOS_EN_CURSO", "Hay pagos en curso: espera a que terminen (30 minutos como mucho) para cambiar el modo.")
 					}
 				}
+				if prev.Modo != b.Modo {
+					var n int
+					if err := tx.QueryRow(ctx, `SELECT count(*) FROM inscripciones WHERE competition_id = $1 AND estado = 'pagada'`, in.CID).Scan(&n); err != nil {
+						return err
+					}
+					if n > 0 {
+						return problem.Conflict("MODO_BLOQUEADO", "Ya hay inscripciones pagadas: el modo de inscripción no se puede cambiar.")
+					}
+				}
 				ref, _ := json.Marshal(b.Referidos)
 				_, err = tx.Exec(ctx, `INSERT INTO inscripcion_config (competition_id, modo, cuota, abre, cierra, reserva, cupones, referidos) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 					ON CONFLICT (competition_id) DO UPDATE SET modo = $2, cuota = $3, abre = $4, cierra = $5, reserva = $6, cupones = $7, referidos = $8, version = inscripcion_config.version + 1, updated_at = now()`,
