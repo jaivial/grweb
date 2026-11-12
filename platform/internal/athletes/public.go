@@ -249,17 +249,22 @@ func (s *Svc) registerPublic() {
 		})
 
 	type seguirIn struct {
-		Slug  string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		ASlug string `path:"aslug" pattern:"^[a-z0-9-]{1,90}$"`
-		Body  struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		ASlug   string `path:"aslug" pattern:"^[a-z0-9-]{1,90}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Fan     string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    struct {
 			Email       string `json:"email" format:"email" maxLength:"254"`
 			AceptaAviso bool   `json:"aceptaAviso,omitempty" doc:"Casilla sin premarcar (si falta → 422 CONSENTIMIENTO_OBLIGATORIO)"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "atletas-seguir", Method: http.MethodPost, Path: pub + "/atletas/{aslug}/seguir", Summary: "Avísame cuando compita (pide confirmación por email)", Tags: tagPub, DefaultStatus: http.StatusAccepted},
+	huma.Register(api, huma.Operation{OperationID: "atletas-seguir", Method: http.MethodPost, Path: pub + "/atletas/{aslug}/seguir", Summary: "Avísame cuando compita (sesión de fan o atleta; pide confirmación por email)", Tags: tagPub, DefaultStatus: http.StatusAccepted},
 		func(ctx context.Context, in *seguirIn) (*struct{}, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
+				return nil, err
+			}
+			if _, err := s.sesionFan(ctx, in.Session, in.Fan, c.ID); err != nil {
 				return nil, err
 			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "seguir", httpx.ClientIPFrom(ctx)), 10, time.Hour); !r.Allowed {
