@@ -13,17 +13,27 @@ import { monedas } from './formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, PremioCard, type PlazaPodio } from './componentes';
+import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, type PlazaPodio } from './componentes';
 
 @Component({
   selector: 'gr-porra-clasificacion-page',
-  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, LeaderboardRow, PorraCabecera, Podio, PremioCard],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, LeaderboardRow, PorraCabecera, Podio],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Clasificación" [juego]="true">
       <gr-porra-cabecera [titulo]="'Clasificación ' + jornadaTxt()" crumb="Clasificación" activa="clasificacion" [descMovil]="true"
         descripcion="Saldo de porra al cierre de cada apuesta. Premios en monedas al liquidar la jornada; en caso de empate gana quien llegó antes a ese saldo.">
-        @if (premios()[0]; as p) { <gr-premio-card aside class="w-[340px]" [premio]="p" /> } @else { <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" /> }
+        <section aside class="flex w-[340px] flex-col gap-2 rounded-lg border border-accent/45 bg-bg-card p-4 shadow-glow-deep" aria-label="Bote de la porra">
+          <p class="flex items-center gap-2 text-mono-xs text-accent-text"><gr-icon name="trophy" [size]="14" />1.er puesto</p>
+          <p class="text-ui-h5 text-text-primary">Bote de la porra {{ jornadaNombre() }}</p>
+          <p class="flex items-baseline gap-1.5"><span class="font-mono text-[22px] font-bold text-text-primary tabular-nums">{{ monedas(bote()) }}</span><span class="text-body-xs text-text-tertiary">monedas en juego</span></p>
+          @if (premios()[0]; as p) {
+            <p class="text-body-xs text-text-secondary">{{ p.titulo }}@if (p.valorTexto) { · <span class="font-mono text-accent-text">{{ p.valorTexto }}</span> }</p>
+            @if (p.patrocinador) { <p class="text-mono-xs text-text-tertiary">Patrocina · {{ p.patrocinador }}</p> }
+          } @else {
+            <p class="text-body-xs text-text-tertiary">Todavía no hay premios publicados para esta jornada.</p>
+          }
+        </section>
       </gr-porra-cabecera>
       <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" />
 
@@ -101,6 +111,10 @@ export class PorraClasificacionPage {
     return m && m.puesto > this.visibles().length ? m : null;
   });
   protected readonly saldo = computed(() => this.estado.saldoPorra());
+  protected readonly monedas = monedas;
+  /** El bote total de la jornada (suma de los botes de sus mercados). */
+  protected readonly bote = computed(() => this.store.mercados().reduce((s, m) => s + m.bote, 0));
+  protected readonly jornadaNombre = computed(() => (this.store.jornada() ?? this.estado.jornada())?.nombre.replace(/\s*\(.*\)$/, '') ?? '');
   protected readonly premios = computed(() => this.store.premios().filter((p) => p.ranking === 'porra'));
   /** La línea de premios del diseño. */
   protected readonly premiosTexto = computed(() => {
