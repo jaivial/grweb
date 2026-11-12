@@ -129,6 +129,8 @@ export interface ConfirmRequest {
   text: string;
   confirm: string;
   danger?: boolean;
+  /** Destructive (Figma 49 «BO / Modal · Destructive»): word the user must type to enable the action, e.g. «ANULAR». */
+  word?: string;
   resolve: (ok: boolean) => void;
 }
 
@@ -136,7 +138,10 @@ export interface ConfirmRequest {
 @Injectable({ providedIn: 'root' })
 export class Confirm {
   readonly current = signal<ConfirmRequest | null>(null);
+  /** Text typed in the destructive confirmation field; cleared on every request. */
+  readonly typed = signal('');
   ask(r: Omit<ConfirmRequest, 'resolve'>): Promise<boolean> {
+    this.typed.set('');
     return new Promise((resolve) => this.current.set({ ...r, resolve }));
   }
   answer(ok: boolean): void {
@@ -147,17 +152,27 @@ export class Confirm {
 
 @Component({
   selector: 'bo-confirm-host',
-  imports: [A11yModule, GrButton],
+  imports: [A11yModule, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (c.current(); as r) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="c.answer(false)" (keydown.escape)="c.answer(false)">
-        <div class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="alertdialog" aria-modal="true" [attr.aria-label]="r.title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
-          <h2 class="text-ui-h5">{{ r.title }}</h2>
-          <p class="mt-3 text-body-s text-text-secondary">{{ r.text }}</p>
-          <div class="mt-6 flex justify-end gap-2">
+        <div class="flex w-full max-w-[520px] flex-col gap-5 rounded-xl border border-line-strong bg-bg-card p-6 shadow-card" role="alertdialog" aria-modal="true" [attr.aria-label]="r.title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <div class="flex items-start gap-3">
+            <h2 class="min-w-0 flex-1 text-[20px] leading-[26px] font-semibold">{{ r.title }}</h2>
+            <button type="button" class="-m-1 rounded-xs p-1 text-text-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" aria-label="Cerrar" (click)="c.answer(false)"><gr-icon name="x" [size]="18" /></button>
+          </div>
+          <p class="text-body-s text-text-secondary">{{ r.text }}</p>
+          @if (r.word) {
+            <label class="flex flex-col gap-2">
+              <span class="text-label-s text-text-secondary">Escribe {{ r.word }} para confirmar</span>
+              <input #w class="h-10 rounded-sm border border-line-strong bg-bg-field px-3 text-body-s text-text-primary focus:border-accent focus:outline-none" autocomplete="off" (input)="c.typed.set(w.value)" />
+              <span class="text-body-xs text-text-tertiary">Esta acción queda en el registro de auditoría</span>
+            </label>
+          }
+          <div class="flex justify-end gap-2">
             <button grButton variant="ghost" (click)="c.answer(false)">Cancelar</button>
-            <button grButton [variant]="r.danger ? 'danger' : 'primary'" (click)="c.answer(true)">{{ r.confirm }}</button>
+            <button grButton [variant]="r.danger ? 'danger' : 'primary'" [disabled]="!!r.word && c.typed() !== r.word" (click)="c.answer(true)">{{ r.confirm }}</button>
           </div>
         </div>
       </div>

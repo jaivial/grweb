@@ -6,6 +6,7 @@ import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleto
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
+import { BoPagination } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText } from '../../shared/ui';
 import { AtletasApi, cat, type ItemLista, type Lista } from './api';
 
@@ -26,7 +27,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -183,14 +184,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
             @if (paginas() > 1 && pestana() !== 'incidencias') {
               <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-line-subtle px-4 py-3 text-body-xs text-text-tertiary">
                 <span>Mostrando {{ desde() }}–{{ hasta() }} de {{ l?.total }}</span>
-                <nav class="flex items-center gap-1" aria-label="Páginas">
-                  <button type="button" class="flex size-9 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40" [disabled]="pagina() === 1" (click)="recargar(pagina() - 1)" aria-label="Anterior"><gr-icon name="chevron-left" [size]="14" /></button>
-                  @for (p of paginasVisibles(); track $index) {
-                    @if (p === 0) { <span class="px-1">…</span> }
-                    @else { <button type="button" class="flex size-9 items-center justify-center rounded-sm text-mono-s" [class]="p === pagina() ? 'bg-accent text-white' : 'border border-line-strong'" (click)="recargar(p)" [attr.aria-current]="p === pagina() ? 'page' : null">{{ p }}</button> }
-                  }
-                  <button type="button" class="flex size-9 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40" [disabled]="pagina() === paginas()" (click)="recargar(pagina() + 1)" aria-label="Siguiente"><gr-icon name="chevron-right" [size]="14" /></button>
-                </nav>
+                <bo-pagination [page]="pagina()" [pages]="paginas()" (change)="recargar($event)" />
               </footer>
             }
           </section>

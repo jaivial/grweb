@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { NavigationEnd, NavigationError, Router, RouterOutlet } from '@angular/router';
-import { GrErrorState, GrToaster } from '@grcup/ui';
+import { GrErrorState } from '@grcup/ui';
+import { BoToaster } from './shared/kit';
 import { ConfirmHost } from './shared/ui';
 
 @Component({
   selector: 'bo-root',
-  imports: [RouterOutlet, GrToaster, ConfirmHost, GrErrorState],
+  imports: [RouterOutlet, BoToaster, ConfirmHost, GrErrorState],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `@if (fallo()) { <gr-error-state class="min-h-dvh!" (reintentar)="recargar()" /> } @else { <router-outlet /> }<gr-toaster /><bo-confirm-host />`,
+  template: `@if (fallo()) { <gr-error-state class="min-h-dvh!" (reintentar)="recargar()" /> } @else { <router-outlet /> }<bo-toaster /><bo-confirm-host />`,
 })
 export class App {
   /** Figma 17 «ErrorBoundary (backoffice)»: a screen that fails to load (e.g. a stale chunk after a deploy). Holds the URL that failed. */
