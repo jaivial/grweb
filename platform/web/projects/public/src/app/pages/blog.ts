@@ -204,7 +204,7 @@ export class BlogPage {
               }
               <article class="prose-gr prose-blog min-w-0" [innerHTML]="html()"></article>
               <div class="flex flex-col gap-3 border-t border-line-subtle pt-6">
-                <p class="text-label-s">Comparte este artículo</p>
+                <p class="text-label-s">Comparte este {{ a.categoria === 'calendario' ? 'calendario' : 'artículo' }}</p>
                 <div class="flex flex-wrap gap-2">
                   <a [href]="compartir('x')" target="_blank" rel="noopener" class="inline-flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:border-text-tertiary"><gr-icon name="share" [size]="16" />X</a>
                   <a [href]="compartir('facebook')" target="_blank" rel="noopener" class="inline-flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:border-text-tertiary"><gr-icon name="share" [size]="16" />Facebook</a>
@@ -267,7 +267,7 @@ export class BlogPostPage {
   protected readonly rel = [
     { titulo: 'Marcas mínimas', texto: 'Totales AEP-1 por categoría', ruta: '/marcas-minimas' },
     { titulo: 'AEP-1, AEP-2 y AEP-3', texto: 'Qué significa cada nivel', ruta: '/reglamento' },
-    { titulo: 'Tu primera competición', texto: 'Preguntas frecuentes', ruta: '/preguntas-frecuentes' },
+    { titulo: 'Tu primera competición', texto: 'Guía paso a paso', ruta: '/preguntas-frecuentes' },
   ];
   private url = '';
 
