@@ -199,7 +199,7 @@ const api = '/api/area-atleta';
                   <gr-field label="Sobre ti (máx. 280)" for="f-bio"><textarea grInput id="f-bio" name="bio" rows="4" [(ngModel)]="f.bio" maxlength="280" placeholder="Tercera temporada en powerlifting. Vengo de la halterofilia…"></textarea></gr-field>
                   <fieldset><legend class="text-label-s">Mejores marcas (kg)</legend>
                     <div class="mt-2 grid grid-cols-3 gap-3">
-                      @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'m' + m.k" [(ngModel)]="f.marcas[m.k]" /></label> }
+                      @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'m' + m.k" [(ngModel)]="f.marcas[m.k]" [attr.aria-invalid]="fuera(f.marcas[m.k]) || null" [class.border-accent]="fuera(f.marcas[m.k])" /></label> }
                     </div>
                   </fieldset>
                   <div class="flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
@@ -371,6 +371,9 @@ export class AreaAtletaPage {
     }
   }
   private timer?: ReturnType<typeof setInterval>;
+  protected fuera(v: unknown): boolean {
+    return v !== null && v !== undefined && v !== '' && !(Number(v) >= 0 && Number(v) <= 600);
+  }
 
   private async recargar(): Promise<void> {
     const antes = this.panel()?.prueba?.elegida;
@@ -501,6 +504,8 @@ export class AreaAtletaPage {
 
   protected async guardarPerfil(): Promise<void> {
     this.error.set('');
+    const mal = this.lifts.filter((m) => this.fuera(this.f.marcas[m.k])).map((m) => m.s);
+    if (mal.length) return this.error.set(mal.join(', ') + ': las marcas van entre 0 y 600 kg.');
     this.busy.set(true);
     const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
     try {
