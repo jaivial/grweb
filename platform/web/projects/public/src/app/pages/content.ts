@@ -45,7 +45,7 @@ export async function applySeo(cms: Cms, seo: Seo, path: string, title: string, 
               <p class="pb-2 text-label-xs text-text-muted uppercase">Contenido</p>
               <ol class="flex flex-col gap-1 text-body-s">
                 @for (h of toc(); track h.id; let i = $index) {
-                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-1 px-2.5 lg:py-2" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">{{ i + 1 }}. {{ h.text }}</a></li>
+                  <li><a routerLink="." [fragment]="h.id" (click)="activo.set(h.id)" class="relative flex rounded-sm py-1 pl-[18px] pr-2.5 lg:py-2" [class]="activo() === h.id ? 'bg-accent/12 text-text-primary before:absolute before:inset-y-2 before:left-2 before:w-0.5 before:rounded-full before:bg-accent' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="activo() === h.id ? 'location' : null">{{ i + 1 }}. {{ h.text }}</a></li>
                 }
               </ol>
             </nav>
