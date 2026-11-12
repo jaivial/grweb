@@ -319,6 +319,9 @@ func (s *Svc) registerPublic() {
 			if !in.Body.AceptaPrivacidad {
 				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar la solicitud tienes que aceptar la política de privacidad.")
 			}
+			if len(in.Body.Roles) == 0 {
+				return nil, problem.Unprocessable("ROL_OBLIGATORIO", "Elige al menos un rol de voluntariado.")
+			}
 			roles, nombres := []string{}, []string{}
 			for _, r := range in.Body.Roles {
 				nombre, ok := rolesVoluntario[r]
@@ -333,9 +336,14 @@ func (s *Svc) registerPublic() {
 			id := newID()
 			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
 			return nil, s.change(ctx, cid, "cms.voluntario_solicitado", map[string]any{"id": id, "esMenor": in.Body.EsMenor}, func(tx pgx.Tx) error {
-				if _, err := tx.Exec(ctx, `INSERT INTO voluntarios (id, competition_id, nombre, email, telefono, disponibilidad, roles, experiencia, es_menor, consentimiento_at, legal_version)
-					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10)`, id, cid, strings.TrimSpace(in.Body.Nombre), email, in.Body.Telefono, in.Body.Disponibilidad, roles,
-					strings.TrimSpace(in.Body.Experiencia), in.Body.EsMenor, version); err != nil {
+				// one request per (competition, email): a resend updates it and does not send a second acknowledgement
+				var nuevo bool
+				if err := tx.QueryRow(ctx, `INSERT INTO voluntarios (id, competition_id, nombre, email, telefono, disponibilidad, roles, experiencia, es_menor, consentimiento_at, legal_version)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10)
+					ON CONFLICT (competition_id, email) DO UPDATE SET nombre = EXCLUDED.nombre, telefono = EXCLUDED.telefono, disponibilidad = EXCLUDED.disponibilidad,
+						roles = EXCLUDED.roles, experiencia = EXCLUDED.experiencia, es_menor = EXCLUDED.es_menor, consentimiento_at = now(), legal_version = EXCLUDED.legal_version, updated_at = now()
+					RETURNING xmax = 0`, id, cid, strings.TrimSpace(in.Body.Nombre), email, in.Body.Telefono, in.Body.Disponibilidad, roles,
+					strings.TrimSpace(in.Body.Experiencia), in.Body.EsMenor, version).Scan(&nuevo); err != nil {
 					return err
 				}
 				if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.contacto", map[string]any{"email": email, "telefono": in.Body.Telefono, "nombre": strings.TrimSpace(in.Body.Nombre),
@@ -344,6 +352,9 @@ func (s *Svc) registerPublic() {
 					"actividad":       map[string]any{"tipo": "voluntario", "titulo": "Se ofreció como voluntario", "detalle": strings.Trim(detalle, " ·")}},
 					events.Competition(cid.String()), events.Audience(events.Internal))); err != nil {
 					return err
+				}
+				if !nuevo {
+					return nil
 				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "cms.email_solicitado", map[string]any{"para": email, "plantilla": "voluntario-recibido",
 					"vars": map[string]string{"nombre": in.Body.Nombre}}, events.Competition(cid.String()), events.Audience(events.Internal)))
