@@ -280,12 +280,18 @@ func (s *Svc) cupos(ctx context.Context, q interface {
 	return out
 }
 
-// ocupadas counts the requests (not rejected) that chose each competition.
+// ocupadasSQL lists the taken places of competition $1: athletes with a chosen competition (also the
+// ones chosen from the athlete area) plus the requests (not rejected) not yet turned into an athlete.
+const ocupadasSQL = `SELECT prueba FROM atletas WHERE competition_id = $1 AND prueba <> '' AND estado <> 'baja'
+	UNION ALL SELECT prueba FROM solicitudes_atleta WHERE competition_id = $1 AND prueba <> '' AND estado <> 'rechazada'
+	AND NOT (estado = 'aprobada' AND match_atleta_id IS NOT NULL)`
+
+// ocupadas counts the taken places of each competition.
 func ocupadas(ctx context.Context, q interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 }, cid uuid.UUID) map[string]int {
 	ocup := map[string]int{}
-	rows, err := q.Query(ctx, `SELECT prueba, count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba <> '' AND estado <> 'rechazada' GROUP BY prueba`, cid)
+	rows, err := q.Query(ctx, `SELECT prueba, count(*) FROM (`+ocupadasSQL+`) o GROUP BY prueba`, cid)
 	if err != nil {
 		return ocup
 	}
@@ -331,7 +337,7 @@ func (s *Svc) reservaPrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, total
 		return err
 	}
 	var n int
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'`, cid, prueba).Scan(&n); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM (`+ocupadasSQL+`) o WHERE prueba = $2`, cid, prueba).Scan(&n); err != nil {
 		return err
 	}
 	// 0 places = no limit (the same rule the form uses).
@@ -354,16 +360,14 @@ func (s *Svc) muevePlaza(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, 
 			return err
 		}
 		var n int
-		// the athlete already holds a place there (its approved request): nothing moves, no free place needed
+		// the athlete already holds a place there: nothing moves, no free place needed
 		var ya bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM solicitudes_atleta WHERE competition_id = $1 AND match_atleta_id = $2 AND estado = 'aprobada' AND prueba = $3)`,
-			cid, atleta, prueba).Scan(&ya); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM atletas WHERE competition_id = $1 AND id = $2 AND prueba = $3)`, cid, atleta, prueba).Scan(&ya); err != nil {
 			return err
 		}
-		// the athlete's own place (the approved request that created it) is the one being moved
+		// the athlete's own place (atletas.prueba, another competition) is the one being moved
 		if !ya {
-			if err := tx.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND prueba = $2 AND estado <> 'rechazada'
-			AND (match_atleta_id IS DISTINCT FROM $3 OR estado <> 'aprobada')`, cid, prueba, atleta).Scan(&n); err != nil {
+			if err := tx.QueryRow(ctx, `SELECT count(*) FROM (`+ocupadasSQL+`) o WHERE prueba = $2`, cid, prueba).Scan(&n); err != nil {
 				return err
 			}
 			if lim := s.cupos(ctx, tx, cid, c.Inscripcion.Plazas)[prueba]; lim > 0 && n >= lim {

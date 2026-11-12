@@ -295,6 +295,10 @@ func (s *Svc) registerAdmin() {
 				if err != nil {
 					return err
 				}
+				// same licence once normalised: keep it as stored («AEP-46-1234» is not rewritten on save)
+				if b.Licencia == NormLicencia(prev.Licencia) {
+					b.Licencia = prev.Licencia
+				}
 				if b.Prueba != nil {
 					p := strings.ToLower(strings.TrimSpace(*b.Prueba))
 					b.Prueba = &p

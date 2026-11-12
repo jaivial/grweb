@@ -151,7 +151,8 @@ func (r row) fotoPublica(compDate time.Time) string {
 // completo is the public profile completeness (photo 40 · best lifts 30 · text 20 · links 10).
 func (r row) completo() int {
 	n := 0
-	if r.FotoURL != "" {
+	// the photo only counts once it can be published (image consent recorded)
+	if r.FotoURL != "" && r.ImagenAt != nil {
 		n += 40
 	}
 	if r.MarcaSQ != nil && r.MarcaBP != nil && r.MarcaDL != nil {

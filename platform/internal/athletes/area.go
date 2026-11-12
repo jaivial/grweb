@@ -208,23 +208,34 @@ func (s *Svc) registerArea() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "area-sesion", Method: http.MethodPost, Path: base + "/sesion", Summary: "Entrar con el enlace del email (crea la sesión)", Tags: tagArea},
 		func(ctx context.Context, in *sesionIn) (*sesionOut, error) {
-			var aid uuid.UUID
-			err := s.a.DB.QueryRow(ctx, `UPDATE area_tokens SET used_at = now() WHERE hash = $1 AND used_at IS NULL AND expires_at > now() RETURNING atleta_id`, hashToken(in.Body.Acceso)).Scan(&aid)
+			// the link is only spent when the session and the panel are created (same transaction)
+			tx, err := s.a.DB.Begin(ctx)
 			if err != nil {
+				return nil, err
+			}
+			defer tx.Rollback(ctx) //nolint:errcheck
+			var aid uuid.UUID
+			if err := tx.QueryRow(ctx, `UPDATE area_tokens SET used_at = now() WHERE hash = $1 AND used_at IS NULL AND expires_at > now() RETURNING atleta_id`, hashToken(in.Body.Acceso)).Scan(&aid); err != nil {
 				return nil, problem.Unauthorized("ENLACE_INVALIDO", "El enlace ha caducado o ya se usó. Pide uno nuevo.")
 			}
 			t := randomToken()
 			var cid uuid.UUID
-			if err := s.a.DB.QueryRow(ctx, `INSERT INTO area_sesiones (id, atleta_id, token_hash, expires_at) VALUES ($1,$2,$3,$4) RETURNING (SELECT competition_id FROM atletas WHERE id = $2)`,
+			if err := tx.QueryRow(ctx, `INSERT INTO area_sesiones (id, atleta_id, token_hash, expires_at) VALUES ($1,$2,$3,$4) RETURNING (SELECT competition_id FROM atletas WHERE id = $2)`,
 				newID(), aid, hashToken(t), time.Now().Add(areaSessionTTL)).Scan(&cid); err != nil {
 				return nil, err
 			}
-			r, err := getRow(ctx, s.a.DB, cid, aid)
+			r, err := getRow(ctx, tx, cid, aid)
 			if err != nil {
 				return nil, err
 			}
 			p, err := s.panel(ctx, r)
-			return &sesionOut{SetCookie: []http.Cookie{s.cookie(t, int(areaSessionTTL.Seconds()))}, Body: p}, err
+			if err != nil {
+				return nil, err
+			}
+			if err := tx.Commit(ctx); err != nil {
+				return nil, err
+			}
+			return &sesionOut{SetCookie: []http.Cookie{s.cookie(t, int(areaSessionTTL.Seconds()))}, Body: p}, nil
 		})
 
 	type cookieIn struct {
