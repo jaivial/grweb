@@ -92,9 +92,9 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
             @if (mio() && !misAtletas().length) {
               <!-- Figma 41 «Mi horario vacío» -->
               <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5 lg:hidden">
-                <h2 class="flex items-center gap-2 text-ui-h5"><gr-icon name="star" [size]="18" class="text-accent-text" />Mi horario<span class="ml-auto text-body-xs text-text-muted">0 atletas</span></h2>
+                <h2 class="flex items-center gap-2 text-ui-h5"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="text-accent-text" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>Mi horario<span class="ml-auto text-body-xs text-text-muted">0 atletas</span></h2>
                 <p class="text-body-s text-text-secondary">{{ textoVacio }}</p>
-                <a routerLink="/atletas" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong bg-bg-raised text-label-s hover:border-white">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
+                <a routerLink="/atletas" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-subtle bg-bg-surface text-label-s hover:border-line-strong">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
               </section>
             }
             @for (r of filas(); track r.flight?.id ?? r.t + r.item?.titulo) {
@@ -217,7 +217,7 @@ export class HorariosPage {
   protected readonly ini = ini;
   protected readonly diaTab = diaTab;
   protected readonly icsTodos = ICS_URL;
-  protected readonly textoVacio = 'Entra con tu email para guardar tu horario.';
+  protected readonly textoVacio = 'Sigue a atletas (☆) y aquí verás cuándo compiten, con los retrasos ya aplicados. Se guarda en este navegador, sin registrarte.';
   protected readonly data = signal<Horarios | null | undefined>(undefined);
   protected readonly dia = signal('');
   protected readonly mio = signal(false);
