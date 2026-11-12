@@ -324,7 +324,8 @@ export class Overlays {
       </div>
     </div>
     @if (barra()) {
-      <!-- Figma «Bottom CTA bar / Entrada» (mobile) and «Back to top» -->
+      <!-- Figma «Bottom CTA bar / Entrada» (mobile, also over the end of the footer: room below it) and «Back to top» -->
+      <div class="h-24 md:hidden" aria-hidden="true"></div>
       <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
         <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Aforo limitado · 1 minuto</span></span>
         <a routerLink="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
@@ -350,17 +351,15 @@ export class Footer {
   private readonly comp = inject(Competition);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
-  private readonly el = inject(ElementRef<HTMLElement>);
   protected readonly instagram = computed(() => instagramOf(this.comp.data()));
   protected readonly contacto = computed(() => this.comp.data()?.evento.emailContacto ?? '');
   protected readonly handle = computed(() => '@' + this.instagram().replace(/\/$/, '').split('/').pop());
   protected readonly logos = signal<Patrocinador[]>([]);
   protected arriba(): void { window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
   private readonly scrolled = signal(false);
-  private readonly footerVisible = signal(false);
   private readonly url = signal('');
-  /** Mobile CTA bar: after the first screen, not over the footer, not on flows with their own bottom action. */
-  protected readonly barra = computed(() => this.scrolled() && !this.footerVisible() && this.comp.data()?.modulos?.['entradas'] !== false &&
+  /** Mobile CTA bar: after the first screen, not on flows with their own bottom action. */
+  protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
     !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
     { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
@@ -382,12 +381,9 @@ export class Footer {
         this.scrolled.set(window.scrollY > 480 && (!hero || hero.bottom < window.innerHeight * 0.5));
       };
       window.addEventListener('scroll', onScroll, { passive: true });
-      const io = new IntersectionObserver(([e]) => this.footerVisible.set(e.isIntersecting), { rootMargin: '0px 0px -40px 0px' });
-      io.observe(this.el.nativeElement);
       inject(DestroyRef).onDestroy(() => {
         sub.unsubscribe();
         window.removeEventListener('scroll', onScroll);
-        io.disconnect();
       });
     }
   }
