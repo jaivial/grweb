@@ -1,12 +1,13 @@
 import { webPublica } from '../core/web';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, Injectable, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injectable, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrSkeleton, GrToasts, fmtAgo, type GrTone } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
+import { Realtime } from '../core/realtime';
 import { BoCollection, type CollectionConfig } from '../shared/collection';
 import { BoSchemaForm, type FieldDef } from '../shared/schema-form';
 import { BoDrawer, BoPageHeader, BoTabs, BoToggle, Confirm, errText } from '../shared/ui';
@@ -169,6 +170,14 @@ export class WebPage {
       void this.secs.load(cid);
       void this.loadCounts(cid);
     });
+    // Another editor saved, published or scheduled a section: reload the list (U30-R2-3).
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const sub = inject(Realtime).events.subscribe((e) => {
+      if (!e.tipo.startsWith('cms.secci') && !e.tipo.startsWith('cms.web_') && e.tipo !== 'web.publicada') return;
+      clearTimeout(t);
+      t = setTimeout(() => { const cid = this.comps.current()?.id; if (cid) void this.secs.load(cid, this.secs.pagina()); }, 300);
+    });
+    inject(DestroyRef).onDestroy(() => { clearTimeout(t); sub.unsubscribe(); });
   }
 
   private async loadCounts(cid: string): Promise<void> {
