@@ -1,12 +1,12 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { GrBadge, GrButton, GrIcon, fmtAgo } from '@grcup/ui';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import { GrBadge, GrButton, GrIcon, GrPopover, fmtAgo } from '@grcup/ui';
 import { estadoDe, matchTone, matchTxt, nombreCompleto } from './solicitudes-model';
 import type { SolicitudItem } from './solicitudes-api';
 
 /** Request list of «Atletas › Solicitudes»: desktop table, tablet table, mobile cards and pager. */
 @Component({
   selector: 'bo-solicitudes-lista',
-  imports: [GrBadge, GrButton, GrIcon],
+  imports: [GrBadge, GrButton, GrIcon, GrPopover],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
@@ -39,7 +39,23 @@ import type { SolicitudItem } from './solicitudes-api';
               <td class="px-3 py-3 text-body-s">{{ s.edad }}</td>
               <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
               <td class="px-3 py-3"><gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge></td>
-              <td class="px-2 py-3"><span class="flex size-8 items-center justify-center rounded-sm text-text-tertiary" aria-hidden="true">…</span></td>
+              <td class="relative px-2 py-3" (click)="$event.stopPropagation()">
+                <button type="button" class="flex size-8 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-raised hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [attr.aria-label]="'Acciones de ' + nombreCompleto(s)" aria-haspopup="menu" [attr.aria-expanded]="menu() === s.id" (click)="menu.set(menu() === s.id ? null : s.id)">…</button>
+                @if (menu() === s.id) {
+                  <gr-popover [etiqueta]="'Acciones de ' + nombreCompleto(s)" (cerrar)="menu.set(null)">
+                    <div class="flex flex-col md:-m-2" role="menu">
+                      <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card" (click)="menu.set(null); revisar.emit(s)"><gr-icon name="eye" [size]="16" />Revisar</button>
+                      @if (s.estado !== 'aprobada' && s.estado !== 'rechazada') {
+                        <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card" (click)="elegir(s, 'aprobar')"><gr-icon name="check" [size]="16" />Aprobar…</button>
+                        <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card" (click)="elegir(s, 'rechazar')"><gr-icon name="x" [size]="16" />Rechazar…</button>
+                      }
+                      @if (s.estado !== 'aprobada') {
+                        <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card text-error" (click)="elegir(s, 'borrar')"><gr-icon name="trash" [size]="16" />Borrar…</button>
+                      }
+                    </div>
+                  </gr-popover>
+                }
+              </td>
             </tr>
           }
         </tbody>
@@ -71,7 +87,23 @@ import type { SolicitudItem } from './solicitudes-api';
               <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge></td>
               <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
               <td class="px-3 py-3"><gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge></td>
-              <td class="px-2 py-3"><span class="flex size-8 items-center justify-center rounded-sm text-text-tertiary" aria-hidden="true">…</span></td>
+              <td class="relative px-2 py-3" (click)="$event.stopPropagation()">
+                <button type="button" class="flex size-8 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-raised hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [attr.aria-label]="'Acciones de ' + nombreCompleto(s)" aria-haspopup="menu" [attr.aria-expanded]="menu() === s.id" (click)="menu.set(menu() === s.id ? null : s.id)">…</button>
+                @if (menu() === s.id) {
+                  <gr-popover [etiqueta]="'Acciones de ' + nombreCompleto(s)" (cerrar)="menu.set(null)">
+                    <div class="flex flex-col md:-m-2" role="menu">
+                      <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card" (click)="menu.set(null); revisar.emit(s)"><gr-icon name="eye" [size]="16" />Revisar</button>
+                      @if (s.estado !== 'aprobada' && s.estado !== 'rechazada') {
+                        <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card" (click)="elegir(s, 'aprobar')"><gr-icon name="check" [size]="16" />Aprobar…</button>
+                        <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card" (click)="elegir(s, 'rechazar')"><gr-icon name="x" [size]="16" />Rechazar…</button>
+                      }
+                      @if (s.estado !== 'aprobada') {
+                        <button type="button" role="menuitem" class="flex h-11 items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card text-error" (click)="elegir(s, 'borrar')"><gr-icon name="trash" [size]="16" />Borrar…</button>
+                      }
+                    </div>
+                  </gr-popover>
+                }
+              </td>
             </tr>
           }
         </tbody>
@@ -123,6 +155,13 @@ export class SolicitudesLista {
   readonly miniaturas = input<Record<string, string>>({});
   readonly revisar = output<SolicitudItem>();
   readonly irPagina = output<number>();
+  /** Row «…» menu: approve / reject / delete open the same confirmation dialogs as the review. */
+  readonly accion = output<{ s: SolicitudItem; tipo: 'aprobar' | 'rechazar' | 'borrar' }>();
+  protected readonly menu = signal<string | null>(null);
+  protected elegir(s: SolicitudItem, tipo: 'aprobar' | 'rechazar' | 'borrar'): void {
+    this.menu.set(null);
+    this.accion.emit({ s, tipo });
+  }
 
   protected readonly hace = fmtAgo;
   protected readonly match = matchTxt;

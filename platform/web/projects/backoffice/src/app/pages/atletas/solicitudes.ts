@@ -139,7 +139,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             </section>
           } @else {
             <bo-solicitudes-lista [items]="visibles()" [total]="l.total" [desde]="desde()" [hasta]="hasta()" [pagina]="pagina()" [paginas]="paginas()"
-              [nuevas]="nuevas()" [miniaturas]="miniaturas()" (revisar)="revisar($event)" (irPagina)="recargar($event)" />
+              [nuevas]="nuevas()" [miniaturas]="miniaturas()" (revisar)="revisar($event)" (accion)="accionFila($event.s, $event.tipo)" (irPagina)="recargar($event)" />
           }
         }
       }
@@ -158,7 +158,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
         </div>
         <div class="flex items-start gap-3">
           <h2 class="min-w-0 flex-1 text-[22px] leading-7 font-semibold break-words">{{ detalle() ? nombreCompleto(detalle()!) : 'Revisar solicitud' }}</h2>
-          <button grIconButton icon="x" label="Cerrar" class="hidden sm:inline-flex" (click)="cerrar()"></button>
+          <span class="hidden sm:contents"><button grIconButton icon="x" label="Cerrar" (click)="cerrar()"></button></span>
         </div>
       </header>
       <div class="flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
@@ -687,6 +687,12 @@ export class SolicitudesPage {
   }
 
   // ---------------------------------------------------------------- review
+
+  /** Row menu: open the review and its confirmation dialog straight away. */
+  protected async accionFila(s: { id: string }, tipo: 'aprobar' | 'rechazar' | 'borrar'): Promise<void> {
+    await this.revisar(s);
+    if (this.detalle()?.id === s.id) this.dialogo.set(tipo);
+  }
 
   protected async revisar(s: { id: string }, push = true): Promise<void> {
     if (push && this.idDeUrl(this.location.path()) !== s.id) this.location.go(`${this.urlLista()}/${s.id}`);

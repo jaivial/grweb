@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, input, signal, untracked, viewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrInput, GrToasts } from '@grcup/ui';
@@ -35,7 +35,7 @@ const MAX_CUPO = 100000;
       <label class="flex w-36 flex-col gap-1.5">
         <span class="truncate text-label-s">Cupo {{ c.nombre }}</span>
         <span class="truncate text-body-xs text-text-tertiary">{{ c.ocupadas }} {{ c.ocupadas === 1 ? 'ocupada' : 'ocupadas' }}{{ c.plazas === 0 ? ' · sin límite' : '' }}{{ c.porDefecto ? ' · por defecto' : '' }}</span>
-        <input grInput type="number" min="0" [max]="max" [attr.aria-label]="'Cupo ' + c.nombre" [disabled]="!puede()" [ngModel]="cupoEdit()[c.codigo]"
+        <input grInput type="number" min="0" [max]="max" #cupoIn [attr.data-codigo]="c.codigo" [attr.aria-label]="'Cupo ' + c.nombre" [disabled]="!puede()" [ngModel]="cupoEdit()[c.codigo]"
           (ngModelChange)="ponCupo(c.codigo, $event)" />
       </label>
     }
@@ -63,6 +63,8 @@ export class SolicitudesCupos {
   protected readonly global = signal<CuposOut['global'] | null>(null);
   protected readonly plazasEdit = signal<number | string | null>(null);
   protected readonly guardandoCupos = signal(false);
+  /** The DOM value is the truth when saving: an emptied number input may not reach ngModel (U33: empty AEP-3 saved). */
+  private readonly cupoIns = viewChildren<ElementRef<HTMLInputElement>>('cupoIn');
   /** The global places live in the competition: changing them needs evento.editar. */
   protected readonly puedeEvento = computed(() => this.auth.can(this.cid(), 'evento.editar'));
   protected readonly lleno = computed(() => {
@@ -121,8 +123,10 @@ export class SolicitudesCupos {
 
   async guardarCupos(): Promise<void> {
     const v: Record<string, number> = {};
+    const dom = Object.fromEntries(this.cupoIns().map((r) => [r.nativeElement.dataset['codigo'], r.nativeElement]));
     for (const c of this.cupos()) {
-      const n = this.numero(this.cupoEdit()[c.codigo]);
+      const el = dom[c.codigo];
+      const n = this.numero(el ? (el.validity.badInput ? 'x' : el.value) : this.cupoEdit()[c.codigo]);
       if (n === null) {
         this.toasts.error('Falta el cupo', `Escribe las plazas de ${c.nombre} (0 = sin límite).`);
         return;
