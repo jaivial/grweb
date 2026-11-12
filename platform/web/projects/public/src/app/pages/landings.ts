@@ -204,7 +204,7 @@ export class PublicoPage {
 /** SportsEvent structured data (free entry). */
 function eventLd(c: CompeticionPublica, lang: Lang): Record<string, unknown> {
   return {
-    '@context': 'https://schema.org', '@type': 'SportsEvent', name: `${c.nombre} ${c.edicion}`, sport: 'Powerlifting', inLanguage: lang,
+    '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nombre, sport: 'Powerlifting', inLanguage: lang,
     startDate: c.fechaInicio, endDate: c.fechaFin, eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode', isAccessibleForFree: true,
     location: { '@type': 'Place', name: c.sede.nombre, address: { '@type': 'PostalAddress', streetAddress: c.sede.direccion, postalCode: c.sede.cp, addressLocality: c.sede.ciudad, addressRegion: c.sede.provincia, addressCountry: 'ES' } },
     organizer: { '@type': 'Organization', name: c.evento.organizador || 'GR Strength' },
