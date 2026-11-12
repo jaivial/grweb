@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, DestroyRef, computed, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
 import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, type FichaPub, type ListaPub, type Participantes } from '../core/atletas';
 import { Cms } from '../core/cms';
-import { Competition, FalloApi, type CompeticionPublica } from '../core/competition';
+import { COMPETITION_SLUG, Competition, FalloApi, type CompeticionPublica } from '../core/competition';
 import { Seo } from '../core/seo';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
@@ -38,20 +38,21 @@ export class Fav {
 /** /atletas (Figma page 39): search, filters, athlete cards (list grouped by class on mobile), load more. */
 @Component({
   selector: 'gr-atletas-page',
-  imports: [RouterLink, GrSelect, Page, FormsModule, GrIcon, GrButton, GrSkeleton, Fav, Related, Community],
+  imports: [RouterLink, GrSelect, Page, FormsModule, GrAlert, GrIcon, GrButton, GrSkeleton, Fav, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
     <gr-page title="Los" [accent]="(plazas() || l?.resumen?.total || '') + ' atletas'" suffix="de la GR Cup" eyebrow="Competición 2026" crumb="Atletas"
       subtitle="Busca a quien vienes a animar, mira su categoría y a qué hora compite. Sigue a tus atletas y tendrás tu propio horario.">
       <p pageStamps class="flex flex-wrap gap-2">
-        @if (l?.actualizado) { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-mono-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado el {{ fecha(l!.actualizado) }} · Fuente: inscritos AEP</span> }
-        <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-mono-xs text-info">Datos de ejemplo</span>
+        @if (l?.actualizado) { <span class="inline-flex min-h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado el {{ fecha(l!.actualizado) }} · Fuente: inscritos AEP</span> }
+        <span class="inline-flex h-8 items-center rounded-pill border border-info/30 bg-info/10 px-3 text-label-xs text-info">Datos de ejemplo</span>
+        @if (plazas() && l?.resumen?.total) { <span class="inline-flex h-8 items-center rounded-pill border border-line-strong bg-white/5 px-3 text-label-xs text-text-tertiary">Inscripciones {{ l!.resumen.total >= plazas()! ? 'completas' : 'abiertas' }} · {{ l!.resumen.total }}/{{ plazas() }}</span> }
       </p>
 
       <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">
-          <label class="relative min-w-0 flex-1 basis-72 md:max-w-sm">
+          <label class="relative min-w-0 flex-1 basis-full lg:max-w-[400px] lg:basis-72">
             <span class="sr-only">Buscar atleta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input type="search" placeholder="Busca por nombre o club" [ngModel]="q()" (ngModelChange)="q.set($event); limite.set(24)"
@@ -74,10 +75,10 @@ export class Fav {
           <gr-select tipo="filtro" etiqueta="Club" aria-label="Club" class="max-w-64" [ngModel]="club()" (ngModelChange)="club.set($event); limite.set(24)">
             <option value="">Todos</option>@for (c of clubs(); track c) { <option [value]="c">{{ c }}</option> }
           </gr-select>
-          <gr-select tipo="filtro" etiqueta="División" aria-label="División" [ngModel]="division()" (ngModelChange)="division.set($event); limite.set(24)">
+          <gr-select tipo="filtro" etiqueta="División" aria-label="División" class="md:max-lg:hidden" [ngModel]="division()" (ngModelChange)="division.set($event); limite.set(24)">
             <option value="">Todas</option>@for (d of divisiones(); track d) { <option [value]="d">{{ d }}</option> }
           </gr-select>
-          <gr-select tipo="filtro" etiqueta="Orden" [resaltar]="false" aria-label="Orden" [ngModel]="orden()" (ngModelChange)="orden.set($event)">
+          <gr-select tipo="filtro" etiqueta="Orden" [resaltar]="false" aria-label="Orden" class="md:max-lg:hidden" [ngModel]="orden()" (ngModelChange)="orden.set($event)">
             <option value="horario">horario</option><option value="nombre">nombre</option><option value="categoria">categoría</option>
           </gr-select>
           @if (fav.slugs().length) {
@@ -89,7 +90,7 @@ export class Fav {
       </div>
 
       @if (l) {
-        <ul class="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ul class="mt-16 hidden grid-cols-4 gap-2 md:grid lg:gap-4">
           <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.total }}</p><p class="text-body-xs text-text-tertiary">atletas</p></li>
           <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.mujeres }} · {{ l.resumen.hombres }}</p><p class="text-body-xs text-text-tertiary">mujeres · hombres</p></li>
           <li class="rounded-md border border-line-subtle bg-bg-card p-4"><p class="text-ui-h3">{{ l.resumen.clubs }}</p><p class="text-body-xs text-text-tertiary">clubs</p></li>
@@ -98,10 +99,23 @@ export class Fav {
       }
 
       @if (l === undefined) {
-        <div class="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-72 rounded-lg" /> }</div>
+        <div class="mt-6 grid grid-cols-1 gap-4 md:mt-20 md:grid-cols-2 lg:grid-cols-4" aria-busy="true" aria-label="Cargando atletas">
+          @for (i of [1, 2, 3, 4]; track i) {
+            <div class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4"><gr-skeleton class="size-10 rounded-sm" /><gr-skeleton class="h-3 w-1/2" /><gr-skeleton class="h-3 w-full" /><gr-skeleton class="h-3 w-4/5" /></div>
+          }
+        </div>
+      } @else if (error()) {
+        <div class="mt-8 flex flex-col items-start gap-4"><gr-alert tone="warning" title="No hemos podido cargar los atletas">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert><button grButton icon="refresh" (click)="cargar()">Reintentar</button></div>
+      } @else if (!filtrados().length) {
+        <div class="mt-12 flex flex-col items-center gap-3 py-8 text-center" role="status">
+          <gr-icon name="search" [size]="28" class="text-text-tertiary" />
+          <p class="text-ui-h5">Ningún atleta coincide{{ q() ? ' con "' + q() + '"' : '' }}</p>
+          <p class="max-w-sm text-body-s text-text-tertiary">Prueba con el apellido o el club. Si compites y no apareces, avisa a la organización: el listado sale de la AEP.</p>
+          <button grButton (click)="limpiar()">Quitar filtros</button>
+        </div>
       } @else {
         <!-- Desktop / tablet: cards -->
-        <ul class="mt-8 hidden grid-cols-2 gap-4 md:grid lg:grid-cols-4">
+        <ul class="mt-20 hidden grid-cols-2 gap-4 md:grid lg:grid-cols-4">
           @for (a of visibles(); track a.slug) {
             <li>
               <a [routerLink]="'/atletas/' + a.slug" class="group relative flex h-full flex-col overflow-hidden rounded-lg border bg-bg-card transition-colors hover:border-line-strong" [class]="fav.slugs().includes(a.slug) ? 'border-accent/60' : 'border-line-subtle'">
@@ -111,54 +125,52 @@ export class Fav {
                   <span class="absolute top-3 right-3"><gr-fav [slug]="a.slug" [nombre]="a.nombre" /></span>
                 </span>
                 <span class="flex flex-1 flex-col p-4">
-                  <span class="text-label-l">{{ a.nombre }} {{ a.apellidos }}</span>
-                  <span class="text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</span>
-                  <span class="mt-3 flex flex-wrap gap-1.5">
-                    @if (a.categoria) { <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 px-2 text-mono-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
-                    @if (a.divisionNombre) { <span class="inline-flex h-6 items-center rounded-pill border border-line-strong px-2 text-mono-xs text-text-secondary">{{ a.divisionNombre }}</span> }
+                  <span class="text-label-m">{{ a.nombre }} {{ a.apellidos }}</span>
+                  <span class="mt-1.5 text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</span>
+                  <span class="mt-3 mb-3 flex flex-wrap gap-1.5">
+                    @if (a.categoria) { <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 bg-accent/10 px-2 text-label-xs text-accent-text">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
+                    @if (a.divisionNombre) { <span class="inline-flex h-6 items-center rounded-pill border border-line-strong bg-white/5 px-2 text-label-xs text-text-tertiary">{{ a.divisionNombre }}</span> }
                   </span>
-                  <span class="mt-auto flex items-center gap-1.5 pt-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') : 'Horario por publicar' }}</span>
+                  <span class="mt-auto flex items-center gap-1.5 border-t border-line-subtle pt-3 text-body-xs text-text-secondary"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') : 'Horario por publicar' }}</span>
                 </span>
               </a>
             </li>
-          } @empty { <li class="col-span-full rounded-lg border border-line-subtle bg-bg-card p-10 text-center text-body-m text-text-tertiary">Nadie coincide con la búsqueda.</li> }
+          }
         </ul>
         <!-- Mobile: list grouped by class -->
         <div class="mt-6 flex flex-col gap-5 md:hidden">
           @for (g of grupos(); track g.titulo) {
             <section>
-              <h2 class="text-mono-xs text-text-tertiary">{{ g.titulo }}</h2>
+              <h2 class="text-label-xs text-text-muted">{{ g.titulo }}</h2>
               <ul class="mt-2 flex flex-col">
                 @for (a of g.items; track a.slug) {
                   <li class="border-b border-line-subtle last:border-0">
-                    <a [routerLink]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2">
-                      @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-10 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
-                      @else { <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(a) }}</span> }
+                    <a [routerLink]="'/atletas/' + a.slug" class="flex min-h-16 items-center gap-3 py-2.5">
+                      @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-11 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
+                      @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-m">{{ ini(a) }}</span> }
                       <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ a.nombre }} {{ a.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.categoria ? ' · ' + a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
-                      <span class="text-mono-xs text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
+                      <span class="font-mono text-[13px] text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
                       <gr-fav [slug]="a.slug" [nombre]="a.nombre" />
                     </a>
                   </li>
                 }
               </ul>
             </section>
-          } @empty { <p class="rounded-lg border border-line-subtle bg-bg-card p-8 text-center text-body-m text-text-tertiary">Nadie coincide con la búsqueda.</p> }
+          }
         </div>
-        @if (filtrados().length) {
-          <div class="mt-8 flex flex-col items-center gap-3">
-            <p class="text-body-xs text-text-tertiary">Mostrando {{ visibles().length }} de {{ filtrados().length }}</p>
-            @if (visibles().length < filtrados().length) { <button grButton (click)="limite.set(limite() + 24)">Cargar 24 más</button> }
-          </div>
-        }
+        <div class="mt-12 flex flex-col items-center gap-3 md:mt-16">
+          <p class="text-body-s text-text-tertiary">Mostrando {{ visibles().length }} de {{ filtrados().length }}</p>
+          @if (visibles().length < filtrados().length) { <button grButton (click)="limite.set(limite() + 24)">Cargar 24 más</button> }
+        </div>
       }
 
       <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
         <section class="flex flex-col gap-4 rounded-xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-5 md:flex-row md:items-center md:justify-between md:p-6">
           <div class="flex gap-4">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-sm bg-accent-deep/60 text-accent-text"><gr-icon name="user" [size]="18" /></span>
-            <div><h2 class="text-ui-h5">¿Compites? Completa tu perfil</h2><p class="mt-1 text-body-s text-text-secondary">Da de alta tu atleta con el email de tu inscripción en la AEP: foto, club, mejores marcas y tus alturas de rack para agilizar el pesaje.</p></div>
+            <div><h2 class="text-ui-h5">¿Compites? Completa tu perfil</h2><p class="mt-1 text-body-s text-text-secondary">Entra con el email de tu inscripción en la AEP: foto, club, mejores marcas y tus alturas de rack para agilizar el pesaje.</p></div>
           </div>
-          <a grButton iconRight="arrow-right" routerLink="/alta-atleta" class="shrink-0">Dar de alta mi atleta</a>
+          <a grButton iconRight="arrow-right" routerLink="/area-atleta" class="shrink-0">Área de atleta</a>
         </section>
         <gr-related [items]="relacionados" />
         <gr-community />
@@ -174,6 +186,7 @@ export class AtletasPage {
   protected readonly sexoTxt = sexoTxt;
   protected readonly ini = iniciales;
   protected readonly lista = signal<ListaPub | null | undefined>(undefined);
+  protected readonly error = signal(false);
   protected readonly comp = signal<CompeticionPublica | null>(null);
   protected readonly q = signal('');
   protected readonly sexo = signal<'' | 'F' | 'M'>('');
@@ -222,11 +235,33 @@ export class AtletasPage {
     const cms = inject(Cms);
     const competition = inject(Competition);
     void inject(PendingTasks).run(async () => {
-      const [l, c] = await Promise.all([this.api.lista(), competition.load()]);
-      this.lista.set(l ?? { resumen: { total: 0, mujeres: 0, hombres: 0, clubs: 0, flights: 0, plataformas: 0 }, atletas: [], actualizado: '' });
+      const [l, c] = await Promise.all([this.cargar(), competition.load()]);
       this.comp.set(c);
       await applySeo(cms, seo, '/atletas', 'Atletas · GR Strength Cup', `Los ${l?.resumen.total ?? ''} atletas de la GR Strength Cup: categoría, club y horario de cada uno.`);
     });
+    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      // Live: a published schedule changes flights and start times (public SSE).
+      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+      let t: ReturnType<typeof setTimeout> | undefined;
+      es.addEventListener('horarios.publicados', () => {
+        clearTimeout(t);
+        t = setTimeout(async () => { const l = await this.api.lista(); if (l) this.lista.set(l); }, 400);
+      });
+      inject(DestroyRef).onDestroy(() => { clearTimeout(t); es.close(); });
+    }
+  }
+
+  protected async cargar(): Promise<ListaPub | null> {
+    this.error.set(false);
+    this.lista.set(undefined);
+    const l = await this.api.lista();
+    this.error.set(!l && this.api.failed());
+    this.lista.set(l ?? { resumen: { total: 0, mujeres: 0, hombres: 0, clubs: 0, flights: 0, plataformas: 0 }, atletas: [], actualizado: '' });
+    return l;
+  }
+
+  protected limpiar(): void {
+    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.club.set(''); this.division.set(''); this.soloFav.set(false); this.limite.set(24);
   }
 
   protected fecha(iso: string): string {
