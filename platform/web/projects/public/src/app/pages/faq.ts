@@ -14,15 +14,15 @@ import { Community, Related, type RelatedLink } from './landings';
   imports: [Page, GrIcon, GrSkeleton, GrEyebrow, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Preguntas" accent="frecuentes" eyebrow="Ayuda" subtitle="Todo lo que necesitas saber sobre el alta de atleta, la competición, el sorteo y cómo venir a Almussafes.">
-      <!-- Figma 24: «Temas» card (260, sticky) next to the questions -->
+    <gr-page title="Preguntas" accent="frecuentes" eyebrow="Ayuda" stamp="Actualizado el 28/10/2026" subtitle="Todo lo que necesitas saber sobre el alta de atleta, la competición, el sorteo y cómo venir a Almussafes.">
+      <!-- Figma 24: «Temas» card (260, sticky) next to the questions; on mobile, search then wrapping topic chips -->
       <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-10">
-        <nav class="h-fit min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3 lg:sticky lg:top-28 lg:p-4" aria-label="Temas">
+        <nav class="hidden h-fit min-w-0 rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:block" aria-label="Temas">
           <p class="px-2 pb-2 text-label-xs text-text-muted uppercase">Temas</p>
-          <ul class="flex gap-1 overflow-x-auto [scrollbar-width:none] lg:flex-col">
+          <ul class="flex flex-col gap-1">
             @for (t of temas(); track t.nombre) {
-              <li><button type="button" (click)="tema.set(t.nombre)" class="flex h-11 w-full items-center justify-between gap-4 rounded-sm px-3 text-label-s whitespace-nowrap lg:h-10"
-                [class]="tema() === t.nombre ? 'bg-accent/12 text-text-primary' : 'text-text-secondary hover:bg-bg-raised'">{{ t.nombre }}<span class="text-body-xs text-text-tertiary">{{ t.n }}</span></button></li>
+              <li><button type="button" (click)="tema.set(t.nombre)" [attr.aria-pressed]="activo() === t.nombre" class="flex h-10 w-full items-center justify-between gap-4 rounded-sm px-3 text-label-s whitespace-nowrap"
+                [class]="activo() === t.nombre ? 'bg-accent/12 text-text-primary' : 'text-text-secondary hover:bg-bg-raised'">{{ t.nombre }}<span class="text-body-xs text-text-tertiary">{{ t.n }}</span></button></li>
             }
           </ul>
         </nav>
@@ -33,6 +33,12 @@ import { Community, Related, type RelatedLink } from './landings';
             <input type="search" placeholder="Busca una pregunta…" [value]="q()" (input)="q.set($any($event.target).value)"
               class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
+          <ul class="-mt-2 flex flex-wrap gap-2 lg:hidden" aria-label="Temas">
+            @for (t of temas(); track t.nombre) {
+              <li><button type="button" (click)="tema.set(t.nombre)" [attr.aria-pressed]="activo() === t.nombre" class="flex h-9 items-center gap-1.5 rounded-pill border px-3 text-label-s"
+                [class]="activo() === t.nombre ? 'border-accent bg-accent/12 text-text-primary' : 'border-line-strong text-text-secondary'"><gr-icon [name]="activo() === t.nombre ? 'check' : 'plus'" [size]="14" />{{ t.nombre }}</button></li>
+            }
+          </ul>
           @if (faq() === null) { <div class="flex flex-col gap-3">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-lg" /> }</div> }
           @for (g of grupos(); track g.nombre; let gi = $index) {
             <section class="flex flex-col gap-3">
@@ -78,6 +84,8 @@ export class FaqPage {
   protected readonly faq = signal<Faq[] | null>(null);
   protected readonly q = signal('');
   protected readonly tema = signal('Todas');
+  /** The selected topic, or «Todas» if it no longer exists in the list. */
+  protected readonly activo = computed(() => (this.temas().some((t) => t.nombre === this.tema()) ? this.tema() : 'Todas'));
   protected readonly temas = computed(() => {
     const all = this.faq() ?? [];
     const m = new Map<string, number>();
@@ -85,8 +93,9 @@ export class FaqPage {
     return [{ nombre: 'Todas', n: all.length }, ...[...m].map(([nombre, n]) => ({ nombre, n }))];
   });
   protected readonly grupos = computed(() => {
-    const q = this.q().trim().toLowerCase();
-    const items = (this.faq() ?? []).filter((f) => (this.tema() === 'Todas' || f.categoria === this.tema()) && (!q || (f.pregunta + ' ' + f.respuesta).toLowerCase().includes(q)));
+    const q = plano(this.q().trim());
+    const tema = this.activo();
+    const items = (this.faq() ?? []).filter((f) => (tema === 'Todas' || f.categoria === tema) && (!q || plano(f.pregunta + ' ' + f.respuesta).includes(q)));
     const m = new Map<string, Faq[]>();
     for (const f of items) m.set(f.categoria, [...(m.get(f.categoria) ?? []), f]);
     return [...m].map(([nombre, items]) => ({ nombre, items }));
@@ -116,3 +125,6 @@ export class FaqPage {
     });
   }
 }
+
+/** Lower case without diacritics: «categoría» matches «categoria». */
+const plano = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();

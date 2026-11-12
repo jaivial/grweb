@@ -52,6 +52,8 @@ func (s *Svc) registerSitemap() {
 		}
 		rows, err := s.a.DB.Query(ctx, `SELECT CASE WHEN tipo = 'blog' THEN '/blog/' ELSE '/' END || slug, updated_at, false FROM paginas WHERE competition_id = $1 AND `+visible+`
 			UNION ALL SELECT '/' || pagina, max(updated_at), false FROM secciones WHERE competition_id = $1 AND pagina <> 'home' AND publicado IS NOT NULL GROUP BY pagina
+			UNION ALL SELECT '/', max(updated_at), false FROM secciones WHERE competition_id = $1 AND pagina = 'home' AND publicado IS NOT NULL HAVING count(*) > 0
+			UNION ALL SELECT '/preguntas-frecuentes', max(updated_at), false FROM faq WHERE competition_id = $1 AND publicada HAVING count(*) > 0
 			UNION ALL SELECT ruta, updated_at, true FROM seo WHERE competition_id = $1 AND NOT indexable`, cid)
 		if err != nil {
 			s.a.Log.Error("sitemap", "err", err)
@@ -60,6 +62,7 @@ func (s *Svc) registerSitemap() {
 		}
 		rutas := append([]string{}, sitemapRutas...)
 		lastmod, noindex := map[string]time.Time{}, map[string]bool{}
+		var ultimo time.Time // routes with no dated content of their own: the latest content change
 		for rows.Next() {
 			var ruta string
 			var at time.Time
@@ -73,6 +76,9 @@ func (s *Svc) registerSitemap() {
 			}
 			rutas = append(rutas, ruta)
 			lastmod[ruta] = at
+			if at.After(ultimo) {
+				ultimo = at
+			}
 		}
 		rows.Close()
 		out := urlset{NS: "http://www.sitemaps.org/schemas/sitemap/0.9", XHTML: "http://www.w3.org/1999/xhtml"}
@@ -85,6 +91,8 @@ func (s *Svc) registerSitemap() {
 			u := smURL{Loc: origen + ruta}
 			if at, ok := lastmod[ruta]; ok {
 				u.Lastmod = at.Format("2006-01-02")
+			} else if !ultimo.IsZero() {
+				u.Lastmod = ultimo.Format("2006-01-02")
 			}
 			if ruta == "/" || ruta == "/en" {
 				u.Links = []smLink{{"alternate", "es", origen + "/"}, {"alternate", "en", origen + "/en"}, {"alternate", "x-default", origen + "/"}}

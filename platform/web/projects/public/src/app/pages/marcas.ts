@@ -168,7 +168,7 @@ export class MarcasPage {
   protected readonly relacionados: RelatedLink[] = [
     { titulo: 'Categorías de peso', texto: 'Pesos y divisiones por edad', ruta: '/categorias-de-peso' },
     { titulo: 'Reglamento', texto: 'Niveles AEP-1, AEP-2 y AEP-3', ruta: '/reglamento' },
-    { titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' },
+    { titulo: 'Calendario 2026', texto: 'Dónde conseguir tu marca', ruta: '/blog' },
   ];
 
   constructor() {
