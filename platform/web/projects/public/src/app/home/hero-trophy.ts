@@ -107,7 +107,7 @@ const PUFFS = [
         }
       </div>
       @if (!reduced()) {
-        <div class="absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:bottom-[70px]" [style.opacity]="pista()">
+        <div class="absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
           Desliza<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"

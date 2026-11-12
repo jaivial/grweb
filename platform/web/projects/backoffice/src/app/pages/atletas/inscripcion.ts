@@ -37,7 +37,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
   imports: [GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="mx-auto flex max-w-[1180px] flex-col gap-6 pb-24">
+    <div class="flex flex-col gap-6 pb-24">
       <bo-page-header title="Inscripción" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas', 'Inscripción']">
         @if (tab() === 'config') { <a actions grButton icon="external-link" [href]="web + '/inscripcion'" target="_blank" rel="noopener">Ver /inscripcion</a> }
         @if (tab() === 'config' && (canEdit() || canEditAep())) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
@@ -62,12 +62,12 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
       @switch (tab()) {
         @case ('config') {
           @if (!c) { <gr-skeleton class="h-96 rounded-lg" /> } @else {
-            <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_260px] xl:grid-cols-[minmax(0,736px)_260px]">
               <div class="flex min-w-0 flex-col gap-6">
                 <!-- Figma 66 «Inscripción · modo AEP (por defecto)»: the mode as two cards, then the data of that mode -->
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                   <h2 class="text-ui-h5">Modo de inscripción</h2>
-                  <p class="mt-0.5 text-body-xs text-text-tertiary">Se puede cambiar mientras no haya pagos en curso</p>
+                  <p class="mt-0.5 text-body-xs text-text-tertiary">Se puede cambiar mientras no haya inscripciones pagadas</p>
                   <div class="mt-4 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Modo de inscripción">
                     @for (m of modos; track m.value) {
                       <button type="button" role="radio" [attr.aria-checked]="c.modo === m.value" [disabled]="!canEdit()" (click)="c.modo = m.value; tocado.set(true)"
@@ -80,7 +80,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                 </section>
                 @if (c.modo === 'externa') {
                   @let a = aep();
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                     <h2 class="text-ui-h5">Inscripción en la AEP</h2>
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Lo que ve el atleta en /inscripcion</p>
                     @if (!a) { <gr-skeleton class="mt-4 h-40" /> } @else {
@@ -88,16 +88,16 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                         <gr-field label="Enlace de inscripción de la AEP" for="a-url" class="md:col-span-2" hint="Se abre en una pestaña nueva" [error]="urlMal() ? 'Debe empezar por https://' : ''"><input grInput id="a-url" type="url" placeholder="https://powerliftingspain.es/…" [(ngModel)]="a.url" (ngModelChange)="tocado.set(true)" [invalid]="urlMal()" [disabled]="!canEditAep()" /></gr-field>
                         <gr-field label="Estado" for="a-estado"><gr-select id="a-estado" [(ngModel)]="a.estado" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()">@for (e of estadosAep; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select></gr-field>
                         <gr-field label="Plazas (cupo AEP)" for="a-plazas"><input grInput id="a-plazas" type="number" min="0" max="5000" [(ngModel)]="a.plazas" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
-                        <gr-field label="Responsable" for="a-resp"><input grInput id="a-resp" [(ngModel)]="a.responsable.nombre" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
                         <gr-field label="Email de dudas" for="a-email"><input grInput id="a-email" type="email" [(ngModel)]="a.responsable.email" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
-                        <gr-field label="Nota interna" for="a-nota" class="md:col-span-2" hint="No se publica"><input grInput id="a-nota" [(ngModel)]="a.nota" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Responsable" for="a-resp"><input grInput id="a-resp" [(ngModel)]="a.responsable.nombre" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Nota interna (no se publica)" for="a-nota" class="md:col-span-2"><input grInput id="a-nota" [(ngModel)]="a.nota" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
                       </div>
                       @if (!canEditAep()) { <p class="mt-3 text-body-xs text-text-tertiary">Editar los datos de la AEP requiere el permiso «evento.editar».</p> }
                       <gr-alert class="mt-4" tone="info" title="Cupones, referidos y pagos no se usan">Con la inscripción en la AEP el pago lo gestiona la federación. Esas pestañas se activan al elegir «Inscripción propia con pago» y guardar.</gr-alert>
                     }
                   </section>
                 } @else {
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                     <h2 class="text-ui-h5">Inscripción propia con pago</h2>
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Formulario en /inscripcion con cuota, plazas, cupones y referidos</p>
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
@@ -112,39 +112,57 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                       <li class="flex items-center justify-between gap-4 py-2"><span><span class="block text-label-s">Programa de referidos</span><span class="block text-body-xs text-text-tertiary">Cada inscrito recibe su código para invitar</span></span><bo-toggle [(value)]="c.referidos.activo" label="Programa de referidos" [disabled]="!canEdit()" /></li>
                     </ul>
                   </section>
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                     <h2 class="text-ui-h5">Pasarela de pago</h2>
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Sistema → Integraciones → Stripe</p>
                     <dl class="mt-3 text-body-s">
                       <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Proveedor</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Stripe' + (pagos()?.pruebas ? ' (modo test)' : '') : 'Pasarela simulada (modo pruebas)' }}</dd></div>
-                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-mono-xs">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
+                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Claves de Stripe</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Configuradas' : 'No configuradas' }}</dd></div>
+                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-right">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
                       <div class="flex justify-between gap-3 py-2"><dt class="text-text-tertiary">Reembolsos</dt><dd>Totales o parciales desde Pagos</dd></div>
                     </dl>
                     @if (pagos()?.pasarela === 'ninguna') { <gr-alert class="mt-3" tone="warning" title="Pagos sin configurar">Añade las claves de Stripe en Sistema → Integraciones. Sin ellas solo se aceptan inscripciones gratuitas (cupón del 100 %) o en reserva.</gr-alert> }
                     @if (pagos()?.pruebas) { <gr-alert class="mt-3" tone="info" title="Modo pruebas: no se cobra nada">La pasarela simulada reproduce Stripe Checkout (tarjetas de prueba, pago rechazado, 3D Secure) y envía el mismo webhook firmado. Al añadir claves de Stripe se usa Stripe sin cambiar nada más.</gr-alert> }
                   </section>
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
+                    <h2 class="text-ui-h5">Textos que acepta el atleta</h2>
+                    <p class="mt-0.5 text-body-xs text-text-tertiary">Casillas sin marcar, obligatorias para pagar</p>
+                    <dl class="mt-3 text-body-s">
+                      @for (t of textosLegales; track t[0]) { <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">{{ t[0] }}</dt><dd>{{ t[1] }}</dd></div> }
+                    </dl>
+                  </section>
                 }
               </div>
-              <!-- what /inscripcion shows with these settings -->
-              <aside class="flex h-fit flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
-                <h2 class="text-label-m">Así lo ve el atleta</h2>
-                <p class="-mt-2 text-body-xs text-text-tertiary">/inscripcion</p>
-                <div class="flex flex-col items-center gap-3 rounded-md bg-bg-surface p-5 text-center">
+              <!-- what /inscripcion shows with these settings (Figma: phone mock) -->
+              <aside class="flex h-fit flex-col gap-1 lg:sticky lg:top-4">
+                <h2 class="text-ui-h5">Así lo ve el atleta</h2>
+                <p class="text-body-xs text-text-tertiary">/inscripcion</p>
+                <div class="mx-auto mt-3 flex min-h-[560px] w-[260px] flex-col gap-3 rounded-[30px] border-[6px] border-[#3a3434] bg-bg-base p-3 pt-2 lg:mx-0">
+                  <span class="mx-auto mb-2 h-1.5 w-16 rounded-pill bg-black" aria-hidden="true"></span>
                   @if (c.modo === 'externa') {
                     @let a = aep();
                     @if (a?.estado === 'proximamente') { <gr-badge tone="warning">Próximamente</gr-badge><p class="font-display text-[22px] uppercase italic">Próximamente…</p><p class="text-body-xs text-text-tertiary">Las inscripciones todavía no están abiertas.</p> }
                     @else if (a?.estado === 'completa' || a?.estado === 'cerrada') { <gr-badge tone="neutral">{{ a?.estado === 'completa' ? 'Inscripciones completas' : 'Inscripciones cerradas' }}</gr-badge><p class="font-display text-[22px] uppercase italic">{{ a?.estado === 'completa' ? 'Plazas completas' : 'Inscripción cerrada' }}</p>@if (a?.estado === 'completa' && a?.url) { <p class="text-body-xs text-text-tertiary">Con el botón «Lista de espera en la AEP»</p> } }
                     @else {
                       <p class="font-display text-[22px] uppercase italic">Inscripciones AEP</p>
-                      <p class="text-body-xs text-text-tertiary">La inscripción al campeonato se realiza en la web oficial de la Asociación Española de Powerlifting.</p>
-                      @if (a?.url && !urlMal()) { <span class="inline-flex h-9 items-center gap-1.5 rounded-sm bg-accent px-3 text-label-s text-white">Ir a la inscripción oficial AEP<gr-icon name="external-link" [size]="14" /></span> }
+                      <p class="text-body-xs text-text-secondary">La inscripción al campeonato se realiza en la web oficial de la Asociación Española de Powerlifting.</p>
+                      @if (a?.url && !urlMal()) { <span class="inline-flex h-10 items-center justify-center rounded-sm bg-accent px-3 text-label-s text-white">Ir a la inscripción oficial AEP</span> }
                       @else { <p class="rounded-sm border border-warning bg-warning/8 px-3 py-2 text-left text-body-xs text-text-secondary">Sin enlace: la web dice que la URL de la AEP se publicará próximamente.</p> }
                     }
                   } @else {
-                    <p class="text-label-s">Inscripción</p>
-                    <p class="text-display-xs">{{ euros(c.cuota) }}</p>
-                    <p class="text-body-xs text-text-tertiary">{{ plazas() ? plazas() + ' plazas' : '' }}{{ c.cierra ? ' · cierra el ' + fecha(c.cierra) : '' }}</p>
-                    @if (c.referidos.activo) { <p class="text-body-xs text-success">Con código de un amigo: {{ c.referidos.descTipo === 'porcentaje' ? '−' + c.referidos.descValor + ' %' : '−' + euros(c.referidos.descValor) }}</p> }
+                    <p class="font-display text-[26px] uppercase italic">¡Inscríbete!</p>
+                    <p class="-mt-2 text-body-xs text-text-secondary">{{ euros(c.cuota) }}{{ plazas() ? ' · ' + plazas() + ' plazas' : '' }}{{ c.cierra ? ' · cierra el ' + fecha(c.cierra).slice(0, 5) : '' }}</p>
+                    @for (f of ['Nombre y apellidos', 'Email', 'Categoría de peso']; track f) { <span class="flex h-9 items-center rounded-sm border border-line-subtle px-2.5 text-body-xs text-text-tertiary">{{ f }}</span> }
+                    @let cp = cuponEjemplo();
+                    @if (c.cupones && cp) {
+                      <span class="flex gap-1.5"><span class="flex h-9 flex-1 items-center rounded-sm border border-success px-2.5 text-mono-xs">{{ cp.codigo }}</span><span class="flex h-9 items-center rounded-sm border border-line-subtle px-2 text-mono-xs uppercase text-success">Aplicado</span></span>
+                    }
+                    <div class="flex flex-col gap-2 rounded-md border border-line-subtle p-3 text-body-s">
+                      <span class="flex justify-between"><span class="text-text-secondary">Inscripción</span><span class="text-mono-xs">{{ euros(c.cuota) }}</span></span>
+                      @if (c.cupones && cp) { <span class="flex justify-between"><span class="text-text-secondary">Cupón {{ desc(cp.tipo, cp.valor) }}</span><span class="text-mono-xs text-success">−{{ euros(descEjemplo()) }}</span></span> }
+                      <span class="flex justify-between border-t border-line-subtle pt-2"><span class="text-label-m">Total</span><span class="text-ui-h5">{{ euros(c.cuota - descEjemplo()) }}</span></span>
+                    </div>
+                    <span class="flex h-10 items-center justify-center rounded-sm bg-accent text-label-s text-white">Pagar {{ euros(c.cuota - descEjemplo()) }}</span>
                   }
                 </div>
               </aside>
@@ -162,28 +180,37 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
               <gr-kpi label="Inscritos gratis" [value]="gratis() + ''" caption="cupón del 100 % o sin pago" />
             </div>
           }
-          <section class="rounded-lg border border-line-subtle bg-bg-card">
+          @if (l?.length) {
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="relative w-full md:w-[280px]"><span class="sr-only">Buscar código</span><gr-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" /><input grInput class="pl-9" placeholder="Buscar código…" [ngModel]="qCupon()" (ngModelChange)="qCupon.set($event)" /></label>
+              <gr-select class="w-36" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
+              <gr-select class="w-36" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
+              <span class="ml-auto text-body-xs text-text-tertiary">{{ cuponesFiltrados().length }} de {{ l.length }} cupones</span>
+            </div>
+          }
+          <section class="rounded-lg border-line-subtle md:border md:bg-bg-card">
             @if (!l) { <div class="p-5"><gr-skeleton class="h-40" /></div> }
             @else if (!l.length) { <gr-empty class="py-10" icon="ticket" title="Sin cupones" text="Crea un código de descuento sobre la cuota de inscripción." /> }
+            @else if (!cuponesFiltrados().length) { <gr-empty class="py-10" icon="search" title="Ningún cupón coincide" text="Cambia la búsqueda o los filtros." /> }
             @else {
               <table class="hidden w-full table-fixed text-left md:table">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="w-48 px-4 py-3 font-normal">Código</th><th class="w-28 px-3 py-3 font-normal">Descuento</th><th class="px-3 py-3 font-normal">Usos</th><th class="w-28 px-3 py-3 font-normal">Caduca</th><th class="w-28 px-3 py-3 text-right font-normal">Ahorro</th><th class="w-28 px-3 py-3 font-normal">Estado</th><th class="w-12"></th></tr></thead>
+                <thead class="border-b border-line-subtle text-mono-xs uppercase tracking-wide text-text-tertiary"><tr><th class="w-[216px] px-4 py-3 font-normal">Código</th><th class="w-[156px] px-3 py-3 font-normal">Descuento</th><th class="px-3 py-3 font-normal">Usos</th><th class="w-28 px-3 py-3 font-normal">Caduca</th><th class="w-32 px-3 py-3 text-right font-normal">Ahorro total</th><th class="w-32 px-3 py-3 font-normal">Estado</th><th class="w-12"></th></tr></thead>
                 <tbody>
-                  @for (cp of l; track cp.id) {
-                    <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.opacity-55]="cp.estado === 'caducado'" (click)="editarCupon(cp)">
-                      <td class="px-4 py-3 text-mono-s">{{ cp.codigo }}</td><td class="px-3 py-3 text-body-s">{{ desc(cp.tipo, cp.valor) }}</td>
-                      <td class="px-3 py-3"><span class="flex items-center gap-2"><span class="h-1.5 flex-1 rounded-pill bg-bg-raised"><span class="block h-full rounded-pill bg-warning" [style.width.%]="cp.limite ? (cp.usos * 100) / cp.limite : 0"></span></span><span class="text-mono-xs text-text-secondary">{{ cp.usos }} / {{ cp.limite ?? 'sin límite' }}</span></span></td>
+                  @for (cp of cuponesFiltrados(); track cp.id) {
+                    <tr class="h-14 cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.opacity-55]="cp.estado === 'caducado'" (click)="editarCupon(cp)">
+                      <td class="px-4 py-3 text-mono-s">{{ cp.codigo }}</td><td class="px-3 py-3 text-mono-s">{{ desc(cp.tipo, cp.valor) }}</td>
+                      <td class="px-3 py-3"><span class="flex items-center gap-2"><span class="h-1 flex-1 rounded-pill bg-bg-raised"><span class="block h-full min-w-1 rounded-pill" [class]="cp.estado === 'agotado' ? 'bg-success' : 'bg-warning'" [style.width.%]="cp.limite ? (cp.usos * 100) / cp.limite : 0"></span></span><span class="text-mono-xs text-text-secondary">{{ cp.usos }} / {{ cp.limite ?? 'sin límite' }}</span></span></td>
                       <td class="px-3 py-3 text-body-s">{{ cp.caduca ? fecha(cp.caduca) : '—' }}</td><td class="px-3 py-3 text-right text-mono-s">{{ euros(cp.ahorro) }}</td>
-                      <td class="px-3 py-3"><gr-badge [tone]="estadoCupon[cp.estado]">{{ cp.estado | titlecase }}</gr-badge></td><td class="px-2"><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></td>
+                      <td class="px-3 py-3"><gr-badge [tone]="estadoCupon[cp.estado]">{{ cp.estado | titlecase }}</gr-badge></td><td class="px-2 text-center"><gr-icon name="more" [size]="16" class="text-text-tertiary" /></td>
                     </tr>
                   }
                 </tbody>
               </table>
-              <ul class="md:hidden">
-                @for (cp of l; track cp.id) {
-                  <li class="border-b border-line-subtle last:border-0"><button type="button" class="flex w-full flex-col gap-1 px-4 py-3 text-left" (click)="editarCupon(cp)">
+              <ul class="flex flex-col gap-4 md:hidden">
+                @for (cp of cuponesFiltrados(); track cp.id) {
+                  <li class="rounded-lg border border-line-subtle bg-bg-card"><button type="button" class="flex w-full flex-col gap-2 p-4 text-left focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" (click)="editarCupon(cp)">
                     <span class="flex items-center justify-between"><span class="text-mono-s">{{ cp.codigo }}</span><gr-badge [tone]="estadoCupon[cp.estado]">{{ cp.estado | titlecase }}</gr-badge></span>
-                    <span class="text-body-s text-text-secondary">{{ desc(cp.tipo, cp.valor) }}{{ cp.caduca ? ' · caduca ' + fecha(cp.caduca) : ' · sin caducidad' }}</span>
+                    <span class="text-body-m text-text-secondary">{{ desc(cp.tipo, cp.valor) }}{{ cp.caduca ? (cp.estado === 'caducado' || cp.estado === 'agotado' ? ' · caducó ' : ' · caduca ') + fecha(cp.caduca).slice(0, 5) : ' · sin caducidad' }}</span>
                     <span class="text-body-xs text-text-tertiary">{{ cp.usos }} / {{ cp.limite ?? 'sin límite' }} usos</span>
                   </button></li>
                 }
@@ -194,49 +221,61 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
 
         @case ('referidos') {
           @if (c) {
-            <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5">
-                <div class="flex items-center justify-between gap-4"><span><span class="block text-ui-h5">Programa de referidos</span><span class="block text-body-xs text-text-tertiary">Los nuevos inscritos reciben su código en el email de confirmación y en su área</span></span><bo-toggle [(value)]="c.referidos.activo" label="Activo" [disabled]="!canEdit()" /></div>
-                <gr-segmented label="Modo" [options]="modosRef" [(value)]="c.referidos.modo" />
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+              <div class="flex min-w-0 flex-col gap-4">
+              <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
+                <h2 class="text-ui-h5">Programa de referidos</h2>
+                <div class="flex items-center justify-between gap-4"><span><span class="block text-label-m">Activo</span><span class="block text-body-xs text-text-tertiary">Los nuevos inscritos reciben su código en el email de confirmación y en su área</span></span><bo-toggle [(value)]="c.referidos.activo" label="Activo" [disabled]="!canEdit()" /></div>
+                <gr-segmented class="self-start" label="Modo" [options]="modosRef" [(value)]="c.referidos.modo" />
                 <div class="grid gap-4 md:grid-cols-2">
                   <gr-field label="Descuento para quien se inscribe" for="r-d"><div class="flex gap-2"><input grInput id="r-d" type="number" min="0" [ngModel]="c.referidos.descTipo === 'porcentaje' ? c.referidos.descValor : c.referidos.descValor / 100" (ngModelChange)="c.referidos.descValor = c.referidos.descTipo === 'porcentaje' ? +$event : round($event)" [disabled]="!canEdit()" /><gr-select class="w-24" [(ngModel)]="c.referidos.descTipo" [disabled]="!canEdit()"><option value="porcentaje">%</option><option value="importe">€</option></gr-select></div></gr-field>
-                  <gr-field label="Recompensa para quien invita (€ por invitado)" for="r-r"><input grInput id="r-r" type="number" min="0" step="0.5" [ngModel]="c.referidos.recompensa / 100" (ngModelChange)="c.referidos.recompensa = round($event)" [disabled]="!canEdit()" /></gr-field>
+                  <gr-field label="Recompensa para quien invita" hint="€ por invitado" for="r-r"><input grInput id="r-r" type="number" min="0" step="0.5" [ngModel]="c.referidos.recompensa / 100" (ngModelChange)="c.referidos.recompensa = round($event)" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Invitados máximos por código" for="r-m" hint="0 = sin límite"><input grInput id="r-m" type="number" min="0" [(ngModel)]="c.referidos.maxUsos" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Tope de devolución" for="r-t" hint="Nunca se devuelve más de lo que pagó"><input grInput id="r-t" [value]="'Lo que pagó (hasta ' + euros(c.cuota) + ')'" disabled /></gr-field>
+                  <gr-field label="Tope de devolución" for="r-t"><input grInput id="r-t" [value]="euros(c.cuota) + ' (lo que pagó)'" disabled /></gr-field>
                 </div>
-                @if (c.referidos.modo === 'acumulativo') {
-                  <div class="rounded-md border border-line-subtle p-4">
-                    <p class="text-label-s">Modo acumulativo</p>
-                    <gr-segmented class="mt-2" label="Acumulativo" [options]="acumModos" [(value)]="c.referidos.acumModo" />
-                    @if (c.referidos.acumModo === 'multiplicador') { <gr-field class="mt-3" label="Multiplicador" for="r-x" [hint]="ejemploMult()"><input grInput id="r-x" type="number" min="1" max="5" step="0.1" [(ngModel)]="c.referidos.multiplicador" [disabled]="!canEdit()" /></gr-field> }
-                  </div>
-                }
-                <gr-alert tone="info" title="Devoluciones sobre el pago original">La recompensa se devuelve como reembolso parcial del pago de quien invita (no es dinero nuevo ni un premio), con tope en lo que pagó.</gr-alert>
               </section>
-              <aside class="h-fit rounded-lg border border-line-subtle bg-bg-card p-5">
+              <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6" [class.opacity-55]="c.referidos.modo !== 'acumulativo'">
+                <span><h2 class="text-ui-h5">Modo acumulativo</h2><p class="mt-0.5 text-body-xs text-text-tertiary">Solo si eliges «Acumulativo»</p></span>
+                <fieldset class="flex flex-col gap-4" [disabled]="!canEdit() || c.referidos.modo !== 'acumulativo'">
+                  <gr-segmented class="self-start" label="Acumulativo" [options]="acumModos" [(value)]="c.referidos.acumModo" />
+                  @if (c.referidos.acumModo === 'multiplicador') { <gr-field class="md:max-w-[315px]" label="Multiplicador" for="r-x" [hint]="ejemploMult()"><input grInput id="r-x" type="number" min="1" max="5" step="0.1" [(ngModel)]="c.referidos.multiplicador" /></gr-field> }
+                </fieldset>
+              </section>
+              <gr-alert tone="info" title="Devoluciones sobre el pago original">La recompensa se devuelve como reembolso parcial del pago de quien invita (no es dinero nuevo ni un premio). Si la inscripción del invitado se anula o se reembolsa, la recompensa se deshace si aún no se ha devuelto.</gr-alert>
+              </div>
+              <div class="flex flex-col gap-4">
+              <aside class="h-fit rounded-lg border border-line-subtle bg-bg-card p-6">
                 <h2 class="text-ui-h5">Así funciona</h2>
                 <p class="mt-0.5 text-body-xs text-text-tertiary">Ejemplo con la configuración actual</p>
                 <dl class="mt-3 text-body-s">
                   @for (e of ejemplo(); track e[0]) { <div class="flex justify-between gap-3 border-b border-line-subtle py-2 last:border-0"><dt class="text-text-tertiary">{{ e[0] }}</dt><dd>{{ e[1] }}</dd></div> }
                 </dl>
               </aside>
+              <!-- what the athlete sees in their area (Figma: phone «Invita y ahorra») -->
+              <div class="mx-auto flex min-h-[300px] w-[260px] flex-col gap-3 rounded-[30px] border-[6px] border-[#3a3434] bg-bg-base p-3 pt-2 lg:mx-0" aria-label="Vista previa del área del atleta">
+                <span class="mx-auto mb-1 h-1.5 w-16 rounded-pill bg-black" aria-hidden="true"></span>
+                <p class="text-label-m">Invita y ahorra</p>
+                <span class="flex h-10 items-center justify-between rounded-sm border border-line-strong px-3"><span class="text-mono-xs">{{ refs()?.[0]?.codigo ?? 'LAURA412' }}</span><span class="text-mono-xs uppercase text-accent-text">Copiar</span></span>
+                <span class="flex justify-between border-b border-line-subtle pb-2 text-body-s"><span class="text-text-secondary">Invitados</span><span>{{ refs()?.[0]?.invitados ?? 0 }} / {{ c.referidos.maxUsos || '∞' }}</span></span>
+                <span class="flex justify-between border-b border-line-subtle pb-2 text-body-s"><span class="text-text-secondary">Devuelto</span><span>{{ euros(refs()?.[0]?.devuelto ?? 0) }}</span></span>
+              </div>
+              </div>
             </div>
           }
           <section class="rounded-lg border border-line-subtle bg-bg-card">
-            <header class="border-b border-line-subtle px-5 py-4"><h2 class="text-ui-h5">Códigos</h2><p class="text-body-xs text-text-tertiary">{{ refs()?.length ?? 0 }} códigos · {{ invitadosTotal() }} invitados · {{ euros(devueltoTotal()) }} devueltos</p></header>
+            <header class="hidden border-b border-line-subtle px-4 py-3 text-mono-xs uppercase tracking-wide text-text-tertiary md:flex"><span class="flex-1 pl-12">Atleta</span><span class="w-28">Código</span><span class="w-20 text-right">Invitados</span><span class="w-28 text-right">Devuelto</span><span class="w-24 pl-3">Ajustes</span></header>
             @if (!refs()) { <div class="p-5"><gr-skeleton class="h-24" /></div> }
             @else if (!refs()!.length) { <gr-empty class="py-8" icon="users" title="Aún no hay códigos" text="Se crean al confirmarse cada inscripción pagada." /> }
             @else {
               <ul>
                 @for (r of refs(); track r.id) {
-                  <li class="border-b border-line-subtle last:border-0"><button type="button" class="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-bg-raised/60" (click)="editarRef(r)">
+                  <li class="border-b border-line-subtle last:border-0"><button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-bg-raised/60 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_rgb(230_96_107/0.9)]" [class.bg-accent/8]="refSel()?.id === r.id && refOpen()" (click)="editarRef(r)">
                     <gr-avatar [name]="r.atleta" />
                     <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ r.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ r.club || 'Independiente' }} · pagó {{ euros(r.pagado) }}</span></span>
-                    <span class="hidden w-28 text-mono-s md:block">{{ r.codigo }}</span>
-                    <span class="w-20 text-right text-mono-s">{{ r.invitados }} inv.</span>
+                    <span class="hidden w-28 text-mono-s text-text-secondary md:block">{{ r.codigo }}</span>
+                    <span class="w-20 text-right text-mono-s">{{ r.invitados }}<span class="md:hidden"> inv.</span></span>
                     <span class="hidden w-28 text-right text-mono-s md:block">{{ euros(r.devuelto) }}</span>
-                    @if (r.fallidas) { <gr-badge tone="danger">{{ r.fallidas }} devolución{{ r.fallidas === 1 ? '' : 'es' }} fallida{{ r.fallidas === 1 ? '' : 's' }}</gr-badge> }
-                    <gr-badge [tone]="r.ajustes ? 'accent' : 'neutral'">{{ r.ajustes ? 'Propios' : 'General' }}</gr-badge>
+                    <span class="hidden w-24 pl-3 md:block">@if (r.fallidas) { <gr-badge tone="danger" [attr.title]="r.fallidas + ' devoluciones fallidas'">{{ r.fallidas }} fallida{{ r.fallidas === 1 ? '' : 's' }}</gr-badge> } @else { <gr-badge [tone]="r.ajustes ? 'accent' : 'neutral'">{{ r.ajustes ? 'Propios' : 'General' }}</gr-badge> }</span>
                   </button></li>
                 }
               </ul>
@@ -257,17 +296,21 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
             <section class="rounded-lg border border-line-subtle bg-bg-card">
               @if (!p.items.length) { <gr-empty class="py-10" icon="ticket" title="Aún no hay pagos" text="Las inscripciones desde /inscripcion aparecerán aquí." /> }
               @else {
+                <header class="hidden border-b border-line-subtle px-4 py-3 text-mono-xs uppercase tracking-wide text-text-tertiary md:flex md:gap-3"><span class="w-28">Fecha</span><span class="w-[258px]">Atleta</span><span class="hidden flex-1 lg:block">Concepto</span><span class="w-24 text-right">Importe</span><span class="w-36">Estado</span><span class="hidden w-28 lg:block">Referencia</span><span class="w-4"></span></header>
                 <ul>
                   @for (x of p.items; track x.id) {
-                    <li class="border-b border-line-subtle last:border-0"><button type="button" class="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-bg-raised/60" (click)="abrirPago(x)">
-                      <span class="hidden w-28 text-mono-xs text-text-tertiary md:block">{{ fechaHora(x.fecha) }}</span>
-                      <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary">Inscripción{{ x.cupon ? ' · cupón ' + x.cupon : '' }}{{ x.referido ? ' · referido ' + x.referido : '' }}</span></span>
+                    <li class="border-b border-line-subtle last:border-0"><button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-bg-raised/60 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_rgb(230_96_107/0.9)]" (click)="abrirPago(x)">
+                      <span class="hidden w-28 text-mono-xs md:block">{{ fechaHora(x.fecha) }}</span>
+                      <span class="flex min-w-0 flex-1 items-center gap-2.5 md:w-[258px] md:flex-none"><gr-avatar class="hidden md:flex" [name]="x.atleta" /><span class="min-w-0"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary"><span class="lg:hidden">{{ concepto(x) }}</span><span class="hidden lg:inline">{{ x.email }}</span></span></span></span>
+                      <span class="hidden min-w-0 flex-1 truncate text-body-s lg:block">{{ concepto(x) }}</span>
                       <span class="w-24 text-right text-mono-s">{{ euros(x.total) }}</span>
-                      <gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge>
-                      <span class="hidden w-32 truncate text-mono-xs text-text-tertiary lg:block">{{ x.referencia }}</span>
+                      <span class="w-36"><gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge></span>
+                      <span class="hidden w-28 truncate text-mono-xs text-text-secondary lg:block">{{ x.referencia }}</span>
+                      <gr-icon name="more" [size]="16" class="hidden text-text-tertiary md:block" />
                     </button></li>
                   }
                 </ul>
+                <p class="border-t border-line-subtle px-4 py-3 text-body-xs text-text-tertiary">{{ p.items.length }} pagos</p>
               }
             </section>
           } @else { <gr-skeleton class="h-64 rounded-lg" /> }
@@ -359,6 +402,8 @@ export class InscripcionPage {
   /** «Gratis (cupón)» only with a coupon: registrations confirmed without payment (e.g. imported) are just «Gratis». */
   protected etiquetaPago(x: Pago): string { return x.estado === 'gratuita' && !x.cupon ? 'Gratis' : ESTADO_PAGO[x.estado].label; }
   protected readonly estadoCupon = ESTADO_CUPON;
+  protected readonly estadosCupon: Cupon['estado'][] = ['activo', 'pausado', 'agotado', 'caducado'];
+  protected concepto(x: Pago): string { return 'Inscripción' + (x.cupon ? ' · cupón ' + x.cupon : '') + (x.referido ? ' · referido ' + x.referido : ''); }
   protected readonly tabs: { key: Tab; label: string }[] = [{ key: 'config', label: 'Configuración' }, { key: 'cupones', label: 'Cupones' }, { key: 'referidos', label: 'Referidos' }, { key: 'pagos', label: 'Pagos' }];
   protected readonly modos: { value: 'externa' | 'propia'; label: string; desc: string }[] = [
     { value: 'externa', label: 'Inscripción en la AEP', desc: 'Los atletas se inscriben en la web de la federación con su licencia. /inscripcion explica el paso y enlaza a la AEP.' },
@@ -404,7 +449,25 @@ export class InscripcionPage {
   protected readonly subtitulo = computed(() => {
     const c = this.cfg();
     if (!c) return '';
-    return this.modoGuardado() === 'propia' ? `Inscripción propia · ${euros(c.cuota)} · ${this.plazas()} plazas` : 'Inscripción en la AEP (por defecto)';
+    if (this.tab() === 'cupones') return `Descuentos sobre la cuota de ${euros(c.cuota)}`;
+    if (this.tab() === 'referidos') return `${this.refs()?.length ?? 0} códigos · ${this.invitadosTotal()} invitados · ${euros(this.devueltoTotal())} devueltos`;
+    if (this.tab() === 'pagos') return '';
+    return `Cómo se inscriben los atletas en la ${this.comps.current()?.nombreCorto || 'competición'}`;
+  });
+  protected readonly textosLegales: [string, string][] = [['Términos de inscripción', 'terminos'], ['Reglamento de la competición', '/reglamento'], ['Privacidad', 'privacidad'], ['Uso de imagen (opcional)', 'consentimiento']];
+  /** First active coupon, used as the example in the phone preview. */
+  protected readonly cuponEjemplo = computed(() => (this.cupones() ?? []).find((c) => c.estado === 'activo') ?? null);
+  protected descEjemplo(): number {
+    const c = this.cfg(), cp = this.cuponEjemplo();
+    if (!c?.cupones || !cp) return 0;
+    return cp.tipo === 'porcentaje' ? Math.round((c.cuota * cp.valor) / 100) : Math.min(c.cuota, cp.valor);
+  }
+  protected readonly qCupon = signal('');
+  protected readonly fEstado = signal('');
+  protected readonly fTipo = signal('');
+  protected readonly cuponesFiltrados = computed(() => {
+    const q = this.qCupon().trim().toUpperCase(), e = this.fEstado(), t = this.fTipo();
+    return (this.cupones() ?? []).filter((c) => (!q || c.codigo.includes(q)) && (!e || c.estado === e) && (!t || c.tipo === t));
   });
   protected readonly activos = computed(() => (this.cupones() ?? []).filter((c) => c.estado === 'activo').length);
   protected readonly usosTotales = computed(() => (this.cupones() ?? []).reduce((a, c) => a + c.usos, 0));
