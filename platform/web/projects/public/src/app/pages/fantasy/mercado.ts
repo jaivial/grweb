@@ -108,7 +108,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
               <ul class="flex flex-col gap-2">
                 @for (a of pagina(); track a.atletaId) {
                   <li>
-                    <gr-market-row [atleta]="a" [serie]="serie(a)" [delta]="delta(a)" [accion]="accion(a)" [restante]="restante(a)" [cierre]="cierre()"
+                    <gr-market-row [atleta]="a" [serie]="serie(a)" [delta]="delta(a)" [accion]="accion(a)" [restante]="restante(a)" [cierre]="cierre()" [bloqueo]="bloqueoFichar(a)"
                       (fichar)="fichar(a)" (clausulazo)="abrirClausulazo(a)" (vender)="vender(a)" (ficha)="verFicha(a)" />
                   </li>
                 }
@@ -244,6 +244,13 @@ export class MercadoFantasyPage {
   protected readonly feed = computed(() => fusionaFichajes(this.store.fichajes(), this.vivo.feed(), this.store.sala()?.id));
   /** Sin sala (ni propia ni pedida) no hay mercado en el que fichar. */
   protected readonly sinSala = computed(() => !this.store.sala());
+  /** El botón «Fichar» se deshabilita con la alineación completa o sin saldo para su cláusula. */
+  protected bloqueoFichar(a: AtletaMercado): string {
+    const e = this.equipo();
+    if (!e) return '';
+    if (e.atletas.length >= this.plantillaMax()) return 'Completa';
+    return e.saldo < a.clausula ? 'Sin saldo' : '';
+  }
   /** Los clausulazos se cierran al empezar la última sesión del día (o si no hay horario): la hora y si ya pasó. */
   protected readonly cierre = computed(() => horaTxt(this.store.clausulazo()?.cierre));
   protected readonly cerrado = computed(() => {
