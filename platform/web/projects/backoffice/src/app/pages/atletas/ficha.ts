@@ -87,7 +87,7 @@ const PUBLIC_WEB = webPublica();
                     </div>
                     <p class="mt-2 text-mono-xs text-text-tertiary">focal {{ p.focalX }} % / {{ p.focalY }} % · object-position: {{ p.focalX }}% {{ p.focalY }}%</p>
                   } @else {
-                    <p class="mt-4 rounded-md border border-dashed border-line-strong p-6 text-center text-body-s text-text-tertiary">Sin foto. Sin foto, su ficha pública solo muestra las iniciales.</p>
+                    <p class="mt-4 rounded-md border border-dashed border-line-strong p-6 text-center text-body-s text-text-tertiary">Sin foto, su ficha pública solo muestra las iniciales.</p>
                   }
                   @if (canEdit()) {
                     <label class="mt-3 inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-line-strong px-3 text-label-s hover:border-text-tertiary">
@@ -109,7 +109,7 @@ const PUBLIC_WEB = webPublica();
                   <p class="mt-0.5 text-body-xs text-text-tertiary">Se muestran como «total previsto»; el atleta puede actualizarlas desde su área hasta el pesaje.</p>
                   <div class="mt-4 grid grid-cols-3 gap-3">
                     @for (m of lifts; track m.k) {
-                      <gr-field [label]="m.label" [for]="'p-' + m.k"><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [id]="'p-' + m.k" [(ngModel)]="p.marcas[m.k]" [disabled]="!canEdit()" /></gr-field>
+                      <gr-field [label]="m.label" [for]="'p-' + m.k" [error]="marcaErr(m.k)"><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [id]="'p-' + m.k" [(ngModel)]="p.marcas[m.k]" [attr.aria-invalid]="!!marcaErr(m.k) || null" [disabled]="!canEdit()" /></gr-field>
                     }
                   </div>
                 </section>
@@ -294,6 +294,12 @@ export class AtletaFichaPage {
   protected readonly errLicencia = signal('');
   private readonly rev = signal(0); // bumped when the form model is replaced or changed outside a template event
   protected p: Atleta['perfil'] = this.blankPerfil();
+  protected marcaErr(k: keyof Marcas): string | null {
+    const v = this.p.marcas[k] as number | string | null | undefined;
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 && n <= 600 ? null : 'Entre 0 y 600 kg';
+  }
   protected d = this.blankDatos();
   protected registrarConsentimiento = false;
 
@@ -369,6 +375,12 @@ export class AtletaFichaPage {
     const cid = this.comps.current()?.id;
     let a = this.atleta();
     if (!cid || !a) return;
+    // U31-R1-6: out-of-range marks are flagged on the field, not sent to the API.
+    const mal = this.lifts.find((m) => this.marcaErr(m.k));
+    if (mal) {
+      document.getElementById('p-' + mal.k)?.focus();
+      return;
+    }
     this.guardando.set(true);
     // a new attempt replaces the error of the previous one (the toast shown is always the server's latest)
     this.toasts.items.update((l) => l.filter((t) => t.title !== 'No se pudo guardar'));
