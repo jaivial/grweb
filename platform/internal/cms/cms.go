@@ -86,6 +86,19 @@ func (s *Svc) fan(ctx context.Context, cookie, hdr string, cid uuid.UUID) (fanau
 	return f, nil
 }
 
+// fanEmail returns the verified email of the fan session; public requests are always tied to it (the form email is ignored).
+func (s *Svc) fanEmail(ctx context.Context, cookie, hdr string, cid uuid.UUID) (string, error) {
+	f, err := s.fan(ctx, cookie, hdr, cid)
+	if err != nil {
+		return "", err
+	}
+	var email string
+	if err := s.a.DB.QueryRow(ctx, `SELECT lower(email::text) FROM fans WHERE id = $1 AND competition_id = $2`, f.ID, cid).Scan(&email); err != nil {
+		return "", fanauth.Problem(fanauth.ErrInvalid)
+	}
+	return email, nil
+}
+
 func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
 	s.registerCollections()

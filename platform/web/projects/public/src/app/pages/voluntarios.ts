@@ -50,7 +50,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                       <span class="text-body-s text-text-tertiary">{{ r.d }}</span>
                       @if (r.req) { <span class="mt-1 inline-flex h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-secondary uppercase">{{ r.req }}</span> }
                     </span>
-                    <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#C42B3E]" [checked]="elegido(r.id)" (change)="alternarRol(r.id)" />
+                    <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-[#C42B3E]" [checked]="elegido(r.id)" (change)="alternarRol(r.id)" [attr.aria-invalid]="falta() && !rolesElegidos().size" />
                   </label>
                 </li>
               }
@@ -176,7 +176,12 @@ export class VoluntariosPage {
   protected async enviar(): Promise<void> {
     this.error.set('');
     this.falta.set(true);
-    if (this.nombre.trim().length < 2 || !this.emailOk() || !this.rolesElegidos().size || !this.acepta) return this.error.set('Revisa los campos marcados.');
+    if (this.nombre.trim().length < 2 || !this.emailOk() || !this.rolesElegidos().size || !this.acepta) {
+      this.error.set('Revisa los campos marcados.');
+      // take the person to the first marked field (roles sit in the other column, far above on mobile)
+      setTimeout(() => { const el = document.querySelector<HTMLElement>('[aria-invalid="true"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); });
+      return;
+    }
     // D-MIEMBROS: the request needs a fan session; the access email brings the person back here.
     if (!(await this.fan.cargar())) {
       sessionStorage.setItem(BORRADOR, JSON.stringify({ nombre: this.nombre, email: this.email, telefono: this.telefono, experiencia: this.experiencia, acepta: this.acepta,
