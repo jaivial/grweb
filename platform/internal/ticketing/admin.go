@@ -127,6 +127,9 @@ func filtro(in listaIn) (string, []any) {
 	}
 	if in.Estado != "" {
 		add("e.estado = ?", in.Estado)
+	} else {
+		// Same scope as the «Reservas» tab count: cancelled tickets only with estado=anulada.
+		w = append(w, "e.estado <> 'anulada'")
 	}
 	if in.Origen != "" {
 		add("e.origen = ?", in.Origen)

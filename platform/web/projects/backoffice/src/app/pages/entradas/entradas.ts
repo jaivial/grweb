@@ -96,7 +96,7 @@ function descargar(blob: Blob, nombre: string): void {
             (clear)="limpiarSel()" (reset)="filtrar({ q: '', sesion: '', estado: '', origen: '' })">
             <bo-search filters class="w-full md:w-[280px]" placeholder="Nombre, email, teléfono o código" [shortcut]="false" [value]="f().q ?? ''" (valueChange)="filtrar({ q: $event })" />
             <gr-select filters tipo="filtro" aria-label="Sesión" [ngModel]="f().sesion ?? ''" (ngModelChange)="filtrar({ sesion: $event })"><option value="">Todas las sesiones</option>@for (x of r?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</gr-select>
-            <gr-select filters tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los estados</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></gr-select>
+            <gr-select filters tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Sin anuladas</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></gr-select>
             <gr-select filters tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">Todos los orígenes</option>@for (o of lista()?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
             <button bulk grButton variant="secondary" icon="mail" (click)="bulk('reenviar')">Reenviar email</button>
             <button bulk grButton variant="secondary" (click)="moverOpen.set(true)">Mover</button>
