@@ -256,7 +256,11 @@ func (s *Svc) registerPublic() {
 			Token       string    `json:"token"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "sorteo-comprar", Method: http.MethodPost, Path: "/api/competiciones/{slug}/sorteo/compras", Summary: "Comprar boletos (devuelve el enlace de pago)", Tags: tagPub, DefaultStatus: http.StatusCreated},
+	// D-RIFA: the raffle is cash-only at the venue, so the online sale answers 410 before validating anything.
+	ventaCerrada := func(hc huma.Context, _ func(huma.Context)) {
+		writeProblem(hc, problem.New(http.StatusGone, "VENTA_ONLINE_RETIRADA", "La rifa es presencial: los boletos se compran en efectivo en el recinto. No hay venta online."))
+	}
+	huma.Register(api, huma.Operation{OperationID: "sorteo-comprar", Method: http.MethodPost, Path: "/api/competiciones/{slug}/sorteo/compras", Summary: "Retirado (410): la rifa es presencial", Tags: tagPub, DefaultStatus: http.StatusCreated, Deprecated: true, Middlewares: huma.Middlewares{ventaCerrada}},
 		func(ctx context.Context, in *compraIn) (*compraOut, error) {
 			b := in.Body
 			if !b.MayorEdad || !b.AceptaBases || !b.AceptaPrivacidad {

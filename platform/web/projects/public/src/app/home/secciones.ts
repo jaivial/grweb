@@ -9,7 +9,6 @@ import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas
 import type { Horarios } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, textoTitulo } from './bloques';
-import type { SorteoHome } from './sorteo';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -20,8 +19,6 @@ const euros = (c: number) => (c % 100 ? (c / 100).toLocaleString('es-ES', { mini
 const srcset = (src: string) => (/-l\.webp$/.test(src) ? `${src.replace(/-l\.webp$/, '-s.webp')} 640w, ${src} 1200w` : null);
 /** Hairline photo border of Figma (white 8 %). */
 const FOTO = 'border border-white/8';
-
-/** Public raffle (GET /api/competiciones/{slug}/sorteo), the fields the home uses. */
 
 /** «Stats band» (Figma): four headline numbers between hairlines. */
 @Component({
@@ -129,7 +126,7 @@ export class SecAlta {
         }
       </div>
       <div class="flex w-full max-w-[350px] shrink-0 flex-col items-center gap-4 lg:w-[400px] lg:max-w-none">
-        <!-- Example ticket (Figma «Ticket / Con sorteo») -->
+        <!-- Example ticket (Figma «Ticket») -->
         <div class="w-[350px] max-w-full overflow-hidden rounded-xl border border-accent/55 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] shadow-card lg:-rotate-3" aria-hidden="true">
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
@@ -140,12 +137,6 @@ export class SecAlta {
             <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
               @for (m of metaTicket(); track m.t) { <li class="flex items-center gap-2.5"><gr-icon [name]="m.i" [size]="15" class="text-accent-text" />{{ m.t }}</li> }
             </ul>
-            @if (sorteo()) {
-              <div class="flex items-center gap-2 rounded-md border border-accent/50 bg-black/25 p-3">
-                <gr-icon name="ticket" [size]="16" class="text-accent-text" />
-                <span class="flex flex-col gap-1"><span class="text-label-s">Sorteo · 2 boletos pagados</span><span class="text-mono-s text-text-secondary">Nº 0412 · 0413 · {{ premioCorto() }}</span></span>
-              </div>
-            }
           </div>
           <div class="relative h-6">
             <div class="absolute inset-x-[30px] top-3 border-t border-dashed border-line-strong"></div>
@@ -176,7 +167,6 @@ export class SecEntradas {
   readonly s = input<Seccion | undefined>();
   readonly comp = input<CompeticionPublica | null>(null);
   readonly entradas = input<Entradas | null>(null);
-  readonly sorteo = input<SorteoHome | null>(null);
   protected readonly glow = GLOW;
   protected readonly ancho = ANCHO;
   protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
@@ -186,7 +176,6 @@ export class SecEntradas {
   protected readonly qr = signal('');
   protected t = (k: string) => str(this.s(), k);
   protected readonly puntos = computed(() => list<{ titulo: string; texto: string }>(this.s(), 'puntos'));
-  protected readonly premioCorto = computed(() => (this.sorteo()?.premio || 'Cinturón SBD').replace(/\s+\d+\s*mm$/i, ''));
   /** First session of the event, shown on the example ticket. */
   private readonly primera = computed<SesionPub | null>(() => this.entradas()?.sesiones?.[0] ?? null);
   protected readonly metaTicket = computed(() => {

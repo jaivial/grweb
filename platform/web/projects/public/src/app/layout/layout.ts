@@ -48,7 +48,7 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
     { label: 'Atletas', desc: 'Perfiles y su horario', href: '/atletas' },
     { label: 'Horarios', desc: 'Flights y plataforma, en directo', href: '/horarios' },
     { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
-    { label: 'Sorteo', desc: 'Premio y boletos', href: '/sorteo' },
+    { label: 'Sorteo', desc: 'Rifa presencial en efectivo', href: '/sorteo' },
     { label: 'Galería', desc: 'Fotos de la competición', href: '/galeria' },
   ] },
   { titulo: 'Visita y comunidad', items: [
@@ -108,7 +108,7 @@ const UI = {
     </nav>
     @if (mega()) {
       <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] flex-wrap gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card md:flex lg:flex-nowrap" (keydown.escape)="mega.set(false)">
-        @for (col of megaCols(); track col.titulo) {
+        @for (col of megaCols; track col.titulo) {
           <div class="flex w-[194px] flex-col gap-1 lg:w-[250px]">
             <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
             @for (it of col.items; track it.href) {
@@ -119,7 +119,7 @@ const UI = {
         <div class="flex w-full flex-col gap-2 self-start rounded-lg border lg:ml-auto lg:w-[240px] border-accent/60 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] p-5">
           <p class="text-label-xs text-text-secondary">Entrada gratuita</p>
           <p class="text-display-2xs">Vive la GR Cup en directo</p>
-          <p class="text-body-s text-text-secondary">{{ sorteo()?.estado === 'en_venta' ? 'Reserva gratis y súmate al sorteo por ' + euros(sorteo()!.precio) + '.' : 'Reserva gratis tu plaza en las gradas.' }}</p>
+          <p class="text-body-s text-text-secondary">Reserva gratis tu plaza en las gradas.</p>
           <!-- Figma: «Button / Display» 44 with glow -->
           <a grButton variant="display" routerLink="/entradas" class="mt-2 self-start md:h-11!">Reservar</a>
         </div>
@@ -176,14 +176,7 @@ export class Navbar {
   private readonly el = inject(ElementRef<HTMLElement>);
   /** The mega menu closes with a click outside the navbar (and with Esc). */
   protected fuera(e: Event): void { if (this.mega() && !this.el.nativeElement.contains(e.target as Node)) this.mega.set(false); }
-  /** Raffle price and state for the mega menu (fetched the first time it opens; set in the backoffice). */
-  protected readonly sorteo = signal<{ estado: string; precio: number } | null>(null);
-  protected readonly euros = (c: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(c / 100).replace(',00', '');
-  protected readonly megaCols = computed(() => {
-    const s = this.sorteo();
-    const desc = !s ? 'Premio y boletos' : s.estado === 'sorteado' ? 'Ganador publicado' : s.estado === 'en_venta' ? `${this.euros(s.precio)} por boleto` : 'Premio y boletos';
-    return MEGA.map((c) => ({ ...c, items: c.items.map((it) => (it.href === '/sorteo' ? { ...it, desc } : it)) }));
-  });
+  protected readonly megaCols = MEGA;
   private readonly http = inject(HttpClient);
   /** Mobile menu is a modal: Tab / Shift+Tab cycle inside it. */
   protected atrapar(e: Event): void {
@@ -220,12 +213,6 @@ export class Navbar {
     // current route also on the server: the SSR HTML already marks the active link (no flash, aria-current for crawlers)
     this.actual.set(this.router.url.split(/[?#]/)[0]);
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
-      let pedido = false;
-      effect(() => {
-        if (!this.mega() || pedido) return;
-        pedido = true;
-        void firstValueFrom(this.http.get<{ estado: string; precio: number }>(`/api/competiciones/${COMPETITION_SLUG}/sorteo`)).then((x) => this.sorteo.set(x), () => undefined);
-      });
       // the menu is a modal: no page scroll behind it, and it closes on navigation
       // focus goes into the menu when it opens (to «close») and back to the hamburger when it closes; Esc closes it
       let estaba = false;
@@ -303,7 +290,7 @@ export class Overlays {
       <div class="grid md:grid-cols-4 md:gap-x-4 lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
         <div class="mb-6 flex flex-col gap-4 md:col-span-4 md:mb-8 lg:col-span-1 lg:mb-0">
           <gr-logo [height]="56" [width]="150" />
-          <p class="max-w-[300px] text-body-s text-text-tertiary md:max-w-none lg:max-w-[300px]">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Sorteo de material SBD para la comunidad.</p>
+          <p class="max-w-[300px] text-body-s text-text-tertiary md:max-w-none lg:max-w-[300px]">Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Rifa presencial de material para la comunidad.</p>
           <div class="flex gap-2">
             <a [href]="instagram()" target="_blank" rel="noopener" aria-label="Instagram" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="instagram" [size]="18" /></a>
             @if (contacto()) { <a [href]="'mailto:' + contacto()" aria-label="Email" class="flex size-11 items-center justify-center rounded-sm border border-line-subtle bg-white/5 text-text-secondary hover:text-text-primary"><gr-icon name="mail" [size]="18" /></a> }
@@ -333,7 +320,7 @@ export class Overlays {
       }
       <div class="flex flex-col items-center gap-1 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:gap-3 md:text-left">
         <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a routerLink="/cookies" class="hover:text-text-secondary">Cookies</a></p>
-        <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p>
+        @if (stripe()) { <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p> }
       </div>
     </div>
     @if (barra()) {
@@ -358,6 +345,8 @@ export class Footer {
     return p === '/donde-dormir-y-comer' || p === '/mapa-de-accesos' ? 'p' : p === '/alta-atleta' ? 'h3' : 'h2';
   });
   protected readonly year = new Date().getFullYear();
+  /** /sorteo is cash-only (D-RIFA): no payment badge there. */
+  protected readonly stripe = computed(() => !this.seo.path().startsWith('/sorteo'));
   private readonly comp = inject(Competition);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
