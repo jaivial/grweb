@@ -156,8 +156,13 @@ func (s *Svc) registerPublic() {
 			plantilla := "fans-acceso"
 			if next := nextValido(in.Body.Next); next != "" {
 				link += "&next=" + url.QueryEscape(next)
-				if strings.HasPrefix(next, "/inscripcion") {
+				switch {
+				case strings.HasPrefix(next, "/inscripcion"):
 					plantilla = "fans-acceso-inscripcion"
+				case strings.HasPrefix(next, "/voluntarios"):
+					plantilla = "fans-acceso-voluntarios"
+				case strings.HasPrefix(next, "/clubs"):
+					plantilla = "fans-acceso-clubs"
 				}
 			}
 			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
