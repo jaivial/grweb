@@ -47,7 +47,7 @@ const CONS: Record<BoConsent, [string, GrTone, string]> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-2 rounded-md border border-line-subtle bg-bg-card p-4' },
   template: `
-    <header class="mb-1 flex items-center justify-between gap-3">
+    <header class="flex min-h-6 items-center justify-between gap-3">
       <h3 class="flex min-w-0 items-center gap-2 text-[14px] font-semibold"><gr-icon name="shield" [size]="16" class="text-text-tertiary" />{{ finalidad() }}</h3>
       <gr-badge [tone]="c()[1]">{{ c()[0] }}</gr-badge>
     </header>

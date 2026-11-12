@@ -69,7 +69,7 @@ const compGuard: CanActivateChildFn = async (child) => {
   const path = r?.routeConfig?.path ?? '';
   const seccion = path === ':seccion' ? (r?.paramMap.get('seccion') ?? '') : path;
   const item = ALL_ITEMS.find((i) => i.path === seccion);
-  if (item?.perm && !auth.can(c.id, item.perm)) return router.createUrlTree(['/403']);
+  if (item?.perm && !auth.can(c.id, item.perm)) return router.createUrlTree(['/403'], { queryParams: { seccion: item.path } });
   return true;
 };
 
