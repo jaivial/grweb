@@ -41,13 +41,85 @@
         <span class="hidden text-body-xs text-text-tertiary sm:inline">Comparado con el periodo anterior</span>
       </div>
     }
-    <section class="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-5" aria-label="Indicadores">
+    <section class="grid grid-cols-2 gap-3 md:gap-4" [class.xl:grid-cols-5]="kpis().length === 5" [class.xl:grid-cols-4]="kpis().length === 4" aria-label="Indicadores">
       @if (dash() === null) {
         @for (i of [1, 2, 3, 4, 5]; track i) { <gr-skeleton class="h-[148px] rounded-lg" /> }
       } @else {
-        @for (k of kpis(); track k.label; let last = $last) { <gr-kpi [label]="k.label" [value]="k.value" [caption]="k.caption" [class.hidden]="last" [class.xl:flex]="last" /> }
+        @for (k of kpis(); track k.label; let last = $last) { <gr-kpi [label]="k.label" [value]="k.value" [caption]="k.caption" [delta]="k.delta" [class.hidden]="last && kpis().length === 5" [class.xl:flex]="last" /> }
       }
     </section>
+
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+      @if (evento()) {
+        <!-- Figma 96:9197 · dispositivos de puerta -->
+        <gr-card title="Dispositivos de puerta" subtitle="Escáneres conectados por SSE · última sincronización">
+          <div class="overflow-x-auto rounded-md border border-line-subtle">
+            <table class="w-full text-left text-body-s">
+              <thead class="text-label-xs text-text-tertiary"><tr><th class="px-4 py-3 font-normal">Puesto</th><th class="px-4 py-3 text-right font-normal">Escaneos</th><th class="px-4 py-3 text-right font-normal">Cola</th><th class="px-4 py-3 font-normal">Estado</th></tr></thead>
+              <tbody>
+                @for (p of checkin()?.puestos ?? []; track p.id) {
+                  <tr class="border-t border-line-subtle">
+                    <td class="px-4 py-3">{{ p.nombre }}{{ p.detalle ? ' · ' + p.detalle : '' }}</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ p.escaneos15 }}</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ p.cola }}</td>
+                    <td class="px-4 py-3"><gr-badge [tone]="p.ultimoPing ? 'success' : 'danger'">{{ p.ultimoPing ? 'En línea' : 'Sin conexión' }}</gr-badge></td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="4" class="px-4 py-6 text-center text-text-tertiary">Ningún escáner conectado todavía</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </gr-card>
+      } @else {
+        <!-- Figma 96:8624 · reservas por día -->
+        <gr-card title="Reservas por día" subtitle="Reservas nuevas de los últimos días">
+          @if (resumen() === null && can('checkin.escanear')) {
+            <gr-skeleton class="h-56" />
+          } @else if (barras().length) {
+            <div class="flex h-56 items-end gap-1" role="img" [attr.aria-label]="'Reservas por día: ' + resumen()!.reservas + ' en total'">
+              @for (b of barras(); track $index; let last = $last) {
+                <div class="min-w-0 flex-1 rounded-t-2xs motion-safe:transition-[height]" [class]="last ? 'bg-accent' : 'bg-accent-deep'" [style.height.%]="b.h" [attr.title]="b.v + ' reservas'"></div>
+              }
+            </div>
+          } @else {
+            <gr-empty icon="ticket" title="Sin reservas todavía" text="El gráfico se llena al abrir la reserva de entradas." />
+          }
+        </gr-card>
+      }
+        <gr-card title="Aforo por sesión" [subtitle]="resumen() ? (resumen()!.plazas | number) + ' plazas · ' + (resumen()!.reservas | number) + ' reservas (' + (resumen()!.personas | number) + ' personas)' : 'Plazas y reservas por sesión'">
+          @if (resumen() === null && can('checkin.escanear')) {
+            @for (i of [1, 2, 3]; track i) { <gr-skeleton class="mb-3 h-20" /> }
+          } @else {
+            <ul class="flex flex-col gap-3">
+              @for (s of resumen()?.sesiones ?? []; track s.id) {
+                <li class="rounded-md border border-line-subtle bg-bg-surface p-4">
+                  <div class="flex items-baseline justify-between gap-3">
+                    <p class="text-label-s">{{ s.nombre }}</p>
+                    <span class="shrink-0 text-mono-xs text-text-secondary">{{ s.ocupadas }} / {{ s.aforo }}</span>
+                  </div>
+                  <div class="mt-3 h-1.5 overflow-hidden rounded-pill bg-bg-raised" role="progressbar" [attr.aria-label]="'Aforo ' + s.nombre" [attr.aria-valuenow]="s.ocupadas" [attr.aria-valuemax]="s.aforo">
+                    <div class="h-full rounded-pill" [class]="aforoTone(s) === 'lleno' ? 'bg-accent-text' : aforoTone(s) === 'ultimas' ? 'bg-warning' : 'bg-accent'" [style.width.%]="s.aforo ? (100 * s.ocupadas) / s.aforo : 0"></div>
+                  </div>
+                  <div class="mt-3 flex items-center justify-between gap-2 text-body-xs">
+                    @switch (aforoTone(s)) {
+                      @case ('lleno') { <span class="text-accent-text">Agotada{{ s.enEspera ? ' · ' + s.enEspera + ' en lista de espera' : '' }}</span> @if (s.listaEspera) { <gr-badge tone="danger">Lista de espera</gr-badge> } }
+                      @case ('ultimas') { <span class="text-warning">¡Últimas {{ s.libres }} entradas!</span> }
+                      @default { <span class="text-text-tertiary">Quedan {{ s.libres }} entradas</span> }
+                    }
+                  </div>
+                </li>
+              } @empty {
+                <li>
+                  <gr-empty icon="ticket" title="Sin sesiones de entradas" text="Crea las sesiones para ver el aforo y la lista de espera en directo.">
+                    @if (can('entradas.gestionar')) { <a grButton size="s" [routerLink]="['/', c?.slug, 'entradas']">Crear sesiones</a> }
+                  </gr-empty>
+                </li>
+              }
+            </ul>
+          }
+        </gr-card>
+    </div>
 
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
       <!-- Puesta en marcha -->
@@ -123,13 +195,8 @@
         </ul>
       </gr-card>
 
-      <!-- Accesos rápidos / Aforo -->
+      <!-- Accesos rápidos -->
       <div class="flex flex-col gap-6">
-        <gr-card title="Aforo por sesión" subtitle="Plazas y reservas por sesión">
-          <gr-empty icon="ticket" title="Sin sesiones de entradas" text="Crea las sesiones para ver el aforo y la lista de espera en directo.">
-            @if (can('entradas.gestionar')) { <a grButton size="s" [routerLink]="['/', c?.slug, 'entradas']">Crear sesiones</a> }
-          </gr-empty>
-        </gr-card>
         <gr-card title="Accesos rápidos">
           <div class="flex flex-col gap-2">
             @if (can('checkin.escanear')) { <a grButton [block]="true" [routerLink]="['/', c?.slug, 'checkin']">Abrir escáner de puerta</a> }

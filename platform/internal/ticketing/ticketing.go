@@ -84,6 +84,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublic()
 	s.registerMiEntrada()
 	s.registerAdmin()
+	s.registerKPIs()
 	s.registerCheckin()
 	s.registerRGPD()
 	a.Go(s.worker)
