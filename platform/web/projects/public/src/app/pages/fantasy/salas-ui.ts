@@ -6,7 +6,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrPopover, type GrIconName } from '@grcup/ui';
-import { codigoError } from '../../core/fan';
+import { codigoError, detalleError } from '../../core/fan';
 import { Juegos, mensajeError, nota2, type FilaSala } from '../../core/juegos';
 import { AlineacionLista, GrAviso } from './componentes';
 
@@ -158,7 +158,7 @@ export interface SalaEditable {
 
           <p class="flex flex-col gap-1.5 rounded-md border border-line-subtle bg-bg-card p-3">
             <span class="text-mono-xs text-text-muted">Así se publicará</span>
-            <span class="text-body-s text-text-secondary">{{ nombre().trim() || 'Tu sala' }} · {{ editar()?.miembros ?? 1 }}/{{ plazas() }} jugadores · {{ (editar()?.miembros ?? 1) < 2 ? 'Esperando (mín. 2)' : 'Abierta' }} · Anfitrión &#64;{{ alias() }}</span>
+            <span class="text-body-s text-text-secondary">{{ vistaPrevia() }}</span>
           </p>
         }
 
@@ -199,6 +199,11 @@ export class CrearSalaModal {
   /** No se puede bajar de los jugadores que ya hay. */
   protected readonly minimo = computed(() => Math.max(2, this.editar()?.miembros ?? 2));
   protected readonly escala = computed(() => Array.from({ length: Math.max(0, this.plazasMax() - 1) }, (_, i) => i + 2));
+  /** «Así se publicará»: sigue al nombre y a las plazas elegidas. */
+  protected readonly vistaPrevia = computed(() => {
+    const m = this.editar()?.miembros ?? 1;
+    return `${this.nombre().trim() || 'Tu sala'} · ${m}/${this.plazas()} jugadores · ${m < 2 ? 'Esperando (mín. 2)' : 'Abierta'} · Anfitrión @${this.alias()}`;
+  });
   protected readonly valido = computed(() => this.puede() && this.nombre().trim().length >= 3 && this.nombre().trim().length <= 32 && !this.enviando());
 
   constructor() {
@@ -230,7 +235,7 @@ export class CrearSalaModal {
       }
     } catch (err) {
       const c = codigoError(err);
-      if (c === 'NOMBRE_NO_VALIDO' || c === 'NOMBRE_OCUPADO') this.errorNombre.set(mensajeError(err));
+      if (c === 'NOMBRE_NO_VALIDO' || c === 'NOMBRE_OCUPADO') this.errorNombre.set(detalleError(err)); // el detalle del API dice el motivo exacto (caracteres, palabra o repetido)
       else if (c === 'YA_EN_SALA') this.errorGeneral.set({ titulo: 'Ya estás en otra sala hoy', texto: 'Solo puedes estar en una sala por día. Sal de ella para crear una nueva.' });
       else if (c === 'PLAZAS_NO_VALIDAS') this.errorGeneral.set({ titulo: 'Plazas no válidas', texto: `Máximo hoy: ${this.plazasMax()} plazas (${this.atletas()} atletas ÷ 5 = ${this.plazasMax()}).` });
       else this.errorGeneral.set({ titulo: 'No se pudo guardar la sala', texto: mensajeError(err) });

@@ -13,16 +13,16 @@ import { Juegos, mensajeError, type Invitacion } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { JuegosNav, iniciales } from '../porra/componentes';
-import { GrAviso } from './componentes';
+import { FantasyCabecera, GrAviso } from './componentes';
 import { TarjetaEstado } from './salas-ui';
 
 @Component({
   selector: 'gr-unirse-page',
-  imports: [Page, GrButton, GrIcon, GrSkeleton, GrAviso, JuegosNav, TarjetaEstado],
+  imports: [Page, GrButton, GrIcon, GrSkeleton, FantasyCabecera, GrAviso, JuegosNav, TarjetaEstado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Te han invitado" accent="" suffix="a una sala" crumb="Unirse" section="Juegos"
-      subtitle="Entras directo con el enlace del anfitrión, sin aprobación. Solo puedes jugar en una sala por día.">
+    <gr-page title="Te han invitado a una sala" [juego]="true">
+      <gr-fantasy-cabecera titulo="Te han invitado a una sala" [migas]="['Unirse']" descripcion="Entras directo con el enlace del anfitrión, sin aprobación. Solo puedes jugar en una sala por día." />
       <div class="flex flex-col gap-4 md:gap-6">
         <gr-juegos-nav juego="fantasy" activa="salas" />
 

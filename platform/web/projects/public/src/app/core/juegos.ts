@@ -163,6 +163,8 @@ export interface SalaResumen {
   estado: 'abierta' | 'en_juego' | 'cancelada' | 'cerrada' | 'finalizada';
   /** Plazas de la sala (para el contador «6/8»). */
   plazas?: number;
+  /** Miembros de la sala (para el contador y el estado «Llena»). */
+  miembros?: number;
 }
 
 /** El estado de los clausulazos: se cierran al empezar la última sesión del día (o si no hay horario). */

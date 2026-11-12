@@ -16,7 +16,7 @@ import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { AthleteSheet, AvisoConexion, BarraSala, ClausulazoModal, FeedRow, GrAviso, MarketRow, SinSala } from './componentes';
+import { AthleteSheet, AvisoConexion, BarraSala, ClausulazoModal, FantasyCabecera, FeedRow, GrAviso, MarketRow, SinSala } from './componentes';
 import { CoinBalance, GrupoChips, JuegosNav } from '../porra/componentes';
 
 type FiltroDueno = 'todos' | 'libres' | 'conDueno' | 'mios';
@@ -24,28 +24,27 @@ type FiltroSexo = 'todos' | 'F' | 'M';
 
 @Component({
   selector: 'gr-mercado-fantasy-page',
-  imports: [RouterLink, Page, FormsModule, GrButton, GrIcon, GrSelect, GrSkeleton, AthleteSheet, AvisoConexion, BarraSala, ClausulazoModal, CoinBalance, FeedRow, GrAviso, MarketRow, GrupoChips, JuegosNav, SinSala],
+  imports: [RouterLink, Page, FormsModule, GrButton, GrIcon, GrSelect, GrSkeleton, AthleteSheet, AvisoConexion, BarraSala, ClausulazoModal, CoinBalance, FantasyCabecera, FeedRow, GrAviso, MarketRow, GrupoChips, JuegosNav, SinSala],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Mercado" [suffix]="jornadaTxt()" crumb="Mercado" section="Juegos"
-      subtitle="Libres al valor; clausulazo al dueño. Cláusula en vivo con cada veredicto.">
-      <div pageStamps class="flex flex-wrap items-center gap-3">
-        <gr-coin-balance [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
-      </div>
+    <gr-page title="Mercado" [juego]="true">
+      <gr-fantasy-cabecera [titulo]="'Mercado ' + jornadaTxt()" [migas]="['Mercado']" descripcion="Libres al valor; clausulazo al dueño. Cláusula en vivo con cada veredicto.">
+        <gr-coin-balance class="shrink-0 self-start lg:self-center" [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
+      </gr-fantasy-cabecera>
 
-      <gr-juegos-nav class="mb-4 md:mb-5" juego="fantasy" activa="mercado" />
+      <gr-juegos-nav juego="fantasy" activa="mercado" />
       @if (store.sala(); as s) {
-        <gr-barra-sala class="mb-4 md:mb-5" [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" activa="mercado" />
+        <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="s.miembros ?? 0" [plazas]="s.plazas ?? 0" activa="mercado" />
       }
-      @if (vivo.caida()) { <gr-aviso-conexion class="mb-4 md:mb-5" /> }
+      @if (vivo.caida()) { <gr-aviso-conexion /> }
       @if (cierre(); as c) {
         @if (cerrado()) {
-          <gr-aviso class="mb-4 md:mb-5" tono="aviso" [titulo]="'Clausulazos cerrados desde las ' + c">Empezó la última sesión del día. Sigues pudiendo fichar y vender; los clausulazos se reabren el próximo día de competición.</gr-aviso>
+          <gr-aviso tono="aviso" [titulo]="'Clausulazos cerrados desde las ' + c">Empezó la última sesión del día. Sigues pudiendo fichar y vender; los clausulazos se reabren el próximo día de competición.</gr-aviso>
         } @else if (faltaTxt(); as f) {
-          <gr-aviso class="mb-4 md:mb-5" [titulo]="'Los clausulazos se cierran a las ' + c">Quedan {{ f }}. Después podrás seguir fichando atletas libres.</gr-aviso>
+          <gr-aviso [titulo]="'Los clausulazos se cierran a las ' + c">Quedan {{ f }}. Después podrás seguir fichando atletas libres.</gr-aviso>
         }
       } @else if (cerrado()) {
-        <gr-aviso class="mb-4 md:mb-5" tono="aviso" titulo="Clausulazos cerrados">Todavía no hay horario publicado para hoy: los clausulazos se abren cuando se publique.</gr-aviso>
+        <gr-aviso tono="aviso" titulo="Clausulazos cerrados">Todavía no hay horario publicado para hoy: los clausulazos se abren cuando se publique.</gr-aviso>
       }
 
       @if (store.cargando()) {

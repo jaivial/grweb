@@ -258,6 +258,8 @@ export class SalaPage {
     const s = this.sala();
     if (!s) return '';
     const libres = s.plazas - s.miembros;
+    // «solo enlace»: no se lista en el lobby ni admite solicitudes; se entra directo con el enlace
+    if (!s.publica) return libres <= 0 ? 'La sala está llena: el enlace ya no admite a nadie más.' : `${libres} ${libres === 1 ? 'plaza libre' : 'plazas libres'}. Tu sala no sale en el lobby: comparte el enlace y entran directo, sin solicitud.`;
     if (libres <= 0) return 'La sala está llena: solo puedes rechazar. Las solicitudes pendientes se cancelan solas.';
     if (!this.detalle()?.solicitudes.length) return `${libres} ${libres === 1 ? 'plaza libre' : 'plazas libres'}. Aquí verás a quien solicite unirse desde el lobby.`;
     return `${libres} ${libres === 1 ? 'plaza libre' : 'plazas libres'}. Al aceptar, las demás solicitudes quedan en espera; con la sala llena se cancelan.`;

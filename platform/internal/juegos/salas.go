@@ -37,13 +37,14 @@ type salaRow struct {
 	Codigo    string
 	Estado    string
 	CreatedAt time.Time
+	Miembros  int
 }
 
-const selSala = `SELECT s.id, s.jornada_id, s.nombre, s.anfitrion_fan_id, s.plazas, s.publica, s.admite_solicitudes, s.codigo, s.estado, s.created_at FROM salas s`
+const selSala = `SELECT s.id, s.jornada_id, s.nombre, s.anfitrion_fan_id, s.plazas, s.publica, s.admite_solicitudes, s.codigo, s.estado, s.created_at, (SELECT count(*) FROM sala_miembros sm WHERE sm.sala_id = s.id) FROM salas s`
 
 func scanSala(r pgx.Row) (*salaRow, error) {
 	var s salaRow
-	if err := r.Scan(&s.ID, &s.JornadaID, &s.Nombre, &s.Anfitrion, &s.Plazas, &s.Publica, &s.Admite, &s.Codigo, &s.Estado, &s.CreatedAt); err != nil {
+	if err := r.Scan(&s.ID, &s.JornadaID, &s.Nombre, &s.Anfitrion, &s.Plazas, &s.Publica, &s.Admite, &s.Codigo, &s.Estado, &s.CreatedAt, &s.Miembros); err != nil {
 		return nil, err
 	}
 	return &s, nil

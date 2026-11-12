@@ -209,7 +209,8 @@ func vistaDe(sl *salaRow, filas []filaSala, mia bool, sol *miSolicitud) salaVist
 			v.Anfitrion = filas[i].Alias
 		}
 	}
-	if len(filas) > 0 {
+	// nobody leads a room where nobody has signed an athlete yet
+	if len(filas) > 0 && (filas[0].Valor > 0 || len(filas[0].Alineacion) > 0) {
 		v.Lider = &filas[0]
 	}
 	return v
