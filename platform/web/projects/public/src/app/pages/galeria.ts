@@ -36,14 +36,14 @@ function nombreAlbum(a: Album): string {
   imports: [Page, GrIcon, GrSkeleton, GrCallout, Related, Community, Lightbox, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Galería" accent="GRStrength Cup" eyebrow="Fotos" section="El evento" crumb="Galería" subtitle="Fotos de la competición: plataforma, calentamiento, podios y ambiente.">
-      <div class="flex flex-col gap-12 md:gap-16">
+    <gr-page separacion="mt-[152px] block md:mt-[180px]" title="Galería" accent="GRStrength Cup" eyebrow="Fotos" section="El evento" crumb="Galería" subtitle="Fotos de la competición: plataforma, calentamiento, podios y ambiente.">
+      <div class="flex flex-col gap-12 md:gap-20">
         @if (albums() === null) {
-          <div class="columns-2 gap-3 md:columns-3 md:gap-4 xl:columns-4">
-            @for (h of [300, 220, 260, 340, 240, 280, 320, 230]; track $index) { <gr-skeleton class="mb-3 block rounded-md md:mb-4" [style.height.px]="h" /> }
+          <div class="columns-2 gap-2 md:columns-3 md:gap-4 xl:columns-4">
+            @for (h of [300, 220, 260, 340, 240, 280, 320, 230]; track $index) { <gr-skeleton class="mb-2 block rounded-md md:mb-4" [style.height.px]="h" /> }
           </div>
         } @else if (todas().length) {
-          <div class="flex flex-col gap-6 md:gap-8">
+          <div class="flex flex-col gap-12 md:gap-20">
             <div #filtrosEl class="flex scroll-mt-28 flex-wrap gap-2" role="group" aria-label="Filtrar fotos">
               <button type="button" [class]="chip(!filtros().size)" [attr.aria-pressed]="!filtros().size" (click)="limpiar()"><gr-icon [name]="!filtros().size ? 'check' : 'plus'" [size]="14" />Todas</button>
               @for (c of chips(); track c.id) {
@@ -52,9 +52,9 @@ function nombreAlbum(a: Album): string {
             </div>
             @if (filtradas().length) {
               <!-- masonry: natural proportions, 2 / 3 / 4 columns -->
-              <ul class="columns-2 gap-3 md:columns-3 md:gap-4 xl:columns-4">
+              <ul class="columns-2 gap-2 md:columns-3 md:gap-4 xl:columns-4">
                 @for (f of visibles(); track f.url + f.album) {
-                  <li class="mb-3 break-inside-avoid md:mb-4">
+                  <li class="mb-2 break-inside-avoid md:mb-4">
                     <button type="button" class="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border border-white/8" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="abrir(f)">
                       <img [src]="mini(f.url)" [attr.srcset]="srcset(f.url)" sizes="(min-width: 1280px) 288px, (min-width: 768px) 33vw, 50vw" [alt]="f.alt"
                         [attr.width]="f.ancho || null" [attr.height]="f.alto || null" [style.aspect-ratio]="f.ancho && f.alto ? f.ancho + ' / ' + f.alto : '3 / 4'"

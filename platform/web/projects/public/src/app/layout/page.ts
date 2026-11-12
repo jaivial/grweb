@@ -57,7 +57,7 @@ import { Footer, Navbar, type Lang } from './layout';
         } @else if (!centrado() && cms.failed()) {
           <gr-alert class="mt-10 md:mt-16" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
         }
-        <div [class]="centrado() || juego() ? 'contents' : cabecera() ? 'mt-10 block md:mt-16' : 'block'"><ng-content /></div>
+        <div [class]="centrado() || juego() ? 'contents' : cabecera() ? (separacion() || 'mt-10 block md:mt-16') : 'block'"><ng-content /></div>
       </div>
     </main>
     <gr-footer [lang]="lang()" />
@@ -90,4 +90,6 @@ export class Page {
   readonly cabeceraMovil = input(true);
   /** false: breadcrumbs only from tablet (Figma 38 /mi-entrada mobile has none). */
   readonly migasMovil = input(true);
+  /** Classes for the gap header → content when the Figma header keeps its empty 100 px «Meta» row (pages 29–31). */
+  readonly separacion = input('');
 }

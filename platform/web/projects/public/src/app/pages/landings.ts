@@ -88,17 +88,17 @@ export class Community {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = land();
-    <gr-page [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="t('intro', 'texto')" section="Visita" crumb="Público">
+    <gr-page separacion="mt-[132px] block md:mt-[180px]" [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="t('intro', 'texto')" section="Visita" crumb="Público">
       <gr-chips-ancla [anclas]="anchors" />
       @if (l === undefined) {
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-24 rounded-md" /> }</div>
       }
-      <div class="flex flex-col gap-18 md:gap-24">
+      <div class="flex flex-col gap-12 md:gap-20">
         @for (k of l?.orden ?? []; track k) {
           @let s = l!.secciones[k];
           @switch (k) {
             @case ('datos') {
-              <ul id="info" class="grid scroll-mt-32 grid-cols-2 gap-3 md:grid-cols-4">
+              <ul id="info" class="grid scroll-mt-32 grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
                 @for (d of items(s, 'items'); track d['etiqueta']) {
                   <li class="flex flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
                     <gr-icon [name]="ic(d['icono'])" [size]="18" class="mb-1.5 self-start text-accent-text" />
@@ -112,9 +112,9 @@ export class Community {
               <section id="que-veras" class="flex scroll-mt-32 flex-col gap-5 md:gap-7">
                 <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
                 <!-- Figma 29: three 300 × 420 cards on desktop; a swipe row with dots on mobile -->
-                <ul #fila class="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[940px] md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
+                <ul #fila class="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[932px] md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
                   @for (m of items(s, 'items'); track m['titulo']; let i = $index) {
-                    <li class="relative w-[66%] shrink-0 snap-start overflow-hidden rounded-lg border border-line-subtle shadow-card md:w-auto">
+                    <li class="relative w-[258px] shrink-0 snap-start overflow-hidden rounded-lg border border-line-subtle shadow-card md:w-auto">
                       <img [src]="m['imagen']" [alt]="m['alt'] || m['titulo']" class="aspect-[300/420] w-full object-cover" loading="lazy" />
                       <div class="absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5">
                         <span class="inline-flex h-6 items-center rounded-full bg-accent px-2.5 text-label-xs text-white uppercase">Movimiento · {{ (i + 1).toString().padStart(2, '0') }}</span>
@@ -135,12 +135,12 @@ export class Community {
                 <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
                 <ol class="grid gap-3 md:grid-cols-4 md:gap-4">
                   @for (p of items(s, 'pasos'); track p['titulo']; let i = $index, last = $last) {
-                    <li class="rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
-                      <span class="flex size-7 items-center justify-center rounded-full bg-accent text-label-s text-white">{{ i + 1 }}</span>
-                      <p class="mt-4 text-label-m">{{ p['titulo'] }}</p>
-                      <p class="mt-1.5 text-body-s text-text-tertiary">{{ p['texto'] }}</p>
+                    <li class="rounded-lg border border-line-subtle bg-bg-card p-[25px]">
+                      <span class="flex size-8 items-center justify-center rounded-full bg-accent text-label-s text-white">{{ i + 1 }}</span>
+                      <p class="mt-2 text-label-m">{{ p['titulo'] }}</p>
+                      <p class="mt-2 text-body-s text-text-tertiary">{{ p['texto'] }}</p>
                       @if (last) {
-                        <p class="mt-4 flex gap-2" aria-label="Ejemplo: dos luces blancas y una roja, intento válido">
+                        <p class="mt-2 flex gap-2" aria-label="Ejemplo: dos luces blancas y una roja, intento válido">
                           <span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-accent"></span>
                         </p>
                       }
