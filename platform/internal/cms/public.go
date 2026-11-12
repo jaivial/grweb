@@ -576,10 +576,10 @@ func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID, slug string) ([
 	return list, err
 }
 
-// conUTM adds utm_source/utm_medium to an absolute link that has no utm_source yet.
+// conUTM sets utm_source/utm_medium on an absolute link, overwriting any previous values.
 func conUTM(raw, source string) string {
 	u, err := url.Parse(raw)
-	if err != nil || u.Host == "" || u.Query().Has("utm_source") {
+	if err != nil || u.Host == "" {
 		return raw
 	}
 	q := u.Query()
