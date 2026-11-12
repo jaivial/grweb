@@ -13,15 +13,16 @@ import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { JuegosNav, MEDALLA, iniciales } from '../porra/componentes';
-import { AvisoConexion, BarraSala, GrAviso, colorNota } from './componentes';
+import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, colorNota } from './componentes';
 import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } from './salas-ui';
 
 @Component({
   selector: 'gr-sala-page',
-  imports: [Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, CrearSalaModal, GrAviso, JuegosNav, PopoverAlineacion, TarjetaEstado],
+  imports: [Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, CrearSalaModal, FantasyCabecera, GrAviso, JuegosNav, PopoverAlineacion, TarjetaEstado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page [title]="sala()?.nombre ?? 'Sala'" accent="" [crumb]="sala()?.nombre ?? 'Sala'" section="Juegos" [subtitle]="subtitulo()">
+    <gr-page [title]="sala()?.nombre ?? 'Sala'" [juego]="true">
+      <gr-fantasy-cabecera [titulo]="sala()?.nombre ?? 'Sala'" [migas]="['Salas', sala()?.nombre ?? 'Sala']" [descripcion]="subtitulo()" />
       <div class="flex flex-col gap-4 md:gap-6">
         <gr-juegos-nav juego="fantasy" activa="salas" />
 

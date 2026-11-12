@@ -15,7 +15,7 @@ import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { GrSelector, JuegosNav, iniciales, type OpcionSelector } from '../porra/componentes';
-import { GrAviso, badgeSala } from './componentes';
+import { FantasyCabecera, GrAviso, badgeSala } from './componentes';
 import { CrearSalaModal, PopoverAlineacion, TarjetaEstado } from './salas-ui';
 
 type Filtro = 'todas' | 'abiertas' | 'en_juego' | 'cerradas';
@@ -25,11 +25,11 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
 
 @Component({
   selector: 'gr-salas-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, CrearSalaModal, GrAviso, GrSelector, JuegosNav, PopoverAlineacion, TarjetaEstado],
+  imports: [Page, FormsModule, GrButton, GrIcon, CrearSalaModal, FantasyCabecera, GrAviso, GrSelector, JuegosNav, PopoverAlineacion, TarjetaEstado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="GRS Fantasy" accent="" suffix="· Salas" crumb="Salas" section="Juegos"
-      subtitle="Solicita unirte a una sala o crea la tuya. Mínimo 2 jugadores, máximo según atletas del día.">
+    <gr-page title="GRS Fantasy · Salas" [juego]="true">
+      <gr-fantasy-cabecera titulo="GRS Fantasy · Salas" [migas]="['Salas']" descripcion="Solicita unirte a una sala o crea la tuya. Mínimo 2 jugadores, máximo según atletas del día." />
       <div class="flex flex-col gap-4 md:gap-6">
         <gr-juegos-nav juego="fantasy" activa="salas" />
 

@@ -4,6 +4,7 @@
  * de mercado, feed de movimientos, modal de clausulazo y ficha del atleta.
  */
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
 import { GrSelector, iniciales, type OpcionSelector } from '../porra/componentes';
 import {
@@ -106,6 +107,29 @@ export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas =
     default:
       return plazas > 0 && plazas - miembros === 1 ? { txt: 'Últimas plazas', clase: acento } : { txt: 'Abierta', clase: 'border-success/45 bg-success/12 text-success' };
   }
+}
+
+/**
+ * La cabecera de las páginas de fantasy con `<gr-page [juego]="true">` (Figma 72/81 a 1440): migas con puntos
+ * «Inicio · Juegos · Fantasy · …», título Display/M y entradilla. Host «contents»: se apila con el gap de la página.
+ */
+@Component({
+  selector: 'gr-fantasy-cabecera',
+  imports: [RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
+  template: `
+    <nav class="text-body-xs text-text-tertiary" aria-label="Migas"><a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
+    <div class="flex flex-col gap-2.5">
+      <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
+      @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary">{{ descripcion() }}</p> }
+    </div>
+  `,
+})
+export class FantasyCabecera {
+  readonly titulo = input.required<string>();
+  readonly descripcion = input('');
+  readonly migas = input<string[]>([]);
 }
 
 /**

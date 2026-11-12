@@ -15,24 +15,20 @@ import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { HojaJugador, PistaFutsal, type AtletaPista } from './pista';
 import { JuegosNav } from '../porra/componentes';
-import { AvisoConexion, BarraSala, GrAviso, SinSala, colorNota } from './componentes';
+import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota } from './componentes';
 
 @Component({
   selector: 'gr-mi-equipo-page',
-  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, GrAviso, HojaJugador, JuegosNav, PistaFutsal, SinSala],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, FantasyCabecera, GrAviso, HojaJugador, JuegosNav, PistaFutsal, SinSala],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRS Fantasy · Mi equipo" [juego]="true">
-      <!-- Figma 72 «Mi equipo» 1440: migas con puntos, Display/M y entradilla en el contenedor de juegos (64 px) -->
-      <nav class="text-body-xs text-text-tertiary" aria-label="Migas"><a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · Fantasy · Mi equipo</nav>
-      <div class="flex flex-col gap-2.5">
-        <h1 class="text-display-s md:text-display-m">GRS Fantasy · Mi equipo</h1>
-        <p class="max-w-[1064px] text-body-m text-text-secondary">Tu alineación de fútbol sala: exactamente 5 atletas, sin suplentes. Cada atleta tiene una nota de 0,0 a 10,0 y tu nota es la media de los 5.</p>
-      </div>
+      <gr-fantasy-cabecera titulo="GRS Fantasy · Mi equipo" [migas]="['Mi equipo']"
+        descripcion="Tu alineación de fútbol sala: exactamente 5 atletas, sin suplentes. Cada atleta tiene una nota de 0,0 a 10,0 y tu nota es la media de los 5." />
       <gr-juegos-nav juego="fantasy" activa="equipo" />
 
       @if (sala(); as s) {
-        <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="store.clas()?.filas?.length ?? 0" [plazas]="s.plazas ?? 0" activa="equipo" />
+        <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="store.clas()?.filas.length ?? 0" [plazas]="s.plazas ?? 0" activa="equipo" />
       }
       @if (vivo.caida()) { <gr-aviso-conexion /> }
       @if (error()) {
