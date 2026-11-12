@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, type GrTone } from '@grcup/ui';
-import { BoToggle } from '../shared/ui';
+import { BoToggle, Confirm } from '../shared/ui';
 import {
-  BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
+  BO_ROW, BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
   BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip, type BoApi, type BoLive, type BoMenuItem, type BoPublish,
 } from '../shared/kit';
 
@@ -11,7 +11,7 @@ import {
   selector: 'bo-componentes-page',
   imports: [
     GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
-    BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard, BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip,
+    BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard, BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-h-dvh bg-bg-base px-4 py-8 text-text-primary md:px-10' },
@@ -140,12 +140,83 @@ import {
         <div menuHeader class="flex flex-col gap-1 px-2 pt-2 pb-1"><span class="text-label-s">Nico García</span><span class="text-body-xs text-text-tertiary">nico&#64;grstrength.com</span></div>
       </bo-menu>
     </section>
-    <section class="mt-8 flex flex-col gap-4 pb-16" aria-labelledby="c-st">
+    <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-st">
       <h2 id="c-st" class="text-ui-h5">API type · Live status · Publish status</h2>
       <div class="flex flex-wrap gap-4">@for (a of apis; track a) { <bo-api-type [type]="a" /> }</div>
       <div class="flex flex-wrap gap-3">@for (l of lives; track l) { <bo-live-status [status]="l" [viewers]="342" /> }</div>
       <div class="flex flex-wrap gap-3">@for (p of pubs; track p) { <bo-publish-status [status]="p" when="12 jun 10:00" /> }</div>
     </section>
+    <h1 class="mt-16 text-ui-h3 md:text-[28px]">BO · Navegación, datos y feedback</h1>
+    <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-pg">
+      <h2 id="c-pg" class="text-ui-h5">Pagination</h2>
+      <div class="flex flex-wrap gap-8">
+        <bo-pagination [page]="1" [pages]="25" /><bo-pagination [page]="pg()" [pages]="25" (change)="pg.set($event)" /><bo-pagination [page]="25" [pages]="25" /><bo-pagination [page]="3" [pages]="25" [from]="2" [loading]="true" />
+      </div>
+    </section>
+    <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-th">
+      <h2 id="c-th" class="text-ui-h5">Table header · Table row</h2>
+      <div class="overflow-x-auto rounded-lg border border-line-subtle">
+        <table class="w-full min-w-[720px] text-body-s">
+          <thead class="bg-bg-surface"><tr>
+            <th boSort [sort]="null">Titular</th><th boSort [sort]="'asc'">Código</th><th boSort [sort]="'desc'">Fecha</th>
+          </tr></thead>
+          <tbody>
+            @for (r of rows; track r.k) {
+              <tr [class]="row[r.k]"><td class="px-3">Laura Gómez Ruiz <span class="block text-body-xs text-text-tertiary">laura.gomez&#64;email.com</span></td>
+                <td class="px-3 text-mono-xs text-text-secondary">GRC-7K3P</td>
+                <td class="px-3 text-mono-xs" [class]="r.k === 'error' ? 'text-error' : 'text-text-tertiary'">{{ r.t }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-labelledby="c-es">
+      <h2 id="c-es" class="text-ui-h5 md:col-span-2 xl:col-span-3">Empty state</h2>
+      <bo-empty-state kind="first-run" title="Aún no hay sesiones de entradas" text="Crea la primera sesión con su aforo para abrir las reservas en /entradas."><button grButton>Crear sesión</button><button grButton variant="ghost">Ver guía</button></bo-empty-state>
+      <bo-empty-state kind="no-results" title="Ningún resultado con estos filtros" text='Prueba a quitar "Sesión: Domingo tarde" o busca por email.'><button grButton>Limpiar filtros</button></bo-empty-state>
+      <bo-empty-state kind="no-data" title="Todavía no hay boletos del sorteo" text="Aparecerán aquí en tiempo real cuando alguien compre en /sorteo."><button grButton variant="ghost">Ver /sorteo</button></bo-empty-state>
+      <bo-empty-state kind="no-permission" title="No tienes acceso a Contactos" text="Tu rol (Taquilla) no incluye contactos.ver. Pídeselo a un Admin: Nico García."><button grButton>Solicitar acceso</button></bo-empty-state>
+      <bo-empty-state kind="error" title="No se pudieron cargar las entradas" text="El servidor respondió 503. Ya lo hemos registrado · incidencia #A7F3."><button grButton>Reintentar</button><button grButton variant="ghost">Ver estado</button></bo-empty-state>
+      <bo-empty-state kind="offline" title="Sin conexión" text="Los escaneos se guardan en este dispositivo (14 en cola) y se enviarán al volver la red."><button grButton>Reintentar ahora</button></bo-empty-state>
+    </section>
+    <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-labelledby="c-to">
+      <h2 id="c-to" class="text-ui-h5 md:col-span-2 xl:col-span-3">Toast</h2>
+      <bo-toast tone="success" title="Horarios publicados" text="148 atletas avisados por email" />
+      <bo-toast tone="error" title="No se pudo guardar" text="Conexión perdida · reintentando en 5 s" />
+      <bo-toast tone="warning" title="Aforo al 94 %" text="Sábado mañana: quedan 38 entradas" />
+      <bo-toast tone="info" title="Exportación lista" text="entradas-2026-06-12.csv · 1.248 filas" />
+      <bo-toast tone="loading" title="Importando acta AEP…" text="96 de 148 filas" />
+      <bo-toast tone="undo" title="Entrada GRC-7K3P anulada" text="Se ha liberado 3 plazas" action="Deshacer" />
+    </section>
+    <section class="mt-8 grid gap-4 md:grid-cols-2" aria-labelledby="c-al">
+      <h2 id="c-al" class="text-ui-h5 md:col-span-2">Alert</h2>
+      <bo-alert tone="info" title="Las entradas se abren el 1 de junio a las 10:00" text="Hasta entonces /entradas muestra la cuenta atrás." action="Cambiar fecha" />
+      <bo-alert tone="success" title="Integración con Stripe operativa" text="Último webhook recibido hace 2 min (checkout.session.completed)." />
+      <bo-alert tone="warning" title="3 atletas sin categoría válida tras la importación" text="Revisa las filas marcadas antes de publicar los flights." action="Revisar filas" />
+      <bo-alert tone="danger" title="El SMTP rechaza los envíos" text="27 emails en cola · último error: 535 Authentication failed." action="Configurar email" />
+      <bo-alert tone="legal" title="Revisión de asesoría pendiente" text="Sorteo de pago (2 €): autorización autonómica y tributación. No activar la venta sin visto bueno." action="Ver checklist legal" />
+    </section>
+    <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-md">
+      <h2 id="c-md" class="text-ui-h5">Modal</h2>
+      <div class="flex flex-wrap gap-2"><button grButton variant="secondary" (click)="modal(false)">Confirm</button><button grButton variant="danger" (click)="modal(true)">Destructive</button></div>
+    </section>
+    <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-sb">
+      <h2 id="c-sb" class="text-ui-h5">Save bar</h2>
+      <bo-save-bar state="unsaved" title="Tienes 3 cambios sin guardar" text="Fecha, sede y texto del hero"><button grButton variant="ghost">Descartar</button><button grButton>Guardar cambios</button></bo-save-bar>
+      <bo-save-bar state="saving" title="Guardando…" text="No cierres esta pestaña"><button grButton variant="ghost" [disabled]="true">Descartar</button><button grButton [loading]="true" aria-label="Guardando"></button></bo-save-bar>
+      <bo-save-bar state="saved" title="Cambios guardados" text="Visibles en la web en menos de 1 min (caché)"><button grButton variant="secondary">Ver en la web</button></bo-save-bar>
+      <bo-save-bar state="error" title="No se pudieron guardar los cambios" text="Error 500 · tus cambios siguen aquí"><button grButton variant="ghost">Copiar cambios</button><button grButton>Reintentar</button></bo-save-bar>
+      <bo-save-bar state="conflict" title="Laura García editó esta página hace 1 min" text="Revisa sus cambios antes de guardar los tuyos"><button grButton variant="secondary">Ver cambios</button><button grButton variant="danger">Sobrescribir</button></bo-save-bar>
+    </section>
+    <section class="mt-8 grid gap-4 pb-16 md:grid-cols-2 xl:grid-cols-5" aria-labelledby="c-pr">
+      <h2 id="c-pr" class="text-ui-h5 md:col-span-2 xl:col-span-5">Progress</h2>
+      <bo-progress title='Enviando newsletter "Horarios publicados"' [value]="612" [total]="2430" note="Quedan ~4 min · 120 emails/min" />
+      <bo-progress kind="indeterminate" title="Preparando exportación" note="Te avisaremos cuando esté lista" />
+      <bo-progress kind="success" title="Importación completada" [value]="148" [total]="148" note="146 creados · 2 actualizados" />
+      <bo-progress kind="error" title="Envío detenido" [value]="1512" [total]="2430" note="SMTP 535 · revisa la configuración y reanuda" />
+      <bo-progress kind="paused" title="Envío en pausa" [value]="1215" [total]="2430" note="Pausado por Nico · 18:40" />
+    </section>
+
   `,
 })
 export class ComponentesPage {
@@ -198,5 +269,17 @@ export class ComponentesPage {
   ];
   protected readonly apis: BoApi[] = ['REST', 'SSE', 'WEBHOOK', 'JOB', 'HUB'];
   protected readonly lives: BoLive[] = ['connected', 'reconnecting', 'offline', 'paused'];
+  protected readonly pg = signal(2);
+  protected readonly row = BO_ROW;
+  protected readonly rows = [
+    { k: 'default', t: '12/06 18:22' }, { k: 'hover', t: '12/06 18:22' }, { k: 'selected', t: '12/06 18:22' },
+    { k: 'disabled', t: '12/06 18:22' }, { k: 'error', t: 'SMTP 550 · buzón inexistente' }, { k: 'new', t: 'ahora' },
+  ] as const;
+  private readonly confirm = inject(Confirm);
+  protected modal(danger: boolean): void {
+    void this.confirm.ask(danger
+      ? { title: 'Anular 12 entradas', text: 'Las 12 entradas pasarán a Anulada, se liberarán 31 plazas y se avisará a sus titulares. Los QR dejarán de ser válidos en la puerta.', confirm: 'Anular 12 entradas', danger: true, word: 'ANULAR' }
+      : { title: 'Publicar horarios', text: 'Se publicarán 8 flights en /horarios y se enviará un email a 148 atletas con su hora de pesaje. Podrás corregir y volver a publicar.', confirm: 'Publicar y avisar' });
+  }
   protected readonly pubs: BoPublish[] = ['draft', 'pending', 'scheduled', 'publishing', 'published', 'error'];
 }
