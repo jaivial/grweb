@@ -1,11 +1,11 @@
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, PLATFORM_ID, PendingTasks, SecurityContext, computed, inject, input, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrSkeleton, fmtLongDate } from '@grcup/ui';
 import { map } from 'rxjs';
-import { Cms, renderMarkdown, type Heading, type Pagina } from '../core/cms';
+import { Cms, renderMarkdown, type BlogPagina, type Heading, type Pagina } from '../core/cms';
 import { Competition } from '../core/competition';
 import { Seo } from '../core/seo';
 import { NoEncontrada } from '../layout/no-encontrada';
@@ -20,8 +20,10 @@ const CATEGORIA: Record<string, [string, string]> = {
   marcas: ['Marcas', 'Marcas'], cronica: ['Crónica', 'Crónicas'], entrenamiento: ['Entrenamiento', 'Entrenamiento'],
 };
 const etiqueta = (c?: string) => (c ? CATEGORIA[c]?.[0] ?? '' : '');
-/** Posts in the grid per page (desktop) and per «Cargar más» (mobile). */
-const POR_PAGINA = 9;
+/** Cover of posts without one (cards and featured). */
+const PORTADA = '/img/blog/trofeo-edicion.webp';
+/** Spanish-only pages: hreflang es + x-default to themselves. */
+export const ES = (path: string) => [{ hreflang: 'es', path }, { hreflang: 'x-default', path }];
 const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '') : '');
 
 /**
@@ -37,7 +39,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
       <div class="flex flex-col gap-16 md:gap-20">
         @if (posts() === null) {
           <div class="grid gap-6 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)]"><gr-skeleton class="h-[420px] rounded-2xl" /><gr-skeleton class="h-72 rounded-lg" /></div>
-        } @else if (posts()!.length) {
+        } @else if (posts()!.length || cat()) {
           <div class="flex flex-col gap-6 md:gap-8">
             @if (chips().length > 1) {
               <div class="flex flex-wrap gap-2" role="group" aria-label="Categorías">
@@ -51,7 +53,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
               <div class="grid gap-6 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)] lg:gap-8">
                 <!-- Figma «Destacado»: 760 × 420 (350 × 420 on mobile), 24 px corners, title over the photo -->
                 <a [routerLink]="'/blog/' + d.slug" class="group relative flex aspect-[350/420] flex-col justify-end overflow-hidden rounded-xl md:rounded-2xl border border-line-subtle md:aspect-[760/420]">
-                  @if (d.portadaUrl) { <img [src]="d.portadaUrl" alt="" class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> }
+                  <img [src]="d.portadaUrl || portada" alt="" class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
                   <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_25%,rgb(14_12_13/0.95))]" aria-hidden="true"></span>
                   <span class="relative flex flex-col items-start gap-3 p-5 md:p-6">
                     @if (d.categoria) { <span class="inline-flex h-6 items-center rounded-full bg-accent px-2.5 text-label-xs text-white uppercase">{{ et(d.categoria) }}</span> }
@@ -64,7 +66,7 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
                     <p class="text-label-xs text-text-muted uppercase">Más recientes</p>
                     @for (p of recientes(); track p.slug) {
                       <a [routerLink]="'/blog/' + p.slug" class="group flex gap-4">
-                        <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card">@if (p.portadaUrl) { <img [src]="p.portadaUrl" alt="" class="size-full object-cover" loading="lazy" /> }</span>
+                        <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card"><img [src]="p.portadaUrl || portada" alt="" class="size-full object-cover" loading="lazy" /></span>
                         <span class="flex min-w-0 flex-col gap-1">
                           @if (p.categoria) { <span class="text-label-xs text-accent-text uppercase">{{ et(p.categoria) }}</span> }
                           <span class="text-label-m group-hover:underline">{{ p.titulo }}</span>
@@ -76,13 +78,13 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
                 }
               </div>
             }
-            @if (resto().length) {
+            @if (visibles().length) {
               <!-- desktop: cards; mobile: rows with an 88 px thumbnail -->
               <ul class="grid gap-3 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
                 @for (p of visibles(); track p.slug) {
                   <li [class.lg:hidden]="esReciente(p)">
                     <a [routerLink]="'/blog/' + p.slug" class="group flex h-full gap-4 rounded-lg border-line-subtle transition-colors md:flex-col md:gap-0 md:overflow-hidden md:border md:bg-bg-card md:hover:border-line-strong">
-                      <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card md:aspect-[360/210] md:size-auto md:w-full md:rounded-none">@if (p.portadaUrl) { <img [src]="p.portadaUrl" alt="" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> }</span>
+                      <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card md:aspect-[360/210] md:size-auto md:w-full md:rounded-none"><img [src]="p.portadaUrl || portada" alt="" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /></span>
                       <span class="flex min-w-0 flex-1 flex-col gap-1.5 md:p-5">
                         @if (p.categoria) { <span class="text-label-xs text-accent-text uppercase">{{ et(p.categoria) }}</span> }
                         <span class="text-label-m md:text-ui-h4">{{ p.titulo }}</span>
@@ -95,14 +97,16 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
               </ul>
               @if (paginas() > 1) {
                 <nav class="hidden items-center justify-center gap-2 md:flex" aria-label="Páginas del blog">
-                  @for (n of numeros(); track n) {
-                    <a [routerLink]="[]" [queryParams]="{ pagina: n > 1 ? n : null }" [attr.aria-current]="n === pagina() ? 'page' : null"
-                      class="flex size-11 items-center justify-center rounded-md border text-label-m" [class]="n === pagina() ? 'border-accent bg-accent text-white' : 'border-line-strong text-text-secondary hover:text-text-primary'">{{ n }}</a>
+                  @for (n of numeros(); track $index) {
+                    @if (n) {
+                      <a [routerLink]="[]" [queryParams]="{ page: n > 1 ? n : null }" queryParamsHandling="merge" [attr.aria-current]="n === pagina() ? 'page' : null"
+                        class="flex size-11 items-center justify-center rounded-md border text-label-m" [class]="n === pagina() ? 'border-accent bg-accent text-white' : 'border-line-strong text-text-secondary hover:text-text-primary'">{{ n }}</a>
+                    } @else { <span class="flex size-11 items-center justify-center text-label-m text-text-tertiary" aria-hidden="true">…</span> }
                   }
                 </nav>
-                @if (mostrados() < resto().length) {
-                  <button type="button" class="flex h-12 w-full items-center justify-center rounded-md border border-line-strong text-label-m md:hidden" (click)="extra.set(extra() + porPagina)">Cargar más ({{ mostrados() }} de {{ resto().length }})</button>
-                }
+              }
+              @if (mostrados() < total()) {
+                <button type="button" class="flex h-12 w-full items-center justify-center rounded-md border border-line-strong text-label-m md:hidden" [disabled]="cargando()" (click)="cargarMas()">Cargar más ({{ mostrados() }} de {{ total() }})</button>
               }
             }
           </div>
@@ -115,47 +119,60 @@ const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { d
   `,
 })
 export class BlogPage {
-  protected readonly posts = signal<Pagina[] | null>(null);
-  protected readonly cat = signal('');
-  protected readonly extra = signal(0);
-  protected readonly movil = signal(false);
-  protected readonly porPagina = POR_PAGINA;
+  /** Page from the API (?page, ?categoria) plus the posts appended by «Cargar más» (mobile). */
+  private readonly datos = signal<BlogPagina | null>(null);
+  private readonly mas = signal<Pagina[]>([]);
+  protected readonly cargando = signal(false);
+  protected readonly portada = PORTADA;
   private readonly router = inject(Router);
-  private readonly paginaQuery = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((q) => Number(q.get('pagina')) || 1)), { initialValue: 1 });
+  private readonly cms = inject(Cms);
+  private readonly query = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((q) => ({ page: Math.max(1, Number(q.get('page')) || 1), cat: CATEGORIA[q.get('categoria') ?? ''] ? q.get('categoria')! : '' }))));
   protected et = etiqueta;
   protected plural = (c: string) => CATEGORIA[c]?.[1] ?? c;
-  protected readonly chips = computed(() => Object.keys(CATEGORIA).filter((c) => (this.posts() ?? []).some((p) => p.categoria === c)));
-  private readonly filtrados = computed(() => (this.posts() ?? []).filter((p) => !this.cat() || p.categoria === this.cat()));
-  protected readonly destacado = computed(() => this.filtrados()[0] ?? null);
+  protected readonly posts = computed(() => (this.datos() ? [...this.datos()!.items, ...this.mas()] : null));
+  protected readonly cat = computed(() => this.query()?.cat ?? '');
+  protected readonly pagina = computed(() => this.datos()?.pagina ?? 1);
+  protected readonly total = computed(() => this.datos()?.total ?? 0);
+  protected readonly chips = computed(() => Object.keys(CATEGORIA).filter((c) => this.datos()?.categorias.includes(c)));
+  protected readonly destacado = computed(() => (this.pagina() === 1 ? this.posts()?.[0] ?? null : null));
   /** Beside the featured post on desktop; in the list on smaller screens. */
-  protected readonly recientes = computed(() => this.filtrados().slice(1, 4));
-  protected readonly resto = computed(() => this.filtrados().slice(1));
-  private readonly enRejilla = computed(() => this.resto().filter((p) => !this.recientes().includes(p)));
-  protected readonly paginas = computed(() => Math.max(1, Math.ceil(this.enRejilla().length / POR_PAGINA)));
-  protected readonly pagina = computed(() => Math.min(Math.max(1, this.paginaQuery()), this.paginas()));
-  protected readonly mostrados = computed(() => Math.min(this.resto().length, 3 + POR_PAGINA + this.extra()));
-  /** Desktop: the three recent ones (hidden from lg, shown beside the featured post) + the page; mobile: «Cargar más». */
-  protected readonly visibles = computed(() => {
-    if (this.movil()) return this.resto().slice(0, this.mostrados());
-    const desde = (this.pagina() - 1) * POR_PAGINA;
-    return [...(this.pagina() === 1 ? this.recientes() : []), ...this.enRejilla().slice(desde, desde + POR_PAGINA)];
+  protected readonly recientes = computed(() => (this.pagina() === 1 ? (this.posts() ?? []).slice(1, 4) : []));
+  protected readonly visibles = computed(() => (this.posts() ?? []).slice(this.pagina() === 1 ? 1 : 0));
+  protected readonly paginas = computed(() => Math.max(1, Math.ceil(this.total() / (this.datos()?.porPagina || 12))));
+  protected readonly mostrados = computed(() => (this.pagina() - 1) * (this.datos()?.porPagina ?? 12) + (this.posts()?.length ?? 0));
+  /** Figma 34: 1 · 2 · 3 … 8 (0 = ellipsis). */
+  protected readonly numeros = computed(() => {
+    const n = this.paginas(), p = this.pagina();
+    if (n <= 7) return Array.from({ length: n }, (_, i) => i + 1);
+    const set = [...new Set([1, 2, 3, p - 1, p, p + 1, n])].filter((x) => x >= 1 && x <= n).sort((x, y) => x - y);
+    return set.flatMap((x, i) => (i && x - set[i - 1] > 1 ? [0, x] : [x]));
   });
-  protected readonly numeros = computed(() => Array.from({ length: this.paginas() }, (_, i) => i + 1));
 
   constructor() {
-    const cms = inject(Cms);
     const seo = inject(Seo);
-    void inject(PendingTasks).run(async () => {
-      this.posts.set((await cms.blog()) ?? []);
-      await applySeo(cms, seo, '/blog', 'Guías de powerlifting · Blog de la GR Strength Cup', 'Calendario, normativa y consejos para competir en powerlifting en la Comunitat Valenciana.');
+    const tasks = inject(PendingTasks);
+    effect(() => {
+      const q = this.query();
+      if (!q) return;
+      void tasks.run(async () => {
+        const d = await this.cms.blog(q.page, q.cat);
+        this.mas.set([]);
+        this.datos.set(d ?? { items: [], total: 0, pagina: q.page, porPagina: 12, categorias: [] });
+        await applySeo(this.cms, seo, '/blog', 'Guías de powerlifting · Blog de la GR Strength Cup', 'Calendario, normativa y consejos para competir en powerlifting en la Comunitat Valenciana.', undefined, {
+          alternates: ES('/blog'),
+          jsonLd: { '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog de la GR Strength Cup', url: seo.origin + '/blog', inLanguage: 'es',
+            blogPost: (d?.items ?? []).map((p) => ({ '@type': 'BlogPosting', headline: p.titulo, url: seo.origin + '/blog/' + p.slug, ...(p.publicadoAt ? { datePublished: p.publicadoAt } : {}) })) },
+        });
+      });
     });
-    if (isPlatformBrowser(inject(PLATFORM_ID))) {
-      const mq = matchMedia('(max-width: 767px)');
-      const cambio = () => this.movil.set(mq.matches);
-      afterNextRender(cambio);
-      mq.addEventListener('change', cambio);
-      inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', cambio));
-    }
+  }
+  protected async cargarMas(): Promise<void> {
+    const d = this.datos();
+    if (!d || this.cargando()) return;
+    this.cargando.set(true);
+    const sig = await this.cms.blog(d.pagina + 1 + Math.ceil(this.mas().length / d.porPagina), this.cat());
+    this.mas.update((m) => [...m, ...(sig?.items ?? [])]);
+    this.cargando.set(false);
   }
   protected esReciente(p: Pagina): boolean { return this.pagina() === 1 && this.recientes().includes(p); }
   protected chip(activo: boolean): string {
@@ -163,9 +180,7 @@ export class BlogPage {
       (activo ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary');
   }
   protected elegir(c: string): void {
-    this.cat.set(c);
-    this.extra.set(0);
-    if (this.pagina() > 1) void this.router.navigate([], { queryParams: { pagina: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    void this.router.navigate([], { queryParams: { categoria: c || null, page: null } });
   }
 }
 
@@ -313,6 +328,7 @@ export class BlogPostPage {
       const abs = (u: string) => (u.startsWith('/') ? seo.origin + u : u);
       const org = { '@type': 'Organization', name: this.comp.data()?.evento.organizador || 'GR Strength', url: seo.origin };
       await applySeo(this.cms, seo, '/blog/' + slug, `${p.titulo} · GR Strength Cup`, p.resumen || p.titulo, p.portadaUrl || undefined, {
+        alternates: ES('/blog/' + slug),
         jsonLd: {
           '@context': 'https://schema.org', '@type': 'BlogPosting', headline: p.titulo, description: p.resumen || p.titulo, inLanguage: 'es',
           mainEntityOfPage: seo.origin + '/blog/' + slug, ...(p.portadaUrl ? { image: abs(p.portadaUrl) } : {}),

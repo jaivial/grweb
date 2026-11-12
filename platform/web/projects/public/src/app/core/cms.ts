@@ -45,6 +45,14 @@ export interface Pagina {
   fuente?: string;
   minutos?: number;
 }
+/** One page of /blog (12 posts): total for the category filter and the categories in use. */
+export interface BlogPagina {
+  items: Pagina[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+  categorias: string[];
+}
 export interface Foto {
   url: string;
   alt: string;
@@ -143,7 +151,9 @@ export class Cms {
     return p;
   }
   post(slug: string): Promise<Pagina | null> { return this.get<Pagina>(`/blog/${slug}`); }
-  blog(): Promise<Pagina[] | null> { return this.get<Pagina[]>('/blog'); }
+  blog(page = 1, categoria = ''): Promise<BlogPagina | null> {
+    return this.get<BlogPagina>(`/blog?page=${page}${categoria ? '&categoria=' + encodeURIComponent(categoria) : ''}`);
+  }
   galeria(): Promise<Album[] | null> { return this.get<Album[]>('/galeria'); }
   seoMap(): Promise<SeoMap | null> { return (this.seo ??= this.get<SeoMap>('/seo')); }
 
