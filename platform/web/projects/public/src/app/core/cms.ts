@@ -189,20 +189,30 @@ const slugify = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /** Markdown → HTML with ids on h2 (for the table of contents). Angular sanitizes the result when bound. */
-const TITULO_CAJA: Record<string, string> = { dato: 'Dato', consejo: 'Consejo', aviso: 'Aviso', importante: 'Importante', resumen: 'En resumen' };
+const TITULO_CAJA: Record<string, string> = { dato: 'Dato', consejo: 'Consejo', aviso: 'Aviso', importante: 'Importante', resumen: 'En resumen', filas: '' };
+/** «Texto {toc: Etiqueta}»: the contents entry of a heading or box when it differs from the visible text. */
+const TOC = /\s*\{toc:\s*([^}]+)\}\s*$/;
 
 export function renderMarkdown(src: string): { html: string; headings: Heading[] } {
   const headings: Heading[] = [];
   const html = (marked.parse(src ?? '', { async: false }) as string)
-    .replace(/<h2>(.*?)<\/h2>/g, (_m, inner: string) => {
-      const text = inner.replace(/<[^>]+>/g, '');
+    // Boxes of the blog (Figma 34): «> [!dato] Título» (also consejo, aviso, importante) and «> [!resumen]» + a list.
+    // «[!filas]»: a card of rows «**Nombre** — detalle»; «{toc: …}» on a box adds a hidden anchor for the contents.
+    .replace(/<blockquote>\s*<p>\[!(dato|consejo|aviso|importante|resumen|filas)\][ \t]*([^\n<]*)(\n|<\/p>)([\s\S]*?)<\/blockquote>/g,
+      (_m, tipo: string, titulo: string, sep: string, resto: string) => {
+        const toc = TOC.exec(titulo)?.[1];
+        const t = titulo.replace(TOC, '').trim() || TITULO_CAJA[tipo];
+        if (tipo === 'filas') resto = resto.replace(/<\/strong>\s*—\s*([^<]*)/g, '</strong><span>$1</span>');
+        return (toc ? `<h2 class="ancla">${toc} {toc: ${toc}}</h2>` : '') +
+          `<aside class="caja caja-${tipo}">${t ? `<p class="caja-titulo">${t}</p>` : ''}${sep === '\n' ? '<p>' : ''}${resto.trim()}</aside>`;
+      })
+    .replace(/<h2( class="ancla")?>(.*?)<\/h2>/g, (_m, cls: string | undefined, inner: string) => {
+      const toc = TOC.exec(inner)?.[1];
+      inner = inner.replace(TOC, '');
+      const text = toc ?? inner.replace(/<[^>]+>/g, '');
       const id = slugify(text) || `seccion-${headings.length + 1}`;
       headings.push({ id, text });
-      return `<h2 id="${id}">${inner}</h2>`;
-    })
-    // Boxes of the blog (Figma 34): «> [!dato] Título» (also consejo, aviso, importante) and «> [!resumen]» + a list.
-    .replace(/<blockquote>\s*<p>\[!(dato|consejo|aviso|importante|resumen)\][ \t]*([^\n<]*)(\n|<\/p>)([\s\S]*?)<\/blockquote>/g,
-      (_m, tipo: string, titulo: string, sep: string, resto: string) =>
-        `<aside class="caja caja-${tipo}"><p class="caja-titulo">${titulo.trim() || TITULO_CAJA[tipo]}</p>${sep === '\n' ? '<p>' : ''}${resto.trim()}</aside>`);
+      return `<h2${cls ?? ''} id="${id}">${cls ? text : inner}</h2>`;
+    });
   return { html, headings };
 }

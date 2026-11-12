@@ -196,7 +196,7 @@ export class BlogPage {
     @let a = p();
     <!-- Figma 17 «404»: the same page as an unknown route (no SEO header, glow or page padding) -->
     @if (a === null && !cms.failed()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
-    <gr-page [title]="a?.titulo ?? (a === null && !cms.failed() ? 'Página no encontrada' : '')" [eyebrow]="a ? (et(a.categoria) || 'Blog') : ''" section="Blog" [crumb]="a ? (et(a.categoria) || 'Artículo') : ''"
+    <gr-page [title]="a ? titulo(a.titulo)[0] : (a === null && !cms.failed() ? 'Página no encontrada' : '')" [accent]="a ? titulo(a.titulo)[1] : ''" [eyebrow]="a ? (et(a.categoria) || 'Blog') : ''" section="Blog" [crumb]="a ? miga(a) : ''"
       [subtitle]="a?.resumen ?? ''" [stamp]="a?.fuente ? 'Fuente: ' + a.fuente : ''" [cabecera]="a !== null || cms.failed()">
       @if (a === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (a !== null) {
@@ -320,7 +320,7 @@ export class BlogPostPage {
       const r = renderMarkdown(p.cuerpo ?? '');
       // the sanitizer drops «id»: sanitize, then put back our slug ids ([a-z0-9-]) on the h2 in order (as LegalPage)
       let n = 0;
-      const limpio = (this.sanitizer.sanitize(SecurityContext.HTML, r.html) ?? '').replace(/<h2>/g, () => `<h2 id="${r.headings[n++]?.id ?? 'seccion-' + n}">`);
+      const limpio = (this.sanitizer.sanitize(SecurityContext.HTML, r.html) ?? '').replace(/<h2( class="ancla")?>/g, (_m, c?: string) => `<h2${c ?? ''} id="${r.headings[n++]?.id ?? 'seccion-' + n}">`);
       this.html.set(this.sanitizer.bypassSecurityTrustHtml(limpio));
       this.toc.set(r.headings);
       this.p.set(p);
@@ -339,6 +339,17 @@ export class BlogPostPage {
     });
   }
 
+  /** Figma 34: the place («en la Comunitat Valenciana») is the red second line of the title. */
+  protected titulo(t: string): [string, string] {
+    const m = / en (la|el|los|las) /.exec(t);
+    return m ? [t.slice(0, m.index), t.slice(m.index + 1)] : [t, ''];
+  }
+  /** Breadcrumb: the category, with the year for calendars («Calendario 2026»). */
+  protected miga(a: Pagina): string {
+    const e = etiqueta(a.categoria) || 'Artículo';
+    const y = a.categoria === 'calendario' ? /\b20\d\d\b/.exec(a.titulo)?.[0] : '';
+    return y ? e + ' ' + y : e;
+  }
   protected compartir(red: 'x' | 'facebook' | 'whatsapp'): string {
     const u = encodeURIComponent(this.enlace()), t = encodeURIComponent(this.p()?.titulo ?? '');
     if (red === 'x') return `https://twitter.com/intent/tweet?url=${u}&text=${t}`;

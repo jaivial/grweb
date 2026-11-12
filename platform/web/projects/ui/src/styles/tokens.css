@@ -223,6 +223,16 @@
   .prose-blog .caja-resumen { padding: 24px; border: 1px solid var(--color-accent); background: rgb(28 24 25 / 0.4); }
   .prose-blog .caja-resumen .caja-titulo { font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-accent-text); }
   .prose-blog .caja-resumen ul { list-style: none; padding-left: 0; margin-top: 12px; }
+  /* hidden contents anchor of a box ({toc: …}) and the «[!filas]» card (Figma 34 «Nacionales») */
+  .prose-blog h2.ancla { height: 0; margin: 0; overflow: hidden; font-size: 0; }
+  .prose-blog h2.ancla + * { margin-top: 32px; }
+  .prose-blog > h2.ancla:first-child + * { margin-top: 0; }
+  .prose-blog .caja-filas { padding: 4px 16px; border: 1px solid var(--color-line-subtle); background: var(--color-bg-card); }
+  .prose-blog .caja-filas ul { list-style: none; padding-left: 0; margin: 0; }
+  .prose-blog .caja-filas li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 12px 0; margin: 0; }
+  .prose-blog .caja-filas li + li { border-top: 1px solid var(--color-line-subtle); }
+  .prose-blog .caja-filas strong { font-size: 16px; font-weight: 600; color: var(--color-text-primary); }
+  .prose-blog .caja-filas li > span { font-size: 14px; color: var(--color-text-secondary); }
   .prose-blog .caja-resumen li { position: relative; padding-left: 28px; }
   .prose-blog .caja-resumen li + li { margin-top: 12px; }
   .prose-blog .caja-resumen li::before { content: ''; position: absolute; left: 0; top: 3px; width: 18px; height: 18px; background: var(--color-accent-text);

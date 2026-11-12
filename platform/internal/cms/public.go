@@ -646,7 +646,7 @@ func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([
 var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Cargadores", "mesa": "Mesa técnica", "foto": "Foto y vídeo", "acreditaciones": "Acreditaciones"}
 
 // minutosLectura is the reading time of a page in whole minutes (200 words a minute, at least 1).
-const minutosLectura = `GREATEST(1, ceil(cardinality(regexp_split_to_array(btrim(cuerpo), '\s+')) / 200.0))::int AS minutos`
+const minutosLectura = `COALESCE(minutos_lectura, GREATEST(1, ceil(cardinality(regexp_split_to_array(btrim(cuerpo), '\s+')) / 200.0))::int) AS minutos`
 
 // conMarcado reports HTML or links in a free text (names also reject slashes, braces and «@»).
 func conMarcado(v string, nombre bool) bool {
