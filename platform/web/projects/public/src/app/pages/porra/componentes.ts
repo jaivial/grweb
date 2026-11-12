@@ -208,6 +208,7 @@ export class OddsRow {
   protected readonly delta = signal(0);
   private ultima = 0;
   protected readonly deltaTxt = computed(() => {
+    if (this.cuotaNum() <= 0) return '';
     const d = this.delta();
     if (!d) return '= sin cambio';
     return (d > 0 ? '▲ +' : '▼ −') + new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(d));
@@ -254,7 +255,7 @@ export class OddsRow {
             (elegir)="apostar.emit({ mercado: mercado(), atletaId: o.atletaId })" />
         </li>
       } @empty {
-        <li class="py-4 text-body-xs text-text-tertiary">Aún no hay opciones en este mercado.</li>
+        <li class="py-4 text-body-xs text-text-tertiary">Aún no hay atletas en este mercado</li>
       }
     </ul>
     @if (puedeApostar()) {
@@ -262,6 +263,8 @@ export class OddsRow {
         <button grButton variant="primary" size="l" class="!text-label-s" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
         <p class="mt-2 text-body-xs text-text-muted">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
       </div>
+    } @else if (mercado().estado === 'abierto' && !soloLectura() && !mercado().opciones.length) {
+      <!-- Mercado abierto sin atletas: el aviso ya va en la lista de cuotas. -->
     } @else if (mercado().estado === 'abierto') {
       <div class="px-4 pt-2 pb-4">
         <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-muted">Jornada cerrada</span>
@@ -471,7 +474,8 @@ export class BoletoApuesta {
   });
   protected readonly maximo = computed(() => Math.min(this.maximoApuesta(), this.saldo()));
   protected readonly atajos = computed(() => [1000, 5000, 10000, 'max' as const]);
-  protected readonly insuficiente = computed(() => this.importe() > this.saldo());
+  /** Tras confirmar, el saldo ya descuenta la apuesta: no se vuelve a validar contra él. */
+  protected readonly insuficiente = computed(() => !this.hecho() && this.importe() > this.saldo());
   protected readonly cobro = computed(() => {
     const imp = this.hecho() || this.importe();
     return this.cuotaEst() > 0 && imp > 0 ? '~' + monedas(Math.floor(imp * this.cuotaEst())) : '—';
