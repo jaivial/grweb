@@ -17,8 +17,8 @@ export const BO_SK = 'block animate-pulse rounded-xs bg-bg-raised motion-reduce:
     '[class]': 'cls()',
     '[attr.aria-current]': "active() ? 'page' : null",
     '[attr.aria-disabled]': 'disabled() || null',
-    '[attr.title]': 'collapsed() ? label() : null',
-    '[attr.aria-label]': 'collapsed() ? label() : null',
+    '[attr.title]': 'collapsed() ? label() + (num() ? " · " + num() + " pendientes" : "") : null',
+    '[attr.aria-label]': 'collapsed() ? label() + (num() ? " · " + num() + " pendientes" : "") : null',
   },
   template: `
     <gr-icon [name]="icon()" [size]="20" [class]="'shrink-0 ' + (active() ? 'text-accent-text' : '')" />
@@ -26,9 +26,9 @@ export const BO_SK = 'block animate-pulse rounded-xs bg-bg-raised motion-reduce:
     @if (badge() === 'alert') {
       <span [class]="collapsed() ? 'absolute top-2 right-2 size-2 rounded-full bg-accent' : 'size-2 shrink-0 rounded-full bg-accent'" aria-label="Requiere atención"></span>
     } @else if (badge() && !collapsed()) {
-      <span class="flex h-5 shrink-0 items-center rounded-xs bg-bg-raised px-1.5 text-mono-xs text-text-secondary">{{ badge() }}</span>
+      <span class="flex h-5 shrink-0 items-center rounded-xs bg-bg-raised px-1.5 text-mono-xs text-text-secondary">{{ num() }}</span>
     } @else if (badge()) {
-      <span class="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-accent px-1 text-[10px] font-bold text-white">{{ badge() }}</span>
+      <span class="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-accent px-1 text-[10px] font-bold text-white" aria-hidden="true">{{ num() }}</span>
     }
     @if (active()) { <span class="absolute top-2.5 right-0 h-5 w-[3px] rounded-2xs bg-accent"></span> }
   `,
@@ -41,6 +41,7 @@ export class BoNavItem {
   readonly disabled = input(false);
   /** Count chip, `'alert'` dot, or nothing. */
   readonly badge = input<number | 'alert' | null>(null);
+  protected readonly num = computed(() => { const b = this.badge(); return typeof b === 'number' && b > 0 ? (b > 99 ? '99+' : String(b)) : ''; });
   protected readonly cls = computed(() =>
     `relative flex h-10 items-center gap-3 rounded-sm text-[14px] leading-[17px] transition-colors motion-reduce:transition-none ${focus} ` +
     (this.collapsed() ? 'w-12 justify-center ' : 'px-3 ') +

@@ -48,6 +48,8 @@ export class Shell {
 
   protected readonly comp = this.comps.current;
   protected readonly cid = computed(() => this.comp()?.id);
+  /** One figure for the bell badge and its label (capped like the rail badges). */
+  protected readonly unreadTxt = computed(() => { const n = this.notifs.unread(); return n > 99 ? '99+' : String(n); });
   protected readonly visible = (it: NavItem) => !it.perm || this.auth.can(this.cid(), it.perm);
   protected readonly nav = computed(() => NAV.map((g) => ({ ...g, items: g.items.filter((i) => this.visible(i)) })).filter((g) => g.items.length));
   /** Figma 49 tab bar order: Inicio · Check-in · Directo · Entradas · Más. */

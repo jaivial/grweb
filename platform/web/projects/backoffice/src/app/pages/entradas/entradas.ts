@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -77,7 +78,7 @@ function descargar(blob: Blob, nombre: string): void {
                   <dl class="mt-3 flex flex-col gap-1.5 text-body-xs">
                     <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Reservas abiertas</dt><dd class="text-right">{{ x.aperturaAt ? fechaCorta(x.aperturaAt) : 'ya' }} → {{ x.cierreAt ? fechaCorta(x.cierreAt) : 'inicio' }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Máx. por reserva</dt><dd>{{ x.maxPorReserva }} personas</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Lista de espera</dt><dd>{{ x.listaEspera ? (x.enEspera ? x.enEspera + ' personas' : 'automática al agotar') : 'no' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Lista de espera</dt><dd>{{ x.listaEspera ? (x.enEspera ? x.enEspera + (x.enEspera === 1 ? ' persona' : ' personas') : 'automática al agotar') : 'no' }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Dentro</dt><dd>{{ n(x.dentro) }} de {{ n(x.ocupadas) }}</dd></div>
                   </dl>
                   <div class="mt-auto flex gap-2 pt-4">
@@ -95,7 +96,7 @@ function descargar(blob: Blob, nombre: string): void {
             (clear)="limpiarSel()" (reset)="filtrar({ q: '', sesion: '', estado: '', origen: '' })">
             <bo-search filters class="w-full md:w-[280px]" placeholder="Nombre, email, teléfono o código" [shortcut]="false" [value]="f().q ?? ''" (valueChange)="filtrar({ q: $event })" />
             <gr-select filters tipo="filtro" aria-label="Sesión" [ngModel]="f().sesion ?? ''" (ngModelChange)="filtrar({ sesion: $event })"><option value="">Todas las sesiones</option>@for (x of r?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</gr-select>
-            <gr-select filters tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los estados</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></gr-select>
+            <gr-select filters tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">Sin anuladas</option><option value="reservada">Reservada</option><option value="usada">Usada</option><option value="anulada">Anulada</option></gr-select>
             <gr-select filters tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">Todos los orígenes</option>@for (o of lista()?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
             <button bulk grButton variant="secondary" icon="mail" (click)="bulk('reenviar')">Reenviar email</button>
             <button bulk grButton variant="secondary" (click)="moverOpen.set(true)">Mover</button>
@@ -106,7 +107,7 @@ function descargar(blob: Blob, nombre: string): void {
           @else if (l) {
             <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
               <table class="w-full min-w-[860px] text-left text-body-s">
-                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><span class="sr-only">Selección</span></th><th class="px-3 py-3">Titular</th><th class="px-3 py-3">Código</th><th class="px-3 py-3">Sesión</th><th class="px-3 py-3 text-center">Pers.</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Fecha</th></tr></thead>
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th class="px-3 py-3">Titular</th><th class="px-3 py-3">Código</th><th class="px-3 py-3">Sesión</th><th class="px-3 py-3 text-center">Pers.</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Fecha</th></tr></thead>
                 <tbody>
                   @for (e of l.items; track e.id) {
                     <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="e.estado === 'anulada' ? row.disabled : sel().has(e.id) ? row.selected : row.default" (click)="ver(e.id)">
@@ -314,6 +315,11 @@ export class EntradasPage {
   private t?: ReturnType<typeof setTimeout>;
 
   constructor() {
+    // ⌘K lands on reservas with ?q=; also when already on this page.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((p) => {
+      const q = p.get('q') ?? '';
+      if (this.tab() === 'reservas' && q !== (this.f().q ?? '')) this.filtrar({ q });
+    });
     effect(() => {
       if (!this.cid()) return;
       untracked(() => {
@@ -376,6 +382,13 @@ export class EntradasPage {
   }
   protected limpiarSel(): void {
     this.sel.set(new Set());
+  }
+  protected readonly todos = computed(() => {
+    const ids = (this.lista()?.items ?? []).filter((e) => e.estado !== 'anulada').map((e) => e.id), n = ids.filter((id) => this.sel().has(id)).length;
+    return n && n === ids.length ? true : n ? 'mixed' : false;
+  });
+  protected selTodos(): void {
+    this.sel.set(this.todos() === true ? new Set() : new Set((this.lista()?.items ?? []).filter((e) => e.estado !== 'anulada').map((e) => e.id)));
   }
   protected toggle(id: string): void {
     const s = new Set(this.sel());

@@ -19,7 +19,7 @@ export interface Condicion { campo: 'origen' | 'relacion' | 'etiqueta' | 'creado
 export interface Recuento { total: number; email: number; whatsapp: number }
 export interface Segmento { id: string; nombre: string; condiciones: Condicion[]; ultimoUso: string; recuento: Recuento; version: number; updatedAt: string }
 export interface Supresiones { items: Supresion[]; tipos: Record<Supresion['tipo'], number>; total: number }
-export interface Filtros { q?: string; origen?: string; canal?: string; estado?: string; relacion?: string; pagina?: number }
+export interface Filtros { q?: string; origen?: string; canal?: string; estado?: string; relacion?: string; orden?: 'nombre' | 'actividad'; dir?: 'asc' | 'desc'; ids?: string; pagina?: number }
 
 /** Contacts API (crm service, Figma page 61). */
 @Injectable({ providedIn: 'root' })
