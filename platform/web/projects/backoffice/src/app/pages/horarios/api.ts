@@ -7,7 +7,7 @@ export interface Config {
   maxPorFlight: number; plataformas: number; orden: 'total' | 'categoria'; separarSexo: boolean; minPorAtleta: number; descansoMin: number;
   pesajeAntesMin: number; pesajeDuracionMin: number; mesasPesaje: number; dias: Dia[];
 }
-export interface FlightAtleta { id: string; nombre: string; sexo: 'F' | 'M'; categoria: string; club: string; divisionNombre: string; totalPrevisto?: number; seguidores: number; lote: number; baja: boolean }
+export interface FlightAtleta { id: string; nombre: string; sexo: 'F' | 'M'; categoria: string; club: string; divisionNombre: string; prueba?: string; totalPrevisto?: number; seguidores: number; lote: number; baja: boolean }
 export interface Directo { estado: 'programado' | 'en_curso' | 'finalizado'; retrasoMin?: number }
 export interface Flight {
   id: string; codigo: string; dia: string; plataforma: number; inicio: string; fin: string; duracionMin: number; pesajeInicio: string; pesajeFin: string;
@@ -50,7 +50,7 @@ export class HorariosApi {
   config(cid: string, c: Config): Promise<Borrador> {
     return this.take(firstValueFrom(this.http.put<Borrador>(`${this.base(cid)}/config`, c, { headers: this.h(), observe: 'response' })));
   }
-  generar(cid: string, b: { maxPorFlight?: number; plataformas?: number; orden?: string }): Promise<Borrador> {
+  generar(cid: string, b: { maxPorFlight?: number; plataformas?: number; orden?: string; competicion?: string }): Promise<Borrador> {
     return this.take(firstValueFrom(this.http.post<Borrador>(`${this.base(cid)}/generar`, b, { headers: this.h(), observe: 'response' })));
   }
   crearFlight(cid: string, b: { dia?: string; plataforma?: number; inicio?: string }): Promise<Borrador> {

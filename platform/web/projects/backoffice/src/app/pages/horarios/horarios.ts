@@ -16,6 +16,20 @@ interface Lista { id: string | null; atletas: FlightAtleta[] }
 interface Movimiento { nombre: string; de: string; a: string; texto: string; deshacer: { id: string; atletas: string[] }[] }
 type Vista = 'dia' | 'pesajes' | 'conflictos';
 
+const PRUEBAS = ['aep2', 'aep3'];
+const nombrePrueba = (p: string) => p.toUpperCase().replace('AEP', 'AEP-');
+/** One day per competition when the event has two days (AEP-2 the first, AEP-3 the second), as in the alta. */
+const diaDePrueba = (dias: { fecha: string }[], p: string) => (dias.length >= PRUEBAS.length ? (dias[PRUEBAS.indexOf(p)]?.fecha ?? '') : '');
+/** Competition of a flight: the one of most of its athletes; an empty flight belongs to the competition of its day. */
+function pruebaDeFlight(f: Flight, dias: { fecha: string }[]): string {
+  const n = new Map<string, number>();
+  for (const a of f.atletas) if (a.prueba) n.set(a.prueba, (n.get(a.prueba) ?? 0) + 1);
+  const top = [...n.entries()].sort((x, y) => y[1] - x[1])[0];
+  return top ? top[0] : (PRUEBAS.find((p) => diaDePrueba(dias, p) === f.dia) ?? '');
+}
+
+const diaDePruebaCorto = (f: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(f + 'T12:00:00Z')).replace(/\./g, '').replace(',', '');
+
 const ICONOS: { v: string; label: string }[] = [
   { v: 'door', label: 'Puertas' }, { v: 'trophy', label: 'Premios' }, { v: 'gift', label: 'Sorteo' }, { v: 'clock', label: 'Hora' },
   { v: 'ticket', label: 'Entradas' }, { v: 'users', label: 'Público' }, { v: 'info', label: 'Info' }, { v: 'camera', label: 'Fotos' },
@@ -48,6 +62,22 @@ const ICONOS: { v: string; label: string }[] = [
         }
       </bo-page-header>
 
+      @if (pruebas().length) {
+        <!-- Competition switcher (Figma 219:167365): each competition has its own day, flights and generation. -->
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span class="text-body-s text-text-tertiary" id="comp-l">Competición</span>
+          <div class="flex max-w-full gap-1 overflow-x-auto rounded-md border border-line-subtle bg-bg-card p-1 [scrollbar-width:none]" role="radiogroup" aria-labelledby="comp-l">
+            @for (p of pruebas(); track p.v) {
+              <button type="button" role="radio" [attr.aria-checked]="prueba() === p.v" (click)="elegirPrueba(p.v)"
+                class="h-9 shrink-0 rounded-sm px-3 text-label-s transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
+                [class]="prueba() === p.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary hover:text-text-primary'">{{ etiquetaPrueba(p) }}</button>
+            }
+          </div>
+          <a class="inline-flex h-11 items-center px-2 text-label-s text-text-primary hover:underline" routerLink="../atletas/inscripcion">Gestionar competiciones</a>
+          @if (sinCompeticion()) { <span class="text-body-xs text-text-tertiary">{{ sinCompeticion() }} atleta{{ sinCompeticion() === 1 ? '' : 's' }} sin competición · no entran en ningún planificador</span> }
+        </div>
+      }
+
       @if (conflictoEdicion()) {
         <gr-alert tone="warning" title="Otra persona ha cambiado los horarios">Hemos recargado el planificador con sus cambios; repite el último movimiento si hace falta.</gr-alert>
       }
@@ -62,8 +92,13 @@ const ICONOS: { v: string; label: string }[] = [
           <section class="flex flex-col items-center justify-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-14 text-center">
             <span class="flex size-12 items-center justify-center rounded-md border border-accent/40 bg-accent-deep/30 text-accent-text"><gr-icon [name]="b.atletas ? 'zap' : 'user-plus'" [size]="22" /></span>
             @if (b.atletas) {
-              <h2 class="text-ui-h4">Genera los flights</h2>
-              <p class="max-w-md text-body-s text-text-tertiary">{{ b.atletas }} atletas confirmados. Los repartimos en flights de {{ b.config.maxPorFlight }} por sexo, categoría y total previsto, con su ventana de pesaje.</p>
+              @if (pruebaSel(); as p) {
+                <h2 class="text-ui-h4">Aún no hay flights en {{ p.label }}</h2>
+                <p class="max-w-md text-body-s text-text-tertiary">{{ b.atletas }} atletas de {{ p.label }} esperando flight. Se generan solo con los atletas que eligieron {{ p.label }} y con las reglas y días de esta competición.</p>
+              } @else {
+                <h2 class="text-ui-h4">Genera los flights</h2>
+                <p class="max-w-md text-body-s text-text-tertiary">{{ b.atletas }} atletas confirmados. Los repartimos en flights de {{ b.config.maxPorFlight }} por sexo, categoría y total previsto, con su ventana de pesaje.</p>
+              }
               <div class="mt-2 flex flex-wrap justify-center gap-2">
                 @if (canEdit()) { <button grButton variant="primary" icon="zap" (click)="generar()">Generar automáticamente</button><button grButton variant="ghost" (click)="nuevoFlight()">Crear flight vacío</button> }
               </div>
@@ -454,7 +489,32 @@ export class HorariosPage {
   protected readonly otras: { v: Vista; label: string }[] = [{ v: 'pesajes', label: 'Pesajes' }, { v: 'conflictos', label: 'Conflictos' }];
   protected readonly ejemplo = [{ c: 'A', h: '09:00', t: 'F −47/−52/−57' }, { c: 'B', h: '10:40', t: 'F −57/−63' }, { c: 'C', h: '11:30', t: 'F −69/−76/+84' }, { c: 'D', h: '12:40', t: 'M −74/−83' }];
 
-  protected readonly data = signal<Borrador | null | undefined>(undefined);
+  /** The whole draft as the API returns it; data() is the view of the selected competition (AEP-2 / AEP-3). */
+  protected readonly raw = signal<Borrador | null | undefined>(undefined);
+  protected readonly prueba = signal('');
+  protected readonly pruebas = computed(() => {
+    const b = this.raw();
+    if (!b) return [];
+    const n = new Map<string, number>();
+    for (const a of [...b.sinFlight, ...b.flights.flatMap((f) => f.atletas)]) if (a.prueba && !a.baja) n.set(a.prueba, (n.get(a.prueba) ?? 0) + 1);
+    return PRUEBAS.filter((p) => n.has(p)).map((p) => ({ v: p, label: nombrePrueba(p), dia: diaDePrueba(b.config.dias, p), n: n.get(p)! }));
+  });
+  protected readonly sinCompeticion = computed(() => {
+    const b = this.raw();
+    return b ? [...b.sinFlight, ...b.flights.flatMap((f) => f.atletas)].filter((a) => !a.prueba && !a.baja).length : 0;
+  });
+  protected readonly pruebaSel = computed(() => this.pruebas().find((p) => p.v === this.prueba()) ?? null);
+  protected readonly data = computed<Borrador | null | undefined>(() => {
+    const b = this.raw();
+    const p = this.pruebaSel();
+    if (!b || !p) return b;
+    const flights = b.flights.filter((f) => pruebaDeFlight(f, b.config.dias) === p.v);
+    const ids = new Set(flights.map((f) => f.id));
+    const sinFlight = b.sinFlight.filter((a) => a.prueba === p.v);
+    const dias = p.dia ? b.config.dias.filter((d) => d.fecha === p.dia) : b.config.dias;
+    const conflictos = b.conflictos.filter((c) => (c.flightId ? ids.has(c.flightId) : c.tipo !== 'sin_flight' || sinFlight.length > 0));
+    return { ...b, config: { ...b.config, dias }, flights, sinFlight, conflictos, atletas: p.n, cambiosSinPublicar: b.cambiosSinPublicar };
+  });
   protected readonly versiones = signal<VersionInfo[]>([]);
   protected readonly vista = signal<Vista>('dia');
   protected readonly dia = signal('');
@@ -507,7 +567,7 @@ export class HorariosPage {
     const b = this.data();
     if (!b) return '';
     const n = this.flightsDia().length;
-    const parts = [this.dia() ? diaLargo(this.dia()) : '', `${b.config.plataformas} plataforma${b.config.plataformas > 1 ? 's' : ''}`, `${b.atletas} atletas en ${b.flights.length} flights${n !== b.flights.length ? ' (' + n + ' este día)' : ''}`];
+    const parts = [this.pruebaSel()?.label ?? '', this.dia() ? diaLargo(this.dia()) : '', `${b.config.plataformas} plataforma${b.config.plataformas > 1 ? 's' : ''}`, `${b.atletas} atletas en ${b.flights.length} flights${n !== b.flights.length ? ' (' + n + ' este día)' : ''}`];
     if (b.publicada) parts.push(`versión publicada v${b.publicada.numero}`);
     return parts.filter(Boolean).join(' · ');
   });
@@ -545,7 +605,7 @@ export class HorariosPage {
       this.set(await this.api.get(this.cid()));
       void this.cargarVersiones();
     } catch {
-      this.data.set(null);
+      this.raw.set(null);
     }
   }
   private async cargarVersiones(): Promise<void> {
@@ -558,7 +618,8 @@ export class HorariosPage {
   private set(b: Borrador): void {
     this.ultimoRev = b.rev;
     this.listas.clear();
-    this.data.set(b);
+    this.raw.set(b);
+    if (!this.pruebas().some((p) => p.v === this.prueba())) this.prueba.set(this.pruebas()[0]?.v ?? '');
     const dias = this.dias();
     if (!dias.some((d) => d.fecha === this.dia())) this.dia.set(dias.find((d) => d.n)?.fecha ?? dias[0]?.fecha ?? '');
   }
@@ -623,16 +684,26 @@ export class HorariosPage {
   protected async generar(): Promise<void> {
     const b = this.data();
     if (!b) return;
-    if (b.flights.length && !(await this.confirm.ask({ title: 'Generar los flights de nuevo', text: 'Se sustituyen todos los flights del borrador (los publicados no cambian hasta que publiques).', confirm: 'Generar' }))) return;
+    if (b.flights.length && !(await this.confirm.ask({ title: 'Generar los flights de nuevo', text: (this.pruebaSel() ? 'Se sustituyen los flights de ' + this.pruebaSel()!.label + '; los de la otra competición no cambian' : 'Se sustituyen todos los flights del borrador') + ' (los publicados no cambian hasta que publiques).', confirm: 'Generar' }))) return;
     this.generando.set(true);
     this.movimiento.set(null);
     try {
-      await this.run(() => this.api.generar(this.cid(), {}));
+      await this.run(() => this.api.generar(this.cid(), this.prueba() ? { competicion: this.prueba() } : {}));
     } finally {
       this.generando.set(false);
     }
     const n = this.data()?.flights.length ?? 0;
     if (n) this.toasts.success(`${n} flights generados`, `${this.bloqueantes() ? this.bloqueantes() + ' conflictos por revisar' : 'Sin conflictos'}.`);
+  }
+
+  protected elegirPrueba(p: string): void {
+    this.prueba.set(p);
+    this.movimiento.set(null);
+    const dias = this.dias();
+    if (!dias.some((d) => d.fecha === this.dia())) this.dia.set(dias.find((d) => d.n)?.fecha ?? dias[0]?.fecha ?? '');
+  }
+  protected etiquetaPrueba(p: { label: string; dia: string; n: number }): string {
+    return [p.label, p.dia ? diaDePruebaCorto(p.dia) : '', String(p.n)].filter(Boolean).join(' · ');
   }
 
   protected async nuevoFlight(): Promise<void> {
@@ -655,7 +726,9 @@ export class HorariosPage {
     // Optimistic: show the move at once.
     const b = this.data()!;
     const flights = b.flights.map((f) => (f.id === from.id ? { ...f, atletas: fromList } : f.id === to.id ? { ...f, atletas: toList } : f));
-    this.data.set({ ...b, flights, sinFlight: from.id === null ? fromList : to.id === null ? toList : b.sinFlight });
+    const r = this.raw()!;
+    const sinFlight = from.id === null ? r.sinFlight.filter((x) => x.id !== a.id) : to.id === null ? [...r.sinFlight, a] : r.sinFlight;
+    this.raw.set({ ...r, flights: r.flights.map((f) => flights.find((x) => x.id === f.id) ?? f), sinFlight });
     const fFrom = b.flights.find((f) => f.id === from.id) ?? null;
     const fTo = b.flights.find((f) => f.id === to.id) ?? null;
     const ok = await this.run(() => (to.id ? this.api.atletas(this.cid(), to.id, toList.map((x) => x.id)) : this.api.atletas(this.cid(), from.id!, fromList.map((x) => x.id))));

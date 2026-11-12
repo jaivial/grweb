@@ -51,6 +51,7 @@ type atleta struct {
 	Categoria      string    `json:"categoria"`
 	DivisionNombre string    `json:"divisionNombre"`
 	Club           string    `json:"club"`
+	Prueba         string    `json:"prueba"`
 	TotalPrevisto  *float64  `json:"totalPrevisto,omitempty"`
 	Seguidores     int       `json:"seguidores"`
 }
@@ -63,6 +64,7 @@ type FlightAtleta struct {
 	Categoria      string    `json:"categoria"`
 	Club           string    `json:"club"`
 	DivisionNombre string    `json:"divisionNombre"`
+	Prueba         string    `json:"prueba" doc:"Competición del atleta: aep2, aep3 o vacío (sin elegir)"`
 	TotalPrevisto  *float64  `json:"totalPrevisto,omitempty"`
 	Seguidores     int       `json:"seguidores"`
 	Lote           int       `json:"lote"`
@@ -301,7 +303,7 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 
 func toFA(a atleta, lote int) FlightAtleta {
 	return FlightAtleta{ID: a.ID, Nombre: a.Nombre, Sexo: a.Sexo, Categoria: a.Categoria, Club: a.Club, DivisionNombre: a.DivisionNombre,
-		TotalPrevisto: a.TotalPrevisto, Seguidores: a.Seguidores, Lote: lote}
+		Prueba: a.Prueba, TotalPrevisto: a.TotalPrevisto, Seguidores: a.Seguidores, Lote: lote}
 }
 
 func buildFlight(f flightRow, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir map[uuid.UUID]Directo, asignado map[uuid.UUID]bool) Flight {

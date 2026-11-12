@@ -81,6 +81,7 @@ func (s *Svc) registerAdmin() {
 			MaxPorFlight int    `json:"maxPorFlight,omitempty" minimum:"2" maximum:"30"`
 			Plataformas  int    `json:"plataformas,omitempty" minimum:"1" maximum:"4"`
 			Orden        string `json:"orden,omitempty" enum:"total,categoria"`
+			Competicion  string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Solo esta competición: sus atletas, en su día; los flights de la otra no se tocan"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "horarios-generar", Method: http.MethodPost, Path: base + "/generar", Summary: "Generar los flights automáticamente (sustituye el borrador)", Tags: tagAdmin, Security: bearer},
@@ -92,7 +93,14 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
+			prueba := in.Body.Competicion
+			if prueba != "" {
+				ats = dePrueba(ats, prueba)
+			}
 			if len(ats) == 0 {
+				if prueba != "" {
+					return nil, problem.Conflict("SIN_ATLETAS", "No hay atletas confirmados en "+nombrePrueba(prueba)+".")
+				}
 				return nil, problem.Conflict("SIN_ATLETAS", "No hay atletas confirmados. Importa primero el acta de la AEP.")
 			}
 			loc := s.loc(ctx, in.CID)
@@ -116,9 +124,16 @@ func (s *Svc) registerAdmin() {
 						return err
 					}
 				}
+				var borrar []uuid.UUID
+				if prueba != "" {
+					cfg.Dias = diasPrueba(cfg.Dias, prueba)
+					if borrar, err = flightsDePrueba(ctx, tx, in.CID, prueba, ats, cfg.Dias); err != nil {
+						return err
+					}
+				}
 				plan := generar(cfg, loc, ats)
 				n = len(plan)
-				if err := s.reemplazar(ctx, tx, in.CID, cfg, plan); err != nil {
+				if err := s.reemplazar(ctx, tx, in.CID, cfg, plan, borrar); err != nil {
 					return err
 				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "horarios.generados", map[string]any{"flights": len(plan), "atletas": len(ats)},
@@ -346,11 +361,20 @@ func (s *Svc) registerAdmin() {
 				}
 				seen := map[uuid.UUID]bool{}
 				var movidos []string
+				var primero *atleta
 				for _, id := range in.Body.Atletas {
 					if seen[id] {
 						return problem.Unprocessable("ATLETA_REPETIDO", "Un atleta aparece dos veces en el flight.")
 					}
 					seen[id] = true
+					// A flight only takes athletes of one competition (AEP-2 / AEP-3).
+					if a, ok := byID[id]; ok && a.Prueba != "" {
+						if primero == nil {
+							primero = &a
+						} else if primero.Prueba != a.Prueba {
+							return problem.Unprocessable("PRUEBA_DISTINTA", fmt.Sprintf("%s compite en %s y el flight %s es de %s. Cámbiale la competición en su ficha.", a.Nombre, nombrePrueba(a.Prueba), codigo, nombrePrueba(primero.Prueba)))
+						}
+					}
 					p, aqui := donde[id]
 					aqui = aqui && p.flight == in.ID
 					if _, ok := byID[id]; !ok && !aqui {
@@ -520,9 +544,13 @@ func (s *Svc) registerInternal() {
 		})
 }
 
-// reemplazar swaps the whole draft for a generated plan (agenda and settings stay).
-func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Config, plan []planFlight) error {
-	if _, err := tx.Exec(ctx, `DELETE FROM flights WHERE competition_id = $1`, cid); err != nil {
+// reemplazar swaps the draft for a generated plan (agenda and settings stay): every flight, or only the ones in borrar.
+func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Config, plan []planFlight, borrar []uuid.UUID) error {
+	q, args := `DELETE FROM flights WHERE competition_id = $1`, []any{cid}
+	if borrar != nil {
+		q, args = q+` AND id = ANY($2)`, append(args, borrar)
+	}
+	if _, err := tx.Exec(ctx, q, args...); err != nil {
 		return err
 	}
 	for _, p := range plan {
