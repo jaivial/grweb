@@ -2,7 +2,8 @@
 const TZ = 'Europe/Madrid';
 
 export function fmtNumber(n: number | null | undefined): string {
-  return n === null || n === undefined ? '—' : new Intl.NumberFormat('es-ES').format(n);
+  // useGrouping 'always': es-ES skips the separator under 10.000 ("1593"); Figma shows "1.593".
+  return n === null || n === undefined ? '—' : new Intl.NumberFormat('es-ES', { useGrouping: 'always' as unknown as boolean }).format(n);
 }
 
 /** "sáb 25 jul" */
