@@ -4,7 +4,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton, GrToasts, type GrTone, GrSelect } from '@grcup/ui';
+import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton, GrToasts, type GrTone, GrSelect } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -24,7 +24,7 @@ type Tab = 'config' | 'cupones' | 'referidos' | 'pagos';
 /** The AEP registration of the competition (competition service: link, state, places, contact, internal note). */
 interface Aep { modo: string; url: string; estado: 'proximamente' | 'abierta' | 'completa' | 'cerrada'; plazas?: number; responsable: { nombre: string; email: string }; nota: string }
 
-export const euros = (c?: number | null) => ((c ?? 0) / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+export const euros = (c?: number | null) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', useGrouping: 'always' } as unknown as Intl.NumberFormatOptions).format((c ?? 0) / 100);
 const ESTADO_PAGO: Record<Pago['estado'], { label: string; tone: GrTone }> = {
   pagada: { label: 'Pagado', tone: 'success' }, gratuita: { label: 'Gratis (cupón)', tone: 'success' }, reserva: { label: 'Reserva', tone: 'info' },
   pendiente_pago: { label: 'Pendiente', tone: 'warning' }, cancelada: { label: 'Cancelado', tone: 'neutral' }, fallida: { label: 'Rechazado', tone: 'danger' },
@@ -34,7 +34,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
 /** «Inscripción» (Figma page 66): own registration with payment, coupons, referrals and payments. */
 @Component({
   selector: 'bo-inscripcion',
-  imports: [GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-6 pb-24">
@@ -44,9 +44,9 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
         @if (tab() === 'cupones' && canEdit()) { <button actions grButton variant="primary" icon="plus" (click)="editarCupon(null)">Nuevo cupón</button> }
         @if (tab() === 'referidos' && canEdit()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
       </bo-page-header>
-      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Inscripción">
+      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" role="tablist" aria-label="Inscripción">
         @for (t of tabs; track t.key) {
-          <button type="button" (click)="cambiar(t.key)" [attr.aria-current]="tab() === t.key ? 'page' : null" [disabled]="t.key !== 'config' && modoGuardado() !== 'propia'"
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.key" (click)="cambiar(t.key); $any($event.currentTarget).scrollIntoView({ block: 'nearest', inline: 'nearest' })" [disabled]="t.key !== 'config' && modoGuardado() !== 'propia'"
             [attr.title]="t.key !== 'config' && modoGuardado() !== 'propia' ? 'Solo con la inscripción propia con pago' : null"
             class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s disabled:cursor-not-allowed disabled:opacity-40" [class]="tab() === t.key ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
             {{ t.label }}
@@ -67,13 +67,13 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                 <!-- Figma 66 «Inscripción · modo AEP (por defecto)»: the mode as two cards, then the data of that mode -->
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                   <h2 class="text-ui-h5">Modo de inscripción</h2>
-                  <p class="mt-0.5 text-body-xs text-text-tertiary">Se puede cambiar mientras no haya inscripciones pagadas</p>
+                  <p class="mt-0.5 text-body-xs text-text-tertiary">{{ hayPagadas() ? 'Bloqueado: ya hay inscripciones pagadas' : 'Se puede cambiar mientras no haya inscripciones pagadas' }}</p>
                   <div class="mt-4 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Modo de inscripción">
                     @for (m of modos; track m.value) {
-                      <button type="button" role="radio" [attr.aria-checked]="c.modo === m.value" [disabled]="!canEdit()" (click)="c.modo = m.value; tocado.set(true)"
+                      <button type="button" role="radio" [attr.aria-checked]="c.modo === m.value" [disabled]="!canEdit() || (hayPagadas() && c.modo !== m.value)" [attr.title]="hayPagadas() && c.modo !== m.value ? 'Ya hay inscripciones pagadas' : null" (click)="c.modo = m.value; tocado.set(true)"
                         class="flex items-start gap-3.5 rounded-md border p-4 text-left transition-colors disabled:cursor-not-allowed" [class]="c.modo === m.value ? 'border-accent bg-accent/8' : 'border-line-subtle bg-bg-surface hover:border-line-strong'">
                         <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="c.modo === m.value ? 'border-accent' : 'border-line-strong'">@if (c.modo === m.value) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
-                        <span class="flex flex-col gap-1"><span class="flex flex-wrap items-center gap-2 text-label-m">{{ m.label }}@if (m.value === 'externa') { <gr-badge tone="success">Por defecto</gr-badge> }</span><span class="text-body-s text-text-tertiary">{{ m.desc }}</span></span>
+                        <span class="flex flex-col gap-1"><span class="flex items-center gap-2 text-label-m">{{ m.label }}@if (m.value === 'externa') { <span class="sr-only">. </span><gr-badge class="shrink-0" tone="success">Por defecto</gr-badge> }</span><span class="sr-only">. </span><span class="text-body-s text-text-tertiary">{{ m.desc }}</span></span>
                       </button>
                     }
                   </div>
@@ -151,7 +151,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                     }
                   } @else {
                     <p class="font-display text-[26px] uppercase italic">¡Inscríbete!</p>
-                    <p class="-mt-2 text-body-xs text-text-secondary">{{ euros(c.cuota) }}{{ plazas() ? ' · ' + plazas() + ' plazas' : '' }}{{ c.cierra ? ' · cierra el ' + fecha(c.cierra).slice(0, 5) : '' }}</p>
+                    <p class="-mt-2 text-body-xs text-text-secondary">{{ euros(c.cuota) }}{{ plazas() ? ' · ' + plazas() + ' plazas' : '' }}{{ c.cierra ? (cerrada(c.cierra) ? ' · cerrada' : ' · cierra el ' + fecha(c.cierra).slice(0, 5)) : '' }}</p>
                     @for (f of ['Nombre y apellidos', 'Email', 'Categoría de peso']; track f) { <span class="flex h-9 items-center rounded-sm border border-line-subtle px-2.5 text-body-xs text-text-tertiary">{{ f }}</span> }
                     @let cp = cuponEjemplo();
                     @if (c.cupones && cp) {
@@ -159,7 +159,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                     }
                     <div class="flex flex-col gap-2 rounded-md border border-line-subtle p-3 text-body-s">
                       <span class="flex justify-between"><span class="text-text-secondary">Inscripción</span><span class="text-mono-xs">{{ euros(c.cuota) }}</span></span>
-                      @if (c.cupones && cp) { <span class="flex justify-between"><span class="text-text-secondary">Cupón {{ desc(cp.tipo, cp.valor) }}</span><span class="text-mono-xs text-success">−{{ euros(descEjemplo()) }}</span></span> }
+                      @if (c.cupones && cp) { <span class="flex justify-between"><span class="text-text-secondary">Cupón {{ cp.codigo }}</span><span class="text-mono-xs text-success">−{{ euros(descEjemplo()) }}</span></span> }
                       <span class="flex justify-between border-t border-line-subtle pt-2"><span class="text-label-m">Total</span><span class="text-ui-h5">{{ euros(c.cuota - descEjemplo()) }}</span></span>
                     </div>
                     <span class="flex h-10 items-center justify-center rounded-sm bg-accent text-label-s text-white">Pagar {{ euros(c.cuota - descEjemplo()) }}</span>
@@ -181,11 +181,13 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
             </div>
           }
           @if (l?.length) {
-            <div class="flex flex-wrap items-center gap-2">
-              <label class="relative w-full md:w-[280px]"><span class="sr-only">Buscar código</span><gr-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" /><input grInput class="pl-9" placeholder="Buscar código…" [ngModel]="qCupon()" (ngModelChange)="qCupon.set($event)" /></label>
-              <gr-select class="w-36" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
-              <gr-select class="w-36" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
-              <span class="ml-auto text-body-xs text-text-tertiary">{{ cuponesFiltrados().length }} de {{ l.length }} cupones</span>
+            <div class="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+              <label class="relative w-full md:w-[280px] md:shrink-0"><span class="sr-only">Buscar código</span><gr-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" /><input grInput class="pl-9" placeholder="Buscar código…" [ngModel]="qCupon()" (ngModelChange)="qCupon.set($event)" /></label>
+              <gr-select class="block w-36 shrink-0" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
+              <gr-select class="block w-36 shrink-0" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
+              <gr-select class="block w-36 shrink-0" aria-label="Caducidad" [ngModel]="fCaduca()" (ngModelChange)="fCaduca.set($event)"><option value="">Caducidad</option><option value="con">Con fecha</option><option value="sin">Sin fecha</option><option value="caducado">Caducados</option></gr-select>
+              <span class="ml-auto whitespace-nowrap text-body-xs text-text-tertiary">{{ cuponesFiltrados().length }} de {{ l.length }} cupones</span>
+              <button grButton size="s" icon="download" (click)="exportarCupones()">Exportar</button>
             </div>
           }
           <section class="rounded-lg border-line-subtle md:border md:bg-bg-card">
@@ -197,11 +199,11 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                 <thead class="border-b border-line-subtle text-mono-xs uppercase tracking-wide text-text-tertiary"><tr><th class="w-[216px] px-4 py-3 font-normal">Código</th><th class="w-[156px] px-3 py-3 font-normal">Descuento</th><th class="px-3 py-3 font-normal">Usos</th><th class="w-28 px-3 py-3 font-normal">Caduca</th><th class="w-32 px-3 py-3 text-right font-normal">Ahorro total</th><th class="w-32 px-3 py-3 font-normal">Estado</th><th class="w-12"></th></tr></thead>
                 <tbody>
                   @for (cp of cuponesFiltrados(); track cp.id) {
-                    <tr class="h-14 cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.opacity-55]="cp.estado === 'caducado'" (click)="editarCupon(cp)">
+                    <tr class="h-14 cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.opacity-55]="cp.estado === 'caducado'" tabindex="0" [attr.aria-label]="'Editar cupón ' + cp.codigo" (click)="editarCupon(cp)" (keydown.enter)="editarCupon(cp)" (keydown.space)="$event.preventDefault(); editarCupon(cp)">
                       <td class="px-4 py-3 text-mono-s">{{ cp.codigo }}</td><td class="px-3 py-3 text-mono-s">{{ desc(cp.tipo, cp.valor) }}</td>
-                      <td class="px-3 py-3"><span class="flex items-center gap-2"><span class="h-1 flex-1 rounded-pill bg-bg-raised"><span class="block h-full min-w-1 rounded-pill" [class]="cp.estado === 'agotado' ? 'bg-success' : 'bg-warning'" [style.width.%]="cp.limite ? (cp.usos * 100) / cp.limite : 0"></span></span><span class="text-mono-xs text-text-secondary">{{ cp.usos }} / {{ cp.limite ?? 'sin límite' }}</span></span></td>
+                      <td class="px-3 py-3"><span class="flex min-w-0 items-center gap-2"><span class="h-1 min-w-0 flex-1 overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full min-w-1 rounded-pill" [class]="cp.estado === 'agotado' ? 'bg-success' : 'bg-warning'" [style.width.%]="cp.limite ? Math.min(100, (cp.usos * 100) / cp.limite) : 0"></span></span><span class="shrink-0 text-mono-xs text-text-secondary">{{ cp.usos }} / {{ cp.limite ?? 'sin límite' }}</span></span></td>
                       <td class="px-3 py-3 text-body-s">{{ cp.caduca ? fecha(cp.caduca) : '—' }}</td><td class="px-3 py-3 text-right text-mono-s">{{ euros(cp.ahorro) }}</td>
-                      <td class="px-3 py-3"><gr-badge [tone]="estadoCupon[cp.estado]">{{ cp.estado | titlecase }}</gr-badge></td><td class="px-2 text-center"><gr-icon name="more" [size]="16" class="text-text-tertiary" /></td>
+                      <td class="px-3 py-3"><gr-badge [tone]="estadoCupon[cp.estado]">{{ cp.estado | titlecase }}</gr-badge></td><td class="px-2 text-center"><button grIconButton icon="more" [label]="'Acciones del cupón ' + cp.codigo" tabindex="-1" (click)="$event.stopPropagation(); editarCupon(cp)"></button></td>
                     </tr>
                   }
                 </tbody>
@@ -289,7 +291,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
             <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <gr-kpi label="Recaudado" [value]="euros(p.recaudado)" caption="inscripciones pagadas" />
               <gr-kpi label="Devuelto" [value]="euros(p.devuelto)" caption="referidos y reembolsos" />
-              <gr-kpi label="Pendientes" [value]="p.pendientes + ''" caption="se liberan en 30 min" />
+              <gr-kpi label="Pendientes" [value]="p.pendientes + ''" [caption]="reservas() ? 'y ' + reservas() + ' en reserva' : 'se liberan en 30 min'" />
               <gr-kpi label="Rechazados" [value]="p.rechazados + ''" caption="tarjeta denegada" />
             </div>
             @if (p.pruebas) { <gr-alert tone="info" title="Modo pruebas">Pagos con {{ p.pasarela === 'simulado' ? 'la pasarela simulada' : 'Stripe en modo test' }}: no se ha cobrado nada.</gr-alert> }
@@ -299,14 +301,14 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                 <header class="hidden border-b border-line-subtle px-4 py-3 text-mono-xs uppercase tracking-wide text-text-tertiary md:flex md:gap-3"><span class="w-28">Fecha</span><span class="w-[258px]">Atleta</span><span class="hidden flex-1 lg:block">Concepto</span><span class="w-24 text-right">Importe</span><span class="w-36">Estado</span><span class="hidden w-28 lg:block">Referencia</span><span class="w-4"></span></header>
                 <ul>
                   @for (x of p.items; track x.id) {
-                    <li class="border-b border-line-subtle last:border-0"><button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-bg-raised/60 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_rgb(230_96_107/0.9)]" (click)="abrirPago(x)">
+                    <li class="border-b border-line-subtle last:border-0"><button type="button" aria-haspopup="dialog" class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left hover:bg-bg-raised/60 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_rgb(230_96_107/0.9)]" (click)="abrirPago(x)">
                       <span class="hidden w-28 text-mono-xs md:block">{{ fechaHora(x.fecha) }}</span>
-                      <span class="flex min-w-0 flex-1 items-center gap-2.5 md:w-[258px] md:flex-none"><gr-avatar class="hidden md:flex" [name]="x.atleta" /><span class="min-w-0"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary"><span class="lg:hidden">{{ concepto(x) }}</span><span class="hidden lg:inline">{{ x.email }}</span></span></span></span>
+                      <span class="flex min-w-0 flex-1 items-center gap-2.5 md:w-[258px] md:flex-none"><gr-avatar class="hidden md:flex" [name]="x.atleta" /><span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ x.atleta }}</span><span class="block truncate text-body-xs text-text-tertiary"><span class="lg:hidden">{{ concepto(x) }}</span><span class="hidden lg:inline">{{ x.email }}</span></span></span></span>
                       <span class="hidden min-w-0 flex-1 truncate text-body-s lg:block">{{ concepto(x) }}</span>
                       <span class="w-24 text-right text-mono-s">{{ euros(x.total) }}</span>
                       <span class="w-36"><gr-badge [tone]="x.devuelto ? 'info' : estadoPago[x.estado].tone">{{ x.devuelto ? 'Devuelto ' + euros(x.devuelto) : etiquetaPago(x) }}</gr-badge></span>
-                      <span class="hidden w-28 truncate text-mono-xs text-text-secondary lg:block">{{ x.referencia }}</span>
-                      <gr-icon name="more" [size]="16" class="hidden text-text-tertiary md:block" />
+                      <span class="hidden w-28 truncate text-mono-xs normal-case text-text-secondary lg:block">{{ x.referencia }}</span>
+                      <span class="hidden size-8 items-center justify-center rounded-sm text-text-tertiary md:flex" aria-hidden="true"><gr-icon name="more" [size]="16" /></span>
                     </button></li>
                   }
                 </ul>
@@ -321,7 +323,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
     <bo-drawer [(open)]="cuponOpen" [title]="cupon.id ? 'Editar cupón' : 'Nuevo cupón'">
       @if (errorDrawer()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ errorDrawer() }}</gr-alert> }
       <div class="flex flex-col gap-4">
-        <gr-field label="Código" for="c-cod" hint="Mayúsculas y números · único en la competición"><input grInput id="c-cod" [(ngModel)]="cupon.codigo" maxlength="30" /></gr-field>
+        <gr-field label="Código" for="c-cod" [hint]="cupon.codigo && codigoNorm() !== cupon.codigo ? 'Se guardará como ' + (codigoNorm() || '—') : 'Mayúsculas y números · único en la competición'" [error]="errCodigo()"><input grInput id="c-cod" [(ngModel)]="cupon.codigo" (ngModelChange)="errCodigo.set('')" [invalid]="!!errCodigo()" maxlength="30" /></gr-field>
         <gr-segmented label="Tipo" [options]="tiposCupon" [(value)]="cupon.tipo" />
         <div class="grid grid-cols-2 gap-3">
           <gr-field [label]="cupon.tipo === 'porcentaje' ? 'Descuento (%)' : 'Descuento (€)'" for="c-val"><input grInput id="c-val" type="number" min="1" [(ngModel)]="cupon.valorUI" /></gr-field>
@@ -361,7 +363,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
       </ng-container>
     </bo-drawer>
 
-    <bo-drawer [(open)]="pagoOpen" [title]="'Pago ' + (pagoSel()?.referencia || '')">
+    <bo-drawer [(open)]="pagoOpen" [title]="'Pago · ' + (pagoSel()?.atleta || '')" [sub]="pagoSel()?.referencia || ''">
       @if (pagoSel(); as x) {
         <div class="rounded-md border border-line-subtle bg-bg-surface px-4 py-2 text-body-s">
           <div class="flex justify-between py-1.5"><span class="text-text-tertiary">Cuota</span><span class="text-mono-s">{{ euros(x.cuota) }}</span></div>
@@ -462,12 +464,28 @@ export class InscripcionPage {
     if (!c?.cupones || !cp) return 0;
     return cp.tipo === 'porcentaje' ? Math.round((c.cuota * cp.valor) / 100) : Math.min(c.cuota, cp.valor);
   }
+  protected readonly Math = Math;
+  protected readonly hayPagadas = computed(() => (this.pagos()?.items ?? []).some((p) => p.estado === 'pagada'));
+  protected readonly reservas = computed(() => (this.pagos()?.items ?? []).filter((p) => p.estado === 'reserva').length);
+  protected readonly errCodigo = signal('');
+  protected codigoNorm(): string { return this.cupon.codigo.normalize('NFD').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  protected cerrada(iso: string): boolean { return new Date(iso).getTime() < Date.now(); }
+  protected readonly fCaduca = signal('');
+  protected exportarCupones(): void {
+    const rows = [['codigo', 'tipo', 'valor', 'usos', 'limite', 'caduca', 'ahorro', 'estado'], ...this.cuponesFiltrados().map((c) => [c.codigo, c.tipo, c.tipo === 'porcentaje' ? c.valor : c.valor / 100, c.usos, c.limite ?? '', c.caduca ?? '', c.ahorro / 100, c.estado])];
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([rows.map((r) => r.join(';')).join('\n')], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'cupones.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
   protected readonly qCupon = signal('');
   protected readonly fEstado = signal('');
   protected readonly fTipo = signal('');
   protected readonly cuponesFiltrados = computed(() => {
-    const q = this.qCupon().trim().toUpperCase(), e = this.fEstado(), t = this.fTipo();
-    return (this.cupones() ?? []).filter((c) => (!q || c.codigo.includes(q)) && (!e || c.estado === e) && (!t || c.tipo === t));
+    const q = this.qCupon().trim().toUpperCase(), e = this.fEstado(), t = this.fTipo(), k = this.fCaduca();
+    return (this.cupones() ?? []).filter((c) => (!q || c.codigo.includes(q)) && (!e || c.estado === e) && (!t || c.tipo === t)
+      && (!k || (k === 'con' ? !!c.caduca : k === 'sin' ? !c.caduca : c.estado === 'caducado')));
   });
   protected readonly activos = computed(() => (this.cupones() ?? []).filter((c) => c.estado === 'activo').length);
   protected readonly usosTotales = computed(() => (this.cupones() ?? []).reduce((a, c) => a + c.usos, 0));
@@ -562,6 +580,7 @@ export class InscripcionPage {
   protected editarCupon(c: Cupon | null): void {
     if (!this.canEdit()) return;
     this.errorDrawer.set('');
+    this.errCodigo.set('');
     this.cupon = c
       ? { id: c.id, codigo: c.codigo, tipo: c.tipo, valorUI: c.tipo === 'porcentaje' ? c.valor : c.valor / 100, conLimite: !!c.limite, limite: c.limite ?? 50, conCaduca: !!c.caduca, caducaDia: c.caduca ? c.caduca.slice(0, 10) : '', activo: c.activo, usos: c.usos }
       : this.blankCupon();
@@ -575,8 +594,10 @@ export class InscripcionPage {
   }
   protected async guardarCupon(): Promise<void> {
     const c = this.cupon;
+    if (this.codigoNorm().length < 3) { this.errCodigo.set('El código necesita al menos 3 letras o números.'); return; }
+    if (!(Number(c.valorUI) > 0)) { this.errorDrawer.set('El descuento tiene que ser mayor que 0.'); return; }
     const body = {
-      codigo: c.codigo, tipo: c.tipo, valor: c.tipo === 'porcentaje' ? Math.round(Number(c.valorUI)) : this.round(c.valorUI), limite: c.conLimite ? Number(c.limite) : undefined,
+      codigo: this.codigoNorm(), tipo: c.tipo, valor: c.tipo === 'porcentaje' ? Math.round(Number(c.valorUI)) : this.round(c.valorUI), limite: c.conLimite ? Number(c.limite) : undefined,
       caduca: c.conCaduca && c.caducaDia ? new Date(c.caducaDia + 'T23:59:00+02:00').toISOString() : undefined, activo: c.activo,
     };
     this.guardando.set(true);
