@@ -142,9 +142,9 @@ export class SorteoTitulo {
             </ul>
           } @else {
             <!-- Figma «estado vacío» -->
-            <div class="flex w-full max-w-[368px] flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-8 text-center">
+            <div class="flex w-full max-w-[360px] flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-8 text-center">
               <span class="flex size-12 items-center justify-center rounded-full bg-accent/16 text-accent-text"><gr-icon name="ticket" [size]="22" /></span>
-              <h3 class="mt-1 text-display-xs">Aún no hay objetos en la rifa</h3>
+              <h3 class="mt-1 text-display-xs">Aún no hay objetos<br />en la rifa</h3>
               <p class="text-body-s text-text-tertiary">Pronto anunciaremos los objetos que se rifan. Los boletos se venden en efectivo en el recinto el día del evento.</p>
             </div>
           }
