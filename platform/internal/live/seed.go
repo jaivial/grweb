@@ -36,8 +36,10 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	if err != nil {
 		return errors.New("la edición grcup-2025 no existe todavía (la crea el seed de competition; el Job reintenta)")
 	}
+	// Already seeded with body weights (GL): keep. Rows without any GL (e.g. an import of the old web, which has no
+	// body weights or clubs) are replaced by the Figma 25 data, so «Mejor levantador/a» and the GL column exist.
 	var n int
-	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1`, c25.ID).Scan(&n); err != nil {
+	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1 AND datos::text LIKE '%"gl":%'`, c25.ID).Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
@@ -45,6 +47,9 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		return nil
 	}
 	err = db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `DELETE FROM resultados WHERE competition_id = $1`, c25.ID); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `INSERT INTO estado (competition_id, fase) VALUES ($1, 'finalizado') ON CONFLICT DO NOTHING`, c25.ID); err != nil {
 			return err
 		}
@@ -64,6 +69,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	if err != nil {
 		return err
 	}
+	s.bump(ctx, c25.ID)
 	a.Log.Info("resultados 2025 sembrados (Datos de ejemplo)")
 	return nil
 }
@@ -99,14 +105,14 @@ func edicion2025() (*plan, tabla) {
 		{"Marta Ruiz", "CF Isabel Atlas", "F", "-63", "Open", 62.9, 135, 77.5, 165},
 		{"Ana Pérez", "Gym Mediterráneo", "F", "-63", "Júnior", 61.7, 125, 75, 160},
 		{"Lucía Martín", "Independiente", "F", "-63", "Open", 62.1, 120, 70, 150},
-		{"Noelia Serrano", "Club Paterna", "F", "-63", "Máster 1", 63.0, 110, 62.5, 135},
+		{"Sara López", "GRStrength", "F", "-63", "Open", 60.8, 115, 67.5, 145},
 		{"Irene Vidal", "Iron Gym Valencia", "F", "-57", "Open", 56.4, 117.5, 65, 145},
 		{"Paula Navarro", "GRStrength", "F", "-57", "Júnior", 55.8, 105, 60, 132.5},
 		{"Elena Castro", "Barbell Club Murcia", "F", "-57", "Open", 56.9, 100, 57.5, 127.5},
 		{"Cristina Gil", "Powerhouse Palma", "F", "-69", "Open", 68.2, 147.5, 85, 177.5},
 		{"Raquel Moreno", "Gym Mediterráneo", "F", "-69", "Máster 1", 67.5, 125, 72.5, 152.5},
 		{"Alba Ortega", "Independiente", "F", "-69", "Open", 66.8, 130, 70, 160},
-		{"Carlos Sánchez", "CF Isabel Atlas", "M", "-83", "Open", 82.6, 220, 137.5, 240},
+		{"Carlos Sánchez", "CF Isabel Atlas", "M", "-83", "Open", 82.6, 250, 165, 275},
 		{"Pablo Romero", "GRStrength", "M", "-83", "Open", 82.1, 205, 135, 245},
 		{"Iván Serrano", "Iron Gym Valencia", "M", "-83", "Júnior", 81.4, 200, 127.5, 230},
 		{"Sergio Blanco", "Barbell Club Murcia", "M", "-83", "Open", 82.9, 190, 130, 225},
