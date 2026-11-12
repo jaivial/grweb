@@ -76,7 +76,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
           </nav>
           <div class="inline-flex rounded-md border border-line-subtle bg-bg-surface p-1" role="radiogroup" aria-label="Vista">
             <button type="button" role="radio" [attr.aria-checked]="!mio()" (click)="mio.set(false)" class="h-9 rounded-sm px-4 text-label-s" [class]="!mio() ? 'bg-accent text-white' : 'text-text-secondary'">Todos los flights</button>
-            <button type="button" role="radio" [attr.aria-checked]="mio()" (click)="mio.set(true)" class="h-9 rounded-sm px-4 text-label-s" [class]="mio() ? 'bg-accent text-white' : 'text-text-secondary'">Mi horario ({{ misAtletas().length }})</button>
+            <button type="button" role="radio" [attr.aria-checked]="mio()" (click)="mio.set(true); q.set('')" class="h-9 rounded-sm px-4 text-label-s" [class]="mio() ? 'bg-accent text-white' : 'text-text-secondary'">Mi horario ({{ misAtletas().length }})</button>
           </div>
           <label class="relative min-w-0 md:w-72" [class.max-lg:hidden]="mio()">
             <span class="sr-only">Buscar atleta</span>
