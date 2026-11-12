@@ -20,7 +20,7 @@ const ROW = 'flex items-start gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]'
 
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="d-cap">
       <h2 id="d-cap" [class]="h2">Capacity meter</h2>
-      <div [class]="row">@for (m of meters; track $index) { <bo-capacity-meter class="w-[360px] shrink-0" titulo="Sábado mañana · 09:00–14:00" [ocupadas]="m[0]" [aforo]="600" [espera]="24" [cerrada]="m[1]" nota="Cerrada manualmente por Nico · 18:40" /> }</div>
+      <div [class]="row">@for (m of meters; track $index) { <bo-capacity-meter class="w-[360px] max-w-full shrink-0" titulo="Sábado mañana · 09:00–14:00" [ocupadas]="m[0]" [aforo]="600" [espera]="24" [cerrada]="m[1]" nota="Cerrada manualmente por Nico · 18:40" /> }</div>
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="d-ses">
       <h2 id="d-ses" [class]="h2">Session card</h2>
@@ -65,7 +65,7 @@ const ROW = 'flex items-start gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]'
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="d-tpl">
       <h2 id="d-tpl" [class]="h2">Template card · Section row</h2>
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">@for (t of plantillas; track t[0]) { <bo-template-card nombre="Confirmación de entrada" disparador="Al reservar una entrada · inmediato" [estado]="t[0]" [detalle]="t[1]" /> }</div>
+      <div class="flex flex-wrap gap-4">@for (t of plantillas; track t[0]) { <bo-template-card class="w-[320px] max-w-full" nombre="Confirmación de entrada" disparador="Al reservar una entrada · inmediato" [estado]="t[0]" [detalle]="t[1]" /> }</div>
       <div class="flex max-w-[760px] flex-col gap-4">@for (s of secciones(); track $index) { <bo-section-row nombre="Entradas gratis · campaña" detalle='Section / Entradas · CTA "Reserva tu entrada gratis"' [estado]="s" (visible)="vis($index, $event)" /> }</div>
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="d-map">

@@ -24,7 +24,7 @@ const BADGE: Partial<Record<BoAforo, [string, GrTone]>> = { full: ['Lista de esp
   template: `
     <div class="flex items-start justify-between gap-2">
       <span class="min-w-0 text-[14px] leading-[18px] font-semibold text-text-primary">{{ titulo() }}</span>
-      <span class="shrink-0 font-mono text-[13px] text-text-secondary">{{ ocupadas() }} / {{ aforo() }}</span>
+      <span class="shrink-0 font-mono text-[13px] leading-[18px] text-text-secondary">{{ ocupadas() }} / {{ aforo() }}</span>
     </div>
     <div class="h-2 overflow-hidden rounded-pill bg-bg-raised" role="meter" [attr.aria-valuenow]="ocupadas()" aria-valuemin="0" [attr.aria-valuemax]="aforo()" [attr.aria-label]="'Aforo ' + titulo()">
       <div class="h-full transition-[width] duration-300 motion-reduce:transition-none" [class]="bar()" [style.width.%]="pct()"></div>
