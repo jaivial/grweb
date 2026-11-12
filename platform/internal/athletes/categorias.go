@@ -188,6 +188,11 @@ func NormLicencia(s string) string {
 	return strings.ToUpper(strings.NewReplacer("-", "", ".", "").Replace(strings.Join(strings.Fields(s), "")))
 }
 
+// licVista is the licence as written in the list (dashes kept), only trimmed and upper-cased; match with NormLicencia.
+func licVista(s string) string {
+	return strings.ToUpper(strings.Join(strings.Fields(s), ""))
+}
+
 // licNormSQL is NormLicencia in SQL, for rows stored before U06-R4-1 (same expression as the 00013 index).
 const licNormSQL = `upper(regexp_replace(licencia, '[-.[:space:]]', '', 'g'))`
 
