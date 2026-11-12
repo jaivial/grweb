@@ -230,7 +230,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               </section>
             } @else {
               <!-- a card from tablet up; on phones the form sits on the page (Figma 37 mobile) -->
-              <form class="flex flex-col gap-6 md:rounded-2xl md:border md:border-line-strong md:bg-bg-card md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
+              <form method="post" class="flex flex-col gap-6 md:rounded-2xl md:border md:border-line-strong md:bg-bg-card md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
                 <div class="flex flex-col gap-3">
                   <h2 class="text-display-xs md:text-display-s">Reserva tu entrada</h2>
                   <p class="flex flex-wrap gap-1.5">
@@ -278,7 +278,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
                 </div>
-                <button grButton variant="primary" size="l" type="submit" class="w-full" [loading]="enviando()">{{ boletos() ? 'Reservar y pagar ' + euros(boletos() * (sorteoAbierto()?.precio ?? 0)) : 'Reservar entrada gratis' }}</button>
+                <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">{{ boletos() ? 'Reservar y pagar ' + euros(boletos() * (sorteoAbierto()?.precio ?? 0)) : 'Reservar entrada gratis' }}</button>
                 <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ boletos() ? 'La entrada se reserva ya; los boletos se pagan con tarjeta en el paso siguiente.' : 'Solo usamos tus datos para tu entrada. Sin spam.' }}</p>
               </form>
             }
@@ -458,6 +458,8 @@ export class EntradasPage {
   protected readonly sorteoAbierto = computed((): SorteoVenta | null => null);
   protected readonly maxBoletos = computed(() => Math.min(10, this.sorteoAbierto()?.maxPorPersona ?? 0));
   /** Mobile bottom bar: below the hero, while the form is off screen. */
+  /** SSR markup: submitting is blocked until Angular takes over (no native submit with personal data). */
+  protected readonly hidratado = signal(false);
   protected readonly barra = computed(() => this.bajoHero() && !this.formVisible() && !!this.data());
 
   constructor() {
@@ -479,6 +481,7 @@ export class EntradasPage {
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       const destroy = inject(DestroyRef);
       afterNextRender(() => {
+        this.hidratado.set(true);
         const el = this.reservarEl()?.nativeElement;
         const io = new IntersectionObserver(([e]) => this.formVisible.set(e.isIntersecting), { rootMargin: '0px 0px -30% 0px' });
         if (el) io.observe(el);
