@@ -3,10 +3,13 @@ package cms
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -160,6 +163,64 @@ func seccionDef(pagina, clave string) *SeccionDef {
 	return nil
 }
 
+// validCampos checks a draft against its field definitions: text length, list size, select options and
+// image links (https or a site-relative path). Unknown keys and non-string values are left alone.
+func validCampos(campos []Campo, obj map[string]any) error {
+	for _, c := range campos {
+		v, ok := obj[c.Clave]
+		if !ok || v == nil {
+			continue
+		}
+		switch c.Tipo {
+		case "lista":
+			items, _ := v.([]any)
+			if c.Max > 0 && len(items) > c.Max {
+				return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» admite como mucho %d elementos.", c.Etiqueta, c.Max))
+			}
+			for _, it := range items {
+				if m, ok := it.(map[string]any); ok {
+					if err := validCampos(c.Campos, m); err != nil {
+						return err
+					}
+				}
+			}
+			continue
+		}
+		str, ok := v.(string)
+		if !ok {
+			continue
+		}
+		switch {
+		case (c.Tipo == "texto" || c.Tipo == "area") && c.Max > 0 && utf8.RuneCountInString(str) > c.Max:
+			return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» admite como mucho %d caracteres.", c.Etiqueta, c.Max))
+		case c.Tipo == "select" && str != "" && !contains(c.Opciones, str):
+			return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» no es una opción válida.", c.Etiqueta))
+		case c.Tipo == "imagen" && str != "" && !(validURL(str, true) && !strings.HasPrefix(strings.ToLower(str), "http:")):
+			return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» debe ser un enlace https://.", c.Etiqueta))
+		}
+	}
+	return nil
+}
+
+func validBorrador(pagina, clave string, raw json.RawMessage) error {
+	def := seccionDef(pagina, clave)
+	if def == nil || raw == nil {
+		return nil
+	}
+	var obj map[string]any
+	if json.Unmarshal(raw, &obj) != nil {
+		return problem.Unprocessable("JSON_INVALIDO", "El contenido debe ser un objeto JSON.")
+	}
+	if err := validCampos(def.Campos, obj); err != nil {
+		var pe *problem.Error
+		if errors.As(err, &pe) {
+			pe.Detail = def.Nombre + ": " + pe.Detail
+		}
+		return err
+	}
+	return nil
+}
+
 type seccionRow struct {
 	ID          uuid.UUID       `json:"id" db:"id"`
 	Pagina      string          `json:"pagina" db:"pagina"`
@@ -300,8 +361,12 @@ func (s *Svc) registerSecciones() {
 			var out seccionView
 			err := s.change(ctx, in.CID, "cms.seccion_actualizada", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
 				var rev int
-				if err := tx.QueryRow(ctx, `SELECT rev FROM secciones WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).Scan(&rev); err != nil {
+				var pagina, clave string
+				if err := tx.QueryRow(ctx, `SELECT rev, pagina, clave FROM secciones WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).Scan(&rev, &pagina, &clave); err != nil {
 					return problem.NotFound("Sección no encontrada.")
+				}
+				if err := validBorrador(pagina, clave, in.Body.Borrador); err != nil {
+					return err
 				}
 				// Only content edits are guarded: a visibility switch in the list must not invalidate an open editor.
 				if in.Body.Borrador != nil && in.IfMatch != "" && ifMatch(in.IfMatch) != rev {
@@ -446,6 +511,9 @@ func publishPage(ctx context.Context, tx pgx.Tx, cid uuid.UUID, pagina string, c
 		}
 		if !pending(r) {
 			continue
+		}
+		if err := validBorrador(r.Pagina, r.Clave, r.Borrador); err != nil {
+			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, pub_visible = visible, pub_orden = orden, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
 			return nil, err

@@ -79,18 +79,20 @@ var seedFAQ = []faqIn{
 	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón. *Datos de ejemplo.*", false, true},
 }
 
+var yes = true
+
 var seedPatro = []patroIn{
-	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", true, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, ""},
-	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", true, "", nil, "", 50, 50, ""},
-	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", true, "", nil, "", 50, 50, ""},
-	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", true, "", nil, "", 50, 50, ""},
-	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", true, "", nil, "", 50, 50, ""},
-	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", true, "", nil, "", 50, 50, ""},
-	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", true, "", nil, "", 50, 50, ""},
+	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", &yes, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, ""},
+	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, ""},
+	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", &yes, "", nil, "", 50, 50, ""},
+	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", &yes, "", nil, "", 50, 50, ""},
+	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", &yes, "", nil, "", 50, 50, ""},
+	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", &yes, "", nil, "", 50, 50, ""},
+	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", &yes, "", nil, "", 50, 50, ""},
 	// BIZ-144: the three logos of the hero row (Figma 199:100283), the only ones with «Mostrar en hero» on.
-	{"GRStrength", "principal", "/img/home/patro-str.webp", "https://grstrength.com", true, "", &enHero, "", 50, 50, ""},
-	{"GRS Powerlifting Coaching", "principal", "/img/home/patro-coa.webp", "", true, "", &enHero, "", 50, 50, ""},
-	{"Ajuntament d'Almussafes", "institucional", "/img/home/patro-alm.webp", "https://www.almussafes.net", true, "", &enHero, "", 50, 50, ""},
+	{"GRStrength", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, ""},
+	{"GRS Powerlifting Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, ""},
+	{"Ajuntament d'Almussafes", "institucional", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, ""},
 }
 
 var enHero = true

@@ -21,9 +21,9 @@ import { WebSections, type Seccion } from './web';
       <button grButton variant="ghost" size="s" icon="arrow-left" (click)="closed.emit()">Secciones</button>
       <h2 class="text-ui-h4">Hero · trofeo animado</h2>
       <gr-badge [tone]="seccion().estado === 'publicada' ? 'success' : 'neutral'">{{ seccion().estado === 'publicada' ? 'Publicado' : 'Borrador' }}</gr-badge>
-      @if (seccion().programadaAt; as at) { <gr-badge tone="info">Programado {{ fecha(at) }}</gr-badge> }
+      @if (programada(); as at) { <gr-badge tone="info">Programado {{ fecha(at) }}</gr-badge> }
       <span class="flex-1"></span>
-      @if (canEdit()) { <button grButton variant="ghost" [disabled]="seccion().estado === 'publicada' && !seccion().programadaAt" (click)="discard()">Descartar borrador</button> }
+      @if (canEdit()) { <button grButton variant="ghost" [disabled]="seccion().estado === 'publicada' && !programada()" (click)="discard()">Descartar borrador</button> }
       @if (canPublish()) {
         <button grButton (click)="programando.set(!programando())" [attr.aria-expanded]="programando()">Programar</button>
         <button grButton variant="primary" [loading]="busy()" (click)="publish()">Publicar</button>
@@ -60,7 +60,7 @@ import { WebSections, type Seccion } from './web';
       </div>
       <aside class="flex flex-col gap-4">
         <div class="flex items-start justify-between gap-3">
-          <div><h3 class="text-ui-h5">Vista previa</h3><p class="text-body-xs text-text-tertiary">Borrador sin publicar</p></div>
+          <div><h3 class="text-ui-h5">Vista previa</h3><p class="text-body-xs text-text-tertiary">{{ seccion().estado === 'publicada' && !dirty() ? 'Publicado' : 'Borrador sin publicar' }}</p></div>
           <div class="inline-flex rounded-md border border-line-subtle bg-bg-surface p-1" role="group" aria-label="Dispositivo">
             @for (d of ['Escritorio', 'Móvil']; track d) {
               <button type="button" class="h-9 rounded-sm px-4 text-label-s" [attr.aria-pressed]="device() === d"
@@ -121,6 +121,8 @@ export class WebHeroEditor {
   protected readonly ago = fmtAgo;
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'web.editar'));
   protected readonly canPublish = computed(() => this.auth.can(this.comps.current()?.id, 'web.publicar'));
+  /** Pending schedule only: once the scheduler publishes, estado is «publicada» and the badge goes away (U30-R2-4). */
+  protected readonly programada = computed(() => { const at = this.seccion().programadaAt; return at && this.seccion().estado !== 'publicada' && new Date(at) > new Date() ? at : null; });
   /** Text fields of the API schema; the short ones go in two columns as in Figma. */
   protected readonly textos = computed<FieldDef[]>(() => this.seccion().campos.filter((c) => ['eyebrow', 'fecha', 'titulo', 'ctaTexto', 'ctaDestino'].includes(c.clave))
     .map((c) => (c.clave === 'titulo' ? c : { ...c, ancho: 'mitad' as const })));
