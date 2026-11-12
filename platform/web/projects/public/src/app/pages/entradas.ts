@@ -4,9 +4,10 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrCheckbox, GrIcon, GrLogo, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
+import { GrAlert, GrButton, GrCheckbox, GrIcon, GrLogo, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
+import { FanSession } from '../core/fan';
 import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, validada, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
 import { Seo } from '../core/seo';
@@ -137,7 +138,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
  */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
+  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrRaffleNotice, GrCabecera, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
@@ -267,33 +268,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <legend class="mb-3 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">3</span>¿Cuántos venís?</legend>
                   <ng-container [ngTemplateOutlet]="personas" />
                 </fieldset>
-                @if (sorteoAbierto(); as so) {
-                  <fieldset class="flex flex-col gap-3">
-                    <legend class="mb-3 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">4</span>Sorteo (opcional)</legend>
-                    <div class="flex flex-col gap-4 rounded-lg border p-4" [class]="boletos() ? 'border-accent/60 bg-[linear-gradient(135deg,#3a0f17,#1b1112_70%)]' : 'border-line-subtle'">
-                      <div class="flex items-start gap-4">
-                        @if (so.premioImagen) { <img [src]="so.premioImagen" alt="" class="size-16 shrink-0 rounded-md object-cover" loading="lazy" /> }
-                        <div class="flex flex-col items-start gap-1">
-                          <p class="text-label-m">Súmate al sorteo</p>
-                          <p class="text-body-xs text-text-tertiary">{{ so.premio }}{{ so.premioDetalle ? ' · ' + so.premioDetalle : '' }}</p>
-                          <span class="mt-1 inline-flex h-6 items-center rounded-full border border-accent/50 px-2.5 text-label-xs text-accent-text uppercase">{{ euros(so.precio) }} por boleto</span>
-                        </div>
-                      </div>
-                      <div class="flex items-center justify-between border-t border-line-subtle pt-3">
-                        <span class="text-label-s">Boletos</span>
-                        <span class="flex items-center gap-3">
-                          <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong disabled:opacity-40" aria-label="Menos boletos" [disabled]="!boletos()" (click)="boletos.set(boletos() - 1)"><gr-icon name="minus" [size]="16" /></button>
-                          <span class="w-6 text-center text-ui-h4" aria-live="polite">{{ boletos() }}</span>
-                          <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong disabled:opacity-40" aria-label="Más boletos" [disabled]="boletos() >= maxBoletos()" (click)="boletos.set(boletos() + 1)"><gr-icon name="plus" [size]="16" /></button>
-                        </span>
-                      </div>
-                      <p class="flex items-center justify-between text-body-xs text-text-tertiary">
-                        <span>{{ boletos() ? boletos() + (boletos() === 1 ? ' boleto' : ' boletos') + ' × ' + euros(so.precio) : 'Opcional · la entrada es gratis igualmente' }}</span>
-                        <span class="text-ui-h4" [class]="boletos() ? 'text-accent-text' : 'text-text-tertiary'">{{ euros(boletos() * so.precio) }}</span>
-                      </p>
-                    </div>
-                  </fieldset>
-                }
+                <gr-raffle-notice>Los boletos se compran en el recinto el día del evento. Aquí no se paga nada: consulta los objetos que se rifan.</gr-raffle-notice>
                 <div class="flex flex-col gap-3 text-body-s">
                   <gr-checkbox name="priv" [(checked)]="f.privacidad" [invalid]="!!err('privacidad')"><span [class.text-accent-text]="err('privacidad')">He leído y acepto la <a routerLink="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></gr-checkbox>
                   @if (boletos()) {
@@ -400,6 +375,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
 })
 export class EntradasPage {
   private readonly api = inject(EntradasPublic);
+  private readonly fan = inject(FanSession);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -549,6 +525,8 @@ export class EntradasPage {
   }
   protected async reservar(): Promise<void> {
     if (!this.validar()) return;
+    // D-MIEMBROS: booking needs a fan session; the access modal brings the person back here.
+    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('entradas', '/entradas');
     this.enviando.set(true);
     const qp = this.route.snapshot.queryParamMap;
     const utm: Record<string, string> = {};
@@ -598,6 +576,8 @@ export class EntradasPage {
     this.error.set('');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.f.email.trim())) return this.error.set('Escribe un email válido.');
     if (!this.f.privacidad) return this.error.set('Acepta la política de privacidad.');
+    // D-MIEMBROS: booking needs a fan session; the access modal brings the person back here.
+    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('entradas', '/entradas');
     this.enviando.set(true);
     try {
       await this.api.espera({ sesionId: this.sesion(), email: this.f.email.trim(), nombre: `${this.f.nombre} ${this.f.apellidos}`.trim() || undefined, personas: this.f.personas, aceptaPrivacidad: true });
