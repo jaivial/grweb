@@ -21,7 +21,7 @@ import {
     </section>
     <section class="mt-8 flex flex-col gap-4 overflow-x-auto" aria-labelledby="e-tb">
       <h2 id="e-tb" class="text-ui-h5">Editor toolbar</h2>
-      @for (m of modes; track m) { <bo-editor-toolbar class="min-w-[720px]" [mode]="m" /> }
+      @for (m of modes; track m) { <bo-editor-toolbar [mode]="m" /> }
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="e-bt">
       <h2 id="e-bt" class="text-ui-h5">Block tile · Layer row</h2>
