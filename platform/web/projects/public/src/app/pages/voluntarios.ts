@@ -179,7 +179,8 @@ export class VoluntariosPage {
     if (this.nombre.trim().length < 2 || !this.emailOk() || !this.rolesElegidos().size || !this.acepta) {
       this.error.set('Revisa los campos marcados.');
       // take the person to the first marked field (roles sit in the other column, far above on mobile)
-      setTimeout(() => { const el = document.querySelector<HTMLElement>('[aria-invalid="true"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); });
+      const behavior: ScrollBehavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+      setTimeout(() => { const el = document.querySelector<HTMLElement>('[aria-invalid="true"]'); el?.scrollIntoView({ behavior, block: 'center' }); el?.focus({ preventScroll: true }); });
       return;
     }
     // D-MIEMBROS: the request needs a fan session; the access email brings the person back here.

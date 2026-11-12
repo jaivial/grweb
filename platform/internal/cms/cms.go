@@ -6,7 +6,9 @@ package cms
 import (
 	"context"
 	"embed"
+	"errors"
 	"io/fs"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +24,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
+	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
 )
 
@@ -42,6 +45,7 @@ var bearer = []map[string][]string{{"bearer": {}}}
 type Svc struct {
 	a        *app.App
 	comp     *svcclient.Client
+	fansSvc  *svcclient.Client
 	cache    *cache.Cache
 	mediaDir string
 	webURL   string // public web (links in emails)
@@ -64,6 +68,7 @@ func Service() app.Service {
 func (s *Svc) init(a *app.App) {
 	s.a = a
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "cms", "competition", a.Cfg.InternalToken)
+	s.fansSvc = svcclient.New(config.Str("UPSTREAM_FANS", "http://fans:8080"), "cms", "fans", a.Cfg.InternalToken)
 	s.comps = compref.New(s.comp, a.Log)
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "cms", "")}
 	s.mediaDir = config.Str("MEDIA_DIR", "/data/medios")
@@ -92,11 +97,18 @@ func (s *Svc) fanEmail(ctx context.Context, cookie, hdr string, cid uuid.UUID) (
 	if err != nil {
 		return "", err
 	}
-	var email string
-	if err := s.a.DB.QueryRow(ctx, `SELECT lower(email::text) FROM fans WHERE id = $1 AND competition_id = $2`, f.ID, cid).Scan(&email); err != nil {
-		return "", fanauth.Problem(fanauth.ErrInvalid)
+	var out struct {
+		Email string `json:"email"`
 	}
-	return email, nil
+	if err := s.fansSvc.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/fans/"+f.ID.String()+"/email", nil, &out); err != nil {
+		var p *problem.Error
+		if errors.As(err, &p) && p.Status == http.StatusNotFound {
+			return "", fanauth.Problem(fanauth.ErrInvalid) // account deleted: the session is no longer valid
+		}
+		s.a.Log.Error("fan email", "err", err)
+		return "", problem.New(http.StatusServiceUnavailable, "FANS_NO_DISPONIBLE", "No podemos comprobar tu sesión ahora. Inténtalo en unos minutos.")
+	}
+	return out.Email, nil
 }
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {
