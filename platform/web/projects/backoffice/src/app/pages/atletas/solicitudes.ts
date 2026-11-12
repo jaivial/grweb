@@ -1,4 +1,3 @@
-import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,66 +6,18 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { problemOf } from '../../core/api';
-import { BoDrawer, BoPageHeader, BoToggle, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, errText } from '../../shared/ui';
 import {
   SolicitudesApi,
-  type Candidato, type CupoPrueba, type Consentimiento, type Diferencia, type EstadoSolicitud, type SolicitudDetalle, type SolicitudItem, type SolicitudLista, type TipoMatch,
+  type Candidato, type Consentimiento, type Diferencia, type EstadoSolicitud, type SolicitudDetalle, type SolicitudItem, type SolicitudLista, type TipoMatch,
 } from './solicitudes-api';
+import { CAMPOS, CONSENTIMIENTOS, MATCH, estadoDe, matchTone, matchTxt, nombreCompleto, type FilaCampo, type FilaConsentimiento } from './solicitudes-model';
+import { SolicitudesLista } from './solicitudes-lista';
+import { SolicitudesDialogo } from './solicitudes-dialogo';
+import { SolicitudesCupos } from './solicitudes-cupos';
 
 type Pestana = 'todas' | 'pendiente' | 'revision' | 'menor' | 'aprobada' | 'rechazada';
 type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
-
-/** The 18 fields of the public form, in the order of the review panel. */
-const CAMPOS: { clave: string; etiqueta: string }[] = [
-  { clave: 'nombre', etiqueta: 'Nombre' },
-  { clave: 'apellidos', etiqueta: 'Apellidos' },
-  { clave: 'email', etiqueta: 'Email' },
-  { clave: 'telefono', etiqueta: 'Teléfono móvil' },
-  { clave: 'sexo', etiqueta: 'Sexo' },
-  { clave: 'fechaNacimiento', etiqueta: 'Fecha de nacimiento' },
-  { clave: 'licencia', etiqueta: 'Licencia AEP' },
-  { clave: 'club', etiqueta: 'Club' },
-  { clave: 'ciudad', etiqueta: 'Ciudad' },
-  { clave: 'entrenador', etiqueta: 'Entrenador/a' },
-  { clave: 'prueba', etiqueta: 'Competición' },
-  { clave: 'frase', etiqueta: 'Frase del perfil' },
-  { clave: 'bio', etiqueta: 'Sobre ti' },
-  { clave: 'instagram', etiqueta: 'Instagram' },
-  { clave: 'historial', etiqueta: 'Historial' },
-  { clave: 'marcaSQ', etiqueta: 'Marca SQ' },
-  { clave: 'marcaBP', etiqueta: 'Marca BP' },
-  { clave: 'marcaDL', etiqueta: 'Marca DL' },
-];
-
-/** The 5 consent boxes of the public form, with the legal text each one proves. */
-const CONSENTIMIENTOS: { clave: string; texto: string; etiqueta: string }[] = [
-  { clave: 'terminos', texto: 'Acepto los términos de uso y el reglamento', etiqueta: 'Términos y reglamento' },
-  { clave: 'privacidad', texto: 'He leído la política de privacidad y acepto el tratamiento de mis datos', etiqueta: 'Política de privacidad' },
-  { clave: 'imagen', texto: 'Autorizo publicar mi nombre, datos deportivos y foto', etiqueta: 'Consentimiento de datos e imagen' },
-  { clave: 'novedades', texto: 'Quiero recibir novedades de la GR Cup por email', etiqueta: 'Novedades por email' },
-  { clave: 'whatsapp', texto: 'Quiero recibir avisos de mi alta y de la competición por WhatsApp', etiqueta: 'Avisos por WhatsApp' },
-];
-
-/** Text and tone of the match badge of a row. */
-const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: 'Email', nombre: 'Sugerida', manual: 'Enlazado', '': 'Sin coincidencia' };
-const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
-
-/** The 18 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
-interface FilaCampo {
-  clave: string;
-  etiqueta: string;
-  nuevo: string;
-  actual: string;
-  tipo: 'igual' | 'distinto' | 'nuevo';
-  l: string;
-  tone: GrTone;
-}
-interface FilaConsentimiento {
-  clave: string;
-  texto: string;
-  aceptado: boolean;
-  prueba: string;
-}
 
 /**
  * «Atletas › Solicitudes» (Figma D3): the requests sent from the public form, reviewed by hand before
@@ -74,7 +25,7 @@ interface FilaConsentimiento {
  */
 @Component({
   selector: 'bo-solicitudes',
-  imports: [A11yModule, FormsModule, RouterLink, BoDrawer, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton],
+  imports: [FormsModule, RouterLink, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoDrawer, BoPageHeader, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
@@ -148,28 +99,7 @@ interface FilaConsentimiento {
             <gr-kpi label="Rechazadas" [value]="n(contador('rechazada'))" caption="se borran a los 30 días" />
           </div>
 
-          @if (cupos().length) {
-            <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5" aria-labelledby="cupos-t">
-              <div class="flex min-w-0 flex-col gap-1">
-                <h2 id="cupos-t" class="text-ui-h5">Cupo por competición</h2>
-                <p class="text-body-xs text-text-tertiary">Plazas del formulario de alta. Sin cupo propio se reparten las plazas totales entre las competiciones. Una competición llena se muestra «Completa» y no se puede elegir. 0 = sin límite.</p>
-              </div>
-              <!-- The quotas in order, on one row with their button (it wraps only when there is no room). -->
-              <div class="flex flex-wrap items-end gap-4">
-              @for (c of cupos(); track c.codigo) {
-                <label class="flex w-36 flex-col gap-1.5">
-                  <span class="text-label-s">{{ c.nombre }} · {{ c.ocupadas }} {{ c.ocupadas === 1 ? 'ocupada' : 'ocupadas' }}</span>
-                  <input grInput type="number" min="0" max="100000" [disabled]="!puede()" [ngModel]="cupoEdit()[c.codigo]"
-                    (ngModelChange)="ponCupo(c.codigo, $event)" [attr.aria-describedby]="c.porDefecto ? 'cupo-def-' + c.codigo : null" />
-                  @if (c.porDefecto) { <span [id]="'cupo-def-' + c.codigo" class="text-body-xs text-text-tertiary">Por defecto</span> }
-                </label>
-              }
-              @if (puede()) {
-                <button grButton variant="secondary" type="button" [loading]="guardandoCupos()" [disabled]="guardandoCupos()" (click)="guardarCupos()">Guardar cupos</button>
-              }
-              </div>
-            </section>
-          }
+          <bo-solicitudes-cupos [cid]="cid()" [puede]="puede()" />
 
           <div class="flex flex-wrap items-center gap-2">
             <label class="relative block w-full max-w-xs">
@@ -206,107 +136,8 @@ interface FilaConsentimiento {
               <p class="mt-2 text-body-s text-text-tertiary">{{ l.total ? 'Prueba con otro filtro o con otra búsqueda.' : 'Cuando alguien envíe su alta desde el formulario público aparecerá aquí en vivo, con su foto y su coincidencia.' }}</p>
             </section>
           } @else {
-            <section class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
-              <!-- Desktop -->
-              <table class="hidden w-full table-fixed text-left lg:table">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
-                  <tr>
-                    <th class="px-4 py-3 font-normal">Atleta</th>
-                    <th class="w-40 px-3 py-3 font-normal">Coincidencia</th>
-                    <th class="w-48 px-3 py-3 font-normal">Club</th>
-                    <th class="w-20 px-3 py-3 font-normal">Edad</th>
-                    <th class="w-28 px-3 py-3 font-normal">Recibida</th>
-                    <th class="w-56 px-3 py-3 font-normal">Estado</th>
-                    <th class="w-12"><span class="sr-only">Acciones</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (s of visibles(); track s.id) {
-                    <tr [class]="claseFila(s)" (click)="revisar(s)">
-                      <td class="relative px-4 py-3">
-                        @if (resaltado(s.id)) { <span class="absolute inset-y-0 left-0 w-[3px] bg-success" aria-hidden="true"></span> }
-                        <span class="flex items-center gap-3">
-                          @if (miniatura(s.id); as url) { <img [src]="url" alt="" class="h-12 w-10 shrink-0 rounded-xs bg-bg-raised object-cover" loading="lazy" /> }
-                          @else { <span class="flex h-12 w-10 shrink-0 items-center justify-center rounded-xs bg-bg-raised text-text-tertiary"><gr-icon name="user" [size]="18" /></span> }
-                          <span class="min-w-0"><span class="block truncate text-label-s">{{ nombreCompleto(s) }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ s.email }}</span></span>
-                        </span>
-                      </td>
-                      <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge></td>
-                      <td class="truncate px-3 py-3 text-body-s">{{ s.club || 'Independiente' }}</td>
-                      <td class="px-3 py-3 text-body-s">{{ s.edad }}</td>
-                      <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
-                      <td class="px-3 py-3"><gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge></td>
-                      <td class="px-2 py-3"><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-
-              <!-- Tablet -->
-              <table class="hidden w-full table-fixed text-left md:table lg:hidden">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
-                  <tr>
-                    <th class="px-4 py-3 font-normal">Atleta</th>
-                    <th class="w-40 px-3 py-3 font-normal">Coincidencia</th>
-                    <th class="w-28 px-3 py-3 font-normal">Recibida</th>
-                    <th class="w-48 px-3 py-3 font-normal">Estado</th>
-                    <th class="w-10"><span class="sr-only">Acciones</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (s of visibles(); track s.id) {
-                    <tr [class]="claseFila(s)" (click)="revisar(s)">
-                      <td class="relative px-4 py-3">
-                        @if (resaltado(s.id)) { <span class="absolute inset-y-0 left-0 w-[3px] bg-success" aria-hidden="true"></span> }
-                        <span class="flex items-center gap-3">
-                          @if (miniatura(s.id); as url) { <img [src]="url" alt="" class="h-12 w-10 shrink-0 rounded-xs bg-bg-raised object-cover" loading="lazy" /> }
-                          @else { <span class="flex h-12 w-10 shrink-0 items-center justify-center rounded-xs bg-bg-raised text-text-tertiary"><gr-icon name="user" [size]="18" /></span> }
-                          <span class="min-w-0"><span class="block truncate text-label-s">{{ nombreCompleto(s) }}</span>
-                            <span class="block truncate text-body-xs text-text-tertiary">{{ s.club || 'Independiente' }} · {{ s.edad }} años</span></span>
-                        </span>
-                      </td>
-                      <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge></td>
-                      <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
-                      <td class="px-3 py-3"><gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge></td>
-                      <td class="px-2 py-3"><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-
-              <!-- Mobile -->
-              <ul class="flex flex-col md:hidden">
-                @for (s of visibles(); track s.id) {
-                  <li class="border-b border-line-subtle p-4 last:border-0" [class.bg-success/10]="resaltado(s.id)">
-                    <button type="button" class="flex w-full items-start gap-3 text-left" (click)="revisar(s)">
-                      @if (miniatura(s.id); as url) { <img [src]="url" alt="" class="h-12 w-10 shrink-0 rounded-xs bg-bg-raised object-cover" loading="lazy" /> }
-                      @else { <span class="flex h-12 w-10 shrink-0 items-center justify-center rounded-xs bg-bg-raised text-text-tertiary"><gr-icon name="user" [size]="18" /></span> }
-                      <span class="min-w-0 flex-1">
-                        <span class="block truncate text-label-m">{{ nombreCompleto(s) }}</span>
-                        <span class="block truncate text-body-xs text-text-tertiary">{{ s.email }}</span>
-                        <span class="block truncate text-body-xs text-text-tertiary">{{ s.club || 'Independiente' }} · {{ s.edad }} años · {{ hace(s.createdAt) }}</span>
-                      </span>
-                    </button>
-                    <div class="mt-3 flex flex-wrap gap-1">
-                      <gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge>
-                      <gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge>
-                    </div>
-                    <button grButton class="mt-3" [block]="true" (click)="revisar(s)">Revisar solicitud</button>
-                  </li>
-                }
-              </ul>
-
-              <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-line-subtle px-4 py-3 text-body-xs text-text-tertiary">
-                <span>Mostrando {{ desde() }}–{{ hasta() }} de {{ l.total }}</span>
-                @if (paginas() > 1) {
-                  <nav class="flex items-center gap-1" aria-label="Páginas">
-                    <button type="button" class="flex size-9 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40" [disabled]="pagina() === 1" (click)="recargar(pagina() - 1)" aria-label="Anterior"><gr-icon name="chevron-left" [size]="14" /></button>
-                    <span class="px-1">{{ pagina() }} / {{ paginas() }}</span>
-                    <button type="button" class="flex size-9 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40" [disabled]="pagina() >= paginas()" (click)="recargar(pagina() + 1)" aria-label="Siguiente"><gr-icon name="chevron-right" [size]="14" /></button>
-                  </nav>
-                }
-              </footer>
-            </section>
+            <bo-solicitudes-lista [items]="visibles()" [total]="l.total" [desde]="desde()" [hasta]="hasta()" [pagina]="pagina()" [paginas]="paginas()"
+              [nuevas]="nuevas()" [miniaturas]="miniaturas()" (revisar)="revisar($event)" (irPagina)="recargar($event)" />
           }
         }
       }
@@ -546,86 +377,10 @@ interface FilaConsentimiento {
       </div>
     }
 
-    <!-- ===== Approve ===== -->
-    @if (dialogo() === 'aprobar') {
-      <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4" (click)="dialogo.set(null)" (keydown.escape)="dialogo.set(null)">
-        <div class="w-full max-w-lg rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="publicable() ? 'Aprobar y publicar' : 'Aprobar (ficha privada)'"
-          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
-          <div class="flex items-start justify-between gap-3">
-            <h2 class="text-ui-h5">{{ publicable() ? 'Aprobar y publicar' : 'Aprobar (ficha privada)' }}</h2>
-            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="dialogo.set(null)"><gr-icon name="x" [size]="18" /></button>
-          </div>
-          <p class="mt-3 text-body-s text-text-secondary">{{ destinoAprueba().texto }}{{ publicable() ? ' y se publicará su perfil con la foto en blanco y negro.' : (imagenAceptada() ? '. Es menor: el perfil queda privado hasta que se active desde el área de atleta.' : '. Sin consentimiento de imagen: el perfil queda privado y la foto no se publica.') }}</p>
-          <div class="mt-5 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
-            <span class="min-w-0"><span class="block text-label-s">Avisar por email</span><span class="block text-body-xs text-text-tertiary">{{ publicable() ? 'Le llegará un email con el enlace a su ficha y el acceso a su área de atleta' : 'Le llegará el acceso a su área de atleta' }}</span></span>
-            <bo-toggle [(value)]="avisarEmail" label="Avisar por email" />
-          </div>
-          <div class="mt-3 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
-            <span class="min-w-0"><span class="block text-label-s">Avisar por WhatsApp</span><span class="block text-body-xs text-text-tertiary">Solo si el atleta lo consintió · con el número de la competición vinculado</span></span>
-            <bo-toggle [(value)]="avisarWhatsApp" label="Avisar por WhatsApp" />
-          </div>
-          <div class="mt-6 flex justify-end gap-2">
-            <button grButton variant="ghost" (click)="dialogo.set(null)">Cancelar</button>
-            <button grButton variant="primary" [loading]="ocupado()" (click)="aprobar()">{{ publicable() ? 'Aprobar y publicar' : 'Aprobar (ficha privada)' }}</button>
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- ===== Reject ===== -->
-    @if (dialogo() === 'rechazar') {
-      <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4" (click)="dialogo.set(null)" (keydown.escape)="dialogo.set(null)">
-        <div class="w-full max-w-lg rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Rechazar solicitud"
-          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
-          <div class="flex items-start justify-between gap-3">
-            <h2 class="text-ui-h5">Rechazar solicitud</h2>
-            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="dialogo.set(null)"><gr-icon name="x" [size]="18" /></button>
-          </div>
-          <p class="mt-3 text-body-s text-text-secondary">Explica el motivo (mínimo 3 caracteres): queda en el registro de auditoría y se borra la foto privada.</p>
-          <div class="mt-4">
-            <gr-field label="Motivo (obligatorio)" [error]="motivoError()">
-              <textarea grInput rows="3" maxlength="400" [ngModel]="motivo" (ngModelChange)="motivo = $event" placeholder="p. ej. Los datos de club y licencia no coinciden con la AEP"></textarea>
-            </gr-field>
-            <p class="mt-1 text-body-xs text-text-tertiary">Mínimo 3 caracteres · el motivo queda en el registro de auditoría</p>
-          </div>
-          <div class="mt-4 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
-            <span class="min-w-0"><span class="block text-label-s">Avisar por email</span><span class="block text-body-xs text-text-tertiary">Le llegará un email con el motivo del rechazo</span></span>
-            <bo-toggle [(value)]="avisarEmail" label="Avisar del rechazo por email" />
-          </div>
-          <div class="mt-3 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
-            <span class="min-w-0"><span class="block text-label-s">Avisar por WhatsApp</span><span class="block text-body-xs text-text-tertiary">Solo si el atleta lo consintió · con el número de la competición vinculado</span></span>
-            <bo-toggle [(value)]="avisarWhatsApp" label="Avisar del rechazo por WhatsApp" />
-          </div>
-          <div class="mt-6 flex justify-end gap-2">
-            <button grButton variant="ghost" (click)="dialogo.set(null)">Cancelar</button>
-            <button grButton variant="danger" [loading]="ocupado()" [disabled]="motivo.trim().length < 3" (click)="rechazar()">Rechazar solicitud</button>
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- ===== Delete (RGPD) ===== -->
-    @if (dialogo() === 'borrar') {
-      <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4" (click)="dialogo.set(null)" (keydown.escape)="dialogo.set(null)">
-        <div class="w-full max-w-lg rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Borrar solicitud"
-          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
-          <div class="flex items-start justify-between gap-3">
-            <h2 class="text-ui-h5">Borrar solicitud de {{ detalle() ? nombreCompleto(detalle()!) : '' }}</h2>
-            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="dialogo.set(null)"><gr-icon name="x" [size]="18" /></button>
-          </div>
-          <p class="mt-3 text-body-s text-text-secondary">Se eliminarán la solicitud, la foto privada y los consentimientos. Esta acción no se puede deshacer.</p>
-          <div class="mt-4">
-            <gr-field label="Escribe BORRAR para confirmar" [error]="borrarError()">
-              <input grInput maxlength="6" [ngModel]="borrarTexto" (ngModelChange)="borrarTexto = $event" placeholder="BORRAR" />
-            </gr-field>
-            <p class="mt-1 text-body-xs text-text-tertiary">La acción queda en el registro de auditoría · la foto se retira también de la web</p>
-          </div>
-          <div class="mt-6 flex justify-end gap-2">
-            <button grButton variant="ghost" (click)="dialogo.set(null)">Cancelar</button>
-            <button grButton variant="danger" [loading]="ocupado()" [disabled]="borrarTexto.trim().toUpperCase() !== 'BORRAR'" (click)="borrar()">Borrar definitivamente</button>
-          </div>
-        </div>
-      </div>
+    @if (dialogo(); as dl) {
+      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [publicable]="publicable()" [imagenAceptada]="imagenAceptada()"
+        [destino]="destinoAprueba().texto" [ocupado]="ocupado()" [(avisarEmail)]="avisarEmail" [(avisarWhatsApp)]="avisarWhatsApp"
+        (cerrar)="dialogo.set(null)" (aprobar)="aprobar()" (rechazar)="rechazar($event)" (borrar)="borrar()" />
     }
   `,
 })
@@ -668,8 +423,6 @@ export class SolicitudesPage {
   protected readonly avisarWhatsApp = signal(true);
   protected readonly ultimaCarga = signal('');
   protected readonly por = signal(6);
-  protected motivo = '';
-  protected borrarTexto = '';
   protected cambios = { frase: '', bio: '', instagram: '', club: '', ciudad: '', entrenador: '', marcaSQ: null as number | null, marcaBP: null as number | null, marcaDL: null as number | null };
 
   protected readonly pestanas: { k: Pestana; l: string }[] = [
@@ -678,10 +431,12 @@ export class SolicitudesPage {
   ];
   protected readonly kpiEtiquetas = [{ l: 'Pendientes de revisar' }, { l: 'En revisión' }, { l: 'Aprobadas' }, { l: 'Rechazadas' }];
   protected readonly hace = fmtAgo;
-  protected readonly match = (m: TipoMatch) => MATCH[m];
-  protected readonly matchTone = (m: TipoMatch) => MATCH_TONE[m];
+  protected readonly match = matchTxt;
+  protected readonly matchTone = matchTone;
+  protected readonly estado = estadoDe;
+  protected readonly nombreCompleto = nombreCompleto;
 
-  private readonly cid = computed(() => this.comps.current()?.id ?? '');
+  protected readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'atletas.editar'));
   protected readonly rol = computed(() => this.auth.rolEn(this.cid()) || 'Invitado');
   protected readonly pendientes = computed(() => {
@@ -713,20 +468,15 @@ export class SolicitudesPage {
     const d = this.detalle();
     return !!d && d.esMenor && !d.autorizacion;
   });
-  protected readonly motivoError = computed(() => (this.dialogo() === 'rechazar' && this.motivo.length > 0 && this.motivo.trim().length < 3 ? 'Escribe al menos 3 caracteres' : null));
-  protected readonly borrarError = computed(() => (this.dialogo() === 'borrar' && this.borrarTexto.length > 0 && this.borrarTexto.trim().toUpperCase() !== 'BORRAR' ? 'Escribe BORRAR' : null));
 
   private t: ReturnType<typeof setTimeout> | undefined;
   private tEnlace: ReturnType<typeof setTimeout> | undefined;
 
-  protected readonly cupos = signal<CupoPrueba[]>([]);
-  protected readonly cupoEdit = signal<Record<string, number>>({});
-  protected readonly guardandoCupos = signal(false);
 
   constructor() {
     effect(() => {
       const cid = this.cid();
-      if (cid) untracked(() => { void this.cargar(); void this.cargarCupos(); });
+      if (cid) untracked(() => void this.cargar());
     });
     const sub = this.live.events.subscribe((e) => {
       if (!e.tipo.startsWith('athletes.solicitud_')) return;
@@ -737,9 +487,8 @@ export class SolicitudesPage {
         this.toasts.info(`Nueva solicitud de ${d?.nombre ?? 'un atleta'}`, d?.match === 'nombre' ? 'Coincidencia sugerida · toca para revisarla' : 'Toca para revisarla');
       }
       this.refrescar();
-      void this.refrescarOcupadas();
     });
-    const rs = this.live.resync.subscribe(() => { void this.cargar(); void this.refrescarOcupadas(); });
+    const rs = this.live.resync.subscribe(() => void this.cargar());
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.t);
       clearTimeout(this.tEnlace);
@@ -750,56 +499,6 @@ export class SolicitudesPage {
   }
 
   // ---------------------------------------------------------------- data
-
-  private ponCupos(c: CupoPrueba[]): void {
-    this.cupos.set(c);
-    this.cupoEdit.set(Object.fromEntries(c.map((x) => [x.codigo, x.plazas])));
-  }
-
-  protected ponCupo(codigo: string, v: number | string): void {
-    this.cupoEdit.update((m) => ({ ...m, [codigo]: Number(v) }));
-  }
-
-  async cargarCupos(): Promise<void> {
-    if (!this.puede()) return;
-    try {
-      this.ponCupos((await this.api.cupos(this.cid())).cupos);
-    } catch {
-      this.cupos.set([]);
-    }
-  }
-
-  /** Live (SSE): refresh only the occupied counts; keeps any unsaved quota the admin is typing. */
-  private async refrescarOcupadas(): Promise<void> {
-    if (!this.cid() || !this.puede()) return;
-    try {
-      this.cupos.set((await this.api.cupos(this.cid())).cupos);
-    } catch {
-      // keep the last known counts
-    }
-  }
-
-  async guardarCupos(): Promise<void> {
-    const v = this.cupoEdit();
-    if (Object.values(v).some((n) => !Number.isInteger(n) || n < 0 || n > 100000)) {
-      this.toasts.error('Cupo no válido', 'Escribe un número entero de plazas (0 o más).');
-      return;
-    }
-    const bajo = this.cupos().find((c) => v[c.codigo] > 0 && v[c.codigo] < c.ocupadas);
-    if (bajo) {
-      this.toasts.error('Cupo demasiado bajo', `${bajo.nombre} ya tiene ${bajo.ocupadas} plazas ocupadas: el cupo no puede ser menor (o pon 0 = sin límite).`);
-      return;
-    }
-    this.guardandoCupos.set(true);
-    try {
-      this.ponCupos((await this.api.guardarCupos(this.cid(), v)).cupos);
-      this.toasts.success('Cupos guardados', 'El formulario de alta ya usa las plazas nuevas.');
-    } catch (e) {
-      this.toasts.error('No se pudieron guardar los cupos', errText(e));
-    } finally {
-      this.guardandoCupos.set(false);
-    }
-  }
 
   async cargar(): Promise<void> {
     const cid = this.cid();
@@ -870,31 +569,6 @@ export class SolicitudesPage {
 
   protected destacado(k: Pestana): boolean {
     return k === 'pendiente' && this.contador(k) > 0;
-  }
-
-  protected nombreCompleto(s: { nombre: string; apellidos: string }): string {
-    return [s.nombre, s.apellidos].filter(Boolean).join(' ');
-  }
-
-  protected estado(s: { estado: EstadoSolicitud; esMenor: boolean; autorizacion: boolean }): { l: string; tone: GrTone } {
-    if (s.esMenor && !s.autorizacion) return { l: 'Menor · sin autorización', tone: 'warning' };
-    if (s.estado === 'revision') return { l: 'En revisión', tone: 'warning' };
-    if (s.estado === 'aprobada') return { l: 'Aprobada', tone: 'success' };
-    if (s.estado === 'rechazada') return { l: 'Rechazada', tone: 'danger' };
-    return { l: 'Nueva', tone: 'danger' };
-  }
-
-  protected claseFila(s: { id: string }): string {
-    const base = 'cursor-pointer border-b border-line-subtle last:border-0';
-    return this.resaltado(s.id) ? `${base} bg-success/10` : `${base} hover:bg-bg-raised/60`;
-  }
-
-  protected resaltado(id: string): boolean {
-    return this.nuevas().has(id);
-  }
-
-  protected miniatura(id: string): string | undefined {
-    return this.miniaturas()[id];
   }
 
   protected horaUltima(): string {
@@ -1191,17 +865,16 @@ export class SolicitudesPage {
     return out;
   }
 
-  protected async rechazar(): Promise<void> {
+  protected async rechazar(motivo: string): Promise<void> {
     const d = this.detalle();
     if (!d) return;
-    if (this.motivo.trim().length < 3) return;
+    if (motivo.length < 3) return;
     this.ocupado.set(true);
     this.error.set('');
     try {
-      await this.api.rechazar(this.cid(), d.id, d.version, { motivo: this.motivo.trim(), avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp() });
+      await this.api.rechazar(this.cid(), d.id, d.version, { motivo, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp() });
       this.dialogo.set(null);
       this.toasts.success('Solicitud rechazada', this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
-      this.motivo = '';
       await this.cargar();
       await this.recargarDetalle();
     } catch (e) {
@@ -1214,12 +887,10 @@ export class SolicitudesPage {
   protected async borrar(): Promise<void> {
     const d = this.detalle();
     if (!d) return;
-    if (this.borrarTexto.trim().toUpperCase() !== 'BORRAR') return;
     this.ocupado.set(true);
     try {
       await this.api.borrar(this.cid(), d.id);
       this.dialogo.set(null);
-      this.borrarTexto = '';
       this.toasts.success('Solicitud borrada');
       this.cerrar();
       await this.cargar();
