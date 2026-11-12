@@ -22,6 +22,7 @@ import { Footer, Navbar, type Lang } from './layout';
       <!-- One wrapper and ONE plain <ng-content>: projecting through an <ng-template> + ngTemplateOutlet broke hydration
            (NG0501) on pages whose content starts with control flow. The layout only changes classes. -->
       <div [class]="centrado() ? 'relative mx-auto flex max-w-[800px] flex-col gap-5 px-5 pt-[120px] pb-18 md:gap-7 md:pt-40 md:pb-30'
+        : juego() ? 'relative mx-auto flex max-w-[1440px] flex-col gap-6 px-4 pt-[104px] pb-8 md:gap-7 md:px-8 md:pt-[120px] md:pb-12 xl:px-16'
         : 'relative mx-auto max-w-[1440px] px-5 pb-18 md:px-8 md:pt-[148px] xl:px-[120px] xl:pb-26 ' + (tituloMovilGrande() ? 'pt-[149px]' : 'pt-[92px]')">
         @if (cabecera() && centrado()) {
           <header class="flex flex-col items-center gap-3 text-center">
@@ -32,7 +33,7 @@ import { Footer, Navbar, type Lang } from './layout';
         }
         <!-- Figma «Cabecera» v2: 92 (mobile) / 148 (desktop) from the top, breadcrumbs Body/S, eyebrow Label/XS with
              the dash, Display/M → Display/XL title, tertiary Body/M → Body/L intro, «Updated stamp» -->
-        @if (cabecera() && !centrado()) {
+        @if (cabecera() && !centrado() && !juego()) {
           <header class="max-w-[900px] flex-col gap-3 md:flex md:gap-4" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
             <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" aria-label="Migas">
               <a routerLink="/" class="hover:text-text-primary">Inicio</a>
@@ -56,7 +57,7 @@ import { Footer, Navbar, type Lang } from './layout';
         } @else if (!centrado() && cms.failed()) {
           <gr-alert class="mt-10 md:mt-16" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
         }
-        <div [class]="centrado() ? 'contents' : cabecera() ? 'mt-10 block md:mt-16' : 'block'"><ng-content /></div>
+        <div [class]="centrado() || juego() ? 'contents' : cabecera() ? 'mt-10 block md:mt-16' : 'block'"><ng-content /></div>
       </div>
     </main>
     <gr-footer [lang]="lang()" />
@@ -82,6 +83,8 @@ export class Page {
   readonly lang = input<Lang>('es');
   readonly stamp = input('');
   readonly centrado = input(false);
+  /** Game pages (Figma 71 /porra): 64 px sides, 120 px top, the content brings its own header; children stack with 28/24 px gaps. */
+  readonly juego = input(false);
   readonly cabecera = input(true);
   /** false: the header only shows from tablet (the page brings its own mobile title, e.g. /en-directo under the video). */
   readonly cabeceraMovil = input(true);

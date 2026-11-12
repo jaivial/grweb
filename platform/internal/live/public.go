@@ -162,7 +162,7 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 			ordenarCategorias(d.Clasificacion)
 		}
 	}
-	s.cache.Set(ctx, key, d, 30*time.Second)
+	s.cache.Set(ctx, key, d, 5*time.Second) // short: a phase change without a version bump shows within 5 s
 	d.Espectadores = s.espectadores(ctx, c.ID)
 	return &d, nil
 }

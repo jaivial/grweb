@@ -28,10 +28,10 @@ type Pestana = 'chat' | 'donantes' | 'porra';
   `,
   template: `
     <section class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card bg-[linear-gradient(180deg,rgb(110_20_32/0.42),transparent_220px)] lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat del directo">
-      <header class="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-3">
+      <header class="flex shrink-0 items-center justify-between gap-2 px-4 md:gap-3 pt-4 pb-3">
         <div class="min-w-0">
           <h2 class="font-display text-[20px] leading-none text-text-primary uppercase italic">Chat en directo</h2>
-          <p class="mt-2 flex items-center gap-x-2 font-mono text-[11px] leading-none font-medium tracking-[0.08em] whitespace-nowrap uppercase" role="status">
+          <p class="mt-2 flex items-center gap-x-2 font-mono text-[11px] leading-none font-medium tracking-[0.04em] whitespace-nowrap uppercase md:tracking-[0.08em]" role="status">
             <span class="relative flex size-2 shrink-0" aria-hidden="true">
               @if (vivo()) { <span class="gr-latido absolute inset-0 rounded-full bg-accent"></span> }
               <span class="relative size-2 rounded-full" [class]="puntoClase()"></span>
@@ -61,7 +61,7 @@ type Pestana = 'chat' | 'donantes' | 'porra';
             <button type="button" class="group flex h-11 shrink-0 items-center md:h-[52px]" [attr.aria-pressed]="o.dia === chat.dia()" (click)="elegirDia(o.dia)">
               <span class="inline-flex h-8 items-center gap-1.5 rounded-pill border px-3 text-label-s transition-colors"
                 [class]="o.dia === chat.dia() ? 'border-accent/60 bg-accent-deep/35 text-accent-text' : 'border-line-strong text-text-secondary group-hover:border-text-muted group-hover:text-text-primary'">
-                @if (o.hoy) { <span class="size-1.5 rounded-full bg-accent shadow-[0_0_6px_rgb(196_43_62/0.8)]" aria-hidden="true"></span> }
+                @if (o.hoy && chat.fase() === 'en_directo') { <span class="size-1.5 rounded-full bg-accent shadow-[0_0_6px_rgb(196_43_62/0.8)]" aria-hidden="true"></span> }
                 {{ o.l }}
               </span>
             </button>

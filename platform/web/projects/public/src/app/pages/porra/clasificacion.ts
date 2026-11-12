@@ -13,22 +13,21 @@ import { monedas } from './formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPodio } from './componentes';
+import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, PremioCard, type PlazaPodio } from './componentes';
 
 @Component({
   selector: 'gr-porra-clasificacion-page',
-  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard],
+  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, LeaderboardRow, PorraCabecera, Podio, PremioCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Clasificación" [suffix]="jornadaTxt()" crumb="Clasificación" section="Juegos"
-      subtitle="Saldo de porra al cierre de cada apuesta. Premios en monedas al liquidar la jornada; en caso de empate gana quien llegó antes a ese saldo.">
-      <div pageStamps class="flex flex-wrap items-center gap-3">
-        <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
-      </div>
+    <gr-page title="Clasificación" [juego]="true">
+      <gr-porra-cabecera [titulo]="'Clasificación ' + jornadaTxt()" crumb="Clasificación" activa="clasificacion" [descMovil]="true"
+        descripcion="Saldo de porra al cierre de cada apuesta. Premios en monedas al liquidar la jornada; en caso de empate gana quien llegó antes a ese saldo.">
+        @if (premios()[0]; as p) { <gr-premio-card aside class="w-[340px]" [premio]="p" /> } @else { <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" /> }
+      </gr-porra-cabecera>
+      <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" />
 
-      <gr-juegos-nav class="mb-6 md:mb-8" juego="porra" activa="clasificacion" />
-
-      <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div>
         <div class="min-w-0">
           @if (store.cargandoClas()) {
             <div class="flex flex-col gap-2" aria-busy="true">
@@ -43,7 +42,8 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
               <a grButton variant="primary" routerLink="/porra" iconRight="arrow-right">Ir a los mercados</a>
             </div>
           } @else {
-            <gr-podio class="mb-6" [plazas]="podio()" />
+            <p class="flex justify-between px-4 text-label-xs text-text-tertiary" aria-hidden="true"><span>Puesto</span><span>Usuario y saldo de porra</span></p>
+            <gr-podio class="mt-3 mb-2" [plazas]="podio()" />
             <ol class="flex flex-col gap-2" aria-label="Clasificación desde el 4.º puesto">
               @for (f of resto(); track f.puesto) {
                 <li><gr-leaderboard-row [fila]="f" [nota]="nota(f)" [yo]="f.puesto === miPuesto()" /></li>
@@ -63,12 +63,6 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
           }
         </div>
 
-        @if (premios().length) {
-          <aside class="flex flex-col gap-4">
-            <p class="text-mono-xs text-accent-text">Lo que te llevas</p>
-            @for (p of premios().slice(0, 3); track p.id) { <gr-premio-card [premio]="p" /> }
-          </aside>
-        }
       </div>
     </gr-page>
   `,
