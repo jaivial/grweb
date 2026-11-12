@@ -176,7 +176,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               <div class="flex items-center gap-3">
                 <span class="flex -space-x-2" aria-hidden="true">@for (i of [0, 1, 2, 3]; track i) { <span class="flex size-8 items-center justify-center rounded-full border-2 border-bg-base text-text-secondary" [class]="avatar[i]"><gr-icon name="user" [size]="14" /></span> }</span>
                 <span class="flex flex-col"><span class="text-body-s"><b class="font-semibold">{{ n(d!.personas) }} personas</b> ya tienen entrada</span>
-                  <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="radio" [size]="12" class="text-success" />Se actualiza cada minuto</span></span>
+                  <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="radio" [size]="12" class="text-success" />Actualizado en directo</span></span>
               </div>
             }
           </div>
@@ -484,9 +484,10 @@ export class EntradasPage {
         if (el) io.observe(el);
         const onScroll = () => this.bajoHero.set(window.scrollY > 560);
         window.addEventListener('scroll', onScroll, { passive: true });
-        // capacity every minute while the page is open (the «personas» line says so)
-        const t = setInterval(() => { if (!document.hidden) void this.api.sesiones().then((x) => { if (x) this.data.set(x); }); }, 60_000);
-        destroy.onDestroy(() => { io.disconnect(); window.removeEventListener('scroll', onScroll); clearInterval(t); });
+        // live capacity (arch 37): the public stream announces every change of a session
+        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+        es.addEventListener('aforo.actualizado', () => void this.api.sesiones().then((x) => { if (x) this.data.set(x); }));
+        destroy.onDestroy(() => { io.disconnect(); window.removeEventListener('scroll', onScroll); es.close(); });
       });
     }
   }
