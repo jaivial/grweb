@@ -236,8 +236,10 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
               </section>
               <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6" [class.opacity-55]="c.referidos.modo !== 'acumulativo'">
                 <span><h2 class="text-ui-h5">Modo acumulativo</h2><p class="mt-0.5 text-body-xs text-text-tertiary">Solo si eliges «Acumulativo»</p></span>
-                <gr-segmented class="self-start" label="Acumulativo" [options]="acumModos" [(value)]="c.referidos.acumModo" />
-                @if (c.referidos.acumModo === 'multiplicador') { <gr-field class="md:max-w-[315px]" label="Multiplicador" for="r-x" [hint]="ejemploMult()"><input grInput id="r-x" type="number" min="1" max="5" step="0.1" [(ngModel)]="c.referidos.multiplicador" [disabled]="!canEdit() || c.referidos.modo !== 'acumulativo'" /></gr-field> }
+                <fieldset class="flex flex-col gap-4" [disabled]="!canEdit() || c.referidos.modo !== 'acumulativo'">
+                  <gr-segmented class="self-start" label="Acumulativo" [options]="acumModos" [(value)]="c.referidos.acumModo" />
+                  @if (c.referidos.acumModo === 'multiplicador') { <gr-field class="md:max-w-[315px]" label="Multiplicador" for="r-x" [hint]="ejemploMult()"><input grInput id="r-x" type="number" min="1" max="5" step="0.1" [(ngModel)]="c.referidos.multiplicador" /></gr-field> }
+                </fieldset>
               </section>
               <gr-alert tone="info" title="Devoluciones sobre el pago original">La recompensa se devuelve como reembolso parcial del pago de quien invita (no es dinero nuevo ni un premio). Si la inscripción del invitado se anula o se reembolsa, la recompensa se deshace si aún no se ha devuelto.</gr-alert>
               </div>

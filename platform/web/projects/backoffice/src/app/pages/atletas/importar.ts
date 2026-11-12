@@ -283,6 +283,7 @@ export class AtletasImportarPage {
     const cid = this.comps.current()?.id;
     const imp = this.importacion();
     if (!cid || !imp) return;
+    if (this.bajasMasivas() && this.confBajas().trim() !== String(imp.resumen.bajas)) return;
     this.trabajando.set(true);
     try {
       const r = await this.api.confirmar(cid, imp.id);
