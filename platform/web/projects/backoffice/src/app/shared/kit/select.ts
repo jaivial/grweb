@@ -55,11 +55,16 @@ export class BoSelect {
   readonly placeholder = input('Selecciona…');
   readonly disabled = input(false);
   readonly error = input<string | null>(null);
+  /** Starts open (catalogue preview of the «Open» state). */
+  readonly expanded = input(false);
   protected readonly id = `bo-select-${++seq}`;
   protected readonly open = signal(false);
   protected readonly active = signal(-1);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   protected readonly current = computed(() => this.options().find((o) => o.value === this.value()) ?? null);
+  ngOnInit(): void {
+    if (this.expanded()) this.toggle();
+  }
   protected readonly box = computed(
     () =>
       'rounded-md border bg-bg-field px-3 text-body-s text-text-primary transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgb(230_96_107/0.35)] disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none ' +

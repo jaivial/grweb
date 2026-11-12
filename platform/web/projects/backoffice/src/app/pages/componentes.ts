@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { GrBadge, GrButton, GrField, GrIconButton, GrInput, type GrTone } from '@grcup/ui';
+import { GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, type GrTone } from '@grcup/ui';
 import { BoToggle } from '../shared/ui';
 import {
   BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
@@ -10,7 +10,7 @@ import {
 @Component({
   selector: 'bo-componentes-page',
   imports: [
-    GrBadge, GrButton, GrField, GrIconButton, GrInput, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
+    GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
     BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard, BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -19,25 +19,46 @@ import {
     <h1 class="text-ui-h3 md:text-[28px]">BO · Componentes base</h1>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-btn">
       <h2 id="c-btn" class="text-ui-h5">Button</h2>
-      @for (v of variants; track v) {
-        <div class="flex flex-wrap items-center gap-3">
-          <button grButton [variant]="v">{{ v }}</button>
-          <button grButton [variant]="v" icon="plus">Con icono</button>
-          <button grButton [variant]="v" [loading]="true">Cargando</button>
-          <button grButton [variant]="v" [disabled]="true">Desactivado</button>
-        </div>
+      <!-- Figma 96-171: rows M 40 then 44 (touch); columns default · hover · pressed · disabled · loading -->
+      @for (lg of [false, true]; track lg) {
+        @for (b of buttons; track b.v) {
+          <div class="flex flex-wrap items-center gap-3">
+            <button grButton [variant]="b.v" [class]="lg ? 'h-11! px-5!' : ''">{{ b.t }}</button>
+            <button grButton [variant]="b.v" [class]="(lg ? 'h-11! px-5! ' : '') + b.hover" tabindex="-1">{{ b.t }}</button>
+            <button grButton [variant]="b.v" [class]="(lg ? 'h-11! px-5! ' : '') + b.hover + ' brightness-90'" tabindex="-1">{{ b.t }}</button>
+            <button grButton [variant]="b.v" [class]="lg ? 'h-11! px-5!' : ''" [disabled]="true">{{ b.t }}</button>
+            <button grButton [variant]="b.v" [class]="lg ? 'h-11! px-5!' : ''" [loading]="true">{{ b.t }}</button>
+          </div>
+        }
       }
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-ib">
       <h2 id="c-ib" class="text-ui-h5">Icon button</h2>
-      <div class="flex flex-wrap items-center gap-3">
-        @for (k of iconKinds; track k) { <button grIconButton icon="pencil" [kind]="k" [label]="k"></button> }
-        <button grIconButton icon="pencil" label="desactivado" disabled></button>
-      </div>
+      <!-- Figma 96-295: 32 · 44 × (more · download · trash) × default · hover · pressed · disabled -->
+      @for (sz of iconSizes; track sz) {
+        <div class="flex flex-wrap items-center gap-3">
+          @for (ib of iconButtons; track ib.icon) {
+            <button grIconButton [icon]="ib.icon" [kind]="ib.kind" [size]="sz" [label]="ib.label"></button>
+            <button grIconButton [icon]="ib.icon" [kind]="ib.kind" [size]="sz" [label]="ib.label" [class]="ib.hover" tabindex="-1"></button>
+            <button grIconButton [icon]="ib.icon" [kind]="ib.kind" [size]="sz" [label]="ib.label" [class]="ib.hover + ' brightness-90'" tabindex="-1"></button>
+            <button grIconButton [icon]="ib.icon" [kind]="ib.kind" [size]="sz" [label]="ib.label" disabled></button>
+          }
+        </div>
+      }
     </section>
     <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-badge">
       <h2 id="c-badge" class="text-ui-h5">Badge</h2>
-      <div class="flex flex-wrap gap-2">@for (t of tones; track t) { <gr-badge [tone]="t">{{ t }}</gr-badge> }</div>
+      @for (o of [false, true]; track o) {
+        <div class="flex flex-wrap gap-2">@for (b of badges; track b.tone) { <gr-badge [tone]="b.tone" [outline]="o">{{ b.t }}</gr-badge> }</div>
+      }
+    </section>
+    <section class="mt-8 flex flex-col gap-4" aria-labelledby="c-seg">
+      <h2 id="c-seg" class="text-ui-h5">Segmented</h2>
+      <div class="flex flex-wrap gap-4">
+        <gr-segmented [options]="periodos" value="hoy" label="Periodo" />
+        <gr-segmented [options]="periodos" value="7d" label="Periodo" />
+        <gr-segmented [options]="periodos" [(value)]="periodo" label="Periodo" />
+      </div>
     </section>
     <section class="mt-8 grid max-w-xl gap-4" aria-labelledby="c-in">
       <h2 id="c-in" class="text-ui-h5">Input</h2>
@@ -53,8 +74,10 @@ import {
     </section>
     <section class="mt-8 flex flex-wrap items-center gap-6" aria-labelledby="c-cb">
       <h2 id="c-cb" class="w-full text-ui-h5">Checkbox</h2>
-      <bo-checkbox [(value)]="cb" label="Off" /><bo-checkbox [value]="true" label="On" /><bo-checkbox value="mixed" label="Mixed" />
-      <bo-checkbox [value]="true" [disabled]="true" label="Disabled" /><bo-checkbox [error]="true" label="Error" />
+      <!-- Figma 96-320: off · on · mixed, each enabled · disabled · error -->
+      <bo-checkbox [(value)]="cb" aria="Seleccionar fila" /><bo-checkbox [value]="true" aria="Seleccionar fila" /><bo-checkbox value="mixed" aria="Seleccionar todas" />
+      <bo-checkbox [disabled]="true" aria="Seleccionar fila" /><bo-checkbox [value]="true" [disabled]="true" aria="Seleccionar fila" /><bo-checkbox value="mixed" [disabled]="true" aria="Seleccionar todas" />
+      <bo-checkbox [error]="true" aria="Seleccionar fila" /><bo-checkbox [value]="true" [error]="true" aria="Seleccionar fila" /><bo-checkbox value="mixed" [error]="true" aria="Seleccionar todas" />
     </section>
     <section class="mt-8 grid gap-x-8 md:grid-cols-2" aria-labelledby="c-tr">
       <h2 id="c-tr" class="text-ui-h5 md:col-span-2">Toggle row</h2>
@@ -68,9 +91,10 @@ import {
         <bo-radio-card name="modo" [option]="m" [(value)]="modo" title="Sorteo ponderado" description="Cada boleto es una papeleta: más boletos, más probabilidad." [disabled]="m === 'd'" />
       }
     </section>
-    <section class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4" aria-labelledby="c-sel">
+    <section class="mt-8 grid gap-6 md:min-h-64 md:grid-cols-2 xl:grid-cols-4" aria-labelledby="c-sel">
       <h2 id="c-sel" class="text-ui-h5 md:col-span-2 xl:col-span-4">Select</h2>
       <bo-select label="Sesión" [options]="sesiones" [(value)]="sesion" />
+      <bo-select label="Sesión" [options]="sesiones" value="sab-t" [expanded]="true" />
       <bo-select label="Sesión" [options]="sesiones" value="sab-m" [disabled]="true" />
       <bo-select label="Sesión" [options]="sesiones" placeholder="Selecciona una sesión" error="Obligatorio" />
     </section>
@@ -97,13 +121,15 @@ import {
     <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-labelledby="c-dz">
       <h2 id="c-dz" class="text-ui-h5 md:col-span-2 xl:col-span-5">Dropzone</h2>
       <bo-dropzone title="Arrastra el acta de la AEP o haz clic" hint=".xlsx · .csv · máx. 10 MB" accept=".xlsx,.csv" />
+      <bo-dropzone state="over" />
       <bo-dropzone state="uploading" status="acta-aep3-valencia.xlsx" subStatus="412 KB de 640 KB" [progress]="64" />
       <bo-dropzone state="success" status="acta-aep3-valencia.xlsx · 148 filas" subStatus="Listo para mapear columnas" />
       <bo-dropzone state="error" status="Formato no admitido" subStatus="Sube un .xlsx o .csv exportado desde la AEP" />
     </section>
-    <section class="mt-8 max-w-[480px]" aria-labelledby="c-if">
-      <h2 id="c-if" class="mb-4 text-ui-h5">Image focal</h2>
+    <section class="mt-8 grid gap-8 md:grid-cols-2 xl:max-w-[1000px]" aria-labelledby="c-if">
+      <h2 id="c-if" class="text-ui-h5 md:col-span-2">Image focal</h2>
       <bo-image-focal src="img/componentes/focal.webp" alt="Atleta del GRStrength" [(value)]="focal" />
+      <bo-image-focal src="img/componentes/focal.webp" alt="Atleta del GRStrength" [value]="{ x: 50, y: 18 }" [preview]="true" />
     </section>
     <section class="mt-8 flex flex-wrap items-start gap-6" aria-labelledby="c-menu">
       <h2 id="c-menu" class="w-full text-ui-h5">Tooltip · Menu</h2>
@@ -123,9 +149,25 @@ import {
   `,
 })
 export class ComponentesPage {
-  protected readonly variants = ['primary', 'secondary', 'ghost', 'danger'] as const;
-  protected readonly iconKinds = ['ghost', 'secondary', 'primary', 'danger'] as const;
-  protected readonly tones: GrTone[] = ['neutral', 'accent', 'success', 'warning', 'info', 'danger', 'live'];
+  /* Static hover/pressed previews mirror the :hover classes of the BO skin (ui/button.ts). */
+  protected readonly buttons = [
+    { v: 'primary', t: 'Guardar cambios', hover: 'brightness-115' },
+    { v: 'secondary', t: 'Exportar CSV', hover: 'bg-bg-hover!' },
+    { v: 'ghost', t: 'Cancelar', hover: 'bg-bg-raised!' },
+    { v: 'danger', t: 'Anular entrada', hover: 'bg-error/18!' },
+  ] as const;
+  protected readonly iconSizes = [null, 'm'] as const;
+  protected readonly iconButtons = [
+    { icon: 'more', kind: 'ghost', label: 'Más acciones', hover: 'bg-bg-raised!' },
+    { icon: 'download', kind: 'secondary', label: 'Descargar', hover: 'bg-bg-hover!' },
+    { icon: 'trash', kind: 'danger', label: 'Eliminar', hover: 'bg-error/18!' },
+  ] as const;
+  protected readonly badges: { tone: GrTone; t: string }[] = [
+    { tone: 'neutral', t: 'BORRADOR' }, { tone: 'success', t: 'CONFIRMADA' }, { tone: 'warning', t: 'PENDIENTE' }, { tone: 'danger', t: 'ERROR' },
+    { tone: 'info', t: 'PROGRAMADO' }, { tone: 'accent', t: 'DESTACADO' }, { tone: 'live', t: 'EN DIRECTO' },
+  ];
+  protected readonly periodos = [{ value: 'hoy', label: 'Hoy' }, { value: '7d', label: '7 días' }, { value: 'todo', label: 'Todo' }];
+  protected readonly periodo = signal('todo');
   protected readonly on = signal(true);
   protected readonly cb = signal<boolean | 'mixed'>(false);
   protected readonly modos = ['a', 'b', 'c', 'd'];

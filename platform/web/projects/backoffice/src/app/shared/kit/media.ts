@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, model, output, signal } from '@angular/core';
 import { GrIcon, type GrIconName } from '@grcup/ui';
 
-export type BoDropState = 'idle' | 'uploading' | 'success' | 'error';
+/** `over` forces the drag-over look (catalogue preview); real drags set it automatically. */
+export type BoDropState = 'idle' | 'over' | 'uploading' | 'success' | 'error';
 
 /**
  * Figma 48 «BO / Dropzone» (r16, dashed): Idle · Drag over · Uploading · Success · Error. Presentational: the page
@@ -81,7 +82,7 @@ export interface BoFocal {
   template: `
     <div class="relative aspect-[480/272] touch-none overflow-hidden rounded-md select-none" (pointerdown)="down($event)" (pointermove)="move($event)" (pointerup)="editing.set(false)">
       <img [src]="src()" [alt]="alt()" class="size-full object-cover" [style.object-position]="pos()" draggable="false" />
-      @if (editing()) {
+      @if (editing() || preview()) {
         <span class="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 rounded-md border border-white/25 *:border-white/25 [&>*:nth-child(-n+6)]:border-b [&>*:not(:nth-child(3n))]:border-r">
           @for (i of nine; track i) { <span></span> }
         </span>
@@ -98,13 +99,15 @@ export interface BoFocal {
         </figure>
       }
     </div>
-    <p class="text-body-xs text-text-tertiary">{{ editing() ? 'Arrastra el punto o usa las flechas · ' : '' }}focal {{ value().x }} % / {{ value().y }} %{{ editing() ? '' : ' · object-position: ' + pos() }}</p>
+    <p class="text-body-xs text-text-tertiary">{{ editing() || preview() ? 'Arrastra el punto o usa las flechas · ' : '' }}focal {{ value().x }} % / {{ value().y }} %{{ editing() || preview() ? '' : ' · object-position: ' + pos() }}</p>
   `,
 })
 export class BoImageFocal {
   readonly value = model<BoFocal>({ x: 50, y: 50 });
   readonly src = input.required<string>();
   readonly alt = input('');
+  /** Pins the editing look (grid + hint) for the catalogue. */
+  readonly preview = input(false);
   protected readonly editing = signal(false);
   protected readonly nine = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   protected readonly crops = [{ label: '1:1 avatar', ratio: '1' }, { label: '4:5 ficha', ratio: '4/5' }, { label: '16:9 cabecera', ratio: '16/9' }];
