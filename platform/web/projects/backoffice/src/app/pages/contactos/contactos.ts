@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
-import { BoPagination } from '../../shared/kit';
+import { BO_ROW, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, Confirm, errText } from '../../shared/ui';
 import {
   ContactosApi, ESTADO_EMAIL, ESTADO_WA, FINALIDAD, TIPO_SUP, fecha, fechaLarga, iniciales,
@@ -29,7 +29,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Contactos» (Figma page 61): list with KPIs and filters, segments and unsubscribes/suppressions. */
 @Component({
   selector: 'bo-contactos',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -64,26 +64,22 @@ function descargar(blob: Blob, nombre: string): void {
             </div>
           } @else { <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-32 rounded-lg" /> }</div> }
 
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="relative min-w-0 flex-1 basis-64 md:max-w-xs">
-              <span class="sr-only">Buscar</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-              <input grInput class="pl-9" placeholder="Buscar por email, teléfono o nombre" [ngModel]="f().q" (ngModelChange)="filtrar({ q: $event })" />
-            </label>
-            <gr-select tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">+ Origen</option>@for (o of l?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
-            <gr-select tipo="filtro" aria-label="Canal" [ngModel]="f().canal ?? ''" (ngModelChange)="filtrar({ canal: $event })"><option value="">+ Canal</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></gr-select>
-            <gr-select tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">+ Consentimiento</option><option value="confirmado">Confirmado</option><option value="pendiente">Pendiente</option><option value="no">No aceptado</option><option value="revocado">Revocado</option><option value="rebotado">Rebotado / no válido</option></gr-select>
-            <gr-select tipo="filtro" aria-label="Relación" [ngModel]="f().relacion ?? ''" (ngModelChange)="filtrar({ relacion: $event })"><option value="">+ Relación</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</gr-select>
-            <span class="ml-auto text-body-xs text-text-tertiary">{{ l?.total ?? 0 }} contactos</span>
-          </div>
+          <bo-table-toolbar noun="contactos" [total]="l?.total ?? 0" [loading]="l === undefined" [filtered]="filtrado()" (reset)="filtrar({ q: '', origen: '', canal: '', estado: '', relacion: '' })">
+            <bo-search filters class="w-full md:w-[280px]" placeholder="Buscar por email, teléfono o nombre" [shortcut]="false" [value]="f().q ?? ''" (valueChange)="filtrar({ q: $event })" />
+            <gr-select filters tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">+ Origen</option>@for (o of l?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
+            <gr-select filters tipo="filtro" aria-label="Canal" [ngModel]="f().canal ?? ''" (ngModelChange)="filtrar({ canal: $event })"><option value="">+ Canal</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></gr-select>
+            <gr-select filters tipo="filtro" aria-label="Estado" [ngModel]="f().estado ?? ''" (ngModelChange)="filtrar({ estado: $event })"><option value="">+ Consentimiento</option><option value="confirmado">Confirmado</option><option value="pendiente">Pendiente</option><option value="no">No aceptado</option><option value="revocado">Revocado</option><option value="rebotado">Rebotado / no válido</option></gr-select>
+            <gr-select filters tipo="filtro" aria-label="Relación" [ngModel]="f().relacion ?? ''" (ngModelChange)="filtrar({ relacion: $event })"><option value="">+ Relación</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</gr-select>
+          </bo-table-toolbar>
 
           @if (l === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar los contactos"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
           @else if (l) {
             <section class="hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:block">
               <table class="w-full table-fixed text-left text-body-s">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="w-[30%] px-4 py-3">Contacto</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">WhatsApp</th><th class="w-[22%] px-3 py-3">Relación</th><th class="px-3 py-3">Última actividad</th></tr></thead>
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-[30%] px-4 py-3">Contacto</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">WhatsApp</th><th class="w-[22%] px-3 py-3">Relación</th><th class="px-3 py-3">Última actividad</th></tr></thead>
                 <tbody>
                   @for (c of l.items; track c.id) {
-                    <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.bg-accent-deep/10]="c.emailEstado === 'rebotado'" (click)="abrir(c)">
+                    <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="c.emailEstado === 'rebotado' ? row.error : row.default" (click)="abrir(c)">
                       <td class="px-4 py-2.5"><div class="flex items-center gap-3"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-deep/40 text-mono-xs">{{ ini(c.nombre || c.email) }}</span>
                         <div class="min-w-0"><p class="truncate text-label-s">{{ c.nombre || c.email }}</p><p class="truncate text-body-xs text-text-tertiary">{{ c.nombre ? c.email : '' }}{{ c.telefono ? (c.nombre ? ' · ' : '') + c.telefono : '' }}</p></div></div></td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-secondary">{{ c.origen }}</td>
@@ -92,7 +88,7 @@ function descargar(blob: Blob, nombre: string): void {
                       <td class="truncate px-3 py-2.5 text-text-secondary">{{ c.relacion || '—' }}</td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fecha(c.ultimaActividad) }}</td>
                     </tr>
-                  } @empty { <tr><td colspan="6" class="px-4 py-10 text-center text-text-tertiary">Nadie coincide con los filtros.</td></tr> }
+                  } @empty { <tr><td colspan="6" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nadie coincide con los filtros' : 'Todavía no hay contactos'" [text]="filtrado() ? 'Prueba con otro email o limpia los filtros.' : 'Se crean al reservar entradas o suscribirse a novedades.'" /></td></tr> }
                 </tbody>
               </table>
             </section>
@@ -109,7 +105,7 @@ function descargar(blob: Blob, nombre: string): void {
               <span>Mostrando {{ (l.pagina - 1) * l.por + 1 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ l.total }} · teléfonos enmascarados{{ canExport() ? '' : ' (sin permiso de exportar)' }}</span>
               <bo-pagination [page]="l.pagina" [pages]="pages(l)" (change)="filtrar({ pagina: $event }, false)" />
             </div>
-          } @else { <gr-skeleton class="h-96 rounded-lg" /> }
+          } @else { <bo-skeleton /> }
         }
 
         @case ('segmentos') {
@@ -229,6 +225,8 @@ export class ContactosPage {
   protected readonly tab = signal<Tab>((this.route.snapshot.data['tab'] as Tab) ?? 'contactos');
   protected readonly lista = signal<Lista | null | undefined>(undefined);
   protected readonly f = signal<Filtros>({ pagina: 1 });
+  protected readonly row = BO_ROW;
+  protected readonly filtrado = computed(() => { const f = this.f(); return !!(f.q || f.origen || f.canal || f.estado || f.relacion); });
   protected readonly segmentos = signal<Segmento[] | null>(null);
   protected readonly seg = signal<{ id?: string; version?: number; nombre: string; condiciones: Condicion[] } | null>(null);
   protected readonly recuento = signal<Recuento | null>(null);
