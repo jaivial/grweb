@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, inject, input, linkedSignal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrIcon, type GrIconName } from '@grcup/ui';
 
@@ -60,21 +60,23 @@ export class GrHechos {
   template: `
     <nav class="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none]" aria-label="Secciones">
       @for (s of anclas(); track s.id) {
-        <a routerLink="." [fragment]="s.id" class="flex h-9 shrink-0 items-center rounded-full border px-4 text-label-s" [class]="activa() === s.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ s.t }}</a>
+        <a routerLink="." [fragment]="s.id" [attr.aria-current]="activa() === s.id ? 'location' : null" [class]="'flex h-9 shrink-0 items-center rounded-full border px-4 text-label-s ' + (activa() === s.id ? 'border-accent bg-accent text-white' : 'border-line-strong text-text-secondary')">{{ s.t }}</a>
       }
     </nav>
   `,
 })
 export class GrChipsAncla {
   readonly anclas = input<{ id: string; t: string }[]>([]);
-  protected readonly activa = signal('');
+  protected readonly activa = linkedSignal(() => this.anclas()[0]?.id ?? '');
   constructor() {
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
-    const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) this.activa.set(e.target.id); }, { rootMargin: '-40% 0px -55% 0px' });
-    const t = setTimeout(() => {
-      this.activa.set(this.anclas()[0]?.id ?? '');
-      for (const a of this.anclas()) { const el = document.getElementById(a.id); if (el) io.observe(el); }
-    }, 500);
-    inject(DestroyRef).onDestroy(() => { clearTimeout(t); io.disconnect(); });
+    // scroll-spy: the last section whose top has passed 40 % of the screen (sections may render after async data)
+    const spy = () => {
+      let id = this.anclas()[0]?.id ?? '';
+      for (const a of this.anclas()) { const el = document.getElementById(a.id); if (el && el.getBoundingClientRect().top < innerHeight * 0.4) id = a.id; }
+      this.activa.set(id);
+    };
+    addEventListener('scroll', spy, { passive: true });
+    inject(DestroyRef).onDestroy(() => removeEventListener('scroll', spy));
   }
 }

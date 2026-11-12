@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrIcon, GrSkeleton } from '@grcup/ui';
 import { map } from 'rxjs';
@@ -14,8 +14,9 @@ import { applySeo } from './content';
 import { Community, Related } from './landings';
 import { GrCallout } from './seo-bloques';
 
-/** Photos per page (desktop pagination) and per «Cargar más» (mobile). */
+/** Photos per page (desktop pagination) and per «Cargar más» batch (mobile, Figma 390: 24). */
 const POR_PAGINA = 12;
+const POR_LOTE = 24;
 const ETIQUETAS: [NonNullable<Foto['etiqueta']>, string][] = [['plataforma', 'Plataforma'], ['calentamiento', 'Calentamiento'], ['podio', 'Podios'], ['ambiente', 'Ambiente']];
 
 interface FotoGaleria extends Foto { album: string; pie: string }
@@ -112,7 +113,8 @@ export class GaleriaPage {
     { titulo: 'Patrocinadores', texto: 'Quién lo hace posible', ruta: '/patrocinadores' },
   ];
 
-  private readonly paginaQuery = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((q) => Number(q.get('pagina')) || 1)), { initialValue: 1 });
+  private readonly query = inject(ActivatedRoute).queryParamMap;
+  private readonly paginaQuery = toSignal(this.query.pipe(map((q) => Number(q.get('pagina')) || 1)), { initialValue: 1 });
   protected readonly todas = computed<FotoGaleria[]>(() =>
     (this.albums() ?? []).flatMap((a) => a.fotos.map((f) => {
       const album = nombreAlbum(a);
@@ -136,7 +138,7 @@ export class GaleriaPage {
   protected readonly paginas = computed(() => Math.max(1, Math.ceil(this.filtradas().length / POR_PAGINA)));
   protected readonly pagina = computed(() => Math.min(Math.max(1, this.paginaQuery()), this.paginas()));
   private readonly desde = computed(() => (this.pagina() - 1) * POR_PAGINA);
-  protected readonly mostradas = computed(() => Math.min(this.filtradas().length, this.desde() + POR_PAGINA + (this.movil() ? this.extra() : 0)));
+  protected readonly mostradas = computed(() => Math.min(this.filtradas().length, this.movil() ? POR_LOTE + this.extra() : this.desde() + POR_PAGINA));
   protected readonly visibles = computed(() => this.filtradas().slice(this.movil() ? 0 : this.desde(), this.mostradas()));
   protected readonly visor = computed(() => this.filtradas().map((f) => ({ imagen: f.url, alt: f.alt, pie: f.pie })));
   /** 1 2 3 … 8 around the current page (0 = gap). */
@@ -151,6 +153,11 @@ export class GaleriaPage {
   constructor() {
     const cms = inject(Cms);
     const seo = inject(Seo);
+    // ?filtro=a:2025,e:podio — shareable and kept on reload
+    this.query.pipe(takeUntilDestroyed()).subscribe((q) => {
+      const f = (q.get('filtro') ?? '').split(',').filter(Boolean);
+      if (f.join() !== [...this.filtros()].join()) this.filtros.set(new Set(f));
+    });
     void inject(PendingTasks).run(async () => {
       const [albums] = await Promise.all([cms.galeria(), this.comp.load()]);
       this.albums.set(albums ?? []);
@@ -189,12 +196,12 @@ export class GaleriaPage {
     this.cambiarFiltros(new Set());
   }
   private cambiarFiltros(f: Set<string>): void {
-    this.filtros.set(f);
+    this.filtros.set(f); // at once; the URL follows
     this.extra.set(0);
-    if (this.pagina() > 1) void this.router.navigate([], { queryParams: { pagina: null }, queryParamsHandling: 'merge', replaceUrl: true }); // page 1 of the new selection
+    void this.router.navigate([], { queryParams: { filtro: [...f].join(',') || null, pagina: null }, queryParamsHandling: 'merge', replaceUrl: true }); // page 1 of the new selection
   }
   protected cargarMas(): void {
-    this.extra.update((n) => n + POR_PAGINA);
+    this.extra.update((n) => n + POR_LOTE);
   }
   protected abrir(f: FotoGaleria): void {
     this.abierta.set(this.filtradas().indexOf(f));
