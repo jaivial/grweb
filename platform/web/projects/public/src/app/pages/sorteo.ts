@@ -74,10 +74,10 @@ export class SorteoTitulo {
       } @else {
         <!-- Figma «Section / Rifa (escaparate)» -->
         <section class="relative md:px-8 md:pt-24 md:pb-24 lg:px-20">
-          <div class="h-[76px] md:hidden"></div>
+          <div class="h-[90px] md:hidden"></div>
           <div class="grain-acento relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 pt-5 pb-7 md:gap-5 md:rounded-3xl md:border md:border-accent/35 md:px-8 md:py-8 lg:flex-row lg:gap-14 lg:py-14 lg:pr-14 lg:pl-16">
             <div class="pointer-events-none absolute -top-30 right-[-80px] size-[520px] rounded-full bg-[radial-gradient(closest-side,rgb(196_43_62/0.25),transparent)]" aria-hidden="true"></div>
-            <div class="relative h-[260px] w-full shrink-0 md:h-[300px] lg:h-[440px] lg:w-[520px]">
+            <div class="relative h-[290px] w-full shrink-0 md:h-[360px] lg:h-[440px] lg:w-[520px]">
               <div class="pointer-events-none absolute top-1/2 left-1/2 aspect-square w-[min(90%,468px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(196_43_62/0.35),transparent)]" aria-hidden="true"></div>
               <gr-cinturon class="absolute inset-x-[4%] inset-y-[9%] overflow-hidden rounded-2xl mix-blend-lighten [mask-image:radial-gradient(closest-side,#000_62%,transparent)]" [src]="belt" alt="Cinturón SBD" [prioridad]="true" />
               <span class="gr-flotar absolute top-1 right-3 flex size-24 flex-col items-center justify-center rounded-full bg-[linear-gradient(135deg,#c42b3e,#6e1420)] shadow-[0_8px_32px_rgb(196_43_62/0.5)] md:right-[22px] lg:top-2 lg:size-[148px]">
@@ -94,7 +94,7 @@ export class SorteoTitulo {
                 @if (r.lugar) { <p>{{ r.lugar }}</p> }
                 <p>{{ r.horario ? r.horario + ' · ' : '' }}{{ euros(r.precioBoletoEfectivoCents) }} el boleto</p>
               </div>
-              <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <div class="flex w-full flex-col gap-3 lg:w-auto lg:flex-row">
                 <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="." fragment="objetos">Ver objetos de la rifa</a>
                 <a grButton variant="outline" size="l" routerLink="." fragment="normas">Ver normas</a>
               </div>
@@ -108,7 +108,7 @@ export class SorteoTitulo {
           <div class="grid w-full max-w-[1104px] gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
             @for (n of normas(); track n.t) {
               <div class="grain flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
-                <span class="mb-2 flex size-10 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="n.i" [size]="20" /></span>
+                <span class="flex size-10 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="n.i" [size]="20" /></span>
                 <h3 class="text-ui-h5">{{ n.t }}</h3><p class="min-w-0 text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ n.d }}</p>
               </div>
             }
@@ -123,7 +123,7 @@ export class SorteoTitulo {
         <!-- Objetos que se rifan (escaparate gestionado en el BO) -->
         <section id="objetos" class="flex scroll-mt-20 flex-col items-center gap-10 px-5 pb-16 md:px-20 md:pb-26">
           <div class="flex w-full max-w-[880px] flex-col items-center gap-4 text-center">
-            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary"><span class="h-px w-7 bg-accent/60" aria-hidden="true"></span>Escaparate</p>
+            <p class="text-label-xs text-text-tertiary">Escaparate</p>
             <h2 class="text-display-s [text-shadow:0_4px_24px_rgb(0_0_0/0.6)] md:text-display-l">Objetos que se rifan</h2>
             <p class="text-body-m text-[#d1d6db]">Cada objeto se sortea por separado entre los boletos vendidos en el recinto. Gracias a los patrocinadores que los donan.</p>
           </div>
