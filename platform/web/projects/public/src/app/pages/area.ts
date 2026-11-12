@@ -184,6 +184,7 @@ const api = '/api/area-atleta';
                   </div>
                 </div>
                 @if (!p.atleta.perfil.imagen) {
+                  @if (p.atleta.perfil.fotoUrl) { <p class="mt-4 text-body-s text-warning" role="note">Tu foto no se publicará en tu ficha hasta que aceptes el consentimiento de imagen.</p> }
                   <label class="mt-4 flex min-h-11 items-start gap-3 rounded-md border border-line-subtle bg-bg-card p-3 text-body-s text-text-secondary">
                     <input type="checkbox" name="imagen" [(ngModel)]="aceptaImagen" class="mt-0.5 size-5 accent-[#C42B3E]" />
                     <span>Acepto que la organización publique mi foto en la web de la competición (<a href="/consentimiento-datos" target="_blank" class="text-accent-text underline">consentimiento de imagen</a>). Puedo retirarlo cuando quiera.</span>
