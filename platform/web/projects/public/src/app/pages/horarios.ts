@@ -38,9 +38,9 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
     @let corta = compacta();
     <gr-page title="Horarios" [accent]="corta ? '' : 'en directo'" [eyebrow]="corta ? '' : eyebrow()" crumb="Horarios" [migasMovil]="!corta"
       [subtitle]="corta ? '' : 'Cuándo compite cada atleta, en qué plataforma y si va con retraso. Se actualiza solo: no hace falta recargar.'">
-      <p pageStamps class="flex flex-wrap gap-2">
-        @if (h?.publicado) { <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ actualizado() }} · retrasos incluidos</span> }
-      </p>
+      @if (h?.publicado && !mio()) {
+        <p pageStamps class="flex flex-wrap gap-2"><span class="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ actualizado() }} · retrasos incluidos</span></p>
+      }
 
       @if (h === undefined) {
         <div class="flex flex-col gap-3"><gr-skeleton class="h-12 rounded-md" />@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-24 rounded-lg" /> }</div>
@@ -61,12 +61,12 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
         }
       } @else {
         @if (enDirecto(); as d) {
-          <p class="mb-5 flex flex-wrap items-center gap-2 text-body-s text-text-secondary">
+          <p class="mb-5 flex flex-wrap items-center gap-2 text-body-s text-text-secondary" [class.max-lg:hidden]="mio()">
             <gr-live-status [estado]="conexion()" />{{ d }}
           </p>
         }
-        <div class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
-          <nav class="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:px-0" aria-label="Días">
+        <div class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center" [class.max-lg:-mt-4]="mio()">
+          <nav class="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:px-0" aria-label="Días" [class.max-lg:hidden]="mio()">
             @for (d of h.dias; track d.fecha) {
               <button type="button" (click)="dia.set(d.fecha)" [attr.aria-current]="diaSel()?.fecha === d.fecha ? 'date' : null"
                 class="relative h-11 shrink-0 px-3 font-display text-[18px] uppercase italic" [class]="diaSel()?.fecha === d.fecha ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'">
@@ -76,9 +76,9 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
           </nav>
           <div class="inline-flex rounded-md border border-line-subtle bg-bg-surface p-1" role="radiogroup" aria-label="Vista">
             <button type="button" role="radio" [attr.aria-checked]="!mio()" (click)="mio.set(false)" class="h-9 rounded-sm px-4 text-label-s" [class]="!mio() ? 'bg-accent text-white' : 'text-text-secondary'">Todos los flights</button>
-            <button type="button" role="radio" [attr.aria-checked]="mio()" (click)="mio.set(true)" class="h-9 rounded-sm px-4 text-label-s" [class]="mio() ? 'bg-accent text-white' : 'text-text-secondary'">Mi horario ({{ misAtletas().length }})</button>
+            <button type="button" role="radio" [attr.aria-checked]="mio()" (click)="mio.set(true); q.set('')" class="h-9 rounded-sm px-4 text-label-s" [class]="mio() ? 'bg-accent text-white' : 'text-text-secondary'">Mi horario ({{ misAtletas().length }})</button>
           </div>
-          <label class="relative min-w-0 md:w-72">
+          <label class="relative min-w-0 md:w-72" [class.max-lg:hidden]="mio()">
             <span class="sr-only">Buscar atleta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input type="search" placeholder="¿Cuándo compite…?" [ngModel]="q()" (ngModelChange)="q.set($event)"
@@ -186,14 +186,14 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               }
             </section>
             @if (diaSel()?.notas?.length) {
-              <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+              <section class="rounded-lg border border-line-subtle bg-bg-card p-5" [class.max-lg:hidden]="mio()">
                 <h2 class="text-ui-h5">Info del día</h2>
                 <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
                   @for (n of diaSel()!.notas; track n) { <li class="flex gap-2"><gr-icon name="chevron-right" [size]="16" class="mt-0.5 shrink-0 text-accent-text" />{{ n }}</li> }
                 </ul>
               </section>
             }
-            <a [href]="icsTodos" class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 text-body-s text-text-secondary hover:border-line-strong">
+            <a [href]="icsTodos" [class.max-lg:hidden]="mio()" class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 text-body-s text-text-secondary hover:border-line-strong">
               <gr-icon name="calendar-days" [size]="18" class="text-accent-text" /><span class="flex-1">Todos los flights en tu calendario</span><gr-icon name="download" [size]="16" />
             </a>
           </aside>

@@ -89,14 +89,13 @@ import { Community, Related, type RelatedLink } from './landings';
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="flex size-10 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="icono(t.tipo)" [size]="20" /></span>
                     <h3 class="text-ui-h5">{{ t.titulo }}</h3>
-                    @if (t.estado === 'por_confirmar') { <span class="ml-auto inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Por confirmar</span> }
+                    @if (t.estado === 'por_confirmar') { <span class="order-first mr-[100%] inline-flex whitespace-nowrap md:order-none md:mr-0 md:ml-auto h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Por confirmar</span> }
                   </div>
                   <p class="text-body-s text-text-tertiary">{{ t.detalle }}</p>
                   @if (t.nota) { <p class="text-body-xs text-text-secondary">{{ t.nota }}</p> }
                 </article>
               }
             </div>
-            <a grButton variant="outline" size="l" class="w-full sm:w-auto sm:self-start" routerLink="/mapa-de-accesos" icon="map-pin">Ver el mapa de accesos</a>
           </section>
 
           <!-- 04 · Fotos del pabellón -->
