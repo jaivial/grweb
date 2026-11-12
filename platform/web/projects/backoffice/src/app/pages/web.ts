@@ -14,7 +14,7 @@ import { BoDrawer, BoPageHeader, BoTabs, BoToggle, Confirm, errText } from '../s
 /** Static routes of the public app (projects/public/src/app/app.routes.ts); a redirect from one of them hides that page. */
 const RUTAS_PUBLICAS = new Set(['/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos',
   '/categorias-de-peso', '/marcas-minimas', '/reglamento', '/atletas', '/participantes', '/horarios', '/novedades/confirmar', '/entradas', '/entradas/confirmacion',
-  '/entradas/oferta', '/mi-entrada', '/baja', '/sorteo', '/sorteo/confirmacion', '/en-directo', '/acceso', '/directo', '/porra', '/porra/mis-apuestas',
+  '/entradas/oferta', '/mi-entrada', '/baja', '/sorteo', '/en-directo', '/acceso', '/directo', '/porra', '/porra/mis-apuestas',
   '/porra/clasificacion', '/fantasy', '/fantasy/mercado', '/fantasy/clasificacion', '/fantasy/como-se-juega', '/resultados', '/area-atleta', '/alta-atleta',
   '/inscripcion', '/inscripcion/estado', '/pago/simulado', '/publico', '/clubs', '/en', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos',
   '/texto-whatsapp', '/politica-concurso', '/_styleguide']);
