@@ -111,7 +111,7 @@ export class JuegosNav {
         <gr-icon name="zap" [size]="15" />
       </span>
       <span class="font-mono text-[16px] font-bold tabular-nums">{{ monedas(valor()) }}</span>
-      <span class="text-mono-xs" [class]="moneda() === 'porra' ? 'text-accent-text' : 'text-info'"><span class="sr-only">monedas de </span>· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
+      <span class="text-mono-xs" [class]="moneda() === 'porra' ? 'text-accent-text' : 'text-info'">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
     } @else {
       <button type="button" class="-my-1 -mr-3.5 -ml-1 flex h-10 items-center gap-2 rounded-pill pr-4 pl-1 text-label-s text-accent-text" (click)="entrar()">
         <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><gr-icon name="user-plus" [size]="15" /></span>Entrar para jugar
@@ -260,7 +260,7 @@ export class OddsRow {
     @if (puedeApostar()) {
       <div class="px-4 pt-2 pb-4">
         <button grButton variant="primary" size="l" class="!text-label-s" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
-        <p class="mt-2 text-body-xs text-text-muted">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · tu cuota queda fijada al apostar</p>
+        <p class="mt-2 text-body-xs text-text-muted">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
       </div>
     } @else if (mercado().estado === 'abierto') {
       <div class="px-4 pt-2 pb-4">
@@ -292,7 +292,7 @@ export class MarketCard {
   readonly maximoApuesta = input(50000);
   readonly apostar = output<{ mercado: Mercado; atletaId: string }>();
 
-  protected readonly puedeApostar = computed(() => this.mercado().estado === 'abierto' && !this.soloLectura());
+  protected readonly puedeApostar = computed(() => this.mercado().estado === 'abierto' && !this.soloLectura() && this.mercado().opciones.length > 0);
   protected readonly tipo = computed(() => {
     const m = this.mercado();
     return m.tipo === 'categoria' ? 'Categoría de peso' : m.tipo === 'gl' ? 'Mejor IPF GL' : 'Movimiento';
@@ -364,20 +364,19 @@ export class MarketCard {
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-label-s">{{ e.nombre }}</span>
                 <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
+                @if (opciones().length > 1 && !exito()) { <button type="button" class="text-body-xs text-info underline-offset-4 hover:underline" (click)="elegir.emit('')">Cambiar de atleta</button> }
               </span>
               <span class="shrink-0 font-mono text-[20px] font-bold tabular-nums" [class]="cuotaSel() > 0 ? 'text-accent-text' : 'text-text-muted'">{{ cuotaTxt() }}</span>
             </p>
+          } @else {
+            <gr-select class="w-full" tipo="campo" tam="l" aria-label="Elige el atleta" [ngModel]="atletaId()" (ngModelChange)="elegir.emit($event)">
+              <option value="">Elige el atleta</option>
+              @for (o of opciones(); track o.atletaId) { <option [value]="o.atletaId">{{ o.nombre }}</option> }
+            </gr-select>
           }
-          <gr-select class="w-full" tipo="campo" tam="l" aria-label="Cambiar de atleta" [ngModel]="atletaId()" (ngModelChange)="elegir.emit($event)">
-            <option value="">{{ elegido() ? 'Cambiar de atleta' : 'Elige el atleta' }}</option>
-            @for (o of opciones(); track o.atletaId) { <option [value]="o.atletaId">{{ o.nombre }}</option> }
-          </gr-select>
           <hr class="border-0 border-t border-dashed border-line-strong" />
           <div class="flex flex-col gap-2">
-            <span class="flex items-center justify-between gap-3">
-              <label class="text-mono-xs text-text-tertiary" for="importe-apuesta">Importe</label>
-              <span class="text-body-xs text-text-tertiary">Saldo <b class="font-mono text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></span>
-            </span>
+            <label class="text-mono-xs text-text-tertiary" for="importe-apuesta">Importe</label>
             <span class="relative block">
               <input id="importe-apuesta" class="h-14 w-full rounded-md border bg-bg-field pr-24 pl-4 font-mono text-[26px] font-bold tabular-nums outline-none focus-visible:border-accent-text" type="text" inputmode="numeric" autocomplete="off" [value]="texto()" (input)="cambiar($event)"
                 [class]="insuficiente() ? 'border-accent-text text-accent-text' : 'border-line-strong text-text-primary'" [attr.aria-invalid]="insuficiente() || null" aria-describedby="importe-apuesta-ayuda" />
@@ -391,12 +390,12 @@ export class MarketCard {
               }
             </span>
           </div>
-          <p class="flex items-center justify-between gap-3 rounded-md border px-3.5 py-3" [class]="insuficiente() ? 'border-warning/35 bg-warning/8' : 'border-success/35 bg-success/8'" aria-live="polite">
+          <p class="flex items-center justify-between gap-3 rounded-md px-3.5 py-3" [class]="insuficiente() ? 'border border-warning/35 bg-warning/8' : 'bg-success text-black'" aria-live="polite">
             <span class="min-w-0">
-              <span class="block text-label-s">Si acierta cobras</span>
-              <span class="block font-mono text-[11px] text-text-tertiary">{{ detalleCobro() }}</span>
+              <span class="block text-label-s">{{ hecho() ? 'Si acierta cobrarías' : 'Si acierta cobras' }} (estimado)</span>
+              <span class="block font-mono text-[11px]" [class]="insuficiente() ? 'text-text-tertiary' : 'text-black/70'">{{ detalleCobro() }}</span>
             </span>
-            <span class="shrink-0 font-mono text-[22px] font-bold tabular-nums" [class]="insuficiente() ? 'text-warning' : 'text-success'">{{ cobro() }}</span>
+            <span class="shrink-0 font-mono text-[22px] font-bold tabular-nums" [class]="insuficiente() ? 'text-warning' : 'text-black'">{{ cobro() }}</span>
           </p>
           @if (error()) {
             <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
@@ -407,6 +406,7 @@ export class MarketCard {
               <gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0" />Saldo insuficiente: te faltan {{ monedas(importe() - saldo()) }} monedas. Baja el importe o gana monedas escribiendo en el chat.
             </p>
           }
+          <gr-aviso-juegos />
           @if (exito()) {
             <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
               <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() }}</span>
@@ -417,7 +417,7 @@ export class MarketCard {
               {{ insuficiente() ? 'Saldo insuficiente' : !elegido() ? 'Elige un atleta' : 'Confirmar apuesta de ' + monedas(importe()) }}
             </button>
           }
-          <gr-aviso-juegos />
+          <p class="flex items-center justify-between gap-3 text-body-xs text-text-secondary">Saldo disponible <b class="font-mono text-[14px] text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></p>
         </div>
       </div>
     </div>
@@ -433,6 +433,8 @@ export class BoletoApuesta {
   readonly cargando = input(false);
   readonly error = input<string | null>(null);
   readonly exito = input<string | null>(null);
+  /** Importe ya apostado (tras confirmar): ya está en el bote, la estimación no lo vuelve a sumar. */
+  readonly hecho = input(0);
 
   readonly cerrar = output<void>();
   readonly confirmar = output<{ atletaId: string; importe: number }>();
@@ -446,11 +448,20 @@ export class BoletoApuesta {
   readonly maximoApuesta = input(50000);
 
   protected readonly elegido = computed(() => this.opciones().find((o) => o.atletaId === this.atletaId()) ?? null);
+  /** La cuota en vivo (bote / apostado al atleta). */
   protected readonly cuotaSel = computed(() => {
     const o = this.elegido();
     if (!o) return 0;
     if (o.cuota && o.cuota > 0) return o.cuota;
     return o.apostado > 0 ? this.mercado().bote / o.apostado : 0;
+  });
+  /** Parimutuel: la cuota estimada contando tu propio importe en el bote y en lo apostado al atleta. */
+  protected readonly cuotaEst = computed(() => {
+    const o = this.elegido();
+    if (!o) return 0;
+    const extra = this.hecho() ? 0 : this.importe();
+    const a = o.apostado + extra;
+    return a > 0 ? (this.mercado().bote + extra) / a : 0;
   });
   protected readonly cuotaTxt = computed(() => (this.cuotaSel() > 0 ? cuota(this.cuotaSel()) : '—'));
   protected readonly ini = computed(() => iniciales(this.elegido()?.nombre));
@@ -461,10 +472,13 @@ export class BoletoApuesta {
   protected readonly maximo = computed(() => Math.min(this.maximoApuesta(), this.saldo()));
   protected readonly atajos = computed(() => [1000, 5000, 10000, 'max' as const]);
   protected readonly insuficiente = computed(() => this.importe() > this.saldo());
-  protected readonly cobro = computed(() => (this.cuotaSel() > 0 ? '~' + monedas(Math.floor(this.importe() * this.cuotaSel())) : '—'));
+  protected readonly cobro = computed(() => {
+    const imp = this.hecho() || this.importe();
+    return this.cuotaEst() > 0 && imp > 0 ? '~' + monedas(Math.floor(imp * this.cuotaEst())) : '—';
+  });
   protected readonly detalleCobro = computed(() => {
-    const c = this.cuotaSel();
-    return c > 0 ? `cuota ${cuota(c)} · bote ${monedas(this.mercado().bote)}` : 'cuota en vivo: sin apuestas aún';
+    const c = this.cuotaEst();
+    return c > 0 ? `cuota estimada ${cuota(c)} · el reparto final depende del bote` : 'cuota estimada: sin apuestas aún';
   });
   protected readonly puedeApostar = computed(() => !!this.elegido() && !this.insuficiente() && this.importe() >= this.minimo() && this.importe() <= this.maximoApuesta());
 
