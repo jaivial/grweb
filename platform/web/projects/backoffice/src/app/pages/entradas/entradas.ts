@@ -298,7 +298,7 @@ export class EntradasPage {
   protected readonly resumen = signal<Resumen | null>(null);
   protected readonly lista = signal<Lista | null | undefined>(undefined);
   protected readonly espera = signal<Espera | null>(null);
-  protected readonly f = signal<{ sesion?: string; estado?: string; origen?: string; q?: string; pagina?: number }>({ pagina: 1, sesion: this.route.snapshot.queryParamMap.get('sesion') ?? undefined });
+  protected readonly f = signal<{ sesion?: string; estado?: string; origen?: string; q?: string; pagina?: number }>({ pagina: 1, sesion: this.route.snapshot.queryParamMap.get('sesion') ?? undefined, q: this.route.snapshot.queryParamMap.get('q') ?? undefined });
   protected readonly sel = signal(new Set<string>());
   protected readonly det = signal<Detalle | null>(null);
   protected readonly detOpen = signal(false);
