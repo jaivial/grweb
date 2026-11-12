@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer as DomSanitizerRef } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSegmented, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
@@ -14,7 +14,7 @@ import { Realtime } from '../core/realtime';
 import { BoPageHeader, BoToggle, Media, errText } from '../shared/ui';
 
 interface Sede { nombre: string; direccion: string; cp: string; ciudad: string; provincia: string; lat?: number | null; lng?: number | null; mapsUrl: string }
-interface Evento { descripcion: string; nivel: string; organizador: string; emailContacto: string; telefono: string; puertas: string; aforoPabellon: number; instagram: string; web: string }
+interface Evento { descripcion: string; nivel: string; organizador: string; emailContacto: string; telefono: string; puertas: string; fin?: string; fechaPorConfirmar?: boolean; aforoPabellon: number; instagram: string; web: string }
 interface Modulo { activo: boolean; bloqueado: boolean; motivo?: string }
 interface Inscripcion { modo: 'externa' | 'cerrada'; url: string; estado: 'proximamente' | 'abierta' | 'completa' | 'cerrada'; plazas?: number; responsable: { nombre: string; email: string }; nota: string }
 interface ComoLlegar { tipo: string; titulo: string; detalle: string; nota?: string; estado: 'confirmado' | 'por_confirmar' }
@@ -24,7 +24,7 @@ interface Comp {
 }
 interface ModItem extends Modulo { clave: string; nombre: string; descripcion: string }
 interface EstadoInfo { estado: string; programados: { id: string; estado: string; en: string }[] }
-type Tab = 'datos' | 'estado' | 'modulos' | 'llegar';
+type Tab = 'datos' | 'estado' | 'modulos' | 'inscripcion' | 'llegar';
 interface Editor { id: string; nombre: string; desde: string }
 
 const ESTADOS = [
@@ -33,11 +33,12 @@ const ESTADOS = [
   { v: 'finalizado', l: 'Finalizado', d: 'Resultados, galería y «Nos vemos en…»' },
 ];
 const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion', 'accesibilidad', 'otro'];
+const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Regional Valencia', 'Open / no federado'];
 
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
   selector: 'bo-evento',
-  imports: [A11yModule, GrSelect, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [A11yModule, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -77,7 +78,8 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
                   <div class="mt-4 grid gap-3 sm:grid-cols-2">
                     <gr-field label="Nombre público"><input grInput [(ngModel)]="d.nombre" (ngModelChange)="tocar()" maxlength="120" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Slug (URL)" hint="No se puede cambiar: rompería enlaces y QR"><input grInput [value]="c.slug" disabled /></gr-field>
-                    <gr-field label="Nivel"><input grInput [(ngModel)]="d.evento.nivel" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Nivel"><gr-select [(ngModel)]="d.evento.nivel" (ngModelChange)="tocar()" [disabled]="!puede()">
+                      @for (n of niveles(); track n) { <option [value]="n">{{ n }}</option> }</gr-select></gr-field>
                     <gr-field label="Edición"><input grInput type="number" min="1" [(ngModel)]="d.edicion" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Nombre corto" hint="Pestañas y emails"><input grInput [(ngModel)]="d.nombreCorto" (ngModelChange)="tocar()" maxlength="40" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Logo (URL)"><div class="flex gap-2"><input grInput class="flex-1" [(ngModel)]="d.logoUrl" (ngModelChange)="tocar()" [disabled]="!puede()" />
@@ -86,11 +88,15 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
                   </div></section>
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><h2 class="text-ui-h5">Fecha y horario</h2><p class="text-body-xs text-text-tertiary">Se usa en la cuenta atrás, el calendario .ics y los recordatorios</p>
                   <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <gr-field label="Día 1"><input grInput type="date" [(ngModel)]="d.fechaInicio" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Día 2" [error]="err('fechaFin')"><input grInput type="date" [(ngModel)]="d.fechaFin" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Apertura de puertas"><input grInput type="time" [(ngModel)]="d.evento.puertas" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Zona horaria"><input grInput [(ngModel)]="d.zonaHoraria" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                  </div></section>
+                    <gr-field label="Día 1"><label class="relative block"><input grInput readonly tabindex="-1" class="pointer-events-none" [value]="dia(d.fechaInicio)" placeholder="Elige fecha" [disabled]="!puede()" />
+                      <input type="date" class="absolute inset-0 cursor-pointer opacity-0" aria-label="Día 1" [(ngModel)]="d.fechaInicio" (ngModelChange)="tocar()" (click)="picker($event)" [disabled]="!puede()" /></label></gr-field>
+                    <gr-field label="Día 2" [error]="err('fechaFin')"><label class="relative block"><input grInput readonly tabindex="-1" class="pointer-events-none" [value]="dia(d.fechaFin)" placeholder="Elige fecha" [disabled]="!puede()" />
+                      <input type="date" class="absolute inset-0 cursor-pointer opacity-0" aria-label="Día 2" [(ngModel)]="d.fechaFin" (ngModelChange)="tocar()" (click)="picker($event)" [disabled]="!puede()" /></label></gr-field>
+                    <gr-field label="Apertura de puertas" [error]="err('puertas')"><input grInput inputmode="numeric" maxlength="5" placeholder="08:30" [(ngModel)]="d.evento.puertas" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Fin previsto" [error]="err('fin')"><input grInput inputmode="numeric" maxlength="5" placeholder="20:30" [(ngModel)]="d.evento.fin" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                  </div>
+                  <div class="mt-4 flex items-center gap-3"><div class="min-w-0 flex-1"><p class="text-label-s">Fecha por confirmar</p><p class="text-body-xs text-text-tertiary">La web mostrará «Fecha por confirmar» y ocultará la cuenta atrás</p></div>
+                    <bo-toggle [value]="!!d.evento.fechaPorConfirmar" label="Fecha por confirmar" [disabled]="!puede()" (changed)="d.evento.fechaPorConfirmar = $event; tocar()" /></div></section>
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><h2 class="text-ui-h5">Sede</h2><p class="text-body-xs text-text-tertiary">Dirección y aforo del pabellón (también en /como-llegar)</p>
                   <div class="mt-4 grid gap-3 sm:grid-cols-2">
                     <gr-field label="Pabellón" class="sm:col-span-2"><input grInput [(ngModel)]="d.sede.nombre" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
@@ -98,7 +104,8 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
                     <gr-field label="Código postal"><input grInput [(ngModel)]="d.sede.cp" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Ciudad"><input grInput [(ngModel)]="d.sede.ciudad" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Aforo del pabellón" [error]="err('aforo')"><input grInput type="number" min="0" [(ngModel)]="d.evento.aforoPabellon" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Coordenadas (lat, lng)"><input grInput [ngModel]="coords()" (ngModelChange)="setCoords($event)" placeholder="39.3253, -0.4127" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Coordenadas"><input grInput [ngModel]="coords()" (ngModelChange)="setCoords($event)" placeholder="39.3253, -0.4127" [disabled]="!puede()" /></gr-field>
+                    <p class="text-body-xs text-text-tertiary sm:col-span-2">Las sesiones no pueden superar este número a la vez</p>
                   </div></section>
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><h2 class="text-ui-h5">Contacto</h2>
                   <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -110,14 +117,15 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
                   </div></section>
               </div>
               <aside class="flex h-fit flex-col gap-4 lg:sticky lg:top-20">
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-label-s">Vista previa</p><p class="text-body-xs text-text-tertiary">Home pública con los datos sin guardar</p>
-                  <div class="mt-3 overflow-hidden rounded-md border border-line-strong bg-[radial-gradient(60%_80%_at_50%_20%,#4a121c,#141012)] p-5 text-center">
+                <section class="rounded-lg border border-line-subtle bg-bg-card p-4"><div class="flex items-start gap-3"><div class="min-w-0 flex-1"><p class="text-label-s">Vista previa</p><p class="text-body-xs text-text-tertiary">Home pública con los datos sin guardar</p></div>
+                  <gr-segmented label="Dispositivo" [options]="dispositivos" [(value)]="vista" /></div>
+                  <div class="mx-auto mt-3 overflow-hidden rounded-md border border-line-strong bg-[radial-gradient(60%_80%_at_50%_20%,#4a121c,#141012)] p-5 text-center" [class.max-w-[220px]]="vista() === 'movil'">
                     <p class="text-mono-xs text-text-tertiary uppercase">{{ d.evento.nivel }}</p>
                     <p class="mt-2 font-display text-[28px] leading-none uppercase italic">{{ d.nombre }}</p>
                     <p class="mt-2 text-body-xs text-text-secondary">{{ rango() }} · {{ d.sede.ciudad }}</p>
                     <span class="mt-3 inline-block rounded-md bg-accent px-3 py-1.5 text-label-s text-white">Reserva tu entrada gratis</span>
                   </div>
-                  <dl class="mt-3 flex flex-col gap-1.5 text-body-xs"><div class="flex justify-between"><dt class="text-text-tertiary">Sede</dt><dd>{{ d.sede.nombre || '—' }}</dd></div><div class="flex justify-between"><dt class="text-text-tertiary">Puertas</dt><dd>{{ d.evento.puertas || '—' }}</dd></div></dl>
+                  <dl class="mt-3 flex flex-col gap-1.5 text-body-xs"><div class="flex justify-between"><dt class="text-text-tertiary">Fecha</dt><dd>{{ rango() }}</dd></div><div class="flex justify-between"><dt class="text-text-tertiary">Sede</dt><dd>{{ d.sede.nombre || '—' }}</dd></div><div class="flex justify-between"><dt class="text-text-tertiary">Puertas</dt><dd>{{ d.evento.puertas || '—' }}</dd></div></dl>
                 </section>
                 <gr-alert tone="info" title="Decisiones de diseño">Los cambios no son públicos hasta guardar; se guardan con control de versión (otra persona no los pisa). El slug es de solo lectura.</gr-alert>
               </aside>
@@ -150,7 +158,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
           }
           @case ('modulos') {
             <section class="grid gap-3 md:grid-cols-2">
-              @for (m of mods(); track m.clave) {
+              @for (m of mods(); track m) {
                 <div class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4" [class.opacity-60]="m.bloqueado">
                   <div class="min-w-0 flex-1"><p class="text-label-s">{{ m.nombre }}</p><p class="text-body-xs text-text-tertiary">{{ m.bloqueado ? (m.motivo || 'Bloqueado') : m.descripcion }}</p></div>
                   @if (m.bloqueado) { <gr-badge tone="warning">Bloqueado</gr-badge> }
@@ -185,18 +193,18 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
       }
     </div>
     @if (apagar(); as m) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="apagar.set(null)" (keydown.escape)="apagar.set(null)">
+      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="cancelarApagar()" (keydown.escape)="cancelarApagar()">
         <div class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Desactivar ' + m.nombre"
           cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
           <div class="flex items-start justify-between gap-3">
             <h2 class="text-ui-h5">Desactivar {{ m.nombre }}</h2>
-            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="apagar.set(null)"><gr-icon name="x" [size]="18" /></button>
+            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="cancelarApagar()"><gr-icon name="x" [size]="18" /></button>
           </div>
           <p class="mt-3 text-body-s text-text-secondary">La sección desaparecerá de la web pública. Desactivar no borra datos: lo ya registrado sigue siendo válido. No se avisará a nadie.</p>
           <gr-field label="Escribe DESACTIVAR para confirmar" hint="Queda en el registro de auditoría" class="mt-4"><input grInput [(ngModel)]="confirmar" autocomplete="off" /></gr-field>
           <div class="mt-6 flex justify-end gap-2">
-            <button grButton variant="ghost" (click)="apagar.set(null)">Cancelar</button>
-            <button grButton variant="danger" [disabled]="confirmar.trim().toUpperCase() !== 'DESACTIVAR'" (click)="confirmarApagar(m)">Desactivar {{ m.nombre.toLowerCase() }}</button>
+            <button grButton variant="ghost" (click)="cancelarApagar()">Cancelar</button>
+            <button grButton variant="danger" [disabled]="confirmar.trim() !== 'DESACTIVAR'" (click)="confirmarApagar(m)">Desactivar {{ m.nombre.toLowerCase() }}</button>
           </div>
         </div>
       </div>
@@ -218,7 +226,9 @@ export class EventoPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly san = inject(DomSanitizerRef);
-  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'datos', l: 'Datos' }, { v: 'estado', l: 'Estado del evento' }, { v: 'modulos', l: 'Módulos' }, { v: 'llegar', l: 'Cómo llegar' }];
+  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'datos', l: 'Datos' }, { v: 'estado', l: 'Estado del evento' }, { v: 'modulos', l: 'Módulos' }, { v: 'inscripcion', l: 'Inscripción AEP' }, { v: 'llegar', l: 'Cómo llegar' }];
+  protected readonly dispositivos = [{ value: 'escritorio', label: 'Escritorio' }, { value: 'movil', label: 'Móvil' }];
+  protected readonly vista = signal('escritorio');
   protected readonly estados = ESTADOS;
   protected readonly transportes = TRANSPORTES;
   protected readonly web = webPublica() + '/';
@@ -291,10 +301,19 @@ export class EventoPage {
     this.errores.set([]);
   }
   protected ir(t: Tab): void {
+    // the AEP registration is edited in Atletas › Inscripción (one screen for the mode and the AEP data)
+    if (t === 'inscripcion') { void this.router.navigate(['../atletas/inscripcion'], { relativeTo: this.route }); return; }
     this.tab.set(t);
     void this.router.navigate([], { queryParams: { tab: t }, replaceUrl: true });
   }
   protected tocar(): void { this.cambios.set(true); }
+  /** Level options (Figma: select); keeps a legacy free-text value selectable. */
+  protected niveles(): string[] { return this.d.evento.nivel && !NIVELES.includes(this.d.evento.nivel) ? [this.d.evento.nivel, ...NIVELES] : NIVELES; }
+  /** «sáb 25 jul 2026» */
+  protected dia(s?: string): string {
+    return s ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(s + 'T12:00:00Z')).replaceAll(',', '').replaceAll('.', '') : '';
+  }
+  protected picker(ev: Event): void { try { (ev.target as HTMLInputElement).showPicker(); } catch { /* unsupported: native focus */ } }
   protected descartar(): void { const c = this.comp(); if (c) this.aplicar(c); }
   protected coords(): string { return this.d.sede.lat != null && this.d.sede.lng != null ? `${this.d.sede.lat}, ${this.d.sede.lng}` : ''; }
   protected setCoords(v: string): void {
@@ -307,11 +326,12 @@ export class EventoPage {
   }
   protected rango(): string {
     const f = (s?: string) => (s ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(s + 'T12:00:00Z')) : '');
-    return this.d.fechaInicio ? f(this.d.fechaInicio) + (this.d.fechaFin && this.d.fechaFin !== this.d.fechaInicio ? '–' + f(this.d.fechaFin) : '') : 'Fecha por confirmar';
+    return this.d.fechaInicio && !this.d.evento.fechaPorConfirmar ? f(this.d.fechaInicio) + (this.d.fechaFin && this.d.fechaFin !== this.d.fechaInicio ? '–' + f(this.d.fechaFin) : '') : 'Fecha por confirmar';
   }
   protected err(campo: string): string {
     if (campo === 'fechaFin' && this.d.fechaFin && this.d.fechaInicio && this.d.fechaFin < this.d.fechaInicio) return 'Debe ser posterior al día 1';
     if (campo === 'aforo' && this.d.evento.aforoPabellon < 0) return 'No puede ser negativo';
+    if ((campo === 'puertas' || campo === 'fin') && this.d.evento[campo] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(this.d.evento[campo]!)) return 'Formato HH:MM (24 h)';
     if (campo === 'url' && this.d.inscripcion.url && !/^https:\/\//.test(this.d.inscripcion.url)) return 'Debe empezar por https://';
     return '';
   }
@@ -338,7 +358,7 @@ export class EventoPage {
   }
 
   protected async guardar(): Promise<void> {
-    const errs = ['fechaFin', 'aforo', 'url'].map((x) => this.err(x)).filter(Boolean);
+    const errs = ['fechaFin', 'aforo', 'url', 'puertas', 'fin'].map((x) => this.err(x)).filter(Boolean);
     this.errores.set(errs);
     if (errs.length) return;
     const c = this.comp()!;
@@ -382,10 +402,15 @@ export class EventoPage {
       // turning a module off hides a public section: confirm first (Figma 96:12197)
       this.confirmar = '';
       this.apagar.set(m);
-      this.mods.set([...this.mods()]);
+      this.mods.set(this.mods().map((x) => ({ ...x }))); // keep the switch on until the user confirms
       return;
     }
     await this.ponerModulo(m, activo);
+  }
+  /** Closing the dialog without confirming: recreate the toggles so the switch shows the real (still active) state. */
+  protected cancelarApagar(): void {
+    this.apagar.set(null);
+    this.mods.set(this.mods().map((x) => ({ ...x })));
   }
   protected async confirmarApagar(m: ModItem): Promise<void> {
     this.apagar.set(null);
@@ -398,7 +423,7 @@ export class EventoPage {
       this.toasts.success(`${m.nombre}: ${activo ? 'activo' : 'desactivado'}`);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo cambiar el módulo.'));
-      this.mods.set([...this.mods()]);
+      this.mods.set(this.mods().map((x) => ({ ...x })));
     }
   }
 }

@@ -71,6 +71,8 @@ type Evento struct {
 	EmailContacto string `json:"emailContacto" format:"email"`
 	Telefono      string `json:"telefono"`
 	Puertas       string `json:"puertas" doc:"Apertura de puertas (HH:MM)"`
+	Fin           string `json:"fin,omitempty" doc:"Fin previsto (HH:MM)"`
+	PorConfirmar  bool   `json:"fechaPorConfirmar,omitempty" doc:"La web muestra «Fecha por confirmar» y oculta la cuenta atrás"`
 	AforoPabellon int    `json:"aforoPabellon" minimum:"0"`
 	Instagram     string `json:"instagram"`
 	Web           string `json:"web"`
