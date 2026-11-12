@@ -13,7 +13,14 @@ const LOGO_GR = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026
 const NIVEL: Record<string, string> = { principal: 'Principal', oro: 'Oro', plata: 'Plata', colaborador: 'Colaborador', institucional: 'Federación' };
 const ORDEN = ['principal', 'oro', 'plata', 'colaborador'];
 
-interface Tarjeta { nombre: string; insignia: string; logo: string; url: string; texto: string }
+interface Tarjeta { nombre: string; insignia: string; logo: string; url: string; texto: string; nivel?: string }
+/** «Marcas y clubs» card by tier: principal full row with the organiser's accent card, oro half row, rest as Figma 31. */
+const TIER: Record<string, { li: string; a: string; logo: string }> = {
+  principal: { li: 'col-span-2 md:col-span-6', a: 'border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)]', logo: 'h-[120px]' },
+  oro: { li: 'col-span-2 md:col-span-3', a: 'border-accent/30', logo: 'h-24' },
+};
+const BASE = { li: 'md:col-span-2', a: 'border-line-subtle', logo: 'h-24' };
+const mismo = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, '') === b.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /**
  * /patrocinadores (Figma page 31): «Federación y organización» (the institutions and the organiser), «Marcas y clubs»
@@ -48,11 +55,11 @@ interface Tarjeta { nombre: string; insignia: string; logo: string; url: string;
           @if (marcas().length) {
             <section class="flex flex-col gap-5 md:gap-7">
               <gr-cabecera eyebrow="Colaboradores" titulo="Marcas *y clubs*" [centro]="false" tam="m" />
-              <ul class="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-4">
+              <ul class="grid grid-cols-2 gap-2 md:grid-cols-6 md:gap-4">
                 @for (t of marcas(); track t.nombre) {
-                  <li>
-                    <a [attr.href]="t.url || null" target="_blank" rel="noopener sponsored" class="flex h-full flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6 transition-colors" [class.hover:border-line-strong]="!!t.url">
-                      <span class="flex h-24 items-center justify-center rounded-md bg-white/4 p-3 md:p-4"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
+                  <li [class]="tier(t.nivel).li">
+                    <a [attr.href]="t.url || null" target="_blank" rel="noopener sponsored" [class]="'flex h-full flex-col gap-3 rounded-lg border bg-bg-card p-6 transition-colors ' + tier(t.nivel).a" [class.hover:border-line-strong]="!!t.url">
+                      <span [class]="'flex items-center justify-center rounded-md bg-white/4 p-3 md:p-4 ' + tier(t.nivel).logo"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
                       <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <span class="text-label-m">{{ t.nombre }}</span>
                         <span class="hidden h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-tertiary uppercase md:inline-flex">{{ t.insignia }}</span>
@@ -114,12 +121,15 @@ export class PatrocinadoresPage {
   /** The institutions (AEP) and the organiser, built from the event. */
   protected readonly federacion = computed<Tarjeta[]>(() => {
     const inst = (this.items() ?? []).filter((p) => p.nivel === 'institucional').map((p) => this.tarjeta(p));
-    const org = this.comp.data()?.evento.organizador || 'GR Strength';
+    const org = this.organizador();
     return [...inst, { nombre: org, insignia: 'Organizador', logo: LOGO_GR, url: '', texto: `Club organizador de la ${this.comp.data()?.nombre ?? 'GR Strength Cup'}.` }];
   });
   protected readonly marcas = computed<Tarjeta[]>(() =>
-    (this.items() ?? []).filter((p) => p.nivel !== 'institucional').sort((a, b) => ORDEN.indexOf(a.nivel) - ORDEN.indexOf(b.nivel)).map((p) => this.tarjeta(p)),
+    (this.items() ?? []).filter((p) => p.nivel !== 'institucional' && !mismo(p.nombre, this.organizador()))
+      .sort((a, b) => ORDEN.indexOf(a.nivel) - ORDEN.indexOf(b.nivel)).map((p) => this.tarjeta(p)),
   );
+  private readonly organizador = computed(() => this.comp.data()?.evento.organizador || 'GR Strength');
+  protected tier(n?: string) { return TIER[n ?? ''] ?? BASE; }
 
   constructor() {
     const cms = inject(Cms);
@@ -132,6 +142,6 @@ export class PatrocinadoresPage {
   }
 
   private tarjeta(p: Patrocinador): Tarjeta {
-    return { nombre: p.nombre, insignia: NIVEL[p.nivel] ?? p.nivel, logo: p.logoUrl, url: p.url, texto: p.descripcion ?? '' };
+    return { nombre: p.nombre, insignia: NIVEL[p.nivel] ?? p.nivel, logo: p.logoUrl, url: p.url, texto: p.descripcion ?? '', nivel: p.nivel };
   }
 }
