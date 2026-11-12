@@ -378,6 +378,7 @@ const MENSAJES: Record<string, string> = {
   MAX_CLAUSULAZOS: 'Ya has usado todos los clausulazos de la jornada.',
   PLANTILLA_LLENA: 'Tu alineación está completa: vende a alguien antes.',
   YA_CON_DUENO: 'Otro usuario ya tiene a ese atleta. Puedes pagar su cláusula.',
+  YA_ES_TUYO: 'Ese atleta ya está en tu alineación.',
   ATLETA_LIBRE: 'Ese atleta está libre: cómpralo, no hace falta clausulazo.',
   ATLETA_AJENO: 'Ese atleta no es tuyo.',
   ATLETA_PROPIO: 'El atleta ya es tuyo.',

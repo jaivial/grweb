@@ -152,6 +152,9 @@ func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 		return err
 	}
 	if a.Dueno != nil {
+		if *a.Dueno == fanID {
+			return problem.Conflict("YA_ES_TUYO", "Ese atleta ya está en tu alineación.")
+		}
 		return problem.Conflict("YA_CON_DUENO", "Otro jugador de la sala ya tiene a ese atleta. Puedes pagar su cláusula.")
 	}
 	if a.Protegido != nil && a.Protegido.After(time.Now()) {
