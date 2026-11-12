@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -127,6 +127,8 @@ interface Fila { hora: string; titulo: string }
 const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 /** «2 €», «2,50 €» (cents in). */
 const euros = (c: number) => eur.format(c / 100).replace(',00', '');
+/** Booking draft kept across the magic-link login. */
+const BORRADOR = 'gr.entradas.borrador';
 const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text-text-primary placeholder:text-text-muted focus:border-accent-text focus:outline-none';
 
 /**
@@ -480,8 +482,12 @@ export class EntradasPage {
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       const destroy = inject(DestroyRef);
+      const cd = inject(ChangeDetectorRef);
       afterNextRender(() => {
         this.hidratado.set(true);
+        const b = sessionStorage.getItem(BORRADOR);
+        if (b) { sessionStorage.removeItem(BORRADOR); try { Object.assign(this.f, JSON.parse(b)); } catch { /* ignore a broken draft */ } }
+        void this.fan.cargar().then((y) => { if (y?.email && !this.f.email) this.f.email = y.email; cd.markForCheck(); });
         const el = this.reservarEl()?.nativeElement;
         const io = new IntersectionObserver(([e]) => this.formVisible.set(e.isIntersecting), { rootMargin: '0px 0px -30% 0px' });
         if (el) io.observe(el);
@@ -530,7 +536,11 @@ export class EntradasPage {
   protected async reservar(): Promise<void> {
     if (!this.validar()) return;
     // D-MIEMBROS: booking needs a fan session; the access modal brings the person back here.
-    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('entradas', '/entradas');
+    if (!(await this.fan.cargar())) {
+      // keep what was typed: the email link reloads the page
+      sessionStorage.setItem(BORRADOR, JSON.stringify(this.f));
+      return this.fan.abrirAcceso('entradas', '/entradas', this.f.email.trim());
+    }
     this.enviando.set(true);
     const qp = this.route.snapshot.queryParamMap;
     const utm: Record<string, string> = {};
