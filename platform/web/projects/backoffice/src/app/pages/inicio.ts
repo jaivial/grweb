@@ -110,7 +110,8 @@ export class InicioPage {
     };
     const trend = (key: string) => d?.serie?.[key] ?? [];
     const euros = 'sorteo.recaudado' in k ? `${fmtNumber(n('sorteo.recaudado') / 100)} € recaudados` : 'vendidos';
-    const atletas = 'atletas.confirmados' in k && n('atletas.plazas') ? `${v('atletas.confirmados')} / ${fmtNumber(n('atletas.plazas'))}` : v('atletas.confirmados');
+    // «/150» only makes sense against all the athletes (Todo or event day), not the ones of a period.
+    const atletas = 'atletas.confirmados' in k && n('atletas.plazas') && (this.evento() || this.periodo() === 'todo') ? `${v('atletas.confirmados')} / ${fmtNumber(n('atletas.plazas'))}` : v('atletas.confirmados');
     if (this.evento()) {
       // Figma 96:9197 · día del evento
       return [
