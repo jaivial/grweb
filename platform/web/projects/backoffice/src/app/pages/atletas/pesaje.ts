@@ -16,8 +16,8 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
     @let a = atleta();
     <div class="mx-auto flex max-w-xl flex-col gap-5">
       <header class="flex items-center justify-between gap-3">
-        <h1 class="text-ui-h3">Pesaje{{ a?.flight ? ' · Flight ' + a?.flight : '' }}</h1>
-        <a routerLink=".." class="text-label-s text-text-tertiary hover:text-text-primary">Atletas</a>
+        <h1 class="flex items-center gap-2 text-ui-h3"><a routerLink=".." class="flex size-11 items-center justify-center text-text-tertiary hover:text-text-primary" aria-label="Volver a atletas"><gr-icon name="chevron-left" [size]="20" /></a>Pesaje{{ a?.flight ? ' · Flight ' + a?.flight : '' }}</h1>
+        <span class="text-success" role="img" aria-label="Conexión en vivo"><gr-icon name="radio" [size]="20" /></span>
       </header>
 
       <label class="relative block">
@@ -53,9 +53,9 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
             <span class="rounded-sm px-2.5 py-1 text-label-s" [class]="a.pesaje.estado === 'ok' ? 'bg-success/15 text-success' : a.pesaje.estado === 'fuera' ? 'bg-warning/15 text-warning' : 'bg-warning/10 text-warning'">{{ estadoTxt[a.pesaje.estado] | uppercase }}</span>
           </div>
           <label class="mt-6 block text-label-l" for="p-peso">Peso corporal (kg)</label>
-          <input id="p-peso" type="text" inputmode="decimal" autocomplete="off" [ngModel]="peso()" (ngModelChange)="peso.set($event)"
+          <input id="p-peso" type="text" inputmode="decimal" autocomplete="off" [ngModel]="peso()" (ngModelChange)="peso.set($event); pesoMal.set(false)" [attr.aria-invalid]="pesoMal() || null" aria-describedby="p-peso-check"
             class="mt-2 h-16 w-full rounded-lg border border-line-strong bg-bg-field px-4 text-[26px] focus:border-accent-text focus:outline-none" />
-          <p class="mt-2 flex items-center gap-1.5 text-body-l" [class]="check().cls" aria-live="polite">{{ check().texto }} @if (check().ok) { <gr-icon name="check" [size]="18" /> }</p>
+          <p id="p-peso-check" class="mt-2 flex items-center gap-1.5 text-body-l" [class]="check().cls" aria-live="polite">{{ check().texto }} @if (check().ok) { <gr-icon name="check" [size]="18" /> }</p>
           <div class="mt-5 grid grid-cols-2 gap-4">
             <div><label class="block text-label-l" for="p-rsq">Rack SQ</label><input id="p-rsq" type="text" inputmode="numeric" [(ngModel)]="rackSq" class="mt-2 h-16 w-full rounded-lg border border-line-strong bg-bg-field px-4 text-[22px] focus:border-accent-text focus:outline-none" /></div>
             <div><label class="block text-label-l" for="p-rbp">Rack BP</label><input id="p-rbp" type="text" placeholder="6 / 3" [(ngModel)]="rackBp" class="mt-2 h-16 w-full rounded-lg border border-line-strong bg-bg-field px-4 text-[22px] focus:border-accent-text focus:outline-none" /></div>
@@ -65,7 +65,7 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
           }
         </section>
         @if (error()) { <gr-alert tone="danger" title="No se pudo registrar">{{ error() }}</gr-alert> }
-        <button grButton variant="primary" size="l" [block]="true" class="h-16 text-[20px]" [loading]="guardando()" [disabled]="!pesoValido()" (click)="registrar()">Registrar pesaje</button>
+        <button grButton variant="primary" size="l" [block]="true" class="h-16 text-[20px]" [loading]="guardando()" [disabled]="guardando()" (click)="registrar()">Registrar pesaje</button>
         <button grButton variant="ghost" [block]="true" (click)="atleta.set(null)">Pesar a otro atleta</button>
       }
     </div>
@@ -93,8 +93,11 @@ export class PesajePage {
 
   private readonly pesoNum = computed(() => Number(this.peso().replace(',', '.')));
   protected readonly pesoValido = computed(() => this.pesoNum() >= 20 && this.pesoNum() <= 300);
+  /** U31-R1-5: typed something that is not a weight. */
+  protected readonly pesoMal = signal(false);
   protected readonly check = computed(() => {
     const a = this.atleta();
+    if (a && this.pesoMal()) return { texto: 'Peso no válido: escribe un número entre 20 y 300 kg', ok: false, cls: 'text-error' };
     if (!a || !this.pesoValido()) return { texto: a ? `Inscrito en ${cat(a.categoria)} kg` : '', ok: false, cls: 'text-text-tertiary' };
     const got = categoriaPorPeso(a.sexo, this.pesoNum(), a.division === 'subjunior' || a.division === 'junior');
     return got === a.categoria
@@ -134,6 +137,7 @@ export class PesajePage {
     this.error.set('');
     const a = await this.api.ficha(cid, id);
     this.atleta.set(a);
+    this.pesoMal.set(false);
     this.peso.set(a.pesaje.peso ? String(a.pesaje.peso).replace('.', ',') : '');
     this.rackSq = a.pesaje.rackSq ? String(a.pesaje.rackSq) : '';
     this.rackBp = a.pesaje.rackBp;
@@ -142,7 +146,12 @@ export class PesajePage {
   protected async registrar(): Promise<void> {
     const cid = this.comps.current()?.id;
     const a = this.atleta();
-    if (!cid || !a) return;
+    // U31-R1-4: a double click must not send two weigh-ins.
+    if (!cid || !a || this.guardando()) return;
+    if (!this.pesoValido()) {
+      this.pesoMal.set(true);
+      return;
+    }
     this.guardando.set(true);
     this.error.set('');
     try {
