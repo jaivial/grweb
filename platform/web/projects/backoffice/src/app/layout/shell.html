@@ -9,8 +9,8 @@
     </div>
 
     <!-- Competition switcher (Figma 49 «BO / Workspace switcher») -->
-    <bo-workspace-switcher class="px-3" (boOutside)="switcherRef.open.set(false)" #switcherRef [items]="workspaces()" [current]="workspace()" [loading]="!comps.loaded()"
-      [collapsed]="collapsed()" [root]="!!auth.user()?.root" (pick)="switchTo($event)" (nueva)="nuevaCompeticion()" />
+    <div class="px-3"><bo-workspace-switcher (boOutside)="switcherRef.open.set(false)" #switcherRef [items]="workspaces()" [current]="workspace()" [loading]="!comps.loaded()"
+      [collapsed]="collapsed()" [root]="!!auth.user()?.root" (pick)="switchTo($event)" (nueva)="nuevaCompeticion()" /></div>
 
     <nav class="mt-4 flex-1 overflow-y-auto px-3 pb-4">
       @for (g of nav(); track g.label) {
@@ -81,7 +81,7 @@
           }
         </div>
 
-        <a [routerLink]="['/', comp()?.slug, 'sistema']" class="hidden size-10 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-card lg:flex" aria-label="Ayuda" title="Ayuda"><gr-icon name="help" [size]="18" /></a>
+        <button type="button" class="hidden size-10 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-card lg:flex" aria-label="Ayuda y atajos (⌘K)" title="Ayuda y atajos (⌘K)" (click)="openPalette()"><gr-icon name="help" [size]="18" /></button>
         <div class="relative hidden lg:block" (boOutside)="userMenu.set(false)">
           <button type="button" class="rounded-full" (click)="userMenu.update(v => !v)" [attr.aria-expanded]="userMenu()" aria-label="Mi cuenta"><gr-avatar [name]="auth.user()?.nombre ?? ''" /></button>
           @if (userMenu()) {
