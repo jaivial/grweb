@@ -156,6 +156,7 @@ export class LoginPage {
       await this.router.navigateByUrl(this.siguiente() || '/');
     } catch (e) {
       const p = problemOf(e);
+      this.sent.set(false);
       this.errorCode.set(p.code);
       if (p.code === 'DEMASIADAS_PETICIONES') {
         const s = Number((e as HttpErrorResponse).headers?.get('Retry-After')) || 60;
