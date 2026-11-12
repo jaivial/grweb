@@ -198,7 +198,8 @@ func ordenarSala(fs []filaSala) {
 
 // vistaDe builds the lobby view of one room from its classification.
 func vistaDe(sl *salaRow, filas []filaSala, mia bool, sol *miSolicitud) salaVista {
-	v := salaVista{ID: sl.ID, Nombre: sl.Nombre, Plazas: sl.Plazas, Miembros: len(filas), Publica: sl.Publica, AdmiteSolicitudes: sl.Admite,
+	// a «solo enlace» room never takes requests from the lobby (solicitar answers 404)
+	v := salaVista{ID: sl.ID, Nombre: sl.Nombre, Plazas: sl.Plazas, Miembros: len(filas), Publica: sl.Publica, AdmiteSolicitudes: sl.Admite && sl.Publica,
 		Estado: estadoPublico(sl.Estado, len(filas), sl.Plazas), EsMia: mia}
 	if sol != nil {
 		v.MiSolicitud, v.MiSolicitudAt = sol.Estado, &sol.At
