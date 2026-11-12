@@ -113,6 +113,21 @@ type listaIn struct {
 	Origen string    `query:"origen" maxLength:"60"`
 	Q      string    `query:"q" maxLength:"100"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
+	Orden  string    `query:"orden" enum:",titular,codigo,sesion,personas,estado,fecha"`
+	Dir    string    `query:"dir" enum:",asc,desc"`
+}
+
+// ordenEntradas: whitelisted ORDER BY for the reservations list (default: newest first).
+func ordenEntradas(in listaIn) string {
+	col := map[string]string{"titular": "e.apellidos, e.nombre", "codigo": "e.codigo", "sesion": "s.inicio", "personas": "e.personas", "estado": "e.estado"}[in.Orden]
+	dir := " ASC"
+	if in.Dir == "desc" || (in.Dir == "" && col == "") {
+		dir = " DESC"
+	}
+	if col == "" {
+		return " ORDER BY e.created_at" + dir
+	}
+	return " ORDER BY " + strings.ReplaceAll(col, ",", dir+",") + dir + ", e.created_at DESC"
 }
 
 func filtro(in listaIn) (string, []any) {
@@ -333,7 +348,7 @@ func (s *Svc) registerAdmin() {
 			if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM entradas e WHERE `+where, args...).Scan(&o.Body.Total); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, selEntrada+` WHERE `+where+fmt.Sprintf(` ORDER BY e.created_at DESC LIMIT 25 OFFSET %d`, (in.Pagina-1)*25), args...)
+			rows, err := s.a.DB.Query(ctx, selEntrada+` WHERE `+where+ordenEntradas(*in)+fmt.Sprintf(` LIMIT 25 OFFSET %d`, (in.Pagina-1)*25), args...)
 			if err != nil {
 				return nil, err
 			}

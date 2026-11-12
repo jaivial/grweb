@@ -6,7 +6,8 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, G
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
+import { urlSort } from '../../shared/url-sort';
+import { BO_ROW, BoCapacityMeter, BoCheckbox, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
@@ -24,10 +25,12 @@ function descargar(blob: Blob, nombre: string): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fecha'] as const;
+
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -69,12 +72,7 @@ function descargar(blob: Blob, nombre: string): void {
                     <div class="min-w-0 flex-1"><h2 class="text-ui-h5">{{ x.nombre }}</h2><p class="text-body-xs text-text-tertiary">{{ diaHora(x.inicio) }}–{{ hora(x.fin) }} · puertas {{ hora(x.puertas) }}</p></div>
                     <gr-badge [tone]="x.publicada ? est[x.estado].tone : 'neutral'">{{ x.publicada ? est[x.estado].label : 'Borrador' }}</gr-badge>
                   </header>
-                  <div class="mt-3 rounded-md bg-bg-raised p-3">
-                    <p class="flex justify-between text-label-s"><span>Aforo</span><span class="font-mono">{{ n(x.ocupadas) }} / {{ n(x.aforo) }}</span></p>
-                    <div class="mt-2 h-2 overflow-hidden rounded-pill bg-bg-base"><div class="h-full rounded-pill" [class]="x.estado === 'agotada' || x.sobreventa ? 'bg-accent' : x.estado === 'ultimas' ? 'bg-warning' : 'bg-accent'" [style.width.%]="min(100, x.ocupadas * 100 / x.aforo)"></div></div>
-                    <p class="mt-1.5 text-body-xs" [class]="x.estado === 'ultimas' ? 'text-warning' : x.estado === 'agotada' ? 'text-accent-text' : 'text-text-tertiary'">
-                      {{ x.sobreventa ? 'Sobreventa de ' + x.sobreventa : x.estado === 'agotada' ? 'Agotada · ' + x.enEspera + ' en lista de espera' : x.estado === 'ultimas' ? '¡Últimas ' + x.libres + ' entradas!' : 'Quedan ' + n(x.libres) + ' entradas' }}</p>
-                  </div>
+                  <bo-capacity-meter class="mt-3" titulo="Aforo" [ocupadas]="x.ocupadas" [aforo]="x.aforo" [espera]="x.enEspera" [cerrada]="x.estado === 'cerrada'" />
                   <dl class="mt-3 flex flex-col gap-1.5 text-body-xs">
                     <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Reservas abiertas</dt><dd class="text-right">{{ x.aperturaAt ? fechaCorta(x.aperturaAt) : 'ya' }} → {{ x.cierreAt ? fechaCorta(x.cierreAt) : 'inicio' }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Máx. por reserva</dt><dd>{{ x.maxPorReserva }} personas</dd></div>
@@ -107,7 +105,7 @@ function descargar(blob: Blob, nombre: string): void {
           @else if (l) {
             <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
               <table class="w-full min-w-[860px] text-left text-body-s">
-                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th class="px-3 py-3">Titular</th><th class="px-3 py-3">Código</th><th class="px-3 py-3">Sesión</th><th class="px-3 py-3 text-center">Pers.</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Fecha</th></tr></thead>
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th boSort class="py-3" [sort]="srt.sortDe('titular')" (toggle)="ordenar('titular')">Titular</th><th boSort class="py-3" [sort]="srt.sortDe('codigo')" (toggle)="ordenar('codigo')">Código</th><th boSort class="py-3" [sort]="srt.sortDe('sesion')" (toggle)="ordenar('sesion')">Sesión</th><th boSort class="py-3" [sort]="srt.sortDe('personas')" (toggle)="ordenar('personas')">Pers.</th><th boSort class="py-3" [sort]="srt.sortDe('estado')" (toggle)="ordenar('estado')">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th boSort class="py-3" [sort]="srt.sortDe('fecha')" (toggle)="ordenar('fecha')">Fecha</th></tr></thead>
                 <tbody>
                   @for (e of l.items; track e.id) {
                     <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="e.estado === 'anulada' ? row.disabled : sel().has(e.id) ? row.selected : row.default" (click)="ver(e.id)">
@@ -295,6 +293,7 @@ export class EntradasPage {
   protected readonly row = BO_ROW;
   protected readonly filtrado = computed(() => { const f = this.f(); return !!(f.q || f.sesion || f.estado || f.origen); });
   protected readonly espera = signal<Espera | null>(null);
+  protected readonly srt = urlSort(ORDEN_RESERVAS, 'fecha', 'desc', (c) => (c === 'fecha' ? 'desc' : 'asc'));
   protected readonly f = signal<{ sesion?: string; estado?: string; origen?: string; q?: string; pagina?: number }>({ pagina: 1, sesion: this.route.snapshot.queryParamMap.get('sesion') ?? undefined, q: this.route.snapshot.queryParamMap.get('q') ?? undefined });
   protected readonly sel = signal(new Set<string>());
   protected readonly det = signal<Detalle | null>(null);
@@ -366,10 +365,14 @@ export class EntradasPage {
   }
   protected async cargarLista(): Promise<void> {
     try {
-      this.lista.set(await this.api.lista(this.cid(), this.f()));
+      this.lista.set(await this.api.lista(this.cid(), { ...this.f(), orden: this.srt.orden(), dir: this.srt.dir() }));
     } catch {
       this.lista.set(null);
     }
+  }
+  protected ordenar(c: (typeof ORDEN_RESERVAS)[number]): void {
+    this.srt.toggle(c);
+    this.filtrar({});
   }
   protected filtrar(p: Partial<{ sesion: string; estado: string; origen: string; q: string; pagina: number }>, reset = true): void {
     this.f.set({ ...this.f(), ...p, ...(reset ? { pagina: 1 } : {}) });

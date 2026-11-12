@@ -6,6 +6,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkelet
 import { problemOf } from '../../core/api';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
+import { BoJudgeLights } from '../../shared/kit';
 import { Realtime } from '../../core/realtime';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
 import { DirectoApi, MOV, MOV_CORTO, ORD, cat, ini, kg, veredicto, type EstadoIn, type FilaMesa, type IntentoMesa, type Mesa, type Mov } from './api';
@@ -23,7 +24,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
  *  On a phone it opens the speaker view («Móvil · locutor»). Decisions made without network are kept on the device and sent in order. */
 @Component({
   selector: 'bo-directo',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoJudgeLights, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let m = mesa();
@@ -171,9 +172,8 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
                       </div>
                     }
                   </div>
-                  <p class="mt-3 flex items-center gap-2 text-body-xs" aria-live="polite">
-                    @for (v of votos(); track $index) { <span class="size-5 rounded-pill border" [class]="v === 'B' ? 'border-white bg-white' : v === 'R' ? 'border-accent bg-accent' : 'border-line-strong'"></span> }
-                    <span [class]="completo() ? (valido() ? 'text-success' : 'text-accent-text') : 'text-text-tertiary'">{{ completo() ? ver(votos().join(''), valido() ? 'valido' : 'nulo') : 'Esperando jueces' }}</span>
+                  <p class="mt-3" aria-live="polite">
+                    <bo-judge-lights [votos]="luces()" />
                   </p>
                 </div>
                 <button grButton variant="primary" class="w-full" [disabled]="!completo() || !puedeOperar() || !a.intentoId" [loading]="guardando() === 'veredicto'" (click)="guardarVeredicto()">Guardar y siguiente</button>
@@ -295,6 +295,7 @@ export class DirectoPage {
 
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly puedeOperar = computed(() => this.auth.can(this.cid(), 'directo.operar'));
+  protected readonly luces = computed(() => this.votos().map((v) => (v === 'B' ? 'V' : v === 'R' ? 'N' : '-')).join(''));
   protected readonly completo = computed(() => this.votos().every((v) => v));
   protected readonly valido = computed(() => this.votos().filter((v) => v === 'B').length >= 2);
   protected readonly restante = computed(() => {
