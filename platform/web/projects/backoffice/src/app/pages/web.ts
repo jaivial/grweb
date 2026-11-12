@@ -112,7 +112,7 @@ export class WebSections {
         }
       </bo-page-header>
       <bo-tabs [tabs]="tabs()" />
-      <router-outlet />
+      <div><router-outlet /></div>
     </div>
   `,
 })
@@ -279,7 +279,7 @@ export class WebHomeTab {
     const b = s.borrador ?? {};
     const t = (k: string) => (typeof b[k] === 'string' ? (b[k] as string) : '');
     const cta = b['cta'] as { texto?: string } | undefined;
-    return { antetitulo: t('antetitulo') || t('nivel'), titulo: t('titulo'), subtitulo: t('subtitulo') || t('fecha'), cta: cta?.texto || t('ctaTexto') || t('cta') };
+    return { antetitulo: t('antetitulo') || t('nivel'), titulo: t('titulo'), subtitulo: t('subtitulo') || t('fecha'), cta: cta?.texto || t('ctaTexto') || t('cta') || 'Reserva tu entrada gratis' };
   });
   protected readonly resto = computed(() => (this.secs.items() ?? []).filter((x) => x.visible).slice(1, 4));
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'web.editar'));
