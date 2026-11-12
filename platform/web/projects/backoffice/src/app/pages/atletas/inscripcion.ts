@@ -183,9 +183,9 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
           @if (l?.length) {
             <div class="flex flex-wrap items-center gap-2 lg:flex-nowrap">
               <label class="relative w-full md:w-[280px] md:shrink-0"><span class="sr-only">Buscar código</span><gr-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" /><input grInput class="pl-9" placeholder="Buscar código…" [ngModel]="qCupon()" (ngModelChange)="qCupon.set($event)" /></label>
-              <gr-select class="block w-36 shrink-0" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
-              <gr-select class="block w-36 shrink-0" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
-              <gr-select class="block w-36 shrink-0" aria-label="Caducidad" [ngModel]="fCaduca()" (ngModelChange)="fCaduca.set($event)"><option value="">Caducidad</option><option value="con">Con fecha</option><option value="sin">Sin fecha</option><option value="caducado">Caducados</option></gr-select>
+              <gr-select tipo="filtro" class="shrink-0" aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option>@for (e of estadosCupon; track e) { <option [value]="e">{{ e | titlecase }}</option> }</gr-select>
+              <gr-select tipo="filtro" class="shrink-0" aria-label="Tipo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)"><option value="">Tipo</option><option value="porcentaje">Porcentaje</option><option value="importe">Importe fijo</option></gr-select>
+              <gr-select tipo="filtro" class="shrink-0" aria-label="Caducidad" [ngModel]="fCaduca()" (ngModelChange)="fCaduca.set($event)"><option value="">Caducidad</option><option value="con">Con fecha</option><option value="sin">Sin fecha</option><option value="caducado">Caducados</option></gr-select>
               <span class="ml-auto whitespace-nowrap text-body-xs text-text-tertiary">{{ cuponesFiltrados().length }} de {{ l.length }} cupones</span>
               <button grButton size="s" icon="download" (click)="exportarCupones()">Exportar</button>
             </div>
