@@ -29,11 +29,13 @@ func (s *Svc) registerKPIs() {
 			if err != nil {
 				return nil, err
 			}
-			// «/150»: the real places of the competitions (alta_cupos or the inscription total split).
+			// «/150»: the real places of the competition (inscription total); the sum of alta_cupos only without it.
 			if c, err := s.comps.ByID(ctx, in.CID); err == nil {
-				var plazas int64
-				for _, n := range s.cupos(ctx, s.a.DB, in.CID, c.Inscripcion.Plazas) {
-					plazas += int64(n)
+				plazas := int64(c.Inscripcion.Plazas)
+				if plazas <= 0 {
+					for _, n := range s.cupos(ctx, s.a.DB, in.CID, c.Inscripcion.Plazas) {
+						plazas += int64(n)
+					}
 				}
 				o.Body.Valores["atletas.plazas"] = plazas
 			}

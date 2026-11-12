@@ -44,7 +44,7 @@ var routeTable = func() []route {
 		{`^/api/admin/(me|usuarios)(/|$)`, "identity"},
 		{`^/api/competition/`, "identity"},
 		{c + `equipo(/|$)`, "identity"},
-		{c + `stream$`, "realtime"},
+		{c + `(stream|presencia)$`, "realtime"},
 		{p + `stream$`, "realtime"},
 		{c + `(auditoria|actividad|dashboard|notificaciones|exportaciones|trabajos|webhooks|sistema)(/|$)`, "audit"},
 		{c + `(web|legal|voluntarios|medios|clubs)(/|$)`, "cms"},

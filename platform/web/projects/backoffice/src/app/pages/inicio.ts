@@ -47,6 +47,13 @@ interface Pendiente {
 /** Milestones drawn over «Reservas por día» (Figma 96:8624). */
 const HITOS: Record<string, string> = { 'web.publicada': 'Lanzamiento', 'campana.enviada': 'Campaña', 'horarios.publicados': 'Horarios' };
 const COMPARA: Record<string, string> = { hoy: 'vs. ayer', '7d': 'vs. 7 días anteriores', todo: 'vs. semana pasada' };
+/** Readable labels of the KPI keys in the CSV of «Exportar informe». */
+const KPI_CSV: Record<string, string> = {
+  'entradas.reservas': 'Entradas reservadas', 'entradas.personas': 'Personas con entrada', 'entradas.dentro': 'Personas dentro',
+  'sorteo.boletos': 'Boletos del sorteo', 'sorteo.recaudado': 'Recaudado en el sorteo',
+  'contactos.total': 'Contactos', 'contactos.novedades': 'Contactos que aceptan novedades',
+  'atletas.confirmados': 'Atletas confirmados', 'atletas.reserva': 'Atletas en reserva', 'atletas.bajas': 'Bajas de atletas', 'atletas.plazas': 'Plazas de atletas',
+};
 
 @Component({
   selector: 'bo-inicio',
@@ -124,12 +131,19 @@ export class InicioPage {
     const reservas = n('entradas.reservas');
     const total = n('contactos.total');
     const c = this.compara();
+    // «Aceptan novedades» is a rate: its variation is in points of the rate, not of the raw count.
+    const deltaTasa = () => {
+      const pn = d?.previo?.['contactos.novedades'], pt = d?.previo?.['contactos.total'];
+      if (pn === undefined || !pt || !total) return null;
+      const pp = Math.round((100 * n('contactos.novedades')) / total - (100 * pn) / pt);
+      return `${pp >= 0 ? '+' : ''}${fmtNumber(pp)} pp`;
+    };
     return [
       { label: 'Entradas reservadas', value: v('entradas.reservas'), caption: c, delta: delta('entradas.reservas'), trend: trend('entradas.reservas') },
       { label: 'Personas', value: v('entradas.personas'), caption: reservas ? `${(n('entradas.personas') / reservas).toLocaleString('es-ES', { maximumFractionDigits: 1 })} por reserva` : 'con entrada', delta: null, trend: trend('entradas.personas') },
       { label: 'Boletos del sorteo', value: v('sorteo.boletos'), caption: euros, delta: null, trend: trend('sorteo.boletos') },
       ...('contactos.total' in k
-        ? [{ label: 'Aceptan novedades', value: total ? `${Math.round((100 * n('contactos.novedades')) / total)} %` : '0 %', caption: `${fmtNumber(n('contactos.novedades'))} de ${fmtNumber(total)} · ${c}`, delta: delta('contactos.novedades'), trend: trend('contactos.novedades') }]
+        ? [{ label: 'Aceptan novedades', value: total ? `${Math.round((100 * n('contactos.novedades')) / total)} %` : '0 %', caption: `${fmtNumber(n('contactos.novedades'))} de ${fmtNumber(total)} · ${c}`, delta: deltaTasa(), trend: trend('contactos.novedades') }]
         : []),
       { label: 'Atletas confirmados', value: atletas, caption: `${n('atletas.bajas')} bajas · ${n('atletas.reserva')} en reserva`, delta: null, trend: trend('atletas.confirmados') },
     ];
@@ -230,8 +244,12 @@ export class InicioPage {
   protected exportar(): void {
     const d = this.dash();
     const q = (x: string | number) => `"${String(x).replaceAll('"', '""')}"`;
+    const eur = (c: number) => (c / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    const fmt = (k: string, v: number | undefined) => (v === undefined ? '' : k === 'sorteo.recaudado' ? eur(v) : v);
     const rows: (string | number)[][] = [['Indicador', 'Valor', 'Periodo anterior']];
-    for (const [k, v] of Object.entries(d?.kpis ?? {})) rows.push([k, v, d?.previo?.[k] ?? '']);
+    for (const [k, v] of Object.entries(d?.kpis ?? {})) rows.push([KPI_CSV[k] ?? k, fmt(k, v), fmt(k, d?.previo?.[k])]);
+    const cl = this.checklist();
+    if (cl) rows.push(['Puesta en marcha (pasos)', `${cl.hechos}/${cl.total}`, '']);
     rows.push([], ['Sesión', 'Ocupadas', 'Aforo']);
     for (const s of this.resumen()?.sesiones ?? []) rows.push([s.nombre, s.ocupadas, s.aforo]);
     const url = URL.createObjectURL(new Blob(['\ufeff' + rows.map((r) => r.map(q).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' }));

@@ -1,6 +1,7 @@
 import { webPublica } from '../core/web';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { A11yModule } from '@angular/cdk/a11y';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer as DomSanitizerRef } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -9,6 +10,7 @@ import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrToa
 import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
+import { Realtime } from '../core/realtime';
 import { BoPageHeader, BoToggle, Media, errText } from '../shared/ui';
 
 interface Sede { nombre: string; direccion: string; cp: string; ciudad: string; provincia: string; lat?: number | null; lng?: number | null; mapsUrl: string }
@@ -23,6 +25,7 @@ interface Comp {
 interface ModItem extends Modulo { clave: string; nombre: string; descripcion: string }
 interface EstadoInfo { estado: string; programados: { id: string; estado: string; en: string }[] }
 type Tab = 'datos' | 'estado' | 'modulos' | 'llegar';
+interface Editor { id: string; nombre: string; desde: string }
 
 const ESTADOS = [
   { v: 'proximamente', l: 'Próximamente', d: 'Cuenta atrás + «Avísame» (newsletter)' }, { v: 'inscripciones', l: 'Inscripciones abiertas', d: 'CTA a la inscripción de la AEP' },
@@ -34,7 +37,7 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
   selector: 'bo-evento',
-  imports: [GrSelect, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [A11yModule, GrSelect, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -49,7 +52,21 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
             @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</button>
         }
       </nav>
-      @if (!c) { <gr-skeleton class="h-96 rounded-lg" /> }
+      @if (editores().length) {
+        <p class="flex w-fit items-center gap-2 rounded-pill border border-info/40 bg-info/10 py-1 pr-3 pl-1 text-label-s text-info" role="status">
+          <span class="flex size-6 items-center justify-center rounded-pill bg-accent-deep text-mono-xs text-white">{{ iniciales(editores()[0].nombre) }}</span>
+          {{ editores()[0].nombre }}{{ editores().length > 1 ? ' y ' + (editores().length - 1) + ' más' : '' }} también {{ editores().length > 1 ? 'están' : 'está' }} editando esta página</p>
+      }
+      @if (conflicto(); as k) {
+        <div class="flex flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-bg-raised px-4 py-3" role="alert">
+          <gr-icon name="triangle-alert" [size]="16" class="text-warning" />
+          <div class="min-w-0 flex-1"><p class="text-label-s">{{ k }} editó esta página hace un momento</p><p class="text-body-xs text-text-tertiary">Revisa sus cambios antes de guardar los tuyos</p></div>
+          <button grButton (click)="verCambios()">Ver cambios</button>
+          <button grButton variant="danger" [loading]="guardando()" (click)="sobrescribir()">Sobrescribir</button>
+        </div>
+      }
+      @if (fallo()) { <gr-alert tone="danger" title="No se pudo cargar el evento">{{ fallo() }} <button type="button" class="ml-2 text-label-s text-accent-text underline" (click)="cargar()">Reintentar</button></gr-alert> }
+      @else if (!c) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else {
         @if (errores().length) { <gr-alert tone="danger" [title]="'Revisa ' + errores().length + ' campos antes de guardar'">{{ errores().join(' · ') }}</gr-alert> }
         @switch (tab()) {
@@ -167,6 +184,23 @@ const TRANSPORTES = ['coche', 'parking', 'bus', 'tren', 'metro', 'bici', 'avion'
         }
       }
     </div>
+    @if (apagar(); as m) {
+      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="apagar.set(null)" (keydown.escape)="apagar.set(null)">
+        <div class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Desactivar ' + m.nombre"
+          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <div class="flex items-start justify-between gap-3">
+            <h2 class="text-ui-h5">Desactivar {{ m.nombre }}</h2>
+            <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="apagar.set(null)"><gr-icon name="x" [size]="18" /></button>
+          </div>
+          <p class="mt-3 text-body-s text-text-secondary">La sección desaparecerá de la web pública. Desactivar no borra datos: lo ya registrado sigue siendo válido. No se avisará a nadie.</p>
+          <gr-field label="Escribe DESACTIVAR para confirmar" hint="Queda en el registro de auditoría" class="mt-4"><input grInput [(ngModel)]="confirmar" autocomplete="off" /></gr-field>
+          <div class="mt-6 flex justify-end gap-2">
+            <button grButton variant="ghost" (click)="apagar.set(null)">Cancelar</button>
+            <button grButton variant="danger" [disabled]="confirmar.trim().toUpperCase() !== 'DESACTIVAR'" (click)="confirmarApagar(m)">Desactivar {{ m.nombre.toLowerCase() }}</button>
+          </div>
+        </div>
+      </div>
+    }
     @if (cambios() && puede()) {
       <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-strong bg-bg-raised/95 px-4 py-3 backdrop-blur md:left-[264px]">
         <div class="mx-auto flex max-w-[1280px] items-center gap-3"><gr-icon name="pencil" [size]="16" class="text-warning" /><p class="flex-1 text-body-s">Tienes cambios sin guardar</p>
@@ -195,6 +229,13 @@ export class EventoPage {
   protected readonly cambios = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errores = signal<string[]>([]);
+  protected readonly fallo = signal('');
+  /** Other people editing this page (POST …/presencia heartbeat + SSE presencia.actualizada). */
+  protected readonly editores = signal<Editor[]>([]);
+  /** 412 CONFLICTO_EDICION: who saved first (shown with «Ver cambios» / «Sobrescribir»). */
+  protected readonly conflicto = signal<string | null>(null);
+  protected readonly apagar = signal<ModItem | null>(null);
+  protected confirmar = '';
   protected d!: Comp;
   protected prog = { estado: 'hoy', en: '' };
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
@@ -209,12 +250,34 @@ export class EventoPage {
       if (!this.cid()) return;
       untracked(() => void this.cargar());
     });
+    // presence: heartbeat every 15 s while the page is open (TTL 40 s in realtime), leave on destroy
+    const yo = () => this.auth.user()?.id;
+    const latido = (salir = false) => {
+      const cid = this.cid();
+      if (!cid || !this.puede()) return;
+      this.http.post<{ usuarios: Editor[] }>(`/api/admin/competiciones/${cid}/presencia`, { recurso: 'evento-config', salir }).subscribe({ next: (r) => !salir && this.editores.set(r.usuarios ?? []), error: () => undefined });
+    };
+    effect(() => { if (this.cid() && this.puede()) untracked(() => latido()); });
+    const t = setInterval(() => latido(), 15000);
+    const sub = inject(Realtime).events.subscribe((e) => {
+      if (e.tipo === 'presencia.actualizada' && e.datos?.['recurso'] === 'evento-config') this.editores.set(((e.datos['usuarios'] as Editor[]) ?? []).filter((u) => u.id !== yo()));
+      else if (e.tipo === 'competition.estado_programado' || e.tipo === 'evento.estado') void firstValueFrom(this.http.get<EstadoInfo>(`${this.b()}/estado`)).then((x) => this.est.set(x), () => undefined);
+      else if (e.tipo === 'competition.modulos_actualizados') void firstValueFrom(this.http.get<ModItem[]>(`${this.b()}/modulos`)).then((x) => this.mods.set(x), () => undefined);
+    });
+    inject(DestroyRef).onDestroy(() => { clearInterval(t); sub.unsubscribe(); latido(true); });
   }
   private b(): string { return `/api/admin/competiciones/${this.cid()}`; }
   async cargar(): Promise<void> {
-    const [c, m, e] = await Promise.all([
-      firstValueFrom(this.http.get<Comp>(this.b())), firstValueFrom(this.http.get<ModItem[]>(`${this.b()}/modulos`)), firstValueFrom(this.http.get<EstadoInfo>(`${this.b()}/estado`)),
-    ]);
+    this.fallo.set('');
+    let c: Comp, m: ModItem[], e: EstadoInfo;
+    try {
+      [c, m, e] = await Promise.all([
+        firstValueFrom(this.http.get<Comp>(this.b())), firstValueFrom(this.http.get<ModItem[]>(`${this.b()}/modulos`)), firstValueFrom(this.http.get<EstadoInfo>(`${this.b()}/estado`)),
+      ]);
+    } catch (err) {
+      this.fallo.set(errText(err, 'Comprueba la conexión e inténtalo de nuevo.'));
+      return;
+    }
     this.aplicar(c);
     this.mods.set(m);
     this.est.set(e);
@@ -253,6 +316,18 @@ export class EventoPage {
     return '';
   }
   protected nombreEstado(v: string): string { return ESTADOS.find((e) => e.v === v)?.l ?? v; }
+  protected iniciales(n: string): string { return n.split(/\s+/).slice(0, 2).map((x) => x[0] ?? '').join('').toUpperCase(); }
+  /** «Ver cambios»: discard the local draft and load the version saved by the other person. */
+  protected async verCambios(): Promise<void> { this.conflicto.set(null); await this.cargar(); }
+  /** «Sobrescribir»: keep the local draft and save it over the latest version. */
+  protected async sobrescribir(): Promise<void> {
+    try {
+      const ultima = await firstValueFrom(this.http.get<Comp>(this.b()));
+      this.comp.set({ ...this.comp()!, version: ultima.version, inscripcion: ultima.inscripcion, comoLlegar: ultima.comoLlegar });
+      this.conflicto.set(null);
+      await this.guardar();
+    } catch (e) { this.toasts.error(errText(e)); }
+  }
   protected fechaHora(iso: string): string { return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)); }
   protected anadirTransporte(): void { this.d.comoLlegar.push({ tipo: 'coche', titulo: '', detalle: '', estado: 'por_confirmar' }); this.tocar(); }
   protected quitarTransporte(i: number): void { this.d.comoLlegar.splice(i, 1); this.tocar(); }
@@ -284,7 +359,8 @@ export class EventoPage {
       this.toasts.success('Cambios guardados');
     } catch (e) {
       const p = problemOf(e);
-      this.toasts.error(p.code === 'CONFLICTO_EDICION' || p.status === 412 ? 'Otra persona ha guardado antes: copia tus cambios y recarga.' : errText(e));
+      if (p.code === 'CONFLICTO_EDICION' || p.status === 412) this.conflicto.set(this.editores()[0]?.nombre || 'Otra persona');
+      else this.toasts.error(errText(e));
     } finally {
       this.guardando.set(false);
     }
@@ -302,6 +378,20 @@ export class EventoPage {
     catch (e) { this.toasts.error(errText(e, 'No se pudo cancelar.')); }
   }
   protected async modulo(m: ModItem, activo: boolean): Promise<void> {
+    if (!activo) {
+      // turning a module off hides a public section: confirm first (Figma 96:12197)
+      this.confirmar = '';
+      this.apagar.set(m);
+      this.mods.set([...this.mods()]);
+      return;
+    }
+    await this.ponerModulo(m, activo);
+  }
+  protected async confirmarApagar(m: ModItem): Promise<void> {
+    this.apagar.set(null);
+    await this.ponerModulo(m, false);
+  }
+  private async ponerModulo(m: ModItem, activo: boolean): Promise<void> {
     try {
       await firstValueFrom(this.http.put(`${this.b()}/modulos/${m.clave}`, { activo }));
       this.mods.set(await firstValueFrom(this.http.get<ModItem[]>(`${this.b()}/modulos`)));
