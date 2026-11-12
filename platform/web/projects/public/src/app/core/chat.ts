@@ -616,6 +616,9 @@ export class ChatService {
         };
       case 'hito':
         return { kind: 'hito', id: f.id ?? 'h' + ts, mensajes: f.mensajes ?? 0, ts };
+      case 'borrado':
+        // history: a message deleted by moderation keeps its placeholder
+        return { kind: 'borrado', id: f.id ?? 'b' + ts, texto: 'Mensaje eliminado por moderación', ts };
       case 'sistema':
         return { kind: 'sistema', id: f.id ?? 's' + ts, texto: f.texto ?? '', ts };
       default:

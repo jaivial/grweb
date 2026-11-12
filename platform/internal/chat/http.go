@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -566,16 +567,37 @@ func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut,
 				}
 				var it item
 				raw, _ := m.Values["d"].(string)
-				if json.Unmarshal([]byte(raw), &it) == nil && (it.T == "msg" || it.T == "donacion") {
+				if json.Unmarshal([]byte(raw), &it) != nil {
+					continue
+				}
+				if it.T == "msg" || it.T == "donacion" {
 					it.ID = m.ID
 					msgs = append(msgs, it.publica(s.hub.hashFan))
+				} else if it.T == "borrado" && it.MensajeID != "" {
+					// the deleted message left the stream (XDEL): its placeholder keeps its place in the history
+					msgs = append(msgs, item{T: "borrado", ID: it.MensajeID, Ts: tsDeID(it.MensajeID), Dia: dia})
 				}
 			}
 		}
+		// the «borrado» entries were published later than their message: order by the message id (newest first)
+		sort.SliceStable(msgs, func(i, j int) bool { return after(msgs[i].ID, msgs[j].ID) })
 		if len(msgs) < limite { // trimmed: the older part is in PostgreSQL
-			resto, err := s.historialDB(ctx, cid, dia, "", limite-len(msgs))
+			// only what is older than the oldest entry read from Redis (the persisted rows repeat the stream ids)
+			cursor := in.Antes
+			if len(msgs) > 0 {
+				cursor = msgs[len(msgs)-1].ID
+			}
+			resto, err := s.historialDB(ctx, cid, dia, cursor, limite-len(msgs))
 			if err == nil {
-				msgs = append(msgs, resto...)
+				vistos := make(map[string]bool, len(msgs))
+				for _, m := range msgs {
+					vistos[m.ID] = true
+				}
+				for _, m := range resto {
+					if !vistos[m.ID] {
+						msgs = append(msgs, m)
+					}
+				}
 			}
 		}
 	} else {
@@ -599,7 +621,8 @@ const idNumerico = `(CASE WHEN id LIKE '%-%' THEN split_part(id, '-', 1)::numeri
 // historialDB reads the persisted messages of a day (newest first).
 func (s *Svc) historialDB(ctx context.Context, cid uuid.UUID, dia, antes string, limite int) ([]item, error) {
 	var args []any
-	q := `SELECT id, fan_id, alias, tipo, texto, borrado, extract(epoch from created_at)::bigint * 1000 FROM mensajes WHERE competition_id = $1 AND dia = $2 AND NOT borrado`
+	// the deleted rows come back as «borrado» placeholders (without author or text)
+	q := `SELECT id, fan_id, alias, tipo, texto, borrado, extract(epoch from created_at)::bigint * 1000 FROM mensajes WHERE competition_id = $1 AND dia = $2`
 	args = append(args, cid, dia)
 	if antes != "" {
 		ms, seq, err := parseID(antes)
@@ -627,6 +650,10 @@ func (s *Svc) historialDB(ctx context.Context, cid uuid.UUID, dia, antes string,
 		}
 		it.Ts = ts
 		it.Dia = dia
+		if borrado {
+			out = append(out, item{T: "borrado", ID: it.ID, Ts: ts, Dia: dia})
+			continue
+		}
 		// el historial es público: el UUID del fan se sustituye por su seudónimo, igual que en la parte que
 		// sale de Redis
 		out = append(out, it.publica(s.hub.hashFan))
