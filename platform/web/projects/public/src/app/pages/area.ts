@@ -261,12 +261,13 @@ const api = '/api/area-atleta';
               @for (o of pr.opciones; track o.codigo) {
                 @let sel = (eleccion() || pr.elegida) === o.codigo;
                 @let llena = o.plazas > 0 && o.ocupadas >= o.plazas && pr.elegida !== o.codigo;
-                @if (!pr.cerrada || pr.elegida === o.codigo) {
+                @let ultimas = o.plazas > 0 && o.plazas - o.ocupadas <= 5;
+                @if ((!pr.cerrada && !pr.cambioOrg) || pr.elegida === o.codigo) {
                   <button type="button" role="radio" [attr.aria-checked]="sel" [disabled]="pr.cerrada || llena || guardandoPrueba()" (click)="eleccion.set(o.codigo)"
                     class="flex items-center gap-4 rounded-md border-2 p-4 text-left focus-visible:outline-2 focus-visible:outline-accent" [class]="sel ? 'border-accent bg-accent/8' : 'border-line-subtle bg-white/2 hover:border-line-strong'" [class.opacity-50]="llena">
                     <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sel ? 'border-accent' : 'border-line-strong'">@if (sel) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
-                    <span class="flex min-w-0 flex-1 flex-col gap-1"><span class="text-[16px] font-semibold">{{ o.nombre }}{{ o.fecha ? ' · ' + dia(o.fecha) : '' }}</span><span class="text-body-xs text-text-tertiary">{{ sel && p?.atleta?.flight ? 'Flight ' + p!.atleta.flight + (p!.atleta.pesajeInicio ? ' · pesaje ' + hora(p!.atleta.pesajeInicio) : '') + (p!.atleta.horaInicio ? ' · salida ' + hora(p!.atleta.horaInicio) : '') : o.ocupadas + ' de ' + o.plazas + ' plazas' }}</span></span>
-                    <span class="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-pill border px-2 text-[11px] font-medium uppercase tracking-wide md:px-2.5 md:text-[12px]" [class]="llena ? 'border-line-strong text-text-tertiary' : !sel && o.plazas - o.ocupadas <= 5 ? 'border-accent/40 bg-accent/10 text-accent-text' : 'border-success/40 bg-success/12 text-success'">{{ pr.cerrada ? 'Cerrada' : llena ? 'Completa' : pr.elegida === o.codigo ? 'Tu competición' : o.plazas - o.ocupadas <= 5 ? 'Últimas plazas' : 'Disponible' }}</span>
+                    <span class="flex min-w-0 flex-1 flex-col gap-1"><span class="text-[16px] font-semibold">{{ o.nombre }}@if (o.fecha) { · <span class="whitespace-nowrap">{{ dia(o.fecha) }}</span> }</span><span class="text-body-xs text-text-tertiary">{{ sel && p?.atleta?.flight ? 'Flight ' + p!.atleta.flight + (p!.atleta.pesajeInicio ? ' · pesaje ' + hora(p!.atleta.pesajeInicio) : '') + (p!.atleta.horaInicio ? ' · salida ' + hora(p!.atleta.horaInicio) : '') : (o.plazas > 0 ? o.ocupadas + ' de ' + o.plazas + ' plazas' : 'Sin límite de plazas') + (sede() ? ' · ' + sede() : '') }}</span></span>
+                    <span class="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-pill border px-2 text-[11px] font-medium uppercase tracking-wide md:px-2.5 md:text-[12px]" [class]="llena ? 'border-line-strong text-text-tertiary' : !sel && ultimas ? 'border-accent/40 bg-accent/10 text-accent-text' : 'border-success/40 bg-success/12 text-success'">{{ pr.cerrada ? 'Cerrada' : llena ? 'Completa' : pr.elegida === o.codigo ? 'Tu competición' : ultimas ? 'Últimas plazas' : 'Disponible' }}</span>
                   </button>
                 }
               }
@@ -307,14 +308,15 @@ export class AreaAtletaPage {
   protected pz: { rackSq?: number; rackBp?: number; segurosBp?: number; intentos: Marcas } = { intentos: {} };
   protected readonly lifts: { k: keyof Marcas; s: string }[] = [{ k: 'sq', s: 'SQ' }, { k: 'bp', s: 'BP' }, { k: 'dl', s: 'DL' }];
   protected readonly steppers: { k: 'rackSq' | 'rackBp' | 'segurosBp'; label: string }[] = [{ k: 'rackSq', label: 'Altura rack sentadilla' }, { k: 'rackBp', label: 'Altura rack banca' }, { k: 'segurosBp', label: 'Seguros de banca' }];
-  protected readonly nombreComp = computed(() => this.comp.data()?.nombre ? `${this.comp.data()!.nombre} ${this.comp.data()!.edicion}` : 'GR Cup');
+  protected readonly nombreComp = computed(() => this.comp.data()?.nombre || 'GR Cup');
+  protected readonly sede = computed(() => this.comp.data()?.sede?.ciudad ?? '');
   protected readonly contacto = computed(() => this.comp.data()?.evento.emailContacto ?? '');
   protected readonly datos = computed(() => {
     const a = this.panel()?.atleta;
     if (!a) return [];
     return [
       { k: 'Competición', v: this.textoPrueba() },
-      { k: 'Categoría', v: `${a.sexo} ${cat(a.categoria)} kg` }, { k: 'División', v: a.divisionNombre },
+      { k: 'Categoría', v: a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : 'Por publicar' }, { k: 'División', v: a.divisionNombre },
       { k: 'Flight', v: a.flight ? a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Por publicar' },
       { k: 'Pesaje', v: a.pesajeInicio ? `${hora(a.pesajeInicio)}–${hora(a.pesajeFin)}` : 'Por publicar' },
       { k: 'Inicio', v: a.horaInicio ? hora(a.horaInicio) : 'Por publicar' },
@@ -370,12 +372,27 @@ export class AreaAtletaPage {
   }
   private timer?: ReturnType<typeof setInterval>;
 
+  private async recargar(): Promise<void> {
+    const antes = this.panel()?.prueba?.elegida;
+    try {
+      const p = await firstValueFrom(this.http.get<Panel>(`${api}/yo`));
+      await this.set(p);
+      if (antes !== undefined && p.prueba && p.prueba.elegida !== antes) this.aviso('La organización ha cambiado tu competición a ' + this.nombrePrueba(p.prueba.elegida));
+    } catch {
+      /* keeps the panel shown */
+    }
+  }
+
   constructor() {
     inject(Seo).set({ title: 'Área de atleta · GR Strength Cup', description: 'Acceso para atletas inscritos: tu flight, tu acreditación, tu perfil y la previa del pesaje.', path: '/area-atleta', robots: 'noindex' });
     const route = inject(ActivatedRoute);
     inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
     void inject(PendingTasks).run(() => this.comp.load());
     if (!this.browser) return; // private page: rendered in the browser (session cookie)
+    // back to the tab: reload the panel so changes made by the organisation show up (U17-R1-4)
+    const alVolver = () => { if (document.visibilityState === 'visible' && this.vista() === 'panel') void this.recargar(); };
+    document.addEventListener('visibilitychange', alVolver);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('visibilitychange', alVolver));
     void (async () => {
       const token = route.snapshot.queryParamMap.get('acceso');
       if (token) {
