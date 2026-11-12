@@ -327,6 +327,8 @@ function catSort(a: string, b: string): number {
   template: `
     @let a = ficha();
     <gr-page [title]="a ? a.nombre + ' ' + a.apellidos : a === null && !api.failed() ? 'Atleta no encontrado' : ''" [hideTitle]="!!a" section="Atletas" [crumb]="a ? a.nombre + ' ' + a.apellidos : 'Atleta'">
+      <!-- Figma 40: the hero sits closer to the breadcrumbs than a titled page (U10-R1-3) -->
+      <div [class]="a !== null ? '-mt-8 md:-mt-10' : ''">
       @if (avisoConfirmado()) { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso confirmado">Te escribiremos 30 minutos antes de que {{ avisoConfirmado() }} salga a la plataforma.</gr-alert> }
       @if (baja() === 'ok') { <gr-alert tone="success" class="-mt-4 mb-8" title="Aviso desactivado">Ya no te escribiremos sobre {{ a?.nombre || 'este atleta' }}. Puedes volver a activarlo cuando quieras.</gr-alert> }
       @if (baja() === 'error') { <gr-alert tone="warning" class="-mt-4 mb-8" title="No hemos podido desactivar el aviso">El enlace no es válido o ya se usó. Si sigues recibiendo emails, responde a cualquiera de ellos.</gr-alert> }
@@ -389,8 +391,8 @@ function catSort(a: string, b: string): number {
               <p class="text-body-xs text-text-tertiary">Se confirman en el pesaje. Los siguientes se deciden en la plataforma.</p>
               <ul class="mt-3">
                 @for (m of lifts; track m.k) {
-                  <li class="flex items-center gap-3 border-b border-line-subtle py-3 last:border-0">
-                    <span class="w-32 text-label-m">{{ m.label }}</span>
+                  <li class="flex flex-col items-start gap-2 border-b border-line-subtle py-3 last:border-0 md:flex-row md:items-center md:gap-3">
+                    <span class="text-label-m md:w-32 md:shrink-0">{{ m.label }}</span>
                     <span class="flex gap-2">
                       <span class="flex h-9 w-16 items-center justify-center rounded-sm border border-line-strong text-mono-s">{{ a.primerosIntentos[m.k] ? kg(a.primerosIntentos[m.k]) : '–' }}</span>
                       <span class="flex h-9 w-16 items-center justify-center rounded-sm border border-line-subtle text-mono-s text-text-muted">–</span>
@@ -442,7 +444,7 @@ function catSort(a: string, b: string): number {
                       <a [routerLink]="'/atletas/' + o.slug" class="flex min-w-0 flex-1 items-center gap-3">
                         @if (o.fotoUrl) { <img [src]="o.fotoUrl" alt="" class="size-11 rounded-full object-cover" [style.object-position]="o.focalX + '% ' + o.focalY + '%'" loading="lazy" /> }
                         @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(o) }}</span> }
-                        <span class="min-w-0"><span class="block truncate text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ o.club || 'Independiente' }} · {{ o.divisionNombre }}</span></span>
+                        <span class="min-w-0 break-words"><span class="block text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block text-body-xs text-text-tertiary">{{ o.club || 'Independiente' }} · {{ o.divisionNombre }}</span></span>
                       </a>
                       @if (o.horaInicio) { <span class="text-mono-s">{{ hora(o.horaInicio) }}</span> }
                       <gr-fav [slug]="o.slug" [nombre]="o.nombre" />
@@ -454,6 +456,7 @@ function catSort(a: string, b: string): number {
           </div>
         </div>
       }
+      </div>
     </gr-page>
   `,
 })
