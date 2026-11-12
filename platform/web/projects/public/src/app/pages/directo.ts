@@ -532,7 +532,7 @@ export class ResultadosIndexPage {
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page title="Resultados" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" section="Resultados" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
-      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') + '. ' : '') + 'Podios, mejores levantadores y clasificación completa por categoría.' : ''">
+      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
       @if (r?.publicado) {
         <div pageStamps class="flex flex-wrap gap-2">
           <!-- Figma 25: «Fuente: acta oficial AEP (PDF)» + «Datos de ejemplo» -->
