@@ -85,7 +85,9 @@ export class ErrorPage {
     }
   });
   protected readonly solicitar = computed(
-    () => 'mailto:admin@grstrength.com?subject=' + encodeURIComponent(`Acceso a ${this.item()?.label ?? 'una sección'} (${this.item()?.perm ?? ''})`),
+    () =>
+      'mailto:admin@grstrength.com?subject=' +
+      encodeURIComponent(this.item() ? `Acceso a ${this.item()!.label} (${this.item()!.perm ?? ''})` : this.motivo() === 'sin-competicion' ? 'Acceso al backoffice (sin competición)' : 'Acceso a una sección'),
   );
   protected retry(): void {
     history.length > 1 ? history.back() : location.reload();
