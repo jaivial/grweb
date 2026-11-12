@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -224,7 +225,7 @@ export class ContactosPage {
   }
   protected readonly tab = signal<Tab>((this.route.snapshot.data['tab'] as Tab) ?? 'contactos');
   protected readonly lista = signal<Lista | null | undefined>(undefined);
-  protected readonly f = signal<Filtros>({ pagina: 1 });
+  protected readonly f = signal<Filtros>({ pagina: 1, q: this.route.snapshot.queryParamMap.get('q') ?? undefined });
   protected readonly row = BO_ROW;
   protected readonly filtrado = computed(() => { const f = this.f(); return !!(f.q || f.origen || f.canal || f.estado || f.relacion); });
   protected readonly segmentos = signal<Segmento[] | null>(null);
@@ -250,6 +251,11 @@ export class ContactosPage {
         if (this.tab() === 'segmentos') void this.cargarSeg();
         if (this.tab() === 'bajas') void this.cargarSup();
       });
+    });
+    // ⌘K «Ver todos» lands here with ?q=; also when already on this page.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((p) => {
+      const q = p.get('q') ?? '';
+      if (q !== (this.f().q ?? '')) this.filtrar({ q });
     });
   }
 

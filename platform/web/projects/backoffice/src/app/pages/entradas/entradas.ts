@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -314,6 +315,11 @@ export class EntradasPage {
   private t?: ReturnType<typeof setTimeout>;
 
   constructor() {
+    // ⌘K lands on reservas with ?q=; also when already on this page.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((p) => {
+      const q = p.get('q') ?? '';
+      if (this.tab() === 'reservas' && q !== (this.f().q ?? '')) this.filtrar({ q });
+    });
     effect(() => {
       if (!this.cid()) return;
       untracked(() => {

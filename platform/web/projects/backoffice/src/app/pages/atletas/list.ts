@@ -1,7 +1,8 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton, GrToasts, fmtNumber, fmtShortDate, type GrTone, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -219,6 +220,7 @@ export class AtletasPage {
   private readonly api = inject(AtletasApi);
   private readonly auth = inject(Auth);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toasts = inject(GrToasts);
   protected readonly estado = ESTADO;
   protected readonly imagen = IMAGEN;
@@ -233,7 +235,7 @@ export class AtletasPage {
   protected readonly cargando = signal(true);
   protected readonly exporting = signal(false);
   protected readonly pestana = signal<Pestana>('todos');
-  protected readonly q = signal('');
+  protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
   protected readonly sexo = signal('');
   protected readonly categoria = signal('');
   protected readonly flight = signal('');
@@ -290,6 +292,11 @@ export class AtletasPage {
       if (e.tipo.startsWith('athletes.') || (e.tipo === 'import.progreso' && e.datos?.['estado'] === 'confirmada')) void this.recargar(this.pagina(), true);
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
+    // ⌘K «Ver todos» lands here with ?q=; also when already on this page.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((p) => {
+      const q = p.get('q') ?? '';
+      if (q !== this.q()) { this.pestana.set('todos'); this.buscar(q); }
+    });
   }
 
   protected buscar(v: string): void {
