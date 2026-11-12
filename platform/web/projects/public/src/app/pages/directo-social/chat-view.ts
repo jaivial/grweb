@@ -283,6 +283,8 @@ export class ChatView {
     const out: Fila[] = [];
     let prev: ChatItem | undefined;
     for (const it of this.chat.items()) {
+      // closed live room (antes/finalizado): no «Te has unido al chat», only the closing notice
+      if (it.id.startsWith('hola-') && this.chat.cerrado() && !this.chat.soloLectura()) continue;
       const cont =
         it.kind === 'msg' && !it.borrado && prev?.kind === 'msg' && !prev.borrado &&
         prev.alias === it.alias && prev.mio === it.mio && prev.atleta === it.atleta && it.ts - prev.ts < VENTANA_GRUPO_MS;

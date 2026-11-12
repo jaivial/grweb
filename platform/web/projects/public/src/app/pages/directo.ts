@@ -173,7 +173,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
           <!-- Video -->
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
-          <section class="relative -mx-5 mt-1.5 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
+          <section class="relative -mx-5 mt-1.5 h-[218px] overflow-hidden md:h-auto md:aspect-video border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
             @if (video(); as v) {
               <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GR Strength Cup" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {

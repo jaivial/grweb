@@ -185,6 +185,8 @@ export interface PuntosConfig {
 export interface ConfigJuegos {
   porraMin?: number;
   porraMax?: number;
+  hito5Porra?: number;
+  hito10Porra?: number;
   maxClausulazos?: number;
   proteccionMin?: number;
   plantillaMax?: number;
@@ -290,11 +292,12 @@ export function mensajeError(e: unknown): string {
 
 const nf = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nf2 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** «128.400» (monedas, sin decimales). */
 export const monedas = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : nf.format(v));
 /** «×2,4» (cuota orientativa). */
-export const cuota = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : '×' + nf1.format(v));
+export const cuota = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : '×' + nf2.format(v));
 /** «Femenino» / «Masculino». */
 export const sexoTxt = (s: Sexo | string): string => (s === 'F' ? 'Femenino' : 'Masculino');
 /** «−63 kg» (la categoría del backend viene como «-63»). */
@@ -529,7 +532,7 @@ export class JuegosEstado {
 
   /** La jornada con la que se llaman al API: la elegida, la de la URL o la activa. */
   jornadaActual(): string | undefined {
-    return this.jornadaId() || this.jornadaDeUrl() || undefined;
+    return this.jornadaId() || this.jornadaDeUrl() || this.jornada()?.id || undefined;
   }
 
   /** La jornada que pide la URL (`?jornada=<id>`): permite abrir una jornada concreta (la de ayer, por ejemplo). */
