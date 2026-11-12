@@ -323,7 +323,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
     <bo-drawer [(open)]="cuponOpen" [title]="cupon.id ? 'Editar cupón' : 'Nuevo cupón'">
       @if (errorDrawer()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ errorDrawer() }}</gr-alert> }
       <div class="flex flex-col gap-4">
-        <gr-field label="Código" for="c-cod" [hint]="cupon.codigo && codigoNorm() !== cupon.codigo ? 'Se guardará como ' + (codigoNorm() || '—') : 'Mayúsculas y números · único en la competición'" [error]="errCodigo()"><input grInput id="c-cod" [(ngModel)]="cupon.codigo" (ngModelChange)="errCodigo.set('')" [invalid]="!!errCodigo()" maxlength="30" /></gr-field>
+        <gr-field label="Código" for="c-cod" [hint]="cupon.codigo && codigoNorm() !== cupon.codigo ? 'Se guardará como ' + (codigoNorm() || '—') : 'Mayúsculas y números · único en la competición'" [error]="errCodigo()"><input grInput id="c-cod" autocomplete="off" [(ngModel)]="cupon.codigo" (ngModelChange)="errCodigo.set('')" [invalid]="!!errCodigo()" maxlength="30" /></gr-field>
         <gr-segmented label="Tipo" [options]="tiposCupon" [(value)]="cupon.tipo" />
         <div class="grid grid-cols-2 gap-3">
           <gr-field [label]="cupon.tipo === 'porcentaje' ? 'Descuento (%)' : 'Descuento (€)'" for="c-val"><input grInput id="c-val" type="number" min="1" [(ngModel)]="cupon.valorUI" /></gr-field>
