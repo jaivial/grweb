@@ -84,13 +84,16 @@ func (s *Svc) jornadaPublica(ctx context.Context, cid, jid uuid.UUID) (*jornada,
 		return &j, err
 	}
 	j, err := s.jornadaActiva(ctx, s.a.DB, cid)
-	if err != nil {
-		return nil, err
+	if err != nil || j != nil {
+		return j, err
 	}
-	if j == nil {
-		return nil, problem.NotFound("No hay jornada activa hoy.")
+	// No jornada today: the open one (latest first), else the last non-draft one.
+	jj, err := scanJornada(s.a.DB.QueryRow(ctx, selJornada+` FROM jornadas WHERE competition_id = $1 AND estado <> 'borrador'
+		ORDER BY estado IN ('abierta','en_juego') DESC, estado = 'en_juego' DESC, dia DESC LIMIT 1`, cid))
+	if db.IsNoRows(err) {
+		return nil, problem.NotFound("No hay jornada.")
 	}
-	return j, nil
+	return &jj, err
 }
 
 // jornadaOut is one jornada of the list.
@@ -329,7 +332,8 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.mercado_id, m.titulo, a.atleta_id, COALESCE(fa.nombre_publico, ''),
+			rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.mercado_id, m.titulo, a.atleta_id, COALESCE(fa.nombre_publico,
+				(SELECT x.nombre_publico FROM fantasy_atletas x WHERE x.competition_id = a.competition_id AND x.atleta_id = a.atleta_id ORDER BY x.updated_at DESC LIMIT 1), ''),
 				a.importe, m.estado,
 				(m.estado = 'liquidado' AND COALESCE((SELECT sum(a2.importe) FROM apuestas a2
 					WHERE a2.mercado_id = m.id AND a2.atleta_id = ANY(m.ganador)), 0) = 0),

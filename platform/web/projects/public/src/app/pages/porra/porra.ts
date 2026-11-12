@@ -24,7 +24,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
   template: `
     <gr-page title="Porra" [juego]="true">
       <gr-porra-cabecera [titulo]="'Porra ' + jornadaTxt() + (jornadaActiva()?.estado === 'cerrada' ? ' · Cerrada' : '')" activa="mercados"
-        descripcion="Apuesta con monedas virtuales a la ganadora de cada categoría, al mejor IPF GL por sexo y a cada movimiento. La cuota se mueve en vivo con cada intento que registra la mesa (OpenLifter) y queda fijada en el momento de apostar.">
+        descripcion="Apuesta con monedas virtuales a la ganadora de cada categoría, al mejor IPF GL por sexo y a cada movimiento. La cuota se mueve en vivo con cada apuesta y es estimada: el reparto final depende del bote.">
         <ng-container aside>
           <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
           @if (fan.conSesion()) {
@@ -37,7 +37,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       @if (soloLectura()) {
         <p class="flex items-start gap-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 text-body-s text-text-secondary" role="status">
           <gr-icon name="eye" [size]="16" class="mt-0.5 shrink-0 text-info" />
-          <span>@if (jornadaActiva()?.estado === 'cerrada') { Estás viendo el histórico de {{ jornadaNombre() }} en solo lectura.@if (otraAbierta(); as o) { Para apostar, cambia a {{ o }} · en juego.} } @else { La hora de cierre de {{ jornadaNombre() }} ya ha pasado: puedes consultar los mercados, pero no apostar. }</span>
+          <span>@if (jornadaActiva()?.estado === 'cerrada') { Estás viendo el histórico de {{ jornadaNombre() }} en solo lectura.@if (otraAbierta(); as o) { Para apostar, cambia a {{ o }}.} } @else { La hora de cierre de {{ jornadaNombre() }} ya ha pasado: puedes consultar los mercados, pero no apostar. }</span>
         </p>
       }
 
@@ -144,22 +144,24 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       }
 
       <!-- Premios de la jornada (gancho) -->
-      @if (premios().length) {
-        <section class="flex flex-col gap-3 md:gap-4" aria-labelledby="premios-porra">
+      <section class="flex flex-col gap-3 md:gap-4" aria-labelledby="premios-porra">
           <div class="flex flex-col gap-4">
             <h2 id="premios-porra" class="text-[18px] leading-[1.3] font-semibold text-text-primary uppercase md:font-display md:text-[12px] md:font-normal md:leading-[1.25]">Premios de la jornada</h2>
             <p class="hidden text-body-xs text-text-tertiary md:block">Los premios se abonan en monedas al liquidar la jornada. Gestionados en el backoffice, anunciados aquí y en directo.</p>
           </div>
-          <div class="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-[repeat(3,372px)]">
-            @for (p of premios(); track p.id) { <gr-premio-card [premio]="p" /> }
-          </div>
-        </section>
-      }
+          @if (premios().length) {
+            <div class="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-[repeat(3,372px)]">
+              @for (p of premios(); track p.id) { <gr-premio-card [premio]="p" /> }
+            </div>
+          } @else {
+            <p class="rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-4 py-6 text-body-s text-text-tertiary">Todavía no hay premios publicados para esta jornada.</p>
+          }
+      </section>
     </gr-page>
 
     @if (boleto(); as b) {
-      <gr-boleto-apuesta [mercado]="b.mercado" [opciones]="opciones(b.mercado)" [atletaId]="b.atletaId" [saldo]="saldo()" [jornada]="jornadaTxt()"
-        [minimo]="estado.porraMin()" [maximoApuesta]="estado.porraMax()" [cargando]="enviando()" [error]="errorBoleto()" [exito]="exitoBoleto()"
+      <gr-boleto-apuesta [mercado]="boletoMercado()!" [opciones]="opciones(boletoMercado()!)" [atletaId]="b.atletaId" [saldo]="saldo()" [jornada]="jornadaTxt()"
+        [minimo]="estado.porraMin()" [maximoApuesta]="estado.porraMax()" [cargando]="enviando()" [error]="errorBoleto()" [exito]="exitoBoleto()" [hecho]="hecho()"
         (cerrar)="cerrarBoleto()" (elegir)="elegirAtleta($event)" (confirmar)="confirmar($event)" />
     }
   `,
@@ -180,6 +182,13 @@ export class PorraPage {
   protected readonly enviando = signal(false);
   protected readonly errorBoleto = signal<string | null>(null);
   protected readonly exitoBoleto = signal<string | null>(null);
+  /** Importe de la apuesta ya confirmada en el boleto (0 = ninguna). */
+  protected readonly hecho = signal(0);
+  /** El mercado del boleto con el bote y las cuotas más recientes (se recargan tras apostar y en vivo). */
+  protected readonly boletoMercado = computed(() => {
+    const b = this.boleto();
+    return b ? (this.store.mercados().find((m) => m.id === b.mercado.id) ?? b.mercado) : null;
+  });
 
   protected readonly tipos: { v: FiltroTipo; l: string }[] = [
     { v: 'todas', l: 'Todas' },
@@ -309,17 +318,21 @@ export class PorraPage {
     }
     this.errorBoleto.set(null);
     this.exitoBoleto.set(null);
-    this.boleto.set({ mercado: e.mercado, atletaId: e.atletaId || e.mercado.opciones[0]?.atletaId || '' });
+    this.hecho.set(0);
+    this.boleto.set({ mercado: e.mercado, atletaId: e.atletaId || (e.mercado.opciones.length === 1 ? e.mercado.opciones[0].atletaId : '') });
     void this.estado.cargarCartera();
   }
   protected cerrarBoleto(): void {
     this.boleto.set(null);
     this.errorBoleto.set(null);
     this.exitoBoleto.set(null);
+    this.hecho.set(0);
   }
   protected elegirAtleta(id: string): void {
     const b = this.boleto();
     if (!b) return;
+    this.exitoBoleto.set(null);
+    this.hecho.set(0);
     this.boleto.set({ ...b, atletaId: id });
   }
   protected async confirmar(e: { atletaId: string; importe: number }): Promise<void> {
@@ -332,6 +345,7 @@ export class PorraPage {
       await this.juegos.porraApostar(b.mercado.id, e.atletaId, e.importe, this.estado.jornadaActual());
       const nombre = b.mercado.opciones.find((o) => o.atletaId === e.atletaId)?.nombre ?? '';
       this.exitoBoleto.set(`Apuesta registrada: ${monedas(e.importe)} a ${nombre}`);
+      this.hecho.set(e.importe);
       await this.estado.cargarCartera();
       await this.store.recargarMercados();
     } catch (err) {

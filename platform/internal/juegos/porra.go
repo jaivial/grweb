@@ -74,7 +74,14 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 		return []mercadoVista{}, nil
 	}
 	nombres := map[uuid.UUID]string{}
-	rows, err = s.a.DB.Query(ctx, `SELECT atleta_id, nombre_publico FROM fantasy_atletas WHERE jornada_id = $1`, j.ID)
+	var ids []uuid.UUID
+	for _, m := range ms {
+		ids = append(ids, m.Opciones...)
+	}
+	// Name of the jornada first; a closed/historical jornada may have no fantasy roster: fall back to the latest
+	// name of that athlete in the competition.
+	rows, err = s.a.DB.Query(ctx, `SELECT DISTINCT ON (atleta_id) atleta_id, nombre_publico FROM fantasy_atletas
+		WHERE competition_id = $1 AND atleta_id = ANY($2) ORDER BY atleta_id, (jornada_id = $3) DESC, updated_at DESC`, cid, ids, j.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +369,45 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 		aid, cid, j.ID, mercadoID, fanID, atletaID, importe); err != nil {
 		return uuid.Nil, err
 	}
-	return aid, nil
+	// Live odds for everybody (contract §6.2): new pot and per-athlete stake/odds of this market.
+	return aid, encolarCuotasTx(ctx, tx, cid, m)
+}
+
+// encolarCuotasTx enqueues porra.mercado with the current pot and odds of an open market.
+func encolarCuotasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, m mercadoRow) error {
+	rows, err := tx.Query(ctx, `SELECT atleta_id, sum(importe) FROM apuestas WHERE mercado_id = $1 GROUP BY atleta_id`, m.ID)
+	if err != nil {
+		return err
+	}
+	apostado := map[uuid.UUID]int64{}
+	for rows.Next() {
+		var a uuid.UUID
+		var n int64
+		if err := rows.Scan(&a, &n); err != nil {
+			rows.Close()
+			return err
+		}
+		apostado[a] = n
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	bote := int64(0)
+	for _, a := range m.Opciones {
+		bote += apostado[a]
+	}
+	ops := make([]map[string]any, 0, len(m.Opciones))
+	for _, a := range m.Opciones {
+		op := map[string]any{"atletaId": a.String(), "apostado": apostado[a]}
+		if apostado[a] > 0 {
+			op["cuota"] = math.Round(float64(bote)/float64(apostado[a])*100) / 100
+		}
+		ops = append(ops, op)
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "porra.mercado",
+		map[string]any{"mercadoId": m.ID.String(), "estado": m.Estado, "bote": bote, "opciones": ops},
+		events.Competition(cid.String()), events.Audience(events.Public)))
 }
 
 // resultadoMercado is what the scoreboard says about a market (contract §6.2). The three cases are different and

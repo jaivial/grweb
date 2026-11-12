@@ -95,7 +95,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
                   @case ('Ganada') { <span class="text-body-xs text-success md:text-body-s">+{{ monedas(cobro(a)) }} cobrados</span> }
                   @case ('Perdida') { <span class="text-body-xs text-text-muted md:text-body-s">Sin acierto</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">pierdes el importe apostado</span> }
                   @case ('Devuelta') { <span class="text-body-xs text-info md:text-body-s">+{{ monedas(a.importe) }} devueltos</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">nadie acertó · bote de vuelta</span> }
-                  @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">Si gana: {{ monedas(cuota(a)) }}</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">ahora {{ cuotaTxt(a) }}</span> }
+                  @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">Si gana (estimado): {{ monedas(cuota(a)) }}</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">ahora {{ cuotaTxt(a) }}</span> }
                 }
               </span>
             </li>

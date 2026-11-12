@@ -340,8 +340,10 @@ export class Juegos {
     return this.get(`${this.base}/porra/mis-apuestas${this.q(jornadaId)}`);
   }
 
-  porraClasificacion(jornadaId?: string): Promise<{ jornada?: Jornada; top: FilaPorra[]; miPuesto: number; miSaldo: number }> {
-    return this.get(`${this.base}/porra/clasificacion${this.q(jornadaId)}`);
+  /** `fresco`: sin la caché de transferencia del SSR (que no lleva la cookie del fan y no trae «mi puesto»). */
+  porraClasificacion(jornadaId?: string, fresco = false): Promise<{ jornada?: Jornada; top: FilaPorra[]; miPuesto: number; miSaldo: number }> {
+    const url = `${this.base}/porra/clasificacion${this.q(jornadaId)}`;
+    return fresco ? firstValueFrom(this.http.get<{ jornada?: Jornada; top: FilaPorra[]; miPuesto: number; miSaldo: number }>(url, { transferCache: false })) : this.get(url);
   }
 
   // ---- fantasy ----
@@ -790,7 +792,7 @@ export class PorraStore {
   async cargarClasificacion(): Promise<void> {
     this.cargandoClas.set(true);
     try {
-      const c = await this.juegos.porraClasificacion(this.estado.jornadaActual());
+      const c = await this.juegos.porraClasificacion(this.estado.jornadaActual(), this.fan.conSesion());
       this.clas.set({ top: c.top ?? [], miPuesto: c.miPuesto ?? 0, miSaldo: c.miSaldo ?? 0 });
     } catch {
       this.clas.set(null);
@@ -906,6 +908,7 @@ export class FantasyStore {
   /** Los últimos fichajes del mercado (si el backend todavía no expone el endpoint, se queda vacío). */
   async cargarFichajes(atletaId?: string): Promise<void> {
     try {
+      if (!this.estado.jornadas().length) await this.estado.cargar();
       const r = await this.juegos.fichajes(this.estado.jornadaActual(), atletaId);
       const lista = (r.fichajes ?? []).map((f) => ({ ...f, fecha: f.createdAt })) as MovimientoFeed[];
       if (atletaId) this.fichajesAtleta.set(lista);
