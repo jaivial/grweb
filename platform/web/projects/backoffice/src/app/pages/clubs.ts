@@ -10,7 +10,7 @@ import { BoDrawer, BoPageHeader, BoToggle, Confirm, Media, errText } from '../sh
 /** A row of the «clubs» collection (cms): directory entries and the requests from /clubs. */
 interface Club {
   id: string; nombre: string; ciudad: string; provincia: string; logoUrl: string; web: string; instagram: string; etiquetas: string;
-  rol: 'organizador' | 'colaborador' | 'club'; afiliadoAep: boolean; estado: 'publicado' | 'pendiente' | 'oculto' | 'rechazado';
+  rol: 'organizador' | 'colaborador' | 'club'; afiliadoAep: boolean | null; estado: 'publicado' | 'pendiente' | 'oculto' | 'rechazado';
   contactoEmail: string; contactoNombre: string; mensaje: string; motivoRechazo: string; revisadoAt?: string; revisadoPor: string;
   consentimientoAt?: string; orden: number; createdAt: string;
 }
@@ -63,7 +63,7 @@ const DIA = 86_400_000;
                         <td class="px-4 py-3"><span class="flex items-center gap-3"><span class="flex size-9 shrink-0 items-center justify-center rounded-md bg-white/6 text-label-xs">{{ ini(c.nombre) }}</span><span class="min-w-0"><span class="block truncate text-label-s">{{ c.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ c.ciudad }}</span></span></span></td>
                         <td class="px-3 py-3 text-body-s">{{ c.provincia || '—' }}</td>
                         <td class="px-3 py-3"><span class="block truncate text-body-s">{{ c.contactoNombre || '—' }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ c.contactoEmail }}</span></td>
-                        <td class="px-3 py-3"><gr-badge [tone]="c.afiliadoAep ? 'success' : 'neutral'">{{ c.afiliadoAep ? 'Sí' : 'No' }}</gr-badge></td>
+                        <td class="px-3 py-3"><gr-badge [tone]="c.afiliadoAep ? 'success' : 'neutral'">{{ c.afiliadoAep ? 'Sí' : c.afiliadoAep === false ? 'No' : 'Sin respuesta' }}</gr-badge></td>
                         <td class="px-3 py-3 text-body-s">{{ hace(c.createdAt) }}</td>
                         <td class="px-2"><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></td>
                       </tr>
@@ -95,7 +95,7 @@ const DIA = 86_400_000;
                       <span class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/6 p-1">@if (c.logoUrl) { <img [src]="logo(c.logoUrl)" alt="" class="max-h-full max-w-full object-contain" /> } @else { <span class="text-label-xs">{{ ini(c.nombre) }}</span> }</span>
                       <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ c.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ c.ciudad || 'Por confirmar' }}{{ c.provincia && c.ciudad && !c.ciudad.includes(c.provincia) ? ' (' + c.provincia + ')' : '' }}</span></span>
                       <gr-select class="w-40" [ngModel]="c.rol" (ngModelChange)="guardar(c, { rol: $event })" [aria-label]="'Papel de ' + c.nombre" [disabled]="ocupado()"><option value="organizador">Organizador</option><option value="colaborador">Colaborador</option><option value="club">Club</option></gr-select>
-                      <gr-badge [tone]="c.afiliadoAep ? 'success' : 'neutral'">{{ c.afiliadoAep ? 'AEP' : 'Sin AEP' }}</gr-badge>
+                      <gr-badge [tone]="c.afiliadoAep ? 'success' : 'neutral'">{{ c.afiliadoAep ? 'AEP' : c.afiliadoAep === false ? 'Sin AEP' : 'AEP sin respuesta' }}</gr-badge>
                       <span class="flex items-center gap-2"><span class="text-body-xs text-text-tertiary">En la web</span><bo-toggle [value]="c.estado === 'publicado'" [label]="'Mostrar ' + c.nombre + ' en /clubs'" [disabled]="ocupado()" (changed)="guardar(c, { estado: $event ? 'publicado' : 'oculto' })" /></span>
                     </li>
                   }
@@ -229,7 +229,7 @@ export class ClubsPage {
   protected ini(n: string): string { return n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
   protected logo(u: string): string { return u.startsWith('/api/') ? this.web + u : u; }
   protected filasClub(c: Club): [string, string, boolean][] {
-    return [['Ciudad', `${c.ciudad}${c.provincia ? ' (' + c.provincia + ')' : ''}`, false], ['Web', c.web || '—', !!c.web], ['Instagram', c.instagram || '—', !!c.instagram], ['Afiliado a la AEP', c.afiliadoAep ? 'Sí' : 'No', false]];
+    return [['Ciudad', `${c.ciudad}${c.provincia ? ' (' + c.provincia + ')' : ''}`, false], ['Web', c.web || '—', !!c.web], ['Instagram', c.instagram || '—', !!c.instagram], ['Afiliado a la AEP', c.afiliadoAep ? 'Sí' : c.afiliadoAep === false ? 'No' : 'Sin respuesta', false]];
   }
 
   async cargar(): Promise<void> {

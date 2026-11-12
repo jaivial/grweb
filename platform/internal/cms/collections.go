@@ -153,7 +153,7 @@ type clubRow struct {
 	Instagram     string     `json:"instagram" db:"instagram"`
 	Etiquetas     string     `json:"etiquetas" db:"etiquetas"`
 	Rol           string     `json:"rol" db:"rol"`
-	AfiliadoAEP   bool       `json:"afiliadoAep" db:"afiliado_aep"`
+	AfiliadoAEP   *bool      `json:"afiliadoAep" db:"afiliado_aep" doc:"null = sin respuesta"`
 	Estado        string     `json:"estado" db:"estado"`
 	ContactoEmail string     `json:"contactoEmail" db:"contacto_email" doc:"Solo si llegó desde el formulario público"`
 	ContactoNom   string     `json:"contactoNombre" db:"contacto_nombre"`
@@ -175,7 +175,7 @@ type clubIn struct {
 	Instagram   string `json:"instagram,omitempty" maxLength:"300"`
 	Etiquetas   string `json:"etiquetas,omitempty" maxLength:"120" doc:"Separadas por comas (p. ej. «Powerlifting, AEP»)"`
 	Rol         string `json:"rol,omitempty" enum:"organizador,colaborador,club" default:"club"`
-	AfiliadoAEP bool   `json:"afiliadoAep,omitempty"`
+	AfiliadoAEP *bool  `json:"afiliadoAep,omitempty" doc:"null = sin respuesta"`
 	Estado      string `json:"estado,omitempty" enum:"publicado,pendiente,oculto" default:"publicado"`
 }
 

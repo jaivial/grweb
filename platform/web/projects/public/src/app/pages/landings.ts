@@ -415,7 +415,7 @@ export class ClubsPage {
     this.busy.set(true);
     try {
       await this.cms.proponerClub({ nombre: f.nombre.trim(), ciudad: f.ciudad.trim(), provincia: f.provincia, web: f.web.trim(), instagram: f.instagram.trim(), email: f.email.trim(),
-        contactoNombre: f.contacto.trim(), mensaje: f.mensaje.trim(), afiliadoAep: f.aep === 'si', aceptaPrivacidad: f.acepta });
+        contactoNombre: f.contacto.trim(), mensaje: f.mensaje.trim(), afiliadoAep: f.aep ? f.aep === 'si' : null, aceptaPrivacidad: f.acepta });
       this.enviado = { nombre: f.nombre.trim(), email: f.email.trim() };
       this.sent.set(true);
       document.getElementById('anadir')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

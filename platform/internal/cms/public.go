@@ -378,7 +378,7 @@ type clubPub struct {
 	Instagram   string `json:"instagram" db:"instagram"`
 	Etiquetas   string `json:"etiquetas" db:"etiquetas"`
 	Rol         string `json:"rol" db:"rol"`
-	AfiliadoAEP bool   `json:"afiliadoAep" db:"afiliado_aep"`
+	AfiliadoAEP *bool  `json:"afiliadoAep" db:"afiliado_aep"`
 }
 
 func (s *Svc) registerPublicExtra() {
@@ -438,7 +438,7 @@ func (s *Svc) registerPublicExtra() {
 			Provincia        string `json:"provincia,omitempty" maxLength:"40"`
 			Web              string `json:"web,omitempty" maxLength:"300"`
 			Instagram        string `json:"instagram,omitempty" maxLength:"300"`
-			AfiliadoAEP      bool   `json:"afiliadoAep,omitempty"`
+			AfiliadoAEP      *bool  `json:"afiliadoAep,omitempty" doc:"Sin elegir = null (sin respuesta)"`
 			Email            string `json:"email" format:"email" maxLength:"254" doc:"Contacto para verificar el club (no se publica)"`
 			ContactoNombre   string `json:"contactoNombre" minLength:"2" maxLength:"120" doc:"Persona de contacto (no se publica)"`
 			Mensaje          string `json:"mensaje,omitempty" maxLength:"1000"`
