@@ -11,3 +11,4 @@ export * from './shell';
 export * from './palette';
 export * from './blocks';
 export * from './table';
+export * from './feed';
