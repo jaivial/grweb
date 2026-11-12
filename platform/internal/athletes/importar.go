@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -38,7 +39,7 @@ type Campo struct {
 // Campos of an athlete the AEP list can fill («nombreCompleto» splits into first name and surnames).
 var Campos = []Campo{
 	{"licencia", "Licencia", true}, {"nombre", "Nombre", false}, {"apellidos", "Apellidos", false}, {"nombreCompleto", "Nombre completo", false},
-	{"sexo", "Sexo", true}, {"fechaNacimiento", "Fecha de nacimiento", false}, {"categoria", "Categoría de peso", true}, {"division", "División", false},
+	{"sexo", "Sexo", true}, {"fechaNacimiento", "Fecha de nacimiento", true}, {"categoria", "Categoría de peso", true}, {"division", "División", false},
 	{"club", "Club", false}, {"ciudad", "Ciudad", false}, {"email", "Email", false}, {"telefono", "Teléfono", false},
 	{"estado", "Estado (confirmado, reserva, baja)", false}, {"ordenReserva", "Orden en la reserva", false},
 }
@@ -244,7 +245,7 @@ func excelFecha(s string) (time.Time, bool) {
 // leerFila maps a row and validates it against the competition year (division from the birth date).
 func leerFila(datos, mapeo map[string]string, year int) (parsed, string) {
 	var p parsed
-	p.Licencia = NormLicencia(valor(datos, mapeo, "licencia"))
+	p.Licencia = licVista(valor(datos, mapeo, "licencia"))
 	p.Nombre, p.Apellidos = valor(datos, mapeo, "nombre"), valor(datos, mapeo, "apellidos")
 	if full := valor(datos, mapeo, "nombreCompleto"); p.Nombre == "" && full != "" {
 		p.Nombre, p.Apellidos, _ = strings.Cut(full, " ")
@@ -283,7 +284,7 @@ func leerFila(datos, mapeo map[string]string, year int) (parsed, string) {
 	switch {
 	case p.Licencia == "":
 		return p, "Falta la licencia"
-	case !licenciaValida.MatchString(p.Licencia):
+	case !licenciaValida.MatchString(NormLicencia(p.Licencia)):
 		return p, "Licencia «" + p.Licencia + "» no válida: de 3 a 20 letras o números, sin contar guiones, puntos ni espacios"
 	case p.Nombre == "":
 		return p, "Falta el nombre"
@@ -590,19 +591,24 @@ func (s *Svc) diff(ctx context.Context, cid, id uuid.UUID, mapeo map[string]stri
 	rows.Close()
 	res := Resumen{ListaBajas: []BajaDiff{}}
 	seen := map[string]int{}
+	enActa := map[string]bool{} // licences present in the list, even on rows with errors: never a baja
 	batch := &pgx.Batch{}
 	for _, f := range filas {
 		p, errTxt := leerFila(f.datos, mapeo, year)
+		lic := NormLicencia(p.Licencia)
+		if lic != "" {
+			enActa[lic] = true
+		}
 		accion, cambios := "", []string{}
 		var atleta *uuid.UUID
 		switch {
 		case errTxt != "":
 			accion = "error"
-		case seen[p.Licencia] > 0:
-			accion, errTxt = "error", fmt.Sprintf("Licencia duplicada con la fila %d", seen[p.Licencia])
+		case seen[lic] > 0:
+			accion, errTxt = "error", fmt.Sprintf("Licencia duplicada con la fila %d", seen[lic])
 		default:
-			seen[p.Licencia] = f.fila
-			if prev, ok := byLic[p.Licencia]; ok {
+			seen[lic] = f.fila
+			if prev, ok := byLic[lic]; ok {
 				atleta = &prev.ID
 				if cambios = diffCambios(prev, p); len(cambios) > 0 {
 					accion = "actualizar"
@@ -627,10 +633,13 @@ func (s *Svc) diff(ctx context.Context, cid, id uuid.UUID, mapeo map[string]stri
 		cb, _ := json.Marshal(cambios)
 		batch.Queue(`UPDATE importacion_filas SET accion = $3, cambios = $4, error = $5, atleta_id = $6 WHERE importacion_id = $1 AND fila = $2`, id, f.fila, accion, cb, errTxt, atleta)
 	}
-	for lic, r := range byLic {
-		if _, ok := seen[lic]; !ok && r.Origen == "aep" && r.Estado != "baja" {
-			res.Bajas++
-			res.ListaBajas = append(res.ListaBajas, BajaDiff{AtletaID: r.ID, Nombre: r.nombreCompleto(), Licencia: r.Licencia})
+	// U31-R1-1: a list with no valid row is a broken file, not "everybody left": no bajas then.
+	if res.Nuevos+res.Cambios+res.Iguales > 0 {
+		for lic, r := range byLic {
+			if !enActa[lic] && r.Origen == "aep" && r.Estado != "baja" {
+				res.Bajas++
+				res.ListaBajas = append(res.ListaBajas, BajaDiff{AtletaID: r.ID, Nombre: r.nombreCompleto(), Licencia: r.Licencia})
+			}
 		}
 	}
 	mp, _ := json.Marshal(mapeo)
@@ -652,7 +661,7 @@ func (s *Svc) filasDiff(ctx context.Context, id uuid.UUID, mapeo map[string]stri
 		if err := rows.Scan(&f.Fila, &datos, &f.Accion, &f.Cambios, &f.Error); err != nil {
 			return nil, err
 		}
-		f.Licencia = NormLicencia(valor(datos, mapeo, "licencia"))
+		f.Licencia = licVista(valor(datos, mapeo, "licencia"))
 		f.Nombre = strings.TrimSpace(valor(datos, mapeo, "nombre") + " " + valor(datos, mapeo, "apellidos"))
 		if f.Nombre == "" {
 			f.Nombre = valor(datos, mapeo, "nombreCompleto")
@@ -767,6 +776,13 @@ func (s *Svc) confirmar(ctx context.Context, cid, id uuid.UUID) {
 func (s *Svc) aplicar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p parsed, cambios []string) error {
 	var id uuid.UUID
 	var creado bool
+	// Reuse the stored spelling of a matching licence (VAL-1095 vs VAL1095) so the upsert hits the same row.
+	var stored string
+	if err := tx.QueryRow(ctx, `SELECT licencia FROM atletas WHERE competition_id = $1 AND `+licNormSQL+` = $2 LIMIT 1`, cid, NormLicencia(p.Licencia)).Scan(&stored); err == nil {
+		p.Licencia = stored
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
 	err := tx.QueryRow(ctx, `INSERT INTO atletas (id, competition_id, licencia, nombre, apellidos, email, telefono, sexo, fecha_nacimiento, categoria, division, club, ciudad, estado, orden_reserva, origen)
 		VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,$15,'aep')
 		ON CONFLICT (competition_id, licencia) WHERE licencia <> '' DO UPDATE SET nombre = EXCLUDED.nombre, apellidos = EXCLUDED.apellidos,

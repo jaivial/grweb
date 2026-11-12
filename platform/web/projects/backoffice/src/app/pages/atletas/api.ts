@@ -20,6 +20,7 @@ export interface ItemLista {
   categoria: string;
   divisionNombre: string;
   flight: string;
+  prueba: '' | 'aep2' | 'aep3';
   estado: 'confirmado' | 'reserva' | 'baja';
   ordenReserva?: number;
   completo: number;
@@ -40,6 +41,7 @@ export interface Lista {
   kpis: { perfilesCompletos: number; pctCompletos: number; sinFoto: number; conImagen: number; imagenPendiente: number; menoresPendientes: number; seguimientos: number; seguimientosSemana: number };
   categorias: string[];
   flights: string[];
+  pruebas?: { aep2: number; aep3: number; sin: number };
   importado?: string;
 }
 export interface Perfil {

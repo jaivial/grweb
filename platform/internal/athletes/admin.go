@@ -48,6 +48,7 @@ type ItemLista struct {
 	Categoria      string       `json:"categoria"`
 	DivisionNombre string       `json:"divisionNombre"`
 	Flight         string       `json:"flight"`
+	Prueba         string       `json:"prueba" doc:"Competición: aep2, aep3 o vacío (sin elegir)"`
 	Estado         string       `json:"estado"`
 	OrdenReserva   *int         `json:"ordenReserva,omitempty"`
 	Completo       int          `json:"completo"`
@@ -70,6 +71,7 @@ type Lista struct {
 	KPIs       KPIs           `json:"kpis"`
 	Categorias []string       `json:"categorias"`
 	Flights    []string       `json:"flights"`
+	Pruebas    map[string]int `json:"pruebas" doc:"Confirmados por competición: aep2 · aep3 · sin"`
 	Importado  *time.Time     `json:"importado,omitempty" doc:"Última importación del acta confirmada"`
 }
 
@@ -125,7 +127,7 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
-			out := Lista{Pagina: in.Pagina, Por: in.Por, Pestanas: map[string]int{"todos": 0, "confirmados": 0, "reserva": 0, "bajas": 0, "incidencias": 0}, Items: []ItemLista{}}
+			out := Lista{Pagina: in.Pagina, Por: in.Por, Pestanas: map[string]int{"todos": 0, "confirmados": 0, "reserva": 0, "bajas": 0, "incidencias": 0}, Pruebas: map[string]int{"aep2": 0, "aep3": 0, "sin": 0}, Items: []ItemLista{}}
 			cats, flights := map[string]bool{}, map[string]bool{}
 			var filtered []row
 			q := fold(in.Q)
@@ -135,6 +137,11 @@ func (s *Svc) registerAdmin() {
 				switch r.Estado {
 				case "confirmado":
 					out.Pestanas["confirmados"]++
+					if r.Prueba == "" {
+						out.Pruebas["sin"]++
+					} else {
+						out.Pruebas[r.Prueba]++
+					}
 				case "reserva":
 					out.Pestanas["reserva"]++
 				case "baja":
@@ -218,7 +225,7 @@ func (s *Svc) registerAdmin() {
 			for i := from; i < to && i < len(filtered); i++ {
 				r := filtered[i]
 				out.Items = append(out.Items, ItemLista{ID: r.ID, NombreCompleto: r.nombreCompleto(), Licencia: r.Licencia, Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria,
-					DivisionNombre: DivisionNombre(r.Division), Flight: r.Flight, Estado: r.Estado, OrdenReserva: r.OrdenReserva, Completo: r.completo(),
+					DivisionNombre: DivisionNombre(r.Division), Flight: r.Flight, Prueba: r.Prueba, Estado: r.Estado, OrdenReserva: r.OrdenReserva, Completo: r.completo(),
 					Imagen: imagenEstado(r, d), FotoURL: r.FotoURL, Seguidores: r.Seguidores, Incidencias: len(r.incidencias(d)), Avisos: r.incidencias(d), Edad: r.edad(d), Pesaje: r.PesajeEstado})
 			}
 			out.Categorias = keys(cats)

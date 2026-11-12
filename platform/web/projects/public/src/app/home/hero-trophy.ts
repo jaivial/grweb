@@ -53,9 +53,9 @@ const PUFFS = [
         <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
         <img [src]="imagenTrofeo()" alt="" fetchpriority="high" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
       </div>
-      <!-- U30 · Figma 54: background image with focal point, shown when there is no animation (reduced motion) -->
-      @if (reduced() && hero().imagen) {
-        <img [src]="hero().imagen" alt="" class="absolute inset-0 size-full object-cover opacity-60" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
+      <!-- U30 · Figma 54: background image with focal point; with motion it fades out with the intro text (U31-R1-15) -->
+      @if (hero().imagen) {
+        <img [src]="hero().imagen" alt="" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
       }
       <!-- Smoke of the intro (clears and drifts away) -->
       <div class="pointer-events-none absolute inset-0" aria-hidden="true" [style.opacity]="humo()">
@@ -98,7 +98,8 @@ const PUFFS = [
           <ul class="mt-16 flex flex-wrap items-center justify-center gap-2 md:mt-[63px] md:gap-4" aria-label="Organizan y colaboran">
             @for (p of patrocinadores(); track p.nombre) {
               <li class="flex h-11 w-[104px] items-center justify-center p-1.5 md:h-14 md:w-[176px]">
-                @if (p.url) { <a [href]="p.url" target="_blank" rel="noopener" class="size-full"><img [src]="p.logoUrl" [alt]="p.nombre" class="size-full object-contain" loading="lazy" decoding="async" /></a> }
+                @if (!p.logoUrl) { <span class="text-label-s text-text-secondary">{{ p.nombre }}</span> }
+                @else if (p.url) { <a [href]="p.url" target="_blank" rel="noopener" class="size-full"><img [src]="p.logoUrl" [alt]="p.nombre" class="size-full object-contain" loading="lazy" decoding="async" /></a> }
                 @else { <img [src]="p.logoUrl" [alt]="p.nombre" class="size-full object-contain" loading="lazy" decoding="async" /> }
               </li>
             }
