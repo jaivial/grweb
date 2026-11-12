@@ -369,7 +369,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
     <ng-template #aforo let-s>
       <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card/90 p-4">
         <p class="flex items-center justify-between gap-3 text-label-s"><span class="flex items-center gap-2"><gr-icon name="users" [size]="16" class="text-accent-text" />Aforo · {{ s.nombre }}</span><span class="font-mono text-mono-s text-text-secondary">{{ n(s.ocupadas) }} / {{ n(s.aforo) }}</span></p>
-        <div class="h-1.5 rounded-full bg-white/10"><div class="h-full rounded-full bg-accent" [style.width.%]="min(100, s.ocupadas * 100 / s.aforo)"></div></div>
+        <div class="h-1.5 rounded-full bg-white/10"><div class="h-full rounded-full" [class]="s.estado === 'agotada' ? 'bg-text-tertiary' : 'bg-accent'" [style.width.%]="min(100, s.ocupadas * 100 / s.aforo)"></div></div>
         <p class="flex items-center gap-1.5 text-body-s text-text-secondary">@if (!s.libres) { <gr-icon name="bell" [size]="14" class="text-text-tertiary" /> }{{ s.libres ? 'Quedan ' + n(s.libres) + ' entradas para esta sesión' : 'Agotadas · apúntate a la lista de espera' }}</p>
       </div>
     </ng-template>
