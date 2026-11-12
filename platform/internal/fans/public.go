@@ -41,7 +41,7 @@ type Yo struct {
 	ID       uuid.UUID `json:"id"`
 	Alias    string    `json:"alias"`
 	Tipo     string    `json:"tipo" enum:"atleta,publico"`
-	AtletaID uuid.UUID `json:"atletaId,omitempty" doc:"Relleno cuando el email coincide con una inscripción"`
+	AtletaID uuid.UUID `json:"atletaId,omitzero" doc:"Relleno cuando el email coincide con una inscripción"`
 	Insignia string    `json:"insignia,omitempty" doc:"«Atleta» o vacío (público)"`
 	Email    string    `json:"email" doc:"Email de la propia sesión (rellena formularios)"`
 }
