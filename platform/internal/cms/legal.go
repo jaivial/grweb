@@ -23,7 +23,7 @@ var TiposLegales = []struct{ Tipo, Nombre, Ruta string }{
 	{"terminos", "Términos y condiciones", "/terminos"},
 	{"cookies", "Política de cookies", "/cookies"},
 	{"consentimiento", "Consentimiento de datos e imagen", "/consentimiento-datos"},
-	{"whatsapp", "Consentimiento de WhatsApp", "/consentimiento-datos"},
+	{"whatsapp", "Consentimiento de WhatsApp", "/texto-whatsapp"},
 	{"bases-sorteo", "Bases del sorteo", "/politica-concurso"},
 }
 
@@ -36,9 +36,15 @@ type legalRow struct {
 	Hash        string     `json:"hash" db:"hash"`
 	PublicadoAt *time.Time `json:"publicadoAt,omitempty" db:"publicado_at"`
 	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
+	// Whether publishing asked for a new acceptance (Figma 54 «Pedir nueva aceptación»).
+	PedirAceptacion bool `json:"pedirAceptacion" db:"pedir_aceptacion"`
+	// Acceptances recorded by cms forms (volunteers, clubs) under this version; athletes and tickets live in other services.
+	Aceptaciones int `json:"aceptaciones" db:"aceptaciones"`
 }
 
-const selLegal = `SELECT id, tipo, version, titulo, contenido, hash, publicado_at, created_at FROM legal`
+const selLegal = `SELECT id, tipo, version, titulo, contenido, hash, publicado_at, created_at, pedir_aceptacion,
+	CASE WHEN tipo = 'privacidad' THEN (SELECT count(*) FROM voluntarios v WHERE v.competition_id = legal.competition_id AND v.legal_version = legal.version)
+		+ (SELECT count(*) FROM clubs c WHERE c.competition_id = legal.competition_id AND c.legal_version = legal.version) ELSE 0 END::int AS aceptaciones FROM legal`
 
 func hashText(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
 
@@ -146,6 +152,9 @@ func (s *Svc) registerLegal() {
 		CID  uuid.UUID `path:"cid"`
 		Tipo string    `path:"tipo"`
 		ID   uuid.UUID `path:"id"`
+		Body *struct {
+			PedirAceptacion *bool `json:"pedirAceptacion,omitempty" doc:"Pedir nueva aceptación en la próxima reserva, compra o acceso (por defecto sí)"`
+		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "legal-publish", Method: http.MethodPost, Path: base + "/{tipo}/versiones/{id}/publicar", Summary: "Publicar una versión (pasa a estar vigente)", Tags: tags, Security: bearer},
 		func(ctx context.Context, in *pubIn) (*oneOut, error) {
@@ -158,8 +167,9 @@ func (s *Svc) registerLegal() {
 				by = &p.UserID
 			}
 			var r legalRow
+			pedir := in.Body == nil || in.Body.PedirAceptacion == nil || *in.Body.PedirAceptacion
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE legal SET publicado_at = now(), publicado_por = $4 WHERE competition_id=$1 AND tipo=$2 AND id=$3 AND publicado_at IS NULL`, in.CID, in.Tipo, in.ID, by)
+				tag, err := tx.Exec(ctx, `UPDATE legal SET publicado_at = now(), publicado_por = $4, pedir_aceptacion = $5 WHERE competition_id=$1 AND tipo=$2 AND id=$3 AND publicado_at IS NULL`, in.CID, in.Tipo, in.ID, by, pedir)
 				if err != nil {
 					return err
 				}
@@ -170,7 +180,7 @@ func (s *Svc) registerLegal() {
 					return err
 				}
 				// Public: consents given under an older version must be renewed (crm reacts to it).
-				return events.Enqueue(ctx, tx, events.New(ctx, "legal.publicado", map[string]any{"tipo": in.Tipo, "version": r.Version, "hash": r.Hash},
+				return events.Enqueue(ctx, tx, events.New(ctx, "legal.publicado", map[string]any{"tipo": in.Tipo, "version": r.Version, "hash": r.Hash, "pedirAceptacion": pedir},
 					events.Competition(in.CID.String()), events.Audience(events.Public)))
 			})
 			if err == nil {

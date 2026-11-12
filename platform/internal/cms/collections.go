@@ -77,8 +77,8 @@ type patroIn struct {
 	MostrarEnHero *bool `json:"mostrarEnHero,omitempty"`
 	// Team photo with focal point (%) and alternative text (Figma 54 · patrocinadores).
 	FotoURL string `json:"fotoUrl,omitempty" maxLength:"500"`
-	FocalX  int    `json:"focalX,omitempty" minimum:"0" maximum:"100" default:"50"`
-	FocalY  int    `json:"focalY,omitempty" minimum:"0" maximum:"100" default:"50"`
+	FocalX  int    `json:"focalX" required:"false" minimum:"0" maximum:"100" default:"50"`
+	FocalY  int    `json:"focalY" required:"false" minimum:"0" maximum:"100" default:"50"`
 	Alt     string `json:"alt,omitempty" maxLength:"200"`
 }
 
