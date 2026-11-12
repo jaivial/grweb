@@ -35,11 +35,13 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
     @let l = lista();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6">
       <bo-page-header title="Atletas" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas']">
-        @if (canEdit()) { <a actions grButton icon="ticket" routerLink="inscripcion">Inscripción</a> }
-        @if (canWeigh()) { <a actions grButton icon="scale" routerLink="pesaje">Pesaje</a> }
         @if (canEdit() && l?.pestanas?.todos) { <button actions grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar</button> }
         @if (canEdit()) { <a actions grButton variant="primary" routerLink="importar">Importar acta AEP</a> }
       </bo-page-header>
+
+      @if (sobreaforo(); as s) {
+        <gr-alert tone="warning" [title]="'Cupo superado: ' + s.confirmados + ' confirmados para ' + s.plazas + ' plazas'">Sobran {{ s.confirmados - s.plazas }}. Revisa el cupo de la AEP en Inscripción o da de baja a quien no tenga plaza.</gr-alert>
+      }
 
       @if (l && l.pestanas.todos === 0 && !cargando()) {
         <div class="grid gap-4 lg:grid-cols-2">
@@ -68,6 +70,10 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
               @if (pestana() === t.key) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
             </button>
           }
+          <span class="ml-auto flex shrink-0 items-center gap-1">
+            @if (canEdit()) { <a grButton variant="ghost" size="s" icon="ticket" routerLink="inscripcion">Inscripción</a> }
+            @if (canWeigh()) { <a grButton variant="ghost" size="s" icon="scale" routerLink="pesaje">Pesaje</a> }
+          </span>
         </nav>
 
         @if (pestana() === 'incidencias') {
@@ -116,6 +122,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                     @if (pestana() === 'incidencias') { <th class="w-16 px-4 py-3 font-normal">Orden</th> }
                     @if (pestana() === 'incidencias') { <th class="px-4 py-3 font-normal">Atleta</th> } @else { <th boSort class="px-4 py-3" [sort]="sortDe('nombre')" (toggle)="ordenar('nombre')">Atleta</th> }
                     @if (pestana() === 'incidencias') { <th class="w-24 px-3 py-3 font-normal">Categoría</th> } @else { <th boSort class="w-28 py-3" [sort]="sortDe('categoria')" (toggle)="ordenar('categoria')">Categoría</th> }
+                    <th class="w-28 px-3 py-3 font-normal">Competición</th>
                     <th class="w-16 px-3 py-3 font-normal">Flight</th>
                     <th class="w-32 px-3 py-3 font-normal">Estado AEP</th>
                     @if (pestana() === 'incidencias') { <th class="w-40 px-3 py-3 font-normal">Perfil público</th> } @else { <th boSort class="w-40 py-3" [sort]="sortDe('completo')" (toggle)="ordenar('completo')">Perfil público</th> }
@@ -131,11 +138,12 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       @if (pestana() === 'incidencias') { <td class="px-4 py-3 text-mono-s">{{ a.ordenReserva }}</td> }
                       <td class="px-4 py-3">
                         <a [routerLink]="a.id" class="flex min-w-0 items-center gap-3" (click)="$event.stopPropagation()">
-                          @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-9 shrink-0 rounded-full object-cover" loading="lazy" /> } @else { <gr-avatar [name]="a.nombreCompleto" /> }
+                          @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombreCompleto" class="size-9 shrink-0 rounded-full object-cover" loading="lazy" /> } @else { <gr-avatar [name]="a.nombreCompleto" /> }
                           <span class="min-w-0"><span class="block truncate text-label-s">{{ a.nombreCompleto }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.divisionNombre }}</span></span>
                         </a>
                       </td>
                       <td class="px-3 py-3 text-mono-s">{{ a.sexo }} @if (a.categoria) { {{ cat(a.categoria) }} } @else { <span class="text-text-tertiary">Sin elegir</span> }</td>
+                      <td class="px-3 py-3 text-mono-s">@if (a.prueba) { {{ prueba[a.prueba] }} } @else { <span class="text-text-tertiary">Sin elegir</span> }</td>
                       <td class="px-3 py-3 text-mono-s">{{ a.flight || '–' }}</td>
                       <td class="px-3 py-3">
                         @if (sinCategoria(a) && a.estado !== 'baja') { <gr-badge tone="warning">Sin categoría</gr-badge> }
@@ -152,8 +160,8 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       </td>
                     </tr>
                   } @empty {
-                    @if (cargando()) { <tr><td colspan="10"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
-                    @else { <tr><td colspan="10" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
+                    @if (cargando()) { <tr><td colspan="11"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
+                    @else { <tr><td colspan="11" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
                   }
                 </tbody>
               </table>
@@ -162,7 +170,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
               @for (a of filas(); track a.id) {
                 <li class="border-b border-line-subtle last:border-0" [class.opacity-55]="a.estado === 'baja'">
                   <a [routerLink]="a.id" class="flex min-h-16 items-center gap-3 px-4 py-3">
-                    @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-10 shrink-0 rounded-full object-cover" loading="lazy" /> } @else { <gr-avatar [name]="a.nombreCompleto" /> }
+                    @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombreCompleto" class="size-10 shrink-0 rounded-full object-cover" loading="lazy" /> } @else { <gr-avatar [name]="a.nombreCompleto" /> }
                     <span class="min-w-0 flex-1">
                       <span class="block truncate text-label-s">{{ a.nombreCompleto }}</span>
                       <span class="block truncate text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }} · {{ a.club || 'Independiente' }}{{ a.flight ? ' · Flight ' + a.flight : '' }}</span>
@@ -189,7 +197,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 
         @if (l && pestana() !== 'incidencias') {
           <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <gr-kpi label="Perfiles completos" [value]="fmtNumber(l.kpis.perfilesCompletos)" [caption]="l.kpis.pctCompletos + ' % del total'" />
+            <gr-kpi label="Perfiles completos" [value]="fmtNumber(l.kpis.perfilesCompletos)" [delta]="l.kpis.pctCompletos + ' %'" caption="del total" />
             <gr-kpi label="Sin foto" [value]="fmtNumber(l.kpis.sinFoto)" caption="bloquean la ficha pública" />
             <gr-kpi label="Consentimiento imagen" [value]="fmtNumber(l.kpis.conImagen)" [caption]="l.kpis.imagenPendiente + ' pendientes · ' + l.kpis.menoresPendientes + ' menores'" />
             <gr-kpi label="Seguimientos" [value]="fmtNumber(l.kpis.seguimientos)" [caption]="'+' + l.kpis.seguimientosSemana + ' esta semana'" />
@@ -230,6 +238,7 @@ export class AtletasPage {
   protected readonly estado = ESTADO;
   protected readonly imagen = IMAGEN;
   protected readonly cat = cat;
+  protected readonly prueba: Record<string, string> = { aep2: 'AEP-2', aep3: 'AEP-3' };
   protected readonly fmtNumber = fmtNumber;
   protected sinCategoria(a: ItemLista): boolean { return a.avisos?.some((i) => i.tipo === 'categoria_invalida') ?? false; }
   protected readonly tabs: { key: Pestana; label: string }[] = [
@@ -306,9 +315,17 @@ export class AtletasPage {
     const c = this.comps.current();
     if (!l) return '';
     const plazas = (c as { inscripcion?: { plazas?: number } } | null)?.inscripcion?.plazas;
+    const p = l.pruebas;
     const parts = [plazas ? `${plazas} plazas (cupo AEP)` : '', `${fmtNumber(l.pestanas.confirmados)} confirmados`];
+    if (p) parts.push(`AEP-2 ${p.aep2}`, `AEP-3 ${p.aep3}`, p.sin ? `${p.sin} sin competición` : '');
     if (l.importado) parts.push(`actualizado desde el acta del ${fmtShortDate(l.importado)}`);
     return parts.filter(Boolean).join(' · ');
+  });
+  /** U31-R1-9: more confirmed athletes than AEP places. */
+  protected readonly sobreaforo = computed(() => {
+    const l = this.lista();
+    const plazas = (this.comps.current() as { inscripcion?: { plazas?: number } } | null)?.inscripcion?.plazas;
+    return l && plazas && l.pestanas.confirmados > plazas ? { plazas, confirmados: l.pestanas.confirmados } : null;
   });
 
   constructor() {
@@ -330,7 +347,11 @@ export class AtletasPage {
   protected buscar(v: string): void {
     this.q.set(v);
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.recargar(1), 250);
+    this.timer = setTimeout(() => {
+      // U31-R1-11: keep the search in the URL so refresh/share keeps it.
+      void this.router.navigate([], { relativeTo: this.route, queryParams: { q: v || null }, queryParamsHandling: 'merge', replaceUrl: true });
+      void this.recargar(1);
+    }, 250);
   }
 
   protected cambiarPestana(p: Pestana): void {
