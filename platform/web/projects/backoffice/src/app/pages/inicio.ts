@@ -11,6 +11,7 @@ import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { Realtime } from '../core/realtime';
 import type { Actividad, Checklist, Competicion, Dashboard, Integracion } from '../core/api';
+import { EntradasApi, type Resumen, type ResumenCheckin, type Sesion } from './entradas/api';
 
 const ESTADO: Record<Competicion['estado'], { label: string; tone: GrTone }> = {
   borrador: { label: 'Borrador', tone: 'neutral' },
@@ -61,11 +62,16 @@ export class InicioPage {
   protected readonly dash = signal<Dashboard | null>(null);
   protected readonly actividad = signal<Actividad[] | null>(null);
   protected readonly integraciones = signal<Integracion[]>([]);
+  /** Tickets summary (aforo por sesión, reservas por día) and, on the event day, the gate devices. */
+  protected readonly resumen = signal<Resumen | null>(null);
+  protected readonly checkin = signal<ResumenCheckin | null>(null);
+  private readonly entradasApi = inject(EntradasApi);
   protected readonly error = signal('');
   protected readonly periodo = signal('7d');
   protected readonly periodos = [{ value: 'hoy', label: 'Hoy' }, { value: '7d', label: '7 días' }, { value: 'todo', label: 'Todo' }];
 
   protected readonly can = (perm: string) => this.auth.can(this.comp()?.id, perm);
+  protected readonly evento = computed(() => this.comp()?.estado === 'hoy');
   protected readonly taquilla = computed(() => this.can('checkin.escanear') && !this.can('evento.editar') && !this.can('entradas.gestionar'));
   protected readonly estado = computed(() => ESTADO[this.comp()?.estado ?? 'borrador']);
   protected readonly nombre = computed(() => (this.auth.user()?.nombre ?? '').split(' ')[0]);
@@ -85,14 +91,36 @@ export class InicioPage {
   protected readonly kpis = computed(() => {
     const k = this.dash()?.kpis ?? {};
     const v = (key: string) => (key in k ? fmtNumber(k[key]) : null);
+    const n = (key: string) => k[key] ?? 0;
+    const euros = 'sorteo.recaudado' in k ? `${fmtNumber(n('sorteo.recaudado') / 100)} € recaudados` : 'vendidos';
+    if (this.evento()) {
+      // Figma 96:9197 · día del evento
+      return [
+        { label: 'Personas dentro', value: 'entradas.dentro' in k ? `${fmtNumber(n('entradas.dentro'))} / ${fmtNumber(n('entradas.personas'))}` : null, caption: 'con entrada', delta: null },
+        { label: 'Atletas confirmados', value: v('atletas.confirmados'), caption: `${n('atletas.reserva')} en reserva`, delta: null },
+        { label: 'Entradas reservadas', value: v('entradas.reservas'), caption: 'reservas activas', delta: null },
+        { label: 'Boletos del sorteo', value: v('sorteo.boletos'), caption: euros, delta: null },
+      ];
+    }
+    const reservas = n('entradas.reservas');
+    const total = n('contactos.total');
     return [
-      { label: 'Entradas reservadas', value: v('entradas.reservadas'), caption: 'esta semana' },
-      { label: 'Personas', value: v('entradas.personas'), caption: 'con entrada' },
-      { label: 'Boletos del sorteo', value: v('rifa.boletos'), caption: 'vendidos' },
-      { label: 'Atletas confirmados', value: v('atletas.confirmados'), caption: 'importados de la AEP' },
-      { label: 'Contactos', value: v('contactos.total'), caption: 'con consentimiento' },
+      { label: 'Entradas reservadas', value: v('entradas.reservas'), caption: 'esta semana', delta: 'entradas.semana' in k ? `+${fmtNumber(n('entradas.semana'))}` : null },
+      { label: 'Personas', value: v('entradas.personas'), caption: reservas ? `${(n('entradas.personas') / reservas).toLocaleString('es-ES', { maximumFractionDigits: 1 })} por reserva` : 'con entrada', delta: null },
+      { label: 'Boletos del sorteo', value: v('sorteo.boletos'), caption: euros, delta: null },
+      ...('contactos.total' in k
+        ? [{ label: 'Aceptan novedades', value: total ? `${Math.round((100 * n('contactos.novedades')) / total)} %` : '0 %', caption: `${fmtNumber(n('contactos.novedades'))} de ${fmtNumber(total)} contactos`, delta: null }]
+        : []),
+      { label: 'Atletas confirmados', value: v('atletas.confirmados'), caption: `${n('atletas.bajas')} bajas · ${n('atletas.reserva')} en reserva`, delta: null },
     ];
   });
+  /** Bars of «Reservas por día» (from the tickets summary). */
+  protected readonly barras = computed(() => {
+    const s = this.resumen()?.serie ?? [];
+    const max = Math.max(1, ...s);
+    return s.map((v) => ({ v, h: Math.max(4, (100 * v) / max) }));
+  });
+  protected readonly aforoTone = (s: Sesion) => (s.libres <= 0 ? 'lleno' : s.aforo && s.libres / s.aforo <= 0.1 ? 'ultimas' : 'ok');
   protected readonly pasos = computed(() =>
     (this.checklist()?.pasos ?? []).map((p) => ({ ...p, accion: PASO[p.clave], puede: !PASO[p.clave]?.perm || this.can(PASO[p.clave]!.perm!) })),
   );
@@ -148,12 +176,16 @@ export class InicioPage {
       firstValueFrom(this.http.get<Dashboard>(`${base}/dashboard`, { params: { modo: this.comp()?.estado === 'hoy' ? 'evento' : 'campana' } })),
       firstValueFrom(this.http.get<Actividad[]>(`${base}/actividad`, { params: { limite: 8 } })),
       this.can('integraciones.config') ? firstValueFrom(this.http.get<Integracion[]>(`${base}/integraciones`)) : Promise.resolve([] as Integracion[]),
+      this.can('checkin.escanear') ? this.entradasApi.resumen(cid) : Promise.resolve(null),
+      this.evento() && this.can('checkin.escanear') ? this.entradasApi.resumenCheckin(cid) : Promise.resolve(null),
     ]);
-    const [cl, db, act, ints] = results;
+    const [cl, db, act, ints, res, chk] = results;
     if (cl.status === 'fulfilled') this.checklist.set(cl.value);
     if (db.status === 'fulfilled') this.dash.set(db.value);
     if (act.status === 'fulfilled') this.actividad.set(act.value);
     if (ints.status === 'fulfilled') this.integraciones.set(ints.value);
+    if (res.status === 'fulfilled') this.resumen.set(res.value);
+    if (chk.status === 'fulfilled') this.checkin.set(chk.value);
     if (!quiet && results.some((r) => r.status === 'rejected')) this.error.set('Parte del Inicio no se pudo cargar.');
   }
 
