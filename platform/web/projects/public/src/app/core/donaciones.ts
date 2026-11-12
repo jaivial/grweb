@@ -78,7 +78,8 @@ export class Donaciones {
 
   async cargarConfig(): Promise<DonacionesConfig | null> {
     try {
-      const c = await firstValueFrom(this.http.get<DonacionesConfig>(`${this.base}/config`));
+      // fresh on every opening of the dialog (the backoffice can switch donations on and off at any time)
+      const c = await firstValueFrom(this.http.get<DonacionesConfig>(`${this.base}/config`, { params: { t: Date.now() } }));
       this.config.set(c);
       return c;
     } catch {

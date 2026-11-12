@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { GrButton, GrIcon, GrToasts } from '@grcup/ui';
 import { ChatService, diaDeHoy, etiquetaDia } from '../../core/chat';
 import { Donaciones } from '../../core/donaciones';
@@ -31,7 +31,7 @@ type Pestana = 'chat' | 'donantes' | 'porra';
       <header class="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-3">
         <div class="min-w-0">
           <h2 class="font-display text-[20px] leading-none text-text-primary uppercase italic">Chat en directo</h2>
-          <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-[11px] leading-none font-medium tracking-[0.08em] uppercase" role="status">
+          <p class="mt-2 flex items-center gap-x-2 font-mono text-[11px] leading-none font-medium tracking-[0.08em] whitespace-nowrap uppercase" role="status">
             <span class="relative flex size-2 shrink-0" aria-hidden="true">
               @if (vivo()) { <span class="gr-latido absolute inset-0 rounded-full bg-accent"></span> }
               <span class="relative size-2 rounded-full" [class]="puntoClase()"></span>
@@ -74,7 +74,7 @@ type Pestana = 'chat' | 'donantes' | 'porra';
         @switch (tab()) {
           @case ('chat') { <gr-chat-view (donar)="donar.set(true)" /> }
           @case ('donantes') { <gr-donantes-view [diaSala]="chat.dia()" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> }
-          @case ('porra') { <gr-porra-view [jornadaId]="jornadaId()" [jornadaNombre]="jornadaNombre()" /> }
+          @case ('porra') { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> }
         }
       </div>
     </section>
@@ -89,10 +89,12 @@ export class PanelSocial {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly toasts = inject(GrToasts);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly tab = signal<Pestana>('chat');
   protected readonly donar = signal(false);
   protected readonly jornadas = signal<Jornada[]>([]);
+  protected readonly jornadasCargadas = signal(false);
 
   protected readonly pestanas: { v: Pestana; l: string }[] = [
     { v: 'chat', l: 'Chat' },
@@ -103,7 +105,7 @@ export class PanelSocial {
   /** La sala viva (hoy) y las jornadas de juegos de otros días (historial de solo lectura). */
   protected readonly opciones = computed(() => {
     const hoy = diaDeHoy();
-    const lista = [{ dia: hoy, l: 'Hoy · en directo', hoy: true }];
+    const lista = [{ dia: hoy, l: this.chat.fase() === 'en_directo' ? 'Hoy · en directo' : 'Hoy', hoy: true }];
     const otras = this.jornadas()
       .filter((j) => j.dia !== hoy)
       .sort((a, b) => a.dia.localeCompare(b.dia))
@@ -114,36 +116,49 @@ export class PanelSocial {
   /** The jornada of the day being shown (its id is needed by the games). */
   protected readonly jornadaId = computed(() => this.jornadas().find((j) => j.dia === this.chat.dia())?.id ?? '');
   protected readonly jornadaNombre = computed(() => this.jornadas().find((j) => j.dia === this.chat.dia())?.nombre ?? '');
+  /** The porra of the day shown; today without a jornada falls back to the open one (never a 404 «no jornada today»). */
+  protected readonly jornadaPorra = computed<Jornada | undefined>(() => {
+    const l = this.jornadas();
+    return l.find((j) => j.dia === this.chat.dia()) ?? (this.chat.soloLectura() ? undefined : l.find((j) => j.estado === 'abierta' || j.estado === 'en_juego'));
+  });
 
   protected readonly badge = computed(() => {
     if (this.chat.soloLectura()) return `Historial · ${etiquetaDia(this.chat.dia())}`;
+    if (this.chat.fase() === 'antes') return 'Antes del directo';
+    if (this.chat.fase() === 'finalizado') return 'Directo finalizado';
     if (this.chat.estado() === 'conectado') return 'En directo';
     if (this.chat.estado() === 'reconectando') return 'Reconectando…';
     return 'Sin conexión';
   });
   protected readonly puntoClase = computed(() => {
-    if (this.chat.soloLectura()) return 'bg-text-muted';
+    if (this.chat.cerrado()) return 'bg-text-muted';
     if (this.chat.estado() === 'conectado') return 'bg-accent shadow-[0_0_8px_rgb(196_43_62/0.8)]';
     if (this.chat.estado() === 'reconectando') return 'bg-warning shadow-[0_0_8px_rgb(245_158_11/0.7)]';
     return 'bg-text-muted';
   });
   protected readonly estadoClase = computed(() => {
-    if (this.chat.soloLectura()) return 'text-text-tertiary';
+    if (this.chat.cerrado()) return 'text-text-tertiary';
     if (this.chat.estado() === 'conectado') return 'text-accent-text';
     if (this.chat.estado() === 'reconectando') return 'text-warning';
     return 'text-text-tertiary';
   });
   /** Live room of today, connected: the dot beats and the audience shows. */
-  protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.soloLectura());
+  protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.cerrado());
   protected readonly conectados = computed(() => new Intl.NumberFormat('es-ES').format(this.chat.conectados()));
 
   constructor() {
     if (this.browser) {
       this.chat.conectar(diaDeHoy());
       void this.fan.cargar();
-      void this.juegos.jornadas().then((l) => this.jornadas.set(l)).catch(() => this.jornadas.set([]));
+      void this.juegos
+        .jornadas()
+        .then((l) => this.jornadas.set(l))
+        .catch(() => this.jornadas.set([]))
+        .finally(() => this.jornadasCargadas.set(true));
       // The return of the payment (the backend sends to /en-directo?donacion=ok|cancelada).
       const donacion = this.route.snapshot.queryParamMap.get('donacion');
+      // consumed once: a re-created panel (the page reloads its data) must not toast again
+      if (donacion) void this.router.navigate([], { relativeTo: this.route, queryParams: { donacion: null }, queryParamsHandling: 'merge', replaceUrl: true });
       if (donacion === 'ok') {
         this.tab.set('donantes');
         this.toasts.success('¡Gracias! Tu donativo aparecerá en el chat', 'Los coins y las monedas de GRS Fantasy se acreditan al volver a la sala de la jornada.');

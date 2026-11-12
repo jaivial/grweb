@@ -202,7 +202,8 @@ func (s *Svc) configRefrescar(ctx context.Context, cid uuid.UUID, cfg Config) {
 
 // ---- presence (the realtime pattern: one counter per pod with expiry + the set of pods) ----
 
-// presencia reports this pod's connections per competition every 10 s (60 s expiry: a dead pod stops counting)
+// presencia reports this pod's connections per competition every 10 s (25 s expiry: a dead pod stops counting
+// within 2 missed ticks, and its member is pruned from the set once its counter has expired)
 // and publishes the estado frame with the sum of pods to the local subscribers of each active room.
 func (s *Svc) presencia(ctx context.Context) {
 	t := time.NewTicker(10 * time.Second)
@@ -213,7 +214,7 @@ func (s *Svc) presencia(ctx context.Context) {
 			cid := sl.id.cid
 			pods := s.a.Keys.Of("chat", "pods", cid)
 			p := s.a.Redis.TxPipeline()
-			p.Set(ctx, s.a.Keys.Of("chat", "conex", cid, s.pod), n, time.Minute)
+			p.Set(ctx, s.a.Keys.Of("chat", "conex", cid, s.pod), n, 25*time.Second)
 			p.SAdd(ctx, pods, s.pod)
 			p.Expire(ctx, pods, 10*time.Minute)
 			if _, err := p.Exec(ctx); err != nil {
@@ -231,7 +232,11 @@ func (s *Svc) presencia(ctx context.Context) {
 				valores, err := s.a.Redis.MGet(ctx, claves...).Result()
 				if err == nil {
 					total = 0
-					for _, v := range valores {
+					for i, v := range valores {
+						if v == nil && members[i] != s.pod {
+							s.a.Redis.SRem(ctx, pods, members[i]) // dead pod: its counter expired
+							continue
+						}
 						if str, ok := v.(string); ok {
 							var x int64
 							if _, err := fmt.Sscanf(str, "%d", &x); err == nil {

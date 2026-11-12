@@ -59,7 +59,7 @@ interface Fila {
             <span class="flex size-16 items-center justify-center rounded-full border border-accent/45 bg-[linear-gradient(135deg,#4c111b,#170c0e)] text-[28px] shadow-glow-deep" aria-hidden="true">💬</span>
             <p class="text-ui-h5 text-text-primary">El chat está en calma</p>
             <p class="max-w-[260px] text-body-s text-text-tertiary">Rompe el hielo: anima a los atletas y gana monedas cada 5 mensajes.</p>
-            @if (fan.conSesion() && !chat.soloLectura()) {
+            @if (fan.conSesion() && !chat.cerrado()) {
               <div class="mt-1 flex flex-wrap justify-center gap-2">
                 @for (s of sugerencias; track s) {
                   <button type="button" class="h-11 rounded-pill border border-line-strong bg-bg-raised px-3.5 text-label-s text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary md:h-9" (click)="sugerir(s)">{{ s }}</button>
@@ -108,7 +108,7 @@ interface Fila {
                     <div class="flex items-center gap-2.5">
                       <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/16 text-white"><gr-icon name="heart" [size]="18" /></span>
                       <p class="min-w-0 flex-1">
-                        <span class="line-clamp-2 block text-label-xs break-words text-white/85 [overflow-wrap:anywhere]">{{ it.alias }} ha donado</span>
+                        <span class="block truncate text-label-xs text-white/85">{{ it.alias }} ha donado</span>
                         <span class="block font-display text-[24px] leading-none text-white italic">{{ euros(it.importe) }}</span>
                       </p>
                       <gr-coin>+{{ nf(it.coins) }} {{ it.coins === 1 ? 'coin' : 'coins' }}</gr-coin>
@@ -155,11 +155,13 @@ interface Fila {
                 </li>
               }
               @case ('sistema') {
+                @if (fan.conSesion() || !it.texto.startsWith('Te has unido')) {
                 <li class="flex items-center gap-3 px-4 py-2.5" role="separator" [attr.aria-label]="it.texto">
                   <span class="h-px flex-1 bg-line-subtle"></span>
                   <span class="max-w-[75%] text-center text-body-xs text-text-tertiary">{{ it.texto }}</span>
                   <span class="h-px flex-1 bg-line-subtle"></span>
                 </li>
+                }
               }
               @case ('borrado') {
                 <li class="flex items-center gap-2 px-4 py-1.5 text-body-xs text-text-muted italic"><gr-icon name="shield" [size]="14" />{{ it.texto }}</li>
@@ -178,8 +180,8 @@ interface Fila {
 
       <!-- composer -->
       <div #composer class="border-t border-line-subtle bg-bg-card px-4 pt-3 pb-3.5">
-        @if (chat.soloLectura()) {
-          <p class="flex items-center gap-2.5 rounded-md border border-line-subtle bg-bg-raised p-3 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="16" class="shrink-0" />Este día ya está cerrado: puedes leer el chat, pero no escribir.</p>
+        @if (chat.cerrado()) {
+          <p class="flex items-center gap-2.5 rounded-md border border-line-subtle bg-bg-raised p-3 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="16" class="shrink-0" />{{ !chat.soloLectura() && chat.fase() === 'antes' ? 'El chat se abre cuando empiece el directo: de momento puedes leerlo.' : 'Este día ya está cerrado: puedes leer el chat, pero no escribir.' }}</p>
         } @else if (!fan.conSesion()) {
           <div class="rounded-md border border-accent/35 bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] p-3.5">
             <div class="flex items-center gap-3">
@@ -391,7 +393,7 @@ export class ChatView {
 
   protected puedeEnviar(): boolean {
     const t = this.texto().trim();
-    return !!t && t.length <= MAX_TEXTO && this.chat.esperaEnvio() === 0 && !this.chat.soloLectura();
+    return !!t && t.length <= MAX_TEXTO && this.chat.esperaEnvio() === 0 && !this.chat.cerrado();
   }
 
   protected async enviar(): Promise<void> {

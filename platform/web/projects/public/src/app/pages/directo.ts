@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -19,6 +19,7 @@ import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
 import { PanelSocial } from './directo-social/panel';
+import { ChatService } from '../core/chat';
 
 const TZ = 'Europe/Madrid';
 const PABELLON = 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp';
@@ -172,7 +173,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
           <!-- Video -->
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
-          <section class="relative -mx-5 -mt-4 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
+          <section class="relative -mx-5 mt-1.5 aspect-video overflow-hidden border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
             @if (video(); as v) {
               <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GR Strength Cup" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {
@@ -359,9 +360,10 @@ export class EnDirectoPage {
   protected readonly video = computed(() => {
     const d = this.dir();
     if (!d || !this.browser) return null;
-    // Figma «Live player» (YouTube): the scheduled broadcast before (YouTube shows its waiting room and «Notify me»),
-    // the live muted during, the replay (or the same broadcast) after.
-    const u = embed(d.fase === 'finalizado' ? d.replayUrl || d.streamUrl : d.streamUrl, location.hostname, d.fase === 'en_directo');
+    // Figma 27/70: the live player only while live; after it, the replay if there is one; before it (and after
+    // without a replay) the poster with its state.
+    const url = d.fase === 'en_directo' ? d.streamUrl : d.fase === 'finalizado' ? d.replayUrl : '';
+    const u = url ? embed(url, location.hostname, d.fase === 'en_directo') : null;
     return u ? this.san.bypassSecurityTrustResourceUrl(u) : null;
   });
   /** After the lights, the judged attempt stays on screen for 8 s. */
@@ -395,6 +397,12 @@ export class EnDirectoPage {
   constructor() {
     // mobile opens on «Plataforma» (Figma 27); switched after hydration so the server HTML and the first render match
     afterNextRender(() => { if (window.matchMedia('(max-width: 1023px)').matches) this.tab.set('plataforma'); });
+    // the chat panel follows the phase of the live (header, chip and composer)
+    const chat = inject(ChatService);
+    effect(() => {
+      const f = this.dir()?.fase;
+      if (f) chat.fase.set(f);
+    });
     const seo = inject(Seo);
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {

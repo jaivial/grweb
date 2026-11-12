@@ -188,6 +188,10 @@ export class ChatService {
   readonly dia = signal<string>(diaDeHoy());
   /** True when the day shown is not today: history only, no sending. */
   readonly soloLectura = computed(() => this.dia() !== diaDeHoy());
+  /** Phase of the live (set by /en-directo): before or after it, today's room is read-only too. */
+  readonly fase = signal<'antes' | 'en_directo' | 'finalizado'>('en_directo');
+  /** No sending: a past day, or today outside the live. */
+  readonly cerrado = computed(() => this.soloLectura() || this.fase() !== 'en_directo');
   /** Last error when sending (the backend's detail). */
   readonly errorEnvio = signal<string | null>(null);
   /** Notice about the moderation (silence) received from the server. */
@@ -616,6 +620,9 @@ export class ChatService {
         };
       case 'hito':
         return { kind: 'hito', id: f.id ?? 'h' + ts, mensajes: f.mensajes ?? 0, ts };
+      case 'borrado':
+        // history: a message deleted by moderation keeps its placeholder
+        return { kind: 'borrado', id: f.id ?? 'b' + ts, texto: 'Mensaje eliminado por moderación', ts };
       case 'sistema':
         return { kind: 'sistema', id: f.id ?? 's' + ts, texto: f.texto ?? '', ts };
       default:
