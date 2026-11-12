@@ -86,6 +86,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	a.Go(c.Run)
 	a.Go(s.recordatorios)
 	s.registerContactos()
+	s.registerKPIs()
 	s.registerSegmentos()
 	s.registerSupresiones()
 	s.registerPublico()

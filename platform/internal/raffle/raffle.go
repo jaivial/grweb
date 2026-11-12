@@ -75,6 +75,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.initPagos()
 	s.registerPublic()
 	s.registerAdmin()
+	s.registerKPIs()
 	s.registerSorteos()
 	s.registerRifa()
 	s.registerRGPD()

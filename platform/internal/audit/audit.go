@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -19,15 +20,20 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/app"
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
+	"github.com/jaivial/grweb/platform/pkg/svcclient"
 )
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-type Svc struct{ a *app.App }
+type Svc struct {
+	a       *app.App
+	fuentes map[string]*svcclient.Client // services that compute their own KPIs (Inicio)
+}
 
 var (
 	tagAudit = []string{"Auditoría y actividad"}
@@ -43,6 +49,10 @@ func Service() app.Service {
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.a = a
+	s.fuentes = map[string]*svcclient.Client{}
+	for _, n := range []string{"ticketing", "athletes", "crm", "raffle"} {
+		s.fuentes[n] = svcclient.New(config.Str("UPSTREAM_"+strings.ToUpper(n), "http://"+n+":8080"), "audit", n, a.Cfg.InternalToken)
+	}
 	c := &events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "audit", Start: "0", Handle: s.handle, Log: a.Log} // the audit log must include the retained history
 	a.Go(c.Run)
 	s.register()
@@ -418,7 +428,8 @@ func (s *Svc) register() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "dashboard-get", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/dashboard", Summary: "KPIs del Inicio (antes del evento o día del evento)", Tags: tagAudit, Security: bearer},
 		func(ctx context.Context, in *dashIn) (*dashOut, error) {
-			if _, err := auth.RequireMember(ctx, in.CID.String()); err != nil {
+			p, err := auth.RequireMember(ctx, in.CID.String())
+			if err != nil {
 				return nil, err
 			}
 			rows, err := s.a.DB.Query(ctx, `SELECT clave, valor FROM kpis WHERE competition_id = $1`, in.CID)
@@ -436,7 +447,40 @@ func (s *Svc) register() {
 				}
 				out.Body.KPIs[k] = v
 			}
-			return out, rows.Err()
+			if err := rows.Err(); err != nil {
+				return nil, err
+			}
+			// Live counters from the source services override the event projection (it misses imported history).
+			// A failing source keeps its projected values: the home must load even if one service is down.
+			var mu sync.Mutex
+			var wg sync.WaitGroup
+			for n, c := range s.fuentes {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+					defer cancel()
+					var m map[string]int64
+					if err := c.Do(cctx, http.MethodGet, "/internal/competiciones/"+in.CID.String()+"/kpis", nil, &m); err != nil {
+						s.a.Log.Warn("kpis de inicio no disponibles", "servicio", n, "err", err)
+						return
+					}
+					mu.Lock()
+					for k, v := range m {
+						out.Body.KPIs[k] = v
+					}
+					mu.Unlock()
+				}()
+			}
+			wg.Wait()
+			// Figma 96:10320: each role sees only the cards of its permissions.
+			cid := in.CID.String()
+			for k := range out.Body.KPIs {
+				if (k == "sorteo.recaudado" && !p.Can(cid, "sorteo.gestionar")) || (strings.HasPrefix(k, "contactos.") && !p.Can(cid, "contactos.ver")) {
+					delete(out.Body.KPIs, k)
+				}
+			}
+			return out, nil
 		})
 
 	type serieIn struct {
