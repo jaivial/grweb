@@ -306,7 +306,8 @@ func (s *Svc) registerAdmin() {
 					}
 				}
 				if _, err := tx.Exec(ctx, `UPDATE atletas SET licencia=$3, nombre=$4, apellidos=$5, email=NULLIF($6,''), telefono=$7, sexo=$8, fecha_nacimiento=$9, categoria=$10,
-					division=$11, club=$12, ciudad=$13, estado=$14, prueba = COALESCE($15, prueba), orden_reserva = CASE WHEN $14 = 'reserva' THEN orden_reserva ELSE NULL END,
+					division=$11, club=$12, ciudad=$13, estado=$14, prueba = COALESCE($15, prueba), prueba_org_at = CASE WHEN COALESCE($15, prueba) <> prueba THEN now() ELSE prueba_org_at END,
+					orden_reserva = CASE WHEN $14 = 'reserva' THEN orden_reserva ELSE NULL END,
 					version = version + 1, updated_at = now() WHERE competition_id=$1 AND id=$2`, in.CID, in.ID, b.Licencia, b.Nombre, b.Apellidos, b.Email, b.Telefono, b.Sexo, b.fecha(),
 					b.Categoria, b.Division, b.Club, b.Ciudad, b.Estado, b.Prueba); err != nil {
 					if db.IsUniqueViolation(err, "") {

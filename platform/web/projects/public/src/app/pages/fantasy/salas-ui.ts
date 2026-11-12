@@ -124,7 +124,7 @@ export interface SalaEditable {
             <span class="shrink-0 text-mono-xs" [class]="errorNombre() ? 'text-crimson' : 'text-text-muted'">{{ nombre().trim().length }}/32</span>
           </span>
           @if (puede()) {
-            <span id="crear-sala-ayuda" class="text-body-xs" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ errorNombre() || 'Visible para todos en el lobby. 3–32 caracteres, único por día.' }}</span>
+            <span id="crear-sala-ayuda" class="text-body-xs" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ errorNombre() || (publica() ? 'Visible para todos en el lobby. 3–32 caracteres, único por día.' : 'Solo lo ve quien tenga el enlace. 3–32 caracteres, único por día.') }}</span>
           }
         </label>
 

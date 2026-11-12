@@ -128,6 +128,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerImport()
 	s.registerPublic()
 	s.registerArea()
+	s.registerAreaPrueba()
 	s.registerInternal()
 	s.registerOpenLifter()
 	s.initPagos()

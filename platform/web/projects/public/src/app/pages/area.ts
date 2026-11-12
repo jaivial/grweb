@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton } from '@grcup/ui';
@@ -18,7 +18,7 @@ interface Marcas {
 interface Panel {
   competicion: { slug: string; nombre: string };
   atleta: {
-    id: string; nombre: string; apellidos: string; nombreCompleto: string; sexo: 'F' | 'M'; categoria: string; divisionNombre: string; club: string; ciudad: string; menor: boolean;
+    id: string; nombre: string; apellidos: string; nombreCompleto: string; sexo: 'F' | 'M'; categoria: string; divisionNombre: string; club: string; ciudad: string; menor: boolean; licencia: string;
     estado: 'confirmado' | 'reserva' | 'baja'; origen: string; flight: string; plataforma?: number; horaInicio?: string; pesajeInicio?: string; pesajeFin?: string; completo: number;
     pesaje: { rackSq?: number; rackBp: string; segurosBp?: number; intentos: Marcas; estado: string; at?: string };
     perfil: { slug: string; fotoUrl: string; focalX: number; focalY: number; frase: string; bio: string; instagram: string; marcas: Marcas; visible: boolean; imagen?: { at: string; version: string } };
@@ -28,6 +28,14 @@ interface Panel {
   pesajeAbierto: boolean;
   avisos: string[];
   referido?: { codigo: string; invitados: number; maxUsos: number; devuelto: number; pendiente: number; pagado: number; descuento: string; recompensa: string; tope: boolean };
+  prueba?: PruebaArea;
+}
+interface PruebaArea {
+  elegida: '' | 'aep2' | 'aep3';
+  opciones: { codigo: string; nombre: string; fecha: string; plazas: number; ocupadas: number }[];
+  limite?: string;
+  cerrada: boolean;
+  cambioOrg?: string;
 }
 type Vista = 'cargando' | 'acceso' | 'enviado' | 'panel' | 'perfil' | 'pesaje';
 
@@ -36,7 +44,7 @@ const api = '/api/area-atleta';
 /** /area-atleta (Figma page 42): password-less access, panel, profile editor and weigh-in preview. Not indexed. */
 @Component({
   selector: 'gr-area-atleta',
-  imports: [RouterLink, FormsModule, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [RouterLink, FormsModule, NgTemplateOutlet, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = panel();
@@ -81,40 +89,57 @@ const api = '/api/area-atleta';
 
           @case ('panel') {
             @if (p) {
-              <header class="flex items-center gap-4">
-                @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" alt="" class="size-14 rounded-full object-cover" [style.object-position]="p.atleta.perfil.focalX + '% ' + p.atleta.perfil.focalY + '%'" /> }
-                @else { <span class="flex size-14 items-center justify-center rounded-full bg-accent-deep/50 text-label-l">{{ p.atleta.nombre[0] }}{{ p.atleta.apellidos[0] }}</span> }
-                <div class="min-w-0 flex-1"><h1 class="truncate text-display-xs md:text-display-m">Hola, {{ p.atleta.nombre }}</h1><p class="text-body-s text-text-tertiary">{{ p.competicion.nombre }} · {{ p.atleta.club || 'Independiente' }}</p></div>
-                <button type="button" class="flex size-11 items-center justify-center rounded-md border border-line-strong" aria-label="Cerrar sesión" (click)="salir()"><gr-icon name="log-out" [size]="18" /></button>
+              <header class="flex items-center gap-3 md:gap-4">
+                <span class="size-14 shrink-0 overflow-hidden rounded-full bg-bg-raised md:size-[72px]">
+                  @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" alt="" class="size-full object-cover" [style.object-position]="p.atleta.perfil.focalX + '% ' + p.atleta.perfil.focalY + '%'" /> }
+                  @else { <span class="flex size-full items-center justify-center text-label-l">{{ p.atleta.nombre[0] }}{{ p.atleta.apellidos[0] }}</span> }
+                </span>
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <h1 class="truncate text-display-xs md:text-display-m">Hola, {{ p.atleta.nombre }}</h1>
+                  <p class="text-body-m text-text-tertiary"><span class="md:hidden">{{ p.competicion.nombre }} · {{ p.atleta.club || 'Independiente' }}</span><span class="hidden md:inline">Área de atleta · {{ p.competicion.nombre }}</span></p>
+                </div>
+                <a [routerLink]="['/atletas', p.atleta.perfil.slug]" class="hidden h-11 shrink-0 items-center gap-2 rounded-sm border border-white/12 bg-white/5 px-5 text-label-m hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-accent md:inline-flex">Ver mi perfil público<gr-icon name="arrow-right" [size]="16" /></a>
+                <button type="button" class="flex size-11 shrink-0 items-center justify-center text-text-tertiary hover:text-text-primary md:hidden" aria-label="Cerrar sesión" (click)="salir()"><gr-icon name="log-out" [size]="20" /></button>
               </header>
               @for (a of p.avisos; track a) { <gr-alert class="mt-6" tone="info" title="Importante">{{ a }}</gr-alert> }
-              <div class="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
-                <section class="rounded-lg border border-accent/40 bg-[linear-gradient(160deg,#2a0d12,#171213)] p-5">
-                  <h2 class="text-ui-h5">Tu competición</h2>
-                  <p class="mt-2 inline-flex h-7 items-center gap-1.5 rounded-pill border px-2.5 text-mono-xs" [class]="p.atleta.estado === 'confirmado' ? 'border-success/40 bg-success/10 text-success' : 'border-info/40 bg-info/10 text-info'">
-                    <gr-icon [name]="p.atleta.estado === 'confirmado' ? 'check' : 'clock'" [size]="12" />{{ p.atleta.estado === 'confirmado' ? (p.atleta.origen === 'propia' ? 'Inscripción confirmada' : 'Inscripción AEP confirmada') : 'En la reserva' }}</p>
-                  <dl class="mt-4 grid grid-cols-2 gap-2">
-                    @for (d of datos(); track d.k) { <div class="rounded-md bg-black/25 p-3"><dt class="text-mono-xs text-text-tertiary">{{ d.k }}</dt><dd class="mt-0.5 text-label-m">{{ d.v }}</dd></div> }
-                  </dl>
-                  @if (qr()) {
-                    <div class="mt-4 flex items-center gap-4 rounded-md bg-black/25 p-3">
-                      <img [src]="qr()" alt="Código QR de tu acreditación" class="size-24 rounded-sm bg-white p-1" />
-                      <div><p class="text-label-m">Tu acreditación</p><p class="text-body-xs text-text-tertiary">Enséñala en el pesaje. Es el QR de tu inscripción.</p></div>
-                    </div>
-                  }
-                </section>
+              <div class="mt-6 grid grid-cols-[minmax(0,1fr)] items-start gap-6 md:mt-7 md:grid-cols-2 lg:grid-cols-[432fr_360fr_360fr]">
                 <div class="flex flex-col gap-6">
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="flex flex-col gap-3 rounded-lg border border-accent/40 bg-bg-card p-6">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
+                      <h2 class="mr-auto text-ui-h5 md:mr-0">Tu competición</h2>
+                      <p class="inline-flex h-6 items-center gap-1.5 rounded-pill border px-2.5 text-[12px] font-medium uppercase tracking-wide" [class]="p.atleta.estado === 'confirmado' ? 'border-success/40 bg-success/12 text-success' : 'border-info/40 bg-info/10 text-info'">
+                        <gr-icon [name]="p.atleta.estado === 'confirmado' ? 'check' : 'clock'" [size]="12" />{{ p.atleta.estado === 'confirmado' ? (p.atleta.origen === 'propia' ? 'Inscripción confirmada' : 'Inscripción AEP confirmada') : 'En la reserva' }}</p>
+                    </div>
+                    <dl class="grid grid-cols-2 gap-2">
+                      @for (d of datos(); track d.k; let i = $index) { <div class="flex flex-col gap-1 rounded-md bg-white/4 p-3" [class.col-span-2]="i === 0"><dt class="text-label-xs uppercase tracking-wide text-text-muted">{{ d.k }}</dt><dd class="text-[16px] font-semibold">{{ d.v }}</dd>@if (i === 0 && p.prueba && !p.prueba.cerrada && p.prueba.elegida) { <button type="button" class="-mb-1 self-start text-[13px] font-semibold text-accent-text hover:underline" (click)="verEleccion.set(!verEleccion())">Cambiar</button> }</div> }
+                    </dl>
+                    @if (qr()) {
+                      <div class="flex items-center gap-3 border-t border-line-subtle pt-3">
+                        <img [src]="qr()" alt="Código QR de tu acreditación" class="size-[88px] shrink-0 bg-white p-1" />
+                        <div class="flex flex-col gap-1"><p class="text-label-l">Tu acreditación</p><p class="text-body-xs text-text-tertiary">Enséñala en el pesaje. Es el QR de tu inscripción.</p></div>
+                      </div>
+                    }
+                  </section>
+                  @if (p.prueba; as pr) { @if (!pr.elegida || pr.cambioOrg || verEleccion() || errorPrueba()) { <ng-container *ngTemplateOutlet="eleccionTpl; context: { $implicit: pr }" /> } }
+                </div>
+                <div class="flex flex-col gap-4">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card px-5 py-4">
                     <h2 class="text-ui-h5">Prepara tu día</h2>
-                    <ul class="mt-3">
+                    <ul>
                       @for (c of p.checklist; track c.clave) {
-                        <li class="flex min-h-12 items-center gap-3 border-b border-line-subtle py-2 last:border-0">
-                          <span class="flex size-6 shrink-0 items-center justify-center rounded-full" [class]="c.hecho ? 'bg-success/20 text-success' : 'border border-line-strong'">@if (c.hecho) { <gr-icon name="check" [size]="14" /> }</span>
-                          <span class="flex-1 text-body-s" [class.text-text-tertiary]="c.hecho">{{ c.texto }}</span>
-                          @if (c.accion && !c.hecho) { <button type="button" class="h-11 px-1 text-label-s text-accent-text" (click)="abrir(c.accion)">{{ c.accion === 'pesaje' ? 'Añadir' : 'Completar' }}</button> }
+                        <li class="flex min-h-[49px] items-center gap-3 border-b border-line-subtle py-3">
+                          <span class="flex size-6 shrink-0 items-center justify-center rounded-full" [class]="c.hecho ? 'bg-success/16 text-success' : 'border border-line-strong bg-white/5'">@if (c.hecho) { <gr-icon name="check" [size]="14" /> }</span>
+                          <span class="flex-1 text-body-s" [class]="c.hecho ? 'text-text-tertiary' : 'text-text-primary'">{{ c.texto }}</span>
+                          @if (c.accion && !c.hecho) { <button type="button" class="-my-3 h-11 text-[14px] font-semibold text-accent-text hover:underline" (click)="abrir(c.accion)">{{ c.accion === 'pesaje' ? 'Añadir' : 'Completar' }}</button> }
                         </li>
                       }
                     </ul>
+                  </section>
+                  <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
+                    <div class="flex items-center justify-between"><h2 class="text-ui-h5">Perfil público</h2><span class="text-[14px] font-semibold text-accent-text">{{ p.atleta.completo }} %</span></div>
+                    <div class="h-1.5 rounded-pill bg-line-strong"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#c42b3e,#8b1a2b)]" [style.width.%]="p.atleta.completo"></div></div>
+                    <p class="text-body-s text-text-tertiary">Con foto y mejores marcas, tu perfil sale destacado en /atletas y en la pantalla del pabellón.</p>
+                    <button grButton variant="primary" [block]="true" (click)="abrir('perfil')">Completar perfil</button>
                   </section>
                   @if (p.referido; as r) {
                     <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
@@ -128,16 +153,14 @@ const api = '/api/area-atleta';
                       </dl>
                     </section>
                   }
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                    <div class="flex items-center justify-between"><h2 class="text-ui-h5">Perfil público</h2><span class="text-mono-s text-accent-text">{{ p.atleta.completo }} %</span></div>
-                    <div class="mt-3 h-1.5 rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="p.atleta.completo"></div></div>
-                    <p class="mt-3 text-body-s text-text-tertiary">Con foto y mejores marcas, tu perfil sale destacado en /atletas y en la pantalla del pabellón.</p>
-                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                      <button grButton variant="primary" (click)="abrir('perfil')">Completar perfil</button>
-                      @if (p.pesajeAbierto && p.atleta.estado === 'confirmado') { <button grButton (click)="abrir('pesaje')">Previa del pesaje</button> }
-                    </div>
-                  </section>
+                  <a [routerLink]="['/atletas', p.atleta.perfil.slug]" class="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-white/12 bg-white/5 text-label-m md:hidden">Ver mi perfil público<gr-icon name="arrow-right" [size]="16" /></a>
                 </div>
+                @if (p.pesajeAbierto && p.atleta.estado === 'confirmado') {
+                  <section class="hidden flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6 lg:flex">
+                    <h2 class="text-ui-h5">Previa del pesaje</h2>
+                    <ng-container *ngTemplateOutlet="previa" />
+                  </section>
+                }
               </div>
             }
           }
@@ -194,32 +217,66 @@ const api = '/api/area-atleta';
           @case ('pesaje') {
             @if (p) {
               <div class="mx-auto max-w-xl">
-                <button type="button" class="mb-4 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="vista.set('panel')"><gr-icon name="chevron-left" [size]="16" />Volver</button>
-                <h1 class="text-display-m">Previa del pesaje</h1>
-                <p class="mt-1 text-body-l text-text-tertiary">{{ p.atleta.flight ? 'Flight ' + p.atleta.flight + (p.atleta.pesajeInicio ? ' · pesaje ' + hora(p.atleta.pesajeInicio) + '–' + hora(p.atleta.pesajeFin) : '') : 'Horario por publicar' }}</p>
-                <section class="mt-6 rounded-lg border border-line-subtle bg-bg-card p-5">
-                  <p class="text-body-m text-text-secondary">Déjalo hecho y el pesaje irá más rápido. La mesa lo verá precargado y solo tendrás que confirmarlo.</p>
-                  @for (s of steppers; track s.k) {
-                    <div class="flex items-center justify-between gap-4 border-b border-line-subtle py-4 last:border-0">
-                      <span class="text-body-l">{{ s.label }}</span>
-                      <span class="flex items-center gap-3">
-                        <button type="button" class="flex size-12 items-center justify-center rounded-full border border-line-strong" [attr.aria-label]="'Bajar ' + s.label" (click)="paso(s.k, -1)"><gr-icon name="minus" [size]="18" /></button>
-                        <span class="w-8 text-center text-ui-h3" aria-live="polite">{{ pz[s.k] ?? '–' }}</span>
-                        <button type="button" class="flex size-12 items-center justify-center rounded-full border border-line-strong" [attr.aria-label]="'Subir ' + s.label" (click)="paso(s.k, 1)"><gr-icon name="plus" [size]="18" /></button>
-                      </span>
-                    </div>
-                  }
-                  <p class="mt-5 text-label-l">Primeros intentos previstos (kg)</p>
-                  <div class="mt-2 grid grid-cols-3 gap-3">
-                    @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'i' + m.k" [(ngModel)]="pz.intentos[m.k]" /></label> }
-                  </div>
-                  @if (error()) { <p class="mt-3 text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-                  <button grButton variant="primary" size="l" class="mt-6" [block]="true" [loading]="busy()" (click)="guardarPesaje()">Guardar para el pesaje</button>
-                </section>
+                <h1 class="text-display-xs md:text-display-m">Previa del pesaje</h1>
+                <p class="mt-1 text-body-m text-text-tertiary">{{ p.atleta.flight ? 'Flight ' + p.atleta.flight + (p.atleta.pesajeInicio ? ' · pesaje ' + hora(p.atleta.pesajeInicio) + '–' + hora(p.atleta.pesajeFin) : '') : 'Horario por publicar' }}</p>
+                <section class="mt-5 flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6"><ng-container *ngTemplateOutlet="previa" /></section>
+                <button type="button" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="vista.set('panel')"><gr-icon name="chevron-left" [size]="16" />Volver al panel</button>
               </div>
             }
           }
         }
+        <ng-template #previa>
+          <p class="text-body-s text-text-tertiary">Déjalo hecho y el pesaje irá más rápido. La mesa lo verá precargado y solo tendrás que confirmarlo.</p>
+          @for (s of steppers; track s.k) {
+            <div class="flex min-h-[61px] items-center justify-between gap-3 border-b border-line-subtle py-2">
+              <span class="text-body-m text-text-secondary">{{ s.label }}</span>
+              <span class="flex items-center gap-2">
+                <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent" [attr.aria-label]="'Bajar ' + s.label" (click)="paso(s.k, -1)"><gr-icon name="minus" [size]="18" /></button>
+                <span class="w-7 text-center text-ui-h4" aria-live="polite">{{ pz[s.k] ?? '–' }}</span>
+                <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent" [attr.aria-label]="'Subir ' + s.label" (click)="paso(s.k, 1)"><gr-icon name="plus" [size]="18" /></button>
+              </span>
+            </div>
+          }
+          <p class="text-label-m text-text-secondary">Primeros intentos previstos (kg)</p>
+          <div class="grid grid-cols-3 gap-2">
+            @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput class="font-mono" type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'i' + m.k" [(ngModel)]="pz.intentos[m.k]" /></label> }
+          </div>
+          @if (error() && vista() !== 'perfil') { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
+          <button grButton variant="primary" size="l" [block]="true" [loading]="busy()" (click)="guardarPesaje()">Guardar para el pesaje</button>
+        </ng-template>
+        <ng-template #eleccionTpl let-pr>
+          <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6" aria-labelledby="pr-tit">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="pr-tit" class="text-ui-h5">{{ tituloPrueba(pr) }}</h2>
+              <span class="inline-flex h-6 items-center gap-1.5 rounded-pill border border-success/40 bg-success/12 px-2.5 text-[12px] font-medium uppercase tracking-wide text-success">@if (pr.elegida && !pr.cerrada && !pr.cambioOrg) { <gr-icon name="check" [size]="12" /> }{{ badgePrueba(pr) }}</span>
+            </div>
+            @if (!pr.elegida && !pr.cerrada) {
+              <p class="flex items-start gap-3 rounded-md border border-warning/50 bg-warning/10 p-4 text-body-s text-text-primary"><gr-icon name="clock" [size]="20" class="shrink-0 text-warning" />Aún no has elegido competición. Sin ella no tienes flight ni hora de salida.</p>
+            }
+            @if (pr.cambioOrg) {
+              <p class="flex items-start gap-3 rounded-md border border-info/50 bg-info/10 p-4 text-body-s text-text-primary"><gr-icon name="info" [size]="20" class="shrink-0 text-info" />La organización te ha cambiado a {{ nombrePrueba(pr.elegida) }} el {{ diaCorto(pr.cambioOrg) }}. Tu flight sale al publicar los horarios.</p>
+            }
+            <div class="flex flex-col gap-3" role="radiogroup" aria-labelledby="pr-tit">
+              @for (o of pr.opciones; track o.codigo) {
+                @let sel = (eleccion() || pr.elegida) === o.codigo;
+                @let llena = o.plazas > 0 && o.ocupadas >= o.plazas && pr.elegida !== o.codigo;
+                @if (!pr.cerrada || pr.elegida === o.codigo) {
+                  <button type="button" role="radio" [attr.aria-checked]="sel" [disabled]="pr.cerrada || llena || guardandoPrueba()" (click)="eleccion.set(o.codigo)"
+                    class="flex items-center gap-4 rounded-md border-2 p-4 text-left focus-visible:outline-2 focus-visible:outline-accent" [class]="sel ? 'border-accent bg-accent/8' : 'border-line-subtle bg-white/2 hover:border-line-strong'" [class.opacity-50]="llena">
+                    <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sel ? 'border-accent' : 'border-line-strong'">@if (sel) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
+                    <span class="flex min-w-0 flex-1 flex-col gap-1"><span class="text-[16px] font-semibold">{{ o.nombre }}{{ o.fecha ? ' · ' + dia(o.fecha) : '' }}</span><span class="text-body-xs text-text-tertiary">{{ sel && p?.atleta?.flight ? 'Flight ' + p!.atleta.flight + (p!.atleta.pesajeInicio ? ' · pesaje ' + hora(p!.atleta.pesajeInicio) : '') + (p!.atleta.horaInicio ? ' · salida ' + hora(p!.atleta.horaInicio) : '') : o.ocupadas + ' de ' + o.plazas + ' plazas' }}</span></span>
+                    <span class="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-pill border px-2 text-[11px] font-medium uppercase tracking-wide md:px-2.5 md:text-[12px]" [class]="llena ? 'border-line-strong text-text-tertiary' : !sel && o.plazas - o.ocupadas <= 5 ? 'border-accent/40 bg-accent/10 text-accent-text' : 'border-success/40 bg-success/12 text-success'">{{ pr.cerrada ? 'Cerrada' : llena ? 'Completa' : pr.elegida === o.codigo ? 'Tu competición' : o.plazas - o.ocupadas <= 5 ? 'Últimas plazas' : 'Disponible' }}</span>
+                  </button>
+                }
+              }
+            </div>
+            @if (errorPrueba()) { <p class="flex items-start gap-3 rounded-md border border-accent/40 bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="20" class="shrink-0 text-accent-text" />{{ errorPrueba() }}</p> }
+            <p class="text-body-xs text-text-tertiary">{{ pr.cerrada ? 'La elección cerró' + (pr.limite ? ' el ' + diaCorto(pr.limite) + ' a las 12:00' : '') + '. Para cambiarla escribe a ' + (contacto() || 'la organización') + '.' : (pr.limite ? 'Puedes cambiarla hasta el ' + diaCorto(pr.limite) + ' a las 12:00.' : '') }}</p>
+            @if (!pr.cerrada && eleccion() && eleccion() !== pr.elegida) {
+              <button grButton variant="primary" class="self-start" [loading]="guardandoPrueba()" (click)="guardarPrueba()">Guardar competición</button>
+            }
+          </section>
+        </ng-template>
         @if (ok()) { <p class="fixed inset-x-5 bottom-5 z-50 mx-auto max-w-md rounded-md border border-success/40 bg-bg-raised px-4 py-3 text-center text-label-s text-success shadow-card" role="status">{{ ok() }}</p> }
       </div>
     </main>
@@ -255,13 +312,61 @@ export class AreaAtletaPage {
     const a = this.panel()?.atleta;
     if (!a) return [];
     return [
+      { k: 'Competición', v: this.textoPrueba() },
       { k: 'Categoría', v: `${a.sexo} ${cat(a.categoria)} kg` }, { k: 'División', v: a.divisionNombre },
       { k: 'Flight', v: a.flight ? a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Por publicar' },
       { k: 'Pesaje', v: a.pesajeInicio ? `${hora(a.pesajeInicio)}–${hora(a.pesajeFin)}` : 'Por publicar' },
       { k: 'Inicio', v: a.horaInicio ? hora(a.horaInicio) : 'Por publicar' },
-      { k: 'Marcas', v: a.perfil.marcas.sq ? `${kg(a.perfil.marcas.sq)} / ${kg(a.perfil.marcas.bp)} / ${kg(a.perfil.marcas.dl)}` : '–' },
+      { k: 'Licencia', v: a.licencia || '–' },
     ];
   });
+  protected readonly eleccion = signal('');
+  protected readonly verEleccion = signal(false);
+  protected readonly guardandoPrueba = signal(false);
+  protected readonly errorPrueba = signal('');
+  private textoPrueba(): string {
+    const pr = this.panel()?.prueba;
+    const o = pr?.opciones.find((x) => x.codigo === pr.elegida);
+    return o ? o.nombre + (o.fecha ? ' · ' + this.dia(o.fecha) : '') : 'Sin elegir';
+  }
+  protected nombrePrueba(c: string): string {
+    return this.panel()?.prueba?.opciones.find((o) => o.codigo === c)?.nombre ?? c;
+  }
+  /** «sábado 21 nov» */
+  protected dia(f: string): string {
+    return new Date(f.slice(0, 10) + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '').replace('.', '');
+  }
+  /** «11 nov» */
+  protected diaCorto(f: string): string {
+    return new Date(f.length === 10 ? f + 'T12:00:00' : f).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).replace('.', '');
+  }
+  protected tituloPrueba(pr: PruebaArea): string {
+    if (pr.cerrada) return 'Elección cerrada';
+    if (pr.cambioOrg) return 'Cambiada por la organización';
+    if (this.errorPrueba()) return 'No se pudo guardar';
+    return pr.elegida ? this.nombrePrueba(pr.elegida) + ' elegida' : 'Elige tu competición';
+  }
+  protected badgePrueba(pr: PruebaArea): string {
+    if (pr.cerrada) return 'Bloqueada';
+    if (pr.cambioOrg) return 'Cambiada por la organización';
+    if (this.errorPrueba()) return 'Error';
+    return pr.elegida ? 'Elegida' : 'Sin elegir';
+  }
+  protected async guardarPrueba(): Promise<void> {
+    this.errorPrueba.set('');
+    this.guardandoPrueba.set(true);
+    try {
+      await this.set(await firstValueFrom(this.http.put<Panel>(`${api}/prueba`, { prueba: this.eleccion() })));
+      this.verEleccion.set(false);
+      this.aviso('Competición guardada: ' + this.nombrePrueba(this.eleccion()));
+    } catch (e) {
+      const actual = this.panel()?.prueba?.elegida;
+      this.errorPrueba.set(((e as { error?: { detail?: string } }).error?.detail ?? 'No se pudo guardar tu competición.') + (actual ? ' Se mantiene ' + this.nombrePrueba(actual) + '.' : '') + ' Reintenta en unos segundos.');
+      firstValueFrom(this.http.get<Panel>(`${api}/yo`)).then((p) => this.panel.set(p), () => undefined);
+    } finally {
+      this.guardandoPrueba.set(false);
+    }
+  }
   private timer?: ReturnType<typeof setInterval>;
 
   constructor() {
@@ -291,6 +396,8 @@ export class AreaAtletaPage {
 
   private async set(p: Panel): Promise<void> {
     this.panel.set(p);
+    this.eleccion.set(p.prueba?.elegida ?? '');
+    if (this.vista() !== 'pesaje') this.prepararPesaje(p);
     if (this.vista() === 'cargando' || this.vista() === 'acceso') this.vista.set('panel');
     // qrcode is CommonJS: the dynamic import exposes it as `default`.
     const mod = await import('qrcode');
@@ -328,12 +435,15 @@ export class AreaAtletaPage {
       this.fy = a.perfil.focalY;
       this.aceptaImagen = false;
       this.retirar = false;
-    } else {
-      const [bp, seg] = (a.pesaje.rackBp || '').split('/').map((x) => Number(x) || undefined);
-      this.pz = { rackSq: a.pesaje.rackSq ?? 12, rackBp: bp ?? 6, segurosBp: a.pesaje.segurosBp ?? seg ?? 4, intentos: { ...a.pesaje.intentos } };
-    }
+    } else this.prepararPesaje(this.panel()!);
     this.vista.set(v);
     if (this.browser) scrollTo({ top: 0 });
+  }
+
+  private prepararPesaje(p: Panel): void {
+    const a = p.atleta;
+    const [bp, seg] = (a.pesaje.rackBp || '').split('/').map((x) => Number(x) || undefined);
+    this.pz = { rackSq: a.pesaje.rackSq ?? 12, rackBp: bp ?? 6, segurosBp: a.pesaje.segurosBp ?? seg ?? 4, intentos: { ...a.pesaje.intentos } };
   }
 
   protected paso(k: 'rackSq' | 'rackBp' | 'segurosBp', d: number): void {
