@@ -160,7 +160,8 @@ export interface SalaVista {
 export interface SalaResumen {
   id: string;
   nombre: string;
-  estado: 'abierta' | 'en_juego' | 'cancelada' | 'cerrada' | 'finalizada';
+  /** «llena» cuando miembros >= plazas. */
+  estado: EstadoSala | 'abierta';
   /** Plazas de la sala (para el contador «6/8»). */
   plazas?: number;
   /** Miembros de la sala (para el contador y el estado «Llena»). */

@@ -20,7 +20,7 @@ import (
 type salaResumen struct {
 	ID       uuid.UUID `json:"id"`
 	Nombre   string    `json:"nombre"`
-	Estado   string    `json:"estado" enum:"abierta,en_juego,cancelada,cerrada,finalizada"`
+	Estado   string    `json:"estado" enum:"esperando,lista,llena,en_juego,cancelada,cerrada,finalizada" doc:"llena cuando miembros >= plazas"`
 	Plazas   int       `json:"plazas"`
 	Miembros int       `json:"miembros"`
 }
@@ -29,7 +29,7 @@ func resumenDe(sl *salaRow) *salaResumen {
 	if sl == nil {
 		return nil
 	}
-	return &salaResumen{ID: sl.ID, Nombre: sl.Nombre, Estado: sl.Estado, Plazas: sl.Plazas, Miembros: sl.Miembros}
+	return &salaResumen{ID: sl.ID, Nombre: sl.Nombre, Estado: estadoPublico(sl.Estado, sl.Miembros, sl.Plazas), Plazas: sl.Plazas, Miembros: sl.Miembros}
 }
 
 // solicitudVista is one request in the host's tray.
