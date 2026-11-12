@@ -94,7 +94,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
               <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5 lg:hidden">
                 <h2 class="flex items-center gap-2 text-ui-h5"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="text-accent-text" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>Mi horario<span class="ml-auto text-body-xs text-text-muted">0 atletas</span></h2>
                 <p class="text-body-s text-text-secondary">{{ textoVacio }}</p>
-                <a routerLink="/atletas" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-subtle bg-bg-surface text-label-s hover:border-line-strong">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
+                <a routerLink="/atletas" class="flex h-11 items-center justify-center gap-2 rounded-sm border border-line-subtle bg-[rgb(46,41,43)] text-label-s hover:border-line-strong">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
               </section>
             }
             @for (r of filas(); track r.flight?.id ?? r.t + r.item?.titulo) {

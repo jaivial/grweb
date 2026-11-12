@@ -1,7 +1,7 @@
 import { HorariosPage } from './pages/horarios';
 import { BajaPage, NovedadesConfirmarPage } from './pages/novedades';
 import { ConfirmacionPage, EntradasPage, MiEntradaPage, OfertaPage } from './pages/entradas';
-import { SorteoConfirmacionPage, SorteoPage } from './pages/sorteo';
+import { SorteoPage } from './pages/sorteo';
 import { EdicionPage, EnDirectoPage, PantallaPublicaPage, ResultadosEdicionPage, ResultadosIndexPage } from './pages/directo';
 import { AccesoPage } from './pages/acceso';
 import { PorraPage } from './pages/porra/porra';
@@ -55,8 +55,8 @@ export const routes: Routes = [
   { path: 'mi-entrada', component: MiEntradaPage },
   { path: 'baja', component: BajaPage },
   { path: 'sorteo', component: SorteoPage },
-  { path: 'sorteo/confirmacion', component: SorteoConfirmacionPage },
-  // Figma links «Rifa presencial» to /rifa; until U13 builds the item showcase it lives on /sorteo.
+  // D-RIFA: no online sale any more; old purchase links land on the showcase.
+  { path: 'sorteo/confirmacion', pathMatch: 'full', redirectTo: 'sorteo' },
   { path: 'rifa', pathMatch: 'full', redirectTo: 'sorteo' },
   { path: 'en-directo', component: EnDirectoPage },
   { path: 'acceso', component: AccesoPage },
