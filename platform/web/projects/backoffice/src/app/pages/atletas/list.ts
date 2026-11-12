@@ -6,7 +6,7 @@ import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleto
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPagination } from '../../shared/kit';
+import { BO_ROW, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText } from '../../shared/ui';
 import { AtletasApi, cat, type ItemLista, type Lista } from './api';
 
@@ -27,7 +27,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -83,32 +83,23 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 
         @if (pestana() !== 'incidencias' || reservas().length) {
           @if (pestana() !== 'incidencias') {
-            <div class="flex flex-wrap items-center gap-2">
-              <label class="relative min-w-0 flex-1 basis-60">
-                <span class="sr-only">Buscar atleta</span>
-                <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-                <input type="search" placeholder="Buscar atleta, club o licencia…" [ngModel]="q()" (ngModelChange)="buscar($event)"
-                  class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s placeholder:text-text-muted focus:border-accent-text focus:outline-none md:h-10" />
-              </label>
-              <gr-select tipo="filtro" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
+            <bo-table-toolbar noun="atletas" [total]="l?.total ?? 0" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()">
+              <bo-search filters class="w-full md:w-[280px]" placeholder="Buscar atleta, club o licencia…" [shortcut]="false" [value]="q()" (valueChange)="buscar($event)" [loading]="cargando() && !!q()" />
+              <gr-select filters tipo="filtro" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
                 <option value="">Sexo</option><option value="F">Femenino</option><option value="M">Masculino</option>
               </gr-select>
-              <gr-select tipo="filtro" [ngModel]="categoria()" (ngModelChange)="categoria.set($event); recargar(1)" aria-label="Categoría">
+              <gr-select filters tipo="filtro" [ngModel]="categoria()" (ngModelChange)="categoria.set($event); recargar(1)" aria-label="Categoría">
                 <option value="">Categoría</option>
                 @for (c of l?.categorias ?? []; track c) { <option [value]="c">{{ cat(c) }}</option> }
               </gr-select>
               @if (l?.flights?.length) {
-                <gr-select tipo="filtro" [ngModel]="flight()" (ngModelChange)="flight.set($event); recargar(1)" aria-label="Flight">
+                <gr-select filters tipo="filtro" [ngModel]="flight()" (ngModelChange)="flight.set($event); recargar(1)" aria-label="Flight">
                   <option value="">Flight</option>
                   @for (f of l!.flights; track f) { <option [value]="f">{{ f }}</option> }
                 </gr-select>
               }
-              <span class="ml-auto hidden text-body-xs text-text-tertiary md:inline">{{ fmtNumber(l?.total) }} atletas</span>
-              <button type="button" (click)="incompletos.set(!incompletos()); recargar(1)" [attr.aria-pressed]="incompletos()"
-                class="inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-label-s md:h-10" [class]="incompletos() ? 'border-accent-text bg-accent-deep/30' : 'border-line-strong'">
-                <gr-icon name="user" [size]="14" />Perfil incompleto
-              </button>
-            </div>
+              <bo-filter-pill filters label="Perfil incompleto" [count]="incompletos() ? 1 : 0" (open)="incompletos.set(!incompletos()); recargar(1)" />
+            </bo-table-toolbar>
           } @else {
             <h2 class="mt-2 text-ui-h5">Reserva AEP <span class="text-body-xs text-text-tertiary">· al dar de baja a un confirmado, promociona al primero</span></h2>
           }
@@ -116,7 +107,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
           <section class="rounded-lg border border-line-subtle bg-bg-card" [attr.aria-busy]="cargando()">
             <div class="hidden md:block">
               <table class="w-full table-fixed text-left">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase">
                   <tr>
                     @if (pestana() === 'incidencias') { <th class="w-16 px-4 py-3 font-normal">Orden</th> }
                     <th class="px-4 py-3 font-normal">Atleta</th>
@@ -131,7 +122,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                 </thead>
                 <tbody>
                   @for (a of filas(); track a.id) {
-                    <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.opacity-55]="a.estado === 'baja'" (click)="abrir(a.id)">
+                    <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="a.estado === 'baja' ? row.disabled : row.default" (click)="abrir(a.id)">
                       @if (pestana() === 'incidencias') { <td class="px-4 py-3 text-mono-s">{{ a.ordenReserva }}</td> }
                       <td class="px-4 py-3">
                         <a [routerLink]="a.id" class="flex min-w-0 items-center gap-3" (click)="$event.stopPropagation()">
@@ -155,8 +146,8 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       </td>
                     </tr>
                   } @empty {
-                    @if (cargando()) { @for (i of [1, 2, 3, 4, 5]; track i) { <tr><td colspan="9" class="px-4 py-2"><gr-skeleton class="h-10" /></td></tr> } }
-                    @else { <tr><td colspan="9" class="px-4 py-10 text-center text-body-s text-text-tertiary">No hay atletas con estos filtros.</td></tr> }
+                    @if (cargando()) { <tr><td colspan="9"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
+                    @else { <tr><td colspan="9" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
                   }
                 </tbody>
               </table>
@@ -247,6 +238,12 @@ export class AtletasPage {
   protected readonly categoria = signal('');
   protected readonly flight = signal('');
   protected readonly incompletos = signal(false);
+  protected readonly row = BO_ROW;
+  protected readonly filtrado = computed(() => !!(this.q() || this.sexo() || this.categoria() || this.flight() || this.incompletos()));
+  protected limpiar(): void {
+    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.flight.set(''); this.incompletos.set(false);
+    this.recargar(1);
+  }
   protected readonly pagina = signal(1);
   protected readonly promo = signal<ItemLista | null>(null);
   protected readonly avisar = signal(true);
