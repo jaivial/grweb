@@ -71,6 +71,7 @@ export class Shell {
     if (extra) return extra;
     if (url.includes('/atletas/solicitudes')) return 'Solicitudes';
     if (url.includes('/atletas/pesaje')) return 'Pesaje';
+    if (url.includes('/atletas/inscripcion')) return 'Inscripción';
     if (url.includes('/sistema/whatsapp')) return 'WhatsApp';
     return ALL_ITEMS.find((i) => url.includes(`/${i.path}`))?.label ?? 'Backoffice';
   });

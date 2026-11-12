@@ -62,12 +62,12 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
       @switch (tab()) {
         @case ('config') {
           @if (!c) { <gr-skeleton class="h-96 rounded-lg" /> } @else {
-            <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_260px] xl:grid-cols-[minmax(0,1fr)_260px_100px]">
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_260px] xl:grid-cols-[minmax(0,736px)_260px]">
               <div class="flex min-w-0 flex-col gap-6">
                 <!-- Figma 66 «Inscripción · modo AEP (por defecto)»: the mode as two cards, then the data of that mode -->
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                   <h2 class="text-ui-h5">Modo de inscripción</h2>
-                  <p class="mt-0.5 text-body-xs text-text-tertiary">Se puede cambiar mientras no haya pagos en curso</p>
+                  <p class="mt-0.5 text-body-xs text-text-tertiary">Se puede cambiar mientras no haya inscripciones pagadas</p>
                   <div class="mt-4 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Modo de inscripción">
                     @for (m of modos; track m.value) {
                       <button type="button" role="radio" [attr.aria-checked]="c.modo === m.value" [disabled]="!canEdit()" (click)="c.modo = m.value; tocado.set(true)"
@@ -80,7 +80,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                 </section>
                 @if (c.modo === 'externa') {
                   @let a = aep();
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                     <h2 class="text-ui-h5">Inscripción en la AEP</h2>
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Lo que ve el atleta en /inscripcion</p>
                     @if (!a) { <gr-skeleton class="mt-4 h-40" /> } @else {
@@ -88,16 +88,16 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                         <gr-field label="Enlace de inscripción de la AEP" for="a-url" class="md:col-span-2" hint="Se abre en una pestaña nueva" [error]="urlMal() ? 'Debe empezar por https://' : ''"><input grInput id="a-url" type="url" placeholder="https://powerliftingspain.es/…" [(ngModel)]="a.url" (ngModelChange)="tocado.set(true)" [invalid]="urlMal()" [disabled]="!canEditAep()" /></gr-field>
                         <gr-field label="Estado" for="a-estado"><gr-select id="a-estado" [(ngModel)]="a.estado" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()">@for (e of estadosAep; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select></gr-field>
                         <gr-field label="Plazas (cupo AEP)" for="a-plazas"><input grInput id="a-plazas" type="number" min="0" max="5000" [(ngModel)]="a.plazas" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
-                        <gr-field label="Responsable" for="a-resp"><input grInput id="a-resp" [(ngModel)]="a.responsable.nombre" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
                         <gr-field label="Email de dudas" for="a-email"><input grInput id="a-email" type="email" [(ngModel)]="a.responsable.email" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
-                        <gr-field label="Nota interna" for="a-nota" class="md:col-span-2" hint="No se publica"><input grInput id="a-nota" [(ngModel)]="a.nota" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Responsable" for="a-resp"><input grInput id="a-resp" [(ngModel)]="a.responsable.nombre" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
+                        <gr-field label="Nota interna (no se publica)" for="a-nota" class="md:col-span-2"><input grInput id="a-nota" [(ngModel)]="a.nota" (ngModelChange)="tocado.set(true)" [disabled]="!canEditAep()" /></gr-field>
                       </div>
                       @if (!canEditAep()) { <p class="mt-3 text-body-xs text-text-tertiary">Editar los datos de la AEP requiere el permiso «evento.editar».</p> }
                       <gr-alert class="mt-4" tone="info" title="Cupones, referidos y pagos no se usan">Con la inscripción en la AEP el pago lo gestiona la federación. Esas pestañas se activan al elegir «Inscripción propia con pago» y guardar.</gr-alert>
                     }
                   </section>
                 } @else {
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                     <h2 class="text-ui-h5">Inscripción propia con pago</h2>
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Formulario en /inscripcion con cuota, plazas, cupones y referidos</p>
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
@@ -112,19 +112,19 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                       <li class="flex items-center justify-between gap-4 py-2"><span><span class="block text-label-s">Programa de referidos</span><span class="block text-body-xs text-text-tertiary">Cada inscrito recibe su código para invitar</span></span><bo-toggle [(value)]="c.referidos.activo" label="Programa de referidos" [disabled]="!canEdit()" /></li>
                     </ul>
                   </section>
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                     <h2 class="text-ui-h5">Pasarela de pago</h2>
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Sistema → Integraciones → Stripe</p>
                     <dl class="mt-3 text-body-s">
                       <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Proveedor</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Stripe' + (pagos()?.pruebas ? ' (modo test)' : '') : 'Pasarela simulada (modo pruebas)' }}</dd></div>
                       <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Claves de Stripe</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Configuradas' : 'No configuradas' }}</dd></div>
-                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-mono-xs">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
+                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-right">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
                       <div class="flex justify-between gap-3 py-2"><dt class="text-text-tertiary">Reembolsos</dt><dd>Totales o parciales desde Pagos</dd></div>
                     </dl>
                     @if (pagos()?.pasarela === 'ninguna') { <gr-alert class="mt-3" tone="warning" title="Pagos sin configurar">Añade las claves de Stripe en Sistema → Integraciones. Sin ellas solo se aceptan inscripciones gratuitas (cupón del 100 %) o en reserva.</gr-alert> }
                     @if (pagos()?.pruebas) { <gr-alert class="mt-3" tone="info" title="Modo pruebas: no se cobra nada">La pasarela simulada reproduce Stripe Checkout (tarjetas de prueba, pago rechazado, 3D Secure) y envía el mismo webhook firmado. Al añadir claves de Stripe se usa Stripe sin cambiar nada más.</gr-alert> }
                   </section>
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                     <h2 class="text-ui-h5">Textos que acepta el atleta</h2>
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Casillas sin marcar, obligatorias para pagar</p>
                     <dl class="mt-3 text-body-s">
