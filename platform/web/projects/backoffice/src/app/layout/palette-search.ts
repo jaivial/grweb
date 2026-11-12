@@ -49,7 +49,7 @@ export class PaletteSearch {
     const paginas: Hit[] = ALL_ITEMS.filter((i) => can(i.perm) && i.label.toLowerCase().includes(ql)).slice(0, 4)
       .map((i) => ({ id: 'pag:' + i.path, icon: i.icon, title: i.label, sub: 'Página', url: base + i.path }));
     this.groups.set([{ label: 'Páginas · ' + paginas.length, items: put(paginas) }]);
-    if (!cid || q.length < 2) return;
+    if (!cid || q.length < 2) { this.loading.set(false); return; }
     this.loading.set(true);
     await new Promise((r) => setTimeout(r, 200));
     if (id !== this.seq) return;
