@@ -21,6 +21,7 @@ const ROLES: Rol[] = [
   { id: 'foto', t: 'Foto y vídeo', d: 'Contenido para redes y la galería.', req: 'Equipo propio', icono: 'camera' },
   { id: 'acreditaciones', t: 'Acreditaciones y logística', d: 'Pesaje, acreditaciones y atención al público.', req: '', icono: 'users' },
 ];
+const BORRADOR = 'grcup_borrador_voluntario';
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 /**
@@ -145,6 +146,15 @@ export class VoluntariosPage {
 
   constructor() {
     const seo = inject(Seo);
+    // back from the access email: restore what was typed (D-MIEMBROS)
+    const b = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(BORRADOR);
+    if (b) {
+      sessionStorage.removeItem(BORRADOR);
+      const d = JSON.parse(b);
+      Object.assign(this, { nombre: d.nombre, email: d.email, telefono: d.telefono, experiencia: d.experiencia });
+      this.rolesElegidos.set(new Set(d.roles));
+      this.disponible.set(new Set(d.dias));
+    }
     void inject(PendingTasks).run(async () => {
       await this.comp.load();
       await applySeo(this.cms, seo, '/voluntarios', 'Voluntarios · GR Strength Cup', 'Jueces, cargadores, mesa técnica, foto y acreditaciones: apúntate como voluntario en la GR Strength Cup.');
@@ -162,7 +172,11 @@ export class VoluntariosPage {
     if (this.nombre.trim().length < 2 || !this.emailOk()) return this.error.set('Escribe tu nombre y un email válido.');
     if (!this.acepta) return this.error.set('Tienes que aceptar la política de tratamiento de datos para enviar la solicitud.');
     // D-MIEMBROS: the request needs a fan session; the access email brings the person back here.
-    if (!(await this.fan.cargar())) return this.fan.abrirAcceso('formulario', '/voluntarios', this.email.trim());
+    if (!(await this.fan.cargar())) {
+      sessionStorage.setItem(BORRADOR, JSON.stringify({ nombre: this.nombre, email: this.email, telefono: this.telefono, experiencia: this.experiencia,
+        roles: [...this.rolesElegidos()], dias: [...this.disponible()] }));
+      return this.fan.abrirAcceso('formulario', '/voluntarios', this.email.trim());
+    }
     const tel = this.telefono.trim();
     this.enviando.set(true);
     try {
