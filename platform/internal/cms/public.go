@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -48,6 +49,18 @@ type patroPub struct {
 	Descripcion string `json:"descripcion" db:"descripcion"`
 	// Shown in the logo row of the home hero (BIZ-144).
 	MostrarEnHero bool `json:"mostrarEnHero" db:"mostrar_en_hero"`
+}
+
+// blogPorPagina is the /blog page size (Figma 34: «Cargar más (24 de 96)» and 8 pages).
+const blogPorPagina = 12
+
+// blogPub is one page of /blog: its posts, the total for the filter and the categories in use (chips).
+type blogPub struct {
+	Items      []paginaPub `json:"items"`
+	Total      int         `json:"total"`
+	Pagina     int         `json:"pagina"`
+	PorPagina  int         `json:"porPagina"`
+	Categorias []string    `json:"categorias"`
 }
 
 type paginaPub struct {
@@ -210,23 +223,38 @@ func (s *Svc) registerPublic() {
 	}
 	type blogOut struct {
 		CacheControl string `header:"Cache-Control"`
-		Body         []paginaPub
+		Body         blogPub
 	}
-	huma.Register(api, huma.Operation{OperationID: "blog-public-list", Method: http.MethodGet, Path: pub + "/blog", Summary: "Entradas del blog publicadas", Tags: tagPub},
-		func(ctx context.Context, in *slugIn) (*blogOut, error) {
+	type blogIn struct {
+		Slug      string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Page      int    `query:"page" minimum:"1" maximum:"1000" default:"1"`
+		Categoria string `query:"categoria" maxLength:"20"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "blog-public-list", Method: http.MethodGet, Path: pub + "/blog", Summary: "Entradas del blog publicadas (12 por página, filtro por categoría)", Tags: tagPub},
+		func(ctx context.Context, in *blogIn) (*blogOut, error) {
 			cid, err := s.cidFor(ctx, in.Slug)
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "blog", ttlTimed, func() ([]paginaPub, error) {
-				rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
-					WHERE competition_id = $1 AND tipo = 'blog' AND `+visible+` ORDER BY publicado DESC LIMIT 50`, cid)
-				if err != nil {
-					return nil, err
+			if !categoriasBlog[in.Categoria] {
+				in.Categoria = "" // unknown category → «Todos»
+			}
+			out, err := cached(ctx, s, cid, fmt.Sprintf("blog:%s:%d", in.Categoria, in.Page), ttlTimed, func() (blogPub, error) {
+				b := blogPub{Pagina: in.Page, PorPagina: blogPorPagina, Categorias: []string{}}
+				if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE $2 = '' OR categoria = $2), COALESCE(array_agg(DISTINCT categoria) FILTER (WHERE categoria <> ''), '{}')
+					FROM paginas WHERE competition_id = $1 AND tipo = 'blog' AND `+visible, cid, in.Categoria).Scan(&b.Total, &b.Categorias); err != nil {
+					return b, err
 				}
-				return collect[paginaPub](rows)
+				rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
+					WHERE competition_id = $1 AND tipo = 'blog' AND `+visible+` AND ($2 = '' OR categoria = $2) ORDER BY publicado DESC, slug LIMIT $3 OFFSET $4`,
+					cid, in.Categoria, blogPorPagina, (in.Page-1)*blogPorPagina)
+				if err != nil {
+					return b, err
+				}
+				b.Items, err = collect[paginaPub](rows)
+				return b, err
 			})
-			return &blogOut{CacheControl: cacheHdr, Body: list}, err
+			return &blogOut{CacheControl: cacheHdr, Body: out}, err
 		})
 
 	type galOut struct {
@@ -468,16 +496,20 @@ func (s *Svc) registerPublicExtra() {
 			if err := validClub(&b); err != nil {
 				return nil, err
 			}
+			// validate before the rate limit: rejected submissions must not spend the visitor's 3/h
+			contacto := strings.TrimSpace(in.Body.ContactoNombre)
+			if conMarcado(contacto, true) {
+				return nil, problem.Unprocessable("NOMBRE_INVALIDO", "El nombre de contacto no puede contener HTML ni enlaces.")
+			}
+			if conMarcado(in.Body.Mensaje, false) {
+				return nil, problem.Unprocessable("MENSAJE_INVALIDO", "El mensaje no puede contener HTML ni enlaces.")
+			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "clubs", httpx.ClientIPFrom(ctx)), 3, time.Hour); !r.Allowed {
 				return nil, problem.TooMany("Has enviado varias propuestas seguidas. Inténtalo más tarde.")
 			}
 			var version string
 			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
 			id := newID()
-			contacto := strings.TrimSpace(in.Body.ContactoNombre)
-			if l := strings.ToLower(contacto); strings.ContainsAny(contacto, "<>{}[]\\/@") || strings.Contains(l, "http") || strings.Contains(l, "www.") || strings.Contains(l, "://") {
-				return nil, problem.Unprocessable("NOMBRE_INVALIDO", "El nombre de contacto no puede contener HTML ni enlaces.")
-			}
 			return nil, s.change(ctx, cid, "cms.club_solicitado", map[string]any{"id": id, "nombre": b.Nombre}, func(tx pgx.Tx) error {
 				if _, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, consentimiento_at, legal_version, orden)
 					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pendiente',$9,$10,$11,now(),$12, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
@@ -615,6 +647,15 @@ var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Carga
 
 // minutosLectura is the reading time of a page in whole minutes (200 words a minute, at least 1).
 const minutosLectura = `GREATEST(1, ceil(cardinality(regexp_split_to_array(btrim(cuerpo), '\s+')) / 200.0))::int AS minutos`
+
+// conMarcado reports HTML or links in a free text (names also reject slashes, braces and «@»).
+func conMarcado(v string, nombre bool) bool {
+	l := strings.ToLower(v)
+	if strings.Contains(l, "http") || strings.Contains(l, "www.") || strings.Contains(l, "://") || strings.ContainsAny(v, "<>") {
+		return true
+	}
+	return nombre && strings.ContainsAny(v, "{}[]\\/@")
+}
 
 // instagramURL turns «@club», «club» or «instagram.com/club» into https://instagram.com/club (a full https link stays).
 func instagramURL(v string) string {
