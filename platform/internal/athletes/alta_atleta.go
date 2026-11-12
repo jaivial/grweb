@@ -282,7 +282,7 @@ func (s *Svc) cupos(ctx context.Context, q interface {
 
 // ocupadasSQL lists the taken places of competition $1: athletes with a chosen competition (also the
 // ones chosen from the athlete area) plus the requests (not rejected) not yet turned into an athlete.
-const ocupadasSQL = `SELECT prueba FROM atletas WHERE competition_id = $1 AND prueba <> ''
+const ocupadasSQL = `SELECT prueba FROM atletas WHERE competition_id = $1 AND prueba <> '' AND estado <> 'baja'
 	UNION ALL SELECT prueba FROM solicitudes_atleta WHERE competition_id = $1 AND prueba <> '' AND estado <> 'rechazada'
 	AND NOT (estado = 'aprobada' AND match_atleta_id IS NOT NULL)`
 
