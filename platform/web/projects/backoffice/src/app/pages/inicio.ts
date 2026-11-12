@@ -247,7 +247,8 @@ export class InicioPage {
     const eur = (c: number) => (c / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
     const fmt = (k: string, v: number | undefined) => (v === undefined ? '' : k === 'sorteo.recaudado' ? eur(v) : v);
     const rows: (string | number)[][] = [['Indicador', 'Valor', 'Periodo anterior']];
-    for (const [k, v] of Object.entries(d?.kpis ?? {})) rows.push([KPI_CSV[k] ?? k, fmt(k, v), fmt(k, d?.previo?.[k])]);
+    // checklist.* is exported once below as «Puesta en marcha (pasos)»
+    for (const [k, v] of Object.entries(d?.kpis ?? {})) if (!k.startsWith('checklist.')) rows.push([KPI_CSV[k] ?? k, fmt(k, v), fmt(k, d?.previo?.[k])]);
     const cl = this.checklist();
     if (cl) rows.push(['Puesta en marcha (pasos)', `${cl.hechos}/${cl.total}`, '']);
     rows.push([], ['Sesión', 'Ocupadas', 'Aforo']);
