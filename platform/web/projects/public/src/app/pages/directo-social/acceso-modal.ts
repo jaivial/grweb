@@ -65,7 +65,7 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
               </div>
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">Email con el que te inscribiste en la AEP *</span>
-                <input grInput type="email" autocomplete="email" class="mt-1.5" placeholder="carlos@otroclub.com" aria-label="Email de inscripción" [invalid]="true" [ngModel]="email()" (ngModelChange)="email.set($event)" />
+                <input grInput grSize="l" type="email" autocomplete="email" class="mt-1.5" placeholder="carlos@otroclub.com" aria-label="Email de inscripción" [invalid]="true" [ngModel]="email()" (ngModelChange)="email.set($event)" />
                 <span class="mt-1.5 block text-body-xs text-text-tertiary">La insignia «Atleta» solo se acredita con el email de inscripción.</span>
               </label>
               <div class="mt-5 flex flex-col gap-2">
@@ -100,14 +100,14 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
 
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">Alias *</span>
-                <input grInput type="text" autocomplete="nickname" class="mt-1.5" placeholder="tu alias en el directo" aria-label="Alias" [invalid]="!!errorAlias()" [ngModel]="alias()" (ngModelChange)="alias.set($event)" />
+                <input grInput grSize="l" type="text" autocomplete="nickname" class="mt-1.5" placeholder="tu alias en el directo" aria-label="Alias" [invalid]="!!errorAlias()" [ngModel]="alias()" (ngModelChange)="alias.set($event)" />
                 @if (errorAlias(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
                 @else { <span class="mt-1.5 block text-body-xs text-text-tertiary">3–20 caracteres: letras, números, espacios o _ . -</span> }
               </label>
 
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">{{ tipo() === 'atleta' ? 'Email con el que te inscribiste en la AEP *' : 'Email *' }}</span>
-                <input grInput type="email" autocomplete="email" class="mt-1.5" placeholder="email@ejemplo.com" aria-label="Email" [invalid]="!!error()" [ngModel]="email()" (ngModelChange)="email.set($event)" />
+                <input grInput grSize="l" type="email" autocomplete="email" class="mt-1.5" placeholder="email@ejemplo.com" aria-label="Email" [invalid]="!!error()" [ngModel]="email()" (ngModelChange)="email.set($event)" />
                 @if (error(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
                 @else { <span class="mt-1.5 block text-body-xs text-text-tertiary">Te enviaremos un enlace mágico para entrar.</span> }
               </label>
