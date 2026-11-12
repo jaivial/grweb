@@ -131,5 +131,6 @@ spec:
     - from:
         - podSelector: { matchLabels: { grcup.dev/servicio: gateway } }
         - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: cms } }
       ports:
         - { port: 8080, protocol: TCP }

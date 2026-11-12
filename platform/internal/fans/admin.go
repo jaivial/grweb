@@ -34,6 +34,31 @@ type FanAdmin struct {
 }
 
 func (s *Svc) registerAdmin() {
+	type emailIn struct {
+		CID uuid.UUID `path:"cid"`
+		ID  uuid.UUID `path:"id"`
+	}
+	type emailOut struct {
+		Body struct {
+			Email string `json:"email"`
+		}
+	}
+	// verified email of a fan session: cms ties volunteer/club requests to it (its DB has no fans table).
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-fan-email", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/fans/{id}/email", Summary: "Email verificado de un fan (solo cms)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *emailIn) (*emailOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			o := &emailOut{}
+			err := s.a.DB.QueryRow(ctx, `SELECT lower(email::text) FROM fans WHERE id = $1 AND competition_id = $2`, in.ID, in.CID).Scan(&o.Body.Email)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, problem.NotFound("Fan no encontrado.")
+			}
+			if err != nil {
+				return nil, err
+			}
+			return o, nil
+		})
 	api := s.a.API
 	base := "/api/admin/competiciones/{cid}/fans"
 	operar := func(ctx context.Context, cid uuid.UUID) error {
