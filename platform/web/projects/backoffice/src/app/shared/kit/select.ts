@@ -28,14 +28,15 @@ let seq = 0;
       <gr-icon name="chevron-down" [size]="16" class="pointer-events-none absolute top-3.5 right-3 text-text-tertiary" />
     </div>
     <button type="button" class="hidden h-10 w-full items-center gap-2 md:flex" [class]="box()" [disabled]="disabled()" aria-haspopup="listbox"
-      [attr.aria-expanded]="open()" [attr.aria-invalid]="!!error() || null" [attr.aria-label]="label()" (click)="toggle()" (keydown)="key($event)">
+      [attr.aria-expanded]="open()" [attr.aria-invalid]="!!error() || null" [attr.aria-label]="label()" [attr.aria-controls]="open() ? id + '-lb' : null"
+      [attr.aria-activedescendant]="open() && active() >= 0 ? id + '-o' + active() : null" (click)="toggle()" (keydown)="key($event)">
       <span class="flex-1 truncate text-left" [class.text-text-muted]="!current()">{{ current()?.label ?? placeholder() }}</span>
       <gr-icon [name]="open() ? 'chevron-up' : 'chevron-down'" [size]="16" class="text-text-tertiary" />
     </button>
     @if (open()) {
-      <ul role="listbox" [attr.aria-label]="label()" class="absolute inset-x-0 top-[73px] z-30 hidden flex-col rounded-md border border-line-strong bg-bg-raised p-1 shadow-[0_12px_32px_rgb(0_0_0/0.5)] md:flex">
+      <ul role="listbox" [id]="id + '-lb'" [attr.aria-label]="label()" class="absolute inset-x-0 top-[73px] z-30 hidden flex-col rounded-md border border-line-strong bg-bg-raised p-1 shadow-[0_12px_32px_rgb(0_0_0/0.5)] md:flex">
         @for (o of options(); track o.value; let i = $index) {
-          <li role="option" [attr.aria-selected]="o.value === value()" [attr.aria-disabled]="o.disabled || null" (click)="pick(o)" (mouseenter)="active.set(i)"
+          <li role="option" [id]="id + '-o' + i" [attr.aria-selected]="o.value === value()" [attr.aria-disabled]="o.disabled || null" (click)="pick(o)" (mouseenter)="active.set(i)"
             class="flex h-9 cursor-pointer items-center gap-2 rounded-xs px-2 text-body-s aria-disabled:cursor-not-allowed aria-disabled:opacity-45"
             [class]="o.value === value() ? 'bg-accent/12 text-text-primary' : i === active() ? 'bg-bg-hover text-text-secondary' : 'text-text-secondary'">
             <span class="flex-1 truncate">{{ o.label }}</span>

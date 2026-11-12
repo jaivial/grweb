@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output } from '@angular/core';
 import { GrIcon, type GrIconName } from '@grcup/ui';
 
 let seq = 0;
@@ -16,10 +16,14 @@ let seq = 0;
     </span>
   `,
 })
-export class BoTooltip {
+export class BoTooltip implements AfterViewInit {
   readonly text = input.required<string>();
   readonly kbd = input('');
   protected readonly id = `bo-tt-${++seq}`;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  ngAfterViewInit(): void {
+    this.host.querySelector('a, button, input, select, textarea, [tabindex]')?.setAttribute('aria-describedby', this.id);
+  }
 }
 
 export interface BoMenuItem {
