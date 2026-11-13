@@ -77,7 +77,7 @@ const cfgPorDefecto: ConfigJuegos = {
           </gr-empty>
         </div>
       } @else {
-        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <!-- ===== Recompensas ===== -->
           <so-card titulo="Recompensas" ayuda="Monedas por participar · las acredita juegos-worker con ref idempotente (§6.4)">
             <div class="overflow-x-auto">
