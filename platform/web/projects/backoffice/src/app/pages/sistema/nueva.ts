@@ -47,7 +47,7 @@ const PASOS = ['Datos', 'Clonar contenidos', 'Módulos', 'Equipo'];
                 <gr-field label="Copiar de" class="sm:col-span-2" hint="Copia sede, evento, módulos e inscripción. Nunca datos personales.">
                   @if (comps() === null) { <gr-skeleton class="h-10" /> }
                   @else { <gr-select [ngModel]="origenId()" (ngModelChange)="elegirOrigen($event)"><option value="">Ninguna (empezar en blanco)</option>
-                    @for (c of comps(); track c.id) { <option [value]="c.id">{{ c.nombre }}{{ c.archivedAt ? ' (archivada)' : '' }}</option> }</gr-select> }
+                    @for (c of comps(); track c.id) { <option [value]="c.id">{{ c.nombre }} · {{ c.slug }}{{ c.archivedAt ? ' (archivada)' : '' }}</option> }</gr-select> }
                 </gr-field>
                 <gr-field label="Nombre" class="sm:col-span-2" [error]="tocado && nombre.trim().length < 2 ? 'Mínimo 2 caracteres' : null"><input grInput [(ngModel)]="nombre" (ngModelChange)="autoSlug()" maxlength="120" placeholder="GR Strength Cup 2027" /></gr-field>
                 <gr-field label="Identificador (URL)" class="sm:col-span-2" [error]="tocado && !slugOk() ? 'Minúsculas, números y guiones (2–41)' : null" [hint]="'backoffice/' + (slug || '…') + '/inicio'"><input grInput [(ngModel)]="slug" (ngModelChange)="slugManual = true" maxlength="41" class="font-mono" /></gr-field>
@@ -167,7 +167,7 @@ export class SistemaNuevaPage {
   protected datosOk(): boolean { return this.nombre.trim().length >= 2 && this.slugOk() && !(this.fechaFin && this.fechaInicio && this.fechaFin < this.fechaInicio); }
   protected setCopiar(k: string, v: boolean): void { this.copiar.update((c) => ({ ...c, [k]: v })); }
   protected setModulo(k: string, v: boolean): void { this.modulos.update((c) => ({ ...c, [k]: v })); }
-  protected copiados(): string { return COPIAR.filter((x) => this.copiar()[x.k]).map((x) => x.l.toLowerCase()).join(', '); }
+  protected copiados(): string { return COPIAR.filter((x) => this.copiar()[x.k]).map((x) => x.l).join(', '); }
   protected modulosOn(): string { return MODULOS.filter((m) => this.modulos()[m.k]).map((m) => m.l).join(' · '); }
   protected siguiente(): void {
     this.tocado = true;
