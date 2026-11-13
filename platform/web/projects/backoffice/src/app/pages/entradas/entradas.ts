@@ -460,6 +460,7 @@ export class EntradasPage {
     return ({ disponible: 'open', proximamente: 'open', ultimas: 'almost', agotada: 'full', cerrada: 'closed' } as const)[x.estado];
   }
   protected async publicar(x: Sesion): Promise<void> {
+    if (!this.canEdit()) return this.toasts.error('Sin permiso', 'Necesitas entradas.gestionar para publicar.');
     const body: SesionIn = { nombre: x.nombre, detalle: x.detalle || undefined, inicio: x.inicio, fin: x.fin, puertas: x.puertas, aforo: x.aforo, maxPorReserva: x.maxPorReserva,
       aperturaAt: x.aperturaAt || undefined, cierreAt: x.cierreAt || undefined, publicada: true, listaEspera: x.listaEspera };
     try {
