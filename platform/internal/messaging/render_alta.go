@@ -67,7 +67,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	var bs []*altaBloque
 	titulo := ""
 	add := func(tipo string, it [2]string) {
-		if n := len(bs); n > 0 && bs[n-1].tipo == tipo && tipo != "texto" && tipo != "aviso" && titulo == "" {
+		if n := len(bs); n > 0 && bs[n-1].tipo == tipo && tipo != "texto" && tipo != "aviso" && tipo != "info" && titulo == "" {
 			bs[n-1].items = append(bs[n-1].items, it)
 			return
 		}
@@ -89,18 +89,29 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 		case strings.HasPrefix(p, "⚠"):
 			t, d, _ := strings.Cut(strings.TrimSpace(strings.TrimPrefix(p, "⚠")), ". ")
 			add("aviso", [2]string{t, d})
+		case strings.HasPrefix(p, "ℹ"):
+			t, d, _ := strings.Cut(strings.TrimSpace(strings.TrimPrefix(p, "ℹ")), ". ")
+			add("info", [2]string{t, d})
 		case titulo != "":
 			add("motivo", [2]string{"", p})
 		default:
 			add("texto", [2]string{"", p})
 		}
 	}
-	// The button goes after the last box (steps, checklist or notice), as in Figma; otherwise at the end.
+	// The button goes after the last box (steps, checklist or notice) when a data table follows it, as in
+	// Figma (recibida: steps → button → summary); otherwise at the end, so an added paragraph stays above it.
 	posBoton := len(bs) - 1
 	for i, b := range bs {
 		if b.tipo != "texto" && b.tipo != "kv" {
 			posBoton = i
 		}
+	}
+	tablaDespues := false
+	for _, b := range bs[min(posBoton+1, len(bs)):] {
+		tablaDespues = tablaDespues || b.tipo == "kv"
+	}
+	if !tablaDespues {
+		posBoton = len(bs) - 1
 	}
 	imgURL, _ := sustituir(c.Imagen, full, false)
 	foto := strings.HasPrefix(imgURL, "http")
@@ -116,7 +127,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 			if strings.TrimSpace(v) == "" {
 				v = "—"
 			}
-			h += `<tr><td class="kl" width="46%" valign="top" style="padding:8px 8px 8px 0;border-bottom:1px solid #2e2729;font-size:12px;line-height:16px;font-weight:500;color:` + aMuted + `">` + esc(it[0]) +
+			h += `<tr><td class="kl" width="182" valign="top" style="width:182px;padding:8px 8px 8px 0;border-bottom:1px solid #2e2729;font-size:12px;line-height:16px;font-weight:500;color:` + aMuted + `">` + esc(it[0]) +
 				`</td><td valign="top" style="padding:7px 0;border-bottom:1px solid #2e2729;font-size:13px;line-height:17px;color:#ebe5e5;word-break:break-word">` + linkify(esc(v)) + `</td></tr>`
 		}
 		return h + `</table>`
@@ -162,10 +173,11 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 		case "kv":
 			if foto && !fotoHecha {
 				fotoHecha = true
-				alt := "Foto de la solicitud · " + strings.TrimSpace(full["nombre"]+" "+full["apellidos"]) + " (blanco y negro)"
+				// Blocked images: the alt carries the instruction of Figma 171:91164 (the client shows it in the dashed box).
+				alt := "Foto de la solicitud · " + strings.TrimSpace(full["nombre"]+" "+full["apellidos"]) + " (blanco y negro). Imagen no cargada: tu cliente bloquea las imágenes; abre la solicitud en el backoffice para verla."
 				cuerpo.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px"><tr>` +
 					`<td class="col" width="180" valign="top" style="width:180px;padding:0 16px 16px 0"><img src="` + esc(imgURL) + `" alt="` + esc(alt) + `" width="180" height="225" style="display:block;width:180px;max-width:100%;height:225px;object-fit:cover;border:1px dashed #2e2729;border-radius:8px;background:#141112;color:#d1d5db;font-size:11px;line-height:15px;text-align:center">` +
-					`<p style="margin:8px 0 0;font-size:11px;line-height:14px;color:#948f91">Foto · blanco y negro</p></td>` +
+					`<p style="margin:8px 0 0;font-size:11px;line-height:14px;color:#948f91">Foto · blanco y negro · 960×1200</p></td>` +
 					`<td class="col" valign="top">` + tabla(b) + `</td></tr></table>`)
 			} else {
 				cuerpo.WriteString(`<div style="margin:0 0 12px">` + tabla(b) + `</div>`)
@@ -174,6 +186,8 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 			cuerpo.WriteString(caja(b))
 		case "aviso":
 			cuerpo.WriteString(aviso("#f2c773", "rgba(242,199,115,.35)", "#221d14", b.items[0][0], b.items[0][1]))
+		case "info":
+			cuerpo.WriteString(aviso("#7db8f0", "rgba(96,165,250,.4)", "#141a21", b.items[0][0], b.items[0][1]))
 		case "motivo":
 			cuerpo.WriteString(aviso("#f28b8b", "rgba(196,43,62,.5)", "#221416", b.titulo, b.items[0][1]))
 		}
@@ -199,9 +213,19 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	link := func(u, t string) string {
 		return `<a href="` + esc(u) + `" style="color:#d1d5db;text-decoration:none">` + t + `</a>`
 	}
+	// Footer links per template (Figma 78): only links the recipient can use.
 	enlaces := link(web+"/atletas", "Atletas") + " · " + link(web+"/area-atleta", "Área de atleta")
-	if clave == "atleta-solicitud-nueva" {
-		enlaces = link(btnURL, "Panel de solicitudes")
+	switch clave {
+	case "atleta-solicitud-nueva":
+		enlaces = link(btnURL, "Panel de solicitudes") + " · " + link(strings.TrimSuffix(btnURL, "/atletas/solicitudes")+"/sistema", "Sistema")
+	case "atleta-solicitud-aprobada":
+		ficha := full["urlFicha"]
+		if !strings.HasPrefix(ficha, "http") {
+			ficha = web + "/area-atleta"
+		}
+		enlaces = link(ficha, "Mi ficha") + " · " + link(web+"/area-atleta", "Área de atleta")
+	case "atleta-solicitud-rechazada":
+		enlaces = link(web+"/alta-atleta", "Alta de atleta") + " · " + link(web+"/atletas", "Atletas")
 	}
 	enlaces += " · " + link(web+"/privacidad", "Política de privacidad")
 	logo := `<span style="font-size:18px;font-weight:700;color:#ffffff">` + esc(m.Nombre) + `</span>`
@@ -210,7 +234,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	}
 	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">` +
 		`<title>` + esc(asunto) + `</title><link href="https://fonts.googleapis.com/css2?family=Contrail+One&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">` +
-		`<style>@media (max-width:480px){.pad{padding-left:24px!important;padding-right:24px!important}.hd{padding:24px!important}.h1{font-size:32px!important;line-height:38px!important}.col{display:block!important;width:100%!important;padding-right:0!important}.col img{width:180px!important}}</style></head>` +
+		`<style>@media (max-width:480px){.pad{padding-left:24px!important;padding-right:24px!important}.hd{padding:24px!important}.h1{font-size:32px!important;line-height:38px!important}.col{display:block!important;width:100%!important;padding-right:0!important}.col img{width:180px!important}.kl{width:118px!important}}</style></head>` +
 		`<body style="margin:0;padding:0;background:#0b0a0a;` + aFont + `">` +
 		`<span style="display:none;max-height:0;overflow:hidden;opacity:0">` + pre + `</span>` +
 		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b0a0a"><tr><td align="center">` +
