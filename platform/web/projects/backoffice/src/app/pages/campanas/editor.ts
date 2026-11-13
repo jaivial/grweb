@@ -79,7 +79,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
         <!-- ============ FLUJO ============ -->
         @case ('flujo') {
           <section class="relative rounded-lg border border-line-subtle bg-bg-card bg-[radial-gradient(circle,#2a2224_1px,transparent_1px)] [background-size:16px_16px] p-6">
-            <p class="flex flex-wrap gap-3 text-mono-xs text-text-tertiary"><span class="flex items-center gap-1"><span class="size-2 rounded-pill bg-success"></span>listo</span><span class="flex items-center gap-1"><span class="size-2 rounded-pill bg-warning"></span>pendiente</span><span class="flex items-center gap-1"><span class="size-2 rounded-pill bg-line-strong"></span>desactivado</span></p>
+            <p class="flex flex-wrap gap-3 text-mono-xs text-text-tertiary"><span class="flex items-center gap-1"><span class="size-2 rounded-pill bg-success"></span>listo</span><span class="flex items-center gap-1"><span class="size-2 rounded-pill bg-warning"></span>pendiente</span><span class="flex items-center gap-1"><span class="size-2 rounded-pill bg-line-strong"></span>desactivado</span><span class="ml-auto inline-flex h-7 items-center gap-1.5 rounded-sm border border-info/40 bg-info/10 px-2 font-sans text-body-xs normal-case text-info"><gr-icon name="info" [size]="12" />Pulsa un nodo para editar esa parte</span></p>
             <div class="mx-auto mt-4 flex max-w-xl flex-col items-center">
               @for (nd of nodos(); track nd.t; let last = $last) {
                 @if (nd.par) {
@@ -87,7 +87,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
                     @for (x of nd.par; track x.t) { <ng-container *ngTemplateOutlet="nodo; context: { $implicit: x }" /> }
                   </div>
                 } @else { <ng-container *ngTemplateOutlet="nodo; context: { $implicit: nd }" /> }
-                @if (!last) { <span class="h-6 w-px bg-line-strong"></span> }
+                @if (!last) { <span class="flex flex-col items-center text-line-strong" aria-hidden="true"><span class="h-5 w-px bg-line-strong"></span><gr-icon name="chevron-down" [size]="12" class="-mt-1" /></span> }
               }
             </div>
           </section>
@@ -374,10 +374,14 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
     }
 
     <ng-template #nodo let-x>
-      <button type="button" class="w-full max-w-xs rounded-md border bg-bg-card p-3 text-left hover:bg-bg-raised" [class]="x.estado === 'ok' ? 'border-success/60' : x.estado === 'pendiente' ? 'border-warning/60' : 'border-line-subtle opacity-60'" (click)="ir(x.tab)">
-        <p class="flex items-center gap-2 text-label-s"><gr-icon [name]="x.i" [size]="14" />{{ x.t }}</p>
-        <p class="mt-1 truncate text-body-xs text-text-tertiary">{{ x.d }}</p>
-        <p class="mt-1 font-mono text-[10px] text-text-muted uppercase">{{ x.m }}</p>
+      <button type="button" class="flex w-full max-w-xs items-center gap-3 rounded-md border border-l-[3px] bg-bg-card p-3 text-left hover:bg-bg-raised focus-visible:outline-2 focus-visible:outline-accent" [class]="x.estado === 'ok' ? 'border-success/60' : x.estado === 'pendiente' ? 'border-warning/60' : 'border-line-subtle opacity-60'" [attr.aria-label]="x.t + ' · ' + (x.estado === 'ok' ? 'listo' : x.estado === 'pendiente' ? 'pendiente' : 'desactivado')" (click)="ir(x.tab)">
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-sm" [class]="x.estado === 'ok' ? 'bg-success/15 text-success' : x.estado === 'pendiente' ? 'bg-warning/15 text-warning' : 'bg-bg-raised text-text-tertiary'"><gr-icon [name]="x.i" [size]="14" /></span>
+        <span class="min-w-0 flex-1">
+          <span class="block text-label-s">{{ x.t }}</span>
+          <span class="mt-0.5 block truncate text-body-xs text-text-tertiary">{{ x.d }}</span>
+          <span class="mt-1 block font-mono text-[10px] text-text-muted uppercase">{{ x.m }}</span>
+        </span>
+        <gr-icon name="chevron-right" [size]="14" class="shrink-0 text-text-tertiary" />
       </button>
     </ng-template>
     <ng-template #imgCampos let-b>
