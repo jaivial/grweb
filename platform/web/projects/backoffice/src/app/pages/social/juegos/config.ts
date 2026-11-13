@@ -248,7 +248,10 @@ export class JuegosConfigPage {
     const l = this.jornadas();
     const hoy = new Date().toISOString().slice(0, 10);
     const j = l.find((x) => x.estado === 'en_juego') ?? l.find((x) => x.estado === 'abierta') ?? l.find((x) => x.dia === hoy);
-    return j ? `Jornada activa · ${j.nombre}` : 'Sin jornada activa';
+    if (!j) return 'Sin jornada activa';
+    // the badge shares the row with the title and both buttons (Figma): a long jornada name is shortened
+    const nombre = j.nombre.length > 16 ? j.nombre.slice(0, 15).trimEnd() + '…' : j.nombre;
+    return `Jornada activa · ${nombre}`;
   });
   protected readonly sucio = computed(() => JSON.stringify(this.form()) !== JSON.stringify(this.original()));
   private readonly todosCampos = computed(() => [...this.puntosGrupos, ...this.clausulaGrupos].flatMap((g) => g.campos).concat(this.limiteCampos));
