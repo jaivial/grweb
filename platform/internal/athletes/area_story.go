@@ -22,7 +22,7 @@ import (
 func (s *Svc) registerAreaStory() {
 	base := "/api/area-atleta/story"
 	// no redirects: a 3xx could leave the allowed hosts (SSRF)
-	fotos := &fotoCache{m: map[string]*fotoEntry{}, cli: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	fotos := &fotoCache{base: s.webURL, m: map[string]*fotoEntry{}, cli: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 
 	// The page guard (Figma 83 «Notas · middleware»): always 200 so a visitor without session gets no console error.
 	type cfgIn struct {
@@ -73,6 +73,9 @@ func (s *Svc) registerAreaStory() {
 		if foto == "" {
 			problem.Write(w, problem.NotFound("Aún no tienes foto en tu ficha."))
 			return
+		}
+		if strings.HasPrefix(foto, "/api/medios/") {
+			foto = s.webURL + foto // own media library: relative path
 		}
 		e := fotos.get(foto, func(u *url.URL) bool { return s.fotoHostPermitido(req.Context(), r.CompetitionID, u) })
 		if e.err != nil {
@@ -170,9 +173,10 @@ func (s *Svc) fotoHostPermitido(ctx context.Context, cid uuid.UUID, u *url.URL) 
 
 // fotoCache keeps the downloaded photos for a few minutes and collapses concurrent downloads of the same URL.
 type fotoCache struct {
-	mu  sync.Mutex
-	m   map[string]*fotoEntry
-	cli *http.Client
+	base string // own web URL: may be http in dev
+	mu   sync.Mutex
+	m    map[string]*fotoEntry
+	cli  *http.Client
 }
 
 type fotoEntry struct {
@@ -236,7 +240,7 @@ func (c *fotoCache) get(raw string, permitido func(*url.URL) bool) *fotoEntry {
 
 func (c *fotoCache) fetch(raw string, permitido func(*url.URL) bool) ([]byte, string, error) {
 	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "https" || !permitido(u) {
+	if err != nil || (u.Scheme != "https" && !strings.HasPrefix(raw, c.base+"/api/medios/")) || !permitido(u) {
 		return nil, "", errors.New("host de la foto no permitido")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
