@@ -129,6 +129,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublic()
 	s.registerArea()
 	s.registerAreaPrueba()
+	s.registerAreaStory()
 	s.registerInternal()
 	s.registerKPIs()
 	s.registerOpenLifter()
