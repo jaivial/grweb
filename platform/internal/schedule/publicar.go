@@ -474,6 +474,12 @@ func (s *Svc) preparar(ctx context.Context, cid uuid.UUID, prueba string) (Borra
 	// Only athletes of this competition are told (and counted): nobody of the other one or without one.
 	d.afectados = slices.DeleteFunc(d.afectados, func(id uuid.UUID) bool { a, ok := byID[id]; return ok && a.Prueba != prueba })
 	d.Afectados, d.ConEmail, d.Seguidores = len(d.afectados), 0, 0
+	d.Atletas = 0 // «Primera publicación: N atletas» counts this competition only
+	for id := range posiciones(&snP) {
+		if a, ok := byID[id]; ok && a.Prueba == prueba {
+			d.Atletas++
+		}
+	}
 	for _, id := range d.afectados {
 		if a, ok := byID[id]; ok {
 			d.Seguidores += a.Seguidores
