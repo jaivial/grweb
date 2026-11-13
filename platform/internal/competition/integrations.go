@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"mime"
 	"net"
 	"net/http"
 	"net/smtp"
@@ -30,7 +31,7 @@ var tagInt = []string{"Integraciones"}
 
 // TiposIntegracion and the non-secret fields each one expects (Figma page 64 · "Sistema · integraciones").
 var TiposIntegracion = map[string][]string{
-	"smtp":     {"host", "puerto", "usuario", "remitente", "nombreRemitente", "tls"},
+	"smtp":     {"proveedor", "host", "puerto", "usuario", "remitente", "nombreRemitente", "tls", "porMinuto", "limiteDiario"},
 	"stripe":   {"modo", "clavePublica"},
 	"whatsapp": {"proveedor", "url", "instancia", "numero"}, // proveedor evo-weai (Evolution API v2); secret = its API key
 	"bunny":    {"zona", "cdnUrl"},
@@ -40,13 +41,15 @@ var TiposIntegracion = map[string][]string{
 type oneOut struct{ Body integracion }
 
 type integracion struct {
-	Tipo      string            `json:"tipo"`
-	Config    map[string]string `json:"config"`
-	Secreto   string            `json:"secreto" doc:"Solo la máscara (••••1234); nunca se devuelve el valor"`
-	Estado    string            `json:"estado" enum:"sin_configurar,configurada,ok,error"`
-	ProbadoAt *time.Time        `json:"probadoAt,omitempty"`
-	Error     string            `json:"error,omitempty"`
-	Version   int               `json:"version"`
+	Tipo       string            `json:"tipo"`
+	Config     map[string]string `json:"config"`
+	Secreto    string            `json:"secreto" doc:"Solo la máscara (••••1234); nunca se devuelve el valor"`
+	Estado     string            `json:"estado" enum:"sin_configurar,configurada,ok,error"`
+	ProbadoAt  *time.Time        `json:"probadoAt,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	Version    int               `json:"version"`
+	LatenciaMs int64             `json:"latenciaMs,omitempty" doc:"Solo en la respuesta de «probar»"`
+	Enviado    string            `json:"enviado,omitempty" doc:"SMTP: a quién se envió el email de prueba"`
 }
 
 func (s *Svc) listIntegraciones(ctx context.Context, cid uuid.UUID) ([]integracion, error) {
@@ -149,20 +152,56 @@ func (s *Svc) registerIntegrations() {
 	type probarIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Tipo string    `path:"tipo" enum:"smtp,stripe,whatsapp,bunny,aep"`
+		Body *struct {
+			Config  map[string]string `json:"config,omitempty" doc:"Probar estos valores sin guardarlos (sobre los guardados)"`
+			Secreto *string           `json:"secreto,omitempty"`
+		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "integrations-test", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/integraciones/{tipo}/probar", Summary: "Probar una integración (SMTP: conexión y autenticación, sin enviar)", Tags: tagInt, Security: bearer},
 		func(ctx context.Context, in *probarIn) (*oneOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "integraciones.config"); err != nil {
 				return nil, err
 			}
+			p, _ := auth.User(ctx)
 			cfg, secret, err := s.integrationSecret(ctx, in.CID, in.Tipo)
-			if err != nil {
+			borrador := in.Body != nil && (in.Body.Config != nil || in.Body.Secreto != nil)
+			if err != nil && !borrador {
 				return nil, err
 			}
-			testErr := testIntegration(ctx, in.Tipo, cfg, secret)
+			if cfg == nil {
+				cfg = map[string]string{}
+			}
+			if borrador {
+				for k, v := range in.Body.Config {
+					cfg[k] = v
+				}
+				if in.Body.Secreto != nil && *in.Body.Secreto != "" {
+					secret = *in.Body.Secreto
+				}
+			}
+			para := ""
+			if in.Tipo == "smtp" && p != nil {
+				para = p.Email
+			}
+			t0 := time.Now()
+			testErr := testIntegration(ctx, in.Tipo, cfg, secret, para)
+			ms := time.Since(t0).Milliseconds()
 			estado, msg := "ok", ""
 			if testErr != nil {
 				estado, msg = "error", testErr.Error()
+			}
+			if borrador {
+				// «Enviar prueba» before saving: the stored state does not change.
+				out, err := s.oneIntegracion(ctx, in.CID, in.Tipo)
+				if err != nil {
+					return nil, err
+				}
+				now := time.Now().UTC()
+				out.Body.Estado, out.Body.Error, out.Body.ProbadoAt, out.Body.LatenciaMs = estado, msg, &now, ms
+				if testErr == nil {
+					out.Body.Enviado = para
+				}
+				return out, nil
 			}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				if _, err := tx.Exec(ctx, `UPDATE integraciones SET estado = $3, error = $4, probado_at = now() WHERE competition_id = $1 AND tipo = $2`, in.CID, in.Tipo, estado, msg); err != nil {
@@ -179,7 +218,14 @@ func (s *Svc) registerIntegrations() {
 			if err != nil {
 				return nil, err
 			}
-			return s.oneIntegracion(ctx, in.CID, in.Tipo)
+			out, err := s.oneIntegracion(ctx, in.CID, in.Tipo)
+			if err == nil {
+				out.Body.LatenciaMs = ms
+				if testErr == nil {
+					out.Body.Enviado = para
+				}
+			}
+			return out, err
 		})
 }
 
@@ -216,7 +262,8 @@ func (s *Svc) integrationSecret(ctx context.Context, cid uuid.UUID, tipo string)
 	return cfg, secret, nil
 }
 
-func testIntegration(ctx context.Context, tipo string, cfg map[string]string, secret string) error {
+// testIntegration checks an integration; for SMTP it also sends a short test email to para when given.
+func testIntegration(ctx context.Context, tipo string, cfg map[string]string, secret, para string) error {
 	switch tipo {
 	case "smtp":
 		host, port := cfg["host"], cfg["puerto"]
@@ -249,6 +296,11 @@ func testIntegration(ctx context.Context, tipo string, cfg map[string]string, se
 				if err := c.Auth(a); err != nil {
 					return fmt.Errorf("autenticación rechazada: %s", firstLine(err.Error()))
 				}
+			}
+		}
+		if para != "" && cfg["remitente"] != "" {
+			if err := enviarPrueba(c, cfg, para); err != nil {
+				return err
 			}
 		}
 		return c.Quit()
@@ -543,4 +595,30 @@ func comoLlegarEjemplo() []ComoLlegar {
 		{Tipo: "parking", Titulo: "Aparcamiento", Detalle: "Plazas en las calles del entorno del pabellón. Pendiente de confirmar con el Ayuntamiento si habrá zona reservada. Datos de ejemplo.", Estado: "por_confirmar"},
 		{Tipo: "accesibilidad", Titulo: "Accesibilidad", Detalle: "Confirmaremos accesos adaptados, aseos y zona reservada en grada para personas con movilidad reducida.", Estado: "por_confirmar"},
 	}
+}
+
+// enviarPrueba sends «Email de prueba» through an authenticated SMTP session.
+func enviarPrueba(c *smtp.Client, cfg map[string]string, para string) error {
+	from := cfg["remitente"]
+	if err := c.Mail(from); err != nil {
+		return fmt.Errorf("remitente rechazado: %s", firstLine(err.Error()))
+	}
+	if err := c.Rcpt(para); err != nil {
+		return fmt.Errorf("destinatario rechazado: %s", firstLine(err.Error()))
+	}
+	w, err := c.Data()
+	if err != nil {
+		return fmt.Errorf("el servidor no acepta el mensaje: %s", firstLine(err.Error()))
+	}
+	nombre := cfg["nombreRemitente"]
+	if nombre == "" {
+		nombre = "GR Cup"
+	}
+	msg := "From: " + mime.QEncoding.Encode("utf-8", nombre) + " <" + from + ">\r\nTo: <" + para + ">\r\nSubject: " + mime.QEncoding.Encode("utf-8", "Email de prueba · Sistema e integraciones") +
+		"\r\nDate: " + time.Now().Format(time.RFC1123Z) + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" +
+		"Si lees esto, el servidor de correo de la competición funciona.\r\n"
+	if _, err := w.Write([]byte(msg)); err != nil {
+		return err
+	}
+	return w.Close()
 }

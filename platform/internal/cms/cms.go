@@ -126,6 +126,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublicExtra()
 	s.registerSitemap()
 	a.Go(s.runProgramadas)
+	a.AlClonar("cms", clonar)
 	return nil
 }
 

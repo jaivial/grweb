@@ -858,7 +858,21 @@ func (s *Svc) nombreComp(ctx context.Context, cid uuid.UUID) string {
 }
 
 // webhook verifies and applies a payment event (idempotent by event id).
+// webhook applies a payment event and reports it to Sistema › Salud (webhook.recibido, with the answer given).
 func (s *Svc) webhook(ctx context.Context, payload []byte, h http.Header) error {
+	err := s.aplicarWebhook(ctx, payload, h)
+	code := http.StatusOK
+	if errors.Is(err, pagos.ErrSignature) {
+		code = http.StatusBadRequest
+	} else if err != nil {
+		code = http.StatusInternalServerError
+	}
+	id, tipo, cid := events.PeekPago(payload)
+	events.Webhook(ctx, s.a.Redis, s.a.Stream(), cid, "stripe", tipo, id, code)
+	return err
+}
+
+func (s *Svc) aplicarWebhook(ctx context.Context, payload []byte, h http.Header) error {
 	// The competition decides the provider (and its secret): read it from the unverified payload, then verify.
 	var peek struct {
 		Data struct {

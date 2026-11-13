@@ -611,10 +611,21 @@ func (s *Svc) registerWhatsApp() {
 		Body json.RawMessage
 	}
 	huma.Register(api, huma.Operation{OperationID: "whatsapp-webhook", Method: http.MethodPost, Path: "/api/webhooks/whatsapp", Summary: "Webhook de evo-weai (estados, QR y respuestas)", Tags: tagCamp, DefaultStatus: http.StatusNoContent, MaxBodyBytes: 1 << 20},
-		func(ctx context.Context, in *hookIn) (*struct{}, error) {
+		func(ctx context.Context, in *hookIn) (_ *struct{}, err error) {
 			if !hmac.Equal([]byte(s.webhookToken(in.C)), []byte(in.T)) {
 				return nil, problem.Forbidden("Firma no válida.")
 			}
+			tipo := ""
+			defer func() {
+				code := http.StatusNoContent
+				var se huma.StatusError
+				if errors.As(err, &se) {
+					code = se.GetStatus()
+				} else if err != nil {
+					code = http.StatusInternalServerError
+				}
+				events.Webhook(ctx, s.a.Redis, s.a.Stream(), in.C.String(), "whatsapp", tipo, "", code)
+			}()
 			// Defence in depth: evo-weai also sends the key of the integration as a Bearer header.
 			if in.Auth != "" {
 				_, clave := s.waIntegracion(ctx, in.C)
@@ -629,6 +640,7 @@ func (s *Svc) registerWhatsApp() {
 			if json.Unmarshal(in.Body, &ev) != nil {
 				return nil, nil
 			}
+			tipo = ev.Event
 			switch strings.ToLower(strings.ReplaceAll(ev.Event, "_", ".")) {
 			case "connection.update":
 				var d struct {

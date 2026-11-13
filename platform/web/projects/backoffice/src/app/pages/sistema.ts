@@ -1,145 +1,197 @@
-import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, type GrIconName, GrSelect } from '@grcup/ui';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrErrorState, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
-import { BoDrawer, BoPageHeader, Confirm, errText } from '../shared/ui';
+import { BoDrawer, BoPageHeader, BoTabs, Confirm, errText, type BoTab } from '../shared/ui';
+import { WhatsAppApi, type EstadoWaInfo } from './sistema/whatsapp-api';
+import { ESTADO_COMP, ESTADO_INT, INTEG, MODULOS, SistemaApi, fecha, fechaDMA, hace, type CompSistema, type Exportacion, type Integracion, type Salud, type Webhooks } from './sistema/api';
 
-interface Integracion { tipo: 'smtp' | 'stripe' | 'whatsapp' | 'bunny' | 'aep'; config: Record<string, string>; secreto: string; estado: 'sin_configurar' | 'configurada' | 'ok' | 'error'; probadoAt?: string; error?: string; version: number }
-interface Registro { estado: 'correcto' | 'falta' | 'revisar'; valor?: string; ayuda: string }
-interface Dominio { dominio: string; spf: Registro; dkim: Registro; dmarc: Registro }
-interface Salud {
-  servicios: { nombre: string; ok: boolean; ms: number; error?: string; p95: number; peticiones: number }[]; grupos: { nombre: string; pendientes: number; retraso: number; consumers: number }[];
-  eventos: number; espectadores: number; generado: string;
-}
-interface CompItem { id: string; slug: string; nombre: string; nombreCorto: string; estado: string; fechaInicio?: string; fechaFin?: string; sede?: { ciudad?: string }; archivedAt?: string }
-type Tab = 'competiciones' | 'integraciones' | 'email' | 'salud' | 'peligro';
-
-const INTEG: Record<string, { l: string; d: string; i: GrIconName; campos: { k: string; l: string; tipo?: string; opciones?: string[] }[]; secreto?: string; ayudaSecreto?: string }> = {
-  smtp: { l: 'Email (SMTP)', d: 'Envío de emails transaccionales y campañas', i: 'mail', secreto: 'Contraseña de aplicación',
-    campos: [{ k: 'host', l: 'Host' }, { k: 'puerto', l: 'Puerto' }, { k: 'usuario', l: 'Usuario' }, { k: 'remitente', l: 'Remitente (email)' }, { k: 'nombreRemitente', l: 'Nombre del remitente' }, { k: 'tls', l: 'TLS', opciones: ['si', 'starttls', 'no'] }] },
-  stripe: { l: 'Stripe', d: 'Pagos de inscripciones y del sorteo', i: 'ticket', secreto: 'Secreto', ayudaSecreto: 'JSON {"clave":"sk_…","webhook":"whsec_…"}', campos: [{ k: 'modo', l: 'Modo', opciones: ['test', 'live'] }, { k: 'clavePublica', l: 'Clave pública' }] },
-  whatsapp: { l: 'WhatsApp (evo-weai)', d: 'Campañas y avisos por WhatsApp', i: 'smartphone', secreto: 'API key de evo-weai',
-    campos: [{ k: 'proveedor', l: 'Proveedor', opciones: ['evo-weai'] }, { k: 'url', l: 'URL del servidor' }, { k: 'instancia', l: 'Instancia' }, { k: 'numero', l: 'Número' }] },
-  bunny: { l: 'Bunny CDN', d: 'Imágenes y frames de la web', i: 'globe', secreto: 'Access key', campos: [{ k: 'zona', l: 'Storage zone' }, { k: 'cdn', l: 'URL del CDN' }] },
-  aep: { l: 'AEP (acta)', d: 'Importación del acta de inscritos', i: 'download', campos: [{ k: 'modo', l: 'Modo', opciones: ['manual', 'api'] }, { k: 'url', l: 'URL' }] },
+type Vista = 'competiciones' | 'integraciones' | 'salud' | 'peligro';
+const ORDEN: Integracion['tipo'][] = ['smtp', 'stripe', 'whatsapp', 'aep', 'bunny'];
+const WA: Record<string, { l: string; tone: GrTone }> = {
+  conectado: { l: 'Conectado', tone: 'success' }, conectando: { l: 'Conectando', tone: 'warning' }, desconectado: { l: 'Desconectado', tone: 'danger' },
+  error: { l: 'Error', tone: 'danger' }, sin_instancia: { l: 'Por confirmar', tone: 'warning' },
 };
-const ESTADO_INT: Record<string, { l: string; tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = { sin_configurar: { l: 'Sin configurar', tone: 'neutral' }, configurada: { l: 'Configurada', tone: 'info' }, ok: { l: 'Operativo', tone: 'success' }, error: { l: 'Error', tone: 'danger' } };
-const ESTADO_COMP: Record<string, string> = { borrador: 'Borrador', proximamente: 'Próximamente', inscripciones: 'Inscripciones abiertas', completas: 'Completas', hoy: 'Hoy', finalizado: 'Finalizado', archivada: 'Archivada' };
 
-/** «Sistema e integraciones» (Figma page 64): competitions (new edition cloning the setup), integrations, the email domain, health and the danger zone. */
+/** «Sistema e integraciones» (Figma 64): competitions, integrations, health and the danger zone (email and new edition are sub-pages). */
 @Component({
   selector: 'bo-sistema',
-  imports: [GrSelect, FormsModule, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [FormsModule, RouterLink, BoPageHeader, BoTabs, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrErrorState, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
       <bo-page-header title="Sistema e integraciones" [crumbs]="['Sistema', 'Sistema e integraciones']">
-        @if (tab() === 'competiciones' && auth.user()?.root) { <ng-container actions><button grButton variant="primary" icon="plus" (click)="nuevaOpen.set(true)">Nueva competición</button></ng-container> }
+        @if (vista() === 'competiciones' && root()) { <ng-container actions><a grButton variant="primary" routerLink="../nueva">Nueva competición</a></ng-container> }
       </bo-page-header>
-      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Sistema">
-        @for (t of tabs; track t.v) {
-          <button type="button" class="relative flex h-11 shrink-0 items-center px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="ir(t.v)">{{ t.l }}
-            @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</button>
-        }
-      </nav>
-      @switch (tab()) {
+      <bo-tabs [tabs]="tabs()" />
+
+      @switch (vista()) {
         @case ('competiciones') {
-          <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            @for (c of comps.list(); track c.id) {
-              <section class="flex flex-col rounded-lg border border-line-subtle bg-bg-card p-4">
-                <div class="flex items-start gap-2"><h2 class="flex-1 text-ui-h5">{{ c.nombre }}</h2><gr-badge [tone]="c.estado === 'finalizado' || c.estado === 'archivada' ? 'neutral' : 'success'">{{ estComp[c.estado] ?? c.estado }}</gr-badge></div>
-                <p class="mt-1 text-body-xs text-text-tertiary">{{ $any(c).slug }}@if ($any(c).fechaInicio) { · {{ $any(c).fechaInicio }} }</p>
-                <div class="mt-auto flex gap-2 pt-4"><button grButton size="s" variant="primary" (click)="entrar($any(c).slug)">Entrar</button>@if (auth.user()?.root) { <button grButton size="s" variant="ghost" (click)="nuevaDesde($any(c))">Nueva edición desde esta</button> }</div>
-              </section>
-            }
-          </div>
-        }
-        @case ('integraciones') {
-          @if (integs() === null) { <gr-skeleton class="h-64 rounded-lg" /> }
+          @if (error()) { <gr-error-state titulo="No se pudieron cargar las competiciones" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
+          @else if (comps() === null) { <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-[346px] rounded-lg" /> }</div> }
+          @else if (!comps()!.length) { <gr-empty icon="trophy" title="Sin competiciones" text="Crea la primera con «Nueva competición»." /> }
           @else {
-            <div class="grid gap-3 md:grid-cols-2">
-              @for (x of integs(); track x.tipo) {
-                <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4">
-                  <div class="flex items-start gap-3"><span class="flex size-9 shrink-0 items-center justify-center rounded-sm bg-bg-raised"><gr-icon [name]="info(x.tipo).i" [size]="18" /></span>
-                    <div class="min-w-0 flex-1"><p class="text-label-m">{{ info(x.tipo).l }}</p><p class="text-body-xs text-text-tertiary">{{ resumen(x) }}</p></div><gr-badge [tone]="estInt[x.estado].tone">{{ estInt[x.estado].l }}</gr-badge></div>
-                  @if (x.error) { <p class="text-body-xs text-accent-text">{{ x.error }}</p> }
-                  <p class="text-body-xs text-text-tertiary">{{ x.probadoAt ? 'Probada ' + fecha(x.probadoAt) : info(x.tipo).d }}</p>
-                  @if (puede()) { <div class="flex gap-2"><button grButton size="s" [loading]="probando() === x.tipo" [disabled]="x.estado === 'sin_configurar'" (click)="probar(x)">Probar</button><button grButton size="s" variant="ghost" (click)="configurar(x)">Configurar</button></div> }
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              @for (c of comps(); track c.id) {
+                <section class="flex flex-col rounded-lg border border-line-subtle bg-bg-card p-6" [attr.data-comp]="c.slug">
+                  <div class="flex items-start gap-3">
+                    <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">{{ c.nombre }}</h2>
+                      <p class="mt-1 text-body-xs text-text-tertiary">{{ meta(c) }}</p></div>
+                    <gr-badge [tone]="estComp(c).tone">{{ estComp(c).l }}</gr-badge>
+                  </div>
+                  <dl class="mt-5 flex flex-col">
+                    <div class="border-b border-line-subtle pb-3"><dt class="text-body-xs text-text-tertiary">Módulos</dt><dd class="mt-1.5 text-body-s">{{ modulos(c) }}</dd></div>
+                    <div class="border-b border-line-subtle py-3"><dt class="text-body-xs text-text-tertiary">Equipo</dt><dd class="mt-1.5 text-body-s">{{ c.miembros === undefined ? '—' : c.miembros === 1 ? '1 persona' : c.miembros + ' personas' }}</dd></div>
+                  </dl>
+                  <div class="mt-auto flex flex-wrap gap-2 pt-4">
+                    @if (c.archivedAt) { <button grButton (click)="ver.set(c)">Ver (solo lectura)</button> }
+                    @else { <button grButton variant="primary" (click)="entrar(c.slug, 'inicio')">Entrar</button> }
+                    <button grButton variant="ghost" (click)="c.archivedAt ? ver.set(c) : entrar(c.slug, 'evento')">Ajustes</button>
+                  </div>
                 </section>
               }
             </div>
           }
         }
-        @case ('email') {
-          <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-              <h2 class="text-ui-h5">Servidor</h2>
-              @if (smtp(); as s) {
-                <dl class="mt-3 grid gap-2 text-body-s sm:grid-cols-2">
-                  <div><dt class="text-text-tertiary">Host</dt><dd class="font-mono text-mono-s">{{ s.config['host'] || '—' }}:{{ s.config['puerto'] || '' }}</dd></div>
-                  <div><dt class="text-text-tertiary">Usuario</dt><dd>{{ s.config['usuario'] || '—' }}</dd></div>
-                  <div><dt class="text-text-tertiary">Remitente</dt><dd>{{ s.config['nombreRemitente'] }} &lt;{{ s.config['remitente'] || '—' }}&gt;</dd></div>
-                  <div><dt class="text-text-tertiary">Estado</dt><dd><gr-badge [tone]="estInt[s.estado].tone">{{ estInt[s.estado].l }}</gr-badge></dd></div>
-                </dl>
-                @if (puede()) { <div class="mt-4 flex gap-2"><button grButton size="s" (click)="configurar(s)">Configurar</button><button grButton size="s" [loading]="probando() === 'smtp'" (click)="probar(s)">Enviar prueba</button></div> }
+        @case ('integraciones') {
+          @if (error()) { <gr-error-state titulo="No se pudieron cargar las integraciones" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
+          @else if (integs() === null) { <div class="grid gap-4 lg:grid-cols-2">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-[150px] rounded-lg" /> }</div> }
+          @else {
+            <div class="grid gap-4 lg:grid-cols-2">
+              @for (x of integs(); track x.tipo) {
+                <section class="flex flex-col gap-5 rounded-lg border border-line-subtle bg-bg-card p-6" [attr.data-integ]="x.tipo">
+                  <div class="flex items-start gap-3">
+                    <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">{{ titulo(x) }}</h2><p class="mt-1 truncate text-body-xs text-text-tertiary">{{ resumen(x) }}</p></div>
+                    <gr-badge [tone]="badge(x).tone">{{ badge(x).l }}</gr-badge>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-3">
+                    <p class="flex min-w-0 flex-1 items-center gap-2 text-body-xs" [class]="x.estado === 'error' ? 'text-accent-text' : 'text-text-tertiary'">
+                      <gr-icon [name]="info(x.tipo).i" [size]="16" /><span class="truncate" [title]="ultimo(x)">{{ ultimo(x) }}</span></p>
+                    @if (puede()) {
+                      <button grButton variant="ghost" [loading]="probando() === x.tipo" [disabled]="x.estado === 'sin_configurar' && x.tipo !== 'whatsapp'" (click)="probar(x)">Probar</button>
+                      <button grButton (click)="configurar(x)">Configurar</button>
+                    }
+                  </div>
+                </section>
               }
-              <p class="mt-4 text-body-xs text-text-tertiary">Sin SMTP propio se usa el del sistema. Los límites de envío se ajustan en cada campaña (Campañas › Ajustes).</p>
-            </section>
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-              <div class="flex items-center justify-between"><h2 class="text-ui-h5">Dominio {{ dominio()?.dominio }}</h2><button grButton size="s" variant="ghost" (click)="comprobar()">Comprobar</button></div>
-              @if (dominio(); as d) {
-                <ul class="mt-3 flex flex-col gap-3">
-                  @for (r of [{ k: 'SPF', v: d.spf }, { k: 'DKIM', v: d.dkim }, { k: 'DMARC', v: d.dmarc }]; track r.k) {
-                    <li><p class="flex items-center justify-between text-label-s">{{ r.k }}<gr-badge [tone]="r.v.estado === 'correcto' ? 'success' : r.v.estado === 'falta' ? 'danger' : 'warning'">{{ r.v.estado === 'correcto' ? 'Correcto' : r.v.estado === 'falta' ? 'Falta' : 'Revisar' }}</gr-badge></p>
-                      @if (r.v.valor) { <p class="truncate font-mono text-[11px] text-text-tertiary">{{ r.v.valor }}</p> }<p class="text-body-xs text-text-tertiary">{{ r.v.ayuda }}</p></li>
-                  }
-                </ul>
-              } @else { <gr-skeleton class="mt-3 h-40" /> }
-            </section>
-          </div>
+            </div>
+            <gr-alert tone="warning" icon="triangle-alert" title="Webhooks de Stripe por servicio">
+              <p>Cada cobro tiene su endpoint: <span class="font-mono text-mono-s">/api/webhooks/pagos/inscripciones</span> y <span class="font-mono text-mono-s">/api/webhooks/pagos/donaciones</span>. Al pasar a modo live, da de alta los dos en Stripe y guarda su secreto whsec_ en «Configurar».</p>
+              <a routerLink="../salud" class="mt-1 inline-flex items-center gap-1 text-label-s text-warning hover:underline">Ver webhooks recibidos <gr-icon name="arrow-right" [size]="14" /></a>
+            </gr-alert>
+          }
         }
         @case ('salud') {
-          @if (salud(); as s) {
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <gr-kpi label="Servicios" [value]="ok(s) + ' / ' + s.servicios.length" [caption]="ok(s) === s.servicios.length ? 'todos operativos' : 'revisa los marcados'" />
-              <gr-kpi label="API p95" [value]="p95(s) + ' ms'" [caption]="n(peticiones(s)) + ' peticiones desde el último arranque'" />
-              <gr-kpi label="Conexiones SSE" [value]="s.espectadores + ''" caption="público de esta competición" />
-              <gr-kpi label="Bus de eventos" [value]="n(s.eventos)" [caption]="retraso(s) ? retraso(s) + ' eventos por procesar' : 'al día'" />
+          @if (error()) { <gr-error-state titulo="No se pudo leer la salud del sistema" texto="El servicio de auditoría no responde. Vuelve a intentarlo." (reintentar)="cargar()" /> }
+          @else if (salud(); as s) {
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <gr-kpi label="API P95" [value]="p95(s) + ' ms'" [caption]="'objetivo < 300 ms · ' + ok(s) + '/' + s.servicios.length + ' servicios OK'" [trend]="serieP95()" />
+              <gr-kpi label="Conexiones SSE" [value]="n(s.espectadores)" caption="público de esta competición" [trend]="serieSse()" />
+              <gr-kpi label="Cola de emails" [value]="s.cola ? n(s.cola.pendientes) : '—'" [caption]="s.cola ? s.cola.enviadosHora + ' enviados en la última hora' : 'messaging no responde'" />
+              <gr-kpi label="Último backup" [value]="s.ultimoBackup ? hace(s.ultimoBackup) : 'Sin datos'" [caption]="s.ultimoBackup ? 'cada noche a las 03:30 · 7 copias' : 'todavía no hay copias registradas'" />
             </div>
-            <div class="grid gap-5 lg:grid-cols-2">
-              <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card"><h2 class="border-b border-line-subtle px-4 py-3 text-ui-h5">Servicios</h2>
-                <table class="w-full text-left text-body-s"><tbody>@for (v of s.servicios; track v.nombre) {
-                  <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-2 font-mono text-mono-s">{{ v.nombre }}</td><td class="px-3 py-2 text-right font-mono text-mono-xs text-text-tertiary" title="p95 de las peticiones · comprobación /readyz">p95 {{ v.p95 * 1000 }} ms · {{ n(v.peticiones) }}</td>
-                    <td class="px-4 py-2 text-right"><gr-badge [tone]="v.ok ? 'success' : 'danger'">{{ v.ok ? 'OK' : (v.error || 'error') }}</gr-badge></td></tr> }</tbody></table></section>
-              <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card"><h2 class="border-b border-line-subtle px-4 py-3 text-ui-h5">Trabajos en segundo plano</h2>
-                <table class="w-full text-left text-body-s"><thead class="text-mono-xs text-text-tertiary"><tr><th class="px-4 py-2">Consumidor</th><th class="px-3 py-2 text-right">Pendientes</th><th class="px-4 py-2 text-right">Por leer</th></tr></thead>
-                  <tbody>@for (g of s.grupos; track g.nombre) {
-                    <tr class="border-t border-line-subtle"><td class="px-4 py-2 font-mono text-mono-s">{{ g.nombre }}<span class="ml-1 text-text-muted">×{{ g.consumers }}</span></td><td class="px-3 py-2 text-right font-mono">{{ g.pendientes }}</td>
-                      <td class="px-4 py-2 text-right font-mono" [class.text-warning]="g.retraso > 100">{{ g.retraso }}</td></tr> }</tbody></table></section>
+            <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_520px]">
+              <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card p-6">
+                <h2 class="text-[20px] leading-6 font-semibold">Trabajos en segundo plano</h2>
+                <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
+                  <table class="w-full min-w-[460px] text-left text-body-s">
+                    <thead class="text-label-xs text-text-tertiary uppercase"><tr class="border-b border-line-subtle"><th class="px-4 py-3 font-medium">Worker</th><th class="px-4 py-3 font-medium">Último ciclo</th><th class="px-4 py-3 font-medium">Estado</th></tr></thead>
+                    <tbody>
+                      @for (g of s.grupos; track g.nombre) {
+                        <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3 font-mono text-mono-s">{{ g.nombre }}<span class="ml-1 text-text-muted">×{{ g.consumers }}</span></td>
+                          <td class="px-4 py-3 font-mono text-mono-s text-text-secondary">{{ g.ultimoAt ? hace(g.ultimoAt) : 'sin eventos' }}</td>
+                          <td class="px-4 py-3"><gr-badge [tone]="trabajo(g).tone">{{ trabajo(g).l }}</gr-badge></td></tr>
+                      } @empty { <tr><td colspan="3" class="px-4 py-6 text-center text-body-xs text-text-tertiary">Sin trabajos registrados</td></tr> }
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card p-6">
+                <div class="flex flex-wrap items-center gap-3"><h2 class="flex-1 text-[20px] leading-6 font-semibold">Webhooks recibidos</h2>
+                  <gr-select class="w-36" tipo="filtro" aria-label="Proveedor" [(ngModel)]="whProv" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos</option><option value="stripe">Stripe</option><option value="whatsapp">WhatsApp</option></gr-select>
+                  <gr-select class="w-32" tipo="filtro" aria-label="Estado" [(ngModel)]="whEstado" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos</option><option value="error">Con error</option><option value="procesado">Procesados</option></gr-select></div>
+                <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
+                  <table class="w-full min-w-[420px] text-left text-body-s">
+                    <thead class="text-label-xs text-text-tertiary uppercase"><tr class="border-b border-line-subtle"><th class="px-4 py-3 font-medium">Evento</th><th class="px-4 py-3 font-medium">Respuesta</th></tr></thead>
+                    <tbody>
+                      @if (webhooks(); as w) {
+                        @for (h of w.items; track h.id) {
+                          <tr class="border-b border-line-subtle last:border-0" [class.bg-accent-deep/20]="h.estado === 'error'" [title]="h.servicio + ' · ' + hace(h.recibidoAt)">
+                            <td class="px-4 py-3"><span class="font-mono text-mono-s">{{ h.proveedor === 'whatsapp' ? 'whatsapp · ' + (h.tipo || 'evento') : h.tipo || h.id }}</span><span class="block text-body-xs text-text-tertiary">{{ h.servicio }} · {{ hace(h.recibidoAt) }}</span></td>
+                            <td class="px-4 py-3"><gr-badge [tone]="h.estado === 'error' ? 'danger' : 'success'">{{ h.respuesta }}{{ h.intentos > 1 ? ' · reintento ' + (h.intentos - 1) : '' }}</gr-badge></td></tr>
+                        } @empty { <tr><td colspan="2" class="px-4 py-6 text-center text-body-xs text-text-tertiary">{{ whProv || whEstado ? 'Ningún webhook con estos filtros' : 'Todavía no se ha recibido ningún webhook' }}</td></tr> }
+                      } @else { <tr><td colspan="2" class="p-3"><gr-skeleton class="h-24" /></td></tr> }
+                    </tbody>
+                  </table>
+                </div>
+                @if (webhooks(); as w) { @if (w.total > w.por) {
+                  <div class="mt-3 flex items-center justify-between text-body-xs text-text-tertiary"><span>{{ (w.pagina - 1) * w.por + 1 }}–{{ min(w.pagina * w.por, w.total) }} de {{ w.total }}</span>
+                    <span class="flex gap-2"><button grButton size="s" variant="ghost" [disabled]="w.pagina <= 1" (click)="whPagina = w.pagina - 1; cargarWebhooks()">Anterior</button><button grButton size="s" variant="ghost" [disabled]="w.pagina * w.por >= w.total" (click)="whPagina = w.pagina + 1; cargarWebhooks()">Siguiente</button></span></div>
+                } }
+              </section>
             </div>
-            <p class="text-body-xs text-text-tertiary">Actualizado {{ fecha(s.generado) }} · <button type="button" class="underline" (click)="cargarSalud()">recargar</button></p>
-          } @else { <gr-skeleton class="h-72 rounded-lg" /> }
+            <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
+              <h2 class="text-[20px] leading-6 font-semibold">Servicios</h2>
+              <ul class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                @for (v of s.servicios; track v.nombre) {
+                  <li class="flex items-center gap-3 rounded-md border border-line-subtle px-4 py-3" [title]="'p95 ' + v.p95 * 1000 + ' ms · ' + n(v.peticiones) + ' peticiones'"><span class="size-2 rounded-full" [class]="v.ok ? 'bg-success' : 'bg-accent'"></span>
+                    <span class="flex-1 font-mono text-mono-s">{{ v.nombre }}</span><span class="font-mono text-mono-xs text-text-tertiary">{{ v.ok ? v.ms + ' ms' : v.error || 'error' }}</span></li>
+                }
+              </ul>
+            </section>
+            <p class="text-body-xs text-text-tertiary">Se actualiza cada 10 s · último dato {{ hace(s.generado) }} · <button type="button" class="underline" (click)="cargar()">recargar</button></p>
+          } @else { <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-[142px] rounded-lg" /> }</div><gr-skeleton class="h-80 rounded-lg" /> }
         }
         @case ('peligro') {
-          <div class="flex flex-col gap-3">
-            <section class="flex flex-wrap items-center gap-3 rounded-lg border border-accent/40 bg-bg-card p-4"><div class="min-w-0 flex-1"><p class="text-label-m">Archivar {{ comps.current()?.nombre }}</p><p class="text-body-xs text-text-tertiary">Pasa a solo lectura: la web deja de mostrarla y el backoffice no permite cambios.</p></div>
-              <button grButton variant="danger" [disabled]="!auth.user()?.root" (click)="archivar()">Archivar</button></section>
-            @for (x of pendientes; track x.t) {
-              <section class="flex flex-wrap items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 opacity-70"><div class="min-w-0 flex-1"><p class="text-label-m">{{ x.t }}</p><p class="text-body-xs text-text-tertiary">{{ x.d }}</p></div><gr-badge>{{ x.b }}</gr-badge></section>
+          @if (!root()) { <gr-alert tone="info" icon="lock" title="Solo Root">Estas acciones solo las puede hacer la cuenta Root de la plataforma.</gr-alert> }
+          @if (comps() === null && !error()) { <gr-skeleton class="h-96 rounded-lg" /> }
+          @else if (objetivo(); as c) {
+            @if (root() && (comps()?.length ?? 0) > 1) {
+              <gr-field label="Competición" class="max-w-sm"><gr-select [ngModel]="objetivoId()" (ngModelChange)="objetivoId.set($event); cargarExport()">
+                @for (o of comps(); track o.id) { <option [value]="o.id">{{ o.nombre }}{{ o.archivedAt ? ' (archivada)' : '' }}</option> }</gr-select></gr-field>
             }
-            @if (!auth.user()?.root) { <gr-alert tone="info" title="Solo Root">Estas acciones solo las puede hacer la cuenta Root de la plataforma.</gr-alert> }
-          </div>
+            <div class="flex flex-col gap-4">
+              <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6 md:flex-row md:items-center" data-peligro="archivar">
+                <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">Archivar {{ c.nombre }}</h2>
+                  <p class="mt-1 text-body-xs text-text-tertiary">{{ c.archivedAt ? 'Archivada el ' + fechaDMA(c.archivedAt) + ': solo lectura, fuera de la web.' : 'Pasa a solo lectura: la web deja de mostrarla y el backoffice no permite cambios.' }}</p></div>
+                <button grButton [disabled]="!root() || !!c.archivedAt" (click)="archivar(c)">{{ c.archivedAt ? 'Archivada' : 'Archivar' }}</button>
+              </section>
+              <section class="flex flex-col gap-4 rounded-lg border border-accent/40 bg-bg-card p-6 md:flex-row md:items-center" data-peligro="anonimizar">
+                <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">Anonimizar datos personales</h2>
+                  <p class="mt-1 text-body-xs text-text-tertiary">{{ textoAnon(c) }}</p></div>
+                <button grButton variant="danger" [disabled]="!root() || !!c.anonimizadaAt || anonimizando()" [loading]="anonimizando()" (click)="anonimizar(c)">{{ c.anonimizadaAt ? 'Anonimizada' : 'Adelantar anonimización' }}</button>
+              </section>
+              <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6 md:flex-row md:items-center" data-peligro="exportar">
+                <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">Exportación completa</h2>
+                  <p class="mt-1 text-body-xs text-text-tertiary">ZIP con CSV de todo lo que ha pasado en la competición (registro de auditoría, KPIs, avisos y webhooks) para la asesoría o una auditoría. Caduca a las 24 h.</p>
+                  @if (exportacion(); as e) {
+                    <p class="mt-2 flex items-center gap-2 text-body-xs" [class]="e.estado === 'error' ? 'text-accent-text' : 'text-text-secondary'">
+                      @switch (e.estado) {
+                        @case ('en_curso') { <gr-icon name="loader" [size]="14" class="animate-spin" /> Generando la exportación… }
+                        @case ('lista') { @if (e.url) { <gr-icon name="circle-check" [size]="14" class="text-success" /> Lista {{ hace(e.terminadaAt) }} · {{ kb(e.bytes) }} · <button type="button" class="text-accent-text underline" (click)="descargar(e)">Descargar ZIP</button> } @else { Última exportación caducada. } }
+                        @case ('error') { {{ e.error || 'No se pudo generar.' }} }
+                      }
+                    </p>
+                  }
+                </div>
+                <button grButton [disabled]="!root() || exportacion()?.estado === 'en_curso'" [loading]="exportacion()?.estado === 'en_curso'" (click)="exportar(c)">Solicitar exportación</button>
+              </section>
+              <section class="flex flex-col gap-4 rounded-lg border border-accent/40 bg-bg-card p-6 md:flex-row md:items-center" data-peligro="eliminar">
+                <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">Eliminar competición</h2>
+                  <p class="mt-1 text-body-xs text-text-tertiary">Solo Root. Borra la competición y todos sus datos. No se puede deshacer.{{ c.archivedAt && c.anonimizadaAt ? '' : ' Antes hay que archivarla y anonimizarla.' }}</p></div>
+                <button grButton variant="danger" [disabled]="!root() || !c.archivedAt || !c.anonimizadaAt" (click)="eliminar(c)">Eliminar…</button>
+              </section>
+            </div>
+          }
         }
       }
     </div>
 
-    <bo-drawer [(open)]="cfgOpen" [title]="cfg ? info(cfg.tipo).l : ''">
+    <bo-drawer [(open)]="cfgOpen" [title]="cfg ? info(cfg.tipo).l : ''" sub="Los secretos se guardan cifrados y nunca se muestran completos">
       @if (cfg) {
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-4">
           @for (c of info(cfg.tipo).campos; track c.k) {
             <gr-field [label]="c.l">
               @if (c.opciones) { <gr-select [(ngModel)]="cfgVals[c.k]">@for (o of c.opciones; track o) { <option [value]="o">{{ o }}</option> }</gr-select> }
@@ -147,100 +199,207 @@ const ESTADO_COMP: Record<string, string> = { borrador: 'Borrador', proximamente
             </gr-field>
           }
           @if (info(cfg.tipo).secreto) {
-            <gr-field [label]="info(cfg.tipo).secreto!" [hint]="(cfg.secreto ? 'Actual: ' + cfg.secreto + ' · vacío = conservarla' : 'Se guarda cifrado; nunca se vuelve a mostrar') + (info(cfg.tipo).ayudaSecreto ? ' · ' + info(cfg.tipo).ayudaSecreto : '')">
-              <input grInput type="password" autocomplete="new-password" [(ngModel)]="cfgSecreto" /></gr-field>
+            <gr-field [label]="info(cfg.tipo).secreto!" [hint]="(cfg.secreto ? 'Actual: ' + cfg.secreto + ' · vacío = conservarlo' : 'Se guarda cifrado; nunca se vuelve a mostrar') + (info(cfg.tipo).ayudaSecreto ? ' · ' + info(cfg.tipo).ayudaSecreto : '')">
+              <input grInput type="password" autocomplete="new-password" [(ngModel)]="cfgSecreto" [placeholder]="cfg.secreto || ''" /></gr-field>
           }
         </div>
       }
-      <ng-container drawerActions>@if (cfg) { <button grButton variant="primary" [loading]="guardando()" (click)="guardarCfg()">Guardar</button> }</ng-container>
+      <ng-container drawerActions><button grButton variant="ghost" (click)="cfgOpen.set(false)">Cancelar</button>@if (cfg) { <button grButton variant="primary" [loading]="guardando()" (click)="guardarCfg()">Guardar</button> }</ng-container>
     </bo-drawer>
 
-    @if (nuevaOpen()) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="nuevaOpen.set(false)" (keydown.escape)="nuevaOpen.set(false)">
-        <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Nueva competición" (click)="$event.stopPropagation()" (ngSubmit)="crear()">
-          <h2 class="text-ui-h5">Nueva competición</h2>
-          @if (nueva.clonarDe) { <p class="mt-1 text-body-s text-text-secondary">Copia sede, evento, módulos, inscripción y cómo llegar de «{{ nueva.origen }}». Nunca se copian datos personales (contactos, entradas, atletas).</p> }
-          <gr-field label="Nombre" class="mt-4"><input grInput name="nombre" [(ngModel)]="nueva.nombre" (ngModelChange)="autoSlug()" /></gr-field>
-          <gr-field label="Slug (URL)" class="mt-3" hint="Minúsculas, números y guiones"><input grInput name="slug" [(ngModel)]="nueva.slug" /></gr-field>
-          <gr-field label="Primer día" class="mt-3"><input grInput type="date" name="fecha" [(ngModel)]="nueva.fecha" /></gr-field>
-          <div class="mt-6 flex justify-end gap-2"><button type="button" grButton variant="ghost" (click)="nuevaOpen.set(false)">Cancelar</button><button type="submit" grButton variant="primary" [disabled]="nueva.nombre.trim().length < 2 || !nueva.slug">Crear</button></div>
-        </form>
-      </div>
-    }
+    <bo-drawer [open]="!!ver()" (openChange)="!$event && ver.set(null)" [title]="ver()?.nombre ?? ''" sub="Solo lectura" [badge]="ver() ? estComp(ver()!).l : ''" badgeTone="neutral">
+      @if (ver(); as c) {
+        <dl class="flex flex-col gap-4 text-body-s">
+          <div><dt class="text-body-xs text-text-tertiary">Identificador</dt><dd class="font-mono text-mono-s">{{ c.slug }}</dd></div>
+          <div><dt class="text-body-xs text-text-tertiary">Fechas y sede</dt><dd>{{ meta(c) }}</dd></div>
+          <div><dt class="text-body-xs text-text-tertiary">Módulos</dt><dd>{{ modulos(c) }}</dd></div>
+          <div><dt class="text-body-xs text-text-tertiary">Equipo</dt><dd>{{ c.miembros ?? '—' }} personas</dd></div>
+          @if (c.archivedAt) { <div><dt class="text-body-xs text-text-tertiary">Archivada</dt><dd>{{ fecha(c.archivedAt) }}</dd></div> }
+          <div><dt class="text-body-xs text-text-tertiary">Datos personales</dt><dd>{{ textoAnon(c) }}</dd></div>
+        </dl>
+      }
+      <ng-container drawerActions>@if (root() && ver()) { <button grButton (click)="irPeligro(ver()!)">Zona peligrosa</button> }<button grButton variant="primary" (click)="ver.set(null)">Cerrar</button></ng-container>
+    </bo-drawer>
   `,
 })
 export class SistemaPage {
-  private readonly http = inject(HttpClient);
-  protected readonly comps = inject(Competitions);
+  private readonly api = inject(SistemaApi);
+  private readonly wa = inject(WhatsAppApi);
+  protected readonly cs = inject(Competitions);
   protected readonly auth = inject(Auth);
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  protected readonly estInt = ESTADO_INT;
-  protected readonly estComp = ESTADO_COMP;
-  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'competiciones', l: 'Competiciones' }, { v: 'integraciones', l: 'Integraciones' }, { v: 'email', l: 'Email' }, { v: 'salud', l: 'Salud' }, { v: 'peligro', l: 'Zona peligrosa' }];
-  protected readonly pendientes = [
-    { t: 'Anonimizar datos personales', d: 'Borrar contactos, entradas y atletas de una edición terminada manteniendo resultados y estadísticas. Se activa cuando la organización fije el plazo de conservación (propuesta: 12 meses).', b: 'Pendiente de decidir' },
-    { t: 'Exportación completa', d: 'ZIP con los CSV de todas las tablas de la competición. Mientras tanto: la exportación de cada sección (atletas, contactos, entradas, sorteo, acta) y las copias nocturnas.', b: 'Pendiente' },
-    { t: 'Eliminar competición', d: 'Solo Root, solo sin datos: ahora se archiva.', b: 'No disponible' },
-  ];
-  protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || 'competiciones');
+  protected readonly fecha = fecha;
+  protected readonly fechaDMA = fechaDMA;
+  protected readonly vista = signal<Vista>((this.route.snapshot.data['vista'] as Vista) || 'competiciones');
+  protected readonly comps = signal<CompSistema[] | null>(null);
   protected readonly integs = signal<Integracion[] | null>(null);
-  protected readonly dominio = signal<Dominio | null>(null);
+  protected readonly waInfo = signal<EstadoWaInfo | null>(null);
+  protected readonly stripeUltimo = signal<Webhooks['items'][number] | null>(null);
   protected readonly salud = signal<Salud | null>(null);
+  protected readonly webhooks = signal<Webhooks | null>(null);
+  protected readonly serieP95 = signal<number[]>([]);
+  protected readonly serieSse = signal<number[]>([]);
+  protected readonly error = signal(false);
   protected readonly probando = signal('');
   protected readonly guardando = signal(false);
+  protected readonly anonimizando = signal(false);
   protected readonly cfgOpen = signal(false);
-  protected readonly nuevaOpen = signal(false);
+  protected readonly ver = signal<CompSistema | null>(null);
+  protected readonly objetivoId = signal('');
+  protected readonly exportacion = signal<Exportacion | null>(null);
+  protected readonly ahora = signal(Date.now());
   protected cfg: Integracion | null = null;
   protected cfgVals: Record<string, string> = {};
   protected cfgSecreto = '';
-  protected nueva = { nombre: '', slug: '', fecha: '', clonarDe: '', origen: '' };
-  private readonly cid = computed(() => this.comps.current()?.id ?? '');
+  protected whProv = '';
+  protected whEstado = '';
+  protected whPagina = 1;
+  private readonly cid = computed(() => this.cs.current()?.id ?? '');
+  protected readonly root = computed(() => !!this.auth.user()?.root);
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'integraciones.config'));
-  protected readonly smtp = computed(() => this.integs()?.find((x) => x.tipo === 'smtp'));
+  protected readonly objetivo = computed(() => this.comps()?.find((c) => c.id === this.objetivoId()) ?? this.comps()?.find((c) => c.id === this.cid()) ?? null);
+  protected readonly tabs = computed<BoTab[]>(() => [
+    { label: 'Competiciones', path: '../competiciones', count: this.comps()?.length ?? this.cs.list().length },
+    { label: 'Integraciones', path: '../integraciones', count: this.integs() ? this.integs()!.filter((x) => x.estado !== 'sin_configurar').length : null },
+    { label: 'Salud', path: '../salud', count: this.salud() ? this.problemas(this.salud()!) : null },
+    { label: 'Zona peligrosa', path: '../zona-peligrosa' },
+  ]);
+
   constructor() {
+    const legado = this.route.snapshot.queryParamMap.get('tab');
+    if (legado) void this.router.navigate(['..', legado === 'peligro' ? 'zona-peligrosa' : legado], { relativeTo: this.route, replaceUrl: true });
     effect(() => {
       if (!this.cid()) return;
-      untracked(() => this.cargarTab());
+      untracked(() => this.cargar());
     });
+    const t = setInterval(() => {
+      this.ahora.set(Date.now());
+      if (this.vista() === 'salud' && !document.hidden) void this.cargarSalud(true);
+    }, 10_000);
+    inject(DestroyRef).onDestroy(() => clearInterval(t));
   }
-  private b(): string { return `/api/admin/competiciones/${this.cid()}`; }
-  protected ir(t: Tab): void {
-    this.tab.set(t);
-    void this.router.navigate([], { queryParams: { tab: t }, replaceUrl: true });
-    this.cargarTab();
+
+  protected cargar(): void {
+    this.error.set(false);
+    const v = this.vista();
+    if (v === 'competiciones' || v === 'peligro') void this.cargarComps();
+    if (v === 'integraciones') void this.cargarInteg();
+    if (v === 'salud') void this.cargarSalud();
+    if (v === 'peligro') void this.cargarExport();
   }
-  private cargarTab(): void {
-    const t = this.tab();
-    if (t === 'integraciones' || t === 'email') void this.cargarInteg();
-    if (t === 'email') void this.comprobar();
-    if (t === 'salud') void this.cargarSalud();
+  private async cargarComps(): Promise<void> {
+    try {
+      const list = this.root() ? await this.api.competiciones() : (this.cs.list() as CompSistema[]);
+      this.comps.set(list);
+    } catch {
+      this.error.set(true);
+    }
   }
-  private async cargarInteg(): Promise<void> { this.integs.set(await firstValueFrom(this.http.get<Integracion[]>(`${this.b()}/integraciones`)).catch(() => [])); }
-  protected async comprobar(): Promise<void> { this.dominio.set(await firstValueFrom(this.http.get<Dominio>(`${this.b()}/integraciones/smtp/dominio`)).catch(() => null)); }
-  async cargarSalud(): Promise<void> {
-    try { this.salud.set(await firstValueFrom(this.http.get<Salud>(`${this.b()}/sistema/salud`))); } catch (e) { this.toasts.error(errText(e, 'No se pudo leer la salud.')); }
+  private async cargarInteg(): Promise<void> {
+    try {
+      const cid = this.cid();
+      const [list, wa, wh] = await Promise.all([this.api.integraciones(cid), this.wa.estado(cid).catch(() => null), this.api.webhooks(cid, { proveedor: 'stripe', por: 1 }).catch(() => null)]);
+      this.waInfo.set(wa);
+      this.stripeUltimo.set(wh?.items[0] ?? null);
+      this.integs.set(ORDEN.map((t) => list.find((x) => x.tipo === t)!).filter(Boolean));
+    } catch {
+      this.error.set(true);
+    }
   }
-  protected info(t: string) { return INTEG[t]; }
+  async cargarSalud(silencioso = false): Promise<void> {
+    try {
+      const s = await this.api.salud(this.cid());
+      this.salud.set(s);
+      this.serieP95.update((a) => [...a, this.p95(s)].slice(-12));
+      this.serieSse.update((a) => [...a, s.espectadores].slice(-12));
+      this.error.set(false);
+      void this.cargarWebhooks();
+    } catch {
+      if (!silencioso || !this.salud()) this.error.set(true);
+    }
+  }
+  protected async cargarWebhooks(): Promise<void> {
+    this.webhooks.set(await this.api.webhooks(this.cid(), { proveedor: this.whProv, estado: this.whEstado, pagina: this.whPagina, por: 8 }).catch(() => ({ items: [], total: 0, pagina: 1, por: 8 })));
+  }
+  protected async cargarExport(): Promise<void> {
+    if (!this.root()) return;
+    const id = this.objetivoId() || this.cid();
+    this.exportacion.set((await this.api.exportaciones(id).catch(() => []))[0] ?? null);
+  }
+
+  protected info(t: Integracion['tipo']) { return INTEG[t]; }
+  protected estComp(c: CompSistema) { return c.archivedAt ? ESTADO_COMP['archivada'] : (ESTADO_COMP[c.estado] ?? { l: c.estado, tone: 'neutral' as GrTone }); }
+  protected meta(c: CompSistema): string {
+    const f = c.fechaInicio ? (c.fechaFin && c.fechaFin !== c.fechaInicio ? `${fecha(c.fechaInicio)} – ${fecha(c.fechaFin)}` : fecha(c.fechaInicio)) : 'Sin fecha';
+    return [c.slug, f, c.sede?.ciudad].filter(Boolean).join(' · ');
+  }
+  protected modulos(c: CompSistema): string {
+    if (c.archivedAt) return 'Solo lectura · resultados publicados';
+    const on = MODULOS.filter((m) => c.modulos?.[m.k]?.activo).map((m) => m.l);
+    return on.length ? on.join(' · ') : 'Ningún módulo activo';
+  }
+  protected titulo(x: Integracion): string {
+    if (x.tipo === 'smtp') return x.config['proveedor'] ? `Email (SMTP · ${x.config['proveedor']})` : 'Email (SMTP)';
+    if (x.tipo === 'whatsapp') return 'WhatsApp (evo-weai)';
+    return INTEG[x.tipo].l;
+  }
   protected resumen(x: Integracion): string {
     const c = x.config;
     switch (x.tipo) {
-      case 'smtp': return c['host'] ? `${c['host']} · ${c['remitente'] || c['usuario'] || ''}` : 'Usa el SMTP del sistema';
-      case 'stripe': return c['modo'] ? `Modo ${c['modo']}` : 'Sin claves: pasarela simulada en QA';
-      case 'whatsapp': return c['instancia'] ? `${c['proveedor'] || ''} · ${c['instancia']} · ${c['numero'] || ''}` : 'Sin número: modo simulado en QA';
-      default: return Object.values(c).filter(Boolean).join(' · ') || 'Sin configurar';
+      case 'smtp': return c['host'] ? `${c['host']}:${c['puerto'] || ''} · ${c['remitente'] || c['usuario'] || ''}` : 'Sin SMTP propio: se usa el del sistema';
+      case 'stripe': return c['clavePublica'] ? `Checkout + webhooks · ${c['clavePublica'].slice(0, 8)}…${c['clavePublica'].slice(-3)}` : 'Sin claves: pasarela simulada';
+      case 'whatsapp': { const w = this.waInfo(); return w?.instancia ? `${w.instancia}${w.numero ? ' · ' + w.numero : ''}` : 'Número de la GR Cup · avisos y campañas'; }
+      case 'bunny': return c['zona'] ? `${c['zona']} · ${c['cdnUrl'] || ''}` : 'Imágenes y frames del hero';
+      case 'aep': return c['urlActa'] ? 'Acta oficial enlazada en Resultados' : 'Importación de .xlsx · sin API pública';
     }
   }
-  protected fecha(iso: string): string { return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)); }
-  protected n(v: number): string { return new Intl.NumberFormat('es-ES').format(v); }
-  protected ok(s: Salud): number { return s.servicios.filter((x) => x.ok).length; }
+  protected badge(x: Integracion): { l: string; tone: GrTone } {
+    if (x.tipo === 'whatsapp') { const w = this.waInfo(); return w ? (w.servicio === 'caido' ? { l: 'Caído', tone: 'danger' } : (WA[w.estado] ?? WA['sin_instancia'])) : { l: 'Por confirmar', tone: 'warning' }; }
+    if (x.tipo === 'stripe' && x.estado !== 'error' && x.config['modo']) return { l: x.config['modo'] === 'live' ? 'Modo live' : 'Modo test', tone: x.config['modo'] === 'live' ? 'success' : 'info' };
+    if (x.tipo === 'aep' && x.estado !== 'error') return { l: x.config['urlActa'] ? 'Enlazada' : 'Manual', tone: 'info' };
+    return ESTADO_INT[x.estado];
+  }
+  protected ultimo(x: Integracion): string {
+    this.ahora();
+    if (x.estado === 'error' && x.error) return x.error;
+    if (x.tipo === 'stripe') { const w = this.stripeUltimo(); if (w) return `${w.tipo || 'evento'} ${hace(w.recibidoAt)}`; }
+    if (x.tipo === 'whatsapp') { const w = this.waInfo(); if (w?.estado === 'conectado' && w.conectadoDesde) return `Conectado desde ${fecha(w.conectadoDesde)}`; return w?.modo === 'simulado' ? 'Modo simulado (sin número real)' : 'Proveedor y número pendientes de vincular'; }
+    return x.probadoAt ? `Última prueba ${hace(x.probadoAt)}` : 'Sin probar todavía';
+  }
   protected p95(s: Salud): number { return Math.round(Math.max(0, ...s.servicios.map((x) => x.p95)) * 1000); }
-  protected peticiones(s: Salud): number { return s.servicios.reduce((a, x) => a + x.peticiones, 0); }
-  protected retraso(s: Salud): number { return s.grupos.reduce((a, g) => a + (g.retraso || 0), 0); }
-  protected entrar(slug: string): void { void this.router.navigate(['/', slug, 'inicio']); }
+  protected ok(s: Salud): number { return s.servicios.filter((x) => x.ok).length; }
+  private problemas(s: Salud): number { return s.servicios.filter((x) => !x.ok).length + s.grupos.filter((g) => g.retraso > 100).length + (this.webhooks()?.items.filter((w) => w.estado === 'error').length ?? 0); }
+  protected trabajo(g: Salud['grupos'][number]): { l: string; tone: GrTone } {
+    if (!g.consumers) return { l: 'Parado', tone: 'danger' };
+    if (g.retraso > 100) return { l: `${g.retraso} por procesar`, tone: 'warning' };
+    if (g.retraso > 0 || g.pendientes > 0) return { l: 'Procesando', tone: 'info' };
+    return { l: 'OK', tone: 'success' };
+  }
+  protected hace(iso?: string | null): string { return hace(iso, this.ahora()); }
+  protected n(v: number): string { return new Intl.NumberFormat('es-ES').format(v); }
+  protected kb(b: number): string { return b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`; }
+  protected min(a: number, b: number): number { return Math.min(a, b); }
+  protected textoAnon(c: CompSistema): string {
+    if (c.anonimizadaAt) return `Anonimizada el ${fechaDMA(c.anonimizadaAt)}: contactos, entradas y boletos sin datos personales; se mantienen totales y resultados.`;
+    if (c.anonimizarAt) return `Programado el ${fechaDMA(c.anonimizarAt)} (12 meses tras el evento): contactos, entradas y boletos quedan sin datos personales; se mantienen totales y resultados.`;
+    const base = c.fechaFin || c.fechaInicio;
+    const d = base ? new Date(base + 'T03:00:00Z') : null;
+    if (d) d.setUTCFullYear(d.getUTCFullYear() + 1);
+    return `Se programará al archivar${d ? ' para el ' + fechaDMA(d.toISOString()) : ''} (12 meses tras el evento): contactos, entradas y boletos quedan sin datos personales; se mantienen totales y resultados.`;
+  }
+
+  protected entrar(slug: string, ruta: string): void { void this.router.navigate(['/', slug, ruta]); }
+  protected irPeligro(c: CompSistema): void {
+    this.ver.set(null);
+    this.objetivoId.set(c.id);
+    void this.router.navigate(['../zona-peligrosa'], { relativeTo: this.route });
+  }
   protected configurar(x: Integracion): void {
+    if (x.tipo === 'smtp') { void this.router.navigate(['../email'], { relativeTo: this.route }); return; }
+    if (x.tipo === 'whatsapp') { void this.router.navigate(['../whatsapp'], { relativeTo: this.route }); return; }
     this.cfg = x;
     this.cfgVals = { ...x.config };
     for (const c of INTEG[x.tipo].campos) if (c.opciones && !this.cfgVals[c.k]) this.cfgVals[c.k] = c.opciones[0];
@@ -251,12 +410,12 @@ export class SistemaPage {
     if (!this.cfg) return;
     this.guardando.set(true);
     try {
-      await firstValueFrom(this.http.put(`${this.b()}/integraciones/${this.cfg.tipo}`, { config: this.cfgVals, ...(this.cfgSecreto ? { secreto: this.cfgSecreto } : {}) }));
+      await this.api.guardar(this.cid(), this.cfg.tipo, this.cfgVals, this.cfgSecreto || undefined);
       this.cfgOpen.set(false);
-      this.toasts.success('Integración guardada');
+      this.toasts.success('Integración guardada', 'Pulsa «Probar» para comprobarla.');
       await this.cargarInteg();
     } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo guardar.'));
+      this.toasts.error('No se pudo guardar', errText(e));
     } finally {
       this.guardando.set(false);
     }
@@ -264,38 +423,81 @@ export class SistemaPage {
   protected async probar(x: Integracion): Promise<void> {
     this.probando.set(x.tipo);
     try {
-      await firstValueFrom(this.http.post(`${this.b()}/integraciones/${x.tipo}/probar`, {}));
-      await this.cargarInteg();
-      const r = this.integs()?.find((i) => i.tipo === x.tipo);
-      if (r?.estado === 'ok') this.toasts.success(`${INTEG[x.tipo].l}: funciona`); else this.toasts.error(r?.error || 'La prueba ha fallado.');
+      if (x.tipo === 'whatsapp') {
+        const w = await this.wa.estado(this.cid());
+        this.waInfo.set(w);
+        if (w.servicio === 'ok' && w.estado === 'conectado') this.toasts.success('WhatsApp conectado', w.numero || w.instancia);
+        else this.toasts.error('WhatsApp no está conectado', w.servicio === 'caido' ? 'El servidor de WhatsApp no responde.' : 'Vincula el número en Configurar.');
+        return;
+      }
+      const r = await this.api.probar(this.cid(), x.tipo);
+      this.integs.update((l) => l?.map((i) => (i.tipo === x.tipo ? r : i)) ?? l);
+      if (r.estado === 'ok') this.toasts.success(`${this.titulo(r)}: funciona`, [r.latenciaMs ? `${r.latenciaMs} ms` : '', r.enviado ? `email de prueba a ${r.enviado}` : ''].filter(Boolean).join(' · '));
+      else this.toasts.error(`${this.titulo(r)}: la prueba ha fallado`, r.error || '');
     } catch (e) {
-      this.toasts.error(errText(e, 'La prueba ha fallado.'));
+      this.toasts.error('La prueba ha fallado', errText(e));
     } finally {
       this.probando.set('');
     }
   }
-  protected nuevaDesde(c: CompItem): void {
-    this.nueva = { nombre: c.nombre.replace(/\d{4}/, (y) => String(+y + 1)), slug: '', fecha: '', clonarDe: c.id, origen: c.nombre };
-    this.autoSlug();
-    this.nuevaOpen.set(true);
-  }
-  protected autoSlug(): void {
-    this.nueva.slug = this.nueva.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
-  }
-  protected async crear(): Promise<void> {
+  protected async archivar(c: CompSistema): Promise<void> {
+    if (!(await this.confirm.ask({ title: `¿Archivar ${c.nombre}?`, text: 'Deja de verse en la web y el backoffice queda en solo lectura. Los datos personales se anonimizarán 12 meses después del evento.', confirm: 'Archivar', danger: true, word: c.slug }))) return;
     try {
-      const c = await firstValueFrom(this.http.post<CompItem>('/api/admin/competiciones', { nombre: this.nueva.nombre.trim(), slug: this.nueva.slug, fechaInicio: this.nueva.fecha || undefined, ...(this.nueva.clonarDe ? { clonarDe: this.nueva.clonarDe } : {}) }));
-      this.nuevaOpen.set(false);
-      await this.comps.load(true);
-      this.toasts.success(`«${c.nombre}» creada en borrador`);
+      await this.api.archivar(c.id);
+      this.toasts.success('Competición archivada');
+      await this.cs.load(true);
+      if (c.id === this.cid()) { const otra = this.cs.list()[0]; if (otra) { void this.router.navigate(['/', otra.slug, 'sistema', 'zona-peligrosa']); return; } }
+      await this.cargarComps();
     } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo crear.'));
+      this.toasts.error('No se pudo archivar', errText(e));
     }
   }
-  protected async archivar(): Promise<void> {
-    const c = this.comps.current();
-    if (!c) return;
-    if (!(await this.confirm.ask({ title: `¿Archivar ${c.nombre}?`, text: 'Deja de verse en la web y el backoffice queda en solo lectura para esta competición.', confirm: 'Archivar', danger: true }))) return;
-    try { await firstValueFrom(this.http.post(`${this.b()}/archivar`, {})); await this.comps.load(true); this.toasts.success('Archivada'); } catch (e) { this.toasts.error(errText(e, 'No se pudo archivar.')); }
+  protected async anonimizar(c: CompSistema): Promise<void> {
+    if (!(await this.confirm.ask({ title: 'Anonimizar ahora', text: `Se borran ya los datos personales de ${c.nombre} (contactos, entradas, boletos y mensajes enviados). Totales y resultados se mantienen. No se puede deshacer.`, confirm: 'Anonimizar', danger: true, word: c.slug }))) return;
+    this.anonimizando.set(true);
+    try {
+      const r = await this.api.anonimizar(c.id, c.slug);
+      this.toasts.success('Anonimización en curso', `Servicios: ${r.servicios.join(', ')}`);
+      await this.cargarComps();
+    } catch (e) {
+      this.toasts.error('No se pudo anonimizar', errText(e));
+    } finally {
+      this.anonimizando.set(false);
+    }
+  }
+  protected async exportar(c: CompSistema): Promise<void> {
+    try {
+      this.exportacion.set(await this.api.exportar(c.id));
+      this.toasts.success('Exportación solicitada', 'Tardará unos segundos.');
+      for (let i = 0; i < 30 && this.exportacion()?.estado === 'en_curso'; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        await this.cargarExport();
+      }
+    } catch (e) {
+      this.toasts.error('No se pudo exportar', errText(e));
+    }
+  }
+  protected async descargar(e: Exportacion): Promise<void> {
+    try {
+      const blob = await this.api.descargar(e.url!);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `exportacion-${(this.objetivo()?.slug ?? 'competicion')}-${e.createdAt.slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      this.toasts.error('No se pudo descargar', errText(err));
+    }
+  }
+  protected async eliminar(c: CompSistema): Promise<void> {
+    if (!(await this.confirm.ask({ title: `¿Eliminar ${c.nombre}?`, text: 'Se borra la competición y todos sus datos. No se puede deshacer.', confirm: 'Eliminar para siempre', danger: true, word: c.slug }))) return;
+    try {
+      await this.api.eliminar(c.id, c.slug);
+      this.toasts.success('Competición eliminada');
+      this.objetivoId.set('');
+      await this.cargarComps();
+    } catch (e) {
+      this.toasts.error('No se pudo eliminar', errText(e));
+    }
   }
 }

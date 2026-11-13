@@ -84,6 +84,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerWAPlantillas()
 	s.registerAvisos()
 	s.registerRGPD()
+	s.registerSistema()
 	return nil
 }
 
