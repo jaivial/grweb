@@ -188,11 +188,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             </gr-alert>
           }
           @if (d.estado === 'aprobada') {
-            @if (publicable()) {
-              <gr-alert tone="success" title="Aprobada y publicada">Perfil creado y publicado con su foto (si la envió) · enlace de acceso enviado al área de atleta.</gr-alert>
-            } @else {
-              <gr-alert tone="success" title="Aprobada · ficha privada">Perfil creado sin publicar ({{ d.esMenor ? 'menor de edad' : 'sin consentimiento de imagen' }}): queda privado hasta que se active desde el área de atleta.</gr-alert>
-            }
+            <gr-alert tone="success" title="Aprobada · ficha privada">Perfil creado sin publicar{{ d.esMenor ? ' (menor de edad)' : imagenAceptada() ? '' : ' (sin consentimiento de imagen)' }}: queda privado hasta que el atleta active su publicación desde el área de atleta · enlace de acceso enviado.</gr-alert>
           }
           @if (d.estado === 'rechazada') {
             <gr-alert tone="danger" title="Solicitud rechazada">
@@ -387,7 +383,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             <button grButton variant="danger" [disabled]="ocupado()" (click)="dialogo.set('borrar')">Borrar…</button>
           } @else {
             <!-- Mobile: Approve full width on top, the other two below; desktop: the three on one row. -->
-            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ publicable() ? 'Aprobar y publicar' : 'Aprobar (ficha privada)' }}</button>
+            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">Aprobar (ficha privada)</button>
             <button grButton class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="marcarRevision()">Marcar en revisión</button>
             <button grButton variant="danger" class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="dialogo.set('rechazar')">Rechazar…</button>
           }
@@ -408,7 +404,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     }
 
     @if (dialogo(); as dl) {
-      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [publicable]="publicable()" [imagenAceptada]="imagenAceptada()"
+      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()"
         [destino]="destinoAprueba().texto" [ocupado]="ocupado()" [(avisarEmail)]="avisarEmail" [(avisarWhatsApp)]="avisarWhatsApp"
         (cerrar)="dialogo.set(null)" (aprobar)="aprobar()" (rechazar)="rechazar($event)" (borrar)="borrar()" />
     }
@@ -846,11 +842,6 @@ export class SolicitudesPage {
   /** The athlete authorised publishing their name, data and photo (the profile can be public). */
   protected imagenAceptada(): boolean {
     return this.consentimientos().some((c) => c.clave === 'imagen' && c.aceptado);
-  }
-
-  /** The profile goes public on approval: image consent and not a minor (as the backend decides). */
-  protected publicable(): boolean {
-    return this.imagenAceptada() && !this.detalle()?.esMenor;
   }
 
   protected consentimientos(): FilaConsentimiento[] {

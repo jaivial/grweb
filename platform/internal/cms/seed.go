@@ -25,7 +25,7 @@ var seedSecciones = map[string]any{
 	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas en competición"}, {"valor": "18", "etiqueta": "Categorías de peso"},
 		{"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},
 	"alta-atleta": map[string]any{"eyebrow": "GR Cup 2026 · Alta de atleta", "titulo": "Crea tu perfil de atleta",
-		"texto": "Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y lo publicamos en la lista de atletas.",
+		"texto": "Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y queda privado hasta que actives su publicación desde el área de atleta.",
 		"cta":   "Dar de alta mi atleta"},
 	"entradas": map[string]any{"eyebrow": "Entrada gratuita · aforo limitado", "titulo": "Ven a vivirlo *en directo*", "tituloAcento": "",
 		"texto": "La entrada es gratis, pero hay que reservarla: te llega un QR al email y entras sin colas. Una reserva sirve para ti y hasta 3 acompañantes.",

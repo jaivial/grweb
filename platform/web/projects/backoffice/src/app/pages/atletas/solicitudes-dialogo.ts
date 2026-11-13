@@ -13,15 +13,15 @@ import { BoToggle } from '../../shared/ui';
     <!-- ===== Approve ===== -->
     @if (tipo() === 'aprobar') {
       <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4" (click)="cerrar.emit()" (keydown.escape)="cerrar.emit()">
-        <div class="w-full max-w-lg rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="publicable() ? 'Aprobar y publicar' : 'Aprobar (ficha privada)'"
+        <div class="w-full max-w-lg rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Aprobar (ficha privada)"
           cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
           <div class="flex items-start justify-between gap-3">
-            <h2 class="text-ui-h5">{{ publicable() ? 'Aprobar y publicar' : 'Aprobar (ficha privada)' }}</h2>
+            <h2 class="text-ui-h5">Aprobar (ficha privada)</h2>
             <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="18" /></button>
           </div>
-          <p class="mt-3 text-body-s text-text-secondary">{{ destino() }}{{ publicable() ? ' y se publicará su perfil con la foto en blanco y negro.' : (imagenAceptada() ? '. Es menor: el perfil queda privado hasta que se active desde el área de atleta.' : '. Sin consentimiento de imagen: el perfil queda privado y la foto no se publica.') }}</p>
+          <p class="mt-3 text-body-s text-text-secondary">{{ destino() }}. El perfil queda privado: no aparece en /atletas hasta que el atleta active su publicación desde el área de atleta{{ imagenAceptada() ? '.' : ' (sin consentimiento de imagen, la foto no se publica).' }}</p>
           <div class="mt-5 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
-            <span class="min-w-0"><span class="block text-label-s">Avisar por email</span><span class="block text-body-xs text-text-tertiary">{{ publicable() ? 'Le llegará un email con el enlace a su ficha y el acceso a su área de atleta' : 'Le llegará el acceso a su área de atleta' }}</span></span>
+            <span class="min-w-0"><span class="block text-label-s">Avisar por email</span><span class="block text-body-xs text-text-tertiary">Le llegará el acceso a su área de atleta</span></span>
             <bo-toggle [(value)]="avisarEmail" label="Avisar por email" />
           </div>
           <div class="mt-3 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
@@ -30,7 +30,7 @@ import { BoToggle } from '../../shared/ui';
           </div>
           <div class="mt-6 flex justify-end gap-2">
             <button grButton variant="ghost" (click)="cerrar.emit()">Cancelar</button>
-            <button grButton variant="primary" [loading]="ocupado()" (click)="aprobar.emit()">{{ publicable() ? 'Aprobar y publicar' : 'Aprobar (ficha privada)' }}</button>
+            <button grButton variant="primary" [loading]="ocupado()" (click)="aprobar.emit()">Aprobar (ficha privada)</button>
           </div>
         </div>
       </div>
@@ -96,7 +96,6 @@ import { BoToggle } from '../../shared/ui';
 export class SolicitudesDialogo {
   readonly tipo = input.required<'aprobar' | 'rechazar' | 'borrar'>();
   readonly nombre = input('');
-  readonly publicable = input(false);
   readonly imagenAceptada = input(false);
   readonly destino = input('');
   readonly ocupado = input(false);

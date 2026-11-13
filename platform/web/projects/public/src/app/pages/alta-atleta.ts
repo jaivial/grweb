@@ -75,14 +75,14 @@ const MAX_MARCA = 600;
       [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GR Cup 2026'"
       section="Atletas"
       crumb="Alta de atleta"
-      [subtitle]="exito() ? (publica() ? introExito : introExitoPrivada) : cerrada() ? introCerrada : intro"
+      [subtitle]="exito() ? introExitoPrivada : cerrada() ? introCerrada : intro"
       [subtitleHtml]="exito() || cerrada() ? '' : introHtml"
       [tituloMovilGrande]="!exito()">
       @if (vista() === 'cargando') {
         <gr-skeleton class="h-[560px] rounded-[18px]" />
       } @else if (vista() === 'exito') {
         <!-- Figma 75 «Éxito»: qué pasa ahora, en tres pasos -->
-        <gr-alta-exito [contacto]="contacto()" [publica]="publica()" [foto]="fotoExito()" [menor]="menorExito()" />
+        <gr-alta-exito [contacto]="contacto()" [foto]="fotoExito()" [menor]="menorExito()" />
         <div class="mt-18 flex flex-col gap-18 md:gap-24">
           <gr-related nivel="h3" [items]="relacionados" />
           <gr-community nivel="h3" />
@@ -444,7 +444,6 @@ export class AltaAtletaPage {
   protected readonly error = signal('');
   protected readonly exito = signal(false);
   /** The athlete authorised publishing their profile (image consent): only then the success screen promises it. */
-  protected readonly publica = signal(false);
   /** Until Angular hydrates, a native submit would send the data by itself: the button stays disabled. */
   protected readonly hidratado = signal(false);
   /** What was sent, for the success screen (the form is reset afterwards). */
@@ -920,7 +919,6 @@ export class AltaAtletaPage {
     }
     if (xhr.status === 202 || xhr.status === 200) {
       this.exito.set(true);
-      this.publica.set(!!this.legal('consentimiento') && this.acepta.imagen && !this.esMenor());
       this.fotoExito.set(!!this.foto);
       this.menorExito.set(this.esMenor());
       this.vista.set('exito');
