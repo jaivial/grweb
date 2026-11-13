@@ -87,16 +87,20 @@ func (s *Svc) simConectando(ctx context.Context, cid uuid.UUID, numero string) s
 	inst := s.instanciaNombre(ctx, cid)
 	_, _ = s.a.DB.Exec(ctx, `INSERT INTO whatsapp_instancia (competition_id, instancia, url, estado, numero, updated_at) VALUES ($1,$2,'simulado','conectando',$3, now())
 		ON CONFLICT (competition_id) DO UPDATE SET instancia = EXCLUDED.instancia, url = 'simulado', estado = 'conectando',
-		numero = CASE WHEN EXCLUDED.numero <> '' THEN EXCLUDED.numero ELSE whatsapp_instancia.numero END, conectado_desde = NULL, updated_at = now()`, cid, inst, numero)
+		numero = CASE WHEN EXCLUDED.numero <> '' THEN EXCLUDED.numero ELSE whatsapp_instancia.numero END, updated_at = now()`, cid, inst, numero)
 	var marca time.Time
 	_ = s.a.DB.QueryRow(ctx, `SELECT updated_at FROM whatsapp_instancia WHERE competition_id = $1`, cid).Scan(&marca)
 	s.a.Log.Info("whatsapp simulado: vinculando", "competicion", cid, "instancia", inst)
+	// Other tabs see «conectando» (and pull the QR) at once, not only when the clock links the number.
+	if err := s.waEvento(ctx, cid, "whatsapp.conexion", map[string]any{"estado": "conectando"}); err != nil {
+		s.a.Log.Warn("whatsapp simulado: evento conectando", "err", err)
+	}
 	time.AfterFunc(simEspera, func() {
 		bg, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		// Only if nothing changed meanwhile (a new QR, a restart or a disconnection restart the clock or remove the row).
 		tag, err := s.a.DB.Exec(bg, `UPDATE whatsapp_instancia SET estado = 'conectado', conectado_desde = now(),
-			numero = CASE WHEN numero = '' THEN '+34 600 000 000' ELSE numero END, updated_at = now()
+			numero = CASE WHEN numero = '' THEN '+34600000000' ELSE numero END, updated_at = now()
 			WHERE competition_id = $1 AND estado = 'conectando' AND url = 'simulado' AND updated_at = $2`, cid, marca)
 		if err != nil || tag.RowsAffected() == 0 {
 			return
