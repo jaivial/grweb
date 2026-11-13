@@ -6,7 +6,7 @@ import { problemOf } from '../../../core/api';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, Media, errText } from '../../../shared/ui';
-import { SoSegmented, SoSkelFilas, SoSkelKpis, SoThumb, SoTier, TIER_LIST, TIERS, diaMes, num, pct, urlSegura, type SoOpcion } from '../ui';
+import { SoFecha, SoSegmented, SoSkelFilas, SoSkelKpis, SoThumb, SoTier, TIER_LIST, TIERS, diaMes, num, pct, urlSegura, type SoOpcion } from '../ui';
 import { PatrocinioApi, type Banner, type BannerBorrador, type Informe } from './api';
 
 interface FormBanner {
@@ -31,7 +31,7 @@ const aIso = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null)
  */
 @Component({
   selector: 'bo-patrocinio',
-  imports: [FormsModule, RouterLink, BoDrawer, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, SoSegmented, SoSkelFilas, SoSkelKpis, SoThumb, SoTier],
+  imports: [FormsModule, RouterLink, BoDrawer, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, SoFecha, SoSegmented, SoSkelFilas, SoSkelKpis, SoThumb, SoTier],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
@@ -45,7 +45,9 @@ const aIso = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null)
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar el patrocinio">Hace falta el permiso «web.editar» para tocar los banners.</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede gestionar el patrocinio">Hace falta el permiso «web.editar» para tocar los banners. Puedes verlos, pero los botones de crear, pausar y eliminar quedan desactivados.
+          <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
+        </gr-alert>
       }
 
       @if (cargando()) {
@@ -108,9 +110,9 @@ const aIso = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null)
                       <td class="px-5 py-3">
                         <div class="flex items-center gap-3">
                           <so-thumb class="h-10 w-[72px]" [src]="b.imagenUrl" [nombre]="b.patrocinador" />
-                          <div class="min-w-0">
-                            <p class="truncate text-label-s" [class.text-text-secondary]="!b.activo">{{ b.patrocinador }}</p>
-                            <p class="max-w-[260px] truncate text-body-xs text-text-tertiary">{{ b.urlDestino }}</p>
+                          <div class="min-w-0 max-w-[220px]">
+                            <p class="truncate text-label-s" [class.text-text-secondary]="!b.activo" [title]="b.patrocinador">{{ b.patrocinador }}</p>
+                            <p class="truncate text-body-xs text-text-tertiary" [title]="b.urlDestino">{{ b.urlDestino }}</p>
                           </div>
                         </div>
                       </td>
@@ -241,9 +243,9 @@ const aIso = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null)
         <fieldset class="flex flex-col gap-2">
           <legend class="mb-2 text-label-s">Vigencia</legend>
           <div class="flex items-center gap-2">
-            <input grInput type="date" class="[color-scheme:dark]" [ngModel]="form().desde" (ngModelChange)="set({ desde: $event })" aria-label="Vigente desde" />
+            <so-fecha class="min-w-0 flex-1" formato="num" label="Vigente desde" [bloque]="true" [value]="form().desde" (changed)="set({ desde: $event })" />
             <gr-icon name="arrow-right" [size]="16" class="shrink-0 text-text-tertiary" />
-            <input grInput type="date" class="[color-scheme:dark]" [ngModel]="form().hasta" (ngModelChange)="set({ hasta: $event })" aria-label="Vigente hasta" />
+            <so-fecha class="min-w-0 flex-1" formato="num" label="Vigente hasta" [bloque]="true" [value]="form().hasta" (changed)="set({ hasta: $event })" />
           </div>
           <p class="text-body-xs text-text-tertiary">Vacío = siempre vigente</p>
         </fieldset>

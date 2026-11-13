@@ -224,5 +224,29 @@ export class BoCount {
 export function errText(e: unknown, fallback = 'No se pudo guardar.'): string {
   const p = problemOf(e);
   const field = p.errors?.[0];
-  return field ? `${p.detail ?? fallback} (${field.location ?? ''}: ${field.message})` : (p.detail ?? fallback);
+  if (!field) return p.detail ?? fallback;
+  // huma's schema errors come in English («validation failed», «expected number <= 1000»): never show them raw
+  return `Revisa los datos: ${campo(field.location)} ${mensajeCampo(field.message ?? '')}.`;
+}
+
+/** «body.pesoPlata» → «pesoPlata» (the last segment is the JSON field the form edits). */
+function campo(loc?: string): string {
+  const k = (loc ?? '').split('.').pop() ?? '';
+  return k ? `«${k}»` : 'un campo';
+}
+
+/** Spanish version of the huma/JSON-schema messages. */
+function mensajeCampo(m: string): string {
+  const n = (x: string) => new Intl.NumberFormat('es-ES').format(Number(x));
+  let r: RegExpMatchArray | null;
+  if ((r = m.match(/expected number <= (-?[\d.]+)/))) return `debe ser como máximo ${n(r[1])}`;
+  if ((r = m.match(/expected number >= (-?[\d.]+)/))) return `debe ser como mínimo ${n(r[1])}`;
+  if ((r = m.match(/expected (?:length|number of characters) <= (\d+)/))) return `admite como máximo ${r[1]} caracteres`;
+  if ((r = m.match(/expected (?:length|number of characters) >= (\d+)/))) return `necesita al menos ${r[1]} caracteres`;
+  if ((r = m.match(/expected array length <= (\d+)/))) return `admite como máximo ${r[1]} elementos`;
+  if (/expected required property/.test(m)) return 'es obligatorio';
+  if (/expected (?:number|integer)/.test(m)) return 'tiene que ser un número';
+  if (/expected string/.test(m)) return 'tiene que ser un texto';
+  if (/expected value to be one of/.test(m)) return 'no es una opción válida';
+  return 'no es válido';
 }

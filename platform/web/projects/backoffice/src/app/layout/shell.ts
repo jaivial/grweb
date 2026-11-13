@@ -59,7 +59,7 @@ export class Shell {
   protected readonly exige2fa = computed(() => !!this.auth.user()?.competiciones.find((c) => c.competitionId === this.cid())?.exige2fa);
   /** One figure for the bell badge and its label (capped like the rail badges). */
   protected readonly unreadTxt = computed(() => { const n = this.notifs.unread(); return n > 99 ? '99+' : String(n); });
-  protected readonly visible = (it: NavItem) => !it.perm || this.auth.can(this.cid(), it.perm);
+  protected readonly visible = (it: NavItem) => !it.perm || !!it.lectura || this.auth.can(this.cid(), it.perm);
   protected readonly nav = computed(() => NAV.map((g) => ({ ...g, items: g.items.filter((i) => this.visible(i)) })).filter((g) => g.items.length));
   /** Figma 49 tab bar order: Inicio · Check-in · Directo · Entradas · Más. */
   protected readonly tabs = computed(() => ['inicio', 'checkin', 'directo', 'entradas'].map((p) => ALL_ITEMS.find((i) => i.path === p)!).filter((i) => this.visible(i)));

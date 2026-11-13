@@ -1,6 +1,7 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrToasts, type GrTone } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
@@ -41,7 +42,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
  */
 @Component({
   selector: 'bo-premios',
-  imports: [A11yModule, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoThumb],
+  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoThumb],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'modal.set(false)' },
   template: `
@@ -60,7 +61,9 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar los premios">Hace falta el permiso «directo.operar».</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede gestionar los premios">Hace falta el permiso «directo.operar». Puedes ver los premios, pero los botones de crear, editar y eliminar quedan desactivados.
+          <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
+        </gr-alert>
       }
 
       @if (cargando()) {
@@ -159,8 +162,10 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
                 @else { <gr-icon name="trophy" [size]="24" class="text-text-primary/35" /> }
               </span>
               <div class="flex min-w-0 flex-1 flex-col gap-2">
-                <input grInput name="imagenUrl" aria-label="URL de la imagen del premio" placeholder="https://…/premio.png" [ngModel]="form().imagenUrl" (ngModelChange)="set({ imagenUrl: $event })" />
-                <p class="text-body-xs text-text-tertiary">PNG o WebP · 1200 × 630</p>
+                <input grInput name="imagenUrl" aria-label="URL de la imagen del premio" placeholder="https://…/premio.png" [attr.aria-invalid]="!imagenOk() ? true : null" [class.!border-error]="!imagenOk()"
+                  [ngModel]="form().imagenUrl" (ngModelChange)="set({ imagenUrl: $event })" />
+                @if (!imagenOk()) { <p class="text-body-xs text-error" role="alert">La imagen debe ser un enlace https o una ruta del propio sitio.</p> }
+                @else { <p class="text-body-xs text-text-tertiary">PNG o WebP · 1200 × 630</p> }
               </div>
               <label class="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm border border-line-strong px-3 text-label-s text-text-secondary hover:border-text-muted hover:text-text-primary md:h-10">
                 <gr-icon name="camera" [size]="16" />Subir
@@ -200,8 +205,8 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
-              <gr-field label="Valor" hint="Texto corto · se anuncia en vivo">
-                <input grInput name="valorTexto" [ngModel]="form().valorTexto" (ngModelChange)="set({ valorTexto: $event })" maxlength="60" placeholder="500 € en material Eleiko" />
+              <gr-field label="Valor" [hint]="'Texto corto · se anuncia en vivo · ' + form().valorTexto.length + '/60'" [error]="valorRecortado() ? 'Máximo 60 caracteres: hemos recortado el texto pegado.' : ''">
+                <input grInput name="valorTexto" [ngModel]="form().valorTexto" (ngModelChange)="set({ valorTexto: $event })" (paste)="pegarValor($event)" maxlength="60" placeholder="500 € en material Eleiko" />
               </gr-field>
               <gr-field label="Patrocinador" hint="Aparece bajo el valor del premio">
                 <input grInput name="patrocinador" [ngModel]="form().patrocinador" (ngModelChange)="set({ patrocinador: $event })" maxlength="80" placeholder="Eleiko" />
@@ -257,7 +262,20 @@ export class PremiosPage {
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'directo.operar'));
   protected readonly jornada = computed(() => this.jornadasLista().find((x) => x.id === this.filtroJornada())?.nombre ?? '');
-  protected readonly valido = computed(() => this.form().titulo.trim().length > 0 && this.form().puestoHasta >= this.form().puestoDesde);
+  /** Lo mismo que acepta el servidor (y los banners): vacío, https o ruta del propio sitio. */
+  protected readonly imagenOk = computed(() => {
+    const u = this.form().imagenUrl.trim();
+    return !u || u.startsWith('https://') || (u.startsWith('/') && !u.startsWith('//'));
+  });
+  protected readonly valido = computed(() => this.form().titulo.trim().length > 0 && this.form().puestoHasta >= this.form().puestoDesde && this.imagenOk());
+  protected readonly valorRecortado = signal(false);
+  /** maxlength corta lo pegado sin decir nada: avisamos si no cabía. */
+  protected pegarValor(e: ClipboardEvent): void {
+    const t = e.clipboardData?.getData('text') ?? '';
+    const el = e.target as HTMLInputElement;
+    const libre = 60 - (el.value.length - ((el.selectionEnd ?? 0) - (el.selectionStart ?? 0)));
+    this.valorRecortado.set(t.length > libre);
+  }
 
   constructor() {
     effect(() => {

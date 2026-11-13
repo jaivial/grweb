@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrEmpty, GrInput, GrToasts } from '@grcup/ui';
+import { GrAlert, GrButton, GrEmpty, GrIcon, GrInput, GrToasts } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
+import { webPublica } from '../../../core/web';
 import { BoPageHeader, errText } from '../../../shared/ui';
-import { SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas, num } from '../ui';
+import { SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas, num, rangoError } from '../ui';
 import { JuegosApi, type ConfigJuegos, type Jornada, type PuntosCfg } from './api';
 
 interface Campo {
@@ -15,6 +16,8 @@ interface Campo {
   unidad?: string;
   valor: (c: ConfigJuegos) => number;
   cambia: (c: ConfigJuegos, v: number) => ConfigJuegos;
+  /** [mínimo, máximo] admitidos según el resto del formulario (cláusula y apuesta: mínima ≤ máxima). */
+  rango?: (c: ConfigJuegos) => [number | null, number | null];
 }
 
 interface Grupo {
@@ -40,27 +43,29 @@ const cfgPorDefecto: ConfigJuegos = {
  */
 @Component({
   selector: 'bo-juegos-config',
-  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoPageHeader, GrAlert, GrButton, GrEmpty, GrInput, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoPageHeader, GrAlert, GrButton, GrEmpty, GrIcon, GrInput, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6" [class.pb-24]="!sucio()" [class.pb-44]="sucio()">
-      <bo-page-header title="Juegos · Configuración" [badge]="jornadaActiva()" [badgeTone]="'accent'"
+      <bo-page-header title="Juegos · Configuración" [badge]="jornadaActiva()" [badgeTone]="jornadaActiva().startsWith('Sin') ? 'neutral' : 'live'"
         subtitle="Recompensas, puntos, cláusulas y límites · los acredita juegos-worker con ref idempotente (§6.4)"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Juegos', 'Configuración']">
         <ng-container actions>
-          <a grButton icon="chevron-left" [routerLink]="['/', comps.current()?.slug, 'juegos']">Jornadas</a>
           <button grButton variant="secondary" icon="undo" [disabled]="!sucio()" (click)="restaurar()">Restaurar valores</button>
-          <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !puede()" (click)="guardar()">Guardar cambios</button>
+          <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !puede() || !!invalido()" (click)="guardar()">Guardar cambios</button>
         </ng-container>
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar».</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver la configuración, pero no guardarla.
+          <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
+        </gr-alert>
       }
 
       <gr-alert tone="info" icon="scale" title="Las monedas de porra nunca se compran con dinero real">
         Solo se acreditan por alta (100.000 por jornada), hitos de chat y premios de liquidación. Los donativos acreditan fantasy, nunca porra (§6.1 y §6.4).
         Donaciones y juegos no comparten base de datos ni código de cartera.
+        <a alertAction [href]="web + '/fantasy/como-se-juega'" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Ver reglas <gr-icon name="arrow-right" [size]="14" /></a>
       </gr-alert>
 
       @if (cargando()) {
@@ -112,7 +117,7 @@ const cfgPorDefecto: ConfigJuegos = {
               <div class="flex items-center gap-3">
                 @if (cambiado(c)) { <span class="size-1.5 shrink-0 rounded-pill bg-warning" aria-hidden="true"></span> }
                 <span class="min-w-0 flex-1 text-body-s text-text-secondary">{{ c.label }}</span>
-                <so-number [label]="c.label" [disabled]="!puede()" [valor]="c.valor(form())" [cambiado]="cambiado(c)" (changed)="cambia(c, $event)" />
+                <so-number [label]="c.label" [disabled]="!puede()" [valor]="c.valor(form())" [min]="lim(c)[0]" [max]="lim(c)[1]" [cambiado]="cambiado(c)" (changed)="cambia(c, $event)" />
               </div>
             }
           </so-card>
@@ -163,16 +168,16 @@ const cfgPorDefecto: ConfigJuegos = {
               <div class="flex items-center gap-3">
                 @if (cambiado(c)) { <span class="size-1.5 shrink-0 rounded-pill bg-warning" aria-hidden="true"></span> }
                 <span class="min-w-0 flex-1 truncate text-body-s text-text-secondary" [title]="c.label">{{ c.label }}</span>
-                <so-number [ancho]="c.unidad ? 'xs' : 'm'" [label]="g.t + ' · ' + c.label" [unidad]="c.unidad ?? ''" [disabled]="!puede()" [valor]="c.valor(form())" [cambiado]="cambiado(c)" (changed)="cambia(c, $event)" />
+                <so-number [ancho]="c.unidad ? 'xs' : 'm'" [label]="g.t + ' · ' + c.label" [unidad]="c.unidad ?? ''" [disabled]="!puede()" [valor]="c.valor(form())" [min]="lim(c)[0]" [max]="lim(c)[1]" [cambiado]="cambiado(c)" (changed)="cambia(c, $event)" />
               </div>
             }
           </div>
         </ng-template>
 
         @if (sucio()) {
-          <so-guardar [titulo]="cambios() + (cambios() === 1 ? ' cambio sin guardar' : ' cambios sin guardar')" detalle="Recompensas, puntos y cláusulas de la competición">
+          <so-guardar [titulo]="cambios() + (cambios() === 1 ? ' cambio sin guardar' : ' cambios sin guardar')" [detalle]="invalido() || 'Recompensas, puntos y cláusulas de la competición'">
             <button grButton class="flex-1 sm:flex-none" variant="ghost" (click)="restaurar()">Descartar</button>
-            <button grButton class="flex-1 sm:flex-none" variant="primary" [loading]="guardando()" [disabled]="!puede()" (click)="guardar()">Guardar cambios</button>
+            <button grButton class="flex-1 sm:flex-none" variant="primary" [loading]="guardando()" [disabled]="!puede() || !!invalido()" (click)="guardar()">Guardar cambios</button>
           </so-guardar>
         }
       }
@@ -217,9 +222,9 @@ export class JuegosConfigPage {
   protected readonly puntosCols: Grupo[][] = [[this.puntosGrupos[0]], [this.puntosGrupos[1]], [this.puntosGrupos[2]]];
   protected readonly clausulaGrupos: Grupo[] = [
     this.g('VALOR DE LA CLÁUSULA · MONEDAS', [
-      { label: 'Inicial', unidad: '', valor: (c) => c.clausulaInicial, cambia: (c, v) => ({ ...c, clausulaInicial: v }) },
-      { label: 'Mínima', unidad: '', valor: (c) => c.clausulaMin, cambia: (c, v) => ({ ...c, clausulaMin: v }) },
-      { label: 'Máxima', unidad: '', valor: (c) => c.clausulaMax, cambia: (c, v) => ({ ...c, clausulaMax: v }) },
+      { label: 'Inicial', unidad: '', valor: (c) => c.clausulaInicial, cambia: (c, v) => ({ ...c, clausulaInicial: v }), rango: (c) => [c.clausulaMin, c.clausulaMax] },
+      { label: 'Mínima', unidad: '', valor: (c) => c.clausulaMin, cambia: (c, v) => ({ ...c, clausulaMin: v }), rango: (c) => [1, c.clausulaMax] },
+      { label: 'Máxima', unidad: '', valor: (c) => c.clausulaMax, cambia: (c, v) => ({ ...c, clausulaMax: v }), rango: (c) => [c.clausulaMin, null] },
     ]),
     this.g('MERCADO', [
       { label: 'Protección tras fichar', unidad: 'min', valor: (c) => c.proteccionMin, cambia: (c, v) => ({ ...c, proteccionMin: v }) },
@@ -233,8 +238,8 @@ export class JuegosConfigPage {
   ];
   protected readonly clausulaCols: Grupo[][] = [[this.clausulaGrupos[0]], [this.clausulaGrupos[1]], [this.clausulaGrupos[2]]];
   protected readonly limiteCampos: Campo[] = [
-    { label: 'Apuesta mínima', unidad: '', valor: (c) => c.porraMin, cambia: (c, v) => ({ ...c, porraMin: v }) },
-    { label: 'Apuesta máxima', unidad: '', valor: (c) => c.porraMax, cambia: (c, v) => ({ ...c, porraMax: v }) },
+    { label: 'Apuesta mínima', unidad: '', valor: (c) => c.porraMin, cambia: (c, v) => ({ ...c, porraMin: v }), rango: (c) => [1, c.porraMax] },
+    { label: 'Apuesta máxima', unidad: '', valor: (c) => c.porraMax, cambia: (c, v) => ({ ...c, porraMax: v }), rango: (c) => [c.porraMin, null] },
   ];
 
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
@@ -243,7 +248,10 @@ export class JuegosConfigPage {
     const l = this.jornadas();
     const hoy = new Date().toISOString().slice(0, 10);
     const j = l.find((x) => x.estado === 'en_juego') ?? l.find((x) => x.estado === 'abierta') ?? l.find((x) => x.dia === hoy);
-    return j ? `Jornada activa · ${j.nombre}` : 'Sin jornada activa';
+    if (!j) return 'Sin jornada activa';
+    // the badge shares the row with the title and both buttons (Figma): a long jornada name is shortened
+    const nombre = j.nombre.length > 16 ? j.nombre.slice(0, 15).trimEnd() + '…' : j.nombre;
+    return `Jornada activa · ${nombre}`;
   });
   protected readonly sucio = computed(() => JSON.stringify(this.form()) !== JSON.stringify(this.original()));
   private readonly todosCampos = computed(() => [...this.puntosGrupos, ...this.clausulaGrupos].flatMap((g) => g.campos).concat(this.limiteCampos));
@@ -253,6 +261,21 @@ export class JuegosConfigPage {
     const o = this.original();
     const rec = (['hito5Porra', 'hito10Porra', 'hito5Fantasy', 'hito10Fantasy', 'fantasyPorEuro'] as const).filter((k) => f[k] !== o[k]).length;
     return rec + this.todosCampos().filter((c) => c.valor(f) !== c.valor(o)).length || (this.sucio() ? 1 : 0);
+  });
+
+  protected readonly web = webPublica();
+  protected lim(c: Campo): [number | null, number | null] {
+    return c.rango?.(this.form()) ?? [null, null];
+  }
+  /** Primer valor fuera de rango («Cláusula · Mínima: Máximo 5.000.000»): bloquea el guardado. */
+  protected readonly invalido = computed(() => {
+    const f = this.form();
+    for (const c of this.todosCampos()) {
+      const [mn, mx] = c.rango?.(f) ?? [null, null];
+      const e = rangoError(c.valor(f), mn, mx);
+      if (e) return `Revisa «${c.label}»: ${e.toLowerCase()}`;
+    }
+    return '';
   });
 
   protected cambiado(c: Campo): boolean {

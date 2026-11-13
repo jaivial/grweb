@@ -33,7 +33,7 @@ func (s *Svc) persistir(ctx context.Context) {
 	goteo := time.NewTicker(persistirCada)
 	defer goteo.Stop()
 	for ctx.Err() == nil {
-		nombres := s.hub.nombresStreams()
+		nombres := s.streamsActivos(ctx)
 		if len(nombres) > 0 {
 			// XREADGROUP wants one id per stream: «STREAMS k1 k2 > >». With a single ">" and two streams Redis
 			// answers «Unbalanced XREAD list of streams» and nothing is persisted.
@@ -127,7 +127,7 @@ func (s *Svc) descargar(ctx context.Context, lote *[]persistRow) {
 
 // reclamarPendientes takes over entries left pending by a crashed pod (idle > 60 s), like events.Consumer.
 func (s *Svc) reclamarPendientes(ctx context.Context) {
-	for _, nombre := range s.hub.nombresStreams() {
+	for _, nombre := range s.streamsActivos(ctx) {
 		pend, err := s.a.Redis.XPendingExt(ctx, &redis.XPendingExtArgs{Stream: nombre, Group: persistirGrupo, Start: "-", End: "+", Count: 100, Idle: persistirIdleClaim}).Result()
 		if err != nil || len(pend) == 0 {
 			continue

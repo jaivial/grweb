@@ -247,7 +247,7 @@ func altaMiembroTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, s *
 		return err
 	}
 	// The wallet of the day exists from the moment the fan plays in a room (the ranking reads its balance).
-	if _, err := abrirCarteraTx(ctx, tx, j, fanID, Fantasy); err != nil {
+	if _, err := abrirCarteraTx(ctx, tx, j, fanID, Fantasy, ""); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE saldos SET alias = $3 WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy' AND $3 <> ''`, j.ID, fanID, alias); err != nil {

@@ -6,7 +6,7 @@ import { problemOf } from '../../../core/api';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, BoToggle, errText } from '../../../shared/ui';
-import { SoAjuste, SoCard, SoGrupo, SoNumber, SoSkelFilas, SoTier, TIERS, TIER_LIST, diaCorto, num, pct, type Tier } from '../ui';
+import { SoAjuste, SoCard, SoGrupo, SoNumber, SoSkelFilas, SoTier, TIERS, TIER_LIST, diaCorto, num, pct, rangoError, type Tier } from '../ui';
 import { PatrocinioApi, type ConfigPatrocinio, type Informe, type InformeFila } from './api';
 
 interface FormConfig {
@@ -40,12 +40,14 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
         [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Patrocinio', 'Informe']">
         <ng-container actions>
           <a grButton icon="layout" [routerLink]="['/', comps.current()?.slug, 'patrocinio']">Banners</a>
-          <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !!errorIntervalo() || !puede()" (click)="guardar()">Guardar configuración</button>
+          <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !!errorIntervalo() || pesoFuera() || !puede()" (click)="guardar()">Guardar configuración</button>
         </ng-container>
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar el patrocinio">Hace falta el permiso «web.editar».</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede gestionar el patrocinio">Hace falta el permiso «web.editar». Puedes ver el informe, pero no guardar la configuración.
+          <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
+        </gr-alert>
       }
 
       @if (cargando()) {
@@ -79,7 +81,7 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
                 <bo-toggle [value]="form().soloEnDirecto" label="Solo durante el directo" [disabled]="!puede()" (changed)="set({ soloEnDirecto: $event })" />
               </so-ajuste>
               <hr class="border-line-subtle" />
-              <so-ajuste label="Intervalo entre banners" [ayuda]="errorIntervalo() || 'Mínimo 15 s · cuanto menor, más apariciones'">
+              <so-ajuste label="Intervalo entre banners" ayuda="Mínimo 15 s · cuanto menor, más apariciones">
                 <so-number ancho="xs" unidad="s" label="Intervalo entre banners en segundos" [disabled]="!puede()" [valor]="form().intervaloSeg" [cambiado]="form().intervaloSeg !== config()?.intervaloSeg" (changed)="set({ intervaloSeg: $event })" />
               </so-ajuste>
               @if (errorIntervalo()) { <p class="-mt-2 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="14" />{{ errorIntervalo() }}</p> }
@@ -90,7 +92,7 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
                   <span class="size-2.5 shrink-0 rounded-pill" [style.background]="TIERS[t].color" aria-hidden="true"></span>
                   <span class="flex-1 text-label-s">{{ TIERS[t].l }}</span>
                   <span class="font-mono text-mono-s text-text-tertiary">{{ reparto()[t] }} %</span>
-                  <so-number ancho="xs" unidad="× peso" [label]="'Peso ' + TIERS[t].l" [disabled]="!puede()" [valor]="peso(t)" [cambiado]="peso(t) !== pesoGuardado(t)" (changed)="setPeso(t, $event)" />
+                  <so-number ancho="xs" unidad="× peso" [label]="'Peso ' + TIERS[t].l" [min]="0" [max]="10" [disabled]="!puede()" [valor]="peso(t)" [cambiado]="peso(t) !== pesoGuardado(t)" (changed)="setPeso(t, $event)" />
                 </div>
               }
               <div class="flex h-2 gap-0.5 overflow-hidden rounded-2xs" aria-hidden="true">
@@ -205,6 +207,7 @@ export class PatrocinioInformePage {
     if (!inf) return [];
     return inf.pendientes.map((id) => inf.banners.find((b) => b.id === id)).filter((b): b is InformeFila => !!b);
   });
+  protected readonly pesoFuera = computed(() => this.tiers.some((t) => !!rangoError(this.peso(t), 0, 10)));
   protected readonly errorIntervalo = computed(() => (this.form().intervaloSeg < 15 ? 'El intervalo mínimo es de 15 segundos.' : ''));
   protected readonly sucio = computed(() => {
     const c = this.config();

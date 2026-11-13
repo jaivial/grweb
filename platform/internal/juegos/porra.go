@@ -203,6 +203,9 @@ func (s *Svc) generarMercados(ctx context.Context, cid uuid.UUID, j jornada) (in
 }
 
 func insertarMercadoTx(ctx context.Context, tx pgx.Tx, cid, jid uuid.UUID, tipo, sexo, categoria, movimiento, titulo string, opciones []uuid.UUID) bool {
+	if len(opciones) < 2 {
+		return false // a market of one athlete is a sure bet: it is not created
+	}
 	_, err := tx.Exec(ctx, `INSERT INTO mercados (id, competition_id, jornada_id, tipo, sexo, categoria, movimiento, titulo, opciones)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (jornada_id, tipo, sexo, categoria, movimiento) DO NOTHING`,
 		newID(), cid, jid, tipo, sexo, categoria, movimiento, titulo, opciones)

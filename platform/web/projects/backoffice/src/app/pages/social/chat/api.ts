@@ -29,6 +29,13 @@ export interface ChatConfig {
   version: number;
 }
 
+/** Fan callado ahora mismo: silencio del backoffice o baneo del servicio de fans. */
+export interface SilenciadoChat {
+  fanId: string;
+  tipo: 'silenciado' | 'baneado';
+  hasta: string;
+}
+
 /** Vista pública de la sala (conectados, sala activa y modo lento). */
 export interface ChatEstado {
   conectados: number;
@@ -77,6 +84,10 @@ export class ChatApi {
 
   desSilenciar(cid: string, fanId: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/fans/${fanId}/silenciar`));
+  }
+
+  silenciados(cid: string): Promise<{ fans: SilenciadoChat[] }> {
+    return firstValueFrom(this.http.get<{ fans: SilenciadoChat[] }>(`${this.b(cid)}/silenciados`));
   }
 
   /** Baneo desde la moderación: reutiliza el endpoint del servicio de fans (§3). */

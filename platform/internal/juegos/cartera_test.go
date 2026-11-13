@@ -21,7 +21,7 @@ func TestGastoConcurrente(t *testing.T) {
 	_, j := nuevaJornada(t, pdb, "en_juego")
 	fan := uuid.Must(uuid.NewV7())
 
-	if _, err := abrirCarteraTx(ctx, pdb, j, fan, Porra); err != nil {
+	if _, err := abrirCarteraTx(ctx, pdb, j, fan, Porra, ""); err != nil {
 		t.Fatalf("abrir cartera: %v", err)
 	}
 	const n, importe = 200, 500 // 200 × 500 = the whole 100.000 welcome balance
@@ -74,14 +74,14 @@ func TestAltaPerezosaIdempotente(t *testing.T) {
 	var primera, segunda int64
 	var err error
 	err = db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-		primera, err = abrirCarteraTx(ctx, tx, j, fan, Fantasy)
+		primera, err = abrirCarteraTx(ctx, tx, j, fan, Fantasy, "")
 		return err
 	})
 	if err != nil || primera != 1_000_000 {
 		t.Fatalf("primera alta = %d, err %v; quería 1.000.000", primera, err)
 	}
 	err = db.Tx(ctx, pdb, func(tx pgx.Tx) error {
-		segunda, err = abrirCarteraTx(ctx, tx, j, fan, Fantasy)
+		segunda, err = abrirCarteraTx(ctx, tx, j, fan, Fantasy, "")
 		return err
 	})
 	if err != nil || segunda != 1_000_000 {
