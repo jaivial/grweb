@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,9 @@ import (
 )
 
 var tagChatAdmin = []string{"Chat · administración"}
+
+// reDominio accepts a bare host name («grcup.es», «www.youtube.com»): no scheme, path, port or spaces.
+var reDominio = regexp.MustCompile(`^(?i)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 
 // registrarAdmin registers the backoffice endpoints (C/chat/*, permiso «directo.operar»), like internal/live.
 func (s *Svc) registrarAdmin() {
@@ -35,6 +39,66 @@ func (s *Svc) registrarAdmin() {
 		Summary: "Mensajes recientes de una jornada (moderación)", Tags: tagChatAdmin, Security: bearer}, s.recientes)
 	huma.Register(s.a.API, huma.Operation{OperationID: "chat-reportados", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/chat/reportados",
 		Summary: "Mensajes reportados de una jornada", Tags: tagChatAdmin, Security: bearer}, s.reportados)
+	huma.Register(s.a.API, huma.Operation{OperationID: "chat-silenciados", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/chat/silenciados",
+		Summary: "Fans silenciados o baneados ahora mismo en la sala", Tags: tagChatAdmin, Security: bearer}, s.silenciados)
+}
+
+type silenciadoAdmin struct {
+	FanID string    `json:"fanId"`
+	Tipo  string    `json:"tipo" enum:"silenciado,baneado"`
+	Hasta time.Time `json:"hasta"`
+}
+
+type silenciadosOut struct {
+	Body struct {
+		Fans []silenciadoAdmin `json:"fans"`
+	}
+}
+
+// silenciados lists the fans muted right now: the Redis «mudo» keys are the source of truth of the hot path
+// (silences from the backoffice and bans from the fans service), the TTL says until when.
+func (s *Svc) silenciados(ctx context.Context, in *struct {
+	CID uuid.UUID `path:"cid"`
+}) (*silenciadosOut, error) {
+	if err := s.requireChatLectura(ctx, in.CID); err != nil {
+		return nil, err
+	}
+	prefijo := s.a.Keys.Of("chat", "mudo", in.CID.String(), "")
+	var o silenciadosOut
+	o.Body.Fans = []silenciadoAdmin{}
+	iter := s.a.Redis.Scan(ctx, 0, prefijo+"*", 200).Iterator()
+	for iter.Next(ctx) && len(o.Body.Fans) < 1000 {
+		k := iter.Val()
+		tipo, err := s.a.Redis.Get(ctx, k).Result()
+		if err != nil {
+			continue
+		}
+		ttl, err := s.a.Redis.PTTL(ctx, k).Result()
+		if err != nil || ttl <= 0 {
+			continue
+		}
+		if tipo != "baneado" {
+			tipo = "silenciado"
+		}
+		o.Body.Fans = append(o.Body.Fans, silenciadoAdmin{FanID: strings.TrimPrefix(k, prefijo), Tipo: tipo, Hasta: time.Now().Add(ttl)})
+	}
+	if err := iter.Err(); err != nil {
+		return nil, problem.Internal()
+	}
+	return &o, nil
+}
+
+// requireChatLectura lets any staff member of the competition read the room (Figma «sin permiso»: the screen is
+// visible, moderating and saving stay disabled).
+func (s *Svc) requireChatLectura(ctx context.Context, cid uuid.UUID) error {
+	p, err := auth.User(ctx)
+	if err != nil {
+		return err
+	}
+	if !p.Member(cid.String()) {
+		return problem.Forbidden("No tienes acceso a esta competición.")
+	}
+	return nil
 }
 
 func (s *Svc) requireChat(ctx context.Context, cid uuid.UUID) error {
@@ -74,7 +138,7 @@ type configOut struct {
 func (s *Svc) getConfig(ctx context.Context, in *struct {
 	CID uuid.UUID `path:"cid"`
 }) (*configOut, error) {
-	if err := s.requireChat(ctx, in.CID); err != nil {
+	if err := s.requireChatLectura(ctx, in.CID); err != nil {
 		return nil, err
 	}
 	cfg, version, err := s.configDB(ctx, in.CID)
@@ -109,6 +173,11 @@ func (s *Svc) putConfig(ctx context.Context, in *putConfigIn) (*configOut, error
 	b := in.Body
 	limpias := normalizaLista(b.PalabrasProhibidas)
 	dominios := normalizaLista(b.DominiosPermitidos)
+	for _, d := range dominios {
+		if !reDominio.MatchString(d) {
+			return nil, problem.Unprocessable("DOMINIO_NO_VALIDO", "«"+d+"» no es un dominio (ejemplo: grcup.es).")
+		}
+	}
 	if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		var version int
 		if err := tx.QueryRow(ctx, `SELECT version FROM config_chat WHERE competition_id = $1 FOR UPDATE`, in.CID).Scan(&version); err != nil {
@@ -338,7 +407,7 @@ type mensajesAdminOut struct {
 
 // recientes lists the persisted messages of a day (moderation view; includes the deleted ones flagged).
 func (s *Svc) recientes(ctx context.Context, in *mensajesAdminIn) (*mensajesAdminOut, error) {
-	if err := s.requireChat(ctx, in.CID); err != nil {
+	if err := s.requireChatLectura(ctx, in.CID); err != nil {
 		return nil, err
 	}
 	dia := hoy()
@@ -380,7 +449,7 @@ func (s *Svc) recientes(ctx context.Context, in *mensajesAdminIn) (*mensajesAdmi
 
 // reportados lists the reported messages first (most reports on top).
 func (s *Svc) reportados(ctx context.Context, in *mensajesAdminIn) (*mensajesAdminOut, error) {
-	if err := s.requireChat(ctx, in.CID); err != nil {
+	if err := s.requireChatLectura(ctx, in.CID); err != nil {
 		return nil, err
 	}
 	dia := hoy()
