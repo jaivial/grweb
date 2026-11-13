@@ -21,7 +21,8 @@ import (
 // the page, serves the athlete's photo same-origin (so the canvas is not tainted by the CDN) and counts the shares.
 func (s *Svc) registerAreaStory() {
 	base := "/api/area-atleta/story"
-	fotos := &fotoCache{m: map[string]*fotoEntry{}, cli: &http.Client{Timeout: 10 * time.Second}}
+	// no redirects: a 3xx could leave the allowed hosts (SSRF)
+	fotos := &fotoCache{m: map[string]*fotoEntry{}, cli: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 
 	// The page guard (Figma 83 «Notas · middleware»): always 200 so a visitor without session gets no console error.
 	type cfgIn struct {
