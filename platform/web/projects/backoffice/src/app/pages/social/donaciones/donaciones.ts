@@ -114,30 +114,32 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
             } @else {
               <!-- escritorio -->
               <div class="hidden overflow-x-auto md:block">
-                <table class="w-full min-w-[720px] text-left text-body-s">
+                <table class="w-full table-fixed text-left text-body-s">
+                  <!-- a 1440 la tabla vive en ~720 px: anchos fijos y textos truncados para que «Reembolsar» se vea sin scroll -->
+                  <colgroup><col class="w-[112px]" /><col /><col class="w-[88px]" /><col /><col class="w-[120px]" /><col class="w-[132px]" /></colgroup>
                   <thead class="border-b border-line-subtle bg-bg-surface font-mono text-mono-xs text-text-tertiary">
-                    <tr><th class="px-4 py-3 font-medium">Fecha</th><th class="px-3 py-3 font-medium">Donante</th><th class="px-3 py-3 text-right font-medium">Importe</th><th class="px-3 py-3 font-medium">Mensaje</th><th class="px-3 py-3 font-medium">Estado</th><th class="px-4 py-3"><span class="sr-only">Acciones</span></th></tr>
+                    <tr><th class="px-4 py-3 font-medium">Fecha</th><th class="px-2 py-3 font-medium">Donante</th><th class="px-2 py-3 text-right font-medium">Importe</th><th class="px-3 py-3 font-medium">Mensaje</th><th class="px-2 py-3 font-medium">Estado</th><th class="px-3 py-3"><span class="sr-only">Acciones</span></th></tr>
                   </thead>
                   <tbody>
                     @for (d of l.items; track d.id) {
                       @let apagada = d.estado === 'reembolsada' || d.estado === 'caducada';
                       <tr class="border-b border-line-subtle transition-colors last:border-0 hover:bg-bg-raised/40">
                         <td class="px-4 py-2.5 font-mono text-mono-s whitespace-nowrap text-text-tertiary">{{ fecha(d.createdAt) }}</td>
-                        <td class="px-3 py-2.5">
-                          <div class="flex items-center gap-2.5">
+                        <td class="px-2 py-2.5">
+                          <div class="flex min-w-0 items-center gap-2.5">
                             <span class="flex size-8 shrink-0 items-center justify-center rounded-pill border border-line-strong bg-bg-raised font-mono text-mono-xs text-text-secondary">
                               @if (d.anonimo) { <gr-icon name="user" [size]="14" /> } @else { {{ iniciales(d.alias || '·') }} }
                             </span>
                             <div class="min-w-0">
-                              <p class="truncate text-label-s" [class.text-text-tertiary]="apagada">{{ d.alias || 'Anónimo' }}</p>
+                              <p class="truncate text-label-s" [class.text-text-tertiary]="apagada" [title]="d.alias || 'Anónimo'">{{ d.alias || 'Anónimo' }}</p>
                               <p class="truncate text-body-xs text-text-tertiary">{{ d.proveedor }}{{ d.anonimo ? ' · anónimo en el chat' : '' }}</p>
                             </div>
                           </div>
                         </td>
-                        <td class="px-3 py-2.5 text-right font-mono text-mono-s whitespace-nowrap" [class]="apagada ? 'text-text-tertiary line-through' : 'text-text-primary'">{{ euros(d.importe) }}</td>
-                        <td class="max-w-[220px] truncate px-3 py-2.5 text-text-tertiary" [title]="d.mensaje || ''">{{ d.mensaje || '—' }}</td>
-                        <td class="px-3 py-2.5"><gr-badge [tone]="est(d.estado).tone">{{ est(d.estado).l }}</gr-badge></td>
-                        <td class="px-4 py-2.5 text-right">
+                        <td class="px-2 py-2.5 text-right font-mono text-mono-s whitespace-nowrap" [class]="apagada ? 'text-text-tertiary line-through' : 'text-text-primary'">{{ euros(d.importe) }}</td>
+                        <td class="truncate px-3 py-2.5 text-text-tertiary" [title]="d.mensaje || ''">{{ d.mensaje || '—' }}</td>
+                        <td class="px-2 py-2.5"><gr-badge [tone]="est(d.estado).tone">{{ est(d.estado).l }}</gr-badge></td>
+                        <td class="px-3 py-2.5 text-right">
                           @if (d.estado === 'pagada') {
                             <button grButton size="s" variant="ghost" icon="undo" [attr.aria-label]="'Reembolsar la donación de ' + (d.alias || 'Anónimo')" [disabled]="!puede()" (click)="abrirReembolso(d)">Reembolsar</button>
                           }
@@ -188,15 +190,17 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
             </so-ajuste>
             <hr class="border-line-subtle" />
             <div class="grid grid-cols-2 gap-3">
-              <gr-field label="Mínimo" hint="Cubre comisiones">
+              <gr-field label="Mínimo" hint="Cubre comisiones" [error]="errMinimo()">
                 <span class="relative block">
-                  <input grInput type="number" min="1" class="pr-8 text-right font-mono" [ngModel]="form().minimo / 100" (ngModelChange)="set({ minimo: Math.round(+$event * 100) })" [disabled]="!puede()" />
+                  <input grInput type="number" min="1" class="pr-8 text-right font-mono" aria-label="Mínimo por donativo en euros" [attr.aria-invalid]="errMinimo() ? true : null" [class.!border-error]="errMinimo()"
+                    [ngModel]="form().minimo / 100" (ngModelChange)="set({ minimo: Math.round(+$event * 100) })" [disabled]="!puede()" />
                   <span class="absolute top-1/2 right-3 -translate-y-1/2 text-body-xs text-text-tertiary">€</span>
                 </span>
               </gr-field>
-              <gr-field label="Máximo" hint="Por donativo">
+              <gr-field label="Máximo" hint="Por donativo" [error]="errMaximo()">
                 <span class="relative block">
-                  <input grInput type="number" min="1" class="pr-8 text-right font-mono" [ngModel]="form().maximo / 100" (ngModelChange)="set({ maximo: Math.round(+$event * 100) })" [disabled]="!puede()" />
+                  <input grInput type="number" min="1" class="pr-8 text-right font-mono" aria-label="Máximo por donativo en euros" [attr.aria-invalid]="errMaximo() ? true : null" [class.!border-error]="errMaximo()"
+                    [ngModel]="form().maximo / 100" (ngModelChange)="set({ maximo: Math.round(+$event * 100) })" [disabled]="!puede()" />
                   <span class="absolute top-1/2 right-3 -translate-y-1/2 text-body-xs text-text-tertiary">€</span>
                 </span>
               </gr-field>
@@ -219,11 +223,12 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
                   <label class="inline-flex h-9 cursor-text items-center gap-1.5 rounded-pill border border-dashed border-line-strong pr-2 pl-3 text-label-s text-text-tertiary focus-within:border-accent-text hover:border-text-muted">
                     <gr-icon name="plus" [size]="14" />
                     <input type="number" class="w-16 bg-transparent text-label-s text-text-primary outline-none placeholder:text-text-muted" min="1" placeholder="Añadir" [value]="nuevoSugerido() || ''"
-                      (input)="nuevoSugerido.set(+$any($event.target).value)" (keydown.enter)="$event.preventDefault(); anadirSugerido()" (change)="anadirSugerido()" aria-label="Nuevo importe sugerido en euros" [disabled]="!puede()" />€
+                      (input)="nuevoSugerido.set(+$any($event.target).value); errSugerido.set('')" (keydown.enter)="$event.preventDefault(); anadirSugerido()" (change)="anadirSugerido()" aria-label="Nuevo importe sugerido en euros" [disabled]="!puede()" />€
                   </label>
                 }
               </div>
-              <p class="text-body-xs text-text-tertiary">En euros · máximo 6 botones</p>
+              @if (errSugerido()) { <p class="text-body-xs text-error" role="alert">{{ errSugerido() }}</p> }
+              @else { <p class="text-body-xs text-text-tertiary">En euros · máximo 6 botones</p> }
             </div>
             <footer class="flex flex-col gap-3 border-t border-line-subtle pt-4">
               <p class="flex items-center gap-2 text-label-s">
@@ -234,7 +239,7 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
               @if (sucio()) {
                 <div class="flex gap-2">
                   <button grButton class="flex-1" (click)="descartar()">Descartar</button>
-                  <button grButton class="flex-1" variant="primary" [loading]="guardando()" [disabled]="!puede()" (click)="guardar()">Guardar</button>
+                  <button grButton class="flex-1" variant="primary" [loading]="guardando()" [disabled]="!puede() || !!errMinimo() || !!errMaximo()" (click)="guardar()">Guardar</button>
                 </div>
               } @else {
                 <p class="text-body-xs text-text-tertiary">Webhook verificado e idempotente</p>
@@ -464,9 +469,18 @@ export class DonacionesPage {
     this.form.update((f) => ({ ...f, importesSugeridos: f.importesSugeridos.filter((x) => x !== s) }));
   }
 
+  protected readonly errSugerido = signal('');
+  protected readonly errMinimo = computed(() => (this.form().minimo < 100 ? 'Mínimo 1 €' : ''));
+  protected readonly errMaximo = computed(() => (this.form().maximo < this.form().minimo ? 'No puede ser menor que el mínimo' : ''));
+
   protected anadirSugerido(): void {
     const v = Math.round(this.nuevoSugerido() * 100);
     if (!v) return;
+    const f = this.form();
+    if (v < f.minimo || v > f.maximo) {
+      this.errSugerido.set(`Cada importe tiene que estar entre ${euros(f.minimo)} y ${euros(f.maximo)}.`);
+      return;
+    }
     this.nuevoSugerido.set(0);
     this.form.update((f) => (f.importesSugeridos.includes(v) || f.importesSugeridos.length >= 6 ? f : { ...f, importesSugeridos: [...f.importesSugeridos, v] }));
   }

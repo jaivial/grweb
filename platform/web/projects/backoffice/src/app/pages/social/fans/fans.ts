@@ -63,7 +63,8 @@ type Tipo = 'atleta' | 'publico';
             }
           } @else {
             <div class="hidden overflow-x-auto md:block">
-              <table class="w-full min-w-[780px] text-left text-body-s">
+              <table class="w-full table-fixed text-left text-body-s">
+                <colgroup><col /><col class="w-[96px]" /><col /><col class="w-[200px]" /><col class="w-[160px]" /></colgroup>
                 <thead class="border-b border-line-subtle bg-bg-surface font-mono text-mono-xs text-text-tertiary">
                   <tr><th class="px-5 py-3 font-medium">Alias</th><th class="px-3 py-3 font-medium">Tipo</th><th class="px-3 py-3 font-medium">Email</th><th class="px-3 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acción</th></tr>
                 </thead>
@@ -72,17 +73,17 @@ type Tipo = 'atleta' | 'publico';
                     @let ban = baneado(f);
                     <tr class="border-b border-line-subtle transition-colors last:border-0" [class]="ban ? 'bg-accent-deep/15' : 'hover:bg-bg-raised/40'">
                       <td class="px-5 py-2.5">
-                        <div class="flex items-center gap-2.5">
+                        <div class="flex min-w-0 items-center gap-2.5">
                           <span class="flex size-8 shrink-0 items-center justify-center rounded-pill border bg-bg-raised font-mono text-mono-xs text-text-secondary" [class]="ban ? 'border-accent/60' : 'border-line-strong'">{{ iniciales(f.alias) }}</span>
-                          <span class="truncate text-label-s">{{ f.alias }}</span>
+                          <span class="truncate text-label-s" [title]="f.alias">{{ f.alias }}</span>
                         </div>
                       </td>
                       <td class="px-3 py-2.5"><gr-badge [tone]="f.tipo === 'atleta' ? 'info' : 'neutral'">{{ f.tipo === 'atleta' ? 'Atleta' : 'Público' }}</gr-badge></td>
-                      <td class="px-3 py-2.5 font-mono text-mono-s text-text-tertiary">{{ enmascarar(f.email) }}</td>
+                      <td class="truncate px-3 py-2.5 font-mono text-mono-s text-text-tertiary">{{ enmascarar(f.email) }}</td>
                       <td class="px-3 py-2.5">
                         @if (ban) {
                           <gr-badge tone="danger">Baneado hasta {{ diaCorto(f.baneadoHasta) }}</gr-badge>
-                          @if (f.baneadoMotivo) { <p class="mt-1 max-w-[260px] truncate text-body-xs text-text-tertiary">{{ f.baneadoMotivo }}</p> }
+                          @if (f.baneadoMotivo) { <p class="mt-1 truncate text-body-xs text-text-tertiary">{{ f.baneadoMotivo }}</p> }
                         } @else {
                           <gr-badge tone="success">Activo</gr-badge>
                         }
