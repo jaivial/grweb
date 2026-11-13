@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { cat, hora, kg } from '../core/atletas';
@@ -287,6 +287,7 @@ const api = '/api/area-atleta';
 })
 export class AreaAtletaPage {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly comp = inject(Competition);
   protected readonly hora = hora;
@@ -399,9 +400,12 @@ export class AreaAtletaPage {
     void (async () => {
       const token = route.snapshot.queryParamMap.get('acceso');
       if (token) {
+        const next = route.snapshot.queryParamMap.get('next');
         history.replaceState(null, '', '/area-atleta'); // the one-time token never stays in the address bar
         try {
           this.set(await firstValueFrom(this.http.post<Panel>(`${api}/sesion`, { acceso: token })));
+          // the link asked from «Comparte tu cuenta atrás» comes back there (Figma 83 · 01)
+          if (next === '/area-atleta/compartir') void this.router.navigateByUrl(next, { replaceUrl: true });
           return;
         } catch {
           this.errorEnlace.set('Ha caducado o ya se usó. Pide uno nuevo con tu email.');
