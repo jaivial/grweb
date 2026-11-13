@@ -205,6 +205,7 @@ func (c *fotoCache) get(raw string, permitido func(*url.URL) bool) *fotoEntry {
 		}
 	}
 	if len(c.m) >= fotoEntries {
+	evict:
 		for k, old := range c.m {
 			select {
 			case <-old.done:
@@ -212,7 +213,7 @@ func (c *fotoCache) get(raw string, permitido func(*url.URL) bool) *fotoEntry {
 			default:
 			}
 			if len(c.m) < fotoEntries {
-				break
+				break evict
 			}
 		}
 	}

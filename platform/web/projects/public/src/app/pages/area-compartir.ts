@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -284,7 +284,7 @@ export class AreaCompartirPage {
       };
       // debounce 600 ms: one render per burst of clicks (Figma 83 · notas)
       clearTimeout(this.temporizador);
-      this.temporizador = setTimeout(() => void this.render(d), this.url() ? 600 : 0);
+      this.temporizador = setTimeout(() => void this.render(d), untracked(this.url) ? 600 : 0);
     });
   }
 
