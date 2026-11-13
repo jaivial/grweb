@@ -332,6 +332,7 @@ func buildFlight(f flightRow, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir ma
 		out.Directo = d
 	}
 	var sexos, cats []string
+	pruebas := map[string]bool{}
 	for i, id := range ids {
 		a, ok := byID[id]
 		if !ok {
@@ -342,8 +343,11 @@ func buildFlight(f flightRow, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir ma
 		out.Atletas = append(out.Atletas, toFA(a, i+1))
 		sexos = append(sexos, a.Sexo)
 		cats = append(cats, a.Categoria)
-		if out.Prueba == "" {
-			out.Prueba = a.Prueba // flights before flights.prueba: the competition of their athletes
+		pruebas[a.Prueba] = true
+	}
+	if out.Prueba == "" && len(pruebas) == 1 {
+		for p := range pruebas {
+			out.Prueba = p // flights before flights.prueba: the competition of their athletes, only if all share it
 		}
 	}
 	out.Sexo, out.Titulo = titulo(sexos, cats)
