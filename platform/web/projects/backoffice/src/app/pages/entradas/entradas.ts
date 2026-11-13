@@ -242,7 +242,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
       </ng-container>
     </bo-drawer>
 
-    <bo-modal-form [(open)]="manualOpen" title="Nueva entrada manual" [busy]="guardando()" (submit)="guardarManual()">
+    <bo-modal-form [(open)]="manualOpen" title="Nueva entrada manual" [busy]="guardando()" (enviar)="guardarManual()">
       <gr-field label="Nombre y apellidos" for="m-n"><input grInput id="m-n" name="nombre" maxlength="120" [(ngModel)]="man.nombre" /></gr-field>
       <div class="grid grid-cols-2 gap-3">
         <gr-field label="Sesión" for="m-s"><gr-select id="m-s" name="sesion" [(ngModel)]="man.sesionId">@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</gr-select></gr-field>
@@ -260,7 +260,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
       <ng-container drawerActions><button grButton variant="ghost" (click)="moverOpen.set(false)">Cancelar</button><button grButton variant="primary" [disabled]="!mover.sesionId" (click)="bulk('mover')">Mover</button></ng-container>
     </bo-drawer>
 
-    <bo-modal-form [open]="anularOpen()" (openChange)="anularOpen.set($event)" [title]="'Anular ' + sel().size + (sel().size === 1 ? ' entrada' : ' entradas')" (submit)="anularOk() && bulk('anular')">
+    <bo-modal-form [open]="anularOpen()" (openChange)="anularOpen.set($event)" [title]="'Anular ' + sel().size + (sel().size === 1 ? ' entrada' : ' entradas')" (enviar)="anularOk() && bulk('anular')">
       <p class="text-body-s text-text-secondary">{{ sel().size === 1 ? 'La entrada pasará' : 'Las ' + sel().size + ' entradas pasarán' }} a Anulada, se liberarán {{ plazasSel() }} plazas{{ anular.avisar ? ' y se avisará a sus titulares' : '' }}. Los QR dejarán de ser válidos en la puerta.</p>
       <gr-field label="Motivo" for="an-m"><input grInput id="an-m" name="motivo" maxlength="200" [(ngModel)]="anular.motivo" /></gr-field>
       <label class="flex items-center gap-2 text-body-s"><bo-toggle [(value)]="anular.avisar" label="Avisar" />Avisar a los titulares por email</label>
