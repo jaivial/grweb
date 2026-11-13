@@ -212,6 +212,7 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
               <h2 class="text-ui-h4">Necesitamos la cámara</h2>
               <p class="text-body-m text-text-secondary">Ajustes › Safari › Cámara › Permitir. Mientras tanto puedes buscar por nombre, email o código.</p>
               <button grButton variant="primary" class="mt-1" (click)="vista.set('buscar')">Buscar por nombre</button>
+              <button type="button" class="text-body-s text-text-tertiary hover:text-text-secondary" (click)="arrancar()">Reintentar con la cámara</button>
             </section>
           } @else {
             @if (!online()) {
@@ -281,7 +282,7 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
               </li>
             } @empty { @if (q().length > 1) { <li class="rounded-lg border border-line-subtle bg-bg-card p-6 text-center text-body-s text-text-tertiary">Nadie con «{{ q() }}».</li> } }
           </ul>
-          <button grButton variant="ghost" icon="chevron-left" class="self-start" (click)="vista.set('escaner')">Volver al escáner</button>
+          <button grButton variant="ghost" icon="chevron-left" class="self-start" (click)="volver()">Volver al escáner</button>
         }
       }
     </div>
@@ -396,6 +397,11 @@ export class EscanerPage {
   }
   protected empezar(): void {
     localStorage.setItem(this.clave('puesto'), JSON.stringify({ puesto: this.puesto(), sesion: this.sesion() }));
+    this.volver();
+  }
+  /** Back to the scanner view: its <video> is re-created by the @switch, so the camera is restarted on it. */
+  protected volver(): void {
+    this.parar();
     this.vista.set('escaner');
     setTimeout(() => void this.arrancar(), 0);
   }
@@ -553,7 +559,7 @@ export class EscanerPage {
     }, 250);
   }
   protected porCodigo(e: Entrada): void {
-    this.vista.set('escaner');
+    this.volver();
     void this.comprobar({ codigo: e.codigo });
   }
   protected tarjeta(x: Resultado): string {
