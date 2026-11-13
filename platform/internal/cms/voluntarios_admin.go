@@ -220,6 +220,66 @@ func (s *Svc) registerVoluntariosAdmin() {
 			p, err := s.puestos(ctx, in.CID)
 			return &puestosOut{Body: p}, err
 		})
+
+	// «Enviar briefing» (whole team) and «Escribir al rol» (Figma 68): one email per confirmed volunteer, by messaging.
+	type escribirIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Rol     string `json:"rol,omitempty" enum:",jueces,cargadores,mesa,foto,acreditaciones" doc:"Vacío = todo el equipo"`
+			Asunto  string `json:"asunto" minLength:"3" maxLength:"120"`
+			Mensaje string `json:"mensaje" minLength:"3" maxLength:"4000"`
+		}
+	}
+	type escribirOut struct {
+		Body struct {
+			Enviados int `json:"enviados"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "voluntarios-escribir", Method: http.MethodPost, Path: base + "/escribir", Summary: "Escribir por email al equipo de voluntarios o a un rol", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *escribirIn) (*escribirOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			b := in.Body
+			trimAll(&b.Asunto, &b.Mensaje)
+			if len([]rune(b.Asunto)) < 3 || len([]rune(b.Mensaje)) < 3 {
+				return nil, problem.Unprocessable("MENSAJE_OBLIGATORIO", "Escribe el asunto y el mensaje.")
+			}
+			out := &escribirOut{}
+			err := s.change(ctx, in.CID, "cms.voluntario_briefing", map[string]any{"rol": rolesVoluntario[b.Rol], "asunto": b.Asunto}, func(tx pgx.Tx) error {
+				rows, err := tx.Query(ctx, `SELECT nombre, email::text, puesto, turno FROM voluntarios WHERE competition_id = $1 AND estado = 'confirmado' AND ($2 = '' OR puesto = $2) ORDER BY nombre`, in.CID, b.Rol)
+				if err != nil {
+					return err
+				}
+				type dest struct{ nombre, email, puesto, turno string }
+				var ds []dest
+				for rows.Next() {
+					var d dest
+					if err := rows.Scan(&d.nombre, &d.email, &d.puesto, &d.turno); err != nil {
+						rows.Close()
+						return err
+					}
+					ds = append(ds, d)
+				}
+				rows.Close()
+				if err := rows.Err(); err != nil {
+					return err
+				}
+				if len(ds) == 0 {
+					return problem.Unprocessable("SIN_DESTINATARIOS", "No hay nadie confirmado en ese puesto.")
+				}
+				for _, d := range ds {
+					if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.email_solicitado", map[string]any{"para": d.email, "plantilla": "voluntario-briefing",
+						"vars": map[string]string{"nombre": nombreCorto(d.nombre), "asunto": b.Asunto, "mensaje": b.Mensaje, "puesto": rolesVoluntario[d.puesto], "turno": d.turno}},
+						events.Competition(in.CID.String()), events.Audience(events.Internal))); err != nil {
+						return err
+					}
+				}
+				out.Body.Enviados = len(ds)
+				return nil
+			})
+			return out, err
+		})
 }
 
 // ---- guardian's authorisation (minors): private file, never in the public media library ----
