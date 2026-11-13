@@ -93,7 +93,7 @@ type putConfigIn struct {
 	IfMatch string    `header:"If-Match" required:"true"`
 	Body    struct {
 		Activo             bool     `json:"activo"`
-		ModoLentoSeg       int      `json:"modoLentoSeg" maximum:"3600" doc:"Segundos mínimos entre mensajes de un fan (0 = sin modo lento)"`
+		ModoLentoSeg       int      `json:"modoLentoSeg" minimum:"0" maximum:"3600" doc:"Segundos mínimos entre mensajes de un fan (0 = sin modo lento)"`
 		PalabrasProhibidas []string `json:"palabrasProhibidas" maxItems:"200"`
 		DominiosPermitidos []string `json:"dominiosPermitidos" maxItems:"50"`
 		MaxHitos           int      `json:"maxHitos" minimum:"1" maximum:"1000" doc:"Tope de hitos de recompensa por fan y jornada"`
