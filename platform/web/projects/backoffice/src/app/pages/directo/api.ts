@@ -6,7 +6,7 @@ export type Mov = 'sq' | 'bp' | 'dl';
 export type ResultadoIntento = 'pendiente' | 'valido' | 'nulo' | 'renuncia';
 export interface Pantalla { siguientes: boolean; carrusel: boolean; qr: boolean; ver?: number }
 export interface Estado {
-  version: number; fase: 'antes' | 'en_directo' | 'finalizado'; flightId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; streamVisible: boolean;
+  version: number; fase: 'antes' | 'en_directo' | 'finalizado'; flightId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; streamVisible: boolean; streamHome: boolean;
   pantalla: Pantalla; publicarAuto: boolean; turnoAt?: string; updatedAt: string;
 }
 export interface IntentoMesa { id: string; peso: number; votos: string; resultado: ResultadoIntento; corregido: boolean }
@@ -32,7 +32,7 @@ export interface Fila {
 }
 export interface Categoria { clave: string; sexo: 'F' | 'M'; categoria: string; titulo: string; corto: string; atletas: number; completos: number; filas: Fila[] }
 export interface CategoriaResumen { clave: string; titulo: string; corto: string; atletas: number; completos: number; publicado?: { version: number; at: string; por: string }; cambios: boolean }
-export interface ResultadosAdmin { categorias: CategoriaResumen[]; categoria?: Categoria; absoluta: Record<'F' | 'M', Fila[]>; publicarAuto: boolean; flights: number; cerrados: number; archivo?: boolean }
+export interface ResultadosAdmin { categorias: CategoriaResumen[]; categoria?: Categoria; absoluta: Record<'F' | 'M', Fila[]>; publicarAuto: boolean; programado?: string; flights: number; cerrados: number; archivo?: boolean }
 
 export const MOV: Record<Mov, string> = { sq: 'Sentadilla', bp: 'Press banca', dl: 'Peso muerto' };
 export const MOV_CORTO: Record<Mov, string> = { sq: 'SQ', bp: 'BP', dl: 'DL' };
@@ -74,7 +74,7 @@ export class DirectoApi {
     return firstValueFrom(this.http.post<Mesa>(`${this.b(cid)}/intentos/${id}/correccion`, b));
   }
   /** Retransmisión (Figma 57): only the broadcast, its replay and whether /en-directo shows it. */
-  retransmision(cid: string, version: number, b: { streamUrl: string; replayUrl: string; visible: boolean }): Promise<Mesa> {
+  retransmision(cid: string, version: number, b: { streamUrl: string; replayUrl: string; visible: boolean; home: boolean }): Promise<Mesa> {
     return firstValueFrom(this.http.put<Mesa>(`${this.b(cid)}/retransmision`, b, { headers: new HttpHeaders({ 'If-Match': `"${version}"` }) }));
   }
   pantalla(cid: string): Promise<{ url: string; ping?: string }> { return firstValueFrom(this.http.get<{ url: string; ping?: string }>(`${this.b(cid)}/pantalla`)); }
@@ -82,6 +82,9 @@ export class DirectoApi {
 
   resultados(cid: string, categoria?: string): Promise<ResultadosAdmin> {
     return firstValueFrom(this.http.get<ResultadosAdmin>(`/api/admin/competiciones/${cid}/resultados`, { params: categoria ? { categoria } : {} }));
+  }
+  programar(cid: string, at: string | null): Promise<ResultadosAdmin> {
+    return firstValueFrom(this.http.put<ResultadosAdmin>(`/api/admin/competiciones/${cid}/resultados/programar`, at ? { at } : {}));
   }
   publicar(cid: string, categorias: string[], avisar: boolean): Promise<{ publicadas: string[] }> {
     return firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${cid}/resultados/publicar`, { categorias, avisar }));

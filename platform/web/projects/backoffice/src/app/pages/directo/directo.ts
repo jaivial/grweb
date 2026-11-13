@@ -39,8 +39,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
             @if (puedeOperar() && m.estado.fase === 'en_directo') {
               <button grButton [icon]="m.estado.pausa ? 'play' : 'pause'" [loading]="guardando() === 'pausa'" (click)="cambiar({ pausa: !m.estado.pausa }, 'pausa')">{{ m.estado.pausa ? 'Reanudar' : 'Pausa técnica' }}</button>
             }
-            <a grButton icon="monitor" [routerLink]="['/', comps.current()?.slug, 'directo', 'pantalla']">Pantalla del pabellón</a>
-            <a grButton icon="play" [routerLink]="['/', comps.current()?.slug, 'directo', 'retransmision']">Retransmisión</a>
+            <a grButton icon="monitor" class="max-md:hidden" [routerLink]="['/', comps.current()?.slug, 'directo', 'pantalla']">Pantalla del pabellón</a>
             @if (puedeOperar()) { <button grButton variant="ghost" icon="settings" (click)="abrirAjustes()" aria-label="Ajustes del directo"></button> }
           </ng-container>
         }
@@ -96,6 +95,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
           @if (vista() === 'locutor') {
             <!-- Speaker view (mobile) -->
             <section class="flex flex-col gap-4 md:hidden">
+              @if (m.estado.fase === 'en_directo') { <span class="inline-flex h-7 w-fit items-center gap-1.5 rounded-pill border border-success/40 bg-success/12 px-2.5 text-label-s text-success"><gr-icon name="radio" [size]="14" />En directo · {{ m.espectadores }}</span> }
               @if (m.actual; as a) {
                 <div class="rounded-lg border border-accent/40 bg-[linear-gradient(140deg,#3a0f17,#1b1112_70%)] p-5">
                   <p class="text-mono-xs text-text-tertiary">En la plataforma · {{ MOVN[m.estado.movimiento] }} {{ ORD[a.numero] }}</p>
@@ -114,7 +114,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
               </div>
             </section>
           }
-          <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" [class.max-md:hidden]="vista() === 'locutor'">
+          <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" [class.max-md:hidden]="vista() === 'locutor'">
             <!-- Flight table -->
             <section class="min-w-0 overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
               <table class="w-full min-w-[560px] text-left text-body-s">
@@ -203,14 +203,18 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
     <!-- Correction -->
     @if (corr(); as c) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="corr.set(null)" (keydown.escape)="corr.set(null)">
-        <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Corregir intento · ' + c.fila.nombre" (click)="$event.stopPropagation()" (ngSubmit)="guardarCorreccion()">
+        <form class="w-full max-w-[520px] rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Corregir intento · ' + c.fila.nombre" (click)="$event.stopPropagation()" (ngSubmit)="guardarCorreccion()">
           <header class="flex items-start justify-between gap-3"><h2 class="text-ui-h5">Corregir intento · {{ c.fila.nombre }}</h2><button type="button" class="-mt-1 -mr-2 flex size-9 items-center justify-center rounded-sm hover:bg-bg-card" (click)="corr.set(null)" aria-label="Cerrar"><gr-icon name="x" [size]="18" /></button></header>
           <div class="mt-5 flex flex-col gap-4">
-            <gr-field label="Resultado" [hint]="'Antes: ' + ver(c.it.votos, c.it.resultado)">
+            <gr-field label="Resultado">
               <gr-select name="res" [(ngModel)]="c.res">@for (o of opciones; track o.v) { <option [value]="o.v">{{ ver(c.it.votos, c.it.resultado) }} → {{ o.l }}</option> }</gr-select>
             </gr-field>
             <div class="grid grid-cols-2 gap-3">
-              <gr-field label="Intento"><input grInput [value]="MOVN[c.mov] + ' ' + ORD[c.n]" disabled /></gr-field>
+              <gr-field label="Intento">
+                <gr-select name="intento" [ngModel]="c.mov + c.n" (ngModelChange)="cambiarIntento(c, $event)">
+                  @for (o of juzgados(c.fila); track o.k) { <option [value]="o.k">{{ MOVN[o.mov] }} {{ ORD[o.n] }}</option> }
+                </gr-select>
+              </gr-field>
               <gr-field label="Peso (kg)"><input grInput type="number" step="0.5" name="peso" class="font-mono" [(ngModel)]="c.peso" /></gr-field>
             </div>
             <gr-field label="Motivo (obligatorio)" [error]="corrErr()"><input grInput name="motivo" [(ngModel)]="c.motivo" placeholder="Lateral 2 marcó rojo por error" maxlength="200" /></gr-field>
@@ -280,7 +284,8 @@ export class DirectoPage {
   protected readonly votos = signal<string[]>(['', '', '']);
   protected readonly pesoActual = signal<number | null>(null);
   protected readonly pesoEditado = signal(false);
-  protected readonly vista = signal<'mesa' | 'locutor'>(typeof window !== 'undefined' && window.innerWidth < 768 ? 'locutor' : 'mesa');
+  protected readonly vista = signal<'mesa' | 'locutor'>(typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 'locutor' : 'mesa');
+  private rt?: Realtime;
   protected readonly corr = signal<Corr | null>(null);
   protected readonly corrErr = signal('');
   protected readonly decl = signal<Decl | null>(null);
@@ -342,13 +347,19 @@ export class DirectoPage {
         void this.cargar();
       });
     });
+    // phones open the speaker view (Figma 96:24297), also when the viewport shrinks after loading
+    const mq = window.matchMedia('(max-width: 767px)');
+    const alCambiar = (q: MediaQueryListEvent) => this.vista.set(q.matches ? 'locutor' : 'mesa');
+    mq.addEventListener('change', alCambiar);
     const tick = setInterval(() => {
       this.ahora.set(Date.now());
       if (this.cola().length && Date.now() % 5000 < 1000) void this.vaciarCola();
     }, 1000);
     const online = () => void this.vaciarCola();
     window.addEventListener('online', online);
-    const sub = inject(Realtime).events.subscribe((e) => {
+    const rt = inject(Realtime);
+    this.rt = rt;
+    const sub = rt.events.subscribe((e) => {
       if (e.tipo.startsWith('directo.') || e.tipo.startsWith('resultados.') || e.tipo === 'horarios.publicados') {
         clearTimeout(this.t);
         this.t = setTimeout(() => void this.cargar(), 400);
@@ -359,13 +370,20 @@ export class DirectoPage {
       clearTimeout(this.t);
       window.removeEventListener('online', online);
       sub.unsubscribe();
+      rt.espectadores.set(null);
+      mq.removeEventListener('change', alCambiar);
     });
   }
 
-  async cargar(): Promise<void> {
+  async cargar(intento = 0): Promise<void> {
     try {
       this.aplicar(await this.api.mesa(this.cid()));
-    } catch {
+    } catch (e) {
+      // first load right after the magic-link redirect can hit a transient network error (status 0): retry before failing
+      if (!this.mesa() && intento < 3 && (e as { status?: number }).status === 0) {
+        await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
+        return this.cargar(intento + 1);
+      }
       if (!this.mesa()) this.mesa.set(null);
     }
   }
@@ -374,6 +392,7 @@ export class DirectoPage {
     const prev = this.mesa();
     const cambia = !prev || prev.actual?.intentoId !== m.actual?.intentoId;
     this.mesa.set(m);
+    this.rt?.espectadores.set(m.estado.fase === 'en_directo' ? m.espectadores : null);
     if (cambia) {
       this.votos.set(['', '', '']);
       this.pesoEditado.set(false);
@@ -442,6 +461,18 @@ export class DirectoPage {
     this.corrErr.set('');
     const res = c.resultado === 'renuncia' ? 'renuncia' : c.votos;
     this.corr.set({ fila: f, mov, n, it: c, res, peso: c.peso, motivo: '' });
+  }
+
+  /** Judged attempts of an athlete (the «Intento» select of the correction modal, Figma 96:22873). */
+  protected juzgados(f: FilaMesa): { k: string; mov: Mov; n: number; it: IntentoMesa }[] {
+    return (['sq', 'bp', 'dl'] as Mov[]).flatMap((mov) =>
+      f.intentos[mov].flatMap((it, i) => (it && it.resultado !== 'pendiente' ? [{ k: mov + (i + 1), mov, n: i + 1, it }] : [])),
+    );
+  }
+
+  protected cambiarIntento(c: Corr, k: string): void {
+    const o = this.juzgados(c.fila).find((x) => x.k === k);
+    if (o) this.corr.set({ ...c, mov: o.mov, n: o.n, it: o.it, res: o.it.resultado === 'renuncia' ? 'renuncia' : o.it.votos, peso: o.it.peso });
   }
 
   protected abrirDecl(f: FilaMesa, n: number): void {

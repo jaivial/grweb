@@ -56,6 +56,7 @@ func (s *Svc) registerRetransmision() {
 			StreamURL string `json:"streamUrl" maxLength:"500" doc:"Emisión en directo (YouTube o Twitch)"`
 			ReplayURL string `json:"replayUrl" maxLength:"500" doc:"Repetición; vacío: la misma emisión"`
 			Visible   bool   `json:"visible" doc:"Mostrar el vídeo en /en-directo"`
+			Home      bool   `json:"home,omitempty" doc:"Mostrar el vídeo también en la home el día del evento (mientras hay directo)"`
 		}
 	}
 	huma.Register(s.a.API, huma.Operation{OperationID: "directo-retransmision", Method: http.MethodPut, Path: "/api/admin/competiciones/{cid}/directo/retransmision",
@@ -79,8 +80,8 @@ func (s *Svc) registerRetransmision() {
 				if strings.Trim(in.IfMatch, `"W/`) != itoa(e.Version) {
 					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha cambiado el directo. Recarga para ver la última versión.")
 				}
-				if _, err := tx.Exec(ctx, `UPDATE estado SET stream_url = $2, replay_url = $3, stream_visible = $4, version = version + 1, updated_at = now() WHERE competition_id = $1`,
-					in.CID, b.StreamURL, b.ReplayURL, b.Visible); err != nil {
+				if _, err := tx.Exec(ctx, `UPDATE estado SET stream_url = $2, replay_url = $3, stream_visible = $4, stream_home = $5, version = version + 1, updated_at = now() WHERE competition_id = $1`,
+					in.CID, b.StreamURL, b.ReplayURL, b.Visible, b.Home); err != nil {
 					return err
 				}
 				// /en-directo reloads on «directo.estado» (public SSE): the new video shows without a refresh
@@ -88,12 +89,12 @@ func (s *Svc) registerRetransmision() {
 					return err
 				}
 				// the activity log keeps who embedded (or hid) which video on the public page
-				if e.StreamURL == b.StreamURL && e.ReplayURL == b.ReplayURL && e.StreamVisible == b.Visible {
+				if e.StreamURL == b.StreamURL && e.ReplayURL == b.ReplayURL && e.StreamVisible == b.Visible && e.StreamHome == b.Home {
 					return nil
 				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "directo.retransmision", map[string]any{
-					"antes":   map[string]any{"streamUrl": e.StreamURL, "replayUrl": e.ReplayURL, "visible": e.StreamVisible},
-					"despues": map[string]any{"streamUrl": b.StreamURL, "replayUrl": b.ReplayURL, "visible": b.Visible},
+					"antes":   map[string]any{"streamUrl": e.StreamURL, "replayUrl": e.ReplayURL, "visible": e.StreamVisible, "home": e.StreamHome},
+					"despues": map[string]any{"streamUrl": b.StreamURL, "replayUrl": b.ReplayURL, "visible": b.Visible, "home": b.Home},
 					"por":     actor(ctx),
 				}, events.Competition(in.CID.String()), events.ForPermission("directo.operar"), events.Subject("retransmisión")))
 			})

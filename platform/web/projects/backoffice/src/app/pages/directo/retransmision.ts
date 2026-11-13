@@ -24,7 +24,7 @@ const FASE: Record<string, { l: string; d: string }> = {
   template: `
     @let m = mesa();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="Retransmisión" subtitle="El vídeo de /en-directo antes, durante y después de la competición" [crumbs]="[comps.current()?.nombreCorto || '', 'Hoy', 'Directo', 'Retransmisión']">
+      <bo-page-header title="Directo" subtitle="El vídeo de /en-directo antes, durante y después de la competición" [crumbs]="[comps.current()?.nombreCorto || '', 'Hoy', 'Directo']">
         <ng-container actions>
           <a grButton icon="external-link" [href]="web + '/en-directo'" target="_blank" rel="noopener">Ver /en-directo</a>
           @if (puede() && m) { <button grButton variant="primary" [loading]="guardando()" [disabled]="!valida()" (click)="guardar()">Guardar</button> }
@@ -61,6 +61,10 @@ const FASE: Record<string, { l: string; d: string }> = {
               <div class="flex-1"><p class="text-label-s">Mostrar la retransmisión en /en-directo</p><p class="text-body-xs text-text-tertiary">Antes del evento se ve la emisión programada («Recordarme»). Apagado: la foto del pabellón en las tres fases.</p></div>
               <bo-toggle [(value)]="f.visible" (changed)="tocar()" label="Mostrar la retransmisión en /en-directo" [disabled]="!puede()" />
             </div>
+            <div class="flex items-center gap-4">
+              <div class="flex-1"><p class="text-label-s">Mostrar el vídeo también en la home el día del evento</p><p class="text-body-xs text-text-tertiary">Mientras hay directo, la home enseña la emisión con un enlace a /en-directo.</p></div>
+              <bo-toggle [(value)]="f.home" (changed)="tocar()" label="Mostrar el vídeo también en la home el día del evento" [disabled]="!puede() || !f.visible" />
+            </div>
             <gr-alert tone="info" title="Privacidad">Se incrusta con youtube-nocookie.com y sin reproducción automática con sonido: en directo empieza en silencio.</gr-alert>
             @if (!puede()) { <p class="text-body-xs text-text-tertiary">Cambiar la retransmisión requiere el permiso «directo.operar».</p> }
           </section>
@@ -91,7 +95,7 @@ export class RetransmisionPage {
   protected readonly mesa = signal<Mesa | null | undefined>(undefined);
   protected readonly guardando = signal(false);
   private readonly cambios = signal(0);
-  protected f = { streamUrl: '', replayUrl: '', visible: true };
+  protected f = { streamUrl: '', replayUrl: '', visible: true, home: false };
   protected readonly tabs = [
     { l: 'Mesa', ruta: ['directo'], actual: false }, { l: 'Pantalla', ruta: ['directo', 'pantalla'], actual: false },
     { l: 'Retransmisión', ruta: ['directo', 'retransmision'], actual: true }, { l: 'Resultados', ruta: ['resultados'], actual: false },
@@ -124,7 +128,7 @@ export class RetransmisionPage {
   async cargar(): Promise<void> {
     try {
       const m = await this.api.mesa(this.cid());
-      this.f = { streamUrl: m.estado.streamUrl ?? '', replayUrl: m.estado.replayUrl ?? '', visible: m.estado.streamVisible ?? true };
+      this.f = { streamUrl: m.estado.streamUrl ?? '', replayUrl: m.estado.replayUrl ?? '', visible: m.estado.streamVisible ?? true, home: m.estado.streamHome ?? false };
       this.mesa.set(m);
       this.tocar();
     } catch {
@@ -137,7 +141,7 @@ export class RetransmisionPage {
     if (!m || !this.valida()) return;
     this.guardando.set(true);
     try {
-      const r = await this.api.retransmision(this.cid(), m.estado.version, { streamUrl: this.f.streamUrl.trim(), replayUrl: this.f.replayUrl.trim(), visible: this.f.visible });
+      const r = await this.api.retransmision(this.cid(), m.estado.version, { streamUrl: this.f.streamUrl.trim(), replayUrl: this.f.replayUrl.trim(), visible: this.f.visible, home: this.f.visible && this.f.home });
       this.mesa.set(r);
       this.toasts.success('Retransmisión guardada', this.f.visible && this.f.streamUrl ? '/en-directo ya muestra el vídeo.' : '/en-directo muestra la foto del pabellón.');
     } catch (e) {
