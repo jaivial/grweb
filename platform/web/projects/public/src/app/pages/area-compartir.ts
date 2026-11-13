@@ -124,7 +124,7 @@ const ZOOM = 'gr-story-zoom';
                   <h2><span>02</span>Qué quieres mostrar</h2>
                   <div class="seg mt-4" role="radiogroup" aria-label="Qué mostrar">@for (o of modos; track o.v) { <button type="button" role="radio" [attr.aria-checked]="modo() === o.v" [disabled]="o.v === 'cuenta_atras' && enDirecto()" (click)="modo.set(o.v)">{{ o.l }}</button> }</div>
                   @if (enDirecto()) { <span class="mt-3 inline-block rounded-full border border-accent/60 px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-accent-text">EN DIRECTO</span> }
-                  <p class="ayuda">{{ enDirecto() ? 'Hoy se compite: la cuenta atrás ya no está disponible. Comparte la fecha.' : 'La cuenta atrás es estática: muestra los días que faltan el día que generas la imagen (hora de Madrid).' }}</p>
+                  <p class="ayuda">{{ enDirecto() ? 'Hoy se compite: la cuenta atrás ya no está disponible. Comparte la fecha.' : modo() === 'fecha' ? 'Muestra el día de la competición, el día de la semana y la hora de apertura de puertas.' : 'La cuenta atrás es estática: muestra los días que faltan el día que generas la imagen (hora de Madrid).' }}</p>
                 </section>
                 <section class="card">
                   <h2><span>03</span>Formato</h2>
