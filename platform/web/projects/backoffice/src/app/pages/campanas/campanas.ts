@@ -39,7 +39,7 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
         <gr-empty icon="send" title="Aún no hay campañas">Crea una para anunciar entradas, horarios o resultados a quien aceptó recibir novedades.
           <button grButton variant="primary" class="mt-4" (click)="nueva.set(true)">Nueva campaña</button></gr-empty>
       } @else {
-        <ul class="divide-y divide-line-subtle overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
+        <ul class="divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card">
           @for (c of l.items; track c.id) {
             <li class="relative flex items-start md:items-center">
               <a [routerLink]="['/', comps.current()?.slug, 'campanas', c.id]" class="flex min-w-0 flex-1 flex-col gap-3 py-4 pl-4 pr-1 hover:bg-bg-raised/60 md:flex-row md:items-center md:gap-5">
