@@ -141,17 +141,17 @@ func snapshot(b Borrador, byID map[uuid.UUID]atleta, numero int) Snapshot {
 	return sn
 }
 
-// esDePrueba: a published flight belongs to competition p (versions before flights.prueba: by its athletes).
+// esDePrueba: a published flight belongs to competition p (versions before flights.prueba: all its athletes are of p).
 func esDePrueba(f SnapFlight, p string, byID map[uuid.UUID]atleta) bool {
 	if f.Prueba != "" {
 		return f.Prueba == p
 	}
 	for _, a := range f.Atletas {
-		if byID[a.ID].Prueba == p {
-			return true
+		if byID[a.ID].Prueba != p {
+			return false
 		}
 	}
-	return false
+	return len(f.Atletas) > 0
 }
 
 // partir splits a published snapshot into the flights of p and the rest (agenda and days stay in both).
@@ -470,6 +470,17 @@ func (s *Svc) preparar(ctx context.Context, cid uuid.UUID, prueba string) (Borra
 		// agenda compared against the whole published snapshot (diff above saw only this competition's part)
 		d.Cambios = slices.DeleteFunc(d.Cambios, func(c Cambio) bool { return c.Tipo == "agenda" })
 		d.Cambios = append(d.Cambios, Cambio{Tipo: "agenda", Titulo: "Agenda e info del día", Despues: "actualizada"})
+	}
+	// Only athletes of this competition are told (and counted): nobody of the other one or without one.
+	d.afectados = slices.DeleteFunc(d.afectados, func(id uuid.UUID) bool { a, ok := byID[id]; return ok && a.Prueba != prueba })
+	d.Afectados, d.ConEmail, d.Seguidores = len(d.afectados), 0, 0
+	for _, id := range d.afectados {
+		if a, ok := byID[id]; ok {
+			d.Seguidores += a.Seguidores
+			if a.Email {
+				d.ConEmail++
+			}
+		}
 	}
 	d.Prueba, d.Bloqueantes = prueba, bloqueantes(bp.Conflictos)
 	if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(max(numero_prueba), 0) FROM versiones WHERE competition_id = $1 AND prueba = $2`, cid, prueba).Scan(&d.Desde); err != nil {

@@ -9,7 +9,6 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -218,9 +217,9 @@ func (s *Svc) change(ctx context.Context, cid uuid.UUID, ifm, accion string, fn 
 	return rev, err
 }
 
-// recode letters the flights in chronological order (day, start, platform) inside each competition: a competition
-// reuses its own letters (A, B, C… follow its running order) and new flights take the first letter nobody uses —
-// in the draft or in the published version —, so changing AEP-3 never recodes the flights of AEP-2.
+// recode gives a letter to the flights that lack one (new ones, in chronological order), after the highest letter
+// used in the draft or in the published version; existing flights never change letter, so generating AEP-3
+// never recodes the flights of another competition (or of «Sin competición»).
 func recode(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
 	rows, err := tx.Query(ctx, `SELECT id, prueba, codigo FROM flights WHERE competition_id = $1 ORDER BY dia, inicio, plataforma, created_at`, cid)
 	if err != nil {
@@ -236,14 +235,8 @@ func recode(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
 	}
 	usado := map[string]bool{}
 	enBorrador := map[uuid.UUID]bool{}
-	grupos := map[string][]fr{}
-	var orden []string
 	for _, f := range fl {
 		enBorrador[f.ID] = true
-		if _, ok := grupos[f.Prueba]; !ok {
-			orden = append(orden, f.Prueba)
-		}
-		grupos[f.Prueba] = append(grupos[f.Prueba], f)
 	}
 	// Letters of published flights that are no longer in the draft stay reserved (no «Flight F» twice on the web).
 	var sn Snapshot
@@ -257,33 +250,38 @@ func recode(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
 			}
 		}
 	}
-	propias := map[string][]string{}
-	for _, p := range orden {
-		for _, f := range grupos[p] {
-			if f.Codigo != "?" && f.Codigo != "" && !usado[f.Codigo] {
-				usado[f.Codigo] = true
-				propias[p] = append(propias[p], f.Codigo)
-			}
+	// A flight keeps its letter; only new flights («?») or a repeated letter get one, after the highest letter in use.
+	var nuevos []uuid.UUID
+	for _, f := range fl {
+		if f.Codigo == "?" || f.Codigo == "" || usado[f.Codigo] {
+			nuevos = append(nuevos, f.ID)
+			continue
 		}
+		usado[f.Codigo] = true
 	}
 	libre := 0
-	for _, p := range orden {
-		cs := propias[p]
-		for len(cs) < len(grupos[p]) {
-			for usado[codigoFlight(libre)] {
-				libre++
-			}
-			usado[codigoFlight(libre)] = true
-			cs = append(cs, codigoFlight(libre))
+	for c := range usado {
+		libre = max(libre, indiceCodigo(c)+1)
+	}
+	for _, id := range nuevos {
+		if _, err := tx.Exec(ctx, `UPDATE flights SET codigo = $2 WHERE id = $1`, id, codigoFlight(libre)); err != nil {
+			return err
 		}
-		sort.Slice(cs, func(i, j int) bool { return len(cs[i]) < len(cs[j]) || len(cs[i]) == len(cs[j]) && cs[i] < cs[j] })
-		for i, f := range grupos[p] {
-			if _, err := tx.Exec(ctx, `UPDATE flights SET codigo = $2 WHERE id = $1 AND codigo <> $2`, f.ID, cs[i]); err != nil {
-				return err
-			}
-		}
+		libre++
 	}
 	return nil
+}
+
+// indiceCodigo is the inverse of codigoFlight (-1 if it is not a letter code).
+func indiceCodigo(c string) int {
+	i := 0
+	for _, r := range c {
+		if r < 'A' || r > 'Z' {
+			return -1
+		}
+		i = i*26 + int(r-'A') + 1
+	}
+	return i - 1
 }
 
 // codigoFlight: 0 → A … 25 → Z, 26 → AA…
