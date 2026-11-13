@@ -308,7 +308,7 @@ func (s *Svc) estadoAdmin(ctx context.Context, cid uuid.UUID) WAEstadoAdmin {
 	if cfg["proveedor"] != "evo-weai" || cfg["url"] == "" || clave == "" {
 		out.Servicio = "sin_configurar"
 		if config.Bool("WHATSAPP_SIMULADO", false) {
-			out.Modo = "simulado"
+			s.simEstado(ctx, cid, &out)
 		}
 		return out
 	}
@@ -425,6 +425,12 @@ func (s *Svc) registerWhatsApp() {
 			if _, err := requireIntegraciones(ctx, in.CID); err != nil {
 				return nil, err
 			}
+			if s.waSimulado(ctx, in.CID) {
+				o := &instOut{}
+				id := s.simConectando(ctx, in.CID, "")
+				o.Body.Instancia, o.Body.InstanciaID, o.Body.QR, o.Body.Estado = s.nombreLegible(ctx, in.CID), id, simQR(id+time.Now().String()), "conectando"
+				return o, nil
+			}
 			cfg, clave := s.waIntegracion(ctx, in.CID)
 			if cfg["proveedor"] != "evo-weai" || cfg["url"] == "" || clave == "" {
 				return nil, problem.Unprocessable("WHATSAPP_SIN_CONFIGURAR", "Configura antes la integración de WhatsApp (evo-weai: URL y clave) en «Sistema e integraciones».")
@@ -480,6 +486,20 @@ func (s *Svc) registerWhatsApp() {
 			if _, err := requireIntegraciones(ctx, in.CID); err != nil {
 				return nil, err
 			}
+			if s.waSimulado(ctx, in.CID) {
+				num := strings.ReplaceAll(strings.TrimSpace(in.Body.Numero), " ", "")
+				if num != "" && !strings.HasPrefix(num, "+") {
+					num = "+" + num
+				}
+				id := s.simConectando(ctx, in.CID, num)
+				o := &conOut{}
+				if num != "" {
+					o.Body.Codigo = simCodigo(id + num + time.Now().String())
+				} else {
+					o.Body.QR = simQR(id + time.Now().String())
+				}
+				return o, nil
+			}
 			c := s.waDe(ctx, in.CID)
 			if c.Modo != "evo-weai" {
 				return nil, problem.Conflict("WHATSAPP_SIN_CONFIGURAR", "Crea antes la instancia de WhatsApp (o configura la integración de evo-weai) en «Sistema e integraciones».")
@@ -522,8 +542,15 @@ func (s *Svc) registerWhatsApp() {
 			if _, err := requireIntegraciones(ctx, in.CID); err != nil {
 				return nil, err
 			}
-			c := s.waDe(ctx, in.CID)
 			o := &qrOut{}
+			if s.waSimulado(ctx, in.CID) {
+				var inst, estado string
+				if s.a.DB.QueryRow(ctx, `SELECT instancia, estado FROM whatsapp_instancia WHERE competition_id = $1`, in.CID).Scan(&inst, &estado) == nil && estado == "conectando" {
+					o.Body.QR = simQR(inst + time.Now().String())
+				}
+				return o, nil
+			}
+			c := s.waDe(ctx, in.CID)
 			if c.Modo != "evo-weai" {
 				return o, nil
 			}
@@ -553,14 +580,17 @@ func (s *Svc) registerWhatsApp() {
 				return nil, err
 			}
 			c := s.waDe(ctx, in.CID)
-			if c.Modo != "evo-weai" {
+			if s.waSimulado(ctx, in.CID) {
+				c.Instancia = s.simConectando(ctx, in.CID, "")
+			} else if c.Modo != "evo-weai" {
 				return nil, problem.Conflict("WHATSAPP_SIN_CONFIGURAR", "No hay ninguna instancia de WhatsApp que reiniciar.")
+			} else {
+				if err := s.evo(ctx, c, http.MethodPost, "/instance/restart/"+c.Instancia, nil, nil); err != nil {
+					s.waLog(ctx, in.CID, "reiniciar la sesión", err)
+					return nil, s.waProblema(ctx, in.CID, err)
+				}
+				s.guardarEstadoInstancia(ctx, in.CID, c.Instancia, "conectando", "")
 			}
-			if err := s.evo(ctx, c, http.MethodPost, "/instance/restart/"+c.Instancia, nil, nil); err != nil {
-				s.waLog(ctx, in.CID, "reiniciar la sesión", err)
-				return nil, s.waProblema(ctx, in.CID, err)
-			}
-			s.guardarEstadoInstancia(ctx, in.CID, c.Instancia, "conectando", "")
 			if err := s.tx(ctx, func(tx pgx.Tx) error {
 				return events.Enqueue(ctx, tx, events.New(ctx, "whatsapp.conexion", map[string]any{"estado": "conectando"},
 					events.Competition(in.CID.String()), events.ForPermission("integraciones.config")))
@@ -578,6 +608,14 @@ func (s *Svc) registerWhatsApp() {
 				return nil, err
 			}
 			c := s.waDe(ctx, in.CID)
+			if s.waSimulado(ctx, in.CID) {
+				c.Instancia = s.instanciaNombre(ctx, in.CID)
+				_, _ = s.a.DB.Exec(ctx, `DELETE FROM whatsapp_instancia WHERE competition_id = $1`, in.CID)
+				return nil, s.tx(ctx, func(tx pgx.Tx) error {
+					return events.Enqueue(ctx, tx, events.New(ctx, "whatsapp.desconectado", map[string]any{"instancia": c.Instancia},
+						events.Competition(in.CID.String()), events.ForPermission("integraciones.config")))
+				})
+			}
 			if c.Modo != "evo-weai" {
 				return nil, problem.Conflict("WHATSAPP_SIN_CONFIGURAR", "No hay ninguna instancia de WhatsApp que desconectar.")
 			}
