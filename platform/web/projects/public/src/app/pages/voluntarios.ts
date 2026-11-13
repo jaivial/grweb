@@ -69,7 +69,18 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 
           <section id="apuntate" class="scroll-mt-28 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6 lg:sticky lg:top-28" aria-labelledby="apuntate-t">
             <h2 id="apuntate-t" class="text-ui-h3">Apúntate</h2>
-            @if (enviado()) {
+            @if (mia(); as m) {
+              <div class="flex flex-col items-center gap-4 py-8 text-center" role="status">
+                <span class="flex size-14 items-center justify-center rounded-full" [class]="m.estado === 'descartado' ? 'bg-bg-raised text-text-secondary' : 'bg-success/12 text-success'"><gr-icon [name]="m.estado === 'descartado' ? 'info' : 'circle-check'" [size]="26" /></span>
+                @switch (m.estado) {
+                  @case ('confirmado') { <p class="text-display-xs">¡Ya estás en el equipo!</p><p class="max-w-sm text-body-s text-text-secondary">{{ m.puesto }} · turno {{ m.turno }}. Unos días antes te enviaremos el briefing con la hora de llegada.</p> }
+                  @case ('descartado') { <p class="text-display-xs">Esta vez no ha podido ser</p><p class="max-w-sm text-body-s text-text-secondary">Te hemos escrito con el motivo. Te tendremos en cuenta para la próxima edición.</p> }
+                  @default { <p class="text-display-xs">Tu solicitud está {{ m.estado === 'revision' ? 'en revisión' : 'recibida' }}</p><p class="max-w-sm text-body-s text-text-secondary">Te escribiremos con el puesto y el turno en cuanto la revisemos.</p> }
+                }
+                @if (m.estado === 'pendiente') { <button grButton variant="outline" type="button" (click)="mia.set(null)">Modificar mi solicitud</button> }
+                @else { <a grButton variant="outline" routerLink="/">Volver al inicio</a> }
+              </div>
+            } @else if (enviado()) {
               <div class="flex flex-col items-center gap-4 py-8 text-center" role="status">
                 <span class="flex size-14 items-center justify-center rounded-full bg-success/12 text-success"><gr-icon name="circle-check" [size]="26" /></span>
                 <p class="text-display-xs">¡Gracias por apuntarte!</p>
@@ -102,6 +113,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                 </fieldset>
                 <label class="flex flex-col gap-1.5" for="v-exp"><span class="text-label-s">Experiencia <span class="text-text-tertiary">(opcional)</span></span>
                   <textarea grInput id="v-exp" name="experiencia" rows="3" maxlength="1000" placeholder="Cuéntanos si has sido juez, cargador o voluntario antes…" class="min-h-24 py-2.5" [(ngModel)]="experiencia"></textarea></label>
+                <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="menor" [(ngModel)]="menor" class="mt-0.5 size-5 shrink-0 accent-[#C42B3E]" /><span>Soy menor de edad <span class="block text-body-xs text-text-tertiary">Necesitaremos la autorización firmada de tu madre, padre o tutor antes de confirmarte.</span></span></label>
                 <label class="flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" name="priv" [(ngModel)]="acepta" [attr.aria-invalid]="falta() && !acepta" class="mt-0.5 size-5 shrink-0 accent-[#C42B3E]" /><span>He leído y acepto la <a href="/privacidad" target="_blank" class="text-accent-text underline">política de tratamiento de mis datos</a></span></label>
                 @if (falta() && !acepta) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />Marca la casilla para enviar la solicitud.</span> }
                 @if (error()) { <gr-alert tone="danger" title="No se pudo enviar" role="alert">{{ error() }}</gr-alert> }
@@ -132,6 +144,9 @@ export class VoluntariosPage {
   protected telefono = '';
   protected experiencia = '';
   protected acepta = false;
+  protected menor = false;
+  /** The signed-in fan's request once sent: its status replaces the form. */
+  protected readonly mia = signal<{ estado: string; puesto: string; turno: string } | null>(null);
   protected readonly rolesElegidos = signal(new Set<string>());
   protected readonly disponible = signal(new Set<string>());
   protected readonly enviando = signal(false);
@@ -153,11 +168,12 @@ export class VoluntariosPage {
     const seo = inject(Seo);
     // back from the access email: restore what was typed (D-MIEMBROS). After render so hydration can't reset the checkboxes.
     afterNextRender(() => {
+      void this.cms.miVoluntario().then((m) => { if (m?.estado) { this.mia.set(m); this.cdr.markForCheck(); } });
       const b = sessionStorage.getItem(BORRADOR);
       if (!b) return;
       sessionStorage.removeItem(BORRADOR);
       const d = JSON.parse(b);
-      Object.assign(this, { nombre: d.nombre, email: d.email, telefono: d.telefono, experiencia: d.experiencia, acepta: !!d.acepta });
+      Object.assign(this, { nombre: d.nombre, email: d.email, telefono: d.telefono, experiencia: d.experiencia, acepta: !!d.acepta, menor: !!d.menor });
       this.rolesElegidos.set(new Set(d.roles));
       this.disponible.set(new Set(d.dias));
       this.cdr.markForCheck();
@@ -185,7 +201,7 @@ export class VoluntariosPage {
     }
     // D-MIEMBROS: the request needs a fan session; the access email brings the person back here.
     if (!(await this.fan.cargar())) {
-      sessionStorage.setItem(BORRADOR, JSON.stringify({ nombre: this.nombre, email: this.email, telefono: this.telefono, experiencia: this.experiencia, acepta: this.acepta,
+      sessionStorage.setItem(BORRADOR, JSON.stringify({ nombre: this.nombre, email: this.email, telefono: this.telefono, experiencia: this.experiencia, acepta: this.acepta, menor: this.menor,
         roles: [...this.rolesElegidos()], dias: [...this.disponible()] }));
       return this.fan.abrirAcceso('formulario', '/voluntarios', this.email.trim());
     }
@@ -196,7 +212,7 @@ export class VoluntariosPage {
         nombre: this.nombre.trim(), email: this.email.trim(), telefono: tel && !tel.startsWith('+') ? '+34 ' + tel : tel,
         disponibilidad: this.dias().filter((d) => this.disponible().has(d)).join(', '),
         roles: ROLES.map((r) => r.id).filter((id) => this.rolesElegidos().has(id)), experiencia: this.experiencia.trim(),
-        aceptaPrivacidad: this.acepta,
+        esMenor: this.menor, aceptaPrivacidad: this.acepta,
       });
       this.enviado.set(true);
       setTimeout(() => document.getElementById('apuntate')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));

@@ -393,6 +393,9 @@ func resumen(e events.Event) string {
 	case "cms.voluntario_rechazado":
 		return "rechazó una solicitud de voluntariado"
 	case "cms.voluntario_estado":
+		if d["quitado"] == true {
+			return "sacó a un voluntario del equipo (vuelve a «en revisión»)"
+		}
 		if str(d["estado"]) == "revision" {
 			return "marcó una solicitud de voluntariado como en revisión"
 		}

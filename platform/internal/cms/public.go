@@ -339,6 +339,43 @@ func (s *Svc) registerPublic() {
 			AceptaPrivacidad bool     `json:"aceptaPrivacidad,omitempty" doc:"Obligatorio: casilla sin premarcar (si falta o es false → 422 CONSENTIMIENTO_OBLIGATORIO)"`
 		}
 	}
+	// The signed-in fan's own request (Figma 33/68): /voluntarios shows its status instead of a blank form once reviewed.
+	type miIn struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+	}
+	type miOut struct {
+		Body struct {
+			Estado string `json:"estado" enum:",pendiente,revision,confirmado,descartado" doc:"Vacío = no ha enviado ninguna"`
+			Puesto string `json:"puesto"`
+			Turno  string `json:"turno"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "voluntarios-mi-solicitud", Method: http.MethodGet, Path: pub + "/voluntarios/mi-solicitud", Summary: "Estado de mi solicitud de voluntariado (sesión de fan)", Tags: tagPub},
+		func(ctx context.Context, in *miIn) (*miOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			email, err := s.fanEmail(ctx, in.Session, in.Header, cid)
+			if err != nil {
+				return nil, err
+			}
+			out := &miOut{}
+			var puesto string
+			err = s.a.DB.QueryRow(ctx, `SELECT estado, puesto, turno FROM voluntarios WHERE competition_id = $1 AND email = $2`, cid, email).Scan(&out.Body.Estado, &puesto, &out.Body.Turno)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return out, nil
+			}
+			if out.Body.Estado == "confirmado" {
+				out.Body.Puesto = rolesVoluntario[puesto]
+			} else {
+				out.Body.Turno = ""
+			}
+			return out, err
+		})
+
 	huma.Register(api, huma.Operation{OperationID: "voluntarios-public", Method: http.MethodPost, Path: pub + "/voluntarios", Summary: "Enviar una solicitud de voluntariado", Tags: tagPub, DefaultStatus: http.StatusAccepted},
 		func(ctx context.Context, in *volIn) (*struct{}, error) {
 			cid, err := s.cidFor(ctx, in.Slug)
@@ -667,7 +704,7 @@ func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([
 }
 
 // rolesVoluntario are the roles of /voluntarios (Figma 33) and their names (CRM activity, as in the backoffice list).
-var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Cargadores", "mesa": "Mesa técnica", "foto": "Foto y vídeo", "acreditaciones": "Acreditaciones"}
+var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Cargadores", "mesa": "Mesa técnica", "foto": "Foto y vídeo", "acreditaciones": "Acreditaciones y logística"}
 
 // minutosLectura is the reading time of a page in whole minutes (200 words a minute, at least 1).
 const minutosLectura = `COALESCE(minutos_lectura, GREATEST(1, ceil(cardinality(regexp_split_to_array(btrim(cuerpo), '\s+')) / 200.0))::int) AS minutos`

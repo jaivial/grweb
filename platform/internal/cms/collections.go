@@ -444,6 +444,9 @@ func (s *Svc) registerCollections() {
 			if err := tx.QueryRow(ctx, `SELECT es_menor FROM voluntarios WHERE competition_id=$1 AND id=$2`, cid, id).Scan(&menor); err != nil {
 				return problem.NotFound("No encontrado.")
 			}
+			if _, ok := rolesVoluntario[in.Puesto]; in.Estado == "confirmado" && !ok {
+				return problem.Unprocessable("PUESTO_OBLIGATORIO", "Para confirmar a un voluntario asígnale un puesto.")
+			}
 			if menor && in.Estado == "confirmado" && strings.TrimSpace(in.AutorizacionURL) == "" {
 				return problem.Unprocessable("AUTORIZACION_OBLIGATORIA", "Un voluntario menor de edad necesita la autorización firmada del tutor antes de confirmarlo.")
 			}
