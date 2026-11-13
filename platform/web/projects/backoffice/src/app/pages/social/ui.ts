@@ -267,8 +267,9 @@ export class SoGuardar {
         </span>
       }
       <input class="h-8 min-w-[7rem] flex-1 bg-transparent px-1 text-body-s outline-none placeholder:text-text-muted" [placeholder]="placeholder()" [attr.aria-label]="label() || placeholder()"
-        [disabled]="disabled()" [value]="nuevo()" (input)="nuevo.set($any($event.target).value)" (keydown)="tecla($event)" (blur)="anadir()" />
+        [disabled]="disabled()" [value]="nuevo()" [attr.aria-invalid]="error() ? true : null" (input)="escribir($any($event.target).value)" (keydown)="tecla($event)" (blur)="anadir()" />
     </div>
+    @if (error()) { <p class="mt-1.5 text-body-xs text-error" role="alert">{{ error() }}</p> }
   `,
 })
 export class SoTags {
@@ -276,14 +277,49 @@ export class SoTags {
   readonly placeholder = input('Añadir…');
   readonly label = input('');
   readonly disabled = input(false);
+  /** Returns the error of a candidate chip (Spanish, shown under the field) or null when it is valid. */
+  readonly validar = input<((v: string) => string | null) | null>(null);
   readonly changed = output<string[]>();
   protected readonly nuevo = signal('');
+  protected readonly error = signal('');
   protected quitar(t: string): void {
     this.changed.emit(this.items().filter((x) => x !== t));
   }
+  /**
+   * A comma typed or pasted adds the chip right away (some inputs never fire keydown for it): if the chip only
+   * appeared on blur, the layout would jump under the pointer and the first click on «Guardar» would be lost.
+   */
+  protected escribir(v: string): void {
+    this.error.set('');
+    if (!v.includes(',')) {
+      this.nuevo.set(v);
+      return;
+    }
+    const partes = v.split(',');
+    const resto = partes.pop() ?? '';
+    let items = this.items();
+    for (const p of partes) {
+      const t = p.trim();
+      if (!t || items.includes(t)) continue;
+      const err = this.validar()?.(t);
+      if (err) {
+        this.error.set(err);
+        this.nuevo.set(t + resto);
+        return;
+      }
+      items = [...items, t];
+    }
+    this.nuevo.set(resto);
+    if (items !== this.items()) this.changed.emit(items);
+  }
   protected anadir(): void {
-    const v = this.nuevo().trim().replace(/,$/, '');
+    const v = this.nuevo().trim().replace(/,$/, '').trim();
     if (!v) return;
+    const err = this.validar()?.(v);
+    if (err) {
+      this.error.set(err);
+      return;
+    }
     this.nuevo.set('');
     if (!this.items().includes(v)) this.changed.emit([...this.items(), v]);
   }
@@ -321,14 +357,18 @@ export const pct = (parte: number, total: number) => (total ? `${((parte / total
   selector: 'so-number',
   imports: [FormsModule, GrInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `.cambiado { border-color: var(--color-warning) !important; }`,
+  styles: `.cambiado { border-color: var(--color-warning) !important; } .invalido { border-color: var(--color-error) !important; }`,
   template: `
+    <span class="flex flex-col items-end gap-1">
     <span class="flex items-center justify-end gap-2">
       <span [class]="ancho() === 'xs' ? 'block w-[72px] shrink-0' : ancho() === 's' ? 'block w-[88px] shrink-0' : 'block w-[112px] shrink-0'">
         <input grInput class="text-right font-mono" type="text" inputmode="numeric" [class.cambiado]="cambiado()"
+          [class.invalido]="!!fuera()" [attr.aria-invalid]="fuera() ? true : null"
           [disabled]="disabled()" [attr.aria-label]="label()" [ngModel]="mostrar()" (ngModelChange)="cambia($event)" (focus)="enfocar()" (blur)="soltar()" />
       </span>
       @if (unidad()) { <span class="w-11 shrink-0 text-body-xs text-text-tertiary">{{ unidad() }}</span> }
+    </span>
+    @if (fuera()) { <span class="text-right text-body-xs text-error" role="alert">{{ fuera() }}</span> }
     </span>
   `,
 })
@@ -339,7 +379,11 @@ export class SoNumber {
   readonly ancho = input<'m' | 's' | 'xs'>('m');
   readonly disabled = input(false);
   readonly cambiado = input(false);
+  readonly min = input<number | null>(null);
+  readonly max = input<number | null>(null);
   readonly changed = output<number>();
+  /** Spanish range error next to the field (the page also blocks saving with rangoError). */
+  protected readonly fuera = computed(() => rangoError(this.valor(), this.min(), this.max()));
   protected readonly foco = signal(false);
   protected readonly crudo = signal('');
   /** «200.000» (separador de miles de es-ES) mientras no se está escribiendo. */
@@ -361,6 +405,56 @@ export class SoNumber {
     if (!Number.isNaN(n)) this.changed.emit(n);
   }
 }
+/** «Mínimo 0» / «Máximo 1.000» when v is out of [min, max]; '' when it fits. */
+export function rangoError(v: number, min: number | null = null, max: number | null = null): string {
+  if (min !== null && v < min) return `Mínimo ${num(min)}`;
+  if (max !== null && v > max) return `Máximo ${num(max)}`;
+  return '';
+}
+
+/** «grcup.es», «youtube.com»: a host name without scheme or path. */
+export const esDominio = (v: string) => /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(v.trim());
+
+/**
+ * Date field with the Spanish format (Figma «sáb 21 nov · AEP-2» / «01/11/2026»): the native picker still opens,
+ * but its US-locale text is hidden under our label.
+ */
+@Component({
+  selector: 'so-fecha',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': '"relative inline-flex h-11 items-center gap-2 rounded-sm border border-line-strong bg-bg-field px-3 text-label-s text-text-primary focus-within:border-accent-text focus-within:ring-2 focus-within:ring-accent/30 md:h-9 " + (bloque() ? "w-full" : "")' },
+  template: `
+    <gr-icon name="calendar" [size]="16" class="text-text-tertiary" />
+    <span class="truncate whitespace-nowrap" [class.text-text-muted]="!value()" aria-hidden="true">{{ texto() }}</span>
+    <input type="date" class="absolute inset-0 size-full cursor-pointer opacity-0 [color-scheme:dark]" [attr.aria-label]="label()" [value]="value()" [disabled]="disabled()"
+      (click)="abrir($event)" (change)="changed.emit($any($event.target).value)" />
+  `,
+})
+export class SoFecha {
+  readonly value = input('');
+  readonly label = input.required<string>();
+  /** «corto»: «sáb 21 nov»; «num»: «01/11/2026». */
+  readonly formato = input<'corto' | 'num'>('corto');
+  readonly sufijo = input('');
+  readonly disabled = input(false);
+  readonly bloque = input(false);
+  readonly changed = output<string>();
+  protected readonly texto = computed(() => {
+    const v = this.value();
+    if (!v) return this.formato() === 'num' ? 'dd/mm/aaaa' : 'Elegir día';
+    const t = this.formato() === 'num' ? v.split('-').reverse().join('/') : diaCorto(v);
+    return this.sufijo() ? `${t} · ${this.sufijo()}` : t;
+  });
+  protected abrir(e: Event): void {
+    try {
+      (e.target as HTMLInputElement).showPicker?.();
+    } catch {
+      /* not allowed (no user gesture): the native input still opens */
+    }
+  }
+}
+
 export const fecha = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace(',', '') : '—');
 export const hora = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '—');
 export const fechaDia = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' }).format(new Date(iso.length === 10 ? iso + 'T12:00:00' : iso)) : '');
