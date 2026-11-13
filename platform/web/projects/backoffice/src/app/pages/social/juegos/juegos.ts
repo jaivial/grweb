@@ -6,7 +6,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrI
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, Confirm, errText } from '../../../shared/ui';
-import { SoCard, SoPuesto, SoSkelFilas, SoSkelKpis, compacto, diaCorto, num } from '../ui';
+import { SoCard, SoFecha, SoPuesto, SoSkelFilas, SoSkelKpis, compacto, diaCorto, num } from '../ui';
 import { JuegosApi, type Clasificaciones, type EstadoJornada, type Jornada, type Mercado } from './api';
 
 const ESTADOS: Record<EstadoJornada, { l: string; tone: GrTone }> = {
@@ -32,7 +32,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
  */
 @Component({
   selector: 'bo-juegos',
-  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, SoCard, SoPuesto, SoSkelFilas, SoSkelKpis],
+  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, SoCard, SoFecha, SoPuesto, SoSkelFilas, SoSkelKpis],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'nuevaJornada.set(false)' },
   template: `
@@ -46,7 +46,9 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar».</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver las jornadas y las clasificaciones, pero los botones de generar, cerrar y liquidar quedan desactivados.
+          <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
+        </gr-alert>
       }
 
       @if (cargando()) {
@@ -132,7 +134,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                           <div class="min-w-0 flex-1">
                             <p class="font-mono text-mono-xs" [class]="m.estado === 'abierto' ? 'text-success' : 'text-text-tertiary'">{{ tipo(m) }}</p>
                             <p class="truncate text-label-s" [class.text-text-secondary]="m.estado === 'liquidado'">{{ m.titulo }}</p>
-                            <p class="truncate text-body-xs text-text-tertiary">{{ m.apuestas }} {{ m.apuestas === 1 ? 'apuesta' : 'apuestas' }} · {{ m.opciones.length }} atletas{{ m.estado === 'abierto' ? ' · cierra con el 1.er intento juzgado' : '' }}</p>
+                            <p class="truncate text-body-xs text-text-tertiary">{{ m.apuestas }} {{ m.apuestas === 1 ? 'apuesta' : 'apuestas' }} · {{ m.opciones.length }} {{ m.opciones.length === 1 ? 'atleta' : 'atletas' }}{{ m.estado === 'abierto' ? ' · cierra con el 1.er intento juzgado' : '' }}</p>
                           </div>
                           <div class="flex items-center gap-4">
                             <div class="text-right">
@@ -143,7 +145,6 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                             <div class="ml-auto flex items-center gap-1 sm:ml-0 sm:w-[168px] sm:justify-end">
                               @if (m.estado === 'abierto') {
                                 <button grButton size="s" icon="lock" [disabled]="!puede()" (click)="cerrarMercado(m)">Cerrar</button>
-                                <button grIconButton icon="circle-check" [label]="'Liquidar ya ' + m.titulo" [disabled]="!puede()" (click)="liquidar(m)"></button>
                                 <button grIconButton icon="undo" [label]="'Anular y devolver ' + m.titulo" [disabled]="!puede()" (click)="devolver(m)"></button>
                               } @else if (m.estado === 'cerrado') {
                                 <button grButton size="s" variant="primary" icon="circle-check" [disabled]="!puede()" (click)="liquidar(m)">Liquidar</button>
@@ -209,7 +210,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
           </header>
           <div class="grid gap-4 px-5 py-5 sm:grid-cols-2">
             <gr-field label="Nombre"><input grInput name="nombre" [(ngModel)]="nombreJornada" maxlength="40" placeholder="AEP-3" required /></gr-field>
-            <gr-field label="Día"><input grInput type="date" class="[color-scheme:dark]" name="dia" [(ngModel)]="diaJornada" required /></gr-field>
+            <gr-field label="Día"><so-fecha label="Día de la jornada" formato="num" [bloque]="true" [value]="diaJornada" (changed)="diaJornada = $event" /></gr-field>
           </div>
           <footer class="flex justify-end gap-2 border-t border-line-subtle px-5 py-4">
             <button type="button" grButton variant="ghost" (click)="nuevaJornada.set(false)">Cancelar</button>
