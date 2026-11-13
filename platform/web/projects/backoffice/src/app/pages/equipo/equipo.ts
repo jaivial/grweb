@@ -461,7 +461,7 @@ const menuItem =
                             type="checkbox"
                             class="size-5 rounded-2xs accent-[#C42B3E]"
                             [checked]="r.exige2fa"
-                            (change)="exigir(r, $any($event.target).checked)"
+                            (change)="exigir(r, $any($event.target))"
                             [attr.aria-label]="'Exigir 2FA a ' + r.nombre"
                         /></label>
                       </td>
@@ -1002,7 +1002,8 @@ export class EquipoPage {
       this.guardando.set(false);
     }
   }
-  protected async exigir(r: Rol, on: boolean): Promise<void> {
+  protected async exigir(r: Rol, el: HTMLInputElement): Promise<void> {
+    const on = el.checked;
     if (
       on &&
       !(await this.confirm.ask({
@@ -1011,7 +1012,7 @@ export class EquipoPage {
         confirm: 'Exigir 2FA',
       }))
     ) {
-      this.roles.update((l) => [...l]);
+      el.checked = r.exige2fa;
       return;
     }
     try {
@@ -1023,6 +1024,7 @@ export class EquipoPage {
       );
       this.toasts.success(on ? `2FA obligatorio para ${r.nombre}` : `${r.nombre} ya no exige 2FA`);
     } catch (e) {
+      el.checked = r.exige2fa;
       this.toasts.error('No se pudo cambiar', errText(e));
       await this.cargar();
     }

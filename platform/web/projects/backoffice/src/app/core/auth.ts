@@ -100,7 +100,7 @@ export class Auth {
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(Auth);
   const router = inject(Router);
-  const isAuthCall = req.url.startsWith('/api/auth/') && !req.url.startsWith('/api/auth/me') && !req.url.startsWith('/api/auth/device/');
+  const isAuthCall = req.url.startsWith('/api/auth/') && !req.url.startsWith('/api/auth/me') && !req.url.startsWith('/api/auth/device/') && !req.url.startsWith('/api/auth/2fa');
   const withToken = (t: string | null) => (t && !isAuthCall ? req.clone({ setHeaders: { Authorization: `Bearer ${t}` } }) : req);
   const hadSession = auth.token() !== null;
   return next(withToken(auth.token())).pipe(

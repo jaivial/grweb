@@ -354,6 +354,10 @@ export class EquipoFichaPage {
     const m = this.m()!;
     const antes = c.rol;
     if (rol === antes) return;
+    // the select shows the new value; a cancel or an error puts the previous one back
+    const poner = (v: string) =>
+      this.porComp.update((l) => l.map((x) => (x.cid === c.cid ? { ...x, rol: v } : x)));
+    poner(rol);
     if (
       !rol &&
       !(await this.confirm.ask({
@@ -363,7 +367,7 @@ export class EquipoFichaPage {
         danger: true,
       }))
     ) {
-      this.porComp.update((l) => [...l]);
+      poner(antes);
       return;
     }
     this.cambiando.set(c.cid);
@@ -383,7 +387,7 @@ export class EquipoFichaPage {
           'Asigna el rol de Admin a otra persona antes (evita competiciones sin responsable).',
         );
       else this.toasts.error('No se pudo cambiar el rol', errText(e));
-      this.porComp.update((l) => l.map((x) => (x.cid === c.cid ? { ...x, rol: antes } : x)));
+      poner(antes);
     } finally {
       this.cambiando.set('');
     }
