@@ -1581,7 +1581,7 @@ func textoMenor(menor bool) string {
 	if !menor {
 		return ""
 	}
-	return "⚠ Menor de edad: falta la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla."
+	return "⚠ Menor de edad · falta autorización. La foto no se publica sin la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla."
 }
 
 // fotoTexto says if the request has a photo.

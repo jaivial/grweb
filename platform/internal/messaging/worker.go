@@ -143,7 +143,7 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 		s.procesarWA(ctx, p, t)
 		return
 	}
-	r, err := renderizar(t.Contenido, p.vars, t.Variables, s.marca(ctx, p.cid), t.Esencial, t.QR)
+	r, err := renderizarDe(t.Plantilla, t.Contenido, p.vars, s.marca(ctx, p.cid))
 	if err != nil {
 		// A template edited with a variable the producer does not send: pause it, keep its messages queued.
 		_, _ = s.a.DB.Exec(ctx, `INSERT INTO plantilla_estado (competition_id, clave, estado, error) VALUES ($1,$2,'error',$3)
