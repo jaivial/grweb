@@ -241,6 +241,8 @@ type ConfigAlta struct {
 	Pruebas []PruebaAlta `json:"pruebas"`
 	// LimiteEleccion is the last day to choose the competition from the athlete area (AAAA-MM-DD).
 	LimiteEleccion string `json:"limiteEleccion,omitempty"`
+	// Completa: the event has no free place (as hayPlaza); only athletes on the AEP list can still sign up.
+	Completa bool `json:"completa"`
 }
 
 // PruebaAlta is one competition of the event the athlete can say they compete in.
@@ -474,6 +476,7 @@ func (s *Svc) registerAltaAtleta() {
 				}
 				out := ConfigAlta{Abierta: abierta, MotivoCierre: motivo, Legal: s.legalVersiones(lctx, c.ID), TextoNovedades: textoNovedades}
 				out.Pruebas, out.LimiteEleccion = s.pruebas(lctx, c)
+				out.Completa = s.eventoCompleto(lctx, c.ID)
 				return out, nil
 			})
 			if err != nil {
