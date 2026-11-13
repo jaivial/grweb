@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon } from '@grcup/ui';
 
 /** Tipos de tarjeta que sustituyen al formulario (cierre, legal, error de carga y fallos del envío). */
-export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'limite' | 'red';
+export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'aprobada' | 'limite' | 'red';
 
 /** Figma 75: tarjetas de estado de la columna del formulario. */
 @Component({
@@ -50,6 +50,15 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'limite' |
         </p>
         <div class="flex flex-col gap-3 sm:flex-row">
           <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
+          <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">¿No es la tuya? Escríbenos a {{ contacto() }}</a>
+        </div>
+      </section>
+    } @else if (tipo() === 'aprobada') {
+      <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7" role="alert">
+        <h2 class="text-ui-h4 md:text-ui-h3">Tu alta ya está aprobada</h2>
+        <p class="text-body-s text-text-secondary">Con este email ya hay una ficha de atleta aprobada. No hace falta enviar otra solicitud: edita tu foto, tus marcas y tu frase desde el área de atleta.</p>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <a grButton variant="primary" size="l" routerLink="/area-atleta">Entrar en el área de atleta</a>
           <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">¿No es la tuya? Escríbenos a {{ contacto() }}</a>
         </div>
       </section>

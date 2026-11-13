@@ -614,6 +614,14 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	if existentes > 0 {
 		return nil, problem.Conflict("SOLICITUD_EN_CURSO", "Ya tienes una solicitud en revisión. Te avisaremos por email.")
 	}
+	// An email already approved has its profile: a new request would only re-notify the whole team.
+	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND email = $2 AND estado = 'aprobada'`,
+		c.ID, d.Email).Scan(&existentes); err != nil {
+		return nil, err
+	}
+	if existentes > 0 {
+		return nil, problem.Conflict("SOLICITUD_APROBADA", "Tu alta ya está aprobada: edita tu ficha desde el área de atleta.")
+	}
 	// The limits per IP, email and phone count only created requests: an atomic INCR reserves the slot
 	// now and it is given back (DECR) if the request is not created.
 	reservas, perr := s.reservaLimites(ctx, ip, d)
