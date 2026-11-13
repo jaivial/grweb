@@ -27,8 +27,8 @@ export class Auth {
     this.ready.set(true);
   }
 
-  async login(email: string, password: string, recordar: boolean): Promise<Usuario> {
-    const s = await firstValueFrom(this.http.post<Sesion>('/api/auth/login', { email, password, recordar }));
+  async login(email: string, password: string, recordar: boolean, codigo = ''): Promise<Usuario> {
+    const s = await firstValueFrom(this.http.post<Sesion>('/api/auth/login', { email, password, recordar, ...(codigo ? { codigo } : {}) }));
     this.apply(s);
     return s.usuario;
   }

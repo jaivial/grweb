@@ -71,6 +71,11 @@ export class AccessLayout {}
             <gr-field label="Contraseña" for="password" [error]="fieldError()">
               <input grInput id="password" name="password" type="password" autocomplete="current-password" required [(ngModel)]="password" [invalid]="!!fieldError()" />
             </gr-field>
+            @if (pideCodigo()) {
+              <gr-field label="Código de verificación" for="codigo" hint="6 cifras de tu app, o un código de recuperación" [error]="errorCode() === 'CODIGO_INVALIDO' ? 'Código incorrecto o caducado.' : null">
+                <input grInput id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="12" class="font-mono tracking-[0.2em]" [(ngModel)]="codigo" [invalid]="errorCode() === 'CODIGO_INVALIDO'" autofocus />
+              </gr-field>
+            }
             <!-- Figma 51 (mobile): the link drops under the box when there is no room -->
             <div class="flex flex-wrap items-center justify-between gap-x-2">
               <label class="flex min-h-11 items-center gap-2 text-body-s whitespace-nowrap text-text-secondary md:min-h-0">
@@ -101,15 +106,18 @@ export class LoginPage {
     return /@(gmail|googlemail)\.com$/i.test(this.email.trim());
   }
   protected password = '';
+  protected codigo = '';
+  /** The account has two-step verification: the server answered SEGUNDO_FACTOR_REQUERIDO. */
+  protected readonly pideCodigo = signal(false);
   protected recordar = true;
   protected readonly mode = signal<'password' | 'magic'>('password');
   protected readonly busy = signal(false);
   protected readonly sent = signal(false);
   protected readonly errorCode = signal('');
   protected readonly errorText = signal('');
-  protected readonly error = computed(() => this.errorText() || (this.error_() === 'enlace-caducado' ? 'El enlace ha caducado o ya se usó. Pide uno nuevo.' : ''));
+  protected readonly error = computed(() => this.errorText() || (this.error_() === 'enlace-caducado' ? 'El enlace ha caducado o ya se usó. Pide uno nuevo.' : this.error_() === '2fa' ? 'Tu cuenta tiene verificación en dos pasos: entra con tu contraseña y el código de tu app.' : ''));
   protected readonly errorTitle = computed(() =>
-    this.errorCode() === 'DEMASIADAS_PETICIONES' ? `Acceso bloqueado ${this.bloqueoMin()} min (429)` : this.errorCode() === 'CREDENCIALES_INVALIDAS' || this.errorCode() === 'NO_AUTENTICADO' ? 'Email o contraseña incorrectos' : 'No se pudo entrar',
+    this.errorCode() === 'DEMASIADAS_PETICIONES' ? `Acceso bloqueado ${this.bloqueoMin()} min (429)` : this.errorCode() === 'CREDENCIALES_INVALIDAS' || this.errorCode() === 'NO_AUTENTICADO' ? 'Email o contraseña incorrectos' : this.errorCode() === 'CODIGO_INVALIDO' ? 'Código incorrecto' : this.error_() === '2fa' && !this.errorCode() ? 'Verificación en dos pasos' : 'No se pudo entrar',
   );
   protected readonly fieldError = computed(() => (this.errorCode() === 'CREDENCIALES_INVALIDAS' ? 'Email o contraseña incorrectos.' : null));
   protected readonly emailError = signal<string | null>(null);
@@ -159,11 +167,15 @@ export class LoginPage {
         this.tick();
         return;
       }
-      await this.auth.login(email, this.password, this.recordar);
+      await this.auth.login(email, this.password, this.recordar, this.pideCodigo() ? this.codigo.replace(/\s/g, '') : '');
       await this.router.navigateByUrl(this.siguiente() || '/');
     } catch (e) {
       const p = problemOf(e);
       this.sent.set(false);
+      if (p.code === 'SEGUNDO_FACTOR_REQUERIDO') {
+        this.pideCodigo.set(true);
+        return;
+      }
       this.errorCode.set(p.code);
       if (p.code === 'DEMASIADAS_PETICIONES') {
         const s = Number((e as HttpErrorResponse).headers?.get('Retry-After')) || 60;

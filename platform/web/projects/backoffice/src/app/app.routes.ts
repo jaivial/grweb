@@ -151,8 +151,14 @@ export const routes: Routes = [
       { path: 'premios', loadComponent: () => import('./pages/social/premios/premios').then((m) => m.PremiosPage), title: 'Premios · Backoffice GR Cup' },
       { path: 'fans', loadComponent: () => import('./pages/social/fans/fans').then((m) => m.FansPage), title: 'Fans · Backoffice GR Cup' },
       { path: 'evento', loadComponent: () => import('./pages/evento').then((m) => m.EventoPage), title: 'Evento y módulos · Backoffice GR Cup' },
-      { path: 'equipo', loadComponent: () => import('./pages/equipo').then((m) => m.EquipoPage), title: 'Equipo y permisos · Backoffice GR Cup' },
-      { path: 'auditoria', loadComponent: () => import('./pages/equipo').then((m) => m.AuditoriaPage), title: 'Auditoría · Backoffice GR Cup' },
+      {
+        path: 'equipo',
+        children: [
+          { path: '', loadComponent: () => import('./pages/equipo/equipo').then((m) => m.EquipoPage), title: 'Equipo y permisos · Backoffice GR Cup' },
+          { path: ':uid', loadComponent: () => import('./pages/equipo/ficha').then((m) => m.EquipoFichaPage), title: 'Ficha de miembro · Backoffice GR Cup' },
+        ],
+      },
+      { path: 'auditoria', loadComponent: () => import('./pages/equipo/auditoria').then((m) => m.AuditoriaPage), title: 'Auditoría · Backoffice GR Cup' },
       { path: 'sistema', loadComponent: () => import('./pages/sistema').then((m) => m.SistemaPage), title: 'Sistema e integraciones · Backoffice GR Cup' },
       { path: 'sistema/whatsapp', loadComponent: () => import('./pages/sistema/whatsapp').then((m) => m.WhatsAppSistemaPage), title: 'WhatsApp · Backoffice GR Cup' },
       { path: ':seccion', component: ComingSoonPage, title: 'Backoffice GR Cup' },
