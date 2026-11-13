@@ -317,14 +317,14 @@ export class AreaCompartirPage {
   }
 
   /** The photo comes through our API (same origin) so the canvas can be exported. */
-  async cargarFoto() {
+  async cargarFoto(recargar = false) {
     const u = this.p()?.atleta.perfil.fotoUrl;
     this.fotoRota.set(false);
     this.foto.set(undefined);
     this.fotoSrc.set('');
     if (!u) return;
     this.fichero.set(decodeURIComponent(u.split('/').pop()?.split('?')[0] || 'Tu foto'));
-    const src = api + '/story/foto?v=' + encodeURIComponent(u);
+    const src = api + '/story/foto?v=' + encodeURIComponent(u) + (recargar ? '&t=' + Date.now() : '');
     try {
       this.foto.set(await cargarImagen(src));
       this.fotoSrc.set(src);
@@ -363,7 +363,7 @@ export class AreaCompartirPage {
         if (ev.type !== HttpEventType.Response || !ev.body) return;
         const nombre = f.name;
         this.p.set(ev.body);
-        await this.cargarFoto();
+        await this.cargarFoto(true);
         this.fichero.set(nombre);
         this.subida.set(null);
         this.formato.set('story');

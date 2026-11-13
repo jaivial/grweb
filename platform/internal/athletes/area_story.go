@@ -22,7 +22,8 @@ import (
 func (s *Svc) registerAreaStory() {
 	base := "/api/area-atleta/story"
 	// no redirects: a 3xx could leave the allowed hosts (SSRF)
-	fotos := &fotoCache{base: s.webURL, m: map[string]*fotoEntry{}, cli: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	// Own media is read from cms over the cluster network: the public domain answers 403 from inside (WAF/hairpin).
+	fotos := &fotoCache{base: s.cms.Base, m: map[string]*fotoEntry{}, cli: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 
 	// The page guard (Figma 83 «Notas · middleware»): always 200 so a visitor without session gets no console error.
 	type cfgIn struct {
@@ -75,7 +76,7 @@ func (s *Svc) registerAreaStory() {
 			return
 		}
 		if strings.HasPrefix(foto, "/api/medios/") {
-			foto = s.webURL + foto // own media library: relative path
+			foto = fotos.base + foto // own media library: internal cms URL
 		}
 		e := fotos.get(foto, func(u *url.URL) bool { return s.fotoHostPermitido(req.Context(), r.CompetitionID, u) })
 		if e.err != nil {
@@ -240,7 +241,8 @@ func (c *fotoCache) get(raw string, permitido func(*url.URL) bool) *fotoEntry {
 
 func (c *fotoCache) fetch(raw string, permitido func(*url.URL) bool) ([]byte, string, error) {
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "https" && !strings.HasPrefix(raw, c.base+"/api/medios/")) || !permitido(u) {
+	interno := c.base != "" && strings.HasPrefix(raw, c.base+"/api/medios/") && !strings.Contains(raw[len(c.base):], "..")
+	if err != nil || (!interno && (u.Scheme != "https" || !permitido(u))) {
 		return nil, "", errors.New("host de la foto no permitido")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
