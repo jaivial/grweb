@@ -63,13 +63,21 @@ func (j jornada) out() jornadaOut {
 
 // abrirCarteraTx creates the wallet lazily (first visit to the game of that jornada) with its welcome balance,
 // idempotently: the `alta` movement has a unique ref, so a retry never credits twice. Returns the current balance.
-// It accepts a pool or a transaction (both satisfy querier), so reads can open a wallet too.
-func abrirCarteraTx(ctx context.Context, q querier, j jornada, fanID uuid.UUID, m Moneda) (int64, error) {
+// It accepts a pool or a transaction (both satisfy querier), so reads can open a wallet too. alias (when not
+// empty) names the wallet in the rankings: a fan who only opened the game is listed too, so it cannot wait for
+// the first bet.
+func abrirCarteraTx(ctx context.Context, q querier, j jornada, fanID uuid.UUID, m Moneda, alias string) (int64, error) {
 	var saldo int64
-	ins, err := q.Exec(ctx, `INSERT INTO saldos (jornada_id, competition_id, fan_id, moneda, saldo) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
-		j.ID, j.CompetitionID, fanID, m, SaldoAlta(m))
+	ins, err := q.Exec(ctx, `INSERT INTO saldos (jornada_id, competition_id, fan_id, moneda, saldo, alias) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
+		j.ID, j.CompetitionID, fanID, m, SaldoAlta(m), alias)
 	if err != nil {
 		return 0, err
+	}
+	if ins.RowsAffected() == 0 && alias != "" {
+		if _, err := q.Exec(ctx, `UPDATE saldos SET alias = $4 WHERE jornada_id = $1 AND fan_id = $2 AND moneda = $3 AND alias IS DISTINCT FROM $4`,
+			j.ID, fanID, m, alias); err != nil {
+			return 0, err
+		}
 	}
 	if ins.RowsAffected() > 0 {
 		if _, err := q.Exec(ctx, `INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,$4,$5,'alta',$6)`,
@@ -90,7 +98,7 @@ func gastarTx(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m Mone
 	if importe <= 0 {
 		return problem.BadRequest("IMPORTE_NO_VALIDO", "El importe debe ser positivo.")
 	}
-	if _, err := abrirCarteraTx(ctx, tx, j, fanID, m); err != nil {
+	if _, err := abrirCarteraTx(ctx, tx, j, fanID, m, alias); err != nil {
 		return err
 	}
 	tag, err := tx.Exec(ctx, `UPDATE saldos SET saldo = saldo - $1, version = version + 1, updated_at = now(),
@@ -115,7 +123,7 @@ func acreditarTx(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m M
 	if importe == 0 {
 		return false, nil
 	}
-	if _, err := abrirCarteraTx(ctx, tx, j, fanID, m); err != nil {
+	if _, err := abrirCarteraTx(ctx, tx, j, fanID, m, alias); err != nil {
 		return false, err
 	}
 	tag, err := tx.Exec(ctx, `INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,$4,$5,$6,$7)

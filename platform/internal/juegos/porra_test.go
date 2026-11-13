@@ -72,7 +72,7 @@ func TestLiquidacionParimutuel(t *testing.T) {
 		mid, ops := mercadoDePrueba(t, pdb, cid, j.ID)
 		f1, f2, f3 := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		for _, f := range []uuid.UUID{f1, f2, f3} {
-			if _, err := abrirCarteraTx(ctx, pdb, j, f, Porra); err != nil {
+			if _, err := abrirCarteraTx(ctx, pdb, j, f, Porra, ""); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -100,7 +100,7 @@ func TestLiquidacionParimutuel(t *testing.T) {
 		mid, ops := mercadoDePrueba(t, pdb, cid, j.ID)
 		f1, f2 := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		for _, f := range []uuid.UUID{f1, f2} {
-			if _, err := abrirCarteraTx(ctx, pdb, j, f, Porra); err != nil {
+			if _, err := abrirCarteraTx(ctx, pdb, j, f, Porra, ""); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -117,7 +117,7 @@ func TestLiquidacionParimutuel(t *testing.T) {
 		cid, j := nuevaJornada(t, pdb, "en_juego")
 		mid, ops := mercadoDePrueba(t, pdb, cid, j.ID)
 		f1 := uuid.Must(uuid.NewV7())
-		if _, err := abrirCarteraTx(ctx, pdb, j, f1, Porra); err != nil {
+		if _, err := abrirCarteraTx(ctx, pdb, j, f1, Porra, ""); err != nil {
 			t.Fatal(err)
 		}
 		apostarDePrueba(t, pdb, j, mid, f1, ops[0], 900)

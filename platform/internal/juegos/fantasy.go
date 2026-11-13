@@ -303,7 +303,7 @@ func liberarAtletasTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID u
 // payouts by fan_id too): two operations that run at the same time cannot deadlock each other (contract §6.3).
 func bloquearCarterasTx(ctx context.Context, tx pgx.Tx, j jornada, fans ...uuid.UUID) error {
 	for _, f := range fans {
-		if _, err := abrirCarteraTx(ctx, tx, j, f, Fantasy); err != nil {
+		if _, err := abrirCarteraTx(ctx, tx, j, f, Fantasy, ""); err != nil {
 			return err
 		}
 	}

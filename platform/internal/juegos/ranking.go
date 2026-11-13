@@ -46,8 +46,11 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 	key := "rank:porra:" + j.ID.String()
 	var top []filaPorra
 	if !s.cache.Get(ctx, key, &top) {
-		rows, err := s.a.DB.Query(ctx, `SELECT fan_id, alias, saldo, rank() OVER (ORDER BY saldo DESC, updated_at ASC)
-			FROM saldos WHERE jornada_id = $1 AND moneda = 'porra' ORDER BY saldo DESC, updated_at ASC LIMIT 50`, j.ID)
+		// wallets opened before the alias was stored have it empty: borrow it from another wallet of the same fan
+		rows, err := s.a.DB.Query(ctx, `SELECT s.fan_id,
+				COALESCE(NULLIF(s.alias, ''), (SELECT o.alias FROM saldos o WHERE o.fan_id = s.fan_id AND o.alias <> '' ORDER BY o.updated_at DESC LIMIT 1), ''),
+				s.saldo, rank() OVER (ORDER BY s.saldo DESC, s.updated_at ASC)
+			FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = 'porra' ORDER BY s.saldo DESC, s.updated_at ASC LIMIT 50`, j.ID)
 		if err != nil {
 			return []filaPorra{}, 0
 		}

@@ -128,7 +128,7 @@ func TestPublicacionResultados(t *testing.T) {
 		t.Fatal(err)
 	}
 	fan := uuid.Must(uuid.NewV7())
-	if _, err := abrirCarteraTx(ctx, pdb, j, fan, Fantasy); err != nil {
+	if _, err := abrirCarteraTx(ctx, pdb, j, fan, Fantasy, ""); err != nil {
 		t.Fatal(err)
 	}
 	aid := atletaFantasiaDePrueba(t, pdb, cid, j.ID, uuid.Nil, nil, 200000)

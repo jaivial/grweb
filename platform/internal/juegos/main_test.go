@@ -158,7 +158,7 @@ func sociosDePrueba(t *testing.T, q querier, j jornada, sala uuid.UUID, fans ...
 			sala, j.ID, f, uuid.Must(uuid.NewV7()), "fan"+f.String()[30:]); err != nil {
 			t.Fatalf("socio de prueba: %v", err)
 		}
-		if _, err := abrirCarteraTx(ctx, q, j, f, Fantasy); err != nil {
+		if _, err := abrirCarteraTx(ctx, q, j, f, Fantasy, ""); err != nil {
 			t.Fatalf("cartera de prueba: %v", err)
 		}
 	}

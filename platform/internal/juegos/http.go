@@ -304,7 +304,7 @@ func (s *Svc) registerPublic() {
 					return err
 				}
 				o.Body.ApuestaID = aid
-				o.Body.Saldo, err = abrirCarteraTx(ctx, tx, *j, f.ID, Porra)
+				o.Body.Saldo, err = abrirCarteraTx(ctx, tx, *j, f.ID, Porra, f.Alias)
 				return err
 			})
 			if err != nil {
@@ -581,7 +581,7 @@ func (s *Svc) registerPublic() {
 				if err != nil {
 					return err
 				}
-				o.Body.Saldo, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy)
+				o.Body.Saldo, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy, f.Alias)
 				return err
 			})
 			if err != nil {
@@ -750,10 +750,10 @@ func (s *Svc) registerPublic() {
 			}
 			o := &carteraOut{}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				if o.Body.Porra, err = abrirCarteraTx(ctx, tx, *j, f.ID, Porra); err != nil {
+				if o.Body.Porra, err = abrirCarteraTx(ctx, tx, *j, f.ID, Porra, f.Alias); err != nil {
 					return err
 				}
-				if o.Body.Fantasy, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy); err != nil {
+				if o.Body.Fantasy, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy, f.Alias); err != nil {
 					return err
 				}
 				// The pending debt of the refunds that could not take the fantasy reward back: it stays noted
