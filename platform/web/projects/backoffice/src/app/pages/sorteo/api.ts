@@ -15,6 +15,8 @@ export interface RifaItem {
 }
 export type RifaItemIn = Pick<RifaItem, 'nombre' | 'descripcion' | 'imagenUrl' | 'valorEstimadoCents' | 'donante' | 'unidades' | 'visible'>;
 interface Lista { items: RifaItem[]; total: number }
+/** One winner registration (GET …/rifa/ganadores/historial); boleto null = winner removed. */
+export interface RifaHistorial { itemId: string; itemNombre: string; boleto: string | null; nombre: string | null; actor: string; at: string }
 
 const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 export const euros = (c?: number | null) => eur.format((c ?? 0) / 100);
@@ -38,5 +40,8 @@ export class RifaApi {
   async orden(cid: string, ids: string[]): Promise<RifaItem[]> { return (await firstValueFrom(this.http.put<Lista>(`${this.b(cid)}/items/orden`, { ids }))).items; }
   async ganador(cid: string, id: string, g: { boleto: string; nombre?: string; nota?: string }): Promise<RifaItem[]> {
     return (await firstValueFrom(this.http.post<Lista>(`${this.b(cid)}/items/${id}/ganador`, g))).items;
+  }
+  async historial(cid: string): Promise<RifaHistorial[]> {
+    return (await firstValueFrom(this.http.get<{ items: RifaHistorial[] | null }>(`${this.b(cid)}/ganadores/historial`))).items ?? [];
   }
 }
