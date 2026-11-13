@@ -17,7 +17,7 @@ export interface Entrada {
   id: string; codigo: string; nombre: string; apellidos: string; email: string; telefono: string; sesionId: string; sesion: string; personas: number; dentro: number;
   estado: 'reservada' | 'usada' | 'anulada'; origen: string; manual: boolean; nota: string; novedades: boolean; novedadesEstado?: 'si' | 'pendiente' | 'no'; emailRebotado?: boolean; consentimientos: Record<string, unknown>; motivo?: string; createdAt: string;
 }
-export interface Escaneo { id: string; codigo: string; nombre: string; puesto: string; usuario: string; resultado: Resultado['resultado']; personas: number; offline: boolean; at: string }
+export interface Escaneo { id: string; codigo: string; nombre: string; puesto: string; usuario: string; resultado: Resultado['resultado']; personas: number; total?: number; puestoAnterior?: string; offline: boolean; at: string }
 export interface Detalle extends Entrada { escaneos: Escaneo[]; qr: string }
 export interface Lista { items: Entrada[]; total: number; pagina: number; por: number; origenes: string[] }
 export interface EsperaItem { id: string; sesionId: string; sesion: string; nombre: string; email: string; personas: number; estado: 'en_espera' | 'oferta' | 'caducada'; expira?: string; orden: number; createdAt: string }
@@ -29,11 +29,11 @@ export interface Resultado {
   resultado: 'valida' | 'ya_usada' | 'otra_sesion' | 'invalida' | 'anulada' | 'manual'; codigo: string; nombre: string; personas: number; dentro: number; pendientes: number;
   sesionId?: string; sesion: string; mensaje: string; primera?: string; puestoAnterior?: string; registrado: boolean;
 }
-export interface Puesto { id: string; nombre: string; tipo: 'puerta' | 'taquilla' | 'pesaje'; detalle: string; ultimoPing?: string; cola: number; escaneos15: number }
+export interface Puesto { id: string; nombre: string; tipo: 'puerta' | 'taquilla' | 'pesaje'; detalle: string; responsable?: string; telefono?: string; ultimoPing?: string; cola: number; escaneos15: number }
 export interface Compacta { c: string; s: string; n: string; p: number; d: number; e: string }
 export interface Bootstrap { puestos: Puesto[]; sesiones: Sesion[]; actual?: string; lista: Compacta[]; generado: string }
 export interface EscaneoIn { qr?: string; codigo?: string; puesto: string; sesionId?: string; confirmar?: boolean; personas?: number; forzar?: boolean; clave?: string; offline?: boolean; escaneadoAt?: string }
-export interface ResumenCheckin { sesiones: Sesion[]; puestos: Puesto[]; ultimos: Escaneo[]; incidencias: Escaneo[]; ritmo: number[]; escaneos?: number }
+export interface ResumenCheckin { sesiones: Sesion[]; puestos: Puesto[]; ultimos: Escaneo[]; incidencias: Escaneo[]; ritmo: number[]; ritmoIncidencias?: number[]; hitos?: { etiqueta: string; at: string }[]; escaneos?: number }
 
 /** Tickets API (ticketing service, Figma pages 58 and 59). */
 @Injectable({ providedIn: 'root' })
