@@ -474,7 +474,7 @@ export class DonacionesPage {
       this.toasts.success('Configuración de las donaciones guardada');
     } catch (e) {
       const p = problemOf(e);
-      this.toasts.error(p.code === 'CONFLICTO_EDICION' ? 'Otra persona ha cambiado la configuración' : errText(e, 'No se pudo guardar.'));
+      this.toasts.error(p.code === 'CONFLICTO_EDICION' ? 'Otra persona guardó antes. Hemos recargado los valores guardados: revisa y vuelve a aplicar tus cambios antes de guardar.' : errText(e, 'No se pudo guardar.'));
       if (p.code === 'CONFLICTO_EDICION') await this.cargar();
     } finally {
       this.guardando.set(false);
