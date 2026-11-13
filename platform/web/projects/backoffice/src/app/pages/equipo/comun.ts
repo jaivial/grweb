@@ -131,9 +131,9 @@ export function rel(iso?: string | null): string {
 export function iniciales(s: string): string {
   return s
     .split(/[\s@.]/)
+    .map((w) => w.match(/\p{L}|\d/u)?.[0] ?? '')
     .filter(Boolean)
     .slice(0, 2)
-    .map((x) => x[0])
     .join('')
     .toUpperCase();
 }

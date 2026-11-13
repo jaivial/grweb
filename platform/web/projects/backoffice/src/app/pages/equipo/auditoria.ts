@@ -236,9 +236,9 @@ const dia = (d: Date) =>
             <thead class="border-b border-line-subtle">
               <tr>
                 <th class="${th} w-[150px]">Fecha</th>
-                <th class="${th} w-[17%]">Persona</th>
-                <th class="${th} w-[22%]">Acción</th>
-                <th class="${th} w-[20%]">Entidad</th>
+                <th class="${th} w-[22%] lg:w-[17%]">Persona</th>
+                <th class="${th} w-[32%] lg:w-[22%]">Acción</th>
+                <th class="${th} w-[26%] lg:w-[20%]">Entidad</th>
                 <th class="${th} hidden lg:table-cell">Resumen</th>
               </tr>
             </thead>
@@ -609,7 +609,11 @@ export class AuditoriaPage {
       ['Entidad', e.entidad || '—'],
     ];
   }
+  /** Pretty JSON with arrays of plain values on one line, as Figma shows `[antes, después]`. */
   protected json(v: unknown): string {
-    return JSON.stringify(v ?? {}, null, 2);
+    return JSON.stringify(v ?? {}, null, 2).replace(
+      /\[\s*([^[\]{}]*?)\s*\]/g,
+      (_, inner: string) => `[${inner.replace(/\s*\n\s*/g, ' ')}]`,
+    );
   }
 }
