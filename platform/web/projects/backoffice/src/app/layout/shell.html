@@ -56,7 +56,7 @@
         }
         <!-- wrapper: bo-live-status binds [class] on its host, which would drop «hidden» -->
         <button type="button" class="hidden rounded-pill focus-visible:outline-2 focus-visible:outline-accent-text lg:inline-flex" [disabled]="live.status() === 'connected'"
-          [attr.title]="live.status() === 'offline' ? 'Reintentar conexión' : null" (click)="live.reconnect()"><bo-live-status [status]="live.status()" /></button>
+          [attr.title]="live.status() === 'offline' ? 'Reintentar conexión' : null" (click)="live.reconnect()"><bo-live-status [status]="live.status()" [viewers]="live.espectadores()" /></button>
         <button type="button" class="flex size-11 items-center justify-center rounded-sm lg:hidden" [class]="live.connected() ? 'text-success' : live.status() === 'offline' ? 'text-error' : 'text-warning'"
           [disabled]="live.connected()" (click)="live.reconnect()"
           [attr.aria-label]="live.connected() ? 'Tiempo real conectado' : live.status() === 'offline' ? 'Sin conexión en tiempo real · reintentar' : 'Reconectando tiempo real…'"><gr-icon [name]="live.connected() ? 'radio' : live.status() === 'offline' ? 'wifi-off' : 'loader'" [spin]="live.status() === 'reconnecting'" [size]="18" /></button>

@@ -39,8 +39,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
             @if (puedeOperar() && m.estado.fase === 'en_directo') {
               <button grButton [icon]="m.estado.pausa ? 'play' : 'pause'" [loading]="guardando() === 'pausa'" (click)="cambiar({ pausa: !m.estado.pausa }, 'pausa')">{{ m.estado.pausa ? 'Reanudar' : 'Pausa técnica' }}</button>
             }
-            <a grButton icon="monitor" [routerLink]="['/', comps.current()?.slug, 'directo', 'pantalla']">Pantalla del pabellón</a>
-            <a grButton icon="play" [routerLink]="['/', comps.current()?.slug, 'directo', 'retransmision']">Retransmisión</a>
+            <a grButton icon="monitor" class="max-md:hidden" [routerLink]="['/', comps.current()?.slug, 'directo', 'pantalla']">Pantalla del pabellón</a>
             @if (puedeOperar()) { <button grButton variant="ghost" icon="settings" (click)="abrirAjustes()" aria-label="Ajustes del directo"></button> }
           </ng-container>
         }
@@ -96,6 +95,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
           @if (vista() === 'locutor') {
             <!-- Speaker view (mobile) -->
             <section class="flex flex-col gap-4 md:hidden">
+              @if (m.estado.fase === 'en_directo') { <span class="inline-flex h-7 w-fit items-center gap-1.5 rounded-pill border border-success/40 bg-success/12 px-2.5 text-label-s text-success"><gr-icon name="radio" [size]="14" />En directo · {{ m.espectadores }}</span> }
               @if (m.actual; as a) {
                 <div class="rounded-lg border border-accent/40 bg-[linear-gradient(140deg,#3a0f17,#1b1112_70%)] p-5">
                   <p class="text-mono-xs text-text-tertiary">En la plataforma · {{ MOVN[m.estado.movimiento] }} {{ ORD[a.numero] }}</p>
@@ -114,7 +114,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
               </div>
             </section>
           }
-          <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" [class.max-md:hidden]="vista() === 'locutor'">
+          <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" [class.max-md:hidden]="vista() === 'locutor'">
             <!-- Flight table -->
             <section class="min-w-0 overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
               <table class="w-full min-w-[560px] text-left text-body-s">
@@ -284,7 +284,8 @@ export class DirectoPage {
   protected readonly votos = signal<string[]>(['', '', '']);
   protected readonly pesoActual = signal<number | null>(null);
   protected readonly pesoEditado = signal(false);
-  protected readonly vista = signal<'mesa' | 'locutor'>(typeof window !== 'undefined' && window.innerWidth < 768 ? 'locutor' : 'mesa');
+  protected readonly vista = signal<'mesa' | 'locutor'>(typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 'locutor' : 'mesa');
+  private rt?: Realtime;
   protected readonly corr = signal<Corr | null>(null);
   protected readonly corrErr = signal('');
   protected readonly decl = signal<Decl | null>(null);
@@ -346,13 +347,19 @@ export class DirectoPage {
         void this.cargar();
       });
     });
+    // phones open the speaker view (Figma 96:24297), also when the viewport shrinks after loading
+    const mq = window.matchMedia('(max-width: 767px)');
+    const alCambiar = (q: MediaQueryListEvent) => this.vista.set(q.matches ? 'locutor' : 'mesa');
+    mq.addEventListener('change', alCambiar);
     const tick = setInterval(() => {
       this.ahora.set(Date.now());
       if (this.cola().length && Date.now() % 5000 < 1000) void this.vaciarCola();
     }, 1000);
     const online = () => void this.vaciarCola();
     window.addEventListener('online', online);
-    const sub = inject(Realtime).events.subscribe((e) => {
+    const rt = inject(Realtime);
+    this.rt = rt;
+    const sub = rt.events.subscribe((e) => {
       if (e.tipo.startsWith('directo.') || e.tipo.startsWith('resultados.') || e.tipo === 'horarios.publicados') {
         clearTimeout(this.t);
         this.t = setTimeout(() => void this.cargar(), 400);
@@ -363,6 +370,8 @@ export class DirectoPage {
       clearTimeout(this.t);
       window.removeEventListener('online', online);
       sub.unsubscribe();
+      rt.espectadores.set(null);
+      mq.removeEventListener('change', alCambiar);
     });
   }
 
@@ -383,6 +392,7 @@ export class DirectoPage {
     const prev = this.mesa();
     const cambia = !prev || prev.actual?.intentoId !== m.actual?.intentoId;
     this.mesa.set(m);
+    this.rt?.espectadores.set(m.estado.fase === 'en_directo' ? m.espectadores : null);
     if (cambia) {
       this.votos.set(['', '', '']);
       this.pesoEditado.set(false);

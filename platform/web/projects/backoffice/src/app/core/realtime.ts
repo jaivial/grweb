@@ -48,6 +48,8 @@ export class Realtime {
   }
 
   readonly connected = signal(false);
+  /** Spectators on /en-directo, set by the Directo desk while it is open (topbar «En directo · 342»). */
+  readonly espectadores = signal<number | null>(null);
   /** Failed reconnection attempts since the last successful open. */
   readonly intentos = this.fallos.asReadonly();
   readonly status = computed<RealtimeStatus>(() =>
