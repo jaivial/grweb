@@ -10,22 +10,22 @@ export interface Config {
 export interface FlightAtleta { id: string; nombre: string; sexo: 'F' | 'M'; categoria: string; club: string; divisionNombre: string; prueba?: string; totalPrevisto?: number; seguidores: number; lote: number; baja: boolean }
 export interface Directo { estado: 'programado' | 'en_curso' | 'finalizado'; retrasoMin?: number }
 export interface Flight {
-  id: string; codigo: string; dia: string; plataforma: number; inicio: string; fin: string; duracionMin: number; pesajeInicio: string; pesajeFin: string;
+  id: string; codigo: string; prueba: string; dia: string; plataforma: number; inicio: string; fin: string; duracionMin: number; pesajeInicio: string; pesajeFin: string;
   titulo: string; sexo: 'F' | 'M' | 'X' | ''; atletas: FlightAtleta[]; directo: Directo; publicado: boolean; avisos: string[];
 }
 export interface AgendaItem { dia: string; hora: string; titulo: string; icono?: string }
 export interface Conflicto {
   tipo: 'exceso' | 'solape_plataforma' | 'solape_pesaje' | 'sexo_mixto' | 'fuera_horario' | 'pausa' | 'baja' | 'sin_flight' | 'vacio';
-  bloquea: boolean; flightId?: string; flight?: string; titulo: string; detalle: string;
+  bloquea: boolean; flightId?: string; flight?: string; prueba?: string; titulo: string; detalle: string;
 }
-export interface VersionInfo { numero: number; estado: 'publicada' | 'sustituida' | 'retirada'; at: string; por: string; cambios: number; avisos: number; seguidores: number }
+export interface VersionInfo { numero: number; prueba: string; numeroPrueba: number; estado: 'publicada' | 'sustituida' | 'retirada'; at: string; por: string; cambios: number; avisos: number; seguidores: number }
 export interface Borrador {
   config: Config; rev: number; zonaHoraria: string; flights: Flight[]; agenda: AgendaItem[]; sinFlight: FlightAtleta[]; conflictos: Conflicto[];
   atletas: number; publicado: boolean; publicada?: VersionInfo; cambiosSinPublicar: boolean;
 }
 export interface Cambio { tipo: 'atleta' | 'flight' | 'alta' | 'baja' | 'agenda'; titulo: string; antes: string; despues: string; atletas: number }
-export interface Diff { desde: number; siguiente: number; primera: boolean; cambios: Cambio[]; afectados: number; conEmail: number; seguidores: number; bloqueantes: number; atletas: number }
-export interface Publicado { version: number; cambios: number; avisos: number; seguidores: number }
+export interface Diff { prueba: string; desde: number; siguiente: number; primera: boolean; cambios: Cambio[]; afectados: number; conEmail: number; seguidores: number; bloqueantes: number; atletas: number }
+export interface Publicado { version: number; prueba: string; numeroPrueba: number; cambios: number; avisos: number; seguidores: number }
 
 /** Schedule planner API (schedule service, Figma page 56). Every draft change sends If-Match with the revision. */
 @Injectable({ providedIn: 'root' })
@@ -53,7 +53,7 @@ export class HorariosApi {
   generar(cid: string, b: { maxPorFlight?: number; plataformas?: number; orden?: string; competicion?: string }): Promise<Borrador> {
     return this.take(firstValueFrom(this.http.post<Borrador>(`${this.base(cid)}/generar`, b, { headers: this.h(), observe: 'response' })));
   }
-  crearFlight(cid: string, b: { dia?: string; plataforma?: number; inicio?: string }): Promise<Borrador> {
+  crearFlight(cid: string, b: { dia?: string; plataforma?: number; inicio?: string; competicion?: string }): Promise<Borrador> {
     return this.take(firstValueFrom(this.http.post<Borrador>(`${this.base(cid)}/flights`, b, { headers: this.h(), observe: 'response' })));
   }
   editarFlight(cid: string, id: string, b: { dia?: string; plataforma?: number; inicio?: string; duracionMin?: number; pesajeInicio?: string; pesajeFin?: string }): Promise<Borrador> {
@@ -71,17 +71,17 @@ export class HorariosApi {
   restaurar(cid: string, n: number): Promise<Borrador> {
     return this.take(firstValueFrom(this.http.post<Borrador>(`${this.base(cid)}/versiones/${n}/restaurar`, {}, { headers: this.h(), observe: 'response' })));
   }
-  diff(cid: string): Promise<Diff> {
-    return firstValueFrom(this.http.get<Diff>(`${this.base(cid)}/diff`));
+  diff(cid: string, competicion = ''): Promise<Diff> {
+    return firstValueFrom(this.http.get<Diff>(`${this.base(cid)}/diff`, { params: { competicion } }));
   }
-  publicar(cid: string, avisarAtletas: boolean, avisarSeguidores: boolean): Promise<Publicado> {
-    return firstValueFrom(this.http.post<Publicado>(`${this.base(cid)}/publicar`, { avisarAtletas, avisarSeguidores }, { headers: this.h() }));
+  publicar(cid: string, competicion: string, avisarAtletas: boolean, avisarSeguidores: boolean): Promise<Publicado> {
+    return firstValueFrom(this.http.post<Publicado>(`${this.base(cid)}/publicar`, { avisarAtletas, avisarSeguidores, ...(competicion ? { competicion } : {}) }, { headers: this.h() }));
   }
   despublicar(cid: string): Promise<void> {
     return firstValueFrom(this.http.post<void>(`${this.base(cid)}/despublicar`, {}));
   }
-  versiones(cid: string): Promise<VersionInfo[]> {
-    return firstValueFrom(this.http.get<VersionInfo[]>(`${this.base(cid)}/versiones`));
+  versiones(cid: string, competicion = ''): Promise<VersionInfo[]> {
+    return firstValueFrom(this.http.get<VersionInfo[]>(`${this.base(cid)}/versiones`, { params: { competicion } }));
   }
   directo(cid: string, id: string, d: Directo): Promise<Directo> {
     return firstValueFrom(this.http.put<Directo>(`${this.base(cid)}/flights/${id}/directo`, d));
