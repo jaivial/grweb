@@ -870,15 +870,15 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		urlArea := s.webURL + "/area-atleta"
 		// Without the image consent (or for a minor) the profile is not public: never promise its URL.
 		urlFicha := s.webURL + "/atletas/" + slug
-		privada := "✓ Publicamos tu ficha en " + urlFicha + "."
+		privada := "✓ Tu ficha ya es visible en la lista de atletas."
 		var visible bool
 		if err := tx.QueryRow(ctx, `SELECT visible FROM perfiles WHERE atleta_id = $1`, *destino).Scan(&visible); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
 		if !visible {
-			urlFicha, privada = "", "Tu ficha aún no es pública: autoriza la publicación de tu nombre, tus datos deportivos y tu foto desde el área de atleta para que aparezca en la web."
+			urlFicha, privada = "", "✓ Tu ficha aún no es pública: actívala desde el área de atleta cuando quieras que aparezca en la lista de atletas."
 			if fotoPublicada == "" {
-				privada = "Tu ficha aún no es pública: desde el área de atleta autoriza la publicación de tu nombre, tus datos deportivos y tu foto, y sube tu foto, para que aparezca en la web."
+				privada = "✓ Tu ficha aún no es pública: desde el área de atleta sube tu foto y activa su publicación cuando quieras que aparezca en la lista de atletas."
 			}
 		}
 		foto := ""

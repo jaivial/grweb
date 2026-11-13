@@ -649,6 +649,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	// The team that gets the notice (identity knows who can edit the athletes).
 	equipo := s.equipoAdmins(ctx, c.ID)
 	matchID, matchTipo := s.matchAtleta(ctx, c.ID, d)
+	coincidencia := s.coincidenciaTexto(ctx, matchID, matchTipo)
 	ua := userAgentDe(ctx)
 
 	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
@@ -705,7 +706,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			fotoURL = s.urlFotoFirmada(c.ID, id, c.Slug)
 		}
 		for _, m := range equipo {
-			if err := email(ctx, tx, c.ID, m.Email, "atleta-solicitud-nueva", s.varsNueva(d, matchTipo, menor, fotoURL, c.Slug)); err != nil {
+			if err := email(ctx, tx, c.ID, m.Email, "atleta-solicitud-nueva", s.varsNueva(d, matchTipo, coincidencia, menor, fotoURL, c.Slug)); err != nil {
 				return err
 			}
 		}
@@ -1488,7 +1489,7 @@ func (s *Svc) eventoContacto(d DatosAlta, cons map[string]Consentimiento, ip, ua
 // varsRecibida are the variables of the email to the athlete.
 func (s *Svc) varsRecibida(d DatosAlta, foto, menor, publica bool) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "email": d.Email, "telefono": d.Telefono, "club": d.Club, "ciudad": d.Ciudad,
+		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "club": d.Club, "ciudad": d.Ciudad,
 		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "pasos": pasosRecibida(foto, menor, publica),
 		"urlAtletas": s.webURL + "/atletas",
 	}
@@ -1523,12 +1524,12 @@ func pasosRecibida(foto, menor, publica bool) string {
 }
 
 // varsNueva are the variables of the email to the team (with the photo: a signed URL, not public).
-func (s *Svc) varsNueva(d DatosAlta, match string, menor bool, fotoURL, slug string) map[string]string {
+func (s *Svc) varsNueva(d DatosAlta, match, coincidencia string, menor bool, fotoURL, slug string) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": d.Telefono, "licencia": d.Licencia,
-		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadTexto(d.FechaNacimiento),
+		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "licencia": d.Licencia,
+		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadAnios(d.FechaNacimiento, menor),
 		"fechaNacimiento": fechaCorta(d.FechaNacimiento), "marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL),
-		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor),
+		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor, edadTexto(d.FechaNacimiento)), "coincidencia": coincidencia,
 		"prueba": pruebaTexto(d.Prueba), "foto": fotoURL, "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
 	}
 }
@@ -1536,7 +1537,7 @@ func (s *Svc) varsNueva(d DatosAlta, match string, menor bool, fotoURL, slug str
 // varsWARecibida are the variables of the WhatsApp message to the athlete.
 func (s *Svc) varsWARecibida(d DatosAlta) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "email": d.Email, "telefono": d.Telefono, "club": d.Club, "ciudad": d.Ciudad,
+		"nombre": d.Nombre, "email": d.Email, "telefono": telTexto(d.Telefono), "club": d.Club, "ciudad": d.Ciudad,
 		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": "No", "urlAtletas": s.webURL + "/atletas",
 	}
 }
@@ -1544,10 +1545,10 @@ func (s *Svc) varsWARecibida(d DatosAlta) map[string]string {
 // varsWANueva are the variables of the WhatsApp message to the organisers.
 func (s *Svc) varsWANueva(d DatosAlta, match string, menor bool, slug string) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": d.Telefono, "licencia": d.Licencia,
-		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadTexto(d.FechaNacimiento),
+		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "licencia": d.Licencia,
+		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadAnios(d.FechaNacimiento, menor),
 		"fechaNacimiento": fechaCorta(d.FechaNacimiento), "marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL),
-		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor),
+		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor, edadTexto(d.FechaNacimiento)),
 		"foto": "", "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
 	}
 }
@@ -1595,17 +1596,56 @@ func fechaCorta(nac string) string {
 }
 
 // textoMenor warns the team about a minor (empty when the athlete is not).
-func textoMenor(menor bool) string {
+func textoMenor(menor bool, edad string) string {
 	if !menor {
 		return ""
 	}
-	return "⚠ Menor de edad · falta autorización. La foto no se publica sin la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla."
+	foto := "La foto"
+	if edad != "" {
+		foto = edad + " años: la foto"
+	}
+	return "⚠ Menor de edad · falta autorización. " + foto + " no se publica sin la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla."
+}
+
+// edadAnios is «17 años», with «(menor)» for a minor (Figma 171:91081).
+func edadAnios(nac string, menor bool) string {
+	e := edadTexto(nac)
+	if e == "" {
+		return ""
+	}
+	if menor {
+		return e + " años (menor)"
+	}
+	return e + " años"
+}
+
+// telTexto groups a Spanish E.164 number for reading (+34 600 123 456); other numbers stay as they are.
+func telTexto(t string) string {
+	if len(t) == 12 && strings.HasPrefix(t, "+34") {
+		return t[:3] + " " + t[3:6] + " " + t[6:9] + " " + t[9:]
+	}
+	return t
+}
+
+// coincidenciaTexto is the blue notice of a suggested match (by name): who it is, for the reviewer to compare.
+func (s *Svc) coincidenciaTexto(ctx context.Context, id *uuid.UUID, tipo string) string {
+	if id == nil || tipo != "nombre" {
+		return ""
+	}
+	var nombre, licencia string
+	if err := s.a.DB.QueryRow(ctx, `SELECT trim(nombre || ' ' || apellidos), coalesce(licencia, '') FROM atletas WHERE id = $1`, *id).Scan(&nombre, &licencia); err != nil {
+		return ""
+	}
+	if licencia != "" {
+		nombre += " (" + licencia + ")"
+	}
+	return "ℹ Coincidencia sugerida. Encaja con el atleta inscrito " + nombre + " por nombre y fecha de nacimiento. Revisa las diferencias antes de aprobar."
 }
 
 // fotoTexto says if the request has a photo.
 func fotoTexto(foto bool) string {
 	if foto {
-		return "Sí, en blanco y negro"
+		return "blanco y negro · recortada"
 	}
 	return "No"
 }
