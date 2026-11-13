@@ -67,7 +67,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
       }
 
       @if (cargando()) {
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
           @for (i of [0, 1, 2]; track i) {
             <div class="animate-pulse overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
               <div class="h-40 bg-bg-raised"></div>
@@ -97,7 +97,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
               <button grButton size="s" icon="plus" class="ml-auto" [disabled]="!puede()" (click)="nuevo(r.v)">Añadir a {{ r.l.toLowerCase() }}</button>
             </header>
             @if (grupo(r.v).length) {
-              <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 @for (p of grupo(r.v); track p.id) {
                   <article class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong" [class.opacity-60]="p.activo === false">
                     <div class="relative h-44 bg-[linear-gradient(135deg,var(--color-accent-deep),var(--color-bg-surface)_75%)]">
@@ -177,7 +177,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
               <input grInput name="titulo" [ngModel]="form().titulo" (ngModelChange)="set({ titulo: $event }); tituloTocado.set(true)" maxlength="120" placeholder="Podio absoluto" />
             </gr-field>
 
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <gr-field label="Ranking" [hint]="editando() ? 'No se cambia al editar' : ''">
                 <gr-select name="ranking" [ngModel]="form().ranking" (ngModelChange)="set({ ranking: $event })" aria-label="Ranking del premio" [disabled]="!!editando()">
                   @for (r of rankings; track r.v) { <option [value]="r.v">{{ r.l }}</option> }
@@ -191,7 +191,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
               </gr-field>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <gr-field label="Desde el puesto">
                 <gr-select name="puestoDesde" [ngModel]="form().puestoDesde" (ngModelChange)="set({ puestoDesde: +$event })" aria-label="Puesto desde">
                   @for (n of puestos; track n) { <option [value]="n">{{ ordinal(n) }} puesto</option> }
@@ -204,7 +204,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
               </gr-field>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <gr-field label="Valor" [hint]="'Texto corto · se anuncia en vivo · ' + form().valorTexto.length + '/60'" [error]="valorRecortado() ? 'Máximo 60 caracteres: hemos recortado el texto pegado.' : ''">
                 <input grInput name="valorTexto" [ngModel]="form().valorTexto" (ngModelChange)="set({ valorTexto: $event })" (paste)="pegarValor($event)" maxlength="60" placeholder="500 € en material Eleiko" />
               </gr-field>

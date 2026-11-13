@@ -142,7 +142,7 @@ const cfgPorDefecto: ConfigJuegos = {
 
         <so-card titulo="Nota fantasy (0–10)" ayuda="Nota de cada atleta = intentos + puesto + bonus − nulos · en décimas (5 = 0,5) · blanqueo = 0,0">
           @if (cambiosEn(puntosGrupos)) { <span cardActions class="inline-flex h-6 items-center rounded-2xs border border-warning/30 bg-warning/10 px-2 font-mono text-mono-xs text-warning">{{ cambiosEn(puntosGrupos) }} {{ cambiosEn(puntosGrupos) === 1 ? 'cambio' : 'cambios' }}</span> }
-          <div class="grid gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
+          <div class="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
             @for (col of puntosCols; track $index) {
               <div class="flex flex-col gap-6">
                 @for (g of col; track g.t) { <ng-container [ngTemplateOutlet]="grupoTpl" [ngTemplateOutletContext]="{ $implicit: g }" /> }
@@ -153,7 +153,7 @@ const cfgPorDefecto: ConfigJuegos = {
 
         <so-card titulo="Cláusulas y mercado de fichajes" ayuda="Redondeo a 1.000 · cada cambio queda en historial_clausulas y emite fantasy.clausula">
           @if (cambiosEn(clausulaGrupos)) { <span cardActions class="inline-flex h-6 items-center rounded-2xs border border-warning/30 bg-warning/10 px-2 font-mono text-mono-xs text-warning">{{ cambiosEn(clausulaGrupos) }} {{ cambiosEn(clausulaGrupos) === 1 ? 'cambio' : 'cambios' }}</span> }
-          <div class="grid gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
+          <div class="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
             @for (col of clausulaCols; track $index) {
               <div class="flex flex-col gap-6">
                 @for (g of col; track g.t) { <ng-container [ngTemplateOutlet]="grupoTpl" [ngTemplateOutletContext]="{ $implicit: g }" /> }
