@@ -48,7 +48,7 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
       [class]="claseControl()" (click)="alternar()" (keydown)="tecla($event)" (blur)="alSalir()">
       @if (tipo() === 'filtro' && etiqueta() && valor() && seleccion()) { <span class="shrink-0 text-text-tertiary">{{ prefijo() }}</span> }
       <span class="min-w-0 flex-1 truncate text-left" [class.text-text-muted]="tipo() === 'campo' && !seleccion()">{{ texto() }}</span>
-      <gr-icon name="chevron-down" [size]="16" [class]="claseIcono()" />
+      <gr-icon [name]="abierto() ? 'chevron-up' : 'chevron-down'" [size]="16" [class]="claseIcono()" />
     </button>
     @if (abierto()) {
       @if (hoja()) {
@@ -148,7 +148,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     return this.lista().find((o) => o.valor === '')?.etiqueta || this.etiqueta() || '';
   });
   protected readonly titulo = computed(() => this.etiqueta() || this.ariaLabel() || this.lista().find((o) => o.valor === '')?.etiqueta || 'Elige una opción');
-  protected readonly claseIcono = computed(() => 'size-4 shrink-0 transition-transform duration-150 ' + (this.abierto() ? 'rotate-180 ' : '') +
+  protected readonly claseIcono = computed(() => 'size-4 shrink-0 ' +
     (this.tipo() === 'filtro' && this.activa() ? 'text-accent-text' : 'text-text-tertiary'));
   protected readonly claseControl = computed(() => {
     const base = 'inline-flex w-full min-w-0 items-center gap-1.5 rounded-sm border text-left transition-[border-color,box-shadow,background-color] duration-150 ' +
