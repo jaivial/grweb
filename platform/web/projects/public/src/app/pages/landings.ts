@@ -468,7 +468,7 @@ export class ClubsPage {
               </ul>
               <div class="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a grButton variant="primary" size="l" routerLink="/alta-atleta" hreflang="es" iconRight="arrow-right">{{ str(h, 'cta') || 'Athlete sign-up (Spanish)' }}</a>
-                <a grButton size="l" routerLink="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'Enter the raffle' }}</a>
+                <a grButton size="l" routerLink="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'See the raffle' }}</a>
               </div>
             }
           </div>
@@ -503,7 +503,7 @@ export class ClubsPage {
                       <p class="text-display-xs md:text-display-s">{{ str(s, 'subtitulo') }}</p>
                       <p class="text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>
                       <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <a grButton variant="display-gradient" size="l" routerLink="/sorteo" hreflang="es">{{ str(s, 'cta') || 'Buy tickets' }}</a>
+                        <a grButton variant="display-gradient" size="l" routerLink="/sorteo" hreflang="es">{{ str(s, 'cta') || 'See the prizes' }}</a>
                         <a grButton variant="ghost" routerLink="/politica-concurso" hreflang="es">Raffle terms (Spanish)</a>
                       </div>
                     </div>
