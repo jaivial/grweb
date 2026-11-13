@@ -110,8 +110,8 @@ export class GrSegmented {
   host: { class: 'flex min-w-0 flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5' },
   template: `
     <div class="flex items-start justify-between gap-3">
-      <p class="text-label-xs text-text-tertiary">{{ label() }}</p>
-      @if (trend().length > 1) { <gr-sparkline [values]="trend()" [color]="trendColor()" /> }
+      <p class="min-w-0 text-label-xs text-text-tertiary">{{ label() }}</p>
+      @if (trend().length > 1) { <gr-sparkline class="shrink-0" [values]="trend()" [color]="trendColor()" /> }
     </div>
     <p class="font-sans text-[32px] leading-none font-bold tracking-tight md:text-[40px]" [class.text-text-disabled]="value() === null">{{ value() ?? '0' }}</p>
     <div class="flex min-h-6 flex-wrap items-center gap-2 text-body-xs text-text-tertiary">
