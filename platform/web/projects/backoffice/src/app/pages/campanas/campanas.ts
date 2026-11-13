@@ -168,14 +168,14 @@ export class CampanasPage {
   template: `
     @let w = estado();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="WhatsApp" subtitle="Canal de WhatsApp de la competición para campañas y avisos" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Campañas', 'WhatsApp']">
+      <bo-page-header title="WhatsApp" [compact]="true" [crumbs]="['Campañas', 'WhatsApp']">
         <ng-container actions>
           <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-success/40 bg-success/10 px-3 text-label-s text-success"><gr-icon name="radio" [size]="16" />Conexión en vivo</span>
         </ng-container>
       </bo-page-header>
       @if (!w) { <gr-skeleton class="h-48 rounded-lg" /> } @else {
-        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+        <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <section class="rounded-lg border border-line-subtle bg-bg-card p-5" role="status" aria-live="polite">
             <div class="flex flex-wrap items-center gap-3">
               <h2 class="flex-1 text-ui-h5">Estado del canal</h2>
               <gr-badge [tone]="w.conexion === 'open' ? 'success' : 'warning'">{{ w.conexion === 'open' ? 'Vinculado' : 'Sin vincular' }}</gr-badge>
@@ -184,9 +184,9 @@ export class CampanasPage {
             <p class="mt-3 text-body-xs text-text-tertiary">El canal lo usan las campañas y los avisos del alta</p>
             <p class="text-body-xs text-text-tertiary">Estado · {{ estadoTexto(w) }}</p>
             <p class="text-body-xs text-text-tertiary">Antes del primer envío: máximo 6 mensajes por minuto y con el consentimiento del destinatario</p>
-            <gr-alert tone="info" title="La vinculación vive en Sistema › WhatsApp" class="mt-4">
+            <gr-alert tone="info" title="La vinculación vive en Sistema › WhatsApp" class="mt-4 [&>gr-icon]:self-start">
               Número, QR o código y avisos de solicitudes se gestionan en un solo sitio. Aquí solo se consulta el estado del canal.
-              <a alertAction [routerLink]="['/', comps.current()?.slug, 'sistema', 'whatsapp']" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Abrir Sistema › WhatsApp <gr-icon name="arrow-right" [size]="14" /></a>
+              <a alertAction [routerLink]="['/', comps.current()?.slug, 'sistema', 'whatsapp']" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-info">Abrir Sistema › WhatsApp <gr-icon name="arrow-right" [size]="14" /></a>
             </gr-alert>
             <div class="mt-5 flex flex-wrap gap-2">
               <a grButton variant="primary" [routerLink]="['/', comps.current()?.slug, 'sistema', 'whatsapp']">Vincular en Sistema › WhatsApp</a>
@@ -195,7 +195,7 @@ export class CampanasPage {
           </section>
           <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
             <h2 class="text-ui-h5">Qué se gestiona en Sistema › WhatsApp</h2>
-            <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
+            <ul class="mt-3 flex flex-col gap-2 text-body-xs text-text-tertiary">
               <li>Crear el servidor de WhatsApp de la competición</li>
               <li>Vincular el número con QR o con código</li>
               <li>Reiniciar la conexión y desconectar el número</li>
@@ -215,18 +215,33 @@ export class WhatsAppPage {
   constructor() {
     effect(() => {
       if (!this.cid()) return;
-      untracked(() => void this.api.whatsapp(this.cid()).then((w) => this.estado.set(w)).catch(() => this.estado.set(null)));
+      untracked(() => this.cargar());
     });
+    // Figma 171:90807: the card follows the linking live (whatsapp.* events of the bus).
+    const sub = inject(Realtime).events.subscribe((e) => {
+      if (e.tipo.startsWith('whatsapp.')) this.cargar();
+    });
+    inject(DestroyRef).onDestroy(() => sub.unsubscribe());
+  }
+  private cargar(): void {
+    void this.api.whatsapp(this.cid()).then((w) => this.estado.set(w)).catch(() => this.estado.set(null));
+  }
+  /** «+34 612 345 678». */
+  private legible(numero?: string): string {
+    const d = (numero ?? '').replace(/\s/g, '');
+    if (!d.startsWith('+')) return d;
+    const g: string[] = [];
+    for (let i = d.length; i > 1; i -= 3) g.unshift(d.slice(Math.max(1, i - 3), i));
+    return '+' + g.join(' ');
   }
   protected descripcion(w: WAEstado): string {
-    if (w.conexion === 'open') return `Esta competición tiene el número ${w.numero ?? ''} vinculado. Las campañas con canal WhatsApp y los avisos del alta salen por aquí.`.trim();
+    if (w.conexion === 'open') return `Esta competición tiene el número ${this.legible(w.numero)} vinculado. Las campañas con canal WhatsApp y los avisos del alta salen por aquí.`.trim();
     if (w.conexion === 'connecting') return 'El número se está conectando. En cuanto esté listo, las campañas con canal WhatsApp y los avisos del alta saldrán por aquí.';
     return 'Esta competición no tiene número de WhatsApp vinculado. Los envíos de campañas con canal WhatsApp quedan en pausa y los avisos del alta salen solo por email.';
   }
   protected estadoTexto(w: WAEstado): string {
-    if (w.conexion === 'open') return `número vinculado${w.numero ? ' · ' + w.numero : ''}`;
+    if (w.conexion === 'open') return 'número vinculado';
     if (w.conexion === 'connecting') return 'conectando';
-    if (w.modo === 'simulado') return 'sin número vinculado · simulado';
     return 'sin número vinculado';
   }
 }
