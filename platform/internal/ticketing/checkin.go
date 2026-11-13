@@ -379,6 +379,7 @@ func (s *Svc) registerCheckin() {
 			Ultimos     []Escaneo     `json:"ultimos"`
 			Incidencias []Escaneo     `json:"incidencias"`
 			Ritmo       []int         `json:"ritmo" doc:"Personas por minuto (últimos 30 min)"`
+			Escaneos    int           `json:"escaneos" doc:"Escaneos registrados (24 h), para la pestaña «Escaneos»"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "checkin-resumen", Method: http.MethodGet, Path: baseCheckin + "/resumen", Summary: "Taquilla: aforo dentro, puestos, últimos accesos e incidencias", Tags: tags, Security: bearer},
@@ -402,6 +403,9 @@ func (s *Svc) registerCheckin() {
 				return nil, err
 			}
 			if o.Body.Incidencias, err = s.escaneos(ctx, in.CID, "e.resultado IN ('ya_usada', 'otra_sesion', 'invalida', 'anulada') AND e.escaneado_at > now() - interval '24 hours'", 20); err != nil {
+				return nil, err
+			}
+			if err = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM escaneos WHERE competition_id = $1 AND escaneado_at > now() - interval '24 hours'`, in.CID).Scan(&o.Body.Escaneos); err != nil {
 				return nil, err
 			}
 			o.Body.Ritmo = make([]int, 30)

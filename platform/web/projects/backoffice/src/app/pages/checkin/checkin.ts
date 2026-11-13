@@ -2,11 +2,15 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrBadge, GrButton, GrIcon, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
+import { GrBadge, GrButton, GrIcon, GrKpi, GrSkeleton, GrToasts, GrSelect, type GrIconName } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, errText } from '../../shared/ui';
+import { BoPageHeader, TituloMovil, errText } from '../../shared/ui';
 import { EntradasApi, RESULTADO, horaSeg, hora, type Bootstrap, type Compacta, type Entrada, type EscaneoIn, type Resultado, type ResumenCheckin } from '../entradas/api';
+
+type TabTaquilla = 'puerta' | 'escaneos' | 'incidencias';
+/** «Sábado mañana» → «Sáb. mañana» (mobile topbar and search rows). */
+const corta = (s: string) => s.replace(/^(Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo)/, (m) => m.slice(0, 3) + '.');
 
 /** «Check-in y taquilla» (Figma 59 · «Taquilla · resumen»): people inside, pace, incidents and the latest scans. */
 @Component({
@@ -15,69 +19,70 @@ import { EntradasApi, RESULTADO, horaSeg, hora, type Bootstrap, type Compacta, t
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = data();
-    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
       <bo-page-header title="Check-in y taquilla" [subtitle]="sub()" [crumbs]="[comps.current()?.nombreCorto || '', 'Hoy', 'Check-in y taquilla']">
-        <a actions grButton variant="primary" icon="scan" routerLink="escaner">Abrir escáner</a>
+        <a actions grButton variant="primary" routerLink="escaner">Abrir escáner</a>
       </bo-page-header>
+      <nav class="-mt-2 flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" role="tablist" aria-label="Check-in">
+        @for (t of tabs(); track t.key) {
+          @if (t.key === 'pesaje') {
+            <a role="tab" aria-selected="false" routerLink="../atletas/pesaje" class="flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 pb-3 pt-1 text-label-m text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none">{{ t.label }}</a>
+          } @else {
+            <button type="button" role="tab" [attr.aria-selected]="tab() === t.key" (click)="tab.set($any(t.key))"
+              class="flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 pb-3 pt-1 text-label-m transition-colors focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none"
+              [class]="tab() === t.key ? 'border-accent text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'">{{ t.label }}
+              @if (t.n !== null) { <span class="rounded-xs bg-bg-raised px-1.5 py-0.5 text-mono-xs text-text-secondary">{{ n(t.n) }}</span> }</button>
+          }
+        }
+      </nav>
       @if (r) {
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <gr-kpi label="Personas dentro" [value]="n(dentro())" [delta]="pct() + ' %'" [caption]="'de ' + n(reservadas())" [trend]="acum(r.ritmo)" />
-          <gr-kpi label="Escaneos / min" [value]="n(r.ritmo[r.ritmo.length - 1] ?? 0)" [caption]="'pico ' + max(r.ritmo) + ' · últimos 30 min'" />
-          <gr-kpi label="Sin presentarse" [value]="n(reservadas() - dentro())" caption="reservas sin escanear" />
-          <gr-kpi label="Incidencias" [value]="n(r.incidencias.length)" caption="duplicados, otra sesión y QR inválidos (24 h)" />
-        </div>
-        <div class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
-            <h2 class="flex items-center justify-between text-ui-h5">Entradas por minuto<span class="text-mono-xs text-text-tertiary">últimos 30 min</span></h2>
-            <div class="mt-4 flex h-44 items-end gap-1">
-              @for (v of r.ritmo; track $index) { <div class="flex-1 rounded-t-2xs" [class]="v === max(r.ritmo) && v ? 'bg-accent' : 'bg-accent-deep'" [style.height.%]="max(r.ritmo) ? 4 + v * 96 / max(r.ritmo) : 4" [title]="v + ' personas'"></div> }
-            </div>
-            <ul class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              @for (s of r.sesiones; track s.id) {
-                @if (s.publicada) {
-                  <li class="rounded-md bg-bg-raised p-3"><p class="flex justify-between text-label-s"><span>{{ s.nombre }}</span><span class="font-mono">{{ n(s.dentro) }} / {{ n(s.ocupadas) }}</span></p>
-                    <div class="mt-2 h-1.5 rounded-pill bg-bg-base"><div class="h-full rounded-pill bg-success" [style.width.%]="s.ocupadas ? s.dentro * 100 / s.ocupadas : 0"></div></div></li>
-                }
-              }
-            </ul>
-          </section>
-          <aside class="flex flex-col gap-3">
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
-              <h2 class="text-ui-h5">Incidencias</h2>
-              <ul class="mt-3 flex flex-col gap-2">
+        @if (tab() === 'puerta') {
+          <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <gr-kpi label="Personas dentro" [value]="n(dentro())" [delta]="pct() + ' %'" [caption]="'de ' + n(reservadas())" [trend]="acum(r.ritmo)" />
+            <gr-kpi label="Escaneos / min" [value]="n(r.ritmo[r.ritmo.length - 1] ?? 0)" [caption]="'pico ' + max(r.ritmo) + (max(r.ritmo) ? ' · ' + pico(r.ritmo) : '')" [trend]="r.ritmo" />
+            <gr-kpi label="Sin presentarse" [value]="n(reservadas() - dentro())" caption="reservas sin escanear" />
+            <gr-kpi label="Incidencias" [value]="n(r.incidencias.length + sinRed().length)" caption="duplicados y QR inválidos" />
+          </div>
+          <div class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+              <h2 class="flex items-center justify-between text-ui-h4">Entradas por minuto<span class="text-body-xs font-normal text-text-tertiary">{{ desde() }} – ahora</span></h2>
+              <div class="mt-6 flex h-48 items-end gap-1" role="img" [attr.aria-label]="'Entradas por minuto, pico ' + max(r.ritmo)">
+                @for (v of r.ritmo; track $index) { <div class="flex-1 rounded-t-2xs" [class]="v && v >= max(r.ritmo) * 0.75 ? 'bg-accent' : 'bg-accent-deep'" [style.height.%]="max(r.ritmo) ? 6 + v * 94 / max(r.ritmo) : 6" [title]="v + ' personas'"></div> }
+              </div>
+            </section>
+            <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+              <h2 class="text-ui-h4">Incidencias</h2>
+              <ul class="mt-4 flex flex-col gap-2">
                 @for (p of sinRed(); track p.id) {
-                  <li class="rounded-md border border-accent/50 bg-accent-deep/20 p-3 text-body-s"><p class="flex items-center gap-2 text-label-s text-accent-text"><gr-icon name="wifi-off" [size]="14" />{{ p.nombre }} sin conexión</p>
-                    <p class="text-text-secondary">{{ p.cola }} en cola · último latido {{ hora(p.ultimoPing) }}</p></li>
+                  <li class="flex gap-3 rounded-md border border-accent/50 bg-accent-deep/20 p-4 text-body-s"><gr-icon name="circle-x" [size]="18" class="mt-0.5 text-accent-text" />
+                    <span><b class="block text-label-m text-accent-text">{{ p.nombre }} sin conexión</b><span class="text-text-secondary">{{ p.cola }} en cola desde {{ hora(p.ultimoPing) }}.</span></span></li>
                 }
-                @for (x of r.incidencias.slice(0, 5); track x.id) {
-                  <li class="rounded-md border border-warning/40 bg-warning/10 p-3 text-body-s"><p class="text-label-s text-warning">{{ x.codigo || 'QR no reconocido' }} · {{ res[x.resultado].label }}</p>
-                    <p class="text-text-secondary">{{ x.nombre || '—' }} · {{ x.puesto }} · {{ hora(x.at) }}</p></li>
+                @for (x of r.incidencias.slice(0, 3); track x.id) {
+                  <li class="flex gap-3 rounded-md border border-warning/50 bg-warning/10 p-4 text-body-s"><gr-icon [name]="x.resultado === 'invalida' || x.resultado === 'anulada' ? 'circle-x' : 'triangle-alert'" [size]="18" class="mt-0.5 text-warning" />
+                    <span><b class="block text-label-m text-warning">{{ x.codigo || 'QR no reconocido' }} · {{ res[x.resultado].label }}</b>
+                      <span class="block text-text-secondary">{{ x.nombre || '—' }} · {{ x.puesto }} · {{ hora(x.at) }}</span>
+                      <button type="button" class="mt-1 inline-flex items-center gap-1 text-label-m text-warning hover:underline focus-visible:outline-2 focus-visible:outline-accent" (click)="tab.set('incidencias')">Ver escaneos <gr-icon name="arrow-right" [size]="14" /></button></span></li>
                 } @empty { @if (!sinRed().length) { <li class="flex items-center gap-2 text-body-s text-success"><gr-icon name="circle-check" [size]="16" />Sin incidencias</li> } }
               </ul>
             </section>
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
-              <h2 class="text-ui-h5">Puestos</h2>
-              <ul class="mt-2 flex flex-col">
-                @for (p of r.puestos; track p.id) {
-                  <li class="flex items-center gap-2 border-b border-line-subtle py-2 text-body-s last:border-0"><span class="size-2 rounded-full" [class]="vivo(p.ultimoPing) ? 'bg-success' : 'bg-line-strong'"></span>
-                    <span class="flex-1">{{ p.nombre }}<span class="block text-body-xs text-text-tertiary">{{ p.detalle }}</span></span><span class="text-mono-xs text-text-tertiary">{{ p.escaneos15 }} / 15 min</span></li>
-                }
-              </ul>
-            </section>
-          </aside>
-        </div>
-        <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-          <table class="w-full min-w-[640px] text-left text-body-s">
-            <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Hora</th><th class="px-3 py-3">Código</th><th class="px-3 py-3">Titular</th><th class="px-3 py-3">Puesto</th><th class="px-3 py-3">Resultado</th></tr></thead>
+          </div>
+        }
+        @let filas = tab() === 'incidencias' ? r.incidencias : tab() === 'escaneos' ? r.ultimos : r.ultimos.slice(0, 6);
+        <section class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
+          <table class="w-full table-fixed text-left text-body-s">
+            <thead class="border-b border-line-subtle text-mono-xs uppercase text-text-tertiary"><tr><th class="w-24 px-4 py-3 font-normal">Hora</th><th class="w-28 px-3 py-3 font-normal">Código</th><th class="px-3 py-3 font-normal">Titular</th><th class="w-40 px-3 py-3 font-normal">Puesto</th><th class="w-36 px-3 py-3 font-normal">Resultado</th></tr></thead>
             <tbody>
-              @for (x of r.ultimos; track x.id) {
-                <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-2.5 font-mono text-mono-xs">{{ horaSeg(x.at) }}</td><td class="px-3 py-2.5 font-mono text-mono-xs">{{ x.codigo || '—' }}</td>
-                  <td class="px-3 py-2.5">{{ x.nombre || 'QR no reconocido' }}{{ x.personas ? ' (' + x.personas + ')' : '' }}</td><td class="px-3 py-2.5 text-text-secondary">{{ x.puesto }}{{ x.offline ? ' · sin conexión' : '' }}</td>
-                  <td class="px-3 py-2.5"><gr-badge [tone]="res[x.resultado].tone">{{ res[x.resultado].label }}</gr-badge></td></tr>
-              } @empty { <tr><td colspan="5" class="px-4 py-10 text-center text-text-tertiary">Todavía no se ha escaneado nada.</td></tr> }
+              @for (x of filas; track x.id) {
+                <tr class="border-b border-line-subtle last:border-0 hover:bg-bg-raised" [class.bg-success/5]="$first && x.resultado === 'valida'"><td class="px-4 py-3 font-mono text-mono-xs">{{ horaSeg(x.at) }}</td><td class="px-3 py-3 font-mono text-mono-xs">{{ x.codigo || '–' }}</td>
+                  <td class="truncate px-3 py-3">{{ x.nombre || 'QR no reconocido' }}{{ x.personas > 1 ? ' (' + x.personas + ')' : '' }}</td><td class="truncate px-3 py-3 text-text-secondary">{{ x.puesto }}{{ x.offline ? ' · offline' : '' }}</td>
+                  <td class="px-3 py-3">@if (x.offline && x.resultado === 'valida') { <gr-badge tone="info">En cola</gr-badge> } @else { <gr-badge [tone]="res[x.resultado].tone">{{ res[x.resultado].label }}</gr-badge> }</td></tr>
+              } @empty { <tr><td colspan="5" class="px-4 py-10 text-center text-text-tertiary">{{ tab() === 'incidencias' ? 'Sin incidencias en las últimas 24 h.' : 'Todavía no se ha escaneado nada.' }}</td></tr> }
             </tbody>
           </table>
         </section>
+      } @else if (error()) {
+        <div class="flex flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-10 text-center"><gr-icon name="wifi-off" [size]="24" class="text-text-tertiary" />
+          <p class="text-body-s text-text-secondary">No se pudo cargar la taquilla.</p><button grButton (click)="cargar()">Reintentar</button></div>
       } @else { <gr-skeleton class="h-96 rounded-lg" /> }
     </div>
   `,
@@ -89,15 +94,32 @@ export class TaquillaPage {
   protected readonly hora = hora;
   protected readonly horaSeg = horaSeg;
   protected readonly data = signal<ResumenCheckin | null>(null);
+  protected readonly error = signal(false);
+  protected readonly tab = signal<TabTaquilla>('puerta');
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly dentro = computed(() => (this.data()?.sesiones ?? []).reduce((a, s) => a + s.dentro, 0));
   protected readonly reservadas = computed(() => (this.data()?.sesiones ?? []).filter((s) => s.publicada).reduce((a, s) => a + s.ocupadas, 0));
   protected readonly pct = computed(() => (this.reservadas() ? Math.round((this.dentro() * 100) / this.reservadas()) : 0));
   protected readonly sinRed = computed(() => (this.data()?.puestos ?? []).filter((p) => p.cola > 0 && !this.vivo(p.ultimoPing)));
-  protected readonly sub = computed(() => {
-    const s = (this.data()?.sesiones ?? []).find((x) => x.publicada && new Date(x.fin).getTime() > Date.now());
-    return s ? `${s.nombre} · puertas ${hora(s.puertas)}` : 'Sin sesiones por delante';
+  protected readonly tabs = computed(() => {
+    const r = this.data();
+    return [
+      { key: 'puerta', label: 'Puerta', n: null as number | null },
+      { key: 'pesaje', label: 'Atletas (pesaje)', n: null },
+      { key: 'escaneos', label: 'Escaneos', n: r ? (r.escaneos ?? r.ultimos.length) : null },
+      { key: 'incidencias', label: 'Incidencias', n: r ? r.incidencias.length + this.sinRed().length : null },
+    ];
   });
+  protected readonly sub = computed(() => {
+    const now = Date.now();
+    const s = (this.data()?.sesiones ?? []).find((x) => x.publicada && new Date(x.fin).getTime() > now);
+    if (!s) return 'Sin sesiones por delante';
+    const dia = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(/[.,]/g, '');
+    const curso = new Date(s.inicio).getTime() <= now ? ' en curso' : '';
+    const abiertas = new Date(s.puertas).getTime() <= now ? 'abiertas' : 'abren';
+    return dia + ' · ' + s.nombre + curso + ' · puertas ' + abiertas + ' ' + hora(s.puertas);
+  });
+  protected readonly desde = computed(() => hora(new Date(Date.now() - 29 * 60_000).toISOString()));
   private t?: ReturnType<typeof setTimeout>;
 
   constructor() {
@@ -118,11 +140,12 @@ export class TaquillaPage {
       clearInterval(i);
     });
   }
-  private async cargar(): Promise<void> {
+  protected async cargar(): Promise<void> {
     try {
       this.data.set(await this.api.resumenCheckin(this.cid()));
+      this.error.set(false);
     } catch {
-      /* keep the last data */
+      this.error.set(true); // the last data stays on screen if there was any
     }
   }
   protected n(v: number): string {
@@ -130,6 +153,10 @@ export class TaquillaPage {
   }
   protected max(a: number[]): number {
     return Math.max(0, ...a);
+  }
+  /** Time of the busiest minute of the last 30. */
+  protected pico(a: number[]): string {
+    return hora(new Date(Date.now() - (a.length - 1 - a.indexOf(this.max(a))) * 60_000).toISOString());
   }
   protected acum(a: number[]): number[] {
     let t = 0;
@@ -147,8 +174,8 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
 
 /**
  * Door scanner (Figma 59 · check-in móvil): station and session, camera with jsQR, result cards (valid, already
- * used, wrong session, invalid, saved offline), search by name, and an offline queue that syncs when the network is
- * back (idempotent keys; the server resolves duplicates).
+ * used, wrong session, invalid, checking, saved offline), camera denied, search by name, and an offline queue that
+ * syncs when the network is back (idempotent keys; the server resolves duplicates).
  */
 @Component({
   selector: 'bo-escaner',
@@ -156,92 +183,106 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <div class="mx-auto flex max-w-md flex-col gap-3 pb-24">
+    <div class="mx-auto flex max-w-md flex-col gap-4 pb-24 pt-2">
       @switch (vista()) {
         @case ('puesto') {
-          <h1 class="text-ui-h3">Elige tu puesto</h1>
-          <p class="-mt-2 text-body-s text-text-tertiary">Lo puedes cambiar luego desde el menú.</p>
-          <ul class="flex flex-col gap-2" role="radiogroup" aria-label="Puesto">
+          <h1 class="text-ui-h2">Elige tu puesto</h1>
+          <p class="-mt-1 text-body-m text-text-secondary">Lo puedes cambiar luego desde el menú</p>
+          <ul class="flex flex-col gap-3" role="radiogroup" aria-label="Puesto">
             @for (p of boot()?.puestos ?? []; track p.id) {
               <li><button type="button" role="radio" [attr.aria-checked]="puesto() === p.nombre" [disabled]="p.tipo === 'pesaje'" (click)="puesto.set(p.nombre)"
-                class="flex w-full items-center gap-3 rounded-lg border p-4 text-left disabled:opacity-40" [class]="puesto() === p.nombre ? 'border-accent bg-accent-deep/25' : 'border-line-subtle bg-bg-card'">
-                <span class="flex size-5 items-center justify-center rounded-full border-2" [class]="puesto() === p.nombre ? 'border-accent' : 'border-line-strong'">@if (puesto() === p.nombre) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
-                <span><span class="block text-label-m">{{ p.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ p.tipo === 'pesaje' ? 'Pesaje de atletas: desde Atletas' : p.detalle }}</span></span>
+                class="flex min-h-[72px] w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none" [class]="puesto() === p.nombre ? 'border-accent! bg-accent-deep/25' : 'border-line-subtle bg-bg-card'">
+                <span class="flex size-[18px] shrink-0 items-center justify-center rounded-full border-2" [class]="puesto() === p.nombre ? 'border-accent' : 'border-line-strong'">@if (puesto() === p.nombre) { <span class="size-2 rounded-full bg-accent"></span> }</span>
+                <span><span class="block text-label-l">{{ p.nombre }}</span><span class="block text-body-s text-text-secondary">{{ p.tipo === 'pesaje' ? 'Solo staff de competición' : p.detalle }}</span></span>
               </button></li>
-            }
+            } @empty { @if (!boot()) { @for (i of [1, 2, 3]; track i) { <li class="h-[72px] animate-pulse rounded-lg bg-bg-card motion-reduce:animate-none"></li> } } @else { <li class="text-body-s text-text-tertiary">No hay puestos configurados.</li> } }
           </ul>
-          <label class="text-label-s" for="es-s">Sesión</label>
-          <gr-select id="es-s" [ngModel]="sesion()" (ngModelChange)="sesion.set($event)">
+          <label class="mt-2 text-label-m" for="es-s">Sesión</label>
+          <gr-select id="es-s" class="-mt-2" [ngModel]="sesion()" (ngModelChange)="sesion.set($event)">
             @for (s of boot()?.sesiones ?? []; track s.id) { <option [value]="s.id">{{ s.nombre }}{{ s.id === boot()?.actual ? ' (ahora)' : '' }}</option> }
           </gr-select>
           <button grButton variant="primary" size="l" [disabled]="!puesto() || !sesion()" (click)="empezar()">Empezar a escanear</button>
-          @if (!boot()) { <p class="text-body-s text-text-tertiary">Cargando puestos y entradas…</p> }
         }
 
         @case ('escaner') {
-          <header class="flex items-center gap-2">
-            <button type="button" class="flex min-w-0 flex-1 items-center gap-1 text-left text-label-m" (click)="vista.set('puesto')"><span class="truncate">{{ puesto() }} · {{ sesionNombre() }}</span><gr-icon name="chevron-down" [size]="16" /></button>
-            <span class="flex size-9 items-center justify-center rounded-pill" [class]="online() ? 'bg-success/15 text-success' : 'bg-info/15 text-info'" [attr.aria-label]="online() ? 'Con conexión' : 'Sin conexión'"><gr-icon [name]="online() ? 'radio' : 'wifi-off'" [size]="16" /></span>
-          </header>
-          @if (!online()) {
-            <p class="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 p-3 text-body-s text-warning"><gr-icon name="triangle-alert" [size]="16" class="mt-0.5" /><span><b>Sin conexión · modo local.</b> {{ cola().length }} escaneos en cola · se enviarán solos.</span></p>
-          }
-          <div class="grid grid-cols-3 gap-2">
-            <div class="rounded-md bg-bg-card p-2.5"><p class="text-mono-xs text-text-tertiary">DENTRO</p><p class="text-ui-h4">{{ dentroSesion() }}</p></div>
-            <div class="rounded-md bg-bg-card p-2.5"><p class="text-mono-xs text-text-tertiary">RESERVAS</p><p class="text-ui-h4">{{ reservasSesion() }}</p></div>
-            <div class="rounded-md bg-bg-card p-2.5"><p class="text-mono-xs text-text-tertiary">COLA</p><p class="text-ui-h4" [class.text-warning]="cola().length">{{ cola().length }}</p></div>
-          </div>
-          <div class="relative aspect-square overflow-hidden rounded-xl bg-black">
-            <video #video class="size-full object-cover" playsinline muted [class.hidden]="sinCamara()"></video>
-            @if (!sinCamara()) { <div class="pointer-events-none absolute inset-[18%] rounded-lg border-4 transition-colors" [class]="marco()"></div> }
-            @if (sinCamara()) {
-              <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-                <gr-icon name="camera" [size]="32" class="text-text-tertiary" /><p class="text-label-m">No podemos usar la cámara</p>
-                <p class="text-body-s text-text-tertiary">Da permiso a la cámara en el navegador o busca por nombre o código.</p>
-                <button grButton (click)="arrancar()">Reintentar</button>
-              </div>
-            }
-            @if (comprobando()) { <p class="absolute inset-x-0 bottom-3 text-center text-label-s text-white">Comprobando…</p> }
-          </div>
-          @if (r(); as x) {
-            <section class="rounded-xl border-2 p-4 text-center" [class]="tarjeta(x)" aria-live="assertive">
-              <p class="text-ui-h4">{{ titulo(x) }}</p>
-              <p class="mt-1 font-mono text-label-s">{{ x.codigo }}{{ x.nombre ? ' · ' + x.nombre : '' }}</p>
-              <p class="mt-1 text-body-s opacity-90">{{ x.mensaje }}</p>
-              @switch (x.resultado) {
-                @case ('valida') {
-                  @if (!x.registrado) {
-                    @if (x.pendientes > 1) {
-                      <div class="mt-3 flex items-center justify-center gap-3"><button type="button" class="flex size-11 items-center justify-center rounded-full border border-current" aria-label="Menos" (click)="personas.set(max(1, personas() - 1))">−</button>
-                        <span class="text-ui-h4">{{ personas() }}</span><button type="button" class="flex size-11 items-center justify-center rounded-full border border-current" aria-label="Más" (click)="personas.set(min(x.pendientes, personas() + 1))">+</button></div>
-                    }
-                    <button grButton variant="primary" size="l" class="mt-3 w-full" [loading]="enviando()" (click)="confirmar(x)">Confirmar entrada ({{ personas() }})</button>
-                  } @else { <button grButton size="l" class="mt-3 w-full" (click)="siguiente()">Escanear siguiente</button> }
-                }
-                @case ('otra_sesion') { <button grButton size="l" class="mt-3 w-full" (click)="confirmar(x, true)">Permitir igualmente</button> }
-                @case ('invalida') { <button grButton size="l" class="mt-3 w-full" (click)="vista.set('buscar')">Buscar por nombre</button> }
-                @default { <button grButton size="l" class="mt-3 w-full" (click)="siguiente()">Escanear siguiente</button> }
-              }
+          <button type="button" class="hidden items-center gap-1 self-start text-ui-h4 hover:text-text-secondary md:flex" (click)="cambiarPuesto()">{{ titulo.texto() }}<gr-icon name="chevron-down" [size]="16" /></button>
+          @if (sinCamara()) {
+            <section class="flex flex-col items-center gap-3 rounded-xl border border-line-subtle bg-bg-card px-6 py-10 text-center">
+              <span class="flex size-14 items-center justify-center rounded-lg bg-accent-deep/40 text-accent-text"><gr-icon name="lock" [size]="22" /></span>
+              <h2 class="text-ui-h4">Necesitamos la cámara</h2>
+              <p class="text-body-m text-text-secondary">Ajustes › Safari › Cámara › Permitir. Mientras tanto puedes buscar por nombre, email o código.</p>
+              <button grButton variant="primary" class="mt-1" (click)="vista.set('buscar')">Buscar por nombre</button>
+              <button type="button" class="text-body-s text-text-tertiary hover:text-text-secondary" (click)="sinCamara.set(false); volver()">Reintentar con la cámara</button>
             </section>
           } @else {
-            <p class="text-center text-body-s text-text-tertiary">Apunta al QR de la entrada</p>
+            @if (!online()) {
+              <p class="flex items-start gap-3 rounded-lg border border-warning/50 bg-warning/10 p-4 text-body-s"><gr-icon name="triangle-alert" [size]="18" class="mt-0.5 text-warning" />
+                <span><b class="block text-label-m text-warning">Sin conexión · modo local</b><span class="text-text-secondary">{{ cola().length }} escaneos en cola · se enviarán solos</span></span></p>
+            }
+            <div class="grid grid-cols-3 gap-2">
+              <div class="rounded-md border border-line-subtle bg-bg-card px-3 py-2.5"><p class="text-mono-xs text-text-tertiary">DENTRO</p><p class="text-ui-h4">{{ dentroSesion() }}</p></div>
+              <div class="rounded-md border border-line-subtle bg-bg-card px-3 py-2.5"><p class="text-mono-xs text-text-tertiary">RESERVAS</p><p class="text-ui-h4">{{ reservasSesion() }}</p></div>
+              <div class="rounded-md border border-line-subtle bg-bg-card px-3 py-2.5"><p class="text-mono-xs text-text-tertiary">COLA</p><p class="text-ui-h4" [class.text-warning]="cola().length">{{ cola().length }}</p></div>
+            </div>
+            <div class="relative overflow-hidden rounded-xl border border-line-subtle bg-linear-to-b from-bg-card to-black" [class]="r() || comprobando() ? 'h-[260px]' : 'h-[420px]'">
+              <video #video class="absolute inset-0 size-full object-cover opacity-60" playsinline muted></video>
+              <div class="pointer-events-none absolute left-1/2 top-[45%] size-[164px] -translate-x-1/2 -translate-y-1/2" [class]="r() || comprobando() ? '' : 'scale-[1.3]'" aria-hidden="true">
+                <span class="absolute left-0 top-0 size-10 border-l-4 border-t-4" [class]="marco()"></span><span class="absolute right-0 top-0 size-10 border-r-4 border-t-4" [class]="marco()"></span>
+                <span class="absolute bottom-0 left-0 size-10 border-b-4 border-l-4" [class]="marco()"></span><span class="absolute bottom-0 right-0 size-10 border-b-4 border-r-4" [class]="marco()"></span>
+                @if (!r() && !comprobando()) { <span class="absolute inset-x-2 top-1/2 h-0.5 bg-accent motion-safe:animate-pulse"></span> }
+              </div>
+              <p class="absolute inset-x-0 bottom-9 text-center text-label-m text-text-secondary">{{ r() || comprobando() ? 'Escaneado' : 'Apunta al QR de la entrada' }}</p>
+            </div>
+            @if (comprobando()) {
+              <section class="flex flex-col items-center gap-2 rounded-xl border border-line-strong bg-bg-card p-5 text-center" aria-live="polite">
+                <span class="flex size-16 items-center justify-center rounded-full bg-bg-raised"><gr-icon name="loader" [size]="26" class="text-text-secondary motion-safe:animate-spin" /></span>
+                <p class="text-ui-h3 text-text-tertiary">Comprobando…</p><p class="font-mono text-label-l">{{ codComprobando() }}</p>
+                <p class="text-body-s text-text-secondary">Consultando el servidor</p>
+                <button grButton variant="ghost" class="w-full" (click)="cancelar()">Cancelar</button>
+              </section>
+            } @else if (r(); as x) {
+              <section class="flex flex-col items-center gap-2 rounded-xl border p-5 text-center" [class]="tarjeta(x)" aria-live="assertive">
+                <span class="flex size-16 items-center justify-center rounded-full bg-current/15"><gr-icon [name]="icono(x)" [size]="26" /></span>
+                <p class="text-ui-h3">{{ tituloR(x) }}</p>
+                <p class="text-label-l text-text-primary">{{ x.resultado === 'invalida' && !x.codigo ? 'Firma no reconocida' : x.codigo + (x.nombre ? ' · ' + x.nombre : '') }}</p>
+                <p class="text-body-s text-text-secondary">{{ mensaje(x) }}</p>
+                @if (x.resultado === 'valida' && !x.registrado && x.pendientes > 1) {
+                  <div class="flex items-center justify-center gap-3 text-text-primary"><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong hover:bg-bg-raised" aria-label="Menos" (click)="personas.set(max(1, personas() - 1))"><gr-icon name="minus" [size]="16" /></button>
+                    <span class="w-8 text-ui-h4">{{ personas() }}</span><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong hover:bg-bg-raised" aria-label="Más" (click)="personas.set(min(x.pendientes, personas() + 1))"><gr-icon name="plus" [size]="16" /></button></div>
+                }
+                @switch (x.registrado ? 'hecho' : x.resultado) {
+                  @case ('valida') { <button grButton variant="primary" size="l" class="mt-1 w-full" [loading]="enviando()" (click)="confirmar(x)">Confirmar entrada ({{ personas() }})</button> }
+                  @case ('manual') { <button grButton variant="primary" size="l" class="mt-1 w-full" [loading]="enviando()" (click)="confirmar(x)">Confirmar entrada ({{ personas() }})</button> }
+                  @case ('otra_sesion') { <button grButton size="l" class="mt-1 w-full" [loading]="enviando()" (click)="confirmar(x, true)">Permitir igualmente</button> }
+                  @case ('invalida') { <button grButton size="l" class="mt-1 w-full" (click)="vista.set('buscar')">Buscar por nombre</button> }
+                  @case ('hecho') { <button grButton variant="primary" size="l" class="mt-1 w-full" (click)="siguiente()">Escanear siguiente</button> }
+                  @default { <a grButton size="l" class="mt-1 w-full" [routerLink]="['../../entradas']" [queryParams]="{ q: x.codigo }">Ver detalle</a> }
+                }
+              </section>
+            }
+            <div class="flex gap-2"><button grButton size="l" class="flex-1" (click)="vista.set('buscar')">Buscar por nombre</button>
+              <button grButton size="l" icon="download" aria-label="Descargar la lista para escanear sin conexión" [loading]="descargando()" (click)="descargar()"></button></div>
+            <button type="button" class="self-center text-body-s text-text-tertiary hover:text-text-secondary md:hidden" (click)="cambiarPuesto()">Cambiar puesto o sesión</button>
           }
-          <div class="flex gap-2"><button grButton class="flex-1" icon="search" (click)="vista.set('buscar')">Buscar por nombre</button><a grButton routerLink=".." aria-label="Resumen de taquilla" icon="activity"></a></div>
         }
 
         @case ('buscar') {
-          <header class="flex items-center gap-2"><button grButton variant="ghost" icon="chevron-left" (click)="vista.set('escaner')" aria-label="Volver al escáner"></button><h1 class="text-ui-h4">Buscar entrada</h1></header>
-          <input type="search" class="h-12 rounded-md border border-line-strong bg-bg-field px-3 text-body-m" placeholder="Nombre, email, teléfono o código" [ngModel]="q()" (ngModelChange)="buscar($event)" aria-label="Buscar entrada" />
-          <ul class="flex flex-col gap-2">
+          <div class="relative">
+            <gr-icon name="search" [size]="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+            <input type="search" class="h-12 w-full rounded-lg border border-line-strong bg-bg-field pl-11 pr-11 text-body-m focus-visible:border-accent focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden" placeholder="Nombre, email, teléfono o código" [ngModel]="q()" (ngModelChange)="buscar($event)" aria-label="Buscar entrada" />
+            @if (q()) { <button type="button" class="absolute right-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-text-secondary hover:text-text-primary" aria-label="Borrar" (click)="buscar('')"><gr-icon name="x" [size]="18" /></button> }
+          </div>
+          <ul class="flex flex-col gap-3">
             @for (e of encontrados(); track e.codigo) {
-              <li class="rounded-lg border border-line-subtle bg-bg-card p-3">
-                <p class="flex items-center gap-2"><span class="min-w-0 flex-1 truncate text-label-m">{{ e.nombre }} {{ e.apellidos }}</span>
-                  @if (e.sesionId !== sesion()) { <gr-badge tone="warning">Otra sesión</gr-badge> } @else if (e.dentro >= e.personas) { <gr-badge tone="success">Dentro</gr-badge> } @else { <gr-badge tone="info">Reservada</gr-badge> }</p>
-                <p class="text-body-xs text-text-tertiary">{{ e.sesion }} · {{ e.personas }} personas · {{ e.codigo }}</p>
-                @if (e.dentro < e.personas) { <button grButton [variant]="e.sesionId === sesion() ? 'primary' : 'secondary'" class="mt-2 w-full" (click)="porCodigo(e)">{{ e.sesionId === sesion() ? 'Entrar (' + (e.personas - e.dentro) + ')' : 'Ver' }}</button> }
+              <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4">
+                <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><p class="truncate text-label-l">{{ e.nombre }} {{ e.apellidos }}</p>
+                  <p class="text-body-s text-text-secondary">{{ corta(e.sesion) }} · {{ e.estado === 'anulada' ? 'anulada' : e.personas + ' personas · ' + e.codigo }}</p></div>
+                  @if (e.estado === 'anulada') { <gr-badge tone="neutral">Anulada</gr-badge> } @else if (e.dentro >= e.personas) { <gr-badge tone="success">Dentro</gr-badge> } @else if (e.sesionId !== sesion()) { <gr-badge tone="warning">Otra sesión</gr-badge> } @else { <gr-badge tone="info">Reservada</gr-badge> }</div>
+                @if (e.estado !== 'anulada' && e.dentro < e.personas) { <button grButton size="l" [variant]="e.sesionId === sesion() ? 'primary' : 'secondary'" class="w-full" (click)="porCodigo(e)">{{ e.sesionId === sesion() ? 'Entrar (' + (e.personas - e.dentro) + ')' : 'Ver' }}</button> }
               </li>
-            } @empty { @if (q().length > 1) { <li class="text-body-s text-text-tertiary">Nadie con «{{ q() }}».</li> } }
+            } @empty { @if (q().length > 1) { <li class="rounded-lg border border-line-subtle bg-bg-card p-6 text-center text-body-s text-text-tertiary">Nadie con «{{ q() }}».</li> } }
           </ul>
+          <button grButton variant="ghost" icon="chevron-left" class="self-start" (click)="volver()">Volver al escáner</button>
         }
       }
     </div>
@@ -251,6 +292,8 @@ export class EscanerPage {
   private readonly api = inject(EntradasApi);
   private readonly toasts = inject(GrToasts);
   protected readonly comps = inject(Competitions);
+  protected readonly titulo = inject(TituloMovil);
+  protected readonly corta = corta;
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly video = viewChild<ElementRef<HTMLVideoElement>>('video');
   protected readonly max = Math.max;
@@ -263,6 +306,8 @@ export class EscanerPage {
   protected readonly r = signal<Resultado | null>(null);
   protected readonly personas = signal(1);
   protected readonly comprobando = signal(false);
+  protected readonly codComprobando = signal('');
+  protected readonly descargando = signal(false);
   protected readonly enviando = signal(false);
   protected readonly sinCamara = signal(false);
   protected readonly cola = signal<Cola[]>([]);
@@ -274,8 +319,9 @@ export class EscanerPage {
   protected readonly reservasSesion = computed(() => (this.boot()?.lista ?? []).filter((x) => x.s === this.sesion()).reduce((a, x) => a + x.p, 0));
   protected readonly marco = computed(() => {
     const x = this.r();
-    if (!x) return 'border-white/70';
-    return x.resultado === 'valida' || x.resultado === 'manual' ? 'border-success' : x.resultado === 'invalida' || x.resultado === 'anulada' ? 'border-accent' : 'border-warning';
+    if (!x) return 'border-white';
+    if (x.registrado && !this.online()) return 'border-info';
+    return x.resultado === 'valida' || x.resultado === 'manual' ? 'border-success' : x.resultado === 'invalida' || x.resultado === 'anulada' ? 'border-accent-text' : 'border-warning';
   });
   private stream: MediaStream | null = null;
   private raf = 0;
@@ -284,9 +330,15 @@ export class EscanerPage {
   private qrActual = '';
   private jsQR: LectorQR | null = null;
   private t?: ReturnType<typeof setTimeout>;
+  /** Bumped on «Cancelar»: a slow answer that arrives after it is ignored (a retry reuses the server's idempotency). */
+  private intento = 0;
 
   constructor() {
     if (!this.browser) return;
+    effect(() => {
+      const v = this.vista();
+      this.titulo.texto.set(v === 'buscar' ? 'Buscar entrada' : v === 'escaner' && this.puesto() ? this.puesto() + ' · ' + corta(this.sesionNombre()) : 'Check-in');
+    });
     this.online.set(navigator.onLine);
     const on = () => {
       this.online.set(true);
@@ -314,6 +366,7 @@ export class EscanerPage {
       clearInterval(sync);
       sub.unsubscribe();
       this.parar();
+      this.titulo.texto.set('');
     });
   }
 
@@ -344,6 +397,11 @@ export class EscanerPage {
   }
   protected empezar(): void {
     localStorage.setItem(this.clave('puesto'), JSON.stringify({ puesto: this.puesto(), sesion: this.sesion() }));
+    this.volver();
+  }
+  /** Back to the scanner view: its <video> is re-created by the @switch, so the camera is restarted on it. */
+  protected volver(): void {
+    this.parar();
     this.vista.set('escaner');
     setTimeout(() => void this.arrancar(), 0);
   }
@@ -391,15 +449,19 @@ export class EscanerPage {
 
   protected async comprobar(b: { qr?: string; codigo?: string }): Promise<void> {
     this.qrActual = b.qr ?? '';
+    const n = ++this.intento;
+    this.codComprobando.set(b.codigo ?? (b.qr?.startsWith('E:') ? b.qr.split(':')[1] : ''));
     this.comprobando.set(true);
     this.r.set(null);
     try {
       if (!this.online()) throw new Error('offline');
       const x = await this.api.escanear(this.cid(), { ...b, puesto: this.puesto(), sesionId: this.sesion() });
+      if (n !== this.intento) return;
       this.personas.set(Math.max(1, x.pendientes));
       this.r.set(x);
       navigator.vibrate?.(x.resultado === 'valida' ? 60 : [80, 60, 80]);
     } catch (e) {
+      if (n !== this.intento) return;
       if (e instanceof Error && e.message !== 'offline' && navigator.onLine) {
         this.toasts.error('No se pudo comprobar', errText(e));
       } else {
@@ -407,8 +469,24 @@ export class EscanerPage {
         this.r.set(this.local(b));
       }
     } finally {
-      this.comprobando.set(false);
+      if (n === this.intento) this.comprobando.set(false);
     }
+  }
+  protected cancelar(): void {
+    this.intento++;
+    this.comprobando.set(false);
+    this.ultimo = { v: '', at: 0 };
+  }
+  protected cambiarPuesto(): void {
+    this.r.set(null);
+    this.vista.set('puesto');
+  }
+  /** Downloads the compact list again so the door can keep scanning without network. */
+  protected async descargar(): Promise<void> {
+    this.descargando.set(true);
+    await this.cargar(true);
+    this.descargando.set(false);
+    if (this.online()) this.toasts.success('Lista descargada', (this.boot()?.lista.length ?? 0) + ' entradas para escanear sin conexión.');
   }
   /** Offline answer from the downloaded list (the server re-checks the signature when the queue is sent). */
   private local(b: { qr?: string; codigo?: string }): Resultado {
@@ -481,14 +559,24 @@ export class EscanerPage {
     }, 250);
   }
   protected porCodigo(e: Entrada): void {
-    this.vista.set('escaner');
+    this.volver();
     void this.comprobar({ codigo: e.codigo });
   }
   protected tarjeta(x: Resultado): string {
-    if (x.registrado && !this.online()) return 'border-info/60 bg-info/10 text-info';
-    return x.resultado === 'valida' || x.resultado === 'manual' ? 'border-success/60 bg-success/10 text-success' : x.resultado === 'invalida' || x.resultado === 'anulada' ? 'border-accent/60 bg-accent-deep/25 text-accent-text' : 'border-warning/60 bg-warning/10 text-warning';
+    if (x.registrado && !this.online()) return 'border-info/50 bg-info/10 text-info';
+    return x.resultado === 'valida' || x.resultado === 'manual' ? 'border-success/50 bg-success/10 text-success' : x.resultado === 'invalida' || x.resultado === 'anulada' ? 'border-accent-text/50 bg-accent-deep/25 text-accent-text' : 'border-warning/50 bg-warning/10 text-warning';
   }
-  protected titulo(x: Resultado): string {
+  protected icono(x: Resultado): GrIconName {
+    if (x.registrado && !this.online()) return 'wifi-off';
+    return ({ valida: 'circle-check', manual: 'circle-check', ya_usada: 'triangle-alert', otra_sesion: 'clock', invalida: 'circle-x', anulada: 'circle-x' } as const)[x.resultado];
+  }
+  protected mensaje(x: Resultado): string {
+    if (x.registrado && !this.online()) return 'Se validará al volver la red · ' + this.cola().length + ' en cola';
+    if (x.resultado === 'valida' && !x.registrado) return x.pendientes + ' personas · ' + (x.sesion || this.sesionNombre());
+    if (x.resultado === 'ya_usada' && x.primera) return 'Entró a las ' + hora(x.primera) + (x.puestoAnterior ? ' · ' + x.puestoAnterior : '');
+    return x.mensaje;
+  }
+  protected tituloR(x: Resultado): string {
     if (x.registrado && !this.online()) return 'Guardado sin conexión';
     if (x.registrado) return '¡Dentro!';
     return { valida: 'Entrada válida', manual: 'Entrada válida', ya_usada: 'Ya usada', otra_sesion: 'Sesión equivocada', invalida: 'QR no válido', anulada: 'Entrada anulada' }[x.resultado];
