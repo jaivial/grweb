@@ -279,8 +279,13 @@ func (s *Svc) resumen(ctx context.Context, cid uuid.UUID) (Resumen, error) {
 // checkPabellon: 409 AFORO_PABELLON when saving the session would put more people in the pavilion at once than it holds.
 func (s *Svc) checkPabellon(ctx context.Context, tx pgx.Tx, cid uuid.UUID, id uuid.UUID, x sesionRow) error {
 	lim := s.ajustes(ctx, tx, cid).AforoPabellon
-	if lim == 0 || !x.Publicada {
+	if lim == 0 {
 		return nil
+	}
+	// drafts are checked too: publishing later must not break the limit; a lone session over the limit also fails
+	x.Publicada = true
+	if x.Aforo > lim {
+		return problem.Conflict("AFORO_PABELLON", fmt.Sprintf("%s: %d plazas a la vez y el pabellón admite %d. Reduce el aforo de la sesión.", diasSemana[x.Inicio.In(madrid).Weekday()], x.Aforo, lim))
 	}
 	l, err := sesiones(ctx, tx, cid, false)
 	if err != nil {
