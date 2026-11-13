@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
+import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { urlSort } from '../../shared/url-sort';
-import { BO_ROW, BoCapacityMeter, BoCheckbox, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
+import { BO_ROW, BoCapacityMeter, BoCheckbox, BoModalForm, BoSessionCard, type BoSesion, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
@@ -15,7 +16,7 @@ import {
   type Detalle, type Espera, type Lista, type Resumen, type Sesion, type SesionIn,
 } from './api';
 
-type Tab = 'sesiones' | 'reservas' | 'espera';
+type Tab = 'sesiones' | 'reservas' | 'espera' | 'ajustes';
 
 function descargar(blob: Blob, nombre: string): void {
   const a = document.createElement('a');
@@ -30,7 +31,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [GrSelect, FormsModule, RouterLink, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [NgTemplateOutlet, GrSelect, GrAvatar, GrIconButton, BoModalForm, BoSessionCard, FormsModule, RouterLink, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -47,7 +48,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Entradas">
         @for (t of tabs; track t.v) {
           <a [routerLink]="ruta(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
-            {{ t.label }}@if (r?.pestanas; as p) { <span class="rounded-2xs px-1.5 text-mono-xs" [class]="tab() === t.v ? 'bg-accent-deep/50 text-accent-text' : 'bg-bg-raised'">{{ n(p[t.v]) }}</span> }
+            {{ t.label }}@if (t.v !== 'ajustes' && r?.pestanas; as p) { <span class="rounded-2xs px-1.5 text-mono-xs" [class]="tab() === t.v ? 'bg-accent-deep/50 text-accent-text' : 'bg-bg-raised'">{{ n(p[t.v]) }}</span> }
             @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
           </a>
         }
@@ -55,6 +56,8 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
       @for (x of sobreventas(); track x.id) {
         <gr-alert tone="danger" [title]="x.nombre + ': ' + n(x.ocupadas) + ' reservas para ' + n(x.aforo) + ' plazas'">Sube el aforo, mueve reservas a otra sesión (con aviso) o mantenlo y vigila la puerta.</gr-alert>
       }
+
+      @if (tab() === 'reservas') { @for (x of sobreventas(); track x.id) { <bo-capacity-meter [titulo]="x.nombre + ' · ' + hora(x.inicio)" [ocupadas]="x.ocupadas" [aforo]="x.aforo" /> } }
 
       @switch (tab()) {
         @case ('sesiones') {
@@ -67,23 +70,10 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
             </div>
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               @for (x of r.sesiones; track x.id) {
-                <section class="flex flex-col rounded-lg border border-line-subtle bg-bg-card p-4">
-                  <header class="flex items-start gap-2">
-                    <div class="min-w-0 flex-1"><h2 class="text-ui-h5">{{ x.nombre }}</h2><p class="text-body-xs text-text-tertiary">{{ diaHora(x.inicio) }}–{{ hora(x.fin) }} · puertas {{ hora(x.puertas) }}</p></div>
-                    <gr-badge [tone]="x.publicada ? est[x.estado].tone : 'neutral'">{{ x.publicada ? est[x.estado].label : 'Borrador' }}</gr-badge>
-                  </header>
-                  <bo-capacity-meter class="mt-3" titulo="Aforo" [ocupadas]="x.ocupadas" [aforo]="x.aforo" [espera]="x.enEspera" [cerrada]="x.estado === 'cerrada'" />
-                  <dl class="mt-3 flex flex-col gap-1.5 text-body-xs">
-                    <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Reservas abiertas</dt><dd class="text-right">{{ x.aperturaAt ? fechaCorta(x.aperturaAt) : 'ya' }} → {{ x.cierreAt ? fechaCorta(x.cierreAt) : 'inicio' }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Máx. por reserva</dt><dd>{{ x.maxPorReserva }} personas</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Lista de espera</dt><dd>{{ x.listaEspera ? (x.enEspera ? x.enEspera + (x.enEspera === 1 ? ' persona' : ' personas') : 'automática al agotar') : 'no' }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-text-tertiary">Dentro</dt><dd>{{ n(x.dentro) }} de {{ n(x.ocupadas) }}</dd></div>
-                  </dl>
-                  <div class="mt-auto flex gap-2 pt-4">
-                    <button grButton size="s" (click)="verReservas(x.id)">Ver reservas</button>
-                    @if (canEdit()) { <button grButton size="s" variant="ghost" (click)="abrirSesion(x)">Editar</button> }
-                  </div>
-                </section>
+                <bo-session-card [nombre]="x.nombre" [cuando]="diaHora(x.inicio) + '–' + hora(x.fin) + ' · puertas ' + hora(x.puertas)" meterTitulo="Aforo" [ocupadas]="x.ocupadas" [aforo]="x.aforo" [espera]="x.enEspera"
+                  [estado]="sesEstado(x)" [nota]="x.publicada ? '' : 'Borrador · no visible en /entradas'" [apertura]="(x.aperturaAt ? fechaCorta(x.aperturaAt) : 'ya') + ' → ' + (x.cierreAt ? fechaCorta(x.cierreAt) : 'inicio')"
+                  [maxPorReserva]="x.maxPorReserva + ' personas'" [listaEspera]="!x.listaEspera ? 'no' : x.enEspera ? x.enEspera + ' personas · auto-promoción ' + (r.ajustes.autoPromocion ? 'ON' : 'OFF') : 'automática al agotar'"
+                  (ver)="verReservas(x.id)" (publicar)="publicar(x)" (menu)="canEdit() && abrirSesion(x)" />
               }
             </div>
           } @else { <gr-skeleton class="h-96 rounded-lg" /> }
@@ -103,27 +93,41 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
           @let l = lista();
           @if (l === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar las reservas"><button grButton (click)="cargarLista()">Reintentar</button></gr-empty> }
           @else if (l) {
-            <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
+            <ul class="flex flex-col gap-3 md:hidden">
+              @for (e of l.items; track e.id) {
+                <li><button type="button" class="flex w-full items-center gap-3 rounded-md border border-line-subtle bg-bg-card p-3 text-left hover:bg-bg-raised focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none" [class.opacity-55]="e.estado === 'anulada'" (click)="ver(e.id)">
+                  <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ e.nombre }} {{ e.apellidos }}</span><span class="block text-body-xs text-text-tertiary">{{ e.codigo }} · {{ e.sesion }} · {{ e.personas }} pers.</span></span>
+                  <gr-badge [tone]="estE[e.estado].tone">{{ estE[e.estado].label }}</gr-badge>
+                </button></li>
+              } @empty { <li><bo-empty-state [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nada coincide con los filtros' : 'Todavía no hay reservas'" /></li> }
+            </ul>
+            <div class="flex items-center justify-between gap-2 md:hidden">
+              <button grButton icon="chevron-left" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)">Anterior</button>
+              <span class="font-mono text-mono-xs text-text-tertiary">Página {{ l.pagina }} de {{ pages(l) }}</span>
+              <button grButton [disabled]="l.pagina >= pages(l)" (click)="filtrar({ pagina: l.pagina + 1 }, false)">Siguiente<gr-icon name="chevron-right" [size]="16" /></button>
+            </div>
+            <section class="hidden overflow-x-auto rounded-lg border border-line-subtle bg-bg-card md:block">
               <table class="w-full min-w-[860px] text-left text-body-s">
-                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th boSort class="py-3" [sort]="srt.sortDe('titular')" (toggle)="ordenar('titular')">Titular</th><th boSort class="py-3" [sort]="srt.sortDe('codigo')" (toggle)="ordenar('codigo')">Código</th><th boSort class="py-3" [sort]="srt.sortDe('sesion')" (toggle)="ordenar('sesion')">Sesión</th><th boSort class="py-3" [sort]="srt.sortDe('personas')" (toggle)="ordenar('personas')">Pers.</th><th boSort class="py-3" [sort]="srt.sortDe('estado')" (toggle)="ordenar('estado')">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th boSort class="py-3" [sort]="srt.sortDe('fecha')" (toggle)="ordenar('fecha')">Fecha</th></tr></thead>
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th boSort class="py-3" [sort]="srt.sortDe('titular')" (toggle)="ordenar('titular')">Titular</th><th boSort class="py-3" [sort]="srt.sortDe('codigo')" (toggle)="ordenar('codigo')">Código</th><th boSort class="py-3" [sort]="srt.sortDe('sesion')" (toggle)="ordenar('sesion')">Sesión</th><th boSort class="py-3" [sort]="srt.sortDe('personas')" (toggle)="ordenar('personas')">Pers.</th><th boSort class="py-3" [sort]="srt.sortDe('estado')" (toggle)="ordenar('estado')">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th boSort class="py-3" [sort]="srt.sortDe('fecha')" (toggle)="ordenar('fecha')">Fecha</th><th class="w-12"></th></tr></thead>
                 <tbody>
                   @for (e of l.items; track e.id) {
                     <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="e.estado === 'anulada' ? row.disabled : sel().has(e.id) ? row.selected : row.default" (click)="ver(e.id)">
                       <td class="px-3 py-2.5" (click)="$event.stopPropagation()">@if (e.estado !== 'anulada') { <bo-checkbox [value]="sel().has(e.id)" (valueChange)="toggle(e.id)" [aria]="'Seleccionar ' + e.codigo" /> }</td>
-                      <td class="px-3 py-2.5"><p class="text-label-s">{{ e.nombre }} {{ e.apellidos }}</p><p class="truncate text-body-xs text-text-tertiary">{{ e.email || (e.manual ? 'Reserva manual' : '') }}</p></td>
+                      <td class="px-3 py-2.5"><div class="flex items-center gap-3"><gr-avatar [name]="e.nombre + ' ' + e.apellidos" /><div class="min-w-0"><p class="text-label-s">{{ e.nombre }} {{ e.apellidos }}</p><p class="truncate text-body-xs text-text-tertiary">{{ e.email || (e.manual ? 'Reserva manual' : '') }}</p></div></div></td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs">{{ e.codigo }}</td>
                       <td class="px-3 py-2.5 text-text-secondary">{{ e.sesion }}</td>
                       <td class="px-3 py-2.5 text-center font-mono">{{ e.dentro ? e.dentro + '/' : '' }}{{ e.personas }}</td>
                       <td class="px-3 py-2.5"><gr-badge [tone]="estE[e.estado].tone">{{ estE[e.estado].label }}</gr-badge></td>
-                      <td class="px-3 py-2.5">@if (e.novedades) { <gr-badge tone="success">Sí</gr-badge> } @else { <span class="text-text-muted">No</span> }</td>
+                      <td class="px-3 py-2.5"><gr-badge [tone]="e.novedades ? 'success' : 'neutral'">{{ e.novedades ? 'Sí' : 'No' }}</gr-badge></td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ e.origen }}</td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fechaCorta(e.createdAt) }}</td>
+                      <td class="px-2 py-2.5 text-right"><button grIconButton type="button" icon="more" [label]="'Abrir ' + e.codigo" (click)="$event.stopPropagation(); ver(e.id)"></button></td>
                     </tr>
-                  } @empty { <tr><td colspan="9" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nada coincide con los filtros' : 'Todavía no hay reservas'" [text]="filtrado() ? 'Prueba con el código o el email, o limpia los filtros.' : 'Aparecerán aquí en cuanto se abran las entradas.'" /></td></tr> }
+                  } @empty { <tr><td colspan="10" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nada coincide con los filtros' : 'Todavía no hay reservas'" [text]="filtrado() ? 'Prueba con el código o el email, o limpia los filtros.' : 'Aparecerán aquí en cuanto se abran las entradas.'" /></td></tr> }
                 </tbody>
               </table>
             </section>
-            <div class="flex items-center justify-between text-body-xs text-text-tertiary">
+            <div class="hidden items-center justify-between text-body-xs text-text-tertiary md:flex">
               <span>Mostrando {{ l.items.length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ n(l.total) }}</span>
               <bo-pagination [page]="l.pagina" [pages]="pages(l)" (change)="filtrar({ pagina: $event }, false)" />
             </div>
@@ -140,7 +144,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
                   @for (x of w?.items ?? []; track x.id) {
                     <tr class="border-b border-line-subtle last:border-0" [class.opacity-55]="x.estado === 'caducada'">
                       <td class="px-3 py-2.5 font-mono text-text-tertiary">{{ x.estado === 'en_espera' ? x.orden : '–' }}</td>
-                      <td class="px-3 py-2.5"><p class="text-label-s">{{ x.nombre || x.email }}</p><p class="text-body-xs text-text-tertiary">{{ x.email }}</p></td>
+                      <td class="px-3 py-2.5"><div class="flex items-center gap-3"><gr-avatar [name]="x.nombre || x.email" /><div class="min-w-0"><p class="text-label-s">{{ x.nombre || x.email }}</p><p class="truncate text-body-xs text-text-tertiary">{{ x.email }}</p></div></div></td>
                       <td class="px-3 py-2.5 text-text-secondary">{{ x.sesion }}</td>
                       <td class="px-3 py-2.5 text-center font-mono">{{ x.personas }}</td>
                       <td class="px-3 py-2.5">
@@ -160,7 +164,19 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
               </table>
             </section>
             @if (w) {
-              <aside class="flex h-fit flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-4">
+              <div class="flex flex-col gap-4"><ng-container [ngTemplateOutlet]="promo" [ngTemplateOutletContext]="{ $implicit: w }" />
+                @if (parcial(); as p) { <gr-alert tone="warning" [title]="'Reserva de ' + p.personas + ' personas y ' + p.libres + ' plazas libres'">{{ p.nombre }} pide {{ p.personas }}: {{ w.ajustes.permitirParcial ? 'se le ofrecerán ' + p.libres : 'se salta al siguiente' }} según «Permitir parciales».</gr-alert> }
+              </div>
+            }
+          </div>
+        }
+        @case ('ajustes') {
+          @if (espera(); as w) { <div class="max-w-[560px]"><ng-container [ngTemplateOutlet]="promo" [ngTemplateOutletContext]="{ $implicit: w }" /></div> } @else { <gr-skeleton class="h-60 max-w-[560px] rounded-lg" /> }
+        }
+      }
+    </div>
+    <ng-template #promo let-w>
+      <aside class="flex h-fit flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <h2 class="text-ui-h5">Promoción automática</h2>
                 <div class="flex items-center gap-3"><div class="flex-1"><p class="text-label-s">Ofrecer plazas liberadas</p><p class="text-body-xs text-text-tertiary">Por orden de lista · email con enlace</p></div>
                   <bo-toggle [value]="w.ajustes.autoPromocion" label="Ofrecer plazas liberadas" [disabled]="!canEdit()" (changed)="ajustar({ autoPromocion: $event })" /></div>
@@ -168,11 +184,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
                 <div class="flex items-center gap-3"><div class="flex-1"><p class="text-label-s">Permitir parciales</p><p class="text-body-xs text-text-tertiary">Si pide 4 y quedan 2, se le ofrecen 2; si no, se salta al siguiente.</p></div>
                   <bo-toggle [value]="w.ajustes.permitirParcial" label="Permitir parciales" [disabled]="!canEdit()" (changed)="ajustar({ permitirParcial: $event })" /></div>
               </aside>
-            }
-          </div>
-        }
-      }
-    </div>
+    </ng-template>
 
     <bo-drawer [(open)]="detOpen" [title]="det()?.codigo ?? ''" [badge]="det() ? estE[det()!.estado].label : ''">
       @if (det(); as d) {
@@ -230,22 +242,15 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
       </ng-container>
     </bo-drawer>
 
-    <bo-drawer [(open)]="manualOpen" title="Reserva manual">
-      <div class="flex flex-col gap-3">
-        <gr-field label="Sesión" for="m-s"><gr-select id="m-s" [(ngModel)]="man.sesionId">@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }} · quedan {{ x.libres }}</option> }</gr-select></gr-field>
-        <div class="grid grid-cols-2 gap-3">
-          <gr-field label="Nombre" for="m-n"><input grInput id="m-n" [(ngModel)]="man.nombre" /></gr-field>
-          <gr-field label="Apellidos" for="m-a"><input grInput id="m-a" [(ngModel)]="man.apellidos" /></gr-field>
-          <gr-field label="Personas" for="m-p"><input grInput id="m-p" type="number" min="1" max="20" [(ngModel)]="man.personas" /></gr-field>
-          <gr-field label="Teléfono" for="m-t"><input grInput id="m-t" [(ngModel)]="man.telefono" /></gr-field>
-        </div>
-        <gr-field label="Email (para enviarle la entrada)" for="m-e"><input grInput id="m-e" type="email" [(ngModel)]="man.email" /></gr-field>
-        <gr-field label="Nota interna" for="m-no"><input grInput id="m-no" maxlength="300" [(ngModel)]="man.nota" placeholder="Invitado de prensa, patrocinador…" /></gr-field>
-        <label class="flex items-center gap-2 text-body-s"><bo-toggle [(value)]="man.enviar" label="Enviar por email" [disabled]="!man.email" />Enviar la entrada por email</label>
-        <label class="flex items-center gap-2 text-body-s"><bo-toggle [(value)]="man.forzar" label="Superar el aforo" />Superar el aforo (invitados)</label>
+    <bo-modal-form [(open)]="manualOpen" title="Nueva entrada manual" [busy]="guardando()" (submit)="guardarManual()">
+      <gr-field label="Nombre y apellidos" for="m-n"><input grInput id="m-n" name="nombre" maxlength="120" [(ngModel)]="man.nombre" /></gr-field>
+      <div class="grid grid-cols-2 gap-3">
+        <gr-field label="Sesión" for="m-s"><gr-select id="m-s" name="sesion" [(ngModel)]="man.sesionId">@for (x of resumen()?.sesiones ?? []; track x.id) { <option [value]="x.id">{{ x.nombre }}</option> }</gr-select></gr-field>
+        <gr-field label="Personas" for="m-p"><input grInput id="m-p" name="personas" type="number" min="1" max="20" [(ngModel)]="man.personas" /></gr-field>
       </div>
-      <ng-container drawerActions><button grButton variant="ghost" (click)="manualOpen.set(false)">Cancelar</button><button grButton variant="primary" [loading]="guardando()" (click)="guardarManual()">Reservar</button></ng-container>
-    </bo-drawer>
+      <gr-field label="Email" for="m-e"><input grInput id="m-e" name="email" type="email" placeholder="opcional · para enviar el QR" [(ngModel)]="man.email" /></gr-field>
+      <ng-container modalActions><button grButton type="button" variant="ghost" (click)="manualOpen.set(false)">Cancelar</button><button grButton type="submit" variant="primary" [loading]="guardando()">{{ man.email ? 'Crear y enviar QR' : 'Crear entrada' }}</button></ng-container>
+    </bo-modal-form>
 
     <bo-drawer [(open)]="moverOpen" [title]="'Mover ' + sel().size + ' reservas'">
       <div class="flex flex-col gap-3">
@@ -255,21 +260,16 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
       <ng-container drawerActions><button grButton variant="ghost" (click)="moverOpen.set(false)">Cancelar</button><button grButton variant="primary" [disabled]="!mover.sesionId" (click)="bulk('mover')">Mover</button></ng-container>
     </bo-drawer>
 
-    @if (anularOpen()) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="anularOpen.set(false)">
-        <div class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="alertdialog" aria-modal="true" aria-label="Anular entradas" (click)="$event.stopPropagation()">
-          <h2 class="text-ui-h5">Anular {{ sel().size }} entradas</h2>
-          <p class="mt-2 text-body-s text-text-secondary">Pasarán a «Anulada», se liberarán sus plazas y sus QR dejarán de valer en la puerta.</p>
-          <gr-field class="mt-4" label="Motivo (queda en el registro)" for="an-m"><input grInput id="an-m" maxlength="200" [(ngModel)]="anular.motivo" /></gr-field>
-          <label class="mt-3 flex items-center gap-2 text-body-s"><bo-toggle [(value)]="anular.avisar" label="Avisar" />Avisar a los titulares por email</label>
-          @if (sel().size >= 10) { <gr-field class="mt-3" label="Escribe ANULAR para confirmar" for="an-c"><input grInput id="an-c" [(ngModel)]="anular.confirma" /></gr-field> }
-          <div class="mt-5 flex justify-end gap-2">
-            <button grButton variant="ghost" (click)="anularOpen.set(false)">Cancelar</button>
-            <button grButton variant="danger" [disabled]="!anular.motivo.trim() || (sel().size >= 10 && anular.confirma !== 'ANULAR')" (click)="bulk('anular')">Anular {{ sel().size }}</button>
-          </div>
-        </div>
-      </div>
-    }
+    <bo-modal-form [open]="anularOpen()" (openChange)="anularOpen.set($event)" [title]="'Anular ' + sel().size + (sel().size === 1 ? ' entrada' : ' entradas')" (submit)="anularOk() && bulk('anular')">
+      <p class="text-body-s text-text-secondary">{{ sel().size === 1 ? 'La entrada pasará' : 'Las ' + sel().size + ' entradas pasarán' }} a Anulada, se liberarán {{ plazasSel() }} plazas{{ anular.avisar ? ' y se avisará a sus titulares' : '' }}. Los QR dejarán de ser válidos en la puerta.</p>
+      <gr-field label="Motivo" for="an-m"><input grInput id="an-m" name="motivo" maxlength="200" [(ngModel)]="anular.motivo" /></gr-field>
+      <label class="flex items-center gap-2 text-body-s"><bo-toggle [(value)]="anular.avisar" label="Avisar" />Avisar a los titulares por email</label>
+      @if (sel().size >= 10) { <gr-field label="Escribe ANULAR para confirmar" for="an-c" hint="Esta acción queda en el registro de auditoría"><input grInput id="an-c" name="confirma" autocomplete="off" [(ngModel)]="anular.confirma" /></gr-field> }
+      <ng-container modalActions>
+        <button grButton type="button" variant="ghost" (click)="anularOpen.set(false)">Cancelar</button>
+        <button grButton type="submit" variant="danger" [disabled]="!anularOk()">Anular {{ sel().size }} {{ sel().size === 1 ? 'entrada' : 'entradas' }}</button>
+      </ng-container>
+    </bo-modal-form>
   `,
 })
 export class EntradasPage {
@@ -286,7 +286,7 @@ export class EntradasPage {
   protected readonly diaHora = diaHora;
   protected readonly fechaCorta = fechaCorta;
   protected readonly min = Math.min;
-  protected readonly tabs: { v: Tab; label: string }[] = [{ v: 'sesiones', label: 'Sesiones' }, { v: 'reservas', label: 'Reservas' }, { v: 'espera', label: 'Lista de espera' }];
+  protected readonly tabs: { v: Tab; label: string }[] = [{ v: 'sesiones', label: 'Sesiones' }, { v: 'reservas', label: 'Reservas' }, { v: 'espera', label: 'Lista de espera' }, { v: 'ajustes', label: 'Ajustes' }];
   protected readonly tab = signal<Tab>((this.route.snapshot.data['tab'] as Tab) ?? 'sesiones');
   protected readonly resumen = signal<Resumen | null>(null);
   protected readonly lista = signal<Lista | null | undefined>(undefined);
@@ -327,7 +327,7 @@ export class EntradasPage {
           if (this.canEdit() && this.route.snapshot.queryParamMap.get('manual') === '1') this.abrirManual();
         });
         if (this.tab() === 'reservas') void this.cargarLista();
-        if (this.tab() === 'espera') void this.api.espera(this.cid()).then((w) => this.espera.set(w));
+        if (this.tab() === 'espera' || this.tab() === 'ajustes') void this.api.espera(this.cid()).then((w) => this.espera.set(w));
       });
     });
     const sub = inject(Realtime).events.subscribe((e) => {
@@ -439,7 +439,37 @@ export class EntradasPage {
     }
   }
 
+  protected anularOk(): boolean {
+    return !!this.anular.motivo.trim() && (this.sel().size < 10 || this.anular.confirma === 'ANULAR');
+  }
+  protected readonly plazasSel = computed(() => (this.lista()?.items ?? []).filter((e) => this.sel().has(e.id)).reduce((t, e) => t + e.personas - e.dentro, 0));
+  /** First person waiting who asks for more seats than are free (Figma 96:25727 warning). */
+  protected readonly parcial = computed(() => {
+    const ses = this.resumen()?.sesiones ?? [];
+    for (const x of this.espera()?.items ?? []) {
+      if (x.estado !== 'en_espera') continue;
+      const libres = ses.find((s) => s.id === x.sesionId)?.libres ?? 0;
+      return libres > 0 && x.personas > libres ? { nombre: x.nombre || x.email, personas: x.personas, libres } : null;
+    }
+    return null;
+  });
+
   // ---- sessions ----
+  protected sesEstado(x: Sesion): BoSesion {
+    if (!x.publicada) return 'draft';
+    return ({ disponible: 'open', proximamente: 'open', ultimas: 'almost', agotada: 'full', cerrada: 'closed' } as const)[x.estado];
+  }
+  protected async publicar(x: Sesion): Promise<void> {
+    if (!this.canEdit()) return this.toasts.error('Sin permiso', 'Necesitas entradas.gestionar para publicar.');
+    const body: SesionIn = { nombre: x.nombre, detalle: x.detalle || undefined, inicio: x.inicio, fin: x.fin, puertas: x.puertas, aforo: x.aforo, maxPorReserva: x.maxPorReserva,
+      aperturaAt: x.aperturaAt || undefined, cierreAt: x.cierreAt || undefined, publicada: true, listaEspera: x.listaEspera };
+    try {
+      this.resumen.set(await this.api.editarSesion(this.cid(), x.id, x.version, body));
+      this.toasts.success('Sesión publicada', 'Ya aparece en /entradas.');
+    } catch (e) {
+      this.toasts.error('No se pudo publicar', errText(e));
+    }
+  }
   private sesVacia() {
     return { nombre: '', detalle: '', inicio: '', fin: '', puertas: '', aforo: 600, maxPorReserva: 6, aperturaAt: '', cierreAt: '', publicada: false, listaEspera: true };
   }
@@ -486,12 +516,13 @@ export class EntradasPage {
   }
   protected async guardarManual(): Promise<void> {
     const m = this.man;
-    if (!m.sesionId || !m.nombre.trim()) return this.toasts.error('Elige sesión y escribe el nombre');
+    const [nombre, ...ap] = m.nombre.trim().split(/\s+/);
+    if (!m.sesionId || !nombre) return this.toasts.error('Elige sesión y escribe el nombre');
     this.guardando.set(true);
     try {
-      const d = await this.api.manual(this.cid(), { ...m, personas: +m.personas, enviar: m.enviar && !!m.email });
+      const d = await this.api.manual(this.cid(), { ...m, nombre, apellidos: ap.join(' '), personas: +m.personas, enviar: !!m.email });
       this.manualOpen.set(false);
-      this.toasts.success(`Reserva ${d.codigo} creada`, m.enviar && m.email ? 'Le hemos enviado la entrada.' : 'Sin email: dale el código.');
+      this.toasts.success(`Entrada ${d.codigo} creada`, m.email ? `QR enviado a ${m.email}` : 'Sin email: dale el código.');
       await Promise.all([this.cargar(), this.cargarLista()]);
     } catch (e) {
       this.toasts.error('No se pudo reservar', errText(e));

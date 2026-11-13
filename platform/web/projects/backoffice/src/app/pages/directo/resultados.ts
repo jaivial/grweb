@@ -9,7 +9,7 @@ import { BoPageHeader, Confirm, errText } from '../../shared/ui';
 import { DirectoApi, MOV, gl, kg, type Fila, type Mov, type ResultadosAdmin } from './api';
 
 const MEDALLA = { oro: { l: 'Oro', c: 'border-[#c9a227]/50 bg-[#c9a227]/15 text-[#e3c25a]' }, plata: { l: 'Plata', c: 'border-[#a9b0b8]/50 bg-[#a9b0b8]/15 text-[#c9d0d8]' }, bronce: { l: 'Bronce', c: 'border-[#b0703e]/50 bg-[#b0703e]/15 text-[#d79a66]' } };
-const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '');
+const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', ...(new Date(iso).getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}), hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '');
 
 /** «Resultados · clasificación» (Figma page 57): rankings by category computed live, absolute by GL points, publication to /resultados and the CSV record. */
 @Component({

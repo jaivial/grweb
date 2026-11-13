@@ -128,6 +128,7 @@ export const routes: Routes = [
       { path: 'entradas', loadComponent: () => import('./pages/entradas/entradas').then((m) => m.EntradasPage), data: { tab: 'sesiones' }, title: 'Entradas y aforo · Backoffice GR Cup' },
       { path: 'entradas/reservas', loadComponent: () => import('./pages/entradas/entradas').then((m) => m.EntradasPage), data: { tab: 'reservas' }, title: 'Reservas · Backoffice GR Cup' },
       { path: 'entradas/espera', loadComponent: () => import('./pages/entradas/entradas').then((m) => m.EntradasPage), data: { tab: 'espera' }, title: 'Lista de espera · Backoffice GR Cup' },
+      { path: 'entradas/ajustes', loadComponent: () => import('./pages/entradas/entradas').then((m) => m.EntradasPage), data: { tab: 'ajustes' }, title: 'Ajustes de entradas · Backoffice GR Cup' },
       { path: 'checkin', loadComponent: () => import('./pages/checkin/checkin').then((m) => m.TaquillaPage), title: 'Check-in y taquilla · Backoffice GR Cup' },
       { path: 'checkin/escaner', loadComponent: () => import('./pages/checkin/checkin').then((m) => m.EscanerPage), title: 'Escáner · Backoffice GR Cup' },
       { path: 'directo', loadComponent: () => import('./pages/directo/directo').then((m) => m.DirectoPage), title: 'Directo · Backoffice GR Cup' },
