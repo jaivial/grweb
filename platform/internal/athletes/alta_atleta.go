@@ -655,6 +655,16 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		if err := s.reservaPrueba(ctx, tx, c.ID, c.Inscripcion.Plazas, d.Prueba); err != nil {
 			return err
 		}
+		// Without a registered athlete to link, approving creates one: with the event full it would end in
+		// 409 at the approval, so the form says it now.
+		if matchID == nil {
+			if err := s.hayPlaza(ctx, tx, c.ID); err != nil {
+				if pe := (*problem.Error)(nil); errors.As(err, &pe) && pe.Code == "INSCRIPCION_COMPLETA" {
+					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email o licencia no constan en la lista de inscritos de la AEP. Revisa que sean los de tu inscripción o escríbenos.")
+				}
+				return err
+			}
+		}
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email, telefono, sexo,
 			fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl, focal_x, focal_y, es_menor,
 			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba)
