@@ -26,7 +26,7 @@ var tagRifa = []string{"Rifa"}
 
 // RifaConfig is the cash ticket info shown in the hero of /sorteo.
 type RifaConfig struct {
-	PrecioBoletoEfectivoCents int        `json:"precioBoletoEfectivoCents" minimum:"0" maximum:"100000"`
+	PrecioBoletoEfectivoCents int        `json:"precioBoletoEfectivoCents" minimum:"1" maximum:"100000"`
 	Moneda                    string     `json:"moneda" readOnly:"true"`
 	TextoInfo                 string     `json:"textoInfo" maxLength:"600"`
 	Lugar                     string     `json:"lugar" maxLength:"160"`
@@ -489,9 +489,49 @@ func (s *Svc) registerRifa() {
 				if err == nil && tag.RowsAffected() == 0 {
 					return problem.NotFound("Objeto no encontrado.")
 				}
+				if err != nil {
+					return err
+				}
+				_, err = tx.Exec(ctx, `INSERT INTO rifa_ganadores_historial (id, competition_id, item_id, item_nombre, boleto, nombre, actor)
+					SELECT $3, competition_id, id, nombre, $4, $5, $6 FROM rifa_items WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, newID(), boleto, nombre, actor(ctx))
 				return err
 			})
 		})
+
+	type histOut struct {
+		Body *struct {
+			Items []RifaHistorial `json:"items"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "rifa-ganadores-historial", Method: http.MethodGet, Path: base + "/ganadores/historial", Summary: "Historial de ganadores registrados o quitados (quién y cuándo)", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
+		func(ctx context.Context, in *cidIn) (*histOut, error) {
+			if err := gestionar(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			rows, err := s.a.DB.Query(ctx, `SELECT item_id, item_nombre, boleto, nombre, actor, at FROM rifa_ganadores_historial
+				WHERE competition_id = $1 ORDER BY at DESC LIMIT 200`, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			h, err := pgx.CollectRows(rows, pgx.RowToStructByPos[RifaHistorial])
+			if err != nil {
+				return nil, err
+			}
+			out := &histOut{Body: &struct {
+				Items []RifaHistorial `json:"items"`
+			}{Items: h}}
+			return out, nil
+		})
+}
+
+// RifaHistorial is one winner registration (boleto nil = winner removed).
+type RifaHistorial struct {
+	ItemID     uuid.UUID `json:"itemId"`
+	ItemNombre string    `json:"itemNombre"`
+	Boleto     *string   `json:"boleto"`
+	Nombre     *string   `json:"nombre"`
+	Actor      string    `json:"actor"`
+	At         time.Time `json:"at"`
 }
 
 func (s *Svc) versionItem(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ifMatch string) error {
