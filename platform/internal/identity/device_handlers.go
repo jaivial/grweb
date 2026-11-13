@@ -232,8 +232,11 @@ func (s *Svc) registerInvitationAccept() {
 				if _, err := tx.Exec(ctx, `UPDATE invitaciones SET aceptada_at = now() WHERE id = $1`, invID); err != nil {
 					return err
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "identity.miembro_anadido", map[string]any{"usuarioId": u.ID, "nombre": u.Nombre, "via": "invitacion"},
-					events.Competition(cid.String()), events.ForPermission("equipo.gestionar"), events.Subject("usuario:"+u.ID.String())))
+				ev := events.New(ctx, "identity.miembro_anadido", map[string]any{"usuarioId": u.ID, "nombre": u.Nombre, "via": "invitacion"},
+					events.Competition(cid.String()), events.ForPermission("equipo.gestionar"), events.Subject("usuario:"+u.ID.String()))
+				// anonymous request: the actor is the person who accepts
+				ev.Actor = &events.Actor{UserID: u.ID.String(), Name: u.Nombre, Origin: "web", IP: events.MaskIP(httpx.ClientIPFrom(ctx)), Agent: in.UserAgent}
+				return events.Enqueue(ctx, tx, ev)
 			})
 			if err != nil {
 				return nil, err

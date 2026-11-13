@@ -98,7 +98,9 @@ const th =
           </ng-container>
         </bo-page-header>
 
-        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div
+          class="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]"
+        >
           <div class="flex min-w-0 flex-col gap-6">
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-[20px] leading-[26px] font-semibold">Roles por competición</h2>
@@ -341,7 +343,14 @@ export class EquipoFichaPage {
             this.http.get<Miembro>(`/api/competition/${c.id}/users/${this.uid()}`),
           ).catch(() => null),
         ]);
-        return { cid: c.id, nombre: c.nombre, roles, rol: m?.rolSlug ?? '' };
+        // two competitions can share a name (an edition and its ETL copy): add the slug then
+        const repetido = mias.some((x) => x.id !== c.id && x.nombre === c.nombre);
+        return {
+          cid: c.id,
+          nombre: repetido ? `${c.nombre} · ${c.slug}` : c.nombre,
+          roles,
+          rol: m?.rolSlug ?? '',
+        };
       }),
     );
     // the current competition first

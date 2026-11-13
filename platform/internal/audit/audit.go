@@ -215,7 +215,12 @@ func (s *Svc) register() {
 
 	type listIn struct {
 		CID uuid.UUID `path:"cid"`
-		filtro
+		Usuario string `query:"usuario" doc:"Id del usuario que hizo el cambio"`
+		Tipo    string `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
+		Entidad string `query:"entidad" doc:"Tipo de entidad: prefijo del subject (campana, rol, usuario…)"`
+		Origen  string `query:"origen" enum:"web,cli,mcp,token,"`
+		Desde   string `query:"desde" format:"date-time"`
+		Hasta   string `query:"hasta" format:"date-time"`
 		Cursor string `query:"cursor"`
 		Limite int    `query:"limite" minimum:"1" maximum:"200" default:"50"`
 	}
@@ -230,7 +235,7 @@ func (s *Svc) register() {
 			if _, err := auth.Require(ctx, in.CID.String(), "auditoria.ver"); err != nil {
 				return nil, err
 			}
-			where, args, err := in.filtro.sql(in.CID)
+			where, args, err := filtro{in.Usuario, in.Tipo, in.Entidad, in.Origen, in.Desde, in.Hasta}.sql(in.CID)
 			if err != nil {
 				return nil, err
 			}
@@ -259,7 +264,12 @@ func (s *Svc) register() {
 
 	type csvIn struct {
 		CID uuid.UUID `path:"cid"`
-		filtro
+		Usuario string `query:"usuario" doc:"Id del usuario que hizo el cambio"`
+		Tipo    string `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
+		Entidad string `query:"entidad" doc:"Tipo de entidad: prefijo del subject (campana, rol, usuario…)"`
+		Origen  string `query:"origen" enum:"web,cli,mcp,token,"`
+		Desde   string `query:"desde" format:"date-time"`
+		Hasta   string `query:"hasta" format:"date-time"`
 	}
 	type csvOut struct {
 		ContentType        string `header:"Content-Type"`
@@ -271,7 +281,7 @@ func (s *Svc) register() {
 			if _, err := auth.Require(ctx, in.CID.String(), "auditoria.ver"); err != nil {
 				return nil, err
 			}
-			where, args, err := in.filtro.sql(in.CID)
+			where, args, err := filtro{in.Usuario, in.Tipo, in.Entidad, in.Origen, in.Desde, in.Hasta}.sql(in.CID)
 			if err != nil {
 				return nil, err
 			}

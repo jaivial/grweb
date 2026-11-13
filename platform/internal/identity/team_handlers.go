@@ -370,7 +370,8 @@ func (s *Svc) registerTeam() {
 				if exige != nuevoExige {
 					diff["exige2fa"] = map[string]any{"antes": exige, "despues": nuevoExige}
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "identity.rol_actualizado", map[string]any{"slug": in.Slug, "permisos": perms, "exige2fa": nuevoExige},
+				_, cambianPermisos := diff["permisos"]
+				return events.Enqueue(ctx, tx, events.New(ctx, "identity.rol_actualizado", map[string]any{"slug": in.Slug, "permisos": perms, "exige2fa": nuevoExige, "soloExige2fa": exige != nuevoExige && !cambianPermisos},
 					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("rol:"+in.Slug), events.WithDiff(diff)))
 			})
 			if err != nil {
@@ -571,15 +572,16 @@ func (s *Svc) invite(ctx context.Context, tx pgx.Tx, p *auth.Principal, cid uuid
 	if _, err := tx.Exec(ctx, `UPDATE invitaciones SET revocada_at = now() WHERE competition_id = $1 AND email = $2 AND aceptada_at IS NULL AND revocada_at IS NULL`, cid, email); err != nil {
 		return err
 	}
+	id := uuid.Must(uuid.NewV7())
 	if _, err := tx.Exec(ctx, `INSERT INTO invitaciones (id, competition_id, email, rol_id, token_hash, invitado_por, expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-		uuid.Must(uuid.NewV7()), cid, email, rid, hashToken(tok), by, time.Now().Add(7*24*time.Hour)); err != nil {
+		id, cid, email, rid, hashToken(tok), by, time.Now().Add(7*24*time.Hour)); err != nil {
 		return err
 	}
 	if err := requestEmail(ctx, tx, email, "equipo-invitacion", map[string]string{"invita": p.Name, "url": s.cfg.BOURL + "/invitacion/" + tok}); err != nil {
 		return err
 	}
-	return events.Enqueue(ctx, tx, events.New(ctx, "identity.invitacion_creada", map[string]any{"email": email},
-		events.Competition(cid.String()), events.ForPermission("equipo.gestionar")))
+	return events.Enqueue(ctx, tx, events.New(ctx, "identity.invitacion_creada", map[string]any{"email": email, "invitacionId": id},
+		events.Competition(cid.String()), events.ForPermission("equipo.gestionar"), events.Subject("invitacion:"+id.String())))
 }
 
 func (s *Svc) revokeUserSessions(ctx context.Context, uid uuid.UUID) {

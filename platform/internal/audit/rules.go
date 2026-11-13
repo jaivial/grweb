@@ -134,6 +134,12 @@ func resumen(e events.Event) string {
 	case "identity.miembro_eliminado":
 		return "quitó a un miembro del equipo"
 	case "identity.rol_actualizado":
+		if d["soloExige2fa"] == true {
+			if d["exige2fa"] == true {
+				return "exigió verificación en dos pasos al rol «" + str(d["slug"]) + "»"
+			}
+			return "dejó de exigir verificación en dos pasos al rol «" + str(d["slug"]) + "»"
+		}
 		return "editó los permisos del rol «" + str(d["slug"]) + "»"
 	case "identity.invitacion_creada":
 		return "invitó a una persona al equipo"

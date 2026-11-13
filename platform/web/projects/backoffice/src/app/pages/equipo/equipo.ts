@@ -165,9 +165,7 @@ const menuItem =
                 </button></gr-empty
               >
             } @else {
-              <section
-                class="hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:block"
-              >
+              <section class="hidden rounded-lg border border-line-subtle bg-bg-card md:block">
                 <table class="w-full text-body-s">
                   <thead class="border-b border-line-subtle bg-bg-card">
                     <tr>
@@ -233,7 +231,9 @@ const menuItem =
                             >
                           }
                         </td>
-                        <td class="px-4 font-mono text-mono-s text-text-secondary">
+                        <td
+                          class="px-4 font-mono text-mono-s whitespace-nowrap text-text-secondary"
+                        >
                           {{ f.tipo === 'miembro' ? rel(f.m.ultimoAcceso) : '–' }}
                         </td>
                         <td class="px-4">
@@ -353,13 +353,35 @@ const menuItem =
           }
 
           @case ('roles') {
+            <!-- 390: one role at a time -->
+            <div
+              class="-mb-2 flex gap-2 overflow-x-auto pb-1 md:hidden [scrollbar-width:none]"
+              role="group"
+              aria-label="Rol a mostrar"
+            >
+              @for (r of roles(); track r.slug) {
+                <button
+                  type="button"
+                  class="h-9 shrink-0 rounded-pill border px-3 text-label-s"
+                  [class]="
+                    rolMovil() === r.slug
+                      ? 'border-accent bg-accent/20 text-text-primary'
+                      : 'border-line-strong text-text-secondary'
+                  "
+                  [attr.aria-pressed]="rolMovil() === r.slug"
+                  (click)="rolMovil.set(r.slug)"
+                >
+                  {{ r.nombre }}
+                </button>
+              }
+            </div>
             <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-              <table class="w-full min-w-[860px] text-body-s">
+              <table class="w-full text-body-s md:min-w-[860px]">
                 <thead class="border-b border-line-subtle bg-bg-raised/40">
                   <tr class="h-12">
                     <th class="${th} w-[38%] pl-4">Permiso</th>
-                    <th class="px-2 text-center text-label-s">Root</th>
-                    @for (r of roles(); track r.slug) {
+                    <th class="hidden px-2 text-center text-label-s md:table-cell">Root</th>
+                    @for (r of visibles(); track r.slug) {
                       <th class="px-2 text-center text-label-s whitespace-nowrap">
                         <span class="inline-flex items-center gap-1"
                           >{{ r.nombre }}
@@ -382,7 +404,7 @@ const menuItem =
                   @for (g of permisos; track g.g) {
                     <tr class="h-8">
                       <td
-                        [attr.colspan]="roles().length + 2"
+                        [attr.colspan]="visibles().length + 2"
                         class="px-4 pt-3 pb-1 text-mono-xs tracking-[0.06em] text-text-tertiary uppercase"
                       >
                         {{ g.g }}
@@ -394,7 +416,7 @@ const menuItem =
                           <p class="font-mono text-mono-s text-text-primary">{{ p.k }}</p>
                           <p class="text-body-xs text-text-tertiary">{{ p.d }}</p>
                         </td>
-                        <td class="text-center">
+                        <td class="hidden text-center md:table-cell">
                           <gr-icon
                             name="lock"
                             [size]="16"
@@ -402,7 +424,7 @@ const menuItem =
                             label="Root: todos los permisos"
                           />
                         </td>
-                        @for (r of roles(); track r.slug) {
+                        @for (r of visibles(); track r.slug) {
                           <td class="text-center">
                             @if (tiene(r, p.k)) {
                               <button
@@ -451,10 +473,10 @@ const menuItem =
                         Sin verificación en dos pasos no tienen acceso
                       </p>
                     </td>
-                    <td class="text-center">
+                    <td class="hidden text-center md:table-cell">
                       <gr-icon name="lock" [size]="16" class="inline-block text-text-tertiary" />
                     </td>
-                    @for (r of roles(); track r.slug) {
+                    @for (r of visibles(); track r.slug) {
                       <td class="text-center">
                         <label class="inline-flex h-11 items-center justify-center"
                           ><input
@@ -843,11 +865,28 @@ export class EquipoPage {
       );
     }),
   );
-  protected readonly rolInv = computed(
-    () => this.roles().find((r) => r.slug === this.inv.rol) ?? null,
+  /** Phones show the matrix one role at a time (Figma 19 · UX móvil). */
+  private readonly movil = signal(
+    typeof matchMedia !== 'undefined' && matchMedia('(max-width: 767px)').matches,
   );
+  protected readonly rolMovil = signal('staff');
+  protected readonly visibles = computed(() => {
+    if (!this.movil()) return this.roles();
+    const r = this.roles().find((x) => x.slug === this.rolMovil()) ?? this.roles()[0];
+    return r ? [r] : [];
+  });
+  /** Role chosen in the invite dialog (`inv` is a plain form model: read on every check, not a computed). */
+  protected rolInv(): Rol | null {
+    return this.roles().find((r) => r.slug === this.inv.rol) ?? null;
+  }
 
   constructor() {
+    if (typeof matchMedia !== 'undefined') {
+      const mq = matchMedia('(max-width: 767px)');
+      const on = (e: MediaQueryListEvent) => this.movil.set(e.matches);
+      mq.addEventListener('change', on);
+      inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', on));
+    }
     effect(() => {
       if (!this.cid()) return;
       untracked(() => void this.cargar());

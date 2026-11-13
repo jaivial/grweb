@@ -18,14 +18,10 @@ import (
 // maxCSV caps one export (the accounting firm asks for a month at a time).
 const maxCSV = 50000
 
-// filtro holds the audit-log filters shared by the list and the CSV export.
+// filtro holds the audit-log filters shared by the list and the CSV export (huma does not bind query
+// parameters of embedded structs, so each input declares them and builds a filtro).
 type filtro struct {
-	Usuario string `query:"usuario" doc:"Id del usuario que hizo el cambio"`
-	Tipo    string `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
-	Entidad string `query:"entidad" doc:"Tipo de entidad: prefijo del subject (campana, rol, usuario…)"`
-	Origen  string `query:"origen" enum:"web,cli,mcp,token,"`
-	Desde   string `query:"desde" format:"date-time"`
-	Hasta   string `query:"hasta" format:"date-time"`
+	Usuario, Tipo, Entidad, Origen, Desde, Hasta string
 }
 
 func (f filtro) sql(cid uuid.UUID) ([]string, []any, error) {

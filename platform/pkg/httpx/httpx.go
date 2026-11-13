@@ -72,6 +72,10 @@ func UserAgentFrom(ctx context.Context) string { s, _ := ctx.Value(agentKey).(st
 func RequestLineFrom(ctx context.Context) string { s, _ := ctx.Value(requestKey).(string); return s }
 
 func clientIP(r *http.Request) string {
+	// behind the Cloudflare tunnel the first X-Forwarded-For hop is the tunnel, not the visitor
+	if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" {
+		return cf
+	}
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		return strings.TrimSpace(strings.Split(xff, ",")[0])
 	}

@@ -74,6 +74,8 @@ const compGuard: CanActivateChildFn = async (child) => {
   const seccion = path === ':seccion' ? (r?.paramMap.get('seccion') ?? '') : path;
   const item = ALL_ITEMS.find((i) => i.path === seccion);
   if (path === ':seccion' && !item) return router.createUrlTree(['/404']);
+  // a role that requires 2FA grants nothing until it is on: send to Inicio, where the shell explains it and offers to turn it on
+  if (item?.perm && auth.user()?.competiciones.find((m) => m.competitionId === c.id)?.exige2fa) return router.createUrlTree(['/', c.slug, 'inicio']);
   if (item?.perm && !auth.can(c.id, item.perm)) return router.createUrlTree(['/403'], { queryParams: { seccion: item.path } });
   return true;
 };
