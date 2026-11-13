@@ -19,7 +19,7 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
         <ng-container actions>
           <a grButton [routerLink]="['/', comps.current()?.slug, 'contactos', 'bajas']">Bajas y supresiones</a>
           <a grButton icon="smartphone" [routerLink]="['/', comps.current()?.slug, 'campanas', 'whatsapp']">WhatsApp</a>
-          <button grButton variant="primary" icon="plus" class="hidden md:inline-flex" (click)="nueva.set(true)">Nueva campaña</button>
+          <span class="hidden md:block"><button grButton variant="primary" icon="plus" (click)="nueva.set(true)">Nueva campaña</button></span>
         </ng-container>
       </bo-page-header>
       <div class="flex flex-wrap items-end gap-3">

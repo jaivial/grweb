@@ -70,7 +70,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
 
       <nav class="mx-auto grid w-full grid-cols-4 gap-1 rounded-md md:flex md:w-auto md:max-w-full md:overflow-x-auto border border-line-subtle bg-bg-card p-1 [scrollbar-width:none]" aria-label="Campaña">
         @for (t of tabs; track t.v) {
-          <button type="button" class="flex h-9 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2 text-label-s md:px-3" [class]="tab() === t.v ? 'bg-accent-deep/50 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="ir(t.v)"><gr-icon [name]="t.i" [size]="14" class="shrink-0" /><span class="truncate md:hidden">{{ t.c }}</span><span class="hidden md:inline">{{ t.l }}</span></button>
+          <button type="button" class="flex h-9 min-w-0 shrink-0 items-center justify-center gap-1 rounded-sm px-1 text-[13px] font-semibold md:gap-1.5 md:px-3 md:text-label-s" [class]="tab() === t.v ? 'bg-accent-deep/50 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="ir(t.v)"><gr-icon [name]="t.i" [size]="14" class="hidden shrink-0 min-[400px]:block md:block" /><span class="truncate md:hidden">{{ t.c }}</span><span class="hidden md:inline">{{ t.l }}</span></button>
         }
       </nav>
       @if (error()) { <gr-alert tone="danger" title="El diseño tiene un problema">{{ error() }}</gr-alert> }
