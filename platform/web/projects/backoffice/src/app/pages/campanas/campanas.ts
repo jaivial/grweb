@@ -1,16 +1,16 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect, GrPopover } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, errText } from '../../shared/ui';
+import { BoPageHeader, Confirm, errText } from '../../shared/ui';
 import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEstado } from './api';
 
 /** «Campañas · lista» (Figma page 61): campaigns by email and WhatsApp with their audience and progress. */
 @Component({
   selector: 'bo-campanas',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrPopover],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -39,13 +39,13 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
         <gr-empty icon="send" title="Aún no hay campañas">Crea una para anunciar entradas, horarios o resultados a quien aceptó recibir novedades.
           <button grButton variant="primary" class="mt-4" (click)="nueva.set(true)">Nueva campaña</button></gr-empty>
       } @else {
-        <ul class="divide-y divide-line-subtle overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
+        <ul class="divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card">
           @for (c of l.items; track c.id) {
-            <li>
-              <a [routerLink]="['/', comps.current()?.slug, 'campanas', c.id]" class="flex flex-col gap-3 px-4 py-4 hover:bg-bg-raised/60 md:flex-row md:items-center md:gap-5">
+            <li class="relative flex items-start md:items-center">
+              <a [routerLink]="['/', comps.current()?.slug, 'campanas', c.id]" class="flex min-w-0 flex-1 flex-col gap-3 py-4 pl-4 pr-1 hover:bg-bg-raised/60 md:flex-row md:items-center md:gap-5">
                 <span class="hidden size-9 shrink-0 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text md:flex"><gr-icon name="send" [size]="16" /></span>
                 <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ c.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ c.asunto || 'Sin asunto' }}@if (c.segmento) { · {{ c.segmento }} }</span></span>
-                <span class="flex gap-1.5">@for (ch of c.canales; track ch) { <span class="inline-flex h-6 items-center gap-1 rounded-2xs border px-1.5 text-mono-xs" [class]="ch === 'email' ? 'border-info/40 text-info' : 'border-success/40 text-success'"><gr-icon [name]="ch === 'email' ? 'mail' : 'smartphone'" [size]="12" />{{ ch === 'email' ? 'Email' : 'WhatsApp' }}</span> }</span>
+                <span class="flex gap-1.5">@for (ch of c.canales; track ch) { <span class="inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-label-s text-text-primary" [class]="ch === 'email' ? 'border-info/50 bg-info/10 [&>gr-icon]:text-info' : 'border-success/50 bg-success/10 [&>gr-icon]:text-success'"><gr-icon [name]="ch === 'email' ? 'mail' : 'message'" [size]="14" />{{ ch === 'email' ? 'Email' : 'WhatsApp' }}</span> }</span>
                 <span class="w-full md:w-48">
                   @if (total(c); as t) {
                     <span class="block h-1.5 overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full rounded-pill" [class]="c.estado === 'enviada' ? 'bg-success' : 'bg-accent'" [style.width.%]="hechos(c) * 100 / t"></span></span>
@@ -54,6 +54,16 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
                 </span>
                 <gr-badge [tone]="est[c.estado].tone">{{ est[c.estado].l }}</gr-badge>
               </a>
+              <span class="relative shrink-0 px-2 pt-3 md:pt-0">
+                <button type="button" class="flex size-9 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-raised hover:text-text-primary" [attr.aria-label]="'Acciones de ' + c.nombre" [attr.aria-expanded]="menu() === c.id" (click)="menu.set(menu() === c.id ? null : c.id)"><gr-icon name="more" [size]="16" /></button>
+                @if (menu() === c.id) {
+                  <gr-popover etiqueta="Acciones de la campaña" (cerrar)="menu.set(null)">
+                    <a grButton variant="ghost" icon="pencil" [routerLink]="['/', comps.current()?.slug, 'campanas', c.id]" [queryParams]="{ tab: 'diseno' }">Abrir el editor</a>
+                    <button grButton variant="ghost" icon="copy" (click)="duplicar(c)">Duplicar</button>
+                    @if (c.estado === 'borrador') { <button grButton variant="danger" icon="trash" (click)="borrar(c)">Eliminar</button> }
+                  </gr-popover>
+                }
+              </span>
             </li>
           }
         </ul>
@@ -75,6 +85,7 @@ export class CampanasPage {
   protected readonly comps = inject(Competitions);
   private readonly toasts = inject(GrToasts);
   private readonly router = inject(Router);
+  private readonly confirm = inject(Confirm);
   protected readonly lista = signal<Lista | null | undefined>(undefined);
   protected readonly estado = signal('');
   protected readonly nueva = signal(false);
@@ -113,6 +124,28 @@ export class CampanasPage {
   }
   protected total(c: CampanaItem): number { return (c.progreso.email?.total ?? 0) + (c.progreso.whatsapp?.total ?? 0); }
   protected hechos(c: CampanaItem): number { return (c.progreso.email?.enviados ?? 0) + (c.progreso.whatsapp?.enviados ?? 0) + (c.progreso.email?.fallidos ?? 0) + (c.progreso.whatsapp?.fallidos ?? 0); }
+  protected readonly menu = signal<string | null>(null);
+  protected async duplicar(c: CampanaItem): Promise<void> {
+    this.menu.set(null);
+    try {
+      const d = await this.api.duplicar(this.cid(), c.id);
+      this.toasts.success('Campaña duplicada');
+      void this.router.navigate(['/', this.comps.current()?.slug, 'campanas', d.id], { queryParams: { tab: 'diseno' } });
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo duplicar.'));
+    }
+  }
+  protected async borrar(c: CampanaItem): Promise<void> {
+    this.menu.set(null);
+    if (!(await this.confirm.ask({ title: `¿Eliminar «${c.nombre}»?`, text: 'Se borra el borrador con su diseño. No se puede deshacer.', confirm: 'Eliminar', danger: true }))) return;
+    try {
+      await this.api.borrar(this.cid(), c.id);
+      this.toasts.success('Campaña eliminada');
+      await this.cargar();
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo eliminar.'));
+    }
+  }
   protected async crear(): Promise<void> {
     this.creando.set(true);
     try {

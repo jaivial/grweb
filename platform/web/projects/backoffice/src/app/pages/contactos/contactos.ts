@@ -68,6 +68,7 @@ function descargar(blob: Blob, nombre: string): void {
 
           <bo-table-toolbar noun="contactos" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="l === undefined" [filtered]="filtrado()" (clear)="limpiarSel()" (reset)="filtrar({ q: '', origen: '', canal: '', estado: '', relacion: '' })">
             @if (canExport()) { <button bulk grButton variant="secondary" icon="download" [loading]="exportando()" (click)="exportar([...sel()])">Exportar selección</button> }
+            @if (canExport()) { <button actions grButton variant="secondary" [loading]="exportando()" (click)="exportar()">Exportar CSV</button> }
             <bo-search filters class="w-full md:w-[280px]" placeholder="Buscar por email, teléfono o nombre" [shortcut]="false" [value]="f().q ?? ''" (valueChange)="filtrar({ q: $event })" />
             <gr-select filters tipo="filtro" aria-label="Origen" [ngModel]="f().origen ?? ''" (ngModelChange)="filtrar({ origen: $event })"><option value="">+ Origen</option>@for (o of l?.origenes ?? []; track o) { <option [value]="o">{{ o }}</option> }</gr-select>
             <gr-select filters tipo="filtro" aria-label="Canal" [ngModel]="f().canal ?? ''" (ngModelChange)="filtrar({ canal: $event })"><option value="">+ Canal</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option></gr-select>
@@ -86,7 +87,7 @@ function descargar(blob: Blob, nombre: string): void {
                       <td class="px-4 py-2.5" (click)="$event.stopPropagation()"><bo-checkbox [value]="sel().has(c.id)" (valueChange)="toggleSel(c.id)" [aria]="'Seleccionar ' + (c.nombre || c.email)" /></td>
                       <td class="px-4 py-2.5"><div class="flex items-center gap-3"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-deep/40 text-mono-xs">{{ ini(c.nombre || c.email) }}</span>
                         <div class="min-w-0"><p class="truncate text-label-s">{{ c.nombre || c.email }}</p><p class="truncate text-body-xs text-text-tertiary">{{ c.nombre ? c.email : '' }}{{ c.telefono ? (c.nombre ? ' · ' : '') + c.telefono : '' }}</p></div></div></td>
-                      <td class="px-3 py-2.5 font-mono text-mono-xs text-text-secondary">{{ c.origen }}</td>
+                      <td class="max-w-[10rem] truncate px-3 py-2.5 font-mono text-mono-xs normal-case text-text-secondary" [title]="c.origen">{{ c.origen }}</td>
                       <td class="px-3 py-2.5"><gr-badge [tone]="estEmail[c.emailEstado].tone">{{ estEmail[c.emailEstado].label }}</gr-badge></td>
                       <td class="px-3 py-2.5">@if (c.whatsappEstado) { <gr-badge [tone]="estWA[c.whatsappEstado].tone">{{ estWA[c.whatsappEstado].label }}</gr-badge> } @else { <span class="text-text-muted">—</span> }</td>
                       <td class="truncate px-3 py-2.5 text-text-secondary">{{ c.relacion || '—' }}</td>
@@ -147,14 +148,14 @@ function descargar(blob: Blob, nombre: string): void {
           }
           <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
             <table class="w-full min-w-[560px] text-left text-body-s">
-              <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Segmento</th><th class="px-3 py-3 text-right">Email</th><th class="px-3 py-3 text-right">WhatsApp</th><th class="px-3 py-3">Último uso</th><th class="w-24 px-3 py-3"></th></tr></thead>
+              <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Segmento</th><th class="px-3 py-3 text-right">Email</th><th class="px-3 py-3 text-right">WhatsApp</th><th class="px-3 py-3">Último uso</th><th class="w-36 px-3 py-3"></th></tr></thead>
               <tbody>
                 @for (s of segmentos() ?? []; track s.id) {
                   <tr class="border-b border-line-subtle last:border-0">
                     <td class="px-4 py-3"><p class="text-label-s">{{ s.nombre }}</p><p class="text-body-xs text-text-tertiary">{{ resumen(s.condiciones) }}</p></td>
                     <td class="px-3 py-3 text-right font-mono">{{ n(s.recuento.email) }}</td><td class="px-3 py-3 text-right font-mono">{{ n(s.recuento.whatsapp) }}</td>
                     <td class="px-3 py-3 text-text-tertiary">{{ s.ultimoUso || '—' }}</td>
-                    <td class="px-3 py-3 text-right">@if (canSeg()) { <button grButton size="s" variant="ghost" (click)="editarSeg(s)">Editar</button> }</td>
+                    <td class="px-3 py-3 text-right">@if (canSeg()) { <span class="flex justify-end gap-1"><button grButton size="s" variant="ghost" (click)="editarSeg(s)">Editar</button><button type="button" class="flex size-9 items-center justify-center rounded-sm text-text-tertiary hover:text-danger" [attr.aria-label]="'Eliminar el segmento ' + s.nombre" (click)="borrarSeg(s)"><gr-icon name="trash" [size]="16" /></button></span> }</td>
                   </tr>
                 } @empty { <tr><td colspan="5" class="px-4 py-10 text-center text-text-tertiary">Sin segmentos todavía.</td></tr> }
               </tbody>
@@ -361,6 +362,16 @@ export class ContactosPage {
       this.toasts.error('No se pudo guardar', errText(err));
     } finally {
       this.guardando.set(false);
+    }
+  }
+  protected async borrarSeg(s: Segmento): Promise<void> {
+    if (!(await this.confirm.ask({ title: `¿Eliminar «${s.nombre}»?`, text: 'Las campañas ya enviadas conservan su copia del segmento; los borradores que lo usen tendrán que elegir otro.', confirm: 'Eliminar', danger: true }))) return;
+    try {
+      this.segmentos.set(await this.api.borrarSegmento(this.cid(), s.id));
+      if (this.seg()?.id === s.id) this.seg.set(null);
+      this.toasts.success('Segmento eliminado');
+    } catch (e) {
+      this.toasts.error('No se pudo eliminar', errText(e));
     }
   }
   protected resumen(cs: Condicion[]): string {

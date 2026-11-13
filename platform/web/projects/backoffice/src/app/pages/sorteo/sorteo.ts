@@ -303,6 +303,7 @@ export class SorteoPage {
   protected ir(t: Tab): void {
     this.editando.set(null);
     this.gItem.set(null);
+    this.errFecha.set(null);
     if (t === 'config') return this.editarPrimero();
     this.tab.set(t);
     if (t === 'historial') void this.cargarHistorial();
@@ -436,7 +437,11 @@ export class SorteoPage {
   protected async guardarGanador(quitar = false): Promise<void> {
     const it = this.gItem();
     if (!it) return;
+    if (quitar && !(await this.confirm.ask({ title: '¿Quitar el ganador?', text: `«${it.nombre}» vuelve a quedar sin ganador. Queda registrado en el historial.`, confirm: 'Quitar ganador' }))) return;
     const g = quitar ? { boleto: '' } : { boleto: this.gf.boleto.trim(), nombre: this.gf.nombre.trim(), nota: this.gf.nota.trim() };
-    if (await this.cambio(() => this.api.ganador(this.cid(), it.id, g), quitar ? 'Ganador quitado' : 'Ganador guardado')) this.gItem.set(null);
+    if (await this.cambio(() => this.api.ganador(this.cid(), it.id, g), quitar ? 'Ganador quitado' : 'Ganador guardado')) {
+      this.gItem.set(null);
+      void this.cargarHistorial();
+    }
   }
 }
