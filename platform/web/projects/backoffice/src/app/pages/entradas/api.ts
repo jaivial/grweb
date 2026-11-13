@@ -17,7 +17,7 @@ export interface Entrada {
   id: string; codigo: string; nombre: string; apellidos: string; email: string; telefono: string; sesionId: string; sesion: string; personas: number; dentro: number;
   estado: 'reservada' | 'usada' | 'anulada'; origen: string; manual: boolean; nota: string; novedades: boolean; novedadesEstado?: 'si' | 'pendiente' | 'no'; emailRebotado?: boolean; consentimientos: Record<string, unknown>; motivo?: string; createdAt: string;
 }
-export interface Escaneo { id: string; codigo: string; nombre: string; puesto: string; usuario: string; resultado: Resultado['resultado']; personas: number; total?: number; puestoAnterior?: string; offline: boolean; at: string }
+export interface Escaneo { id: string; codigo: string; nombre: string; puesto: string; usuario: string; resultado: Resultado['resultado']; personas: number; total?: number; acumulado?: number; puestoAnterior?: string; offline: boolean; at: string }
 export interface Detalle extends Entrada { escaneos: Escaneo[]; qr: string }
 export interface Lista { items: Entrada[]; total: number; pagina: number; por: number; origenes: string[] }
 export interface EsperaItem { id: string; sesionId: string; sesion: string; nombre: string; email: string; personas: number; estado: 'en_espera' | 'oferta' | 'caducada'; expira?: string; orden: number; createdAt: string }

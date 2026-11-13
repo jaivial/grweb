@@ -15,7 +15,6 @@ import {
   ESTADO_ENTRADA, ESTADO_SESION, EntradasApi, RESULTADO, aLocal, deLocal, diaHora, diaMes, fechaCorta, hora,
   type Ajustes, type DiaPabellon, type Detalle, type Entrada, type Espera, type EsperaItem, type Lista, type Resumen, type Sesion, type SesionIn,
 } from './api';
-import { SorteoApi, euros } from '../sorteo/api';
 
 type Tab = 'sesiones' | 'reservas' | 'espera' | 'ajustes';
 
@@ -112,19 +111,19 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
               <button grButton [disabled]="l.pagina >= pages(l)" (click)="filtrar({ pagina: l.pagina + 1 }, false)">Siguiente<gr-icon name="chevron-right" [size]="16" /></button>
             </div>
             <section class="hidden overflow-x-auto rounded-lg border border-line-subtle bg-bg-card md:block">
-              <table class="w-full min-w-[860px] text-left text-body-s">
-                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th boSort class="py-3" [sort]="srt.sortDe('titular')" (toggle)="ordenar('titular')">Titular</th><th boSort class="py-3" [sort]="srt.sortDe('codigo')" (toggle)="ordenar('codigo')">Código</th><th boSort class="py-3" [sort]="srt.sortDe('sesion')" (toggle)="ordenar('sesion')">Sesión</th><th boSort class="py-3" [sort]="srt.sortDe('personas')" (toggle)="ordenar('personas')">Pers.</th><th boSort class="py-3" [sort]="srt.sortDe('estado')" (toggle)="ordenar('estado')">Estado</th><th class="px-3 py-3">Novedades</th><th class="px-3 py-3">Origen</th><th boSort class="py-3" [sort]="srt.sortDe('fecha')" (toggle)="ordenar('fecha')">Fecha</th><th class="w-12"></th></tr></thead>
+              <table class="w-full table-fixed text-left text-body-s">
+                <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th boSort class="py-3" [sort]="srt.sortDe('titular')" (toggle)="ordenar('titular')">Titular</th><th boSort class="w-28 py-3" [sort]="srt.sortDe('codigo')" (toggle)="ordenar('codigo')">Código</th><th boSort class="py-3" [sort]="srt.sortDe('sesion')" (toggle)="ordenar('sesion')">Sesión</th><th boSort class="w-20 py-3" [sort]="srt.sortDe('personas')" (toggle)="ordenar('personas')">Pers.</th><th boSort class="w-32 py-3" [sort]="srt.sortDe('estado')" (toggle)="ordenar('estado')">Estado</th><th class="hidden w-28 px-3 py-3 2xl:table-cell">Novedades</th><th class="hidden w-28 px-3 py-3 2xl:table-cell">Origen</th><th boSort class="w-28 py-3" [sort]="srt.sortDe('fecha')" (toggle)="ordenar('fecha')">Fecha</th><th class="w-12"></th></tr></thead>
                 <tbody>
                   @for (e of l.items; track e.id) {
                     <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="e.estado === 'anulada' ? row.disabled : sel().has(e.id) ? row.selected : row.default" (click)="ver(e.id)">
                       <td class="px-3 py-2.5" (click)="$event.stopPropagation()">@if (e.estado !== 'anulada') { <bo-checkbox [value]="sel().has(e.id)" (valueChange)="toggle(e.id)" [aria]="'Seleccionar ' + e.codigo" /> }</td>
-                      <td class="px-3 py-2.5"><div class="flex items-center gap-3"><gr-avatar [name]="e.nombre + ' ' + e.apellidos" /><div class="min-w-0 max-w-[200px]"><p class="truncate text-label-s">{{ e.nombre }} {{ e.apellidos }}</p><p class="truncate text-body-xs text-text-tertiary">{{ e.email || (e.manual ? 'Reserva manual' : '') }}</p></div></div></td>
+                      <td class="px-3 py-2.5"><div class="flex items-center gap-3"><gr-avatar [name]="e.nombre + ' ' + e.apellidos" /><div class="min-w-0"><p class="truncate text-label-s">{{ e.nombre }} {{ e.apellidos }}</p><p class="truncate text-body-xs text-text-tertiary">{{ e.email || (e.manual ? 'Reserva manual' : '') }}</p></div></div></td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs">{{ e.codigo }}</td>
-                      <td class="max-w-[180px] truncate px-3 py-2.5 whitespace-nowrap text-text-secondary" [title]="e.sesion">{{ e.sesion }}</td>
+                      <td class="truncate px-3 py-2.5 whitespace-nowrap text-text-secondary" [title]="e.sesion">{{ e.sesion }}</td>
                       <td class="px-3 py-2.5 text-center font-mono">{{ e.dentro ? e.dentro + '/' : '' }}{{ e.personas }}</td>
                       <td class="px-3 py-2.5"><ng-container [ngTemplateOutlet]="estado" [ngTemplateOutletContext]="{ $implicit: e }" /></td>
-                      <td class="px-3 py-2.5">@switch (e.novedadesEstado ?? (e.novedades ? 'pendiente' : 'no')) { @case ('si') { <gr-badge tone="success">Sí</gr-badge> } @case ('pendiente') { <gr-badge tone="warning">Pendiente</gr-badge> } @default { <gr-badge>No</gr-badge> } }</td>
-                      <td class="max-w-[96px] truncate px-3 py-2.5 font-mono text-mono-xs text-text-tertiary" [title]="e.origen">{{ e.origen }}</td>
+                      <td class="hidden px-3 py-2.5 2xl:table-cell">@switch (e.novedadesEstado ?? (e.novedades ? 'pendiente' : 'no')) { @case ('si') { <gr-badge tone="success">Sí</gr-badge> } @case ('pendiente') { <gr-badge tone="warning">Pendiente</gr-badge> } @default { <gr-badge>No</gr-badge> } }</td>
+                      <td class="hidden truncate px-3 py-2.5 font-mono text-mono-xs text-text-tertiary 2xl:table-cell" [title]="e.origen">{{ e.origen }}</td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fechaCorta(e.createdAt) }}</td>
                       <td class="px-2 py-2.5 text-right"><button grIconButton type="button" icon="more" [label]="'Abrir ' + e.codigo" (click)="$event.stopPropagation(); menuEntrada($event, e)"></button></td>
                     </tr>
@@ -203,7 +202,6 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
           <dt class="text-text-tertiary">Email</dt><dd class="truncate">{{ d.email || '—' }}@if (d.emailRebotado) { <gr-badge tone="danger" class="ml-2">Rebotado</gr-badge> }</dd>
           <dt class="text-text-tertiary">Teléfono</dt><dd>{{ d.telefono || '—' }}</dd>
           <dt class="text-text-tertiary">Origen</dt><dd>{{ d.origen }}{{ d.manual ? ' · manual' : '' }}</dd>
-          @if (sorteo(); as so) { <dt class="text-text-tertiary">Sorteo</dt><dd>{{ so }}</dd> }
           <dt class="text-text-tertiary">Reservada</dt><dd>{{ fechaCorta(d.createdAt) }}</dd>
           @if (d.nota) { <dt class="text-text-tertiary">Nota</dt><dd>{{ d.nota }}</dd> }
           @if (d.motivo) { <dt class="text-text-tertiary">Motivo</dt><dd>{{ d.motivo }}</dd> }
@@ -294,7 +292,6 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
 })
 export class EntradasPage {
   private readonly api = inject(EntradasApi);
-  private readonly sorteoApi = inject(SorteoApi);
   private readonly auth = inject(Auth);
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
@@ -310,7 +307,6 @@ export class EntradasPage {
   protected readonly verCaducadas = signal(false);
   protected readonly caducadas = computed(() => (this.espera()?.items ?? []).filter((x) => x.estado === 'caducada').length);
   protected readonly visibles = computed(() => (this.espera()?.items ?? []).filter((x) => this.verCaducadas() || x.estado !== 'caducada'));
-  protected readonly sorteo = signal('');
   protected readonly manErr = signal<Record<string, string>>({});
   protected readonly sesErr = signal<Record<string, string>>({});
   protected readonly ajErr = signal<Record<string, string>>({});
@@ -493,18 +489,10 @@ export class EntradasPage {
   }
   protected async ver(id: string): Promise<void> {
     this.det.set(null);
-    this.sorteo.set('');
     this.detOpen.set(true);
     try {
       const d = await this.api.detalle(this.cid(), id);
       this.det.set(d);
-      // «Sorteo» row: raffle tickets bought with the same email (hidden without access to the raffle).
-      if (d.email) void this.sorteoApi.compras(this.cid(), { q: d.email }).then((c) => {
-        const l = c.items.filter((x) => x.email.toLowerCase() === d.email.toLowerCase());
-        if (!l.length || this.det()?.id !== d.id) return;
-        const b = l.reduce((t, x) => t + x.cantidad, 0);
-        this.sorteo.set(this.pl(b, 'boleto') + ' · ' + euros(l.reduce((t, x) => t + x.importe, 0)) + ' · ' + l[0].estado);
-      }, () => undefined);
     } catch (e) {
       this.toasts.error('No se pudo abrir', errText(e));
     }

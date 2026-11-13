@@ -29,6 +29,7 @@ type Escaneo struct {
 	Resultado string    `json:"resultado"`
 	Personas  int       `json:"personas"`
 	Total     int       `json:"total" doc:"Personas de la entrada («2 de 3»)"`
+	Acumulado int       `json:"acumulado" doc:"Personas de la entrada dentro tras este escaneo («2 de 3» acumulado)"`
 	PuestoAnt string    `json:"puestoAnterior,omitempty" doc:"Puerta del primer acceso (duplicados)"`
 	Offline   bool      `json:"offline"`
 	At        time.Time `json:"at"`
@@ -36,6 +37,7 @@ type Escaneo struct {
 
 func (s *Svc) escaneos(ctx context.Context, cid uuid.UUID, where string, limit int, args ...any) ([]Escaneo, error) {
 	rows, err := s.a.DB.Query(ctx, `SELECT e.id, e.codigo, COALESCE(n.nombre || ' ' || n.apellidos, ''), e.puesto, e.usuario, e.resultado, e.personas, COALESCE(n.personas, 0),
+		COALESCE((SELECT sum(q.personas) FROM escaneos q WHERE q.entrada_id = e.entrada_id AND q.resultado IN ('valida', 'manual') AND q.escaneado_at <= e.escaneado_at), 0)::int,
 		COALESCE((SELECT p.puesto FROM escaneos p WHERE p.entrada_id = e.entrada_id AND p.resultado IN ('valida', 'manual') AND p.escaneado_at < e.escaneado_at ORDER BY p.escaneado_at LIMIT 1), ''), e.offline, e.escaneado_at
 		FROM escaneos e LEFT JOIN entradas n ON n.id = e.entrada_id WHERE e.competition_id = $1 AND `+where+fmt.Sprintf(` ORDER BY e.escaneado_at DESC LIMIT %d`, limit), append([]any{cid}, args...)...)
 	if err != nil {

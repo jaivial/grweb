@@ -11,20 +11,16 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/kpiwin"
 )
 
-// registerKPIs exposes the counters of the backoffice home (Figma 52 · Inicio) to audit, computed from the source
-// tables so imported history counts too (events only cover what happens after the import). ?periodo filters by
-// creation date and adds the previous period and a sparkline (pkg/kpiwin).
+// registerKPIs keeps the internal KPI contract of the backoffice home (Figma 52 · Inicio). D-RIFA: tickets are sold in
+// cash at the venue, so there are no online counters any more (zeros keep the dashboard cards stable).
 func (s *Svc) registerKPIs() {
 	huma.Register(s.a.API, huma.Operation{OperationID: "internal-kpis", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/kpis", Summary: "KPIs del Inicio (solo audit)", Tags: []string{"Interno"}, Hidden: true},
 		func(ctx context.Context, in *kpiwin.In) (*kpiwin.Out, error) {
 			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err
 			}
-			return kpiwin.Compute(ctx, in.Periodo, func(ctx context.Context, desde, hasta time.Time) (map[string]int64, error) {
-				var v [2]int64
-				err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(sum(cantidad), 0), COALESCE(sum(importe), 0) FROM compras WHERE competition_id = $1 AND estado = 'pagada'
-					AND COALESCE(pagada_at, created_at) >= $2 AND COALESCE(pagada_at, created_at) < $3`, in.CID, desde, hasta).Scan(&v[0], &v[1])
-				return map[string]int64{"sorteo.boletos": v[0], "sorteo.recaudado": v[1]}, err
+			return kpiwin.Compute(ctx, in.Periodo, func(context.Context, time.Time, time.Time) (map[string]int64, error) {
+				return map[string]int64{"sorteo.boletos": 0, "sorteo.recaudado": 0}, nil
 			})
 		})
 }
