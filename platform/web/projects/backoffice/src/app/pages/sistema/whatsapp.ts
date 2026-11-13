@@ -190,8 +190,8 @@ type Dialogo = 'desconectar' | null;
                         @for (p of paises; track p.prefijo) { <option [value]="p.prefijo">{{ p.nombre }} {{ p.prefijo }}</option> }
                       </gr-select>
                     </gr-field>
-                    <gr-field label="Número de móvil" [error]="numError()" hint="Se guarda con el prefijo del país (+34 por defecto)">
-                      <input grInput id="gr-whatsapp-nuevo" inputmode="tel" placeholder="612 345 678" [ngModel]="numeroEnlace()" (ngModelChange)="numeroEnlace.set($event); numError.set(null)" />
+                    <gr-field label="Número de móvil" for="gr-whatsapp-nuevo" [error]="numError()" hint="Se guarda con el prefijo del país (+34 por defecto)">
+                      <input grInput id="gr-whatsapp-nuevo" inputmode="tel" placeholder="612 345 678" [invalid]="!!numError()" [attr.aria-describedby]="numError() ? 'gr-whatsapp-nuevo-error' : 'gr-whatsapp-nuevo-hint'" [ngModel]="numeroEnlace()" (ngModelChange)="numeroEnlace.set($event); numError.set(null)" />
                     </gr-field>
                     @if (codigo(); as c) {
                       <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-success/40 bg-success/5 px-4 py-3">
