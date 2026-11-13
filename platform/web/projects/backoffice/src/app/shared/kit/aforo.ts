@@ -24,7 +24,7 @@ const BADGE: Partial<Record<BoAforo, [string, GrTone]>> = { full: ['Lista de esp
   template: `
     <div class="flex items-start justify-between gap-2">
       <span class="min-w-0 text-[14px] leading-[18px] font-semibold text-text-primary">{{ titulo() }}</span>
-      <span class="shrink-0 font-mono text-[13px] leading-[18px] text-text-secondary">{{ ocupadas() }} / {{ aforo() }}</span>
+      <span class="shrink-0 font-mono text-[13px] leading-[18px] text-text-secondary">{{ miles(ocupadas()) }} / {{ miles(aforo()) }}</span>
     </div>
     <div class="h-2 overflow-hidden rounded-pill bg-bg-raised" role="meter" [attr.aria-valuenow]="ocupadas()" aria-valuemin="0" [attr.aria-valuemax]="aforo()" [attr.aria-label]="'Aforo ' + titulo()">
       <div class="h-full transition-[width] duration-300 motion-reduce:transition-none" [class]="bar()" [style.width.%]="pct()"></div>
@@ -44,6 +44,7 @@ export class BoCapacityMeter {
   /** Closed: who/when («Cerrada manualmente por Nico · 18:40»). */
   readonly nota = input('');
   readonly estado = computed(() => boAforo(this.ocupadas(), this.aforo(), this.cerrada()));
+  protected readonly miles = (n: number) => n.toLocaleString('es-ES', { useGrouping: 'always' } as unknown as Intl.NumberFormatOptions);
   protected readonly pct = computed(() => (this.aforo() ? Math.min(100, (this.ocupadas() / this.aforo()) * 100) : 0));
   protected readonly bar = computed(() => 'block ' + BAR[this.estado()]);
   protected readonly tono = computed(() => PIE[this.estado()]);
