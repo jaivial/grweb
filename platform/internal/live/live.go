@@ -86,6 +86,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerMesa()
 	s.registerRetransmision()
 	s.registerResultados()
+	a.Go(s.programadas)
 	s.registerMarcador()
 	s.registerPublic()
 	s.registerOpenLifter()

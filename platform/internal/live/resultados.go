@@ -93,6 +93,7 @@ type ResultadosAdmin struct {
 	Categoria    *Categoria         `json:"categoria,omitempty"`
 	Absoluta     map[string][]Fila  `json:"absoluta" doc:"Mejores por puntos GL (F, M)"`
 	PublicarAuto bool               `json:"publicarAuto"`
+	Programado   *time.Time         `json:"programado,omitempty" doc:"Publicación programada de todas las categorías"`
 	Flights      int                `json:"flights"`
 	Cerrados     int                `json:"cerrados"`
 	Archivo      bool               `json:"archivo,omitempty" doc:"Edición celebrada sin horarios publicados (p. ej. importada de la web anterior): solo sus resultados publicados, de lectura"`
@@ -233,7 +234,7 @@ func (s *Svc) resultadosAdmin(ctx context.Context, cid uuid.UUID, sel string) (*
 	if err != nil {
 		return nil, err
 	}
-	o := &ResultadosAdmin{Categorias: []CategoriaResumen{}, Absoluta: map[string][]Fila{"F": {}, "M": {}}, PublicarAuto: e.PublicarAuto, Flights: len(p.Flights)}
+	o := &ResultadosAdmin{Categorias: []CategoriaResumen{}, Absoluta: map[string][]Fila{"F": {}, "M": {}}, PublicarAuto: e.PublicarAuto, Programado: e.PublicarAt, Flights: len(p.Flights)}
 	if len(p.Flights) == 0 && len(pubs) > 0 {
 		// a held edition without a published schedule (imported from the previous web): what was published
 		o.Archivo = true
@@ -415,6 +416,38 @@ func (s *Svc) registerResultados() {
 			return o, err
 		})
 
+	// «Programado · fecha» / «Cambiar fecha»: every category is published at that time by programadas (null cancels).
+	type progIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			At *time.Time `json:"at,omitempty" doc:"Fecha de publicación; vacío: quitar la programación"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "resultados-programar", Method: http.MethodPut, Path: base + "/programar", Summary: "Programar la publicación de los resultados", Tags: tagResultados, Security: bearer},
+		func(ctx context.Context, in *progIn) (*struct{ Body *ResultadosAdmin }, error) {
+			if err := publicarPerm(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			if in.Body.At != nil && !in.Body.At.After(time.Now()) {
+				return nil, problem.Unprocessable("FECHA_PASADA", "Elige una fecha futura.")
+			}
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if _, err := s.estado(ctx, tx, in.CID, true); err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, `UPDATE estado SET publicar_at = $2, updated_at = now() WHERE competition_id = $1`, in.CID, in.Body.At); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "resultados.programados", map[string]any{"at": in.Body.At, "por": actor(ctx)},
+					events.Competition(in.CID.String()), events.ForPermission("resultados.publicar"), events.Subject("resultados")))
+			})
+			if err != nil {
+				return nil, err
+			}
+			o, err := s.resultadosAdmin(ctx, in.CID, "")
+			return &struct{ Body *ResultadosAdmin }{o}, err
+		})
+
 	type retIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
@@ -546,3 +579,43 @@ func trimFloat2(v float64) string {
 }
 
 var _ = errors.New
+
+// programadas publishes the results whose scheduled time has come (every minute). The row is claimed by clearing
+// publicar_at in the same statement, so two replicas never publish the same schedule.
+func (s *Svc) programadas(ctx context.Context) {
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			rows, err := s.a.DB.Query(ctx, `UPDATE estado SET publicar_at = NULL WHERE publicar_at <= now() RETURNING competition_id`)
+			if err != nil {
+				if ctx.Err() == nil {
+					s.a.Log.Warn("publicación programada", "err", err)
+				}
+				continue
+			}
+			cids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+			if err != nil {
+				s.a.Log.Warn("publicación programada", "err", err)
+			}
+			for _, cid := range cids {
+				p, err := s.cargarPlan(ctx, cid)
+				if err != nil {
+					s.a.Log.Warn("publicación programada", "competicion", cid, "err", err)
+					continue
+				}
+				tb, err := cargarIntentos(ctx, s.a.DB, cid)
+				if err != nil {
+					s.a.Log.Warn("publicación programada", "competicion", cid, "err", err)
+					continue
+				}
+				if _, err := s.publicar(ctx, cid, p, tb, p.categorias(), true, "Publicación programada"); err != nil {
+					s.a.Log.Warn("publicación programada", "competicion", cid, "err", err)
+				}
+			}
+		}
+	}
+}

@@ -42,15 +42,16 @@ type Estado struct {
 	StreamHome    bool       `json:"streamHome" doc:"La home también muestra el vídeo mientras hay directo"`
 	Pantalla      Pantalla   `json:"pantalla"`
 	PublicarAuto  bool       `json:"publicarAuto"`
+	PublicarAt    *time.Time `json:"publicarAt,omitempty" doc:"Publicación programada de los resultados"`
 	TurnoAt       *time.Time `json:"turnoAt,omitempty"`
 	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
-const selEstado = `SELECT version, fase, flight_id, movimiento, pausa, retraso_min, stream_url, replay_url, stream_visible, stream_home, pantalla, publicar_auto, turno_at, updated_at FROM estado WHERE competition_id = $1`
+const selEstado = `SELECT version, fase, flight_id, movimiento, pausa, retraso_min, stream_url, replay_url, stream_visible, stream_home, pantalla, publicar_auto, publicar_at, turno_at, updated_at FROM estado WHERE competition_id = $1`
 
 func scanEstado(r pgx.Row) (Estado, error) {
 	var e Estado
-	err := r.Scan(&e.Version, &e.Fase, &e.FlightID, &e.Movimiento, &e.Pausa, &e.RetrasoMin, &e.StreamURL, &e.ReplayURL, &e.StreamVisible, &e.StreamHome, &e.Pantalla, &e.PublicarAuto, &e.TurnoAt, &e.UpdatedAt)
+	err := r.Scan(&e.Version, &e.Fase, &e.FlightID, &e.Movimiento, &e.Pausa, &e.RetrasoMin, &e.StreamURL, &e.ReplayURL, &e.StreamVisible, &e.StreamHome, &e.Pantalla, &e.PublicarAuto, &e.PublicarAt, &e.TurnoAt, &e.UpdatedAt)
 	return e, err
 }
 

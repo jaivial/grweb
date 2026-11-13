@@ -1,6 +1,7 @@
+import { FormsModule } from '@angular/forms';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -13,16 +14,17 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
 /** «Resultados · clasificación» (Figma page 57): rankings by category computed live, absolute by GL points, publication to /resultados and the CSV record. */
 @Component({
   selector: 'bo-resultados',
-  imports: [BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrSkeleton],
+  imports: [FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = res();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="Resultados" [badge]="r?.archivo ? 'Archivo' : r?.publicarAuto ? 'Publicación automática' : ''" badgeTone="info"
+      <bo-page-header title="Resultados" [badge]="r?.archivo ? 'Archivo' : r?.programado ? 'Programado · ' + fecha(r.programado) : r?.publicarAuto ? 'Publicación automática' : ''" badgeTone="info"
         [subtitle]="r ? (r.archivo ? 'Edición celebrada · ' : r.cerrados + ' de ' + r.flights + ' flights cerrados · ') + totalAtletas() + ' atletas en ' + r.categorias.length + ' categorías' : ''"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Resultados']">
         @if (r?.categorias?.length) {
           <ng-container actions>
+            @if (puedePublicar() && !r?.archivo) { <button grButton variant="ghost" icon="clock" (click)="abrirProg()">{{ r?.programado ? 'Cambiar fecha' : 'Programar' }}</button> }
             <button grButton icon="download" (click)="acta()">Exportar acta</button>
             @if (puedePublicar() && sel() !== 'absoluta' && !r?.archivo) { <button grButton variant="primary" icon="send" [loading]="publicando()" (click)="publicar()">{{ actual()?.publicado ? 'Publicar cambios' : 'Publicar resultados' }}</button> }
           </ng-container>
@@ -99,13 +101,29 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
             </table>
           </section>
           @if (!r.archivo) {
-          <gr-alert tone="info" [title]="r.publicarAuto ? 'Publicación programada al cerrar el flight' : 'Publicación manual'">
+          <gr-alert tone="info" [title]="r.programado ? 'Publicación programada · ' + fecha(r.programado) : r.publicarAuto ? 'Publicación programada al cerrar el flight' : 'Publicación manual'">
             {{ r.publicarAuto ? 'Cuando terminen todos los atletas de la categoría se publicará en /resultados y se avisará a los seguidores de cada atleta.' : 'Publica cada categoría cuando la revises; la primera vez se avisa a los atletas y a sus seguidores.' }} El acta oficial la valida la AEP.
           </gr-alert>
           }
         }
       }
     </div>
+
+    <!-- Scheduled publication («Programado · fecha» / «Cambiar fecha») -->
+    @if (prog(); as p) {
+      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="prog.set(null)" (keydown.escape)="prog.set(null)">
+        <form class="w-full max-w-sm rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Programar publicación" (click)="$event.stopPropagation()" (ngSubmit)="guardarProg(p.at)">
+          <h2 class="text-ui-h5">Programar publicación</h2>
+          <p class="mt-1 text-body-s text-text-secondary">A esa hora se publican todas las categorías en /resultados y se avisa a los seguidores de las terminadas.</p>
+          <gr-field label="Fecha y hora" for="p-at" class="mt-4" [error]="progErr()"><input grInput id="p-at" type="datetime-local" name="at" [(ngModel)]="p.at" required /></gr-field>
+          <div class="mt-6 flex justify-end gap-2">
+            @if (res()?.programado) { <button type="button" grButton variant="ghost" class="mr-auto" (click)="guardarProg('')">Quitar</button> }
+            <button type="button" grButton variant="ghost" (click)="prog.set(null)">Cancelar</button>
+            <button type="submit" grButton variant="primary" [loading]="publicando()">Guardar</button>
+          </div>
+        </form>
+      </div>
+    }
   `,
 })
 export class ResultadosPage {
@@ -130,6 +148,8 @@ export class ResultadosPage {
   protected readonly actual = computed(() => this.res()?.categorias.find((c) => c.clave === this.res()?.categoria?.clave));
   protected readonly totalAtletas = computed(() => (this.res()?.categorias ?? []).reduce((n, c) => n + c.atletas, 0));
   private t: ReturnType<typeof setTimeout> | undefined;
+  protected readonly prog = signal<{ at: string } | null>(null);
+  protected readonly progErr = signal('');
 
   constructor() {
     effect(() => {
@@ -188,6 +208,31 @@ export class ResultadosPage {
       await this.cargar();
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo publicar.'));
+    } finally {
+      this.publicando.set(false);
+    }
+  }
+
+  protected abrirProg(): void {
+    const d = new Date(this.res()?.programado ?? Date.now() + 3600_000);
+    const p = (n: number) => String(n).padStart(2, '0');
+    this.progErr.set('');
+    this.prog.set({ at: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}` });
+  }
+
+  protected async guardarProg(at: string): Promise<void> {
+    if (at && !(new Date(at).getTime() > Date.now())) {
+      this.progErr.set('Elige una fecha futura.');
+      return;
+    }
+    this.publicando.set(true);
+    try {
+      const r = await this.api.programar(this.cid(), at ? new Date(at).toISOString() : null);
+      this.res.update((x) => (x ? { ...x, programado: r.programado } : x));
+      this.prog.set(null);
+      this.toasts.success(r.programado ? `Programado · ${fecha(r.programado)}` : 'Programación quitada');
+    } catch (e) {
+      this.progErr.set(errText(e, 'No se pudo programar.'));
     } finally {
       this.publicando.set(false);
     }
