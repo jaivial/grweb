@@ -203,14 +203,18 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
     <!-- Correction -->
     @if (corr(); as c) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="corr.set(null)" (keydown.escape)="corr.set(null)">
-        <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Corregir intento · ' + c.fila.nombre" (click)="$event.stopPropagation()" (ngSubmit)="guardarCorreccion()">
+        <form class="w-full max-w-[520px] rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Corregir intento · ' + c.fila.nombre" (click)="$event.stopPropagation()" (ngSubmit)="guardarCorreccion()">
           <header class="flex items-start justify-between gap-3"><h2 class="text-ui-h5">Corregir intento · {{ c.fila.nombre }}</h2><button type="button" class="-mt-1 -mr-2 flex size-9 items-center justify-center rounded-sm hover:bg-bg-card" (click)="corr.set(null)" aria-label="Cerrar"><gr-icon name="x" [size]="18" /></button></header>
           <div class="mt-5 flex flex-col gap-4">
-            <gr-field label="Resultado" [hint]="'Antes: ' + ver(c.it.votos, c.it.resultado)">
+            <gr-field label="Resultado">
               <gr-select name="res" [(ngModel)]="c.res">@for (o of opciones; track o.v) { <option [value]="o.v">{{ ver(c.it.votos, c.it.resultado) }} → {{ o.l }}</option> }</gr-select>
             </gr-field>
             <div class="grid grid-cols-2 gap-3">
-              <gr-field label="Intento"><input grInput [value]="MOVN[c.mov] + ' ' + ORD[c.n]" disabled /></gr-field>
+              <gr-field label="Intento">
+                <gr-select name="intento" [ngModel]="c.mov + c.n" (ngModelChange)="cambiarIntento(c, $event)">
+                  @for (o of juzgados(c.fila); track o.k) { <option [value]="o.k">{{ MOVN[o.mov] }} {{ ORD[o.n] }}</option> }
+                </gr-select>
+              </gr-field>
               <gr-field label="Peso (kg)"><input grInput type="number" step="0.5" name="peso" class="font-mono" [(ngModel)]="c.peso" /></gr-field>
             </div>
             <gr-field label="Motivo (obligatorio)" [error]="corrErr()"><input grInput name="motivo" [(ngModel)]="c.motivo" placeholder="Lateral 2 marcó rojo por error" maxlength="200" /></gr-field>
@@ -447,6 +451,18 @@ export class DirectoPage {
     this.corrErr.set('');
     const res = c.resultado === 'renuncia' ? 'renuncia' : c.votos;
     this.corr.set({ fila: f, mov, n, it: c, res, peso: c.peso, motivo: '' });
+  }
+
+  /** Judged attempts of an athlete (the «Intento» select of the correction modal, Figma 96:22873). */
+  protected juzgados(f: FilaMesa): { k: string; mov: Mov; n: number; it: IntentoMesa }[] {
+    return (['sq', 'bp', 'dl'] as Mov[]).flatMap((mov) =>
+      f.intentos[mov].flatMap((it, i) => (it && it.resultado !== 'pendiente' ? [{ k: mov + (i + 1), mov, n: i + 1, it }] : [])),
+    );
+  }
+
+  protected cambiarIntento(c: Corr, k: string): void {
+    const o = this.juzgados(c.fila).find((x) => x.k === k);
+    if (o) this.corr.set({ ...c, mov: o.mov, n: o.n, it: o.it, res: o.it.resultado === 'renuncia' ? 'renuncia' : o.it.votos, peso: o.it.peso });
   }
 
   protected abrirDecl(f: FilaMesa, n: number): void {
