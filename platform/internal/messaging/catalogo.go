@@ -200,7 +200,7 @@ var catalogo = []Plantilla{
 		map[string]string{"nombre": "Carlos", "apellidos": "García Molina", "email": "carlos.garcia@example.com", "telefono": "+34 600 123 456",
 			"licencia": "AEP-2026-04512", "club": "Club Halter Valencia", "ciudad": "Valencia", "sexo": "M", "edad": "17", "fechaNacimiento": "12/03/2009",
 			"marcas": "180 / 120 / 220 kg · total 520 kg", "frase": "«Primera temporada en juveniles»", "match": "sugerida (nombre y fecha de nacimiento)", "prueba": "AEP-2",
-			"menor": "⚠ Menor de edad · falta la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla.",
+			"menor": "⚠ Menor de edad · falta autorización. La foto no se publica sin la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla.",
 			"foto":  "https://grcup.example/api/competiciones/grcup/alta-atleta/foto/…?e=…&s=…", "urlRevisar": "https://grcup-bo.example/grcup/atletas/solicitudes"},
 		Contenido{Asunto: "Nueva solicitud de alta · {{nombre}} {{apellidos}}", Preheader: "Revisa los datos antes de aprobar o rechazar", Titulo: "Nueva solicitud de alta · {{nombre}} {{apellidos}}",
 			Imagen:     "{{foto}}",

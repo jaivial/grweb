@@ -352,7 +352,7 @@ func (s *Svc) registerAdmin() {
 			if in.Body.Datos != nil {
 				datos = in.Body.Datos
 			}
-			r, err := renderizar(c, datos, e.Variables, s.marca(ctx, in.CID), e.Esencial, e.QR)
+			r, err := renderizarDe(e.Plantilla, c, datos, s.marca(ctx, in.CID))
 			if err != nil {
 				return nil, problem.Unprocessable("VARIABLE_INEXISTENTE", err.Error())
 			}
@@ -499,7 +499,7 @@ func (s *Svc) registerAdmin() {
 				if enviado != nil {
 					c = *enviado
 				}
-				if r, err := renderizar(c, vars, e.Variables, s.marca(ctx, in.CID), e.Esencial, e.QR); err == nil {
+				if r, err := renderizarDe(e.Plantilla, c, vars, s.marca(ctx, in.CID)); err == nil {
 					o.Body.HTML, o.Body.Texto = r.HTML, r.Texto
 				}
 			}
