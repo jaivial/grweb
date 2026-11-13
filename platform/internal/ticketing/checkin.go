@@ -28,12 +28,15 @@ type Escaneo struct {
 	Usuario   string    `json:"usuario"`
 	Resultado string    `json:"resultado"`
 	Personas  int       `json:"personas"`
+	Total     int       `json:"total" doc:"Personas de la entrada («2 de 3»)"`
+	PuestoAnt string    `json:"puestoAnterior,omitempty" doc:"Puerta del primer acceso (duplicados)"`
 	Offline   bool      `json:"offline"`
 	At        time.Time `json:"at"`
 }
 
 func (s *Svc) escaneos(ctx context.Context, cid uuid.UUID, where string, limit int, args ...any) ([]Escaneo, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT e.id, e.codigo, COALESCE(n.nombre || ' ' || n.apellidos, ''), e.puesto, e.usuario, e.resultado, e.personas, e.offline, e.escaneado_at
+	rows, err := s.a.DB.Query(ctx, `SELECT e.id, e.codigo, COALESCE(n.nombre || ' ' || n.apellidos, ''), e.puesto, e.usuario, e.resultado, e.personas, COALESCE(n.personas, 0),
+		COALESCE((SELECT p.puesto FROM escaneos p WHERE p.entrada_id = e.entrada_id AND p.resultado IN ('valida', 'manual') AND p.escaneado_at < e.escaneado_at ORDER BY p.escaneado_at LIMIT 1), ''), e.offline, e.escaneado_at
 		FROM escaneos e LEFT JOIN entradas n ON n.id = e.entrada_id WHERE e.competition_id = $1 AND `+where+fmt.Sprintf(` ORDER BY e.escaneado_at DESC LIMIT %d`, limit), append([]any{cid}, args...)...)
 	if err != nil {
 		return nil, err
@@ -102,6 +105,16 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 	}
 	if codigo == "" {
 		return r, problem.Unprocessable("SIN_CODIGO", "Escanea un QR o escribe un código.")
+	}
+	// Online only: an offline queue must never get stuck on a session deleted meanwhile.
+	if in.SesionID != nil && !in.Offline {
+		var ok bool
+		if err := s.a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM sesiones WHERE id = $1 AND competition_id = $2)`, *in.SesionID, cid).Scan(&ok); err != nil {
+			return r, err
+		}
+		if !ok {
+			return r, problem.Unprocessable("SESION_DESCONOCIDA", "La sesión del puesto no existe en esta competición.")
+		}
 	}
 	quien := actor(ctx)
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
@@ -200,13 +213,21 @@ func (s *Svc) registrarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, id *uui
 
 // Puesto is a door or box-office station.
 type Puesto struct {
-	ID       uuid.UUID  `json:"id"`
-	Nombre   string     `json:"nombre"`
-	Tipo     string     `json:"tipo"`
-	Detalle  string     `json:"detalle"`
-	Ping     *time.Time `json:"ultimoPing,omitempty"`
-	Cola     int        `json:"cola"`
-	Escaneos int        `json:"escaneos15" doc:"Escaneos en los últimos 15 minutos"`
+	ID          uuid.UUID  `json:"id"`
+	Nombre      string     `json:"nombre"`
+	Tipo        string     `json:"tipo"`
+	Detalle     string     `json:"detalle"`
+	Responsable string     `json:"responsable"`
+	Telefono    string     `json:"telefono" doc:"Para «Llamar a …» si el puesto se queda sin conexión"`
+	Ping        *time.Time `json:"ultimoPing,omitempty"`
+	Cola        int        `json:"cola"`
+	Escaneos    int        `json:"escaneos15" doc:"Escaneos en los últimos 15 minutos"`
+}
+
+// Hito is a campaign marker on the entries chart.
+type Hito struct {
+	Etiqueta string    `json:"etiqueta" minLength:"1" maxLength:"30"`
+	At       time.Time `json:"at"`
 }
 
 // Compacta is one ticket of the offline list (only what the door needs).
@@ -220,7 +241,7 @@ type Compacta struct {
 }
 
 func (s *Svc) puestos(ctx context.Context, cid uuid.UUID) ([]Puesto, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT p.id, p.nombre, p.tipo, p.detalle, p.ultimo_ping_at, p.cola,
+	rows, err := s.a.DB.Query(ctx, `SELECT p.id, p.nombre, p.tipo, p.detalle, p.responsable, p.telefono, p.ultimo_ping_at, p.cola,
 		(SELECT count(*) FROM escaneos e WHERE e.competition_id = p.competition_id AND e.puesto = p.nombre AND e.escaneado_at > now() - interval '15 minutes')::int
 		FROM puestos p WHERE p.competition_id = $1 ORDER BY p.orden, p.nombre`, cid)
 	if err != nil {
@@ -379,6 +400,8 @@ func (s *Svc) registerCheckin() {
 			Ultimos     []Escaneo     `json:"ultimos"`
 			Incidencias []Escaneo     `json:"incidencias"`
 			Ritmo       []int         `json:"ritmo" doc:"Personas por minuto (últimos 30 min)"`
+			RitmoInc    []int         `json:"ritmoIncidencias" doc:"Incidencias por minuto (últimos 30 min)"`
+			Hitos       []Hito        `json:"hitos" doc:"Marcadores de campaña en la gráfica (últimos 30 min)"`
 			Escaneos    int           `json:"escaneos" doc:"Escaneos registrados (24 h), para la pestaña «Escaneos»"`
 		}
 	}
@@ -399,7 +422,7 @@ func (s *Svc) registerCheckin() {
 			if o.Body.Puestos, err = s.puestos(ctx, in.CID); err != nil {
 				return nil, err
 			}
-			if o.Body.Ultimos, err = s.escaneos(ctx, in.CID, "TRUE", 20); err != nil {
+			if o.Body.Ultimos, err = s.escaneos(ctx, in.CID, "e.escaneado_at > now() - interval '24 hours'", 100); err != nil {
 				return nil, err
 			}
 			if o.Body.Incidencias, err = s.escaneos(ctx, in.CID, "e.resultado IN ('ya_usada', 'otra_sesion', 'invalida', 'anulada') AND e.escaneado_at > now() - interval '24 hours'", 20); err != nil {
@@ -408,26 +431,55 @@ func (s *Svc) registerCheckin() {
 			if err = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM escaneos WHERE competition_id = $1 AND escaneado_at > now() - interval '24 hours'`, in.CID).Scan(&o.Body.Escaneos); err != nil {
 				return nil, err
 			}
-			o.Body.Ritmo = make([]int, 30)
-			rows, err := s.a.DB.Query(ctx, `SELECT (extract(epoch FROM now() - escaneado_at) / 60)::int, COALESCE(sum(personas), 0)::int FROM escaneos
-				WHERE competition_id = $1 AND resultado IN ('valida', 'manual') AND escaneado_at > now() - interval '30 minutes' GROUP BY 1`, in.CID)
+			o.Body.Ritmo, o.Body.RitmoInc = make([]int, 30), make([]int, 30)
+			rows, err := s.a.DB.Query(ctx, `SELECT (extract(epoch FROM now() - escaneado_at) / 60)::int, resultado IN ('valida', 'manual'), COALESCE(sum(personas), 0)::int, count(*)::int FROM escaneos
+				WHERE competition_id = $1 AND escaneado_at > now() - interval '30 minutes' GROUP BY 1, 2`, in.CID)
 			if err == nil {
 				for rows.Next() {
-					var m, n int
-					if rows.Scan(&m, &n) == nil && m >= 0 && m < 30 {
-						o.Body.Ritmo[29-m] = n
+					var m, n, c int
+					var ok bool
+					if rows.Scan(&m, &ok, &n, &c) == nil && m >= 0 && m < 30 {
+						if ok {
+							o.Body.Ritmo[29-m] = n
+						} else {
+							o.Body.RitmoInc[29-m] = c
+						}
 					}
 				}
 				rows.Close()
 			}
+			rows, err = s.a.DB.Query(ctx, `SELECT etiqueta, at FROM checkin_hitos WHERE competition_id = $1 AND at > now() - interval '30 minutes' AND at <= now() ORDER BY at`, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			if o.Body.Hitos, err = pgx.CollectRows(rows, pgx.RowToStructByPos[Hito]); err != nil {
+				return nil, err
+			}
+			if o.Body.Hitos == nil {
+				o.Body.Hitos = []Hito{}
+			}
 			return o, nil
+		})
+	type hitoIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body Hito
+	}
+	huma.Register(api, huma.Operation{OperationID: "checkin-hito", Method: http.MethodPost, Path: baseCheckin + "/hitos", Summary: "Marcador de campaña en la gráfica de entradas (LANZAMIENTO, REEL…)", Tags: tags, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *hitoIn) (*struct{}, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), perm); err != nil {
+				return nil, err
+			}
+			_, err := s.a.DB.Exec(ctx, `INSERT INTO checkin_hitos (id, competition_id, etiqueta, at) VALUES ($1,$2,$3,$4)`, newID(), in.CID, strings.TrimSpace(in.Body.Etiqueta), in.Body.At)
+			return nil, err
 		})
 	type puestoIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
-			Nombre  string `json:"nombre" minLength:"1" maxLength:"40"`
-			Tipo    string `json:"tipo" enum:"puerta,taquilla,pesaje"`
-			Detalle string `json:"detalle,omitempty" maxLength:"80"`
+			Nombre      string `json:"nombre" minLength:"1" maxLength:"40"`
+			Tipo        string `json:"tipo" enum:"puerta,taquilla,pesaje"`
+			Detalle     string `json:"detalle,omitempty" maxLength:"80"`
+			Responsable string `json:"responsable,omitempty" maxLength:"60"`
+			Telefono    string `json:"telefono,omitempty" maxLength:"20" pattern:"^[+0-9 ]*$"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "checkin-puesto", Method: http.MethodPost, Path: baseCheckin + "/puestos", Summary: "Nuevo puesto", Tags: tags, Security: bearer, DefaultStatus: http.StatusCreated},
@@ -435,8 +487,9 @@ func (s *Svc) registerCheckin() {
 			if _, err := auth.Require(ctx, in.CID.String(), perm); err != nil {
 				return nil, err
 			}
-			if _, err := s.a.DB.Exec(ctx, `INSERT INTO puestos (id, competition_id, nombre, tipo, detalle) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (competition_id, nombre) DO UPDATE SET tipo = $4, detalle = $5`,
-				newID(), in.CID, strings.TrimSpace(in.Body.Nombre), in.Body.Tipo, in.Body.Detalle); err != nil {
+			if _, err := s.a.DB.Exec(ctx, `INSERT INTO puestos (id, competition_id, nombre, tipo, detalle, responsable, telefono) VALUES ($1,$2,$3,$4,$5,$6,$7)
+				ON CONFLICT (competition_id, nombre) DO UPDATE SET tipo = $4, detalle = $5, responsable = $6, telefono = $7`,
+				newID(), in.CID, strings.TrimSpace(in.Body.Nombre), in.Body.Tipo, in.Body.Detalle, strings.TrimSpace(in.Body.Responsable), strings.TrimSpace(in.Body.Telefono)); err != nil {
 				return nil, err
 			}
 			l, err := s.puestos(ctx, in.CID)

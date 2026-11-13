@@ -47,7 +47,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
           </ng-container>
         }
       </bo-page-header>
-      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Entradas">
+      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none] max-md:[mask-image:linear-gradient(to_right,#000_85%,transparent)]" aria-label="Entradas">
         @for (t of tabs; track t.v) {
           <a [routerLink]="ruta(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
             {{ t.label }}@if (t.v !== 'ajustes' && r?.pestanas; as p) { <span class="rounded-2xs px-1.5 text-mono-xs" [class]="tab() === t.v ? 'bg-accent-deep/50 text-accent-text' : 'bg-bg-raised'">{{ n(p[t.v]) }}</span> }
@@ -118,13 +118,13 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
                   @for (e of l.items; track e.id) {
                     <tr class="cursor-pointer last:border-0 hover:bg-bg-raised" [class]="e.estado === 'anulada' ? row.disabled : sel().has(e.id) ? row.selected : row.default" (click)="ver(e.id)">
                       <td class="px-3 py-2.5" (click)="$event.stopPropagation()">@if (e.estado !== 'anulada') { <bo-checkbox [value]="sel().has(e.id)" (valueChange)="toggle(e.id)" [aria]="'Seleccionar ' + e.codigo" /> }</td>
-                      <td class="px-3 py-2.5"><div class="flex items-center gap-3"><gr-avatar [name]="e.nombre + ' ' + e.apellidos" /><div class="min-w-0"><p class="text-label-s">{{ e.nombre }} {{ e.apellidos }}</p><p class="truncate text-body-xs text-text-tertiary">{{ e.email || (e.manual ? 'Reserva manual' : '') }}</p></div></div></td>
+                      <td class="px-3 py-2.5"><div class="flex items-center gap-3"><gr-avatar [name]="e.nombre + ' ' + e.apellidos" /><div class="min-w-0 max-w-[200px]"><p class="truncate text-label-s">{{ e.nombre }} {{ e.apellidos }}</p><p class="truncate text-body-xs text-text-tertiary">{{ e.email || (e.manual ? 'Reserva manual' : '') }}</p></div></div></td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs">{{ e.codigo }}</td>
                       <td class="max-w-[180px] truncate px-3 py-2.5 whitespace-nowrap text-text-secondary" [title]="e.sesion">{{ e.sesion }}</td>
                       <td class="px-3 py-2.5 text-center font-mono">{{ e.dentro ? e.dentro + '/' : '' }}{{ e.personas }}</td>
                       <td class="px-3 py-2.5"><ng-container [ngTemplateOutlet]="estado" [ngTemplateOutletContext]="{ $implicit: e }" /></td>
                       <td class="px-3 py-2.5">@switch (e.novedadesEstado ?? (e.novedades ? 'pendiente' : 'no')) { @case ('si') { <gr-badge tone="success">Sí</gr-badge> } @case ('pendiente') { <gr-badge tone="warning">Pendiente</gr-badge> } @default { <gr-badge>No</gr-badge> } }</td>
-                      <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ e.origen }}</td>
+                      <td class="max-w-[96px] truncate px-3 py-2.5 font-mono text-mono-xs text-text-tertiary" [title]="e.origen">{{ e.origen }}</td>
                       <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fechaCorta(e.createdAt) }}</td>
                       <td class="px-2 py-2.5 text-right"><button grIconButton type="button" icon="more" [label]="'Abrir ' + e.codigo" (click)="$event.stopPropagation(); menuEntrada($event, e)"></button></td>
                     </tr>
