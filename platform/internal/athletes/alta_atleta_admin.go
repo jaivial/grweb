@@ -786,6 +786,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		// The athlete: the one the reviewer chose, the one of the match or a new one.
 		destino := atletaID
+		perfilNuevo := false
 		if destino == nil && sol.MatchAtletaID != nil && sol.MatchTipo != "nombre" {
 			destino = sol.MatchAtletaID
 		}
@@ -798,6 +799,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				return err
 			}
 			destino = &nuevoID
+			perfilNuevo = true
 		} else {
 			var n int
 			if err := tx.QueryRow(ctx, `SELECT count(*) FROM atletas WHERE competition_id = $1 AND id = $2`, cid, *destino).Scan(&n); err != nil {
@@ -814,7 +816,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				return err
 			}
 		}
-		slug, err := s.actualizaPerfil(ctx, tx, cid, *destino, sol, cambios)
+		slug, err := s.actualizaPerfil(ctx, tx, cid, *destino, sol, cambios, perfilNuevo)
 		if err != nil {
 			return err
 		}
@@ -884,7 +886,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			foto = "✓ Tu foto en blanco y negro ya está en tu ficha."
 		}
 		if avisarEmail || avisarWA {
-			urlArea, err = s.newAreaLink(ctx, tx, *destino)
+			urlArea, err = s.newAreaLinkTTL(ctx, tx, *destino, aprobadaLinkTTL)
 			if err != nil {
 				return err
 			}
@@ -954,7 +956,9 @@ func (s *Svc) creaAtleta(ctx context.Context, tx pgx.Tx, cid uuid.UUID, anio int
 
 // actualizaPerfil writes the declared data and the corrections in the profile of the athlete (the AEP
 // data is never touched and a field is never emptied with an empty value).
-func (s *Svc) actualizaPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, sol solicitud, cambios cambiosAprobar) (string, error) {
+// A profile created by the approval stays private (as the web and the email promise) until the athlete
+// activates its publication from the area; an existing profile keeps its visibility.
+func (s *Svc) actualizaPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, sol solicitud, cambios cambiosAprobar, nuevo bool) (string, error) {
 	var existe int
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM perfiles WHERE atleta_id = $1`, atleta).Scan(&existe); err != nil {
 		return "", err
@@ -963,6 +967,7 @@ func (s *Svc) actualizaPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.U
 		if err := createPerfil(ctx, tx, cid, atleta, sol.nombreCompleto()); err != nil {
 			return "", err
 		}
+		nuevo = true
 	}
 	// The reviewer's corrections win over the declared data.
 	frase, bio, instagram, historial := sol.Frase, sol.Bio, sol.Instagram, sol.Historial
@@ -1006,8 +1011,8 @@ func (s *Svc) actualizaPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.U
 		frase = COALESCE(NULLIF($2,''), frase), bio = COALESCE(NULLIF($3,''), bio), instagram = CASE WHEN $9 THEN '' ELSE COALESCE(NULLIF($4,''), instagram) END,
 		historial = COALESCE(NULLIF($5,''), historial), entrenador = COALESCE(NULLIF($10,''), entrenador),
 		marca_sq = COALESCE($6, marca_sq), marca_bp = COALESCE($7, marca_bp), marca_dl = COALESCE($8, marca_dl),
-		visible = CASE WHEN $9 OR NOT $11 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
-		atleta, frase, bio, instagram, historial, sq, bp, dl, sol.EsMenor, entrenador, sol.consent("imagen").Aceptado); err != nil {
+		visible = CASE WHEN $9 OR NOT $11 OR $12 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
+		atleta, frase, bio, instagram, historial, sq, bp, dl, sol.EsMenor, entrenador, sol.consent("imagen").Aceptado, nuevo); err != nil {
 		return "", err
 	}
 	// The club and the city live in the athlete (the rest of the AEP data is not touched).
