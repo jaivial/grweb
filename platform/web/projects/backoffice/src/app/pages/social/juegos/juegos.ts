@@ -53,7 +53,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
 
       @if (cargando()) {
         <so-skel-kpis />
-        <div class="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
           <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card"><so-skel-filas [n]="4" [avatar]="false" /></div>
           <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card"><so-skel-filas [n]="6" [avatar]="false" /></div>
         </div>
@@ -72,7 +72,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
           <gr-kpi label="Deuda fantasy" [value]="num(clasif().pendienteFantasy)" caption="reembolsos pendientes" />
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
           <!-- ===== Jornadas ===== -->
           <so-card titulo="Jornadas" [ayuda]="jornadas().length + ' jornadas · ' + (comps.current()?.nombreCorto ?? '')" class="self-start">
             <button cardActions grButton size="s" icon="plus" [disabled]="!puede()" (click)="nuevaJornada.set(true)">Nueva</button>
@@ -162,7 +162,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
               }
             </so-card>
 
-            <div class="grid gap-6 md:grid-cols-2">
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
               <so-card titulo="Porra" ayuda="Saldo de la jornada · top 50">
                 <gr-badge cardActions tone="accent">En vivo</gr-badge>
                 <ol class="-mt-1 flex flex-col divide-y divide-line-subtle">
@@ -208,7 +208,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
             </div>
             <button type="button" grIconButton icon="x" label="Cerrar" (click)="nuevaJornada.set(false)"></button>
           </header>
-          <div class="grid gap-4 px-5 py-5 sm:grid-cols-2">
+          <div class="grid grid-cols-1 gap-4 px-5 py-5 sm:grid-cols-2">
             <gr-field label="Nombre"><input grInput name="nombre" [(ngModel)]="nombreJornada" maxlength="40" placeholder="AEP-3" required /></gr-field>
             <gr-field label="Día"><so-fecha label="Día de la jornada" formato="num" [bloque]="true" [value]="diaJornada" (changed)="diaJornada = $event" /></gr-field>
           </div>

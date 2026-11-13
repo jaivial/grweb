@@ -77,7 +77,7 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
         </gr-alert>
       }
 
-      <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <!-- ===== Feed ===== -->
         <section class="flex min-w-0 flex-col self-start overflow-hidden rounded-lg border border-line-subtle bg-bg-card" aria-labelledby="feed-titulo">
           <header class="flex flex-col gap-3 border-b border-line-subtle p-4 md:px-5">

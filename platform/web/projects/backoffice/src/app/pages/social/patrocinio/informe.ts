@@ -51,7 +51,7 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
       }
 
       @if (cargando()) {
-        <div class="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
           <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card"><so-skel-filas [n]="5" [avatar]="false" /></div>
           <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card"><so-skel-filas [n]="8" [avatar]="false" /></div>
         </div>
@@ -70,7 +70,7 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
           </gr-alert>
         }
 
-        <div class="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
           <!-- ===== Configuración ===== -->
           <div class="flex min-w-0 flex-col gap-6">
             <so-card titulo="Reparto de banners" ayuda="Cómo y cuándo publica el worker en el chat">
