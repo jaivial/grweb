@@ -286,7 +286,7 @@ func (s *Svc) zip(ctx context.Context, cid uuid.UUID) ([]byte, error) {
 			rec := make([]string, len(vals))
 			for i, v := range vals {
 				if v != nil {
-					rec[i] = strings.TrimSpace(fmt.Sprint(v))
+					rec[i] = csvSafe(strings.TrimSpace(fmt.Sprint(v)))
 				}
 			}
 			_ = cw.Write(rec)
