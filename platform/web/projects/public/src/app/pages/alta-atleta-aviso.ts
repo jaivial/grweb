@@ -41,24 +41,18 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'aprobada'
         <p class="text-body-s text-text-secondary">Es un problema temporal: vuelve a intentarlo en unos minutos.</p>
         <button grButton variant="primary" size="l" type="button" (click)="reintentar.emit()">Reintentar</button>
       </section>
-    } @else if (tipo() === 'duplicado') {
+    } @else if (tipo() === 'duplicado' || tipo() === 'aprobada') {
+      @let ok = tipo() === 'aprobada';
       <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7" role="alert">
-        <h2 class="text-ui-h4 md:text-ui-h3">Ya tienes una solicitud en revisión</h2>
-        <p class="text-body-s text-text-secondary">Con este email ya hay una solicitud de alta esperando revisión. No hace falta enviar otra.</p>
+        <h2 class="text-ui-h4 md:text-ui-h3">{{ ok ? 'Tu alta ya está aprobada' : 'Ya tienes una solicitud en revisión' }}</h2>
+        <p class="text-body-s text-text-secondary">Con este email ya hay {{ ok ? 'una ficha aprobada: edítala desde el área de atleta' : 'una solicitud de alta esperando revisión' }}. No hace falta enviar otra.</p>
+        @if (!ok) {
         <p class="flex items-start gap-3 rounded-md border border-info/40 bg-info/8 p-4 text-body-s text-text-secondary">
           <gr-icon name="info" [size]="18" class="mt-0.5 shrink-0 text-info" />Te avisamos por email en cuanto la revisemos. Puedes corregir los datos si te escribimos.
         </p>
+        }
         <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="primary" size="l" routerLink="/atletas">Ver atletas</a>
-          <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">¿No es la tuya? Escríbenos a {{ contacto() }}</a>
-        </div>
-      </section>
-    } @else if (tipo() === 'aprobada') {
-      <section class="flex flex-col gap-4 rounded-[18px] border border-line-subtle bg-bg-card p-5 md:p-7" role="alert">
-        <h2 class="text-ui-h4 md:text-ui-h3">Tu alta ya está aprobada</h2>
-        <p class="text-body-s text-text-secondary">Con este email ya hay una ficha de atleta aprobada. No hace falta enviar otra solicitud: edita tu foto, tus marcas y tu frase desde el área de atleta.</p>
-        <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="primary" size="l" routerLink="/area-atleta">Entrar en el área de atleta</a>
+          <a grButton variant="primary" size="l" [routerLink]="ok ? '/area-atleta' : '/atletas'">{{ ok ? 'Área de atleta' : 'Ver atletas' }}</a>
           <a [href]="'mailto:' + contacto()" class="self-center text-label-s text-accent-text hover:underline">¿No es la tuya? Escríbenos a {{ contacto() }}</a>
         </div>
       </section>
