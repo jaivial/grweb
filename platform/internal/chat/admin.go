@@ -395,7 +395,7 @@ func (s *Svc) reportados(ctx context.Context, in *mensajesAdminIn) (*mensajesAdm
 		limite = 100
 	}
 	rows, err := s.a.DB.Query(ctx, `SELECT id, fan_id, alias, texto, borrado, reportes, created_at FROM mensajes
-		WHERE competition_id = $1 AND dia = $2 AND reportes > 0 ORDER BY reportes DESC, created_at DESC LIMIT $3`, in.CID, dia, limite)
+		WHERE competition_id = $1 AND dia = $2 AND reportes > 0 AND NOT borrado ORDER BY reportes DESC, created_at DESC LIMIT $3`, in.CID, dia, limite)
 	if err != nil {
 		return nil, problem.Internal()
 	}
