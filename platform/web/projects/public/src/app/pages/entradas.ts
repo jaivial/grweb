@@ -120,8 +120,6 @@ const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
 
 // ============================================================ /entradas ===
 
-/** The raffle as /entradas needs it (step 4 of the form). */
-interface SorteoVenta { estado: string; premio: string; premioDetalle: string; premioImagen: string; precio: number; maxPorPersona: number; pasarela: string }
 interface Fila { hora: string; titulo: string }
 
 const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
@@ -273,15 +271,11 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                 <gr-raffle-notice>Los boletos se compran en el recinto el día del evento. Aquí no se paga nada: consulta los objetos que se rifan.</gr-raffle-notice>
                 <div class="flex flex-col gap-3 text-body-s">
                   <gr-checkbox name="priv" [(checked)]="f.privacidad" [invalid]="!!err('privacidad')"><span [class.text-accent-text]="err('privacidad')">He leído y acepto la <a routerLink="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></gr-checkbox>
-                  @if (boletos()) {
-                    <gr-checkbox name="edad" [(checked)]="f.mayorEdad" [invalid]="!!err('edad')"><span [class.text-accent-text]="err('edad')">Tengo 18 años o más (para el sorteo) *</span></gr-checkbox>
-                    <gr-checkbox name="bases" [(checked)]="f.bases" [invalid]="!!err('bases')"><span [class.text-accent-text]="err('bases')">Acepto las <a routerLink="/politica-concurso" class="text-accent-text underline">bases del sorteo</a> *</span></gr-checkbox>
-                  }
                   <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
                 </div>
-                <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">{{ boletos() ? 'Reservar y pagar ' + euros(boletos() * (sorteoAbierto()?.precio ?? 0)) : 'Reservar entrada gratis' }}</button>
-                <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ boletos() ? 'La entrada se reserva ya; los boletos se pagan con tarjeta en el paso siguiente.' : 'Solo usamos tus datos para tu entrada. Sin spam.' }}</p>
+                <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">Reservar entrada gratis</button>
+                <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Solo usamos tus datos para tu entrada. Sin spam.</p>
               </form>
             }
           </div>
@@ -405,9 +399,7 @@ export class EntradasPage {
   protected readonly data = signal<Entradas | null | undefined>(undefined);
   protected readonly faq = signal<Faq[]>([]);
   private readonly horarios = signal<Horarios | null>(null);
-  private readonly sorteo = signal<SorteoVenta | null>(null);
   protected readonly sesion = signal('');
-  protected readonly boletos = signal(0);
   protected readonly enviando = signal(false);
   protected readonly errores = signal<string[]>([]);
   protected readonly campos = signal<string[]>([]);
@@ -415,7 +407,7 @@ export class EntradasPage {
   protected readonly enviado = signal('');
   private readonly formVisible = signal(true);
   private readonly bajoHero = signal(false);
-  protected f = { nombre: '', apellidos: '', email: '', telefono: '', origen: '', personas: 1, privacidad: false, novedades: false, mayorEdad: false, bases: false };
+  protected f = { nombre: '', apellidos: '', email: '', telefono: '', origen: '', personas: 1, privacidad: false, novedades: false};
   protected readonly sesSel = computed(() => this.data()?.sesiones.find((s) => s.id === this.sesion()));
   protected readonly abiertas = computed(() => (this.data()?.sesiones ?? []).filter((s) => s.estado === 'disponible' || s.estado === 'ultimas'));
   protected readonly todasAgotadas = computed(() => { const l = this.data()?.sesiones ?? []; return l.length > 0 && !this.abiertas().length && l.some((s) => s.estado === 'agotada'); });
@@ -455,10 +447,6 @@ export class EntradasPage {
     for (const a of dd.agenda) filas.push({ hora: a.hora, titulo: a.titulo.split(' · ')[0] });
     return filas.sort((a, b) => a.hora.localeCompare(b.hora));
   });
-  /** Step 4: only while the raffle is on sale and there is a payment gateway. */
-  /** Raffle tickets are sold only at the venue, in cash: never offered with the online booking. */
-  protected readonly sorteoAbierto = computed((): SorteoVenta | null => null);
-  protected readonly maxBoletos = computed(() => Math.min(10, this.sorteoAbierto()?.maxPorPersona ?? 0));
   /** SSR markup: submitting is blocked until Angular takes over (no native submit with personal data). */
   protected readonly hidratado = signal(false);
   /** Mobile bottom bar: below the hero, while the form is off screen. */
@@ -469,11 +457,9 @@ export class EntradasPage {
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
       const opt = <T,>(p: Promise<T>) => p.catch(() => null);
-      const [d, faq, h, so] = await Promise.all([this.api.sesiones(), cms.faq(), opt(firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios?resumen=true`))),
-        opt(firstValueFrom(this.http.get<SorteoVenta>(`/api/competiciones/${COMPETITION_SLUG}/sorteo`))), this.comp.load()]);
+      const [d, faq, h] = await Promise.all([this.api.sesiones(), cms.faq(), opt(firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios?resumen=true`))),  this.comp.load()]);
       this.data.set(d);
       this.horarios.set(h?.publicado ? h : null);
-      this.sorteo.set(this.comp.data()?.modulos?.['sorteo'] === false ? null : so);
       const l = faq ?? [];
       this.faq.set((l.some((x) => /entrada/i.test(x.categoria)) ? l.filter((x) => /entrada/i.test(x.categoria)) : l).slice(0, 5));
       const s = d?.sesiones.find((x) => x.estado === 'disponible' || x.estado === 'ultimas');
@@ -526,8 +512,6 @@ export class EntradasPage {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.f.email.trim())) { e.push('Email: introduce un email válido.'); c.push('email'); }
     if (!this.sesion()) { e.push('Elige una sesión.'); c.push('sesion'); }
     if (!this.f.privacidad) { e.push('Acepta la política de privacidad para reservar.'); c.push('privacidad'); }
-    if (this.boletos() && !this.f.mayorEdad) { e.push('Sorteo: confirma que tienes 18 años o más (o quita los boletos).'); c.push('edad'); }
-    if (this.boletos() && !this.f.bases) { e.push('Sorteo: acepta las bases del sorteo (o quita los boletos).'); c.push('bases'); }
     this.errores.set(e);
     this.campos.set(c);
     if (e.length) setTimeout(() => this.reservarEl()?.nativeElement.querySelector<HTMLElement>('[role=alert]')?.focus());
@@ -548,41 +532,16 @@ export class EntradasPage {
     const tel = this.f.telefono.trim();
     const telefono = tel ? (tel.startsWith('+') ? tel : '+34 ' + tel) : undefined;
     let token = '';
-    let yaTenia = false;
     try {
       const r = await this.api.reservar({ sesionId: this.sesion(), nombre: this.f.nombre.trim(), apellidos: this.f.apellidos.trim(), email: this.f.email.trim(), telefono,
         personas: this.f.personas, origen: this.f.origen || undefined, utm, aceptaPrivacidad: true, novedades: this.f.novedades });
       token = r.token;
     } catch (e) {
       const x = errorDe(e);
-      // back from the payment (or a retry): the ticket exists and its link was re-sent; the raffle tickets can still be bought
-      yaTenia = x.code === 'YA_TIENES_ENTRADA' && this.boletos() > 0;
-      if (!yaTenia) {
-        if (x.code === 'AGOTADA') this.data.set(await this.api.sesiones());
-        this.errores.set([x.detail]);
-        this.enviando.set(false);
-        return;
-      }
-    }
-    // the ticket is reserved; the raffle tickets are an extra step (payment), which returns to the ticket's confirmation
-    if (this.boletos()) {
-      try {
-        const c = await firstValueFrom(this.http.post<{ checkoutUrl: string }>(`/api/competiciones/${COMPETITION_SLUG}/sorteo/compras`, {
-          nombre: `${this.f.nombre.trim()} ${this.f.apellidos.trim()}`, email: this.f.email.trim(), telefono, cantidad: this.boletos(),
-          mayorEdad: true, aceptaBases: true, aceptaPrivacidad: true, novedades: this.f.novedades, origen: 'entradas', ...(token ? { entrada: token } : {}),
-        }));
-        location.href = c.checkoutUrl;
-        return;
-      } catch (e) {
-        if (yaTenia) {
-          this.errores.set([errorDe(e).detail]);
-          this.enviando.set(false);
-          return;
-        }
-        // the ticket is valid anyway: show it, with a notice about the raffle
-        void this.router.navigate(['/entradas/confirmacion'], { queryParams: { t: token, sorteo: 'error' } });
-        return;
-      }
+      if (x.code === 'AGOTADA') this.data.set(await this.api.sesiones());
+      this.errores.set([x.detail]);
+      this.enviando.set(false);
+      return;
     }
     void this.router.navigate(['/entradas/confirmacion'], { queryParams: { t: token } });
   }
