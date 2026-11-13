@@ -23,6 +23,8 @@ interface FormBanner {
 
 const VACIO: FormBanner = { patrocinador: '', imagenUrl: '', imagenMovilUrl: '', urlDestino: '', tier: 'oro', activo: true, desde: '', hasta: '', orden: 0 };
 const aIso = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null);
+/** ISO (UTC) → «aaaa-mm-dd» del día en Madrid, la misma fecha que pinta la tabla. */
+const diaMadrid = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '');
 
 /**
  * «Patrocinio · Banners» (Figma 73 · «BO · Patrocinio · Banners» y «… · Editar», UI v2).
@@ -386,8 +388,8 @@ export class PatrocinioPage {
       urlDestino: b.urlDestino,
       tier: b.tier,
       activo: b.activo,
-      desde: b.desde ? b.desde.slice(0, 10) : '',
-      hasta: b.hasta ? b.hasta.slice(0, 10) : '',
+      desde: diaMadrid(b.desde),
+      hasta: diaMadrid(b.hasta),
       orden: b.orden,
     });
     this.abierto.set(true);
