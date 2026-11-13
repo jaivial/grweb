@@ -46,9 +46,9 @@ func (s *Svc) caducarOfertas(ctx context.Context) error {
 // (the old one stops working: only the hash of the last token is kept).
 func (s *Svc) ultimoAviso(ctx context.Context) error {
 	rows, err := s.a.DB.Query(ctx, `SELECT l.id, l.competition_id, l.email::text, l.nombre, l.personas, l.oferta_expira_at, x.nombre, x.inicio
-		FROM lista_espera l JOIN sesiones x ON x.id = l.sesion_id JOIN ajustes a ON a.competition_id = l.competition_id
-		WHERE l.estado = 'oferta' AND l.aviso_at IS NULL AND a.ultimo_aviso_horas > 0 AND a.ultimo_aviso_horas < a.plazo_horas AND l.oferta_expira_at > now()
-		AND l.oferta_expira_at < now() + make_interval(hours => a.ultimo_aviso_horas) LIMIT 100`)
+		FROM lista_espera l JOIN sesiones x ON x.id = l.sesion_id LEFT JOIN ajustes a ON a.competition_id = l.competition_id
+		WHERE l.estado = 'oferta' AND l.aviso_at IS NULL AND COALESCE(a.ultimo_aviso_horas, 2) > 0 AND COALESCE(a.ultimo_aviso_horas, 2) < COALESCE(a.plazo_horas, 24) AND l.oferta_expira_at > now()
+		AND l.oferta_expira_at < now() + make_interval(hours => COALESCE(a.ultimo_aviso_horas, 2)) LIMIT 100`)
 	if err != nil {
 		return err
 	}
