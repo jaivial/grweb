@@ -52,7 +52,7 @@ export class BoTableToolbar {
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4" (click)="!busy() && open.set(false)">
-        <form class="flex max-h-[92dvh] w-full flex-col gap-5 overflow-y-auto rounded-t-[20px] border border-line-strong bg-bg-card p-6 shadow-card sm:max-w-[520px] sm:rounded-[20px]"
+        <form novalidate class="flex max-h-[92dvh] w-full flex-col gap-5 overflow-y-auto rounded-t-[20px] border border-line-strong bg-bg-card p-6 shadow-card sm:max-w-[520px] sm:rounded-[20px]"
           role="dialog" aria-modal="true" [attr.aria-label]="title()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" [attr.aria-busy]="busy() || null"
           (click)="$event.stopPropagation()" (submit)="$event.preventDefault(); $event.stopPropagation(); enviar.emit()">
           <div class="flex items-center gap-3">
