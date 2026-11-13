@@ -66,7 +66,7 @@ const corta = (s: string) => s.replace(/^(Lunes|Martes|Miércoles|Jueves|Viernes
                 }
                 @for (x of r.incidencias.slice(0, 3); track x.id) {
                   <li class="flex gap-3 rounded-md border border-warning/50 bg-warning/10 p-4 text-body-s"><gr-icon [name]="x.resultado === 'invalida' || x.resultado === 'anulada' ? 'circle-x' : 'triangle-alert'" [size]="18" class="mt-0.5 text-warning" />
-                    <span><b class="block text-label-m text-warning">{{ x.codigo || 'QR no reconocido' }} · {{ x.resultado === 'ya_usada' && x.puestoAnterior ? 'usada en ' + x.puestoAnterior + ' y ' + x.puesto : res[x.resultado].label }}</b>
+                    <span><b class="block text-label-m text-warning">{{ x.codigo || 'QR no reconocido' }} · {{ x.resultado === 'ya_usada' && x.puestoAnterior ? (x.puestoAnterior !== x.puesto ? 'usada en ' + x.puestoAnterior + ' y ' + x.puesto : 'usada 2 veces en ' + x.puesto) : res[x.resultado].label }}</b>
                       <span class="block text-text-secondary">{{ x.nombre || '—' }} · {{ x.puesto }} · {{ hora(x.at) }}</span>
                       <button type="button" class="mt-1 inline-flex items-center gap-1 text-label-m text-warning hover:underline focus-visible:outline-2 focus-visible:outline-accent" (click)="tab.set('incidencias')">Ver escaneos <gr-icon name="arrow-right" [size]="14" /></button></span></li>
                 } @empty { @if (!sinRed().length) { <li class="flex items-center gap-2 text-body-s text-success"><gr-icon name="circle-check" [size]="16" />Sin incidencias</li> } }
@@ -81,7 +81,7 @@ const corta = (s: string) => s.replace(/^(Lunes|Martes|Miércoles|Jueves|Viernes
             <tbody>
               @for (x of filas; track x.id) {
                 <tr class="border-b border-line-subtle last:border-0 hover:bg-bg-raised" [class.bg-success/5]="$first && x.resultado === 'valida'"><td class="px-4 py-3 font-mono text-mono-xs">{{ cuando(x.at) }}</td><td class="px-3 py-3 font-mono text-mono-xs">{{ x.codigo || '–' }}</td>
-                  <td class="truncate px-3 py-3">{{ x.nombre || 'QR no reconocido' }}{{ (x.total ?? 0) > 1 ? ' (' + x.personas + ' de ' + x.total + ')' : x.personas > 1 ? ' (' + x.personas + ')' : '' }}</td><td class="truncate px-3 py-3 text-text-secondary">{{ x.puesto }}{{ x.offline ? ' · offline' : '' }}</td>
+                  <td class="truncate px-3 py-3">{{ x.nombre || 'QR no reconocido' }}{{ (x.total ?? 0) > 1 && x.resultado !== 'anulada' && (x.acumulado ?? x.personas) > 0 ? ' (' + (x.acumulado ?? x.personas) + ' de ' + x.total + ')' : x.personas > 1 ? ' (' + x.personas + ')' : '' }}</td><td class="truncate px-3 py-3 text-text-secondary">{{ x.puesto }}{{ x.offline ? ' · offline' : '' }}</td>
                   <td class="px-3 py-3">@if (x.offline && x.resultado === 'valida') { <gr-badge tone="info">En cola</gr-badge> } @else { <gr-badge [tone]="res[x.resultado].tone">{{ res[x.resultado].label }}</gr-badge> }</td></tr>
               } @empty { <tr><td colspan="5" class="px-4 py-10 text-center text-text-tertiary">{{ tab() === 'incidencias' ? 'Sin incidencias en las últimas 24 h.' : 'Todavía no se ha escaneado nada.' }}</td></tr> }
             </tbody>
@@ -309,7 +309,7 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
               <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4">
                 <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><p class="truncate text-label-l">{{ e.nombre }} {{ e.apellidos }}</p>
                   <p class="text-body-s text-text-secondary">{{ corta(e.sesion) }} · @if (e.estado === 'anulada') { anulada } @else { {{ e.personas }} persona{{ e.personas === 1 ? '' : 's' }} · <span class="whitespace-nowrap font-mono">{{ e.codigo }}</span> }</p></div>
-                  @if (e.estado === 'anulada') { <gr-badge tone="neutral">Anulada</gr-badge> } @else if (e.dentro >= e.personas) { <gr-badge tone="success">Dentro</gr-badge> } @else if (e.sesionId !== sesion()) { <gr-badge tone="warning">Otra sesión</gr-badge> } @else { <gr-badge tone="info">Reservada</gr-badge> }</div>
+                  @if (e.estado === 'anulada') { <gr-badge tone="neutral">Anulada</gr-badge> } @else if (e.dentro > 0) { <gr-badge tone="success">Dentro {{ e.dentro }} de {{ e.personas }}</gr-badge> } @else if (e.sesionId !== sesion()) { <gr-badge tone="warning">Otra sesión</gr-badge> } @else { <gr-badge tone="info">Reservada</gr-badge> }</div>
                 @if (e.estado !== 'anulada' && e.dentro < e.personas) { <button grButton size="l" [variant]="e.sesionId === sesion() ? 'primary' : 'secondary'" class="w-full" (click)="porCodigo(e)">{{ e.sesionId === sesion() ? 'Entrar (' + (e.personas - e.dentro) + ')' : 'Ver' }}</button> }
               </li>
             } @empty { @if (q().length > 1) { <li class="rounded-lg border border-line-subtle bg-bg-card p-6 text-center text-body-s text-text-tertiary">Nadie con «{{ q() }}».</li> } }
