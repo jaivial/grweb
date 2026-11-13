@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 export interface SMTPEstado { conocido: boolean; ok: boolean; servidor: string; error?: string; ultimoEnvio?: string; desde?: string; propio: boolean }
-export interface Resumen { enviados7d: number; enviadosPrev: number; entregados: number; rebotes7d: number; enCola: number; ritmo: number; smtp: SMTPEstado; serie: number[] }
+export interface Resumen { enviados7d: number; enviadosPrev: number; entregados: number; rebotes7d: number; enCola: number; ritmo: number; smtp: SMTPEstado; serie: number[]; serieRebotes: number[]; enviadosHoy: number; reintentando: number }
 export interface PlantillaItem {
   clave: string; nombre: string; disparador: string; asunto: string; esencial: boolean; estado: 'activa' | 'pausada' | 'error'; error?: string; personalizada: boolean; enviados: number; fallos: number; ultimoEnvio?: string;
 }
@@ -20,6 +20,13 @@ export interface Salida { items: Mensaje[]; total: number; pagina: number; por: 
 export interface AutoItem {
   clave: string; nombre: string; cuando: string; publico: string; canales: string[]; esencial: boolean; activa: boolean; estado: 'activa' | 'pausada' | 'error'; plantillas: string[]; enviados7d: number; ultimo?: string;
 }
+export interface WABoton { tipo: 'url' | 'respuesta'; texto: string; url?: string }
+export type EstadoWA = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED';
+export interface WAPlantilla {
+  nombre: string; categoria: 'utilidad' | 'marketing'; idioma: string; cuerpo: string; variables: string[]; botones: WABoton[]; uso: string; estado: EstadoWA; calidad: string; motivo?: string; metaId?: string; usos30d: number; version: number; aprobadaAt?: string; updatedAt: string;
+}
+export interface WARevision { categoria: 'utilidad' | 'marketing'; cuerpo: string; variables: string[]; botones: WABoton[]; uso: string }
+export interface Integracion { tipo: string; estado: string; error?: string; probadoAt?: string }
 export interface Autos { pausarEnEvento: boolean; ritmo: number; items: AutoItem[] }
 
 /** Transactional email API (messaging service, Figma page 62). */
@@ -53,8 +60,9 @@ export class EmailsApi {
   prueba(cid: string, clave: string, destino: string): Promise<Mensaje> {
     return firstValueFrom(this.http.post<Mensaje>(`${this.b(cid)}/plantillas/${clave}/prueba`, { destino }));
   }
-  salida(cid: string, estado: string, q: string, pagina: number): Promise<Salida> {
+  salida(cid: string, estado: string, q: string, pagina: number, canal = ''): Promise<Salida> {
     const params: Record<string, string> = { pagina: String(pagina) };
+    if (canal) params['canal'] = canal;
     if (estado) params['estado'] = estado;
     if (q) params['q'] = q;
     return firstValueFrom(this.http.get<Salida>(`${this.b(cid)}/salida`, { params }));
@@ -64,6 +72,18 @@ export class EmailsApi {
   }
   bulk(cid: string, ids: string[], accion: 'reintentar' | 'cancelar'): Promise<{ afectados: number }> {
     return firstValueFrom(this.http.post<{ afectados: number }>(`${this.b(cid)}/salida/bulk`, { ids, accion }));
+  }
+  wa(cid: string): Promise<WAPlantilla[]> {
+    return firstValueFrom(this.http.get<WAPlantilla[]>(`/api/admin/competiciones/${cid}/whatsapp/plantillas`));
+  }
+  waSincronizar(cid: string): Promise<WAPlantilla[]> {
+    return firstValueFrom(this.http.post<WAPlantilla[]>(`/api/admin/competiciones/${cid}/whatsapp/plantillas/sincronizar`, {}));
+  }
+  waRevision(cid: string, nombre: string, r: WARevision): Promise<WAPlantilla> {
+    return firstValueFrom(this.http.post<WAPlantilla>(`/api/admin/competiciones/${cid}/whatsapp/plantillas/${nombre}/revision`, r));
+  }
+  probarSMTP(cid: string): Promise<Integracion> {
+    return firstValueFrom(this.http.post<Integracion>(`/api/admin/competiciones/${cid}/integraciones/smtp/probar`, {}));
   }
   autos(cid: string): Promise<Autos> {
     return firstValueFrom(this.http.get<Autos>(`${this.b(cid)}/automatizaciones`));

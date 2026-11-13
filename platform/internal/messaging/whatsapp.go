@@ -653,6 +653,8 @@ func (s *Svc) registerWhatsApp() {
 					return events.Enqueue(ctx, tx, events.New(ctx, "whatsapp.qr_nuevo", map[string]any{},
 						events.Competition(in.C.String()), events.ForPermission("integraciones.config")))
 				})
+			case "message.template.status.update", "message.template.quality.update":
+				return nil, s.estadoPlantillaHook(ctx, in.C, ev.Data)
 			case "messages.update":
 				var ds []struct {
 					KeyID  string `json:"keyId"`

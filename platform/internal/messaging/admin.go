@@ -40,6 +40,9 @@ type Resumen struct {
 	Ritmo        int        `json:"ritmo" doc:"Emails por minuto"`
 	SMTP         SMTPEstado `json:"smtp"`
 	Serie        []int      `json:"serie" doc:"Enviados por día (7 días)"`
+	SerieRebotes []int      `json:"serieRebotes" doc:"Rebotes por día (7 días)"`
+	EnviadosHoy  int        `json:"enviadosHoy"`
+	Reintentando int        `json:"reintentando"`
 }
 
 // SMTPEstado is the server state shown in the outbox banner.
@@ -145,13 +148,21 @@ func (s *Svc) registerAdmin() {
 			if t := r.Enviados7d + malos; t > 0 {
 				r.Entregados = float64(int(float64(r.Enviados7d)/float64(t)*1000)) / 10
 			}
-			r.Serie = make([]int, 7)
-			rows, err := s.a.DB.Query(ctx, `SELECT (now()::date - enviado_at::date) AS d, count(*) FROM mensajes WHERE competition_id = $1 AND estado = 'enviado' AND NOT prueba AND enviado_at > now() - interval '7 days' GROUP BY 1`, in.CID)
+			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE estado = 'enviado' AND enviado_at >= date_trunc('day', now())), count(*) FILTER (WHERE estado = 'reintentando')
+				FROM mensajes WHERE competition_id = $1 AND NOT prueba`, in.CID).Scan(&r.EnviadosHoy, &r.Reintentando)
+			r.Serie, r.SerieRebotes = make([]int, 7), make([]int, 7)
+			rows, err := s.a.DB.Query(ctx, `SELECT estado = 'enviado', (now()::date - COALESCE(enviado_at, updated_at)::date) AS d, count(*) FROM mensajes
+				WHERE competition_id = $1 AND estado IN ('enviado', 'rebotado') AND NOT prueba AND COALESCE(enviado_at, updated_at) > now() - interval '7 days' GROUP BY 1, 2`, in.CID)
 			if err == nil {
 				for rows.Next() {
+					var env bool
 					var d, n int
-					if rows.Scan(&d, &n) == nil && d >= 0 && d < 7 {
-						r.Serie[6-d] = n
+					if rows.Scan(&env, &d, &n) == nil && d >= 0 && d < 7 {
+						if env {
+							r.Serie[6-d] = n
+						} else {
+							r.SerieRebotes[6-d] = n
+						}
 					}
 				}
 				rows.Close()
@@ -381,6 +392,7 @@ func (s *Svc) registerAdmin() {
 	type salidaIn struct {
 		CID    uuid.UUID `path:"cid"`
 		Estado string    `query:"estado" enum:",en_cola,enviado,reintentando,rebotado,fallido,omitido,cancelado,problemas"`
+		Canal  string    `query:"canal" enum:",email,whatsapp"`
 		Q      string    `query:"q" maxLength:"100"`
 		Pagina int       `query:"pagina" minimum:"1" default:"1"`
 	}
@@ -409,6 +421,10 @@ func (s *Svc) registerAdmin() {
 			default:
 				args = append(args, in.Estado)
 				where += fmt.Sprintf(` AND estado = $%d`, len(args))
+			}
+			if in.Canal != "" {
+				args = append(args, in.Canal)
+				where += fmt.Sprintf(` AND canal = $%d`, len(args))
 			}
 			if q := strings.TrimSpace(in.Q); q != "" {
 				args = append(args, "%"+strings.ToLower(q)+"%")
