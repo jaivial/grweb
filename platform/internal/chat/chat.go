@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"strconv"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -127,12 +128,51 @@ func (s *Svc) inyectar(ctx context.Context, cid, dia string, it item) error {
 	if err != nil {
 		return err
 	}
-	return s.a.Redis.XAdd(ctx, &redis.XAddArgs{
-		Stream: s.streamDe(cid, dia),
+	nombre := s.streamDe(cid, dia)
+	if err := s.a.Redis.XAdd(ctx, &redis.XAddArgs{
+		Stream: nombre,
 		MaxLen: 5000,
 		Approx: true,
 		Values: map[string]any{"d": string(b)},
-	}).Err()
+	}).Err(); err != nil {
+		return err
+	}
+	s.anotarStream(ctx, nombre)
+	return nil
+}
+
+// streamsActivosTTL is how long a room stream stays in the shared registry after its last entry.
+const streamsActivosTTL = 48 * time.Hour
+
+// anotarStream records the room stream in the shared registry (ZSET scored by last write), so every pod's
+// persister reads it even when no pod has a viewer connected to that room.
+func (s *Svc) anotarStream(ctx context.Context, nombre string) {
+	if err := s.a.Redis.ZAdd(ctx, s.a.Keys.Of("chat", "streams"), redis.Z{Score: float64(time.Now().UnixMilli()), Member: nombre}).Err(); err != nil {
+		s.a.Log.Warn("chat registro de streams", "stream", nombre, "err", err)
+	}
+}
+
+// streamsActivos merges the rooms this pod has open with the shared registry of rooms written in the last 48 h.
+func (s *Svc) streamsActivos(ctx context.Context) []string {
+	nombres := s.hub.nombresStreams()
+	clave := s.a.Keys.Of("chat", "streams")
+	desde := time.Now().Add(-streamsActivosTTL).UnixMilli()
+	_ = s.a.Redis.ZRemRangeByScore(ctx, clave, "-inf", "("+strconv.FormatInt(desde, 10)).Err()
+	reg, err := s.a.Redis.ZRangeByScore(ctx, clave, &redis.ZRangeBy{Min: strconv.FormatInt(desde, 10), Max: "+inf"}).Result()
+	if err != nil {
+		return nombres
+	}
+	vistos := make(map[string]struct{}, len(nombres)+len(reg))
+	for _, n := range nombres {
+		vistos[n] = struct{}{}
+	}
+	for _, n := range reg {
+		if _, ok := vistos[n]; !ok {
+			vistos[n] = struct{}{}
+			nombres = append(nombres, n)
+		}
+	}
+	return nombres
 }
 
 // ---- config (room configuration cache: the hot path must not read PostgreSQL) ----

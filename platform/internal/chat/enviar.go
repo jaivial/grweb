@@ -103,6 +103,7 @@ func (s *Svc) enviar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 		return item{}, problem.New(503, "CHAT_NO_DISPONIBLE", "No se pudo publicar el mensaje. Inténtalo de nuevo.")
 	}
 	it.ID = res
+	s.anotarStream(ctx, s.streamDe(cid.String(), dia))
 	mensajesEnviados.Add(1)
 	s.contar(ctx, cid, dia, f, it, cfg)
 	return it, nil
