@@ -94,6 +94,9 @@
                 <p class="truncate text-body-xs text-text-tertiary">{{ auth.user()?.email }}</p>
               </div>
               <div class="my-1 h-px bg-line-subtle"></div>
+              <button type="button" role="menuitem" class="flex h-10 w-full items-center gap-2 rounded-sm px-3 text-label-s text-text-secondary hover:bg-bg-card hover:text-text-primary" (click)="userMenu.set(false); dosFactores.open.set(true)">
+                <gr-icon name="shield" [size]="18" />Verificación en dos pasos<span class="ml-auto text-mono-xs" [class]="auth.user()?.dosFactores ? 'text-success' : 'text-text-muted'">{{ auth.user()?.dosFactores ? 'SÍ' : 'NO' }}</span>
+              </button>
               <button type="button" role="menuitem" class="flex h-10 w-full items-center gap-2 rounded-sm px-3 text-label-s text-text-secondary hover:bg-bg-card hover:text-text-primary" (click)="auth.logout()">
                 <gr-icon name="log-out" [size]="18" />Cerrar sesión
               </button>
@@ -104,8 +107,16 @@
     </header>
 
     <main id="contenido" class="flex-1 px-4 pt-6 pb-28 lg:px-8 lg:pt-8 lg:pb-12" tabindex="-1">
+      @if (exige2fa()) {
+        <div class="mx-auto mb-5 flex max-w-[1280px] flex-col gap-3 rounded-md border border-warning/45 bg-warning/8 p-4 sm:flex-row sm:items-center" role="alert">
+          <gr-icon name="shield-alert" [size]="20" class="text-warning" />
+          <div class="min-w-0 flex-1"><p class="text-label-s text-warning">Tu rol exige verificación en dos pasos</p><p class="text-body-s text-text-secondary">Hasta que la actives no puedes usar las secciones de {{ comp()?.nombreCorto }}.</p></div>
+          <button type="button" class="h-10 rounded-sm bg-warning px-4 text-label-s text-bg-deep" (click)="dosFactores.open.set(true)">Activar ahora</button>
+        </div>
+      }
       <router-outlet />
     </main>
+    <bo-dos-factores />
   </div>
 </div>
 
@@ -149,6 +160,7 @@
     <div class="flex items-center gap-3 border-t border-line-subtle p-4">
       <gr-avatar [name]="auth.user()?.nombre ?? ''" />
       <span class="min-w-0 flex-1 truncate text-label-s">{{ auth.user()?.nombre }}</span>
+      <button grIconButton icon="shield" label="Verificación en dos pasos" (click)="dosFactores.open.set(true)"></button>
       <button grIconButton icon="log-out" label="Cerrar sesión" (click)="auth.logout()"></button>
     </div>
   </aside>

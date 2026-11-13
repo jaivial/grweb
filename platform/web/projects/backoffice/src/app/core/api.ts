@@ -12,6 +12,8 @@ export interface Membresia {
   competitionId: string;
   rol: { slug: string; nombre: string };
   permisos: string[];
+  /** Its role requires two-step verification and the user has not turned it on: no permissions until then. */
+  exige2fa?: boolean;
 }
 
 export interface Usuario {
@@ -19,6 +21,7 @@ export interface Usuario {
   email: string;
   nombre: string;
   root: boolean;
+  dosFactores?: boolean;
   competiciones: Membresia[];
 }
 

@@ -29,10 +29,18 @@ type miembro struct {
 	Estado       string     `db:"estado" json:"estado"`
 	UltimoAcceso *time.Time `db:"ultimo_acceso" json:"ultimoAcceso,omitempty"`
 	Desde        time.Time  `db:"desde" json:"desde"`
+	DosFactores  bool       `db:"dos_factores" json:"dosFactores"`
+	Competicion  []string   `db:"competiciones" json:"competiciones" doc:"Competiciones en las que está activo"`
+	InvitadoPor  string     `db:"invitado_por" json:"invitadoPor,omitempty"`
 }
 
-const selMiembro = `SELECT m.usuario_id, u.email::text AS email, u.nombre, r.slug AS rol_slug, r.nombre AS rol_nombre, m.estado, u.ultimo_acceso, m.created_at AS desde
-	FROM membresias m JOIN usuarios u ON u.id = m.usuario_id JOIN roles r ON r.id = m.rol_id`
+const selMiembro = `SELECT m.usuario_id, u.email::text AS email, u.nombre, r.slug AS rol_slug, r.nombre AS rol_nombre, m.estado, u.ultimo_acceso, m.created_at AS desde,
+	u.totp_activado_at IS NOT NULL AS dos_factores,
+	ARRAY(SELECT x.competition_id::text FROM membresias x WHERE x.usuario_id = m.usuario_id AND x.estado = 'activo' ORDER BY x.created_at) AS competiciones,
+	COALESCE(inv.nombre, '') AS invitado_por
+	FROM membresias m JOIN usuarios u ON u.id = m.usuario_id JOIN roles r ON r.id = m.rol_id
+	LEFT JOIN LATERAL (SELECT iu.nombre FROM invitaciones i JOIN usuarios iu ON iu.id = i.invitado_por
+		WHERE i.competition_id = m.competition_id AND i.email = u.email AND i.aceptada_at IS NOT NULL ORDER BY i.aceptada_at DESC LIMIT 1) inv ON true`
 
 type rol struct {
 	ID        uuid.UUID `db:"id" json:"id"`
@@ -41,21 +49,25 @@ type rol struct {
 	Sistema   bool      `db:"sistema" json:"sistema"`
 	Bloqueado bool      `db:"bloqueado" json:"bloqueado" doc:"Sus permisos no se pueden editar (Admin)"`
 	Permisos  []string  `db:"permisos" json:"permisos"`
+	Exige2FA  bool      `db:"exige_2fa" json:"exige2fa" doc:"Sus miembros necesitan verificación en dos pasos"`
 	Miembros  int       `db:"miembros" json:"miembros"`
 	Version   int       `db:"version" json:"version"`
 }
 
 type rolOut struct{ Body rol }
 
-const selRol = `SELECT r.id, r.slug, r.nombre, r.sistema, r.bloqueado, r.permisos, r.version,
+const selRol = `SELECT r.id, r.slug, r.nombre, r.sistema, r.bloqueado, r.permisos, r.exige_2fa, r.version,
 	(SELECT count(*) FROM membresias m WHERE m.rol_id = r.id AND m.estado = 'activo')::int AS miembros FROM roles r`
 
 type invitacion struct {
 	ID        uuid.UUID `db:"id" json:"id"`
 	Email     string    `db:"email" json:"email"`
 	RolSlug   string    `db:"rol_slug" json:"rolSlug"`
-	ExpiresAt time.Time `db:"expires_at" json:"expiresAt"`
-	CreatedAt time.Time `db:"created_at" json:"createdAt"`
+	RolNombre   string    `db:"rol_nombre" json:"rolNombre"`
+	InvitadoPor string    `db:"invitado_por" json:"invitadoPor"`
+	ExpiresAt   time.Time `db:"expires_at" json:"expiresAt"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
+	Caducada    bool      `db:"caducada" json:"caducada" doc:"Se reenvía con POST …/equipo/invitaciones"`
 }
 
 type sesionInfo struct {
@@ -217,6 +229,10 @@ func (s *Svc) registerTeam() {
 				return nil, err
 			}
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				var rolAntes, estadoAntes string
+				if err := tx.QueryRow(ctx, `SELECT r.slug, m.estado FROM membresias m JOIN roles r ON r.id = m.rol_id WHERE m.competition_id = $1 AND m.usuario_id = $2 FOR UPDATE OF m`, in.CID, in.UsuarioID).Scan(&rolAntes, &estadoAntes); err != nil {
+					return problem.NotFound("No es miembro de esta competición.")
+				}
 				if (in.Body.RolSlug != "" && in.Body.RolSlug != "admin") || in.Body.Estado == "suspendido" {
 					if err := lastAdminGuard(ctx, tx, in.CID, in.UsuarioID); err != nil {
 						return err
@@ -236,8 +252,15 @@ func (s *Svc) registerTeam() {
 						return err
 					}
 				}
+				diff := map[string]any{}
+				if in.Body.RolSlug != "" && in.Body.RolSlug != rolAntes {
+					diff["rol"] = map[string]string{"antes": rolAntes, "despues": in.Body.RolSlug}
+				}
+				if in.Body.Estado != "" && in.Body.Estado != estadoAntes {
+					diff["estado"] = map[string]string{"antes": estadoAntes, "despues": in.Body.Estado}
+				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "identity.miembro_actualizado", map[string]any{"usuarioId": in.UsuarioID, "rol": in.Body.RolSlug, "estado": in.Body.Estado},
-					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("usuario:"+in.UsuarioID.String()), events.WithDiff(in.Body)))
+					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("usuario:"+in.UsuarioID.String()), events.WithDiff(diff)))
 			})
 			if err != nil {
 				return nil, err
@@ -302,7 +325,8 @@ func (s *Svc) registerTeam() {
 		IfMatch string    `header:"If-Match" doc:"Versión leída (ETag)"`
 		Body    struct {
 			Nombre   string   `json:"nombre,omitempty" maxLength:"60"`
-			Permisos []string `json:"permisos"`
+			Permisos []string `json:"permisos,omitempty" doc:"Ausente: no cambia"`
+			Exige2FA *bool    `json:"exige2fa,omitempty"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "team-roles-update", Method: http.MethodPut, Path: "/api/competition/{cid}/roles/{slug}", Summary: "Editar los permisos de un rol", Tags: tagTeam, Security: bearer},
@@ -317,22 +341,37 @@ func (s *Svc) registerTeam() {
 			}
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				var version int
-				var locked bool
-				if err := tx.QueryRow(ctx, `SELECT version, bloqueado FROM roles WHERE competition_id = $1 AND slug = $2 FOR UPDATE`, in.CID, in.Slug).Scan(&version, &locked); err != nil {
+				var locked, exige bool
+				var antes []string
+				if err := tx.QueryRow(ctx, `SELECT version, bloqueado, permisos, exige_2fa FROM roles WHERE competition_id = $1 AND slug = $2 FOR UPDATE`, in.CID, in.Slug).Scan(&version, &locked, &antes, &exige); err != nil {
 					return problem.NotFound("Rol no encontrado.")
 				}
-				if locked {
+				if locked && in.Body.Permisos != nil && !slices.Equal(slices.Sorted(slices.Values(antes)), slices.Sorted(slices.Values(in.Body.Permisos))) {
 					return problem.Conflict("ROL_PROTEGIDO", "Los permisos de este rol no se pueden editar.")
 				}
 				if v := ifMatch(in.IfMatch); v != 0 && v != version {
 					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha cambiado este rol. Recarga y vuelve a intentarlo.")
 				}
-				if _, err := tx.Exec(ctx, `UPDATE roles SET nombre = COALESCE(NULLIF($3, ''), nombre), permisos = $4, version = version + 1, updated_at = now() WHERE competition_id = $1 AND slug = $2`,
-					in.CID, in.Slug, in.Body.Nombre, in.Body.Permisos); err != nil {
+				perms, nuevoExige := antes, exige
+				if in.Body.Permisos != nil {
+					perms = in.Body.Permisos
+				}
+				if in.Body.Exige2FA != nil {
+					nuevoExige = *in.Body.Exige2FA
+				}
+				if _, err := tx.Exec(ctx, `UPDATE roles SET nombre = COALESCE(NULLIF($3, ''), nombre), permisos = $4, exige_2fa = $5, version = version + 1, updated_at = now() WHERE competition_id = $1 AND slug = $2`,
+					in.CID, in.Slug, in.Body.Nombre, perms, nuevoExige); err != nil {
 					return err
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "identity.rol_actualizado", map[string]any{"slug": in.Slug, "permisos": in.Body.Permisos},
-					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("rol:"+in.Slug)))
+				diff := map[string]any{}
+				if !slices.Equal(antes, perms) {
+					diff["permisos"] = map[string]any{"antes": antes, "despues": perms}
+				}
+				if exige != nuevoExige {
+					diff["exige2fa"] = map[string]any{"antes": exige, "despues": nuevoExige}
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "identity.rol_actualizado", map[string]any{"slug": in.Slug, "permisos": perms, "exige2fa": nuevoExige},
+					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("rol:"+in.Slug), events.WithDiff(diff)))
 			})
 			if err != nil {
 				return nil, err
@@ -368,7 +407,13 @@ func (s *Svc) registerTeam() {
 			if perms == nil {
 				perms = []string{}
 			}
-			_, err := s.a.DB.Exec(ctx, `INSERT INTO roles (id, competition_id, slug, nombre, permisos) VALUES ($1,$2,$3,$4,$5)`, uuid.Must(uuid.NewV7()), in.CID, in.Body.Slug, in.Body.Nombre, perms)
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if _, err := tx.Exec(ctx, `INSERT INTO roles (id, competition_id, slug, nombre, permisos) VALUES ($1,$2,$3,$4,$5)`, uuid.Must(uuid.NewV7()), in.CID, in.Body.Slug, in.Body.Nombre, perms); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "identity.rol_creado", map[string]any{"slug": in.Body.Slug, "nombre": in.Body.Nombre, "permisos": perms, "duplicarDe": in.Body.DuplicarDe},
+					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("rol:"+in.Body.Slug)))
+			})
 			if db.IsUniqueViolation(err, "") {
 				return nil, problem.Conflict("ROL_DUPLICADO", "Ya existe un rol con ese identificador.")
 			} else if err != nil {
@@ -386,14 +431,17 @@ func (s *Svc) registerTeam() {
 			if _, err := auth.Require(ctx, in.CID.String(), "equipo.gestionar"); err != nil {
 				return nil, err
 			}
-			tag, err := s.a.DB.Exec(ctx, `DELETE FROM roles WHERE competition_id = $1 AND slug = $2 AND NOT sistema AND NOT EXISTS (SELECT 1 FROM membresias m WHERE m.rol_id = roles.id)`, in.CID, in.Slug)
-			if err != nil {
-				return nil, err
-			}
-			if tag.RowsAffected() == 0 {
-				return nil, problem.Conflict("ROL_EN_USO", "Solo se pueden borrar roles a medida sin miembros.")
-			}
-			return nil, nil
+			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `DELETE FROM roles WHERE competition_id = $1 AND slug = $2 AND NOT sistema AND NOT EXISTS (SELECT 1 FROM membresias m WHERE m.rol_id = roles.id)`, in.CID, in.Slug)
+				if err != nil {
+					return err
+				}
+				if tag.RowsAffected() == 0 {
+					return problem.Conflict("ROL_EN_USO", "Solo se pueden borrar roles a medida sin miembros.")
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "identity.rol_eliminado", map[string]any{"slug": in.Slug},
+					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("rol:"+in.Slug)))
+			})
 		})
 
 	// ---- invitaciones y sesiones ----
@@ -424,8 +472,13 @@ func (s *Svc) registerTeam() {
 			if _, err := auth.Require(ctx, in.CID.String(), "equipo.gestionar"); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT i.id, i.email::text AS email, r.slug AS rol_slug, i.expires_at, i.created_at FROM invitaciones i JOIN roles r ON r.id = i.rol_id
-				WHERE i.competition_id = $1 AND i.aceptada_at IS NULL AND i.revocada_at IS NULL AND i.expires_at > now() ORDER BY i.created_at DESC`, in.CID)
+			// pending ones and the ones that expired in the last 30 days (to resend them with one click)
+			rows, err := s.a.DB.Query(ctx, `SELECT i.id, i.email::text AS email, r.slug AS rol_slug, r.nombre AS rol_nombre, COALESCE(iu.nombre, '') AS invitado_por,
+				i.expires_at, i.created_at, i.expires_at <= now() AS caducada
+				FROM invitaciones i JOIN roles r ON r.id = i.rol_id LEFT JOIN usuarios iu ON iu.id = i.invitado_por
+				WHERE i.competition_id = $1 AND i.aceptada_at IS NULL AND i.revocada_at IS NULL AND i.expires_at > now() - interval '30 days'
+				AND NOT EXISTS (SELECT 1 FROM membresias m JOIN usuarios u ON u.id = m.usuario_id WHERE m.competition_id = i.competition_id AND u.email = i.email)
+				ORDER BY i.created_at DESC`, in.CID)
 			if err != nil {
 				return nil, err
 			}
@@ -441,8 +494,14 @@ func (s *Svc) registerTeam() {
 			if _, err := auth.Require(ctx, in.CID.String(), "equipo.gestionar"); err != nil {
 				return nil, err
 			}
-			_, err := s.a.DB.Exec(ctx, `UPDATE invitaciones SET revocada_at = now() WHERE competition_id = $1 AND id = $2 AND aceptada_at IS NULL`, in.CID, in.ID)
-			return nil, err
+			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `UPDATE invitaciones SET revocada_at = now() WHERE competition_id = $1 AND id = $2 AND aceptada_at IS NULL AND revocada_at IS NULL`, in.CID, in.ID)
+				if err != nil || tag.RowsAffected() == 0 {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "identity.invitacion_revocada", map[string]any{"invitacionId": in.ID},
+					events.Competition(in.CID.String()), events.ForPermission("equipo.gestionar"), events.Subject("invitacion:"+in.ID.String())))
+			})
 		})
 
 	type sesionesOut struct{ Body []sesionInfo }

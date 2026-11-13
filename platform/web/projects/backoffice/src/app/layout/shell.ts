@@ -15,6 +15,7 @@ import { BoCommandPalette, BoLiveStatus, BoNavItem, BoNotificationItem, BoWorksp
 import { ALL_ITEMS, NAV, type NavItem } from './nav';
 import { PaletteSearch } from './palette-search';
 import { Outside } from './outside';
+import { BoDosFactores, DosFactoresUi } from '../shared/dos-factores';
 
 const nivelIcon: Record<Notificacion['nivel'], { icon: GrIconName; tone: BoTone }> = {
   info: { icon: 'bell', tone: 'info' },
@@ -25,7 +26,7 @@ const nivelIcon: Record<Notificacion['nivel'], { icon: GrIconName; tone: BoTone 
 
 @Component({
   selector: 'bo-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, GrIcon, GrIconButton, GrAvatar, GrLogo, GrIconTile, Outside, BoNavItem, BoWorkspaceSwitcher, BoCommandPalette, BoLiveStatus, BoNotificationItem],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, GrIcon, GrIconButton, GrAvatar, GrLogo, GrIconTile, Outside, BoNavItem, BoWorkspaceSwitcher, BoCommandPalette, BoLiveStatus, BoNotificationItem, BoDosFactores],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown)': 'onKey($event)' },
   templateUrl: './shell.html',
@@ -51,6 +52,8 @@ export class Shell {
 
   protected readonly comp = this.comps.current;
   protected readonly cid = computed(() => this.comp()?.id);
+  protected readonly dosFactores = inject(DosFactoresUi);
+  protected readonly exige2fa = computed(() => !!this.auth.user()?.competiciones.find((c) => c.competitionId === this.cid())?.exige2fa);
   /** One figure for the bell badge and its label (capped like the rail badges). */
   protected readonly unreadTxt = computed(() => { const n = this.notifs.unread(); return n > 99 ? '99+' : String(n); });
   protected readonly visible = (it: NavItem) => !it.perm || this.auth.can(this.cid(), it.perm);

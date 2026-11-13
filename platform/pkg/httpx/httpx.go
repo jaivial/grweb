@@ -21,6 +21,8 @@ const (
 	requestIDKey ctxKey = iota
 	clientIPKey
 	originKey
+	agentKey
+	requestKey
 )
 
 // Middleware wraps an http.Handler.
@@ -48,6 +50,8 @@ func RequestID(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), requestIDKey, id)
 		ctx = context.WithValue(ctx, clientIPKey, clientIP(r))
 		ctx = context.WithValue(ctx, originKey, origin(r))
+		ctx = context.WithValue(ctx, agentKey, r.UserAgent())
+		ctx = context.WithValue(ctx, requestKey, r.Method+" "+RedactPath(r.URL.Path))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -60,6 +64,12 @@ func ClientIPFrom(ctx context.Context) string { s, _ := ctx.Value(clientIPKey).(
 
 // OriginFrom returns the declared client origin: web | cli | mcp (X-GrCup-Origen).
 func OriginFrom(ctx context.Context) string { s, _ := ctx.Value(originKey).(string); return s }
+
+// UserAgentFrom returns the User-Agent of the request.
+func UserAgentFrom(ctx context.Context) string { s, _ := ctx.Value(agentKey).(string); return s }
+
+// RequestLineFrom returns «METHOD /path» of the request (path redacted like the access log).
+func RequestLineFrom(ctx context.Context) string { s, _ := ctx.Value(requestKey).(string); return s }
 
 func clientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {

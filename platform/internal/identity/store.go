@@ -165,7 +165,10 @@ func validPassword(pw string) error {
 
 // permsFor returns competition id → expanded permissions for the user's active memberships.
 func (s *Svc) permsFor(ctx context.Context, uid uuid.UUID) (map[string][]string, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT m.competition_id, r.permisos FROM membresias m JOIN roles r ON r.id = m.rol_id
+	// A role that requires two-step verification grants nothing until the user turns it on (the competition stays
+	// listed with no permissions, so the backoffice can show why and offer to turn it on).
+	rows, err := s.a.DB.Query(ctx, `SELECT m.competition_id, CASE WHEN r.exige_2fa AND u.totp_activado_at IS NULL THEN '{}'::text[] ELSE r.permisos END
+		FROM membresias m JOIN roles r ON r.id = m.rol_id JOIN usuarios u ON u.id = m.usuario_id
 		WHERE m.usuario_id = $1 AND m.estado = 'activo'`, uid)
 	if err != nil {
 		return nil, err

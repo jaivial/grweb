@@ -165,7 +165,9 @@
               "projects/backoffice/src/styles.css"
             ],
             "allowedCommonJsDependencies": [
-              "jsqr"
+              "jsqr",
+              "dijkstrajs",
+              "qrcode"
             ]
           },
           "configurations": {

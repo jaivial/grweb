@@ -34,6 +34,7 @@ type membresiaMe struct {
 	CompetitionID string   `json:"competitionId"`
 	Rol           rolRef   `json:"rol"`
 	Permisos      []string `json:"permisos"`
+	Exige2FA      bool     `json:"exige2fa,omitempty" doc:"Su rol exige verificación en dos pasos y aún no la tiene: sin permisos hasta activarla"`
 }
 
 type usuarioMe struct {
@@ -41,6 +42,7 @@ type usuarioMe struct {
 	Email         string        `json:"email"`
 	Nombre        string        `json:"nombre"`
 	Root          bool          `json:"root"`
+	DosFactores   bool          `json:"dosFactores"`
 	Competiciones []membresiaMe `json:"competiciones"`
 }
 
@@ -62,21 +64,29 @@ type emptyOut struct {
 }
 
 func (s *Svc) me(ctx context.Context, u usuario) (usuarioMe, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT m.competition_id, r.slug, r.nombre, r.permisos FROM membresias m JOIN roles r ON r.id = m.rol_id
+	var tfa bool
+	if err := s.a.DB.QueryRow(ctx, `SELECT totp_activado_at IS NOT NULL FROM usuarios WHERE id = $1`, u.ID).Scan(&tfa); err != nil {
+		return usuarioMe{}, err
+	}
+	rows, err := s.a.DB.Query(ctx, `SELECT m.competition_id, r.slug, r.nombre, r.permisos, r.exige_2fa FROM membresias m JOIN roles r ON r.id = m.rol_id
 		WHERE m.usuario_id = $1 AND m.estado = 'activo' ORDER BY m.created_at`, u.ID)
 	if err != nil {
 		return usuarioMe{}, err
 	}
 	defer rows.Close()
-	out := usuarioMe{ID: u.ID, Email: u.Email, Nombre: u.Nombre, Root: u.Root, Competiciones: []membresiaMe{}}
+	out := usuarioMe{ID: u.ID, Email: u.Email, Nombre: u.Nombre, Root: u.Root, DosFactores: tfa, Competiciones: []membresiaMe{}}
 	for rows.Next() {
 		var m membresiaMe
 		var cid uuid.UUID
 		var perms []string
-		if err := rows.Scan(&cid, &m.Rol.Slug, &m.Rol.Nombre, &perms); err != nil {
+		var exige bool
+		if err := rows.Scan(&cid, &m.Rol.Slug, &m.Rol.Nombre, &perms, &exige); err != nil {
 			return usuarioMe{}, err
 		}
 		m.CompetitionID, m.Permisos = cid.String(), auth.Expand(perms)
+		if exige && !tfa {
+			m.Permisos, m.Exige2FA = []string{}, true
+		}
 		out.Competiciones = append(out.Competiciones, m)
 	}
 	return out, rows.Err()
@@ -149,6 +159,7 @@ func (s *Svc) registerAuth() {
 			Password string `json:"password" minLength:"1" maxLength:"256"`
 			Cliente  string `json:"cliente,omitempty" enum:"web,cli" default:"web" doc:"cli devuelve el refresh token en el cuerpo"`
 			Recordar *bool  `json:"recordar,omitempty" doc:"false: la cookie de sesión se borra al cerrar el navegador (web)"`
+			Codigo   string `json:"codigo,omitempty" maxLength:"12" doc:"Código de verificación en dos pasos (o de recuperación) si la cuenta lo tiene activado"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "auth-login", Method: http.MethodPost, Path: "/api/auth/login", Summary: "Iniciar sesión con email y contraseña", Tags: tagAuth},
@@ -170,6 +181,13 @@ func (s *Svc) registerAuth() {
 			}
 			if u.Estado != "activo" {
 				return nil, problem.Forbidden("Tu cuenta está suspendida. Habla con un administrador.")
+			}
+			if d, err := s.loadTOTP(ctx, s.a.DB, u.ID); err != nil {
+				return nil, err
+			} else if d.activado != nil {
+				if err := s.checkSecondFactor(ctx, u.ID, d, in.Body.Codigo); err != nil {
+					return nil, err
+				}
 			}
 			ratelimit.Reset(ctx, s.a.Redis, s.a.Keys.Of("rl", "login:email:"+emailKey(email)))
 			if needsRehash(*u.PasswordHash) {
@@ -323,6 +341,10 @@ func (s *Svc) registerAuth() {
 			u, err := getUsuario(ctx, s.a.DB, "id", uid)
 			if err != nil || u.Estado != "activo" {
 				return &redirectOut{Status: http.StatusFound, Location: s.cfg.BOURL + "/login?error=cuenta"}, nil
+			}
+			// an email link is one factor: accounts with two-step verification enter with password + code
+			if d, err := s.loadTOTP(ctx, s.a.DB, u.ID); err != nil || d.activado != nil {
+				return &redirectOut{Status: http.StatusFound, Location: s.cfg.BOURL + "/login?error=2fa"}, nil
 			}
 			tp, err := s.startSession(ctx, u, "web", in.UserAgent, httpx.ClientIPFrom(ctx))
 			if err != nil {

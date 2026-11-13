@@ -139,6 +139,17 @@ func resumen(e events.Event) string {
 		return "invitó a una persona al equipo"
 	case "identity.sesion_revocada":
 		return "cerró una sesión de un miembro"
+	case "identity.rol_creado":
+		return "creó el rol «" + str(d["nombre"]) + "»"
+	case "identity.rol_eliminado":
+		return "borró el rol «" + str(d["slug"]) + "»"
+	case "identity.invitacion_revocada":
+		return "revocó una invitación"
+	case "identity.dos_factores_cambiado":
+		if d["activado"] == true {
+			return "activó la verificación en dos pasos"
+		}
+		return "desactivó la verificación en dos pasos"
 	case "web.publicada":
 		switch d["pagina"] {
 		case "publico":

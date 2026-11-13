@@ -28,8 +28,9 @@ var migrationsFS embed.FS
 // Svc holds the service dependencies.
 type Svc struct {
 	a      *app.App
-	signer *auth.Signer
-	cfg    settings
+	signer  *auth.Signer
+	cfg     settings
+	totpKey []byte // key material for the TOTP secrets at rest
 }
 
 type settings struct {
@@ -75,11 +76,12 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 		AccessTTL:    config.Duration("ACCESS_TTL", 15*time.Minute),
 		RefreshTTL:   config.Duration("REFRESH_TTL", 30*24*time.Hour),
 	}
-	signer, err := loadSigner(a)
+	signer, pem, err := loadSigner(a)
 	if err != nil {
 		return err
 	}
 	s.signer = signer
+	s.totpKey = []byte(config.Str("TOTP_KEY", string(pem)))
 	// identity verifies its own tokens with its own key (no JWKS round trip).
 	a.Verifier = auth.NewVerifier("", a.Cfg.JWTIssuer, "identity", a.Cfg.InternalToken, signer.Keys()).WithRevocation(a.Redis, a.Keys)
 
@@ -89,6 +91,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 		Types: []string{"competition.creada"}, Handle: s.onCompetitionCreated, Log: a.Log}).Run)
 
 	s.registerAuth()
+	s.registerTwoFactor()
 	s.registerMe()
 	s.registerTeam()
 	s.registerAdmin()
@@ -96,27 +99,28 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	return nil
 }
 
-func loadSigner(a *app.App) (*auth.Signer, error) {
+func loadSigner(a *app.App) (*auth.Signer, []byte, error) {
 	pem := []byte(config.Str("JWT_PRIVATE_KEY", ""))
 	if f := config.Str("JWT_PRIVATE_KEY_FILE", ""); len(pem) == 0 && f != "" {
 		b, err := os.ReadFile(f)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		pem = b
 	}
 	if len(pem) == 0 {
 		if a.Cfg.Env != "dev" {
-			return nil, errors.New("falta JWT_PRIVATE_KEY o JWT_PRIVATE_KEY_FILE")
+			return nil, nil, errors.New("falta JWT_PRIVATE_KEY o JWT_PRIVATE_KEY_FILE")
 		}
 		a.Log.Warn("JWT_PRIVATE_KEY no definida: clave efímera de desarrollo (los tokens caducan al reiniciar)")
 		k, err := auth.GenerateKeyPEM()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		pem = k
 	}
-	return auth.NewSigner(pem, a.Cfg.JWTIssuer)
+	sg, err := auth.NewSigner(pem, a.Cfg.JWTIssuer)
+	return sg, pem, err
 }
 
 func (s *Svc) onCompetitionCreated(ctx context.Context, e events.Event) error {

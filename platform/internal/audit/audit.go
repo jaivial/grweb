@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -103,9 +104,9 @@ func (s *Svc) handle(ctx context.Context, e events.Event) error {
 		return nil // the desk already logs directo.cambio (one line, not one per flight of the day)
 	}
 	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `INSERT INTO auditoria (id, competition_id, tipo, source, subject, audience, permiso, actor_usuario_id, actor_nombre, actor_origen, actor_servicio, datos, diff, request_id, occurred_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT (id) DO NOTHING`,
-			e.ID, cid, e.Type, e.Source, e.Subject, e.Audience, e.Permission, actorID, a.Name, a.Origin, a.Service, data, nullJSON(e.Diff), e.RequestID, e.OccurredAt)
+		tag, err := tx.Exec(ctx, `INSERT INTO auditoria (id, competition_id, tipo, source, subject, audience, permiso, actor_usuario_id, actor_nombre, actor_origen, actor_servicio, datos, diff, request_id, occurred_at, actor_ip, actor_agente, peticion)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) ON CONFLICT (id) DO NOTHING`,
+			e.ID, cid, e.Type, e.Source, e.Subject, e.Audience, e.Permission, actorID, a.Name, a.Origin, a.Service, data, nullJSON(e.Diff), e.RequestID, e.OccurredAt, a.IP, a.Agent, a.Request)
 		if err != nil || tag.RowsAffected() == 0 || cid == nil {
 			return err
 		}
@@ -170,11 +171,15 @@ type entrada struct {
 	Diff        json.RawMessage `json:"diff,omitempty" db:"diff"`
 	RequestID   string          `json:"requestId" db:"request_id"`
 	OccurredAt  time.Time       `json:"fecha" db:"occurred_at"`
+	IP          string          `json:"ip,omitempty" db:"actor_ip"`
+	Agente      string          `json:"agente,omitempty" db:"actor_agente"`
+	Peticion    string          `json:"peticion,omitempty" db:"peticion"`
+	Resumen     string          `json:"resumen" db:"-"`
 	Audience    string          `json:"-" db:"audience"`
 	Permiso     string          `json:"-" db:"permiso"`
 }
 
-const selEntrada = `SELECT id, tipo, source, subject, actor_usuario_id, actor_nombre, actor_origen, datos, diff, request_id, occurred_at, audience, permiso FROM auditoria`
+const selEntrada = `SELECT id, tipo, source, subject, actor_usuario_id, actor_nombre, actor_origen, datos, diff, request_id, occurred_at, actor_ip, actor_agente, peticion, audience, permiso FROM auditoria`
 
 type actividad struct {
 	ID      uuid.UUID `json:"id"`
@@ -209,14 +214,10 @@ func (s *Svc) register() {
 	api := s.a.API
 
 	type listIn struct {
-		CID     uuid.UUID `path:"cid"`
-		Usuario string    `query:"usuario" doc:"Id del usuario que hizo el cambio"`
-		Tipo    string    `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
-		Origen  string    `query:"origen" enum:"web,cli,mcp,token,"`
-		Desde   string    `query:"desde" format:"date-time"`
-		Hasta   string    `query:"hasta" format:"date-time"`
-		Cursor  string    `query:"cursor"`
-		Limite  int       `query:"limite" minimum:"1" maximum:"200" default:"50"`
+		CID uuid.UUID `path:"cid"`
+		filtro
+		Cursor string `query:"cursor"`
+		Limite int    `query:"limite" minimum:"1" maximum:"200" default:"50"`
 	}
 	type listOut struct {
 		Body struct {
@@ -229,32 +230,9 @@ func (s *Svc) register() {
 			if _, err := auth.Require(ctx, in.CID.String(), "auditoria.ver"); err != nil {
 				return nil, err
 			}
-			where := []string{"competition_id = $1"}
-			args := []any{in.CID}
-			add := func(cond string, v any) {
-				args = append(args, v)
-				where = append(where, strings.ReplaceAll(cond, "?", "$"+itoa(len(args))))
-			}
-			if in.Usuario != "" {
-				id, err := uuid.Parse(in.Usuario)
-				if err != nil {
-					return nil, problem.Unprocessable("USUARIO_INVALIDO", "Id de usuario no válido.")
-				}
-				add("actor_usuario_id = ?", id)
-			}
-			if in.Tipo != "" {
-				add("tipo LIKE ?", in.Tipo+"%")
-			}
-			if in.Origen == "token" {
-				where = append(where, "actor_origen LIKE 'token:%'")
-			} else if in.Origen != "" {
-				add("actor_origen = ?", in.Origen)
-			}
-			if in.Desde != "" {
-				add("occurred_at >= ?::timestamptz", in.Desde)
-			}
-			if in.Hasta != "" {
-				add("occurred_at < ?::timestamptz", in.Hasta)
+			where, args, err := in.filtro.sql(in.CID)
+			if err != nil {
+				return nil, err
 			}
 			if in.Cursor != "" {
 				t, id, ok := decodeCursor(in.Cursor)
@@ -265,11 +243,7 @@ func (s *Svc) register() {
 				where = append(where, "(occurred_at, id) < ($"+itoa(len(args)-1)+", $"+itoa(len(args))+")")
 			}
 			args = append(args, in.Limite+1)
-			rows, err := s.a.DB.Query(ctx, selEntrada+` WHERE `+strings.Join(where, " AND ")+` ORDER BY occurred_at DESC, id DESC LIMIT $`+itoa(len(args)), args...)
-			if err != nil {
-				return nil, err
-			}
-			items, err := pgx.CollectRows(rows, pgx.RowToStructByName[entrada])
+			items, err := s.entradas(ctx, ` WHERE `+strings.Join(where, " AND ")+` ORDER BY occurred_at DESC, id DESC LIMIT $`+itoa(len(args)), args...)
 			if err != nil {
 				return nil, err
 			}
@@ -283,6 +257,60 @@ func (s *Svc) register() {
 			return out, nil
 		})
 
+	type csvIn struct {
+		CID uuid.UUID `path:"cid"`
+		filtro
+	}
+	type csvOut struct {
+		ContentType        string `header:"Content-Type"`
+		ContentDisposition string `header:"Content-Disposition"`
+		Body               []byte
+	}
+	huma.Register(api, huma.Operation{OperationID: "audit-export-csv", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/auditoria/exportar.csv", Summary: "Exportar el registro filtrado a CSV (para la asesoría)", Tags: tagAudit, Security: bearer},
+		func(ctx context.Context, in *csvIn) (*csvOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "auditoria.ver"); err != nil {
+				return nil, err
+			}
+			where, args, err := in.filtro.sql(in.CID)
+			if err != nil {
+				return nil, err
+			}
+			items, err := s.entradas(ctx, ` WHERE `+strings.Join(where, " AND ")+` ORDER BY occurred_at DESC, id DESC LIMIT `+itoa(maxCSV), args...)
+			if err != nil {
+				return nil, err
+			}
+			return &csvOut{ContentType: "text/csv; charset=utf-8", ContentDisposition: `attachment; filename="auditoria-` + time.Now().Format("2006-01-02") + `.csv"`, Body: auditCSV(items)}, nil
+		})
+
+	type facetasOut struct {
+		Body struct {
+			Personas  []persona `json:"personas"`
+			Entidades []string  `json:"entidades" doc:"Tipos de entidad (prefijo del subject: campana, rol, usuario…)"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "audit-facets", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/auditoria/facetas", Summary: "Personas y entidades presentes en el registro (para los filtros)", Tags: tagAudit, Security: bearer},
+		func(ctx context.Context, in *cidIn) (*facetasOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "auditoria.ver"); err != nil {
+				return nil, err
+			}
+			out := &facetasOut{}
+			rows, err := s.a.DB.Query(ctx, `SELECT DISTINCT ON (actor_usuario_id) actor_usuario_id AS id, actor_nombre AS nombre FROM auditoria
+				WHERE competition_id = $1 AND actor_usuario_id IS NOT NULL ORDER BY actor_usuario_id, occurred_at DESC`, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			if out.Body.Personas, err = pgx.CollectRows(rows, pgx.RowToStructByName[persona]); err != nil {
+				return nil, err
+			}
+			slices.SortFunc(out.Body.Personas, func(a, b persona) int { return strings.Compare(a.Nombre, b.Nombre) })
+			rows, err = s.a.DB.Query(ctx, `SELECT DISTINCT split_part(subject, ':', 1) FROM auditoria WHERE competition_id = $1 AND subject LIKE '%:%' ORDER BY 1`, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			out.Body.Entidades, err = pgx.CollectRows(rows, pgx.RowTo[string])
+			return out, err
+		})
+
 	type oneIn struct {
 		CID uuid.UUID `path:"cid"`
 		ID  uuid.UUID `path:"id"`
@@ -293,15 +321,14 @@ func (s *Svc) register() {
 			if _, err := auth.Require(ctx, in.CID.String(), "auditoria.ver"); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, selEntrada+` WHERE id = $1 AND competition_id = $2`, in.ID, in.CID)
+			l, err := s.entradas(ctx, ` WHERE id = $1 AND competition_id = $2`, in.ID, in.CID)
 			if err != nil {
 				return nil, err
 			}
-			e, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[entrada])
-			if err != nil {
+			if len(l) == 0 {
 				return nil, problem.NotFound("Evento no encontrado.")
 			}
-			return &oneOut{Body: e}, nil
+			return &oneOut{Body: l[0]}, nil
 		})
 
 	type actIn struct {
