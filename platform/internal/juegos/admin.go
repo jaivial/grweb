@@ -46,6 +46,18 @@ func (s *Svc) registerAdmin() {
 		_, err := requireAny(ctx, cid, "Tu rol no puede gestionar los juegos (permiso «directo.operar»).", "directo.operar")
 		return err
 	}
+	// leer: the read-only views are open to every staff member of the competition (Figma «sin permiso»: the
+	// screen is visible, the buttons that change something stay disabled)
+	leer := func(ctx context.Context, cid uuid.UUID) error {
+		p, err := auth.User(ctx)
+		if err != nil {
+			return err
+		}
+		if !p.Member(cid.String()) {
+			return problem.Forbidden("No tienes acceso a esta competición.")
+		}
+		return nil
+	}
 	type cidJornadaIn struct {
 		CID       uuid.UUID `path:"cid"`
 		JornadaID uuid.UUID `query:"jornada"`
@@ -60,7 +72,7 @@ func (s *Svc) registerAdmin() {
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-jornadas", Method: http.MethodGet, Path: base + "/jornadas",
 		Summary: "Jornadas de la competición", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*jornadasAdminOut, error) {
-			if err := operar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado, COALESCE(to_char(hora_cierre, 'HH24:MI'), '') FROM jornadas WHERE competition_id = $1 ORDER BY dia DESC`, in.CID)
@@ -303,7 +315,7 @@ func (s *Svc) registerAdmin() {
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-config", Method: http.MethodGet, Path: base + "/config",
 		Summary: "Configuración de puntos, cláusulas y recompensas", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*configOut, error) {
-			if err := operar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			cfg, err := configJuegos(ctx, s.a.DB, in.CID)
@@ -325,6 +337,12 @@ func (s *Svc) registerAdmin() {
 			b := in.Body
 			if b.PorraMin <= 0 || b.PorraMax < b.PorraMin {
 				return nil, problem.Unprocessable("CONFIG_NO_VALIDA", "El mínimo y el máximo de apuesta no son coherentes.")
+			}
+			if b.ClausulaMin <= 0 || b.ClausulaMax < b.ClausulaMin {
+				return nil, problem.Unprocessable("CONFIG_NO_VALIDA", "La cláusula mínima tiene que ser mayor que 0 y no puede superar a la máxima.")
+			}
+			if b.ClausulaInicial < b.ClausulaMin || b.ClausulaInicial > b.ClausulaMax {
+				return nil, problem.Unprocessable("CONFIG_NO_VALIDA", "La cláusula inicial tiene que estar entre la mínima y la máxima.")
 			}
 			pt, _ := json.Marshal(b.Puntos)
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
@@ -367,7 +385,7 @@ func (s *Svc) registerAdmin() {
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-premios", Method: http.MethodGet, Path: base + "/premios",
 		Summary: "Premios de la competición", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *cidJornadaIn) (*premiosAdminOut, error) {
-			if err := operar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			pS, err := s.premios(ctx, in.CID, in.JornadaID)
@@ -409,6 +427,9 @@ func (s *Svc) registerAdmin() {
 			if b.PuestoHasta < b.PuestoDesde {
 				return nil, problem.Unprocessable("PUESTOS_NO_VALIDOS", "El rango de puestos no es válido.")
 			}
+			if !imagenValida(b.ImagenURL) {
+				return nil, errImagenNoValida
+			}
 			id := newID()
 			var jid any
 			if b.Jornada != nil && *b.Jornada != uuid.Nil {
@@ -448,6 +469,9 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			b := in.Body
+			if b.ImagenURL != nil && !imagenValida(*b.ImagenURL) {
+				return nil, errImagenNoValida
+			}
 			cambiaJornada, jornada := false, (*uuid.UUID)(nil)
 			if b.JornadaID != nil {
 				cambiaJornada = true
@@ -506,7 +530,7 @@ func (s *Svc) registerAdmin() {
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-clasificaciones", Method: http.MethodGet, Path: base + "/clasificaciones",
 		Summary: "Clasificaciones completas de una jornada", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *cidJornadaIn) (*clasificacionesOut, error) {
-			if err := operar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			j, err := s.jornadaPublicaAdmin(ctx, in.CID, in.JornadaID)
@@ -528,7 +552,7 @@ func (s *Svc) registerAdmin() {
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-historico", Method: http.MethodGet, Path: base + "/historico",
 		Summary: "Histórico: jornadas cerradas", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*jornadasAdminOut, error) {
-			if err := operar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado FROM jornadas WHERE competition_id = $1 AND estado = 'cerrada' ORDER BY dia DESC`, in.CID)
@@ -671,4 +695,12 @@ func actor(ctx context.Context) string {
 		return p.Email
 	}
 	return "Sistema"
+}
+
+var errImagenNoValida = problem.Unprocessable("IMAGEN_NO_VALIDA", "La imagen debe ser un enlace https o una ruta del propio sitio.")
+
+// imagenValida accepts what the banners accept (patrocinio): empty, an https link or a path of the own site.
+// Anything else («javascript:», «data:», plain http) would end up in an <img src> of the public pages.
+func imagenValida(u string) bool {
+	return u == "" || strings.HasPrefix(u, "https://") || (strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "//"))
 }
