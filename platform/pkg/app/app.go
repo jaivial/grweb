@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -193,6 +194,21 @@ func (a *App) serve(ctx context.Context, s Service) error {
 		"bearer": {Type: "http", Scheme: "bearer", BearerFormat: "JWT"},
 	}
 	a.API = humago.New(a.Mux, hc)
+	// Admin operations answer 401 before huma validates the body (an anonymous caller must not learn the schema).
+	a.API.UseMiddleware(func(hctx huma.Context, next func(huma.Context)) {
+		if op := hctx.Operation(); op != nil && len(op.Security) > 0 && strings.HasPrefix(op.Path, "/api/admin/") {
+			if _, err := auth.User(hctx.Context()); err != nil {
+				_, w := humago.Unwrap(hctx)
+				var pe *problem.Error
+				if !errors.As(err, &pe) {
+					pe = problem.Unauthorized("NO_AUTENTICADO", "Inicia sesión para continuar.")
+				}
+				problem.Write(w, pe)
+				return
+			}
+		}
+		next(hctx)
+	})
 	a.Verifier = auth.NewVerifier(a.Cfg.JWKSURL, a.Cfg.JWTIssuer, s.Name, a.Cfg.InternalToken, nil)
 	if a.Redis != nil {
 		a.Verifier.WithRevocation(a.Redis, a.Keys)
