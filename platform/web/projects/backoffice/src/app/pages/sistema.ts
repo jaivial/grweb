@@ -30,10 +30,10 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
       @switch (vista()) {
         @case ('competiciones') {
           @if (error()) { <gr-error-state titulo="No se pudieron cargar las competiciones" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
-          @else if (comps() === null) { <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-[346px] rounded-lg" /> }</div> }
+          @else if (comps() === null) { <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-[346px] rounded-lg" /> }</div> }
           @else if (!comps()!.length) { <gr-empty icon="trophy" title="Sin competiciones" text="Crea la primera con «Nueva competición»." /> }
           @else {
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               @for (c of comps(); track c.id) {
                 <section class="flex flex-col rounded-lg border border-line-subtle bg-bg-card p-6" [attr.data-comp]="c.slug">
                   <div class="flex flex-wrap items-start gap-x-3 gap-y-2">
@@ -60,7 +60,7 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
           @else if (error()) { <gr-error-state titulo="No se pudieron cargar las integraciones" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
           @else if (integs() === null) { <div class="grid gap-4 lg:grid-cols-2">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-[150px] rounded-lg" /> }</div> }
           @else {
-            <div class="grid gap-4 lg:grid-cols-2">
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
               @for (x of integs(); track x.tipo) {
                 <section class="flex flex-col gap-5 rounded-lg border border-line-subtle bg-bg-card p-6" [attr.data-integ]="x.tipo">
                   <div class="flex items-start gap-3">
@@ -92,9 +92,9 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
               <gr-kpi label="API P95" [value]="p95(s) + ' ms'" [caption]="'objetivo < 300 ms · ' + ok(s) + '/' + s.servicios.length + ' servicios OK'" [trend]="serieP95()" />
               <gr-kpi label="Conexiones SSE" [value]="n(s.espectadores)" caption="público de esta competición" [trend]="serieSse()" />
               <gr-kpi label="Cola de emails" [value]="s.cola ? n(s.cola.pendientes) : '—'" [caption]="s.cola ? s.cola.enviadosHora + ' enviados en la última hora' : 'messaging no responde'" />
-              <gr-kpi label="Último backup" [value]="s.ultimoBackup ? hace(s.ultimoBackup) : 'Sin datos'" [caption]="s.ultimoBackup ? 'cada noche a las 03:30 · 7 copias' : 'todavía no hay copias registradas'" />
+              <gr-kpi label="Último backup" [value]="s.ultimoBackup ? hace(s.ultimoBackup).replace('hace ', '') : 'Sin datos'" [caption]="s.ultimoBackup ? 'desde la última copia · cada noche a las 03:30 · 7 copias' : 'todavía no hay copias registradas'" />
             </div>
-            <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_520px]">
+            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_520px]">
               <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <h2 class="text-[20px] leading-6 font-semibold">Trabajos en segundo plano</h2>
                 <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
@@ -112,7 +112,7 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
               </section>
               <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <div class="flex flex-wrap items-center gap-3"><h2 class="basis-full text-[20px] leading-6 font-semibold">Webhooks recibidos</h2>
-                  <gr-select class="w-48" tipo="filtro" aria-label="Proveedor" [(ngModel)]="whProv" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos los proveedores</option><option value="stripe">Stripe</option><option value="whatsapp">WhatsApp</option></gr-select>
+                  <gr-select class="w-56" tipo="filtro" aria-label="Proveedor" [(ngModel)]="whProv" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos los proveedores</option><option value="stripe">Stripe</option><option value="whatsapp">WhatsApp</option></gr-select>
                   <gr-select class="w-44" tipo="filtro" aria-label="Estado" [(ngModel)]="whEstado" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos los estados</option><option value="error">Con error</option><option value="procesado">Procesados</option></gr-select></div>
                 <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
                   <table class="w-full min-w-[420px] text-left text-body-s">
@@ -266,7 +266,7 @@ export class SistemaPage {
   protected readonly tabs = computed<BoTab[]>(() => [
     { label: 'Competiciones', path: '../competiciones', count: this.comps()?.length ?? null },
     { label: 'Integraciones', path: '../integraciones', count: this.integs() ? this.integs()!.filter((x) => x.estado !== 'sin_configurar').length : null },
-    { label: 'Salud', path: '../salud', count: this.salud() ? this.problemas(this.salud()!) : null },
+    { label: 'Salud', path: '../salud', count: this.salud() && this.problemas(this.salud()!) ? this.problemas(this.salud()!) : null },
     { label: 'Zona peligrosa', path: '../zona-peligrosa' },
   ]);
 
@@ -377,9 +377,10 @@ export class SistemaPage {
   /** p95 of the API: streams (SSE, chat) stay open until the last histogram bucket (5 s) and are not API latency. */
   protected p95(s: Salud): number { return Math.round(Math.max(0, ...s.servicios.filter((x) => x.p95 < 5).map((x) => x.p95)) * 1000); }
   protected ok(s: Salud): number { return s.servicios.filter((x) => x.ok).length; }
-  private problemas(s: Salud): number { return s.servicios.filter((x) => !x.ok).length + s.grupos.filter((g) => !g.consumers || g.retraso > 100).length; }
+  private problemas(s: Salud): number { return s.servicios.filter((x) => !x.ok).length + s.grupos.filter((g) => this.trabajo(g).tone !== 'success' && this.trabajo(g).tone !== 'info').length; }
   protected trabajo(g: Salud['grupos'][number]): { l: string; tone: GrTone } {
-    if (!g.consumers) return { l: 'Parado', tone: 'danger' };
+    // Redis registers a consumer on its first delivery: a new group with nothing to do has none yet and is fine.
+    if (!g.consumers && (g.retraso > 0 || g.pendientes > 0)) return { l: 'Parado', tone: 'danger' };
     if (g.retraso > 100) return { l: `${g.retraso} por procesar`, tone: 'warning' };
     if (g.retraso > 0 || g.pendientes > 0) return { l: 'Procesando', tone: 'info' };
     return { l: 'OK', tone: 'success' };
