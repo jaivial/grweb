@@ -9,8 +9,11 @@ CREATE TABLE checkin_hitos (
     at             timestamptz NOT NULL
 );
 CREATE INDEX checkin_hitos_comp ON checkin_hitos (competition_id, at);
+-- «usada en A y B»: the first door of each ticket is looked up per scan row.
+CREATE INDEX escaneos_entrada ON escaneos (entrada_id, escaneado_at) WHERE entrada_id IS NOT NULL;
 
 -- +goose Down
+DROP INDEX escaneos_entrada;
 DROP TABLE checkin_hitos;
 ALTER TABLE puestos DROP COLUMN telefono;
 ALTER TABLE puestos DROP COLUMN responsable;
