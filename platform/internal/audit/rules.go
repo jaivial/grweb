@@ -399,6 +399,11 @@ func resumen(e events.Event) string {
 		return "devolvió una solicitud de voluntariado a nuevas"
 	case "cms.voluntario_puesto":
 		return fmt.Sprintf("cambió a %v las personas que necesita «%s»", d["objetivo"], str(d["rol"]))
+	case "cms.voluntario_briefing":
+		if r := str(d["rol"]); r != "" {
+			return "escribió a los voluntarios de «" + r + "»: " + str(d["asunto"])
+		}
+		return "envió un briefing al equipo de voluntarios: " + str(d["asunto"])
 	case "cms.club_aprobado":
 		return "aprobó el club «" + str(d["nombre"]) + "» y lo publicó en /clubs"
 	case "cms.club_rechazado":

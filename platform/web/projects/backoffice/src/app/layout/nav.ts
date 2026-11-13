@@ -7,7 +7,7 @@ export interface NavItem {
   perm?: string; // permission required (Root always sees everything)
   mobileTab?: boolean;
   /** Live badge of the section (athlete requests waiting for a review). */
-  contador?: 'solicitudes' | 'clubs';
+  contador?: 'solicitudes' | 'clubs' | 'voluntarios';
 }
 
 export interface NavGroup {
@@ -51,7 +51,7 @@ export const NAV: NavGroup[] = [
       { label: 'Emails y avisos', path: 'emails', icon: 'mail', perm: 'campanas.enviar' },
       { label: 'Donaciones', path: 'donaciones', icon: 'heart', perm: 'sorteo.gestionar' },
       { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar', contador: 'clubs' },
-      { label: 'Voluntarios', path: 'voluntarios', icon: 'user-plus', perm: 'web.editar' },
+      { label: 'Voluntarios', path: 'voluntarios', icon: 'heart', perm: 'web.editar', contador: 'voluntarios' },
     ],
   },
   {

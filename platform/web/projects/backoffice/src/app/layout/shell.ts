@@ -10,7 +10,7 @@ import { Competitions } from '../core/competitions';
 import { Notifications } from '../core/notifications';
 import { Realtime } from '../core/realtime';
 import { SolicitudesContador } from '../core/solicitudes';
-import { ClubsContador } from '../core/clubs';
+import { ClubsContador, VoluntariosContador } from '../core/clubs';
 import type { Notificacion } from '../core/api';
 import { BoCommandPalette, BoLiveStatus, BoNavItem, BoNotificationItem, BoWorkspaceSwitcher, type BoPaletteItem, type BoTone, type BoWorkspace } from '../shared/kit';
 import { ALL_ITEMS, NAV, type NavItem } from './nav';
@@ -39,6 +39,7 @@ export class Shell {
   protected readonly live = inject(Realtime);
   protected readonly solicitudes = inject(SolicitudesContador);
   private readonly clubs = inject(ClubsContador);
+  private readonly voluntarios = inject(VoluntariosContador);
   private readonly toasts = inject(GrToasts);
   private readonly router = inject(Router);
   private readonly tituloMovil = inject(TituloMovil);
@@ -104,6 +105,7 @@ export class Shell {
       void this.notifs.load(id);
       void this.solicitudes.cargar(id);
       void this.clubs.cargar(id);
+      void this.voluntarios.cargar(id);
     });
     const sub = this.live.events.subscribe((e) => {
       const id = this.cid();
@@ -164,7 +166,7 @@ export class Shell {
   /** Live badge of a section of the menu (athlete requests waiting for a review). */
   protected contadorDe(it: NavItem): number | null {
     if (!it.contador) return null;
-    const n = it.contador === 'clubs' ? this.clubs.pendientes() : this.solicitudes.pendientes();
+    const n = it.contador === 'clubs' ? this.clubs.pendientes() : it.contador === 'voluntarios' ? this.voluntarios.pendientes() : this.solicitudes.pendientes();
     return n > 0 ? n : null;
   }
 
