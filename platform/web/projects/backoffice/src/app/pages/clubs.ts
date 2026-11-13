@@ -124,6 +124,7 @@ const TH = 'px-4 py-3 text-left text-label-xs font-normal tracking-[0.04em] text
                 </ul>
                 <p class="border-t border-line-subtle px-4 py-3 text-body-xs text-text-tertiary">{{ asociados().length }} {{ asociados().length === 1 ? 'club' : 'clubs' }} · arrastra para cambiar el orden de /clubs</p>
               </section>
+              <button grButton variant="primary" class="md:hidden" (click)="nuevo()">Añadir club</button>
             }
           }
           @case ('rechazadas') {

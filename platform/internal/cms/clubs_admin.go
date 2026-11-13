@@ -2,6 +2,7 @@ package cms
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
+
+var errYaAbierta = errors.New("solicitud ya abierta")
 
 // registerClubsAdmin: Backoffice › Clubs (Figma page 67). A request from /clubs is approved (published in the directory,
 // with its role and logo) or rejected with a reason; either way the person who sent it can be told by email. The rest of
@@ -133,14 +136,17 @@ func (s *Svc) registerClubsAdmin() {
 				return nil, err
 			}
 			var nombre string
-			err = s.a.DB.QueryRow(ctx, `UPDATE clubs SET abierta_at = now(), abierta_por = $3 WHERE competition_id = $1 AND id = $2 AND estado = 'pendiente' AND abierta_at IS NULL RETURNING nombre`,
-				in.CID, in.ID, pr.Name).Scan(&nombre)
-			if err == pgx.ErrNoRows {
-				return nil, nil // already in review, reviewed or gone: nothing to do
+			_ = s.a.DB.QueryRow(ctx, `SELECT nombre FROM clubs WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).Scan(&nombre)
+			err = s.change(ctx, in.CID, "cms.club_en_revision", map[string]any{"id": in.ID, "nombre": nombre}, func(tx pgx.Tx) error {
+				t, err := tx.Exec(ctx, `UPDATE clubs SET abierta_at = now(), abierta_por = $3 WHERE competition_id = $1 AND id = $2 AND estado = 'pendiente' AND abierta_at IS NULL`, in.CID, in.ID, pr.Name)
+				if err == nil && t.RowsAffected() == 0 {
+					return errYaAbierta
+				}
+				return err
+			})
+			if errors.Is(err, errYaAbierta) {
+				return nil, nil // already in review, reviewed or gone: nothing to do (and no event)
 			}
-			if err != nil {
-				return nil, err
-			}
-			return nil, s.change(ctx, in.CID, "cms.club_en_revision", map[string]any{"id": in.ID, "nombre": nombre}, func(pgx.Tx) error { return nil })
+			return nil, err
 		})
 }
