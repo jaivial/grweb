@@ -1,6 +1,7 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrToasts } from '@grcup/ui';
 import { problemOf } from '../../../core/api';
 import { Auth } from '../../../core/auth';
@@ -43,7 +44,7 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
  */
 @Component({
   selector: 'bo-donaciones',
-  imports: [A11yModule, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, SoAjuste, SoCard, SoNumber, SoPuesto, SoSkelFilas, SoSkelKpis],
+  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, SoAjuste, SoCard, SoNumber, SoPuesto, SoSkelFilas, SoSkelKpis],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'reembolso.set(null); verRanking.set(false)' },
   template: `
@@ -58,7 +59,9 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar las donaciones">Hace falta el permiso «sorteo.gestionar».</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede gestionar las donaciones">Hace falta el permiso «sorteo.gestionar». Los donativos tienen datos personales: sin el permiso no se muestran y los botones de reembolsar y guardar quedan desactivados.
+          <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
+        </gr-alert>
       }
 
       @if (cargando() && !kpis()) {
@@ -93,6 +96,8 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
 
           @if (cargando() && !lista()) {
             <so-skel-filas [n]="6" />
+          } @else if (!puede()) {
+            <gr-empty icon="lock" title="Sin acceso a los donativos" text="Pide el permiso a un admin del equipo para verlos." />
           } @else if (error()) {
             <gr-empty icon="wifi-off" title="No hemos podido cargar las donaciones" [text]="error()">
               <button grButton variant="primary" icon="refresh" (click)="cargar()">Reintentar</button>
@@ -380,6 +385,11 @@ export class DonacionesPage {
   protected async cargar(): Promise<void> {
     const cid = this.cid();
     if (!cid) return;
+    if (!this.puede()) {
+      // read-only without the permission: personal data is not requested (the API would answer 403)
+      this.cargando.set(false);
+      return;
+    }
     this.cargando.set(true);
     this.error.set('');
     try {

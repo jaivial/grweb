@@ -1,6 +1,7 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrToasts } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
@@ -13,7 +14,7 @@ type Tipo = 'atleta' | 'publico';
 /** «Fans» (Figma 73 · «BO · Fans», UI v2): cuentas de directo, búsqueda, filtros y baneos (tabla en escritorio, tarjetas en móvil). */
 @Component({
   selector: 'bo-fans',
-  imports: [A11yModule, FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoIcon, SoSegmented, SoSkelFilas],
+  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoIcon, SoSegmented, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'banear.set(null)' },
   template: `
@@ -27,7 +28,9 @@ type Tipo = 'atleta' | 'publico';
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar los fans">Hace falta el permiso «directo.operar».</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede gestionar los fans">Hace falta el permiso «directo.operar». Las cuentas de directo tienen datos personales: sin el permiso no se muestran y los botones de banear quedan desactivados.
+          <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
+        </gr-alert>
       }
 
       <div class="flex flex-wrap items-center gap-3">
@@ -43,6 +46,8 @@ type Tipo = 'atleta' | 'publico';
       <section class="min-w-0 overflow-hidden rounded-lg border border-line-subtle bg-bg-card" aria-label="Cuentas">
         @if (cargando() && !lista()) {
           <so-skel-filas [n]="7" />
+        } @else if (!puede()) {
+          <gr-empty icon="lock" title="Sin acceso a las cuentas de directo" text="Pide el permiso a un admin del equipo para verlos." />
         } @else if (error()) {
           <gr-empty icon="wifi-off" title="No hemos podido cargar las cuentas" [text]="error()">
             <button grButton variant="primary" icon="refresh" (click)="cargar()">Reintentar</button>
@@ -217,6 +222,11 @@ export class FansPage {
   protected async cargar(): Promise<void> {
     const cid = this.cid();
     if (!cid) return;
+    if (!this.puede()) {
+      // read-only without the permission: personal data is not requested (the API would answer 403)
+      this.cargando.set(false);
+      return;
+    }
     this.cargando.set(true);
     this.error.set('');
     try {
