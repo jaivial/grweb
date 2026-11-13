@@ -188,7 +188,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             </gr-alert>
           }
           @if (d.estado === 'aprobada') {
-            <gr-alert tone="success" title="Aprobada · ficha privada">Perfil creado sin publicar{{ d.esMenor ? ' (menor de edad)' : imagenAceptada() ? '' : ' (sin consentimiento de imagen)' }}: queda privado hasta que el atleta active su publicación desde el área de atleta · enlace de acceso enviado.</gr-alert>
+            <gr-alert tone="success" title="Aprobada">Perfil creado o enlazado{{ d.esMenor ? ' (menor de edad)' : imagenAceptada() ? '' : ' (sin consentimiento de imagen)' }} · una ficha nueva queda privada hasta que el atleta active su publicación desde el área de atleta; una existente conserva su visibilidad · enlace de acceso enviado.</gr-alert>
           }
           @if (d.estado === 'rechazada') {
             <gr-alert tone="danger" title="Solicitud rechazada">
