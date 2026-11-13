@@ -375,7 +375,7 @@ func titulo(sexos, cats []string) (string, string) {
 	seen := map[string]bool{}
 	var u []string
 	for _, c := range cats {
-		if !seen[c] {
+		if c != "" && !seen[c] {
 			seen[c] = true
 			u = append(u, c)
 		}
@@ -385,6 +385,9 @@ func titulo(sexos, cats []string) (string, string) {
 		u[i] = strings.Replace(u[i], "-", "−", 1)
 	}
 	label := map[string]string{"F": "Femenino", "M": "Masculino", "X": "Mixto"}[sexo]
+	if len(u) == 0 {
+		return sexo, label
+	}
 	return sexo, label + " " + strings.Join(u, " / ") + " kg"
 }
 
@@ -525,7 +528,7 @@ func conflictos(cfg Config, loc *time.Location, fl []Flight, sinFlight int) []Co
 		}
 	}
 	if sinFlight > 0 {
-		add(nil, "sin_flight", false, fmt.Sprintf("%d atletas sin flight", sinFlight), "No aparecerán en los horarios hasta que los asignes.")
+		add(nil, "sin_flight", false, plural(sinFlight, "atleta sin flight", "atletas sin flight"), "No aparecerán en los horarios hasta que los asignes.")
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Bloquea && !out[j].Bloquea })
 	return out
@@ -553,4 +556,12 @@ func bloqueantes(cs []Conflicto) int {
 		}
 	}
 	return n
+}
+
+// plural: «1 atleta sin flight» / «3 atletas sin flight».
+func plural(n int, uno, varios string) string {
+	if n == 1 {
+		return "1 " + uno
+	}
+	return fmt.Sprintf("%d %s", n, varios)
 }
