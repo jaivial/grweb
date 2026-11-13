@@ -16,7 +16,7 @@ export interface Fila {
 }
 export interface Categoria { clave: string; sexo: 'F' | 'M'; categoria: string; titulo: string; corto: string; atletas: number; completos: number; filas: Fila[] }
 export interface Directo {
-  fase: 'antes' | 'en_directo' | 'finalizado'; pausa: boolean; retrasoMin: number; streamUrl?: string; replayUrl?: string; espectadores: number;
+  fase: 'antes' | 'en_directo' | 'finalizado'; pausa: boolean; retrasoMin: number; streamUrl?: string; replayUrl?: string; streamHome?: boolean; espectadores: number;
   flight?: { codigo: string; titulo: string; plataforma: number }; movimiento: Mov; ronda: number; turnoAt?: string;
   actual?: EnPlataforma; ultimo?: EnPlataforma; siguientes: EnPlataforma[]; clasificacion: Categoria[];
   proximo?: { titulo: string; inicio: string }; resultadosPublicados: boolean;

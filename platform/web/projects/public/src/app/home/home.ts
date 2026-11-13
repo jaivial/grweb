@@ -4,7 +4,10 @@ import { isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, RESPONSE_INIT, afterNextRender, effect, inject, signal, untracked,
 } from '@angular/core';
-import { GrAlert, fmtLongDate } from '@grcup/ui';
+import { GrAlert, GrIcon, embedVideo, fmtLongDate } from '@grcup/ui';
+import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
+import { RouterLink } from '@angular/router';
+import { DirectoPublic } from '../core/directo';
 import { Cms, type HomeCms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi, esLimitado } from '../core/competition';
 import type { Entradas } from '../core/entradas';
@@ -29,7 +32,7 @@ import { SecSorteo } from './sorteo';
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, GrAlert, HeroTrophy, Campeonato, SecCifras, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, HeroTrophy, Campeonato, SecCifras, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -41,6 +44,18 @@ import { SecSorteo } from './sorteo';
       <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || 'Campeonato de powerlifting'"
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
+      @if (enVivo(); as v) {
+        <!-- Event day: the broadcast also on the home («Directo › Retransmisión», switch «también en la home») -->
+        <section class="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-10 md:px-8 xl:px-[120px]" aria-label="Retransmisión en directo">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <span class="inline-flex items-center gap-2 text-display-label text-success"><gr-icon name="radio" [size]="16" />En directo</span>
+            <a routerLink="/en-directo" class="text-label-m text-accent-text hover:underline">Ver el directo completo →</a>
+          </div>
+          <div class="relative aspect-video overflow-hidden rounded-lg border border-line-subtle bg-black">
+            <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión en directo" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+          </div>
+        </section>
+      }
       @if (cmsApi.limitado()) {
         <div class="mx-auto max-w-[1440px] px-5 py-10 md:px-8 xl:px-[120px]">
           <gr-alert tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert>
@@ -96,6 +111,8 @@ export class HomePage {
   protected readonly horarios = signal<Horarios | null>(null);
   protected readonly porra = signal<ResumenPorra | null>(null);
   protected readonly fantasy = signal<ResumenFantasy | null>(null);
+  /** Player of the live broadcast when the organiser shows it on the home too (browser only, while live). */
+  protected readonly enVivo = signal<SafeResourceUrl | null>(null);
   private readonly http = inject(HttpClient);
   private readonly fallo = inject(FalloApi);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
@@ -159,7 +176,13 @@ export class HomePage {
     const vivo = inject(JuegosEnVivo);
     const destroy = inject(DestroyRef);
     destroy.onDestroy(() => this.timers.forEach(clearTimeout));
+    const directo = inject(DirectoPublic);
+    const san = inject(DomSanitizer);
     afterNextRender(() => {
+      void directo.directo().then((d) => {
+        const u = d?.streamHome ? embedVideo(d.streamUrl, location.hostname, true) : null;
+        if (u) this.enVivo.set(san.bypassSecurityTrustResourceUrl(u));
+      });
       vivo.conectar();
       destroy.onDestroy(() => vivo.desconectar());
     });

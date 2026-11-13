@@ -40,6 +40,7 @@ type Directo struct {
 	RetrasoMin   int    `json:"retrasoMin"`
 	StreamURL    string `json:"streamUrl,omitempty"`
 	ReplayURL    string `json:"replayUrl,omitempty"`
+	StreamHome   bool   `json:"streamHome,omitempty" doc:"La home muestra la emisión (solo en directo)"`
 	Espectadores int    `json:"espectadores"`
 	Flight       *struct {
 		Codigo     string `json:"codigo"`
@@ -97,6 +98,7 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 		Siguientes: []EnPlataforma{}, Clasificacion: []Categoria{}}
 	if e.StreamVisible { // hidden from the backoffice: no video at all, in any phase
 		d.StreamURL, d.ReplayURL = e.StreamURL, e.ReplayURL
+		d.StreamHome = e.StreamHome && e.Fase == "en_directo" && e.StreamURL != ""
 	}
 	var n int
 	_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1`, c.ID).Scan(&n)

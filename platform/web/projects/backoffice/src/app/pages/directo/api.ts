@@ -6,7 +6,7 @@ export type Mov = 'sq' | 'bp' | 'dl';
 export type ResultadoIntento = 'pendiente' | 'valido' | 'nulo' | 'renuncia';
 export interface Pantalla { siguientes: boolean; carrusel: boolean; qr: boolean; ver?: number }
 export interface Estado {
-  version: number; fase: 'antes' | 'en_directo' | 'finalizado'; flightId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; streamVisible: boolean;
+  version: number; fase: 'antes' | 'en_directo' | 'finalizado'; flightId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; streamVisible: boolean; streamHome: boolean;
   pantalla: Pantalla; publicarAuto: boolean; turnoAt?: string; updatedAt: string;
 }
 export interface IntentoMesa { id: string; peso: number; votos: string; resultado: ResultadoIntento; corregido: boolean }
@@ -74,7 +74,7 @@ export class DirectoApi {
     return firstValueFrom(this.http.post<Mesa>(`${this.b(cid)}/intentos/${id}/correccion`, b));
   }
   /** Retransmisión (Figma 57): only the broadcast, its replay and whether /en-directo shows it. */
-  retransmision(cid: string, version: number, b: { streamUrl: string; replayUrl: string; visible: boolean }): Promise<Mesa> {
+  retransmision(cid: string, version: number, b: { streamUrl: string; replayUrl: string; visible: boolean; home: boolean }): Promise<Mesa> {
     return firstValueFrom(this.http.put<Mesa>(`${this.b(cid)}/retransmision`, b, { headers: new HttpHeaders({ 'If-Match': `"${version}"` }) }));
   }
   pantalla(cid: string): Promise<{ url: string; ping?: string }> { return firstValueFrom(this.http.get<{ url: string; ping?: string }>(`${this.b(cid)}/pantalla`)); }
