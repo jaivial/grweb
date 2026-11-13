@@ -215,7 +215,7 @@ var catalogo = []Plantilla{
 		Contenido{Asunto: "Tu ficha de atleta ya está aprobada", Preheader: "Ya puedes ver tu ficha en la GR Cup 2026", Titulo: "{{nombre}}, tu ficha de atleta ya está aprobada",
 			Cuerpo:     "Tu solicitud de alta está aprobada. Tu ficha queda lista con tu club y tus mejores marcas.\n\n{{foto}}\n\n✓ Competición: {{prueba}}.\n\n{{privada}}\n\n✓ Desde el área de atleta podrás editar tu foto, tus marcas y tu frase cuando quieras.",
 			BotonTexto: "Entrar en mi área de atleta", BotonURL: "{{urlArea}}",
-			Pie:  "Enlace personal: caduca en 30 minutos; luego puedes pedir otro desde el área de atleta.",
+			Pie:  "Enlace personal: caduca en 7 días; luego puedes pedir otro desde el área de atleta.",
 			Nota: "Recibes este email porque tu solicitud de alta en la GR Cup 2026 ha sido aprobada."},
 		ContenidoWA{Texto: "¡Buenas, {{nombre}}! Tu ficha de atleta ya está aprobada ✓\n\n{{privada}}\n\nEntra en tu área de atleta para editar tu foto, tus marcas y tu frase:\n{{urlArea}}"}),
 	pwa("atleta-solicitud-rechazada", "Solicitud de alta rechazada", "Al rechazar una solicitud de alta (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
