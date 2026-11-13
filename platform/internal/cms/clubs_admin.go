@@ -120,4 +120,27 @@ func (s *Svc) registerClubsAdmin() {
 			})
 			return nil, err
 		})
+
+	// abrir: the first time someone of the team opens a pending request it goes from «Nueva» to «En revisión».
+	type abrirIn struct {
+		CID uuid.UUID `path:"cid"`
+		ID  uuid.UUID `path:"id"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "clubs-abrir", Method: http.MethodPost, Path: base + "/abrir", Summary: "Marcar una solicitud de club como «En revisión»", Tags: []string{"Web y contenidos"}, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *abrirIn) (*struct{}, error) {
+			pr, err := auth.Require(ctx, in.CID.String(), "web.editar")
+			if err != nil {
+				return nil, err
+			}
+			var nombre string
+			err = s.a.DB.QueryRow(ctx, `UPDATE clubs SET abierta_at = now(), abierta_por = $3 WHERE competition_id = $1 AND id = $2 AND estado = 'pendiente' AND abierta_at IS NULL RETURNING nombre`,
+				in.CID, in.ID, pr.Name).Scan(&nombre)
+			if err == pgx.ErrNoRows {
+				return nil, nil // already in review, reviewed or gone: nothing to do
+			}
+			if err != nil {
+				return nil, err
+			}
+			return nil, s.change(ctx, in.CID, "cms.club_en_revision", map[string]any{"id": in.ID, "nombre": nombre}, func(pgx.Tx) error { return nil })
+		})
 }

@@ -154,7 +154,7 @@ var catalogo = []Plantilla{
 		Contenido{Asunto: "Sobre tu solicitud de voluntariado", Titulo: "Gracias, {{nombre}}", Cuerpo: "Gracias por ofrecerte como voluntario en la GR Strength Cup. Esta vez no podemos contar contigo:\n\n{{motivo}}\n\nTe tendremos en cuenta para la próxima edición."}),
 	p("club-aprobado", "Club publicado en el directorio", "Al aprobar una solicitud de /clubs", "cms", "clubs", true, []string{"nombre", "club", "enlace"},
 		map[string]string{"nombre": "Marta", "club": "Fuerza Isabel", "enlace": "https://grcup.example/clubs"},
-		Contenido{Asunto: "{{club}} ya está en el directorio", Titulo: "¡Bienvenidos, {{nombre}}!", Cuerpo: "Hemos revisado la solicitud y **{{club}}** ya aparece en el directorio de clubs de la GR Strength Cup.\n\nSi quieres cambiar algún dato o el logo, responde a este email.", BotonTexto: "Ver el directorio", BotonURL: "{{enlace}}"}),
+		Contenido{Asunto: "Tu club ya está en el directorio de la GR Strength Cup", Titulo: "¡Bienvenidos, {{nombre}}!", Cuerpo: "Hemos revisado la solicitud y **{{club}}** ya aparece en el directorio de clubs de la GR Strength Cup.\n\nSi quieres cambiar algún dato o el logo, responde a este email.", BotonTexto: "Ver el directorio", BotonURL: "{{enlace}}"}),
 	p("club-recibido", "Solicitud de club recibida", "Al enviar el formulario de /clubs", "cms", "clubs", true, []string{"nombre", "club"},
 		map[string]string{"nombre": "Marta", "club": "Fuerza Isabel"},
 		Contenido{Asunto: "Hemos recibido la solicitud de {{club}}", Titulo: "¡Gracias, {{nombre}}!", Cuerpo: "Hemos recibido la solicitud para añadir **{{club}}** al directorio de clubs de la GR Strength Cup.\n\nLa revisamos en 2–3 días y te avisamos por email cuando esté publicada."}),
