@@ -2,6 +2,7 @@ package cms
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
+
+var errYaAbierta = errors.New("solicitud ya abierta")
 
 // registerClubsAdmin: Backoffice › Clubs (Figma page 67). A request from /clubs is approved (published in the directory,
 // with its role and logo) or rejected with a reason; either way the person who sent it can be told by email. The rest of
@@ -118,6 +121,32 @@ func (s *Svc) registerClubsAdmin() {
 				return events.Enqueue(ctx, tx, events.New(ctx, "cms.email_solicitado", map[string]any{"para": p.contactoEmail, "plantilla": "club-rechazado",
 					"vars": map[string]string{"nombre": saludo(p), "club": p.nombre, "motivo": motivo}}, events.Competition(in.CID.String()), events.Audience(events.Internal)))
 			})
+			return nil, err
+		})
+
+	// abrir: the first time someone of the team opens a pending request it goes from «Nueva» to «En revisión».
+	type abrirIn struct {
+		CID uuid.UUID `path:"cid"`
+		ID  uuid.UUID `path:"id"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "clubs-abrir", Method: http.MethodPost, Path: base + "/abrir", Summary: "Marcar una solicitud de club como «En revisión»", Tags: []string{"Web y contenidos"}, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *abrirIn) (*struct{}, error) {
+			pr, err := auth.Require(ctx, in.CID.String(), "web.editar")
+			if err != nil {
+				return nil, err
+			}
+			var nombre string
+			_ = s.a.DB.QueryRow(ctx, `SELECT nombre FROM clubs WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).Scan(&nombre)
+			err = s.change(ctx, in.CID, "cms.club_en_revision", map[string]any{"id": in.ID, "nombre": nombre}, func(tx pgx.Tx) error {
+				t, err := tx.Exec(ctx, `UPDATE clubs SET abierta_at = now(), abierta_por = $3 WHERE competition_id = $1 AND id = $2 AND estado = 'pendiente' AND abierta_at IS NULL`, in.CID, in.ID, pr.Name)
+				if err == nil && t.RowsAffected() == 0 {
+					return errYaAbierta
+				}
+				return err
+			})
+			if errors.Is(err, errYaAbierta) {
+				return nil, nil // already in review, reviewed or gone: nothing to do (and no event)
+			}
 			return nil, err
 		})
 }
