@@ -231,6 +231,10 @@ func (a *App) serve(ctx context.Context, s Service) error {
 			return err
 		}
 	}
+	// Every service with a database drops the rows of a deleted competition; audit keeps its log (accountability).
+	if a.DB != nil && a.Redis != nil && s.Name != "audit" {
+		a.alEliminar(s.Name)
+	}
 	if a.DB != nil && a.Redis != nil {
 		relay := &events.Relay{DB: a.DB, Redis: a.Redis, Stream: a.Stream(), Log: a.Log}
 		a.Go(relay.Run)

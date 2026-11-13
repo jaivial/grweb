@@ -36,8 +36,8 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               @for (c of comps(); track c.id) {
                 <section class="flex flex-col rounded-lg border border-line-subtle bg-bg-card p-6" [attr.data-comp]="c.slug">
-                  <div class="flex items-start gap-3">
-                    <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">{{ c.nombre }}</h2>
+                  <div class="flex flex-wrap items-start gap-x-3 gap-y-2">
+                    <div class="min-w-0 flex-[1_1_60%]"><h2 class="text-[20px] leading-6 font-semibold">{{ c.nombre }}</h2>
                       <p class="mt-1 text-body-xs text-text-tertiary">{{ meta(c) }}</p></div>
                     <gr-badge [tone]="estComp(c).tone">{{ estComp(c).l }}</gr-badge>
                   </div>
@@ -56,7 +56,8 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
           }
         }
         @case ('integraciones') {
-          @if (error()) { <gr-error-state titulo="No se pudieron cargar las integraciones" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
+          @if (!puede()) { <gr-alert tone="info" icon="lock" title="Sin permiso">Necesitas el permiso «integraciones» para ver y probar las integraciones.</gr-alert> }
+          @else if (error()) { <gr-error-state titulo="No se pudieron cargar las integraciones" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
           @else if (integs() === null) { <div class="grid gap-4 lg:grid-cols-2">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-[150px] rounded-lg" /> }</div> }
           @else {
             <div class="grid gap-4 lg:grid-cols-2">
@@ -67,7 +68,7 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
                     <gr-badge [tone]="badge(x).tone">{{ badge(x).l }}</gr-badge>
                   </div>
                   <div class="flex flex-wrap items-center gap-3">
-                    <p class="flex min-w-0 flex-1 items-center gap-2 text-body-xs" [class]="x.estado === 'error' ? 'text-accent-text' : 'text-text-tertiary'">
+                    <p class="flex min-w-0 basis-full items-center gap-2 text-body-xs sm:basis-0 sm:flex-1" [class]="x.estado === 'error' ? 'text-accent-text' : 'text-text-tertiary'">
                       <gr-icon [name]="info(x.tipo).i" [size]="16" /><span class="truncate" [title]="ultimo(x)">{{ ultimo(x) }}</span></p>
                     @if (puede()) {
                       <button grButton variant="ghost" [loading]="probando() === x.tipo" [disabled]="x.estado === 'sin_configurar' && x.tipo !== 'whatsapp'" (click)="probar(x)">Probar</button>
@@ -84,7 +85,8 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
           }
         }
         @case ('salud') {
-          @if (error()) { <gr-error-state titulo="No se pudo leer la salud del sistema" texto="El servicio de auditoría no responde. Vuelve a intentarlo." (reintentar)="cargar()" /> }
+          @if (!puede()) { <gr-alert tone="info" icon="lock" title="Sin permiso">Necesitas el permiso «integraciones» para ver la salud del sistema.</gr-alert> }
+          @else if (error()) { <gr-error-state titulo="No se pudo leer la salud del sistema" texto="El servicio de auditoría no responde. Vuelve a intentarlo." (reintentar)="cargar()" /> }
           @else if (salud(); as s) {
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <gr-kpi label="API P95" [value]="p95(s) + ' ms'" [caption]="'objetivo < 300 ms · ' + ok(s) + '/' + s.servicios.length + ' servicios OK'" [trend]="serieP95()" />
@@ -109,9 +111,9 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
                 </div>
               </section>
               <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card p-6">
-                <div class="flex flex-wrap items-center gap-3"><h2 class="flex-1 text-[20px] leading-6 font-semibold">Webhooks recibidos</h2>
-                  <gr-select class="w-36" tipo="filtro" aria-label="Proveedor" [(ngModel)]="whProv" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos</option><option value="stripe">Stripe</option><option value="whatsapp">WhatsApp</option></gr-select>
-                  <gr-select class="w-32" tipo="filtro" aria-label="Estado" [(ngModel)]="whEstado" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos</option><option value="error">Con error</option><option value="procesado">Procesados</option></gr-select></div>
+                <div class="flex flex-wrap items-center gap-3"><h2 class="basis-full text-[20px] leading-6 font-semibold">Webhooks recibidos</h2>
+                  <gr-select class="w-48" tipo="filtro" aria-label="Proveedor" [(ngModel)]="whProv" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos los proveedores</option><option value="stripe">Stripe</option><option value="whatsapp">WhatsApp</option></gr-select>
+                  <gr-select class="w-44" tipo="filtro" aria-label="Estado" [(ngModel)]="whEstado" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos los estados</option><option value="error">Con error</option><option value="procesado">Procesados</option></gr-select></div>
                 <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
                   <table class="w-full min-w-[420px] text-left text-body-s">
                     <thead class="text-label-xs text-text-tertiary uppercase"><tr class="border-b border-line-subtle"><th class="px-4 py-3 font-medium">Evento</th><th class="px-4 py-3 font-medium">Respuesta</th></tr></thead>
@@ -149,8 +151,8 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
           @if (comps() === null && !error()) { <gr-skeleton class="h-96 rounded-lg" /> }
           @else if (objetivo(); as c) {
             @if (root() && (comps()?.length ?? 0) > 1) {
-              <gr-field label="Competición" class="max-w-sm"><gr-select [ngModel]="objetivoId()" (ngModelChange)="objetivoId.set($event); cargarExport()">
-                @for (o of comps(); track o.id) { <option [value]="o.id">{{ o.nombre }}{{ o.archivedAt ? ' (archivada)' : '' }}</option> }</gr-select></gr-field>
+              <gr-field label="Competición" class="max-w-sm"><gr-select [ngModel]="c.id" (ngModelChange)="objetivoId.set($event); cargarExport()">
+                @for (o of comps(); track o.id) { <option [value]="o.id">{{ o.nombre }} · {{ o.slug }}{{ o.archivedAt ? ' (archivada)' : '' }}</option> }</gr-select></gr-field>
             }
             <div class="flex flex-col gap-4">
               <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6 md:flex-row md:items-center" data-peligro="archivar">
@@ -213,7 +215,7 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
           <div><dt class="text-body-xs text-text-tertiary">Identificador</dt><dd class="font-mono text-mono-s">{{ c.slug }}</dd></div>
           <div><dt class="text-body-xs text-text-tertiary">Fechas y sede</dt><dd>{{ meta(c) }}</dd></div>
           <div><dt class="text-body-xs text-text-tertiary">Módulos</dt><dd>{{ modulos(c) }}</dd></div>
-          <div><dt class="text-body-xs text-text-tertiary">Equipo</dt><dd>{{ c.miembros ?? '—' }} personas</dd></div>
+          <div><dt class="text-body-xs text-text-tertiary">Equipo</dt><dd>{{ c.miembros === undefined ? '—' : c.miembros === 1 ? '1 persona' : c.miembros + ' personas' }}</dd></div>
           @if (c.archivedAt) { <div><dt class="text-body-xs text-text-tertiary">Archivada</dt><dd>{{ fecha(c.archivedAt) }}</dd></div> }
           <div><dt class="text-body-xs text-text-tertiary">Datos personales</dt><dd>{{ textoAnon(c) }}</dd></div>
         </dl>
@@ -262,7 +264,7 @@ export class SistemaPage {
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'integraciones.config'));
   protected readonly objetivo = computed(() => this.comps()?.find((c) => c.id === this.objetivoId()) ?? this.comps()?.find((c) => c.id === this.cid()) ?? null);
   protected readonly tabs = computed<BoTab[]>(() => [
-    { label: 'Competiciones', path: '../competiciones', count: this.comps()?.length ?? this.cs.list().length },
+    { label: 'Competiciones', path: '../competiciones', count: this.comps()?.length ?? null },
     { label: 'Integraciones', path: '../integraciones', count: this.integs() ? this.integs()!.filter((x) => x.estado !== 'sin_configurar').length : null },
     { label: 'Salud', path: '../salud', count: this.salud() ? this.problemas(this.salud()!) : null },
     { label: 'Zona peligrosa', path: '../zona-peligrosa' },
@@ -285,9 +287,12 @@ export class SistemaPage {
   protected cargar(): void {
     this.error.set(false);
     const v = this.vista();
-    if (v === 'competiciones' || v === 'peligro') void this.cargarComps();
-    if (v === 'integraciones') void this.cargarInteg();
-    if (v === 'salud') void this.cargarSalud();
+    void this.cargarComps();
+    // the tab counters need integrations and health whatever the tab
+    if (this.puede()) {
+      void this.cargarInteg();
+      void this.cargarSalud(v !== 'salud');
+    }
     if (v === 'peligro') void this.cargarExport();
   }
   private async cargarComps(): Promise<void> {
@@ -295,7 +300,7 @@ export class SistemaPage {
       const list = this.root() ? await this.api.competiciones() : (this.cs.list() as CompSistema[]);
       this.comps.set(list);
     } catch {
-      this.error.set(true);
+      if (this.vista() === 'competiciones' || this.vista() === 'peligro') this.error.set(true);
     }
   }
   private async cargarInteg(): Promise<void> {
@@ -306,7 +311,7 @@ export class SistemaPage {
       this.stripeUltimo.set(wh?.items[0] ?? null);
       this.integs.set(ORDEN.map((t) => list.find((x) => x.tipo === t)!).filter(Boolean));
     } catch {
-      this.error.set(true);
+      if (this.vista() === 'integraciones') this.error.set(true);
     }
   }
   async cargarSalud(silencioso = false): Promise<void> {
@@ -316,9 +321,9 @@ export class SistemaPage {
       this.serieP95.update((a) => [...a, this.p95(s)].slice(-12));
       this.serieSse.update((a) => [...a, s.espectadores].slice(-12));
       this.error.set(false);
-      void this.cargarWebhooks();
+      if (this.vista() === 'salud') void this.cargarWebhooks();
     } catch {
-      if (!silencioso || !this.salud()) this.error.set(true);
+      if (this.vista() === 'salud' && (!silencioso || !this.salud())) this.error.set(true);
     }
   }
   protected async cargarWebhooks(): Promise<void> {
@@ -357,7 +362,7 @@ export class SistemaPage {
     }
   }
   protected badge(x: Integracion): { l: string; tone: GrTone } {
-    if (x.tipo === 'whatsapp') { const w = this.waInfo(); return w ? (w.servicio === 'caido' ? { l: 'Caído', tone: 'danger' } : (WA[w.estado] ?? WA['sin_instancia'])) : { l: 'Por confirmar', tone: 'warning' }; }
+    if (x.tipo === 'whatsapp') { const w = this.waInfo(); return w ? (w.modo === 'simulado' ? { l: 'Simulado', tone: 'info' } : w.servicio === 'caido' ? { l: 'Caído', tone: 'danger' } : (WA[w.estado] ?? WA['sin_instancia'])) : { l: 'Por confirmar', tone: 'warning' }; }
     if (x.tipo === 'stripe' && x.estado !== 'error' && x.config['modo']) return { l: x.config['modo'] === 'live' ? 'Modo live' : 'Modo test', tone: x.config['modo'] === 'live' ? 'success' : 'info' };
     if (x.tipo === 'aep' && x.estado !== 'error') return { l: x.config['urlActa'] ? 'Enlazada' : 'Manual', tone: 'info' };
     return ESTADO_INT[x.estado];
@@ -369,9 +374,10 @@ export class SistemaPage {
     if (x.tipo === 'whatsapp') { const w = this.waInfo(); if (w?.estado === 'conectado' && w.conectadoDesde) return `Conectado desde ${fecha(w.conectadoDesde)}`; return w?.modo === 'simulado' ? 'Modo simulado (sin número real)' : 'Proveedor y número pendientes de vincular'; }
     return x.probadoAt ? `Última prueba ${hace(x.probadoAt)}` : 'Sin probar todavía';
   }
-  protected p95(s: Salud): number { return Math.round(Math.max(0, ...s.servicios.map((x) => x.p95)) * 1000); }
+  /** p95 of the API: streams (SSE, chat) stay open until the last histogram bucket (5 s) and are not API latency. */
+  protected p95(s: Salud): number { return Math.round(Math.max(0, ...s.servicios.filter((x) => x.p95 < 5).map((x) => x.p95)) * 1000); }
   protected ok(s: Salud): number { return s.servicios.filter((x) => x.ok).length; }
-  private problemas(s: Salud): number { return s.servicios.filter((x) => !x.ok).length + s.grupos.filter((g) => g.retraso > 100).length + (this.webhooks()?.items.filter((w) => w.estado === 'error').length ?? 0); }
+  private problemas(s: Salud): number { return s.servicios.filter((x) => !x.ok).length + s.grupos.filter((g) => !g.consumers || g.retraso > 100).length; }
   protected trabajo(g: Salud['grupos'][number]): { l: string; tone: GrTone } {
     if (!g.consumers) return { l: 'Parado', tone: 'danger' };
     if (g.retraso > 100) return { l: `${g.retraso} por procesar`, tone: 'warning' };
@@ -385,6 +391,7 @@ export class SistemaPage {
   protected textoAnon(c: CompSistema): string {
     if (c.anonimizadaAt) return `Anonimizada el ${fechaDMA(c.anonimizadaAt)}: contactos, entradas y boletos sin datos personales; se mantienen totales y resultados.`;
     if (c.anonimizarAt) return `Programado el ${fechaDMA(c.anonimizarAt)} (12 meses tras el evento): contactos, entradas y boletos quedan sin datos personales; se mantienen totales y resultados.`;
+    if (c.archivedAt) return 'Sin fecha de anonimización programada: adelántala cuando ya no hagan falta los datos personales.';
     const base = c.fechaFin || c.fechaInicio;
     const d = base ? new Date(base + 'T03:00:00Z') : null;
     if (d) d.setUTCFullYear(d.getUTCFullYear() + 1);
@@ -426,7 +433,8 @@ export class SistemaPage {
       if (x.tipo === 'whatsapp') {
         const w = await this.wa.estado(this.cid());
         this.waInfo.set(w);
-        if (w.servicio === 'ok' && w.estado === 'conectado') this.toasts.success('WhatsApp conectado', w.numero || w.instancia);
+        if (w.modo === 'simulado') this.toasts.success('WhatsApp en modo simulado', 'Los envíos se registran sin salir a WhatsApp.');
+        else if (w.servicio === 'ok' && w.estado === 'conectado') this.toasts.success('WhatsApp conectado', w.numero || w.instancia);
         else this.toasts.error('WhatsApp no está conectado', w.servicio === 'caido' ? 'El servidor de WhatsApp no responde.' : 'Vincula el número en Configurar.');
         return;
       }
@@ -495,7 +503,8 @@ export class SistemaPage {
       await this.api.eliminar(c.id, c.slug);
       this.toasts.success('Competición eliminada');
       this.objetivoId.set('');
-      await this.cargarComps();
+      await Promise.all([this.cargarComps(), this.cs.load(true)]);
+      await this.cargarExport();
     } catch (e) {
       this.toasts.error('No se pudo eliminar', errText(e));
     }

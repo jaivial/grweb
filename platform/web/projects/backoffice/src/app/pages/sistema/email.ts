@@ -40,7 +40,7 @@ const PUERTOS: { v: string; l: string; tls: string }[] = [
       @else if (!puede()) { <gr-alert tone="info" icon="lock" title="Sin permiso">Necesitas el permiso «integraciones» para ver y cambiar el servidor de email.</gr-alert> }
       @else if (!smtp()) { <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]"><gr-skeleton class="h-[520px] rounded-lg" /><gr-skeleton class="h-64 rounded-lg" /></div> }
       @else {
-        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div class="flex min-w-0 flex-col gap-4">
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-[20px] leading-6 font-semibold">Servidor</h2>
@@ -65,11 +65,11 @@ const PUERTOS: { v: string; l: string; tls: string }[] = [
             @if (resultado(); as r) {
               <gr-alert [tone]="r.estado === 'ok' ? 'success' : 'danger'" [icon]="r.estado === 'ok' ? 'circle-check' : 'circle-alert'" [title]="r.estado === 'ok' ? 'Prueba correcta' : 'La prueba ha fallado'">
                 {{ r.estado === 'ok' ? 'Conexión y autenticación correctas' + (r.latenciaMs ? ' en ' + r.latenciaMs + ' ms' : '') + (r.enviado ? ' · email de prueba enviado a ' + r.enviado : '') + '.' : r.error }}
-                @if (cambiado()) { <span class="block">Probado sin guardar: pulsa «Guardar» para aplicarlo.</span> }
+                @if (cambiado() && r.estado === 'ok') { <span class="block">Probado sin guardar: pulsa «Guardar» para aplicarlo.</span> }
               </gr-alert>
             }
           </div>
-          <div class="flex flex-col gap-4">
+          <div class="flex min-w-0 flex-col gap-4">
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-[20px] leading-6 font-semibold">Dominio {{ dominio()?.dominio || dominioRemitente() || '' }}</h2>
               @if (dominio(); as d) {
@@ -87,7 +87,7 @@ const PUERTOS: { v: string; l: string; tls: string }[] = [
             @if (dominio(); as d) { @if (d.dmarc.estado !== 'correcto') {
               <gr-alert tone="info" icon="info" title="Sin DMARC, más emails pueden ir a spam">
                 Afecta sobre todo a la newsletter. Añade el registro TXT y vuelve a comprobar.
-                <button type="button" class="mt-1 inline-flex items-center gap-1 text-label-s text-info hover:underline" (click)="comprobar()">Comprobar de nuevo <gr-icon name="arrow-right" [size]="14" /></button>
+                <button type="button" class="mt-2 flex items-center gap-1 text-label-s text-info hover:underline" (click)="comprobar()">Comprobar de nuevo <gr-icon name="arrow-right" [size]="14" /></button>
               </gr-alert>
             } @else { <button grButton variant="ghost" class="self-start" (click)="comprobar()">Comprobar de nuevo</button> } }
           </div>
@@ -197,9 +197,12 @@ export class SistemaEmailPage {
     this.guardando.set(true);
     try {
       await this.api.guardar(this.cid(), 'smtp', this.config(), this.secreto || undefined);
-      this.toasts.success('Email guardado', 'Pulsa «Enviar prueba» para comprobarlo.');
-      this.resultado.set(null);
+      this.toasts.success('Email guardado');
       await this.cargar();
+      // saved settings are tested at once, so the integration does not stay «Sin probar»
+      const r = await this.api.probar(this.cid(), 'smtp');
+      this.resultado.set(r);
+      this.smtp.set(r);
     } catch (e) {
       this.toasts.error('No se pudo guardar', errText(e));
     } finally {
