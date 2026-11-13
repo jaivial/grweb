@@ -171,8 +171,8 @@ export class SoGrupo {}
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative flex shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line-strong bg-bg-raised' },
   template: `
-    @if (src() && !roto()) {
-      <img [src]="src()" [alt]="alt()" class="size-full object-contain" loading="lazy" (error)="roto.set(true)" />
+    @if (seguro() && !roto()) {
+      <img [src]="seguro()" [alt]="alt()" class="size-full object-contain" loading="lazy" (error)="roto.set(true)" />
     } @else if (nombre().trim()) {
       <span class="px-1 text-center font-display text-[13px] leading-none tracking-[0.06em] text-text-secondary uppercase italic" aria-hidden="true">{{ marca() }}</span>
     } @else {
@@ -185,6 +185,11 @@ export class SoThumb {
   readonly nombre = input('');
   readonly alt = input('');
   protected readonly roto = signal(false);
+  /** Solo https/http o ruta del propio sitio: datos antiguos («javascript:…») no se pintan. */
+  protected readonly seguro = computed(() => {
+    const s = (this.src() ?? '').trim();
+    return urlSegura(s) || (s.startsWith('/') && !s.startsWith('//')) || s.startsWith('blob:') ? s : '';
+  });
   protected readonly marca = computed(() => this.nombre().replace(/[^\p{L}\p{N} ]/gu, '').trim().slice(0, 6) || '·');
 }
 

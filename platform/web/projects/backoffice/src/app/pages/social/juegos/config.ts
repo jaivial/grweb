@@ -7,7 +7,7 @@ import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { webPublica } from '../../../core/web';
 import { BoPageHeader, errText } from '../../../shared/ui';
-import { SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas, num, rangoError } from '../ui';
+import { SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas, diaCorto, num, rangoError } from '../ui';
 import { JuegosApi, type ConfigJuegos, type Jornada, type PuntosCfg } from './api';
 
 interface Campo {
@@ -130,8 +130,9 @@ const cfgPorDefecto: ConfigJuegos = {
           <div class="flex flex-col gap-2.5">
             @for (j of jornadasAbiertas(); track j.id) {
               <div class="flex flex-wrap items-center gap-3">
-                <span class="min-w-0 flex-1 truncate text-body-s text-text-secondary">{{ j.nombre }} · {{ j.dia }}</span>
-                <input grInput type="time" class="w-36 [color-scheme:dark]" [attr.aria-label]="'Hora de cierre de ' + j.nombre"
+                <span class="min-w-0 flex-1 truncate text-body-s text-text-secondary">{{ j.nombre }} · {{ diaCorto(j.dia) }}</span>
+                <!-- texto hh:mm y no type=time: el nativo sigue el idioma del navegador (12 h AM/PM) -->
+                <input grInput type="text" inputmode="numeric" maxlength="5" placeholder="hh:mm" class="w-24 font-mono" [attr.aria-label]="'Hora de cierre de ' + j.nombre + ' (24 h)'"
                   [disabled]="!puede()" [value]="j.horaCierre ?? ''" #hc />
                 <button grButton size="s" [disabled]="!puede()" [loading]="guardandoCierre() === j.id" (click)="guardarCierre(j, hc.value)">Guardar</button>
               </div>
@@ -191,6 +192,7 @@ export class JuegosConfigPage {
   private readonly toasts = inject(GrToasts);
 
   protected readonly num = num;
+  protected readonly diaCorto = diaCorto;
   protected readonly form = signal<ConfigJuegos>({ ...cfgPorDefecto });
   protected readonly original = signal<ConfigJuegos>({ ...cfgPorDefecto });
   protected readonly jornadas = signal<Jornada[]>([]);
@@ -327,6 +329,11 @@ export class JuegosConfigPage {
   protected async guardarCierre(j: Jornada, hora: string): Promise<void> {
     const cid = this.cid();
     if (!cid) return;
+    hora = hora.trim();
+    if (hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
+      this.toasts.error('Escribe la hora en formato 24 h, p. ej. 18:30.');
+      return;
+    }
     this.guardandoCierre.set(j.id);
     try {
       await this.api.jornada(cid, j.id, { horaCierre: hora });

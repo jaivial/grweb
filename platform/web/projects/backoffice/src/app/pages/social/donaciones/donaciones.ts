@@ -116,7 +116,7 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
               <div class="hidden overflow-x-auto md:block">
                 <table class="w-full table-fixed text-left text-body-s">
                   <!-- a 1440 la tabla vive en ~720 px: anchos fijos y textos truncados para que «Reembolsar» se vea sin scroll -->
-                  <colgroup><col class="w-[112px]" /><col /><col class="w-[88px]" /><col /><col class="w-[120px]" /><col class="w-[132px]" /></colgroup>
+                  <colgroup><col class="w-[104px]" /><col /><col class="w-[84px]" /><col /><col class="w-[108px]" /><col class="w-[148px]" /></colgroup>
                   <thead class="border-b border-line-subtle bg-bg-surface font-mono text-mono-xs text-text-tertiary">
                     <tr><th class="px-4 py-3 font-medium">Fecha</th><th class="px-2 py-3 font-medium">Donante</th><th class="px-2 py-3 text-right font-medium">Importe</th><th class="px-3 py-3 font-medium">Mensaje</th><th class="px-2 py-3 font-medium">Estado</th><th class="px-3 py-3"><span class="sr-only">Acciones</span></th></tr>
                   </thead>
@@ -139,7 +139,7 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
                         <td class="px-2 py-2.5 text-right font-mono text-mono-s whitespace-nowrap" [class]="apagada ? 'text-text-tertiary line-through' : 'text-text-primary'">{{ euros(d.importe) }}</td>
                         <td class="truncate px-3 py-2.5 text-text-tertiary" [title]="d.mensaje || ''">{{ d.mensaje || '—' }}</td>
                         <td class="px-2 py-2.5"><gr-badge [tone]="est(d.estado).tone">{{ est(d.estado).l }}</gr-badge></td>
-                        <td class="px-3 py-2.5 text-right">
+                        <td class="px-2 py-2.5 text-right">
                           @if (d.estado === 'pagada') {
                             <button grButton size="s" variant="ghost" icon="undo" [attr.aria-label]="'Reembolsar la donación de ' + (d.alias || 'Anónimo')" [disabled]="!puede()" (click)="abrirReembolso(d)">Reembolsar</button>
                           }
