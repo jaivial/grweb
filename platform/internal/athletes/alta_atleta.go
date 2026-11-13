@@ -614,6 +614,14 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	if existentes > 0 {
 		return nil, problem.Conflict("SOLICITUD_EN_CURSO", "Ya tienes una solicitud en revisión. Te avisaremos por email.")
 	}
+	// An email already approved has its profile: a new request would only re-notify the whole team.
+	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND email = $2 AND estado = 'aprobada'`,
+		c.ID, d.Email).Scan(&existentes); err != nil {
+		return nil, err
+	}
+	if existentes > 0 {
+		return nil, problem.Conflict("SOLICITUD_APROBADA", "Tu alta ya está aprobada: edita tu ficha desde el área de atleta.")
+	}
 	// The limits per IP, email and phone count only created requests: an atomic INCR reserves the slot
 	// now and it is given back (DECR) if the request is not created.
 	reservas, perr := s.reservaLimites(ctx, ip, d)
@@ -641,11 +649,22 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	// The team that gets the notice (identity knows who can edit the athletes).
 	equipo := s.equipoAdmins(ctx, c.ID)
 	matchID, matchTipo := s.matchAtleta(ctx, c.ID, d)
+	coincidencia := s.coincidenciaTexto(ctx, matchID, matchTipo)
 	ua := userAgentDe(ctx)
 
 	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		if err := s.reservaPrueba(ctx, tx, c.ID, c.Inscripcion.Plazas, d.Prueba); err != nil {
 			return err
+		}
+		// Without a registered athlete to link, approving creates one: with the event full it would end in
+		// 409 at the approval, so the form says it now.
+		if matchID == nil {
+			if err := s.hayPlaza(ctx, tx, c.ID); err != nil {
+				if pe := (*problem.Error)(nil); errors.As(err, &pe) && pe.Code == "INSCRIPCION_COMPLETA" {
+					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email o licencia no constan en la lista de inscritos de la AEP. Revisa que sean los de tu inscripción o escríbenos.")
+				}
+				return err
+			}
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email, telefono, sexo,
 			fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl, focal_x, focal_y, es_menor,
@@ -687,7 +706,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			fotoURL = s.urlFotoFirmada(c.ID, id, c.Slug)
 		}
 		for _, m := range equipo {
-			if err := email(ctx, tx, c.ID, m.Email, "atleta-solicitud-nueva", s.varsNueva(d, matchTipo, menor, fotoURL, c.Slug)); err != nil {
+			if err := email(ctx, tx, c.ID, m.Email, "atleta-solicitud-nueva", s.varsNueva(d, matchTipo, coincidencia, menor, fotoURL, c.Slug)); err != nil {
 				return err
 			}
 		}
@@ -1470,7 +1489,7 @@ func (s *Svc) eventoContacto(d DatosAlta, cons map[string]Consentimiento, ip, ua
 // varsRecibida are the variables of the email to the athlete.
 func (s *Svc) varsRecibida(d DatosAlta, foto, menor, publica bool) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "email": d.Email, "telefono": d.Telefono, "club": d.Club, "ciudad": d.Ciudad,
+		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "club": d.Club, "ciudad": d.Ciudad,
 		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "pasos": pasosRecibida(foto, menor, publica),
 		"urlAtletas": s.webURL + "/atletas",
 	}
@@ -1505,12 +1524,12 @@ func pasosRecibida(foto, menor, publica bool) string {
 }
 
 // varsNueva are the variables of the email to the team (with the photo: a signed URL, not public).
-func (s *Svc) varsNueva(d DatosAlta, match string, menor bool, fotoURL, slug string) map[string]string {
+func (s *Svc) varsNueva(d DatosAlta, match, coincidencia string, menor bool, fotoURL, slug string) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": d.Telefono, "licencia": d.Licencia,
-		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadTexto(d.FechaNacimiento),
+		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "licencia": d.Licencia,
+		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadAnios(d.FechaNacimiento, menor),
 		"fechaNacimiento": fechaCorta(d.FechaNacimiento), "marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL),
-		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor),
+		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor, edadTexto(d.FechaNacimiento)), "coincidencia": coincidencia,
 		"prueba": pruebaTexto(d.Prueba), "foto": fotoURL, "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
 	}
 }
@@ -1518,7 +1537,7 @@ func (s *Svc) varsNueva(d DatosAlta, match string, menor bool, fotoURL, slug str
 // varsWARecibida are the variables of the WhatsApp message to the athlete.
 func (s *Svc) varsWARecibida(d DatosAlta) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "email": d.Email, "telefono": d.Telefono, "club": d.Club, "ciudad": d.Ciudad,
+		"nombre": d.Nombre, "email": d.Email, "telefono": telTexto(d.Telefono), "club": d.Club, "ciudad": d.Ciudad,
 		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": "No", "urlAtletas": s.webURL + "/atletas",
 	}
 }
@@ -1526,10 +1545,10 @@ func (s *Svc) varsWARecibida(d DatosAlta) map[string]string {
 // varsWANueva are the variables of the WhatsApp message to the organisers.
 func (s *Svc) varsWANueva(d DatosAlta, match string, menor bool, slug string) map[string]string {
 	return map[string]string{
-		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": d.Telefono, "licencia": d.Licencia,
-		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadTexto(d.FechaNacimiento),
+		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "licencia": d.Licencia,
+		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadAnios(d.FechaNacimiento, menor),
 		"fechaNacimiento": fechaCorta(d.FechaNacimiento), "marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL),
-		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor),
+		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor, edadTexto(d.FechaNacimiento)),
 		"foto": "", "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
 	}
 }
@@ -1577,17 +1596,56 @@ func fechaCorta(nac string) string {
 }
 
 // textoMenor warns the team about a minor (empty when the athlete is not).
-func textoMenor(menor bool) string {
+func textoMenor(menor bool, edad string) string {
 	if !menor {
 		return ""
 	}
-	return "⚠ Menor de edad · falta autorización. La foto no se publica sin la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla."
+	foto := "La foto"
+	if edad != "" {
+		foto = edad + " años: la foto"
+	}
+	return "⚠ Menor de edad · falta autorización. " + foto + " no se publica sin la autorización firmada de madre, padre o tutor. Súbela desde el panel de solicitudes; aprobar queda bloqueado hasta tenerla."
+}
+
+// edadAnios is «17 años», with «(menor)» for a minor (Figma 171:91081).
+func edadAnios(nac string, menor bool) string {
+	e := edadTexto(nac)
+	if e == "" {
+		return ""
+	}
+	if menor {
+		return e + " años (menor)"
+	}
+	return e + " años"
+}
+
+// telTexto groups a Spanish E.164 number for reading (+34 600 123 456); other numbers stay as they are.
+func telTexto(t string) string {
+	if len(t) == 12 && strings.HasPrefix(t, "+34") {
+		return t[:3] + " " + t[3:6] + " " + t[6:9] + " " + t[9:]
+	}
+	return t
+}
+
+// coincidenciaTexto is the blue notice of a suggested match (by name): who it is, for the reviewer to compare.
+func (s *Svc) coincidenciaTexto(ctx context.Context, id *uuid.UUID, tipo string) string {
+	if id == nil || tipo != "nombre" {
+		return ""
+	}
+	var nombre, licencia string
+	if err := s.a.DB.QueryRow(ctx, `SELECT trim(nombre || ' ' || apellidos), coalesce(licencia, '') FROM atletas WHERE id = $1`, *id).Scan(&nombre, &licencia); err != nil {
+		return ""
+	}
+	if licencia != "" {
+		nombre += " (" + licencia + ")"
+	}
+	return "ℹ Coincidencia sugerida. Encaja con el atleta inscrito " + nombre + " por nombre y fecha de nacimiento. Revisa las diferencias antes de aprobar."
 }
 
 // fotoTexto says if the request has a photo.
 func fotoTexto(foto bool) string {
 	if foto {
-		return "Sí, en blanco y negro"
+		return "blanco y negro · recortada"
 	}
 	return "No"
 }

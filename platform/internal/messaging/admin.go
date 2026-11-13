@@ -494,7 +494,10 @@ func (s *Svc) registerAdmin() {
 			}
 			o := &verOut{}
 			o.Body.Mensaje = m
-			if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil {
+			// A WhatsApp keeps the exact text it sent (Contenido.Cuerpo): no email layout.
+			if m.Canal == "whatsapp" && enviado != nil {
+				o.Body.Texto = enviado.Cuerpo
+			} else if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil {
 				c := e.Contenido
 				if enviado != nil {
 					c = *enviado

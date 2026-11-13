@@ -44,7 +44,7 @@ type Aceptos = Record<'terminos' | 'privacidad' | 'imagen' | 'novedades' | 'what
 
 type Vista = 'cargando' | 'formulario' | 'exito' | 'cerrada' | 'legal' | 'error';
 /** Estado de la tarjeta de la izquierda cuando el envío falla. */
-type Aviso = 'ninguno' | 'duplicado' | 'limite' | 'red';
+type Aviso = 'ninguno' | 'duplicado' | 'aprobada' | 'limite' | 'red';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const BORRADOR = 'grcup:alta-atleta:borrador';
@@ -116,6 +116,8 @@ const MAX_MARCA = 600;
               @default {
                 @if (aviso() === 'duplicado') {
                   <gr-alta-aviso tipo="duplicado" [contacto]="contacto()" />
+                } @else if (aviso() === 'aprobada') {
+                  <gr-alta-aviso tipo="aprobada" [contacto]="contacto()" />
                 } @else {
                   <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
                     <div>
@@ -176,7 +178,7 @@ const MAX_MARCA = 600;
                             [(ngModel)]="d.telefono" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['telefono']" [attr.aria-describedby]="err()['telefono'] ? 'e-telefono h-telefono' : 'h-telefono'" />
                         </span>
-                        <p id="h-telefono" class="text-body-xs text-text-tertiary">Formato internacional (+34 por defecto). Obligatorio solo si marcas los avisos por WhatsApp.</p>
+                        <p id="h-telefono" class="text-body-xs text-text-tertiary">Formato internacional (+34 por defecto).{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
                         @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
@@ -939,7 +941,7 @@ export class AltaAtletaPage {
       void this.pedirReto();
     }
     if (xhr.status === 409 || codigo === 'SOLICITUD_EN_CURSO') {
-      this.aviso.set('duplicado');
+      this.aviso.set(codigo === 'SOLICITUD_APROBADA' ? 'aprobada' : 'duplicado');
       this.enfocar('#formulario');
       return;
     }

@@ -38,8 +38,15 @@ var tagArea = []string{"Área de atleta"}
 
 // newAreaLink creates a one-time link to the athlete area.
 func (s *Svc) newAreaLink(ctx context.Context, tx pgx.Tx, atleta uuid.UUID) (string, error) {
+	return s.newAreaLinkTTL(ctx, tx, atleta, areaLinkTTL)
+}
+
+// aprobadaLinkTTL: the link of the «aprobada» email is read hours later (Figma 171:92769: «caduca en 7 días»).
+const aprobadaLinkTTL = 7 * 24 * time.Hour
+
+func (s *Svc) newAreaLinkTTL(ctx context.Context, tx pgx.Tx, atleta uuid.UUID, ttl time.Duration) (string, error) {
 	t := randomToken()
-	if _, err := tx.Exec(ctx, `INSERT INTO area_tokens (hash, atleta_id, expires_at) VALUES ($1,$2,$3)`, hashToken(t), atleta, time.Now().Add(areaLinkTTL)); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO area_tokens (hash, atleta_id, expires_at) VALUES ($1,$2,$3)`, hashToken(t), atleta, time.Now().Add(ttl)); err != nil {
 		return "", err
 	}
 	return s.webURL + "/area-atleta?acceso=" + t, nil

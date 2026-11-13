@@ -264,7 +264,7 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 			}
 			return events.Enqueue(ctx, tx, events.New(ctx, "messaging.enviado", map[string]any{"para": p.destino, "canal": "whatsapp", "plantilla": p.clave, "asunto": t.Nombre},
 				events.Competition(p.cid.String()), events.Audience(events.Internal)))
-		}, ", asunto = $4, proveedor_id = $5, enviado_at = now()", t.Nombre, id)
+		}, ", asunto = $4, proveedor_id = $5, enviado_at = now(), contenido = $6", t.Nombre, id, Contenido{Cuerpo: texto})
 		return
 	}
 	var ew *errWA
