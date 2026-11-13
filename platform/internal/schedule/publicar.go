@@ -36,6 +36,7 @@ type SnapAtleta struct {
 type SnapFlight struct {
 	ID           uuid.UUID    `json:"id"`
 	Codigo       string       `json:"codigo"`
+	Prueba       string       `json:"prueba,omitempty"`
 	Titulo       string       `json:"titulo"`
 	Sexo         string       `json:"sexo"`
 	Plataforma   int          `json:"plataforma"`
@@ -82,8 +83,8 @@ type version struct {
 
 func (s *Svc) versionPublicada(ctx context.Context, q querier, cid uuid.UUID) (*version, error) {
 	var v version
-	err := q.QueryRow(ctx, `SELECT numero, estado, publicado_at, publicado_por, cambios, avisos, seguidores, snapshot FROM versiones WHERE competition_id = $1 AND estado = 'publicada'`, cid).
-		Scan(&v.Numero, &v.Estado, &v.At, &v.Por, &v.Cambios, &v.Avisos, &v.Seguidores, &v.Snapshot)
+	err := q.QueryRow(ctx, `SELECT numero, prueba, numero_prueba, estado, publicado_at, publicado_por, cambios, avisos, seguidores, snapshot FROM versiones WHERE competition_id = $1 AND estado = 'publicada'`, cid).
+		Scan(&v.Numero, &v.Prueba, &v.NumeroPrueba, &v.Estado, &v.At, &v.Por, &v.Cambios, &v.Avisos, &v.Seguidores, &v.Snapshot)
 	if db.IsNoRows(err) {
 		return nil, nil
 	}
@@ -129,12 +130,81 @@ func snapshot(b Borrador, byID map[uuid.UUID]atleta, numero int) Snapshot {
 			continue
 		}
 		sd := dia(f.Dia)
-		sd.Flights = append(sd.Flights, SnapFlight{ID: f.ID, Codigo: f.Codigo, Titulo: f.Titulo, Sexo: f.Sexo, Plataforma: f.Plataforma, Inicio: f.Inicio, Fin: f.Fin,
+		sd.Flights = append(sd.Flights, SnapFlight{ID: f.ID, Codigo: f.Codigo, Prueba: f.Prueba, Titulo: f.Titulo, Sexo: f.Sexo, Plataforma: f.Plataforma, Inicio: f.Inicio, Fin: f.Fin,
 			DuracionMin: f.DuracionMin, PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Atletas: as})
 	}
 	for _, a := range b.Agenda {
 		sd := dia(a.Dia)
 		sd.Agenda = append(sd.Agenda, a)
+	}
+	sort.Slice(sn.Dias, func(i, j int) bool { return sn.Dias[i].Fecha < sn.Dias[j].Fecha })
+	return sn
+}
+
+// esDePrueba: a published flight belongs to competition p (versions before flights.prueba: by its athletes).
+func esDePrueba(f SnapFlight, p string, byID map[uuid.UUID]atleta) bool {
+	if f.Prueba != "" {
+		return f.Prueba == p
+	}
+	for _, a := range f.Atletas {
+		if byID[a.ID].Prueba == p {
+			return true
+		}
+	}
+	return false
+}
+
+// partir splits a published snapshot into the flights of p and the rest (agenda and days stay in both).
+func partir(sn Snapshot, p string, byID map[uuid.UUID]atleta) (suya, resto Snapshot, tiene bool) {
+	suya, resto = sn, sn
+	suya.Dias, resto.Dias = make([]SnapDia, len(sn.Dias)), make([]SnapDia, len(sn.Dias))
+	for i, d := range sn.Dias {
+		x, y := d, d
+		x.Flights, y.Flights = []SnapFlight{}, []SnapFlight{}
+		for _, f := range d.Flights {
+			if esDePrueba(f, p, byID) {
+				x.Flights, tiene = append(x.Flights, f), true
+			} else {
+				y.Flights = append(y.Flights, f)
+			}
+		}
+		suya.Dias[i], resto.Dias[i] = x, y
+	}
+	return
+}
+
+// fusionar adds to sn (the draft of one competition) the published flights of the others, without the athletes
+// sn already places: the web keeps showing the other competition as it was published.
+func fusionar(sn Snapshot, resto Snapshot) Snapshot {
+	en := posiciones(&sn)
+	idx := map[string]int{}
+	for i, d := range sn.Dias {
+		idx[d.Fecha] = i
+	}
+	for _, d := range resto.Dias {
+		for _, f := range d.Flights {
+			as := []SnapAtleta{}
+			for _, a := range f.Atletas {
+				if _, ok := en[a.ID]; !ok {
+					a.Lote = len(as) + 1
+					as = append(as, a)
+				}
+			}
+			if len(as) == 0 {
+				continue
+			}
+			f.Atletas = as
+			i, ok := idx[d.Fecha]
+			if !ok {
+				i = len(sn.Dias)
+				idx[d.Fecha] = i
+				sn.Dias = append(sn.Dias, SnapDia{Fecha: d.Fecha, Puertas: d.Puertas, Notas: d.Notas, Agenda: []AgendaItem{}, Flights: []SnapFlight{}})
+			}
+			sn.Dias[i].Flights = append(sn.Dias[i].Flights, f)
+		}
+	}
+	for i := range sn.Dias {
+		sort.SliceStable(sn.Dias[i].Flights, func(a, b int) bool { return sn.Dias[i].Flights[a].Inicio.Before(sn.Dias[i].Flights[b].Inicio) })
 	}
 	sort.Slice(sn.Dias, func(i, j int) bool { return sn.Dias[i].Fecha < sn.Dias[j].Fecha })
 	return sn
@@ -153,6 +223,7 @@ type Cambio struct {
 
 // Diff compares the draft with the published version.
 type Diff struct {
+	Prueba      string   `json:"prueba" doc:"Competición que se publica (vacío: todo el evento)"`
 	Desde       int      `json:"desde" doc:"Versión publicada (0 = primera publicación)"`
 	Siguiente   int      `json:"siguiente"`
 	Primera     bool     `json:"primera"`
@@ -338,13 +409,21 @@ type aplicarOut struct {
 
 // Publicado is the result of publishing.
 type Publicado struct {
-	Version    int `json:"version"`
-	Cambios    int `json:"cambios"`
-	Avisos     int `json:"avisos" doc:"Emails a atletas"`
-	Seguidores int `json:"seguidores" doc:"Emails a seguidores"`
+	Version      int    `json:"version"`
+	Prueba       string `json:"prueba"`
+	NumeroPrueba int    `json:"numeroPrueba"`
+	Cambios      int    `json:"cambios"`
+	Avisos       int    `json:"avisos" doc:"Emails a atletas"`
+	Seguidores   int    `json:"seguidores" doc:"Emails a seguidores"`
 }
 
-func (s *Svc) preparar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUID]atleta, *version, Snapshot, Diff, error) {
+// preparar builds the snapshot to publish and its diff. With prueba, only that competition is published: the
+// snapshot is its draft plus the published flights of the other one, and the diff, the conflicts and the version
+// number («v1 · AEP-3») are the ones of that competition.
+func (s *Svc) preparar(ctx context.Context, cid uuid.UUID, prueba string) (Borrador, map[uuid.UUID]atleta, *version, Snapshot, Diff, error) {
+	if prueba != "" && !slices.Contains(ordenPruebas, prueba) {
+		return Borrador{}, nil, nil, Snapshot{}, Diff{}, problem.Unprocessable("COMPETICION_INVALIDA", "Esa competición no existe.")
+	}
 	b, byID, prev, err := s.cargar(ctx, cid)
 	if err != nil {
 		return b, nil, nil, Snapshot{}, Diff{}, err
@@ -353,18 +432,55 @@ func (s *Svc) preparar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.U
 	if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(max(numero), 0) + 1 FROM versiones WHERE competition_id = $1`, cid).Scan(&n); err != nil {
 		return b, nil, nil, Snapshot{}, Diff{}, err
 	}
-	sn := snapshot(b, byID, n)
 	var ps *Snapshot
 	if prev != nil {
 		ps = &prev.Snapshot
 	}
-	d := diff(ps, sn, byID, s.loc(ctx, cid))
-	d.Siguiente, d.Bloqueantes = n, bloqueantes(b.Conflictos)
+	if prueba == "" {
+		sn := snapshot(b, byID, n)
+		d := diff(ps, sn, byID, s.loc(ctx, cid))
+		d.Siguiente, d.Bloqueantes = n, bloqueantes(b.Conflictos)
+		return b, byID, prev, sn, d, nil
+	}
+	bp := b
+	bp.Flights = nil
+	for _, f := range b.Flights {
+		if f.Prueba == prueba {
+			bp.Flights = append(bp.Flights, f)
+		}
+	}
+	bp.Conflictos = nil
+	for _, c := range b.Conflictos {
+		if c.Prueba == prueba {
+			bp.Conflictos = append(bp.Conflictos, c)
+		}
+	}
+	snP := snapshot(bp, byID, n)
+	sn := snP
+	var psP *Snapshot
+	if ps != nil {
+		suya, resto, tiene := partir(*ps, prueba, byID)
+		if tiene {
+			psP = &suya
+		}
+		sn = fusionar(snP, resto)
+	}
+	d := diff(psP, snP, byID, s.loc(ctx, cid))
+	if psP != nil && !mismaAgenda(*ps, sn) {
+		// agenda compared against the whole published snapshot (diff above saw only this competition's part)
+		d.Cambios = slices.DeleteFunc(d.Cambios, func(c Cambio) bool { return c.Tipo == "agenda" })
+		d.Cambios = append(d.Cambios, Cambio{Tipo: "agenda", Titulo: "Agenda e info del día", Despues: "actualizada"})
+	}
+	d.Prueba, d.Bloqueantes = prueba, bloqueantes(bp.Conflictos)
+	if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(max(numero_prueba), 0) FROM versiones WHERE competition_id = $1 AND prueba = $2`, cid, prueba).Scan(&d.Desde); err != nil {
+		return b, nil, nil, Snapshot{}, Diff{}, err
+	}
+	d.Siguiente = d.Desde + 1
 	return b, byID, prev, sn, d, nil
 }
 
-func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm string, avisarAtletas, avisarSeguidores bool) (Publicado, error) {
-	b, _, prev, sn, d, err := s.preparar(ctx, cid)
+func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, avisarAtletas, avisarSeguidores bool) (Publicado, error) {
+	b, _, _, sn, d, err := s.preparar(ctx, cid, prueba)
 	if err != nil {
 		return Publicado{}, err
 	}
@@ -377,7 +493,7 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm string, avisarAtl
 	if d.Atletas == 0 {
 		return Publicado{}, problem.Unprocessable("SIN_FLIGHTS", "No hay flights con atletas que publicar.")
 	}
-	if prev != nil && len(d.Cambios) == 0 {
+	if !d.Primera && len(d.Cambios) == 0 {
 		return Publicado{}, problem.Conflict("SIN_CAMBIOS", "No hay cambios respecto a la versión publicada.")
 	}
 	in := aplicarIn{Version: sn.Numero, Asignaciones: []asignacion{}, Afectados: d.afectados, AvisarAtletas: avisarAtletas, AvisarSeguidores: avisarSeguidores, Primera: d.Primera}
@@ -392,7 +508,7 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm string, avisarAtl
 		}
 	}
 	var res aplicarOut
-	out := Publicado{Version: sn.Numero, Cambios: len(d.Cambios)}
+	out := Publicado{Version: sn.Numero, Prueba: prueba, NumeroPrueba: d.Siguiente, Cambios: len(d.Cambios)}
 	if d.Primera {
 		out.Cambios = d.Atletas
 	}
@@ -421,8 +537,8 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm string, avisarAtl
 		if _, err := tx.Exec(ctx, `UPDATE versiones SET estado = 'sustituida' WHERE competition_id = $1 AND estado = 'publicada'`, cid); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO versiones (id, competition_id, numero, snapshot, estado, cambios, avisos, seguidores, publicado_por) VALUES ($1,$2,$3,$4,'publicada',$5,$6,$7,$8)`,
-			newID(), cid, sn.Numero, sn, out.Cambios, out.Avisos, out.Seguidores, actor(ctx)); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO versiones (id, competition_id, numero, snapshot, estado, cambios, avisos, seguidores, publicado_por, prueba, numero_prueba) VALUES ($1,$2,$3,$4,'publicada',$5,$6,$7,$8,$9,$10)`,
+			newID(), cid, sn.Numero, sn, out.Cambios, out.Avisos, out.Seguidores, actor(ctx), prueba, d.Siguiente); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE config SET publicado = true, rev_publicada = rev WHERE competition_id = $1`, cid); err != nil {
@@ -450,12 +566,16 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm string, avisarAtl
 
 func (s *Svc) registerPublicar() {
 	api := s.a.API
+	type pruebaQ struct {
+		CID         uuid.UUID `path:"cid"`
+		Competicion string    `query:"competicion" doc:"aep2 o aep3: solo esta competición (vacío: todo el evento)"`
+	}
 	huma.Register(api, huma.Operation{OperationID: "horarios-diff", Method: http.MethodGet, Path: base + "/diff", Summary: "Cambios del borrador respecto a la versión publicada", Tags: tagAdmin, Security: bearer},
-		func(ctx context.Context, in *cidIn) (*struct{ Body Diff }, error) {
+		func(ctx context.Context, in *pruebaQ) (*struct{ Body Diff }, error) {
 			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
 				return nil, err
 			}
-			_, _, _, _, d, err := s.preparar(ctx, in.CID)
+			_, _, _, _, d, err := s.preparar(ctx, in.CID, in.Competicion)
 			if err != nil {
 				return nil, err
 			}
@@ -466,8 +586,9 @@ func (s *Svc) registerPublicar() {
 		CID     uuid.UUID `path:"cid"`
 		IfMatch string    `header:"If-Match"`
 		Body    struct {
-			AvisarAtletas    bool `json:"avisarAtletas,omitempty" doc:"Email «Cambio en tu horario» a los atletas afectados"`
-			AvisarSeguidores bool `json:"avisarSeguidores,omitempty" doc:"Email a quien activó avisos de esos atletas"`
+			AvisarAtletas    bool   `json:"avisarAtletas,omitempty" doc:"Email «Cambio en tu horario» a los atletas afectados"`
+			AvisarSeguidores bool   `json:"avisarSeguidores,omitempty" doc:"Email a quien activó avisos de esos atletas"`
+			Competicion      string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Publicar solo esta competición; la otra sigue como estaba publicada"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "horarios-publicar", Method: http.MethodPost, Path: base + "/publicar", Summary: "Publicar una nueva versión de los horarios y avisar", Tags: tagAdmin, Security: bearer},
@@ -475,7 +596,7 @@ func (s *Svc) registerPublicar() {
 			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
 				return nil, err
 			}
-			p, err := s.publicar(ctx, in.CID, in.IfMatch, in.Body.AvisarAtletas, in.Body.AvisarSeguidores)
+			p, err := s.publicar(ctx, in.CID, in.IfMatch, in.Body.Competicion, in.Body.AvisarAtletas, in.Body.AvisarSeguidores)
 			if err != nil {
 				return nil, err
 			}
@@ -520,17 +641,19 @@ func (s *Svc) registerPublicar() {
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "horarios-versiones", Method: http.MethodGet, Path: base + "/versiones", Summary: "Versiones publicadas", Tags: tagAdmin, Security: bearer},
-		func(ctx context.Context, in *cidIn) (*struct{ Body []VersionInfo }, error) {
+		func(ctx context.Context, in *pruebaQ) (*struct{ Body []VersionInfo }, error) {
 			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT numero, estado, publicado_at, publicado_por, cambios, avisos, seguidores FROM versiones WHERE competition_id = $1 ORDER BY numero DESC LIMIT 50`, in.CID)
+			// With a competition: its versions and the whole-event ones published before (prueba '').
+			rows, err := s.a.DB.Query(ctx, `SELECT numero, prueba, numero_prueba, estado, publicado_at, publicado_por, cambios, avisos, seguidores FROM versiones
+				WHERE competition_id = $1 AND ($2 = '' OR prueba IN ($2, '')) ORDER BY numero DESC LIMIT 50`, in.CID, in.Competicion)
 			if err != nil {
 				return nil, err
 			}
 			list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (VersionInfo, error) {
 				var v VersionInfo
-				err := r.Scan(&v.Numero, &v.Estado, &v.At, &v.Por, &v.Cambios, &v.Avisos, &v.Seguidores)
+				err := r.Scan(&v.Numero, &v.Prueba, &v.NumeroPrueba, &v.Estado, &v.At, &v.Por, &v.Cambios, &v.Avisos, &v.Seguidores)
 				return v, err
 			})
 			if list == nil {
@@ -551,13 +674,14 @@ func (s *Svc) registerPublicar() {
 			}
 			_, err := s.change(ctx, in.CID, in.IfMatch, fmt.Sprintf("restauró la versión v%d en el borrador", in.N), func(tx pgx.Tx) error {
 				var sn Snapshot
-				if err := tx.QueryRow(ctx, `SELECT snapshot FROM versiones WHERE competition_id = $1 AND numero = $2`, in.CID, in.N).Scan(&sn); err != nil {
+				var prueba string
+				if err := tx.QueryRow(ctx, `SELECT snapshot, prueba FROM versiones WHERE competition_id = $1 AND numero = $2`, in.CID, in.N).Scan(&sn, &prueba); err != nil {
 					if db.IsNoRows(err) {
 						return problem.NotFound("Esa versión no existe.")
 					}
 					return err
 				}
-				return restaurar(ctx, tx, in.CID, sn)
+				return restaurar(ctx, tx, in.CID, sn, prueba)
 			})
 			if err != nil {
 				return nil, err
@@ -567,8 +691,35 @@ func (s *Svc) registerPublicar() {
 }
 
 // restaurar replaces the draft flights, athletes and agenda with a published snapshot (same flight ids, so the live
-// state stays linked) and copies its doors time and notes into the day settings.
-func restaurar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, sn Snapshot) error {
+// state stays linked) and copies its doors time and notes into the day settings. A version of one competition
+// (prueba) only brings back the flights of that competition; the rest of the draft stays.
+func restaurar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, sn Snapshot, prueba string) error {
+	if prueba != "" {
+		if _, err := tx.Exec(ctx, `DELETE FROM flights WHERE competition_id = $1 AND prueba = $2`, cid, prueba); err != nil {
+			return err
+		}
+		for _, d := range sn.Dias {
+			for _, f := range d.Flights {
+				if f.Prueba != prueba {
+					continue
+				}
+				ids := make([]uuid.UUID, len(f.Atletas))
+				for i, a := range f.Atletas {
+					ids[i] = a.ID
+				}
+				if _, err := tx.Exec(ctx, `DELETE FROM flights WHERE competition_id = $1 AND id = $2`, cid, f.ID); err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, `DELETE FROM flight_atletas WHERE competition_id = $1 AND atleta_id = ANY($2)`, cid, ids); err != nil {
+					return err
+				}
+				if err := insertarSnap(ctx, tx, cid, d.Fecha, f); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
 	for _, q := range []string{`DELETE FROM flights WHERE competition_id = $1`, `DELETE FROM agenda WHERE competition_id = $1`} {
 		if _, err := tx.Exec(ctx, q, cid); err != nil {
 			return err
@@ -585,14 +736,8 @@ func restaurar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, sn Snapshot) error
 			}
 		}
 		for _, f := range d.Flights {
-			if _, err := tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-				f.ID, cid, d.Fecha, f.Codigo, f.Plataforma, f.Inicio, f.DuracionMin, f.PesajeInicio, f.PesajeFin); err != nil {
+			if err := insertarSnap(ctx, tx, cid, d.Fecha, f); err != nil {
 				return err
-			}
-			for _, a := range f.Atletas {
-				if _, err := tx.Exec(ctx, `INSERT INTO flight_atletas (flight_id, competition_id, atleta_id, orden) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, f.ID, cid, a.ID, a.Lote); err != nil {
-					return err
-				}
 			}
 		}
 		for i, a := range d.Agenda {
@@ -603,6 +748,19 @@ func restaurar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, sn Snapshot) error
 	}
 	_, err = tx.Exec(ctx, `UPDATE config SET dias = $2 WHERE competition_id = $1`, cid, cfg.Dias)
 	return err
+}
+
+func insertarSnap(ctx context.Context, tx pgx.Tx, cid uuid.UUID, fecha string, f SnapFlight) error {
+	if _, err := tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		f.ID, cid, fecha, f.Codigo, f.Plataforma, f.Inicio, f.DuracionMin, f.PesajeInicio, f.PesajeFin, f.Prueba); err != nil {
+		return err
+	}
+	for _, a := range f.Atletas {
+		if _, err := tx.Exec(ctx, `INSERT INTO flight_atletas (flight_id, competition_id, atleta_id, orden) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, f.ID, cid, a.ID, a.Lote); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var diasCortos = [...]string{"dom", "lun", "mar", "mié", "jue", "vie", "sáb"}

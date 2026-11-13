@@ -119,7 +119,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	if err != nil {
 		return err
 	}
-	p, err := s.publicar(ctx, c.ID, "", false, false)
+	p, err := s.publicar(ctx, c.ID, "", "", false, false)
 	if err != nil {
 		return err
 	}
