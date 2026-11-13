@@ -78,7 +78,7 @@ function descargar(blob: Blob, nombre: string): void {
 
           @if (l === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar los contactos"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
           @else if (l) {
-            <section class="hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:block">
+            <section class="hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card lg:block">
               <table class="w-full table-fixed text-left text-body-s">
                 <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-12 px-4 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todos los de esta página" /></th><th boSort class="w-[30%] py-3" [sort]="sortDe('nombre')" (toggle)="ordenar('nombre')">Contacto</th><th class="px-3 py-3">Origen</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">WhatsApp</th><th class="w-[22%] px-3 py-3">Relación</th><th boSort class="py-3" [sort]="sortDe('actividad')" (toggle)="ordenar('actividad')">Última actividad</th></tr></thead>
                 <tbody>
@@ -97,7 +97,7 @@ function descargar(blob: Blob, nombre: string): void {
                 </tbody>
               </table>
             </section>
-            <ul class="flex flex-col gap-2 md:hidden">
+            <ul class="flex flex-col gap-2 lg:hidden">
               @for (c of l.items; track c.id) {
                 <li><button type="button" class="flex w-full items-start gap-3 rounded-lg border border-line-subtle bg-bg-card p-3 text-left" (click)="abrir(c)">
                   <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-deep/40 text-label-s">{{ ini(c.nombre || c.email) }}</span>
@@ -121,7 +121,8 @@ function descargar(blob: Blob, nombre: string): void {
                 <p class="flex gap-1.5 pt-7">@if (recuento(); as r) { <gr-badge tone="info">{{ r.email }} email</gr-badge><gr-badge tone="success">{{ r.whatsapp }} WhatsApp</gr-badge> }</p>
               </div>
               <p class="mt-1 text-body-xs text-text-tertiary">Segmento dinámico: se recalcula al enviar. El consentimiento del canal y las bajas se aplican siempre.</p>
-              <ul class="mt-4 flex flex-col gap-3">
+              <p class="mt-4 hidden grid-cols-[1fr_1fr_1.4fr_44px] gap-2 text-label-s text-text-secondary md:grid" aria-hidden="true"><span>Campo</span><span>Operador</span><span>Valor</span></p>
+              <ul class="mt-2 flex flex-col gap-3">
                 @for (c of e.condiciones; track $index) {
                   <li class="grid grid-cols-[1fr_1fr] gap-2 md:grid-cols-[1fr_1fr_1.4fr_44px]">
                     <gr-select aria-label="Campo" [(ngModel)]="c.campo" (ngModelChange)="c.valor = ''; c.operador = c.campo === 'creado' || c.campo === 'actividad' ? 'desde' : 'es'; contar()">@for (k of campos; track k.v) { <option [value]="k.v">{{ k.label }}</option> }</gr-select>
@@ -137,6 +138,10 @@ function descargar(blob: Blob, nombre: string): void {
                     <button type="button" class="flex size-11 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Quitar condición" (click)="e.condiciones.splice($index, 1); contar()"><gr-icon name="trash" [size]="16" /></button>
                   </li>
                 }
+                <li class="grid grid-cols-[1fr_1fr] gap-2 opacity-70 md:grid-cols-[1fr_1fr_1.4fr_44px]" title="El consentimiento del canal se aplica siempre al enviar">
+                  <input grInput aria-label="Campo" value="Consentimiento del canal" disabled /><input grInput aria-label="Operador" value="está" disabled /><input grInput aria-label="Valor" value="Aceptado (siempre)" disabled />
+                  <span class="flex size-11 items-center justify-center text-text-tertiary" aria-label="No se puede quitar"><gr-icon name="lock" [size]="16" /></span>
+                </li>
               </ul>
               <div class="mt-4 flex flex-wrap gap-2">
                 <button grButton size="s" icon="plus" (click)="e.condiciones.push({ campo: 'origen', operador: 'es', valor: '' })">Añadir condición</button>
@@ -358,6 +363,7 @@ export class ContactosPage {
       this.segmentos.set(await this.api.guardarSegmento(this.cid(), { ...e, condiciones: e.condiciones.filter((c) => c.valor) }));
       this.seg.set(null);
       this.toasts.success('Segmento guardado');
+      void this.cargar();
     } catch (err) {
       this.toasts.error('No se pudo guardar', errText(err));
     } finally {
@@ -370,6 +376,7 @@ export class ContactosPage {
       this.segmentos.set(await this.api.borrarSegmento(this.cid(), s.id));
       if (this.seg()?.id === s.id) this.seg.set(null);
       this.toasts.success('Segmento eliminado');
+      void this.cargar();
     } catch (e) {
       this.toasts.error('No se pudo eliminar', errText(e));
     }
@@ -395,6 +402,7 @@ export class ContactosPage {
       this.baja = { canal: 'email', destino: '', motivo: '' };
       this.toasts.success('Baja añadida');
       await this.cargarSup();
+      void this.cargar();
     } catch (e) {
       this.toasts.error('No se pudo añadir', errText(e));
     } finally {
@@ -407,6 +415,7 @@ export class ContactosPage {
     try {
       await this.api.delSupresion(this.cid(), x.id);
       await this.cargarSup();
+      void this.cargar();
     } catch (e) {
       this.toasts.error('No se pudo quitar', errText(e));
     }

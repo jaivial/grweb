@@ -19,7 +19,7 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
         <ng-container actions>
           <a grButton [routerLink]="['/', comps.current()?.slug, 'contactos', 'bajas']">Bajas y supresiones</a>
           <a grButton icon="smartphone" [routerLink]="['/', comps.current()?.slug, 'campanas', 'whatsapp']">WhatsApp</a>
-          <button grButton variant="primary" icon="plus" (click)="nueva.set(true)">Nueva campaña</button>
+          <button grButton variant="primary" icon="plus" class="hidden md:inline-flex" (click)="nueva.set(true)">Nueva campaña</button>
         </ng-container>
       </bo-page-header>
       <div class="flex flex-wrap items-end gap-3">
@@ -69,6 +69,7 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
         </ul>
       }
     </div>
+    <div class="fixed inset-x-0 bottom-16 z-30 border-t border-line-subtle bg-bg-deep/95 px-4 py-3 md:hidden"><button grButton variant="primary" icon="plus" class="w-full" (click)="nueva.set(true)">Nueva campaña</button></div>
     @if (nueva()) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="nueva.set(false)" (keydown.escape)="nueva.set(false)">
         <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Nueva campaña" (click)="$event.stopPropagation()" (ngSubmit)="crear()">
