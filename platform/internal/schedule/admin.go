@@ -125,15 +125,16 @@ func (s *Svc) registerAdmin() {
 					}
 				}
 				var borrar []uuid.UUID
+				var quedan []flightRow
 				if prueba != "" {
 					cfg.Dias = diasPrueba(cfg.Dias, prueba)
-					if borrar, err = flightsDePrueba(ctx, tx, in.CID, prueba, ats, cfg.Dias); err != nil {
+					if borrar, quedan, err = flightsDePrueba(ctx, tx, in.CID, prueba, ats); err != nil {
 						return err
 					}
 				}
-				plan := generar(cfg, loc, ats)
+				plan := generar(cfg, loc, ats, quedan)
 				n = len(plan)
-				if err := s.reemplazar(ctx, tx, in.CID, cfg, plan, borrar); err != nil {
+				if err := s.reemplazar(ctx, tx, in.CID, cfg, plan, borrar, prueba); err != nil {
 					return err
 				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "horarios.generados", map[string]any{"flights": len(plan), "atletas": len(ats)},
@@ -153,6 +154,7 @@ func (s *Svc) registerAdmin() {
 		DuracionMin  int    `json:"duracionMin,omitempty" minimum:"10" maximum:"600"`
 		PesajeInicio string `json:"pesajeInicio,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$" doc:"Hora local (mismo día)"`
 		PesajeFin    string `json:"pesajeFin,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$"`
+		Competicion  string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Competición del flight nuevo (solo al crear)"`
 	}
 	type crearIn struct {
 		CID     uuid.UUID `path:"cid"`
@@ -205,8 +207,8 @@ func (s *Svc) registerAdmin() {
 					b.DuracionMin = cfg.MaxPorFlight * cfg.MinPorAtleta
 				}
 				pi, pf := pesaje(cfg, ini)
-				_, err = tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin) VALUES ($1,$2,$3,'?',$4,$5,$6,$7,$8)`,
-					newID(), in.CID, b.Dia, b.Plataforma, ini, b.DuracionMin, pi, pf)
+				_, err = tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,'?',$4,$5,$6,$7,$8,$9)`,
+					newID(), in.CID, b.Dia, b.Plataforma, ini, b.DuracionMin, pi, pf, b.Competicion)
 				return err
 			})
 			if err != nil {
@@ -331,7 +333,8 @@ func (s *Svc) registerAdmin() {
 			accion := ""
 			_, err = s.change(ctx, in.CID, in.IfMatch, "", func(tx pgx.Tx) error {
 				var codigo string
-				if err := tx.QueryRow(ctx, `SELECT codigo FROM flights WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).Scan(&codigo); err != nil {
+				var prueba string
+				if err := tx.QueryRow(ctx, `SELECT codigo, prueba FROM flights WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).Scan(&codigo, &prueba); err != nil {
 					if db.IsNoRows(err) {
 						return problem.NotFound("Ese flight ya no existe.")
 					}
@@ -361,18 +364,19 @@ func (s *Svc) registerAdmin() {
 				}
 				seen := map[uuid.UUID]bool{}
 				var movidos []string
-				var primero *atleta
+				// A flight only takes athletes of one competition (AEP-2 / AEP-3 / sin competición): the flight's own
+				// one, or the first athlete's when the flight has none yet.
+				fija := prueba != ""
 				for _, id := range in.Body.Atletas {
 					if seen[id] {
 						return problem.Unprocessable("ATLETA_REPETIDO", "Un atleta aparece dos veces en el flight.")
 					}
 					seen[id] = true
-					// A flight only takes athletes of one competition (AEP-2 / AEP-3).
-					if a, ok := byID[id]; ok && a.Prueba != "" {
-						if primero == nil {
-							primero = &a
-						} else if primero.Prueba != a.Prueba {
-							return problem.Unprocessable("PRUEBA_DISTINTA", fmt.Sprintf("%s compite en %s y el flight %s es de %s. Cámbiale la competición en su ficha.", a.Nombre, nombrePrueba(a.Prueba), codigo, nombrePrueba(primero.Prueba)))
+					if a, ok := byID[id]; ok {
+						if !fija {
+							prueba, fija = a.Prueba, true
+						} else if a.Prueba != prueba {
+							return problem.Unprocessable("PRUEBA_DISTINTA", fmt.Sprintf("%s %s y el flight %s es de %s. Cámbiale la competición en su ficha.", a.Nombre, compiteEn(a.Prueba), codigo, nombreOSin(prueba)))
 						}
 					}
 					p, aqui := donde[id]
@@ -405,6 +409,9 @@ func (s *Svc) registerAdmin() {
 					accion = "reordenó el flight " + codigo
 				}
 				if _, err := tx.Exec(ctx, `DELETE FROM flight_atletas WHERE competition_id = $1 AND (flight_id = $2 OR atleta_id = ANY($3))`, in.CID, in.ID, in.Body.Atletas); err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, `UPDATE flights SET prueba = $3 WHERE competition_id = $1 AND id = $2 AND prueba = ''`, in.CID, in.ID, prueba); err != nil {
 					return err
 				}
 				for i, id := range in.Body.Atletas {
@@ -545,7 +552,7 @@ func (s *Svc) registerInternal() {
 }
 
 // reemplazar swaps the draft for a generated plan (agenda and settings stay): every flight, or only the ones in borrar.
-func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Config, plan []planFlight, borrar []uuid.UUID) error {
+func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Config, plan []planFlight, borrar []uuid.UUID, prueba string) error {
 	q, args := `DELETE FROM flights WHERE competition_id = $1`, []any{cid}
 	if borrar != nil {
 		q, args = q+` AND id = ANY($2)`, append(args, borrar)
@@ -556,8 +563,8 @@ func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Conf
 	for _, p := range plan {
 		id := newID()
 		pi, pf := pesaje(cfg, p.Inicio)
-		if _, err := tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin) VALUES ($1,$2,$3,'?',$4,$5,$6,$7,$8)`,
-			id, cid, p.Dia, p.Plataforma, p.Inicio, p.Duracion, pi, pf); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,'?',$4,$5,$6,$7,$8,$9)`,
+			id, cid, p.Dia, p.Plataforma, p.Inicio, p.Duracion, pi, pf, prueba); err != nil {
 			return err
 		}
 		for i, a := range p.Atletas {

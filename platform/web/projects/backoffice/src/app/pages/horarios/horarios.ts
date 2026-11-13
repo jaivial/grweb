@@ -10,6 +10,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
+import { SolicitudesApi } from '../atletas/solicitudes-api';
 import { HorariosApi, cat, diaCorto, diaLargo, hora, kg, type AgendaItem, type Borrador, type Config, type Diff, type Flight, type FlightAtleta, type VersionInfo } from './api';
 
 interface Lista { id: string | null; atletas: FlightAtleta[] }
@@ -17,16 +18,11 @@ interface Movimiento { nombre: string; de: string; a: string; texto: string; des
 type Vista = 'dia' | 'pesajes' | 'conflictos';
 
 const PRUEBAS = ['aep2', 'aep3'];
-const nombrePrueba = (p: string) => p.toUpperCase().replace('AEP', 'AEP-');
+const nombrePrueba = (p: string) => (p ? p.toUpperCase().replace('AEP', 'AEP-') : 'Sin competición');
 /** One day per competition when the event has two days (AEP-2 the first, AEP-3 the second), as in the alta. */
 const diaDePrueba = (dias: { fecha: string }[], p: string) => (dias.length >= PRUEBAS.length ? (dias[PRUEBAS.indexOf(p)]?.fecha ?? '') : '');
-/** Competition of a flight: the one of most of its athletes; an empty flight belongs to the competition of its day. */
-function pruebaDeFlight(f: Flight, dias: { fecha: string }[]): string {
-  const n = new Map<string, number>();
-  for (const a of f.atletas) if (a.prueba) n.set(a.prueba, (n.get(a.prueba) ?? 0) + 1);
-  const top = [...n.entries()].sort((x, y) => y[1] - x[1])[0];
-  return top ? top[0] : (PRUEBAS.find((p) => diaDePrueba(dias, p) === f.dia) ?? '');
-}
+/** «Femenino −47 / −52 / −57 kg» → «Femenino −47/−52/−57» (planner card, Figma 96:20519). */
+const tituloCorto = (t: string) => t.replace(/ kg$/, '').replaceAll(' / ', '/');
 
 const diaDePruebaCorto = (f: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(f + 'T12:00:00Z')).replace(/\./g, '').replace(',', '');
 
@@ -56,7 +52,7 @@ const ICONOS: { v: string; label: string }[] = [
           <button grButton variant="ghost" icon="history" (click)="abrirHistorial()">Historial</button>
           <button grButton icon="eye" (click)="preview.set(true)" [disabled]="!b.flights.length">Vista previa</button>
           @if (canEdit()) {
-            <button grButton variant="primary" icon="send" (click)="abrirPublicar()" [disabled]="!b.flights.length || (b.publicado && !b.cambiosSinPublicar)">Publicar v{{ siguiente() }}</button>
+            <button grButton variant="primary" icon="send" (click)="abrirPublicar()" [disabled]="!b.flights.length || (b.publicado && !b.cambiosSinPublicar)">Publicar v{{ siguiente() }}{{ sufijo() }}</button>
           }
           </ng-container>
         }
@@ -64,8 +60,8 @@ const ICONOS: { v: string; label: string }[] = [
 
       @if (pruebas().length) {
         <!-- Competition switcher (Figma 219:167365): each competition has its own day, flights and generation. -->
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span class="text-body-s text-text-tertiary" id="comp-l">Competición</span>
+        <div class="-mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span class="text-body-xs text-text-tertiary" id="comp-l">Competición</span>
           <div class="flex max-w-full gap-1 overflow-x-auto rounded-md border border-line-subtle bg-bg-card p-1 [scrollbar-width:none]" role="radiogroup" aria-labelledby="comp-l">
             @for (p of pruebas(); track p.v) {
               <button type="button" role="radio" [attr.aria-checked]="prueba() === p.v" (click)="elegirPrueba(p.v)"
@@ -73,7 +69,7 @@ const ICONOS: { v: string; label: string }[] = [
                 [class]="prueba() === p.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary hover:text-text-primary'">{{ etiquetaPrueba(p) }}</button>
             }
           </div>
-          <a class="inline-flex h-11 items-center px-2 text-label-s text-text-primary hover:underline" routerLink="../atletas/inscripcion">Gestionar competiciones</a>
+          <button type="button" class="inline-flex h-11 items-center px-2 text-label-s text-text-secondary hover:text-text-primary hover:underline" (click)="abrirCompeticiones()">Gestionar competiciones</button>
           @if (sinCompeticion()) { <span class="text-body-xs text-text-tertiary">{{ sinCompeticion() }} atleta{{ sinCompeticion() === 1 ? '' : 's' }} sin competición · no entran en ningún planificador</span> }
         </div>
       }
@@ -81,44 +77,24 @@ const ICONOS: { v: string; label: string }[] = [
       @if (conflictoEdicion()) {
         <gr-alert tone="warning" title="Otra persona ha cambiado los horarios">Hemos recargado el planificador con sus cambios; repite el último movimiento si hace falta.</gr-alert>
       }
+      @if (otraComp(); as o) {
+        <gr-alert tone="warning" title="Atleta de otra competición">{{ o.texto }}
+          @if (o.atleta) { <a alertAction class="mt-1 inline-flex items-center gap-1 text-label-s text-warning hover:underline" [routerLink]="['../atletas', o.atleta]">Abrir ficha <gr-icon name="arrow-right" [size]="14" /></a> }
+        </gr-alert>
+      }
 
       @if (b === undefined) {
-        <gr-skeleton class="h-12 rounded-md" /><div class="grid gap-4 md:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-80 rounded-lg" /> }</div>
+        <section class="rounded-lg border border-line-subtle bg-bg-card p-6" aria-busy="true">
+          <h2 class="text-ui-h4">Cargando el horario{{ pruebaSel() ? ' de ' + pruebaSel()!.label : '' }}…</h2>
+          <div class="mt-4 grid gap-4 md:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-64 rounded-lg" /> }</div>
+        </section>
       } @else if (b === null) {
-        <gr-empty icon="wifi-off" title="No hemos podido cargar los horarios" text="El servicio no responde. Inténtalo en unos segundos."><button grButton (click)="cargar()">Reintentar</button></gr-empty>
-      } @else if (!b.flights.length) {
-        <!-- Empty: import athletes first, or generate -->
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <section class="flex flex-col items-center justify-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-14 text-center">
-            <span class="flex size-12 items-center justify-center rounded-md border border-accent/40 bg-accent-deep/30 text-accent-text"><gr-icon [name]="b.atletas ? 'zap' : 'user-plus'" [size]="22" /></span>
-            @if (b.atletas) {
-              @if (pruebaSel(); as p) {
-                <h2 class="text-ui-h4">Aún no hay flights en {{ p.label }}</h2>
-                <p class="max-w-md text-body-s text-text-tertiary">{{ b.atletas }} atletas de {{ p.label }} esperando flight. Se generan solo con los atletas que eligieron {{ p.label }} y con las reglas y días de esta competición.</p>
-              } @else {
-                <h2 class="text-ui-h4">Genera los flights</h2>
-                <p class="max-w-md text-body-s text-text-tertiary">{{ b.atletas }} atletas confirmados. Los repartimos en flights de {{ b.config.maxPorFlight }} por sexo, categoría y total previsto, con su ventana de pesaje.</p>
-              }
-              <div class="mt-2 flex flex-wrap justify-center gap-2">
-                @if (canEdit()) { <button grButton variant="primary" icon="zap" (click)="generar()">Generar automáticamente</button><button grButton variant="ghost" (click)="nuevoFlight()">Crear flight vacío</button> }
-              </div>
-            } @else {
-              <h2 class="text-ui-h4">Primero importa a los atletas</h2>
-              <p class="max-w-md text-body-s text-text-tertiary">Los flights se generan a partir del acta de la AEP (categoría, sexo y total previsto).</p>
-              <div class="mt-2 flex flex-wrap justify-center gap-2">
-                <a grButton variant="primary" routerLink="../atletas/importar">Importar acta AEP</a>
-                @if (canEdit()) { <button grButton variant="ghost" (click)="nuevoFlight()">Crear flight vacío</button> }
-              </div>
-            }
-          </section>
-          <aside class="hidden rounded-[28px] border-4 border-line-strong bg-bg-base p-3 lg:block" aria-hidden="true">
-            <div class="mx-auto mb-3 h-1.5 w-16 rounded-pill bg-line-strong"></div>
-            <p class="px-1 text-mono-xs text-accent-text">HORARIOS · EJEMPLO</p>
-            @for (f of ejemplo; track f.c) {
-              <div class="mt-2 rounded-md border border-line-subtle bg-bg-card p-3"><p class="flex justify-between text-label-s"><span>Flight {{ f.c }}</span><span class="font-mono text-accent-text">{{ f.h }}</span></p><p class="text-body-xs text-text-tertiary">{{ f.t }}</p></div>
-            }
-          </aside>
-        </div>
+        <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
+          <h2 class="text-ui-h4">Error al cargar</h2>
+          <gr-alert tone="danger" class="mt-4" [title]="'No se pudo cargar el horario' + (pruebaSel() ? ' de ' + pruebaSel()!.label : '')">Comprueba la conexión. Tus cambios ya guardados no se pierden.
+            <button alertAction type="button" class="mt-1 inline-flex items-center gap-1 text-label-s text-accent-text hover:underline" (click)="cargar()">Reintentar <gr-icon name="arrow-right" [size]="14" /></button>
+          </gr-alert>
+        </section>
       } @else {
         <!-- Day / weigh-in / conflicts tabs -->
         <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Días">
@@ -142,8 +118,8 @@ const ICONOS: { v: string; label: string }[] = [
         @switch (vista()) {
           @case ('dia') {
             <!-- Toolbar -->
-            <div class="-mx-4 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 [&>*]:shrink-0">
-              @if (canEdit()) { <button grButton icon="zap" (click)="generar()">Generar automáticamente</button> }
+            <div class="-mx-4 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 xl:flex-nowrap [&>*]:shrink-0">
+              @if (canEdit() && prueba()) { <button grButton icon="zap" (click)="generar()">Generar automáticamente</button> }
               @if (canEdit()) { <button grButton variant="ghost" icon="plus" (click)="nuevoFlight()">Flight</button> }
               <gr-select tipo="filtro" etiqueta="Máximo" [resaltar]="false" [ngModel]="b.config.maxPorFlight" (ngModelChange)="ajustar({ maxPorFlight: +$event })" [disabled]="!canEdit()" aria-label="Máximo por flight">
                 @for (n of maximos; track n) { <option [value]="n">{{ n }} por flight</option> }
@@ -154,8 +130,8 @@ const ICONOS: { v: string; label: string }[] = [
               <gr-select tipo="filtro" etiqueta="Orden" [resaltar]="false" [ngModel]="b.config.orden" (ngModelChange)="ajustar({ orden: $event })" [disabled]="!canEdit()" aria-label="Orden">
                 <option value="total">total previsto</option><option value="categoria">categoría y apellidos</option>
               </gr-select>
-              <button type="button" class="inline-flex h-10 items-center gap-1.5 rounded-pill border border-line-subtle px-3 text-label-s text-text-tertiary hover:text-text-primary" (click)="abrirDia()">
-                <gr-icon name="settings" [size]="14" />{{ diaCfg()?.pausaInicio ? 'Pausa comida ' + diaCfg()!.pausaInicio + '–' + diaCfg()!.pausaFin : 'Ajustes del día' }}
+              <button type="button" class="ml-auto inline-flex h-10 items-center px-1 text-body-xs text-text-tertiary hover:text-text-primary hover:underline" (click)="abrirDia()">
+                {{ diaCfg()?.pausaInicio ? 'Pausa comida ' + diaCfg()!.pausaInicio + '–' + diaCfg()!.pausaFin : 'Ajustes del día' }}
               </button>
             </div>
 
@@ -181,7 +157,7 @@ const ICONOS: { v: string; label: string }[] = [
                       <header class="flex items-start gap-2">
                         <div class="min-w-0 flex-1">
                           <p class="flex items-baseline justify-between gap-2"><span class="text-label-m">Flight {{ f.codigo }}</span><span class="font-mono text-label-s text-accent-text">{{ hora(f.inicio) }}</span></p>
-                          <p class="text-body-xs text-text-tertiary">{{ f.titulo }} · <span [class.text-accent-text]="activos(f) > b.config.maxPorFlight">{{ activos(f) }}/{{ b.config.maxPorFlight }}</span></p>
+                          <p class="text-body-xs text-text-tertiary">{{ tituloCorto(f.titulo) }} · <span [class.text-accent-text]="activos(f) > b.config.maxPorFlight">{{ activos(f) }}/{{ b.config.maxPorFlight }}</span></p>
                           <p class="text-body-xs text-text-tertiary">Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}{{ b.config.plataformas > 1 ? ' · Plat. ' + f.plataforma : '' }}</p>
                         </div>
                         <button grIconButton icon="pencil" [label]="'Editar flight ' + f.codigo" (click)="abrirFlight(f)"></button>
@@ -199,7 +175,7 @@ const ICONOS: { v: string; label: string }[] = [
                             <span cdkDragHandle class="cursor-grab text-text-muted"><gr-icon name="grip" [size]="16" /></span>
                             <span class="min-w-0 flex-1">
                               <span class="block truncate text-label-s" [class.line-through]="a.baja">{{ a.nombre }}</span>
-                              <span class="block text-body-xs text-text-tertiary">{{ a.baja ? 'Ya no está confirmado' : cat(a.categoria) + (a.totalPrevisto ? ' · tot. prev. ' + kg(a.totalPrevisto) : '') }}</span>
+                              <span class="block text-body-xs text-text-tertiary">{{ a.baja ? 'Ya no está confirmado' : cat(a.categoria) + ' · tot. prev. ' + kg(a.totalPrevisto) }}</span>
                             </span>
                             @if (canEdit() && !a.baja) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary md:absolute md:top-1/2 md:right-1 md:size-8 md:-translate-y-1/2 md:bg-bg-card md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100" [attr.aria-label]="'Mover a ' + a.nombre" [title]="'Mover a ' + a.nombre" (click)="abrirMover(a, f)"><gr-icon name="arrow-right" [size]="16" /></button> }
                           </li>
@@ -207,7 +183,33 @@ const ICONOS: { v: string; label: string }[] = [
                       </ul>
                     </section>
                   } @empty {
-                    <p class="rounded-lg border border-line-subtle bg-bg-card px-6 py-10 text-body-s text-text-tertiary">No hay flights este día.</p>
+                    @if (b.flights.length) {
+                      <p class="rounded-lg border border-line-subtle bg-bg-card px-6 py-10 text-body-s text-text-tertiary">No hay flights este día.</p>
+                    } @else {
+                      <!-- Empty competition (Figma 219:167365): tabs and toolbar stay; generate or create a flight -->
+                      <section class="min-w-[280px] flex-1 rounded-lg border border-line-subtle bg-bg-card p-6">
+                        @if (b.atletas) {
+                          <h2 class="text-ui-h4">Aún no hay flights{{ pruebaSel() ? ' en ' + pruebaSel()!.label : '' }}</h2>
+                          <p class="mt-1 max-w-xl text-body-xs text-text-tertiary">
+                            @if (pruebaSel()?.v) { {{ b.atletas }} atleta{{ b.atletas === 1 ? '' : 's' }} de {{ pruebaSel()!.label }} esperando flight. Se generan solo con los atletas que eligieron {{ pruebaSel()!.label }} y con las reglas y días de esta competición. }
+                            @else { {{ b.atletas }} atleta{{ b.atletas === 1 ? '' : 's' }} confirmado{{ b.atletas === 1 ? '' : 's' }}. Los repartimos en flights de {{ b.config.maxPorFlight }} por sexo, categoría y total previsto. }
+                          </p>
+                          @if (canEdit()) {
+                            <div class="mt-4 flex flex-wrap gap-2">
+                              @if (prueba()) { <button grButton variant="primary" (click)="generar()">Generar automáticamente</button> }
+                              <button grButton (click)="nuevoFlight()">Crear flight vacío</button>
+                            </div>
+                          }
+                        } @else {
+                          <h2 class="text-ui-h4">Primero importa a los atletas</h2>
+                          <p class="mt-1 max-w-xl text-body-xs text-text-tertiary">Los flights se generan a partir del acta de la AEP (categoría, sexo y total previsto).</p>
+                          <div class="mt-4 flex flex-wrap gap-2">
+                            <a grButton variant="primary" routerLink="../atletas/importar">Importar acta AEP</a>
+                            @if (canEdit()) { <button grButton (click)="nuevoFlight()">Crear flight vacío</button> }
+                          </div>
+                        }
+                      </section>
+                    }
                   }
                 </div>
 
@@ -236,14 +238,14 @@ const ICONOS: { v: string; label: string }[] = [
                   </ul>
                 </section>
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-4">
-                  <h2 class="text-ui-h5">Versiones</h2>
+                  <h2 class="text-ui-h5">Versiones{{ sufijo() }}</h2>
                   <ul class="mt-3 flex flex-col">
                     @if (b.cambiosSinPublicar) {
-                      <li class="flex items-center justify-between gap-2 border-b border-line-subtle py-2 text-body-s"><span class="text-label-s">v{{ siguiente() }} · borrador</span><span class="text-body-xs text-text-tertiary">sin publicar</span></li>
+                      <li class="flex items-center justify-between gap-2 border-b border-line-subtle py-2 text-body-s"><span class="text-label-s">v{{ siguiente() }}{{ sufijo() }} · borrador</span><span class="text-body-xs text-text-tertiary">sin publicar</span></li>
                     }
                     @for (v of versiones().slice(0, 4); track v.numero) {
                       <li class="flex items-center justify-between gap-2 border-b border-line-subtle py-2 last:border-0">
-                        <span class="text-label-s" [class.text-text-tertiary]="v.estado !== 'publicada'">v{{ v.numero }} · {{ v.estado }}</span>
+                        <span class="text-label-s" [class.text-text-tertiary]="v.estado !== 'publicada'">{{ verLabel(v) }} · {{ v.estado }}</span>
                         <span class="text-right text-body-xs text-text-tertiary">{{ v.at | date: 'dd/MM HH:mm' }}{{ v.avisos + v.seguidores ? ' · ' + (v.avisos + v.seguidores) + ' avisos' : '' }}</span>
                       </li>
                     } @empty { <li class="text-body-s text-text-tertiary">Todavía no se ha publicado.</li> }
@@ -305,13 +307,14 @@ const ICONOS: { v: string; label: string }[] = [
     @if (pub(); as d) {
       <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="pub.set(null)">
         <div class="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-xl border border-line-strong bg-bg-raised shadow-card sm:rounded-lg" role="dialog" aria-modal="true" aria-label="Publicar horarios" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
-          <header class="flex items-center gap-3 border-b border-line-subtle px-6 py-4"><h2 class="flex-1 text-ui-h5">Publicar horarios v{{ d.siguiente }}</h2><button grIconButton icon="x" label="Cerrar" (click)="pub.set(null)"></button></header>
+          <header class="flex items-center gap-3 border-b border-line-subtle px-6 py-4"><h2 class="flex-1 text-ui-h5">Publicar v{{ d.siguiente }}{{ sufijo() }}</h2><button grIconButton icon="x" label="Cerrar" (click)="pub.set(null)"></button></header>
           <div class="flex-1 overflow-y-auto px-6 py-5">
+            @if (d.prueba) { <p class="mb-4 text-body-xs text-text-tertiary">Solo se publica {{ pruebaSel()?.label }}: la otra competición sigue como está publicada y nadie de ella recibe avisos.</p> }
             @if (d.bloqueantes) { <gr-alert tone="danger" class="mb-4" [title]="'Hay ' + d.bloqueantes + ' conflictos que bloquean la publicación'">Resuélvelos en el planificador (en rojo) y vuelve a intentarlo.</gr-alert> }
             @if (d.primera) {
               <p class="text-body-s text-text-secondary">Primera publicación: <strong class="text-text-primary">{{ d.atletas }} atletas</strong> recibirán su flight, plataforma y hora de pesaje en su ficha y en su área.</p>
             } @else {
-              <p class="text-body-s text-text-secondary">{{ d.cambios.length }} {{ d.cambios.length === 1 ? 'cambio' : 'cambios' }} respecto a la versión publicada (v{{ d.desde }}):</p>
+              <p class="text-body-s text-text-secondary">{{ d.cambios.length }} {{ d.cambios.length === 1 ? 'cambio' : 'cambios' }} respecto a la versión publicada (v{{ d.desde }}{{ sufijo() }}):</p>
               <div class="mt-3 overflow-x-auto rounded-md border border-line-subtle">
                 <table class="w-full min-w-[480px] text-left text-body-s">
                   <thead class="text-mono-xs text-text-tertiary"><tr class="border-b border-line-subtle"><th class="px-3 py-2">Atleta</th><th class="px-3 py-2">Antes</th><th class="px-3 py-2">Después</th><th class="px-3 py-2">Aviso</th></tr></thead>
@@ -431,10 +434,12 @@ const ICONOS: { v: string; label: string }[] = [
       <ul class="flex flex-col gap-2">
         @for (f of data()?.flights ?? []; track f.id) {
           @if (f.id !== mSel()?.desde?.id) {
+            @if (f.prueba === (mSel()?.a?.prueba ?? '')) {
             <li><button type="button" class="flex w-full items-center gap-3 rounded-md border border-line-subtle bg-bg-raised px-4 py-3 text-left hover:border-line-strong" (click)="mover(f)">
               <span class="min-w-0 flex-1"><span class="block text-label-m">Flight {{ f.codigo }} · {{ hora(f.inicio) }}</span><span class="block text-body-xs text-text-tertiary first-letter:uppercase">{{ diaCorto(f.dia) }} · {{ f.titulo }} · {{ activos(f) }}/{{ data()?.config?.maxPorFlight }}</span></span>
               <gr-icon name="arrow-right" [size]="16" />
             </button></li>
+            }
           }
         }
         @if (mSel()?.desde) { <li><button type="button" class="w-full rounded-md border border-dashed border-line-strong px-4 py-3 text-left text-label-s text-text-secondary" (click)="mover(null)">Quitar del flight (sin flight)</button></li> }
@@ -442,11 +447,34 @@ const ICONOS: { v: string; label: string }[] = [
     </bo-drawer>
 
     <!-- History -->
+    <!-- Competitions of the event (Figma 219:167365 «Gestionar competiciones»): code, day and own places -->
+    <bo-drawer [(open)]="compOpen" title="Gestionar competiciones">
+      <div class="flex flex-col gap-5">
+        @for (p of pruebas(); track p.v) {
+          @if (p.v) {
+            <section class="grid grid-cols-2 gap-3">
+              <gr-field label="Código" [for]="'c-' + p.v"><input grInput [id]="'c-' + p.v" [value]="p.label" disabled /></gr-field>
+              <gr-field label="Días" [for]="'d-' + p.v"><input grInput [id]="'d-' + p.v" [value]="p.dia ? diaLargo(p.dia) : 'Todos los días del evento'" disabled /></gr-field>
+              <gr-field label="Plazas" [for]="'p-' + p.v"><input grInput [id]="'p-' + p.v" type="number" min="0" [(ngModel)]="cuposEdit[p.v]" [disabled]="!canEdit()" /></gr-field>
+              <gr-field label="Cierre" [for]="'x-' + p.v"><a grButton variant="ghost" [id]="'x-' + p.v" routerLink="../atletas/inscripcion">Elección en Inscripción</a></gr-field>
+            </section>
+          }
+        }
+        <p class="text-body-xs text-text-tertiary">Los días salen de «Ajustes del día»: con dos días, AEP-2 compite el primero y AEP-3 el segundo.</p>
+      </div>
+      @if (canEdit()) {
+        <ng-container drawerActions>
+          <button grButton variant="ghost" (click)="compOpen.set(false)">Cancelar</button>
+          <button grButton variant="primary" [loading]="guardando()" (click)="guardarCompeticiones()">Guardar</button>
+        </ng-container>
+      }
+    </bo-drawer>
+
     <bo-drawer [(open)]="historialOpen" title="Historial de versiones">
       <ul class="flex flex-col gap-2">
         @for (v of versiones(); track v.numero) {
           <li class="rounded-md border border-line-subtle p-4">
-            <p class="flex items-center gap-2"><span class="text-label-m">v{{ v.numero }}</span><gr-badge [tone]="v.estado === 'publicada' ? 'success' : 'neutral'">{{ v.estado }}</gr-badge></p>
+            <p class="flex items-center gap-2"><span class="text-label-m">{{ verLabel(v) }}</span><gr-badge [tone]="v.estado === 'publicada' ? 'success' : 'neutral'">{{ v.estado }}</gr-badge></p>
             <p class="mt-1 text-body-xs text-text-tertiary">{{ v.at | date: 'dd/MM/yyyy HH:mm' }} · {{ v.por }} · {{ v.cambios }} cambios · {{ v.avisos }} avisos a atletas · {{ v.seguidores }} a seguidores</p>
             @if (canEdit()) { <button grButton size="s" variant="ghost" icon="undo" class="mt-2" (click)="restaurar(v)">Llevar al borrador</button> }
           </li>
@@ -487,17 +515,30 @@ export class HorariosPage {
   protected readonly iconos = ICONOS;
   protected readonly maximos = [8, 10, 12, 13, 14, 15, 16, 18, 20];
   protected readonly otras: { v: Vista; label: string }[] = [{ v: 'pesajes', label: 'Pesajes' }, { v: 'conflictos', label: 'Conflictos' }];
-  protected readonly ejemplo = [{ c: 'A', h: '09:00', t: 'F −47/−52/−57' }, { c: 'B', h: '10:40', t: 'F −57/−63' }, { c: 'C', h: '11:30', t: 'F −69/−76/+84' }, { c: 'D', h: '12:40', t: 'M −74/−83' }];
+  protected readonly tituloCorto = tituloCorto;
+  private readonly solicitudes = inject(SolicitudesApi);
+  /** Own places of each competition (Inscripción › cupos); without permission the selector shows the athletes. */
+  protected readonly cupos = signal<Record<string, number>>({});
+  protected cuposEdit: Record<string, number> = {};
+  protected readonly compOpen = signal(false);
+  /** 422 PRUEBA_DISTINTA: the athlete belongs to another competition (Figma 219:167365 «Atleta de otra competición»). */
+  protected readonly otraComp = signal<{ texto: string; atleta: string } | null>(null);
+  private moviendo = '';
 
   /** The whole draft as the API returns it; data() is the view of the selected competition (AEP-2 / AEP-3). */
   protected readonly raw = signal<Borrador | null | undefined>(undefined);
-  protected readonly prueba = signal('');
+  protected readonly prueba = signal(PRUEBAS[0]);
   protected readonly pruebas = computed(() => {
     const b = this.raw();
     if (!b) return [];
     const n = new Map<string, number>();
     for (const a of [...b.sinFlight, ...b.flights.flatMap((f) => f.atletas)]) if (a.prueba && !a.baja) n.set(a.prueba, (n.get(a.prueba) ?? 0) + 1);
-    return PRUEBAS.filter((p) => n.has(p)).map((p) => ({ v: p, label: nombrePrueba(p), dia: diaDePrueba(b.config.dias, p), n: n.get(p)! }));
+    const conFlights = new Set(b.flights.map((f) => f.prueba));
+    if (!n.size && !PRUEBAS.some((p) => conFlights.has(p))) return [];
+    const out = PRUEBAS.map((p) => ({ v: p, label: nombrePrueba(p), dia: diaDePrueba(b.config.dias, p), n: n.get(p) ?? 0, plazas: this.cupos()[p] as number | undefined }));
+    // Flights whose athletes have no competition yet (created before AEP-2/AEP-3): still visible and editable here.
+    if (conFlights.has('')) out.push({ v: '', label: nombrePrueba(''), dia: '', n: this.sinCompeticion(), plazas: undefined });
+    return out;
   });
   protected readonly sinCompeticion = computed(() => {
     const b = this.raw();
@@ -508,11 +549,11 @@ export class HorariosPage {
     const b = this.raw();
     const p = this.pruebaSel();
     if (!b || !p) return b;
-    const flights = b.flights.filter((f) => pruebaDeFlight(f, b.config.dias) === p.v);
+    const flights = b.flights.filter((f) => f.prueba === p.v);
     const ids = new Set(flights.map((f) => f.id));
-    const sinFlight = b.sinFlight.filter((a) => a.prueba === p.v);
+    const sinFlight = b.sinFlight.filter((a) => (a.prueba ?? '') === p.v);
     const dias = p.dia ? b.config.dias.filter((d) => d.fecha === p.dia) : b.config.dias;
-    const conflictos = b.conflictos.filter((c) => (c.flightId ? ids.has(c.flightId) : c.tipo !== 'sin_flight' || sinFlight.length > 0));
+    const conflictos = b.conflictos.filter((c) => (c.flightId ? ids.has(c.flightId) || (c.prueba ?? '') === p.v : c.tipo !== 'sin_flight' || sinFlight.length > 0));
     return { ...b, config: { ...b.config, dias }, flights, sinFlight, conflictos, atletas: p.n, cambiosSinPublicar: b.cambiosSinPublicar };
   });
   protected readonly versiones = signal<VersionInfo[]>([]);
@@ -544,7 +585,16 @@ export class HorariosPage {
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly canEdit = computed(() => this.auth.can(this.cid(), 'horarios.publicar'));
   protected readonly canDirecto = computed(() => this.canEdit() || this.auth.can(this.cid(), 'directo.operar'));
-  protected readonly siguiente = computed(() => (this.versiones().at(0)?.numero ?? this.data()?.publicada?.numero ?? 0) + 1);
+  /** Next version: of the selected competition («v1 · AEP-3»), or of the whole event in «Sin competición». */
+  protected readonly siguiente = computed(() => {
+    const p = this.prueba();
+    if (p) return Math.max(0, ...this.versiones().filter((v) => v.prueba === p).map((v) => v.numeroPrueba)) + 1;
+    return (this.versiones().at(0)?.numero ?? this.data()?.publicada?.numero ?? 0) + 1;
+  });
+  protected readonly sufijo = computed(() => (this.prueba() ? ' · ' + nombrePrueba(this.prueba()) : ''));
+  protected verLabel(v: VersionInfo): string {
+    return v.prueba ? `v${v.numeroPrueba} · ${nombrePrueba(v.prueba)}` : `v${v.numero}`;
+  }
   protected readonly bloqueantes = computed(() => (this.data()?.conflictos ?? []).filter((c) => c.bloquea).length);
   protected readonly dias = computed(() => {
     const b = this.data();
@@ -567,7 +617,8 @@ export class HorariosPage {
     const b = this.data();
     if (!b) return '';
     const n = this.flightsDia().length;
-    const parts = [this.pruebaSel()?.label ?? '', this.dia() ? diaLargo(this.dia()) : '', `${b.config.plataformas} plataforma${b.config.plataformas > 1 ? 's' : ''}`, `${b.atletas} atletas en ${b.flights.length} flights${n !== b.flights.length ? ' (' + n + ' este día)' : ''}`];
+    const pl = (k: number, s: string, p: string) => `${k} ${k === 1 ? s : p}`;
+    const parts = [this.pruebaSel()?.label ?? '', this.dia() ? diaLargo(this.dia()) : '', pl(b.config.plataformas, 'plataforma', 'plataformas'), `${pl(b.atletas, 'atleta', 'atletas')} en ${pl(b.flights.length, 'flight', 'flights')}${n !== b.flights.length ? ' (' + n + ' este día)' : ''}`];
     if (b.publicada) parts.push(`versión publicada v${b.publicada.numero}`);
     return parts.filter(Boolean).join(' · ');
   });
@@ -604,13 +655,22 @@ export class HorariosPage {
     try {
       this.set(await this.api.get(this.cid()));
       void this.cargarVersiones();
+      void this.cargarCupos();
     } catch {
       this.raw.set(null);
     }
   }
+  private async cargarCupos(): Promise<void> {
+    try {
+      const r = await this.solicitudes.cupos(this.cid());
+      this.cupos.set(Object.fromEntries(r.cupos.map((c) => [c.codigo, c.plazas])));
+    } catch {
+      /* without atletas.editar the selector shows the athletes of each competition */
+    }
+  }
   private async cargarVersiones(): Promise<void> {
     try {
-      this.versiones.set(await this.api.versiones(this.cid()));
+      this.versiones.set(await this.api.versiones(this.cid(), this.prueba()));
     } catch {
       /* the side card stays as it was */
     }
@@ -653,6 +713,7 @@ export class HorariosPage {
   private async run(fn: () => Promise<Borrador>, ok?: string): Promise<boolean> {
     this.guardando.set(true);
     this.conflictoEdicion.set(false);
+    this.otraComp.set(null);
     try {
       this.set(await fn());
       if (ok) this.toasts.success(ok);
@@ -661,6 +722,9 @@ export class HorariosPage {
       if (e instanceof HttpErrorResponse && e.status === 409 && e.error?.code === 'CONFLICTO_EDICION') {
         this.conflictoEdicion.set(true);
         await this.cargar();
+      } else if (e instanceof HttpErrorResponse && e.status === 422 && e.error?.code === 'PRUEBA_DISTINTA') {
+        this.otraComp.set({ texto: errText(e), atleta: this.moviendo });
+        await this.cargar();
       } else {
         this.toasts.error('No se pudo guardar', errText(e));
         await this.cargar();
@@ -668,6 +732,7 @@ export class HorariosPage {
       return false;
     } finally {
       this.guardando.set(false);
+      this.moviendo = '';
     }
   }
 
@@ -693,21 +758,43 @@ export class HorariosPage {
       this.generando.set(false);
     }
     const n = this.data()?.flights.length ?? 0;
-    if (n) this.toasts.success(`${n} flights generados`, `${this.bloqueantes() ? this.bloqueantes() + ' conflictos por revisar' : 'Sin conflictos'}.`);
+    if (n) this.toasts.success(`${n} flight${n === 1 ? '' : 's'} generado${n === 1 ? '' : 's'}`, `${this.bloqueantes() ? this.bloqueantes() + ' conflictos por revisar' : 'Sin conflictos'}.`);
   }
 
   protected elegirPrueba(p: string): void {
     this.prueba.set(p);
     this.movimiento.set(null);
+    this.otraComp.set(null);
+    void this.cargarVersiones();
     const dias = this.dias();
     if (!dias.some((d) => d.fecha === this.dia())) this.dia.set(dias.find((d) => d.n)?.fecha ?? dias[0]?.fecha ?? '');
   }
-  protected etiquetaPrueba(p: { label: string; dia: string; n: number }): string {
-    return [p.label, p.dia ? diaDePruebaCorto(p.dia) : '', String(p.n)].filter(Boolean).join(' · ');
+  /** «AEP-3 · dom 22 nov · 76» (places of the competition; its athletes when the places are not readable). */
+  protected etiquetaPrueba(p: { v: string; label: string; dia: string; n: number; plazas?: number }): string {
+    return [p.label, p.dia ? diaDePruebaCorto(p.dia) : '', p.v ? String(p.plazas ?? p.n) : String(p.n)].filter(Boolean).join(' · ');
+  }
+
+  // ---- competitions (Figma 219:167365 «Gestionar competiciones») ----
+  protected abrirCompeticiones(): void {
+    this.cuposEdit = { ...this.cupos() };
+    this.compOpen.set(true);
+  }
+  protected async guardarCompeticiones(): Promise<void> {
+    this.guardando.set(true);
+    try {
+      const r = await this.solicitudes.guardarCupos(this.cid(), Object.fromEntries(PRUEBAS.map((p) => [p, +(this.cuposEdit[p] ?? 0)])));
+      this.cupos.set(Object.fromEntries(r.cupos.map((c) => [c.codigo, c.plazas])));
+      this.compOpen.set(false);
+      this.toasts.success('Competiciones guardadas');
+    } catch (e) {
+      this.toasts.error('No se pudo guardar', errText(e));
+    } finally {
+      this.guardando.set(false);
+    }
   }
 
   protected async nuevoFlight(): Promise<void> {
-    await this.run(() => this.api.crearFlight(this.cid(), { dia: this.dia() || undefined }), 'Flight creado');
+    await this.run(() => this.api.crearFlight(this.cid(), { dia: this.dia() || undefined, competicion: this.prueba() || undefined }), 'Flight creado');
   }
 
   // ---- drag and drop ----
@@ -731,6 +818,7 @@ export class HorariosPage {
     this.raw.set({ ...r, flights: r.flights.map((f) => flights.find((x) => x.id === f.id) ?? f), sinFlight });
     const fFrom = b.flights.find((f) => f.id === from.id) ?? null;
     const fTo = b.flights.find((f) => f.id === to.id) ?? null;
+    this.moviendo = a.id;
     const ok = await this.run(() => (to.id ? this.api.atletas(this.cid(), to.id, toList.map((x) => x.id)) : this.api.atletas(this.cid(), from.id!, fromList.map((x) => x.id))));
     if (!ok || from === to) return;
     const deshacer: Movimiento['deshacer'] = [];
@@ -771,6 +859,7 @@ export class HorariosPage {
     const from = m.desde;
     const antesTo = to?.atletas.map((x) => x.id) ?? [];
     const antesFrom = from?.atletas.map((x) => x.id) ?? [];
+    this.moviendo = m.a.id;
     const ok = to
       ? await this.run(() => this.api.atletas(this.cid(), to.id, [...antesTo, m.a.id]))
       : await this.run(() => this.api.atletas(this.cid(), from!.id, antesFrom.filter((x) => x !== m.a.id)));
@@ -855,7 +944,7 @@ export class HorariosPage {
   // ---- publish ----
   protected async abrirPublicar(): Promise<void> {
     try {
-      const d = await this.api.diff(this.cid());
+      const d = await this.api.diff(this.cid(), this.prueba());
       this.avisarAtletas.set(d.afectados > 0);
       this.avisarSeguidores.set(false);
       this.pub.set(d);
@@ -866,10 +955,11 @@ export class HorariosPage {
   protected async publicar(): Promise<void> {
     this.publicando.set(true);
     try {
-      const r = await this.api.publicar(this.cid(), this.avisarAtletas(), this.avisarSeguidores());
+      const r = await this.api.publicar(this.cid(), this.prueba(), this.avisarAtletas(), this.avisarSeguidores());
       this.pub.set(null);
       this.movimiento.set(null);
-      this.toasts.success(`Horarios v${r.version} publicados`, r.avisos + r.seguidores ? `${r.avisos} avisos a atletas · ${r.seguidores} a seguidores (se envían en unos minutos).` : 'Sin avisos por email.');
+      const v = r.prueba ? `v${r.numeroPrueba} · ${nombrePrueba(r.prueba)}` : `v${r.version}`;
+      this.toasts.success(`Horarios ${v} publicados`, r.avisos + r.seguidores ? `${r.avisos} avisos a atletas · ${r.seguidores} a seguidores (se envían en unos minutos).` : 'Sin avisos por email.');
       await this.cargar();
     } catch (e) {
       this.toasts.error('No se pudo publicar', errText(e));

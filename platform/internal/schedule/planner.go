@@ -27,7 +27,9 @@ type planFlight struct {
 //     lunch break, waits for a free weigh-in table (at most mesasPesaje windows at once) and moves to the next day
 //     when it would end after the day's end. Flights that fit nowhere go after
 //     the last one (the planner flags them «fuera de horario»).
-func generar(cfg Config, loc *time.Location, ats []atleta) []planFlight {
+//
+// ocupado are the flights that stay (the other competition): their platforms and weigh-in tables are taken.
+func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []flightRow) []planFlight {
 	var grupos [][]atleta
 	if cfg.SepararSexo {
 		var f, m []atleta
@@ -75,7 +77,7 @@ func generar(cfg Config, loc *time.Location, ats []atleta) []planFlight {
 			i += size
 		}
 	}
-	return colocar(cfg, loc, trozos)
+	return colocar(cfg, loc, trozos, ocupado)
 }
 
 func tot(a atleta) float64 {
@@ -93,7 +95,7 @@ func ceil5(t time.Time) time.Time {
 	return r
 }
 
-func colocar(cfg Config, loc *time.Location, trozos [][]atleta) []planFlight {
+func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []flightRow) []planFlight {
 	dias := cfg.Dias
 	if len(dias) == 0 {
 		dias = []Dia{{Fecha: time.Now().In(loc).AddDate(0, 0, 7).Format("2006-01-02"), Inicio: "09:00", Fin: "20:00"}}
@@ -103,12 +105,21 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta) []planFlight {
 	reset := func() {
 		for p := range libre {
 			libre[p] = dayTime(dias[d].Fecha, dias[d].Inicio, loc)
+			for _, o := range ocupado {
+				fin := ceil5(o.Inicio.Add(time.Duration(o.DuracionMin+cfg.DescansoMin) * time.Minute))
+				if o.Dia.Format("2006-01-02") == dias[d].Fecha && o.Plataforma == p+1 && fin.After(libre[p]) {
+					libre[p] = fin
+				}
+			}
 		}
 	}
 	reset()
 	var out []planFlight
 	type ventana struct{ ini, fin time.Time }
 	var pesajes []ventana
+	for _, o := range ocupado {
+		pesajes = append(pesajes, ventana{o.PesajeIni, o.PesajeFn})
+	}
 	// cabe moves ini forward until the flight skips the break and its weigh-in finds a free table.
 	cabe := func(dia Dia, ini time.Time, dur int) time.Time {
 		pi, pf := dayTime(dia.Fecha, dia.PausaInicio, loc), dayTime(dia.Fecha, dia.PausaFin, loc)
