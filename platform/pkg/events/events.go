@@ -34,6 +34,9 @@ type Actor struct {
 	Name    string `json:"name,omitempty"`
 	Origin  string `json:"origin,omitempty"` // web | cli | mcp | token:<name>
 	Service string `json:"service,omitempty"`
+	IP      string `json:"ip,omitempty"`      // masked (/16 for IPv4): «83.45.x.x»
+	Agent   string `json:"agent,omitempty"`   // User-Agent
+	Request string `json:"request,omitempty"` // «PUT /api/admin/…»
 }
 
 // Event is the envelope published on grcup:<env>:events.
@@ -83,6 +86,7 @@ func New(ctx context.Context, typ string, data any, opts ...Option) Event {
 		if a.Origin == "" {
 			a.Origin = httpx.OriginFrom(ctx)
 		}
+		a.IP, a.Agent, a.Request = MaskIP(httpx.ClientIPFrom(ctx)), trunc(httpx.UserAgentFrom(ctx), 200), httpx.RequestLineFrom(ctx)
 		e.Actor = a
 	}
 	for _, o := range opts {
@@ -335,4 +339,25 @@ func Publish(ctx context.Context, rdb *redis.Client, stream string, e Event) err
 		return err
 	}
 	return rdb.XAdd(ctx, &redis.XAddArgs{Stream: stream, Values: map[string]any{"e": string(b)}}).Err()
+}
+
+// MaskIP keeps the network part of an address (no personal data in the audit log): «83.45.x.x», «2a01:4f8:x».
+func MaskIP(ip string) string {
+	if ip == "" {
+		return ""
+	}
+	if p := strings.Split(ip, "."); len(p) == 4 {
+		return p[0] + "." + p[1] + ".x.x"
+	}
+	if p := strings.Split(ip, ":"); len(p) > 2 {
+		return p[0] + ":" + p[1] + ":x"
+	}
+	return "x"
+}
+
+func trunc(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
 }

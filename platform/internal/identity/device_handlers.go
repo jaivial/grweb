@@ -238,6 +238,9 @@ func (s *Svc) registerInvitationAccept() {
 			if err != nil {
 				return nil, err
 			}
+			if d, err := s.loadTOTP(ctx, s.a.DB, u.ID); err != nil || d.activado != nil {
+				return nil, problem.Unauthorized("SEGUNDO_FACTOR_REQUERIDO", "Invitación aceptada. Entra con tu contraseña y el código de tu app de verificación.")
+			}
 			tp, err := s.startSession(ctx, u, "web", in.UserAgent, httpx.ClientIPFrom(ctx))
 			if err != nil {
 				return nil, err
