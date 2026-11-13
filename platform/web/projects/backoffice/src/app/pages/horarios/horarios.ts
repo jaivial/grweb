@@ -19,8 +19,8 @@ type Vista = 'dia' | 'pesajes' | 'conflictos';
 
 const PRUEBAS = ['aep2', 'aep3'];
 const nombrePrueba = (p: string) => (p ? p.toUpperCase().replace('AEP', 'AEP-') : 'Sin competición');
-/** One day per competition when the event has two days (AEP-2 the first, AEP-3 the second), as in the alta. */
-const diaDePrueba = (dias: { fecha: string }[], p: string) => (dias.length >= PRUEBAS.length ? (dias[PRUEBAS.indexOf(p)]?.fecha ?? '') : '');
+/** One day per competition when the event has two days (AEP-2 the first, AEP-3 the second), as in the alta; a one-day event: that day for both. */
+const diaDePrueba = (dias: { fecha: string }[], p: string) => (dias.length >= PRUEBAS.length ? (dias[PRUEBAS.indexOf(p)]?.fecha ?? '') : (dias[0]?.fecha ?? ''));
 /** «Femenino −47 / −52 / −57 kg» → «Femenino −47/−52/−57» (planner card, Figma 96:20519). */
 const tituloCorto = (t: string) => t.replace(/ kg$/, '').replaceAll(' / ', '/');
 
@@ -140,7 +140,7 @@ const ICONOS: { v: string; label: string }[] = [
                 <div cdkDropListGroup class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-3 md:mx-0 md:px-0">
                   @if (b.sinFlight.length) {
                     <section class="col flex w-64 shrink-0 flex-col rounded-lg border border-line-strong bg-bg-surface p-3 xl:w-48" cdkDropList [cdkDropListData]="sinFlightLista()" (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="!canEdit()" aria-label="Atletas sin flight">
-                      <header><p class="text-label-m">Sin flight</p><p class="text-body-xs text-text-tertiary">{{ b.sinFlight.length }} atletas · arrástralos a un flight</p></header>
+                      <header><p class="text-label-m">Sin flight</p><p class="text-body-xs text-text-tertiary">{{ b.sinFlight.length }} {{ b.sinFlight.length === 1 ? 'atleta' : 'atletas' }} · arrástralos a un flight</p></header>
                       <ul class="mt-3 flex max-h-[520px] min-h-16 flex-col gap-1.5 overflow-y-auto">
                         @for (a of b.sinFlight; track a.id) { <li cdkDrag [cdkDragData]="a" class="group relative flex items-center gap-2 rounded-md border border-line-subtle bg-bg-card px-2 py-1.5">
                           <span cdkDragHandle class="cursor-grab text-text-muted"><gr-icon name="grip" [size]="16" /></span>
@@ -553,7 +553,9 @@ export class HorariosPage {
     const ids = new Set(flights.map((f) => f.id));
     const sinFlight = b.sinFlight.filter((a) => (a.prueba ?? '') === p.v);
     const dias = p.dia ? b.config.dias.filter((d) => d.fecha === p.dia) : b.config.dias;
-    const conflictos = b.conflictos.filter((c) => (c.flightId ? ids.has(c.flightId) || (c.prueba ?? '') === p.v : c.tipo !== 'sin_flight' || sinFlight.length > 0));
+    // «N atletas sin flight» comes for the whole event: count only this competition's.
+    const conflictos = b.conflictos.filter((c) => (c.flightId ? ids.has(c.flightId) || (c.prueba ?? '') === p.v : c.tipo !== 'sin_flight'));
+    if (sinFlight.length) conflictos.push({ tipo: 'sin_flight', bloquea: false, titulo: `${sinFlight.length} ${sinFlight.length === 1 ? 'atleta' : 'atletas'} sin flight`, detalle: 'No aparecerán en los horarios hasta que los asignes.' });
     return { ...b, config: { ...b.config, dias }, flights, sinFlight, conflictos, atletas: p.n, cambiosSinPublicar: b.cambiosSinPublicar };
   });
   protected readonly versiones = signal<VersionInfo[]>([]);
@@ -593,7 +595,7 @@ export class HorariosPage {
   });
   protected readonly sufijo = computed(() => (this.prueba() ? ' · ' + nombrePrueba(this.prueba()) : ''));
   protected verLabel(v: VersionInfo): string {
-    return v.prueba ? `v${v.numeroPrueba} · ${nombrePrueba(v.prueba)}` : `v${v.numero}`;
+    return v.prueba ? `v${v.numeroPrueba} · ${nombrePrueba(v.prueba)}` : `v${v.numero} · Todo el evento`;
   }
   protected readonly bloqueantes = computed(() => (this.data()?.conflictos ?? []).filter((c) => c.bloquea).length);
   protected readonly dias = computed(() => {
@@ -771,7 +773,7 @@ export class HorariosPage {
   }
   /** «AEP-3 · dom 22 nov · 76» (places of the competition; its athletes when the places are not readable). */
   protected etiquetaPrueba(p: { v: string; label: string; dia: string; n: number; plazas?: number }): string {
-    return [p.label, p.dia ? diaDePruebaCorto(p.dia) : '', p.v ? String(p.plazas ?? p.n) : String(p.n)].filter(Boolean).join(' · ');
+    return [p.label, p.dia ? diaDePruebaCorto(p.dia) : '', p.v && p.plazas !== undefined ? `${p.n}/${p.plazas} plazas` : `${p.n} ${p.n === 1 ? 'atleta' : 'atletas'}`].filter(Boolean).join(' · ');
   }
 
   // ---- competitions (Figma 219:167365 «Gestionar competiciones») ----
