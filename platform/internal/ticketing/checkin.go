@@ -106,7 +106,8 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 	if codigo == "" {
 		return r, problem.Unprocessable("SIN_CODIGO", "Escanea un QR o escribe un código.")
 	}
-	if in.SesionID != nil {
+	// Online only: an offline queue must never get stuck on a session deleted meanwhile.
+	if in.SesionID != nil && !in.Offline {
 		var ok bool
 		if err := s.a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM sesiones WHERE id = $1 AND competition_id = $2)`, *in.SesionID, cid).Scan(&ok); err != nil {
 			return r, err
