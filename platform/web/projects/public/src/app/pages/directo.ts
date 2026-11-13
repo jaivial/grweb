@@ -901,7 +901,7 @@ export class EdicionPage {
           <div class="absolute top-[300px] left-[80px]"><p class="font-display text-[150px] leading-none uppercase italic">Pausa técnica</p><p class="mt-6 text-[40px] text-white/70">Volvemos enseguida@if (d.retrasoMin) { · {{ d.retrasoMin }} min de retraso }</p></div>
         } @else if (d.fase === 'en_directo' && foco(); as a) {
           <div class="absolute top-[230px] left-[80px] w-[1180px]">
-            <p class="truncate font-display text-[150px] leading-[0.95] uppercase italic">{{ a.nombre }}</p>
+            <p class="overflow-hidden font-display leading-[0.95] whitespace-nowrap uppercase italic" [style.font-size.px]="tamNombre(a.nombre)">{{ a.nombre }}</p>
             <p class="mt-6 font-display text-[40px] text-white/85 uppercase italic">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}@if (a.division) { · {{ a.division }} }</p>
             <p class="mt-3 font-display text-[44px] text-accent-text uppercase italic">{{ MOVN[a.movimiento] }} · {{ ORD[a.numero] }} intento</p>
             <div class="mt-6 flex items-center gap-10">
@@ -939,7 +939,7 @@ export class EdicionPage {
           </section>
         }
         @if (p.pantalla.carrusel && sponsors().length) {
-          <div class="absolute bottom-[70px] left-[80px] flex h-[90px] w-[1100px] items-center gap-14 overflow-hidden">
+          <div class="absolute bottom-[70px] left-[80px] flex h-[90px] w-[1100px] flex-wrap items-center gap-x-14 overflow-hidden">
             @for (s of visibles(); track s.nombre) { <img [src]="s.logoUrl" [alt]="s.nombre" class="max-h-[70px] max-w-[200px] object-contain opacity-90" /> }
           </div>
         }
@@ -948,6 +948,10 @@ export class EdicionPage {
   `,
 })
 export class PantallaPublicaPage {
+  /** Name font that fits the 1180px column (≈0.44em per condensed capital), 150px at most: the full name, never «…». */
+  protected tamNombre(n: string): number {
+    return Math.max(72, Math.min(150, Math.floor(1180 / (n.length * 0.44))));
+  }
   private readonly api = inject(DirectoPublic);
   private readonly cms = inject(Cms);
   private readonly route = inject(ActivatedRoute);
