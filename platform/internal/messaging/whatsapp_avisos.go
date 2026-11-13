@@ -129,6 +129,10 @@ func (s *Svc) registerAvisos() {
 			if err := s.guardarAvisos(ctx, in.CID, a); err != nil {
 				return nil, err
 			}
+			// Other open tabs of «Avisos de solicitudes» reload the list.
+			if err := s.waEvento(ctx, in.CID, "whatsapp.avisos", map[string]any{"telefonos": len(a.Telefonos)}); err != nil {
+				return nil, err
+			}
 			return &struct{ Body Avisos }{a}, nil
 		})
 	type pruebaOut struct {

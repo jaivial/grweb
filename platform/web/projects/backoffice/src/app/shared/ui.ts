@@ -21,7 +21,7 @@ import { problemOf } from '../core/api';
     </nav>
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div class="flex min-w-0 flex-wrap items-center gap-3">
-        <h1 class="text-ui-h3 md:text-[28px]">{{ title() }}</h1>
+        <h1 [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
         @if (badge()) { <gr-badge [tone]="badgeTone()">{{ badge() }}</gr-badge> }
       </div>
       <div class="flex flex-wrap gap-2"><ng-content select="[actions]" /></div>
@@ -35,6 +35,8 @@ export class BoPageHeader {
   readonly crumbs = input<string[]>([]);
   readonly badge = input('');
   readonly badgeTone = input<GrTone>('warning');
+  /** Pages whose Figma title is 24 px at every width (Sistema › WhatsApp, Campañas › WhatsApp). */
+  readonly compact = input(false);
 }
 
 export interface BoTab {

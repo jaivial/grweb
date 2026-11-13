@@ -59,7 +59,7 @@ func (s *Svc) waDe(ctx context.Context, cid uuid.UUID) waCfg {
 	cfg, clave := s.waIntegracion(ctx, cid)
 	if cfg["proveedor"] != "evo-weai" || cfg["url"] == "" || clave == "" {
 		if config.Bool("WHATSAPP_SIMULADO", false) {
-			return waCfg{Modo: "simulado", Numero: "+34 600 000 000"}
+			return waCfg{Modo: "simulado", Numero: s.numeroInstancia(ctx, cid)}
 		}
 		return waCfg{Modo: "ninguno"}
 	}
@@ -75,7 +75,7 @@ func (s *Svc) waDe(ctx context.Context, cid uuid.UUID) waCfg {
 	}
 	if instancia == "" {
 		if config.Bool("WHATSAPP_SIMULADO", false) {
-			return waCfg{Modo: "simulado", Numero: "+34 600 000 000"}
+			return waCfg{Modo: "simulado", Numero: s.numeroInstancia(ctx, cid)}
 		}
 		return waCfg{Modo: "ninguno"}
 	}
@@ -213,6 +213,17 @@ type WAEstado struct {
 func (s *Svc) waEstado(ctx context.Context, cid uuid.UUID) WAEstado {
 	c := s.waDe(ctx, cid)
 	e := WAEstado{Modo: c.Modo, Numero: c.Numero, Conexion: c.Modo}
+	if c.Modo == "simulado" {
+		// The simulated instance (whatsapp_instancia) is the truth: the same state «Sistema › WhatsApp» shows.
+		var estado string
+		if s.a.DB.QueryRow(ctx, `SELECT estado FROM whatsapp_instancia WHERE competition_id = $1`, cid).Scan(&estado) == nil {
+			e.Conexion = map[string]string{"conectado": "open", "conectando": "connecting"}[estado]
+			if e.Conexion == "" {
+				e.Conexion = "close"
+			}
+		}
+		return e
+	}
 	if c.Modo != "evo-weai" {
 		return e
 	}
@@ -296,12 +307,26 @@ func (s *Svc) guardarEstadoInstancia(ctx context.Context, cid uuid.UUID, instanc
 		instancia = CASE WHEN EXCLUDED.instancia <> '' THEN EXCLUDED.instancia ELSE whatsapp_instancia.instancia END,
 		estado = EXCLUDED.estado,
 		numero = CASE WHEN EXCLUDED.numero <> '' THEN EXCLUDED.numero ELSE whatsapp_instancia.numero END,
-		conectado_desde = CASE WHEN EXCLUDED.estado = 'conectado' THEN COALESCE(whatsapp_instancia.conectado_desde, now())
-			WHEN EXCLUDED.estado = 'desconectado' THEN NULL ELSE whatsapp_instancia.conectado_desde END,
+		conectado_desde = CASE WHEN EXCLUDED.estado = 'conectado' AND whatsapp_instancia.estado <> 'conectado' THEN now()
+			WHEN EXCLUDED.estado = 'conectado' THEN COALESCE(whatsapp_instancia.conectado_desde, now())
+			ELSE whatsapp_instancia.conectado_desde END,
 		updated_at = now()`, cid, instancia, estado, numero)
 }
 
 // estadoAdmin reads the state of the service and the state of the session.
+// waEvento publishes a «whatsapp.*» event to the admins of the integrations of the competition (SSE).
+func (s *Svc) waEvento(ctx context.Context, cid uuid.UUID, tipo string, data map[string]any) error {
+	return s.tx(ctx, func(tx pgx.Tx) error {
+		return events.Enqueue(ctx, tx, events.New(ctx, tipo, data, events.Competition(cid.String()), events.ForPermission("integraciones.config")))
+	})
+}
+
+// waDesconectado keeps the row as «desconectado» (with its last connection): the page offers QR and code to link again.
+func (s *Svc) waDesconectado(ctx context.Context, cid uuid.UUID, instancia string) error {
+	_, _ = s.a.DB.Exec(ctx, `UPDATE whatsapp_instancia SET estado = 'desconectado', updated_at = now() WHERE competition_id = $1`, cid)
+	return s.waEvento(ctx, cid, "whatsapp.desconectado", map[string]any{"instancia": instancia})
+}
+
 func (s *Svc) estadoAdmin(ctx context.Context, cid uuid.UUID) WAEstadoAdmin {
 	out := WAEstadoAdmin{Estado: "sin_instancia", Instancia: s.nombreLegible(ctx, cid), Modo: "ninguno"}
 	cfg, clave := s.waIntegracion(ctx, cid)
@@ -333,6 +358,11 @@ func (s *Svc) estadoAdmin(ctx context.Context, cid uuid.UUID) WAEstadoAdmin {
 		if errors.As(err, &ew) && ew.codigo == http.StatusNotFound {
 			// The instance is not in evo-weai (it was deleted or the service was reset): disconnected, not down.
 			out.Estado = "desconectado"
+			out.Numero = s.numeroInstancia(ctx, cid)
+			var desde time.Time
+			if s.a.DB.QueryRow(ctx, `SELECT conectado_desde FROM whatsapp_instancia WHERE competition_id = $1 AND conectado_desde IS NOT NULL`, cid).Scan(&desde) == nil {
+				out.ConectadoDesde = &desde // «Última conexión»
+			}
 			return out
 		}
 		s.waLog(ctx, cid, "estado de la sesión", err)
@@ -464,6 +494,9 @@ func (s *Svc) registerWhatsApp() {
 			}
 			_, _ = s.a.DB.Exec(ctx, `INSERT INTO whatsapp_instancia (competition_id, instancia, url, estado, updated_at) VALUES ($1,$2,$3,'conectando', now())
 				ON CONFLICT (competition_id) DO UPDATE SET instancia = EXCLUDED.instancia, url = EXCLUDED.url, estado = 'conectando', updated_at = now()`, in.CID, nombre, url)
+			if err := s.waEvento(ctx, in.CID, "whatsapp.conexion", map[string]any{"estado": "conectando"}); err != nil {
+				return nil, err
+			}
 			o := &instOut{}
 			o.Body.Instancia, o.Body.InstanciaID, o.Body.QR, o.Body.Estado = s.nombreLegible(ctx, in.CID), nombre, r.QRCode.Base64, "conectando"
 			return o, nil
@@ -517,7 +550,15 @@ func (s *Svc) registerWhatsApp() {
 			if num != "" {
 				path += "?number=" + num
 			}
-			if err := s.evo(ctx, c, http.MethodGet, path, nil, &r); err != nil {
+			err := s.evo(ctx, c, http.MethodGet, path, nil, &r)
+			var ew *errWA
+			if errors.As(err, &ew) && ew.codigo == http.StatusNotFound {
+				// Disconnected: the instance was deleted in evo-weai (logout + delete). It is created again and linked.
+				if err = s.evo(ctx, c, http.MethodPost, "/instance/create", map[string]any{"instanceName": c.Instancia, "integration": "WHATSAPP-BAILEYS", "qrcode": true}, nil); err == nil || (errors.As(err, &ew) && ew.existe) {
+					err = s.evo(ctx, c, http.MethodGet, path, nil, &r)
+				}
+			}
+			if err != nil {
 				s.waLog(ctx, in.CID, "vincular el número", err)
 				return nil, s.waProblema(ctx, in.CID, err)
 			}
@@ -526,6 +567,11 @@ func (s *Svc) registerWhatsApp() {
 			}
 			if num != "" {
 				_, _ = s.a.DB.Exec(ctx, `UPDATE whatsapp_instancia SET numero = $2, estado = 'conectando', updated_at = now() WHERE competition_id = $1`, in.CID, "+"+num)
+			} else {
+				_, _ = s.a.DB.Exec(ctx, `UPDATE whatsapp_instancia SET estado = 'conectando', updated_at = now() WHERE competition_id = $1 AND estado <> 'conectado'`, in.CID)
+			}
+			if err := s.waEvento(ctx, in.CID, "whatsapp.conexion", map[string]any{"estado": "conectando"}); err != nil {
+				return nil, err
 			}
 			o := &conOut{}
 			o.Body.Codigo, o.Body.QR = r.PairingCode, r.Base64
@@ -581,7 +627,10 @@ func (s *Svc) registerWhatsApp() {
 			}
 			c := s.waDe(ctx, in.CID)
 			if s.waSimulado(ctx, in.CID) {
-				c.Instancia = s.simConectando(ctx, in.CID, "")
+				s.simConectando(ctx, in.CID, "") // publishes «conectando» itself
+				o := &reinOut{}
+				o.Body.Estado = "conectando"
+				return o, nil
 			} else if c.Modo != "evo-weai" {
 				return nil, problem.Conflict("WHATSAPP_SIN_CONFIGURAR", "No hay ninguna instancia de WhatsApp que reiniciar.")
 			} else {
@@ -609,12 +658,7 @@ func (s *Svc) registerWhatsApp() {
 			}
 			c := s.waDe(ctx, in.CID)
 			if s.waSimulado(ctx, in.CID) {
-				c.Instancia = s.instanciaNombre(ctx, in.CID)
-				_, _ = s.a.DB.Exec(ctx, `DELETE FROM whatsapp_instancia WHERE competition_id = $1`, in.CID)
-				return nil, s.tx(ctx, func(tx pgx.Tx) error {
-					return events.Enqueue(ctx, tx, events.New(ctx, "whatsapp.desconectado", map[string]any{"instancia": c.Instancia},
-						events.Competition(in.CID.String()), events.ForPermission("integraciones.config")))
-				})
+				return nil, s.waDesconectado(ctx, in.CID, s.instanciaNombre(ctx, in.CID))
 			}
 			if c.Modo != "evo-weai" {
 				return nil, problem.Conflict("WHATSAPP_SIN_CONFIGURAR", "No hay ninguna instancia de WhatsApp que desconectar.")
@@ -632,12 +676,8 @@ func (s *Svc) registerWhatsApp() {
 					return nil, s.waProblema(ctx, in.CID, err)
 				}
 			}
-			// The instance is gone in evo-weai: the row too (the page goes back to «Sin instancia»).
-			_, _ = s.a.DB.Exec(ctx, `DELETE FROM whatsapp_instancia WHERE competition_id = $1`, in.CID)
-			return nil, s.tx(ctx, func(tx pgx.Tx) error {
-				return events.Enqueue(ctx, tx, events.New(ctx, "whatsapp.desconectado", map[string]any{"instancia": c.Instancia},
-					events.Competition(in.CID.String()), events.ForPermission("integraciones.config")))
-			})
+			// The instance is gone in evo-weai; the row stays «desconectado» and «conectar» creates it again.
+			return nil, s.waDesconectado(ctx, in.CID, c.Instancia)
 		})
 
 	// Webhook of evo-weai: the session changes, the QR is renewed, the delivery and read receipts update the
@@ -664,12 +704,11 @@ func (s *Svc) registerWhatsApp() {
 				}
 				events.Webhook(ctx, s.a.Redis, s.a.Stream(), in.C.String(), "whatsapp", tipo, "", code)
 			}()
-			// Defence in depth: evo-weai also sends the key of the integration as a Bearer header.
-			if in.Auth != "" {
-				_, clave := s.waIntegracion(ctx, in.C)
-				if clave != "" && in.Auth != "Bearer "+clave {
-					return nil, problem.Forbidden("Credenciales no válidas.")
-				}
+			// Defence in depth: evo-weai always sends the key of the integration as a Bearer header (registrarWebhook);
+			// the signed URL alone is not enough.
+			_, clave := s.waIntegracion(ctx, in.C)
+			if clave == "" || !hmac.Equal([]byte(in.Auth), []byte("Bearer "+clave)) {
+				return nil, problem.Forbidden("Credenciales no válidas.")
 			}
 			var ev struct {
 				Event string          `json:"event"`

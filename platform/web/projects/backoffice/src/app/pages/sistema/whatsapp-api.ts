@@ -41,9 +41,9 @@ export class WhatsAppApi {
   estado(cid: string): Promise<EstadoWaInfo> {
     return firstValueFrom(this.http.get<EstadoWaInfo>(`${this.base(cid)}/estado`));
   }
-  /** Creates the instance of the competition (idempotent). */
-  crearInstancia(cid: string): Promise<EstadoWaInfo> {
-    return firstValueFrom(this.http.post<EstadoWaInfo>(`${this.base(cid)}/instancia`, {}));
+  /** Creates the instance of the competition (idempotent); the first QR comes with it. */
+  crearInstancia(cid: string): Promise<{ instancia: string; instanciaId: string; qr?: string; estado: EstadoWa }> {
+    return firstValueFrom(this.http.post<{ instancia: string; instanciaId: string; qr?: string; estado: EstadoWa }>(`${this.base(cid)}/instancia`, {}));
   }
   /** With no number it returns the QR to scan; with a number it returns the pairing code. */
   conectar(cid: string, numero: string): Promise<{ qr?: string; codigo?: string }> {
@@ -53,11 +53,12 @@ export class WhatsAppApi {
   qr(cid: string): Promise<{ qr: string }> {
     return firstValueFrom(this.http.get<{ qr: string }>(`${this.base(cid)}/qr`));
   }
-  reiniciar(cid: string): Promise<EstadoWaInfo> {
-    return firstValueFrom(this.http.post<EstadoWaInfo>(`${this.base(cid)}/reiniciar`, {}));
+  reiniciar(cid: string): Promise<{ estado: EstadoWa }> {
+    return firstValueFrom(this.http.post<{ estado: EstadoWa }>(`${this.base(cid)}/reiniciar`, {}));
   }
-  desconectar(cid: string): Promise<EstadoWaInfo> {
-    return firstValueFrom(this.http.post<EstadoWaInfo>(`${this.base(cid)}/desconectar`, {}));
+  /** 204 without body: the page reads the state again. */
+  desconectar(cid: string): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${this.base(cid)}/desconectar`, {}));
   }
   avisos(cid: string): Promise<AvisosWa> {
     return firstValueFrom(this.http.get<AvisosWa>(`${this.base(cid)}/avisos`));

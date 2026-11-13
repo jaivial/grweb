@@ -2,7 +2,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSelect, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -19,11 +19,11 @@ type Dialogo = 'desconectar' | null;
  */
 @Component({
   selector: 'bo-whatsapp-sistema',
-  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrSkeleton],
+  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="WhatsApp" [crumbs]="[comps.current()?.nombreCorto || '', 'Sistema', 'WhatsApp']">
+      <bo-page-header title="WhatsApp" [compact]="true" [crumbs]="['Sistema', 'WhatsApp']">
         @if (puede()) {
           <ng-container actions>
             @if (servicioCaido()) {
@@ -35,15 +35,7 @@ type Dialogo = 'desconectar' | null;
         }
       </bo-page-header>
 
-      @if (!puede()) {
-        <section class="mx-auto w-full max-w-2xl rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
-          <span class="mx-auto flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="lock" [size]="22" /></span>
-          <h2 class="mt-4 text-ui-h4">No tienes acceso a Sistema › WhatsApp</h2>
-          <p class="mt-2 text-body-s text-text-tertiary">Este panel lo gestiona quien administra las integraciones de la competición. Aquí se crea el servicio de WhatsApp, se vincula el número y se configuran los avisos de solicitudes.</p>
-          <div class="mt-5 flex justify-center"><button grButton variant="primary" (click)="pedirPermiso()">Solicitar el permiso</button></div>
-        </section>
-      } @else {
-        <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="WhatsApp">
+      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" [class.mt-12]="!puede()" aria-label="WhatsApp">
           @for (t of tabs; track t.k) {
             <button type="button" (click)="irTab(t.k)" [attr.aria-current]="tab() === t.k ? 'page' : null"
               class="relative flex h-11 shrink-0 items-center px-3 text-label-s whitespace-nowrap" [class]="tab() === t.k ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
@@ -51,45 +43,69 @@ type Dialogo = 'desconectar' | null;
               @if (tab() === t.k) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
             </button>
           }
-        </nav>
+      </nav>
 
+      @if (!puede()) {
+        <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
+          <div class="mx-auto w-full max-w-lg rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
+            <span class="mx-auto flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="lock" [size]="22" /></span>
+            <h2 class="mt-4 text-ui-h4">No tienes acceso a Sistema › WhatsApp</h2>
+            <p class="mt-2 text-body-s text-text-tertiary">Este panel lo gestiona quien administra las integraciones de la competición. Ahí se crea el servicio de WhatsApp, se vincula el número y se configuran los avisos de solicitudes.</p>
+            <div class="mt-5 flex justify-center"><button grButton variant="primary" (click)="pedirPermiso()">Solicitar el permiso</button></div>
+          </div>
+        </section>
+      } @else {
         @if (cargando()) {
           <gr-skeleton class="h-40 rounded-lg" />
           <gr-skeleton class="h-96 rounded-lg" />
         } @else {
           @if (tab() === 'vinculacion') {
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+            <section class="rounded-lg border border-line-subtle bg-bg-card p-5" role="status" aria-live="polite">
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
                   <h2 class="text-ui-h5">Servicio de WhatsApp</h2>
-                  <p class="mt-1 text-body-xs text-text-tertiary">Servidor de WhatsApp · {{ comps.current()?.nombre || comps.current()?.nombreCorto }}</p>
                 </div>
                 <gr-badge [tone]="estadoTone()">{{ estadoLabel() }}</gr-badge>
               </div>
+              @if (estadoInfo()?.instanciaId && !creando() && estado() !== 'sin_instancia') {
+                <p class="mt-3 text-body-xs text-text-tertiary">Servidor de WhatsApp · {{ estadoInfo()?.instanciaId }}</p>
+              }
               @if (servicioCaido()) {
-                <p class="mt-3 text-body-xs text-text-tertiary">El servidor de WhatsApp no responde</p>
+                <p class="text-body-xs text-text-tertiary">El servidor de WhatsApp no responde</p>
                 <p class="text-body-xs text-text-tertiary">Los avisos en cola no se pierden: salen cuando el servicio vuelva</p>
               } @else if (estado() === 'desconectado') {
-                <p class="mt-3 text-body-xs text-text-tertiary">Última conexión · {{ hace(conectadoDesdeIso()) }}</p>
+                <p class="text-body-xs text-text-tertiary">Última conexión · {{ hace(conectadoDesdeIso()) }}</p>
                 <p class="text-body-xs text-text-tertiary">Los avisos en cola esperan: se envían al volver a vincular el número</p>
-              } @else if (estado() === 'sin_instancia') {
-                <p class="mt-3 text-body-xs text-text-tertiary">El servidor de WhatsApp de la competición. Mientras no haya número vinculado, los mensajes se registran sin enviarse.</p>
-                <p class="text-body-xs text-text-tertiary">Número · todavía sin vincular</p>
+              } @else if (estado() === 'sin_instancia' || creando()) {
+                <p class="mt-3 text-body-s text-text-tertiary">El servidor de WhatsApp de la competición. Mientras no haya número vinculado, los mensajes se registran sin enviarse.</p>
+                <p class="mt-3 text-body-xs text-text-tertiary">Número · todavía sin vincular</p>
                 <p class="text-body-xs text-text-tertiary">Los avisos del alta saldrán en cuanto se vincule</p>
-              } @else if (modo() === 'simulado') {
-                <p class="mt-3 text-body-xs text-text-tertiary">Modo simulado: los mensajes se registran sin salir de la plataforma.</p>
               }
-              <p class="mt-1 text-body-xs text-text-tertiary">La pantalla se actualiza sola</p>
+              @if ((estado() === 'conectando' || estado() === 'sin_instancia' || creando()) && !servicioCaido()) { <p class="text-body-xs text-text-tertiary">La pantalla se actualiza sola</p> }
             </section>
 
-            @if (estado() === 'sin_instancia') {
+            @if (creando()) {
+              <section class="rounded-lg border border-line-subtle bg-bg-card p-5" aria-busy="true">
+                <h2 class="text-ui-h5">Creando el servidor de WhatsApp</h2>
+                <p class="mt-2 text-body-s text-text-tertiary">Estamos creando el servidor de WhatsApp de la competición. Suele tardar unos segundos; si ya existía, se usa el que hay.</p>
+                <div class="mt-4 flex flex-col gap-3 rounded-md border border-line-subtle p-4" aria-hidden="true">
+                  @for (i of [0, 1, 2]; track i) {
+                    <div class="flex items-center gap-3"><gr-skeleton class="size-6 rounded-pill" /><gr-skeleton class="h-3 w-1/3 rounded-pill" /><gr-skeleton class="h-3 w-1/6 rounded-pill" /><gr-skeleton class="ml-auto h-3 w-12 rounded-pill" /></div>
+                  }
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <button grButton variant="primary" [disabled]="true">Creando instancia…</button>
+                  <button grButton variant="ghost" (click)="cancelarCreacion()">Cancelar</button>
+                </div>
+              </section>
+            } @else if (estado() === 'sin_instancia') {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
                 <div class="mx-auto flex max-w-xl flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-raised p-8 text-center">
-                  <span class="flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="plug" [size]="22" /></span>
+                  <span class="flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="wand" [size]="22" /></span>
                   <h2 class="text-ui-h4">Todavía no hay número vinculado</h2>
                   <p class="text-body-s text-text-tertiary">Prepara el servicio de WhatsApp para esta competición. Cuando exista, vincularás el número con un QR o un código y los avisos del alta saldrán por aquí.</p>
                   <div class="mt-2 flex flex-wrap justify-center gap-2">
-                    <button grButton variant="primary" [loading]="ocupado()" (click)="crearInstancia()">Crear instancia</button>
+                    <button grButton variant="primary" [disabled]="ocupado()" (click)="crearInstancia()">Crear instancia</button>
                     <button grButton variant="ghost" (click)="ayuda.set(!ayuda())">Cómo funciona la vinculación</button>
                   </div>
                   @if (ayuda()) {
@@ -104,7 +120,7 @@ type Dialogo = 'desconectar' | null;
             } @else if (estado() === 'conectado') {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                 <div class="flex flex-wrap items-center gap-3">
-                  <p class="text-ui-h5">{{ numeroVinculado() }}</p>
+                  <p class="text-ui-h5">{{ telefonoLegible(numeroVinculado()) }}</p>
                   <gr-badge tone="success">Vinculado</gr-badge>
                   <div class="ml-auto flex flex-wrap gap-2">
                     <button grButton [loading]="ocupado()" (click)="reiniciar()">Reiniciar la conexión</button>
@@ -118,7 +134,7 @@ type Dialogo = 'desconectar' | null;
               @if (estado() === 'desconectado') {
                 <gr-alert tone="info" title="WhatsApp desconectado">
                   El canal quedó cerrado a propósito. Los emails del alta siguen saliendo; los avisos de WhatsApp quedan en cola.
-                  <a alertAction [routerLink]="['/', comps.current()?.slug, 'emails', 'salida']" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Revisar cola de mensajes <gr-icon name="arrow-right" [size]="14" /></a>
+                  <a alertAction [routerLink]="['/', comps.current()?.slug, 'emails', 'salida']" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-info">Revisar cola de mensajes <gr-icon name="arrow-right" [size]="14" /></a>
                 </gr-alert>
               }
               @if (servicioCaido()) {
@@ -133,15 +149,15 @@ type Dialogo = 'desconectar' | null;
                   <p class="mt-1 text-body-xs text-text-tertiary">Abre WhatsApp en el móvil › Dispositivos vinculados y escanea. La pantalla se actualiza sola.</p>
                   <div class="mt-5 flex flex-col items-center gap-3">
                     @if (qr(); as q) {
-                      <img [src]="q" alt="Código QR para vincular el número de WhatsApp" class="h-[300px] w-[240px] rounded-md bg-white p-2 object-contain" />
-                      <span class="h-1 w-full max-w-[240px] overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full w-1/3 rounded-pill bg-success"></span></span>
+                      <img [src]="q" alt="QR de vinculación de WhatsApp, se renueva cada 20 s" class="size-[266px] max-w-full rounded-md bg-white p-4 object-contain" />
+                      <span class="h-1 w-full max-w-[266px] overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full w-3/5 rounded-pill bg-success"></span></span>
                       <p class="text-body-xs text-text-tertiary">El QR se renueva solo hasta que lo escanees</p>
                       <div class="flex w-full items-center justify-between gap-2">
                         <p class="text-body-xs text-text-tertiary">{{ esperando() ? 'Esperando a que escanees el QR' : 'Conectando…' }}</p>
                         <button type="button" class="text-label-s text-accent-text hover:underline" (click)="actualizarQr()">Actualizar</button>
                       </div>
                     } @else if (qrCaducado()) {
-                      <div class="flex h-[300px] w-[240px] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-warning/60 p-4 text-center">
+                      <div class="flex size-[266px] max-w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-warning/60 p-4 text-center">
                         <gr-icon name="scan" [size]="24" class="text-warning" />
                         <p class="text-label-s text-warning">El QR ha caducado</p>
                         <p class="text-body-xs text-text-tertiary">no se escaneó a tiempo</p>
@@ -152,7 +168,7 @@ type Dialogo = 'desconectar' | null;
                         <button grButton variant="primary" [loading]="ocupado()" (click)="generarQr()">Generar otro</button>
                       </div>
                     } @else {
-                      <div class="flex h-[300px] w-[240px] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong p-4 text-center">
+                      <div class="flex size-[266px] max-w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong p-4 text-center">
                         <gr-icon name="scan" [size]="24" class="text-text-tertiary" />
                         <p class="text-label-s text-text-tertiary">Código QR</p>
                         <p class="text-body-xs text-text-tertiary">Pulsa «Generar QR»</p>
@@ -174,8 +190,8 @@ type Dialogo = 'desconectar' | null;
                         @for (p of paises; track p.prefijo) { <option [value]="p.prefijo">{{ p.nombre }} {{ p.prefijo }}</option> }
                       </gr-select>
                     </gr-field>
-                    <gr-field label="Número de móvil" hint="Se guarda con el prefijo del país (+34 por defecto)">
-                      <input grInput id="gr-whatsapp-nuevo" inputmode="tel" placeholder="612 345 678" [ngModel]="numeroEnlace()" (ngModelChange)="numeroEnlace.set($event)" />
+                    <gr-field label="Número de móvil" [error]="numError()" hint="Se guarda con el prefijo del país (+34 por defecto)">
+                      <input grInput id="gr-whatsapp-nuevo" inputmode="tel" placeholder="612 345 678" [ngModel]="numeroEnlace()" (ngModelChange)="numeroEnlace.set($event); numError.set(null)" />
                     </gr-field>
                     @if (codigo(); as c) {
                       <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-success/40 bg-success/5 px-4 py-3">
@@ -187,10 +203,13 @@ type Dialogo = 'desconectar' | null;
                         <li>2 · Ajustes › Dispositivos vinculados</li>
                         <li>3 · Toca «Vincular con número de teléfono»</li>
                       </ol>
-                      <div class="flex justify-end"><button grButton variant="primary" [loading]="ocupado()" (click)="generarCodigo()">Generar otro código</button></div>
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <p class="text-body-xs text-text-tertiary">El código solo sirve para este intento y caduca al conectar</p>
+                        <button grButton variant="primary" [loading]="ocupado()" (click)="generarCodigo()">Generar otro código</button>
+                      </div>
                     } @else {
-                      <p class="text-body-xs text-text-tertiary">Escribe tu número para pedir el código</p>
-                      <div class="flex justify-end">
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <p class="text-body-xs text-text-tertiary">Escribe tu número para pedir el código</p>
                         <button grButton variant="primary" [loading]="ocupado()" [disabled]="!numeroEnlace().trim()" (click)="generarCodigo()">Generar código</button>
                       </div>
                     }
@@ -223,26 +242,29 @@ type Dialogo = 'desconectar' | null;
                     <ul class="mt-2 flex flex-col gap-2">
                       @for (t of telefonos(); track t.numero) {
                         <li class="flex items-center justify-between gap-3 rounded-md bg-bg-raised px-4 py-3">
-                          <span class="min-w-0 truncate text-body-s">{{ telefonoLegible(t.numero) }}<span class="text-text-tertiary"> · {{ t.nombre || 'Sin nombre' }}</span></span>
-                          <button grIconButton icon="trash" [label]="'Quitar ' + t.numero" (click)="quitar(t)"></button>
+                          <span class="min-w-0 truncate text-body-s"><span class="font-mono">{{ telefonoLegible(t.numero) }}</span><span class="text-text-secondary"> · {{ t.nombre || 'Sin nombre' }}</span></span>
+                          <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-md bg-danger/10 text-danger hover:bg-danger/20 md:size-8" [attr.aria-label]="'Quitar ' + telefonoLegible(t.numero)" [disabled]="ocupado()" (click)="quitar(t)"><gr-icon name="trash" [size]="16" aria-hidden="true" /></button>
                         </li>
                       }
                     </ul>
                   }
                   <div class="mt-4">
-                    <gr-field label="Número nuevo" [error]="telError()" hint="Se guarda con el prefijo del país (+34 por defecto)">
-                      <div class="flex gap-2">
-                        <input grInput id="gr-whatsapp-telefono" inputmode="tel" placeholder="+34 600 000 000" [ngModel]="nuevo()" (ngModelChange)="nuevo.set($event)" (keydown.enter)="anadir()" />
-                        <button grButton [disabled]="ocupado()" (click)="anadir()">Añadir</button>
-                      </div>
-                    </gr-field>
+                    <div class="flex flex-col gap-2 md:flex-row md:items-start">
+                      <gr-field class="flex-1" label="Número nuevo" [error]="telError()" [hint]="lleno() ? 'Ya hay 10 teléfonos: quita alguno antes de añadir otro' : 'Se guarda con el prefijo del país (+34 por defecto)'">
+                        <input grInput id="gr-whatsapp-telefono" inputmode="tel" placeholder="+34 600 000 000" [disabled]="lleno()" [ngModel]="nuevo()" (ngModelChange)="nuevo.set($event); telError.set(null)" (keydown.enter)="anadir()" />
+                      </gr-field>
+                      <gr-field class="md:w-64" label="Nombre o rol (opcional)">
+                        <input grInput id="gr-whatsapp-nombre" maxlength="80" placeholder="Noelia · dirección" [disabled]="lleno()" [ngModel]="nuevoNombre()" (ngModelChange)="nuevoNombre.set($event)" (keydown.enter)="anadir()" />
+                      </gr-field>
+                      <button grButton class="md:mt-7" [disabled]="ocupado() || lleno()" (click)="anadir()">Añadir</button>
+                    </div>
                   </div>
                   @if (!telefonos().length) {
                     <section class="mt-4 rounded-lg border border-line-subtle bg-bg-raised p-5">
                       <h3 class="text-label-s">Sin teléfonos</h3>
                       <p class="mt-1 text-body-s text-text-secondary">Sin teléfonos en la lista, el aviso a organizadores no se envía: la solicitud solo llega por email.</p>
                       <gr-alert tone="info" title="No hay teléfonos de organizador" class="mt-3">
-                        Añade al menos uno antes de abrir el alta: de momento los avisos a organizados no se envían.
+                        Añade al menos uno antes de abrir el alta: de momento los avisos a organizadores no se envían.
                         <button alertAction type="button" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text" (click)="enfocarNumero()">Añadir teléfono <gr-icon name="arrow-right" [size]="14" /></button>
                       </gr-alert>
                     </section>
@@ -265,22 +287,22 @@ type Dialogo = 'desconectar' | null;
     <!-- ===== Disconnect ===== -->
     @if (dialogo() === 'desconectar') {
       <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4" (click)="dialogo.set(null)" (keydown.escape)="dialogo.set(null)">
-        <div class="w-full max-w-lg rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Desconectar WhatsApp"
+        <div class="w-full max-w-[520px] rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-labelledby="gr-wa-desc-titulo" aria-describedby="gr-wa-desc-texto"
           cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
           <div class="flex items-start justify-between gap-3">
-            <h2 class="text-ui-h5">Desconectar WhatsApp</h2>
+            <h2 id="gr-wa-desc-titulo" class="text-ui-h5">Desconectar WhatsApp</h2>
             <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="dialogo.set(null)"><gr-icon name="x" [size]="18" /></button>
           </div>
-          <p class="mt-3 text-body-s text-text-secondary">El número deja de enviar y recibir mensajes y se cierra su sesión. Los avisos de solicitudes en cola esperan a que vincules otro número.</p>
+          <p id="gr-wa-desc-texto" class="mt-3 text-body-s text-text-secondary">El número deja de enviar y recibir mensajes y se cierra su sesión. Los avisos de solicitudes en cola esperan a que vincules otro número.</p>
           <div class="mt-4">
             <gr-field label="Escribe DESCONECTAR para confirmar">
-              <input grInput maxlength="11" [ngModel]="desconectarTexto()" (ngModelChange)="desconectarTexto.set($event)" />
+              <input grInput cdkFocusInitial maxlength="11" autocomplete="off" aria-label="Escribe DESCONECTAR para confirmar" [ngModel]="desconectarTexto()" (ngModelChange)="desconectarTexto.set($event)" />
             </gr-field>
             <p class="mt-1 text-body-xs text-text-tertiary">La desconexión queda en el registro de auditoría con tu usuario.</p>
           </div>
           <div class="mt-6 flex justify-end gap-2">
             <button grButton variant="ghost" (click)="dialogo.set(null)">Cancelar</button>
-            <button grButton variant="danger" [loading]="ocupado()" [disabled]="desconectarTexto().trim().toUpperCase() !== 'DESCONECTAR'" (click)="desconectar()">Sí, desconectar</button>
+            <button grButton variant="danger" [loading]="ocupado()" [disabled]="desconectarTexto() !== 'DESCONECTAR'" (click)="desconectar()">Sí, desconectar</button>
           </div>
         </div>
       </div>
@@ -304,7 +326,12 @@ export class WhatsAppSistemaPage {
   protected readonly numeroEnlace = signal('');
   protected readonly pais = signal('+34');
   protected readonly nuevo = signal('');
+  protected readonly nuevoNombre = signal('');
   protected readonly telError = signal<string | null>(null);
+  protected readonly numError = signal<string | null>(null);
+  /** «Creando instancia» (Figma 171:84532): from «Crear instancia» until the service answers. */
+  protected readonly creando = signal(false);
+  private creacion = 0;
   protected readonly alAtleta = signal(true);
   protected readonly aOrganizadores = signal(true);
   protected readonly guardado = signal(false);
@@ -329,6 +356,7 @@ export class WhatsAppSistemaPage {
   /** Legible name of the service (the technical id is never shown). */
   protected readonly instancia = computed(() => this.estadoInfo()?.instancia || this.comps.current()?.nombre || this.comps.current()?.nombreCorto || 'WhatsApp');
   protected readonly telefonos = computed(() => this.avisos()?.telefonos ?? []);
+  protected readonly lleno = computed(() => this.telefonos().length >= 10);
   protected readonly servicioCaido = computed(() => this.estadoInfo()?.servicio === 'caido' || this.estado() === 'error');
 
   constructor() {
@@ -337,12 +365,19 @@ export class WhatsAppSistemaPage {
       if (cid) untracked(() => void this.cargar());
     });
     const sub = this.live.events.subscribe((e) => {
-      if (e.tipo === 'whatsapp.conexion') {
-        void this.cargarEstado();
+      if (e.tipo === 'whatsapp.conexion' || e.tipo === 'whatsapp.desconectado') {
+        void this.cargarEstado().then(() => {
+          // Another tab started the linking: this one shows the QR too.
+          if (this.estado() === 'conectando' && !this.qr() && !this.codigo()) void this.actualizarQr();
+        });
         return;
       }
       if (e.tipo === 'whatsapp.qr_nuevo') {
         void this.actualizarQr();
+        return;
+      }
+      if (e.tipo === 'whatsapp.avisos') {
+        void this.cargarAvisos();
       }
     });
     const rs = this.live.resync.subscribe(() => void this.cargar());
@@ -357,6 +392,10 @@ export class WhatsAppSistemaPage {
   async cargar(): Promise<void> {
     if (!this.puede()) return;
     await this.cargarEstado();
+    await this.cargarAvisos();
+  }
+
+  private async cargarAvisos(): Promise<void> {
     try {
       const a = await this.api.avisos(this.cid());
       this.avisos.set(a);
@@ -377,7 +416,14 @@ export class WhatsAppSistemaPage {
     const cid = this.cid();
     if (!cid) return;
     try {
-      this.estadoInfo.set(await this.api.estado(cid));
+      const e = await this.api.estado(cid);
+      this.estadoInfo.set(e);
+      if (e.estado !== 'conectando') {
+        // Connected (or gone): the QR and the code leave the screen.
+        this.qr.set(null);
+        this.codigo.set(null);
+        this.qrCaducado.set(false);
+      }
     } catch {
       this.estadoInfo.set({ servicio: 'caido', instancia: '', estado: 'error', numero: '', conectadoDesde: '', modo: '' });
     }
@@ -386,6 +432,7 @@ export class WhatsAppSistemaPage {
   // ---------------------------------------------------------------- state
 
   protected estadoLabel(): string {
+    if (this.creando()) return 'Creando…';
     switch (this.estado()) {
       case 'conectado': return 'Conectado';
       case 'conectando': return 'Conectando';
@@ -396,6 +443,7 @@ export class WhatsAppSistemaPage {
   }
 
   protected estadoTone(): GrTone {
+    if (this.creando()) return 'info';
     switch (this.estado()) {
       case 'conectado': return 'success';
       case 'conectando': return 'info';
@@ -434,23 +482,49 @@ export class WhatsAppSistemaPage {
 
   protected pedirPermiso(): void {
     const c = this.comps.current();
+    const email = c?.evento?.emailContacto ?? '';
+    if (!email) {
+      this.toasts.info('Pide el permiso a un administrador', 'Quien gestiona «Equipo y permisos» puede darte acceso a las integraciones de la competición.');
+      return;
+    }
     const asunto = encodeURIComponent('Acceso a Sistema › WhatsApp');
     const cuerpo = encodeURIComponent(`Hola,\n\nNecesito acceso a la configuración de WhatsApp de ${c?.nombre ?? 'la competición'}.\n\nGracias.`);
-    window.location.href = `mailto:${c?.evento?.emailContacto ?? ''}?subject=${asunto}&body=${cuerpo}`;
+    window.location.href = `mailto:${email}?subject=${asunto}&body=${cuerpo}`;
+    this.toasts.info('Solicitud preparada', `Se ha abierto un email a ${email} para pedir el acceso.`);
   }
 
   // ---------------------------------------------------------------- linking
 
   protected async crearInstancia(): Promise<void> {
+    const intento = ++this.creacion;
     this.ocupado.set(true);
+    this.creando.set(true);
     try {
-      this.estadoInfo.set(await this.api.crearInstancia(this.cid()));
+      const r = await this.api.crearInstancia(this.cid());
+      if (intento !== this.creacion) return; // cancelled: the screen already went back
+      await this.cargarEstado();
+      if (r.qr) {
+        this.qr.set(r.qr);
+        this.qrCaducado.set(false);
+        this.esperando.set(true);
+      }
       this.toasts.success('Servicio de WhatsApp preparado');
     } catch (e) {
-      this.toasts.error('No se pudo preparar el servicio', this.waError(e, 'No se pudo preparar el servicio de WhatsApp. Inténtalo de nuevo.'));
+      if (intento === this.creacion) this.toasts.error('No se pudo preparar el servicio', this.waError(e, 'No se pudo preparar el servicio de WhatsApp. Inténtalo de nuevo.'));
     } finally {
-      this.ocupado.set(false);
+      if (intento === this.creacion) {
+        this.creando.set(false);
+        this.ocupado.set(false);
+      }
     }
+  }
+
+  /** The request cannot be aborted on the server (it is idempotent): the screen stops waiting and shows the real state. */
+  protected cancelarCreacion(): void {
+    this.creacion++;
+    this.creando.set(false);
+    this.ocupado.set(false);
+    void this.cargarEstado();
   }
 
   protected async generarQr(): Promise<void> {
@@ -458,14 +532,13 @@ export class WhatsAppSistemaPage {
     this.qrCaducado.set(false);
     try {
       const r = await this.api.conectar(this.cid(), '');
-      this.codigo.set(null);
+      await this.cargarEstado();
       if (r.qr) {
         this.qr.set(r.qr);
         this.esperando.set(true);
       } else {
         this.toasts.info('El servicio todavía no ha devuelto el QR', 'Vuelve a intentarlo en unos segundos.');
       }
-      await this.cargarEstado();
     } catch (e) {
       this.toasts.error('No se pudo generar el QR', this.waError(e, 'No se pudo generar el QR. Inténtalo de nuevo.'));
     } finally {
@@ -491,18 +564,18 @@ export class WhatsAppSistemaPage {
   }
 
   protected async generarCodigo(): Promise<void> {
+    const numero = this.normalizar(this.numeroEnlace(), this.pais());
+    if (!numero) {
+      this.numError.set('El formato no es válido. Ejemplo: 612 345 678');
+      return;
+    }
+    this.numError.set(null);
     this.ocupado.set(true);
     try {
-      const numero = this.normalizar(this.numeroEnlace(), this.pais());
-      if (!numero) {
-        this.toasts.error('El número no es válido', 'Ejemplo: +34 612 345 678');
-        return;
-      }
       const r = await this.api.conectar(this.cid(), numero);
-      this.qr.set(null);
+      await this.cargarEstado();
       this.codigo.set(r.codigo ?? null);
       if (!r.codigo) this.toasts.info('El servicio no ha devuelto un código', 'Vuelve a intentarlo en unos segundos.');
-      await this.cargarEstado();
     } catch (e) {
       this.toasts.error('No se pudo generar el código', this.waError(e, 'No se pudo generar el código. Inténtalo de nuevo.'));
     } finally {
@@ -522,7 +595,8 @@ export class WhatsAppSistemaPage {
   protected async reiniciar(): Promise<void> {
     this.ocupado.set(true);
     try {
-      this.estadoInfo.set(await this.api.reiniciar(this.cid()));
+      await this.api.reiniciar(this.cid());
+      await this.cargarEstado();
       this.toasts.success('Conexión reiniciada');
     } catch (e) {
       this.toasts.error('No se pudo reiniciar', this.waError(e, 'No se pudo reiniciar la conexión. Inténtalo de nuevo.'));
@@ -534,11 +608,10 @@ export class WhatsAppSistemaPage {
   protected async desconectar(): Promise<void> {
     this.ocupado.set(true);
     try {
-      this.estadoInfo.set(await this.api.desconectar(this.cid()));
+      await this.api.desconectar(this.cid());
       this.dialogo.set(null);
       this.desconectarTexto.set('');
-      this.qr.set(null);
-      this.codigo.set(null);
+      await this.cargarEstado();
       this.toasts.success('WhatsApp desconectado');
     } catch (e) {
       this.toasts.error('No se pudo desconectar', this.waError(e, 'No se pudo desconectar WhatsApp. Inténtalo de nuevo.'));
@@ -571,18 +644,19 @@ export class WhatsAppSistemaPage {
     const a = this.avisos();
     if (!a) return;
     if (a.telefonos.length >= 10) {
-      this.toasts.error('Ya hay 10 teléfonos', 'Quita alguno antes de añadir otro.');
+      this.telError.set('Ya hay 10 teléfonos: quita alguno antes de añadir otro');
       return;
     }
     if (a.telefonos.some((t) => t.numero === numero)) {
-      this.toasts.error('Ese teléfono ya está en la lista');
+      this.telError.set('Ese teléfono ya está en la lista');
       return;
     }
     this.ocupado.set(true);
     try {
-      const lista = [...a.telefonos, { numero, nombre: '' }];
+      const lista = [...a.telefonos, { numero, nombre: this.nuevoNombre().trim().slice(0, 80) }];
       this.avisos.set(await this.api.guardarAvisos(this.cid(), { ...a, telefonos: lista, alAtleta: this.alAtleta(), aOrganizadores: this.aOrganizadores() }));
       this.nuevo.set('');
+      this.nuevoNombre.set('');
       this.guardado.set(true);
     } catch (e) {
       this.toasts.error('No se pudo añadir el teléfono', this.waError(e, 'No se pudo guardar la lista de teléfonos. Inténtalo de nuevo.'));
@@ -607,11 +681,14 @@ export class WhatsAppSistemaPage {
 
   protected async probar(): Promise<void> {
     this.probando.set(true);
+    const inicio = performance.now();
     try {
       const r = await this.api.prueba(this.cid());
       if (r.enviados > 0) {
-        const primero = this.telefonos()[0]?.numero ?? '';
-        this.toasts.success(`Prueba enviada · ${primero}`, 'Entregado en 2 segundos');
+        const primero = this.telefonoLegible(this.telefonos()[0]?.numero ?? '');
+        const otros = r.enviados > 1 ? ` y ${r.enviados - 1} más` : '';
+        const seg = Math.max(1, Math.round((performance.now() - inicio) / 1000));
+        this.toasts.success(`Prueba enviada · ${primero}${otros}`, `Entregado en ${seg} ${seg === 1 ? 'segundo' : 'segundos'}`);
       } else {
         const err = r.errores?.[0];
         this.toasts.error('No se pudo enviar la prueba', this.waTexto(err?.error ?? '', 'WhatsApp desconectado · vincula el número en Vinculación'));
