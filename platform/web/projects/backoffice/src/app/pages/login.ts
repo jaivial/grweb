@@ -173,6 +173,10 @@ export class LoginPage {
       const p = problemOf(e);
       this.sent.set(false);
       if (p.code === 'SEGUNDO_FACTOR_REQUERIDO') {
+        if (this.pideCodigo()) {
+          this.errorCode.set('CODIGO_INVALIDO');
+          this.errorText.set('Escribe el código de 6 cifras de tu app de verificación.');
+        }
         this.pideCodigo.set(true);
         return;
       }
