@@ -107,6 +107,17 @@ func (s *Svc) registerAdmin() {
 		_, err := auth.Require(ctx, cid.String(), "web.editar")
 		return err
 	}
+	// leer: the read-only views are open to every staff member of the competition (Figma «sin permiso»)
+	leer := func(ctx context.Context, cid uuid.UUID) error {
+		p, err := auth.User(ctx)
+		if err != nil {
+			return err
+		}
+		if !p.Member(cid.String()) {
+			return problem.Forbidden("No tienes acceso a esta competición.")
+		}
+		return nil
+	}
 	type cidIn struct {
 		CID uuid.UUID `path:"cid"`
 	}
@@ -120,7 +131,7 @@ func (s *Svc) registerAdmin() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "patrocinio-banners", Method: http.MethodGet, Path: base + "/banners", Summary: "Banners por tier y orden", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*bannersOut, error) {
-			if err := editar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			rows, err := s.a.DB.Query(ctx, `SELECT id, patrocinador, imagen_url, imagen_movil_url, url_destino, tier, activo, desde, hasta, orden, version, created_at
@@ -155,9 +166,10 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			b.ID = newID()
-			if _, err := s.a.DB.Exec(ctx, `INSERT INTO banners (id, competition_id, patrocinador, imagen_url, imagen_movil_url, url_destino, tier, activo, desde, hasta, orden)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-				b.ID, in.CID, b.Patrocinador, b.ImagenURL, b.ImagenMovilURL, b.URLDestino, b.Tier, b.Activo, b.Desde, b.Hasta, b.Orden); err != nil {
+			// RETURNING: the answer carries the version (If-Match of the next edit) and the real creation date
+			if err := s.a.DB.QueryRow(ctx, `INSERT INTO banners (id, competition_id, patrocinador, imagen_url, imagen_movil_url, url_destino, tier, activo, desde, hasta, orden)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING version, created_at`,
+				b.ID, in.CID, b.Patrocinador, b.ImagenURL, b.ImagenMovilURL, b.URLDestino, b.Tier, b.Activo, b.Desde, b.Hasta, b.Orden).Scan(&b.Version, &b.CreatedAt); err != nil {
 				return nil, err
 			}
 			return &struct{ Body Banner }{b}, nil
@@ -236,7 +248,7 @@ func (s *Svc) registerAdmin() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "patrocinio-config", Method: http.MethodGet, Path: base + "/config", Summary: "Configuración de patrocinio", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*cfgOut, error) {
-			if err := editar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			c, err := cargarConfig(ctx, s.a.DB, in.CID, false)
@@ -316,7 +328,7 @@ func (s *Svc) registerAdmin() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "patrocinio-informe", Method: http.MethodGet, Path: base + "/informe", Summary: "Informe del día: apariciones y clics por banner, cola de pendientes y estimación de la primera ronda", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *informeIn) (*informeOut, error) {
-			if err := editar(ctx, in.CID); err != nil {
+			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
 			dia := hoyMadrid(time.Now())
