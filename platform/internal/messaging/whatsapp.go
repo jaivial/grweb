@@ -358,6 +358,11 @@ func (s *Svc) estadoAdmin(ctx context.Context, cid uuid.UUID) WAEstadoAdmin {
 		if errors.As(err, &ew) && ew.codigo == http.StatusNotFound {
 			// The instance is not in evo-weai (it was deleted or the service was reset): disconnected, not down.
 			out.Estado = "desconectado"
+			out.Numero = s.numeroInstancia(ctx, cid)
+			var desde time.Time
+			if s.a.DB.QueryRow(ctx, `SELECT conectado_desde FROM whatsapp_instancia WHERE competition_id = $1 AND conectado_desde IS NOT NULL`, cid).Scan(&desde) == nil {
+				out.ConectadoDesde = &desde // «Última conexión»
+			}
 			return out
 		}
 		s.waLog(ctx, cid, "estado de la sesión", err)
