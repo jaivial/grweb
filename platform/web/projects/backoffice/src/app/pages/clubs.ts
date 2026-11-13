@@ -44,14 +44,14 @@ const TH = 'px-4 py-3 text-left text-label-xs font-normal tracking-[0.04em] text
       <nav class="hidden gap-1 border-b border-line-subtle md:flex" aria-label="Clubs">
         @for (t of tabs; track t.k) {
           <button type="button" (click)="ir(t.k)" [attr.aria-current]="tab() === t.k ? 'page' : null" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [class]="tab() === t.k ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">
-            {{ t.l }}<span class="flex h-5 items-center rounded-xs px-1.5 text-mono-xs" [class]="tab() === t.k ? 'bg-accent/20 text-accent-text' : 'bg-bg-raised text-text-tertiary'">{{ cuenta(t.k) }}</span>
+            {{ t.l }}@if (l) { <span class="flex h-5 items-center rounded-xs px-1.5 text-mono-xs" [class]="tab() === t.k ? 'bg-accent/20 text-accent-text' : 'bg-bg-raised text-text-tertiary'">{{ cuenta(t.k) }}</span> }
             @if (tab() === t.k) { <span class="absolute inset-x-0 bottom-0 h-0.5 bg-accent"></span> }
           </button>
         }
       </nav>
       <div class="flex gap-1 rounded-md border border-line-subtle bg-bg-card p-1 md:hidden" role="tablist" aria-label="Clubs">
         @for (t of tabs; track t.k) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.k" (click)="ir(t.k)" class="h-10 flex-1 truncate rounded-sm px-2 text-label-s" [class]="tab() === t.k ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'">{{ t.m }} {{ cuenta(t.k) }}</button>
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.k" (click)="ir(t.k)" class="h-10 flex-auto rounded-sm px-2 text-[13px] leading-4 font-semibold whitespace-nowrap" [class]="tab() === t.k ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'">{{ t.m }}@if (l) { {{ ' ' + cuenta(t.k) }} }</button>
         }
       </div>
 
@@ -70,7 +70,7 @@ const TH = 'px-4 py-3 text-left text-label-xs font-normal tracking-[0.04em] text
             </div>
             @if (!pendientes().length) { <gr-empty icon="building" title="Sin solicitudes pendientes" text="Las solicitudes llegan del formulario «Añade tu club» de /clubs." /> }
             @else {
-              <section class="hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card md:block">
+              <section class="hidden overflow-hidden rounded-lg border border-line-subtle bg-bg-card lg:block">
                 <table class="w-full table-fixed">
                   <thead class="border-b border-line-subtle"><tr><th class="${TH} w-[25%]">Club</th><th class="${TH} w-[13%]">Provincia</th><th class="${TH}">Contacto</th><th class="${TH} w-[9.5%]">AEP</th><th class="${TH} w-[12%]">Recibida</th><th class="${TH} w-[14%]">Estado</th><th class="w-14"></th></tr></thead>
                   <tbody>
@@ -78,7 +78,7 @@ const TH = 'px-4 py-3 text-left text-label-xs font-normal tracking-[0.04em] text
                       <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.bg-accent/6]="abierto() && sel()?.id === c.id" (click)="revisar(c)">
                         <td class="px-4 py-2.5"><span class="flex items-center gap-3"><span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-line-strong bg-bg-raised text-label-xs">{{ ini(c.nombre) }}</span><span class="min-w-0"><span class="block truncate text-label-m">{{ c.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ c.ciudad || '—' }}</span></span></span></td>
                         <td class="px-4 py-2.5 text-body-m">{{ c.provincia || '—' }}</td>
-                        <td class="px-4 py-2.5 text-body-m break-words">{{ c.contactoNombre || '—' }}@if (c.contactoEmail) { · {{ c.contactoEmail }} }</td>
+                        <td class="px-4 py-2.5 text-body-m"><span class="block truncate">{{ c.contactoNombre || '—' }}{{ c.contactoEmail ? ' ·' : '' }}</span>@if (c.contactoEmail) { <span class="block truncate" [title]="c.contactoEmail">{{ c.contactoEmail }}</span> }</td>
                         <td class="px-4 py-2.5"><gr-badge [tone]="aep(c).tone">{{ aep(c).l }}</gr-badge></td>
                         <td class="px-4 py-2.5 text-body-m">{{ recibida(c.createdAt) }}</td>
                         <td class="px-4 py-2.5"><gr-badge [tone]="c.abiertaAt ? 'warning' : 'info'">{{ c.abiertaAt ? 'En revisión' : 'Nueva' }}</gr-badge></td>
@@ -89,7 +89,7 @@ const TH = 'px-4 py-3 text-left text-label-xs font-normal tracking-[0.04em] text
                 </table>
                 <footer class="flex items-center justify-between gap-4 border-t border-line-subtle px-4 py-3"><span class="text-body-xs text-text-tertiary">{{ pendientes().length }} {{ pendientes().length === 1 ? 'solicitud' : 'solicitudes' }}</span>@if (paginas() > 1) { <bo-pagination [page]="pag()" [pages]="paginas()" (change)="pag.set($event)" /> }</footer>
               </section>
-              <ul class="flex flex-col gap-4 md:hidden">
+              <ul class="flex flex-col gap-4 lg:hidden">
                 @for (c of pendientes(); track c.id) {
                   <li class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
                     <button type="button" class="flex flex-col items-start gap-1 text-left" (click)="revisar(c)"><span class="text-[18px] leading-6 font-semibold">{{ c.nombre }}</span><span class="text-body-xs text-text-tertiary">{{ lugar(c) }}{{ c.afiliadoAep ? ' · AEP' : '' }}</span></button>
@@ -104,20 +104,20 @@ const TH = 'px-4 py-3 text-left text-label-xs font-normal tracking-[0.04em] text
             @if (!asociados().length) { <gr-empty icon="building" title="Todavía no hay clubs en el directorio" text="Aprueba una solicitud o añade un club a mano."><button grButton variant="primary" (click)="nuevo()">Añadir club</button></gr-empty> }
             @else {
               <section class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
-                <div class="hidden border-b border-line-subtle md:grid md:grid-cols-[40px_minmax(0,33%)_minmax(0,1fr)_170px_96px_130px_56px]"><span></span><span class="${TH}">Club</span><span class="${TH}">Ciudad</span><span class="${TH}">Papel</span><span class="${TH}">AEP</span><span class="${TH}">En la web</span><span></span></div>
+                <div class="hidden border-b border-line-subtle lg:grid lg:grid-cols-[40px_minmax(0,33%)_minmax(0,1fr)_170px_96px_130px_56px]"><span></span><span class="${TH}">Club</span><span class="${TH}">Ciudad</span><span class="${TH}">Papel</span><span class="${TH}">AEP</span><span class="${TH}">En la web</span><span></span></div>
                 <ul cdkDropList [cdkDropListDisabled]="ocupado()" (cdkDropListDropped)="soltar($event)" class="divide-y divide-line-subtle">
                   @for (c of asociados(); track c.id) {
-                    <li cdkDrag [cdkDragData]="c" class="grid grid-cols-[32px_minmax(0,1fr)_44px] items-center bg-bg-card py-2.5 md:grid-cols-[40px_minmax(0,33%)_minmax(0,1fr)_170px_96px_130px_56px] md:py-2.5">
+                    <li cdkDrag [cdkDragData]="c" class="grid grid-cols-[32px_minmax(0,1fr)_44px] items-center bg-bg-card py-2.5 lg:grid-cols-[40px_minmax(0,33%)_minmax(0,1fr)_170px_96px_130px_56px]">
                       <span cdkDragHandle class="flex h-11 cursor-grab items-center justify-center text-text-muted active:cursor-grabbing" [attr.aria-label]="'Arrastrar ' + c.nombre" title="Arrastra para cambiar el orden"><gr-icon name="grip" [size]="16" /></span>
-                      <span class="flex min-w-0 items-center gap-3 md:px-1">
+                      <span class="flex min-w-0 items-center gap-3 lg:px-1">
                         <span class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-bg-raised">@if (c.logoUrl) { <img [src]="logo(c.logoUrl)" alt="" class="size-full object-contain p-0.5" /> } @else { <span class="text-label-xs">{{ ini(c.nombre) }}</span> }</span>
                         <span class="min-w-0"><span class="block truncate text-label-m">{{ c.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ c.ciudad || 'Por confirmar' }}</span>
-                          <span class="mt-1.5 flex flex-wrap gap-1.5 md:hidden"><gr-badge [tone]="rol[c.rol].tone">{{ rol[c.rol].l }}</gr-badge><gr-badge [tone]="c.estado === 'publicado' ? 'success' : 'neutral'">{{ c.estado === 'publicado' ? 'Visible' : 'Oculto' }}</gr-badge></span></span>
+                          <span class="mt-1.5 flex flex-wrap gap-1.5 lg:hidden"><gr-badge [tone]="rol[c.rol].tone">{{ rol[c.rol].l }}</gr-badge><gr-badge [tone]="c.estado === 'publicado' ? 'success' : 'neutral'">{{ c.estado === 'publicado' ? 'Visible' : 'Oculto' }}</gr-badge></span></span>
                       </span>
-                      <span class="hidden truncate px-4 text-body-m md:block">{{ lugarDirectorio(c) }}</span>
-                      <span class="hidden px-4 md:block"><gr-badge [tone]="rol[c.rol].tone">{{ rol[c.rol].l }}</gr-badge></span>
-                      <span class="hidden px-4 md:block"><gr-badge [tone]="aep(c).tone">{{ aep(c).l }}</gr-badge></span>
-                      <span class="hidden px-4 md:block"><gr-badge [tone]="c.estado === 'publicado' ? 'success' : 'neutral'">{{ c.estado === 'publicado' ? 'Visible' : 'Oculto' }}</gr-badge></span>
+                      <span class="hidden truncate px-4 text-body-m lg:block">{{ lugarDirectorio(c) }}</span>
+                      <span class="hidden px-4 lg:block"><gr-badge [tone]="rol[c.rol].tone">{{ rol[c.rol].l }}</gr-badge></span>
+                      <span class="hidden px-4 lg:block"><gr-badge [tone]="aep(c).tone">{{ aep(c).l }}</gr-badge></span>
+                      <span class="hidden px-4 lg:block"><gr-badge [tone]="c.estado === 'publicado' ? 'success' : 'neutral'">{{ c.estado === 'publicado' ? 'Visible' : 'Oculto' }}</gr-badge></span>
                       <span class="flex justify-end pr-2"><button grIconButton icon="more" [label]="'Acciones de ' + c.nombre" [disabled]="ocupado()" (click)="menuAsociado($event, c)"></button></span>
                     </li>
                   }
@@ -318,14 +318,19 @@ export class ClubsPage {
   private get base(): string { return `/api/admin/competiciones/${this.cid()}`; }
   protected cuenta(t: Tab): number { return t === 'solicitudes' ? this.pendientes().length : t === 'asociados' ? this.asociados().length : this.rechazadas().length; }
   protected ir(t: Tab): void { this.tab.set(t); this.menu.set(null); }
-  protected ini(n: string): string { return n.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
+  protected ini(n: string): string { return (n.match(/[\p{L}\p{N}]+/gu) ?? ['?']).map((w) => Array.from(w)[0]).join('').slice(0, 2).toUpperCase(); }
   protected logo(u: string): string { return u.startsWith('/api/') ? this.web + u : u; }
   protected aep(c: Club): { l: string; tone: GrTone } { return c.afiliadoAep ? { l: 'Sí', tone: 'success' } : c.afiliadoAep === false ? { l: 'No', tone: 'neutral' } : { l: '—', tone: 'neutral' }; }
-  protected lugar(c: Club): string { return [c.ciudad, c.provincia && c.provincia !== c.ciudad ? c.provincia : ''].filter(Boolean).join(' · ') || 'Por confirmar'; }
+  protected lugar(c: Club): string { return [c.ciudad, this.prov(c)].filter(Boolean).join(' · ') || 'Por confirmar'; }
+  /** The province only when it adds something to the city («Murcia (Murcia)», «Por confirmar (Valencia)» do not). */
+  private prov(c: Club): string {
+    const ci = c.ciudad.toLowerCase();
+    return c.provincia && ci && !ci.includes(c.provincia.toLowerCase()) && !ci.includes('por confirmar') ? c.provincia : '';
+  }
   /** «Alcoy (Alicante)», «Valencia», «Por confirmar». */
   protected lugarDirectorio(c: Club): string {
     if (!c.ciudad) return 'Por confirmar';
-    return c.provincia && !c.ciudad.toLowerCase().includes(c.provincia.toLowerCase()) ? `${c.ciudad} (${c.provincia})` : c.ciudad;
+    return this.prov(c) ? `${c.ciudad} (${c.provincia})` : c.ciudad;
   }
   /** «hoy», «ayer», «hace 3 días». */
   protected recibida(iso: string): string {
@@ -342,7 +347,7 @@ export class ClubsPage {
   protected filasClub(c: Club): [string, string, string][] {
     const ig = c.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
     return [
-      ['Ciudad', c.ciudad ? `${c.ciudad}${c.provincia ? ' (' + c.provincia + ')' : ''}` : '—', ''],
+      ['Ciudad', c.ciudad ? this.lugarDirectorio(c) : '—', ''],
       ['Web', c.web || '—', c.web],
       ['Instagram', c.instagram ? (ig.startsWith('@') ? ig : '@' + ig) : '—', c.instagram.startsWith('http') ? c.instagram : c.instagram ? 'https://instagram.com/' + ig.replace(/^@/, '') : ''],
       ['Afiliado a la AEP', c.afiliadoAep ? 'Sí' : c.afiliadoAep === false ? 'No' : 'Sin respuesta', ''],

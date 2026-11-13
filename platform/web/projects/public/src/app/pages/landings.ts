@@ -365,7 +365,10 @@ export class ClubsPage {
   protected readonly errores = signal<Record<string, string>>({});
   protected err = (k: string) => this.errores()[k] ?? '';
   protected readonly ventajas = ['La revisamos en 2–3 días', 'Te avisamos por email cuando esté publicada', 'Gratis: nombre, ciudad, web, redes y si está afiliado a la AEP'];
-  protected tags = (c: Club) => c.etiquetas.split(',').map((t) => t.trim()).filter(Boolean);
+  protected tags = (c: Club) => {
+    const t = c.etiquetas.split(',').map((x) => x.trim()).filter(Boolean);
+    return c.afiliadoAep && !t.some((x) => x.toUpperCase() === 'AEP') ? [...t, 'AEP'] : t;
+  };
   // «Ver club» on every card (Figma 32): web, else Instagram, else a search for the club
   protected enlace = (c: Club) => c.web || (c.instagram.startsWith('http') ? c.instagram : c.instagram ? 'https://www.instagram.com/' + c.instagram.replace(/^@/, '') : 'https://www.google.com/search?q=' + encodeURIComponent(c.nombre + ' ' + c.ciudad));
   protected initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
