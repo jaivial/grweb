@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
@@ -119,7 +120,11 @@ func (s *Svc) registerPublico() {
 					return err
 				}
 				_, err = tx.Exec(ctx, `INSERT INTO actividad (id, contacto_id, tipo, titulo, detalle) VALUES ($1,$2,'novedades','Confirmó las novedades','Doble opt-in')`, newID(), contacto)
-				return err
+				if err != nil {
+					return err
+				}
+				// ticketing shows «Novedades: Sí» on the tickets of this email.
+				return events.Enqueue(ctx, tx, events.New(ctx, "crm.novedades_confirmadas", map[string]any{"email": correo}, events.Competition(cid.String()), events.Audience(events.Internal)))
 			})
 			return o, err
 		})
