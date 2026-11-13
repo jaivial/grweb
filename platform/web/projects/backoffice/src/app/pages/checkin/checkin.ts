@@ -212,7 +212,7 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
               <h2 class="text-ui-h4">Necesitamos la cámara</h2>
               <p class="text-body-m text-text-secondary">Ajustes › Safari › Cámara › Permitir. Mientras tanto puedes buscar por nombre, email o código.</p>
               <button grButton variant="primary" class="mt-1" (click)="vista.set('buscar')">Buscar por nombre</button>
-              <button type="button" class="text-body-s text-text-tertiary hover:text-text-secondary" (click)="arrancar()">Reintentar con la cámara</button>
+              <button type="button" class="text-body-s text-text-tertiary hover:text-text-secondary" (click)="sinCamara.set(false); volver()">Reintentar con la cámara</button>
             </section>
           } @else {
             @if (!online()) {
