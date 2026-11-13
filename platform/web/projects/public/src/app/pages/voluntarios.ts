@@ -77,7 +77,8 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
                   @case ('descartado') { <p class="text-display-xs">Esta vez no ha podido ser</p><p class="max-w-sm text-body-s text-text-secondary">Te hemos escrito con el motivo. Te tendremos en cuenta para la próxima edición.</p> }
                   @default { <p class="text-display-xs">Tu solicitud está {{ m.estado === 'revision' ? 'en revisión' : 'recibida' }}</p><p class="max-w-sm text-body-s text-text-secondary">Te escribiremos con el puesto y el turno en cuanto la revisemos.</p> }
                 }
-                <a grButton variant="outline" routerLink="/">Volver al inicio</a>
+                @if (m.estado === 'pendiente') { <button grButton variant="outline" type="button" (click)="mia.set(null)">Modificar mi solicitud</button> }
+                @else { <a grButton variant="outline" routerLink="/">Volver al inicio</a> }
               </div>
             } @else if (enviado()) {
               <div class="flex flex-col items-center gap-4 py-8 text-center" role="status">
