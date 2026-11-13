@@ -68,9 +68,9 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
         </div>
       </section>
 
-      <nav class="mx-auto flex max-w-full gap-1 overflow-x-auto rounded-md border border-line-subtle bg-bg-card p-1 [scrollbar-width:none]" aria-label="Campaña">
+      <nav class="mx-auto grid w-full grid-cols-4 gap-1 rounded-md md:flex md:w-auto md:max-w-full md:overflow-x-auto border border-line-subtle bg-bg-card p-1 [scrollbar-width:none]" aria-label="Campaña">
         @for (t of tabs; track t.v) {
-          <button type="button" class="flex h-9 shrink-0 items-center gap-1.5 rounded-sm px-3 text-label-s" [class]="tab() === t.v ? 'bg-accent-deep/50 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="ir(t.v)"><gr-icon [name]="t.i" [size]="14" />{{ t.l }}</button>
+          <button type="button" class="flex h-9 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2 text-label-s md:px-3" [class]="tab() === t.v ? 'bg-accent-deep/50 text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="ir(t.v)"><gr-icon [name]="t.i" [size]="14" class="shrink-0" /><span class="truncate md:hidden">{{ t.c }}</span><span class="hidden md:inline">{{ t.l }}</span></button>
         }
       </nav>
       @if (error()) { <gr-alert tone="danger" title="El diseño tiene un problema">{{ error() }}</gr-alert> }
@@ -239,20 +239,20 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
             @if (previa(); as p) {
               <div class="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
                 @if (f().canales.includes('email')) {
-                  <div><p class="mb-2 text-center text-label-s">Email</p>
+                  <div class="min-w-0"><p class="mb-2 text-center text-label-s">Email</p>
                     <div class="mx-auto overflow-hidden rounded-lg border border-line-strong" [style.max-width.px]="ancho() === 'escritorio' ? 640 : 390">
                       <p class="truncate bg-bg-raised px-3 py-2 font-mono text-mono-xs text-text-tertiary">● ● ●  {{ f().asunto }}</p>
                       <iframe [srcdoc]="seguro(p.emailHtml)" title="Email" class="block h-[760px] w-full border-0 bg-white" sandbox=""></iframe>
                     </div></div>
                 }
                 @if (f().canales.includes('whatsapp')) {
-                  <div><p class="mb-2 text-center text-label-s">WhatsApp</p>
-                    <div class="mx-auto w-[320px] rounded-[36px] border-[6px] border-[#1d1a1b] bg-[#0b141a] p-2 shadow-card">
+                  <div class="order-first min-w-0 xl:order-none"><p class="mb-2 text-center text-label-s">WhatsApp</p>
+                    <div class="mx-auto w-full max-w-[320px] rounded-[36px] border-[6px] border-[#1d1a1b] bg-[#0b141a] p-2 shadow-card">
                       <div class="flex items-center gap-2 rounded-t-[28px] bg-[#1f2c34] px-3 py-3"><span class="flex size-8 items-center justify-center rounded-pill bg-white"><img [src]="logo" alt="" class="h-4" /></span><div class="flex-1"><p class="text-[13px] font-semibold text-white">{{ comps.current()?.nombreCorto }}</p><p class="text-[11px] text-[#8696a0]">en línea</p></div></div>
                       <div class="h-[540px] overflow-y-auto bg-[#0b141a] bg-[radial-gradient(circle,#13222b_1px,transparent_1px)] [background-size:14px_14px] p-3">
                         <div class="max-w-[260px] rounded-lg rounded-tl-none bg-[#202c33] p-1.5 text-[13px] leading-[19px] text-[#e9edef]">
                           @if (p.whatsapp.imagen) { <img [src]="p.whatsapp.imagen" alt="" class="mb-1.5 w-full rounded-md" /> }
-                          <p class="px-1.5" [innerHTML]="wa(p.whatsapp.texto)"></p>
+                          <p class="px-1.5 [overflow-wrap:anywhere]" [innerHTML]="wa(p.whatsapp.texto)"></p>
                           <p class="px-1.5 text-right text-[10px] text-[#8696a0]">18:42 ✓✓</p>
                         </div>
                       </div>
@@ -410,7 +410,7 @@ export class CampanaEditorPage {
   protected readonly n = n;
   protected readonly fecha = fecha;
   protected readonly hora = hora;
-  protected readonly tabs: { v: Tab; l: string; i: GrIconName }[] = [{ v: 'flujo', l: 'Flujo', i: 'activity' }, { v: 'diseno', l: 'Diseño', i: 'pencil' }, { v: 'previa', l: 'Previsualización', i: 'eye' }, { v: 'ajustes', l: 'Ajustes', i: 'settings' }];
+  protected readonly tabs: { v: Tab; l: string; c: string; i: GrIconName }[] = [{ v: 'flujo', l: 'Flujo', c: 'Flujo', i: 'activity' }, { v: 'diseno', l: 'Diseño', c: 'Diseño', i: 'pencil' }, { v: 'previa', l: 'Previsualización', c: 'Vista', i: 'eye' }, { v: 'ajustes', l: 'Ajustes', c: 'Ajustes', i: 'settings' }];
   protected readonly vistasDis = [{ v: 'diseno' as const, l: 'Diseño' }, { v: 'previa' as const, l: 'Vista previa' }, { v: 'html' as const, l: 'HTML' }];
   protected readonly anchos: { v: 'escritorio' | 'movil'; l: string; i: GrIconName }[] = [{ v: 'escritorio', l: 'Escritorio', i: 'monitor' }, { v: 'movil', l: 'Móvil', i: 'smartphone' }];
   protected readonly paneles = [{ v: 'anadir' as const, l: '+ Añadir' }, { v: 'capas' as const, l: 'Capas' }];

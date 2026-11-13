@@ -24,9 +24,10 @@ import { BoCheckbox } from './controls';
       <div class="flex min-h-14 flex-wrap items-center gap-2 py-2" role="toolbar" aria-label="Filtros de la tabla">
         <ng-content select="[filters]" />
         @if (filtered()) { <button grButton variant="ghost" (click)="reset.emit()">Limpiar filtros</button> }
-        <span class="hidden flex-1 md:block"></span>
-        <p class="text-body-xs text-text-tertiary" aria-live="polite">{{ loading() ? 'Buscando…' : fmt(total()) + ' ' + (filtered() ? 'resultados' : noun()) }}</p>
-        <ng-content select="[actions]" />
+        <div class="ml-auto flex items-center gap-2">
+          <p class="text-body-xs text-text-tertiary" aria-live="polite">{{ loading() ? 'Buscando…' : fmt(total()) + ' ' + (filtered() ? 'resultados' : noun()) }}</p>
+          <ng-content select="[actions]" />
+        </div>
       </div>
     }
   `,
