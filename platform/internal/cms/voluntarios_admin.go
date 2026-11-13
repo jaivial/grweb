@@ -2,6 +2,7 @@ package cms
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -180,11 +181,15 @@ func (s *Svc) registerVoluntariosAdmin() {
 			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
 				return nil, err
 			}
-			return nil, s.change(ctx, in.CID, "cms.voluntario_estado", map[string]any{"id": in.ID, "estado": in.Body.Estado}, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE voluntarios SET estado = $3, updated_at = now() WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, in.Body.Estado)
-				if err == nil && tag.RowsAffected() == 0 {
+			d := map[string]any{"id": in.ID, "estado": in.Body.Estado}
+			return nil, s.change(ctx, in.CID, "cms.voluntario_estado", d, func(tx pgx.Tx) error {
+				var antes string
+				err := tx.QueryRow(ctx, `UPDATE voluntarios v SET estado = $3, updated_at = now() FROM (SELECT id, estado FROM voluntarios WHERE competition_id = $1 AND id = $2 FOR UPDATE) a
+					WHERE v.id = a.id RETURNING a.estado`, in.CID, in.ID, in.Body.Estado).Scan(&antes)
+				if errors.Is(err, pgx.ErrNoRows) {
 					return problem.NotFound("Esa solicitud no existe.")
 				}
+				d["quitado"] = antes == "confirmado" // the event is enqueued after this function: «sacó a … del equipo» in the audit
 				return err
 			})
 		})

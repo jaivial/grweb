@@ -17,7 +17,7 @@ interface Voluntario {
 }
 interface Puesto { rol: string; nombre: string; objetivo: number }
 type Tab = 'solicitudes' | 'equipo' | 'rechazadas';
-const ROLES: Record<string, string> = { jueces: 'Jueces', cargadores: 'Cargadores', mesa: 'Mesa técnica', foto: 'Foto y vídeo', acreditaciones: 'Acreditaciones' };
+const ROLES: Record<string, string> = { jueces: 'Jueces', cargadores: 'Cargadores', mesa: 'Mesa técnica', foto: 'Foto y vídeo', acreditaciones: 'Acreditaciones y logística' };
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 /** Shifts of the event: set-up the day before, then each day's morning, afternoon or full day (the public form offers those days). */
 function turnosDe(inicio?: string, fin?: string): string[] {
@@ -79,15 +79,15 @@ function turnosDe(inicio?: string, fin?: string): string[] {
               <gr-select tipo="filtro" etiqueta="Disponibilidad" aria-label="Disponibilidad" [ngModel]="fDisp()" (ngModelChange)="fDisp.set($event)"><option value="">Toda</option>@for (d of disponibilidades(); track d) { <option [value]="d">{{ d }}</option> }</gr-select>
               <gr-select tipo="filtro" etiqueta="Edad" aria-label="Edad" [ngModel]="fEdad()" (ngModelChange)="fEdad.set($event)"><option value="">Todas</option><option value="adulto">Adultos</option><option value="menor">Menores</option></gr-select>
               <span class="ml-auto flex items-center gap-2">
-                <span class="text-body-xs text-text-tertiary">{{ filtradas().length }} {{ filtradas().length === 1 ? 'solicitud' : 'solicitudes' }}</span>
+                <span class="text-body-xs whitespace-nowrap text-text-tertiary">{{ filtradas().length }} {{ filtradas().length === 1 ? 'solicitud' : 'solicitudes' }}</span>
                 <button grIconButton icon="download" label="Descargar las solicitudes filtradas (CSV)" [disabled]="!filtradas().length" (click)="exportarSolicitudes()"></button>
                 <gr-select aria-label="Estado" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)"><option value="">Estado</option><option value="pendiente">Nueva</option><option value="revision">En revisión</option><option value="autorizacion">Falta autorización</option></gr-select>
               </span>
             </div>
             @if (!filtradas().length) { <gr-empty icon="heart" [title]="solicitudes().length ? 'Ninguna solicitud con esos filtros' : 'Sin solicitudes pendientes'" text="Las solicitudes llegan del formulario de /voluntarios.">@if (solicitudes().length) { <button grButton (click)="limpiar()">Quitar filtros</button> }</gr-empty> }
             @else {
-              <section class="md:overflow-hidden md:rounded-lg md:border md:border-line-subtle md:bg-bg-card">
-                <table class="hidden w-full table-fixed text-left md:table">
+              <section class="lg:overflow-hidden lg:rounded-lg lg:border lg:border-line-subtle lg:bg-bg-card">
+                <table class="hidden w-full table-fixed text-left lg:table">
                   <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary uppercase"><tr><th class="px-4 py-3 font-normal">Voluntario</th><th class="w-[25%] px-3 py-3 font-normal">Quiere ayudar en</th><th class="w-[15%] px-3 py-3 font-normal">Disponibilidad</th><th class="w-[11%] px-3 py-3 font-normal">Recibida</th><th class="w-[20%] px-3 py-3 font-normal">Estado</th><th class="w-14"></th></tr></thead>
                   <tbody>
                     @for (v of filtradas(); track v.id) {
@@ -102,8 +102,8 @@ function turnosDe(inicio?: string, fin?: string): string[] {
                     }
                   </tbody>
                 </table>
-                <p class="hidden px-4 py-3 text-body-xs text-text-tertiary md:block">{{ filtradas().length }} {{ filtradas().length === 1 ? 'solicitud' : 'solicitudes' }} · llegan del formulario de /voluntarios</p>
-                <ul class="flex flex-col gap-3 md:hidden">
+                <p class="hidden px-4 py-3 text-body-xs text-text-tertiary lg:block">{{ filtradas().length }} {{ filtradas().length === 1 ? 'solicitud' : 'solicitudes' }} · llegan del formulario de /voluntarios</p>
+                <ul class="grid gap-3 md:grid-cols-2 lg:hidden">
                   @for (v of filtradas(); track v.id) {
                     <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
                       <button type="button" class="flex flex-col items-start gap-1 text-left" (click)="revisar(v)"><span class="text-[18px] leading-6 font-semibold">{{ v.nombre }}</span><span class="text-body-xs text-text-tertiary">{{ disp(v) || 'Sin disponibilidad' }} · {{ hace(v.createdAt) }}</span></button>
@@ -124,18 +124,32 @@ function turnosDe(inicio?: string, fin?: string): string[] {
                   <div class="flex flex-col gap-1">
                     <h2 class="text-[18px] leading-6 font-semibold">{{ c.nombre }}</h2>
                     <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary">Cobertura {{ c.miembros.length }} /
-                      <input type="number" min="0" max="200" class="h-6 w-12 rounded-xs border border-line-subtle bg-transparent px-1 text-body-xs text-text-tertiary hover:border-line-strong focus:border-line-strong focus:text-text-primary" [attr.aria-label]="'Personas que necesita ' + c.nombre" [value]="c.objetivo" (change)="objetivo(c.rol, $any($event.target).value)" /></p>
+                      <input type="number" min="0" max="200" class="h-6 w-12 rounded-xs border border-transparent bg-transparent px-1 text-body-xs text-text-tertiary hover:border-line-strong focus:border-line-strong focus:text-text-primary" [attr.aria-label]="'Personas que necesita ' + c.nombre" [value]="c.objetivo" (change)="objetivo(c.rol, $any($event.target).value)" /></p>
                   </div>
                   <gr-badge class="self-start" [tone]="c.miembros.length >= c.objetivo ? 'success' : c.miembros.length ? 'warning' : 'danger'">{{ c.miembros.length >= c.objetivo ? 'Cubierto' : c.miembros.length ? 'Faltan' : 'Sin cubrir' }}</gr-badge>
                   <ul class="flex flex-col">
                     @for (v of c.miembros; track v.id) {
                       <li><button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-sm px-1 text-left hover:bg-bg-raised" [attr.aria-label]="'Cambiar el turno o quitar a ' + v.nombre" (click)="revisar(v)">
-                        <span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong bg-accent/14 text-mono-xs">{{ ini(v.nombre) }}</span>
+                        <span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong bg-accent/14 text-label-xs">{{ ini(v.nombre) }}</span>
                         <span class="min-w-0 flex-1 truncate text-label-m">{{ v.nombre }}@if (v.esMenor) { <span class="ml-1 text-body-xs font-normal text-warning">menor</span> }</span>
                         <span class="truncate text-body-xs text-text-tertiary">{{ turnoCorto(v.turno) }}</span></button></li>
                     } @empty { <li class="text-body-m text-text-muted">Nadie asignado todavía</li> }
                   </ul>
                   <button grButton class="mt-auto self-start" [disabled]="!c.miembros.length" (click)="escribir(c.rol)">Escribir al rol</button>
+                </section>
+              }
+              @if (sinPuesto().length) {
+                <section class="flex flex-col gap-4 rounded-lg border border-dashed border-warning/40 bg-bg-card p-6">
+                  <div class="flex flex-col gap-1"><h2 class="text-[18px] leading-6 font-semibold">Sin puesto asignado</h2><p class="text-body-xs text-text-tertiary">Confirmados sin puesto: ábrelos y asígnales uno.</p></div>
+                  <gr-badge class="self-start" tone="warning">Asignar puesto</gr-badge>
+                  <ul class="flex flex-col">
+                    @for (v of sinPuesto(); track v.id) {
+                      <li><button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-sm px-1 text-left hover:bg-bg-raised" [attr.aria-label]="'Asignar puesto a ' + v.nombre" (click)="revisar(v)">
+                        <span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong bg-accent/14 text-label-xs">{{ ini(v.nombre) }}</span>
+                        <span class="min-w-0 flex-1 truncate text-label-m">{{ v.nombre }}</span>
+                        <span class="truncate text-body-xs text-text-tertiary">{{ turnoCorto(v.turno) || 'Sin turno' }}</span></button></li>
+                    }
+                  </ul>
                 </section>
               }
             </div>
@@ -164,7 +178,7 @@ function turnosDe(inicio?: string, fin?: string): string[] {
     <bo-drawer [(open)]="abierto" [title]="sel()?.nombre || 'Voluntario'" [sub]="sel() ? 'Solicitud enviada ' + hace(sel()!.createdAt) + ' desde /voluntarios' : ''">
       @if (sel(); as v) {
         <div class="flex flex-col gap-5">
-          <div class="-mt-2 flex flex-wrap gap-2"><gr-badge [tone]="estado(v).tone">{{ estado(v).l }}</gr-badge><gr-badge [tone]="v.esMenor ? 'warning' : 'neutral'">{{ v.esMenor ? 'Menor' : 'Adulto' }}</gr-badge></div>
+          <div class="-mt-2 flex flex-wrap gap-2"><gr-badge [tone]="estado(v).tone">{{ estado(v).l }}</gr-badge>@if (!v.esMenor || v.autorizacionUrl || v.estado === 'confirmado' || v.estado === 'descartado') { <gr-badge [tone]="v.esMenor ? 'warning' : 'neutral'">{{ v.esMenor ? 'Menor' : 'Adulto' }}</gr-badge> }</div>
           <section><h3 class="text-label-xs text-text-muted uppercase">Contacto</h3>
             <dl class="mt-2 text-body-s">
               <div class="flex justify-between gap-4 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Email</dt><dd class="truncate"><a [href]="'mailto:' + v.email" class="text-accent-text hover:underline">{{ v.email }}</a></dd></div>
@@ -217,9 +231,8 @@ function turnosDe(inicio?: string, fin?: string): string[] {
       }
       <ng-container drawerActions>
         @if (modo() === 'aceptar') {
-          @if (sel()?.estado === 'pendiente') { <button grButton variant="ghost" [disabled]="ocupado()" (click)="cambiarEstado('revision')">Marcar en revisión</button> }
           @if (sel()?.estado === 'confirmado') { <button grButton variant="ghost" [disabled]="ocupado()" (click)="quitar()">Quitar del equipo</button> }
-          @if (sel()?.estado !== 'descartado' && sel()?.estado !== 'confirmado') { <button grButton class="border-accent/60 text-accent-text" (click)="modo.set('rechazar')">Rechazar…</button> }
+          @if (sel()?.estado !== 'descartado' && sel()?.estado !== 'confirmado') { <button grButton variant="danger" (click)="modo.set('rechazar')">Rechazar…</button> }
           <button grButton variant="primary" [loading]="ocupado()" [disabled]="!!sel()?.esMenor && !asig.autorizacionUrl" (click)="aceptar()">{{ sel()?.estado === 'confirmado' ? 'Guardar asignación' : 'Aceptar y asignar' }}</button>
         } @else {
           <button grButton variant="ghost" (click)="modo.set('aceptar')">Volver</button>
@@ -295,6 +308,8 @@ export class VoluntariosPage {
   protected readonly rechazadas = computed(() => (this.lista() ?? []).filter((v) => v.estado === 'descartado').sort((a, b) => (b.revisadoAt ?? b.createdAt).localeCompare(a.revisadoAt ?? a.createdAt)));
   protected readonly nuevasSemana = computed(() => this.solicitudes().filter((v) => Date.now() - new Date(v.createdAt).getTime() < 7 * 86_400_000).length);
   protected readonly cobertura = computed(() => this.puestos().map((p) => ({ ...p, miembros: this.equipo().filter((v) => v.puesto === p.rol) })));
+  /** Confirmed without a role (older data): shown apart so they can be given one. */
+  protected readonly sinPuesto = computed(() => this.equipo().filter((v) => !ROLES[v.puesto]));
   protected readonly objetivoTotal = computed(() => this.puestos().reduce((a, p) => a + p.objetivo, 0));
   /** The two roles that need the most people (KPI cards). */
   protected readonly faltan = computed(() => this.cobertura().map((c) => ({ rol: c.rol, nombre: c.nombre, n: c.miembros.length, objetivo: c.objetivo }))
@@ -328,7 +343,7 @@ export class VoluntariosPage {
   protected estado(v: Voluntario): { l: string; tone: GrTone } {
     if (v.estado === 'confirmado') return { l: `${this.rol(v.puesto)} · ${v.turno}`, tone: 'success' };
     if (v.estado === 'descartado') return { l: 'Rechazada', tone: 'neutral' };
-    if (v.esMenor && !v.autorizacionUrl) return { l: 'Menor · sin autorización', tone: 'warning' };
+    if (v.esMenor && !v.autorizacionUrl) return { l: 'Menor · falta autorización', tone: 'warning' };
     return v.estado === 'revision' ? { l: 'En revisión', tone: 'warning' } : { l: 'Nueva', tone: 'info' };
   }
   /** «Sábado, Montaje (viernes)» → «Sábado · Montaje (viernes)». */

@@ -168,6 +168,11 @@ export class Cms {
     await firstValueFrom(this.http.post(`${base}/voluntarios`, body));
   }
 
+  /** The signed-in fan's own volunteer request (empty estado = none); null without a session. */
+  miVoluntario(): Promise<{ estado: string; puesto: string; turno: string } | null> {
+    return this.get('/voluntarios/mi-solicitud');
+  }
+
   private async get<T>(path: string): Promise<T | null> {
     try {
       return await firstValueFrom(this.http.get<T>(base + path));
