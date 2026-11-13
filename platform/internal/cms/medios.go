@@ -84,7 +84,10 @@ func (s *Svc) registerMedios() {
 		MaxBodyBytes: maxUpload, BodyReadTimeout: time.Minute},
 		func(ctx context.Context, in *upIn) (*oneOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
-				return nil, err
+				// D-RIFA: sorteo.gestionar may upload the photo of a raffle object without web.editar.
+				if _, err2 := auth.Require(ctx, in.CID.String(), "sorteo.gestionar"); err2 != nil {
+					return nil, err
+				}
 			}
 			m, err := s.upload(ctx, in.CID, &in.RawBody)
 			if err != nil {
