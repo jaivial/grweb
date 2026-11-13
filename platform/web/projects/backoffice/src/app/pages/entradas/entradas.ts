@@ -15,7 +15,6 @@ import {
   ESTADO_ENTRADA, ESTADO_SESION, EntradasApi, RESULTADO, aLocal, deLocal, diaHora, diaMes, fechaCorta, hora,
   type Ajustes, type DiaPabellon, type Detalle, type Entrada, type Espera, type EsperaItem, type Lista, type Resumen, type Sesion, type SesionIn,
 } from './api';
-import { SorteoApi, euros } from '../sorteo/api';
 
 type Tab = 'sesiones' | 'reservas' | 'espera' | 'ajustes';
 
@@ -203,7 +202,6 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
           <dt class="text-text-tertiary">Email</dt><dd class="truncate">{{ d.email || '—' }}@if (d.emailRebotado) { <gr-badge tone="danger" class="ml-2">Rebotado</gr-badge> }</dd>
           <dt class="text-text-tertiary">Teléfono</dt><dd>{{ d.telefono || '—' }}</dd>
           <dt class="text-text-tertiary">Origen</dt><dd>{{ d.origen }}{{ d.manual ? ' · manual' : '' }}</dd>
-          @if (sorteo(); as so) { <dt class="text-text-tertiary">Sorteo</dt><dd>{{ so }}</dd> }
           <dt class="text-text-tertiary">Reservada</dt><dd>{{ fechaCorta(d.createdAt) }}</dd>
           @if (d.nota) { <dt class="text-text-tertiary">Nota</dt><dd>{{ d.nota }}</dd> }
           @if (d.motivo) { <dt class="text-text-tertiary">Motivo</dt><dd>{{ d.motivo }}</dd> }
@@ -294,7 +292,6 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
 })
 export class EntradasPage {
   private readonly api = inject(EntradasApi);
-  private readonly sorteoApi = inject(SorteoApi);
   private readonly auth = inject(Auth);
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
@@ -310,7 +307,6 @@ export class EntradasPage {
   protected readonly verCaducadas = signal(false);
   protected readonly caducadas = computed(() => (this.espera()?.items ?? []).filter((x) => x.estado === 'caducada').length);
   protected readonly visibles = computed(() => (this.espera()?.items ?? []).filter((x) => this.verCaducadas() || x.estado !== 'caducada'));
-  protected readonly sorteo = signal('');
   protected readonly manErr = signal<Record<string, string>>({});
   protected readonly sesErr = signal<Record<string, string>>({});
   protected readonly ajErr = signal<Record<string, string>>({});
@@ -493,18 +489,10 @@ export class EntradasPage {
   }
   protected async ver(id: string): Promise<void> {
     this.det.set(null);
-    this.sorteo.set('');
     this.detOpen.set(true);
     try {
       const d = await this.api.detalle(this.cid(), id);
       this.det.set(d);
-      // «Sorteo» row: raffle tickets bought with the same email (hidden without access to the raffle).
-      if (d.email) void this.sorteoApi.compras(this.cid(), { q: d.email }).then((c) => {
-        const l = c.items.filter((x) => x.email.toLowerCase() === d.email.toLowerCase());
-        if (!l.length || this.det()?.id !== d.id) return;
-        const b = l.reduce((t, x) => t + x.cantidad, 0);
-        this.sorteo.set(this.pl(b, 'boleto') + ' · ' + euros(l.reduce((t, x) => t + x.importe, 0)) + ' · ' + l[0].estado);
-      }, () => undefined);
     } catch (e) {
       this.toasts.error('No se pudo abrir', errText(e));
     }

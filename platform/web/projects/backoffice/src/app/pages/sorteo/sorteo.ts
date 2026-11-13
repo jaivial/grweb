@@ -1,15 +1,16 @@
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
-import { problemOf } from '../../core/api';
+import { GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, BoToggle, Confirm, Media, errText } from '../../shared/ui';
-import { ESTADO_COMPRA, ESTADO_VENTA, SorteoApi, euros, fecha, fechaLarga, type Compra, type Compras, type Config, type Panel, type Sorteo } from './api';
+import { RifaApi, eurosCorto, type RifaConfig, type RifaItem, type RifaItemIn } from './api';
 
-type Tab = 'config' | 'boletos' | 'directo' | 'historial';
+type Tab = 'items' | 'config' | 'ganadores';
 const aLocal = (iso?: string | null) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -17,264 +18,221 @@ const aLocal = (iso?: string | null) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 const deLocal = (v: string) => (v ? new Date(v).toISOString() : null);
+const fechaSorteo = (iso?: string | null) =>
+  iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace(/[.,]/g, '').replace(/(\d{2}:\d{2})/, 'a las $1') : '';
+const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null, valorEstimadoCents: null, donante: null, unidades: 1, visible: true });
 
-/** «Sorteo» (Figma page 60): set-up with the legal checklist, tickets and payments, the live draw and its history.
- *  On a phone the live tab is the presenter view («Móvil · presentador»). */
+/** «Rifa» (Figma page 60 · BO · Rifa items): the in-person raffle showcase — ordered objects, cash ticket info,
+ *  create/edit an object with its BunnyCDN photo and (optionally) the winning ticket of each object. */
 @Component({
   selector: 'bo-sorteo',
-  imports: [GrSelect, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [FormsModule, NgTemplateOutlet, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoToggle, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `.cdk-drag-preview{box-shadow:0 12px 32px rgb(0 0 0/.5)}.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:transform .2s ease}@media (prefers-reduced-motion:reduce){.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:none}}`,
   template: `
-    @let p = panel();
+    @let its = items(); @let c = cfg();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="Sorteo" [badge]="p ? est[p.estado]?.l ?? p.estado : ''" [badgeTone]="p ? est[p.estado]?.tone ?? 'neutral' : 'neutral'"
-        [subtitle]="p ? (p.config.premio || 'Sin premio') + (p.config.fechaSorteo ? ' · sorteo el ' + fechaLarga(p.config.fechaSorteo) : '') : ''" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Sorteo']">
-        @if (tab() === 'boletos') { <ng-container actions><button grButton icon="download" (click)="exportar()">Exportar CSV</button></ng-container> }
-      </bo-page-header>
-      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Sorteo">
+      @if (editando(); as e) {
+        <bo-page-header [title]="e.id ? 'Editar item' : 'Nuevo item'" [crumbs]="crumbs()"
+          [subtitle]="'Rifa · ' + (e.id ? 'item ' + (posicion(e.id) + 1) + ' de ' + (its?.length ?? 0) : 'nuevo item') + ' · los cambios se publican al guardar'">
+          @if (e.id && puede()) { <ng-container actions><button grButton variant="secondary" (click)="borrar()">Eliminar item</button></ng-container> }
+        </bo-page-header>
+      } @else {
+        <bo-page-header [title]="tab() === 'ganadores' ? 'Rifa · ganadores' : 'Rifa · items'" [crumbs]="crumbs()"
+          [badge]="tab() === 'ganadores' || !c ? '' : c.visible ? 'Publicada' : 'Oculta'" [badgeTone]="c?.visible ? 'warning' : 'neutral'" [subtitle]="subtitulo()">
+          @if (tab() !== 'ganadores') {
+            <ng-container actions>
+              <a grButton variant="secondary" [href]="'/' + (comps.current()?.slug ?? '') + '/sorteo'" target="_blank" rel="noopener">Ver en la web</a>
+              @if (puede()) { <button grButton (click)="nuevo()">Nuevo item</button> }
+            </ng-container>
+          }
+        </bo-page-header>
+      }
+      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Rifa">
         @for (t of tabs; track t.v) {
-          <button type="button" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="ir(t.v)">
-            {{ t.l }}@if (t.v === 'boletos' && p) { <span class="rounded-2xs bg-bg-raised px-1.5 text-mono-xs">{{ p.kpis.boletos }}</span> }
-            @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
+          @let on = tab() === t.v || (t.v === 'config' && !!editando());
+          <button type="button" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
+            [class]="on ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="on ? 'page' : null" (click)="ir(t.v)">
+            {{ t.l }}@if (t.v === 'config' && its) { <span class="flex h-5 items-center rounded-xs px-1.5 text-mono-xs" [class]="on ? 'bg-accent/20 text-accent-text' : 'bg-bg-raised'">{{ its.length }}</span> }
+            @if (on) { <span class="absolute inset-x-0 bottom-0 h-0.5 bg-accent"></span> }
           </button>
         }
       </nav>
 
-      @if (p === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar el sorteo"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
-      @else if (p === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else {
-        @switch (tab()) {
-          @case ('config') {
-            <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-              <div class="flex flex-col gap-5">
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                  <h2 class="text-ui-h5">Premio</h2>
-                  <div class="mt-4 flex flex-col gap-4 sm:flex-row">
-                    <label class="flex h-40 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-md border border-dashed border-line-strong bg-bg-raised sm:w-56">
-                      @if (cfg.premioImagen) { <img [src]="cfg.premioImagen" alt="" class="h-full w-full object-contain" /> } @else { <gr-icon name="camera" [size]="22" class="text-text-tertiary" /><span class="text-body-xs text-text-tertiary">Subir imagen</span> }
-                      <input type="file" accept="image/*" class="sr-only" (change)="subir($event)" [disabled]="!puede()" />
-                    </label>
-                    <div class="flex flex-1 flex-col gap-3">
-                      <gr-field label="Nombre del premio"><input grInput [(ngModel)]="cfg.premio" maxlength="160" [disabled]="!puede()" /></gr-field>
-                      <div class="grid gap-3 sm:grid-cols-2">
-                        <gr-field label="Valor aproximado (€)"><input grInput type="number" min="0" [ngModel]="cfg.premioValor / 100" (ngModelChange)="cfg.premioValor = toCents($event)" [disabled]="!puede()" /></gr-field>
-                        <gr-field label="Destino de la recaudación (opcional)" hint="Uso interno: no se muestra en la web"><input grInput [(ngModel)]="cfg.destino" maxlength="200" [disabled]="!puede()" /></gr-field>
-                      </div>
-                      <gr-field label="Descripción"><textarea grInput rows="2" [(ngModel)]="cfg.premioDetalle" maxlength="600" [disabled]="!puede()"></textarea></gr-field>
-                    </div>
-                  </div>
-                </section>
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                  <h2 class="text-ui-h5">Precio y límites</h2><p class="text-body-xs text-text-tertiary">Lo que se ve al comprar en /sorteo</p>
-                  <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <gr-field label="Precio por boleto (€)" [hint]="p.kpis.boletos ? 'Con boletos vendidos ya no cambia' : ''"><input grInput type="number" min="0.5" step="0.5" [ngModel]="cfg.precio / 100" (ngModelChange)="cfg.precio = toCents($event)" [disabled]="!puede() || p.kpis.boletos > 0" /></gr-field>
-                    <gr-field label="Máximo por persona"><input grInput type="number" min="1" max="100" [(ngModel)]="cfg.maxPorPersona" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Botones rápidos" hint="Separados por comas"><input grInput [ngModel]="cfg.presets.join(', ')" (ngModelChange)="cfg.presets = nums($event)" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Boletos totales" hint="Vacío = sin límite"><input grInput type="number" min="1" [ngModel]="cfg.totalMax" (ngModelChange)="cfg.totalMax = $event ? +$event : null" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Venta desde"><input grInput type="datetime-local" [ngModel]="aLocal(cfg.ventaDesde)" (ngModelChange)="cfg.ventaDesde = deLocal($event)" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Venta hasta"><input grInput type="datetime-local" [ngModel]="aLocal(cfg.ventaHasta)" (ngModelChange)="cfg.ventaHasta = deLocal($event)" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Fecha del sorteo"><input grInput type="datetime-local" [ngModel]="aLocal(cfg.fechaSorteo)" (ngModelChange)="cfg.fechaSorteo = deLocal($event)" [disabled]="!puede()" /></gr-field>
-                  </div>
-                  @if (puede()) { <div class="mt-4 flex justify-end"><button grButton variant="primary" [loading]="guardando()" (click)="guardar()">Guardar</button></div> }
-                </section>
-              </div>
-              <aside class="flex flex-col gap-5">
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                  <h2 class="text-ui-h5">Checklist legal</h2><p class="text-body-xs text-text-tertiary">Para revisión de la asesoría · {{ hechos() }} de {{ p.checklist.length }}</p>
-                  <ul class="mt-4 flex flex-col gap-3">
-                    @for (it of p.checklist; track it.clave) {
-                      <li class="flex items-start gap-3">
-                        <gr-icon [name]="it.estado === 'pendiente' ? 'circle-alert' : 'circle-check'" [size]="18" [class]="it.estado === 'pendiente' ? 'mt-0.5 text-warning' : 'mt-0.5 text-success'" />
-                        <div class="min-w-0 flex-1"><p class="text-label-s">{{ it.titulo }}</p><p class="text-body-xs text-text-tertiary">{{ it.nota || it.detalle }}@if (it.estado === 'no_aplica') { · no aplica }</p></div>
-                        @if (puede()) {
-                          @if (it.estado === 'pendiente') { <button grButton size="s" variant="primary" (click)="marcar(it.clave, 'hecho')">Marcar</button> }
-                          @else { <button grButton size="s" variant="ghost" (click)="marcar(it.clave, 'pendiente')">Deshacer</button> }
-                        }
-                      </li>
-                    }
-                  </ul>
-                </section>
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                  <div class="flex items-center gap-3"><div class="flex-1"><h2 class="text-ui-h5">Venta</h2><p class="text-body-xs text-text-tertiary">{{ cfg.activa ? 'Activa en /sorteo' : p.checklistCompleta ? 'Lista para abrir' : 'Requiere completar la checklist legal' }} · pasarela {{ p.pasarela }}</p></div>
-                    <bo-toggle [value]="cfg.activa" label="Venta activa" [disabled]="!puede() || (!p.checklistCompleta && !cfg.activa)" (changed)="cfg.activa = $event; guardar()" /></div>
-                </section>
-                <gr-alert tone="info" title="No activar sin visto bueno de la asesoría">Sorteo con precio: autorización autonómica, tributación del premio y bases. El organizador decide el precio final (1 € decidido).</gr-alert>
-              </aside>
-            </div>
-          }
-
-          @case ('boletos') {
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <gr-kpi label="Boletos válidos" [value]="n(p.kpis.boletos)" [delta]="'+' + p.kpis.nuevos7d" caption="esta semana" [trend]="p.kpis.serie" />
-              <gr-kpi label="Recaudado" [value]="euros(p.kpis.recaudado)" [caption]="'pasarela ' + p.pasarela" />
-              <gr-kpi label="Compradores" [value]="n(p.kpis.compradores)" [caption]="p.kpis.compradores ? (p.kpis.boletos / p.kpis.compradores).toFixed(1) + ' boletos de media' : ''" />
-              <gr-kpi label="Incidencias" [value]="n(p.kpis.reembolsadas + p.kpis.fallidas)" [caption]="p.kpis.reembolsadas + ' reembolsos · ' + p.kpis.fallidas + ' fallidos'" />
-            </div>
-            @if (p.kpis.pendientes) { <gr-alert tone="warning" [title]="p.kpis.pendientes + ' pagos pendientes de confirmar'">Si el webhook no llega en 30 min la compra caduca y sus boletos no se asignan.</gr-alert> }
-            <div class="flex flex-wrap items-center gap-2">
-              <label class="relative min-w-0 flex-1 basis-64 md:max-w-xs"><span class="sr-only">Buscar</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-                <input grInput class="pl-9" placeholder="Nombre, email o número" [ngModel]="f().q" (ngModelChange)="filtrar({ q: $event })" /></label>
-              <gr-select tipo="filtro" aria-label="Estado" [ngModel]="f().estado" (ngModelChange)="filtrar({ estado: $event })"><option value="">Todos los pagos</option>@for (e of estadosC; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select>
-            </div>
-            @if (compras(); as l) {
-              <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-                <table class="w-full min-w-[820px] text-left text-body-s">
-                  <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Boletos</th><th class="px-3 py-3">Comprador</th><th class="px-3 py-3 text-center">Cant.</th><th class="px-3 py-3 text-right">Importe</th><th class="px-3 py-3">Pago</th><th class="px-3 py-3">Fecha</th><th class="px-4 py-3"></th></tr></thead>
-                  <tbody>
-                    @for (x of l.items; track x.id) {
-                      <tr class="border-b border-line-subtle last:border-0" [class.opacity-60]="x.estado === 'reembolsada' || x.estado === 'caducada'">
-                        <td class="px-4 py-2.5 font-mono text-mono-s">{{ x.boletos }}</td>
-                        <td class="px-3 py-2.5"><div class="flex items-center gap-2.5"><span class="flex size-8 shrink-0 items-center justify-center rounded-pill border border-line-strong bg-bg-raised text-mono-xs">{{ ini(x.nombre) }}</span><div class="min-w-0"><p class="truncate text-label-s">{{ x.nombre }}</p><p class="truncate text-body-xs text-text-tertiary">{{ x.email }}</p></div></div></td>
-                        <td class="px-3 py-2.5 text-center font-mono">{{ x.cantidad }}</td>
-                        <td class="px-3 py-2.5 text-right font-mono">{{ euros(x.importe) }}</td>
-                        <td class="px-3 py-2.5"><gr-badge [tone]="estC[x.estado].tone">{{ estC[x.estado].l }}</gr-badge></td>
-                        <td class="px-3 py-2.5 font-mono text-mono-xs text-text-tertiary">{{ fecha(x.createdAt) }}</td>
-                        <td class="px-4 py-2.5 text-right">@if (x.estado === 'pagada' && puede() && !p.actual) {
-                          <button type="button" class="rounded-sm px-2 py-1 text-label-s text-text-tertiary hover:bg-bg-raised hover:text-text-primary" (click)="reenviar(x)">Reenviar</button>
-                          <button type="button" class="rounded-sm px-2 py-1 text-label-s text-accent-text hover:bg-bg-raised" (click)="abrirReembolso(x)">Reembolsar</button> }</td>
-                      </tr>
-                    } @empty { <tr><td colspan="7" class="px-4 py-10 text-center text-text-tertiary">Aún no hay compras.</td></tr> }
-                  </tbody>
-                </table>
-              </section>
-              <p class="flex items-center justify-between text-body-xs text-text-tertiary"><span>Mostrando {{ l.items.length ? (l.pagina - 1) * l.por + 1 : 0 }}–{{ (l.pagina - 1) * l.por + l.items.length }} de {{ n(l.total) }} compras</span>
-                <span class="flex gap-1"><button grButton size="s" variant="ghost" icon="chevron-left" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)" aria-label="Anterior"></button><button grButton size="s" variant="ghost" icon="chevron-right" [disabled]="l.pagina * l.por >= l.total" (click)="filtrar({ pagina: l.pagina + 1 }, false)" aria-label="Siguiente"></button></span></p>
-            } @else { <gr-skeleton class="h-72 rounded-lg" /> }
-          }
-
-          @case ('directo') {
-            @let a = p.actual;
-            <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <div class="flex flex-col gap-4">
-                <section class="flex min-h-[320px] flex-col items-center justify-center rounded-xl border p-8 text-center" [class]="a?.estado === 'sorteado' || a?.estado === 'confirmado' ? 'border-accent/50 bg-[linear-gradient(150deg,#4a121c,#1b1112_70%)]' : 'border-line-subtle bg-bg-card'">
-                  <p class="text-mono-xs tracking-[0.2em] text-text-tertiary">BOLETO</p>
-                  <p class="mt-2 font-display text-[88px] leading-none italic md:text-[120px]" [class.text-accent-text]="a?.numero && !girando()">{{ girando() ? rueda() : a?.numero || '????' }}</p>
-                  @if (girando()) { <p class="mt-4 text-ui-h4">Sorteando…</p><p class="text-body-s text-text-tertiary">Semilla registrada en auditoría</p> }
-                  @else if (a?.ganador && (a?.estado === 'sorteado' || a?.estado === 'confirmado')) {
-                    <p class="mt-4 text-ui-h3">{{ a!.ganador!.nombre }}</p><p class="text-body-s text-text-secondary">Compró {{ a!.ganador!.cantidad }} boletos · {{ fecha(a!.ganador!.compra) }}</p>
-                    @if (a?.estado === 'confirmado') { <gr-badge class="mt-3" tone="success">Confirmado y publicado</gr-badge> }
-                  } @else if (a?.estado === 'congelado') { <p class="mt-4 text-ui-h4">Listo para sortear</p><p class="text-body-s text-text-tertiary">{{ n(a!.total) }} boletos válidos congelados</p> }
-                  @else { <p class="mt-4 text-ui-h4">Antes del sorteo</p><p class="text-body-s text-text-tertiary">{{ n(p.kpis.boletos) }} boletos válidos · {{ n(p.kpis.compradores) }} personas</p> }
-                </section>
-                @if (puedeSortear()) {
-                  <div class="flex flex-wrap justify-center gap-2">
-                    @if (!a) { <button grButton variant="primary" icon="lock" [loading]="ocupado()" (click)="congelar()">Congelar lista</button> }
-                    @if (a?.estado === 'congelado') { <button grButton variant="primary" icon="zap" [loading]="ocupado()" (click)="sortear()">Sortear ahora</button> }
-                    @if (a?.estado === 'sorteado') {
-                      <button grButton variant="ghost" (click)="repetirOpen.set(true)">Repetir (con motivo)</button>
-                      <button grButton variant="primary" [loading]="ocupado()" (click)="confirmar()">{{ notificar ? 'Confirmar y notificar' : 'Confirmar' }}</button>
-                    }
-                    @if (a?.estado === 'confirmado') { <button grButton variant="ghost" (click)="repetirOpen.set(true)">Repetir (con motivo)</button> }
-                  </div>
-                }
-              </div>
-              <aside class="flex flex-col gap-4">
-                @if (a?.estado === 'sorteado') {
-                  <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                    <h2 class="text-ui-h5">Opciones al confirmar</h2>
-                    <div class="mt-3 flex items-center gap-3"><div class="flex-1"><p class="text-label-s">Email al ganador</p><p class="text-body-xs text-text-tertiary">Plantilla «Has ganado el sorteo»</p></div><bo-toggle [(value)]="notificar" label="Email al ganador" /></div>
-                    <p class="mt-3 text-body-xs text-text-tertiary">Al confirmar se publica en /sorteo (nombre e inicial del apellido) y se revela la semilla para que cualquiera pueda verificarlo.</p>
-                  </section>
-                }
-                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                  <h2 class="text-ui-h5">Antes de sortear</h2>
-                  <ul class="mt-3 flex flex-col gap-3 text-body-s">
-                    <li class="flex gap-2.5"><gr-icon [name]="a ? 'circle-check' : 'circle-alert'" [size]="18" [class]="a ? 'text-success' : 'text-text-muted'" /><div><p class="text-label-s">{{ a ? n(a.total) + ' boletos válidos congelados' : 'Lista sin congelar' }}</p><p class="text-body-xs text-text-tertiary">Excluye reembolsados y anulados · la venta debe estar cerrada</p></div></li>
-                    <li class="flex gap-2.5"><gr-icon [name]="a ? 'circle-check' : 'circle-alert'" [size]="18" [class]="a ? 'text-success' : 'text-text-muted'" /><div class="min-w-0"><p class="text-label-s">Semilla generada</p><p class="truncate font-mono text-body-xs text-text-tertiary">{{ a ? 'sha256 ' + a.semillaHash.slice(0, 16) + '… · publicada en /sorteo' : 'Se genera al congelar' }}</p></div></li>
-                    <li class="flex gap-2.5"><gr-icon [name]="a?.testigo || testigo ? 'circle-check' : 'circle-alert'" [size]="18" [class]="a?.testigo || testigo ? 'text-success' : 'text-text-muted'" /><div class="flex-1"><p class="text-label-s">Testigo presente</p>
-                      @if (a) { <p class="text-body-xs text-text-tertiary">{{ a.testigo || '—' }}</p> } @else { <input grInput class="mt-1" [(ngModel)]="testigo" placeholder="Nombre (staff, notario…)" /> }</div></li>
-                  </ul>
-                </section>
-                <gr-alert tone="info" title="Cómo se elige">Índice = HMAC-SHA256(semilla, hash de la lista) mod N: cualquiera puede reproducirlo con la lista publicada y la semilla que se revela al confirmar.</gr-alert>
-              </aside>
-            </div>
-          }
-
-          @case ('historial') {
-            <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-              <table class="w-full min-w-[760px] text-left text-body-s">
-                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Fecha</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Boleto</th><th class="px-3 py-3">Lista</th><th class="px-3 py-3">Semilla (hash)</th><th class="px-4 py-3">Motivo / testigo</th></tr></thead>
-                <tbody>
-                  @for (x of historial(); track x.id) {
-                    <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-2.5 font-mono text-mono-xs">{{ fecha(x.createdAt) }}</td>
-                      <td class="px-3 py-2.5"><gr-badge [tone]="x.estado === 'confirmado' ? 'success' : x.estado === 'repetido' ? 'danger' : 'info'">{{ x.estado }}</gr-badge></td>
-                      <td class="px-3 py-2.5 font-mono">{{ x.numero || '—' }}@if (x.ganador) { <span class="ml-2 font-sans text-body-xs text-text-tertiary">{{ x.ganador.nombre }}</span> }</td>
-                      <td class="px-3 py-2.5 font-mono text-mono-xs">{{ x.total }} · {{ x.hashLista.slice(0, 10) }}…</td><td class="px-3 py-2.5 font-mono text-mono-xs">{{ x.semillaHash.slice(0, 12) }}…</td>
-                      <td class="px-4 py-2.5 text-body-xs text-text-tertiary">{{ x.motivo || x.testigo || '—' }}</td></tr>
-                  } @empty { <tr><td colspan="6" class="px-4 py-10 text-center text-text-tertiary">Aún no hay sorteos.</td></tr> }
-                </tbody>
-              </table>
-            </section>
-          }
-        }
-      }
+      @if (its === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar la rifa"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
+      @else if (its === undefined || !c) { <gr-skeleton class="h-96 rounded-lg" /> }
+      @else if (editando()) { <ng-container *ngTemplateOutlet="editor" /> }
+      @else if (tab() === 'ganadores') { <ng-container *ngTemplateOutlet="ganadores" /> }
+      @else { <ng-container *ngTemplateOutlet="lista" /> }
     </div>
 
-    @if (reembolso(); as r) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="reembolso.set(null)" (keydown.escape)="reembolso.set(null)">
-        <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="alertdialog" aria-modal="true" [attr.aria-label]="'Reembolsar ' + r.cantidad + ' boletos'" (click)="$event.stopPropagation()" (ngSubmit)="reembolsar()">
-          <h2 class="text-ui-h5">Reembolsar {{ r.cantidad }} boletos ({{ euros(r.importe) }})</h2>
-          <p class="mt-3 text-body-s text-text-secondary">{{ r.nombre }} · boletos {{ r.boletos }}. La pasarela devolverá {{ euros(r.importe) }} en 5–10 días; los boletos dejan de participar y se le enviará un email.</p>
-          <gr-field label="Motivo" class="mt-4"><input grInput name="motivo" [(ngModel)]="motivo" maxlength="200" placeholder="Compra duplicada" /></gr-field>
-          <gr-field label="Escribe REEMBOLSAR para confirmar" class="mt-3"><input grInput name="conf" [(ngModel)]="confirmacion" autocomplete="off" /></gr-field>
-          <div class="mt-6 flex justify-end gap-2"><button type="button" grButton variant="ghost" (click)="reembolso.set(null)">Cancelar</button>
-            <button type="submit" grButton variant="danger" [loading]="ocupado()" [disabled]="confirmacion.trim().toUpperCase() !== 'REEMBOLSAR' || motivo.trim().length < 3">Reembolsar {{ euros(r.importe) }}</button></div>
-        </form>
+    <ng-template #fila let-it let-i="i" let-modo="modo">
+      <div class="flex min-h-[72px] items-center gap-3 rounded-md border bg-bg-card/60 py-2 pr-3 pl-2 transition-colors hover:border-line-strong motion-reduce:transition-none"
+        [class]="it.visible ? 'border-line-subtle' : 'border-line-subtle opacity-55'">
+        <button type="button" cdkDragHandle class="flex h-11 w-7 shrink-0 cursor-grab items-center justify-center text-text-tertiary disabled:cursor-default" [disabled]="!puede()" [attr.aria-label]="'Mover ' + it.nombre"><gr-icon name="grip" [size]="16" /></button>
+        <div class="h-[52px] w-[88px] shrink-0 overflow-hidden rounded-sm bg-gradient-to-br from-[#5a0f1d] to-[#1c1416]">
+          @if (it.imagenUrl) { <img [src]="it.imagenUrl" alt="" class="h-full w-full object-cover" loading="lazy" /> }
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-label-m text-text-primary">{{ i + 1 }} · {{ it.nombre }}</p>
+          <p class="truncate text-body-xs text-text-tertiary">{{ modo === 'g' ? metaGanador(it) : meta(it) }}</p>
+        </div>
+        @if (modo === 'g') {
+          @if (!it.visible) { <span class="flex h-8 shrink-0 items-center gap-1.5 rounded-pill border border-line-subtle px-3 text-label-s text-text-tertiary"><gr-icon name="pencil" [size]="14" />—</span> }
+          @else if (it.ganador) { <button type="button" class="flex h-8 shrink-0 items-center gap-1.5 rounded-pill bg-warning/14 px-3 text-label-s text-warning hover:bg-warning/24" (click)="abrirGanador(it)"><gr-icon name="circle-alert" [size]="14" />Registrado</button> }
+          @else { <button type="button" class="flex h-8 shrink-0 items-center gap-1.5 rounded-pill bg-success/14 px-3 text-label-s text-success hover:bg-success/24 disabled:opacity-40" [disabled]="!puede()" (click)="abrirGanador(it)"><gr-icon name="circle-check" [size]="14" />Registrar</button> }
+        } @else if (it.visible) {
+          <span class="hidden h-8 shrink-0 items-center gap-1.5 rounded-pill bg-success/14 px-3 text-label-s text-success sm:flex"><gr-icon name="circle-check" [size]="14" />Visible</span>
+        } @else {
+          <span class="hidden h-8 shrink-0 items-center gap-1.5 rounded-pill border border-line-subtle px-3 text-label-s text-text-tertiary sm:flex"><gr-icon name="pencil" [size]="14" />Oculto</span>
+        }
+        <bo-toggle [value]="it.visible" [label]="'Visible en la web: ' + it.nombre" [disabled]="!puede()" (changed)="visibilidad(it, $event)" />
+        <button type="button" class="flex size-9 shrink-0 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-raised focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [attr.aria-label]="'Editar ' + it.nombre" (click)="editar(it)"><gr-icon name="more" [size]="18" /></button>
       </div>
-    }
-    @if (repetirOpen()) {
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="repetirOpen.set(false)" (keydown.escape)="repetirOpen.set(false)">
-        <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="alertdialog" aria-modal="true" aria-label="Repetir sorteo" (click)="$event.stopPropagation()" (ngSubmit)="repetir()">
-          <h2 class="text-ui-h5">Repetir el sorteo</h2>
-          <p class="mt-3 text-body-s text-text-secondary">Este sorteo queda anulado en el historial, con el motivo. Después se congela una lista nueva y se vuelve a sortear.</p>
-          <gr-field label="Motivo (obligatorio)" class="mt-4"><input grInput name="motivo" [(ngModel)]="motivoRep" maxlength="200" placeholder="El ganador es menor de edad" /></gr-field>
-          <label class="mt-3 flex items-center gap-2 text-body-s"><input type="checkbox" class="size-4 accent-[#c42b3e]" name="anular" [(ngModel)]="anularGanador" />Anular el boleto que salió (no entra en el siguiente sorteo)</label>
-          <div class="mt-6 flex justify-end gap-2"><button type="button" grButton variant="ghost" (click)="repetirOpen.set(false)">Cancelar</button><button type="submit" grButton variant="danger" [loading]="ocupado()" [disabled]="motivoRep.trim().length < 5">Repetir</button></div>
-        </form>
+    </ng-template>
+
+    <ng-template #lista>
+      @let its = items() ?? []; @let c = cfg()!;
+      <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_376px]">
+        <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
+          <h2 class="text-ui-h5">Items de la rifa</h2>
+          <p class="mt-2 text-body-s text-text-tertiary">Arrastra ⠿ para cambiar el orden. Ocultar quita el item de /sorteo sin borrarlo.</p>
+          @if (!its.length) {
+            <gr-empty icon="gift" title="Aún no hay items" class="mt-4">@if (puede()) { <button grButton variant="primary" (click)="nuevo()">Nuevo item</button> }</gr-empty>
+          } @else {
+            <div class="mt-4 flex flex-col gap-4" cdkDropList [cdkDropListDisabled]="!puede()" (cdkDropListDropped)="mover($event)">
+              @for (it of its; track it.id; let i = $index) {
+                <div cdkDrag [cdkDragLockAxis]="'y'"><ng-container *ngTemplateOutlet="fila; context: { $implicit: it, i, modo: 'l' }" /></div>
+              }
+            </div>
+          }
+        </section>
+        <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
+          <div><h2 class="text-ui-h5">Rifa en efectivo</h2>
+            <p class="mt-2 text-body-s text-text-tertiary">Se muestra en el hero de /sorteo. No hay venta online: sin pasarela ni compradores web.</p></div>
+          <gr-field label="Precio del boleto (efectivo)" for="r-precio" hint="Importe en euros, se cobra en el stand">
+            <input grInput id="r-precio" type="number" min="0" step="0.5" [ngModel]="c.precioBoletoEfectivoCents / 100" (ngModelChange)="c.precioBoletoEfectivoCents = cents($event)" [disabled]="!puede()" /></gr-field>
+          <gr-field label="Lugar de venta" for="r-lugar" hint="Dónde se compran los boletos"><input grInput id="r-lugar" [(ngModel)]="c.lugar" maxlength="160" [disabled]="!puede()" /></gr-field>
+          <gr-field label="Horario de venta" for="r-horario" hint="Texto libre"><input grInput id="r-horario" [(ngModel)]="c.horario" maxlength="160" [disabled]="!puede()" /></gr-field>
+          <gr-field label="Fecha del sorteo" for="r-fecha" hint="Sorteo presencial en el recinto">
+            <input grInput id="r-fecha" type="datetime-local" [ngModel]="aLocal(c.fechaSorteo)" (ngModelChange)="c.fechaSorteo = deLocal($event)" [disabled]="!puede()" /></gr-field>
+          <gr-field label="Texto informativo" for="r-texto" hint="Párrafo bajo el título del hero"><textarea grInput id="r-texto" rows="2" [(ngModel)]="c.textoInfo" maxlength="600" [disabled]="!puede()"></textarea></gr-field>
+          <div class="mt-2 flex items-center justify-between gap-4">
+            <div><p class="text-label-m">Rifa visible en la web</p><p class="text-body-xs text-text-tertiary">Publica el escaparate en /sorteo</p></div>
+            <bo-toggle [(value)]="c.visible" label="Rifa visible en la web" [disabled]="!puede()" />
+          </div>
+          @if (puede()) { <div><button grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar configuración</button></div> }
+        </section>
       </div>
-    }
+    </ng-template>
+    <ng-template #editor>
+      @let f = form;
+      <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
+          <h2 class="text-ui-h5">Datos del item</h2>
+          <label class="flex h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border px-4 text-center transition-colors focus-within:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
+            [class]="f.imagenUrl ? 'border-success/70' : 'border-dashed border-line-strong hover:border-text-tertiary'">
+            <span class="flex size-10 items-center justify-center rounded-sm" [class]="f.imagenUrl ? 'bg-success/14 text-success' : 'bg-bg-raised text-text-tertiary'">
+              <gr-icon [name]="subiendo() ? 'loader' : f.imagenUrl ? 'circle-check' : 'upload'" [size]="18" [class.animate-spin]="subiendo()" /></span>
+            <span class="text-label-m">{{ f.imagenUrl ? archivo(f.imagenUrl) + ' · subida a BunnyCDN' : 'Subir foto del item' }}</span>
+            <span class="text-body-xs text-text-tertiary">.jpg .png .webp · máx. 10 MB</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" (change)="subir($event)" [disabled]="!puede() || subiendo()" />
+          </label>
+          <gr-field label="Nombre" for="i-nombre" hint="Obligatorio · máx. 80 caracteres" [error]="errNombre()"><input grInput id="i-nombre" [(ngModel)]="f.nombre" maxlength="80" required [disabled]="!puede()" /></gr-field>
+          <gr-field label="Descripción" for="i-desc" hint="Se muestra en la tarjeta del escaparate"><input grInput id="i-desc" [(ngModel)]="f.descripcion" maxlength="400" [disabled]="!puede()" /></gr-field>
+          <gr-field label="Valor estimado (opcional)" for="i-valor" hint="Vacío = no se muestra">
+            <input grInput id="i-valor" type="number" min="0" [ngModel]="f.valorEstimadoCents === null ? null : f.valorEstimadoCents / 100" (ngModelChange)="f.valorEstimadoCents = $event === null || $event === '' ? null : cents($event)" [disabled]="!puede()" /></gr-field>
+          <gr-field label="Donante / patrocinador (opcional)" for="i-donante" hint="Vacío = no se muestra"><input grInput id="i-donante" [ngModel]="f.donante ?? ''" (ngModelChange)="f.donante = $event || null" maxlength="120" [disabled]="!puede()" /></gr-field>
+          <gr-field label="Unidades" for="i-uds" hint="Nº de unidades que se rifan de este objeto"><input grInput id="i-uds" type="number" min="1" max="999" [(ngModel)]="f.unidades" [disabled]="!puede()" /></gr-field>
+          <div class="mt-2 flex items-center justify-between gap-4">
+            <div><p class="text-label-m">Visible en la web</p><p class="text-body-xs text-text-tertiary">Si lo desactivas, el item queda oculto en /sorteo</p></div>
+            <bo-toggle [(value)]="f.visible" label="Visible en la web" [disabled]="!puede()" />
+          </div>
+          <div class="flex gap-3"><button grButton (click)="cerrarEditor()">Cancelar</button>
+            @if (puede()) { <button grButton variant="primary" [loading]="guardando()" (click)="guardarItem()">Guardar item</button> }</div>
+        </section>
+        <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
+          <h2 class="text-ui-h5">Vista previa en /sorteo</h2>
+          <article class="overflow-hidden rounded-md border border-line-subtle bg-bg-raised/40">
+            <div class="aspect-[16/10] bg-gradient-to-br from-[#5a0f1d] to-[#1c1416]">@if (f.imagenUrl) { <img [src]="f.imagenUrl" alt="" class="h-full w-full object-cover" /> }</div>
+            <div class="flex flex-col gap-2 p-5">
+              <h3 class="text-ui-h5">{{ f.nombre || 'Nombre del item' }}</h3>
+              @if (f.descripcion) { <p class="text-body-s text-text-secondary">{{ f.descripcion }}</p> }
+              <div class="flex flex-wrap items-center gap-3"><gr-badge tone="accent">× {{ f.unidades }} {{ f.unidades === 1 ? 'unidad' : 'unidades' }}</gr-badge>
+                @if (f.valorEstimadoCents !== null) { <span class="text-body-s">Valor aprox. {{ eurosCorto(f.valorEstimadoCents) }}</span> }</div>
+              @if (f.donante) { <p class="text-body-s text-text-tertiary">Donado por {{ f.donante }}</p> }
+            </div>
+          </article>
+          <p class="text-body-xs text-text-tertiary">Valor y donante se ocultan si están vacíos.</p>
+        </section>
+      </div>
+    </ng-template>
+
+    <ng-template #ganadores>
+      @let its = items() ?? [];
+      <p class="-mt-2 text-body-s text-text-tertiary">Opcional · el sorteo es presencial: aquí solo se registra qué boleto ganó cada item para publicarlo en /sorteo.</p>
+      <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
+        <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
+          <h2 class="text-ui-h5">Ganador por item</h2>
+          @if (!its.length) { <gr-empty icon="gift" title="Aún no hay items" class="mt-4" /> }
+          <div class="mt-4 flex flex-col gap-4">
+            @for (it of its; track it.id; let i = $index) { <ng-container *ngTemplateOutlet="fila; context: { $implicit: it, i, modo: 'g' }" /> }
+          </div>
+        </section>
+        @if (gItem(); as g) {
+          <section class="flex flex-col gap-4 rounded-lg border border-line-strong bg-bg-card p-6 shadow-[0_12px_32px_rgb(0_0_0/0.4)]" role="dialog" aria-labelledby="g-title">
+            <div class="flex items-start justify-between gap-3"><h2 id="g-title" class="text-ui-h5">Registrar ganador · {{ g.nombre }}</h2>
+              <button type="button" class="flex size-9 items-center justify-center rounded-sm hover:bg-bg-raised" aria-label="Cerrar" (click)="gItem.set(null)"><gr-icon name="x" [size]="18" /></button></div>
+            <gr-field label="Nº de boleto" for="g-boleto"><input grInput id="g-boleto" [(ngModel)]="gf.boleto" maxlength="20" inputmode="numeric" /></gr-field>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <gr-field label="Nombre (opcional)" for="g-nombre"><input grInput id="g-nombre" [(ngModel)]="gf.nombre" maxlength="80" /></gr-field>
+              <gr-field label="Nota interna" for="g-nota"><input grInput id="g-nota" [(ngModel)]="gf.nota" maxlength="200" /></gr-field>
+            </div>
+            <div class="flex flex-wrap justify-end gap-3">
+              @if (g.ganador) { <button grButton variant="ghost" [disabled]="guardando()" (click)="guardarGanador(true)">Quitar ganador</button> }
+              <button grButton variant="ghost" (click)="gItem.set(null)">Cancelar</button>
+              <button grButton variant="primary" [loading]="guardando()" [disabled]="!gf.boleto.trim()" (click)="guardarGanador()">Guardar ganador</button>
+            </div>
+          </section>
+        }
+      </div>
+    </ng-template>
   `,
 })
 export class SorteoPage {
-  private readonly api = inject(SorteoApi);
-  protected readonly comps = inject(Competitions);
+  private readonly api = inject(RifaApi);
   private readonly auth = inject(Auth);
+  private readonly media = inject(Media);
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
-  private readonly media = inject(Media);
-  private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  protected readonly est = ESTADO_VENTA;
-  protected readonly estC = ESTADO_COMPRA;
-  protected readonly estadosC = Object.entries(ESTADO_COMPRA).map(([v, x]) => ({ v, l: x.l }));
-  protected readonly euros = euros;
-  protected readonly fecha = fecha;
-  protected readonly fechaLarga = fechaLarga;
+  private readonly router = inject(Router);
+  protected readonly comps = inject(Competitions);
+  protected readonly eurosCorto = eurosCorto;
   protected readonly aLocal = aLocal;
   protected readonly deLocal = deLocal;
-  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'config', l: 'Configuración' }, { v: 'boletos', l: 'Boletos y pagos' }, { v: 'directo', l: 'Sorteo en directo' }, { v: 'historial', l: 'Historial' }];
-  protected readonly panel = signal<Panel | null | undefined>(undefined);
-  protected readonly compras = signal<Compras | null>(null);
-  protected readonly historial = signal<Sorteo[]>([]);
-  protected readonly f = signal<{ estado: string; q: string; pagina: number }>({ estado: '', q: '', pagina: 1 });
-  protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || (typeof window !== 'undefined' && window.innerWidth < 768 ? 'directo' : 'config'));
+  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'items', l: 'Items' }, { v: 'config', l: 'Configuración' }, { v: 'ganadores', l: 'Ganadores' }];
+  protected readonly items = signal<RifaItem[] | null | undefined>(undefined);
+  protected readonly cfg = signal<RifaConfig | null>(null);
+  protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || 'items');
+  /** Item being edited (`{ id: '' }` = new). */
+  protected readonly editando = signal<{ id: string } | null>(null);
   protected readonly guardando = signal(false);
-  protected readonly ocupado = signal(false);
-  protected readonly girando = signal(false);
-  protected readonly rueda = signal('0000');
-  protected readonly reembolso = signal<Compra | null>(null);
-  protected readonly repetirOpen = signal(false);
-  protected cfg: Config = { premio: '', premioDetalle: '', premioImagen: '', premioValor: 0, destino: '', precio: 100, maxPorPersona: 10, presets: [1, 2, 5, 10], activa: false, version: 0, updatedPor: '', updatedAt: '' };
-  protected motivo = '';
-  protected confirmacion = '';
-  protected motivoRep = '';
-  protected anularGanador = false;
-  protected testigo = '';
-  protected notificar = true;
+  protected readonly subiendo = signal(false);
+  protected readonly errNombre = signal<string | null>(null);
+  protected readonly gItem = signal<RifaItem | null>(null);
+  protected form: RifaItemIn = vacio();
+  protected gf = { boleto: '', nombre: '', nota: '' };
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'sorteo.gestionar'));
-  protected readonly puedeSortear = computed(() => this.auth.can(this.cid(), 'sorteo.sortear'));
-  protected readonly hechos = computed(() => this.panel()?.checklist.filter((x) => x.estado !== 'pendiente').length ?? 0);
+  protected readonly crumbs = computed(() => [this.comps.current()?.nombreCorto || '', 'Público', 'Rifa']);
+  protected readonly subtitulo = computed(() => {
+    const its = this.items(), c = this.cfg();
+    if (!its || !c) return '';
+    if (this.tab() === 'ganadores') return '';
+    const vis = its.filter((x) => x.visible).length;
+    return `Rifa presencial en efectivo · ${its.length} items (${vis} visibles)` + (c.fechaSorteo ? ` · sorteo ${fechaSorteo(c.fechaSorteo)}` : '') + (c.lugar ? ' en el recinto' : '');
+  });
   private t: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
@@ -283,10 +241,9 @@ export class SorteoPage {
       untracked(() => void this.cargar());
     });
     const sub = inject(Realtime).events.subscribe((e) => {
-      if (e.tipo.startsWith('sorteo.')) {
-        clearTimeout(this.t);
-        this.t = setTimeout(() => void this.cargar(false), 800);
-      }
+      if (!e.tipo.startsWith('rifa.') || this.guardando()) return;
+      clearTimeout(this.t);
+      this.t = setTimeout(() => void this.cargar(e.tipo === 'rifa.config_actualizada'), 600);
     });
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.t);
@@ -294,132 +251,126 @@ export class SorteoPage {
     });
   }
 
-  async cargar(form = true): Promise<void> {
+  async cargar(conConfig = true): Promise<void> {
     try {
-      const p = await this.api.panel(this.cid());
-      this.aplicar(p, form);
-      if (this.tab() === 'boletos') void this.cargarCompras();
-      if (this.tab() === 'historial') this.historial.set(await this.api.sorteos(this.cid()));
+      const [its, c] = await Promise.all([this.api.items(this.cid()), conConfig || !this.cfg() ? this.api.config(this.cid()) : Promise.resolve(this.cfg()!)]);
+      this.items.set(its);
+      this.cfg.set({ ...c });
     } catch {
-      if (!this.panel()) this.panel.set(null);
+      if (!this.items()) this.items.set(null);
     }
   }
-  private aplicar(p: Panel, form = true): void {
-    this.panel.set(p);
-    if (form) this.cfg = { ...p.config, presets: [...(p.config.presets ?? [])] };
-  }
   protected ir(t: Tab): void {
+    this.editando.set(null);
+    this.gItem.set(null);
+    if (t === 'config') return this.editarPrimero();
     this.tab.set(t);
-    void this.router.navigate([], { queryParams: { tab: t }, replaceUrl: true });
-    if (t === 'boletos') void this.cargarCompras();
-    if (t === 'historial') void this.api.sorteos(this.cid()).then((h) => this.historial.set(h));
+    void this.router.navigate([], { queryParams: { tab: t === 'items' ? null : t }, replaceUrl: true });
   }
-  protected n(v: number): string { return new Intl.NumberFormat('es-ES').format(v); }
-  protected ini(s: string): string { return s.split(' ').filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase(); }
-  protected toCents(v: unknown): number { return Math.round(Number(v || 0) * 100); }
-  protected nums(v: string): number[] { return v.split(',').map((x) => parseInt(x.trim(), 10)).filter((x) => x > 0).slice(0, 6); }
+  private editarPrimero(): void {
+    const f = this.items()?.[0];
+    if (f) this.editar(f);
+    else this.nuevo();
+  }
+  protected posicion(id: string): number { return this.items()?.findIndex((x) => x.id === id) ?? -1; }
+  protected cents(v: unknown): number { return Math.max(0, Math.round(Number(v || 0) * 100)); }
+  protected archivo(url: string): string { return decodeURIComponent(url.split('/').pop() ?? url); }
+  protected meta(it: RifaItem): string {
+    const p = [`× ${it.unidades} ${it.unidades === 1 ? 'ud' : 'uds'}`];
+    if (it.valorEstimadoCents !== null) p.push('valor aprox. ' + eurosCorto(it.valorEstimadoCents));
+    if (it.donante) p.push('donado por ' + it.donante);
+    if (!it.imagenUrl) p.push('sin foto');
+    return p.join(' · ');
+  }
+  protected metaGanador(it: RifaItem): string {
+    if (!it.visible) return 'Oculto · no se sortea';
+    return it.ganador ? `Boleto nº ${it.ganador.boleto}` + (it.ganador.nombre ? ` · ${it.ganador.nombre}` : '') : 'Sin ganador';
+  }
+  protected nuevo(): void {
+    this.form = vacio();
+    this.errNombre.set(null);
+    this.editando.set({ id: '' });
+  }
+  protected editar(it: RifaItem): void {
+    const { nombre, descripcion, imagenUrl, valorEstimadoCents, donante, unidades, visible } = it;
+    this.form = { nombre, descripcion, imagenUrl, valorEstimadoCents, donante, unidades, visible };
+    this.errNombre.set(null);
+    this.editando.set({ id: it.id });
+  }
+  protected cerrarEditor(): void { this.editando.set(null); }
+  private item(id: string): RifaItem | undefined { return this.items()?.find((x) => x.id === id); }
 
-  protected async guardar(): Promise<void> {
+  /** Runs a change that returns the new list; keeps the screen state on error. */
+  private async cambio(fn: () => Promise<RifaItem[]>, ok?: string): Promise<boolean> {
     this.guardando.set(true);
     try {
-      this.aplicar(await this.api.guardar(this.cid(), this.cfg));
-      this.toasts.success('Sorteo guardado');
+      this.items.set(await fn());
+      if (ok) this.toasts.success(ok);
+      return true;
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo guardar.'));
-      const p = problemOf(e);
-      if (p.code === 'CHECKLIST_LEGAL_PENDIENTE' || p.code === 'FALTAN_DATOS') this.cfg.activa = false;
+      void this.cargar(false);
+      return false;
     } finally {
       this.guardando.set(false);
     }
   }
-  protected async marcar(clave: string, estado: string): Promise<void> {
-    try { this.aplicar(await this.api.checklist(this.cid(), clave, estado)); } catch (e) { this.toasts.error(errText(e, 'No se pudo marcar.')); }
+  protected async guardarItem(): Promise<void> {
+    const f = { ...this.form, nombre: this.form.nombre.trim(), unidades: Math.max(1, Math.round(Number(this.form.unidades) || 1)) };
+    if (!f.nombre) return this.errNombre.set('Pon un nombre al item.');
+    this.errNombre.set(null);
+    const e = this.editando();
+    const it = e?.id ? this.item(e.id) : undefined;
+    const ok = await this.cambio(() => (it ? this.api.editar(this.cid(), it, f) : this.api.crear(this.cid(), f)), 'Item guardado');
+    if (ok) this.editando.set(null);
+  }
+  protected async borrar(): Promise<void> {
+    const it = this.item(this.editando()?.id ?? '');
+    if (!it) return;
+    const ok = await this.confirm.ask({ title: '¿Eliminar el item?', text: `«${it.nombre}» desaparece de la rifa y de /sorteo. Si solo quieres esconderlo, desactiva «Visible en la web».`, confirm: 'Eliminar' });
+    if (ok && (await this.cambio(() => this.api.borrar(this.cid(), it), 'Item eliminado'))) this.editando.set(null);
+  }
+  protected async visibilidad(it: RifaItem, visible: boolean): Promise<void> {
+    const { nombre, descripcion, imagenUrl, valorEstimadoCents, donante, unidades } = it;
+    await this.cambio(() => this.api.editar(this.cid(), it, { nombre, descripcion, imagenUrl, valorEstimadoCents, donante, unidades, visible }));
+  }
+  protected async mover(ev: CdkDragDrop<unknown>): Promise<void> {
+    const its = [...(this.items() ?? [])];
+    if (ev.previousIndex === ev.currentIndex) return;
+    moveItemInArray(its, ev.previousIndex, ev.currentIndex);
+    this.items.set(its);
+    await this.cambio(() => this.api.orden(this.cid(), its.map((x) => x.id)));
   }
   protected async subir(ev: Event): Promise<void> {
-    const file = (ev.target as HTMLInputElement).files?.[0];
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
     if (!file) return;
-    try { this.cfg.premioImagen = await this.media.upload(file, this.cfg.premio); } catch (e) { this.toasts.error(errText(e, 'No se pudo subir.')); }
+    if (file.size > 10 * 1024 * 1024) return void this.toasts.error('La foto pesa más de 10 MB.');
+    this.subiendo.set(true);
+    try { this.form.imagenUrl = await this.media.upload(file, this.form.nombre); } catch (e) { this.toasts.error(errText(e, 'No se pudo subir la foto.')); } finally { this.subiendo.set(false); }
   }
-
-  protected filtrar(p: Partial<{ estado: string; q: string; pagina: number }>, reset = true): void {
-    this.f.update((f) => ({ ...f, ...(reset ? { pagina: 1 } : {}), ...p }));
-    clearTimeout(this.t);
-    this.t = setTimeout(() => void this.cargarCompras(), 250);
-  }
-  private async cargarCompras(): Promise<void> {
-    try { this.compras.set(await this.api.compras(this.cid(), this.f())); } catch { /* keep */ }
-  }
-  protected async exportar(): Promise<void> {
-    const b = await this.api.csv(this.cid());
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(b);
-    a.download = 'sorteo-compras.csv';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  }
-  protected abrirReembolso(x: Compra): void {
-    this.motivo = '';
-    this.confirmacion = '';
-    this.reembolso.set(x);
-  }
-  protected async reembolsar(): Promise<void> {
-    const r = this.reembolso();
-    if (!r) return;
-    this.ocupado.set(true);
+  protected async guardarConfig(): Promise<void> {
+    const c = this.cfg();
+    if (!c) return;
+    this.guardando.set(true);
     try {
-      await this.api.reembolsar(this.cid(), r.id, this.motivo.trim());
-      this.reembolso.set(null);
-      this.toasts.success(`Reembolsados ${euros(r.importe)}`);
-      await this.cargar(false);
+      this.cfg.set(await this.api.guardarConfig(this.cid(), c));
+      this.toasts.success('Configuración guardada');
     } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo reembolsar.'));
+      this.toasts.error(errText(e, 'No se pudo guardar la configuración.'));
     } finally {
-      this.ocupado.set(false);
+      this.guardando.set(false);
     }
   }
-  protected async reenviar(x: Compra): Promise<void> {
-    try { await this.api.reenviar(this.cid(), x.id); this.toasts.success('Boletos reenviados a ' + x.email); } catch (e) { this.toasts.error(errText(e, 'No se pudo reenviar.')); }
+  protected abrirGanador(it: RifaItem): void {
+    this.gf = { boleto: it.ganador?.boleto ?? '', nombre: it.ganador?.nombre ?? '', nota: it.ganador?.nota ?? '' };
+    this.gItem.set(it);
   }
-
-  protected async congelar(): Promise<void> {
-    const p = this.panel();
-    if (!p) return;
-    const ok = await this.confirm.ask({ title: '¿Congelar la lista?', text: `Entran ${this.n(p.kpis.boletos)} boletos válidos. Se genera la semilla y se publican sus hashes; la lista ya no cambia.`, confirm: 'Congelar' });
-    if (!ok) return;
-    await this.paso(() => this.api.congelar(this.cid(), this.testigo.trim()));
-  }
-  protected async sortear(): Promise<void> {
-    const a = this.panel()?.actual;
-    if (!a) return;
-    this.girando.set(true);
-    const t = setInterval(() => this.rueda.set(String(Math.floor(Math.random() * 10000)).padStart(4, '0')), 70);
-    const [r] = await Promise.all([this.paso(() => this.api.ejecutar(this.cid(), a.id)), new Promise((res) => setTimeout(res, 2200))]);
-    clearInterval(t);
-    this.girando.set(false);
-    void r;
-  }
-  protected async confirmar(): Promise<void> {
-    const a = this.panel()?.actual;
-    if (a) await this.paso(() => this.api.confirmar(this.cid(), a.id, this.notificar));
-  }
-  protected async repetir(): Promise<void> {
-    const a = this.panel()?.actual;
-    if (!a) return;
-    await this.paso(() => this.api.repetir(this.cid(), a.id, this.motivoRep.trim(), this.anularGanador));
-    this.repetirOpen.set(false);
-    this.motivoRep = '';
-  }
-  private async paso(fn: () => Promise<Sorteo>): Promise<Sorteo | null> {
-    this.ocupado.set(true);
-    try {
-      const s = await fn();
-      await this.cargar(false);
-      return s;
-    } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo completar.'));
-      return null;
-    } finally {
-      this.ocupado.set(false);
-    }
+  protected async guardarGanador(quitar = false): Promise<void> {
+    const it = this.gItem();
+    if (!it) return;
+    const g = quitar ? { boleto: '' } : { boleto: this.gf.boleto.trim(), nombre: this.gf.nombre.trim(), nota: this.gf.nota.trim() };
+    if (await this.cambio(() => this.api.ganador(this.cid(), it.id, g), quitar ? 'Ganador quitado' : 'Ganador guardado')) this.gItem.set(null);
   }
 }
