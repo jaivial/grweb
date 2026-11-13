@@ -384,6 +384,8 @@ func resumen(e events.Event) string {
 		return "confirmó un aviso de «Avísame cuando compita»"
 	case "cms.club_solicitado":
 		return "propuso el club «" + str(d["nombre"]) + "» para el directorio"
+	case "cms.club_en_revision":
+		return "abrió la solicitud del club «" + str(d["nombre"]) + "»"
 	case "cms.voluntario_aceptado":
 		return "aceptó a un voluntario en " + str(d["puesto"]) + " (" + str(d["turno"]) + ")"
 	case "cms.voluntario_autorizacion":

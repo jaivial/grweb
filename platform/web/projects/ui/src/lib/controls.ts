@@ -132,6 +132,7 @@ export class GrKpi {
   readonly trend = input<number[]>([]);
   protected readonly trendColor = computed(() => {
     const t = this.trend();
+    if (t.every((v) => v === t[0])) return '#9ca3af'; // flat: neutral (Figma)
     return t.length > 1 && t[t.length - 1] < t[0] ? '#E6606B' : '#22C55E';
   });
   protected readonly deltaCls = computed(() => ((this.delta() ?? '').startsWith('-') ? 'bg-accent-deep/40 text-accent-text' : 'bg-success/10 text-success'));
