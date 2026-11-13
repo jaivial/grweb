@@ -10,7 +10,7 @@ export interface PlantillaItem {
 export interface Contenido { asunto: string; preheader: string; titulo: string; cuerpo: string; botonTexto: string; botonUrl: string; pie: string; nota?: string; imagen?: string }
 /** WhatsApp version of a template (it is not edited: it comes with the code). */
 export interface ContenidoWA { texto: string; imagen?: boolean }
-export interface PlantillaDetalle extends Contenido { info: PlantillaItem; variables: string[]; ejemplo: Record<string, string>; original: Contenido; wa?: ContenidoWA | null; version: number; updatedPor?: string; updatedAt?: string }
+export interface PlantillaDetalle extends Contenido { info: PlantillaItem; variables: string[]; ejemplo: Record<string, string>; original: Contenido; wa?: ContenidoWA | null; logo?: string; version: number; updatedPor?: string; updatedAt?: string }
 export interface Render { asunto: string; html: string; texto: string }
 export type EstadoMensaje = 'en_cola' | 'enviando' | 'enviado' | 'reintentando' | 'rebotado' | 'fallido' | 'cancelado' | 'omitido';
 export interface Mensaje {

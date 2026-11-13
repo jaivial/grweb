@@ -190,7 +190,7 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 			}
 			return events.Enqueue(ctx, tx, events.New(ctx, "messaging.enviado", map[string]any{"para": p.destino, "plantilla": p.clave, "asunto": r.Asunto},
 				events.Competition(p.cid.String()), events.Audience(events.Internal)))
-		}, ", asunto = $4, proveedor_id = $5, enviado_at = now()", r.Asunto, id)
+		}, ", asunto = $4, proveedor_id = $5, enviado_at = now(), contenido = $6", r.Asunto, id, t.Contenido)
 		return
 	}
 	var ee *errEnvio

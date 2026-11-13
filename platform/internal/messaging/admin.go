@@ -79,6 +79,7 @@ type PlantillaDetalle struct {
 	Ejemplo    map[string]string `json:"ejemplo"`
 	Original   Contenido         `json:"original"`
 	WA         *ContenidoWA      `json:"wa,omitempty" doc:"Versión de WhatsApp del mensaje (no se edita: la lleva el código)"`
+	Logo       string            `json:"logo" doc:"Logo de marca del email"`
 	Version    int               `json:"version"`
 	UpdatedPor string            `json:"updatedPor,omitempty"`
 	UpdatedAt  *time.Time        `json:"updatedAt,omitempty"`
@@ -148,8 +149,10 @@ func (s *Svc) registerAdmin() {
 			if t := r.Enviados7d + malos; t > 0 {
 				r.Entregados = float64(int(float64(r.Enviados7d)/float64(t)*1000)) / 10
 			}
-			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE estado = 'enviado' AND enviado_at >= date_trunc('day', now())), count(*) FILTER (WHERE estado = 'reintentando')
-				FROM mensajes WHERE competition_id = $1 AND NOT prueba`, in.CID).Scan(&r.EnviadosHoy, &r.Reintentando)
+			// The queue counts every message waiting, test sends too (they also show in the outbox).
+			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE estado = 'enviado' AND enviado_at >= date_trunc('day', now())), count(*) FILTER (WHERE estado = 'reintentando'),
+				count(*) FILTER (WHERE estado IN ('en_cola', 'reintentando', 'enviando'))
+				FROM mensajes WHERE competition_id = $1`, in.CID).Scan(&r.EnviadosHoy, &r.Reintentando, &r.EnCola)
 			r.Serie, r.SerieRebotes = make([]int, 7), make([]int, 7)
 			rows, err := s.a.DB.Query(ctx, `SELECT estado = 'enviado', (now()::date - COALESCE(enviado_at, updated_at)::date) AS d, count(*) FROM mensajes
 				WHERE competition_id = $1 AND estado IN ('enviado', 'rebotado') AND NOT prueba AND COALESCE(enviado_at, updated_at) > now() - interval '7 days' GROUP BY 1, 2`, in.CID)
@@ -218,7 +221,7 @@ func (s *Svc) registerAdmin() {
 		if err != nil {
 			return nil, err
 		}
-		d := PlantillaDetalle{Info: it, Contenido: e.Contenido, Variables: variablesOrdenadas(t.Variables), Ejemplo: t.Ejemplo, Original: t.Contenido, WA: t.WA, Version: e.Version, UpdatedPor: e.UpdatedPor, UpdatedAt: e.UpdatedAt}
+		d := PlantillaDetalle{Info: it, Contenido: e.Contenido, Variables: variablesOrdenadas(t.Variables), Ejemplo: t.Ejemplo, Original: t.Contenido, WA: t.WA, Logo: s.marca(ctx, cid).Logo, Version: e.Version, UpdatedPor: e.UpdatedPor, UpdatedAt: e.UpdatedAt}
 		return &detOut{ETag: `W/"` + strconv.Itoa(e.Version) + `"`, Body: d}, nil
 	}
 	huma.Register(api, huma.Operation{OperationID: "emails-plantilla", Method: http.MethodGet, Path: base + "/plantillas/{clave}", Summary: "Plantilla para el editor", Tags: tagAdmin, Security: bearer},
@@ -479,7 +482,8 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			var vars map[string]string
-			if err := s.a.DB.QueryRow(ctx, `SELECT vars FROM mensajes WHERE id = $1`, in.ID).Scan(&vars); err != nil {
+			var enviado *Contenido
+			if err := s.a.DB.QueryRow(ctx, `SELECT vars, contenido FROM mensajes WHERE id = $1`, in.ID).Scan(&vars, &enviado); err != nil {
 				return nil, err
 			}
 			// Access links (magic links, payment links, unsubscribe) belong to the recipient: never shown to staff.
@@ -491,7 +495,11 @@ func (s *Svc) registerAdmin() {
 			o := &verOut{}
 			o.Body.Mensaje = m
 			if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil {
-				if r, err := renderizar(e.Contenido, vars, e.Variables, s.marca(ctx, in.CID), e.Esencial, e.QR); err == nil {
+				c := e.Contenido
+				if enviado != nil {
+					c = *enviado
+				}
+				if r, err := renderizar(c, vars, e.Variables, s.marca(ctx, in.CID), e.Esencial, e.QR); err == nil {
 					o.Body.HTML, o.Body.Texto = r.HTML, r.Texto
 				}
 			}
