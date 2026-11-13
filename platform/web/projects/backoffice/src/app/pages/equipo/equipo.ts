@@ -50,7 +50,7 @@ type Fila =
   { tipo: 'miembro'; id: string; m: Miembro } | { tipo: 'invitacion'; id: string; i: Invitacion };
 
 const th =
-  'px-4 py-3 text-left text-[12px] leading-4 font-medium tracking-[0.04em] uppercase text-text-tertiary';
+  'px-3 lg:px-4 py-3 text-left text-[12px] leading-4 font-medium tracking-[0.04em] uppercase text-text-tertiary';
 const menuItem =
   'flex h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-label-s hover:bg-bg-card focus-visible:outline-none focus-visible:bg-bg-card';
 
@@ -190,7 +190,7 @@ const menuItem =
                         [class.cursor-pointer]="f.tipo === 'miembro'"
                         (click)="f.tipo === 'miembro' && ficha(f.m)"
                       >
-                        <td class="px-4">
+                        <td class="px-3 lg:px-4">
                           <div class="flex items-center gap-3">
                             <span
                               class="flex size-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent-deep/40 text-[12px] font-medium"
@@ -198,7 +198,7 @@ const menuItem =
                                 f.tipo === 'miembro' ? ini(f.m.nombre || f.m.email) : ini(f.i.email)
                               }}</span
                             >
-                            <div class="min-w-0">
+                            <div class="max-w-[180px] min-w-0 lg:max-w-none">
                               @if (f.tipo === 'miembro') {
                                 <p class="truncate text-label-s">{{ f.m.nombre || f.m.email }}</p>
                                 <p class="truncate text-body-xs text-text-tertiary">
@@ -213,13 +213,13 @@ const menuItem =
                             </div>
                           </div>
                         </td>
-                        <td class="px-4">
+                        <td class="px-3 lg:px-4">
                           <gr-badge [tone]="tonoRol(rolDe(f))">{{ nombreRolDe(f) }}</gr-badge>
                         </td>
-                        <td class="hidden px-4 text-text-secondary xl:table-cell">
+                        <td class="hidden px-3 text-text-secondary lg:px-4 xl:table-cell">
                           {{ f.tipo === 'miembro' ? compsDe(f.m) : comps.current()?.nombreCorto }}
                         </td>
-                        <td class="px-4">
+                        <td class="px-3 lg:px-4">
                           @if (f.tipo === 'miembro') {
                             <gr-badge [tone]="f.m.dosFactores ? 'success' : 'warning'">{{
                               f.m.dosFactores ? 'Sí' : 'No'
@@ -232,11 +232,11 @@ const menuItem =
                           }
                         </td>
                         <td
-                          class="px-4 font-mono text-mono-s whitespace-nowrap text-text-secondary"
+                          class="px-3 font-mono text-mono-s whitespace-nowrap lg:px-4 text-text-secondary"
                         >
                           {{ f.tipo === 'miembro' ? rel(f.m.ultimoAcceso) : '–' }}
                         </td>
-                        <td class="px-4">
+                        <td class="px-3 lg:px-4">
                           <gr-badge [tone]="estadoDe(f).tone">{{ estadoDe(f).l }}</gr-badge>
                         </td>
                         <td class="relative px-2 text-right" (click)="$event.stopPropagation()">
