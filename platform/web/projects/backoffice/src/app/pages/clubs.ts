@@ -318,7 +318,7 @@ export class ClubsPage {
   private get base(): string { return `/api/admin/competiciones/${this.cid()}`; }
   protected cuenta(t: Tab): number { return t === 'solicitudes' ? this.pendientes().length : t === 'asociados' ? this.asociados().length : this.rechazadas().length; }
   protected ir(t: Tab): void { this.tab.set(t); this.menu.set(null); }
-  protected ini(n: string): string { return (n.match(/[\p{L}\p{N}]+/gu) ?? ['?']).map((w) => Array.from(w)[0]).join('').slice(0, 2).toUpperCase(); }
+  protected ini(n: string): string { return n.split(/\s+/).map((w) => w.match(/[\p{L}\p{N}]/u)?.[0] ?? '').join('').slice(0, 2).toUpperCase() || '?'; }
   protected logo(u: string): string { return u.startsWith('/api/') ? this.web + u : u; }
   protected aep(c: Club): { l: string; tone: GrTone } { return c.afiliadoAep ? { l: 'Sí', tone: 'success' } : c.afiliadoAep === false ? { l: 'No', tone: 'neutral' } : { l: '—', tone: 'neutral' }; }
   protected lugar(c: Club): string { return [c.ciudad, this.prov(c)].filter(Boolean).join(' · ') || 'Por confirmar'; }
