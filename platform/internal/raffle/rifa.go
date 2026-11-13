@@ -40,8 +40,10 @@ type RifaConfig struct {
 
 // RifaGanador is the winning ticket of an object.
 type RifaGanador struct {
-	Boleto string `json:"boleto"`
-	Nombre string `json:"nombre,omitempty"`
+	Boleto       string     `json:"boleto"`
+	Nombre       string     `json:"nombre,omitempty"`
+	Nota         string     `json:"nota,omitempty" doc:"Solo en el backoffice (nota interna)"`
+	RegistradoAt *time.Time `json:"registradoAt,omitempty" doc:"Solo en el backoffice"`
 }
 
 // RifaItem is one raffled object (Figma «Tarjeta item rifa»).
@@ -89,7 +91,7 @@ func (s *Svc) rifaConfig(ctx context.Context, q rowQ, cid uuid.UUID) (RifaConfig
 }
 
 func (s *Svc) rifaItems(ctx context.Context, cid uuid.UUID, admin bool) ([]RifaItem, error) {
-	sql := `SELECT id, nombre, descripcion, imagen_url, valor_estimado_cents, donante, unidades, orden, visible, ganador_boleto, ganador_nombre, version
+	sql := `SELECT id, nombre, descripcion, imagen_url, valor_estimado_cents, donante, unidades, orden, visible, ganador_boleto, ganador_nombre, version, ganador_nota, ganador_at
 		FROM rifa_items WHERE competition_id = $1`
 	if !admin {
 		sql += ` AND visible`
@@ -103,14 +105,21 @@ func (s *Svc) rifaItems(ctx context.Context, cid uuid.UUID, admin bool) ([]RifaI
 	for rows.Next() {
 		var it RifaItem
 		var vis bool
-		var gb, gn *string
-		if err := rows.Scan(&it.ID, &it.Nombre, &it.Descripcion, &it.ImagenURL, &it.ValorEstimadoCents, &it.Donante, &it.Unidades, &it.Orden, &vis, &gb, &gn, &it.Version); err != nil {
+		var gb, gn, gnota *string
+		var gat *time.Time
+		if err := rows.Scan(&it.ID, &it.Nombre, &it.Descripcion, &it.ImagenURL, &it.ValorEstimadoCents, &it.Donante, &it.Unidades, &it.Orden, &vis, &gb, &gn, &it.Version, &gnota, &gat); err != nil {
 			return nil, err
 		}
 		if gb != nil {
 			it.Ganador = &RifaGanador{Boleto: *gb}
 			if gn != nil {
 				it.Ganador.Nombre = *gn
+			}
+			if admin {
+				it.Ganador.RegistradoAt = gat
+				if gnota != nil {
+					it.Ganador.Nota = *gnota
+				}
 			}
 		}
 		if admin {
@@ -456,6 +465,7 @@ func (s *Svc) registerRifa() {
 		Body struct {
 			Boleto string `json:"boleto" maxLength:"20" doc:"Vacío para quitar el ganador"`
 			Nombre string `json:"nombre,omitempty" maxLength:"80" doc:"Se publica como «Nombre I.»"`
+			Nota   string `json:"nota,omitempty" maxLength:"200" doc:"Nota interna (no se publica)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "rifa-item-ganador", Method: http.MethodPost, Path: base + "/items/{id}/ganador", Summary: "Publicar (o quitar) el boleto ganador de un objeto", Tags: tagRifa, Security: bearer, Middlewares: adminMw},
@@ -464,17 +474,18 @@ func (s *Svc) registerRifa() {
 				return nil, err
 			}
 			bol := strings.TrimSpace(in.Body.Boleto)
-			var boleto, nombre *string
+			var boleto, nombre, nota *string
 			if bol != "" {
 				boleto = &bol
 				if n := strings.TrimSpace(in.Body.Nombre); n != "" {
 					np := nombrePublico(n)
 					nombre = &np
 				}
+				nota = limpio(&in.Body.Nota)
 			}
 			return s.cambioItems(ctx, in.CID, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE rifa_items SET ganador_boleto=$3, ganador_nombre=$4, ganador_at = CASE WHEN $3::text IS NULL THEN NULL ELSE now() END,
-					version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, boleto, nombre)
+				tag, err := tx.Exec(ctx, `UPDATE rifa_items SET ganador_boleto=$3, ganador_nombre=$4, ganador_nota=$5, ganador_at = CASE WHEN $3::text IS NULL THEN NULL ELSE now() END,
+					version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, boleto, nombre, nota)
 				if err == nil && tag.RowsAffected() == 0 {
 					return problem.NotFound("Objeto no encontrado.")
 				}
