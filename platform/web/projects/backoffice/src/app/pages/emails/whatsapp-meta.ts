@@ -26,7 +26,16 @@ interface Form { nombre: string; categoria: 'utilidad' | 'marketing'; cuerpo: st
     @else {
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div class="flex min-w-0 flex-col gap-4">
-          <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
+          <ul class="flex flex-col gap-2 md:hidden">
+            @for (w of ls; track w.nombre) {
+              <li><button type="button" class="flex w-full flex-col gap-2 rounded-lg border bg-bg-card p-3 text-left" [class]="w.estado === 'REJECTED' ? 'border-accent/40' : selNombre() === w.nombre ? 'border-line-strong' : 'border-line-subtle'" [attr.aria-pressed]="selNombre() === w.nombre" (click)="elegir(w)">
+                <span class="flex w-full items-center gap-2"><span class="min-w-0 flex-1 truncate font-mono text-mono-s">{{ w.nombre }}</span><span class="inline-flex h-6 items-center rounded-2xs border px-2 text-mono-xs uppercase" [class]="w.categoria === 'utilidad' ? 'border-info/30 bg-info/15 text-info' : 'border-accent/30 bg-accent-deep/40 text-accent-text'">{{ w.categoria }}</span></span>
+                <span class="inline-flex h-8 w-fit items-center gap-1.5 rounded-pill border px-3 text-label-s" [class]="est[w.estado].c"><gr-icon [name]="est[w.estado].i" [size]="14" />{{ est[w.estado].l }}</span>
+                <span class="line-clamp-2 text-body-s text-text-secondary">{{ w.uso || '—' }}</span>
+              </button></li>
+            } @empty { <li class="rounded-lg border border-line-subtle bg-bg-card px-4 py-10 text-center text-body-s text-text-tertiary">Sin plantillas de WhatsApp todavía.</li> }
+          </ul>
+          <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card max-md:hidden">
             <table class="w-full min-w-[680px] text-left text-body-m">
               <thead class="border-b border-line-subtle text-label-xs text-text-tertiary uppercase"><tr><th class="px-4 py-3 font-medium">Plantilla</th><th class="px-3 py-3 font-medium">Categoría</th><th class="px-3 py-3 font-medium">Estado</th><th class="px-3 py-3 font-medium">Uso</th></tr></thead>
               <tbody>
@@ -52,7 +61,7 @@ interface Form { nombre: string; categoria: 'utilidad' | 'marketing'; cuerpo: st
         </div>
         <div class="flex flex-col gap-4">
           @if (sel(); as w) {
-            <section class="rounded-lg border border-line-subtle bg-bg-card p-6" aria-live="polite">
+            <section id="wa-detalle" class="scroll-mt-20 rounded-lg border border-line-subtle bg-bg-card p-6" aria-live="polite">
               <h2 class="text-ui-h4 break-all">{{ w.nombre }}</h2>
               <p class="mt-1 text-body-xs text-text-tertiary">{{ w.categoria === 'utilidad' ? 'Utilidad' : 'Marketing' }} · {{ w.idioma.slice(0, 2) }} · {{ sub(w) }}</p>
               <div class="mt-4 rounded-md bg-white px-3 pt-2.5 pb-2 text-[15px] leading-[21px] text-[#141011] shadow-card">
@@ -132,6 +141,8 @@ export class WhatsAppMeta {
 
   protected elegir(w: WAPlantilla): void {
     this.elegida.set(w.nombre);
+    // below lg the detail sits under the list
+    if (window.innerWidth < 1024) setTimeout(() => document.getElementById('wa-detalle')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
   protected sub(w: WAPlantilla): string {
     const d = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit' }).format(new Date(iso));

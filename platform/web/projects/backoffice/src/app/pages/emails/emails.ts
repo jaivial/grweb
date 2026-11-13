@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -32,7 +32,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
           </ng-container>
         }
       </bo-page-header>
-      <nav class="-mt-1 flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Emails y avisos">
+      <nav #tabsNav class="-mt-1 flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Emails y avisos">
         @for (t of tabs; track t.v) {
           <a [routerLink]="ruta(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-m whitespace-nowrap focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
             {{ t.label }}
@@ -127,8 +127,20 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
           @let s = salida();
           @if (s === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar la bandeja"><button grButton (click)="cargarSalida()">Reintentar</button></gr-empty> }
           @else if (s) {
-            <section class="rounded-lg border border-line-subtle bg-bg-card">
-              <div class="overflow-x-auto">
+            <ul class="flex flex-col gap-2 md:hidden">
+              @for (m of s.items; track m.id) {
+                <li class="flex items-start gap-3 rounded-lg border bg-bg-card p-3" [class]="m.estado === 'rebotado' || m.estado === 'fallido' ? 'border-accent/40' : 'border-line-subtle'">
+                  <input type="checkbox" class="mt-1 size-5 shrink-0 accent-[#c42b3e]" [checked]="sel().has(m.id)" (change)="toggle(m.id)" [attr.aria-label]="'Seleccionar ' + m.destino" />
+                  <button type="button" class="flex min-w-0 flex-1 flex-col gap-1 text-left" (click)="ver(m)">
+                    <span class="flex w-full items-center gap-2"><span class="min-w-0 flex-1 truncate text-label-m">{{ m.destino }}</span><gr-badge [tone]="est[m.estado].tone">{{ est[m.estado].label }}</gr-badge></span>
+                    <span class="flex items-center gap-2 text-body-s text-text-secondary"><gr-badge [tone]="m.canal === 'whatsapp' ? 'success' : 'info'">{{ m.canal === 'whatsapp' ? 'WA' : 'Email' }}</gr-badge><span class="truncate">{{ m.nombre || m.plantilla }}</span></span>
+                    <span class="line-clamp-2 text-body-xs text-text-tertiary">{{ m.prueba ? 'Prueba · ' : '' }}{{ m.intentos }} {{ m.intentos === 1 ? 'intento' : 'intentos' }} · {{ m.enviadoAt ? hora(m.enviadoAt) + ' · ' : '' }}{{ m.detalle }}</span>
+                  </button>
+                </li>
+              } @empty { <li class="rounded-lg border border-line-subtle bg-bg-card px-4 py-10 text-center text-body-s text-text-tertiary">Nada en la bandeja con este filtro.</li> }
+            </ul>
+            <section class="rounded-lg border border-line-subtle bg-bg-card max-md:border-0 max-md:bg-transparent">
+              <div class="overflow-x-auto max-md:hidden">
               <table class="w-full min-w-[900px] text-left text-body-m">
                 <thead class="border-b border-line-subtle text-label-xs text-text-tertiary uppercase"><tr>
                   <th class="w-12 px-4 py-3"><input type="checkbox" class="size-4 align-middle accent-[#c42b3e]" [checked]="todos(s)" (change)="toggleTodos(s)" aria-label="Seleccionar todos" /></th>
@@ -137,7 +149,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
                   @for (m of s.items; track m.id) {
                     <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class.bg-accent-deep/15]="m.estado === 'rebotado' || m.estado === 'fallido'" (click)="ver(m)">
                       <td class="px-4 py-3" (click)="$event.stopPropagation()"><input type="checkbox" class="size-4 align-middle accent-[#c42b3e]" [checked]="sel().has(m.id)" (change)="toggle(m.id)" [attr.aria-label]="'Seleccionar ' + m.destino" /></td>
-                      <td class="max-w-[220px] px-2 py-3"><p class="truncate">{{ m.destino }}</p>@if (m.prueba) { <p class="text-mono-xs text-text-muted">PRUEBA</p> }</td>
+                      <td class="max-w-[320px] px-2 py-3"><p class="truncate">{{ m.destino }}</p>@if (m.prueba) { <p class="text-mono-xs text-text-muted">PRUEBA</p> }</td>
                       <td class="px-3 py-3"><gr-badge [tone]="m.canal === 'whatsapp' ? 'success' : 'info'">{{ m.canal === 'whatsapp' ? 'WhatsApp' : 'Email' }}</gr-badge></td>
                       <td class="px-3 py-3">{{ m.nombre || m.plantilla }}</td>
                       <td class="px-3 py-3"><gr-badge [tone]="est[m.estado].tone">{{ est[m.estado].label }}</gr-badge></td>
@@ -160,7 +172,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
                 </tbody>
               </table>
               </div>
-              <footer class="flex flex-col gap-3 border-t border-line-subtle px-4 py-3 text-body-xs text-text-tertiary md:flex-row md:items-center md:justify-between">
+              <footer class="flex flex-col gap-3 border-t border-line-subtle px-4 py-3 max-md:border-0 max-md:px-0 text-body-xs text-text-tertiary md:flex-row md:items-center md:justify-between">
                 <span>{{ s.estados.en_cola ?? 0 }} en cola · {{ s.estados.reintentando ?? 0 }} reintentando · {{ s.estados.rebotado ?? 0 }} rebotados · {{ s.estados.fallido ?? 0 }} fallidos</span>
                 @if (paginas(s).length > 1) {
                   <span class="flex items-center gap-1">
@@ -186,7 +198,18 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
                 <p class="mt-1 text-body-xs text-text-tertiary">{{ fechasEvento() }} · siguen: confirmaciones, enlace mágico y cambios de horario</p></div>
               <bo-toggle [value]="a.pausarEnEvento" label="Pausar no esenciales durante el evento" (changed)="ajustes($event, a.ritmo)" />
             </section>
-            <section class="rounded-lg border border-line-subtle bg-bg-card">
+            <ul class="flex flex-col gap-2 md:hidden">
+              @for (x of a.items; track x.clave) {
+                <li class="flex flex-col gap-2 rounded-lg border bg-bg-card p-4" [class]="x.estado === 'error' ? 'border-accent/40' : 'border-line-subtle'">
+                  <p class="flex items-start gap-2"><span class="min-w-0 flex-1 text-label-m">{{ x.nombre }}</span><gr-badge [tone]="x.estado === 'activa' ? 'success' : x.estado === 'error' ? 'danger' : 'neutral'">{{ x.estado === 'activa' ? 'Activa' : x.estado === 'error' ? 'Error' : 'Desactivada' }}</gr-badge></p>
+                  <p class="flex flex-wrap items-center gap-1.5">@for (c of x.canales; track c) { <gr-badge [tone]="c === 'email' ? 'info' : 'success'">{{ c === 'email' ? 'Email' : 'WA' }}</gr-badge> }<span class="font-mono text-mono-xs text-text-secondary">{{ x.cuando }}</span></p>
+                  <p class="text-body-s text-text-secondary">{{ x.publico }} · próxima <span class="font-mono text-mono-xs">{{ proxima(x) }}</span></p>
+                  @if (x.esencial) { <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="14" />Operativa: siempre activa</p> }
+                  @else { <div class="flex items-center justify-between gap-3 border-t border-line-subtle pt-2 text-body-s"><span>{{ x.activa ? 'Activa' : 'Desactivada' }}</span><bo-toggle [value]="x.activa" [label]="'Activar ' + x.nombre" (changed)="auto(x.clave, $event)" /></div> }
+                </li>
+              }
+            </ul>
+            <section class="rounded-lg border border-line-subtle bg-bg-card max-md:hidden">
               <div class="overflow-x-auto">
               <table class="w-full min-w-[960px] text-left text-body-m">
                 <thead class="border-b border-line-subtle text-label-xs text-text-tertiary uppercase"><tr><th class="px-4 py-3 font-medium">Automatización</th><th class="px-3 py-3 font-medium">Canales</th><th class="px-3 py-3 font-medium">Cuándo</th><th class="px-3 py-3 font-medium">Público</th><th class="px-3 py-3 font-medium">Próxima</th><th class="px-3 py-3 font-medium">Estado</th><th class="w-12"></th></tr></thead>
@@ -197,7 +220,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
                       <td class="px-3 py-3"><span class="flex gap-1.5">@for (c of x.canales; track c) { <gr-badge [tone]="c === 'email' ? 'info' : 'success'">{{ c === 'email' ? 'Email' : 'WA' }}</gr-badge> }</span></td>
                       <td class="px-3 py-3 font-mono text-mono-s text-text-secondary">{{ x.cuando }}</td>
                       <td class="px-3 py-3">{{ x.publico }}</td>
-                      <td class="px-3 py-3 font-mono text-mono-s text-text-secondary">{{ proxima(x) }}</td>
+                      <td class="px-3 py-3 font-mono text-mono-s whitespace-nowrap text-text-secondary">{{ proxima(x) }}</td>
                       <td class="px-3 py-3"><gr-badge [tone]="x.estado === 'activa' ? 'success' : x.estado === 'error' ? 'danger' : 'neutral'">{{ x.estado === 'activa' ? 'Activa' : x.estado === 'error' ? 'Error' : 'Desactivada' }}</gr-badge></td>
                       <td class="relative px-2 py-3">
                         <button type="button" class="flex size-9 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-raised hover:text-text-primary" [attr.aria-label]="'Acciones de ' + x.nombre" [attr.aria-expanded]="menu() === x.clave" (click)="menu.set(menu() === x.clave ? null : x.clave)"><gr-icon name="more" [size]="16" /></button>
@@ -222,7 +245,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
       }
     </div>
 
-    <bo-drawer [(open)]="verOpen" [title]="msg()?.asunto || msg()?.nombre || 'Mensaje'" [badge]="msg() ? est[msg()!.estado].label : ''">
+    <bo-drawer [(open)]="verOpen" [title]="msg()?.asunto || msg()?.nombre || 'Mensaje'" [badge]="msg() ? est[msg()!.estado].label : ''" [badgeTone]="msg() ? est[msg()!.estado].tone : 'neutral'">
       @if (msg(); as m) {
         <dl class="grid grid-cols-[110px_minmax(0,1fr)] gap-y-1.5 text-body-s">
           <dt class="text-text-tertiary">Para</dt><dd class="truncate">{{ m.destino }}</dd>
@@ -275,6 +298,7 @@ export class EmailsPage {
   protected readonly probando = signal(false);
   protected readonly sincronizando = signal(false);
   protected readonly waMeta = viewChild(WhatsAppMeta);
+  private readonly tabsNav = viewChild<ElementRef<HTMLElement>>('tabsNav');
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   private readonly fechas = computed(() => this.comps.current() as { fechaInicio?: string; fechaFin?: string } | null);
   protected readonly fechasEvento = computed(() => {
@@ -287,6 +311,8 @@ export class EmailsPage {
   private t?: ReturnType<typeof setTimeout>;
 
   constructor() {
+    // On mobile the active tab may sit beyond the scroll of the tab bar.
+    afterNextRender(() => this.tabsNav()?.nativeElement.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
     effect(() => {
       if (!this.cid()) return;
       untracked(() => this.cargarTodo());

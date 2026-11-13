@@ -61,7 +61,7 @@ function distancia(a: string, b: string): number {
           <section class="flex items-start gap-3 rounded-lg border border-accent/50 bg-accent-deep/25 p-4" role="alert">
             <gr-icon name="circle-x" [size]="20" class="mt-0.5 shrink-0 text-accent-text" />
             <div class="text-body-m"><p class="text-label-m text-accent-text">La variable {{ llaves(v) }} no existe</p>
-              <p class="text-text-secondary">@if (sugerencia(v); as s) { ¿Querías decir {{ llaves(s) }}? }La plantilla está pausada hasta corregirlo; las demás siguen enviándose.</p>
+              <p class="text-text-secondary">@if (sugerencia(v); as s) { ¿Querías decir {{ llaves(s) }}? }{{ p.info.estado === 'error' ? 'La plantilla está pausada hasta corregirlo; las demás siguen enviándose.' : 'Corrígela antes de guardar: la versión guardada sigue activa.' }}</p>
               @if (sugerencia(v); as s) { <button type="button" class="mt-1 inline-flex min-h-9 items-center gap-1 text-label-m text-accent-text hover:underline" (click)="sustituir(v, s)">Sustituir <gr-icon name="arrow-right" [size]="14" /></button> }</div>
           </section>
         } @else if (p.info.estado === 'error' || errorVar()) {
@@ -76,14 +76,15 @@ function distancia(a: string, b: string): number {
           <header class="flex flex-wrap items-center gap-2 border-b border-line-subtle p-3">
             <button type="button" class="hidden size-10 items-center justify-center rounded-md border xl:flex" [class]="panel() ? 'border-accent/40 bg-accent-deep/40 text-accent-text' : 'border-line-strong text-text-tertiary'" [attr.aria-pressed]="panel()" aria-label="Panel de capas y variables" (click)="panel.set(!panel())"><gr-icon name="panel-left" [size]="16" /></button>
             <div class="flex gap-1 rounded-md border border-line-subtle bg-bg-deep p-1" role="group" aria-label="Vista">
-              @for (v of vistas; track v.v) { <button type="button" class="flex h-9 items-center gap-1.5 rounded-sm px-3 text-label-s" [class]="vista() === v.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="vista() === v.v" (click)="cambiarVista(v.v)"><gr-icon [name]="v.i" [size]="14" />{{ v.l }}</button> }
+              @for (v of vistas; track v.v) { <button type="button" class="flex h-9 items-center gap-1.5 rounded-sm px-2.5 text-label-s whitespace-nowrap sm:px-3" [class]="vista() === v.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="vista() === v.v" [attr.aria-label]="v.l" (click)="cambiarVista(v.v)"><gr-icon [name]="v.i" [size]="14" /><span class="max-sm:hidden">{{ v.l }}</span></button> }
             </div>
             <div class="flex gap-1 rounded-md border border-line-subtle bg-bg-deep p-1" role="group" aria-label="Dispositivo">
               @for (d of dispositivos; track d.w) { <button type="button" class="flex h-9 items-center gap-1.5 rounded-sm px-2.5 text-label-s" [class]="ancho() === d.w ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="ancho() === d.w" [attr.aria-label]="d.l" (click)="ancho.set(d.w)"><gr-icon [name]="d.i" [size]="15" />@if (d.w === 600) { <span class="max-sm:hidden">{{ d.l }}</span> }</button> }
             </div>
-            <span class="flex-1"></span>
+            <span class="ml-auto flex">
             <button type="button" class="flex size-10 items-center justify-center rounded-md text-text-secondary hover:bg-bg-raised disabled:opacity-40" [disabled]="!atras.length" aria-label="Deshacer" (click)="deshacer()"><gr-icon name="undo" [size]="16" /></button>
             <button type="button" class="flex size-10 items-center justify-center rounded-md text-text-secondary hover:bg-bg-raised disabled:opacity-40" [disabled]="!adelante.length" aria-label="Rehacer" (click)="rehacer()"><gr-icon name="redo" [size]="16" /></button>
+            </span>
           </header>
 
           <div class="grid grid-cols-1" [class]="panel() ? 'xl:grid-cols-[240px_minmax(0,1fr)_300px]' : 'xl:grid-cols-[minmax(0,1fr)_300px]'">
@@ -124,7 +125,7 @@ function distancia(a: string, b: string): number {
                     <button type="button" class="relative block w-full border-b border-[#e6e1e2] bg-[#f6f3f3] px-4 py-2 text-left outline-offset-[-2px]" [class]="marco('asunto')" (click)="elegir('asunto')">
                       <span class="block truncate text-[13px] font-semibold" [innerHTML]="vis(c().asunto)"></span><span class="block truncate text-[12px] text-[#6b6264]" [innerHTML]="vis(c().preheader) || '—'"></span>
                     </button>
-                    <div class="flex justify-center bg-[#141011] py-4"><img [src]="logo" alt="GR Cup" class="h-9 w-auto" /></div>
+                    <div class="flex justify-center bg-[#141011] py-4"><img [src]="p.logo || logo" alt="GR Cup" class="h-9 w-auto" /></div>
                     <div class="flex flex-col gap-3 px-6 py-6 text-center">
                       <button type="button" class="relative rounded-xs text-[22px] leading-7 font-bold outline-offset-2" [class]="marco('titulo')" (click)="elegir('titulo')"><span [innerHTML]="vis(c().titulo)"></span>@if (malos('titulo')) { <span class="absolute -bottom-5 left-0 bg-[#e6606b] px-1.5 font-mono text-[10px] text-white">TÍTULO · VARIABLE DESCONOCIDA</span> }</button>
                       @if (c().imagen || campo() === 'imagen') {
