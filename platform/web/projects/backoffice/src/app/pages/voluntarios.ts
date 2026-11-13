@@ -368,8 +368,9 @@ export class VoluntariosPage {
     this.motivoError.set('');
     const quiere = v.roles.find((r) => ROLES[r]) ?? 'jueces';
     const ts = this.turnos();
-    const solo = /montaje/i.test(v.disponibilidad) && !v.disponibilidad.split(',').some((d) => !/montaje/i.test(d) && d.trim());
-    const turno = v.turno || (solo ? ts[0] : ts.find((x) => v.disponibilidad.includes(x)) ?? ts[ts.length - 1]);
+    const dias = v.disponibilidad.split(',').map((d) => d.trim()).filter(Boolean);
+    const dia = dias.find((d) => !/montaje/i.test(d) && ts.includes(d));
+    const turno = v.turno || (dias.length && !dia && dias.every((d) => /montaje/i.test(d)) ? ts[0] : dia ?? ts.find((x) => !x.includes(' · ') && !/montaje/i.test(x)) ?? ts[ts.length - 1]);
     this.asig = { puesto: v.puesto && ROLES[v.puesto] ? v.puesto : quiere, turno, responsable: v.responsable || this.auth.user()?.nombre || '', notas: v.notas, avisar: true, autorizacionUrl: v.autorizacionUrl };
     this.re = { motivo: v.motivoRechazo, avisar: false };
     this.abierto.set(true);
