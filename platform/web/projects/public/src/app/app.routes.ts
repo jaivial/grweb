@@ -84,6 +84,8 @@ export const routes: Routes = [
   { path: 'ediciones/:anio', component: EdicionPage },
   { path: 'pantalla/:slug', component: PantallaPublicaPage },
   { path: 'area-atleta', component: AreaAtletaPage },
+  // «Comparte tu cuenta atrás» (Figma 83): story 1080×1920 para atletas con sesión de área.
+  { path: 'area-atleta/compartir', loadComponent: () => import('./pages/area-compartir').then((m) => m.AreaCompartirPage) },
   { path: 'alta-atleta', component: AltaAtletaPage },
   { path: 'inscripcion', component: InscripcionPage },
   { path: 'inscripcion/estado', component: InscripcionEstadoPage },
