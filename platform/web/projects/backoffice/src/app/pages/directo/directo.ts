@@ -362,10 +362,15 @@ export class DirectoPage {
     });
   }
 
-  async cargar(): Promise<void> {
+  async cargar(intento = 0): Promise<void> {
     try {
       this.aplicar(await this.api.mesa(this.cid()));
-    } catch {
+    } catch (e) {
+      // first load right after the magic-link redirect can hit a transient network error (status 0): retry before failing
+      if (!this.mesa() && intento < 3 && (e as { status?: number }).status === 0) {
+        await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
+        return this.cargar(intento + 1);
+      }
       if (!this.mesa()) this.mesa.set(null);
     }
   }
