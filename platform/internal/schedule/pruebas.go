@@ -14,6 +14,20 @@ var ordenPruebas = []string{"aep2", "aep3"}
 
 func nombrePrueba(p string) string { return strings.ToUpper(strings.Replace(p, "aep", "AEP-", 1)) }
 
+func nombreOSin(p string) string {
+	if p == "" {
+		return "sin competición"
+	}
+	return nombrePrueba(p)
+}
+
+func compiteEn(p string) string {
+	if p == "" {
+		return "no tiene competición"
+	}
+	return "compite en " + nombrePrueba(p)
+}
+
 func dePrueba(ats []atleta, p string) []atleta {
 	out := make([]atleta, 0, len(ats))
 	for _, a := range ats {
@@ -24,7 +38,8 @@ func dePrueba(ats []atleta, p string) []atleta {
 	return out
 }
 
-// diasPrueba: the day of the competition when the event has one day per competition; otherwise every day.
+// diasPrueba: the day of the competition when the event has one day per competition; otherwise every day (the
+// generator then places it after the flights of the other competition, see colocar's ocupado).
 func diasPrueba(ds []Dia, p string) []Dia {
 	if len(ds) < len(ordenPruebas) {
 		return ds
@@ -37,34 +52,34 @@ func diasPrueba(ds []Dia, p string) []Dia {
 	return ds
 }
 
-// flightsDePrueba returns the flights a generation of competition p replaces: the ones whose athletes are all of p
-// and the empty ones on its days. Its athletes sitting in other flights are taken out of them.
-func flightsDePrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p string, ats []atleta, dias []Dia) ([]uuid.UUID, error) {
+// flightsDePrueba returns the flights a generation of competition p replaces (the ones of p, or whose athletes are
+// all of p) and the ones it keeps (the generator plans around them). Its athletes sitting in other flights are
+// taken out of them.
+func flightsDePrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p string, ats []atleta) ([]uuid.UUID, []flightRow, error) {
 	suyos := map[uuid.UUID]bool{}
 	ids := make([]uuid.UUID, 0, len(ats))
 	for _, a := range ats {
 		suyos[a.ID] = true
 		ids = append(ids, a.ID)
 	}
-	enDia := map[string]bool{}
-	for _, d := range dias {
-		enDia[d.Fecha] = true
-	}
 	fl, asig, err := loadFlights(ctx, tx, cid)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := []uuid.UUID{}
+	var quedan []flightRow
 	for _, f := range fl {
 		as := asig[f.ID]
-		todos := len(as) > 0
+		todos := len(as) > 0 && (f.Prueba == "" || f.Prueba == p)
 		for _, a := range as {
 			todos = todos && suyos[a]
 		}
-		if todos || (len(as) == 0 && enDia[f.Dia.Format("2006-01-02")]) {
+		if todos || f.Prueba == p {
 			out = append(out, f.ID)
+		} else {
+			quedan = append(quedan, f)
 		}
 	}
 	_, err = tx.Exec(ctx, `DELETE FROM flight_atletas WHERE competition_id = $1 AND atleta_id = ANY($2)`, cid, ids)
-	return out, err
+	return out, quedan, err
 }

@@ -9,6 +9,7 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -217,20 +218,69 @@ func (s *Svc) change(ctx context.Context, cid uuid.UUID, ifm, accion string, fn 
 	return rev, err
 }
 
-// recode letters the flights A, B, C… in chronological order (day, start, platform), so the codes the public and
-// the athletes see always follow the running order.
+// recode letters the flights in chronological order (day, start, platform) inside each competition: a competition
+// reuses its own letters (A, B, C… follow its running order) and new flights take the first letter nobody uses —
+// in the draft or in the published version —, so changing AEP-3 never recodes the flights of AEP-2.
 func recode(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
-	rows, err := tx.Query(ctx, `SELECT id FROM flights WHERE competition_id = $1 ORDER BY dia, inicio, plataforma, created_at`, cid)
+	rows, err := tx.Query(ctx, `SELECT id, prueba, codigo FROM flights WHERE competition_id = $1 ORDER BY dia, inicio, plataforma, created_at`, cid)
 	if err != nil {
 		return err
 	}
-	ids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+	type fr struct {
+		ID             uuid.UUID
+		Prueba, Codigo string
+	}
+	fl, err := pgx.CollectRows(rows, pgx.RowToStructByPos[fr])
 	if err != nil {
 		return err
 	}
-	for i, id := range ids {
-		if _, err := tx.Exec(ctx, `UPDATE flights SET codigo = $2 WHERE id = $1 AND codigo <> $2`, id, codigoFlight(i)); err != nil {
-			return err
+	usado := map[string]bool{}
+	enBorrador := map[uuid.UUID]bool{}
+	grupos := map[string][]fr{}
+	var orden []string
+	for _, f := range fl {
+		enBorrador[f.ID] = true
+		if _, ok := grupos[f.Prueba]; !ok {
+			orden = append(orden, f.Prueba)
+		}
+		grupos[f.Prueba] = append(grupos[f.Prueba], f)
+	}
+	// Letters of published flights that are no longer in the draft stay reserved (no «Flight F» twice on the web).
+	var sn Snapshot
+	if err := tx.QueryRow(ctx, `SELECT snapshot FROM versiones WHERE competition_id = $1 AND estado = 'publicada'`, cid).Scan(&sn); err != nil && !db.IsNoRows(err) {
+		return err
+	}
+	for _, d := range sn.Dias {
+		for _, f := range d.Flights {
+			if !enBorrador[f.ID] {
+				usado[f.Codigo] = true
+			}
+		}
+	}
+	propias := map[string][]string{}
+	for _, p := range orden {
+		for _, f := range grupos[p] {
+			if f.Codigo != "?" && f.Codigo != "" && !usado[f.Codigo] {
+				usado[f.Codigo] = true
+				propias[p] = append(propias[p], f.Codigo)
+			}
+		}
+	}
+	libre := 0
+	for _, p := range orden {
+		cs := propias[p]
+		for len(cs) < len(grupos[p]) {
+			for usado[codigoFlight(libre)] {
+				libre++
+			}
+			usado[codigoFlight(libre)] = true
+			cs = append(cs, codigoFlight(libre))
+		}
+		sort.Slice(cs, func(i, j int) bool { return len(cs[i]) < len(cs[j]) || len(cs[i]) == len(cs[j]) && cs[i] < cs[j] })
+		for i, f := range grupos[p] {
+			if _, err := tx.Exec(ctx, `UPDATE flights SET codigo = $2 WHERE id = $1 AND codigo <> $2`, f.ID, cs[i]); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

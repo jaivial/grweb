@@ -79,8 +79,8 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		if _, err := tx.Exec(ctx, `UPDATE config SET dias = $2 WHERE competition_id = $1`, c.ID, cfg.Dias); err != nil {
 			return err
 		}
-		plan := generar(cfg, loc, ats)
-		if err := s.reemplazar(ctx, tx, c.ID, cfg, plan, nil); err != nil {
+		plan := generar(cfg, loc, ats, nil)
+		if err := s.reemplazar(ctx, tx, c.ID, cfg, plan, nil, ""); err != nil {
 			return err
 		}
 		if len(cfg.Dias) == 0 {

@@ -81,6 +81,7 @@ type Directo struct {
 type Flight struct {
 	ID           uuid.UUID      `json:"id"`
 	Codigo       string         `json:"codigo"`
+	Prueba       string         `json:"prueba" doc:"Competición del flight: aep2, aep3 o vacío (sin competición)"`
 	Dia          string         `json:"dia" format:"date"`
 	Plataforma   int            `json:"plataforma"`
 	Inicio       time.Time      `json:"inicio"`
@@ -110,19 +111,22 @@ type Conflicto struct {
 	Bloquea  bool       `json:"bloquea"`
 	FlightID *uuid.UUID `json:"flightId,omitempty"`
 	Flight   string     `json:"flight,omitempty"`
+	Prueba   string     `json:"prueba,omitempty" doc:"Competición del flight afectado"`
 	Titulo   string     `json:"titulo"`
 	Detalle  string     `json:"detalle"`
 }
 
 // VersionInfo summarises a published version.
 type VersionInfo struct {
-	Numero     int       `json:"numero"`
-	Estado     string    `json:"estado" enum:"publicada,sustituida,retirada"`
-	At         time.Time `json:"at"`
-	Por        string    `json:"por"`
-	Cambios    int       `json:"cambios"`
-	Avisos     int       `json:"avisos"`
-	Seguidores int       `json:"seguidores"`
+	Numero       int       `json:"numero"`
+	Prueba       string    `json:"prueba" doc:"Competición publicada (vacío: todo el evento)"`
+	NumeroPrueba int       `json:"numeroPrueba" doc:"Número de versión dentro de su competición («v1 · AEP-3»)"`
+	Estado       string    `json:"estado" enum:"publicada,sustituida,retirada"`
+	At           time.Time `json:"at"`
+	Por          string    `json:"por"`
+	Cambios      int       `json:"cambios"`
+	Avisos       int       `json:"avisos"`
+	Seguidores   int       `json:"seguidores"`
 }
 
 // Borrador is the planner (GET …/horarios).
@@ -171,20 +175,20 @@ func loadConfig(ctx context.Context, q querier, cid uuid.UUID) (Config, int, int
 
 type flightRow struct {
 	ID                          uuid.UUID
-	Codigo                      string
+	Codigo, Prueba              string
 	Dia                         time.Time
 	Plataforma, DuracionMin     int
 	Inicio, PesajeIni, PesajeFn time.Time
 }
 
 func loadFlights(ctx context.Context, q querier, cid uuid.UUID) ([]flightRow, map[uuid.UUID][]uuid.UUID, error) {
-	rows, err := q.Query(ctx, `SELECT id, codigo, dia, plataforma, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM flights WHERE competition_id = $1 ORDER BY dia, inicio, plataforma`, cid)
+	rows, err := q.Query(ctx, `SELECT id, codigo, prueba, dia, plataforma, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM flights WHERE competition_id = $1 ORDER BY dia, inicio, plataforma`, cid)
 	if err != nil {
 		return nil, nil, err
 	}
 	fl, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (flightRow, error) {
 		var f flightRow
-		err := r.Scan(&f.ID, &f.Codigo, &f.Dia, &f.Plataforma, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn)
+		err := r.Scan(&f.ID, &f.Codigo, &f.Prueba, &f.Dia, &f.Plataforma, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn)
 		return f, err
 	})
 	if err != nil {
@@ -262,7 +266,14 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 	}
 	asignado := map[uuid.UUID]bool{}
 	for _, f := range fl {
-		b.Flights = append(b.Flights, buildFlight(f, asig[f.ID], byID, dir, asignado))
+		nf := buildFlight(f, asig[f.ID], byID, dir, asignado)
+		if f.Prueba == "" && nf.Prueba != "" {
+			// Backfill of the flights created before flights.prueba: their athletes' competition.
+			if _, err := s.a.DB.Exec(ctx, `UPDATE flights SET prueba = $3 WHERE competition_id = $1 AND id = $2 AND prueba = ''`, cid, f.ID, nf.Prueba); err != nil {
+				return Borrador{}, nil, nil, err
+			}
+		}
+		b.Flights = append(b.Flights, nf)
 	}
 	if b.Flights == nil {
 		b.Flights = []Flight{}
@@ -282,6 +293,13 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 		for _, c := range b.Conflictos {
 			if c.FlightID != nil && *c.FlightID == b.Flights[i].ID {
 				b.Flights[i].Avisos = append(b.Flights[i].Avisos, c.Titulo)
+			}
+		}
+	}
+	for i, c := range b.Conflictos {
+		for _, f := range b.Flights {
+			if c.FlightID != nil && *c.FlightID == f.ID {
+				b.Conflictos[i].Prueba = f.Prueba
 			}
 		}
 	}
@@ -309,7 +327,7 @@ func toFA(a atleta, lote int) FlightAtleta {
 func buildFlight(f flightRow, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir map[uuid.UUID]Directo, asignado map[uuid.UUID]bool) Flight {
 	out := Flight{ID: f.ID, Codigo: f.Codigo, Dia: f.Dia.Format("2006-01-02"), Plataforma: f.Plataforma, Inicio: f.Inicio, DuracionMin: f.DuracionMin,
 		Fin: f.Inicio.Add(time.Duration(f.DuracionMin) * time.Minute), PesajeInicio: f.PesajeIni, PesajeFin: f.PesajeFn, Atletas: []FlightAtleta{},
-		Directo: Directo{Estado: "programado"}}
+		Directo: Directo{Estado: "programado"}, Prueba: f.Prueba}
 	if d, ok := dir[f.ID]; ok {
 		out.Directo = d
 	}
@@ -324,6 +342,9 @@ func buildFlight(f flightRow, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir ma
 		out.Atletas = append(out.Atletas, toFA(a, i+1))
 		sexos = append(sexos, a.Sexo)
 		cats = append(cats, a.Categoria)
+		if out.Prueba == "" {
+			out.Prueba = a.Prueba // flights before flights.prueba: the competition of their athletes
+		}
 	}
 	out.Sexo, out.Titulo = titulo(sexos, cats)
 	return out
