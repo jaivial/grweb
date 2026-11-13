@@ -165,104 +165,108 @@ const menuItem =
                 </button></gr-empty
               >
             } @else {
-              <section class="hidden rounded-lg border border-line-subtle bg-bg-card md:block">
-                <table class="w-full text-body-s">
-                  <thead class="border-b border-line-subtle bg-bg-card">
-                    <tr>
-                      <th class="${th} pl-4">Persona</th>
-                      <th class="${th}">Rol</th>
-                      <th class="${th} hidden xl:table-cell">Competiciones</th>
-                      <th class="${th}">2FA</th>
-                      <th class="${th}">Último acceso</th>
-                      <th class="${th}">Estado</th>
-                      <th class="w-14"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (f of filas(); track f.id) {
-                      <tr
-                        class="h-14 border-b border-line-subtle last:border-0"
-                        [class]="
-                          f.tipo === 'invitacion' && f.i.caducada
-                            ? 'bg-accent-deep/25'
-                            : 'hover:bg-bg-raised/50'
-                        "
-                        [class.cursor-pointer]="f.tipo === 'miembro'"
-                        (click)="f.tipo === 'miembro' && ficha(f.m)"
-                      >
-                        <td class="px-3 lg:px-4">
-                          <div class="flex items-center gap-3">
-                            <span
-                              class="flex size-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent-deep/40 text-[12px] font-medium"
-                              >{{
-                                f.tipo === 'miembro' ? ini(f.m.nombre || f.m.email) : ini(f.i.email)
-                              }}</span
-                            >
-                            <div class="max-w-[180px] min-w-0 lg:max-w-none">
-                              @if (f.tipo === 'miembro') {
-                                <p class="truncate text-label-s">{{ f.m.nombre || f.m.email }}</p>
-                                <p class="truncate text-body-xs text-text-tertiary">
-                                  {{ f.m.email }}
-                                </p>
-                              } @else {
-                                <p class="truncate text-label-s">{{ f.i.email }}</p>
-                                <p class="truncate text-body-xs text-text-tertiary">
-                                  invitada por {{ f.i.invitadoPor || 'Sistema' }}
-                                </p>
-                              }
-                            </div>
-                          </div>
-                        </td>
-                        <td class="px-3 lg:px-4">
-                          <gr-badge [tone]="tonoRol(rolDe(f))">{{ nombreRolDe(f) }}</gr-badge>
-                        </td>
-                        <td class="hidden px-3 text-text-secondary lg:px-4 xl:table-cell">
-                          {{ f.tipo === 'miembro' ? compsDe(f.m) : comps.current()?.nombreCorto }}
-                        </td>
-                        <td class="px-3 lg:px-4">
-                          @if (f.tipo === 'miembro') {
-                            <gr-badge [tone]="f.m.dosFactores ? 'success' : 'warning'">{{
-                              f.m.dosFactores ? 'Sí' : 'No'
-                            }}</gr-badge>
-                          } @else {
-                            <span
-                              class="inline-flex h-6 w-7 items-center justify-center rounded-xs bg-text-tertiary/14 text-text-tertiary"
-                              >—</span
-                            >
-                          }
-                        </td>
-                        <td
-                          class="px-3 font-mono text-mono-s whitespace-nowrap lg:px-4 text-text-secondary"
-                        >
-                          {{ f.tipo === 'miembro' ? rel(f.m.ultimoAcceso) : '–' }}
-                        </td>
-                        <td class="px-3 lg:px-4">
-                          <gr-badge [tone]="estadoDe(f).tone">{{ estadoDe(f).l }}</gr-badge>
-                        </td>
-                        <td class="relative px-2 text-right" (click)="$event.stopPropagation()">
-                          <button
-                            type="button"
-                            class="inline-flex size-9 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-raised hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]"
-                            [attr.aria-label]="'Acciones de ' + etiqueta(f)"
-                            aria-haspopup="menu"
-                            [attr.aria-expanded]="menu() === f.id"
-                            (click)="menu.set(menu() === f.id ? null : f.id)"
-                          >
-                            <gr-icon name="more" [size]="18" />
-                          </button>
-                          @if (menu() === f.id) {
-                            <gr-popover
-                              [etiqueta]="'Acciones de ' + etiqueta(f)"
-                              (cerrar)="menu.set(null)"
-                              ><ng-container
-                                *ngTemplateOutlet="acciones; context: { $implicit: f }"
-                            /></gr-popover>
-                          }
-                        </td>
+              <!-- the row menu lives outside the clipped (rounded) table, so it is never cut -->
+              <section class="relative hidden md:block">
+                <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
+                  <table class="w-full text-body-s">
+                    <thead class="border-b border-line-subtle bg-bg-card">
+                      <tr>
+                        <th class="${th} pl-4">Persona</th>
+                        <th class="${th}">Rol</th>
+                        <th class="${th} hidden xl:table-cell">Competiciones</th>
+                        <th class="${th}">2FA</th>
+                        <th class="${th}">Último acceso</th>
+                        <th class="${th}">Estado</th>
+                        <th class="w-14"></th>
                       </tr>
-                    }
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      @for (f of filas(); track f.id) {
+                        <tr
+                          class="h-14 border-b border-line-subtle last:border-0"
+                          [class]="
+                            f.tipo === 'invitacion' && f.i.caducada
+                              ? 'bg-accent-deep/25'
+                              : 'hover:bg-bg-raised/50'
+                          "
+                          [class.cursor-pointer]="f.tipo === 'miembro'"
+                          (click)="f.tipo === 'miembro' && ficha(f.m)"
+                        >
+                          <td class="px-3 lg:px-4">
+                            <div class="flex items-center gap-3">
+                              <span
+                                class="flex size-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent-deep/40 text-[12px] font-medium"
+                                >{{
+                                  f.tipo === 'miembro'
+                                    ? ini(f.m.nombre || f.m.email)
+                                    : ini(f.i.email)
+                                }}</span
+                              >
+                              <div class="max-w-[180px] min-w-0 lg:max-w-none">
+                                @if (f.tipo === 'miembro') {
+                                  <p class="truncate text-label-s">{{ f.m.nombre || f.m.email }}</p>
+                                  <p class="truncate text-body-xs text-text-tertiary">
+                                    {{ f.m.email }}
+                                  </p>
+                                } @else {
+                                  <p class="truncate text-label-s">{{ f.i.email }}</p>
+                                  <p class="truncate text-body-xs text-text-tertiary">
+                                    invitada por {{ f.i.invitadoPor || 'Sistema' }}
+                                  </p>
+                                }
+                              </div>
+                            </div>
+                          </td>
+                          <td class="px-3 lg:px-4">
+                            <gr-badge [tone]="tonoRol(rolDe(f))">{{ nombreRolDe(f) }}</gr-badge>
+                          </td>
+                          <td class="hidden px-3 text-text-secondary lg:px-4 xl:table-cell">
+                            {{ f.tipo === 'miembro' ? compsDe(f.m) : comps.current()?.nombreCorto }}
+                          </td>
+                          <td class="px-3 lg:px-4">
+                            @if (f.tipo === 'miembro') {
+                              <gr-badge [tone]="f.m.dosFactores ? 'success' : 'warning'">{{
+                                f.m.dosFactores ? 'Sí' : 'No'
+                              }}</gr-badge>
+                            } @else {
+                              <span
+                                class="inline-flex h-6 w-7 items-center justify-center rounded-xs bg-text-tertiary/14 text-text-tertiary"
+                                >—</span
+                              >
+                            }
+                          </td>
+                          <td
+                            class="px-3 font-mono text-mono-s whitespace-nowrap lg:px-4 text-text-secondary"
+                          >
+                            {{ f.tipo === 'miembro' ? rel(f.m.ultimoAcceso) : '–' }}
+                          </td>
+                          <td class="px-3 lg:px-4">
+                            <gr-badge [tone]="estadoDe(f).tone">{{ estadoDe(f).l }}</gr-badge>
+                          </td>
+                          <td class="relative px-2 text-right" (click)="$event.stopPropagation()">
+                            <button
+                              type="button"
+                              class="inline-flex size-9 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-raised hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]"
+                              [attr.aria-label]="'Acciones de ' + etiqueta(f)"
+                              aria-haspopup="menu"
+                              [attr.aria-expanded]="menu() === f.id"
+                              (click)="abrirMenu(f.id, $event)"
+                            >
+                              <gr-icon name="more" [size]="18" />
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                @if (filaMenu(); as f) {
+                  <div class="absolute right-2 size-0" [style.top.px]="menuTop()">
+                    <gr-popover [etiqueta]="'Acciones de ' + etiqueta(f)" (cerrar)="menu.set(null)"
+                      ><ng-container *ngTemplateOutlet="acciones; context: { $implicit: f }"
+                    /></gr-popover>
+                  </div>
+                }
               </section>
               <!-- 390/768: cards -->
               <ul class="flex flex-col gap-3 md:hidden">
@@ -833,6 +837,11 @@ export class EquipoPage {
   protected readonly invitaciones = signal<Invitacion[]>([]);
   protected readonly error = signal('');
   protected readonly menu = signal<string | null>(null);
+  /** Desktop row menu: the row whose «…» is open and where to draw it (under its button, inside the section). */
+  protected readonly menuTop = signal(0);
+  protected readonly filaMenu = computed(
+    () => this.filas().find((f) => f.id === this.menu()) ?? null,
+  );
   protected readonly invitarOpen = signal(false);
   protected readonly duplicarOpen = signal(false);
   protected readonly guardando = signal(false);
@@ -928,6 +937,12 @@ export class EquipoPage {
     }
   }
 
+  protected abrirMenu(id: string, e: MouseEvent): void {
+    const btn = e.currentTarget as HTMLElement;
+    const sec = btn.closest('section');
+    if (sec) this.menuTop.set(btn.getBoundingClientRect().bottom - sec.getBoundingClientRect().top);
+    this.menu.set(this.menu() === id ? null : id);
+  }
   protected ir(t: Tab): void {
     this.tab.set(t);
     void this.router.navigate([], {
