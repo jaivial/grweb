@@ -110,12 +110,12 @@ export class BoEmptyState {
 }
 
 
-/** BO toaster (Figma 49 «BO / Toast»): top-right on desktop, bottom on mobile; same GrToasts queue as the public site. */
+/** BO toaster (Figma 49 «BO / Toast»): top-right on desktop (24 px right, 80 px top, under the topbar; Figma 49/56/57), bottom on mobile; same GrToasts queue as the public site. */
 @Component({
   selector: 'bo-toaster',
   imports: [BoToast],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'pointer-events-none fixed inset-x-4 bottom-24 z-[70] flex flex-col items-center gap-2 md:inset-x-auto md:top-6 md:right-6 md:bottom-auto md:w-[380px] md:items-end', 'aria-live': 'polite' },
+  host: { class: 'pointer-events-none fixed inset-x-4 bottom-24 z-[70] flex flex-col items-center gap-2 md:inset-x-auto md:top-20 md:right-6 md:bottom-auto md:w-[380px] md:items-end', 'aria-live': 'polite' },
   template: `
     @for (t of toasts.items(); track t.id) {
       <bo-toast [tone]="t.tone" [title]="t.title" [text]="t.text" [action]="t.action?.label" (act)="t.action?.run(); toasts.dismiss(t.id)" (closed)="toasts.dismiss(t.id)" />
