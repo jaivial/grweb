@@ -241,6 +241,8 @@ type ConfigAlta struct {
 	Pruebas []PruebaAlta `json:"pruebas"`
 	// LimiteEleccion is the last day to choose the competition from the athlete area (AAAA-MM-DD).
 	LimiteEleccion string `json:"limiteEleccion,omitempty"`
+	// Completa: the event has no free place (as hayPlaza); only athletes on the AEP list can still sign up.
+	Completa bool `json:"completa"`
 }
 
 // PruebaAlta is one competition of the event the athlete can say they compete in.
@@ -304,6 +306,20 @@ func ocupadas(ctx context.Context, q interface {
 		}
 	}
 	return ocup
+}
+
+// eventoCompleto says if the event has no free place, with the same count as hayPlaza (without lock).
+func (s *Svc) eventoCompleto(ctx context.Context, cid uuid.UUID) bool {
+	pub, _, err := s.configPub(ctx, cid, true)
+	if err != nil || pub.Plazas <= 0 {
+		return false
+	}
+	var n int
+	if err := s.a.DB.QueryRow(ctx, `SELECT (SELECT count(*) FROM atletas WHERE competition_id = $1 AND estado = 'confirmado')
+		+ (SELECT count(*) FROM inscripciones WHERE competition_id = $1 AND estado = 'pendiente_pago' AND expira_at > now())`, cid).Scan(&n); err != nil {
+		return false
+	}
+	return n >= pub.Plazas
 }
 
 // pruebas returns the options with their own places and the requests that chose each one, and the
@@ -460,6 +476,7 @@ func (s *Svc) registerAltaAtleta() {
 				}
 				out := ConfigAlta{Abierta: abierta, MotivoCierre: motivo, Legal: s.legalVersiones(lctx, c.ID), TextoNovedades: textoNovedades}
 				out.Pruebas, out.LimiteEleccion = s.pruebas(lctx, c)
+				out.Completa = s.eventoCompleto(lctx, c.ID)
 				return out, nil
 			})
 			if err != nil {
@@ -697,7 +714,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			return err
 		}
 		// The email to the athlete.
-		if err := email(ctx, tx, c.ID, d.Email, "atleta-solicitud-recibida", s.varsRecibida(d, fotoClave != "", menor, publicaPerfil(cons, menor))); err != nil {
+		if err := email(ctx, tx, c.ID, d.Email, "atleta-solicitud-recibida", s.varsRecibida(d, fotoClave != "", menor)); err != nil {
 			return err
 		}
 		// The email to the team, with the photo (signed URL: it is not public until it is approved).
@@ -1487,22 +1504,17 @@ func (s *Svc) eventoContacto(d DatosAlta, cons map[string]Consentimiento, ip, ua
 }
 
 // varsRecibida are the variables of the email to the athlete.
-func (s *Svc) varsRecibida(d DatosAlta, foto, menor, publica bool) map[string]string {
+func (s *Svc) varsRecibida(d DatosAlta, foto, menor bool) map[string]string {
 	return map[string]string{
 		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "club": d.Club, "ciudad": d.Ciudad,
-		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "pasos": pasosRecibida(foto, menor, publica),
+		"marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL), "foto": fotoTexto(foto), "pasos": pasosRecibida(foto, menor),
 		"urlAtletas": s.webURL + "/atletas",
 	}
 }
 
-// publicaPerfil says if the profile is public on approval: image consent and not a minor (as the success screen).
-func publicaPerfil(cons map[string]Consentimiento, menor bool) bool {
-	_, ok := cons["imagen"]
-	return ok && !menor
-}
-
 // pasosRecibida are the numbered next steps of the email to the athlete: the same process as the success screen.
-func pasosRecibida(foto, menor, publica bool) string {
+// A new profile always stays private until the athlete activates its publication.
+func pasosRecibida(foto, menor bool) string {
 	revision := "Comprobamos tus datos con la lista de inscritos de la AEP."
 	if foto {
 		revision = "Comprobamos tus datos y tu foto con la lista de inscritos de la AEP."
@@ -1512,11 +1524,7 @@ func pasosRecibida(foto, menor, publica bool) string {
 		p = append(p, "Eres menor de edad: necesitamos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email; sin ella no podemos aprobar tu alta.")
 	}
 	p = append(p, "Te avisamos por email con el resultado y el acceso a tu área de atleta.")
-	if publica {
-		p = append(p, "Publicamos tu ficha en /atletas.")
-	} else {
-		p = append(p, "Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.")
-	}
+	p = append(p, "Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.")
 	for i := range p {
 		p[i] = strconv.Itoa(i+1) + ". " + p[i]
 	}

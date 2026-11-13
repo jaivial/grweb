@@ -53,7 +53,7 @@ export class SecCifras {
       <div class="absolute inset-x-0 top-0 h-0.5 bg-[linear-gradient(90deg,transparent,#c42b3e,transparent)]"></div>
       <span class="inline-flex h-7 items-center rounded-pill border border-line-strong bg-bg-raised px-3 text-label-xs text-text-secondary uppercase">{{ s()?.['eyebrow'] || 'GR Cup 2026 · Alta de atleta' }}</span>
       <h2 class="text-display-m text-accent-text [text-shadow:0_0_24px_rgb(196_43_62/0.5)] md:text-display-xl">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
-      <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] || 'Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y lo publicamos en la lista de atletas.' }}</p>
+      <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] || 'Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y queda privado hasta que actives su publicación desde el área de atleta.' }}</p>
       <div class="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
         <a grButton variant="primary" size="l" routerLink="/alta-atleta">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
         <a grButton variant="outline" size="l" routerLink="/atletas">Ver atletas</a>

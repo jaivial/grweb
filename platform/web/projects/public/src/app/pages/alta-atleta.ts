@@ -31,6 +31,8 @@ interface ConfigAlta {
   pruebas?: { codigo: string; nombre: string; fecha?: string; nivel: string; plazas: number; ocupadas: number }[];
   /** Último día (AAAA-MM-DD) para elegir la competición desde el área de atleta. */
   limiteEleccion?: string;
+  /** El evento no tiene plazas libres: solo puede darse de alta quien consta en la lista de inscritos de la AEP. */
+  completa?: boolean;
 }
 
 /** Los datos del formulario (los mismos que viajan al servicio). */
@@ -75,14 +77,14 @@ const MAX_MARCA = 600;
       [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GR Cup 2026'"
       section="Atletas"
       crumb="Alta de atleta"
-      [subtitle]="exito() ? (publica() ? introExito : introExitoPrivada) : cerrada() ? introCerrada : intro"
+      [subtitle]="exito() ? introExitoPrivada : cerrada() ? introCerrada : intro"
       [subtitleHtml]="exito() || cerrada() ? '' : introHtml"
       [tituloMovilGrande]="!exito()">
       @if (vista() === 'cargando') {
         <gr-skeleton class="h-[560px] rounded-[18px]" />
       } @else if (vista() === 'exito') {
         <!-- Figma 75 «Éxito»: qué pasa ahora, en tres pasos -->
-        <gr-alta-exito [contacto]="contacto()" [publica]="publica()" [foto]="fotoExito()" [menor]="menorExito()" />
+        <gr-alta-exito [contacto]="contacto()" [foto]="fotoExito()" [menor]="menorExito()" />
         <div class="mt-18 flex flex-col gap-18 md:gap-24">
           <gr-related nivel="h3" [items]="relacionados" />
           <gr-community nivel="h3" />
@@ -444,7 +446,6 @@ export class AltaAtletaPage {
   protected readonly error = signal('');
   protected readonly exito = signal(false);
   /** The athlete authorised publishing their profile (image consent): only then the success screen promises it. */
-  protected readonly publica = signal(false);
   /** Until Angular hydrates, a native submit would send the data by itself: the button stays disabled. */
   protected readonly hidratado = signal(false);
   /** What was sent, for the success screen (the form is reset afterwards). */
@@ -504,6 +505,7 @@ export class AltaAtletaPage {
     const out = (c?.pruebas ?? []).map((p) => {
       const libre = p.plazas > 0 ? p.plazas - p.ocupadas : Infinity;
       const [chip, tono] = libre <= 0 ? ['Completa', 'border-line-strong text-text-tertiary']
+        : c?.completa ? ['Solo inscritos AEP', 'border-line-strong text-text-tertiary']
         : libre <= Math.max(5, Math.ceil(p.plazas * 0.1)) ? ['Últimas plazas', 'border-accent-text/40 bg-accent-deep/20 text-accent-text'] : ['Disponible', verde];
       const fecha = dia(p.fecha);
       return {
@@ -579,8 +581,6 @@ export class AltaAtletaPage {
   protected readonly introHtml = this.intro.replace('dar de alta tu atleta', '<strong class="font-semibold text-text-primary">dar de alta tu atleta</strong>');
   protected readonly introH2 =
     'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que, cuando actives su publicación, aparece en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
-  protected readonly introExito =
-    'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email en cuanto esté aprobada. Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación. Si ya tienes tu cuenta, entra en el área de atleta para ver el estado de tu solicitud.';
   protected readonly introExitoPrivada =
     'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email con el resultado. Al aprobarla tu ficha quedará privada: podrás activar su publicación desde el área de atleta.';
 
@@ -920,7 +920,6 @@ export class AltaAtletaPage {
     }
     if (xhr.status === 202 || xhr.status === 200) {
       this.exito.set(true);
-      this.publica.set(!!this.legal('consentimiento') && this.acepta.imagen && !this.esMenor());
       this.fotoExito.set(!!this.foto);
       this.menorExito.set(this.esMenor());
       this.vista.set('exito');
@@ -988,6 +987,13 @@ export class AltaAtletaPage {
     if (xhr.status === 422 && (codigo === 'CONSENTIMIENTO_OBLIGATORIO' || codigo === 'TELEFONO_OBLIGATORIO')) {
       if (codigo === 'TELEFONO_OBLIGATORIO') this.err.set({ telefono: 'Si pides avisos por WhatsApp, necesitas tu teléfono.' });
       this.error.set(cuerpo.detail || 'Revisa los campos marcados.');
+      return;
+    }
+    // Event full: retrying the same data never works, so only the message (no «Reintentar»).
+    if (codigo === 'INSCRIPCION_COMPLETA') {
+      this.error.set(cuerpo.detail || 'La competición está completa.');
+      this.aviso.set('ninguno');
+      this.enfocar('#formulario');
       return;
     }
     // Cualquier otro error: se puede reintentar sin perder los datos.
