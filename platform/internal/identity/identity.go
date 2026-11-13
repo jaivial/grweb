@@ -89,6 +89,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	// this consumer retries until it succeeds; ensureDefaultRoles is idempotent.
 	a.Go((&events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "identity-competiciones", Start: "0",
 		Types: []string{"competition.creada"}, Handle: s.onCompetitionCreated, Log: a.Log}).Run)
+	a.AlClonar("identity", clonarRoles)
 
 	s.registerAuth()
 	s.registerTwoFactor()
@@ -96,6 +97,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerTeam()
 	s.registerAdmin()
 	s.registerInternal()
+	s.registerMiembros()
 	return nil
 }
 

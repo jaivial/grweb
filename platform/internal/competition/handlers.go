@@ -117,14 +117,37 @@ func (s *Svc) registerPublic() {
 func (s *Svc) registerAdmin() {
 	api := s.a.API
 
+	type listIn struct {
+		Todas bool `query:"todas" doc:"Root: incluir las archivadas y el número de miembros (Sistema › Competiciones)"`
+	}
 	type listOut struct{ Body []Competicion }
 	huma.Register(api, huma.Operation{OperationID: "competition-admin-list", Method: http.MethodGet, Path: "/api/admin/competiciones", Summary: "Competiciones a las que tengo acceso", Tags: tagAdmin, Security: bearer},
-		func(ctx context.Context, _ *struct{}) (*listOut, error) {
+		func(ctx context.Context, in *listIn) (*listOut, error) {
 			p, err := auth.User(ctx)
 			if err != nil {
 				return nil, err
 			}
 			var rows pgx.Rows
+			if p.Root && in.Todas {
+				rows, err = s.a.DB.Query(ctx, selComp+` ORDER BY archived_at IS NOT NULL, fecha_inicio DESC NULLS LAST`)
+				if err != nil {
+					return nil, err
+				}
+				list, err := pgx.CollectRows(rows, pgx.RowToStructByName[Competicion])
+				if err != nil {
+					return nil, err
+				}
+				miembros := map[string]int{}
+				if err := s.identity.Do(ctx, http.MethodGet, "/internal/competiciones/miembros", nil, &miembros); err != nil {
+					s.a.Log.Warn("miembros por competición", "err", err)
+				} else {
+					for i := range list {
+						n := miembros[list[i].ID.String()]
+						list[i].Miembros = &n
+					}
+				}
+				return &listOut{Body: list}, nil
+			}
 			if p.Root {
 				rows, err = s.a.DB.Query(ctx, selComp+` WHERE archived_at IS NULL ORDER BY fecha_inicio DESC NULLS LAST`)
 			} else {
@@ -145,10 +168,13 @@ func (s *Svc) registerAdmin() {
 
 	type createIn struct {
 		Body struct {
-			Slug        string     `json:"slug" pattern:"^[a-z0-9][a-z0-9-]{1,40}$"`
-			Nombre      string     `json:"nombre" minLength:"2" maxLength:"120"`
-			FechaInicio *string    `json:"fechaInicio,omitempty" format:"date"`
-			ClonarDe    *uuid.UUID `json:"clonarDe,omitempty" doc:"Copia sede, evento, módulos, inscripción y cómo llegar (nunca datos personales)"`
+			Slug        string          `json:"slug" pattern:"^[a-z0-9][a-z0-9-]{1,40}$"`
+			Nombre      string          `json:"nombre" minLength:"2" maxLength:"120"`
+			FechaInicio *string         `json:"fechaInicio,omitempty" format:"date"`
+			FechaFin    *string         `json:"fechaFin,omitempty" format:"date"`
+			ClonarDe    *uuid.UUID      `json:"clonarDe,omitempty" doc:"Copia sede, evento, módulos, inscripción y cómo llegar (nunca datos personales)"`
+			Copiar      []string        `json:"copiar,omitempty" enum:"legal,plantillas,faq,patrocinadores,roles" doc:"Con clonarDe: estructura que copian cms, messaging e identity"`
+			Modulos     map[string]bool `json:"modulos,omitempty" doc:"Módulos activos de la nueva edición (si no, los de la edición clonada o los por defecto)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "competition-create", Method: http.MethodPost, Path: "/api/admin/competiciones", Summary: "Crear una competición (nueva edición)", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusCreated},
@@ -157,24 +183,43 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
+			if b := in.Body; b.FechaInicio != nil && b.FechaFin != nil && *b.FechaFin < *b.FechaInicio {
+				return nil, problem.Unprocessable("FECHAS_INVALIDAS", "La fecha de fin no puede ser anterior a la de inicio.")
+			}
 			id := newID()
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				_, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, fecha_inicio, modulos) VALUES ($1,$2,$3,$4::date,$5)`, id, in.Body.Slug, in.Body.Nombre, in.Body.FechaInicio, defaultModulos())
+				_, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, fecha_inicio, fecha_fin, modulos) VALUES ($1,$2,$3,$4::date,COALESCE($6::date, $4::date),$5)`, id, in.Body.Slug, in.Body.Nombre, in.Body.FechaInicio, defaultModulos(), in.Body.FechaFin)
 				if db.IsUniqueViolation(err, "") {
 					return problem.Conflict("SLUG_EN_USO", "Ya existe una competición con ese identificador.")
 				} else if err != nil {
 					return err
 				}
+				datos := map[string]any{"slug": in.Body.Slug, "nombre": in.Body.Nombre, "propietarioId": p.UserID}
 				if in.Body.ClonarDe != nil {
-					if _, err := tx.Exec(ctx, `UPDATE competiciones c SET sede = o.sede, evento = o.evento, modulos = o.modulos, inscripcion = o.inscripcion, como_llegar = o.como_llegar,
-						zona_horaria = o.zona_horaria, edicion = o.edicion + 1 FROM competiciones o WHERE c.id = $1 AND o.id = $2`, id, *in.Body.ClonarDe); err != nil {
+					tag, err := tx.Exec(ctx, `UPDATE competiciones c SET sede = o.sede, evento = o.evento, modulos = o.modulos, inscripcion = o.inscripcion, como_llegar = o.como_llegar,
+						zona_horaria = o.zona_horaria, edicion = o.edicion + 1, clonada_de = o.id FROM competiciones o WHERE c.id = $1 AND o.id = $2`, id, *in.Body.ClonarDe)
+					if err != nil {
+						return err
+					}
+					if tag.RowsAffected() == 0 {
+						return problem.Unprocessable("ORIGEN_NO_EXISTE", "La competición de origen no existe.")
+					}
+					copiar := in.Body.Copiar
+					if copiar == nil {
+						copiar = []string{}
+					}
+					datos["clonadaDe"], datos["copiar"] = in.Body.ClonarDe.String(), copiar
+				}
+				if len(in.Body.Modulos) > 0 {
+					if _, err := tx.Exec(ctx, `UPDATE competiciones SET modulos = (SELECT coalesce(jsonb_object_agg(k, CASE WHEN $2::jsonb ? k THEN v || jsonb_build_object('activo', ($2::jsonb ->> k)::boolean) ELSE v END), '{}')
+						FROM jsonb_each(modulos) AS m(k, v)) WHERE id = $1`, id, in.Body.Modulos); err != nil {
 						return err
 					}
 				}
 				if err := seedChecklist(ctx, tx, id); err != nil {
 					return err
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "competition.creada", map[string]any{"slug": in.Body.Slug, "nombre": in.Body.Nombre, "propietarioId": p.UserID},
+				return events.Enqueue(ctx, tx, events.New(ctx, events.CompeticionCreada, datos,
 					events.Competition(id.String()), events.Subject("competicion:"+id.String())))
 			})
 			if err != nil {
@@ -481,7 +526,9 @@ func (s *Svc) registerAdmin() {
 			if _, err := auth.RequireRoot(ctx); err != nil {
 				return nil, err
 			}
-			return s.update(ctx, in.CID, "", "competition.archivada", nil, `estado = 'archivada', archived_at = now()`)
+			// Retention (Figma 64): personal data is anonymised 12 months after the event unless Root brings it forward.
+			return s.update(ctx, in.CID, "", "competition.archivada", nil, `estado = 'archivada', archived_at = now(),
+				anonimizar_at = COALESCE(anonimizar_at, (COALESCE(fecha_fin, fecha_inicio, now()::date) + interval '12 months')::timestamptz)`)
 		})
 }
 

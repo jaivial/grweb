@@ -127,10 +127,16 @@ type Competicion struct {
 	UpdatedAt   time.Time         `json:"updatedAt" db:"updated_at"`
 	Version     int               `json:"version" db:"version"`
 	ArchivedAt  *time.Time        `json:"archivedAt,omitempty" db:"archived_at"`
+	ClonadaDe   *uuid.UUID        `json:"clonadaDe,omitempty" db:"clonada_de"`
+	// AnonimizarAt is when the personal data is anonymised (12 months after the event unless Root brings it forward).
+	AnonimizarAt  *time.Time `json:"anonimizarAt,omitempty" db:"anonimizar_at"`
+	AnonimizadaAt *time.Time `json:"anonimizadaAt,omitempty" db:"anonimizada_at"`
+	Miembros      *int       `json:"miembros,omitempty" db:"-"`
 }
 
 const selComp = `SELECT id, slug, nombre, nombre_corto, edicion, estado, fecha_inicio::text AS fecha_inicio, fecha_fin::text AS fecha_fin,
-	zona_horaria, sede, evento, modulos, inscripcion, como_llegar, logo_url, created_at, updated_at, version, archived_at FROM competiciones`
+	zona_horaria, sede, evento, modulos, inscripcion, como_llegar, logo_url, created_at, updated_at, version, archived_at,
+	clonada_de, anonimizar_at, anonimizada_at FROM competiciones`
 
 // Publica is what the public web gets (no internal fields, modules as on/off).
 type Publica struct {

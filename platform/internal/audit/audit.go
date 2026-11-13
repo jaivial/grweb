@@ -32,8 +32,9 @@ import (
 var migrationsFS embed.FS
 
 type Svc struct {
-	a       *app.App
-	fuentes map[string]*svcclient.Client // services that compute their own KPIs (Inicio)
+	a         *app.App
+	fuentes   map[string]*svcclient.Client // services that compute their own KPIs (Inicio)
+	messaging *svcclient.Client            // email queue (Sistema › Salud)
 }
 
 var (
@@ -54,10 +55,12 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	for _, n := range []string{"ticketing", "athletes", "crm", "raffle"} {
 		s.fuentes[n] = svcclient.New(config.Str("UPSTREAM_"+strings.ToUpper(n), "http://"+n+":8080"), "audit", n, a.Cfg.InternalToken)
 	}
+	s.messaging = svcclient.New(config.Str("UPSTREAM_MESSAGING", "http://messaging:8080"), "audit", "messaging", a.Cfg.InternalToken)
 	c := &events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "audit", Start: "0", Handle: s.handle, Log: a.Log} // the audit log must include the retained history
 	a.Go(c.Run)
 	s.register()
 	s.registerSalud()
+	s.registerSistema()
 	return nil
 }
 
@@ -79,6 +82,9 @@ var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitad
 
 // handle stores the event, then applies notification and KPI rules (its own events are ignored to avoid loops).
 func (s *Svc) handle(ctx context.Context, e events.Event) error {
+	if e.Type == events.WebhookRecibido {
+		return s.guardarWebhook(ctx, e)
+	}
 	if e.Source == "audit" || noAudit[e.Type] {
 		return nil
 	}
@@ -214,15 +220,15 @@ func (s *Svc) register() {
 	api := s.a.API
 
 	type listIn struct {
-		CID uuid.UUID `path:"cid"`
-		Usuario string `query:"usuario" doc:"Id del usuario que hizo el cambio"`
-		Tipo    string `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
-		Entidad string `query:"entidad" doc:"Tipo de entidad: prefijo del subject (campana, rol, usuario…)"`
-		Origen  string `query:"origen" enum:"web,cli,mcp,token,"`
-		Desde   string `query:"desde" format:"date-time"`
-		Hasta   string `query:"hasta" format:"date-time"`
-		Cursor string `query:"cursor"`
-		Limite int    `query:"limite" minimum:"1" maximum:"200" default:"50"`
+		CID     uuid.UUID `path:"cid"`
+		Usuario string    `query:"usuario" doc:"Id del usuario que hizo el cambio"`
+		Tipo    string    `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
+		Entidad string    `query:"entidad" doc:"Tipo de entidad: prefijo del subject (campana, rol, usuario…)"`
+		Origen  string    `query:"origen" enum:"web,cli,mcp,token,"`
+		Desde   string    `query:"desde" format:"date-time"`
+		Hasta   string    `query:"hasta" format:"date-time"`
+		Cursor  string    `query:"cursor"`
+		Limite  int       `query:"limite" minimum:"1" maximum:"200" default:"50"`
 	}
 	type listOut struct {
 		Body struct {
@@ -263,13 +269,13 @@ func (s *Svc) register() {
 		})
 
 	type csvIn struct {
-		CID uuid.UUID `path:"cid"`
-		Usuario string `query:"usuario" doc:"Id del usuario que hizo el cambio"`
-		Tipo    string `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
-		Entidad string `query:"entidad" doc:"Tipo de entidad: prefijo del subject (campana, rol, usuario…)"`
-		Origen  string `query:"origen" enum:"web,cli,mcp,token,"`
-		Desde   string `query:"desde" format:"date-time"`
-		Hasta   string `query:"hasta" format:"date-time"`
+		CID     uuid.UUID `path:"cid"`
+		Usuario string    `query:"usuario" doc:"Id del usuario que hizo el cambio"`
+		Tipo    string    `query:"tipo" doc:"Prefijo del tipo de evento (p. ej. identity.)"`
+		Entidad string    `query:"entidad" doc:"Tipo de entidad: prefijo del subject (campana, rol, usuario…)"`
+		Origen  string    `query:"origen" enum:"web,cli,mcp,token,"`
+		Desde   string    `query:"desde" format:"date-time"`
+		Hasta   string    `query:"hasta" format:"date-time"`
 	}
 	type csvOut struct {
 		ContentType        string `header:"Content-Type"`

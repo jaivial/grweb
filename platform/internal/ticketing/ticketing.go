@@ -82,6 +82,7 @@ func (s *Svc) init(a *app.App) {
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
+	a.AlAnonimizar("ticketing", anonimizar)
 	s.registerPublic()
 	s.registerMiEntrada()
 	s.registerAdmin()

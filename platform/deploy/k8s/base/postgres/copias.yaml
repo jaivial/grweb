@@ -48,6 +48,8 @@ spec:
                   sha256sum "$d"/*.dump "$d/globals.sql" | sed "s|$d/||" > "$d/SHA256SUMS"
                   find /copias -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
                   echo "copias completas en $d"
+                  # «Último backup» in Sistema › Salud (Figma 64); best effort
+                  psql -h postgres -U postgres -d grcup_audit -c "INSERT INTO copias (bases) VALUES ($(ls "$d"/*.dump | wc -l))" || true
               env:
                 - name: PGPASSWORD
                   valueFrom: { secretKeyRef: { name: grcup-db, key: POSTGRES_PASSWORD } }

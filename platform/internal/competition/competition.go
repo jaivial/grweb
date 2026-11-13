@@ -74,6 +74,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerIntegrations()
 	s.registerDominio()
 	s.registerInternal()
+	s.registerSistema()
 	a.Go(s.scheduler)
 	return nil
 }
@@ -89,6 +90,9 @@ func (s *Svc) scheduler(ctx context.Context) {
 		case <-t.C:
 			if err := s.applyScheduled(ctx); err != nil && ctx.Err() == nil {
 				s.a.Log.Warn("estados programados", "err", err)
+			}
+			if err := s.applyAnonimizar(ctx); err != nil && ctx.Err() == nil {
+				s.a.Log.Warn("anonimizaciones programadas", "err", err)
 			}
 		}
 	}

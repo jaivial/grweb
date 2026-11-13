@@ -80,6 +80,7 @@ func (s *Svc) init(a *app.App) {
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
+	a.AlAnonimizar("crm", anonimizar)
 	c := &events.Consumer{Redis: a.Redis, DB: a.DB, Stream: a.Stream(), Group: "crm", Start: "$", Handle: s.handle, Log: a.Log}
 	a.Go(c.Run)
 	a.Go(s.recordatorios)

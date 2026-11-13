@@ -10,6 +10,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -253,7 +254,21 @@ func (s *Svc) confirmarPago(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, e
 }
 
 // webhook verifies the payment event (Stripe or simulated, same format) and applies it once (webhook_eventos).
+// webhook applies a payment event and reports it to Sistema › Salud (webhook.recibido, with the answer given).
 func (s *Svc) webhook(ctx context.Context, payload []byte, h http.Header) error {
+	err := s.aplicarWebhook(ctx, payload, h)
+	code := http.StatusOK
+	if errors.Is(err, pagos.ErrSignature) {
+		code = http.StatusBadRequest
+	} else if err != nil {
+		code = http.StatusInternalServerError
+	}
+	id, tipo, cid := events.PeekPago(payload)
+	events.Webhook(ctx, s.a.Redis, s.a.Stream(), cid, "stripe", tipo, id, code)
+	return err
+}
+
+func (s *Svc) aplicarWebhook(ctx context.Context, payload []byte, h http.Header) error {
 	var peek struct {
 		Data struct {
 			Object struct {

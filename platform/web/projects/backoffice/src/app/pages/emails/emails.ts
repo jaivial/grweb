@@ -49,7 +49,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
             <p class="text-label-m text-accent-text">El SMTP rechaza los envíos{{ r!.smtp.desde ? ' desde las ' + soloHora(r!.smtp.desde) : '' }}</p>
             <p class="text-text-secondary">{{ r!.smtp.error || 'Sin respuesta del servidor' }} · {{ r!.enCola }} emails en cola · los reintentos están en pausa para no bloquear la cuenta.</p>
             <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-              <a [routerLink]="['/', comps.current()?.slug, 'sistema']" [queryParams]="{ tab: 'integraciones' }" class="inline-flex min-h-9 items-center gap-1 text-label-m text-accent-text hover:underline">Configurar email <gr-icon name="arrow-right" [size]="14" /></a>
+              <a [routerLink]="['/', comps.current()?.slug, 'sistema', 'email']" class="inline-flex min-h-9 items-center gap-1 text-label-m text-accent-text hover:underline">Configurar email <gr-icon name="arrow-right" [size]="14" /></a>
               <button type="button" class="inline-flex min-h-9 items-center gap-1 text-label-m text-text-secondary hover:text-text-primary disabled:opacity-60" [disabled]="probando()" (click)="probar()"><gr-icon [name]="probando() ? 'loader' : 'refresh'" [size]="14" [class.animate-spin]="probando()" />Probar conexión</button>
             </p>
           </div>

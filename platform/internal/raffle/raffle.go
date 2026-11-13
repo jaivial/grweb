@@ -53,6 +53,7 @@ func (s *Svc) init(a *app.App) {
 
 func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
+	a.AlAnonimizar("raffle", anonimizar)
 	s.registerKPIs()
 	s.registerRifa()
 	return nil
