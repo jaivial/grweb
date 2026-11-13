@@ -220,7 +220,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
           @empty { <li class="text-text-tertiary">Sin escanear todavía.</li> }
         </ul>
       }
-      @if (canEdit() && det()?.estado !== 'anulada') {
+      @if (canEdit() && det() && det()!.estado !== 'anulada') {
         <ng-container drawerActions>
           <button grButton icon="mail" (click)="bulk('reenviar', [det()!.id])">Reenviar entrada</button>
           @if (det()!.dentro < det()!.personas) { <button grButton icon="check" (click)="checkin(det()!)">Check-in manual</button> }
