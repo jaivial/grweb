@@ -33,7 +33,7 @@ export interface Puesto { id: string; nombre: string; tipo: 'puerta' | 'taquilla
 export interface Compacta { c: string; s: string; n: string; p: number; d: number; e: string }
 export interface Bootstrap { puestos: Puesto[]; sesiones: Sesion[]; actual?: string; lista: Compacta[]; generado: string }
 export interface EscaneoIn { qr?: string; codigo?: string; puesto: string; sesionId?: string; confirmar?: boolean; personas?: number; forzar?: boolean; clave?: string; offline?: boolean; escaneadoAt?: string }
-export interface ResumenCheckin { sesiones: Sesion[]; puestos: Puesto[]; ultimos: Escaneo[]; incidencias: Escaneo[]; ritmo: number[] }
+export interface ResumenCheckin { sesiones: Sesion[]; puestos: Puesto[]; ultimos: Escaneo[]; incidencias: Escaneo[]; ritmo: number[]; escaneos?: number }
 
 /** Tickets API (ticketing service, Figma pages 58 and 59). */
 @Injectable({ providedIn: 'root' })
