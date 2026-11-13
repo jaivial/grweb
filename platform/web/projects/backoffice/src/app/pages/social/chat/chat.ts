@@ -64,7 +64,7 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
       }
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede operar el chat">Hace falta el permiso «directo.operar». Puedes ver la sala, pero moderar y guardar quedan desactivados.</gr-alert>
+        <gr-alert tone="warning" title="Tu rol no puede operar el chat">Hace falta el permiso «directo.operar». Puedes ver la sala, pero los botones de moderar y guardar quedan desactivados.</gr-alert>
       }
 
       <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -90,12 +90,12 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
           @if (cargando() && !mensajes().length) {
             <so-skel-filas [n]="5" />
           } @else if (error()) {
-            <gr-empty icon="wifi-off" title="No hemos podido cargar la sala" [text]="error() + ' Seguimos reintentando cada 3 s.'">
+            <gr-empty icon="wifi-off" title="No hemos podido cargar la sala" text="Comprueba la conexión. Seguimos reintentando cada 3 s; también puedes hacerlo ahora.">
               <button grButton variant="primary" icon="refresh" (click)="cargar()">Reintentar</button>
             </gr-empty>
           } @else if (!visibles().length) {
             <gr-empty icon="circle-check" title="No hay mensajes que revisar"
-              [text]="vista() === 'reportados' ? 'Nadie ha reportado nada. Los reportados aparecerán aquí en cuanto lleguen.' : vista() === 'silenciados' ? 'No has silenciado a nadie en esta sesión.' : 'La sala está tranquila.'" />
+              [text]="vista() === 'reportados' ? 'Nadie ha reportado nada. Los reportados aparecerán arriba, en rojo, en cuanto lleguen.' : vista() === 'silenciados' ? 'No has silenciado a nadie en esta sesión.' : 'La sala está tranquila.'" />
           } @else {
             <div class="max-h-[70vh] overflow-y-auto lg:max-h-[640px]" role="listbox" tabindex="-1" aria-label="Mensajes de la sala" [attr.aria-activedescendant]="sel() ? 'msg-' + sel() : null"
               (keydown)="teclado($event)">
@@ -500,7 +500,7 @@ export class ChatPage {
       this.toasts.success('Configuración del chat guardada');
     } catch (e) {
       const p = problemOf(e);
-      this.toasts.error(p.code === 'CONFLICTO_EDICION' ? 'Otra persona ha cambiado la configuración' : errText(e, 'No se pudo guardar.'));
+      this.toasts.error(p.code === 'CONFLICTO_EDICION' ? 'Otra persona guardó antes. Hemos recargado los valores guardados: revisa y vuelve a aplicar tus cambios antes de guardar.' : errText(e, 'No se pudo guardar.'));
       if (p.code === 'CONFLICTO_EDICION') await this.cargar();
     } finally {
       this.guardando.set(false);

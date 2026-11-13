@@ -421,9 +421,9 @@ export class JuegosPage {
     const cid = this.cid();
     if (!cid) return;
     const ok = await this.confirm.ask({
-      title: '¿Liquidar el mercado?',
-      text: `Se reparte el bote de «${m.titulo}» (${m.bote}) entre los que acertaron, según el marcador de ahora. No se puede deshacer.`,
-      confirm: 'Liquidar',
+      title: `¿Liquidar «${m.titulo}»?`,
+      text: `Se reparte el bote (${num(m.bote)}) entre los que acertaron según el marcador de ahora. No se puede deshacer.`,
+      confirm: 'Liquidar mercado',
       danger: true,
     });
     if (!ok) return;
