@@ -178,7 +178,7 @@ const MAX_MARCA = 600;
                             [(ngModel)]="d.telefono" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['telefono']" [attr.aria-describedby]="err()['telefono'] ? 'e-telefono h-telefono' : 'h-telefono'" />
                         </span>
-                        <p id="h-telefono" class="text-body-xs text-text-tertiary">Formato internacional (+34 por defecto). Obligatorio solo si marcas los avisos por WhatsApp.</p>
+                        <p id="h-telefono" class="text-body-xs text-text-tertiary">Formato internacional (+34 por defecto).{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
                         @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
