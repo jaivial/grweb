@@ -11,6 +11,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"io/fs"
 	"math/big"
@@ -88,7 +89,31 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerCheckin()
 	s.registerRGPD()
 	a.Go(s.worker)
+	// Bounced ticket emails and the news double opt-in confirmed in crm (Reservas: «Email rebotado», Novedades «Sí»).
+	a.Go((&events.Consumer{Redis: a.Redis, Stream: a.Stream(), Group: "ticketing", Start: "$", Types: []string{"messaging.rebote", "crm.novedades_confirmadas"}, Handle: s.handle, Log: a.Log}).Run)
 	return nil
+}
+
+func (s *Svc) handle(ctx context.Context, e events.Event) error {
+	cid, err := uuid.Parse(e.CompetitionID)
+	if err != nil {
+		return nil
+	}
+	var d struct{ Para, Email, Canal string }
+	if json.Unmarshal(e.Data, &d) != nil {
+		return nil
+	}
+	col, para := "email_rebotado_at", d.Para
+	if e.Type == "crm.novedades_confirmadas" {
+		col, para = "novedades_confirmada_at", d.Email
+	} else if d.Canal != "" && d.Canal != "email" {
+		return nil
+	}
+	if para == "" {
+		return nil
+	}
+	_, err = s.a.DB.Exec(ctx, `UPDATE entradas SET `+col+` = now() WHERE competition_id = $1 AND email = $2 AND `+col+` IS NULL`, cid, para)
+	return err
 }
 
 // ---- codes, QR and tokens ----

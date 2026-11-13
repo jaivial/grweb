@@ -52,9 +52,9 @@ export class BoTableToolbar {
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4" (click)="!busy() && open.set(false)">
-        <form class="flex max-h-[92dvh] w-full flex-col gap-5 overflow-y-auto rounded-t-[20px] border border-line-strong bg-bg-card p-6 shadow-card sm:max-w-[520px] sm:rounded-[20px]"
+        <form novalidate class="flex max-h-[92dvh] w-full flex-col gap-5 overflow-y-auto rounded-t-[20px] border border-line-strong bg-bg-card p-6 shadow-card sm:max-w-[520px] sm:rounded-[20px]"
           role="dialog" aria-modal="true" [attr.aria-label]="title()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" [attr.aria-busy]="busy() || null"
-          (click)="$event.stopPropagation()" (submit)="$event.preventDefault(); submit.emit()">
+          (click)="$event.stopPropagation()" (submit)="$event.preventDefault(); $event.stopPropagation(); enviar.emit()">
           <div class="flex items-center gap-3">
             <h2 class="min-w-0 flex-1 text-[20px] leading-[26px] font-semibold text-text-primary">{{ title() }}</h2>
             <button grIconButton type="button" icon="x" label="Cerrar" [disabled]="busy()" (click)="open.set(false)"></button>
@@ -70,5 +70,6 @@ export class BoModalForm {
   readonly open = model(false);
   readonly title = input.required<string>();
   readonly busy = input(false);
-  readonly submit = output<void>();
+  /** Not «submit»: the native submit event of the <form> bubbles to the host and would fire it twice. */
+  readonly enviar = output<void>();
 }

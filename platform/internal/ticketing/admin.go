@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -53,6 +54,68 @@ type Resumen struct {
 	Sesiones  []SesionAdmin  `json:"sesiones"`
 	Ajustes   Ajustes        `json:"ajustes"`
 	Pestanas  map[string]int `json:"pestanas"`
+	Pabellon  []DiaPabellon  `json:"pabellon" doc:"Días con varias sesiones publicadas y su máximo de plazas simultáneas"`
+}
+
+// DiaPabellon: the pavilion on a day with several sessions (Figma 58 blue notice).
+type DiaPabellon struct {
+	Dia         string        `json:"dia" doc:"«Sábado»"`
+	Sesiones    []SesionAforo `json:"sesiones"`
+	Simultaneas int           `json:"simultaneas" doc:"Máximo de plazas a la vez (sesiones solapadas suman)"`
+	Solapan     bool          `json:"solapan"`
+}
+
+// SesionAforo is a session in DiaPabellon.
+type SesionAforo struct {
+	Nombre string `json:"nombre"`
+	Aforo  int    `json:"aforo"`
+}
+
+// pabellon groups published sessions by Madrid day; per day, the peak of places open at the same time.
+func pabellon(l []sesionRow) []DiaPabellon {
+	type dia struct {
+		d   DiaPabellon
+		evs [][2]int64 // unix time, +aforo/-aforo
+	}
+	var orden []string
+	m := map[string]*dia{}
+	for _, x := range l {
+		if !x.Publicada {
+			continue
+		}
+		k := x.Inicio.In(madrid).Format("2006-01-02")
+		if m[k] == nil {
+			m[k] = &dia{d: DiaPabellon{Dia: diasSemana[x.Inicio.In(madrid).Weekday()]}}
+			orden = append(orden, k)
+		}
+		d := m[k]
+		d.d.Sesiones = append(d.d.Sesiones, SesionAforo{x.Nombre, x.Aforo})
+		d.evs = append(d.evs, [2]int64{x.Inicio.Unix(), int64(x.Aforo)}, [2]int64{x.Fin.Unix(), -int64(x.Aforo)})
+	}
+	out := []DiaPabellon{}
+	sort.Strings(orden)
+	for _, k := range orden {
+		d := m[k]
+		if len(d.d.Sesiones) < 2 {
+			continue
+		}
+		// ends before starts at the same instant: back-to-back sessions do not overlap
+		sort.Slice(d.evs, func(i, j int) bool {
+			if d.evs[i][0] != d.evs[j][0] {
+				return d.evs[i][0] < d.evs[j][0]
+			}
+			return d.evs[i][1] < d.evs[j][1]
+		})
+		var cur, top, maxSes int64
+		for _, e := range d.evs {
+			cur += e[1]
+			top = max(top, cur)
+			maxSes = max(maxSes, e[1])
+		}
+		d.d.Simultaneas, d.d.Solapan = int(top), top > maxSes
+		out = append(out, d.d)
+	}
+	return out
 }
 
 // Ajustes of the waiting list.
@@ -60,13 +123,16 @@ type Ajustes struct {
 	AutoPromocion   bool `json:"autoPromocion"`
 	PlazoHoras      int  `json:"plazoHoras" minimum:"1" maximum:"168"`
 	PermitirParcial bool `json:"permitirParcial" doc:"Ofrecer menos plazas de las pedidas si no caben todas"`
+	UltimoAviso     int  `json:"ultimoAviso" minimum:"0" maximum:"72" doc:"Horas antes de caducar la oferta en que se reenvía (0: sin aviso)"`
+	AforoPabellon   int  `json:"aforoPabellon" minimum:"0" maximum:"100000" doc:"Plazas simultáneas que admite el pabellón (0: sin límite)"`
 }
 
 func (s *Svc) ajustes(ctx context.Context, q interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }, cid uuid.UUID) Ajustes {
-	a := Ajustes{AutoPromocion: true, PlazoHoras: 24}
-	_ = q.QueryRow(ctx, `SELECT auto_promocion, plazo_horas, permitir_parcial FROM ajustes WHERE competition_id = $1`, cid).Scan(&a.AutoPromocion, &a.PlazoHoras, &a.PermitirParcial)
+	a := Ajustes{AutoPromocion: true, PlazoHoras: 24, UltimoAviso: 2}
+	_ = q.QueryRow(ctx, `SELECT auto_promocion, plazo_horas, permitir_parcial, ultimo_aviso_horas, aforo_pabellon FROM ajustes WHERE competition_id = $1`, cid).
+		Scan(&a.AutoPromocion, &a.PlazoHoras, &a.PermitirParcial, &a.UltimoAviso, &a.AforoPabellon)
 	return a
 }
 
@@ -76,33 +142,42 @@ func admin(x sesionRow, now time.Time) SesionAdmin {
 
 // Entrada is a row of «Reservas».
 type Entrada struct {
-	ID        uuid.UUID      `json:"id"`
-	Codigo    string         `json:"codigo"`
-	Nombre    string         `json:"nombre"`
-	Apellidos string         `json:"apellidos"`
-	Email     string         `json:"email"`
-	Telefono  string         `json:"telefono"`
-	SesionID  uuid.UUID      `json:"sesionId"`
-	Sesion    string         `json:"sesion"`
-	Personas  int            `json:"personas"`
-	Dentro    int            `json:"dentro"`
-	Estado    string         `json:"estado"`
-	Origen    string         `json:"origen"`
-	Manual    bool           `json:"manual"`
-	Nota      string         `json:"nota"`
-	Novedades bool           `json:"novedades"`
-	Cons      map[string]any `json:"consentimientos"`
-	Motivo    string         `json:"motivo,omitempty"`
-	CreatedAt time.Time      `json:"createdAt"`
+	ID        uuid.UUID `json:"id"`
+	Codigo    string    `json:"codigo"`
+	Nombre    string    `json:"nombre"`
+	Apellidos string    `json:"apellidos"`
+	Email     string    `json:"email"`
+	Telefono  string    `json:"telefono"`
+	SesionID  uuid.UUID `json:"sesionId"`
+	Sesion    string    `json:"sesion"`
+	Personas  int       `json:"personas"`
+	Dentro    int       `json:"dentro"`
+	Estado    string    `json:"estado"`
+	Origen    string    `json:"origen"`
+	Manual    bool      `json:"manual"`
+	Nota      string    `json:"nota"`
+	Novedades bool      `json:"novedades"`
+	// NovedadesEstado: «si» once the double opt-in is confirmed in crm, «pendiente» while waiting for it.
+	NovedadesEstado string         `json:"novedadesEstado" enum:"si,pendiente,no"`
+	EmailRebotado   bool           `json:"emailRebotado" doc:"El email de la entrada rebotó"`
+	Cons            map[string]any `json:"consentimientos"`
+	Motivo          string         `json:"motivo,omitempty"`
+	CreatedAt       time.Time      `json:"createdAt"`
 }
 
 const selEntrada = `SELECT e.id, e.codigo, e.nombre, e.apellidos, COALESCE(e.email::text, ''), e.telefono, e.sesion_id, s.nombre, e.personas, e.dentro, e.estado, e.origen, e.manual, e.nota,
-	e.consentimientos, e.motivo, e.created_at FROM entradas e JOIN sesiones s ON s.id = e.sesion_id`
+	e.consentimientos, e.motivo, e.created_at, e.email_rebotado_at IS NOT NULL, e.novedades_confirmada_at IS NOT NULL FROM entradas e JOIN sesiones s ON s.id = e.sesion_id`
 
 func scanEntrada(r pgx.CollectableRow) (Entrada, error) {
 	var e Entrada
-	err := r.Scan(&e.ID, &e.Codigo, &e.Nombre, &e.Apellidos, &e.Email, &e.Telefono, &e.SesionID, &e.Sesion, &e.Personas, &e.Dentro, &e.Estado, &e.Origen, &e.Manual, &e.Nota, &e.Cons, &e.Motivo, &e.CreatedAt)
+	var confirmada bool
+	err := r.Scan(&e.ID, &e.Codigo, &e.Nombre, &e.Apellidos, &e.Email, &e.Telefono, &e.SesionID, &e.Sesion, &e.Personas, &e.Dentro, &e.Estado, &e.Origen, &e.Manual, &e.Nota, &e.Cons, &e.Motivo, &e.CreatedAt,
+		&e.EmailRebotado, &confirmada)
 	e.Novedades, _ = e.Cons["novedades"].(bool)
+	e.NovedadesEstado = "no"
+	if e.Novedades {
+		e.NovedadesEstado = map[bool]string{true: "si", false: "pendiente"}[confirmada]
+	}
 	return e, err
 }
 
@@ -197,7 +272,33 @@ func (s *Svc) resumen(ctx context.Context, cid uuid.UUID) (Resumen, error) {
 	}
 	r.Ajustes = s.ajustes(ctx, s.a.DB, cid)
 	r.Pestanas = map[string]int{"sesiones": len(l), "reservas": r.Reservas, "espera": r.Espera}
+	r.Pabellon = pabellon(l)
 	return r, nil
+}
+
+// checkPabellon: 409 AFORO_PABELLON when saving the session would put more people in the pavilion at once than it holds.
+func (s *Svc) checkPabellon(ctx context.Context, tx pgx.Tx, cid uuid.UUID, id uuid.UUID, x sesionRow) error {
+	lim := s.ajustes(ctx, tx, cid).AforoPabellon
+	if lim == 0 || !x.Publicada {
+		return nil
+	}
+	l, err := sesiones(ctx, tx, cid, false)
+	if err != nil {
+		return err
+	}
+	dia := x.Inicio.In(madrid).Format("2006-01-02")
+	mismo := []sesionRow{x}
+	for _, o := range l {
+		if o.ID != id && o.Inicio.In(madrid).Format("2006-01-02") == dia {
+			mismo = append(mismo, o)
+		}
+	}
+	for _, d := range pabellon(mismo) {
+		if d.Simultaneas > lim {
+			return problem.Conflict("AFORO_PABELLON", fmt.Sprintf("%s: %d plazas a la vez y el pabellón admite %d. Reduce aforos o cambia horarios para que no se solapen.", d.Dia, d.Simultaneas, lim))
+		}
+	}
+	return nil
 }
 
 func (s *Svc) registerAdmin() {
@@ -233,6 +334,9 @@ func (s *Svc) registerAdmin() {
 		}
 		return nil
 	}
+	fila := func(b sesionBody) sesionRow {
+		return sesionRow{Nombre: b.Nombre, Inicio: b.Inicio, Fin: b.Fin, Aforo: b.Aforo, Publicada: b.Publicada}
+	}
 	type crearIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body sesionBody
@@ -247,6 +351,9 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if err := s.checkPabellon(ctx, tx, in.CID, uuid.Nil, fila(b)); err != nil {
+					return err
+				}
 				if _, err := tx.Exec(ctx, `INSERT INTO sesiones (id, competition_id, nombre, detalle, inicio, fin, puertas, aforo, max_por_reserva, apertura_at, cierre_at, publicada, lista_espera)
 					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, newID(), in.CID, b.Nombre, b.Detalle, b.Inicio, b.Fin, b.Puertas, b.Aforo, b.MaxPorReserva, b.AperturaAt, b.CierreAt, b.Publicada, b.ListaEspera); err != nil {
 					return err
@@ -286,6 +393,9 @@ func (s *Svc) registerAdmin() {
 				}
 				if b.Aforo < x.Usadas && !in.Forzar {
 					return problem.Conflict("SOBREVENTA", fmt.Sprintf("Hay %d personas con entrada y el nuevo aforo es %d. Sube el aforo, mueve reservas a otra sesión o confirma que mantienes la sobreventa.", x.Usadas, b.Aforo))
+				}
+				if err := s.checkPabellon(ctx, tx, in.CID, in.ID, fila(b)); err != nil {
+					return err
 				}
 				if _, err := tx.Exec(ctx, `UPDATE sesiones SET nombre = $3, detalle = $4, inicio = $5, fin = $6, puertas = $7, aforo = $8, max_por_reserva = $9, apertura_at = $10, cierre_at = $11,
 					publicada = $12, lista_espera = $13, version = version + 1 WHERE competition_id = $1 AND id = $2`,
@@ -631,8 +741,9 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			a := in.Body
-			if _, err := s.a.DB.Exec(ctx, `INSERT INTO ajustes (competition_id, auto_promocion, plazo_horas, permitir_parcial) VALUES ($1,$2,$3,$4)
-				ON CONFLICT (competition_id) DO UPDATE SET auto_promocion = $2, plazo_horas = $3, permitir_parcial = $4`, in.CID, a.AutoPromocion, a.PlazoHoras, a.PermitirParcial); err != nil {
+			if _, err := s.a.DB.Exec(ctx, `INSERT INTO ajustes (competition_id, auto_promocion, plazo_horas, permitir_parcial, ultimo_aviso_horas, aforo_pabellon) VALUES ($1,$2,$3,$4,$5,$6)
+				ON CONFLICT (competition_id) DO UPDATE SET auto_promocion = $2, plazo_horas = $3, permitir_parcial = $4, ultimo_aviso_horas = $5, aforo_pabellon = $6`,
+				in.CID, a.AutoPromocion, a.PlazoHoras, a.PermitirParcial, a.UltimoAviso, a.AforoPabellon); err != nil {
 				return nil, err
 			}
 			return listaEspera(ctx, in.CID)
@@ -685,7 +796,7 @@ func (s *Svc) ofrecer(ctx context.Context, tx pgx.Tx, cid, lid uuid.UUID, x sesi
 	tok := randomToken()
 	exp := time.Now().Add(time.Duration(horas) * time.Hour)
 	var mail, nombre string
-	if err := tx.QueryRow(ctx, `UPDATE lista_espera SET estado = 'oferta', personas = $2, oferta_expira_at = $3, token_hash = $4 WHERE id = $1 RETURNING email::text, nombre`,
+	if err := tx.QueryRow(ctx, `UPDATE lista_espera SET estado = 'oferta', personas = $2, oferta_expira_at = $3, token_hash = $4, aviso_at = NULL WHERE id = $1 RETURNING email::text, nombre`,
 		lid, personas, exp, hashToken(tok)).Scan(&mail, &nombre); err != nil {
 		return err
 	}

@@ -26,7 +26,7 @@ func (s *Svc) worker(ctx context.Context) {
 			return
 		case <-t.C:
 		}
-		for _, f := range []func(context.Context) error{s.caducarOfertas, s.promocionar, s.recordatorios} {
+		for _, f := range []func(context.Context) error{s.caducarOfertas, s.promocionar, s.ultimoAviso, s.recordatorios} {
 			if err := f(ctx); err != nil && ctx.Err() == nil {
 				s.a.Log.Warn("worker de entradas", "err", err)
 			}
@@ -40,6 +40,45 @@ func (s *Svc) caducarOfertas(ctx context.Context) error {
 		s.a.Log.Info("ofertas de lista de espera caducadas", "n", tag.RowsAffected())
 	}
 	return err
+}
+
+// ultimoAviso («Último aviso», Figma 58): N hours before an offer expires, it is sent again with a fresh link
+// (the old one stops working: only the hash of the last token is kept).
+func (s *Svc) ultimoAviso(ctx context.Context) error {
+	rows, err := s.a.DB.Query(ctx, `SELECT l.id, l.competition_id, l.email::text, l.nombre, l.personas, l.oferta_expira_at, x.nombre, x.inicio
+		FROM lista_espera l JOIN sesiones x ON x.id = l.sesion_id LEFT JOIN ajustes a ON a.competition_id = l.competition_id
+		WHERE l.estado = 'oferta' AND l.aviso_at IS NULL AND COALESCE(a.ultimo_aviso_horas, 2) > 0 AND COALESCE(a.ultimo_aviso_horas, 2) < COALESCE(a.plazo_horas, 24) AND l.oferta_expira_at > now()
+		AND l.oferta_expira_at < now() + make_interval(hours => COALESCE(a.ultimo_aviso_horas, 2)) LIMIT 100`)
+	if err != nil {
+		return err
+	}
+	type aviso struct {
+		ID, CID       uuid.UUID
+		Email, Nombre string
+		Personas      int
+		Expira        time.Time
+		Sesion        string
+		Inicio        time.Time
+	}
+	l, err := pgx.CollectRows(rows, pgx.RowToStructByPos[aviso])
+	if err != nil {
+		return err
+	}
+	for _, a := range l {
+		tok := randomToken()
+		err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			tag, err := tx.Exec(ctx, `UPDATE lista_espera SET token_hash = $2, aviso_at = now() WHERE id = $1 AND estado = 'oferta' AND aviso_at IS NULL`, a.ID, hashToken(tok))
+			if err != nil || tag.RowsAffected() == 0 {
+				return err
+			}
+			return email(ctx, tx, a.CID, a.Email, "entrada-oferta", map[string]string{"nombre": a.Nombre, "sesion": a.Sesion, "dia": diaTxt(a.Inicio), "personas": fmt.Sprint(a.Personas),
+				"caduca": diaTxt(a.Expira) + " a las " + hm(a.Expira), "enlace": s.webURL + "/entradas/oferta?t=" + tok})
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // promocionar offers the free places of each session to the waiting list, in order. Without «permitir parcial»

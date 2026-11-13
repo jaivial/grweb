@@ -7,14 +7,15 @@ export interface Sesion {
   id: string; nombre: string; detalle: string; inicio: string; fin: string; puertas: string; aforo: number; ocupadas: number; libres: number; estado: EstadoSesion;
   listaEspera: boolean; enEspera: number; maxPorReserva: number; aperturaAt?: string; cierreAt?: string; publicada: boolean; reservas: number; dentro: number; sobreventa: number; version: number;
 }
-export interface Ajustes { autoPromocion: boolean; plazoHoras: number; permitirParcial: boolean }
+export interface Ajustes { autoPromocion: boolean; plazoHoras: number; permitirParcial: boolean; ultimoAviso: number; aforoPabellon: number }
+export interface DiaPabellon { dia: string; sesiones: { nombre: string; aforo: number }[]; simultaneas: number; solapan: boolean }
 export interface Resumen {
   reservas: number; nuevas7d: number; personas: number; media: number; ocupacion: number; plazas: number; espera: number; esperaTop: string; serie: number[];
-  sesiones: Sesion[]; ajustes: Ajustes; pestanas: Record<'sesiones' | 'reservas' | 'espera', number>;
+  sesiones: Sesion[]; ajustes: Ajustes; pestanas: Record<'sesiones' | 'reservas' | 'espera', number>; pabellon?: DiaPabellon[];
 }
 export interface Entrada {
   id: string; codigo: string; nombre: string; apellidos: string; email: string; telefono: string; sesionId: string; sesion: string; personas: number; dentro: number;
-  estado: 'reservada' | 'usada' | 'anulada'; origen: string; manual: boolean; nota: string; novedades: boolean; consentimientos: Record<string, unknown>; motivo?: string; createdAt: string;
+  estado: 'reservada' | 'usada' | 'anulada'; origen: string; manual: boolean; nota: string; novedades: boolean; novedadesEstado?: 'si' | 'pendiente' | 'no'; emailRebotado?: boolean; consentimientos: Record<string, unknown>; motivo?: string; createdAt: string;
 }
 export interface Escaneo { id: string; codigo: string; nombre: string; puesto: string; usuario: string; resultado: Resultado['resultado']; personas: number; offline: boolean; at: string }
 export interface Detalle extends Entrada { escaneos: Escaneo[]; qr: string }
@@ -83,6 +84,8 @@ const TZ = 'Europe/Madrid';
 export const hora = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
 export const horaSeg = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
 export const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
+/** «1 jun 10:00» */
+export const diaMes = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)).replace(/[.,]/g, '') : '');
 export const diaHora = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
 /** ISO instant → value of an <input type="datetime-local"> in Madrid time. */
 export function aLocal(iso?: string): string {
