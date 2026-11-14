@@ -76,35 +76,13 @@ const PUFFS = [
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-[linear-gradient(180deg,rgb(58_58_58/0)_0%,rgb(42_42_42/0.85)_50%,#141112_100%)]" [style.opacity]="nubes()"></div>
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
-      <!-- Intro (BIZ-144 · Hero 2026): AEP logo, GR CUP 2026 logo, tagline, dates + place and the hero sponsors -->
-      <div class="gr-intro absolute inset-x-0 top-[84px] flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[78px] motion-reduce:transition-none" [style.opacity]="texto()">
-        <img src="/img/home/aep-hero.webp" alt="AEP · Asociación Española de Powerlifting" width="108" height="40" class="h-8 w-auto select-none md:h-10" draggable="false" />
-        <img [src]="logo" alt="GR Strength Cup 2026" class="mt-[57px] h-[clamp(80px,30vw,125px)] w-auto select-none md:mt-[63px] md:h-[198px]" draggable="false" fetchpriority="high" />
+      <!-- Intro (Figma home R2): GRS CUP 2 logo and tagline; dates, place and organiser logos moved to «Campeonato» -->
+      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[12dvh] text-center transition-opacity duration-700 motion-reduce:transition-none" [style.opacity]="texto()">
+        <img [src]="logo" alt="GR Strength Cup 2026" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
-        <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-[65px]'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
-        @if (hero().fecha || fechas() || lugar()) {
-          <p class="mt-[66px] flex flex-col items-center gap-1 md:mt-[63px]">
-            @if (hero().fecha || fechas()) { <span class="font-archivo text-[14px] leading-[15px] font-extrabold tracking-[0.08em] uppercase md:text-[20px] md:leading-[22px]">{{ hero().fecha || fechas() }}</span> }
-            @if (lugar()) { <span class="font-archivo text-[11px] leading-[13px] font-medium tracking-[0.08em] text-text-secondary uppercase md:leading-3">{{ lugar() }}</span> }
-          </p>
-        } @else if (metaPartes().length) {
-          <p class="mt-10 flex flex-wrap items-center justify-center gap-2.5 text-label-xs text-text-secondary">
-            @for (m of metaPartes(); track $index) { @if ($index) { <span class="size-1 rounded-full bg-accent" aria-hidden="true"></span> }<span>{{ m }}</span> }
-          </p>
-        }
+        <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
         @if (hero().ctaTexto && hero().ctaDestino) {
           <a grButton variant="primary" size="l" class="gr-intro-extra pointer-events-auto mt-8" [routerLink]="hero().ctaDestino">{{ hero().ctaTexto }}</a>
-        }
-        @if (patrocinadores().length) {
-          <ul class="gr-intro-patros mt-16 flex flex-wrap items-center justify-center gap-2 md:mt-[63px] md:gap-4" aria-label="Organizan y colaboran">
-            @for (p of patrocinadores(); track p.nombre) {
-              <li class="flex h-11 w-[104px] items-center justify-center p-1.5 md:h-14 md:w-[176px]">
-                @if (!p.logoUrl) { <span class="text-label-s text-text-secondary">{{ p.nombre }}</span> }
-                @else if (p.url) { <a [href]="p.url" target="_blank" rel="noopener" class="size-full"><img [src]="p.logoUrl" [alt]="p.nombre" class="size-full object-contain" loading="lazy" decoding="async" /></a> }
-                @else { <img [src]="p.logoUrl" [alt]="p.nombre" class="size-full object-contain" loading="lazy" decoding="async" /> }
-              </li>
-            }
-          </ul>
         }
       </div>
       @if (!reduced()) {
@@ -140,20 +118,18 @@ const PUFFS = [
     }
     /* UX1-R1-7 / R2-2: short viewports (iPhone SE, zoom 200 %, landscape): compact intro so «Saltar intro» never sits on the text */
     @media (max-width: 767px) and (max-height: 700px) {
-      .gr-intro { top: 72px; }
+      .gr-intro { top: 72px; justify-content: flex-start; padding-bottom: 0; }
       .gr-intro > * + * { margin-top: 3dvh !important; }
-      .gr-intro > img:nth-child(2) { height: min(30vw, 18dvh, 125px); }
-      /* the sponsors also run in the marquee below; here they would sit under «Saltar intro» */
-      .gr-intro-patros { display: none; }
+      .gr-intro > img:first-child { height: min(30vw, 18dvh, 125px); }
     }
     /* UX1-R3-1: at 320×568 the compact CTA reaches «Desliza»; «Saltar intro» already tells the user to scroll */
     @media (max-width: 767px) and (max-height: 620px) {
       .gr-desliza { display: none; }
     }
     @media (max-height: 560px) {
-      .gr-intro { top: 64px; }
+      .gr-intro { top: 64px; justify-content: flex-start; padding-bottom: 0; }
       .gr-intro > * + * { margin-top: 12px !important; }
-      .gr-intro > img:nth-child(2) { height: min(30vw, 14dvh, 125px); }
+      .gr-intro > img:first-child { height: min(30vw, 14dvh, 125px); }
       /* zoom 200 % / landscape: only logo, title and date fit above «Saltar intro»; the booking CTA stays in the navbar and the bottom bar */
       .gr-intro-extra { display: none; }
       .gr-desliza { display: none; }
@@ -166,17 +142,10 @@ const PUFFS = [
   `],
 })
 export class HeroTrophy {
-  /** "25 JULIO 2026 · ALMUSSAFES · VALENCIA" */
-  readonly meta = input('');
   /** Title from the CMS (section «hero»). */
   readonly titulo = input('');
   /** U30 · Figma 54 «Web · editar hero»: antetítulo, fecha visible, CTA (texto/destino) and background image with focal point. */
   readonly hero = input<HeroCms>({});
-  /** BIZ-144: «19 Y 20 DICIEMBRE DE 2026» and «ALMUSSAFES (VALENCIA) · PAVELLÓ …» (competition data). */
-  readonly fechas = input('');
-  readonly lugar = input('');
-  /** BIZ-144: sponsors flagged «Mostrar en hero» (GET …/patrocinadores?hero=true). */
-  readonly patrocinadores = input<{ nombre: string; logoUrl: string; url: string }[]>([]);
   /** Emits true once the intro has been scrolled through (the navbar shows from then on). */
   readonly done = output<boolean>();
 
@@ -198,7 +167,6 @@ export class HeroTrophy {
   private readonly p = signal(0);
   /** The intro text is visible from the first paint (server HTML too: it is the page's h1). */
   private readonly aparecido = signal(true);
-  protected readonly metaPartes = computed(() => (this.meta() || '').split(' · ').filter(Boolean));
   // values of the timeline for the current (smoothed) progress
   protected readonly texto = computed(() => (this.aparecido() ? 1 - ease(tramo(this.p(), T.textoFuera)) : 0));
   protected readonly pista = computed(() => (this.aparecido() && this.p() < 0.05 ? 1 : 0));

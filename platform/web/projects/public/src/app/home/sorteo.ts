@@ -1,16 +1,18 @@
 import { RouterLink } from '@angular/router';
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, output, signal, viewChild,
+  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, input, signal, viewChild,
 } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { GrButton, GrIcon } from '@grcup/ui';
+import { firstValueFrom } from 'rxjs';
+import { GrButton } from '@grcup/ui';
 import type { Seccion } from '../core/cms';
+import { COMPETITION_SLUG } from '../core/competition';
 import { VideoScrub } from '../core/video-scrub';
 import { GLOW, GrTitulo } from './bloques';
 
 const BELT_FRAMES = 169;
 const BELT_VIDEO = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/cinturon-scroll/cinturon-960x540.mp4';
-const beltFrame = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_${String(i).padStart(6, '0')}.webp`;
 const ES_BELT = /\/belt_output_webp\/frame_\d{6}\.webp$/;
 
 /**
@@ -68,32 +70,41 @@ export class GrCinturon {
   }
 }
 
+/** GET /api/competiciones/{slug}/rifa/items (only what the home needs). */
+interface ItemRifa { id: string; nombre: string; imagenUrl: string | null }
+
 /**
- * «Section / Sorteo» on the home (D-RIFA): the raffle is only at the venue and in cash, so the home shows the notice and
- * links to /sorteo (objects, place and hours). No online sale, counters or winning ticket here.
+ * «Section / Rifa» on the home (Figma home R2 393:144944 · 387:108539): centred title and text, the first four prizes
+ * of the raffle (from /rifa/items; the grid is left out when there are none), the cash-only note and the two CTAs in one
+ * centred row. The raffle is only at the venue and in cash: no online sale here.
  */
 @Component({
   selector: 'gr-sec-sorteo',
-  imports: [RouterLink, GrButton, GrIcon, GrTitulo, GrCinturon],
+  imports: [RouterLink, GrButton, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'relative block bg-bg-base md:px-8 md:py-16 lg:px-20 lg:py-24' },
+  host: { class: 'relative block overflow-hidden bg-bg-base px-5 py-18 md:px-8 md:py-24 xl:px-20' },
   template: `
-    <div class="relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 pt-5 pb-7 md:rounded-2xl md:border md:border-accent/35 md:px-8 md:py-10 lg:flex-row lg:gap-14 lg:py-14 lg:pr-14 lg:pl-16">
-      <div [class]="glow + ' -top-30 right-[-60px] size-[520px] bg-[radial-gradient(closest-side,rgb(196_43_62/0.25),transparent)]!'"></div>
-      <div class="relative h-[260px] w-full shrink-0 md:h-[360px] lg:h-[440px] lg:w-[520px]">
-        <div class="pointer-events-none absolute top-1/2 left-1/2 aspect-square w-[min(90%,468px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(196_43_62/0.35),transparent)]"></div>
-        <gr-cinturon class="absolute inset-x-[4%] inset-y-[9%] overflow-hidden rounded-xl mix-blend-lighten [mask-image:radial-gradient(closest-side,#000_62%,transparent)]"
-          [src]="imagen()" alt="Cinturón SBD" />
+    <div [class]="glow + ' -top-30 left-1/2 size-[520px] -translate-x-1/2'"></div>
+    <div class="relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 text-center md:gap-8">
+      <div class="flex max-w-[880px] flex-col items-center gap-4">
+        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="titulo()" /></h2>
+        <p class="text-body-m text-text-tertiary md:text-body-l">{{ parrafo() }}</p>
       </div>
-      <div class="relative flex w-full min-w-0 flex-col items-center gap-4 text-center [overflow-wrap:anywhere] lg:flex-1 lg:items-start lg:gap-5 lg:text-left">
-        <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>Rifa presencial · durante el evento</p>
-        <h2 class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-m lg:text-display-l"><gr-titulo [titulo]="titulo()" /></h2>
-        <p class="text-body-m text-text-tertiary lg:text-body-l">{{ parrafo() }}</p>
-        <p class="inline-flex items-center gap-2 rounded-md border border-line-strong bg-bg-base px-4 py-3 text-body-s text-text-secondary"><gr-icon name="ticket" [size]="16" class="shrink-0 text-accent-text" />Boletos solo en el recinto y en efectivo. No hay venta online.</p>
-        <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <a grButton variant="primary" size="l" routerLink="/sorteo">Ver la rifa</a>
-          <a grButton variant="outline" size="l" routerLink="/sorteo" fragment="normas">Cómo funciona</a>
-        </div>
+      @if (items().length) {
+        <ul class="grid w-full grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+          @for (i of items(); track i.id) {
+            <li class="relative aspect-square overflow-hidden rounded-xl border border-white/8 bg-[linear-gradient(180deg,#2a2627,#141112)] md:aspect-[167/168]">
+              @if (i.imagenUrl) { <img [src]="i.imagenUrl" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" decoding="async" /> }
+              <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgb(0_0_0/0.9))]"></span>
+              <span class="absolute inset-x-3 bottom-3 text-left text-[14px] leading-[18px] font-semibold md:inset-x-2 md:text-[15px]">{{ i.nombre }}</span>
+            </li>
+          }
+        </ul>
+      }
+      <p class="text-body-s text-text-tertiary">Boletos solo en el recinto y en efectivo. No hay venta online.</p>
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <a grButton variant="primary" size="l" routerLink="/sorteo">Ver la rifa</a>
+        <a grButton variant="outline" size="l" routerLink="/sorteo" fragment="normas" iconRight="arrow-right">Cómo funciona</a>
       </div>
     </div>
   `,
@@ -102,7 +113,12 @@ export class SecSorteo {
   readonly s = input<Seccion | undefined>();
   protected readonly glow = GLOW;
   private t = (k: string) => ((this.s()?.[k] as string | undefined) ?? '');
-  protected readonly imagen = computed(() => this.t('imagen') || beltFrame(90));
-  protected readonly titulo = computed(() => this.t('titulo') || 'Rifa de *material* en el recinto');
-  protected readonly parrafo = computed(() => this.t('texto') || 'Durante la competición rifamos material y premios donados. Los boletos se compran en el stand de la rifa, solo en efectivo.');
+  protected readonly titulo = computed(() => this.t('titulo') || '*Rifa de material*|en el recinto');
+  protected readonly parrafo = computed(() => this.t('texto') || 'Durante la competición rifamos material y premios donados. Boletos en el stand de la rifa, solo en efectivo.');
+  protected readonly items = signal<ItemRifa[]>([]);
+  constructor() {
+    void inject(PendingTasks).run(() => firstValueFrom(inject(HttpClient).get<{ items: ItemRifa[] }>(`/api/competiciones/${COMPETITION_SLUG}/rifa/items`))
+      .then((r) => this.items.set((r?.items ?? []).slice(0, 4)))
+      .catch(() => undefined));
+  }
 }

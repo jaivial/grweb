@@ -1,9 +1,9 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { GrButton, GrCountdown, GrIcon, type GrIconName } from '@grcup/ui';
+import { GrButton, GrCountdown } from '@grcup/ui';
 import type { Patrocinador } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
-import { GLOW, GrEyebrow, GrTitulo } from './bloques';
+import { GLOW, GrEyebrow } from './bloques';
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 /** BIZ-144 hero: «19 Y 20 DICIEMBRE DE 2026» (two days) · «DEL 19 AL 22 DICIEMBRE DE 2026» (longer) ·
@@ -18,12 +18,6 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
     : d2 !== d ? `del ${d} al ${d2} ${MESES[m - 1]} de ${y}` : `${d} ${MESES[m - 1]} de ${y}`;
   return txt.toUpperCase();
 };
-/** «19 diciembre 2026» (Figma event meta). */
-export const fechaCorta = (iso?: string | null) => {
-  if (!iso) return '';
-  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
-  return `${d} ${MESES[m - 1]} ${y}`;
-};
 
 /**
  * «Section / Campeonato» (Figma 03/05): logo L, the level as the visible title, separator, event meta, notice badge, countdown,
@@ -32,7 +26,7 @@ export const fechaCorta = (iso?: string | null) => {
  */
 @Component({
   selector: 'gr-campeonato',
-  imports: [RouterLink, GrIcon, GrButton, GrCountdown, GrEyebrow, GrTitulo],
+  imports: [RouterLink, GrButton, GrCountdown, GrEyebrow],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative z-10 -mt-[400px] block motion-reduce:mt-0', id: 'campeonato' },
   template: `
@@ -43,25 +37,27 @@ export const fechaCorta = (iso?: string | null) => {
     <div [class]="glow + ' top-[420px] right-[8%] size-[280px] md:size-[520px]'"></div>
     @let c = comp();
     <div class="relative mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-5 pt-18 pb-18 text-center md:gap-8 md:px-20 md:pt-32 md:pb-32">
-      <img [src]="logo" alt="GR Strength Cup" class="h-[97px] w-auto select-none md:h-[145px]" draggable="false" />
-      <!-- The hero already says «Campeonato de powerlifting»: the h2 keeps it for screen readers and shows the level -->
-      <h2 class="max-w-[1024px] text-display-xs md:text-display-l">
-        @if (nivel()) { <span class="sr-only">{{ titulo() }}: </span><gr-titulo [titulo]="'*' + nivel() + '*'" /> }
-        @else { <gr-titulo [titulo]="titulo()" /> }
-      </h2>
-      <div class="h-px w-full max-w-[560px] bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.7),transparent)]" aria-hidden="true"></div>
-      @if (meta().length) {
-        <dl class="flex w-full flex-col gap-3 rounded-lg border border-line-subtle px-4 py-5 text-left md:w-auto md:flex-row md:flex-wrap md:justify-center md:gap-x-10 md:gap-y-4 md:rounded-none md:border-0 md:p-0">
-          @for (m of meta(); track m.label) {
-            <div class="flex items-center gap-3">
-              <span class="flex size-11 shrink-0 items-center justify-center rounded-md border border-accent bg-accent/10 text-accent-text"><gr-icon [name]="m.icon" [size]="20" /></span>
-              <div class="flex flex-col gap-1"><dt class="text-label-xs text-text-muted">{{ m.label }}</dt><dd class="text-label-m">{{ m.value }}</dd></div>
-            </div>
-          }
-        </dl>
-      }
+      <!-- Figma home R2 «Cabecera evento»: logo, organiser logos in B/N (2 × 2 on mobile, one row from md), level, dates and place -->
+      <img [src]="logo" alt="GRS Cup 2" class="h-[120px] w-auto select-none md:h-[200px]" draggable="false" />
+      <ul class="grid w-full max-w-[350px] grid-cols-2 gap-x-5 gap-y-4 md:flex md:max-w-none md:justify-center md:gap-6" aria-label="Organizan y colaboran">
+        @for (o of organizadores; track o.nombre) {
+          <li class="flex h-12 min-w-0 items-center justify-center md:h-14 md:w-40"><img [src]="o.logo" [alt]="o.nombre" width="114" height="40" class="h-10 w-auto max-w-full object-contain" loading="lazy" decoding="async" /></li>
+        }
+      </ul>
+      <div class="flex flex-col items-center gap-3 md:gap-4">
+        <!-- The hero already says «Campeonato de powerlifting»: it stays as the red eyebrow; the h2 shows the level -->
+        <p class="font-display text-[20px] leading-[1.25] tracking-[0.04em] text-accent-text uppercase md:text-[24px]">{{ titulo() }}</p>
+        <h2 class="max-w-[1024px] font-display text-[32px] leading-[1.25] tracking-[0.06em] md:text-[48px]">
+          @if (nivel()) { <span class="sr-only">{{ titulo() }}: </span>{{ nivel() }} } @else { {{ titulo() }} }
+        </h2>
+        @if (fechas() || lugar()) {
+          <p class="flex flex-col items-center gap-1">
+            @if (fechas()) { <span class="font-archivo text-[14px] leading-[18px] font-extrabold tracking-[0.08em] uppercase md:text-[16px] md:leading-5">{{ fechas() }}</span> }
+            @if (lugar()) { <span class="font-archivo text-[11px] leading-[14px] font-medium tracking-[0.08em] text-text-secondary uppercase md:text-[14px] md:leading-5">{{ lugar() }}</span> }
+          </p>
+        }
+      </div>
       @if (aviso()) { <span class="inline-flex h-7 items-center rounded-pill border border-info/60 bg-info/12 px-3 text-label-xs text-info">{{ aviso() }}</span> }
-      @if (c?.fechaInicio) { <gr-countdown [target]="c!.fechaInicio!" [fin]="c!.fechaFin" [zona]="c!.zonaHoraria || 'Europe/Madrid'" [hora]="horaPuertas(c!.evento.puertas)" /> }
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         @if (c?.modulos?.['entradas'] !== false) { <a grButton variant="primary" size="l" routerLink="/entradas" data-cta-entrada>Reserva tu entrada gratis</a> }
         @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="glass" size="l" routerLink="/atletas" iconRight="arrow-right">Ver atletas</a> }
@@ -82,6 +78,7 @@ export const fechaCorta = (iso?: string | null) => {
           <div class="pointer-events-none absolute inset-y-0 right-0 w-16 bg-[linear-gradient(270deg,#141112,transparent)] md:w-[120px]"></div>
         </div>
       }
+      @if (c?.fechaInicio) { <gr-countdown class="mt-2" [target]="c!.fechaInicio!" [fin]="c!.fechaFin" [zona]="c!.zonaHoraria || 'Europe/Madrid'" [hora]="horaPuertas(c!.evento.puertas)" /> }
     </div>
     </div>
   `,
@@ -95,6 +92,16 @@ export class Campeonato {
   readonly aviso = input('');
   readonly patrocinadores = input<Patrocinador[]>([]);
   readonly tituloPatrocinadores = input('');
+  /** «19 Y 20 DICIEMBRE DE 2026» and «ALMUSSAFES (VALENCIA) · PAVELLÓ …» (were in the hero until R2). */
+  readonly fechas = input('');
+  readonly lugar = input('');
+  /** Figma home R2: real organiser logos in black and white. */
+  protected readonly organizadores = [
+    { nombre: 'AEP · Asociación Española de Powerlifting', logo: '/img/home/logo-aep-bn.webp' },
+    { nombre: 'GRS Strength', logo: '/img/home/logo-grs-strength-bn.webp' },
+    { nombre: 'GRS Powerlifting Coaching', logo: '/img/home/logo-grs-coaching-bn.webp' },
+    { nombre: "Ajuntament d'Almussafes", logo: '/img/home/logo-almussafes-bn.webp' },
+  ];
   protected readonly glow = GLOW;
   /** Doors time («08:30») from the BO; the countdown falls back to 08:30 when it is not a HH:MM. */
   protected horaPuertas(p?: string): string {
@@ -109,19 +116,4 @@ export class Campeonato {
   protected readonly cinta = computed(() => { const mitad = Array.from({ length: this.veces() }, () => this.patrocinadores()).flat(); return [...mitad, ...mitad]; });
   /** ~5 s per logo of a half: the same speed whatever the number of sponsors. */
   protected readonly duracion = computed(() => Math.max(20, this.patrocinadores().length * this.veces() * 5));
-  protected readonly meta = computed(() => {
-    const c = this.comp();
-    if (!c) return [];
-    const out: { icon: GrIconName; label: string; value: string }[] = [];
-    if (c.fechaInicio) out.push({ icon: 'calendar', label: 'Fecha', value: fechasHero(c.fechaInicio, c.fechaFin).toLowerCase() });
-    if (c.sede?.nombre) {
-      const n = c.sede.nombre, ciudad = c.sede.ciudad ?? '';
-      // «Pavelló Poliesportiu d'Almussafes» + «Almussafes» → «Pavelló Poliesportiu · Almussafes»
-      const corto = ciudad && n.toLowerCase().includes(ciudad.toLowerCase()) ? n.replace(new RegExp(`\\s+(d['’]|de\\s+)?${ciudad}$`, 'i'), '') : n;
-      out.push({ icon: 'map-pin', label: 'Sede', value: ciudad ? `${corto} · ${ciudad}` : corto });
-    }
-    // the level is the visible title: only repeated here when the title shows something else
-    if (c.evento?.nivel && this.nivel() !== c.evento.nivel) out.push({ icon: 'trophy', label: 'Nivel', value: c.evento.nivel });
-    return out;
-  });
 }
