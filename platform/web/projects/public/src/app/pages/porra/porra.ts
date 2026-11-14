@@ -271,10 +271,25 @@ export class PorraPage {
 
     if (browser) {
       this.vivo.conectar();
-      // cuando un mercado cambia en vivo, recargamos los mercados (cuotas y bote)
+      // ST2-R1-3: los cambios en vivo se aplican en el cliente; solo se recarga (como mucho 1 vez cada 5 s)
+      // si llega un mercado desconocido o liquidado
+      let visto = 0;
+      let recarga: ReturnType<typeof setTimeout> | null = null;
       effect(() => {
-        this.vivo.mercados();
-        untracked(() => void this.store.recargarMercados());
+        const cambios = [...this.vivo.mercados().values()].filter((c) => c.seq > visto);
+        untracked(() => {
+          let falta = false;
+          for (const c of cambios.sort((a, b) => a.seq - b.seq)) {
+            visto = c.seq;
+            if (!this.store.aplicarCambio(c)) falta = true;
+          }
+          if (falta && !recarga) {
+            recarga = setTimeout(() => {
+              recarga = null;
+              void this.store.recargarMercados();
+            }, 5000);
+          }
+        });
       });
       // las cuotas cambian con cada apuesta: un refresco ligero cada 20 s
       const t = setInterval(() => {
@@ -287,6 +302,7 @@ export class PorraPage {
       inject(DestroyRef).onDestroy(() => {
         clearInterval(t);
         clearInterval(reloj);
+        if (recarga) clearTimeout(recarga);
         this.vivo.desconectar();
       });
     }
