@@ -57,13 +57,17 @@ func (s *Svc) marcador(_ context.Context, cid uuid.UUID, dia string) (*Marcador,
 	k := cid.String() + ":" + dia
 	s.marcMu.Lock()
 	e, ok := s.marc[k]
-	s.marcMu.Unlock()
-	if ok && time.Now().Before(e.exp) {
+	fresca := ok && time.Now().Before(e.exp)
+	if ok && !fresca && e.caido {
+		// live is failing: answer now with what we have and retry once in the background; the entry stays valid
+		// for the retry's 2 s budget so the requests meanwhile do not start more retries.
+		s.marc[k] = marcEntrada{m: e.m, err: e.err, ok: e.ok, caido: true, exp: time.Now().Add(2 * time.Second)}
+		s.marcMu.Unlock()
+		go s.marcSF.Do(k, func() (any, error) { return s.cargarMarcador(cid, dia, k, e, ok), nil })
 		return e.m, e.err
 	}
-	if ok && e.caido {
-		// live is failing: answer now with what we have and retry in the background (one call at a time).
-		go s.marcSF.Do(k, func() (any, error) { return s.cargarMarcador(cid, dia, k, e, ok), nil })
+	s.marcMu.Unlock()
+	if fresca {
 		return e.m, e.err
 	}
 	v, _, _ := s.marcSF.Do(k, func() (any, error) { return s.cargarMarcador(cid, dia, k, e, ok), nil })

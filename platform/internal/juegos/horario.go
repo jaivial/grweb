@@ -125,12 +125,16 @@ func (s *Svc) horario(ctx context.Context, cid uuid.UUID, dia string) horarioDia
 	k := cid.String() + ":" + dia
 	s.marcMu.Lock()
 	e, ok := s.hor[k]
-	s.marcMu.Unlock()
-	if ok && time.Now().Before(e.exp) {
+	fresca := ok && time.Now().Before(e.exp)
+	if ok && !fresca && e.caido {
+		// schedule is failing: serve the last value and retry once in the background (no retry storm meanwhile)
+		s.hor[k] = horEntrada{h: e.h, caido: true, exp: time.Now().Add(2 * time.Second)}
+		s.marcMu.Unlock()
+		go s.horSF.Do(k, func() (any, error) { return s.cargarHorario(cid, dia, k, e, ok), nil })
 		return e.h
 	}
-	if ok && e.caido {
-		go s.horSF.Do(k, func() (any, error) { return s.cargarHorario(cid, dia, k, e, ok), nil })
+	s.marcMu.Unlock()
+	if fresca {
 		return e.h
 	}
 	v, _, _ := s.horSF.Do(k, func() (any, error) { return s.cargarHorario(cid, dia, k, e, ok), nil })
