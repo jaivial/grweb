@@ -271,8 +271,8 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
         <!-- ============ PREVISUALIZACIÓN ============ -->
         @case ('previa') {
           <section class="rounded-lg border border-line-subtle bg-bg-card p-4 md:p-6">
-            <div class="flex flex-wrap items-center gap-3"><div class="flex-1"><h2 class="text-ui-h5">Previsualización</h2><p class="text-body-xs text-text-tertiary">El email y el WhatsApp tal y como los recibe el contacto (nombre de ejemplo: Laura)</p></div>
-              @for (a of anchos; track a.v) { <button type="button" class="flex h-8 items-center gap-1 rounded-sm px-2.5 text-label-s" [class]="ancho() === a.v ? 'bg-bg-raised' : 'text-text-tertiary'" (click)="ancho.set(a.v)"><gr-icon [name]="a.i" [size]="14" />{{ a.l }}</button> }</div>
+            <div class="flex flex-wrap items-center gap-3"><div class="min-w-[200px] flex-1"><h2 class="text-ui-h5">Previsualización</h2><p class="text-body-xs text-text-tertiary">El email y el WhatsApp tal y como los recibe el contacto (nombre de ejemplo: Laura)</p></div>
+              <span class="flex gap-1">@for (a of anchos; track a.v) { <button type="button" class="flex h-8 items-center gap-1 rounded-sm px-2.5 text-label-s" [class]="ancho() === a.v ? 'bg-bg-raised' : 'text-text-tertiary'" (click)="ancho.set(a.v)"><gr-icon [name]="a.i" [size]="14" />{{ a.l }}</button> }</span></div>
             @if (previa(); as p) {
               <div class="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
                 @if (f().canales.includes('email')) {
