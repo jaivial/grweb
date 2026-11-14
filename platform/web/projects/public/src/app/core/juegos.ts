@@ -33,6 +33,8 @@ export interface Jornada {
   dia: string;
   nombre: string;
   estado: EstadoJornada;
+  /** La jornada que el API abre por defecto (ST3-R1-6). */
+  actual?: boolean;
   /** Instante de cierre de las apuestas (hora de cierre del backoffice), si lo hay. */
   cierreAt?: string;
 }
@@ -705,7 +707,7 @@ export class JuegosEstado {
     const id = this.jornadaId();
     const lista = this.jornadas();
     if (id) return lista.find((j) => j.id === id) ?? null;
-    return lista.find((j) => j.estado === 'abierta' || j.estado === 'en_juego') ?? lista[0] ?? null;
+    return lista.find((j) => j.actual) ?? lista.find((j) => j.estado === 'abierta' || j.estado === 'en_juego') ?? lista[0] ?? null;
   });
   /** ¿La jornada mostrada es de solo lectura (cerrada)? */
   readonly soloLectura = computed(() => this.jornada()?.estado === 'cerrada');

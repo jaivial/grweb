@@ -89,8 +89,10 @@ func (s *Svc) jornadaPublica(ctx context.Context, cid, jid uuid.UUID) (*jornada,
 		return j, err
 	}
 	// No jornada today: the open one (latest first), else the last non-draft one.
+	// ST3-R1-6: among the open ones, a jornada with fantasy athletes wins over an empty one.
 	jj, err := scanJornada(s.a.DB.QueryRow(ctx, selJornada+` FROM jornadas WHERE competition_id = $1 AND estado <> 'borrador'
-		ORDER BY estado IN ('abierta','en_juego') DESC, estado = 'en_juego' DESC, dia DESC LIMIT 1`, cid))
+		ORDER BY estado IN ('abierta','en_juego') DESC, EXISTS (SELECT 1 FROM fantasy_atletas fa WHERE fa.jornada_id = jornadas.id) DESC,
+		estado = 'en_juego' DESC, dia DESC LIMIT 1`, cid))
 	if db.IsNoRows(err) {
 		return nil, problem.NotFound("No hay jornada.")
 	}
@@ -107,6 +109,8 @@ type jornadaOut struct {
 	HoraCierre string `json:"horaCierre,omitempty"`
 	// CierreAt: instant of the close of the bets (public views).
 	CierreAt *time.Time `json:"cierreAt,omitempty"`
+	// Actual marks the jornada the public views open by default (the same one the API picks without ?jornada=).
+	Actual bool `json:"actual,omitempty"`
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -194,7 +198,17 @@ func (s *Svc) registerPublic() {
 				}
 				o.Body.Jornadas = append(o.Body.Jornadas, j)
 			}
-			return o, rows.Err()
+			if err := rows.Err(); err != nil {
+				return nil, err
+			}
+			if len(o.Body.Jornadas) > 0 {
+				if act, err := s.jornadaPublica(ctx, c.ID, uuid.Nil); err == nil && act != nil {
+					for i := range o.Body.Jornadas {
+						o.Body.Jornadas[i].Actual = o.Body.Jornadas[i].ID == act.ID
+					}
+				}
+			}
+			return o, nil
 		})
 
 	// The jornada detail: estado and athletes with clause and owner (public alias, contract §6.6).
