@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -168,8 +168,8 @@ const api = '/api/area-atleta';
           @case ('perfil') {
             @if (p) {
               <div class="mx-auto max-w-xl">
-                <button type="button" class="mb-4 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="vista.set('panel')"><gr-icon name="chevron-left" [size]="16" />Volver</button>
-                <h1 class="text-display-m">Tu perfil</h1>
+                <button type="button" class="mb-4 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="ir('panel')"><gr-icon name="chevron-left" [size]="16" />Volver</button>
+                <h1 class="text-display-m outline-none" tabindex="-1">Tu perfil</h1>
                 <p class="mt-1 text-body-s text-text-tertiary">Lo verán en /atletas/{{ p.atleta.perfil.slug }}</p>
                 <div class="mt-6 flex gap-4">
                   <button type="button" class="relative size-24 shrink-0 overflow-hidden rounded-full bg-bg-raised" (click)="focal($event)" [disabled]="!p.atleta.perfil.fotoUrl" aria-label="Encuadre: pulsa en tu cara">
@@ -218,10 +218,10 @@ const api = '/api/area-atleta';
           @case ('pesaje') {
             @if (p) {
               <div class="mx-auto max-w-xl">
-                <h1 class="text-display-xs md:text-display-m">Previa del pesaje</h1>
+                <h1 class="text-display-xs outline-none md:text-display-m" tabindex="-1">Previa del pesaje</h1>
                 <p class="mt-1 text-body-m text-text-tertiary">{{ p.atleta.flight ? 'Flight ' + p.atleta.flight + (p.atleta.pesajeInicio ? ' · pesaje ' + hora(p.atleta.pesajeInicio) + '–' + hora(p.atleta.pesajeFin) : '') : 'Horario por publicar' }}</p>
                 <section class="mt-5 flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6"><ng-container *ngTemplateOutlet="previa" /></section>
-                <button type="button" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="vista.set('panel')"><gr-icon name="chevron-left" [size]="16" />Volver al panel</button>
+                <button type="button" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="ir('panel')"><gr-icon name="chevron-left" [size]="16" />Volver al panel</button>
               </div>
             }
           }
@@ -468,8 +468,18 @@ export class AreaAtletaPage {
       this.aceptaImagen = false;
       this.retirar = false;
     } else this.prepararPesaje(this.panel()!);
+    this.ir(v);
+  }
+
+  private readonly injector = inject(Injector);
+  /** Switches view and, once rendered, jumps to the top and focuses the H1 (UX3-R1-1). */
+  protected ir(v: Vista): void {
     this.vista.set(v);
-    if (this.browser) scrollTo({ top: 0 });
+    if (!this.browser) return;
+    afterNextRender(() => {
+      scrollTo({ top: 0, behavior: 'instant' });
+      document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+    }, { injector: this.injector });
   }
 
   private prepararPesaje(p: Panel): void {
@@ -526,7 +536,7 @@ export class AreaAtletaPage {
       }));
       this.set(p);
       this.retirar = false;
-      this.vista.set('panel');
+      this.ir('panel');
       this.aviso('Perfil guardado');
     } catch (e) {
       this.error.set(this.msg(e));
@@ -542,7 +552,7 @@ export class AreaAtletaPage {
     const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
     try {
       this.set(await firstValueFrom(this.http.put<Panel>(`${api}/pesaje`, { rackSq: this.pz.rackSq, rackBp: this.pz.rackBp, segurosBp: this.pz.segurosBp, intentos: { sq: n(this.pz.intentos.sq), bp: n(this.pz.intentos.bp), dl: n(this.pz.intentos.dl) } })));
-      this.vista.set('panel');
+      this.ir('panel');
       this.aviso('Guardado para el pesaje');
     } catch (e) {
       this.error.set(this.msg(e));
