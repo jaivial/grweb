@@ -357,7 +357,7 @@ export class Overlays {
       <div class="h-20 md:hidden" aria-hidden="true"></div>
       <!-- UX1-R1-3: compact (~72 px) and out of the way while an inline «Reserva tu entrada» CTA is on screen -->
       <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] transition-[opacity,translate] duration-200 md:hidden [@media(max-height:500px)]:hidden" [class.translate-y-full]="ctaEnVista()" [class.opacity-0]="ctaEnVista()" [attr.inert]="ctaEnVista() || null">
-        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Reserva en 1 minuto · aforo limitado</span></span>
+        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-[13px] leading-4 text-text-tertiary">1 minuto · aforo limitado</span></span>
         <a routerLink="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
       <!-- UX1-R1-4: iOS pattern - only while scrolling back up, past three screens -->
