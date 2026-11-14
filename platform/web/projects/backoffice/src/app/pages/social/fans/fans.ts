@@ -39,8 +39,9 @@ type Tipo = 'atleta' | 'publico';
           <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
           <input grInput class="pl-9" placeholder="Buscar por alias o email…" [ngModel]="filtro().q" (ngModelChange)="buscar($event)" />
         </label>
-        <so-segmented label="Estado" [opciones]="estados()" [value]="filtro().estado" (valueChange)="filtrar({ estado: $event })" />
-        <so-segmented label="Tipo" [opciones]="tipos" [value]="tipo()" (valueChange)="tipo.set($any($event))" />
+        <!-- en móvil cada filtro ocupa su fila a todo el ancho: sin scroll horizontal -->
+        <so-segmented class="max-sm:w-full" [llenar]="true" label="Estado" [opciones]="estados()" [value]="filtro().estado" (valueChange)="filtrar({ estado: $event })" />
+        <so-segmented class="max-sm:w-full" [llenar]="true" label="Tipo" [opciones]="tipos" [value]="tipo()" (valueChange)="tipo.set($any($event))" />
       </div>
 
       <section class="min-w-0 overflow-hidden rounded-lg border border-line-subtle bg-bg-card" aria-label="Cuentas">
@@ -156,7 +157,14 @@ type Tipo = 'atleta' | 'publico';
                 <option [value]="720">30 días</option>
               </gr-select>
             </gr-field>
-            <gr-field label="Motivo" [optional]="true" hint="Queda en el registro y se ve en esta lista">
+            <gr-field label="Motivo" [optional]="true" hint="Elige uno o escríbelo · queda en el registro y se ve en esta lista">
+              <div class="mb-2 flex flex-wrap gap-2" role="group" aria-label="Motivos habituales">
+                @for (m of motivos; track m) {
+                  <button type="button" class="inline-flex h-11 items-center rounded-sm border px-3 text-label-s transition-colors md:h-9" [attr.aria-pressed]="motivo() === m"
+                    [class]="motivo() === m ? 'border-accent bg-accent/10 text-accent-text' : 'border-line-strong text-text-secondary hover:border-text-muted hover:text-text-primary'"
+                    (click)="motivo.set(motivo() === m ? '' : m)">{{ m }}</button>
+                }
+              </div>
               <input grInput name="motivo" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)" maxlength="300" placeholder="Spam en el chat" />
             </gr-field>
           </div>
@@ -184,6 +192,7 @@ export class FansPage {
   protected readonly error = signal('');
   protected readonly banear = signal<Fan | null>(null);
   protected readonly motivo = signal('');
+  protected readonly motivos = ['Spam en el chat', 'Insultos o acoso', 'Suplantación', 'Contenido inapropiado'];
   protected readonly horas = signal(24);
 
   protected readonly num = num;
