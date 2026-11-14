@@ -54,7 +54,10 @@ type Svc struct {
 	cache  *cache.Cache
 	marcMu sync.Mutex
 	marc   map[string]marcEntrada
+	marcSF singleflight.Group // one live call per scoreboard key at a time
 	resum  memo // public summaries of the home (10 s, singleflight)
+	// lobbyMemo: the public part of the lobby per jornada (1 s, singleflight, ST3-R2-1)
+	lobbyMemo memo
 	hor    map[string]horEntrada
 	horSF  singleflight.Group // one schedule call per key at a time
 	// horarioFijo replaces the published schedule in the tests.
@@ -63,6 +66,10 @@ type Svc struct {
 
 type marcEntrada struct {
 	m   *Marcador
+	err error
+	ok  time.Time // when m was fetched (stale limit)
+	// caido: the last fetch failed; expired entries are served at once while a background retry runs.
+	caido bool
 	exp time.Time
 }
 

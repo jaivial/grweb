@@ -108,8 +108,9 @@ type snapDia struct {
 }
 
 type horEntrada struct {
-	h   horarioDia
-	exp time.Time
+	h     horarioDia
+	caido bool // the last schedule call failed: serve h at once and retry in the background
+	exp   time.Time
 }
 
 // horario reads the day of the published schedule (cached 30 s per pod). A schedule that cannot be read counts as
@@ -124,8 +125,16 @@ func (s *Svc) horario(ctx context.Context, cid uuid.UUID, dia string) horarioDia
 	k := cid.String() + ":" + dia
 	s.marcMu.Lock()
 	e, ok := s.hor[k]
+	fresca := ok && time.Now().Before(e.exp)
+	if ok && !fresca && e.caido {
+		// schedule is failing: serve the last value and retry once in the background (no retry storm meanwhile)
+		s.hor[k] = horEntrada{h: e.h, caido: true, exp: time.Now().Add(2 * time.Second)}
+		s.marcMu.Unlock()
+		go s.horSF.Do(k, func() (any, error) { return s.cargarHorario(cid, dia, k, e, ok), nil })
+		return e.h
+	}
 	s.marcMu.Unlock()
-	if ok && time.Now().Before(e.exp) {
+	if fresca {
 		return e.h
 	}
 	v, _, _ := s.horSF.Do(k, func() (any, error) { return s.cargarHorario(cid, dia, k, e, ok), nil })
@@ -133,8 +142,8 @@ func (s *Svc) horario(ctx context.Context, cid uuid.UUID, dia string) horarioDia
 }
 
 // cargarHorario calls schedule once (2 s budget, detached from the caller so a cancelled request does not fail
-// the shared call). On error it keeps serving the last good value (or "no schedule") for 5 s: a schedule outage
-// never blocks fantasy requests.
+// the shared call). On error it keeps serving the last good value (or "no schedule"), retrying every 5 s in the
+// background: a schedule outage never blocks fantasy requests (ST3-R2-2).
 func (s *Svc) cargarHorario(cid uuid.UUID, dia, k string, prev horEntrada, hayPrev bool) horarioDia {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -143,12 +152,13 @@ func (s *Svc) cargarHorario(cid uuid.UUID, dia, k string, prev horEntrada, hayPr
 	}
 	h := horarioDia{}
 	ttl := 30 * time.Second
+	caido := false
 	if err := s.sched.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/horarios/publicados", nil, &snap); err != nil {
 		s.a.Log.Warn("horario publicado no disponible", "cid", cid, "err", err)
 		if hayPrev {
 			h = prev.h // stale but last known good
 		}
-		ttl = 5 * time.Second
+		ttl, caido = 5*time.Second, true
 	} else if snap != nil {
 		h = horarioDeSnapshot(snap.Dias, dia)
 	}
@@ -156,7 +166,7 @@ func (s *Svc) cargarHorario(cid uuid.UUID, dia, k string, prev horEntrada, hayPr
 	if s.hor == nil || len(s.hor) > 64 {
 		s.hor = map[string]horEntrada{}
 	}
-	s.hor[k] = horEntrada{h: h, exp: time.Now().Add(ttl)}
+	s.hor[k] = horEntrada{h: h, caido: caido, exp: time.Now().Add(ttl)}
 	s.marcMu.Unlock()
 	return h
 }

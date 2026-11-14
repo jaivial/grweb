@@ -57,7 +57,7 @@ spec:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-db, key: PW_JUEGOS } }
             # ST2-R1-1: the porra hot path (bets, wallet, ranking) needs more than the shared 5 conns; 6 pods × (12 + 1 relay) = 78
-            - { name: DATABASE_URL, value: "postgres://grcup_juegos:$(DB_PASSWORD)@postgres:5432/grcup_juegos?sslmode=disable&pool_max_conns=12" }
+            - { name: DATABASE_URL, value: "postgres://grcup_juegos:$(DB_PASSWORD)@postgres:5432/grcup_juegos?sslmode=disable&pool_max_conns=24" } # ST3-R2-3: 3 pods × 12 queued 60 concurrent signings
             - name: REDIS_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
             - name: INTERNAL_TOKEN_SECRET
