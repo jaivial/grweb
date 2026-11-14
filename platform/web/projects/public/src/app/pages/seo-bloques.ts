@@ -38,7 +38,7 @@ export class GrCallout {
   selector: 'gr-hechos',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-3 rounded-lg border border-accent bg-bg-card/40 p-6' },
+  host: { class: 'flex flex-col gap-3 rounded-lg border border-accent/10 bg-bg-card/40 p-6' },
   template: `
     <p class="text-label-xs text-accent-text uppercase">{{ titulo() }}</p>
     <ul class="flex flex-col gap-3">
