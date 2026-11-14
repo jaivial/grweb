@@ -30,7 +30,7 @@ interface Form { nombre: string; categoria: 'utilidad' | 'marketing'; cuerpo: st
             @for (w of ls; track w.nombre) {
               <li><button type="button" class="flex w-full flex-col gap-2 rounded-lg border bg-bg-card p-3 text-left" [class]="w.estado === 'REJECTED' ? 'border-accent/40' : selNombre() === w.nombre ? 'border-line-strong' : 'border-line-subtle'" [attr.aria-pressed]="selNombre() === w.nombre" (click)="elegir(w)">
                 <span class="flex w-full items-center gap-2"><span class="min-w-0 flex-1 truncate font-mono text-mono-s">{{ w.nombre }}</span><span class="inline-flex h-6 items-center rounded-2xs border px-2 text-mono-xs uppercase" [class]="w.categoria === 'utilidad' ? 'border-info/30 bg-info/15 text-info' : 'border-accent/30 bg-accent-deep/40 text-accent-text'">{{ w.categoria }}</span></span>
-                <span class="inline-flex h-8 w-fit items-center gap-1.5 rounded-pill border px-3 text-label-s" [class]="est[w.estado].c"><gr-icon [name]="est[w.estado].i" [size]="14" />{{ est[w.estado].l }}</span>
+                <span class="inline-flex w-fit items-center gap-1.5 text-label-s" [class]="est[w.estado].c"><gr-icon [name]="est[w.estado].i" [size]="14" />{{ est[w.estado].l }}</span>
                 <span class="line-clamp-2 text-body-s text-text-secondary">{{ w.uso || '—' }}</span>
               </button></li>
             } @empty { <li class="rounded-lg border border-line-subtle bg-bg-card px-4 py-10 text-center text-body-s text-text-tertiary">Sin plantillas de WhatsApp todavía.</li> }
@@ -43,7 +43,7 @@ interface Form { nombre: string; categoria: 'utilidad' | 'marketing'; cuerpo: st
                   <tr class="cursor-pointer border-b border-line-subtle last:border-0 hover:bg-bg-raised/60" [class]="w.estado === 'REJECTED' ? 'bg-accent-deep/15' : selNombre() === w.nombre ? 'bg-bg-raised/60' : ''" (click)="elegir(w)">
                     <td class="px-4 py-3"><button type="button" class="text-left font-mono text-mono-s focus-visible:outline-none focus-visible:underline" [attr.aria-pressed]="selNombre() === w.nombre">{{ w.nombre }}</button></td>
                     <td class="px-3 py-3"><span class="inline-flex h-6 items-center rounded-2xs border px-2 text-mono-xs uppercase" [class]="w.categoria === 'utilidad' ? 'border-info/30 bg-info/15 text-info' : 'border-accent/30 bg-accent-deep/40 text-accent-text'">{{ w.categoria }}</span></td>
-                    <td class="px-3 py-3"><span class="inline-flex h-8 items-center gap-1.5 rounded-pill border px-3 text-label-s whitespace-nowrap" [class]="est[w.estado].c"><gr-icon [name]="est[w.estado].i" [size]="14" />{{ est[w.estado].l }}</span></td>
+                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-label-s whitespace-nowrap" [class]="est[w.estado].c"><gr-icon [name]="est[w.estado].i" [size]="14" />{{ est[w.estado].l }}</span></td>
                     <td class="px-3 py-3 text-text-secondary"><p class="line-clamp-2">{{ w.uso || '—' }}</p>@if (w.usos30d) { <p class="text-body-xs text-text-tertiary">{{ w.usos30d }} envíos · 30 días</p> }</td>
                   </tr>
                 } @empty { <tr><td colspan="4" class="px-4 py-12 text-center text-text-tertiary">Sin plantillas de WhatsApp todavía.</td></tr> }

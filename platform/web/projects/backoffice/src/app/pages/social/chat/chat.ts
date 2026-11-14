@@ -91,7 +91,7 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
           <header class="flex flex-col gap-3 border-b border-line-subtle p-4 md:px-5">
             <div class="flex flex-wrap items-center gap-3">
               <h2 id="feed-titulo" class="text-ui-h5">Feed en vivo</h2>
-              <span class="inline-flex h-7 items-center gap-1.5 rounded-pill border border-success/35 bg-success/10 px-2.5 text-label-s text-success">
+              <span class="inline-flex items-center gap-1.5 text-label-s text-success">
                 <span class="size-1.5 animate-pulse rounded-pill bg-success" aria-hidden="true"></span>{{ num(estado()?.conectados ?? 0) }}<span class="hidden sm:inline">conectados</span>
               </span>
             </div>

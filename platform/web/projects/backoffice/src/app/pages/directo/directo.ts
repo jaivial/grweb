@@ -95,7 +95,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
           @if (vista() === 'locutor') {
             <!-- Speaker view (mobile) -->
             <section class="flex flex-col gap-4 md:hidden">
-              @if (m.estado.fase === 'en_directo') { <span class="inline-flex h-7 w-fit items-center gap-1.5 rounded-pill border border-success/40 bg-success/12 px-2.5 text-label-s text-success"><gr-icon name="radio" [size]="14" />En directo · {{ m.espectadores }}</span> }
+              @if (m.estado.fase === 'en_directo') { <span class="inline-flex w-fit items-center gap-1.5 text-label-s text-success"><gr-icon name="radio" [size]="14" />En directo · {{ m.espectadores }}</span> }
               @if (m.actual; as a) {
                 <div class="rounded-lg border border-accent/40 bg-[linear-gradient(140deg,#3a0f17,#1b1112_70%)] p-5">
                   <p class="text-mono-xs text-text-tertiary">En la plataforma · {{ MOVN[m.estado.movimiento] }} {{ ORD[a.numero] }}</p>

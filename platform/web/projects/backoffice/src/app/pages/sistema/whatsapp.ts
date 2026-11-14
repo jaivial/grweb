@@ -27,9 +27,8 @@ type Dialogo = 'desconectar' | null;
         @if (puede()) {
           <ng-container actions>
             @if (servicioCaido()) {
-              <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-warning/40 bg-warning/10 px-3 text-label-s text-warning"><gr-icon name="loader" [size]="16" [spin]="true" />Reconectando…</span>
+              <span class="inline-flex items-center gap-2 text-label-s text-warning"><gr-icon name="loader" [size]="16" [spin]="true" />Reconectando…</span>
             } @else {
-              <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-success/40 bg-success/10 px-3 text-label-s text-success"><gr-icon name="radio" [size]="16" />Conexión en vivo</span>
             }
           </ng-container>
         }
