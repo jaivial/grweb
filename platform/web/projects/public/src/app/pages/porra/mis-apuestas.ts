@@ -85,7 +85,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
               <span class="row-start-1 col-start-2 text-right font-mono text-[0.8125rem] font-bold text-text-primary tabular-nums md:hidden">{{ monedas(a.importe) }}</span>
               <span class="col-span-2 flex min-w-0 flex-col gap-0.5 md:flex-1">
                 <span class="truncate text-body-s text-text-primary">{{ a.mercado }}</span>
-                <span class="truncate text-body-xs text-text-muted">{{ a.atleta || '—' }}</span>
+                <span class="truncate text-body-xs text-text-tertiary">{{ a.atleta || '—' }}</span>
               </span>
               <span class="hidden shrink-0 flex-col items-end md:flex">
                 <span class="font-mono text-[0.8125rem] font-bold text-text-primary tabular-nums">{{ monedas(a.importe) }}</span>
@@ -94,7 +94,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
               <span class="col-span-2 flex min-w-0 flex-col md:w-[220px] md:shrink-0 md:items-end">
                 @switch (estadoApuesta(a)) {
                   @case ('Ganada') { <span class="text-body-xs text-success md:text-body-s">+{{ monedas(cobro(a)) }} cobrados</span> }
-                  @case ('Perdida') { <span class="text-body-xs text-text-muted md:text-body-s">Sin acierto</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">pierdes el importe apostado</span> }
+                  @case ('Perdida') { <span class="text-body-xs text-text-tertiary md:text-body-s">Sin acierto</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">pierdes el importe apostado</span> }
                   @case ('Devuelta') { <span class="text-body-xs text-info md:text-body-s">+{{ monedas(a.importe) }} devueltos</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">nadie acertó · bote de vuelta</span> }
                   @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">Si gana (estimado): {{ monedas(cuota(a)) }}</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">ahora {{ cuotaTxt(a) }}</span> }
                 }

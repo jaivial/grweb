@@ -72,7 +72,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
         <div class="flex min-w-0 flex-col gap-2.5 md:gap-2">
           <p class="text-[0.75rem] leading-[1.2] font-medium tracking-[0.04em] text-accent-text uppercase"><span class="md:hidden">Gana más monedas en el chat</span><span class="hidden md:inline">Gana más monedas escribiendo en el chat</span></p>
           <p class="flex items-center gap-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>5 mensajes<span class="hidden md:inline"> en el chat</span>: +{{ hito5() }}</span></p>
-          <p class="flex flex-wrap items-center gap-x-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>10 mensajes: +{{ hito10() }} (se suma<span class="hidden md:inline"> al de 5</span>)</span><span class="hidden font-mono text-[0.75rem] font-medium text-text-muted md:inline">máx. 100 hitos por jornada</span></p>
+          <p class="flex flex-wrap items-center gap-x-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>10 mensajes: +{{ hito10() }} (se suma<span class="hidden md:inline"> al de 5</span>)</span><span class="hidden font-mono text-[0.75rem] font-medium text-text-tertiary md:inline">máx. 100 hitos por jornada</span></p>
         </div>
         <div class="hidden w-[320px] shrink-0 flex-col items-end gap-2 md:flex">
           @if (jornadas().length > 3) {
@@ -93,7 +93,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
             } @empty { <gr-skeleton class="h-11 w-full rounded-xs" /> }
           </div>
           }
-          @if (jornadaNombre()) { <p class="text-body-xs text-text-muted">El histórico de {{ jornadaNombre() }} se guarda al cerrar</p> }
+          @if (jornadaNombre()) { <p class="text-body-xs text-text-tertiary">El histórico de {{ jornadaNombre() }} se guarda al cerrar</p> }
         </div>
       </section>
 

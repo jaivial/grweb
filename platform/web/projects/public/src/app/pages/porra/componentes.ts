@@ -335,26 +335,26 @@ export class OddsRow {
     @if (puedeApostar()) {
       <div class="px-4 pt-2 pb-4">
         <button grButton variant="primary" size="l" class="!text-label-s transition-transform duration-100 active:scale-[.98] motion-reduce:active:scale-100" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
-        <p class="mt-2 text-body-xs text-text-muted">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
+        <p class="mt-2 text-body-xs text-text-tertiary">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
       </div>
     } @else if (mercado().estado === 'abierto' && !soloLectura() && !mercado().opciones.length) {
       <!-- Mercado abierto sin atletas: el aviso ya va en la lista de cuotas. -->
     } @else if (mercado().estado === 'abierto') {
       <div class="px-4 pt-2 pb-4">
-        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-muted">Jornada cerrada</span>
-        <p class="mt-2 text-body-xs text-text-muted">Esta jornada solo se puede consultar</p>
+        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-tertiary">Jornada cerrada</span>
+        <p class="mt-2 text-body-xs text-text-tertiary">Esta jornada solo se puede consultar</p>
       </div>
     } @else if (mercado().estado === 'cerrado') {
       <div class="px-4 pt-2 pb-4">
-        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-muted">Mercado cerrado</span>
-        <p class="mt-2 text-body-xs text-text-muted">Se liquida al publicarse los resultados</p>
+        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-tertiary">Mercado cerrado</span>
+        <p class="mt-2 text-body-xs text-text-tertiary">Se liquida al publicarse los resultados</p>
       </div>
     } @else {
       <div class="px-4 pt-2 pb-4">
         <p class="flex items-start gap-2 rounded-md border px-3 py-2.5 text-body-xs" [class]="mercado().devuelto ? 'border-info/30 bg-info/8 text-info' : 'border-success/30 bg-success/8 text-success'">
           <gr-icon [name]="mercado().devuelto ? 'undo' : 'circle-check'" [size]="16" class="mt-px shrink-0" /><span class="text-label-s">{{ liquidado() }}</span>
         </p>
-        <p class="mt-2 text-body-xs text-text-muted">{{ subLiquidado() }}</p>
+        <p class="mt-2 text-body-xs text-text-tertiary">{{ subLiquidado() }}</p>
       </div>
     }
   `,
@@ -708,7 +708,7 @@ export class Podio {
     </span>
     <span class="shrink-0 text-right">
       <span class="block font-mono text-[1rem] font-bold tabular-nums sm:text-[1.125rem]" [class]="valorClase() || (yo() ? 'text-accent-text' : 'text-text-primary')">{{ valor() }}</span>
-      <span class="block text-mono-xs text-text-muted">{{ valorLabel() }}</span>
+      <span class="block text-mono-xs text-text-tertiary">{{ valorLabel() }}</span>
     </span>
     @if (yo()) { <span class="hidden shrink-0 rounded-2xs bg-accent px-2 py-1 text-mono-xs text-white sm:inline">Tu puesto</span> }
   `,
@@ -786,7 +786,7 @@ export class LeaderboardRow {
       </a>
       <span class="flex w-[216px] flex-col gap-1 pb-3" aria-disabled="true" title="Próximamente">
         <span class="text-display-xs text-text-tertiary">Pronósticos</span>
-        <span class="text-body-xs text-text-muted">Elige ganadores · gratis · suma puntos</span>
+        <span class="text-body-xs text-text-tertiary">Elige ganadores · gratis · suma puntos</span>
       </span>
     </div>
     <div class="hidden items-center justify-between gap-4 md:flex">
@@ -802,7 +802,7 @@ export class LeaderboardRow {
 
     <!-- móvil (UX5-R1-1/2): aviso corto y tab bar inferior del juego (HIG: 49 px + safe area, icono 24, label 11) -->
     <div class="flex flex-col gap-2 md:hidden">
-      <p class="text-body-xs text-text-tertiary">Apuestas · cuotas en vivo <span class="ml-1 rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-muted">Pronósticos · pronto</span></p>
+      <p class="text-body-xs text-text-tertiary">Apuestas · cuotas en vivo <span class="ml-1 rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Pronósticos · pronto</span></p>
       <gr-aviso-juegos [corto]="true" />
     </div>
     <nav class="fixed inset-x-0 bottom-0 z-40 flex border-t border-line-subtle bg-bg-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[10px] md:hidden" aria-label="Porra">
