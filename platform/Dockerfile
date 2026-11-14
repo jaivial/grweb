@@ -13,9 +13,12 @@ ARG VERSION=dev
 RUN test -n "$SVC" || (echo "falta --build-arg SVC" && exit 1)
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     go build -ldflags="-s -w -X github.com/jaivial/grweb/platform/pkg/app.Version=${VERSION}" -o /out/app ./cmd/${SVC}
+# Mount point of the media volume owned by nonroot: a new named volume copies this ownership (cms uploads).
+RUN mkdir -p /out/data/medios
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/app /app
+COPY --from=build --chown=65532:65532 /out/data /data
 USER nonroot:nonroot
 EXPOSE 8080
 ENTRYPOINT ["/app"]
