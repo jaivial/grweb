@@ -805,7 +805,6 @@ export class LeaderboardRow {
       <p class="text-body-xs text-text-tertiary">Apuestas · cuotas en vivo <span class="ml-1 rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-muted">Pronósticos · pronto</span></p>
       <gr-aviso-juegos [corto]="true" />
     </div>
-    <div class="h-16 md:hidden" aria-hidden="true"></div>
     <nav class="fixed inset-x-0 bottom-0 z-40 flex border-t border-line-subtle bg-bg-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[10px] md:hidden" aria-label="Porra">
       @for (t of tabs; track t.id) {
         <a [routerLink]="t.href" class="flex h-[49px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-label-xs transition-transform duration-100 active:scale-95"
