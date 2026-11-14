@@ -494,7 +494,7 @@ export class MarketCard {
           <div class="grid">
             <div class="flex flex-col gap-2 [grid-area:1/1]" [class.invisible]="!exito()" >
               <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
-                <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() || '\u00a0' }}</span>
+                <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="line-clamp-2 min-h-[2lh] text-label-s">{{ exito() || '\u00a0' }}</span>
               </p>
               <a grButton variant="secondary" size="l" [block]="true" routerLink="/porra/mis-apuestas" iconRight="arrow-right" [attr.tabindex]="exito() ? null : -1">Ver mis apuestas</a>
             </div>
@@ -774,12 +774,13 @@ export class LeaderboardRow {
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
       <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
     </nav>
-    <div class="flex items-start justify-between gap-8">
+    <div class="flex items-start justify-between gap-4 md:gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">
-        <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
+        <!-- UX5-R3-2: en móvil un título corto de una línea (large title HIG) -->
+        <h1 class="text-display-s md:text-display-m">@if (tituloMovil(); as t) { <span class="md:hidden">{{ t }}</span><span class="hidden md:inline">{{ titulo() }}</span> } @else { {{ titulo() }} }</h1>
         @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary md:block md:line-clamp-none" [class]="descMovil() ? 'line-clamp-1' : 'hidden'">{{ descripcion() }}</p> }
       </div>
-      <div class="hidden shrink-0 flex-col items-end gap-2.5 md:flex"><ng-content select="[aside]" /></div>
+      <div class="shrink-0 flex-col items-end gap-2.5 md:flex" [class]="asideMovil() ? 'flex' : 'hidden'"><ng-content select="[aside]" /></div>
     </div>
 
     <!-- escritorio: vertientes + barra del juego -->
@@ -824,6 +825,10 @@ export class PorraCabecera {
   readonly descripcion = input('');
   /** La entradilla también en móvil (Mis apuestas y Clasificación sí; Mercados no). */
   readonly descMovil = input(false);
+  /** Título corto para móvil (una línea); en md+ se pinta `titulo`. */
+  readonly tituloMovil = input<string | null>(null);
+  /** Muestra el bloque [aside] también en móvil, junto al título. */
+  readonly asideMovil = input(false);
   /** La miga tras «Porra» (vacía en /porra). */
   readonly crumb = input('');
   readonly activa = input<'mercados' | 'apuestas' | 'clasificacion'>('mercados');
