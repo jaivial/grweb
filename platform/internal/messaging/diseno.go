@@ -108,6 +108,35 @@ type Contexto struct {
 	Ahora    time.Time
 	Flights  map[string][]FlightResumen // by day (AAAA-MM-DD)
 	Absoluto func(string) string        // makes /relative links absolute (web of the competition)
+	Vars     map[string]string          // competition variables ({{competicion}}, {{fechas}}, {{sede}}, {{web}}): same for every recipient
+}
+
+// expandir fills the competition variables in the texts of the blocks; {{nombre}} and {{baja}} stay as tokens.
+func (c Contexto) expandir(d []Bloque) []Bloque {
+	if len(c.Vars) == 0 {
+		return d
+	}
+	f := func(s string) string {
+		return reVar.ReplaceAllStringFunc(s, func(m string) string {
+			if v, ok := c.Vars[reVar.FindStringSubmatch(m)[1]]; ok {
+				return v
+			}
+			return m
+		})
+	}
+	out := make([]Bloque, len(d))
+	for i, b := range d {
+		b.Texto, b.Texto2, b.URL = f(b.Texto), f(b.Texto2), f(b.URL)
+		if len(b.Items) > 0 {
+			it := make([]string, len(b.Items))
+			for k, x := range b.Items {
+				it[k] = f(x)
+			}
+			b.Items = it
+		}
+		out[i] = b
+	}
+	return out
 }
 
 func enEmail(b Bloque) bool    { return b.Canal != "whatsapp" }
@@ -134,6 +163,7 @@ func cuenta(b Bloque, ahora time.Time) (int, int) {
 
 // compilarEmail turns the design into a 600 px email with inline styles. {{nombre}} and {{baja}} stay as tokens.
 func compilarEmail(d []Bloque, c Contexto) string {
+	d = c.expandir(d)
 	var body strings.Builder
 	header := ""
 	for _, b := range d {
@@ -224,6 +254,7 @@ func compilarEmail(d []Bloque, c Contexto) string {
 
 // textoPlano is the text/plain part of the campaign email.
 func textoPlano(d []Bloque, c Contexto) string {
+	d = c.expandir(d)
 	var out []string
 	for _, b := range d {
 		if !enEmail(b) {
@@ -272,6 +303,7 @@ type Enlace struct {
 // derivarWhatsApp writes the WhatsApp version: «Solo email» blocks are left out, bold is *x*, buttons become links
 // and the opt-out line goes at the end.
 func derivarWhatsApp(d []Bloque, c Contexto) WhatsApp {
+	d = c.expandir(d)
 	w := WhatsApp{Enlaces: []Enlace{}}
 	var parts []string
 	for _, b := range d {

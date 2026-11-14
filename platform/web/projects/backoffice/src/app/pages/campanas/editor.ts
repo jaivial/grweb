@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, type GrIconName, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, type GrIconName, GrSelect, GrPopover } from '@grcup/ui';
 import { problemOf } from '../../core/api';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -33,12 +33,20 @@ function nuevo(tipo: TipoBloque, id: string): Bloque {
   }
 }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\{\{\s*nombre\s*\}\}/g, '<span style="background:#f6e0e3;border-radius:3px;padding:0 3px">Laura</span>').replace(/\n/g, '<br>');
+const VARIABLES = [
+  { k: 'nombre', l: 'Nombre', d: 'Nombre de pila de quien lo recibe («hola» si no lo tenemos)' },
+  { k: 'competicion', l: 'Competición', d: 'Nombre de la competición' },
+  { k: 'fechas', l: 'Fechas', d: 'Días de la competición' },
+  { k: 'sede', l: 'Sede', d: 'Pabellón y ciudad' },
+  { k: 'web', l: 'Web', d: 'Dirección de la web pública' },
+];
+const chip = (t: string) => `<span style="background:#f6e0e3;border-radius:3px;padding:0 3px">${t}</span>`;
+const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\{\{\s*([a-z]+)\s*\}\}/g, (m, k: string) => (k === 'nombre' ? chip('Laura') : k in vars ? chip(esc(vars[k])) : m)).replace(/\n/g, '<br>');
 
 /** «Campaña» (Figma page 61): Flujo · Diseño (blocks, layers, properties, AI) · Previsualización (email + WhatsApp) · Ajustes and sending. */
 @Component({
   selector: 'bo-campana',
-  imports: [GrSelect, FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [GrSelect, GrPopover, FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`.canvas p { margin: 0 } .canvas strong { color: #141011 }`],
   template: `
@@ -101,7 +109,7 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
             @for (a of anchos; track a.v) { <button type="button" class="flex h-8 items-center gap-1 rounded-sm px-2.5 text-label-s" [class]="ancho() === a.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" (click)="ancho.set(a.v)"><gr-icon [name]="a.i" [size]="14" />{{ a.l }}</button> }
             <span class="flex-1"></span>
             <button type="button" class="flex size-8 items-center justify-center rounded-sm hover:bg-bg-raised disabled:opacity-30" [disabled]="!hist().length || !editable()" (click)="deshacer()" aria-label="Deshacer"><gr-icon name="undo" [size]="16" /></button>
-            <button type="button" class="flex h-8 items-center gap-1.5 rounded-sm px-3 text-label-s" [class]="iaOpen() ? 'bg-[#4b2a7a] text-white' : 'text-text-secondary hover:bg-bg-raised'" (click)="iaOpen.set(!iaOpen())" [disabled]="!editable()"><gr-icon name="sparkles" [size]="14" />IA</button>
+            <button type="button" class="flex h-8 items-center gap-1.5 rounded-sm px-3 text-label-s" [class]="iaOpen() ? 'bg-text-primary text-bg-base' : 'text-text-secondary hover:bg-bg-raised'" (click)="iaOpen.set(!iaOpen())" [disabled]="!editable()"><gr-icon name="sparkles" [size]="14" />IA</button>
           </div>
           <div class="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
             <!-- left: add / layers -->
@@ -169,38 +177,67 @@ const md = (s = '') => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').r
               }
             </section>
 
-            <!-- right: properties or AI -->
-            <aside class="h-fit rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-20">
+            <!-- right: properties or AI (the assistant goes first on phones) -->
+            <aside [class.order-first]="iaOpen()" class="lg:order-none h-fit rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-20">
               @if (iaOpen()) {
-                <header class="flex items-center gap-2"><gr-icon name="sparkles" [size]="16" class="text-[#b39ddb]" /><div class="flex-1"><h2 class="text-ui-h5">Asistente IA</h2><p class="text-body-xs text-text-tertiary">Edita el diseño en tiempo real</p></div>
+                <header class="flex items-start gap-2"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill bg-bg-raised text-text-secondary"><gr-icon name="sparkles" [size]="14" /></span><div class="flex-1"><h2 class="text-ui-h5">Asistente IA</h2><p class="text-body-xs text-text-tertiary">Cambia cualquier parte de la campaña: textos, bloques, asunto, canales, destinatarios o ritmo</p></div>
                   <button type="button" class="flex size-8 items-center justify-center rounded-sm hover:bg-bg-raised" (click)="iaOpen.set(false)" aria-label="Cerrar"><gr-icon name="x" [size]="16" /></button></header>
-                <div class="mt-3 flex max-h-[420px] min-h-40 flex-col gap-2 overflow-y-auto" aria-live="polite">
+                <div class="mt-3 flex max-h-[420px] min-h-32 flex-col gap-3 overflow-y-auto" aria-live="polite">
                   @for (m of msgs(); track $index) {
-                    <p class="max-w-[90%] rounded-lg px-3 py-2 text-body-s" [class]="m.rol === 'usuario' ? 'self-end bg-[#4b2a7a] text-white' : 'self-start bg-bg-raised'">{{ m.texto }}</p>
-                  } @empty { <p class="text-body-xs text-text-tertiary">Ejemplos: «Añade una cuenta atrás encima del botón», «Haz el texto más corto para WhatsApp», «Marca el horario como solo email».</p> }
-                  @if (iaAplicada(); as x) {
-                    <div class="flex items-center gap-2 rounded-md border border-success/40 bg-success/10 px-3 py-2 text-body-xs"><gr-icon name="circle-check" [size]="14" class="text-success" /><span class="flex-1">Cambios aplicados · {{ x.modelo }} · {{ x.hora }}</span><button type="button" class="text-label-s hover:underline" (click)="deshacerIA()">Deshacer</button></div>
+                    @if (m.rol === 'usuario') { <p class="max-w-[88%] self-end rounded-[14px] rounded-br-[4px] bg-bg-raised px-3 py-2 text-body-s text-text-primary [overflow-wrap:anywhere]">{{ m.texto }}</p> }
+                    @else { <p class="text-body-s text-text-secondary [overflow-wrap:anywhere]">{{ m.texto }}</p> }
+                  } @empty {
+                    <div class="flex flex-col gap-1.5">
+                      @for (e of ejemplosIA; track e) { <button type="button" class="rounded-[10px] border border-line-subtle px-3 py-2 text-left text-body-xs text-text-secondary transition-colors hover:border-line-strong hover:bg-bg-raised hover:text-text-primary" (click)="iaTexto = e">{{ e }}</button> }
+                    </div>
                   }
-                  @if (iaCargando()) { <p class="flex items-center gap-2 text-body-xs text-text-tertiary"><gr-icon name="loader" [size]="14" class="animate-spin" />Diseñando · {{ iaSeg() }} s</p> }
+                  @if (iaAplicada(); as x) {
+                    <div class="flex items-center gap-2 rounded-[10px] border border-line-subtle bg-bg-raised/60 px-3 py-2 text-body-xs"><gr-icon name="circle-check" [size]="14" class="shrink-0 text-success" /><span class="min-w-0 flex-1">Aplicado{{ x.cambios.length ? ' · ' + x.cambios.join(', ') : '' }} · {{ x.hora }}</span><button type="button" class="shrink-0 text-label-s hover:underline" (click)="deshacerIA()">Deshacer</button></div>
+                  }
+                  @if (iaCargando()) { <p class="flex items-center gap-2 text-body-xs text-text-tertiary"><gr-icon name="loader" [size]="14" class="animate-spin" />Pensando y editando · {{ iaSeg() }} s</p> }
                 </div>
-                <gr-field label="Modelo de IA" class="mt-3"><gr-select [(ngModel)]="modelo">@for (m of modelos(); track m.id) { <option [value]="m.id">{{ m.nombre }}</option> } @empty { <option value="">No disponible</option> }</gr-select></gr-field>
-                <form class="mt-3 flex gap-2" (ngSubmit)="pedirIA()">
-                  <textarea grInput name="ia" rows="2" class="flex-1" [(ngModel)]="iaTexto" placeholder="Describe el cambio que quieres…" (keydown.enter)="$event.preventDefault(); pedirIA()"></textarea>
-                  <button type="submit" grButton variant="primary" icon="send" [disabled]="iaCargando() || iaTexto.trim().length < 3 || !modelos().length" aria-label="Enviar a la IA"></button>
+                <!-- Prompt bar (Neural «PromptBar»: one surface, autosized field, model chip and round send) -->
+                <form class="mt-3 rounded-[14px] border border-line-strong bg-bg-raised p-2 shadow-card transition-colors focus-within:border-text-tertiary" (ngSubmit)="pedirIA()">
+                  <textarea name="ia" rows="1" class="block max-h-[120px] min-h-[44px] w-full resize-none bg-transparent px-1.5 py-1 text-[14px] leading-5 text-text-primary outline-none [field-sizing:content] placeholder:text-text-tertiary" [(ngModel)]="iaTexto" placeholder="Pide un cambio a la campaña…" aria-label="Petición a la IA" (keydown.enter)="enter($any($event))"></textarea>
+                  <div class="mt-1 flex items-center gap-1">
+                    @if (modelos().length > 1) { <gr-select tipo="filtro" name="modelo" aria-label="Modelo de IA" [(ngModel)]="modelo">@for (m of modelos(); track m.id) { <option [value]="m.id">{{ m.nombre }}</option> }</gr-select> }
+                    @else { <span class="flex h-7 items-center gap-1 px-1.5 text-[12px] font-medium text-text-tertiary">{{ modelos()[0]?.id ?? 'IA no disponible' }}</span> }
+                    <span class="flex-1"></span>
+                    <button type="submit" class="flex size-8 shrink-0 items-center justify-center rounded-pill transition-[background-color,transform] duration-150 enabled:active:scale-[0.94]" [class]="puedeIA() ? 'bg-text-primary text-bg-base' : 'bg-line-strong text-text-tertiary'" [disabled]="!puedeIA()" aria-label="Enviar a la IA"><gr-icon name="arrow-up" [size]="16" /></button>
+                  </div>
                 </form>
-                <p class="mt-2 text-body-xs text-text-muted">La IA solo ve el diseño y tu petición, nunca contactos ni datos personales.</p>
+                <p class="mt-2 text-body-xs text-text-muted">Enter envía · Mayús+Enter salto de línea. Los cambios no se guardan hasta que pulses «Guardar». La IA nunca ve contactos ni datos personales.</p>
               } @else if (bloque(); as b) {
                 <header class="flex items-center gap-1">
                   <div class="flex-1"><p class="text-mono-xs text-text-tertiary">{{ nombreTipo[b.tipo] }}</p></div>
+                  @if (conTexto(b)) {
+                    <span class="relative">
+                      <button type="button" class="flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-2 font-mono text-[12px] text-text-secondary hover:bg-bg-raised" [attr.aria-expanded]="varsOpen()" (mousedown)="$event.preventDefault()" (click)="varsOpen.set(!varsOpen())" aria-label="Insertar variable">&#123;&#125; Variables</button>
+                      @if (varsOpen()) {
+                        <gr-popover etiqueta="Insertar variable" (cerrar)="varsOpen.set(false)">
+                          <p class="text-label-s">Insertar variable</p>
+                          <p class="-mt-2 text-body-xs text-text-tertiary">Se añade donde está el cursor del último campo de texto que has tocado.</p>
+                          <ul class="flex flex-col gap-1">
+                            @for (v of variables; track v.k) {
+                              <li><button type="button" class="flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left hover:bg-bg-card" (click)="insertarVar(v.k)">
+                                <code class="shrink-0 rounded-2xs bg-accent-deep/40 px-1.5 py-0.5 font-mono text-[12px] text-accent-text">{{ tok(v.k) }}</code>
+                                <span class="min-w-0 flex-1"><span class="block text-label-s">{{ v.l }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ v.d }}</span></span>
+                              </button></li>
+                            }
+                          </ul>
+                        </gr-popover>
+                      }
+                    </span>
+                  }
                   <button type="button" class="flex size-8 items-center justify-center rounded-sm hover:bg-bg-raised" (click)="mover(b.id, -1)" aria-label="Subir"><gr-icon name="arrow-up" [size]="14" /></button>
                   <button type="button" class="flex size-8 items-center justify-center rounded-sm hover:bg-bg-raised" (click)="mover(b.id, 1)" aria-label="Bajar"><gr-icon name="arrow-down" [size]="14" /></button>
                   <button type="button" class="flex size-8 items-center justify-center rounded-sm hover:bg-bg-raised" (click)="duplicarBloque(b.id)" aria-label="Duplicar"><gr-icon name="copy" [size]="14" /></button>
                   <button type="button" class="flex size-8 items-center justify-center rounded-sm text-accent-text hover:bg-bg-raised" (click)="quitar(b.id)" aria-label="Borrar bloque"><gr-icon name="trash" [size]="14" /></button>
                 </header>
-                <div class="mt-3 flex flex-col gap-3">
+                <div class="mt-3 flex flex-col gap-3" (focusin)="campo($event)">
                   @switch (b.tipo) {
                     @case ('titulo') { <gr-field label="Texto"><textarea grInput rows="2" [ngModel]="b.texto" (ngModelChange)="editar(b.id, { texto: $event })"></textarea></gr-field> }
-                    @case ('texto') { <gr-field label="Texto" hint="**negrita** · {{ '{{nombre}}' }} para el nombre"><textarea grInput rows="6" [ngModel]="b.texto" (ngModelChange)="editar(b.id, { texto: $event })"></textarea></gr-field> }
+                    @case ('texto') { <gr-field label="Texto" hint="**negrita** · «Variables» para el nombre, la fecha…"><textarea grInput rows="6" [ngModel]="b.texto" (ngModelChange)="editar(b.id, { texto: $event })"></textarea></gr-field> }
                     @case ('boton') {
                       <gr-field label="Texto"><input grInput [ngModel]="b.texto" (ngModelChange)="editar(b.id, { texto: $event })" /></gr-field>
                       <gr-field label="Enlace (URL)"><input grInput [ngModel]="b.url" (ngModelChange)="editar(b.id, { url: $event })" /></gr-field>
@@ -449,7 +486,7 @@ export class CampanaEditorPage {
   protected iaTexto = '';
   protected readonly iaCargando = signal(false);
   protected readonly iaSeg = signal(0);
-  protected readonly iaAplicada = signal<{ modelo: string; hora: string; antes: Bloque[]; nota: string } | null>(null);
+  protected readonly iaAplicada = signal<{ cambios: string[]; hora: string; antes: CampanaIn } | null>(null);
   private iaMeta: { modelo: string; nota: string } | null = null;
 
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
@@ -615,7 +652,32 @@ export class CampanaEditorPage {
   }
   protected lineas(v: string): string[] { return v.split('\n').map((x) => x.trimEnd()).filter((x, i, a) => x || i < a.length - 1).slice(0, 12); }
   protected resumen(b: Bloque): string { return (b.texto ?? b.alt ?? b.fecha ?? '').replace(/\*\*/g, '').slice(0, 40); }
-  protected html(s?: string): SafeHtml { return this.san.bypassSecurityTrustHtml(md(s ?? '')); }
+  protected html(s?: string): SafeHtml { return this.san.bypassSecurityTrustHtml(md(s ?? '', this.varsComp())); }
+  private readonly varsComp = computed(() => {
+    const c = this.comps.current() as unknown as { nombre?: string; fechaInicio?: string; fechaFin?: string; sede?: { nombre?: string; ciudad?: string } } | null;
+    const fin = c?.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + this.diaLargo(c.fechaFin) : '';
+    return { competicion: c?.nombre ?? '', fechas: c?.fechaInicio ? this.diaLargo(c.fechaInicio) + fin : 'fecha por confirmar', sede: [c?.sede?.nombre, c?.sede?.ciudad].filter(Boolean).join(', ') };
+  });
+  protected readonly variables = VARIABLES;
+  protected tok(k: string): string { return '{{' + k + '}}'; }
+  protected readonly varsOpen = signal(false);
+  private ultimo: HTMLInputElement | HTMLTextAreaElement | null = null;
+  protected conTexto(b: Bloque): boolean { return ['titulo', 'texto', 'boton', 'lista', 'dos_columnas', 'cuenta_atras'].includes(b.tipo); }
+  protected campo(e: FocusEvent): void {
+    const t = e.target;
+    if (t instanceof HTMLTextAreaElement || (t instanceof HTMLInputElement && t.type === 'text')) this.ultimo = t;
+  }
+  /** Inserts {{k}} at the cursor of the last text field touched (or at the end of the first one) and fires its ngModel. */
+  protected insertarVar(k: string): void {
+    this.varsOpen.set(false);
+    const el = this.ultimo?.isConnected ? this.ultimo : document.querySelector<HTMLTextAreaElement | HTMLInputElement>('bo-campana aside textarea, bo-campana aside input[type=text], bo-campana aside input:not([type])');
+    if (!el) return;
+    const tok = this.tok(k);
+    const ini = el.selectionStart ?? el.value.length;
+    el.setRangeText(tok, ini, el.selectionEnd ?? ini, 'end');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.focus();
+  }
   protected seguro(h: string): SafeHtml { return this.san.bypassSecurityTrustHtml(h); }
   protected wa(t: string): SafeHtml { return this.san.bypassSecurityTrustHtml(waHtml(t)); }
   protected diaLargo(f?: string): string {
@@ -762,23 +824,32 @@ export class CampanaEditorPage {
     }
   }
 
+  protected readonly ejemplosIA = ['Escribe un asunto corto para la última semana de entradas', 'Añade una cuenta atrás encima del botón', 'Saluda por el nombre y acorta el texto para WhatsApp', 'Envíala solo por email a 60 por minuto'];
+  protected puedeIA(): boolean { return !this.iaCargando() && this.iaTexto.trim().length >= 3 && this.modelos().length > 0; }
+  protected enter(e: KeyboardEvent): void {
+    if (e.shiftKey || e.isComposing) return;
+    e.preventDefault();
+    void this.pedirIA();
+  }
   protected async pedirIA(): Promise<void> {
     const texto = this.iaTexto.trim();
-    if (texto.length < 3 || this.iaCargando()) return;
-    const antes = this.f().diseno;
+    if (!this.puedeIA()) return;
+    const antes = this.f();
     this.msgs.update((m) => [...m, { rol: 'usuario', texto }]);
     this.iaTexto = '';
     this.iaCargando.set(true);
     this.iaSeg.set(0);
     const t = setInterval(() => this.iaSeg.update((s) => s + 1), 1000);
     try {
-      const r = await this.api.ia(this.cid(), { instruccion: texto, diseno: antes, seleccion: this.sel() || undefined, historial: this.msgs().slice(-7, -1), campana: this.f().nombre });
+      const r = await this.api.ia(this.cid(), { instruccion: texto, campana: antes, seleccion: this.sel() || undefined, historial: this.msgs().slice(-7, -1), segmentos: this.segs().map((s) => ({ id: s.id, nombre: s.nombre })) });
       this.snapshot();
-      this.set({ diseno: r.diseno });
+      const c = r.campana;
+      this.set({ nombre: c.nombre, asunto: c.asunto, preheader: c.preheader ?? '', canales: c.canales, diseno: c.diseno, segmentoId: c.segmentoId || undefined, emailPorMin: c.emailPorMin, waPorMin: c.waPorMin });
       this.msgs.update((m) => [...m, { rol: 'asistente', texto: r.respuesta || 'Hecho.' }]);
-      this.iaAplicada.set({ modelo: r.modelo, hora: new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date()), antes, nota: texto });
+      this.iaAplicada.set({ cambios: r.cambios, hora: new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date()), antes });
       this.iaMeta = { modelo: r.modelo, nota: texto.slice(0, 300) };
-      if (!r.diseno.some((b) => b.id === this.sel())) this.sel.set('');
+      if (!c.diseno.some((b) => b.id === this.sel())) this.sel.set('');
+      if (c.segmentoId !== antes.segmentoId) this.aud.set(null);
     } catch (e) {
       this.msgs.update((m) => [...m, { rol: 'asistente', texto: errText(e, 'La IA no ha podido hacerlo.') }]);
     } finally {
@@ -789,7 +860,7 @@ export class CampanaEditorPage {
   protected deshacerIA(): void {
     const x = this.iaAplicada();
     if (!x) return;
-    this.set({ diseno: x.antes });
+    this.f.set(x.antes);
     this.iaAplicada.set(null);
     this.iaMeta = null;
   }

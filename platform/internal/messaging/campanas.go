@@ -135,7 +135,7 @@ func (s *Svc) campana(ctx context.Context, cid, id uuid.UUID) (Campana, error) {
 // contexto builds what the compiler needs: brand, web, the published flights (for the «Flight / horario» block).
 func (s *Svc) contexto(ctx context.Context, cid uuid.UUID, asunto, pre string, d []Bloque, canal, slug string) Contexto {
 	m := s.marca(ctx, cid)
-	c := Contexto{Marca: m, Asunto: asunto, Pre: pre, Ahora: time.Now(), Flights: map[string][]FlightResumen{}}
+	c := Contexto{Marca: m, Asunto: asunto, Pre: pre, Ahora: time.Now(), Flights: map[string][]FlightResumen{}, Vars: s.variablesComp(ctx, cid, m)}
 	img := absoluto(m.Web)
 	c.Absoluto = func(u string) string {
 		a := img(u)
@@ -151,6 +151,21 @@ func (s *Svc) contexto(ctx context.Context, cid uuid.UUID, asunto, pre string, d
 		}
 	}
 	return c
+}
+
+// variablesComp: the competition variables of the campaign editor (menu «Variables» of the backoffice).
+func (s *Svc) variablesComp(ctx context.Context, cid uuid.UUID, m Marca) map[string]string {
+	v := map[string]string{"competicion": m.Nombre, "web": strings.TrimPrefix(strings.TrimPrefix(m.Web, "https://"), "http://"), "fechas": "fecha por confirmar", "sede": ""}
+	if c, err := s.comps.ByID(ctx, cid); err == nil {
+		if c.FechaInicio != "" {
+			v["fechas"] = diaLargo(c.FechaInicio)
+			if c.FechaFin != "" && c.FechaFin != c.FechaInicio {
+				v["fechas"] += " y " + diaLargo(c.FechaFin)
+			}
+		}
+		v["sede"] = strings.Trim(strings.TrimSpace(c.Sede.Nombre)+", "+strings.TrimSpace(c.Sede.Ciudad), ", ")
+	}
+	return v
 }
 
 // flightsPublicados reads the public schedule (only what /horarios shows).
