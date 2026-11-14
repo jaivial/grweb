@@ -42,6 +42,12 @@ type metricWriter struct {
 func (w *metricWriter) cabecera() {
 	if !w.hecho {
 		w.hecho = true
+		// ST3-R8-4: behind the gateway the proxied response already carries the service's app; keep only that one.
+		for _, v := range w.Header().Values("Server-Timing") {
+			if strings.HasPrefix(v, "app;") || strings.Contains(v, ", app;") {
+				return
+			}
+		}
 		w.Header().Add("Server-Timing", fmt.Sprintf("app;dur=%.1f", float64(time.Since(w.t0).Microseconds())/1000))
 	}
 }
