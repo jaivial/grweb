@@ -46,8 +46,7 @@ import { Footer, Navbar, type Lang } from './layout';
               <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[overflow-wrap:anywhere] hyphens-auto [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span [class]="tituloMovilGrande() ? 'text-accent' : 'text-accent-text'">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
               @if (subtitle()) { @if (subtitleHtml()) { <p class="sr-only" [innerHTML]="subtitleHtml()"></p> } @else { <p class="sr-only">{{ subtitle() }}</p> } }
             </div>
-            <!-- pageStamps content is no longer shown; the hidden slot keeps it out of the default <ng-content> -->
-            <div hidden><ng-content select="[pageStamps]" /></div>
+            <div class="flex flex-wrap items-center gap-3 empty:hidden"><ng-content select="[pageStamps]" /></div>
           </header>
         }
         @if (!centrado() && cms.limitado()) {
