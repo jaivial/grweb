@@ -158,6 +158,9 @@ const PUFFS = [
       .gr-intro-extra { display: none; }
       .gr-desliza { display: none; }
     }
+    /* UX2-R1-15: text at 200 % (Dynamic Type / text zoom): the booking CTA would sit under «Saltar intro»; it stays in the bottom bar */
+    .gr-intro { container: intro / inline-size; }
+    @container intro (max-width: 22rem) { .gr-intro-extra { display: none; } }
     .gr-precarga { animation: gr-precarga-fuera 0.5s ease 4s forwards; }
     @keyframes gr-precarga-fuera { to { opacity: 0; visibility: hidden; } }
   `],
