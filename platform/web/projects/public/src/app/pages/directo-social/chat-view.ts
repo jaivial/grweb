@@ -230,7 +230,7 @@ interface Fila {
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-[20px] transition-colors hover:bg-white/5" aria-label="Emojis" [attr.aria-expanded]="emojis()" (click)="emojis.set(!emojis())">
                 <span aria-hidden="true">😊</span>
               </button>
-              <textarea #caja rows="1" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1 py-[11px] text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:outline-none [field-sizing:content]"
+              <textarea #caja rows="1" enterkeyhint="send" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1 py-[10px] text-[17px] leading-6 md:text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:outline-none [field-sizing:content]"
                 placeholder="Escribe un mensaje…" aria-label="Mensaje del chat" [attr.aria-describedby]="'chat-ayuda'" [ngModel]="texto()" (ngModelChange)="texto.set($event)" (keydown.enter)="enter($event)" (keydown.escape)="emojis.set(false)"></textarea>
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-[10px] transition-[background,box-shadow,color]" aria-label="Enviar mensaje"
                 [class]="puedeEnviar() ? 'bg-accent-grain text-white hover:shadow-glow' : 'bg-bg-raised text-text-muted'" [disabled]="!puedeEnviar()" (click)="enviar()">
