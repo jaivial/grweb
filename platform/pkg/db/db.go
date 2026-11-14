@@ -38,11 +38,13 @@ func ConnectMax(ctx context.Context, url string, max int32) (*pgxpool.Pool, erro
 	if max > 0 {
 		cfg.MaxConns, cfg.MinConns = max, 0
 	} else if !strings.Contains(url, "pool_min_conns") {
-		// ST3-R3-1: keep half the pool open from boot, so a burst does not pay the TCP + auth of new connections
-		cfg.MinConns = (cfg.MaxConns + 1) / 2
+		// ST3-R3-1: keep part of the pool open from boot, so a burst does not pay the TCP + auth of new connections.
+		// ST3-R5-3: half the pool per replica pinned ~150 idle backends in Postgres once HPA scaled out, and every
+		// new pod opened its share at once mid-burst; a small warm floor is enough, the rest closes when idle.
+		cfg.MinConns = min((cfg.MaxConns+1)/2, 4)
 	}
 	cfg.MaxConnLifetime = 30 * time.Minute
-	cfg.MaxConnIdleTime = 5 * time.Minute
+	cfg.MaxConnIdleTime = time.Minute
 	// ST2-R8-4: a query stuck on a lock or a saturated Postgres used to hang its request for minutes (and every
 	// waiter behind it); bound every statement server-side unless the URL sets its own values. Migrations
 	// run on their own pool without these limits (Migrate).
