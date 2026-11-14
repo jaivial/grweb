@@ -119,8 +119,11 @@ func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, 
 	// ST3-R3-1: the three statements go in one round trip (a batch runs in order inside the transaction; any
 	// failure below returns an error and the caller rolls back the whole transaction, the insert included).
 	b := &pgx.Batch{}
+	// ST3-R6-1: the handler reads the jornada from the 1 s cache, so its state is re-checked here, in the same
+	// statement that takes the room lock (a jornada closed a moment ago refuses the signing).
 	b.Queue(`SELECT EXISTS (SELECT 1 FROM sala_miembros WHERE sala_id = s.id AND fan_id = $2), s.publica
-		FROM salas s WHERE s.id = $1 AND s.jornada_id = $3 AND s.estado IN ('abierta', 'en_juego') FOR SHARE`, salaID, fanID, j.ID)
+		FROM salas s WHERE s.id = $1 AND s.jornada_id = $3 AND s.estado IN ('abierta', 'en_juego')
+		AND EXISTS (SELECT 1 FROM jornadas WHERE id = $3 AND estado IN ('abierta', 'en_juego')) FOR SHARE OF s`, salaID, fanID, j.ID)
 	b.Queue(`INSERT INTO sala_atletas (sala_id, jornada_id, atleta_id)
 		SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM fantasy_atletas WHERE jornada_id = $2 AND atleta_id = $3) ON CONFLICT DO NOTHING`, salaID, j.ID, atletaID)
 	b.Queue(`SELECT `+precioSala+`, fa.clausula, sa.dueno_fan_id, sa.dueno_alias, sa.protegido_hasta FROM sala_atletas sa
