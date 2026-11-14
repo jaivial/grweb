@@ -82,7 +82,9 @@ spec:
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
           resources:
-            requests: { cpu: 150m, memory: 64Mi } # ST1 QA r1: up to 336m per pod at 80 bets/s
+            # ST1 QA r1: up to 336m per pod at 80 bets/s. ST2-R5-1: 300m so the bet API keeps its CPU share when
+            # the SSE fan-out (gateway/realtime) saturates the shared node.
+            requests: { cpu: 300m, memory: 64Mi }
             limits: { cpu: 500m, memory: 256Mi }
 ---
 apiVersion: v1
@@ -101,7 +103,7 @@ metadata:
   name: juegos
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: juegos }
-  minReplicas: 2
+  minReplicas: 3 # ST2-R5-1/R5-2: 100 bets/s with 500 SSE no longer waits for the HPA
   maxReplicas: 6
   metrics:
     - type: Resource

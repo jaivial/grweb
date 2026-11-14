@@ -33,13 +33,28 @@ import (
 type msg struct {
 	id string
 	ev events.Event
-	// the public/admin JSON is encoded once per event, not once per subscriber (ST2-R2-1)
+	// the public/admin SSE frame is built once per event, not once per subscriber (ST2-R2-1, ST2-R5-1)
 	pubOnce, admOnce sync.Once
 	pub, adm         []byte
 }
 
+// frame is the whole SSE frame of the event with the given data.
+func (m *msg) frame(data []byte) []byte {
+	b := make([]byte, 0, len(m.id)+len(m.ev.Type)+len(data)+24)
+	b = append(b, "id: "...)
+	b = append(b, m.id...)
+	b = append(b, "\nevent: "...)
+	b = append(b, m.ev.Type...)
+	b = append(b, "\ndata: "...)
+	b = append(b, data...)
+	return append(b, "\n\n"...)
+}
+
 func (m *msg) publicFrame() []byte {
-	m.pubOnce.Do(func() { m.pub, _ = json.Marshal(publicView(m.ev)) })
+	m.pubOnce.Do(func() {
+		data, _ := json.Marshal(publicView(m.ev))
+		m.pub = m.frame(data)
+	})
 	return m.pub
 }
 
@@ -47,7 +62,10 @@ func (m *msg) adminFrame() []byte {
 	if m.ev.Actor == nil {
 		return m.publicFrame() // same view
 	}
-	m.admOnce.Do(func() { m.adm, _ = json.Marshal(adminView(m.ev)) })
+	m.admOnce.Do(func() {
+		data, _ := json.Marshal(adminView(m.ev))
+		m.adm = m.frame(data)
+	})
 	return m.adm
 }
 
@@ -395,11 +413,11 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 		if lastSent != "" && !after(m.id, lastSent) {
 			return true
 		}
-		data, ok := filter(m)
+		frame, ok := filter(m)
 		if !ok {
 			return true
 		}
-		if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", m.id, m.ev.Type, data); err != nil {
+		if _, err := w.Write(frame); err != nil {
 			return false
 		}
 		lastSent = m.id

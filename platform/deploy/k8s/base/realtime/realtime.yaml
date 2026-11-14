@@ -76,14 +76,14 @@ metadata:
   name: realtime
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: realtime }
-  minReplicas: 2
+  minReplicas: 3 # ST2-R5-2: the SSE fan-out of a 500-spectator peak starts on enough pods
   maxReplicas: 4
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   # CPU only: Go's heap stays high after a spike and a memory target would keep pods that are idle.
   behavior:
-    scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 2, periodSeconds: 30 }] }
+    scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 2, periodSeconds: 15 }] }
     scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Pods, value: 1, periodSeconds: 60 }] }
 ---
 apiVersion: policy/v1

@@ -85,7 +85,7 @@ metadata:
   name: gateway
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: gateway }
-  minReplicas: 2
+  minReplicas: 4 # ST2-R5-2: 500 SSE right after a deploy overran 2 pods before the HPA reacted
   maxReplicas: 10 # 1317m ÷ (250m × 70 %) ≈ 8 → headroom of 2
   metrics:
     - type: Resource
@@ -93,6 +93,7 @@ spec:
   # No memory metric (ST1-R3-2): idle WS hold memory but no CPU, and GOMEMLIMIT keeps the heap in check, so memory
   # flapped 2↔3 replicas with nothing to serve and each scale-down cut the WS. Scale-down: 1 pod per minute.
   behavior:
+    scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 4, periodSeconds: 15 }] }
     scaleDown:
       # ST2-R4-4: open SSE use no CPU, so a scale-down cut them mid-run; wait the 30 min SSE recycle period (after
       # which public streams reconnect and spread over the pods anyway).
