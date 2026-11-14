@@ -659,6 +659,13 @@ func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([
 		if err := json.Unmarshal(a.Fotos, &fotos[i]); err != nil {
 			return nil, err
 		}
+		visibles := fotos[i][:0]
+		for _, f := range fotos[i] {
+			if oculta, _ := f["oculta"].(bool); !oculta {
+				visibles = append(visibles, f)
+			}
+		}
+		fotos[i] = visibles
 		for _, f := range fotos[i] {
 			u, _ := f["url"].(string)
 			if id, err := uuid.Parse(strings.TrimPrefix(u, "/api/medios/")); err == nil && strings.HasPrefix(u, "/api/medios/") {
@@ -667,6 +674,13 @@ func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([
 		}
 	}
 	if len(ids) == 0 {
+		for i := range list {
+			b, err := json.Marshal(fotos[i])
+			if err != nil {
+				return nil, err
+			}
+			list[i].Fotos = b
+		}
 		return list, nil
 	}
 	medidas := map[string][2]int{}

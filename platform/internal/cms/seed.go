@@ -75,8 +75,8 @@ var seedFAQ = []faqIn{
 	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true},
 	{"Sorteo", "¿Cómo funciona la rifa?", "La rifa es presencial: los boletos se compran en efectivo en el stand de la rifa durante el evento. No hay venta online. Consulta los objetos en la [página de la rifa](/sorteo).", true, true},
 	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", false, true},
-	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta. *Datos de ejemplo: pendiente de confirmar por la organización.*", false, true},
-	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón. *Datos de ejemplo.*", false, true},
+	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta.", false, true},
+	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón.", false, true},
 }
 
 var yes = true
@@ -678,7 +678,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 				}
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO paginas (id, competition_id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, categoria) VALUES ($1,$2,'blog','abren-las-reservas',$3,$4,$5,$6,true,'noticias')`,
-				newID(), cid, "Abren las reservas de entradas", "La entrada es gratuita con reserva: así funciona.", "Ya puedes reservar tu entrada gratuita para la GR Strength Cup. *Datos de ejemplo.*", "/img/home/sede-exterior-l.webp"); err != nil {
+				newID(), cid, "Abren las reservas de entradas", "La entrada es gratuita con reserva: así funciona.", "Ya puedes reservar tu entrada gratuita para la GRS Cup 2.", "/img/home/sede-exterior-l.webp"); err != nil {
 				return err
 			}
 		}
