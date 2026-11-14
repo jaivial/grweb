@@ -184,7 +184,7 @@ func (s *Svc) cargarResumenPorra(ctx context.Context, cid uuid.UUID) (resumenPor
 	if err := s.a.DB.QueryRow(ctx, `SELECT count(DISTINCT fan_id) FROM apuestas WHERE jornada_id = $1`, j.ID).Scan(&o.Participantes); err != nil {
 		return o, err
 	}
-	top, _ := s.rankingPorra(ctx, *j, uuid.Nil)
+	top, _, _ := s.rankingPorra(ctx, *j, uuid.Nil)
 	if len(top) > 3 {
 		top = top[:3]
 	}

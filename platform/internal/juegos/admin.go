@@ -545,7 +545,7 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			o := &clasificacionesOut{}
-			o.Body.Porra, _ = s.rankingPorra(ctx, *j, uuid.Nil)
+			o.Body.Porra, _, _ = s.rankingPorra(ctx, *j, uuid.Nil)
 			if o.Body.Fantasy, err = s.lobbyAdmin(ctx, in.CID, *j); err != nil {
 				return nil, err
 			}

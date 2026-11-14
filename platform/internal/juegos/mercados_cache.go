@@ -70,7 +70,8 @@ type jornadaEntrada struct {
 
 var jornadasCache sync.Map // cid+jid → *jornadaEntrada
 
-// jornadaPublicaCache memoizes jornadaPublica for mercadosTTL: the GET of mercados ran one jornada query per call.
+// jornadaPublicaCache memoizes jornadaPublica for mercadosTTL for the read-only GETs (mercados, clasificación,
+// mis-apuestas, cartera: one jornada query per call, ST2-R2-2); writes keep re-reading it in their transaction.
 func (s *Svc) jornadaPublicaCache(ctx context.Context, cid, jid uuid.UUID) (*jornada, error) {
 	k := cid.String() + jid.String()
 	if v, ok := jornadasCache.Load(k); ok {

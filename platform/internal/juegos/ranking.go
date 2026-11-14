@@ -42,12 +42,14 @@ func publicaPorra(filas []filaPorra) []filaPorraPublic {
 	return out
 }
 
-// rankingPorra returns the top 50 of the porra (cached 3 s, one loader per pod and jornada) and the fan's own place.
-func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]filaPorra, int) {
+// rankingPorra returns the top 50 of the porra (cached 3 s, one loader per pod and jornada) and the fan's own
+// place and balance (one query, ST2-R2-2).
+func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]filaPorra, int, int64) {
 	key := "rank:porra:" + j.ID.String()
 	var top []filaPorra
 	if s.cache.Get(ctx, key, &top) {
-		return top, s.miPuesto(ctx, j, fanID, Porra)
+		p, saldo := s.miPuesto(ctx, j, fanID, Porra)
+		return top, p, saldo
 	}
 	v, _, _ := rankingVuelo.Do(key, func() (any, error) {
 		var top []filaPorra
@@ -73,7 +75,8 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 		s.cache.Set(ctx, key, top, 3*time.Second)
 		return top, nil
 	})
-	return v.([]filaPorra), s.miPuesto(ctx, j, fanID, Porra)
+	p, saldo := s.miPuesto(ctx, j, fanID, Porra)
+	return v.([]filaPorra), p, saldo
 }
 
 // rankingVuelo collapses concurrent loads of the same top (ST2-R1-1: no singleflight meant N identical queries).
@@ -81,18 +84,20 @@ var rankingVuelo singleflight.Group
 
 // miPuesto is the fan's place in the whole ranking (same order and ties as rank() in the top): 1 + the wallets
 // strictly ahead, counted as two index-only ranges of saldos_orden instead of sorting every wallet (ST2-R1-1).
-func (s *Svc) miPuesto(ctx context.Context, j jornada, fanID uuid.UUID, m Moneda) int {
+func (s *Svc) miPuesto(ctx context.Context, j jornada, fanID uuid.UUID, m Moneda) (int, int64) {
 	if fanID == uuid.Nil {
-		return 0
+		return 0, 0
 	}
 	var puesto int
+	var saldo int64
 	if err := s.a.DB.QueryRow(ctx, `SELECT 1
 			+ (SELECT count(*) FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = $2 AND s.saldo > m.saldo)
-			+ (SELECT count(*) FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = $2 AND s.saldo = m.saldo AND s.updated_at < m.updated_at)
-		FROM saldos m WHERE m.jornada_id = $1 AND m.fan_id = $3 AND m.moneda = $2`, j.ID, m, fanID).Scan(&puesto); err != nil {
-		return 0
+			+ (SELECT count(*) FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = $2 AND s.saldo = m.saldo AND s.updated_at < m.updated_at),
+			m.saldo
+		FROM saldos m WHERE m.jornada_id = $1 AND m.fan_id = $3 AND m.moneda = $2`, j.ID, m, fanID).Scan(&puesto, &saldo); err != nil {
+		return 0, 0
 	}
-	return puesto
+	return puesto, saldo
 }
 
 // eventoClasificacion emits juegos.clasificacion at most once every 5 s per jornada (contract §6.6), with the
