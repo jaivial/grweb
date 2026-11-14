@@ -87,13 +87,13 @@ interface Fila {
                         <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           <span class="text-label-s" [class]="it.mio ? 'text-accent-text' : 'text-text-primary'">{{ it.mio ? 'Tú' : it.alias }}</span>
                           @if (it.atleta) {
-                            <span class="inline-flex h-[18px] items-center gap-1 rounded-2xs bg-accent px-1.5 font-mono text-[11px] leading-none font-medium tracking-[0.08em] text-white uppercase"><gr-icon name="trophy" [size]="11" />Atleta</span>
+                            <span class="inline-flex h-[18px] items-center gap-1 rounded-2xs bg-accent px-1.5 font-mono text-[12px] leading-none font-medium tracking-[0.08em] text-white uppercase"><gr-icon name="trophy" [size]="11" />Atleta</span>
                           }
-                          <time class="font-mono text-[11px] tracking-[0.08em] text-text-muted">{{ hora(it.ts) }}</time>
+                          <time class="font-mono text-[12px] tracking-[0.08em] text-text-muted">{{ hora(it.ts) }}</time>
                         </p>
                       }
-                      <p class="text-body-s break-words [overflow-wrap:anywhere]" [class]="it.mio || it.atleta ? 'text-text-primary' : 'text-text-secondary'">{{ sinIds(it.texto) }}</p>
-                      @if (it.estado === 'pendiente') { <p class="mt-0.5 font-mono text-[11px] text-text-muted">Enviando…</p> }
+                      <p class="text-body-m md:text-body-s break-words [overflow-wrap:anywhere]" [class]="it.mio || it.atleta ? 'text-text-primary' : 'text-text-secondary'">{{ sinIds(it.texto) }}</p>
+                      @if (it.estado === 'pendiente') { <p class="mt-0.5 font-mono text-[12px] text-text-muted">Enviando…</p> }
                       @if (it.estado === 'error') {
                         <p class="mt-1 flex flex-wrap items-center gap-x-2 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="13" />{{ it.error }}
                           <button type="button" class="min-h-11 font-semibold underline underline-offset-2 md:min-h-0" (click)="chat.reintentar(it)">Reintentar</button></p>

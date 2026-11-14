@@ -31,7 +31,7 @@ type Pestana = 'chat' | 'donantes' | 'porra';
       <header class="flex shrink-0 items-center justify-between gap-2 px-4 md:gap-3 pt-4 pb-3">
         <div class="min-w-0">
           <h2 class="font-display text-[20px] leading-none text-text-primary uppercase italic">Chat en directo</h2>
-          <p class="mt-2 flex items-center gap-x-2 font-mono text-[11px] leading-none font-medium tracking-[0.04em] whitespace-nowrap uppercase md:tracking-[0.08em]" role="status">
+          <p class="mt-2 flex items-center gap-x-2 font-mono text-[12px] leading-none font-medium tracking-[0.04em] whitespace-nowrap uppercase md:tracking-[0.08em]" role="status">
             <span class="relative flex size-2 shrink-0" aria-hidden="true">
               @if (vivo()) { <span class="gr-latido absolute inset-0 rounded-full bg-accent"></span> }
               <span class="relative size-2 rounded-full" [class]="puntoClase()"></span>

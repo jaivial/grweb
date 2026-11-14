@@ -317,19 +317,19 @@ export class Overlays {
           <!-- Tablet/desktop: open column. Mobile: accordion. -->
           <nav class="hidden md:block" [attr.aria-label]="col.titulo">
             <p class="text-label-xs text-text-muted">{{ col.titulo }}</p>
-            <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+            <ul class="mt-4 flex flex-col md:gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="flex min-h-11 items-center hover:text-text-primary md:min-h-0">{{ l.label }}</a></li> }</ul>
           </nav>
           <details class="group border-b border-line-subtle md:hidden">
             <summary class="flex h-15 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform group-open:rotate-180" /></summary>
-            <ul class="flex flex-col gap-3 pb-4 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+            <ul class="flex flex-col pb-4 md:gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="flex min-h-11 items-center hover:text-text-primary md:min-h-0">{{ l.label }}</a></li> }</ul>
           </details>
         }
       </div>
       @if (logos().length) {
         <ul class="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 md:gap-x-10 md:gap-y-5 md:py-2" aria-label="Patrocinadores">
           @for (p of logos(); track p.nombre) {
-            <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="block opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
-              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[22px] w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
+            <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="flex min-h-11 items-center opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
+              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
           }
         </ul>
       }
