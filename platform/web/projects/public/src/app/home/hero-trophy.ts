@@ -147,7 +147,7 @@ const PUFFS = [
       .gr-intro-patros { display: none; }
     }
     /* UX1-R3-1: at 320×568 the compact CTA reaches «Desliza»; «Saltar intro» already tells the user to scroll */
-    @media (max-width: 767px) and (max-height: 600px) {
+    @media (max-width: 767px) and (max-height: 620px) {
       .gr-desliza { display: none; }
     }
     @media (max-height: 560px) {
