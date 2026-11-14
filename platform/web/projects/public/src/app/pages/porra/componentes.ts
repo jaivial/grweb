@@ -699,8 +699,8 @@ export class Podio {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': 'clases()' },
   template: `
-    <span class="flex size-10 shrink-0 items-center justify-center rounded-sm border font-mono text-[15px] font-bold" [class]="medalla()">
-      @if (medallaIcono()) { <gr-icon [name]="medallaIcono()!" [size]="18" [label]="fila().puesto + '.º'" /> } @else { {{ fila().puesto }} }
+    <span class="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-sm border px-1.5 font-mono text-[0.9375rem] font-bold tabular-nums" [class]="medalla()">
+      @if (medallaIcono()) { <gr-icon [name]="medallaIcono()!" [size]="18" [label]="fila().puesto + '.º'" /> } @else { {{ monedas(fila().puesto) }} }
     </span>
     <span class="min-w-0 flex-1">
       <span class="block truncate text-label-m text-text-primary">{{ alias() }}</span>

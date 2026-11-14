@@ -60,7 +60,7 @@ import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, type PlazaPodio } fr
               }
             </ol>
             @if (hayMas()) {
-              <p class="my-3 text-center font-mono text-[11px] text-text-tertiary uppercase">· · · puestos {{ visibles().length + 1 }} a {{ topTotal() }} · · ·</p>
+              <p class="my-3 text-center font-mono text-[0.6875rem] text-text-secondary uppercase">· · · puestos {{ visibles().length + 1 }} a {{ monedas(miPuesto() - 1) }} · · ·</p>
             }
             @if (miFilaFuera(); as m) {
               <div class="mt-2">
@@ -93,9 +93,8 @@ export class PorraClasificacionPage {
   });
   protected readonly hayMas = computed(() => {
     const c = this.store.clas();
-    return !!c && c.miPuesto > this.visibles().length && c.miPuesto > 0;
+    return !!c && c.miPuesto > this.visibles().length + 1;
   });
-  protected readonly topTotal = computed(() => this.store.clas()?.top.length ?? 0);
   protected readonly filas = computed(() => this.visibles());
   /** Los tres primeros, para el podio. */
   protected readonly podio = computed<PlazaPodio[]>(() =>
@@ -157,6 +156,6 @@ export class PorraClasificacionPage {
    * da, así que solo la fila del usuario lleva su mensaje.
    */
   protected nota(f: { puesto: number; alias: string; saldo: number }): string {
-    return f.puesto === this.miPuesto() ? 'Tu puesto en la porra de esta jornada' : '';
+    return f.puesto === this.miPuesto() ? 'Tu puesto' : '';
   }
 }
