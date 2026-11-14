@@ -1,4 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { mascaraFecha } from './fecha-mascara';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -185,11 +186,19 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                   @case ('categoria') {
                     <gr-select [id]="'i-' + f.k" tam="l" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()" [invalido]="!!err()[f.k]" [aria-describedby]="err()[f.k] ? 'e-' + f.k : ''" vacio="Elige primero el sexo"><option value="" hidden>Seleccionar categoría</option>@for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }</gr-select>
                   }
+                  @case ('fechaNacimiento') {
+                    <!-- UX2-R1-7: mismo campo que el alta (dd/mm/aaaa con máscara), no el date nativo en formato US -->
+                    <input [id]="'i-' + f.k" [class]="CAMPO + ' ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong')" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" placeholder="dd/mm/aaaa"
+                      [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
+                      [attr.aria-invalid]="!!err()[f.k]" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k + ' h-' + f.k : 'h-' + f.k" />
+                    <p [id]="'h-' + f.k" class="text-body-s text-text-tertiary">Formato dd/mm/aaaa.</p>
+                  }
                   @default {
                     <input [id]="'i-' + f.k" [class]="CAMPO + ' ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong')" [name]="f.k" [attr.name]="f.k" [type]="f.type || 'text'" [attr.autocomplete]="f.ac" [attr.placeholder]="f.ph" [(ngModel)]="d[f.k]" (ngModelChange)="revalidar()"
                       [attr.aria-invalid]="!!err()[f.k]" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k : null" />
                   }
                 }
+                @if (f.k === 'club') { <p class="text-body-s text-text-tertiary">Déjalo vacío si eres independiente.</p> }
                 @if (err()[f.k]; as e) { <p [id]="'e-' + f.k" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
               </div>
             }
@@ -302,9 +311,9 @@ export class InscripcionPage {
     { k: 'email', label: 'Email', req: true, type: 'email', ac: 'email', ph: 'email@ejemplo.com', error: 'Introduce un email válido', corto: 'introduce un email válido' },
     { k: 'telefono', label: 'Teléfono', type: 'tel', ac: 'tel', ph: '+34 600 000 000' },
     { k: 'sexo', label: 'Sexo', req: true, error: 'Elige una opción', corto: 'elige una opción' }, { k: 'categoria', label: 'Categoría de peso', req: true, error: 'Selecciona tu categoría', corto: 'selecciona tu categoría' },
-    { k: 'fechaNacimiento', label: 'Fecha de nacimiento', req: true, type: 'date', ac: 'bday', error: 'Indica tu fecha de nacimiento', corto: 'indica tu fecha de nacimiento' },
+    { k: 'fechaNacimiento', label: 'Fecha de nacimiento', req: true, error: 'Indica tu fecha de nacimiento', corto: 'indica tu fecha de nacimiento' },
     { k: 'licencia', label: 'Licencia AEP', req: true, ph: 'VAL-0000', error: 'Indica tu número de licencia AEP', corto: 'indica tu número de licencia' },
-    { k: 'club', label: 'Club', ph: 'Nombre del club (o vacío si eres independiente)' },
+    { k: 'club', label: 'Club', ph: 'Tu club' },
   ];
   protected readonly total = computed(() => this.precio()?.total ?? this.cfg()?.cuota ?? 0);
   protected readonly vista = computed<Vista>(() => {
@@ -435,6 +444,15 @@ export class InscripcionPage {
     if (k === 'cupon') this.cupon = '';
     else this.referido = '';
     void this.calcular();
+  }
+
+  /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si la fecha existe. */
+  protected fechaTexto = '';
+  protected fechaCambia(el: HTMLInputElement): void {
+    const { texto, iso } = mascaraFecha(el.value);
+    el.value = this.fechaTexto = texto;
+    this.d.fechaNacimiento = iso;
+    this.revalidar();
   }
 
   private validar(): Record<string, string> {
