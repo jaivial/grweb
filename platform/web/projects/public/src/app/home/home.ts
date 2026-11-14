@@ -72,7 +72,7 @@ import { SecSorteo } from './sorteo';
             @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
             @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
             @case ('premios') {
-              <gr-sec-premios [s]="h.secciones[k]" />
+              <gr-sec-premios [s]="h.secciones[k]" [sinCategorias]="h.orden.includes('categorias')" />
               <!-- Figma 05-home-juegos: Porra and Fantasy right after «Premios v2» (hidden when the games service does not answer) -->
               @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
               @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }

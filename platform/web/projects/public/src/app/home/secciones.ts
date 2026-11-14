@@ -110,7 +110,7 @@ export class SecAlta {
           }
         </ul>
         <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="primary" size="l" routerLink="/entradas">Reserva tu entrada gratis</a>
+          <a grButton variant="primary" size="l" routerLink="/entradas" data-cta-entrada>Reserva tu entrada gratis</a>
           <a grButton variant="glass" size="l" routerLink="/horarios" iconRight="arrow-right">Ver horarios</a>
         </div>
         @if (entradas()?.personas) {
@@ -260,7 +260,7 @@ export class SecAtletas {
   template: `
     <div [class]="ancho + ' flex flex-col items-center gap-7 md:gap-12'">
       <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
-      <ul class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
+      <ul #pista class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
         @for (f of fotos(); track f.imagen) {
           <li class="relative aspect-[290/380] w-[290px] shrink-0 snap-center overflow-hidden rounded-lg md:aspect-[590/420] md:w-auto" [class]="foto">
             <img [src]="f.imagen" [attr.srcset]="srcset(f.imagen)" sizes="(min-width: 768px) 590px, 290px" [alt]="f.alt || f.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" />
@@ -273,8 +273,8 @@ export class SecAtletas {
           </li>
         }
       </ul>
-      <div class="flex items-center gap-1.5 md:hidden" aria-hidden="true">
-        @for (f of fotos(); track f.imagen; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
+      <div class="flex items-center md:hidden" role="group" aria-label="Fotos">
+        @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a foto ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
       </div>
     </div>
   `,
@@ -287,6 +287,7 @@ export class SecOrganizacion {
   protected readonly activa = signal(0);
   protected t = (k: string) => str(this.s(), k);
   protected readonly fotos = computed(() => list<{ imagen: string; alt: string; titulo: string; texto: string }>(this.s(), 'imagenes'));
+  protected readonly irA = irA;
   protected alDesplazar(e: Event): void { this.activa.set(Math.round((e.target as HTMLElement).scrollLeft / 302)); }
 }
 
@@ -357,7 +358,7 @@ export class SecAfiliaciones {
           <div class="w-full flex-col gap-4 rounded-xl border border-line-subtle bg-[#221d1f]/85 px-4 py-5 md:flex md:w-auto md:flex-1 md:p-6 lg:w-[400px] lg:flex-none lg:p-7" [class.flex]="sel() === g.k" [class.hidden]="sel() !== g.k">
             <div class="hidden items-center justify-between md:flex"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted">{{ cats[g.k].length }} categorías</span></div>
             <ul class="grid grid-cols-2 gap-2 lg:grid-cols-3">
-              @for (c of cats[g.k]; track c; let last = $last) { <li class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body" [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''">{{ kg(c) }}</li> }
+              @for (c of cats[g.k]; track c; let last = $last) { <li [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''"><a routerLink="/categorias-de-peso" class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body transition-transform duration-[120ms] hover:border-line-strong active:scale-[.97] motion-reduce:transition-none" [attr.aria-label]="kg(c) + ' · ver categorías de peso'">{{ kg(c) }}</a></li> }
             </ul>
           </div>
         }
@@ -476,7 +477,7 @@ export class SecHorarios {
       <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
       <div class="flex w-full flex-col-reverse gap-6 lg:flex-row lg:gap-8">
         <div class="flex w-full flex-col gap-4 lg:w-[648px] lg:shrink-0">
-          <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3" (scroll)="alDesplazar($event)">
+          <ul #pista class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3" (scroll)="alDesplazar($event)">
             @for (f of fotos(); track f.imagen; let i = $index) {
               <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto md:aspect-[4/3]" [class]="(i === 0 ? 'lg:col-span-3 lg:aspect-[648/380] lg:rounded-xl ' : 'lg:aspect-[205/140] ') + foto">
                 <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
@@ -485,8 +486,8 @@ export class SecHorarios {
               </li>
             }
           </ul>
-          <div class="flex items-center justify-center gap-1.5 md:hidden" aria-hidden="true">
-            @for (f of fotos(); track f.imagen; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
+          <div class="flex items-center justify-center md:hidden" role="group" aria-label="Fotos">
+            @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a foto ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
           </div>
           <gr-lightbox [fotos]="fotos()" [(indice)]="ver" />
         </div>
@@ -501,7 +502,7 @@ export class SecHorarios {
               <p class="text-display-xs">{{ c.sede.nombre }}</p>
               <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ direccion() }}</p>
               <div class="flex flex-col gap-2 sm:flex-row">
-                <a grButton variant="display-gradient" [href]="c.sede.mapsUrl" target="_blank" rel="noopener" icon="map-pin">Abrir en Google Maps</a>
+                <a grButton variant="primary" [href]="c.sede.mapsUrl" target="_blank" rel="noopener" icon="map-pin">Abrir en Google Maps</a>
                 <button grButton variant="outline" type="button" (click)="copiar()">{{ copiado() ? 'Dirección copiada' : 'Copiar dirección' }}</button>
               </div>
             </div>
@@ -527,6 +528,7 @@ export class SecLocalizacion {
     const s = this.comp()?.sede;
     return s ? [s.direccion, [s.cp, s.ciudad].filter(Boolean).join(' ') + (s.provincia ? ` (${s.provincia})` : '')].filter(Boolean).join(' · ') : '';
   });
+  protected readonly irA = irA;
   protected alDesplazar(e: Event): void { this.activa.set(Math.round((e.target as HTMLElement).scrollLeft / 312)); }
   protected copiar(): void {
     void navigator.clipboard?.writeText(`${this.comp()?.sede.nombre}, ${this.direccion().replace(' · ', ', ')}`).then(() => {
@@ -571,4 +573,10 @@ export class SecFaq {
   protected readonly abierta = signal(0);
   protected t = (k: string) => str(this.s(), k);
   protected md = (s: string) => renderMarkdown(s).html;
+}
+
+/** UX1-R1-10: pagination dots are buttons that scroll the carousel to that card. */
+export function irA(pista: HTMLElement, i: number): void {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  (pista.children[i] as HTMLElement | undefined)?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest', inline: 'center' });
 }

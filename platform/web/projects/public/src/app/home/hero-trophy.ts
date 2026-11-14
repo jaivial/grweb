@@ -41,7 +41,8 @@ const PUFFS = [
   selector: 'gr-hero-trophy',
   imports: [GrIcon, GrButton, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'relative block', '[style.height]': 'reduced() ? "100dvh" : "500vh"' },
+  // UX1-R1-1/6: 200vh on phones (500vh from md), one screen with reduced motion - in CSS, so it holds from the SSR paint
+  host: { class: 'relative block' },
   template: `
     <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base">
       <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later -->
@@ -76,15 +77,15 @@ const PUFFS = [
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (BIZ-144 · Hero 2026): AEP logo, GR CUP 2026 logo, tagline, dates + place and the hero sponsors -->
-      <div class="absolute inset-x-0 top-[84px] flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[78px] motion-reduce:transition-none" [style.opacity]="texto()">
+      <div class="gr-intro absolute inset-x-0 top-[84px] flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[78px] motion-reduce:transition-none" [style.opacity]="texto()">
         <img src="/img/home/aep-hero.webp" alt="AEP · Asociación Española de Powerlifting" width="108" height="40" class="h-8 w-auto select-none md:h-10" draggable="false" />
-        <img [src]="logo" alt="GR Strength Cup 2026" class="mt-[57px] h-[125px] w-auto select-none md:mt-[63px] md:h-[198px]" draggable="false" fetchpriority="high" />
+        <img [src]="logo" alt="GR Strength Cup 2026" class="mt-[57px] h-[clamp(80px,30vw,125px)] w-auto select-none md:mt-[63px] md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
-        <h1 class="max-w-[1000px] font-display text-[30px] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-[65px]'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
+        <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-[65px]'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
         @if (hero().fecha || fechas() || lugar()) {
           <p class="mt-[66px] flex flex-col items-center gap-1 md:mt-[63px]">
             @if (hero().fecha || fechas()) { <span class="font-archivo text-[14px] leading-[15px] font-extrabold tracking-[0.08em] uppercase md:text-[20px] md:leading-[22px]">{{ hero().fecha || fechas() }}</span> }
-            @if (lugar()) { <span class="font-archivo text-[9px] leading-[10px] font-medium tracking-[0.1em] text-text-secondary uppercase md:text-[11px] md:leading-3">{{ lugar() }}</span> }
+            @if (lugar()) { <span class="font-archivo text-[11px] leading-[13px] font-medium tracking-[0.08em] text-text-secondary uppercase md:leading-3">{{ lugar() }}</span> }
           </p>
         } @else if (metaPartes().length) {
           <p class="mt-10 flex flex-wrap items-center justify-center gap-2.5 text-label-xs text-text-secondary">
@@ -107,33 +108,41 @@ const PUFFS = [
         }
       </div>
       @if (!reduced()) {
-        <div class="absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
+        <div class="gr-desliza absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
           Desliza<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"
-          class="absolute bottom-8 left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
+          class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
           Saltar intro<gr-icon name="arrow-down" [size]="16" />
         </button>
-        <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
+        <!-- «Hero preload»: download progress until the first video seek completes -->
         @if (precarga()) {
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
-          <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
+          <!-- UX1-R1-9: a 2 px bar on top - the SSR intro (logo, title, CTA) stays readable while the video loads -->
+          <div class="gr-precarga pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 bg-white/8 transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
             role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
-            <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" [class.invisible]="precargaFuera()" />
-            <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface" [class.invisible]="precargaFuera()"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
-            <p class="text-body-s text-text-tertiary" [class.invisible]="precargaFuera()">@if (progresoIndeterminado()) { Cargando vídeo… } @else { {{ criticoPct() }} % }</p>
+            <div class="h-full bg-[linear-gradient(90deg,#6e1420,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div>
           </div>
         }
       }
     </div>
   `,
   styles: [`
+    :host { height: 200vh; }
+    @media (min-width: 768px) { :host { height: 500vh; } }
+    @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
     /* Figma «Fundido · arriba/abajo/izquierda/derecha»: 20 % at the top and bottom, 24 % at the sides */
     .gr-trofeo-fundido {
       -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
       -webkit-mask-composite: source-in;
       mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
       mask-composite: intersect;
+    }
+    /* UX1-R1-7: short viewports (zoom 200 %, landscape): compact intro, no «Desliza», so «Saltar intro» never sits on the title */
+    @media (max-height: 560px) {
+      .gr-intro { top: 72px; }
+      .gr-intro > * + * { margin-top: 12px !important; }
+      .gr-desliza { display: none; }
     }
     .gr-precarga { animation: gr-precarga-fuera 0.5s ease 4s forwards; }
     @keyframes gr-precarga-fuera { to { opacity: 0; visibility: hidden; } }

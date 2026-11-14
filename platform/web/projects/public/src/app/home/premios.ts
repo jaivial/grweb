@@ -4,6 +4,7 @@ import { CATEGORIAS_IPF } from '../core/atletas';
 import { ANCHO, GrCabecera, GrTitulo } from './bloques';
 import { MedallaFisica } from './medalla-fisica';
 import { Trofeo3d } from './trofeo-3d';
+import { irA } from './secciones';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -41,7 +42,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
     <div [class]="ancho + ' flex flex-col items-center pt-[220px] lg:pt-[420px]'">
       <div class="flex w-full flex-col items-center gap-7 lg:gap-12">
         <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
-        <ul class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
+        <ul #pista class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
           @for (p of items(); track p.titulo; let i = $index) {
             <li class="relative w-[300px] shrink-0 snap-start max-lg:pt-[100px] lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
               @if (i < 2) {
@@ -61,8 +62,8 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
             </li>
           }
         </ul>
-        <div class="flex items-center gap-1.5 lg:hidden" aria-hidden="true">
-          @for (p of items(); track p.titulo; let i = $index) { <span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
+        <div class="flex items-center lg:hidden" role="group" aria-label="Premios">
+          @for (p of items(); track p.titulo; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a premio ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
         </div>
         @if (t('lema')) { <p class="max-w-[350px] text-center font-display text-[20px] leading-[27px] tracking-[0.02em] text-[#d1d5db] uppercase lg:max-w-none lg:text-[24px] lg:leading-[30px]"><gr-titulo [titulo]="t('lema')" /></p> }
       </div>
@@ -80,6 +81,8 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
         <div class="relative z-10 -mt-6 flex w-full max-w-[350px] flex-col items-center gap-5 lg:-mt-12 lg:max-w-none lg:gap-10">
           <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('catEyebrow') || 'Categorías de peso'" [titulo]="t('catTitulo') || 'Premio por *categoría de peso*'"
             [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
+          <!-- UX1-R1-11: the weight-class grid shows once on the home (in «Categorías» when that section is on) -->
+          @if (!sinCategorias()) {
           <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 lg:hidden" role="tablist" aria-label="Sexo">
             @for (g of generos; track g.k) {
               <button type="button" role="tab" [attr.aria-selected]="sel() === g.k" (click)="sel.set(g.k)" class="h-11 rounded-sm text-label-m" [class]="sel() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-secondary'">{{ g.l }}</button>
@@ -95,6 +98,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
               </div>
             }
           </div>
+          }
         </div>
       </div>
 
@@ -120,6 +124,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 })
 export class SecPremios {
   readonly s = input<Seccion | undefined>();
+  readonly sinCategorias = input(false);
   protected readonly ancho = ANCHO;
   /** Figma: −4° · 0 · +4° (with their vertical offsets inside the 340 × 480 holders). */
   protected readonly giro = ['lg:-rotate-4 lg:-translate-y-2.5', 'lg:translate-y-0', 'lg:rotate-4 lg:translate-y-2.5'];
@@ -145,6 +150,7 @@ export class SecPremios {
   protected t = (k: string) => str(this.s(), k);
   protected kg = (c: string) => c.replace('-', '−') + 'kg';
   protected readonly items = computed(() => list<{ titulo: string; imagen: string }>(this.s(), 'items'));
+  protected readonly irA = irA;
   protected alDesplazar(e: Event): void {
     const el = e.target as HTMLElement;
     this.activa.set(Math.round(el.scrollLeft / 312));
