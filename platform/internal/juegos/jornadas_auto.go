@@ -51,13 +51,13 @@ func (s *Svc) fechasSchedule(ctx context.Context, cid uuid.UUID) (fechas []strin
 			s.a.Log.Warn("fechas del horario no disponibles", "cid", cid, "err", err)
 			return nil, false
 		}
-		out.Dias = out.Dias[:0]
-		if snap != nil {
-			for _, d := range snap.Dias {
-				out.Dias = append(out.Dias, struct {
-					Fecha string `json:"fecha"`
-				}{d.Fecha})
-			}
+		if snap == nil {
+			return nil, false // nothing published yet and no draft endpoint: unknown, touch nothing
+		}
+		for _, d := range snap.Dias {
+			out.Dias = append(out.Dias, struct {
+				Fecha string `json:"fecha"`
+			}{d.Fecha})
 		}
 	}
 	vistas := map[string]bool{}
