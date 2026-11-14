@@ -115,6 +115,11 @@ export class TicketCard {
   }
 }
 
+/** Ticket line 1 without repeating the weekday (UX8-R1-7): «sáb 19 dic · Tarde». */
+const lineaTicket = (inicio: string, nombre: string) =>
+  new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inicio)).replace(/[,.]/g, '') +
+  ' · ' + nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
+
 const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
   `${m.nombre} ${m.apellidos}`.trim() + (m.personas > 1 ? ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}` : '');
 
@@ -422,13 +427,15 @@ export class EntradasPage {
   protected readonly sesHero = computed(() => this.sesSel() ?? this.abiertas()[0] ?? this.data()?.sesiones[0]);
   protected readonly ejemplo = computed(() => {
     const x = this.sesHero();
-    return x ? { l1: dia(x.inicio) + ' · ' + x.nombre, l2: 'Puertas ' + hora(x.puertas) + ' · hasta las ' + hora(x.fin) } : { l1: 'Sábado · sesión de mañana', l2: 'Puertas 8:30 · hasta las 14:00' };
+    return x ? { l1: lineaTicket(x.inicio, x.nombre), l2: 'Puertas ' + hora(x.puertas) + ' · hasta las ' + hora(x.fin) } : { l1: 'Sábado · sesión de mañana', l2: 'Puertas 8:30 · hasta las 14:00' };
   });
   protected readonly maxPersonas = computed(() => Math.min(this.sesSel()?.maxPorReserva ?? 6, Math.max(1, this.sesSel()?.estado === 'agotada' ? 6 : (this.sesSel()?.libres ?? 6))));
   protected readonly ciudad = computed(() => this.comp.data()?.sede?.ciudad || 'Almussafes');
   protected readonly fechas = computed(() => {
     const c = this.comp.data();
-    const t = c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
+    // UX8-R1-7: with sessions, only the days that have tickets (the hero must not promise a day without them)
+    const dias = [...new Set((this.data()?.sesiones ?? []).map((s) => diaLargo(s.inicio)))];
+    const t = dias.length ? dias.join(' y ') : c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
     return t.charAt(0).toUpperCase() + t.slice(1);
   });
   /** «Puertas 8:30 · premios y sorteo 21:30» from the published schedule (else the first session's doors). */
@@ -616,7 +623,7 @@ export class EntradasPage {
               <p class="text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p>
             </div>
             }
-            <gr-ticket class="w-full xl:w-[342px]" [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
+            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
             @if (m.estado !== 'anulada') {
             <div class="grid w-full grid-cols-2 gap-2 xl:w-[342px]">
               <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />Al calendario</a>
@@ -659,6 +666,7 @@ export class ConfirmacionPage {
   protected readonly hora = hora;
   protected readonly dia = dia;
   protected readonly tit = titular;
+  protected readonly linea = lineaTicket;
   protected readonly chip = 'flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent';
   protected readonly mia = signal<MiEntrada | null | undefined>(undefined);
   protected readonly copiado = signal(false);
@@ -784,7 +792,7 @@ export class OfertaPage {
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
+          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-ui-h5">¿Cambia algo?</h2>
@@ -824,6 +832,7 @@ export class MiEntradaPage {
   protected readonly validada = validada;
   protected readonly dia = dia;
   protected readonly tit = titular;
+  protected readonly linea = lineaTicket;
   protected readonly max = Math.max;
   protected readonly min = Math.min;
   /** «Sábado mañana» → «sábado por la mañana». */
