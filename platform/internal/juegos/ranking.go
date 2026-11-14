@@ -62,7 +62,11 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 		p, saldo := s.puestoPorra(ctx, j, top, fanID)
 		return top, p, saldo
 	}
-	v, _, _ := rankingVuelo.Do(key, func() (any, error) {
+	// ST2-R8-4: the flight runs on its own bounded context (a cancelled first caller no longer fails or hangs
+	// the rest) and each caller stops waiting when its request ends.
+	ch := rankingVuelo.DoChan(key, func() (any, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		var top []filaPorra
 		if s.cache.Get(ctx, key, &top) { // another pod or flight filled it meanwhile
 			return top, nil
@@ -86,7 +90,12 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 		s.cache.Set(ctx, key, top, 3*time.Second)
 		return top, nil
 	})
-	top = v.([]filaPorra)
+	select {
+	case <-ctx.Done():
+		return []filaPorra{}, 0, 0
+	case res := <-ch:
+		top = res.Val.([]filaPorra)
+	}
 	topLocal.Store(key, &topEntrada{top: top, exp: time.Now().Add(time.Second)})
 	p, saldo := s.puestoPorra(ctx, j, top, fanID)
 	return top, p, saldo
@@ -111,13 +120,44 @@ func (s *Svc) puestoPorra(ctx context.Context, j jornada, top []filaPorra, fanID
 		}
 	}
 	key := "rank:porra:fan:" + j.ID.String() + ":" + fanID.String()
+	// ST2-R8-3: pod-local first (1 s), so a fan polling the ranking skips the Redis round trip
+	if v, ok := puestoLocal.Load(key); ok {
+		if e := v.(puestoEntrada); time.Now().Before(e.exp) {
+			return e.p, e.saldo
+		}
+		puestoLocal.Delete(key)
+	}
 	var c [2]int64
 	if s.cache.Get(ctx, key, &c) {
+		puestoLocal.Store(key, puestoEntrada{p: int(c[0]), saldo: c[1], exp: time.Now().Add(time.Second)})
 		return int(c[0]), c[1]
 	}
 	p, saldo := s.miPuesto(ctx, j, fanID, Porra)
 	s.cache.Set(ctx, key, [2]int64{int64(p), saldo}, 3*time.Second)
+	puestoLocal.Store(key, puestoEntrada{p: p, saldo: saldo, exp: time.Now().Add(time.Second)})
 	return p, saldo
+}
+
+type puestoEntrada struct {
+	p     int
+	saldo int64
+	exp   time.Time
+}
+
+// puestoLocal: "rank:porra:fan:"+jornada+fan → place; stale entries are dropped on read and by a minute sweep.
+var puestoLocal sync.Map
+
+func init() {
+	go func() {
+		for range time.Tick(time.Minute) {
+			puestoLocal.Range(func(k, v any) bool {
+				if time.Now().After(v.(puestoEntrada).exp) {
+					puestoLocal.Delete(k)
+				}
+				return true
+			})
+		}
+	}()
 }
 
 // rankingVuelo collapses concurrent loads of the same top (ST2-R1-1: no singleflight meant N identical queries).

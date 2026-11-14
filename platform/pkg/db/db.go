@@ -39,6 +39,14 @@ func ConnectMax(ctx context.Context, url string, max int32) (*pgxpool.Pool, erro
 	}
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.MaxConnIdleTime = 5 * time.Minute
+	// ST2-R8-4: a query stuck on a lock or a saturated Postgres used to hang its request for minutes (and every
+	// waiter behind it); bound every statement server-side unless the URL sets its own values. Migrations
+	// run on their own pool without these limits (Migrate).
+	for k, v := range map[string]string{"statement_timeout": "15000", "lock_timeout": "5000", "idle_in_transaction_session_timeout": "30000"} {
+		if _, ok := cfg.ConnConfig.RuntimeParams[k]; !ok {
+			cfg.ConnConfig.RuntimeParams[k] = v
+		}
+	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -62,7 +70,18 @@ func ConnectMax(ctx context.Context, url string, max int32) (*pgxpool.Pool, erro
 // Migrate applies the platform migrations (outbox, processed_events) and then the service's own,
 // each tracked in its own goose table and serialised with a Postgres advisory lock.
 func Migrate(ctx context.Context, pool *pgxpool.Pool, service fs.FS, log *slog.Logger) error {
-	sqlDB := stdlib.OpenDBFromPool(pool)
+	// own small pool without the request statement/lock timeouts: a migration may legitimately take longer
+	cfg := pool.Config()
+	cfg.MaxConns, cfg.MinConns = 2, 0
+	for _, k := range []string{"statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout"} {
+		delete(cfg.ConnConfig.RuntimeParams, k)
+	}
+	mpool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer mpool.Close()
+	sqlDB := stdlib.OpenDBFromPool(mpool)
 	defer sqlDB.Close()
 	sets := []struct {
 		table string
