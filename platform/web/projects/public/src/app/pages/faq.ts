@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { Competition } from '../core/competition';
@@ -21,24 +22,44 @@ import { Community, Related, type RelatedLink } from './landings';
           <p class="px-2 pb-2 text-label-xs text-text-muted uppercase">Temas</p>
           <ul class="flex flex-col gap-1">
             @for (t of temas(); track t.nombre) {
-              <li><button type="button" (click)="tema.set(t.nombre)" [attr.aria-pressed]="activo() === t.nombre" class="flex h-10 w-full items-center justify-between gap-4 rounded-sm px-3 text-label-s whitespace-nowrap"
+              <li><button type="button" (click)="elegir(t.nombre)" [attr.aria-pressed]="activo() === t.nombre" class="flex h-10 w-full items-center justify-between gap-4 rounded-sm px-3 text-label-s whitespace-nowrap"
                 [class]="activo() === t.nombre ? 'bg-accent/12 text-text-primary' : 'text-text-secondary hover:bg-bg-raised'">{{ t.nombre }}<span class="text-body-xs text-text-tertiary">{{ t.n }}</span></button></li>
             }
           </ul>
         </nav>
         <div class="flex min-w-0 flex-col gap-6">
-          <label class="relative block">
+          <!-- Figma 46:18: search + «Filtros» in one row; the topics stay folded until opened (desktop keeps the side card) -->
+          <div class="flex flex-col gap-2">
+          <div class="flex gap-2">
+          <label class="relative block min-w-0 flex-1">
             <span class="sr-only">Buscar una pregunta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input type="search" enterkeyhint="search" placeholder="Busca una pregunta…" [value]="q()" (input)="q.set($any($event.target).value)"
               class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
-          <ul class="-mt-2 flex flex-wrap gap-2 lg:hidden" aria-label="Temas">
+          <button type="button" (click)="filtros.set(!filtros())" [attr.aria-expanded]="filtros()" aria-controls="faq-filtros"
+            class="flex h-12 shrink-0 items-center gap-2 rounded-md border border-line-strong px-3 text-label-s text-text-secondary hover:border-white lg:hidden">
+            <gr-icon name="sliders" [size]="16" />Filtros
+            @if (activo() !== 'Todas') { <span class="flex size-5 items-center justify-center rounded-full bg-accent text-label-xs text-white" aria-label="1 filtro activo">1</span> }
+            <gr-icon name="chevron-down" [size]="16" class="transition-transform duration-200 motion-reduce:transition-none" [class.rotate-180]="filtros()" />
+          </button>
+          </div>
+          @if (activo() !== 'Todas') {
+            <p class="flex items-center justify-between gap-3 text-body-xs text-text-tertiary lg:hidden">
+              <span>{{ activo() }} · {{ nActivo() }} {{ nActivo() === 1 ? 'pregunta' : 'preguntas' }}</span>
+              <button type="button" (click)="elegir('Todas')" class="text-label-xs text-accent-text hover:underline">Quitar filtro</button>
+            </p>
+          }
+          </div>
+          <div id="faq-filtros" class="-mt-2 grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none lg:hidden"
+            [class]="filtros() ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" [attr.inert]="filtros() ? null : ''">
+          <ul class="flex min-h-0 flex-wrap gap-2 overflow-hidden" aria-label="Temas">
             @for (t of temas(); track t.nombre) {
-              <li><button type="button" (click)="tema.set(t.nombre)" [attr.aria-pressed]="activo() === t.nombre" class="flex h-11 md:h-9 items-center gap-1.5 rounded-pill border px-3 text-label-s"
+              <li><button type="button" (click)="elegir(t.nombre)" [attr.aria-pressed]="activo() === t.nombre" class="flex h-11 md:h-9 items-center gap-1.5 rounded-pill border px-3 text-label-s"
                 [class]="activo() === t.nombre ? 'border-accent bg-accent/12 text-text-primary' : 'border-line-strong text-text-secondary'"><gr-icon [name]="activo() === t.nombre ? 'check' : 'plus'" [size]="14" />{{ t.nombre }}</button></li>
             }
           </ul>
+          </div>
           @if (faq() === null) { <div class="flex flex-col gap-3">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-lg" /> }</div> }
           @for (g of grupos(); track g.nombre; let gi = $index) {
             <section class="flex flex-col gap-3">
@@ -46,10 +67,10 @@ import { Community, Related, type RelatedLink } from './landings';
               @for (f of g.items; track f.pregunta; let fi = $index) {
                 <!-- Figma «FAQ item»: 16 radius, Label/L question, ± in a disc; the first one open -->
                 <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [attr.open]="gi === 0 && fi === 0 && !q() ? '' : null">
-                  <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-l">{{ f.pregunta }}
+                  <summary class="flex min-h-16 min-w-0 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-l"><span class="min-w-0 break-words [overflow-wrap:anywhere]">{{ f.pregunta }}</span>
                     <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span>
                   </summary>
-                  <div class="prose-gr px-5 pb-5 text-body-s text-text-tertiary" [innerHTML]="md(f.respuesta)"></div>
+                  <div class="prose-gr min-w-0 px-5 pb-5 break-words [overflow-wrap:anywhere] text-body-s text-text-tertiary" [innerHTML]="md(f.respuesta)"></div>
                 </details>
               }
             </section>
@@ -83,9 +104,19 @@ export class FaqPage {
   private readonly cms = inject(Cms);
   protected readonly faq = signal<Faq[] | null>(null);
   protected readonly q = signal('');
-  protected readonly tema = signal('Todas');
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  /** Slug of the selected topic (?categoria=), single choice. */
+  protected readonly tema = signal(this.route.snapshot.queryParamMap.get('categoria') ?? '');
+  protected readonly filtros = signal(false);
   /** The selected topic, or «Todas» if it no longer exists in the list. */
-  protected readonly activo = computed(() => (this.temas().some((t) => t.nombre === this.tema()) ? this.tema() : 'Todas'));
+  protected readonly activo = computed(() => this.temas().find((t) => t.nombre !== 'Todas' && slug(t.nombre) === this.tema())?.nombre ?? 'Todas');
+  protected readonly nActivo = computed(() => this.temas().find((t) => t.nombre === this.activo())?.n ?? 0);
+  protected elegir(nombre: string) {
+    const c = nombre === 'Todas' ? '' : slug(nombre);
+    this.tema.set(c);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { categoria: c || null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
   protected readonly temas = computed(() => {
     const all = this.faq() ?? [];
     const m = new Map<string, number>();
@@ -116,7 +147,7 @@ export class FaqPage {
       this.faq.set(list ?? []);
       const o = map?.paginas.find((p) => p.ruta === '/preguntas-frecuentes');
       seo.set({
-        title: o?.title || 'Preguntas frecuentes · GR Strength Cup',
+        title: o?.title || 'Preguntas frecuentes · GRS Cup 2',
         description: o?.description || 'Alta de atleta, entradas gratuitas, sorteo y cómo llegar al pabellón de Almussafes.',
         path: '/preguntas-frecuentes',
         // FAQPage structured data (rich results), from the published questions.
@@ -128,3 +159,6 @@ export class FaqPage {
 
 /** Lower case without diacritics: «categoría» matches «categoria». */
 const plano = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+/** URL slug of a topic: «Cómo llegar» → «como-llegar». */
+const slug = (s: string) => plano(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
