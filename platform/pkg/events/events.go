@@ -109,6 +109,19 @@ func Enqueue(ctx context.Context, tx pgx.Tx, evs ...Event) error {
 	return nil
 }
 
+// QueueBatch queues the outbox inserts of evs on a batch, so a hot path can send them in the same round trip
+// as its own writes (the batch runs inside the caller's transaction: atomic with them).
+func QueueBatch(b *pgx.Batch, evs ...Event) error {
+	for _, e := range evs {
+		payload, err := json.Marshal(e)
+		if err != nil {
+			return err
+		}
+		b.Queue(`INSERT INTO outbox (id, type, payload) VALUES ($1, $2, $3)`, e.ID, e.Type, payload)
+	}
+	return nil
+}
+
 // Relay publishes pending outbox rows to the stream. Several replicas can run it: rows are claimed with SKIP LOCKED.
 type Relay struct {
 	DB     *pgxpool.Pool
