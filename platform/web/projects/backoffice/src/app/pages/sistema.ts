@@ -9,7 +9,7 @@ import { WhatsAppApi, type EstadoWaInfo } from './sistema/whatsapp-api';
 import { ESTADO_COMP, ESTADO_INT, INTEG, MODULOS, SistemaApi, fecha, fechaDMA, hace, type CompSistema, type Exportacion, type Integracion, type Salud, type Webhooks } from './sistema/api';
 
 type Vista = 'competiciones' | 'integraciones' | 'salud' | 'peligro';
-const ORDEN: Integracion['tipo'][] = ['smtp', 'stripe', 'whatsapp', 'aep', 'bunny'];
+const ORDEN: Integracion['tipo'][] = ['gmail', 'stripe', 'whatsapp', 'aep', 'bunny'];
 const WA: Record<string, { l: string; tone: GrTone }> = {
   conectado: { l: 'Conectado', tone: 'success' }, conectando: { l: 'Conectando', tone: 'warning' }, desconectado: { l: 'Desconectado', tone: 'danger' },
   error: { l: 'Error', tone: 'danger' }, sin_instancia: { l: 'Por confirmar', tone: 'warning' },
@@ -70,7 +70,10 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
                   <div class="flex flex-wrap items-center gap-3">
                     <p class="flex min-w-0 basis-full items-center gap-2 text-body-xs sm:basis-0 sm:flex-1" [class]="x.estado === 'error' ? 'text-accent-text' : 'text-text-tertiary'">
                       <gr-icon [name]="info(x.tipo).i" [size]="16" /><span class="truncate" [title]="ultimo(x)">{{ ultimo(x) }}</span></p>
-                    @if (puede()) {
+                    @if (puede() && x.tipo === 'gmail') {
+                      @if (x.estado !== 'sin_configurar') { <button grButton variant="ghost" [loading]="probando() === 'gmail'" (click)="desconectarGmail()">Desconectar</button> }
+                      <button grButton [variant]="x.estado === 'sin_configurar' ? 'primary' : 'secondary'" [loading]="conectandoGmail()" (click)="conectarGmail()">{{ x.estado === 'sin_configurar' ? 'Conectar con Google' : 'Reconectar' }}</button>
+                    } @else if (puede()) {
                       <button grButton variant="ghost" [loading]="probando() === x.tipo" [disabled]="x.estado === 'sin_configurar' && x.tipo !== 'whatsapp'" (click)="probar(x)">Probar</button>
                       <button grButton (click)="configurar(x)">Configurar</button>
                     }
@@ -271,6 +274,12 @@ export class SistemaPage {
   ]);
 
   constructor() {
+    const gmail = this.route.snapshot.queryParamMap.get('gmail');
+    if (gmail) {
+      if (gmail === 'ok') this.toasts.success('Gmail conectado', 'Los emails de la competición se envían desde esta cuenta.');
+      else if (gmail === 'error') this.toasts.error('No se pudo conectar Gmail', 'Google no devolvió la autorización. Vuelve a intentarlo.');
+      void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    }
     const legado = this.route.snapshot.queryParamMap.get('tab');
     if (legado) void this.router.navigate(['..', legado === 'peligro' ? 'zona-peligrosa' : legado], { relativeTo: this.route, replaceUrl: true });
     effect(() => {
@@ -349,11 +358,13 @@ export class SistemaPage {
   protected titulo(x: Integracion): string {
     if (x.tipo === 'smtp') return x.config['proveedor'] ? `Email (SMTP · ${x.config['proveedor']})` : 'Email (SMTP)';
     if (x.tipo === 'whatsapp') return 'WhatsApp (evo-weai)';
+    if (x.tipo === 'gmail') return 'Email (Gmail)';
     return INTEG[x.tipo].l;
   }
   protected resumen(x: Integracion): string {
     const c = x.config;
     switch (x.tipo) {
+      case 'gmail': return c['remitente'] ? `Envío con la API de Gmail · ${c['remitente']}` : 'Conecta la cuenta de Gmail de la competición con Google';
       case 'smtp': return c['host'] ? `${c['host']}:${c['puerto'] || ''} · ${c['remitente'] || c['usuario'] || ''}` : 'Sin SMTP propio: se usa el del sistema';
       case 'stripe': return c['clavePublica'] ? `Checkout + webhooks · ${c['clavePublica'].slice(0, 8)}…${c['clavePublica'].slice(-3)}` : 'Sin claves: pasarela simulada';
       case 'whatsapp': { const w = this.waInfo(); return w?.instancia ? `${w.instancia}${w.numero ? ' · ' + w.numero : ''}` : 'Número de la GR Cup · avisos y campañas'; }
@@ -370,6 +381,7 @@ export class SistemaPage {
   protected ultimo(x: Integracion): string {
     this.ahora();
     if (x.estado === 'error' && x.error) return x.error;
+    if (x.tipo === 'gmail') return x.estado === 'sin_configurar' ? 'Sin conectar: los emails salen por el servidor del sistema' : x.probadoAt ? `Conectado ${hace(x.probadoAt)}` : 'Conectado';
     if (x.tipo === 'stripe') { const w = this.stripeUltimo(); if (w) return `${w.tipo || 'evento'} ${hace(w.recibidoAt)}`; }
     if (x.tipo === 'whatsapp') { const w = this.waInfo(); if (w?.estado === 'conectado' && w.conectadoDesde) return `Conectado desde ${fecha(w.conectadoDesde)}`; return w?.modo === 'simulado' ? 'Modo simulado (sin número real)' : 'Proveedor y número pendientes de vincular'; }
     return x.probadoAt ? `Última prueba ${hace(x.probadoAt)}` : 'Sin probar todavía';
@@ -413,6 +425,30 @@ export class SistemaPage {
     for (const c of INTEG[x.tipo].campos) if (c.opciones && !this.cfgVals[c.k]) this.cfgVals[c.k] = c.opciones[0];
     this.cfgSecreto = '';
     this.cfgOpen.set(true);
+  }
+  protected readonly conectandoGmail = signal(false);
+  protected async conectarGmail(): Promise<void> {
+    this.conectandoGmail.set(true);
+    try {
+      const { url } = await this.api.gmailAutorizar(this.cid(), location.origin);
+      location.assign(url);
+    } catch (e) {
+      this.conectandoGmail.set(false);
+      this.toasts.error('No se pudo iniciar la conexión con Google', errText(e));
+    }
+  }
+  protected async desconectarGmail(): Promise<void> {
+    if (!(await this.confirm.ask({ title: '¿Desconectar Gmail?', text: 'Los emails volverán a salir por el servidor del sistema hasta que conectes otra cuenta.', confirm: 'Desconectar', danger: true }))) return;
+    this.probando.set('gmail');
+    try {
+      await this.api.gmailDesconectar(this.cid());
+      this.toasts.success('Gmail desconectado');
+      await this.cargarInteg();
+    } catch (e) {
+      this.toasts.error('No se pudo desconectar', errText(e));
+    } finally {
+      this.probando.set('');
+    }
   }
   protected async guardarCfg(): Promise<void> {
     if (!this.cfg) return;

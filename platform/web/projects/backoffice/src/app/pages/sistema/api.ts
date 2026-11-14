@@ -5,7 +5,7 @@ import type { GrIconName, GrTone } from '@grcup/ui';
 import type { Competicion } from '../../core/api';
 
 /** «Sistema e integraciones» (Figma 64): types and REST client (competition, audit, messaging). */
-export type TipoInteg = 'smtp' | 'stripe' | 'whatsapp' | 'bunny' | 'aep';
+export type TipoInteg = 'gmail' | 'smtp' | 'stripe' | 'whatsapp' | 'bunny' | 'aep';
 export interface Integracion {
   tipo: TipoInteg;
   config: Record<string, string>;
@@ -40,6 +40,7 @@ export interface CompSistema extends Competicion {
 }
 
 export const INTEG: Record<TipoInteg, { l: string; i: GrIconName; campos: { k: string; l: string; opciones?: string[] }[]; secreto?: string; ayudaSecreto?: string }> = {
+  gmail: { l: 'Email (Gmail)', i: 'mail', campos: [] },
   smtp: { l: 'Email (SMTP)', i: 'mail', secreto: 'Contraseña de aplicación', campos: [] },
   stripe: { l: 'Stripe', i: 'credit-card', secreto: 'Secreto', ayudaSecreto: 'JSON {"clave":"sk_…","webhook":"whsec_…"}', campos: [{ k: 'modo', l: 'Modo', opciones: ['test', 'live'] }, { k: 'clavePublica', l: 'Clave pública' }] },
   whatsapp: { l: 'WhatsApp', i: 'message', campos: [] },
@@ -97,6 +98,11 @@ export class SistemaApi {
     return firstValueFrom(this.http.put<Integracion>(`${this.b(cid)}/integraciones/${tipo}`, { config, ...(secreto ? { secreto } : {}) }));
   }
   /** With `borrador` it tests those values without saving them («Enviar prueba» before «Guardar»). */
+  /** Google consent URL to connect the competition's Gmail (the flow comes back to /sistema/integraciones?gmail=…). */
+  gmailAutorizar(cid: string, origen: string): Promise<{ url: string }> {
+    return firstValueFrom(this.http.get<{ url: string }>(`${this.b(cid)}/integraciones/gmail/autorizar`, { params: { origen } }));
+  }
+  gmailDesconectar(cid: string): Promise<void> { return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/integraciones/gmail`)); }
   probar(cid: string, tipo: TipoInteg, borrador?: { config: Record<string, string>; secreto?: string }): Promise<Integracion> {
     return firstValueFrom(this.http.post<Integracion>(`${this.b(cid)}/integraciones/${tipo}/probar`, borrador ? { config: borrador.config, ...(borrador.secreto ? { secreto: borrador.secreto } : {}) } : {}));
   }
