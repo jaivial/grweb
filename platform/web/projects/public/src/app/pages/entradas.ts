@@ -40,7 +40,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
     @let b = e !== 'anulada' ? boletos() : [];
     <article class="relative overflow-hidden rounded-[20px] border shadow-card [overflow-wrap:anywhere]" [class]="b.length ? 'border-accent/55 bg-[linear-gradient(to_bottom_right,#4e121d,#150b0d)]' : 'border-line-strong bg-bg-card'">
       <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
-        <header class="flex h-8 items-center justify-between gap-3"><img src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png" alt="GRStrength Cup" width="84" height="32" class="h-8 w-[84px] object-contain" />
+        <header class="flex h-8 items-center justify-between gap-3"><img src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png" alt="GRS Cup 2" width="84" height="32" class="h-8 w-[84px] object-contain" />
           <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ pill[e].t }}</span></header>
         <p class="text-display-xs" [class.text-text-muted]="e === 'anulada'">{{ evento() }}</p>
         <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
@@ -110,7 +110,7 @@ export class TicketCard {
     this.puerta.set(false);
     this.volverA?.focus();
   }
-  readonly evento = input('GRStrength Cup 2026');
+  readonly evento = input('GRS Cup 2');
   readonly linea1 = input('');
   readonly linea2 = input('');
   readonly lugar = input('');
@@ -151,8 +151,6 @@ const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
 
 // ============================================================ /entradas ===
 
-interface Fila { hora: string; titulo: string }
-
 const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 /** «2 €», «2,50 €» (cents in). */
 const euros = (c: number) => eur.format(c / 100).replace(',00', '');
@@ -169,7 +167,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
  */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrRaffleNotice, GrCabecera, TicketCard, Newsletter],
+  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
@@ -185,13 +183,19 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
         </div>
         <div class="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 pt-[104px] pb-12 md:px-8 md:pt-40 md:pb-20 lg:grid-cols-[minmax(0,700px)_350px] lg:justify-between lg:pt-24 lg:pb-16 xl:px-0">
           <div class="flex min-w-0 flex-col items-start gap-4 [overflow-wrap:anywhere] md:gap-5">
-            <p class="inline-flex min-h-7 items-center rounded-full border px-3 text-label-xs uppercase" [class]="todasAgotadas() ? 'border-line-strong bg-white/5 text-text-secondary' : 'border-success/50 bg-success/10 text-success'">{{ todasAgotadas() ? 'Entradas agotadas' : 'Entrada gratuita · aforo limitado' }}</p>
+            <!-- Figma «Cabecera de página»: breadcrumbs + title; the eyebrow stays for SEO only -->
+            <nav class="flex flex-wrap items-center gap-1.5 text-body-s text-text-tertiary" aria-label="Migas">
+              <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a>
+              <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">Entradas</span>
+            </nav>
+            <p class="sr-only">Entradas · GRS Cup 2</p>
+            @if (todasAgotadas()) { <p class="inline-flex min-h-7 items-center rounded-full border border-line-strong bg-white/5 px-3 text-label-xs text-text-secondary uppercase">Entradas agotadas</p> }
             <h1 class="text-display-m hyphens-auto max-md:text-[clamp(2.25rem,9vw,4.5rem)] md:text-display-hero" lang="es">
-              @if (todasAgotadas()) { Hasta aquí <span class="text-accent-text">el aforo</span> } @else { Vive la GRStrength Cup <span class="text-accent-text">en directo</span> }
+              @if (todasAgotadas()) { Hasta aquí <span class="whitespace-nowrap bg-accent-grain bg-clip-text text-transparent">el aforo</span> } @else { Vive la GRS Cup 2 <span class="whitespace-nowrap bg-accent-grain bg-clip-text text-transparent">en directo</span> }
             </h1>
-            <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">{{ todasAgotadas()
-              ? 'Se han reservado todas las entradas. Apúntate a la lista de espera: si alguien anula, te avisamos por email y tienes un plazo para confirmar.'
-              : '150 atletas, jueces AEP y tres movimientos al límite en ' + ciudad() + '. La entrada es gratis: resérvala en un minuto y entra sin colas.' }}</p>
+            @if (todasAgotadas()) {
+              <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">Se han reservado todas las entradas. Apúntate a la lista de espera: si alguien anula, te avisamos por email y tienes un plazo para confirmar.</p>
+            }
             <ul class="flex flex-col gap-2 text-body-s text-text-secondary md:flex-row md:flex-wrap md:gap-x-6">
               <li class="flex items-center gap-2"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ fechas() }}</li>
               <li class="flex items-center gap-2"><gr-icon name="map-pin" [size]="16" class="text-accent-text" />{{ comp.data()?.sede?.nombre || 'Almussafes' }}</li>
@@ -207,10 +211,10 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               }
             </div>
             @if (d?.personas) {
+              <!-- same social proof as the home «Entradas» section -->
               <div class="flex items-center gap-3">
-                <span class="flex -space-x-2" aria-hidden="true">@for (i of [0, 1, 2, 3]; track i) { <span class="flex size-8 items-center justify-center rounded-full border-2 border-bg-base text-text-secondary" [class]="avatar[i]"><gr-icon name="user" [size]="14" /></span> }</span>
-                <span class="flex flex-col"><span class="text-body-s"><b class="font-semibold">{{ n(d!.personas) }} personas</b> ya tienen entrada</span>
-                  <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="radio" [size]="12" class="text-success" />Actualizado en directo</span></span>
+                <span class="flex items-center" aria-hidden="true">@for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }</span>
+                <span class="text-body-s">{{ n(d!.personas) }} personas ya tienen entrada</span>
               </div>
             }
           </div>
@@ -265,14 +269,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             } @else {
               <!-- a card from tablet up; on phones the form sits on the page (Figma 37 mobile) -->
               <form method="post" class="flex flex-col gap-6 md:rounded-2xl md:border md:border-line-strong md:bg-bg-card md:p-7" (submit)="$event.preventDefault(); reservar()" novalidate>
-                <div class="flex flex-col gap-3">
-                  <h2 class="text-display-xs md:text-display-s">Reserva tu entrada</h2>
-                  <p class="flex flex-wrap gap-1.5">
-                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-success/50 bg-success/10 px-2 text-label-xs text-success uppercase"><gr-icon name="check" [size]="12" />Gratis</span>
-                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2 text-label-xs text-text-secondary uppercase"><gr-icon name="clock" [size]="12" />1 minuto</span>
-                    <span class="inline-flex h-6 items-center gap-1 rounded-full border border-line-strong px-2 text-label-xs text-text-secondary uppercase"><gr-icon name="scan" [size]="12" />QR por email</span>
-                  </p>
-                </div>
+                <h2 class="text-display-xs md:text-display-s">Reserva tu entrada</h2>
                 @if (errores().length) {
                   <div class="flex scroll-mt-24 flex-col gap-1.5 rounded-md border border-accent/60 bg-accent/8 p-4" role="alert" tabindex="-1" #resumenErr>
                     <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />{{ errores().length === 1 ? 'Revisa 1 campo' : 'Revisa ' + errores().length + ' campos' }}</p>
@@ -304,10 +301,9 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <legend class="mb-3 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">3</span>¿Cuántos venís?</legend>
                   <ng-container [ngTemplateOutlet]="personas" />
                 </fieldset>
-                <gr-raffle-notice>Los boletos se compran en el recinto el día del evento. Aquí no se paga nada: consulta los objetos que se rifan.</gr-raffle-notice>
                 <div class="flex flex-col gap-3 text-body-s">
                   <gr-checkbox name="priv" [(checked)]="f.privacidad" [invalid]="!!err('privacidad')"><span [class.text-accent-text]="err('privacidad')">He leído y acepto la <a routerLink="/privacidad" class="text-accent-text underline">política de privacidad</a> *</span></gr-checkbox>
-                  <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
+                  <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRS Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
                 </div>
                 <!-- UX8-R1-3: sticky CTA (phones) while the real submit button is off screen -->
@@ -324,33 +320,23 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
         <div class="flex flex-col gap-16 md:gap-20 lg:col-start-1 lg:row-start-1">
           <section class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera eyebrow="El día" titulo="Qué vas a *ver*" [centro]="false" tam="m" />
-            <ul class="grid gap-3 sm:grid-cols-2 md:gap-4">
+            <ul class="grid grid-cols-2 gap-3 md:gap-4">
               @for (x of queVer; track x.t) {
-                <li class="flex gap-4 rounded-lg border border-line-subtle bg-bg-card p-5 sm:flex-col sm:gap-3"><span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="x.i" [size]="20" /></span>
-                  <span class="flex flex-col gap-1"><span class="text-label-m">{{ x.t }}</span><span class="text-body-s text-text-tertiary">{{ x.d }}</span></span></li>
+                <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5"><span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text md:size-11"><gr-icon [name]="x.i" [size]="20" /></span>
+                  <span class="text-label-m">{{ x.t }}</span></li>
               }
             </ul>
           </section>
           <section id="como-funciona" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
             <gr-cabecera eyebrow="Sin colas" titulo="Cómo *funciona*" [centro]="false" tam="m" />
-            <ol class="grid gap-3 sm:grid-cols-3 md:gap-4">
-              @for (x of pasos; track x.t; let i = $index) {
-                <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5"><span class="flex size-7 items-center justify-center rounded-full bg-accent/20 text-label-s text-accent-text">{{ i + 1 }}</span>
-                  <span class="text-label-m">{{ x.t }}</span><span class="text-body-s text-text-tertiary">{{ x.d }}</span></li>
+            <ol class="flex flex-col gap-3">
+              @for (x of pasos; track x; let i = $index) {
+                <li class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-4 py-3.5"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-label-s text-accent-text">{{ i + 1 }}</span>
+                  <span class="text-label-m">{{ x }}</span></li>
               }
             </ol>
+            <a grButton variant="outline" routerLink="/horarios" iconRight="arrow-right" class="w-full sm:w-auto sm:self-start">Ver horarios en directo</a>
           </section>
-          @if (filas().length) {
-            <section class="flex flex-col gap-5 md:gap-7">
-              <gr-cabecera [eyebrow]="eyebrowDia()" titulo="El día, *hora a hora*" [centro]="false" tam="m" />
-              <ol class="rounded-lg border border-line-subtle bg-bg-card px-5">
-                @for (x of filas(); track $index) {
-                  <li class="flex items-baseline gap-5 border-b border-line-subtle py-3.5 last:border-b-0"><span class="w-12 shrink-0 font-mono text-mono-s text-accent-text">{{ x.hora }}</span><span class="text-body-m">{{ x.titulo }}</span></li>
-                }
-              </ol>
-              <a grButton variant="outline" routerLink="/horarios" iconRight="arrow-right" class="w-full sm:w-auto sm:self-start">Ver horarios en directo</a>
-            </section>
-          }
           @if (faq().length) {
             <section class="flex flex-col gap-5 md:gap-7">
               <gr-cabecera eyebrow="Dudas" titulo="Preguntas *frecuentes*" [centro]="false" tam="m" />
@@ -425,19 +411,17 @@ export class EntradasPage {
   protected readonly euros = euros;
   protected readonly max = Math.max;
   protected readonly min = Math.min;
-  protected readonly avatar = ['bg-accent/30', 'bg-[#5a2a32]', 'bg-[#3d2a2e]', 'bg-bg-raised'];
+  protected readonly avatares = ['LG', 'CS', 'MR', 'JT'];
   protected readonly origenes = ['Instagram', 'Un amigo o familiar', 'Mi club o gimnasio', 'Un atleta', 'Cartel o flyer', 'Otro'];
-  protected readonly queVer: { i: GrIconName; t: string; d: string }[] = [
-    { i: 'maximize', t: 'Sentadilla, banca y peso muerto', d: 'Tres intentos por movimiento y atleta, con jueces oficiales de la AEP.' },
-    { i: 'users', t: '150 atletas', d: 'De subjúnior a máster, de clubs de toda la Comunitat Valenciana.' },
-    { i: 'trophy', t: 'Premios y sorteo en directo', d: 'Medallas por categoría y sorteo del cinturón SBD al final del día.' },
-    { i: 'radio', t: 'Sigue a tus atletas', d: 'Horarios en directo en el móvil y aviso 30 min antes de que compitan.' },
+  protected readonly queVer: { i: GrIconName; t: string }[] = [
+    { i: 'maximize', t: 'Sentadilla, banca y peso muerto' },
+    { i: 'award', t: 'Competición AEP-2 y AEP-3' },
+    { i: 'users', t: '150 atletas' },
+    { i: 'trophy', t: 'Premios y sorteo en directo' },
+    { i: 'radio', t: 'Sigue a tus atletas' },
+    { i: 'ticket', t: 'Participa en la rifa de material' },
   ];
-  protected readonly pasos = [
-    { t: 'Reserva en 1 minuto', d: 'Elige sesión y cuántos venís. Te llega el QR al momento.' },
-    { t: 'Recibe tu QR', d: 'Por email y en «Mi entrada». Añádelo al calendario.' },
-    { t: 'Enséñalo en la puerta', d: 'Lo escaneamos desde el móvil y entras. No hace falta imprimirlo.' },
-  ];
+  protected readonly pasos = ['Reserva en 1 minuto', 'Recibe tu QR', 'Enséñalo en la puerta'];
   protected readonly data = signal<Entradas | null | undefined>(undefined);
   protected readonly faq = signal<Faq[]>([]);
   private readonly horarios = signal<Horarios | null>(null);
@@ -475,22 +459,6 @@ export class EntradasPage {
     return [p && 'Puertas ' + p.replace(/^0/, ''), premios && 'premios y sorteo ' + premios.replace(/^0/, '')].filter(Boolean).join(' · ');
   });
   protected readonly diaSesiones = computed(() => { const s = this.data()?.sesiones[0]; return s ? dia(s.inicio).replace(/^\w/, (c) => c.toUpperCase()) : ''; });
-  protected readonly eyebrowDia = computed(() => { const f = this.horarios()?.dias?.[0]?.fecha; return (f ? dia(f + 'T12:00:00Z') : 'El día') + ' · horario publicado'; });
-  /** The day hour by hour: the agenda and the flights, flights starting at the same time on one row. */
-  protected readonly filas = computed<Fila[]>(() => {
-    const dd = this.horarios()?.dias?.[0];
-    if (!dd) return [];
-    const porHora = new Map<string, { codigos: string[]; sexos: Set<string> }>();
-    for (const fl of [...dd.flights].sort((a, b) => a.inicio.localeCompare(b.inicio))) {
-      const h = hora(fl.inicio);
-      const g = porHora.get(h) ?? { codigos: [], sexos: new Set<string>() };
-      g.codigos.push(fl.codigo); g.sexos.add(fl.sexo === 'F' ? 'femenino' : 'masculino');
-      porHora.set(h, g);
-    }
-    const filas: Fila[] = [...porHora].map(([h, g]) => ({ hora: h, titulo: (g.codigos.length > 1 ? 'Flights ' + g.codigos.join(' y ') : 'Flight ' + g.codigos[0]) + ' · ' + [...g.sexos].join(' y ') }));
-    for (const a of dd.agenda) filas.push({ hora: a.hora, titulo: a.titulo.split(' · ')[0] });
-    return filas.sort((a, b) => a.hora.localeCompare(b.hora));
-  });
   /** SSR markup: submitting is blocked until Angular takes over (no native submit with personal data). */
   protected readonly hidratado = signal(false);
   /** Mobile bottom bar: below the hero, while the form is off screen. */
@@ -508,7 +476,7 @@ export class EntradasPage {
       this.faq.set((l.some((x) => /entrada/i.test(x.categoria)) ? l.filter((x) => /entrada/i.test(x.categoria)) : l).slice(0, 5));
       const s = d?.sesiones.find((x) => x.estado === 'disponible' || x.estado === 'ultimas');
       if (s) this.sesion.set(s.id);
-      await applySeo(cms, seo, '/entradas', 'Entradas gratis · GR Strength Cup', 'Reserva gratis tu entrada para la GR Strength Cup en Almussafes: elige sesión, recibe tu QR por email y entra sin colas.');
+      await applySeo(cms, seo, '/entradas', 'Entradas gratis · GRS Cup 2', 'Reserva gratis tu entrada para la GRS Cup 2 en Almussafes: elige sesión, recibe tu QR por email y entra sin colas.');
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       effect((onCleanup) => {
