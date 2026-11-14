@@ -17,7 +17,6 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
     <div class="mx-auto flex max-w-xl flex-col gap-5">
       <header class="flex items-center justify-between gap-3">
         <h1 class="flex items-center gap-2 text-ui-h3"><a routerLink=".." class="flex size-11 items-center justify-center text-text-tertiary hover:text-text-primary" aria-label="Volver a atletas"><gr-icon name="chevron-left" [size]="20" /></a>Pesaje{{ a?.flight ? ' · Flight ' + a?.flight : '' }}</h1>
-        <span class="text-success" role="img" aria-label="Conexión en vivo"><gr-icon name="radio" [size]="20" /></span>
       </header>
 
       <label class="relative block">

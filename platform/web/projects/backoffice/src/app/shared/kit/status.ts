@@ -89,7 +89,9 @@ export class BoApiType {
   protected readonly cls = computed(() => API[this.type()]);
 }
 
-const PILL = 'inline-flex h-7 items-center gap-1.5 rounded-pill px-2.5 text-label-s whitespace-nowrap';
+// BO (Jaime, 15-nov): no pill shapes — icon + coloured text only (the tone classes keep only their text colour)
+const PILL = 'inline-flex min-h-7 items-center gap-1.5 text-label-s whitespace-nowrap';
+const soloTexto = (c: string) => c.split(' ').filter((x) => x.startsWith('text-')).join(' ');
 export type BoLive = 'connected' | 'reconnecting' | 'offline' | 'paused';
 const LIVE: Record<BoLive, [GrIconName, string, string]> = {
   connected: ['radio', 'En directo', 'border-success/40 bg-success/12 text-success'],
@@ -103,14 +105,14 @@ const LIVE: Record<BoLive, [GrIconName, string, string]> = {
   selector: 'bo-live-status',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': '"border " + cls()', role: 'status' },
+  host: { '[class]': 'cls()', role: 'status' },
   template: `<gr-icon [name]="l()[0]" [size]="14" [spin]="status() === 'reconnecting'" />{{ l()[1] }}@if (status() === 'connected' && viewers() !== null) { · {{ viewers() }} }`,
 })
 export class BoLiveStatus {
   readonly status = input<BoLive>('connected');
   readonly viewers = input<number | null>(null);
   protected readonly l = computed(() => LIVE[this.status()]);
-  protected readonly cls = computed(() => `${PILL} ${this.l()[2]}`);
+  protected readonly cls = computed(() => `${PILL} ${soloTexto(this.l()[2])}`);
 }
 
 export type BoPublish = 'draft' | 'pending' | 'scheduled' | 'publishing' | 'published' | 'error';
@@ -135,5 +137,5 @@ export class BoPublishStatus {
   readonly status = input<BoPublish>('draft');
   readonly when = input('');
   protected readonly p = computed(() => PUB[this.status()]);
-  protected readonly cls = computed(() => `${PILL} ${this.p()[2]}`);
+  protected readonly cls = computed(() => `${PILL} ${soloTexto(this.p()[2])}`);
 }

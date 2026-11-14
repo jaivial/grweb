@@ -108,13 +108,13 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
           <p class="truncate text-body-xs text-text-tertiary">{{ modo === 'g' ? metaGanador(it) : meta(it) }}</p>
         </div>
         @if (modo === 'g') {
-          @if (!it.visible) { <span class="flex h-8 shrink-0 items-center gap-1.5 rounded-pill border border-line-subtle px-3 text-label-s text-text-tertiary"><gr-icon name="pencil" [size]="14" />—</span> }
+          @if (!it.visible) { <span class="flex shrink-0 items-center gap-1.5 text-label-s text-text-tertiary"><gr-icon name="pencil" [size]="14" />—</span> }
           @else if (it.ganador) { <button type="button" class="flex h-8 shrink-0 items-center gap-1.5 rounded-pill bg-warning/14 px-3 text-label-s text-warning hover:bg-warning/24" (click)="abrirGanador(it)"><gr-icon name="circle-alert" [size]="14" />Registrado</button> }
           @else { <button type="button" class="flex h-8 shrink-0 items-center gap-1.5 rounded-pill bg-success/14 px-3 text-label-s text-success hover:bg-success/24 disabled:opacity-40" [disabled]="!puede()" [attr.aria-label]="'Registrar ganador: ' + it.nombre" (click)="abrirGanador(it)"><gr-icon name="circle-check" [size]="14" />Registrar</button> }
         } @else if (it.visible) {
-          <span class="hidden h-8 shrink-0 items-center gap-1.5 rounded-pill bg-success/14 px-3 text-label-s text-success sm:flex"><gr-icon name="circle-check" [size]="14" />Visible</span>
+          <span class="hidden shrink-0 items-center gap-1.5 text-label-s text-success sm:flex"><gr-icon name="circle-check" [size]="14" />Visible</span>
         } @else {
-          <span class="hidden h-8 shrink-0 items-center gap-1.5 rounded-pill border border-line-subtle px-3 text-label-s text-text-tertiary sm:flex"><gr-icon name="pencil" [size]="14" />Oculto</span>
+          <span class="hidden shrink-0 items-center gap-1.5 text-label-s text-text-tertiary sm:flex"><gr-icon name="pencil" [size]="14" />Oculto</span>
         }
         <bo-toggle [value]="it.visible" [label]="'Visible en la web: ' + it.nombre" [disabled]="!puede()" (changed)="visibilidad(it, $event)" />
         <button type="button" class="flex size-9 shrink-0 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-raised focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [attr.aria-label]="'Editar ' + it.nombre" (click)="editar(it)"><gr-icon name="more" [size]="18" /></button>

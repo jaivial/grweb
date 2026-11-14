@@ -171,7 +171,6 @@ export class CampanasPage {
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
       <bo-page-header title="WhatsApp" [compact]="true" [crumbs]="['Campañas', 'WhatsApp']">
         <ng-container actions>
-          <span class="inline-flex h-8 items-center gap-2 rounded-pill border border-success/40 bg-success/10 px-3 text-label-s text-success"><gr-icon name="radio" [size]="16" />Conexión en vivo</span>
         </ng-container>
       </bo-page-header>
       @if (!w) { <gr-skeleton class="h-48 rounded-lg" /> } @else {
