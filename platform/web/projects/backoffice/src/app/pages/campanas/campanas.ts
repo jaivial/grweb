@@ -14,7 +14,7 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
-    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+    <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-44 md:pb-24">
       <bo-page-header title="Campañas" subtitle="Anuncios por email y WhatsApp a tus contactos · solo a quien aceptó cada canal" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Campañas']">
         <ng-container actions>
           <a grButton [routerLink]="['/', comps.current()?.slug, 'contactos', 'bajas']">Bajas y supresiones</a>
@@ -69,7 +69,8 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
         </ul>
       }
     </div>
-    <div class="fixed inset-x-0 bottom-16 z-30 border-t border-line-subtle bg-bg-deep/95 px-4 py-3 md:hidden"><button grButton variant="primary" icon="plus" class="w-full" (click)="nueva.set(true)">Nueva campaña</button></div>
+    <!-- Sits right above the mobile tab bar (h-14 + pt-1 + border + safe area, shell.html). -->
+    <div class="fixed inset-x-0 bottom-[calc(61px+max(env(safe-area-inset-bottom),20px))] z-30 border-t border-line-subtle bg-bg-deep/95 px-4 py-3 md:hidden"><button grButton variant="primary" icon="plus" class="w-full" (click)="nueva.set(true)">Nueva campaña</button></div>
     @if (nueva()) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="nueva.set(false)" (keydown.escape)="nueva.set(false)">
         <form class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Nueva campaña" (click)="$event.stopPropagation()" (ngSubmit)="crear()">
