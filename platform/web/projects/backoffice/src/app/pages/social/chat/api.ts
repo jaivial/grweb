@@ -26,6 +26,8 @@ export interface ChatConfig {
   palabrasProhibidas: string[] | null;
   dominiosPermitidos: string[] | null;
   maxHitos: number;
+  /** Interruptor «Chat activo» (PATCH …/chat/estado); no viaja en el PUT de la configuración. */
+  chat_enabled: boolean;
   version: number;
 }
 
@@ -40,6 +42,8 @@ export interface SilenciadoChat {
 export interface ChatEstado {
   conectados: number;
   salaActiva: boolean;
+  /** false: el chat está durmiendo (nadie puede escribir). */
+  chat_enabled: boolean;
   modoLentoSeg: number;
   dia: string;
 }
@@ -55,8 +59,13 @@ export class ChatApi {
     return firstValueFrom(this.http.get<ChatConfig>(`${this.b(cid)}/config`));
   }
 
-  guardarConfig(cid: string, c: Omit<ChatConfig, 'version'>, version: number): Promise<ChatConfig> {
+  guardarConfig(cid: string, c: Omit<ChatConfig, 'version' | 'chat_enabled'>, version: number): Promise<ChatConfig> {
     return firstValueFrom(this.http.put<ChatConfig>(`${this.b(cid)}/config`, c, { headers: new HttpHeaders({ 'If-Match': `"${version}"` }) }));
+  }
+
+  /** Activa o duerme el chat de la competición (emite `chat.estado` al público). */
+  cambiarEstado(cid: string, chatEnabled: boolean): Promise<{ chat_enabled: boolean }> {
+    return firstValueFrom(this.http.patch<{ chat_enabled: boolean }>(`${this.b(cid)}/estado`, { chat_enabled: chatEnabled }));
   }
 
   mensajes(cid: string, dia: string, limite = 100, busca = ''): Promise<MensajesAdmin> {

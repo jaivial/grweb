@@ -41,6 +41,8 @@ func (s *Svc) registrarAdmin() {
 		Summary: "Mensajes reportados de una jornada", Tags: tagChatAdmin, Security: bearer}, s.reportados)
 	huma.Register(s.a.API, huma.Operation{OperationID: "chat-silenciados", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/chat/silenciados",
 		Summary: "Fans silenciados o baneados ahora mismo en la sala", Tags: tagChatAdmin, Security: bearer}, s.silenciados)
+	huma.Register(s.a.API, huma.Operation{OperationID: "chat-estado-guardar", Method: http.MethodPatch, Path: "/api/admin/competiciones/{cid}/chat/estado",
+		Summary: "Activar o dormir el chat (interruptor «Chat activo»)", Tags: tagChatAdmin, Security: bearer}, s.patchEstado)
 }
 
 type silenciadoAdmin struct {
@@ -128,6 +130,7 @@ type configBody struct {
 	PalabrasProhibidas []string `json:"palabrasProhibidas"`
 	DominiosPermitidos []string `json:"dominiosPermitidos"`
 	MaxHitos           int      `json:"maxHitos"`
+	ChatEnabled        bool     `json:"chat_enabled"`
 	Version            int      `json:"version"`
 }
 
@@ -148,7 +151,7 @@ func (s *Svc) getConfig(ctx context.Context, in *struct {
 	return &configOut{Body: configBody{
 		Activo: cfg.Activo, ModoLentoSeg: cfg.ModoLentoSeg,
 		PalabrasProhibidas: cfg.PalabrasProhibidas, DominiosPermitidos: cfg.DominiosPermitidos,
-		MaxHitos: cfg.MaxHitos, Version: version,
+		MaxHitos: cfg.MaxHitos, ChatEnabled: cfg.Habilitado(), Version: version,
 	}}, nil
 }
 
@@ -204,6 +207,10 @@ func (s *Svc) putConfig(ctx context.Context, in *putConfigIn) (*configOut, error
 	if cfg.MaxHitos <= 0 {
 		cfg.MaxHitos = 100
 	}
+	// the switch has its own endpoint: keep its current value in the Redis copy
+	if actual, _, err := s.configDB(ctx, in.CID); err == nil {
+		cfg.ChatEnabled = actual.ChatEnabled
+	}
 	s.configRefrescar(ctx, in.CID, cfg)
 	// the moderation log keeps who changed what (admin SSE via permiso)
 	if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
@@ -217,7 +224,7 @@ func (s *Svc) putConfig(ctx context.Context, in *putConfigIn) (*configOut, error
 	if err != nil {
 		return nil, err
 	}
-	return &configOut{Body: configBody{Activo: cfg.Activo, ModoLentoSeg: cfg.ModoLentoSeg, PalabrasProhibidas: cfg.PalabrasProhibidas, DominiosPermitidos: cfg.DominiosPermitidos, MaxHitos: cfg.MaxHitos, Version: version}}, nil
+	return &configOut{Body: configBody{Activo: cfg.Activo, ModoLentoSeg: cfg.ModoLentoSeg, PalabrasProhibidas: cfg.PalabrasProhibidas, DominiosPermitidos: cfg.DominiosPermitidos, MaxHitos: cfg.MaxHitos, ChatEnabled: cfg.Habilitado(), Version: version}}, nil
 }
 
 // configDB reads the configuration and its ETag version straight from the DB (admin views are not on the hot path).
@@ -228,18 +235,63 @@ func (s *Svc) configDB(ctx context.Context, cid uuid.UUID) (Config, int, error) 
 		PalabrasProhibidas []string
 		DominiosPermitidos []string
 		MaxHitos           int
+		ChatEnabled        bool
 		Version            int
 	}
-	err := s.a.DB.QueryRow(ctx, `SELECT activo, modo_lento_seg, palabras_prohibidas, dominios_permitidos, max_hitos, version FROM config_chat WHERE competition_id = $1`, cid).
-		Scan(&row.Activo, &row.ModoLentoSeg, &row.PalabrasProhibidas, &row.DominiosPermitidos, &row.MaxHitos, &row.Version)
+	err := s.a.DB.QueryRow(ctx, `SELECT activo, modo_lento_seg, palabras_prohibidas, dominios_permitidos, max_hitos, chat_enabled, version FROM config_chat WHERE competition_id = $1`, cid).
+		Scan(&row.Activo, &row.ModoLentoSeg, &row.PalabrasProhibidas, &row.DominiosPermitidos, &row.MaxHitos, &row.ChatEnabled, &row.Version)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return configPorDefecto(), 1, nil
 		}
 		return Config{}, 0, problem.Internal()
 	}
-	cfg := Config{Activo: row.Activo, ModoLentoSeg: row.ModoLentoSeg, PalabrasProhibidas: row.PalabrasProhibidas, DominiosPermitidos: row.DominiosPermitidos, MaxHitos: row.MaxHitos}
+	cfg := Config{Activo: row.Activo, ModoLentoSeg: row.ModoLentoSeg, PalabrasProhibidas: row.PalabrasProhibidas, DominiosPermitidos: row.DominiosPermitidos, MaxHitos: row.MaxHitos, ChatEnabled: &row.ChatEnabled}
 	return cfg, row.Version, nil
+}
+
+type patchEstadoIn struct {
+	CID  uuid.UUID `path:"cid"`
+	Body struct {
+		ChatEnabled bool `json:"chat_enabled" doc:"false: el chat público muestra «El chat está durmiendo» y nadie puede escribir"`
+	}
+}
+
+type estadoAdminOut struct {
+	Body struct {
+		ChatEnabled bool `json:"chat_enabled"`
+	}
+}
+
+// patchEstado flips the «Chat activo» switch. It is not versioned (a single boolean, last write wins), refreshes
+// the hot-path copy and queues `chat.estado` for the public realtime stream (the fans see it without reloading).
+func (s *Svc) patchEstado(ctx context.Context, in *patchEstadoIn) (*estadoAdminOut, error) {
+	if err := s.requireChat(ctx, in.CID); err != nil {
+		return nil, err
+	}
+	on := in.Body.ChatEnabled
+	if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO config_chat (competition_id, chat_enabled, updated_por) VALUES ($1, $2, $3)
+			ON CONFLICT (competition_id) DO UPDATE SET chat_enabled = $2, updated_por = $3, updated_at = now()`,
+			in.CID, on, actor(ctx)); err != nil {
+			return err
+		}
+		// public fact for the fans (no names) + the moderation log for the staff
+		if err := events.Enqueue(ctx, tx, events.New(ctx, "chat.estado", map[string]any{"chat_enabled": on},
+			events.Competition(in.CID.String()), events.Audience(events.Public))); err != nil {
+			return err
+		}
+		return events.Enqueue(ctx, tx, events.New(ctx, "chat.config", map[string]any{"chat_enabled": on, "por": actor(ctx)},
+			events.Competition(in.CID.String()), events.ForPermission("directo.operar"), events.Subject("estado chat")))
+	}); err != nil {
+		return nil, err
+	}
+	if cfg, _, err := s.configDB(ctx, in.CID); err == nil {
+		s.configRefrescar(ctx, in.CID, cfg)
+	}
+	var o estadoAdminOut
+	o.Body.ChatEnabled = on
+	return &o, nil
 }
 
 // normalizaLista trims, drops empties and de-duplicates a config list.
