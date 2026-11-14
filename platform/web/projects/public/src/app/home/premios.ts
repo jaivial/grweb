@@ -42,6 +42,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 
     <div [class]="ancho + ' flex flex-col items-center pt-[220px] lg:pt-[420px]'">
       <div class="flex w-full flex-col items-center gap-7 lg:gap-12">
+        @if (t('eyebrow')) { <p class="sr-only">{{ t('eyebrow') }}</p> }
         <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
         <ul #pista class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
           @for (p of items(); track p.titulo; let i = $index) {
@@ -70,7 +71,8 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 
       <!-- B · podium medals per weight class -->
       <div class="mt-20 flex w-full flex-col items-center lg:mt-[120px]">
-        <!-- Figma home R2: title and text first, then the podium medals and the weight classes -->
+        <!-- Figma home R2: title and text first, then the podium medals and the weight classes (eyebrow only for SEO) -->
+        <p class="sr-only">{{ t('catEyebrow') || 'Categorías de peso' }}</p>
         <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('catTitulo') || 'Premio por|*categoría de peso*'"
           [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
         <div class="relative mt-8 h-[334px] w-full max-w-[350px] lg:h-[700px] lg:max-w-none" aria-hidden="true">

@@ -20,28 +20,6 @@ const srcset = (src: string) => (/-l\.webp$/.test(src) ? `${src.replace(/-l\.web
 /** Hairline photo border of Figma (white 8 %). */
 const FOTO = 'border border-white/8';
 
-/** «Stats band» (Figma): four headline numbers between hairlines. */
-@Component({
-  selector: 'gr-sec-cifras',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'relative block bg-bg-surface' },
-  template: `
-    <div class="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.5),transparent)]"></div>
-    <dl class="mx-auto grid max-w-[1200px] grid-cols-2 px-5 py-7 md:grid-cols-4 md:px-0 md:py-10">
-      @for (c of items(); track c.etiqueta; let i = $index) {
-        <div class="flex flex-col items-center gap-1 px-2 py-4 text-center md:py-2" [class.md:border-l]="i > 0" [class.md:border-line-subtle]="i > 0">
-          <dd class="text-display-m md:text-display-xl" [class.text-accent-text]="i === 0">{{ c.valor }}</dd>
-          <dt class="text-label-xs text-text-tertiary">{{ c.etiqueta }}</dt>
-        </div>
-      }
-    </dl>
-  `,
-})
-export class SecCifras {
-  readonly s = input<Seccion | undefined>();
-  protected readonly items = computed(() => list<{ valor: string; etiqueta: string }>(this.s(), 'items'));
-}
-
 /**
  * «Section / Alta de atleta» (Figma home R2 393:143503 · 387:105287): title, the iPhone with the athlete's story, the six
  * reasons (2 columns; icon and title stacked and centred) and the CTA. The intro text stays for SEO only (sr-only).
@@ -54,7 +32,6 @@ export class SecCifras {
   template: `
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
       <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
-      <p class="sr-only">{{ s()?.['texto'] || 'Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y queda privado hasta que actives su publicación desde el área de atleta.' }}</p>
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
         <!-- Figma «Carrusel iPhone»: one slide (the athlete's story) and the 4-dot indicator -->
         <div class="flex shrink-0 flex-col items-center gap-4" aria-hidden="true">
@@ -275,7 +252,8 @@ export class SecAtletas {
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
     <div [class]="ancho + ' flex flex-col items-center gap-7 md:gap-12'">
-      <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
+      @if (t('eyebrow')) { <p class="sr-only">{{ sinNumero(t('eyebrow')) }}</p> }
+      <gr-cabecera [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
       <ul #pista class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
         @for (f of fotos(); track f.imagen) {
           <li class="relative aspect-[290/380] w-[290px] shrink-0 snap-center overflow-hidden rounded-lg md:aspect-[590/420] md:w-auto" [class]="foto">
@@ -283,7 +261,6 @@ export class SecAtletas {
             @if (f.titulo) {
               <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_50%,rgb(14_12_13/0.92))] p-5">
                 <span class="text-display-xs [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">{{ f.titulo }}</span>
-                @if (f.texto) { <span class="text-body-s text-text-secondary">{{ f.texto }}</span> }
               </div>
             }
           </li>
@@ -297,6 +274,7 @@ export class SecAtletas {
 })
 export class SecOrganizacion {
   readonly s = input<Seccion | undefined>();
+  protected readonly sinNumero = sinNumero;
   protected readonly ancho = ANCHO;
   protected readonly foto = FOTO;
   protected readonly srcset = srcset;
@@ -315,7 +293,6 @@ export class SecOrganizacion {
   host: { class: SECCION + ' bg-bg-base' },
   template: `
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
-      @if (t('eyebrow')) { <p class="sr-only">{{ sinNumero(t('eyebrow')) }}</p> }
       <gr-cabecera [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
       <!-- Figma home R2: the three organisers with their real logos in black and white -->
       <ul class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
@@ -345,7 +322,6 @@ export class SecAfiliaciones {
   readonly s = input<Seccion | undefined>();
   protected readonly ancho = ANCHO;
   protected t = (k: string) => str(this.s(), k);
-  protected readonly sinNumero = sinNumero;
   protected readonly tarjetas = [
     { logo: '/img/home/afil-aep-bn.webp', alt: 'AEP · Asociación Española de Powerlifting', titulo: 'AEP', texto: 'Afiliada a la Asociación Española de Powerlifting, con jueces oficiales.' },
     { logo: '/img/home/afil-grs-strength-bn.webp', alt: 'GRS Strength', titulo: 'GRS Strength', texto: 'Club organizador: reúne a la comunidad de powerlifting.' },
@@ -422,7 +398,6 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
     <div [class]="ancho + ' flex flex-col gap-8 md:gap-10'">
       <div class="flex flex-col gap-3 md:gap-4">
         <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo') || 'Horarios'" [acento]="t('tituloAcento') || (t('titulo').includes('*') ? '' : 'en directo')" /></h2>
-        <p class="text-body-m text-text-tertiary md:text-body-l">{{ t('texto') || 'Cuándo compite cada atleta y si va con retraso. Se actualiza solo: no hace falta recargar.' }}</p>
       </div>
       <div class="flex flex-col gap-3 md:gap-4">
         <!-- mobile (Figma 211:126138): days · sex · views · search; desktop: views on top, then days · sex · search -->
@@ -498,7 +473,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
                     <span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
                     <span class="text-ui-h5">{{ pesos(f) }}</span>
                     <span class="text-body-xs text-text-tertiary">{{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
-                    @if (f.estado !== 'programado' || vista() === 'todos') {
+                    @if (f.estado !== 'programado') {
                       <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border px-2.5 py-0.5 text-label-xs uppercase" [class]="f.estado === 'en_curso' ? 'border-accent/60 bg-accent/12 text-accent-text' : 'border-line-strong text-text-tertiary'">
                         @if (f.estado === 'en_curso') { <gr-icon name="radio" [size]="12" /> } @else if (f.estado === 'finalizado') { <gr-icon name="check" [size]="12" /> }{{ estado[f.estado] }}
                       </span>

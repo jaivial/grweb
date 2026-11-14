@@ -61,6 +61,7 @@ const MEDALLA = [
       <!-- Figma home R2 (393:144517 · 211:165859): centred header (logo, text with «i», CTAs) and three centred cards -->
       <div class="flex flex-col items-center gap-5 text-center">
         <img src="/img/home/logo-porra.webp" alt="" width="280" height="145" class="h-auto w-[240px] md:w-[280px]" loading="lazy" decoding="async" />
+        <p class="sr-only">J1 · Juegos · Porra</p>
         <h2 class="sr-only">La Porra de GRS</h2>
         <div class="relative flex max-w-[640px] items-start gap-3 text-left md:items-center md:text-center">
           <p class="text-body-m text-text-tertiary md:text-body-l">Apuesta monedas virtuales a la ganadora de cada categoría y al mejor de cada movimiento.</p>
@@ -81,7 +82,7 @@ const MEDALLA = [
           <span [class]="etiqueta">Bote de la jornada{{ r?.jornada ? ' · ' + r!.jornada!.nombre : '' }}</span>
           <span class="flex min-w-0 flex-wrap items-baseline justify-center gap-x-2"><span class="min-w-0 font-display text-[clamp(32px,10vw,48px)] leading-[1.25] tracking-[0.04em]">{{ monedas(r?.bote ?? 0) }}</span><span class="text-[14px] font-medium text-text-tertiary">monedas</span></span>
           <span class="h-1.5 w-full overflow-hidden rounded-pill bg-white/8"><span class="block h-full rounded-pill bg-[linear-gradient(90deg,#c42b3e,#e6606b)]" [style.width.%]="r?.bote ? 100 : 0"></span></span>
-          <span class="text-[13px] text-[#d1d5db]">{{ num(r?.participantes ?? 0) }} participantes · {{ cerrada() ? 'apuestas cerradas' : (r?.mercadosAbiertos ?? 0) + ((r?.mercadosAbiertos ?? 0) === 1 ? ' mercado abierto' : ' mercados abiertos') }}</span>
+          <span class="text-[13px] text-[#d1d5db]">{{ num(r?.participantes ?? 0) }} participantes{{ cerrada() ? ' · apuestas cerradas' : '' }}</span>
         </div>
         @if (cuenta(); as t) {
           <!-- Figma «Cierre de apuestas»: h · min · s until the close set in the backoffice -->
@@ -102,7 +103,7 @@ const MEDALLA = [
           </div>
         }
         <div [class]="card + ' flex min-w-0 flex-col items-center gap-2 p-5 text-center'">
-          <span class="flex items-center gap-2 pb-1 font-display text-[24px] leading-[1.25] tracking-[0.04em]"><span class="size-2 rounded-full bg-accent shadow-[0_0_8px_#c42b3e]" aria-hidden="true"></span>Top 3 <span class="text-accent-text">en vivo</span></span>
+          <span class="flex items-center gap-2 pb-1 font-display text-[24px] leading-[1.25] tracking-[0.04em]"><span class="size-2 rounded-full bg-accent shadow-[0_0_8px_#c42b3e]" aria-hidden="true"></span>Top 3 <span class="bg-accent-grain bg-clip-text text-transparent">en vivo</span></span>
           @for (f of r?.top3 ?? []; track f.puesto; let i = $index) {
             <span class="flex w-full max-w-[240px] min-w-0 items-center gap-3 rounded-xl px-3 py-2.5" [class]="medalla[i].fila">
               <span class="flex size-7 shrink-0 items-center justify-center rounded-full font-mono text-[13px] font-medium text-bg-base" [class]="medalla[i].disco">{{ f.puesto }}</span>
@@ -115,33 +116,6 @@ const MEDALLA = [
         </div>
       </div>
 
-      @if (r?.destacado; as d) {
-        <div class="flex flex-col gap-4">
-          <div class="flex flex-col gap-1 md:flex-row md:items-center md:gap-0">
-            <span [class]="etiqueta">{{ cerrada() ? 'Apuestas cerradas' : 'Mercado abierto' }} · {{ d.titulo }}{{ r?.jornada ? ' · ' + r!.jornada!.nombre : '' }}</span>
-            <a routerLink="/porra" class="text-[14px] font-semibold text-accent-text hover:underline md:ml-1">{{ cerrada() || r!.mercadosAbiertos !== 1 ? 'Ver los mercados →' : 'Ver el mercado →' }}</a>
-          </div>
-          <ul class="grid gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-            @for (o of d.opciones; track o.atletaId) {
-              <li [class]="card + ' flex min-w-0 flex-col gap-3 p-5 transition-[border-color,box-shadow] hover:border-[#e6606b]/50 hover:bg-white/7 hover:shadow-[0_0_32px_rgb(230_96_107/0.28)] focus-within:border-[#e6606b] motion-reduce:transition-none'">
-                <span [class]="etiqueta">{{ (d.categoria || '').replace('-', '−') }}{{ d.categoria ? ' kg · ' : '' }}{{ d.sexo }}</span>
-                <span class="flex min-w-0 items-center gap-3">
-                  <span class="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#e6606b]/50 bg-[#c42b3e]/22 font-mono text-[14px] font-medium">{{ ini(o.nombre) }}</span>
-                  <span class="min-w-0 truncate font-display text-[22px] leading-7 tracking-[0.04em]" [title]="o.nombre">{{ o.nombre }}</span>
-                </span>
-                <span class="flex items-end border-t border-white/8 pt-3">
-                  <span class="flex flex-col"><span class="text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Cuota</span><span class="font-mono text-[18px] font-medium">{{ cuota(o.cuota) }}</span></span>
-                  @if (!cerrada()) {
-                    <a routerLink="/porra" [queryParams]="{ mercado: d.mercadoId }" class="ml-1 flex items-center gap-2 rounded-pill border border-white/12 bg-white/6 px-3 py-2 text-[13px] font-semibold text-[#d1d5db] hover:bg-white/10" [attr.aria-label]="'Elegir a ' + o.nombre">
-                      <span class="size-3.5 rounded-full border-[1.5px] border-white/60" aria-hidden="true"></span>Elegir
-                    </a>
-                  }
-                </span>
-              </li>
-            }
-          </ul>
-        </div>
-      }
     </div>
   `,
 })
@@ -198,6 +172,7 @@ export class SecPorra {
     <!-- Figma home R2 (393:144584 · 211:166129): centred stack — logo, title, pitch, text, CTAs -->
     <div [class]="ancho + ' flex flex-col items-center gap-6 text-center'">
       <img src="/img/home/logo-fantasy.webp" alt="" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
+      <p class="sr-only">J2 · Juegos · Fantasy</p>
       <h2 class="font-display text-[36px] leading-[1.25] tracking-[0.1em] md:text-[48px]">GRS Fantasy</h2>
       <div class="w-full max-w-[490px]">
         <gr-pista-futsal [titulares]="titulares()" [rojo]="true" (abrir)="router.navigateByUrl('/fantasy')" />
