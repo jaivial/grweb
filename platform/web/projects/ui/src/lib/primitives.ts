@@ -28,10 +28,9 @@ const boTone: Record<GrTone, string> = {
 /** Status badge (mono, uppercase). Per the design system badges carry no dot. In the backoffice it follows «BO / Badge». */
 @Component({
   selector: 'gr-badge',
-  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': 'cls()' },
-  template: `@if (bo && tone() === 'live') { <gr-icon name="radio" [size]="12" /> }<ng-content />`,
+  template: `@if (bo) { <span class="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true"></span> }<ng-content />`,
 })
 export class GrBadge {
   readonly tone = input<GrTone>('neutral');
@@ -40,9 +39,8 @@ export class GrBadge {
   protected readonly bo = inject(GR_SKIN) === 'bo';
   protected readonly cls = computed(() =>
     this.bo
-      ? 'inline-flex h-6 items-center gap-1 rounded-xs px-2 font-sans text-[12px] leading-[14px] font-medium tracking-[0.04em] uppercase whitespace-nowrap ' +
-        boTone[this.tone()].split(' ').filter((c) => (this.outline() ? !c.startsWith('bg-') : !c.startsWith('border-'))).join(' ') +
-        (this.outline() ? ' border' : '')
+      ? // BO (Jaime, 15-nov): no pill / tag shapes — a status reads as a coloured dot + text, no fill and no border
+        'inline-flex min-h-5 items-center gap-1.5 font-sans text-[13px] leading-4 font-medium whitespace-nowrap ' + boTone[this.tone()].split(' ')[0]
       : 'inline-flex h-6 items-center gap-1 rounded-2xs border px-2 text-mono-xs whitespace-nowrap ' + toneBadge[this.tone()],
   );
 }

@@ -9,6 +9,27 @@ import { GrIcon } from './icon';
 /** One choice of a `gr-select`, read from the projected `<option>` elements. */
 export interface GrOpcion { valor: string; etiqueta: string; deshabilitada: boolean; oculta: boolean }
 
+/**
+ * Opens a bottom sheet with no jump: the backdrop (`capa`, rendered with `opacity-0`) fades in and the panel (rendered
+ * with `translate-y-full`) slides up from its first painted frame. Locks the page scroll. Returns the cleanup.
+ */
+export function abrirHoja(capa: HTMLElement, panel: HTMLElement): () => void {
+  const html = document.documentElement;
+  const antes = html.style.overflow;
+  html.style.overflow = 'hidden';
+  const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!quieto) {
+    capa.style.transition = 'opacity 200ms ease-out';
+    panel.style.transition = 'translate 320ms cubic-bezier(.32,.72,0,1)';
+    panel.style.willChange = 'translate';
+    void panel.offsetHeight; // commit the start state before moving
+  }
+  capa.style.opacity = '1';
+  panel.style.translate = '0 0';
+  const fin = setTimeout(() => { panel.style.transition = ''; panel.style.willChange = ''; }, 340);
+  return () => { clearTimeout(fin); html.style.overflow = antes; };
+}
+
 let siguiente = 0;
 /** The open dropdown of the page: opening another one closes it (only one menu at a time). */
 let abiertoAhora: GrSelect | null = null;
@@ -53,9 +74,9 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
     @if (abierto()) {
       @if (hoja()) {
         <!-- every click inside cancels its default: a wrapping <label> must not forward it to the control (it would reopen) -->
-        <div #capa class="fixed inset-0 z-[90] m-0 flex h-dvh max-h-none w-screen max-w-none flex-col justify-end border-0 bg-black/55 p-0" (click)="$event.preventDefault(); cerrar(true)">
+        <div #capa class="fixed inset-0 z-[90] m-0 flex h-dvh max-h-none w-screen max-w-none flex-col justify-end border-0 bg-black/55 p-0 opacity-0" (click)="$event.preventDefault(); cerrar(true)">
           <div #panel role="dialog" aria-modal="true" [attr.aria-labelledby]="uid + '-titulo'" (keydown)="trampa($event)"
-            class="flex max-h-[75dvh] flex-col rounded-t-[20px] border-t border-line-strong bg-bg-raised pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.preventDefault(); $event.stopPropagation()">
+            class="flex max-h-[75dvh] translate-y-full flex-col rounded-t-[20px] border-t border-line-strong bg-bg-raised pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.preventDefault(); $event.stopPropagation()">
             <!-- drag the handle / header down to close (iOS sheet) -->
             <div class="flex touch-none flex-col items-center gap-3 px-5 pt-2 pb-3" (pointerdown)="arrastre($event)">
               <span class="h-1 w-10 rounded-pill bg-line-strong" aria-hidden="true"></span>
@@ -210,11 +231,9 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
       // top layer: no overflow-hidden or transformed ancestor can clip or offset it
       if ('showPopover' in capa) { capa.setAttribute('popover', 'manual'); try { (capa as HTMLElement & { showPopover(): void }).showPopover(); } catch { /* already shown */ } }
       if (this.hoja()) {
-        document.documentElement.style.overflow = 'hidden';
-        this.quitar.push(() => (document.documentElement.style.overflow = ''));
-        this.listaHoja()?.nativeElement.focus();
-        if (!matchMedia('(prefers-reduced-motion: reduce)').matches)
-          this.panel()?.nativeElement.animate([{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        const panel = this.panel()?.nativeElement;
+        if (panel) this.quitar.push(abrirHoja(capa, panel));
+        this.listaHoja()?.nativeElement.focus({ preventScroll: true });
       }
       else this.colocar();
       this.verActivo();

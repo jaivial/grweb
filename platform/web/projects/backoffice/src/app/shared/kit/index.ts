@@ -1,6 +1,7 @@
 export * from './bars';
 export * from './controls';
 export * from './date-range';
+export * from './date-picker';
 export * from './media';
 export * from './select';
 export * from './status';

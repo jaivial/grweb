@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, type GrTone } from '@grcup/ui';
 import { BoToggle, Confirm } from '../shared/ui';
 import { ComponentesNav } from './componentes-nav';
 import { ComponentesDominio } from './componentes-dominio';
 import { ComponentesEditor } from './componentes-editor';
 import {
-  BO_ROW, BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
+  BO_ROW, BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoApiType, BoCheckbox, BoDateRange, BoDatePicker, BoDropzone, BoFilterPill, BoImageFocal, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard,
   BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip, type BoApi, type BoLive, type BoMenuItem, type BoPublish,
 } from '../shared/kit';
 
@@ -13,7 +14,8 @@ import {
 @Component({
   selector: 'bo-componentes-page',
   imports: [
-    ComponentesNav, ComponentesDominio, ComponentesEditor, GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDropzone, BoFilterPill, BoImageFocal,
+    FormsModule,
+    ComponentesNav, ComponentesDominio, ComponentesEditor, GrBadge, GrButton, GrField, GrIconButton, GrInput, GrSegmented, BoToggle, BoApiType, BoCheckbox, BoDateRange, BoDatePicker, BoDropzone, BoFilterPill, BoImageFocal,
     BoAlert, BoEmptyState, BoPagination, BoProgress, BoSaveBar, BoSortHeader, BoToast, BoLiveStatus, BoMenu, BoPublishStatus, BoRadioCard, BoSearch, BoSelect, BoTabButton, BoTagInput, BoToggleRow, BoTooltip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -120,6 +122,7 @@ import {
       <bo-tag-input label="Etiquetas del contacto" [(value)]="tags" />
       <bo-tag-input label="Etiquetas del contacto" [value]="tags()" error="Máximo 10 etiquetas" />
       <div><bo-date-range [(value)]="rango" launch="2026-01-15" /></div>
+      <div class="grid max-w-[640px] gap-3 sm:grid-cols-3"><bo-date-picker aria-label="Fecha" [(ngModel)]="fechaDemo" /><bo-date-picker tipo="time" aria-label="Hora" [(ngModel)]="horaDemo" /><bo-date-picker tipo="datetime" aria-label="Fecha y hora" [(ngModel)]="fhDemo" /></div>
     </section>
     <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-labelledby="c-dz">
       <h2 id="c-dz" class="text-ui-h5 md:col-span-2 xl:col-span-5">Dropzone</h2>
@@ -259,6 +262,9 @@ export class ComponentesPage {
   protected readonly tab = signal(2);
   protected readonly tags = signal(['ig_story', 'club_grstrength', 'voluntario']);
   protected readonly rango = signal({ from: '2026-06-01', to: '2026-06-30' });
+  protected fechaDemo = '2026-12-19';
+  protected horaDemo = '09:30';
+  protected fhDemo = '';
   protected readonly focal = signal({ x: 50, y: 18 });
   protected readonly filaMenu: BoMenuItem[] = [
     { id: 'ver', label: 'Ver detalle', icon: 'eye' },

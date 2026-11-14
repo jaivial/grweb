@@ -1,30 +1,51 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, Injectable, computed, inject, input, model, output, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
-import { GrBadge, GrButton, GrIcon, GrIconButton, type GrTone } from '@grcup/ui';
+import { GrBadge, GrButton, GrIcon, GrIconButton, GrSelect, type GrTone } from '@grcup/ui';
 import { Competitions } from '../core/competitions';
 import { problemOf } from '../core/api';
 
-/** Page header with breadcrumbs, title, status badge and actions (Figma «BO / Page header»). */
+/** One breadcrumb: plain text, or a link (`link` = router commands, relative to the page route unless absolute). */
+export type BoCrumb = string | { label: string; link: string | unknown[] };
+
+/**
+ * Page header (Figma «BO / Page header»): back arrow (`back`), breadcrumbs, title, actions. The breadcrumb wraps on
+ * phones (never scrolls sideways) and its links are 44 px tall tap targets there. `back` = router link of the parent
+ * page; when omitted, the last linked crumb is used.
+ */
 @Component({
   selector: 'bo-page-header',
-  imports: [GrBadge, GrIcon],
+  imports: [GrBadge, GrIcon, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-3' },
+  host: { class: 'flex min-w-0 flex-col gap-3' },
   template: `
-    <nav class="flex flex-wrap items-center gap-1.5 text-body-xs text-text-tertiary" aria-label="Migas">
-      @for (c of crumbs(); track $index; let last = $last) {
-        <span [class.text-text-secondary]="last">{{ c }}</span>@if (!last) { <gr-icon name="chevron-right" [size]="12" /> }
-      }
-    </nav>
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    @if (crumbs().length || volver()) {
+      <div class="flex min-w-0 items-center gap-2">
+        @if (volver(); as v) {
+          <a [routerLink]="v" class="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-raised hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] md:size-9" aria-label="Volver"><gr-icon name="arrow-left" [size]="20" /></a>
+        }
+        <nav class="flex min-w-0 flex-wrap items-center gap-x-1.5 text-body-xs text-text-tertiary" aria-label="Migas">
+          @for (c of items(); track $index; let last = $last) {
+            @if (c.link && !last) {
+              <a [routerLink]="c.link" class="flex min-h-11 items-center underline-offset-2 hover:text-text-primary hover:underline md:min-h-0">{{ c.label }}</a>
+            } @else {
+              <span class="min-w-0 break-words" [class.text-text-secondary]="last" [attr.aria-current]="last ? 'page' : null">{{ c.label }}</span>
+            }
+            @if (!last) { <gr-icon name="chevron-right" [size]="12" class="shrink-0" /> }
+          }
+        </nav>
+      </div>
+    }
+    <div class="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div class="flex min-w-0 flex-wrap items-center gap-3">
-        <h1 [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
+        <h1 class="min-w-0 break-words" [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
         @if (badge()) { <gr-badge [tone]="badgeTone()">{{ badge() }}</gr-badge> }
       </div>
-      <div class="flex flex-wrap gap-2"><ng-content select="[actions]" /></div>
+      <div class="flex min-w-0 flex-wrap gap-2"><ng-content select="[actions]" /></div>
     </div>
     @if (subtitle()) { <p class="-mt-1 text-body-s text-text-tertiary">{{ subtitle() }}</p> }
   `,
@@ -32,11 +53,21 @@ import { problemOf } from '../core/api';
 export class BoPageHeader {
   readonly title = input.required<string>();
   readonly subtitle = input('');
-  readonly crumbs = input<string[]>([]);
+  readonly crumbs = input<BoCrumb[]>([]);
+  /** Router link of the back arrow; `false` hides it. Default: the last linked crumb. */
+  readonly back = input<string | unknown[] | false | null>(null);
   readonly badge = input('');
   readonly badgeTone = input<GrTone>('warning');
   /** Pages whose Figma title is 24 px at every width (Sistema › WhatsApp, Campañas › WhatsApp). */
   readonly compact = input(false);
+  protected readonly items = computed(() => this.crumbs().map((c) => (typeof c === 'string' ? { label: c, link: null } : c)));
+  protected readonly volver = computed(() => {
+    const b = this.back();
+    if (b === false) return null;
+    if (b) return b;
+    const l = this.items().slice(0, -1).filter((c) => c.link);
+    return l.length ? l[l.length - 1].link : null;
+  });
 }
 
 export interface BoTab {
@@ -47,21 +78,31 @@ export interface BoTab {
   exact?: boolean;
 }
 
-/** Router tabs with optional counters (Figma «BO / Tab»). Scrolls horizontally on mobile. */
+const TAB = 'relative flex h-11 items-center gap-2 px-3 text-label-s whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none';
+const TAB_ON = 'rounded-t-sm text-text-primary';
+const TAB_OFF = 'rounded-sm text-text-tertiary hover:bg-bg-raised';
+const etiquetaTab = (t: { label: string; count?: number | null }) => (t.count != null ? `${t.label} (${t.count})` : t.label);
+
+/**
+ * Router tabs with optional counters (Figma «BO / Tab»). Desktop (≥ 768 px): a tab row (wraps, never scrolls sideways).
+ * Phones: a selector («Sección: Reservas ▾») that opens the bottom sheet of `gr-select`.
+ */
 @Component({
   selector: 'bo-tabs',
-  imports: [RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, GrSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block overflow-x-auto border-b border-line-subtle [scrollbar-width:none]' },
+  host: { class: 'block md:border-b md:border-line-subtle' },
   template: `
-    <nav class="flex min-w-max gap-1" aria-label="Secciones">
+    <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="activa()" (valorChange)="ir($event)">
+      @for (t of tabs(); track t.path) { <option [value]="t.path">{{ etiqueta(t) }}</option> }
+    </gr-select>
+    <nav class="hidden flex-wrap gap-1 md:flex" [attr.aria-label]="label()">
       @for (t of tabs(); track t.path) {
         <a [routerLink]="t.path" routerLinkActive #a="routerLinkActive" [routerLinkActiveOptions]="{ exact: !!t.exact }" [attr.aria-current]="a.isActive ? 'page' : null"
-          class="relative flex h-11 items-center gap-2 px-3 text-label-s whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
-          [class]="a.isActive ? 'rounded-t-sm text-text-primary' : 'rounded-sm text-text-tertiary hover:bg-bg-raised'">
+          class="${TAB}" [class]="a.isActive ? '${TAB_ON}' : '${TAB_OFF}'">
           {{ t.label }}
           @if (t.count !== undefined && t.count !== null) {
-            <span class="flex h-5 items-center rounded-xs px-1.5 text-mono-xs" [class]="a.isActive ? 'bg-accent/20 text-accent-text' : 'bg-bg-raised text-text-tertiary'">{{ t.count }}</span>
+            <span class="text-mono-xs" [class]="a.isActive ? 'text-accent-text' : 'text-text-tertiary'">{{ t.count }}</span>
           }
           @if (a.isActive) { <span class="absolute inset-x-0 bottom-0 h-0.5 bg-accent"></span> }
         </a>
@@ -71,6 +112,53 @@ export interface BoTab {
 })
 export class BoTabs {
   readonly tabs = input.required<BoTab[]>();
+  readonly label = input('Sección');
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly url = toSignal(this.router.events.pipe(filter((e) => e instanceof NavigationEnd), map(() => this.router.url)), { initialValue: this.router.url });
+  protected readonly etiqueta = etiquetaTab;
+  protected readonly activa = computed(() => {
+    this.url();
+    const t = this.tabs().find((x) => this.router.isActive(this.router.createUrlTree([x.path], { relativeTo: this.route }), { paths: x.exact ? 'exact' : 'subset', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored' }));
+    return t?.path ?? '';
+  });
+  protected ir(path: string): void {
+    void this.router.navigate([path], { relativeTo: this.route });
+  }
+}
+
+export interface BoTabOpcion { value: string; label: string; count?: number | null; disabled?: boolean }
+
+/**
+ * In-page tabs bound to a value (no router). Desktop: tab row (role tablist, wraps). Phones: `gr-select` with bottom
+ * sheet, so no tab is ever hidden behind a horizontal scroll. `<bo-tab-bar [tabs]="[...]" [(value)]="tab" />`
+ */
+@Component({
+  selector: 'bo-tab-bar',
+  imports: [GrSelect],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block md:border-b md:border-line-subtle' },
+  template: `
+    <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="value()" (valorChange)="value.set($event)">
+      @for (t of tabs(); track t.value) { <option [value]="t.value" [disabled]="t.disabled">{{ etiqueta(t) }}</option> }
+    </gr-select>
+    <div class="hidden flex-wrap gap-1 md:flex" role="tablist" [attr.aria-label]="label()">
+      @for (t of tabs(); track t.value) {
+        <button type="button" role="tab" [attr.aria-selected]="t.value === value()" [disabled]="t.disabled" (click)="value.set(t.value)"
+          class="${TAB} disabled:opacity-40" [class]="t.value === value() ? '${TAB_ON}' : '${TAB_OFF}'">
+          {{ t.label }}
+          @if (t.count !== undefined && t.count !== null) { <span class="text-mono-xs" [class]="t.value === value() ? 'text-accent-text' : 'text-text-tertiary'">{{ t.count }}</span> }
+          @if (t.value === value()) { <span class="absolute inset-x-0 bottom-0 h-0.5 bg-accent"></span> }
+        </button>
+      }
+    </div>
+  `,
+})
+export class BoTabBar {
+  readonly tabs = input.required<BoTabOpcion[]>();
+  readonly value = model.required<string>();
+  readonly label = input('Sección');
+  protected readonly etiqueta = etiquetaTab;
 }
 
 /** Switch (Figma «BO / Toggle»), 44 px touch target. */
