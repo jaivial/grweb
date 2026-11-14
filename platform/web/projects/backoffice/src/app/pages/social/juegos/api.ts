@@ -126,10 +126,6 @@ export class JuegosApi {
     return firstValueFrom(this.http.get<{ jornadas: Jornada[] }>(`${this.b(cid)}/jornadas`));
   }
 
-  crearJornada(cid: string, dia: string, nombre: string): Promise<{ id: string }> {
-    return firstValueFrom(this.http.post<{ id: string }>(`${this.b(cid)}/jornadas`, { dia, nombre }));
-  }
-
   jornada(cid: string, jid: string, cambios: { nombre?: string; estado?: EstadoJornada; horaCierre?: string }): Promise<void> {
     return firstValueFrom(this.http.patch<void>(`${this.b(cid)}/jornadas/${jid}`, cambios));
   }

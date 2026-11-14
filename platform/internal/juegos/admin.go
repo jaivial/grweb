@@ -70,12 +70,16 @@ func (s *Svc) registerAdmin() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-jornadas", Method: http.MethodGet, Path: base + "/jornadas",
-		Summary: "Jornadas de la competición", Tags: tagJuegos, Security: bearer},
+		Summary: "Jornadas de la competición (una por fecha del horario, se crean solas)", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*jornadasAdminOut, error) {
 			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado, COALESCE(to_char(hora_cierre, 'HH24:MI'), '') FROM jornadas WHERE competition_id = $1 ORDER BY dia DESC`, in.CID)
+			// the list always mirrors the schedule dates; a schedule outage only skips the refresh
+			if err := s.reconciliarJornadas(ctx, in.CID); err != nil {
+				s.a.Log.Warn("jornadas automáticas", "cid", in.CID, "err", err)
+			}
+			rows, err := s.a.DB.Query(ctx, `SELECT id, dia::text, nombre, estado, COALESCE(to_char(hora_cierre, 'HH24:MI'), '') FROM jornadas WHERE competition_id = $1 ORDER BY dia`, in.CID)
 			if err != nil {
 				return nil, err
 			}
@@ -92,36 +96,7 @@ func (s *Svc) registerAdmin() {
 			return o, rows.Err()
 		})
 
-	type jornadaCrearIn struct {
-		CID  uuid.UUID `path:"cid"`
-		Body struct {
-			Dia    string `json:"dia" pattern:"^[0-9]{4}-[0-9]{2}-[0-9]{2}$" doc:"Europe/Madrid"`
-			Nombre string `json:"nombre" minLength:"1" maxLength:"40" example:"AEP-2"`
-		}
-	}
-	type jornadaCreadaOut struct {
-		Body struct {
-			ID uuid.UUID `json:"id"`
-		}
-	}
-	huma.Register(api, huma.Operation{OperationID: "juegos-admin-jornada-crear", Method: http.MethodPost, Path: base + "/jornadas",
-		Summary: "Crear una jornada", Tags: tagJuegos, Security: bearer, DefaultStatus: http.StatusCreated},
-		func(ctx context.Context, in *jornadaCrearIn) (*jornadaCreadaOut, error) {
-			if err := operar(ctx, in.CID); err != nil {
-				return nil, err
-			}
-			id := newID()
-			_, err := s.a.DB.Exec(ctx, `INSERT INTO jornadas (id, competition_id, dia, nombre) VALUES ($1,$2,$3,$4)`, id, in.CID, in.Body.Dia, in.Body.Nombre)
-			if db.IsUniqueViolation(err, "jornadas_competition_id_dia_key") {
-				return nil, problem.Conflict("JORNADA_YA_EXISTE", "Ya hay una jornada para ese día.")
-			}
-			if err != nil {
-				return nil, err
-			}
-			o := &jornadaCreadaOut{}
-			o.Body.ID = id
-			return o, nil
-		})
+	// No manual creation (review BO 15-nov): the jornadas are the dates of the schedule (jornadas_auto.go).
 
 	type jornadaPatchIn struct {
 		CID  uuid.UUID `path:"cid"`
