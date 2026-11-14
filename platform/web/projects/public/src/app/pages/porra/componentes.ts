@@ -130,7 +130,7 @@ export class GrSelector {
     @if (juego() === 'fantasy') { <gr-selector class="md:hidden" etiqueta="GRS Fantasy" [opciones]="opciones()" [valor]="activa()" /> }
     <nav class="w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [class]="juego() === 'fantasy' ? 'hidden gap-1 md:flex' : 'flex'" [attr.aria-label]="juego() === 'porra' ? 'Porra' : 'GRS Fantasy'">
       @for (t of tabs(); track t.href) {
-        <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none"
+        <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none md:pointer-coarse:h-11"
           [class]="(juego() === 'fantasy' ? 'md:w-[120px] md:px-0 ' : 'md:px-4 ') + (t.id === activa() ? 'border border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border border-transparent text-text-tertiary hover:text-text-primary')"
           [attr.aria-current]="t.id === activa() ? 'page' : null">
           <span class="truncate sm:hidden">{{ t.corto }}</span><span class="hidden truncate sm:inline">{{ t.label }}</span>
@@ -335,26 +335,26 @@ export class OddsRow {
     @if (puedeApostar()) {
       <div class="px-4 pt-2 pb-4">
         <button grButton variant="primary" size="l" class="!text-label-s transition-transform duration-100 active:scale-[.98] motion-reduce:active:scale-100" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
-        <p class="mt-2 text-body-xs text-text-muted">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
+        <p class="mt-2 text-body-xs text-text-tertiary">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
       </div>
     } @else if (mercado().estado === 'abierto' && !soloLectura() && !mercado().opciones.length) {
       <!-- Mercado abierto sin atletas: el aviso ya va en la lista de cuotas. -->
     } @else if (mercado().estado === 'abierto') {
       <div class="px-4 pt-2 pb-4">
-        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-muted">Jornada cerrada</span>
-        <p class="mt-2 text-body-xs text-text-muted">Esta jornada solo se puede consultar</p>
+        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-tertiary">Jornada cerrada</span>
+        <p class="mt-2 text-body-xs text-text-tertiary">Esta jornada solo se puede consultar</p>
       </div>
     } @else if (mercado().estado === 'cerrado') {
       <div class="px-4 pt-2 pb-4">
-        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-muted">Mercado cerrado</span>
-        <p class="mt-2 text-body-xs text-text-muted">Se liquida al publicarse los resultados</p>
+        <span class="flex h-12 w-full items-center justify-center rounded-sm border border-line-subtle bg-bg-surface text-label-s text-text-tertiary">Mercado cerrado</span>
+        <p class="mt-2 text-body-xs text-text-tertiary">Se liquida al publicarse los resultados</p>
       </div>
     } @else {
       <div class="px-4 pt-2 pb-4">
         <p class="flex items-start gap-2 rounded-md border px-3 py-2.5 text-body-xs" [class]="mercado().devuelto ? 'border-info/30 bg-info/8 text-info' : 'border-success/30 bg-success/8 text-success'">
           <gr-icon [name]="mercado().devuelto ? 'undo' : 'circle-check'" [size]="16" class="mt-px shrink-0" /><span class="text-label-s">{{ liquidado() }}</span>
         </p>
-        <p class="mt-2 text-body-xs text-text-muted">{{ subLiquidado() }}</p>
+        <p class="mt-2 text-body-xs text-text-tertiary">{{ subLiquidado() }}</p>
       </div>
     }
   `,
@@ -490,16 +490,20 @@ export class MarketCard {
             </p>
           }
           <gr-aviso-juegos />
-          @if (exito()) {
-            <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
-              <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() }}</span>
-            </p>
-            <a grButton variant="secondary" size="l" [block]="true" routerLink="/porra/mis-apuestas" iconRight="arrow-right">Ver mis apuestas</a>
-          } @else {
-            <button grButton variant="primary" size="l" [block]="true" [loading]="cargando()" [disabled]="!puedeApostar()" (click)="confirmar.emit({ atletaId: elegido()?.atletaId ?? '', importe: importe() })">
+          <!-- éxito y confirmar comparten celda: el alto del boleto no salta al confirmar -->
+          <div class="grid">
+            <div class="flex flex-col gap-2 [grid-area:1/1]" [class.invisible]="!exito()" >
+              <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
+                <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() || '&nbsp;' }}</span>
+              </p>
+              <a grButton variant="secondary" size="l" [block]="true" routerLink="/porra/mis-apuestas" iconRight="arrow-right" [attr.tabindex]="exito() ? null : -1">Ver mis apuestas</a>
+            </div>
+            @if (!exito()) {
+            <button grButton variant="primary" size="l" [block]="true" class="self-end [grid-area:1/1]" [loading]="cargando()" [disabled]="!puedeApostar()" (click)="confirmar.emit({ atletaId: elegido()?.atletaId ?? '', importe: importe() })">
               {{ insuficiente() ? 'Saldo insuficiente' : !elegido() ? 'Elige un atleta' : 'Confirmar apuesta de ' + monedas(importe()) }}
             </button>
-          }
+            }
+          </div>
           <p class="flex items-center justify-between gap-3 text-body-xs text-text-secondary">Saldo disponible <b class="font-mono text-[0.875rem] text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></p>
         </div>
       </div>
@@ -708,7 +712,7 @@ export class Podio {
     </span>
     <span class="shrink-0 text-right">
       <span class="block font-mono text-[1rem] font-bold tabular-nums sm:text-[1.125rem]" [class]="valorClase() || (yo() ? 'text-accent-text' : 'text-text-primary')">{{ valor() }}</span>
-      <span class="block text-mono-xs text-text-muted">{{ valorLabel() }}</span>
+      <span class="block text-mono-xs text-text-tertiary">{{ valorLabel() }}</span>
     </span>
     @if (yo()) { <span class="hidden shrink-0 rounded-2xs bg-accent px-2 py-1 text-mono-xs text-white sm:inline">Tu puesto</span> }
   `,
@@ -768,12 +772,12 @@ export class LeaderboardRow {
   host: { class: 'contents' },
   template: `
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
-      <a routerLink="/" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
+      <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
     </nav>
     <div class="flex items-start justify-between gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">
         <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
-        @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary md:block" [class.hidden]="!descMovil()">{{ descripcion() }}</p> }
+        @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary md:block md:line-clamp-none" [class]="descMovil() ? 'line-clamp-1' : 'hidden'">{{ descripcion() }}</p> }
       </div>
       <div class="hidden shrink-0 flex-col items-end gap-2.5 md:flex"><ng-content select="[aside]" /></div>
     </div>
@@ -786,13 +790,13 @@ export class LeaderboardRow {
       </a>
       <span class="flex w-[216px] flex-col gap-1 pb-3" aria-disabled="true" title="Próximamente">
         <span class="text-display-xs text-text-tertiary">Pronósticos</span>
-        <span class="text-body-xs text-text-muted">Elige ganadores · gratis · suma puntos</span>
+        <span class="text-body-xs text-text-tertiary">Elige ganadores · gratis · suma puntos</span>
       </span>
     </div>
     <div class="hidden items-center justify-between gap-4 md:flex">
       <nav class="flex gap-1 rounded-pill border border-line-subtle bg-bg-surface p-1" aria-label="Porra">
         @for (t of tabs; track t.id) {
-          <a [routerLink]="t.href" class="flex h-10 items-center rounded-pill border px-[18px] text-label-s whitespace-nowrap transition-colors"
+          <a [routerLink]="t.href" class="flex h-10 items-center rounded-pill border px-[18px] text-label-s whitespace-nowrap transition-colors pointer-coarse:h-11"
             [class]="t.id === activa() ? 'border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border-transparent text-text-tertiary hover:text-text-primary'"
             [attr.aria-current]="t.id === activa() ? 'page' : null">{{ t.label }}</a>
         }
@@ -802,7 +806,7 @@ export class LeaderboardRow {
 
     <!-- móvil (UX5-R1-1/2): aviso corto y tab bar inferior del juego (HIG: 49 px + safe area, icono 24, label 11) -->
     <div class="flex flex-col gap-2 md:hidden">
-      <p class="text-body-xs text-text-tertiary">Apuestas · cuotas en vivo <span class="ml-1 rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-muted">Pronósticos · pronto</span></p>
+      <p class="text-body-xs text-text-tertiary">Apuestas · cuotas en vivo <span class="ml-1 rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Pronósticos · pronto</span></p>
       <gr-aviso-juegos [corto]="true" />
     </div>
     <nav class="fixed inset-x-0 bottom-0 z-40 flex border-t border-line-subtle bg-bg-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[10px] md:hidden" aria-label="Porra">
