@@ -237,7 +237,7 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	}
 	if a.DB != nil && a.Redis != nil {
 		// ST2-R1-2: a dedicated 1-connection pool, the request pool no longer delays the realtime events
-		rdb, err := db.ConnectMax(ctx, a.Cfg.DatabaseURL, 2) // publish + hourly purge
+		rdb, err := db.ConnectMax(ctx, a.Cfg.DatabaseURL, 1) // publish + hourly purge share it
 		if err != nil {
 			return err
 		}
