@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrLogo, GrToaster } from '@grcup/ui';
@@ -17,6 +17,10 @@ export interface NavLink {
 }
 
 export type Lang = 'es' | 'en';
+
+/** UX1-R1-3: whether the mobile bottom «Reservar» bar is on screen (the navbar then drops its own CTA on phones). */
+@Injectable({ providedIn: 'root' })
+export class BarraCta { readonly visible = signal(false); }
 
 const LINKS: Record<Lang, NavLink[]> = {
   es: [
@@ -104,7 +108,8 @@ const UI = {
         }
       </ul>
       <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
-      <a grButton variant="primary" routerLink="/entradas" class="relative ml-auto md:ml-0">{{ ui().cta }}</a>
+      <a grButton variant="primary" routerLink="/entradas" class="relative ml-auto md:ml-0" [class.max-md:hidden]="barraCta.visible()">{{ ui().cta }}</a>
+      @if (barraCta.visible()) { <span class="ml-auto md:hidden" aria-hidden="true"></span> }
       <button type="button" data-menu class="relative flex size-11 shrink-0 items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="ui().open" [attr.aria-expanded]="open()" aria-controls="menu-movil" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
     </nav>
     @if (mega()) {
@@ -175,6 +180,7 @@ export class Navbar {
   /** md+ viewport: only there does `hidden` apply (UX1-R1-1). */
   protected readonly ancho = signal(false);
   protected readonly open = signal(false);
+  protected readonly barraCta = inject(BarraCta);
   protected readonly mega = signal(false);
   private readonly el = inject(ElementRef<HTMLElement>);
   /** The mega menu closes with a click outside the navbar (and with Esc). */
@@ -333,12 +339,14 @@ export class Overlays {
     </div>
     @if (barra()) {
       <!-- Figma «Bottom CTA bar / Entrada» (mobile, also over the end of the footer: room below it) and «Back to top» -->
-      <div class="h-24 md:hidden" aria-hidden="true"></div>
-      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
-        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Aforo limitado · 1 minuto</span></span>
+      <div class="h-20 md:hidden" aria-hidden="true"></div>
+      <!-- UX1-R1-3: compact (~72 px) and out of the way while an inline «Reserva tu entrada» CTA is on screen -->
+      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] transition-[opacity,translate] duration-200 md:hidden" [class.translate-y-full]="ctaEnVista()" [class.opacity-0]="ctaEnVista()" [attr.inert]="ctaEnVista() || null">
+        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Reserva en 1 minuto · aforo limitado</span></span>
         <a routerLink="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
-      <button type="button" (click)="arriba()" aria-label="Volver arriba" class="fixed right-4 bottom-[104px] z-40 flex size-12 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card md:hidden"><gr-icon name="arrow-up" [size]="20" /></button>
+      <!-- UX1-R1-4: iOS pattern - only while scrolling back up, past three screens -->
+      <button type="button" (click)="arriba()" aria-label="Volver arriba" class="fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card transition-opacity duration-200 md:hidden" [class.opacity-0]="!fab()" [class.pointer-events-none]="!fab()" [attr.inert]="!fab() || null"><gr-icon name="arrow-up" [size]="20" /></button>
     }
     }
     <!-- Modal de acceso al directo y avisos: una sola instancia en toda la web -->
@@ -365,6 +373,9 @@ export class Footer {
   protected readonly logos = signal<Patrocinador[]>([]);
   protected arriba(): void { window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
   private readonly scrolled = signal(false);
+  protected readonly ctaEnVista = signal(false);
+  protected readonly fab = signal(false);
+  private readonly barraCta = inject(BarraCta);
   private readonly url = signal('');
   /** Mobile CTA bar (Figma Mobile, every public page): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
@@ -387,9 +398,16 @@ export class Footer {
       const onScroll = () => {
         const hero = document.querySelector('gr-hero-trophy')?.getBoundingClientRect();
         this.scrolled.set(!hero || (window.scrollY > 480 && hero.bottom < window.innerHeight * 0.5));
+        const h = window.innerHeight;
+        this.ctaEnVista.set([...document.querySelectorAll('[data-cta-entrada]')].some((e) => { const r = e.getBoundingClientRect(); return r.bottom > 0 && r.top < h; }));
+        const y = window.scrollY;
+        this.fab.set(y > h * 3 && y < ultimoY);
+        ultimoY = y;
       };
+      let ultimoY = window.scrollY;
       window.addEventListener('scroll', onScroll, { passive: true });
       setTimeout(onScroll);
+      effect(() => this.barraCta.visible.set(this.barra()));
       inject(DestroyRef).onDestroy(() => {
         sub.unsubscribe();
         window.removeEventListener('scroll', onScroll);

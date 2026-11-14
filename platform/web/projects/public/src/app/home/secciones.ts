@@ -110,7 +110,7 @@ export class SecAlta {
           }
         </ul>
         <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="primary" size="l" routerLink="/entradas">Reserva tu entrada gratis</a>
+          <a grButton variant="primary" size="l" routerLink="/entradas" data-cta-entrada>Reserva tu entrada gratis</a>
           <a grButton variant="glass" size="l" routerLink="/horarios" iconRight="arrow-right">Ver horarios</a>
         </div>
         @if (entradas()?.personas) {
