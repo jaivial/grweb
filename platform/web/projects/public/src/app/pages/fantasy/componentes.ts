@@ -119,11 +119,11 @@ export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas =
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
   template: `
-    <nav class="text-body-s text-text-tertiary" aria-label="Migas"><a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
+    <nav class="text-body-s text-text-tertiary data-[reservar]:max-md:min-h-[2lh]" [attr.data-reservar]="reservar() || null" aria-label="Migas"><a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
       <div class="flex min-w-0 flex-col gap-2.5">
-        <h1 class="text-display-s data-[reservar]:max-md:min-h-[2lh] md:text-display-m" [attr.data-reservar]="reservar() || null">{{ titulo() }}</h1>
-        @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary">{{ descripcion() }}</p> }
+        <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
+        @if (descripcion() || reservar()) { <p class="max-w-[1064px] text-body-m text-text-secondary data-[reservar]:max-md:min-h-[2lh]" [attr.data-reservar]="reservar() || null">{{ descripcion() }}</p> }
       </div>
       <ng-content />
     </div>
@@ -133,7 +133,7 @@ export class FantasyCabecera {
   readonly titulo = input.required<string>();
   readonly descripcion = input('');
   readonly migas = input<string[]>([]);
-  /** UX6-R1-9: reserva dos líneas al título que llega tarde (nombre de sala). */
+  /** UX6-R2-3: en móvil reserva las líneas de migas y entradilla que llegan tarde (datos de la sala). */
   readonly reservar = input(false);
 }
 
@@ -153,7 +153,7 @@ export class FantasyCabecera {
         <span class="text-meta text-text-tertiary">Sala</span>
         <span class="text-label-s break-words text-text-primary lg:truncate">{{ nombre() }}</span>
       </span>
-      <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-label-xs" [class]="badge().clase">{{ badge().txt }}</span>
+      <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-label-s" [class]="badge().clase">{{ badge().txt }}</span>
       @if (plazas()) { <span class="shrink-0 text-mono-s text-text-secondary tabular-nums">{{ miembros() }}/{{ plazas() }}</span> }
     </p>
     <gr-selector class="lg:hidden" etiqueta="Sala" [opciones]="opciones()" [valor]="activa()" />
@@ -164,7 +164,7 @@ export class FantasyCabecera {
           [attr.aria-current]="t.v === activa() ? 'page' : null">{{ t.l }}</a>
       }
     </nav>
-    <a href="/fantasy/salas" class="inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-pill lg:min-h-[30px] border border-line-strong px-3 text-label-xs text-text-secondary hover:text-text-primary lg:self-auto">
+    <a href="/fantasy/salas" class="inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-pill lg:min-h-[30px] border border-line-strong px-3 text-label-s text-text-secondary hover:text-text-primary lg:self-auto">
       Cambiar de sala<gr-icon name="chevron-down" [size]="16" />
     </a>
   `,
@@ -344,7 +344,7 @@ export class SparklineClausula {
           @case ('clausulazo') { <button type="button" class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-accent/60 bg-accent-deep/85 font-display text-[17px] text-white uppercase shadow-glow-deep transition-colors hover:bg-accent-deep md:h-10" (click)="clausulazo.emit()"><gr-icon name="zap" [size]="15" class="text-accent-text" />Clausulazo</button> }
           @case ('cerrado') { <span class="flex h-11 w-full items-center justify-center rounded-md bg-accent-deep/85 px-1 text-center font-display text-[13px] leading-tight text-white uppercase opacity-40 md:h-11" role="note" [attr.aria-label]="'Clausulazo cerrado desde las ' + cierre()">Cerrado desde las {{ cierre() }}</span> }
           @case ('vender') { <button grButton variant="outline" [block]="true" (click)="vender.emit()">Vender</button> }
-          @default { <span class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-warning/30 bg-warning/8 text-label-xs text-warning md:h-10"><gr-icon name="lock" [size]="13" />Protegido</span> }
+          @default { <span class="flex h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-warning/30 bg-warning/8 text-label-s text-warning md:h-10"><gr-icon name="lock" [size]="13" />Protegido</span> }
         }
       </span>
     </span>
@@ -611,7 +611,7 @@ export class ClausulazoModal {
 
         <section class="flex flex-col gap-2 rounded-md bg-bg-surface p-3" aria-labelledby="ficha-desglose">
           <p class="flex items-center justify-between gap-3">
-            <span id="ficha-desglose" class="text-label-xs text-text-tertiary">Desglose de la nota</span>
+            <span id="ficha-desglose" class="text-label-s text-text-tertiary">Desglose de la nota</span>
             <gr-nota [nota]="notaAtleta()" />
           </p>
           @for (l of lineas(); track l.concepto) {

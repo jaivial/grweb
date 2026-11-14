@@ -83,7 +83,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
         }
 
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-          <label class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border bg-bg-field px-4 focus-within:border-line-accent" [class.border-line-accent]="!!q()" [class.border-line-strong]="!q()">
+          <label class="flex h-12 min-w-0 shrink-0 items-center gap-3 rounded-md border bg-bg-field px-4 focus-within:border-line-accent md:flex-1" [class.border-line-accent]="!!q()" [class.border-line-strong]="!q()">
             <gr-icon name="search" [size]="20" class="shrink-0 text-text-tertiary" />
             <span class="sr-only">Buscar sala por nombre</span>
             <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted [&::-webkit-search-cancel-button]:hidden" placeholder="Buscar sala por nombre…" autocomplete="off" enterkeyhint="search" inputmode="search"
@@ -146,9 +146,9 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                     <span class="flex items-center gap-2"><span class="text-mono-s text-text-primary tabular-nums">{{ s.miembros }}/{{ s.plazas }}</span><span class="text-meta text-text-tertiary">jugadores</span></span>
                     <span class="block h-1.5 overflow-hidden rounded-pill bg-bg-field" aria-hidden="true"><span class="block h-full rounded-pill" [class]="s.plazas - s.miembros <= 1 && s.estado !== 'en_juego' ? 'bg-warning' : 'bg-accent'" [style.width.%]="s.plazas ? (s.miembros / s.plazas) * 100 : 0"></span></span>
                   </p>
-                  <p class="flex flex-wrap items-center gap-2 xl:w-[190px] xl:flex-col xl:items-start xl:gap-1">
-                    <span class="inline-flex h-7 items-center rounded-pill border px-3 text-label-xs" [class]="badge(s).clase">{{ badge(s).txt }}</span>
-                    @if (s.miSolicitud === 'pendiente') { <span class="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-warning bg-warning/12 px-2.5 text-label-xs text-warning">Solicitud pendiente</span> }
+                  <p class="flex min-h-7 flex-nowrap items-center gap-2 xl:w-[190px] xl:flex-col xl:items-start xl:gap-1">
+                    <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-label-s" [class]="badge(s).clase">{{ badge(s).txt }}</span>
+                    @if (s.miSolicitud === 'pendiente') { <span class="inline-flex h-6 min-w-0 items-center gap-1.5 truncate rounded-pill border border-warning bg-warning/12 px-2.5 text-label-s text-warning">Solicitud pendiente</span> }
                   </p>
                   <div class="relative flex min-h-[17px] items-center xl:w-[260px]">
                     @if (s.lider; as l) {
@@ -251,13 +251,14 @@ export class SalasPage {
   });
   protected readonly opcionesFiltro = computed<OpcionSelector[]>(() => {
     const l = this.salas();
-    // con más páginas por cargar los recuentos son mínimos: «30+»
-    const mas = this.lobby()?.hayMas ? '+' : '';
+    // con más páginas por cargar los recuentos son mínimos: «30+» (nunca «0+»)
+    const mas = this.lobby()?.hayMas;
+    const n = (k: number) => `${k}${mas && k ? '+' : ''}`;
     return [
-      { v: 'todas', l: `Todas · ${l.length}${mas}` },
-      { v: 'abiertas', l: `Abiertas · ${l.filter((s) => ABIERTA.has(s.estado)).length}${mas}` },
-      { v: 'en_juego', l: `En juego · ${l.filter((s) => s.estado === 'en_juego').length}${mas}` },
-      { v: 'cerradas', l: `Cerradas · ${l.filter((s) => CERRADA.has(s.estado)).length}${mas}` },
+      { v: 'todas', l: `Todas · ${n(l.length)}` },
+      { v: 'abiertas', l: `Abiertas · ${n(l.filter((s) => ABIERTA.has(s.estado)).length)}` },
+      { v: 'en_juego', l: `En juego · ${n(l.filter((s) => s.estado === 'en_juego').length)}` },
+      { v: 'cerradas', l: `Cerradas · ${n(l.filter((s) => CERRADA.has(s.estado)).length)}` },
     ];
   });
   /** Las salas con una solicitud mía que tiene algo que contar (pendiente, aceptada, rechazada…). */
@@ -267,6 +268,7 @@ export class SalasPage {
     const seo = inject(Seo);
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
+      await this.fan.cargar();
       await this.cargar();
       await applySeo(cms, seo, '/fantasy/salas', 'Salas de GRS Fantasy · GR Strength Cup', 'Las salas de GRS Fantasy en directo: crea la tuya, invita a tus amigos o solicita unirte, y mira quién va ganando en cada una.');
     });
@@ -277,7 +279,7 @@ export class SalasPage {
         /* sin favoritas guardadas */
       }
       this.vivo.conectar();
-      void this.fan.cargar().then((f) => f && this.recargar());
+      // la carga inicial ya espera a la sesión del fan: una sola petición
       // Salas, solicitudes, notas y fichajes cambian en vivo: se recarga el lobby agrupando los eventos seguidos.
       let primera = true;
       effect(() => {
