@@ -195,6 +195,10 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
       </div>
     </gr-page>
 
+    @if (toast(); as t) {
+      <!-- UX6-R1-6: feedback sin mover la lista -->
+      <p class="fixed inset-x-4 bottom-[calc(96px+env(safe-area-inset-bottom))] z-50 rounded-md border border-line-accent bg-bg-deep px-4 py-3 text-body-s text-text-primary shadow-card md:inset-x-auto md:right-6 md:bottom-6 md:w-[380px]" role="status">{{ t }}</p>
+    }
     @if (crear()) {
       <gr-crear-sala-modal [atletas]="lobby()?.atletas ?? 0" [plazasMax]="lobby()?.plazasMax ?? 0" [puedeCrear]="lobby()?.puedeCrear ?? false" [alias]="fan.yo()?.alias ?? ''"
         (cerrar)="crear.set(false)" (hecho)="creada($event)" />
@@ -225,6 +229,8 @@ export class SalasPage {
   protected readonly crear = signal(false);
   protected readonly popover = signal<string | null>(null);
   protected readonly favoritas = signal<Set<string>>(new Set());
+  protected readonly toast = signal<string | null>(null);
+  private esperaToast: ReturnType<typeof setTimeout> | undefined;
   private origenPopover: HTMLElement | null = null;
   private esperaHover: ReturnType<typeof setTimeout> | undefined;
   private esperaBusqueda: ReturnType<typeof setTimeout> | undefined;
@@ -255,7 +261,7 @@ export class SalasPage {
     ];
   });
   /** Las salas con una solicitud mía que tiene algo que contar (pendiente, aceptada, rechazada…). */
-  protected readonly misSolicitudes = computed(() => this.salas().filter((s) => s.miSolicitud && s.miSolicitud !== 'cancelada' && s.miSolicitud !== 'expulsada' && !(s.miSolicitud === 'aceptada' && s.esMia)));
+  protected readonly misSolicitudes = computed(() => this.salas().filter((s) => s.miSolicitud && s.miSolicitud !== 'pendiente' && s.miSolicitud !== 'cancelada' && s.miSolicitud !== 'expulsada' && !(s.miSolicitud === 'aceptada' && s.esMia)));
 
   constructor() {
     const seo = inject(Seo);
@@ -291,6 +297,7 @@ export class SalasPage {
         this.agrupada.cancelar();
         clearTimeout(this.esperaHover);
         clearTimeout(this.esperaBusqueda);
+        clearTimeout(this.esperaToast);
         this.vivo.desconectar();
       });
     }
@@ -349,6 +356,9 @@ export class SalasPage {
     try {
       await this.juegos.solicitar(s.id);
       await this.recargar();
+      const l = this.lobby();
+      this.avisar(`Solicitud enviada a @${s.anfitrion} · ${l?.solicitudesPendientes ?? 1} de ${l?.solicitudesMax ?? 3} pendientes`);
+      return;
     } catch (e) {
       const c = codigoError(e);
       if (c === 'MAX_SOLICITUDES') this.maximo.set(true);
@@ -358,6 +368,11 @@ export class SalasPage {
     } finally {
       this.operando.set(null);
     }
+  }
+  private avisar(t: string): void {
+    this.toast.set(t);
+    clearTimeout(this.esperaToast);
+    this.esperaToast = setTimeout(() => this.toast.set(null), 4000);
   }
   protected async cancelar(s: SalaVista): Promise<void> {
     this.operando.set(s.id);
