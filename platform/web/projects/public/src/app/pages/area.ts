@@ -196,14 +196,14 @@ const api = '/api/area-atleta';
                   <div class="min-w-0">
                     <p class="text-label-m">Foto de perfil</p>
                     <p class="text-body-xs text-text-tertiary">JPG, PNG o WebP hasta 8 MB. Pulsa en la foto para centrar tu cara (se guarda la posición).</p>
-                    <label class="mt-2 inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-line-strong px-3 text-label-s">{{ subiendo() ? 'Subiendo…' : p.atleta.perfil.fotoUrl ? 'Cambiar' : 'Subir foto' }}<gr-icon name="arrow-right" [size]="14" />
+                    <label class="mt-2 inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-line-strong px-4 text-label-s focus-within:outline-2 focus-within:outline-accent">{{ subiendo() ? 'Subiendo…' : p.atleta.perfil.fotoUrl ? 'Cambiar' : 'Subir foto' }}<gr-icon name="arrow-right" [size]="14" />
                       <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" (change)="foto($event)" [disabled]="subiendo()" /></label>
                   </div>
                 </div>
                 @if (!p.atleta.perfil.imagen) {
                   @if (p.atleta.perfil.fotoUrl) { <p class="mt-4 text-body-s text-warning" role="note">Tu foto no se publicará en tu ficha hasta que aceptes el consentimiento de imagen.</p> }
                   <label class="mt-4 flex min-h-11 items-start gap-3 rounded-md border border-line-subtle bg-bg-card p-3 text-body-s text-text-secondary">
-                    <input type="checkbox" name="imagen" [(ngModel)]="aceptaImagen" class="mt-0.5 size-5 accent-[#C42B3E]" />
+                    <input type="checkbox" name="imagen" [(ngModel)]="aceptaImagen" class="mt-0.5 size-6 shrink-0 accent-[#C42B3E]" />
                     <span>Acepto que la organización publique mi foto en la web de la competición (<a href="/consentimiento-datos" target="_blank" class="text-accent-text underline">consentimiento de imagen</a>). Puedo retirarlo cuando quiera.</span>
                   </label>
                 } @else {
@@ -211,13 +211,14 @@ const api = '/api/area-atleta';
                 }
                 <form class="mt-6 flex flex-col gap-5" (ngSubmit)="guardarPerfil()" novalidate>
                   <gr-field label="Club" for="f-club"><input grInput id="f-club" name="club" [(ngModel)]="f.club" maxlength="120" /></gr-field>
-                  <gr-field label="Ciudad" for="f-city"><input grInput id="f-city" name="ciudad" [(ngModel)]="f.ciudad" maxlength="80" /></gr-field>
-                  @if (!p.atleta.menor) { <gr-field label="Instagram" for="f-ig" [optional]="true"><input grInput id="f-ig" name="ig" [(ngModel)]="f.instagram" placeholder="@usuario" maxlength="60" /></gr-field> }
+                  <gr-field label="Ciudad" for="f-city"><input grInput id="f-city" name="ciudad" autocomplete="address-level2" [(ngModel)]="f.ciudad" maxlength="80" /></gr-field>
+                  @if (!p.atleta.menor) { <gr-field label="Instagram" for="f-ig" [optional]="true"><input grInput id="f-ig" name="ig" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" [(ngModel)]="f.instagram" placeholder="@usuario" maxlength="60" /></gr-field> }
                   <gr-field label="Sobre ti (máx. 280)" for="f-bio"><textarea grInput id="f-bio" name="bio" rows="4" [(ngModel)]="f.bio" maxlength="280" placeholder="Tercera temporada en powerlifting. Vengo de la halterofilia…"></textarea></gr-field>
                   <fieldset><legend class="text-label-s">Mejores marcas (kg)</legend>
                     <div class="mt-2 grid grid-cols-3 gap-3">
-                      @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'m' + m.k" [(ngModel)]="f.marcas[m.k]" [attr.aria-invalid]="fuera(f.marcas[m.k]) || null" [class.border-accent]="fuera(f.marcas[m.k])" /></label> }
+                      @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'m' + m.k" [(ngModel)]="f.marcas[m.k]" [attr.aria-invalid]="fuera(f.marcas[m.k]) || null" [attr.aria-describedby]="fuera(f.marcas[m.k]) ? 'm-err' : null" [class.border-accent]="fuera(f.marcas[m.k])" /></label> }
                     </div>
+                    @if (marcasMal()) { <p id="m-err" class="mt-2 text-body-s text-accent-text" role="alert">Las marcas van entre 0 y 600 kg.</p> }
                   </fieldset>
                   <div class="flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
                     <span><span class="block text-label-m">Mostrar mi perfil público</span><span class="block text-body-xs text-text-tertiary">Tu ficha en /atletas con foto, bio, Instagram y marcas. Tu nombre, club, categoría, horario y resultados son públicos siempre en participantes y resultados.</span></span>
@@ -226,7 +227,7 @@ const api = '/api/area-atleta';
                     </button>
                   </div>
                   @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-                  <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">Guardar perfil</button>
+                  <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()" [disabled]="marcasMal()">Guardar perfil</button></div>
                 </form>
               </div>
             }
@@ -414,6 +415,9 @@ export class AreaAtletaPage {
   }
   protected intentosMal(): boolean {
     return this.lifts.some((m) => this.fueraIntento(this.pz.intentos[m.k]));
+  }
+  protected marcasMal(): boolean {
+    return this.lifts.some((m) => this.fuera(this.f.marcas[m.k]));
   }
 
   private async recargar(): Promise<void> {
