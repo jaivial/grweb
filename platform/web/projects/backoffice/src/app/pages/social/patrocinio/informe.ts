@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrEmpty, GrIcon, GrToasts } from '@grcup/ui';
 import { problemOf } from '../../../core/api';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
-import { BoPageHeader, BoToggle, errText } from '../../../shared/ui';
+import { BoPageHeader, BoTabs, BoToggle, errText } from '../../../shared/ui';
 import { SoAjuste, SoCard, SoGrupo, SoNumber, SoSkelFilas, SoTier, TIERS, TIER_LIST, diaCorto, num, pct, rangoError, type Tier } from '../ui';
 import { PatrocinioApi, type ConfigPatrocinio, type Informe, type InformeFila } from './api';
+import { patrocinioTabs } from './nav';
 
 interface FormConfig {
   intervaloSeg: number;
@@ -31,18 +32,21 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
  */
 @Component({
   selector: 'bo-patrocinio-informe',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrIcon, SoAjuste, SoCard, SoGrupo, SoNumber, SoSkelFilas, SoTier],
+  imports: [FormsModule, RouterLink, BoPageHeader, BoTabs, BoToggle, GrAlert, GrButton, GrEmpty, GrIcon, SoAjuste, SoCard, SoGrupo, SoNumber, SoSkelFilas, SoTier],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
-      <bo-page-header title="Patrocinio · Configuración e informe" [badge]="config()?.activo ? 'Worker activo' : 'Worker parado'" [badgeTone]="config()?.activo ? 'accent' : 'neutral'"
+      <bo-page-header [title]="config_() ? 'Patrocinio · Configuración' : 'Patrocinio · Informe del día'" [badge]="config()?.activo ? 'Worker activo' : 'Worker parado'" [badgeTone]="config()?.activo ? 'accent' : 'neutral'"
         [subtitle]="'Un tic cada ' + (config()?.intervaloSeg ?? 90) + ' s mientras el directo está en juego · cola y registro de apariciones (§7)'"
-        [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Patrocinio', 'Informe']">
+        [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Patrocinio', config_() ? 'Configuración' : 'Informe del día']">
         <ng-container actions>
-          <a grButton icon="layout" [routerLink]="['/', comps.current()?.slug, 'patrocinio']">Banners</a>
+          <a grButton [variant]="config_() ? 'secondary' : 'primary'" icon="plus" [routerLink]="['/', comps.current()?.slug, 'patrocinio', 'banners']" [queryParams]="{ nuevo: 1 }">Nuevo banner</a>
+          @if (config_()) {
           <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !!errorIntervalo() || pesoFuera() || !puede()" (click)="guardar()">Guardar configuración</button>
+          }
         </ng-container>
       </bo-page-header>
+      <bo-tabs [tabs]="tabs()" />
 
       @if (!puede()) {
         <gr-alert tone="warning" title="Tu rol no puede gestionar el patrocinio">Hace falta el permiso «web.editar». Puedes ver el informe, pero no guardar la configuración.
@@ -62,17 +66,18 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
           </gr-empty>
         </div>
       } @else {
-        @if (estimacion()) {
+        @if (estimacion() && config_()) {
           <gr-alert [tone]="informe()?.aviso ? 'warning' : 'info'" [title]="estimacion()">
             Todos salen al menos una vez por jornada: primero los pendientes del día (oro → plata → bronce y orden) y después según su peso.
             @if (informe()?.aviso; as aviso) { <span class="mt-1 block text-warning">{{ aviso }}</span> }
-            <a alertAction [routerLink]="['/', comps.current()?.slug, 'patrocinio']" class="mt-2 inline-flex items-center gap-1 text-label-s text-info hover:underline">Revisar banners <gr-icon name="arrow-right" [size]="14" /></a>
+            <a alertAction [routerLink]="['/', comps.current()?.slug, 'patrocinio', 'banners']" class="mt-2 inline-flex items-center gap-1 text-label-s text-info hover:underline">Revisar banners <gr-icon name="arrow-right" [size]="14" /></a>
           </gr-alert>
         }
 
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+        <div class="grid grid-cols-1 gap-6" [class.lg:grid-cols-2]="config_()">
           <!-- ===== Configuración ===== -->
-          <div class="flex min-w-0 flex-col gap-6">
+          @if (config_()) {
+          <div class="contents">
             <so-card titulo="Reparto de banners" ayuda="Cómo y cuándo publica el worker en el chat">
               <so-ajuste label="Patrocinio activo" ayuda="El worker hace tics y publica patrocinio.banner">
                 <bo-toggle [value]="form().activo" label="Patrocinio activo" [disabled]="!puede()" (changed)="set({ activo: $event })" />
@@ -124,6 +129,7 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
               }
             </so-card>
           </div>
+          } @else {
 
           <!-- ===== Informe ===== -->
           <so-card titulo="Informe del día" [ayuda]="diaCorto(informe()?.dia) + ' · ' + activos() + ' activos · ' + pendientes().length + ' pendientes'" class="self-start">
@@ -173,6 +179,7 @@ const PESO: Record<Tier, keyof FormConfig> = { oro: 'pesoOro', plata: 'pesoPlata
               </figure>
             }
           </so-card>
+          }
         </div>
       }
     </div>
@@ -191,6 +198,9 @@ export class PatrocinioInformePage {
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
+  /** Vista de la ruta: «informe» (patrocinio/informe) o «config» (patrocinio/configuracion). */
+  protected readonly config_ = signal(inject(ActivatedRoute).snapshot.data['vista'] === 'config');
+  protected readonly tabs = computed(() => patrocinioTabs(this.comps.current()?.slug));
   protected readonly todos = signal(false);
   protected readonly top = TOP;
   protected readonly TIERS = TIERS;

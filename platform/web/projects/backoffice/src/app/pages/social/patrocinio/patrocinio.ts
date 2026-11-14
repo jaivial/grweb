@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrToasts } from '@grcup/ui';
 import { problemOf } from '../../../core/api';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, Media, errText } from '../../../shared/ui';
+import { BoDrawer, BoPageHeader, BoTabs, BoToggle, Confirm, Media, errText } from '../../../shared/ui';
 import { SoFecha, SoSegmented, SoSkelFilas, SoSkelKpis, SoThumb, SoTier, TIER_LIST, TIERS, diaMes, num, pct, urlSegura, type SoOpcion } from '../ui';
 import { PatrocinioApi, type Banner, type BannerBorrador, type Informe } from './api';
+import { patrocinioTabs } from './nav';
 
 interface FormBanner {
   patrocinador: string;
@@ -33,7 +34,7 @@ const diaMadrid = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('en-CA
  */
 @Component({
   selector: 'bo-patrocinio',
-  imports: [FormsModule, RouterLink, BoDrawer, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, SoFecha, SoSegmented, SoSkelFilas, SoSkelKpis, SoThumb, SoTier],
+  imports: [FormsModule, RouterLink, BoDrawer, BoPageHeader, BoTabs, BoToggle, GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, SoFecha, SoSegmented, SoSkelFilas, SoSkelKpis, SoThumb, SoTier],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
@@ -41,10 +42,10 @@ const diaMadrid = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('en-CA
         [subtitle]="'Aparecen en el chat cada ' + (config()?.intervaloSeg ?? 90) + ' s · todos salen al menos una vez por jornada (§7)'"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Patrocinio']">
         <ng-container actions>
-          <a grButton icon="activity" [routerLink]="['/', comps.current()?.slug, 'patrocinio', 'informe']">Informe del día</a>
           <button grButton variant="primary" icon="plus" [disabled]="!puede()" (click)="nuevo()">Nuevo banner</button>
         </ng-container>
       </bo-page-header>
+      <bo-tabs [tabs]="tabs()" />
 
       @if (!puede()) {
         <gr-alert tone="warning" title="Tu rol no puede gestionar el patrocinio">Hace falta el permiso «web.editar» para tocar los banners. Puedes verlos, pero los botones de crear, pausar y eliminar quedan desactivados.
@@ -201,23 +202,23 @@ const diaMadrid = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('en-CA
               <figcaption class="text-body-xs text-text-tertiary"><span class="block text-label-s text-text-secondary">Móvil</span>1080 × 1920</figcaption>
             </figure>
           </div>
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center gap-2">
-              <label class="inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-sm border border-line-strong px-3 text-label-s text-text-secondary hover:border-text-muted hover:text-text-primary md:h-10">
-                <gr-icon name="camera" [size]="16" />Escritorio
-                <input type="file" accept="image/*" class="sr-only" (change)="subir($event, 'imagenUrl')" />
-              </label>
-              <input grInput aria-label="URL de la imagen de escritorio" placeholder="https://…/banner.png" [ngModel]="form().imagenUrl" (ngModelChange)="set({ imagenUrl: $event })" />
-            </div>
-            <div class="flex items-center gap-2">
-              <label class="inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-sm border border-line-strong px-3 text-label-s text-text-secondary hover:border-text-muted hover:text-text-primary md:h-10">
-                <gr-icon name="smartphone" [size]="16" />Móvil
-                <input type="file" accept="image/*" class="sr-only" (change)="subir($event, 'imagenMovilUrl')" />
-              </label>
-              <input grInput aria-label="URL de la imagen de móvil" placeholder="https://…/banner-movil.png" [ngModel]="form().imagenMovilUrl" (ngModelChange)="set({ imagenMovilUrl: $event })" />
-            </div>
-            <p class="text-body-xs text-text-tertiary">PNG o WebP · se sube a /medios o pega una URL https</p>
+          <div class="grid grid-cols-2 gap-3">
+            @for (s of slots; track s.campo) {
+              <div class="flex min-w-0 flex-col gap-2">
+                <span class="flex items-center gap-1.5 text-label-s text-text-secondary"><gr-icon [name]="s.icono" [size]="16" />{{ s.l }}</span>
+                <label class="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-sm border border-line-strong px-3 text-label-s text-text-primary transition-colors hover:border-text-muted focus-within:border-accent-text md:h-10"
+                  [class.pointer-events-none]="subiendo() === s.campo" [class.opacity-60]="subiendo() === s.campo">
+                  <gr-icon [name]="subiendo() === s.campo ? 'refresh' : 'upload'" [size]="16" [class.animate-spin]="subiendo() === s.campo" />
+                  {{ subiendo() === s.campo ? 'Subiendo…' : form()[s.campo] ? 'Cambiar imagen' : 'Subir imagen' }}
+                  <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" [attr.aria-label]="'Subir imagen de ' + s.l.toLowerCase()" (change)="subir($event, s.campo)" />
+                </label>
+                @if (form()[s.campo]) {
+                  <button type="button" class="self-start text-body-xs text-text-tertiary hover:text-accent-text hover:underline" (click)="quitar(s.campo)">Quitar imagen</button>
+                }
+              </div>
+            }
           </div>
+          <p class="text-body-xs text-text-tertiary">JPG, PNG o WebP · máx. 10 MB · se publica en el CDN</p>
         </div>
 
         <gr-field label="URL de destino" hint="Solo enlaces http o https completos (§7)" [error]="errorDestino()">
@@ -288,6 +289,14 @@ export class PatrocinioPage {
   protected readonly guardando = signal(false);
   protected readonly guardandoId = signal('');
   protected readonly error = signal('');
+  protected readonly subiendo = signal<'' | 'imagenUrl' | 'imagenMovilUrl'>('');
+  protected readonly slots = [
+    { campo: 'imagenUrl', l: 'Escritorio', icono: 'monitor' },
+    { campo: 'imagenMovilUrl', l: 'Móvil', icono: 'smartphone' },
+  ] as const;
+  protected readonly tabs = computed(() => patrocinioTabs(this.comps.current()?.slug));
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly tiers = TIER_LIST;
   protected readonly TIERS = TIERS;
@@ -328,6 +337,11 @@ export class PatrocinioPage {
       if (!this.abierto()) this.editando.set(null);
     });
     inject(DestroyRef).onDestroy(() => undefined);
+    // «Nuevo banner» desde el informe o la configuración llega con ?nuevo=1: abre el drawer y limpia la URL.
+    if (this.route.snapshot.queryParamMap.get('nuevo')) {
+      queueMicrotask(() => this.nuevo());
+      void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    }
   }
 
   protected async cargar(): Promise<void> {
@@ -400,14 +414,23 @@ export class PatrocinioPage {
     this.editando.set(null);
   }
 
+  protected quitar(campo: 'imagenUrl' | 'imagenMovilUrl'): void {
+    this.set({ [campo]: '' } as Partial<FormBanner>);
+  }
+
   protected async subir(ev: Event, campo: 'imagenUrl' | 'imagenMovilUrl'): Promise<void> {
-    const file = (ev.target as HTMLInputElement).files?.[0];
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
     if (!file) return;
+    this.subiendo.set(campo);
     try {
-      const url = await this.media.upload(file, this.form().patrocinador);
+      const url = await this.media.upload(file, this.form().patrocinador, '/web/patrocinio/imagen');
       this.set({ [campo]: url } as Partial<FormBanner>);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo subir la imagen.'));
+    } finally {
+      this.subiendo.set('');
     }
   }
 
