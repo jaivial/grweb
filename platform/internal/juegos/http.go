@@ -351,7 +351,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaPublicaCache(ctx, c.ID, in.JornadaID)
 			if err != nil {
 				return nil, err
 			}
@@ -406,18 +406,15 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaPublicaCache(ctx, c.ID, in.JornadaID)
 			if err != nil {
 				return nil, err
 			}
 			o := &clasPorraOut{}
 			o.Body.Jornada = ptr(j.out())
-			top, miPuesto := s.rankingPorra(ctx, *j, fanID)
+			top, miPuesto, miSaldo := s.rankingPorra(ctx, *j, fanID)
 			o.Body.Top = publicaPorra(top)
-			o.Body.MiPuesto = miPuesto
-			if fanID != uuid.Nil {
-				_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'porra'`, j.ID, fanID).Scan(&o.Body.MiSaldo)
-			}
+			o.Body.MiPuesto, o.Body.MiSaldo = miPuesto, miSaldo
 			return o, nil
 		})
 
@@ -758,7 +755,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaPublicaCache(ctx, c.ID, in.JornadaID)
 			if err != nil {
 				return nil, err
 			}
