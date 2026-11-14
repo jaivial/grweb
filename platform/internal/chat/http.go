@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"sort"
 	"strconv"
@@ -236,6 +237,13 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			case <-ctx.Done():
+				return
+			case <-s.ctxRaiz.Done():
+				// SIGTERM (scale-down, rollout): the room reader of this pod has stopped, so the socket would stay
+				// open but mute until the process dies (ST1-R2-3: 7 s deliveries, 692 drops). Close with 1012 after
+				// a short jitter: the clients reconnect with ?desde to another pod, spread out, losing nothing.
+				time.Sleep(time.Duration(rand.Int64N(int64(drenajeWS))))
+				_ = conn.Close(websocket.StatusServiceRestart, "reinicio")
 				return
 			}
 		}

@@ -386,11 +386,20 @@ export class ChatService {
     ws.onerror = () => {
       /* the close event does the rest */
     };
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       if (this.ws !== ws) return;
       this.ws = null;
       clearInterval(this.ping);
-      if (this.vivo) this.wsFallo();
+      if (!this.vivo) return;
+      // 1012: the pod is shutting down (scale-down/rollout), not a failure: reconnect soon to another pod
+      // with ?desde, without counting towards the SSE fallback.
+      if (ev.code === 1012) {
+        this.estado.set('reconectando');
+        clearTimeout(this.temporizador);
+        this.temporizador = setTimeout(() => this.vivo && this.abrirWs(), 200 + Math.random() * 800);
+        return;
+      }
+      this.wsFallo();
     };
   }
 

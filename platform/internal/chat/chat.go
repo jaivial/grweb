@@ -46,6 +46,7 @@ const (
 	envMaxConexiones  = "CHAT_MAX_CONEXIONES"
 	defMaxConexiones  = 10000
 	defWsIdleSegundos = 90 // a WS connection is closed when the client sends nothing for this long
+	drenajeWS         = 2 * time.Second // on SIGTERM each WS closes (1012) at a random moment of this window
 	envOrigenes       = "CHAT_ORIGENES"
 )
 
