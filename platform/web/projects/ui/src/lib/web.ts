@@ -267,7 +267,7 @@ export class GrRaffleItem {
   template: `
     <p class="text-label-m text-[#f2f2f3]">{{ titulo() }}</p>
     <p class="text-body-s leading-[1.2] text-[#a9adb4]"><ng-content /></p>
-    @if (href()) { <a [href]="href()" class="text-label-s text-[#e0485c] hover:underline">{{ enlace() }}</a> }
+    @if (href()) { <a [href]="href()" class="inline-flex min-h-11 items-center self-start text-label-s text-[#e0485c] hover:underline">{{ enlace() }}</a> }
   `,
 })
 export class GrRaffleNotice {

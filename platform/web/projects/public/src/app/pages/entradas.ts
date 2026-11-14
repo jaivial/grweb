@@ -638,7 +638,7 @@ export class EntradasPage {
             @if (m.estado !== 'anulada') {
             <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-label-m">Invita a tu gente</h2><p class="text-body-xs text-text-tertiary">Comparte tu enlace: sabremos cuántas entradas trae tu invitación.</p>
-              <div class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 py-3 text-body-s [overflow-wrap:anywhere]">{{ corto(m.compartir) }}</span><button type="button" class="text-label-s text-accent-text hover:underline" (click)="copiar(m.compartir)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
+              <div class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 py-3 text-body-s [overflow-wrap:anywhere]">{{ corto(m.compartir) }}</span><button type="button" class="-mr-3 inline-flex min-h-11 shrink-0 items-center px-3 text-label-s text-accent-text hover:underline" (click)="copiar(m.compartir)"><span aria-live="polite">{{ copiado() ? 'Copiado' : 'Copiar' }}</span></button></div>
               <div class="flex flex-wrap gap-2 text-label-s">
                 <a [href]="'https://twitter.com/intent/tweet?url=' + enc(m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />X</a>
                 <a [href]="'https://www.facebook.com/sharer/sharer.php?u=' + enc(m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />Facebook</a>
@@ -646,7 +646,7 @@ export class EntradasPage {
                 <button type="button" [class]="chip" (click)="copiar(m.compartir)"><gr-icon name="external-link" [size]="16" />Copiar enlace</button>
               </div>
             </section>
-            <a [href]="'/mi-entrada?t=' + token" class="text-center text-label-s text-accent-text hover:underline xl:hidden">Gestionar mi entrada →</a>
+            <a grButton variant="outline" size="l" [href]="'/mi-entrada?t=' + token" iconRight="arrow-right" class="w-full xl:hidden">Gestionar mi entrada</a>
             }
           </div>
         </div>
