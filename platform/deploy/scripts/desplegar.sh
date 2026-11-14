@@ -71,4 +71,10 @@ for d in \$(sudo k3s kubectl -n $NS get deploy -o name); do sudo k3s kubectl -n 
 # block a deploy)
 sudo k3s kubectl -n $NS wait --for=condition=complete job -l app.kubernetes.io/part-of=grcup --timeout=240s
 rm -rf \$tmp"
+# nginx of the host lives outside k8s: reinstall the repo site (idempotent, nginx -t before a graceful reload) so a
+# deploy never leaves an older proxy config live. prod keeps its manual step (nginx-prod.sh) on purpose.
+if [ "$ENTORNO" = qa ] && [ "${SKIP_NGINX:-}" != 1 ]; then
+  echo "→ nginx de QA"
+  KRAKEN="$KRAKEN" deploy/scripts/nginx-qa.sh
+fi
 echo "✓ desplegado $VERSION en $NS"
