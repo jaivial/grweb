@@ -210,7 +210,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                 <p class="mt-2 text-body-xs text-text-muted">Enter envía · Mayús+Enter salto de línea. Los cambios no se guardan hasta que pulses «Guardar». La IA nunca ve contactos ni datos personales.</p>
               } @else if (bloque(); as b) {
                 <header class="flex items-center gap-1">
-                  <div class="flex-1"><p class="text-mono-xs text-text-tertiary">{{ nombreTipo[b.tipo] }}</p></div>
+                  <div class="min-w-0 flex-1"><p class="truncate text-mono-xs text-text-tertiary">{{ nombreTipo[b.tipo] }}</p></div>
                   @if (conTexto(b)) {
                     <span class="relative">
                       <button type="button" class="flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-2 font-mono text-[12px] text-text-secondary hover:bg-bg-raised" [attr.aria-expanded]="varsOpen()" (mousedown)="$event.preventDefault()" (click)="varsOpen.set(!varsOpen())" aria-label="Insertar variable">&#123;&#125; Variables</button>
