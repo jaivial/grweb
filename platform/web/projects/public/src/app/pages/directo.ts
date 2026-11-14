@@ -749,7 +749,7 @@ export class ResultadosEdicionPage {
     @let c = comp();
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
-    <gr-page title="GRStrength Cup" [accent]="anio()" eyebrow="Edición anterior" section="Ediciones" [crumb]="anio()" [subtitle]="resumen()">
+    <gr-page title="GRS Cup" [accent]="anio()" eyebrow="Edición anterior" section="Ediciones" [crumb]="anio()" [subtitle]="resumen()">
       @if (c) {
         <div pageStamps class="flex flex-wrap gap-2">
           <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Fuente: cartel oficial de la edición {{ anio() }}</span>
@@ -795,8 +795,9 @@ export class ResultadosEdicionPage {
         @if (sponsors().length) {
           <section class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="'Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
-            <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:flex md:flex-wrap md:gap-4">
-              @for (p of sponsors(); track p.nombre) { <li class="flex h-20 items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-5 py-4 md:w-[200px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" /></li> }
+            <!-- Figma 80:189922 / 80:190214: one common box per logo (120×40 mobile, 140×48 desktop), optical scale per logo -->
+            <ul class="flex flex-wrap gap-3 md:gap-4">
+              @for (p of sponsors(); track p.nombre) { <li class="flex items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-4 py-3 md:px-5"><span class="flex h-10 w-[120px] items-center justify-center md:h-12 md:w-[140px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" [style.transform]="escalaLogo(p)" loading="lazy" /></span></li> }
             </ul>
             <p class="text-body-xs text-text-tertiary">Logos del cartel de la edición {{ anio() }}.</p>
           </section>
@@ -804,7 +805,7 @@ export class ResultadosEdicionPage {
         <gr-related [items]="rel()" />
         <section class="overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 md:flex md:items-center md:justify-between md:p-10">
           <div><p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">Edición {{ siguiente() }}</p>
-            <h2 class="mt-3 text-display-xs md:text-display-m">Compite en la GRStrength Cup</h2><p class="mt-2 text-body-s text-text-secondary">Plazas limitadas. La inscripción se hace a través de la AEP.</p></div>
+            <h2 class="mt-3 text-display-xs md:text-display-m">Compite en la GRS Cup 2</h2><p class="mt-2 text-body-s text-text-secondary">Plazas limitadas. La inscripción se hace a través de la AEP.</p></div>
           <a grButton variant="primary" size="l" routerLink="/inscripcion" class="mt-5 max-sm:w-full md:mt-0">Inscribirse</a>
         </section>
         </div>
@@ -818,7 +819,7 @@ export class EdicionPage {
   private noEncontrada(seo: Seo): void {
     this.noExiste.set(true);
     this.cms.notFound();
-    seo.set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
+    seo.set({ title: 'Página no encontrada · GRS Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
   }
   private readonly api = inject(DirectoPublic);
   private readonly http = inject(HttpClient);
@@ -830,13 +831,23 @@ export class EdicionPage {
   protected readonly siguiente = computed(() => Number(this.anio()) + 1);
   protected readonly cartel = computed(() => (this.anio() === '2025' ? CARTEL_2025 : ''));
   protected readonly ver = signal(-1);
-  /** The design photos of the 2025 edition (Figma 28) until the album has at least eight of its own. */
+  /** The 2025 design photos (Figma 28) are only a fallback when the BO has no album for the year. */
   protected readonly galeria = computed(() => {
     const f = this.fotos();
     // eight at most (Figma 28): the whole album is in /galeria
-    if (f.length >= 8 || this.anio() !== '2025') return f.slice(0, 8);
+    if (f.length || this.anio() !== '2025') return f.slice(0, 8);
     return FOTOS_2025.map(([f, alt]) => ({ url: `/img/edicion-2025/${f}.webp`, alt, focalX: 50, focalY: 35 })) as Album['fotos'];
   });
+  /**
+   * Optical weight per logo inside the common box (object-contain). Measured on the trimmed files: compact marks fill the
+   * box height and look heavier, so they shrink; long wordmarks (Valkyria 5.3:1, GRStrength 8:1, Coaching 9:1) stay at 1.
+   * AEP 2.4:1 → 0.9 · A7 1.8:1 → 0.8 · CF Isabel Atlas 1.8:1 → 0.85 · Gym Mediterrani 1.2:1 → 0.75 · PHED 3.4:1 → 0.95 · Maniak 3.7:1 → 1.
+   */
+  private static readonly ESCALA_LOGO: [RegExp, number][] = [[/\baep\b/i, 0.9], [/^a7\b/i, 0.8], [/isabel|\bcfi\b/i, 0.85], [/mediterrani/i, 0.75], [/phed/i, 0.95]];
+  protected escalaLogo(p: Patrocinador): string | null {
+    const e = EdicionPage.ESCALA_LOGO.find(([r]) => r.test(p.nombre))?.[1];
+    return e ? `scale(${e})` : null;
+  }
   /** Media library photos at 480 px (the tiles are 285 px wide). */
   protected mini = (url: string) => (url.startsWith('/api/medios/') ? url + '?w=480' : url);
   protected readonly fotosLightbox = computed(() => this.galeria().map((f) => ({ imagen: f.url, alt: f.alt })));
@@ -876,9 +887,12 @@ export class EdicionPage {
       }
       const [c, albums, pats] = await Promise.all([firstValueFrom(this.http.get<CompeticionPublica>(`/api/competiciones/${e.slug}`)).catch(() => null), this.cms.galeria(), this.cms.patrocinadores()]);
       this.comp.set(c);
-      this.fotos.set(albums?.find((a) => a.slug === `gr-cup-${this.anio()}`)?.fotos ?? []);
-      // one tile per logo (the CMS repeats some, e.g. AEP), as on the poster (Figma 28)
-      this.sponsors.set((pats ?? []).filter((p, i, a) => p.logoUrl && a.findIndex((x) => x.logoUrl === p.logoUrl || x.nombre === p.nombre) === i));
+      // photos from the BO album of the year (Web › Blog y galería; the CMS only serves published ones)
+      this.fotos.set(albums?.find((a) => a.slug.endsWith(this.anio()))?.fotos ?? []);
+      // one tile per logo (the CMS repeats some, e.g. AEP), as on the poster (Figma 28). The Ajuntament d'Almussafes did not
+      // sponsor 2025: the sponsor list is not per year, so it is filtered here for that edition.
+      this.sponsors.set((pats ?? []).filter((p, i, a) => p.logoUrl && a.findIndex((x) => x.logoUrl === p.logoUrl || x.nombre === p.nombre) === i
+        && !(this.anio() === '2025' && /almussafes/i.test(p.nombre))));
       if (c) {
         await applySeo(this.cms, seo, `/ediciones/${this.anio()}`, `${c.nombre} · ${c.sede.ciudad} · Edición anterior`, `${fechas(c.fechaInicio, c.fechaFin)} en ${c.sede.ciudad}. ${c.evento.descripcion}`, this.cartel() || undefined, {
           jsonLd: { '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nombre, sport: 'Powerlifting', startDate: c.fechaInicio, endDate: c.fechaFin, eventStatus: 'https://schema.org/EventScheduled',

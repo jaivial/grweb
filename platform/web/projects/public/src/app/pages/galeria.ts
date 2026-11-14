@@ -17,7 +17,8 @@ import { GrCallout } from './seo-bloques';
 /** Photos per page (desktop pagination) and per «Cargar más» batch (mobile, Figma 390: 24). */
 const POR_PAGINA = 12;
 const POR_LOTE = 24;
-const ETIQUETAS: [NonNullable<Foto['etiqueta']>, string][] = [['plataforma', 'Plataforma'], ['calentamiento', 'Calentamiento'], ['podio', 'Podios'], ['ambiente', 'Ambiente']];
+/** Photo types; «plataforma» reads «Tarima» and «ambiente» «Público» (Figma 393:131028). */
+const ETIQUETAS: [NonNullable<Foto['etiqueta']>, string][] = [['plataforma', 'Tarima'], ['calentamiento', 'Calentamiento'], ['podio', 'Podios'], ['ambiente', 'Público']];
 
 interface FotoGaleria extends Foto { album: string; pie: string }
 
@@ -28,7 +29,8 @@ function nombreAlbum(a: Album): string {
 }
 
 /**
- * /galeria (Figma page 30): filter chips (album and type of photo), a masonry of every published photo, pagination on
+ * /galeria (Figma page 30; móvil 80:192530, desktop 80:192264, filtros 393:131028 / 393:131064, vacío 393:131100): a «Filtros»
+ * button that opens a panel (Edición and Categoría) with the photo count, a masonry of every published photo, pagination on
  * desktop and «Cargar más» on mobile, the «Comparte» callout, related links and the community band. The viewer is the
  * shared lightbox, with a share button.
  */
@@ -36,19 +38,57 @@ function nombreAlbum(a: Album): string {
   selector: 'gr-galeria-page',
   imports: [Page, GrIcon, GrSkeleton, GrCallout, Related, Community, Lightbox, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'cerrarPanel(true)' },
+  styles: `
+    .gr-filtros-in { animation: gr-filtros-in 180ms cubic-bezier(0.2, 0, 0, 1); }
+    .gr-filtros-out { animation: gr-filtros-out 160ms ease-in forwards; }
+    @keyframes gr-filtros-in { from { opacity: 0; transform: translateY(-6px); } }
+    @keyframes gr-filtros-out { to { opacity: 0; transform: translateY(-6px); } }
+    @media (prefers-reduced-motion: reduce) { .gr-filtros-in, .gr-filtros-out { animation-duration: 1ms; } }
+  `,
   template: `
-    <gr-page separacion="mt-[152px] block md:mt-[180px]" title="Galería" accent="GRStrength Cup" eyebrow="Fotos" section="El evento" crumb="Galería" subtitle="Fotos de la competición: plataforma, calentamiento, podios y ambiente.">
+    <gr-page title="Galería" accent="GRS Cup" eyebrow="Fotos" section="El evento" crumb="Galería" subtitle="Fotos de la competición: tarima, calentamiento, podios y público.">
       <div class="flex flex-col gap-12 md:gap-20">
         @if (albums() === null) {
           <div class="columns-2 gap-2 md:columns-3 md:gap-4 xl:columns-4">
             @for (h of [300, 220, 260, 340, 240, 280, 320, 230]; track $index) { <gr-skeleton class="mb-2 block rounded-md md:mb-4" [style.height.px]="h" /> }
           </div>
         } @else if (todas().length) {
-          <div class="flex flex-col gap-12 md:gap-20">
-            <div #filtrosEl class="flex scroll-mt-28 flex-wrap gap-2" role="group" aria-label="Filtrar fotos">
-              <button type="button" [class]="chip(!filtros().size)" [attr.aria-pressed]="!filtros().size" (click)="limpiar()"><gr-icon [name]="!filtros().size ? 'check' : 'plus'" [size]="14" />Todas</button>
-              @for (c of chips(); track c.id) {
-                <button type="button" [class]="chip(filtros().has(c.id))" [attr.aria-pressed]="filtros().has(c.id)" (click)="alternar(c.id)"><gr-icon [name]="filtros().has(c.id) ? 'check' : 'plus'" [size]="14" />{{ c.t }}</button>
+          <div class="flex flex-col gap-6 md:gap-8">
+            <div #filtrosEl class="relative flex scroll-mt-28 flex-col gap-3">
+              <div class="flex items-center justify-between gap-3">
+                <button #botonFiltros type="button" class="flex h-11 items-center gap-2 rounded-sm border px-4 text-label-m transition-colors"
+                  [class]="panel() ? 'border-accent bg-accent/8 text-text-primary' : 'border-line-strong text-text-primary hover:border-text-tertiary'"
+                  aria-controls="panel-filtros" [attr.aria-expanded]="panel()" (click)="alternarPanel()">
+                  <gr-icon name="filter" [size]="16" />Filtros
+                  @if (filtros().size) { <span class="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-label-xs text-white" [attr.aria-label]="filtros().size + ' activos'">{{ filtros().size }}</span> }
+                  <gr-icon [name]="panel() ? 'chevron-up' : 'chevron-down'" [size]="16" />
+                </button>
+                <p class="text-body-s text-text-tertiary" aria-live="polite">{{ filtradas().length }} {{ filtradas().length === 1 ? 'foto' : 'fotos' }}</p>
+              </div>
+              @if (filtros().size) {
+                <div class="flex items-center justify-between gap-3 text-body-s">
+                  <p class="text-text-secondary">{{ resumen() }}</p>
+                  <button type="button" class="-my-3 min-h-11 text-accent-text underline underline-offset-4" (click)="limpiar()">Limpiar</button>
+                </div>
+              }
+              @if (panel()) {
+                <div id="panel-filtros" #panelEl animate.enter="gr-filtros-in" animate.leave="gr-filtros-out" role="group" aria-label="Filtrar fotos"
+                  class="absolute top-[52px] left-0 z-30 flex w-full flex-col rounded-lg border border-line-subtle bg-bg-card shadow-[0_16px_40px_rgb(0_0_0/0.5)] md:w-[360px]">
+                  @for (g of grupos(); track g.t) {
+                    <div class="flex flex-col gap-1 border-b border-line-subtle p-3">
+                      <p class="px-3 pt-1 pb-2 text-label-xs text-text-muted uppercase">{{ g.t }}</p>
+                      <button type="button" [class]="opcion(g.nada())" [attr.aria-pressed]="g.nada()" (click)="limpiarGrupo(g.p)">{{ g.todas }}@if (g.nada()) { <gr-icon name="check" [size]="16" /> }</button>
+                      @for (c of g.ops; track c.id) {
+                        <button type="button" [class]="opcion(filtros().has(c.id))" [attr.aria-pressed]="filtros().has(c.id)" (click)="alternar(c.id)">{{ c.t }}@if (filtros().has(c.id)) { <gr-icon name="check" [size]="16" /> }</button>
+                      }
+                    </div>
+                  }
+                  <div class="flex items-center justify-between gap-3 p-3">
+                    <button type="button" class="flex h-11 items-center px-3 text-label-m text-text-secondary hover:text-text-primary" (click)="limpiar()">Limpiar</button>
+                    <button type="button" class="flex h-11 items-center rounded-sm bg-accent px-5 text-label-m text-white hover:bg-accent/90" (click)="cerrarPanel(true)">Ver {{ filtradas().length }} {{ filtradas().length === 1 ? 'foto' : 'fotos' }}</button>
+                  </div>
+                </div>
               }
             </div>
             @if (filtradas().length) {
@@ -82,12 +122,22 @@ function nombreAlbum(a: Album): string {
                 }
               }
             } @else {
-              <p class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">No hay fotos con estos filtros. <button type="button" class="text-accent-text underline" (click)="limpiar()">Ver todas</button></p>
+              <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
+                <p class="flex items-center gap-3 text-label-l"><gr-icon name="image" [size]="20" class="text-accent-text" />No hay fotos con estos filtros</p>
+                <p class="text-body-s text-text-secondary">Prueba con otra edición o categoría.</p>
+                <button type="button" class="-my-2 inline-flex min-h-11 w-fit items-center gap-1 text-label-s text-accent-text" (click)="limpiar()">Ver todas las fotos <gr-icon name="arrow-right" [size]="14" /></button>
+              </div>
             }
           </div>
-          <gr-callout tono="dato" titulo="Comparte">¿Tienes fotos de la competición? Etiqueta a <a [href]="instagram()" target="_blank" rel="noopener" class="-my-3 inline-flex min-h-11 items-center text-text-primary underline">@grstrengthclub</a> con #GRStrengthCup y las añadiremos a la galería.</gr-callout>
+          <gr-callout tono="dato" titulo="Comparte">¿Tienes fotos de la competición? Etiqueta a <a [href]="instagram()" target="_blank" rel="noopener" class="-my-3 inline-flex min-h-11 items-center text-text-primary underline">@grstrengthclub</a> con #GRSCup2 y las añadiremos a la galería.</gr-callout>
         } @else {
-          <p class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">Pronto publicaremos las fotos de la competición.</p>
+          <!-- Figma 393:131100 «vacío» -->
+          <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
+            <h2 class="flex items-center gap-3 text-label-l"><gr-icon name="image" [size]="20" class="text-accent-text" />Aún no hay fotos publicadas</h2>
+            <p class="text-body-s text-text-secondary">Publicaremos aquí las fotos de la GRS Cup 2 después de la competición. Mientras tanto, puedes ver las de la edición 2025.</p>
+            <a routerLink="/ediciones/2025" class="-my-2 inline-flex min-h-11 w-fit items-center gap-1 text-label-s text-accent-text">Ver la edición 2025 <gr-icon name="arrow-right" [size]="14" /></a>
+          </div>
+          <gr-callout tono="dato" titulo="Comparte">¿Tienes fotos de la competición? Etiqueta a <a [href]="instagram()" target="_blank" rel="noopener" class="-my-3 inline-flex min-h-11 items-center text-text-primary underline">@grstrengthclub</a> con #GRSCup2 y las añadiremos a la galería.</gr-callout>
         }
         <gr-related [items]="rel" />
         <gr-community />
@@ -122,12 +172,22 @@ export class GaleriaPage {
       return { ...f, album: a.slug, pie: [album, tipo].filter(Boolean).join(' · ') };
     })),
   );
-  /** «Edición 2025» per album, then the photo types that appear. */
-  protected readonly chips = computed(() => {
+  /** Edición (albums) and Categoría (photo types) groups of the filter panel. */
+  protected readonly grupos = computed(() => {
+    const f = this.filtros();
     const albums = (this.albums() ?? []).filter((a) => a.fotos.length).map((a) => ({ id: 'a:' + a.slug, t: nombreAlbum(a) }));
-    const hay = new Set(this.todas().map((f) => f.etiqueta));
-    return [...albums, ...ETIQUETAS.filter(([k]) => hay.has(k)).map(([k, t]) => ({ id: 'e:' + k, t }))];
+    const hay = new Set(this.todas().map((x) => x.etiqueta));
+    const tipos = ETIQUETAS.filter(([k]) => hay.has(k)).map(([k, t]) => ({ id: 'e:' + k, t }));
+    return [
+      { t: 'Edición', p: 'a:', todas: 'Todas las ediciones', ops: albums, nada: () => ![...f].some((x) => x.startsWith('a:')) },
+      { t: 'Categoría', p: 'e:', todas: 'Todas', ops: tipos, nada: () => ![...f].some((x) => x.startsWith('e:')) },
+    ];
   });
+  /** «Edición 2025 · Podios» */
+  protected readonly resumen = computed(() => this.grupos().flatMap((g) => g.ops.filter((o) => this.filtros().has(o.id)).map((o) => o.t)).join(' · '));
+  protected readonly panel = signal(false);
+  private readonly botonFiltros = viewChild<ElementRef<HTMLElement>>('botonFiltros');
+  private readonly panelEl = viewChild<ElementRef<HTMLElement>>('panelEl');
   /** Albums OR albums, types OR types, album AND type. */
   protected readonly filtradas = computed(() => {
     const f = this.filtros();
@@ -161,7 +221,7 @@ export class GaleriaPage {
     void inject(PendingTasks).run(async () => {
       const [albums] = await Promise.all([cms.galeria(), this.comp.load()]);
       this.albums.set(albums ?? []);
-      await applySeo(cms, seo, '/galeria', 'Galería · GR Strength Cup', 'Fotos de la GR Strength Cup: plataforma, calentamiento, podios y ambiente.');
+      await applySeo(cms, seo, '/galeria', 'Galería · GRS Cup 2', 'Fotos de la GRS Cup: tarima, calentamiento, podios y público.');
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       const mq = matchMedia('(max-width: 767px)');
@@ -172,9 +232,27 @@ export class GaleriaPage {
     }
   }
 
-  protected chip(activo: boolean): string {
-    return 'flex h-11 items-center gap-2 rounded-full border px-4 text-label-s transition-colors ' +
-      (activo ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:border-text-tertiary hover:text-text-primary');
+  protected opcion(activo: boolean): string {
+    return 'flex h-11 w-full items-center justify-between gap-2 rounded-sm px-3 text-left text-body-m transition-colors ' +
+      (activo ? 'bg-accent/12 text-text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-text-primary');
+  }
+  protected alternarPanel(): void {
+    this.panel.update((v) => !v);
+  }
+  protected cerrarPanel(foco = false): void {
+    if (!this.panel()) return;
+    this.panel.set(false);
+    if (foco) this.botonFiltros()?.nativeElement.focus();
+  }
+  /** Closes the panel on a click outside it and its button. */
+  protected fuera(e: Event): void {
+    const t = e.target as Node | null;
+    if (!this.panel() || !t || !t.isConnected) return;
+    if (this.panelEl()?.nativeElement.contains(t) || this.botonFiltros()?.nativeElement.contains(t)) return;
+    this.panel.set(false);
+  }
+  protected limpiarGrupo(prefijo: string): void {
+    this.cambiarFiltros(new Set([...this.filtros()].filter((x) => !x.startsWith(prefijo))));
   }
   protected paso(actual: boolean, desactivado: boolean): string {
     return 'flex size-11 items-center justify-center rounded-md border text-label-m transition-colors ' +
