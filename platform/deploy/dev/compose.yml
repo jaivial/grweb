@@ -248,6 +248,24 @@ services:
       EVO_WEAI_URL: http://evo-weai:8080
       EVO_WEAI_API_KEY: dev-weai-api-key-change-me
 
+  # Contacts, segments and suppressions (audience of the campaigns).
+  crm:
+    <<: *svc
+    build: { context: ../.., args: { SVC: crm, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_crm:dev_crm@postgres:5432/grcup_crm?sslmode=disable
+
+  # Campaign assistant (MiniMax). The key comes from the shell (`set -a; . <(grep ^MINIMAX_ ~/.env)`); without it the
+  # editor shows the assistant as not configured.
+  ai:
+    <<: *svc
+    build: { context: ../.., args: { SVC: ai, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      MINIMAX_API_KEY: ${MINIMAX_TOKEN_PLAN_API_KEY:-}
+      MINIMAX_BASE_URL: ${MINIMAX_TOKEN_PLAN_BASE_URL:-https://api.minimax.io/anthropic}
+
   # Réplica del chat con puerto publicado para la prueba de carga (cmd/carga-chat sin pasar por el gateway).
   chat-load:
     <<: *svc
@@ -266,7 +284,7 @@ services:
     build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
-      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos,athletes,schedule,live,cms,messaging
+      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos,athletes,schedule,live,cms,messaging,crm,ai
       CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
     ports:
       - "127.0.0.1:18300:8080"
