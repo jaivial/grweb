@@ -254,6 +254,8 @@
   @keyframes gr-hoja-in { from { opacity: 0; transform: translateY(8px); } }
   .gr-desplegar { animation: gr-desplegar 250ms cubic-bezier(.22,1,.36,1); }
   @keyframes gr-desplegar { from { opacity: 0; transform: translateY(-4px); } }
+  .gr-visor-in { animation: gr-visor-in 250ms cubic-bezier(.22,1,.36,1); }
+  @keyframes gr-visor-in { from { opacity: 0; transform: scale(.96); } }
   :root { interpolate-size: allow-keywords; }
   details::details-content { height: 0; overflow: clip; transition: height 250ms cubic-bezier(.22,1,.36,1), content-visibility 250ms allow-discrete; }
   details[open]::details-content { height: auto; }
