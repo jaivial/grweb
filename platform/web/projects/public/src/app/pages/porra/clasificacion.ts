@@ -26,7 +26,7 @@ import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, type PlazaPodio } fr
         <section aside class="flex w-[340px] flex-col gap-2 rounded-lg border border-accent/45 bg-bg-card p-4 shadow-glow-deep" aria-label="Bote de la porra">
           <p class="flex items-center gap-2 text-mono-xs text-accent-text"><gr-icon name="trophy" [size]="14" />1.er puesto</p>
           <p class="text-ui-h5 text-text-primary">Bote de la porra {{ jornadaNombre() }}</p>
-          <p class="flex items-baseline gap-1.5"><span class="font-mono text-[22px] font-bold text-text-primary tabular-nums">{{ monedas(bote()) }}</span><span class="text-body-xs text-text-tertiary">monedas en juego</span></p>
+          <p class="flex items-baseline gap-1.5"><span class="font-mono text-[1.375rem] font-bold text-text-primary tabular-nums">{{ monedas(bote()) }}</span><span class="text-body-xs text-text-tertiary">monedas en juego</span></p>
           @if (premios()[0]; as p) {
             <p class="text-body-xs text-text-secondary">{{ p.titulo }}@if (p.valorTexto) { · <span class="font-mono text-accent-text">{{ p.valorTexto }}</span> }</p>
             @if (p.patrocinador) { <p class="text-mono-xs text-text-tertiary">Patrocina · {{ p.patrocinador }}</p> }

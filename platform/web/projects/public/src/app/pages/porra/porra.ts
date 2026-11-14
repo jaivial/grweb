@@ -49,8 +49,8 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       @if (verCartera() && cartera()) {
         <section class="rounded-lg border border-line-subtle bg-bg-card p-5" aria-label="Mi cartera">
           <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Porra</span><span class="font-mono text-[20px] font-bold text-accent-text tabular-nums">{{ monedas(cartera()!.porra) }}</span></p>
-            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Fantasy</span><span class="font-mono text-[20px] font-bold text-info tabular-nums">{{ monedas(cartera()!.fantasy) }}</span></p>
+            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Porra</span><span class="font-mono text-[1.25rem] font-bold text-accent-text tabular-nums">{{ monedas(cartera()!.porra) }}</span></p>
+            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Fantasy</span><span class="font-mono text-[1.25rem] font-bold text-info tabular-nums">{{ monedas(cartera()!.fantasy) }}</span></p>
           </div>
           @if (cartera()!.movimientos.length) {
             <ul class="mt-4 flex flex-col divide-y divide-line-subtle border-t border-line-subtle">
@@ -70,9 +70,9 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       <!-- Figma «Cómo ganar monedas» + «Selector · jornada» (en móvil el selector va debajo, como un desplegable) -->
       <section id="porra-chat" class="flex-col gap-2.5 rounded-lg border border-line-subtle bg-bg-card p-3 md:flex md:flex-row md:items-center md:justify-between md:gap-6 md:p-4" [class]="verChat() ? 'flex' : 'hidden'">
         <div class="flex min-w-0 flex-col gap-2.5 md:gap-2">
-          <p class="text-[12px] leading-[1.2] font-medium tracking-[0.04em] text-accent-text uppercase"><span class="md:hidden">Gana más monedas en el chat</span><span class="hidden md:inline">Gana más monedas escribiendo en el chat</span></p>
+          <p class="text-[0.75rem] leading-[1.2] font-medium tracking-[0.04em] text-accent-text uppercase"><span class="md:hidden">Gana más monedas en el chat</span><span class="hidden md:inline">Gana más monedas escribiendo en el chat</span></p>
           <p class="flex items-center gap-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>5 mensajes<span class="hidden md:inline"> en el chat</span>: +{{ hito5() }}</span></p>
-          <p class="flex flex-wrap items-center gap-x-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>10 mensajes: +{{ hito10() }} (se suma<span class="hidden md:inline"> al de 5</span>)</span><span class="hidden font-mono text-[12px] font-medium text-text-muted md:inline">máx. 100 hitos por jornada</span></p>
+          <p class="flex flex-wrap items-center gap-x-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>10 mensajes: +{{ hito10() }} (se suma<span class="hidden md:inline"> al de 5</span>)</span><span class="hidden font-mono text-[0.75rem] font-medium text-text-muted md:inline">máx. 100 hitos por jornada</span></p>
         </div>
         <div class="hidden w-[320px] shrink-0 flex-col items-end gap-2 md:flex">
           @if (jornadas().length > 3) {
@@ -131,7 +131,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
         </div>
         <span class="size-3 shrink-0" aria-hidden="true"></span>
         @if (!store.cargando() && !store.error()) {
-          <p class="font-mono text-[12px] font-medium text-text-tertiary">{{ n('abierto') }} abiertos · {{ n('cerrado') }} cerrados · {{ n('liquidado') }} liquidados</p>
+          <p class="font-mono text-[0.75rem] font-medium text-text-tertiary">{{ n('abierto') }} abiertos · {{ n('cerrado') }} cerrados · {{ n('liquidado') }} liquidados</p>
         }
       </div>
 
@@ -164,7 +164,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       <!-- Premios de la jornada (gancho) -->
       <section class="flex flex-col gap-3 md:gap-4" aria-labelledby="premios-porra">
           <div class="flex flex-col gap-4">
-            <h2 id="premios-porra" class="text-[18px] leading-[1.3] font-semibold text-text-primary uppercase md:font-display md:text-[12px] md:font-normal md:leading-[1.25]">Premios de la jornada</h2>
+            <h2 id="premios-porra" class="text-[1.125rem] leading-[1.3] font-semibold text-text-primary uppercase md:font-display md:text-[0.75rem] md:font-normal md:leading-[1.25]">Premios de la jornada</h2>
             <p class="hidden text-body-xs text-text-tertiary md:block">Los premios se abonan en monedas al liquidar la jornada. Gestionados en el backoffice, anunciados aquí y en directo.</p>
           </div>
           @if (premios().length) {

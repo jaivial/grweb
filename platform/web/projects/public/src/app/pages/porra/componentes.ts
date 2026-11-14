@@ -243,7 +243,7 @@ export class GrupoChips<T extends string = string> {
     <button type="button" class="group flex w-full max-w-[336px] flex-col gap-2 rounded-md pt-1.5 pb-2 text-left transition-[transform,background-color] duration-100 enabled:active:scale-[.98] enabled:active:bg-white/5 disabled:cursor-default max-md:max-w-none motion-reduce:enabled:active:scale-100" [disabled]="!activo()" (click)="elegir.emit()"
       [attr.aria-label]="(activo() ? 'Apostar por ' : '') + opcion().nombre + ', cuota ' + cuotaTxt() + ', ' + apostado() + ' % del bote'">
       <span class="flex w-full items-center gap-3">
-        <span class="flex size-9 shrink-0 items-center justify-center rounded-full border font-display text-[13px] tracking-[0.1em]"
+        <span class="flex size-9 shrink-0 items-center justify-center rounded-full border font-display text-[0.8125rem] tracking-[0.1em]"
           [class]="lider() ? 'border-accent bg-accent-deep text-accent-text' : 'border-line-strong bg-bg-raised text-text-secondary'">{{ ini() }}</span>
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
           <span class="truncate text-body-s text-text-primary">{{ opcion().nombre }}</span>
@@ -310,7 +310,7 @@ export class OddsRow {
     <header class="flex flex-col gap-1.5 px-4 pt-4 pb-3">
       <span class="flex items-center justify-between gap-3">
         <span class="truncate text-mono-xs text-accent-text">{{ tipo() }}</span>
-        <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-[12px] leading-none font-medium tracking-[0.04em] uppercase" [class]="chipClase()">{{ estadoTxt() }}</span>
+        <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-[0.75rem] leading-none font-medium tracking-[0.04em] uppercase" [class]="chipClase()">{{ estadoTxt() }}</span>
       </span>
       <h3 class="text-display-xs">{{ mercado().titulo }}</h3>
       <p class="text-body-xs text-text-tertiary">{{ descripcion() }}</p>
@@ -318,7 +318,7 @@ export class OddsRow {
     <p class="flex items-center justify-between gap-3 border-y border-line-subtle bg-accent-deep px-4 py-3">
       <span class="text-mono-xs text-text-tertiary">Apostado</span>
       <span class="flex items-baseline gap-1.5">
-        <span class="font-mono text-[26px] leading-none font-bold text-text-primary tabular-nums">{{ monedas(mercado().bote) }}</span>
+        <span class="font-mono text-[1.625rem] leading-none font-bold text-text-primary tabular-nums">{{ monedas(mercado().bote) }}</span>
         <span class="text-body-xs text-text-tertiary">monedas</span>
       </span>
     </p>
@@ -443,13 +443,13 @@ export class MarketCard {
           </div>
           @if (elegido(); as e) {
             <p class="flex items-center gap-3 rounded-md border border-accent/50 bg-bg-card px-3 py-2.5">
-              <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-accent/60 bg-accent-deep/60 font-display text-[13px] text-accent-text italic">{{ ini() }}</span>
+              <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-accent/60 bg-accent-deep/60 font-display text-[0.8125rem] text-accent-text italic">{{ ini() }}</span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-label-s">{{ e.nombre }}</span>
                 <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
                 @if (opciones().length > 1) { <button type="button" class="-my-3 inline-flex min-h-11 items-center pr-4 text-body-xs text-info underline-offset-4 hover:underline" [class.invisible]="exito()" [attr.tabindex]="exito() ? -1 : null" (click)="elegir.emit('')">Cambiar de atleta</button> }
               </span>
-              <span class="shrink-0 font-mono text-[20px] font-bold tabular-nums" [class]="cuotaSel() > 0 ? 'text-accent-text' : 'text-text-muted'">{{ cuotaTxt() }}</span>
+              <span class="shrink-0 font-mono text-[1.25rem] font-bold tabular-nums" [class]="cuotaSel() > 0 ? 'text-accent-text' : 'text-text-muted'">{{ cuotaTxt() }}</span>
             </p>
           } @else {
             <gr-select class="w-full" tipo="campo" tam="l" aria-label="Elige el atleta" [ngModel]="atletaId()" (ngModelChange)="elegir.emit($event)">
@@ -461,7 +461,7 @@ export class MarketCard {
           <div class="flex flex-col gap-2">
             <label class="text-mono-xs text-text-tertiary" for="importe-apuesta">Importe</label>
             <span class="relative block">
-              <input id="importe-apuesta" class="h-14 w-full rounded-md border bg-bg-field pr-24 pl-4 font-mono text-[26px] font-bold tabular-nums outline-none focus-visible:border-accent-text" type="text" inputmode="numeric" autocomplete="off" [value]="texto()" (input)="cambiar($event)"
+              <input id="importe-apuesta" class="h-14 w-full rounded-md border bg-bg-field pr-24 pl-4 font-mono text-[1.625rem] font-bold tabular-nums outline-none focus-visible:border-accent-text" type="text" inputmode="numeric" autocomplete="off" [value]="texto()" (input)="cambiar($event)"
                 [class]="insuficiente() ? 'border-accent-text text-accent-text' : 'border-line-strong text-text-primary'" [attr.aria-invalid]="insuficiente() || null" aria-describedby="importe-apuesta-ayuda" />
               <span class="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-mono-xs text-text-tertiary">monedas</span>
             </span>
@@ -478,7 +478,7 @@ export class MarketCard {
               <span class="block text-label-s">{{ hecho() ? 'Si acierta cobrarías' : 'Si acierta cobras' }} (estimado)</span>
               <span class="block font-mono text-[0.8125rem]" [class]="insuficiente() ? 'text-text-secondary' : 'text-black/85'">{{ detalleCobro() }}</span>
             </span>
-            <span class="shrink-0 font-mono text-[22px] font-bold tabular-nums" [class]="insuficiente() ? 'text-warning' : 'text-black'">{{ cobro() }}</span>
+            <span class="shrink-0 font-mono text-[1.375rem] font-bold tabular-nums" [class]="insuficiente() ? 'text-warning' : 'text-black'">{{ cobro() }}</span>
           </p>
           @if (error()) {
             <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
@@ -500,7 +500,7 @@ export class MarketCard {
               {{ insuficiente() ? 'Saldo insuficiente' : !elegido() ? 'Elige un atleta' : 'Confirmar apuesta de ' + monedas(importe()) }}
             </button>
           }
-          <p class="flex items-center justify-between gap-3 text-body-xs text-text-secondary">Saldo disponible <b class="font-mono text-[14px] text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></p>
+          <p class="flex items-center justify-between gap-3 text-body-xs text-text-secondary">Saldo disponible <b class="font-mono text-[0.875rem] text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></p>
         </div>
       </div>
     </div>
@@ -672,9 +672,9 @@ export interface PlazaPodio {
         <li class="flex min-w-0 flex-col items-center gap-1.5 sm:gap-2" [class.order-first]="p.puesto === 2" [class.order-last]="p.puesto === 3">
           @if (p.puesto === 1) { <gr-icon name="trophy" [size]="22" [class]="m(1).texto" /> }
           <span class="flex shrink-0 items-center justify-center rounded-full border-2 bg-bg-raised font-display text-text-primary shadow-[0_6px_16px_rgb(0_0_0/0.45)]"
-            [class]="m(p.puesto).anillo + (p.puesto === 1 ? ' size-[72px] text-[26px]' : ' size-[60px] text-[22px]') + (p.yo ? ' ring-2 ring-accent ring-offset-2 ring-offset-bg-base' : '')">{{ ini(p.alias) }}</span>
+            [class]="m(p.puesto).anillo + (p.puesto === 1 ? ' size-[72px] text-[1.625rem]' : ' size-[60px] text-[1.375rem]') + (p.yo ? ' ring-2 ring-accent ring-offset-2 ring-offset-bg-base' : '')">{{ ini(p.alias) }}</span>
           <span class="w-full truncate text-center text-label-s text-text-primary">{{ p.alias ? '@' + p.alias : 'Anónimo' }}@if (p.yo) { <span class="sr-only"> (tú)</span> }</span>
-          <span class="font-mono font-bold tabular-nums" [class]="(p.valorClase || m(p.puesto).texto) + (p.puesto === 1 ? ' text-[16px] sm:text-[20px]' : ' text-[14px] sm:text-[17px]')">{{ p.valor }}</span>
+          <span class="font-mono font-bold tabular-nums" [class]="(p.valorClase || m(p.puesto).texto) + (p.puesto === 1 ? ' text-[1rem] sm:text-[1.25rem]' : ' text-[0.875rem] sm:text-[1.0625rem]')">{{ p.valor }}</span>
           <span class="block w-full rounded-t-xs" aria-hidden="true" [class]="m(p.puesto).solido + (p.puesto === 1 ? ' h-[104px]' : p.puesto === 2 ? ' h-[76px]' : ' h-14')"></span>
         </li>
       }
@@ -707,7 +707,7 @@ export class Podio {
       @if (nota()) { <span class="block truncate text-body-xs" [class]="yo() ? 'text-accent-text' : 'text-text-tertiary'">{{ nota() }}</span> }
     </span>
     <span class="shrink-0 text-right">
-      <span class="block font-mono text-[16px] font-bold tabular-nums sm:text-[18px]" [class]="valorClase() || (yo() ? 'text-accent-text' : 'text-text-primary')">{{ valor() }}</span>
+      <span class="block font-mono text-[1rem] font-bold tabular-nums sm:text-[1.125rem]" [class]="valorClase() || (yo() ? 'text-accent-text' : 'text-text-primary')">{{ valor() }}</span>
       <span class="block text-mono-xs text-text-muted">{{ valorLabel() }}</span>
     </span>
     @if (yo()) { <span class="hidden shrink-0 rounded-2xs bg-accent px-2 py-1 text-mono-xs text-white sm:inline">Tu puesto</span> }
