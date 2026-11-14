@@ -18,13 +18,13 @@ export interface FotoLightbox { imagen: string; alt: string; pie?: string }
   template: `
     @if (indice() >= 0 && fotos()[indice()]; as f) {
       <div class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black py-16 md:bg-[#030303] md:px-28 md:pt-20" role="dialog" aria-modal="true" [attr.aria-label]="'Foto ' + (indice() + 1) + ' de ' + fotos().length" (click)="cerrar()">
-        <div class="absolute top-4 right-4 flex gap-2 md:top-20 md:right-[118px]">
+        <div class="absolute top-[max(16px,env(safe-area-inset-top))] right-[max(16px,env(safe-area-inset-right))] flex gap-2 md:top-20 md:right-[118px]">
           @if (compartir()) {
             <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:size-[62px]" aria-label="Compartir" (click)="$event.stopPropagation(); compartirFoto()"><gr-icon name="share" [size]="18" /></button>
           }
           <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:size-[62px]" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="20" /></button>
         </div>
-        <figure class="flex w-full flex-col items-center gap-4 md:w-[min(980px,100%,calc(62vh*1.75))] md:gap-12" (click)="$event.stopPropagation()" (touchstart)="tocar($event)" (touchend)="soltar($event)">
+        <figure class="flex w-full pb-[env(safe-area-inset-bottom)] md:pb-0 flex-col items-center gap-4 md:w-[min(980px,100%,calc(62vh*1.75))] md:gap-12" (click)="$event.stopPropagation()" (touchstart)="tocar($event)" (touchend)="soltar($event)">
           @if (roto()) {
             <div class="flex aspect-[7/4] w-full flex-col items-center justify-center gap-3 bg-white/5 px-4 text-center md:rounded-2xl" role="alert">
               <gr-icon name="circle-alert" [size]="28" class="text-text-tertiary" /><p class="text-body-s text-text-secondary">No se pudo cargar la foto.</p>
