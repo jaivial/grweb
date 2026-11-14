@@ -762,6 +762,9 @@ export class OfertaPage {
   selector: 'gr-mi-entrada',
   imports: [RouterLink, Page, FormsModule, GrButton, GrIcon, GrSkeleton, TicketCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `.gr-sheet { animation: gr-sheet-in 280ms cubic-bezier(.32,.72,0,1); }
+    @keyframes gr-sheet-in { from { transform: translateY(100%); } }
+    @media (min-width: 40rem) { @keyframes gr-sheet-in { from { opacity: 0; transform: scale(.96); } } }`,
   template: `
     <gr-page title="Mi entrada" crumb="Mi entrada" [migasMovil]="false" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
       <div class="mx-auto flex max-w-[350px] flex-col gap-6 max-md:-mt-[27px] md:max-w-[480px]">
@@ -796,19 +799,20 @@ export class OfertaPage {
               <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white disabled:opacity-50" [disabled]="reenviando()" (click)="reenviar()"><gr-icon name="send" [size]="18" /><span class="flex-1">Reenviar la entrada por email</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li>
               <li><a routerLink="/rifa" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="ticket" [size]="18" /><span class="flex-1">Rifa presencial: ver objetos</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
               <li><a [href]="ics()" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="calendar" [size]="18" /><span class="flex-1">Añadir al calendario (.ics)</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
-              @if (m.puedeCambiar) { <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m text-accent-text" (click)="anularOpen.set(true)"><gr-icon name="x" [size]="18" /><span class="flex-1">Anular entrada y liberar la plaza</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li> }
+              @if (m.puedeCambiar) { <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m text-accent-text" (click)="abrirAnular($event)"><gr-icon name="x" [size]="18" /><span class="flex-1">Anular entrada y liberar la plaza</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li> }
             </ul>
           }
         }
       </div>
     </gr-page>
     @if (anularOpen() && mia(); as m) {
-      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 sm:items-center sm:px-4" (click)="anularOpen.set(false)">
-        <div class="mx-5 w-full max-w-[350px] rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card" role="alertdialog" aria-modal="true" aria-label="Anular tu entrada" (click)="$event.stopPropagation()">
-          <div class="flex items-start justify-between gap-3"><h2 class="text-ui-h3">¿Anular tu entrada?</h2><button type="button" class="flex size-8 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="anularOpen.set(false)"><gr-icon name="x" [size]="18" /></button></div>
-          <p class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la sesión del {{ sesionLarga(m.sesion.nombre) }} para la lista de espera.</p>
-          <div class="mt-5 flex justify-end gap-2"><button grButton variant="outline" size="m" type="button" (click)="anularOpen.set(false)">Volver</button>
-            <button grButton variant="primary" size="m" type="button" (click)="anular()">Sí, anular</button></div>
+      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 sm:items-center sm:px-4" (click)="cerrarAnular()" (keydown.escape)="cerrarAnular()" (keydown.tab)="atrapar($event)">
+        <div #sheet class="gr-sheet w-full rounded-t-2xl border border-b-0 border-line-strong bg-bg-raised px-6 pt-2 pb-[max(24px,env(safe-area-inset-bottom))] shadow-card sm:max-w-[400px] sm:rounded-xl sm:border-b sm:p-7" role="alertdialog" aria-modal="true" aria-labelledby="anular-t" aria-describedby="anular-d" (click)="$event.stopPropagation()">
+          <span class="mx-auto mb-3 block h-[5px] w-9 rounded-full bg-white/25 sm:hidden" aria-hidden="true"></span>
+          <div class="flex items-start justify-between gap-3"><h2 id="anular-t" class="text-ui-h3">¿Anular tu entrada?</h2><button type="button" class="-mt-1.5 -mr-3 flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="cerrarAnular()"><gr-icon name="x" [size]="18" /></button></div>
+          <p id="anular-d" class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la sesión del {{ sesionLarga(m.sesion.nombre) }} para la lista de espera.</p>
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end sm:gap-2"><button #volverBtn grButton variant="outline" size="l" type="button" class="w-full sm:w-auto" (click)="cerrarAnular()">Volver</button>
+            <button grButton variant="primary" size="l" type="button" class="w-full sm:w-auto" (click)="anular()">Sí, anular</button></div>
         </div>
       </div>
     }
@@ -831,6 +835,26 @@ export class MiEntradaPage {
   protected readonly ocupado = signal(false);
   protected readonly msg = signal('');
   protected readonly anularOpen = signal(false);
+  private readonly sheet = viewChild<ElementRef<HTMLElement>>('sheet');
+  private readonly volverBtn = viewChild('volverBtn', { read: ElementRef<HTMLElement> });
+  private origen: HTMLElement | null = null;
+  protected abrirAnular(ev: Event): void {
+    this.origen = ev.currentTarget as HTMLElement;
+    this.anularOpen.set(true);
+    setTimeout(() => (this.volverBtn()?.nativeElement as HTMLElement | undefined)?.focus());
+  }
+  protected cerrarAnular(): void {
+    this.anularOpen.set(false);
+    this.origen?.focus();
+  }
+  /** Focus trap: Tab cycles inside the sheet. */
+  protected atrapar(ev: Event): void {
+    const f = this.sheet()?.nativeElement.querySelectorAll<HTMLElement>('button');
+    if (!f?.length) return;
+    const k = ev as KeyboardEvent, a = f[0], z = f[f.length - 1];
+    if (k.shiftKey && document.activeElement === a) { k.preventDefault(); z.focus(); }
+    else if (!k.shiftKey && document.activeElement === z) { k.preventDefault(); a.focus(); }
+  }
   protected readonly pedido = signal(false);
   protected readonly reenviando = signal(false);
   protected readonly token: string;
