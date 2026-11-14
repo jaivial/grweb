@@ -434,8 +434,10 @@ export class AreaCompartirPage {
     a.download = this.nombreFichero();
     a.click();
     this.registrar('descarga');
-    this.toasts.success('Imagen descargada: ' + a.download);
-    if (sinShare && !this.qr()) {
+    // one feedback channel (toast); the QR hand-off only makes sense on a computer (UX3-R1-13)
+    const movil = matchMedia('(pointer: coarse)').matches;
+    this.toasts.success(movil ? 'Imagen guardada. Ábrela en Instagram › Historia.' : 'Imagen descargada: ' + a.download);
+    if (sinShare && !movil && !this.qr()) {
       const mod = await import('qrcode');
       const QR = (mod as unknown as { default?: typeof mod }).default ?? mod;
       this.qr.set(await QR.toDataURL(location.origin + '/area-atleta/compartir', { margin: 1, width: 176, errorCorrectionLevel: 'M' }));
