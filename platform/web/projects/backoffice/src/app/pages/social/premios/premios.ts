@@ -144,9 +144,9 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
     <!-- ===== Modal de alta / edición ===== -->
     @if (modal()) {
       <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4 sm:py-6" (click)="modal.set(false)">
-        <form class="flex max-h-[92vh] w-full max-w-xl flex-col rounded-t-xl border border-line-strong bg-bg-card shadow-card sm:rounded-lg" role="dialog" aria-modal="true" aria-labelledby="pr-titulo"
+        <form class="flex max-h-[90dvh] w-full max-w-xl flex-col rounded-t-xl border border-line-strong bg-bg-card shadow-card sm:rounded-lg" role="dialog" aria-modal="true" aria-labelledby="pr-titulo"
           cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()" (ngSubmit)="guardar()">
-          <header class="flex items-center gap-3 border-b border-line-subtle px-5 py-4">
+          <header class="flex shrink-0 items-center gap-3 border-b border-line-subtle px-5 py-4">
             <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent-deep/50 text-accent-text"><gr-icon name="trophy" [size]="20" /></span>
             <div class="min-w-0 flex-1">
               <h2 id="pr-titulo" class="text-ui-h5">{{ editando() ? 'Editar premio' : 'Nuevo premio' }}</h2>
@@ -155,7 +155,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
             <button type="button" grIconButton icon="x" label="Cerrar" (click)="modal.set(false)"></button>
           </header>
 
-          <div class="flex flex-col gap-5 overflow-y-auto px-5 py-5">
+          <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 py-5">
             <div class="flex flex-col gap-3 rounded-md border border-line-subtle bg-bg-raised p-3 sm:flex-row sm:items-center">
               <span class="relative flex h-[68px] w-32 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-[linear-gradient(135deg,var(--color-accent-deep),var(--color-bg-surface)_75%)]">
                 @if (form().imagenUrl) { <so-thumb class="size-full rounded-none border-0" [src]="form().imagenUrl" [nombre]="form().titulo" alt="Vista previa del premio" /> }
@@ -226,7 +226,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
             </div>
           </div>
 
-          <footer class="flex justify-end gap-2 border-t border-line-subtle px-5 py-4">
+          <footer class="flex shrink-0 justify-end gap-2 border-t border-line-subtle px-5 py-4">
             <button type="button" grButton variant="ghost" (click)="modal.set(false)">Cancelar</button>
             <button type="submit" grButton variant="primary" [loading]="ocupado()" [disabled]="!valido() || !puede()">{{ editando() ? 'Guardar premio' : 'Crear premio' }}</button>
           </footer>

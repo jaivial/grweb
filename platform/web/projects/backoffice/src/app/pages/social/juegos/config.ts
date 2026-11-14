@@ -80,34 +80,39 @@ const cfgPorDefecto: ConfigJuegos = {
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <!-- ===== Recompensas ===== -->
           <so-card titulo="Recompensas" ayuda="Monedas por participar · las acredita juegos-worker con ref idempotente (§6.4)">
-            <div class="overflow-x-auto">
-              <table class="w-full min-w-[440px] text-left text-body-s">
-                <thead class="font-mono text-mono-xs text-text-tertiary">
-                  <tr class="border-b border-line-subtle"><th class="pb-2 font-medium">Origen</th><th class="w-[130px] pb-2 text-right font-medium">Porra</th><th class="w-[130px] pb-2 text-right font-medium">Fantasy</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="py-2 pr-2 text-text-secondary">Chat · cada 5 mensajes</td>
-                    <td class="py-2"><so-number ancho="s" label="Porra por cada 5 mensajes" [disabled]="!puede()" [valor]="form().hito5Porra" [cambiado]="form().hito5Porra !== original().hito5Porra" (changed)="set({ hito5Porra: $event })" /></td>
-                    <td class="py-2 pl-2"><so-number ancho="s" label="Fantasy por cada 5 mensajes" [disabled]="!puede()" [valor]="form().hito5Fantasy" [cambiado]="form().hito5Fantasy !== original().hito5Fantasy" (changed)="set({ hito5Fantasy: $event })" /></td>
-                  </tr>
-                  <tr>
-                    <td class="py-2 pr-2 text-text-secondary">Chat · cada 10 mensajes</td>
-                    <td class="py-2"><so-number ancho="s" label="Porra por cada 10 mensajes" [disabled]="!puede()" [valor]="form().hito10Porra" [cambiado]="form().hito10Porra !== original().hito10Porra" (changed)="set({ hito10Porra: $event })" /></td>
-                    <td class="py-2 pl-2"><so-number ancho="s" label="Fantasy por cada 10 mensajes" [disabled]="!puede()" [valor]="form().hito10Fantasy" [cambiado]="form().hito10Fantasy !== original().hito10Fantasy" (changed)="set({ hito10Fantasy: $event })" /></td>
-                  </tr>
-                  <tr>
-                    <td class="py-2 pr-2 text-text-secondary">Donativo · por euro</td>
-                    <td class="py-2 text-right font-mono text-text-muted">—</td>
-                    <td class="py-2 pl-2"><so-number ancho="s" label="Fantasy por euro donado" [disabled]="!puede()" [valor]="form().fantasyPorEuro" [cambiado]="form().fantasyPorEuro !== original().fantasyPorEuro" (changed)="set({ fantasyPorEuro: $event })" /></td>
-                  </tr>
-                  <tr>
-                    <td class="py-2 pr-2 text-text-secondary">Donativo reembolsado</td>
-                    <td class="py-2 text-right font-mono text-text-muted">—</td>
-                    <td class="py-2 pl-2 text-right text-body-xs text-text-tertiary">se retira</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="flex flex-col divide-y divide-line-subtle">
+              <div class="hidden border-b border-line-subtle pb-2 font-mono text-mono-xs text-text-tertiary sm:flex sm:items-center sm:gap-3">
+                <span class="flex-1 font-medium">Origen</span>
+                <span class="grid w-[260px] shrink-0 grid-cols-2 gap-3 text-right font-medium"><span>Porra</span><span>Fantasy</span></span>
+              </div>
+              <div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:gap-3">
+                <span class="min-w-0 flex-1 text-body-s text-text-secondary">Chat · cada 5 mensajes</span>
+                <div class="grid grid-cols-2 gap-3 sm:w-[260px] sm:shrink-0">
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Porra</span><so-number ancho="s" label="Porra por cada 5 mensajes" [disabled]="!puede()" [valor]="form().hito5Porra" [cambiado]="form().hito5Porra !== original().hito5Porra" (changed)="set({ hito5Porra: $event })" /></div>
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Fantasy</span><so-number ancho="s" label="Fantasy por cada 5 mensajes" [disabled]="!puede()" [valor]="form().hito5Fantasy" [cambiado]="form().hito5Fantasy !== original().hito5Fantasy" (changed)="set({ hito5Fantasy: $event })" /></div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:gap-3">
+                <span class="min-w-0 flex-1 text-body-s text-text-secondary">Chat · cada 10 mensajes</span>
+                <div class="grid grid-cols-2 gap-3 sm:w-[260px] sm:shrink-0">
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Porra</span><so-number ancho="s" label="Porra por cada 10 mensajes" [disabled]="!puede()" [valor]="form().hito10Porra" [cambiado]="form().hito10Porra !== original().hito10Porra" (changed)="set({ hito10Porra: $event })" /></div>
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Fantasy</span><so-number ancho="s" label="Fantasy por cada 10 mensajes" [disabled]="!puede()" [valor]="form().hito10Fantasy" [cambiado]="form().hito10Fantasy !== original().hito10Fantasy" (changed)="set({ hito10Fantasy: $event })" /></div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:gap-3">
+                <span class="min-w-0 flex-1 text-body-s text-text-secondary">Donativo · por euro</span>
+                <div class="grid grid-cols-2 gap-3 sm:w-[260px] sm:shrink-0">
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Porra</span><span class="py-2 font-mono text-text-muted">—</span></div>
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Fantasy</span><so-number ancho="s" label="Fantasy por euro donado" [disabled]="!puede()" [valor]="form().fantasyPorEuro" [cambiado]="form().fantasyPorEuro !== original().fantasyPorEuro" (changed)="set({ fantasyPorEuro: $event })" /></div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:gap-3">
+                <span class="min-w-0 flex-1 text-body-s text-text-secondary">Donativo reembolsado</span>
+                <div class="grid grid-cols-2 gap-3 sm:w-[260px] sm:shrink-0">
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Porra</span><span class="py-2 font-mono text-text-muted">—</span></div>
+                  <div class="flex flex-col items-end gap-1"><span class="font-mono text-mono-xs text-text-tertiary sm:hidden">Fantasy</span><span class="py-2 text-body-xs text-text-tertiary">se retira</span></div>
+                </div>
+              </div>
             </div>
             <p class="text-body-xs text-text-tertiary">Con 10 mensajes hay dos hitos (el del 5 y el del 10, se suman). Tope: {{ num(form().maxHitos) }} hitos por fan y jornada (se cambia en Chat).</p>
           </so-card>
