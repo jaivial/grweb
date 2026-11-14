@@ -40,7 +40,7 @@ func mustMigrations() fs.FS {
 
 var bearer = []map[string][]string{{"bearer": {}}}
 
-const logoURL = "https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png"
+const logoURL = "https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png"
 
 // Svc holds the service dependencies.
 type Svc struct {
