@@ -606,8 +606,8 @@ func (s *Svc) registerPublic() {
 				if err != nil {
 					return err
 				}
-				o.Body.Saldo, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy, f.Alias)
-				return err
+				// the three operations already opened (and locked) the wallet: just read it (ST3-R3-1)
+				return tx.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = $3`, j.ID, f.ID, Fantasy).Scan(&o.Body.Saldo)
 			})
 			if err != nil {
 				return nil, err
