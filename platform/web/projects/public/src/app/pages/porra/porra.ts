@@ -28,11 +28,16 @@ type FiltroSexo = 'todos' | 'F' | 'M';
         <ng-container aside>
           <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
           @if (fan.conSesion()) {
-            <button type="button" class="font-mono text-[13px] text-info underline-offset-4 hover:underline" [attr.aria-expanded]="verCartera()" (click)="verCartera.set(!verCartera())">{{ verCartera() ? 'Ocultar cartera' : 'Ver cartera y movimientos' }} →</button>
+            <button type="button" class="inline-flex min-h-11 items-center font-mono text-[0.8125rem] text-info underline-offset-4 hover:underline" [attr.aria-expanded]="verCartera()" (click)="verCartera.set(!verCartera())">{{ verCartera() ? 'Ocultar cartera' : 'Ver cartera y movimientos' }} →</button>
           }
         </ng-container>
       </gr-porra-cabecera>
-      <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" />
+      <!-- UX5-R1-2: saldo + «gana monedas» en una fila con disclosure -->
+      <div class="flex min-h-11 items-center justify-between gap-3 md:hidden">
+        <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
+        <button type="button" class="-mr-2 inline-flex min-h-11 items-center gap-1 px-2 text-label-s text-accent-text" [attr.aria-expanded]="verChat()" aria-controls="porra-chat" (click)="verChat.set(!verChat())">
+          Gana monedas <gr-icon name="chevron-down" [size]="16" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="verChat()" /></button>
+      </div>
 
       @if (soloLectura()) {
         <p class="flex items-start gap-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 text-body-s text-text-secondary" role="status">
@@ -44,8 +49,8 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       @if (verCartera() && cartera()) {
         <section class="rounded-lg border border-line-subtle bg-bg-card p-5" aria-label="Mi cartera">
           <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Porra</span><span class="font-mono text-[20px] font-bold text-accent-text tabular-nums">{{ monedas(cartera()!.porra) }}</span></p>
-            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Fantasy</span><span class="font-mono text-[20px] font-bold text-info tabular-nums">{{ monedas(cartera()!.fantasy) }}</span></p>
+            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Porra</span><span class="font-mono text-[1.25rem] font-bold text-accent-text tabular-nums">{{ monedas(cartera()!.porra) }}</span></p>
+            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Fantasy</span><span class="font-mono text-[1.25rem] font-bold text-info tabular-nums">{{ monedas(cartera()!.fantasy) }}</span></p>
           </div>
           @if (cartera()!.movimientos.length) {
             <ul class="mt-4 flex flex-col divide-y divide-line-subtle border-t border-line-subtle">
@@ -63,13 +68,23 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       }
 
       <!-- Figma «Cómo ganar monedas» + «Selector · jornada» (en móvil el selector va debajo, como un desplegable) -->
-      <section class="flex flex-col gap-2.5 rounded-lg border border-line-subtle bg-bg-card p-3 md:flex-row md:items-center md:justify-between md:gap-6 md:p-4">
+      <section id="porra-chat" class="flex-col gap-2.5 rounded-lg border border-line-subtle bg-bg-card p-3 md:flex md:flex-row md:items-center md:justify-between md:gap-6 md:p-4" [class]="verChat() ? 'flex' : 'hidden'">
         <div class="flex min-w-0 flex-col gap-2.5 md:gap-2">
-          <p class="text-[12px] leading-[1.2] font-medium tracking-[0.04em] text-accent-text uppercase"><span class="md:hidden">Gana más monedas en el chat</span><span class="hidden md:inline">Gana más monedas escribiendo en el chat</span></p>
+          <p class="text-[0.75rem] leading-[1.2] font-medium tracking-[0.04em] text-accent-text uppercase"><span class="md:hidden">Gana más monedas en el chat</span><span class="hidden md:inline">Gana más monedas escribiendo en el chat</span></p>
           <p class="flex items-center gap-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>5 mensajes<span class="hidden md:inline"> en el chat</span>: +{{ hito5() }}</span></p>
-          <p class="flex flex-wrap items-center gap-x-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>10 mensajes: +{{ hito10() }} (se suma<span class="hidden md:inline"> al de 5</span>)</span><span class="hidden font-mono text-[12px] font-medium text-text-muted md:inline">máx. 100 hitos por jornada</span></p>
+          <p class="flex flex-wrap items-center gap-x-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>10 mensajes: +{{ hito10() }} (se suma<span class="hidden md:inline"> al de 5</span>)</span><span class="hidden font-mono text-[0.75rem] font-medium text-text-muted md:inline">máx. 100 hitos por jornada</span></p>
         </div>
         <div class="hidden w-[320px] shrink-0 flex-col items-end gap-2 md:flex">
+          @if (jornadas().length > 3) {
+            <!-- UX5-R1-9: con muchas jornadas, desplegable en lugar del segmented -->
+            <label class="relative block w-full">
+              <span class="sr-only">Jornada</span>
+              <select class="h-11 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="elegirJornada($any($event.target).value)">
+                @for (j of jornadas(); track j.id) { <option [value]="j.id" [selected]="j.id === jornadaActiva()?.id">{{ etiquetaJornada(j) }}</option> }
+              </select>
+              <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3 right-4" />
+            </label>
+          } @else {
           <div class="flex w-full gap-1 rounded-md border border-line-subtle bg-bg-field p-1" role="group" aria-label="Jornada">
             @for (j of jornadas(); track j.id) {
               <button type="button" class="h-11 min-w-0 flex-1 truncate rounded-xs px-2 text-label-s transition-colors"
@@ -77,43 +92,46 @@ type FiltroSexo = 'todos' | 'F' | 'M';
                 [attr.aria-pressed]="j.id === jornadaActiva()?.id" (click)="elegirJornada(j.id)">{{ etiquetaJornada(j) }}</button>
             } @empty { <gr-skeleton class="h-11 w-full rounded-xs" /> }
           </div>
+          }
           @if (jornadaNombre()) { <p class="text-body-xs text-text-muted">El histórico de {{ jornadaNombre() }} se guarda al cerrar</p> }
         </div>
       </section>
 
       <!-- móvil: jornada y filtro como desplegables (Figma «Selector · jornada» / «Selector · filtro») -->
-      <label class="relative block md:hidden">
+      <div class="grid grid-cols-2 gap-2 md:hidden">
+      <label class="relative block min-w-0">
         <span class="sr-only">Jornada</span>
-        <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="elegirJornada($any($event.target).value)">
+        <select class="h-11 w-full appearance-none truncate rounded-md border border-line-strong bg-bg-field pr-9 pl-3 text-label-s text-text-primary" (change)="elegirJornada($any($event.target).value)">
           @for (j of jornadas(); track j.id) { <option [value]="j.id" [selected]="j.id === jornadaActiva()?.id">{{ etiquetaJornada(j) }}</option> }
         </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3.5 right-4" />
+        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3 right-3" />
       </label>
-      <label class="relative block md:hidden">
+      <label class="relative block min-w-0">
         <span class="sr-only">Tipo de mercado</span>
-        <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="filtroMovil($any($event.target).value)">
+        <select class="h-11 w-full appearance-none truncate rounded-md border border-line-strong bg-bg-field pr-9 pl-3 text-label-s text-text-primary" (change)="filtroMovil($any($event.target).value)">
           @for (o of tipos; track o.v) { <option [value]="'t:' + o.v" [selected]="o.v === filtroTipo() && filtroSexo() === 'todos'">{{ o.l }}</option> }
           @for (o of sexos.slice(1); track o.v) { <option [value]="'s:' + o.v" [selected]="o.v === filtroSexo()">{{ o.l }}</option> }
         </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3.5 right-4" />
+        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3 right-3" />
       </label>
+      </div>
 
       <!-- escritorio: chips de tipo · sexo · recuento en una fila -->
       <div class="hidden flex-wrap items-center gap-2 md:flex">
         <div class="flex gap-2" role="group" aria-label="Tipo de mercado">
           @for (o of tipos; track o.v) {
-            <button type="button" class="h-8 rounded-pill border px-3 text-label-xs transition-colors" [class]="chip(o.v === filtroTipo())" [attr.aria-pressed]="o.v === filtroTipo()" (click)="filtroTipo.set(o.v)">{{ o.l }}</button>
+            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [class]="chip(o.v === filtroTipo())" [attr.aria-pressed]="o.v === filtroTipo()" (click)="filtroTipo.set(o.v)">{{ o.l }}</button>
           }
         </div>
         <span class="size-3 shrink-0" aria-hidden="true"></span>
         <div class="flex gap-2" role="group" aria-label="Sexo">
           @for (o of sexos; track o.v) {
-            <button type="button" class="h-8 rounded-pill border px-3 text-label-xs transition-colors" [class]="chip(o.v === filtroSexo())" [attr.aria-pressed]="o.v === filtroSexo()" (click)="filtroSexo.set(o.v)">{{ o.l }}</button>
+            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [class]="chip(o.v === filtroSexo())" [attr.aria-pressed]="o.v === filtroSexo()" (click)="filtroSexo.set(o.v)">{{ o.l }}</button>
           }
         </div>
         <span class="size-3 shrink-0" aria-hidden="true"></span>
         @if (!store.cargando() && !store.error()) {
-          <p class="font-mono text-[12px] font-medium text-text-tertiary">{{ n('abierto') }} abiertos · {{ n('cerrado') }} cerrados · {{ n('liquidado') }} liquidados</p>
+          <p class="font-mono text-[0.75rem] font-medium text-text-tertiary">{{ n('abierto') }} abiertos · {{ n('cerrado') }} cerrados · {{ n('liquidado') }} liquidados</p>
         }
       </div>
 
@@ -137,7 +155,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
           }
         </div>
         @if (filtrados().length > 6) {
-          <button type="button" class="-my-2 self-start py-2 text-label-s text-text-primary underline-offset-4 hover:underline" (click)="verTodos.set(!verTodos())">
+          <button type="button" class="-my-2 inline-flex min-h-11 items-center self-start text-label-s text-text-primary underline-offset-4 hover:underline" (click)="verTodos.set(!verTodos())">
             {{ verTodos() ? 'Ver menos mercados ←' : 'Ver todos los mercados (' + filtrados().length + ') →' }}
           </button>
         }
@@ -146,7 +164,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       <!-- Premios de la jornada (gancho) -->
       <section class="flex flex-col gap-3 md:gap-4" aria-labelledby="premios-porra">
           <div class="flex flex-col gap-4">
-            <h2 id="premios-porra" class="text-[18px] leading-[1.3] font-semibold text-text-primary uppercase md:font-display md:text-[12px] md:font-normal md:leading-[1.25]">Premios de la jornada</h2>
+            <h2 id="premios-porra" class="text-[1.125rem] leading-[1.3] font-semibold text-text-primary uppercase md:font-display md:text-[0.75rem] md:font-normal md:leading-[1.25]">Premios de la jornada</h2>
             <p class="hidden text-body-xs text-text-tertiary md:block">Los premios se abonan en monedas al liquidar la jornada. Gestionados en el backoffice, anunciados aquí y en directo.</p>
           </div>
           @if (premios().length) {
@@ -178,6 +196,7 @@ export class PorraPage {
   protected readonly filtroSexo = signal<FiltroSexo>('todos');
   protected readonly verTodos = signal(false);
   protected readonly verCartera = signal(false);
+  protected readonly verChat = signal(false);
   protected readonly boleto = signal<{ mercado: Mercado; atletaId: string } | null>(null);
   protected readonly enviando = signal(false);
   protected readonly errorBoleto = signal<string | null>(null);

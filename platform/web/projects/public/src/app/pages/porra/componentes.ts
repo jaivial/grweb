@@ -1,4 +1,4 @@
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 /**
  * porra/componentes.ts — piezas compartidas de /porra y /fantasy (Figma «71 · /porra», rediseño UI v2): barra del
  * juego, aviso legal, saldo de monedas, chips de filtro, botón de cuota, tarjeta de mercado, boleto de apuesta, gancho
@@ -178,8 +178,12 @@ export class JuegosNav {
         [class]="moneda() === 'porra' ? 'border-accent-text/60 bg-accent text-white shadow-glow' : 'border-info/60 bg-info/20 text-info'">
         <gr-icon name="zap" [size]="15" />
       </span>
-      <span class="font-mono text-[16px] font-bold tabular-nums">{{ monedas(valor()) }}</span>
-      <span class="text-mono-xs" [class]="moneda() === 'porra' ? 'text-accent-text' : 'text-info'">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
+      <span class="font-mono text-[1rem] font-bold tabular-nums">{{ monedas(valor()) }}</span>
+      <span class="text-mono-xs text-text-secondary">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
+    } @else if (!fan.cargada()) {
+      <!-- UX5-R1-6: sesión sin resolver (SSR / primera carga): esqueleto del saldo, nunca «Entrar» -->
+      <span class="size-8 shrink-0 animate-pulse rounded-full bg-bg-field motion-reduce:animate-none" aria-hidden="true"></span>
+      <span class="h-4 w-[5.5rem] animate-pulse rounded-xs bg-bg-field motion-reduce:animate-none" aria-hidden="true"></span><span class="sr-only">Cargando saldo</span>
     } @else {
       <button type="button" class="-my-1 -mr-3.5 -ml-1 flex h-10 items-center gap-2 rounded-pill pr-4 pl-1 text-label-s text-accent-text" (click)="entrar()">
         <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><gr-icon name="user-plus" [size]="15" /></span>Entrar para jugar
@@ -236,19 +240,19 @@ export class GrupoChips<T extends string = string> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block w-full' },
   template: `
-    <button type="button" class="group flex w-full max-w-[336px] flex-col gap-2 rounded-md pt-1.5 pb-2 text-left disabled:cursor-default max-md:max-w-none" [disabled]="!activo()" (click)="elegir.emit()"
+    <button type="button" class="group flex w-full max-w-[336px] flex-col gap-2 rounded-md pt-1.5 pb-2 text-left transition-[transform,background-color] duration-100 enabled:active:scale-[.98] enabled:active:bg-white/5 disabled:cursor-default max-md:max-w-none motion-reduce:enabled:active:scale-100" [disabled]="!activo()" (click)="elegir.emit()"
       [attr.aria-label]="(activo() ? 'Apostar por ' : '') + opcion().nombre + ', cuota ' + cuotaTxt() + ', ' + apostado() + ' % del bote'">
       <span class="flex w-full items-center gap-3">
-        <span class="flex size-9 shrink-0 items-center justify-center rounded-full border font-display text-[13px] tracking-[0.1em]"
+        <span class="flex size-9 shrink-0 items-center justify-center rounded-full border font-display text-[0.8125rem] tracking-[0.1em]"
           [class]="lider() ? 'border-accent bg-accent-deep text-accent-text' : 'border-line-strong bg-bg-raised text-text-secondary'">{{ ini() }}</span>
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
           <span class="truncate text-body-s text-text-primary">{{ opcion().nombre }}</span>
-          <span class="truncate text-body-xs text-text-muted">{{ opcion().sexoTxt }}@if (opcion().categoria !== ' kg') { · {{ opcion().categoria }}}</span>
+          <span class="truncate text-body-xs text-text-secondary">{{ opcion().sexoTxt }}@if (opcion().categoria !== ' kg') { · {{ opcion().categoria }}}</span>
         </span>
         <span class="flex shrink-0 flex-col items-center rounded-sm border px-3 py-1 font-mono tabular-nums transition-colors"
-          [class]="lider() && cuotaNum() > 0 ? 'border-accent bg-accent-deep text-accent-text group-enabled:group-hover:bg-accent-deep/80' : cuotaNum() > 0 ? 'border-line-strong bg-bg-raised text-text-primary group-enabled:group-hover:border-text-muted' : 'border-line-subtle bg-bg-surface text-text-muted'">
-          <span class="text-[16px] leading-[22px] font-bold">{{ cuotaTxt() }}</span>
-          <span class="text-[10px] leading-[13px] whitespace-nowrap" [class]="delta() > 0 ? 'text-success' : delta() < 0 ? 'text-[#f87171]' : 'text-text-tertiary'">{{ deltaTxt() }}</span>
+          [class]="lider() && cuotaNum() > 0 ? 'border-accent bg-accent-deep text-white group-enabled:group-hover:bg-accent-deep/80' : cuotaNum() > 0 ? 'border-line-strong bg-bg-raised text-text-primary group-enabled:group-hover:border-text-muted' : 'border-line-subtle bg-bg-surface text-text-muted'">
+          <span class="text-[1rem] leading-[1.375rem] font-bold">{{ cuotaTxt() }}</span>
+          <span class="text-[0.6875rem] leading-[0.875rem] font-semibold whitespace-nowrap" [class]="delta() > 0 ? 'text-success' : delta() < 0 ? 'text-[#f87171]' : 'text-text-secondary'">{{ deltaTxt() }}</span>
         </span>
       </span>
       <span class="block h-1 w-full overflow-hidden rounded-pill bg-bg-raised" aria-hidden="true">
@@ -306,7 +310,7 @@ export class OddsRow {
     <header class="flex flex-col gap-1.5 px-4 pt-4 pb-3">
       <span class="flex items-center justify-between gap-3">
         <span class="truncate text-mono-xs text-accent-text">{{ tipo() }}</span>
-        <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-[12px] leading-none font-medium tracking-[0.04em] uppercase" [class]="chipClase()">{{ estadoTxt() }}</span>
+        <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-[0.75rem] leading-none font-medium tracking-[0.04em] uppercase" [class]="chipClase()">{{ estadoTxt() }}</span>
       </span>
       <h3 class="text-display-xs">{{ mercado().titulo }}</h3>
       <p class="text-body-xs text-text-tertiary">{{ descripcion() }}</p>
@@ -314,7 +318,7 @@ export class OddsRow {
     <p class="flex items-center justify-between gap-3 border-y border-line-subtle bg-accent-deep px-4 py-3">
       <span class="text-mono-xs text-text-tertiary">Apostado</span>
       <span class="flex items-baseline gap-1.5">
-        <span class="font-mono text-[26px] leading-none font-bold text-text-primary tabular-nums">{{ monedas(mercado().bote) }}</span>
+        <span class="font-mono text-[1.625rem] leading-none font-bold text-text-primary tabular-nums">{{ monedas(mercado().bote) }}</span>
         <span class="text-body-xs text-text-tertiary">monedas</span>
       </span>
     </p>
@@ -330,7 +334,7 @@ export class OddsRow {
     </ul>
     @if (puedeApostar()) {
       <div class="px-4 pt-2 pb-4">
-        <button grButton variant="primary" size="l" class="!text-label-s" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
+        <button grButton variant="primary" size="l" class="!text-label-s transition-transform duration-100 active:scale-[.98] motion-reduce:active:scale-100" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
         <p class="mt-2 text-body-xs text-text-muted">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
       </div>
     } @else if (mercado().estado === 'abierto' && !soloLectura() && !mercado().opciones.length) {
@@ -417,15 +421,21 @@ export class MarketCard {
   imports: [RouterLink, FormsModule, GrButton, GrIcon, GrSelect, AvisoJuegos],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents', '(document:keydown.escape)': 'cerrar.emit()' },
+  // UX5-R1-3: entrada como sheet iOS (300 ms) con fundido del velo; sin movimiento con reduced motion
+  styles: `.gr-velo{animation:gr-velo .2s ease-out both}@keyframes gr-velo{from{opacity:0}}@media (max-width:767px){.gr-sheet{animation:gr-hoja .3s cubic-bezier(.32,.72,0,1) backwards}}@media (prefers-reduced-motion:reduce){.gr-sheet{animation:gr-velo .15s ease-out backwards}}`,
   template: `
     <div class="fixed inset-0 z-50 flex items-end justify-center md:items-center md:justify-end md:p-6" role="dialog" aria-modal="true" aria-labelledby="boleto-titulo">
-      <button type="button" class="absolute inset-0 bg-black/70 backdrop-blur-[2px]" aria-label="Cerrar el boleto" (click)="cerrar.emit()"></button>
-      <div class="relative flex max-h-[94dvh] w-full flex-col overflow-y-auto rounded-t-2xl border border-line-strong bg-bg-raised shadow-card md:max-h-[calc(100dvh-48px)] md:max-w-[420px] md:rounded-2xl">
-        <span class="mx-auto mt-2 block h-1 w-11 shrink-0 rounded-pill bg-line-strong md:hidden" aria-hidden="true"></span>
+      <button type="button" class="gr-velo absolute inset-0 bg-black/70 backdrop-blur-[2px]" aria-label="Cerrar el boleto" (click)="cerrar.emit()"></button>
+      <div class="gr-sheet relative flex max-h-[94dvh] w-full flex-col overflow-y-auto rounded-t-2xl border border-line-strong bg-bg-raised shadow-card md:max-h-[calc(100dvh-48px)] md:max-w-[420px] md:rounded-2xl"
+        [style.transform]="arrastre() ? 'translateY(' + arrastre() + 'px)' : null" [class.transition-transform]="!arrastrando()" [class.duration-200]="!arrastrando()">
+        <!-- asa + cabecera: arrastrar hacia abajo cierra (umbral 30 % del alto o gesto rápido) -->
+        <div class="touch-none md:touch-auto" (pointerdown)="tomar($event)" (pointermove)="mover($event)" (pointerup)="soltar($event)" (pointercancel)="soltar($event)">
+        <span class="flex h-5 items-center justify-center md:hidden" aria-hidden="true"><span class="block h-1 w-11 rounded-pill bg-line-strong"></span></span>
         <header class="flex items-center justify-between gap-3 border-b border-accent/60 bg-accent-deep/55 px-5 py-3.5 md:py-4">
           <h2 id="boleto-titulo" class="text-display-xs">Boleto de apuesta</h2>
           <button type="button" class="-m-2 flex size-11 items-center justify-center rounded-sm text-text-secondary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="20" /></button>
         </header>
+        </div>
         <div class="flex flex-col gap-4 p-5">
           <div class="flex flex-col gap-1">
             <p class="text-mono-xs text-text-tertiary">Mercado {{ jornada() }}</p>
@@ -433,13 +443,13 @@ export class MarketCard {
           </div>
           @if (elegido(); as e) {
             <p class="flex items-center gap-3 rounded-md border border-accent/50 bg-bg-card px-3 py-2.5">
-              <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-accent/60 bg-accent-deep/60 font-display text-[13px] text-accent-text italic">{{ ini() }}</span>
+              <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-accent/60 bg-accent-deep/60 font-display text-[0.8125rem] text-accent-text italic">{{ ini() }}</span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-label-s">{{ e.nombre }}</span>
                 <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
-                @if (opciones().length > 1 && !exito()) { <button type="button" class="text-body-xs text-info underline-offset-4 hover:underline" (click)="elegir.emit('')">Cambiar de atleta</button> }
+                @if (opciones().length > 1) { <button type="button" class="-my-3 inline-flex min-h-11 items-center pr-4 text-body-xs text-info underline-offset-4 hover:underline" [class.invisible]="exito()" [attr.tabindex]="exito() ? -1 : null" (click)="elegir.emit('')">Cambiar de atleta</button> }
               </span>
-              <span class="shrink-0 font-mono text-[20px] font-bold tabular-nums" [class]="cuotaSel() > 0 ? 'text-accent-text' : 'text-text-muted'">{{ cuotaTxt() }}</span>
+              <span class="shrink-0 font-mono text-[1.25rem] font-bold tabular-nums" [class]="cuotaSel() > 0 ? 'text-accent-text' : 'text-text-muted'">{{ cuotaTxt() }}</span>
             </p>
           } @else {
             <gr-select class="w-full" tipo="campo" tam="l" aria-label="Elige el atleta" [ngModel]="atletaId()" (ngModelChange)="elegir.emit($event)">
@@ -451,13 +461,13 @@ export class MarketCard {
           <div class="flex flex-col gap-2">
             <label class="text-mono-xs text-text-tertiary" for="importe-apuesta">Importe</label>
             <span class="relative block">
-              <input id="importe-apuesta" class="h-14 w-full rounded-md border bg-bg-field pr-24 pl-4 font-mono text-[26px] font-bold tabular-nums outline-none focus-visible:border-accent-text" type="text" inputmode="numeric" autocomplete="off" [value]="texto()" (input)="cambiar($event)"
+              <input id="importe-apuesta" class="h-14 w-full rounded-md border bg-bg-field pr-24 pl-4 font-mono text-[1.625rem] font-bold tabular-nums outline-none focus-visible:border-accent-text" type="text" inputmode="numeric" autocomplete="off" [value]="texto()" (input)="cambiar($event)"
                 [class]="insuficiente() ? 'border-accent-text text-accent-text' : 'border-line-strong text-text-primary'" [attr.aria-invalid]="insuficiente() || null" aria-describedby="importe-apuesta-ayuda" />
               <span class="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-mono-xs text-text-tertiary">monedas</span>
             </span>
             <span id="importe-apuesta-ayuda" class="grid grid-cols-4 gap-2">
               @for (a of atajos(); track a) {
-                <button type="button" class="h-11 min-w-0 truncate rounded-pill border px-1 font-mono text-[12px] transition-colors md:h-10"
+                <button type="button" class="h-11 min-w-0 truncate rounded-pill border px-1 font-mono text-[0.8125rem] transition-[transform,color,border-color] duration-100 active:scale-95 motion-reduce:active:scale-100"
                   [class]="esAtajo(a) ? 'border-accent bg-accent-deep/55 text-accent-text' : 'border-line-strong bg-bg-card text-text-secondary hover:border-text-muted hover:text-text-primary'"
                   [attr.aria-pressed]="esAtajo(a)" (click)="atajo(a)">{{ a === 'max' ? 'Máx.' : monedas(a) }}</button>
               }
@@ -466,9 +476,9 @@ export class MarketCard {
           <p class="flex items-center justify-between gap-3 rounded-md px-3.5 py-3" [class]="insuficiente() ? 'border border-warning/35 bg-warning/8' : 'bg-success text-black'" aria-live="polite">
             <span class="min-w-0">
               <span class="block text-label-s">{{ hecho() ? 'Si acierta cobrarías' : 'Si acierta cobras' }} (estimado)</span>
-              <span class="block font-mono text-[11px]" [class]="insuficiente() ? 'text-text-tertiary' : 'text-black/70'">{{ detalleCobro() }}</span>
+              <span class="block font-mono text-[0.8125rem]" [class]="insuficiente() ? 'text-text-secondary' : 'text-black/85'">{{ detalleCobro() }}</span>
             </span>
-            <span class="shrink-0 font-mono text-[22px] font-bold tabular-nums" [class]="insuficiente() ? 'text-warning' : 'text-black'">{{ cobro() }}</span>
+            <span class="shrink-0 font-mono text-[1.375rem] font-bold tabular-nums" [class]="insuficiente() ? 'text-warning' : 'text-black'">{{ cobro() }}</span>
           </p>
           @if (error()) {
             <p class="flex items-start gap-2 rounded-md border border-accent-text/40 bg-accent-deep/30 px-3 py-2.5 text-body-xs text-accent-text" role="alert">
@@ -490,7 +500,7 @@ export class MarketCard {
               {{ insuficiente() ? 'Saldo insuficiente' : !elegido() ? 'Elige un atleta' : 'Confirmar apuesta de ' + monedas(importe()) }}
             </button>
           }
-          <p class="flex items-center justify-between gap-3 text-body-xs text-text-secondary">Saldo disponible <b class="font-mono text-[14px] text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></p>
+          <p class="flex items-center justify-between gap-3 text-body-xs text-text-secondary">Saldo disponible <b class="font-mono text-[0.875rem] text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></p>
         </div>
       </div>
     </div>
@@ -513,6 +523,29 @@ export class BoletoApuesta {
   readonly confirmar = output<{ atletaId: string; importe: number }>();
   /** El usuario ha elegido otro atleta del mercado. */
   readonly elegir = output<string>();
+
+  /** Arrastre del sheet (px hacia abajo) para cerrarlo con el gesto. */
+  protected readonly arrastre = signal(0);
+  protected readonly arrastrando = signal(false);
+  private inicio = { y: 0, t: 0 };
+  protected tomar(e: PointerEvent): void {
+    if (window.matchMedia('(min-width: 768px)').matches || (e.target as HTMLElement).closest('button')) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    this.inicio = { y: e.clientY, t: e.timeStamp };
+    this.arrastrando.set(true);
+  }
+  protected mover(e: PointerEvent): void {
+    if (this.arrastrando()) this.arrastre.set(Math.max(0, e.clientY - this.inicio.y));
+  }
+  protected soltar(e: PointerEvent): void {
+    if (!this.arrastrando()) return;
+    this.arrastrando.set(false);
+    const dy = this.arrastre();
+    const alto = (e.currentTarget as HTMLElement).parentElement?.offsetHeight ?? 1;
+    const rapido = dy > 20 && dy / Math.max(1, e.timeStamp - this.inicio.t) > 0.5;
+    this.arrastre.set(0);
+    if (dy > alto * 0.3 || rapido) this.cerrar.emit();
+  }
 
   protected readonly importe = signal(5000);
   protected readonly texto = signal('5.000');
@@ -639,9 +672,9 @@ export interface PlazaPodio {
         <li class="flex min-w-0 flex-col items-center gap-1.5 sm:gap-2" [class.order-first]="p.puesto === 2" [class.order-last]="p.puesto === 3">
           @if (p.puesto === 1) { <gr-icon name="trophy" [size]="22" [class]="m(1).texto" /> }
           <span class="flex shrink-0 items-center justify-center rounded-full border-2 bg-bg-raised font-display text-text-primary shadow-[0_6px_16px_rgb(0_0_0/0.45)]"
-            [class]="m(p.puesto).anillo + (p.puesto === 1 ? ' size-[72px] text-[26px]' : ' size-[60px] text-[22px]') + (p.yo ? ' ring-2 ring-accent ring-offset-2 ring-offset-bg-base' : '')">{{ ini(p.alias) }}</span>
+            [class]="m(p.puesto).anillo + (p.puesto === 1 ? ' size-[72px] text-[1.625rem]' : ' size-[60px] text-[1.375rem]') + (p.yo ? ' ring-2 ring-accent ring-offset-2 ring-offset-bg-base' : '')">{{ ini(p.alias) }}</span>
           <span class="w-full truncate text-center text-label-s text-text-primary">{{ p.alias ? '@' + p.alias : 'Anónimo' }}@if (p.yo) { <span class="sr-only"> (tú)</span> }</span>
-          <span class="font-mono font-bold tabular-nums" [class]="(p.valorClase || m(p.puesto).texto) + (p.puesto === 1 ? ' text-[16px] sm:text-[20px]' : ' text-[14px] sm:text-[17px]')">{{ p.valor }}</span>
+          <span class="font-mono font-bold tabular-nums" [class]="(p.valorClase || m(p.puesto).texto) + (p.puesto === 1 ? ' text-[1rem] sm:text-[1.25rem]' : ' text-[0.875rem] sm:text-[1.0625rem]')">{{ p.valor }}</span>
           <span class="block w-full rounded-t-xs" aria-hidden="true" [class]="m(p.puesto).solido + (p.puesto === 1 ? ' h-[104px]' : p.puesto === 2 ? ' h-[76px]' : ' h-14')"></span>
         </li>
       }
@@ -666,15 +699,15 @@ export class Podio {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': 'clases()' },
   template: `
-    <span class="flex size-10 shrink-0 items-center justify-center rounded-sm border font-mono text-[15px] font-bold" [class]="medalla()">
-      @if (medallaIcono()) { <gr-icon [name]="medallaIcono()!" [size]="18" [label]="fila().puesto + '.º'" /> } @else { {{ fila().puesto }} }
+    <span class="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-sm border px-1.5 font-mono text-[0.9375rem] font-bold tabular-nums" [class]="medalla()">
+      @if (medallaIcono()) { <gr-icon [name]="medallaIcono()!" [size]="18" [label]="fila().puesto + '.º'" /> } @else { {{ monedas(fila().puesto) }} }
     </span>
     <span class="min-w-0 flex-1">
       <span class="block truncate text-label-m text-text-primary">{{ alias() }}</span>
       @if (nota()) { <span class="block truncate text-body-xs" [class]="yo() ? 'text-accent-text' : 'text-text-tertiary'">{{ nota() }}</span> }
     </span>
     <span class="shrink-0 text-right">
-      <span class="block font-mono text-[16px] font-bold tabular-nums sm:text-[18px]" [class]="valorClase() || (yo() ? 'text-accent-text' : 'text-text-primary')">{{ valor() }}</span>
+      <span class="block font-mono text-[1rem] font-bold tabular-nums sm:text-[1.125rem]" [class]="valorClase() || (yo() ? 'text-accent-text' : 'text-text-primary')">{{ valor() }}</span>
       <span class="block text-mono-xs text-text-muted">{{ valorLabel() }}</span>
     </span>
     @if (yo()) { <span class="hidden shrink-0 rounded-2xs bg-accent px-2 py-1 text-mono-xs text-white sm:inline">Tu puesto</span> }
@@ -735,7 +768,7 @@ export class LeaderboardRow {
   host: { class: 'contents' },
   template: `
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
-      <a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
+      <a routerLink="/" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
     </nav>
     <div class="flex items-start justify-between gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">
@@ -767,29 +800,22 @@ export class LeaderboardRow {
       <gr-aviso-juegos />
     </div>
 
-    <!-- móvil: dos selectores y el aviso corto -->
-    <div class="flex flex-col gap-3 md:hidden">
-      <label class="relative block">
-        <span class="sr-only">Vertiente</span>
-        <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary">
-          <option selected>Apuestas · cuotas en vivo</option>
-          <option disabled>Pronósticos · próximamente</option>
-        </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3.5 right-4 text-text-primary" />
-      </label>
-      <label class="relative block">
-        <span class="sr-only">Sección de la porra</span>
-        <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="ir($any($event.target).value)">
-          @for (t of tabs; track t.id) { <option [value]="t.href" [selected]="t.id === activa()">{{ t.corto }}</option> }
-        </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3.5 right-4 text-text-primary" />
-      </label>
+    <!-- móvil (UX5-R1-1/2): aviso corto y tab bar inferior del juego (HIG: 49 px + safe area, icono 24, label 11) -->
+    <div class="flex flex-col gap-2 md:hidden">
+      <p class="text-body-xs text-text-tertiary">Apuestas · cuotas en vivo <span class="ml-1 rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-muted">Pronósticos · pronto</span></p>
       <gr-aviso-juegos [corto]="true" />
     </div>
+    <nav class="fixed inset-x-0 bottom-0 z-40 flex border-t border-line-subtle bg-bg-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[10px] md:hidden" aria-label="Porra">
+      @for (t of tabs; track t.id) {
+        <a [routerLink]="t.href" class="flex h-[49px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-label-xs transition-transform duration-100 active:scale-95"
+          [class]="t.id === activa() ? 'text-accent-text' : 'text-text-tertiary'" [attr.aria-current]="t.id === activa() ? 'page' : null">
+          <gr-icon [name]="t.icono" [size]="24" /><span class="truncate">{{ t.corto }}</span>
+        </a>
+      }
+    </nav>
   `,
 })
 export class PorraCabecera {
-  private readonly router = inject(Router);
   readonly titulo = input.required<string>();
   readonly descripcion = input('');
   /** La entradilla también en móvil (Mis apuestas y Clasificación sí; Mercados no). */
@@ -798,12 +824,9 @@ export class PorraCabecera {
   readonly crumb = input('');
   readonly activa = input<'mercados' | 'apuestas' | 'clasificacion'>('mercados');
   protected readonly tabs = [
-    { id: 'mercados', href: '/porra', label: 'Mercados', corto: 'Mercados' },
-    { id: 'apuestas', href: '/porra/mis-apuestas', label: 'Mis apuestas', corto: 'Mis apuestas' },
-    { id: 'clasificacion', href: '/porra/clasificacion', label: 'Clasificación', corto: 'Ranking' },
-  ];
-  protected ir(href: string): void {
-    void this.router.navigateByUrl(href);
-  }
+    { id: 'mercados', href: '/porra', label: 'Mercados', corto: 'Mercados', icono: 'zap' },
+    { id: 'apuestas', href: '/porra/mis-apuestas', label: 'Mis apuestas', corto: 'Mis apuestas', icono: 'ticket-check' },
+    { id: 'clasificacion', href: '/porra/clasificacion', label: 'Clasificación', corto: 'Ranking', icono: 'trophy' },
+  ] as const;
 }
 

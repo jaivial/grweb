@@ -53,19 +53,20 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
         </div>
       } @else {
         <!-- Figma «Resumen»: en juego, cobrado, devuelto y perdido -->
-        <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
+        <!-- UX5-R1-2: en móvil una fila compacta 1×4 -->
+        <div class="grid grid-cols-4 gap-1.5 md:gap-4">
           @for (k of kpis(); track k.label) {
-            <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-4">
-              <p class="text-mono-xs text-text-secondary">{{ k.label }}</p>
-              <p class="truncate font-mono text-[20px] leading-[1.3] font-bold tabular-nums md:text-[28px]" [class]="k.color">{{ k.valor }}</p>
-              <p class="truncate text-body-xs text-text-secondary">{{ k.nota }}</p>
+            <div class="flex min-w-0 flex-col gap-1 rounded-md border border-line-subtle bg-bg-card px-2 py-2 md:gap-2 md:rounded-lg md:p-4">
+              <p class="truncate text-mono-xs text-text-secondary">{{ k.label }}</p>
+              <p class="truncate font-mono text-body-s font-bold tabular-nums md:text-[1.75rem] md:leading-[1.3]" [class]="k.color">{{ k.valor }}</p>
+              <p class="hidden truncate text-body-xs text-text-secondary md:block">{{ k.nota }}</p>
             </div>
           }
         </div>
 
         <div class="hidden flex-wrap gap-2 md:flex" role="group" aria-label="Filtro de apuestas">
           @for (o of opcionesFiltro(); track o.v) {
-            <button type="button" class="h-8 rounded-pill border px-3 text-label-xs transition-colors" [attr.aria-pressed]="o.v === filtro()" (click)="filtro.set(o.v)"
+            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [attr.aria-pressed]="o.v === filtro()" (click)="filtro.set(o.v)"
               [class]="o.v === filtro() ? 'border-accent bg-accent/16 text-accent-text' : 'border-transparent bg-bg-field text-text-secondary hover:text-text-primary'">{{ o.l }} ({{ o.n }})</button>
           }
         </div>
@@ -80,22 +81,22 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
         <ul class="flex flex-col gap-3">
           @for (a of visibles(); track a.id) {
             <li class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 md:flex md:items-center md:gap-4">
-              <span class="inline-flex h-6 items-center self-start justify-self-start rounded-xs px-2.5 text-[12px] font-medium tracking-[0.04em] uppercase md:self-center" [class]="tag(a)">{{ estadoApuesta(a) }}</span>
-              <span class="row-start-1 col-start-2 text-right font-mono text-[13px] font-bold text-text-primary tabular-nums md:hidden">{{ monedas(a.importe) }}</span>
+              <span class="inline-flex h-6 items-center self-start justify-self-start rounded-xs px-2.5 text-[0.75rem] font-medium tracking-[0.04em] uppercase md:self-center" [class]="tag(a)">{{ estadoApuesta(a) }}</span>
+              <span class="row-start-1 col-start-2 text-right font-mono text-[0.8125rem] font-bold text-text-primary tabular-nums md:hidden">{{ monedas(a.importe) }}</span>
               <span class="col-span-2 flex min-w-0 flex-col gap-0.5 md:flex-1">
                 <span class="truncate text-body-s text-text-primary">{{ a.mercado }}</span>
                 <span class="truncate text-body-xs text-text-muted">{{ a.atleta || '—' }}</span>
               </span>
               <span class="hidden shrink-0 flex-col items-end md:flex">
-                <span class="font-mono text-[13px] font-bold text-text-primary tabular-nums">{{ monedas(a.importe) }}</span>
-                <span class="font-mono text-[11px] text-text-tertiary">importe apostado</span>
+                <span class="font-mono text-[0.8125rem] font-bold text-text-primary tabular-nums">{{ monedas(a.importe) }}</span>
+                <span class="font-mono text-[0.6875rem] text-text-tertiary">importe apostado</span>
               </span>
               <span class="col-span-2 flex min-w-0 flex-col md:w-[220px] md:shrink-0 md:items-end">
                 @switch (estadoApuesta(a)) {
                   @case ('Ganada') { <span class="text-body-xs text-success md:text-body-s">+{{ monedas(cobro(a)) }} cobrados</span> }
-                  @case ('Perdida') { <span class="text-body-xs text-text-muted md:text-body-s">Sin acierto</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">pierdes el importe apostado</span> }
-                  @case ('Devuelta') { <span class="text-body-xs text-info md:text-body-s">+{{ monedas(a.importe) }} devueltos</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">nadie acertó · bote de vuelta</span> }
-                  @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">Si gana (estimado): {{ monedas(cuota(a)) }}</span><span class="hidden font-mono text-[11px] text-text-tertiary md:block">ahora {{ cuotaTxt(a) }}</span> }
+                  @case ('Perdida') { <span class="text-body-xs text-text-muted md:text-body-s">Sin acierto</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">pierdes el importe apostado</span> }
+                  @case ('Devuelta') { <span class="text-body-xs text-info md:text-body-s">+{{ monedas(a.importe) }} devueltos</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">nadie acertó · bote de vuelta</span> }
+                  @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">Si gana (estimado): {{ monedas(cuota(a)) }}</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">ahora {{ cuotaTxt(a) }}</span> }
                 }
               </span>
             </li>
