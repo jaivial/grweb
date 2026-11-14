@@ -220,12 +220,26 @@ func resumen(e events.Event) string {
 		}
 		return "editó el borrador de los horarios"
 	case "horarios.generados":
-		return fmt.Sprintf("generó %v flights para %v atletas", d["flights"], d["atletas"])
+		if d["flights"] != nil { // records before the dates replaced the flights (15-nov)
+			return fmt.Sprintf("generó %v flights para %v atletas", d["flights"], d["atletas"])
+		}
+		return fmt.Sprintf("generó el orden de salida de %v atletas", d["atletas"])
 	case "horarios.publicados":
 		return fmt.Sprintf("publicó la versión v%v de los horarios", d["version"])
 	case "horarios.retirados":
 		return "retiró los horarios publicados"
-	case "horarios.flight":
+	case "horarios.jornada":
+		switch str(d["estado"]) {
+		case "en_curso":
+			return "puso en marcha la competición del " + str(d["dia"])
+		case "finalizado":
+			return "dio por terminada la competición del " + str(d["dia"])
+		}
+		if r, _ := d["retrasoMin"].(float64); r > 0 {
+			return fmt.Sprintf("marcó %v min de retraso el %s", r, str(d["dia"]))
+		}
+		return "devolvió el " + str(d["dia"]) + " a programado"
+	case "horarios.flight": // records before 15-nov
 		switch str(d["estado"]) {
 		case "en_curso":
 			return "puso el flight " + str(d["codigo"]) + " en la plataforma"
@@ -243,7 +257,10 @@ func resumen(e events.Event) string {
 		case str(b["fase"]) == "finalizado" && str(a["fase"]) != "finalizado":
 			return "dio por terminada la competición en directo"
 		case str(b["fase"]) == "en_directo" && str(a["fase"]) != "en_directo":
-			return "empezó el directo con el flight " + str(b["flight"])
+			if b["flight"] != nil {
+				return "empezó el directo con el flight " + str(b["flight"])
+			}
+			return "empezó el directo del " + str(b["dia"])
 		case b["pausa"] == true && a["pausa"] != true:
 			return "activó la pausa técnica"
 		case b["pausa"] != true && a["pausa"] == true:
@@ -251,7 +268,10 @@ func resumen(e events.Event) string {
 		case fmt.Sprint(a["retrasoMin"]) != fmt.Sprint(b["retrasoMin"]):
 			return fmt.Sprintf("cambió el retraso del directo a %v min", b["retrasoMin"])
 		}
-		return "pasó la mesa al flight " + str(b["flight"])
+		if b["flight"] != nil {
+			return "pasó la mesa al flight " + str(b["flight"])
+		}
+		return "actualizó la mesa del directo (" + str(b["dia"]) + ")"
 	case "directo.correccion_registrada":
 		a, _ := d["antes"].(map[string]any)
 		b, _ := d["despues"].(map[string]any)

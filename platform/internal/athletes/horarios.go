@@ -18,17 +18,17 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/db"
 )
 
-// Asignacion is the published flight of an athlete (written by schedule).
+// Asignacion is the published date of an athlete and its lot (written by schedule).
 type Asignacion struct {
 	AtletaID     uuid.UUID `json:"atletaId"`
-	Flight       string    `json:"flight" maxLength:"4"`
-	Plataforma   int       `json:"plataforma" minimum:"1" maximum:"4"`
+	Dia          string    `json:"dia" format:"date"`
+	Lote         int       `json:"lote" minimum:"1"`
 	Inicio       time.Time `json:"inicio"`
 	PesajeInicio time.Time `json:"pesajeInicio"`
 	PesajeFin    time.Time `json:"pesajeFin"`
 }
 
-// registerHorarios: schedule publishes a version → every confirmed athlete gets its flight and times (athletes not
+// registerHorarios: schedule publishes a version → every confirmed athlete gets its date, lot and times (athletes not
 // in the version are cleared), with a history entry, and the affected ones (and their followers, if asked) an email.
 // Notices are idempotent per version, so a retried publication does not email twice.
 func (s *Svc) registerHorarios() {
@@ -78,9 +78,9 @@ func (s *Svc) registerHorarios() {
 				ids = append(ids, a.AtletaID)
 			}
 			err := s.change(ctx, in.CID, "", nil, func(tx pgx.Tx) error {
-				// Clear whoever is no longer in a flight.
-				rows, err := tx.Query(ctx, `UPDATE atletas SET flight = '', plataforma = NULL, hora_inicio = NULL, pesaje_inicio = NULL, pesaje_fin = NULL, updated_at = now(), version = version + 1
-					WHERE competition_id = $1 AND flight <> '' AND NOT (id = ANY($2)) RETURNING id`, in.CID, ids)
+				// Clear whoever no longer has a date.
+				rows, err := tx.Query(ctx, `UPDATE atletas SET jornada = NULL, lote = NULL, hora_inicio = NULL, pesaje_inicio = NULL, pesaje_fin = NULL, updated_at = now(), version = version + 1
+					WHERE competition_id = $1 AND jornada IS NOT NULL AND NOT (id = ANY($2)) RETURNING id`, in.CID, ids)
 				if err != nil {
 					return err
 				}
@@ -90,14 +90,14 @@ func (s *Svc) registerHorarios() {
 				}
 				for _, id := range quitados {
 					o.Body.Actualizados++
-					if err := hist(ctx, tx, id, "Horario retirado", fmt.Sprintf("Ya no está en ningún flight (v%d)", b.Version)); err != nil {
+					if err := hist(ctx, tx, id, "Horario retirado", fmt.Sprintf("Ya no tiene fecha de competición (v%d)", b.Version)); err != nil {
 						return err
 					}
 				}
 				for _, a := range b.Asignaciones {
-					tag, err := tx.Exec(ctx, `UPDATE atletas SET flight = $3, plataforma = $4, hora_inicio = $5, pesaje_inicio = $6, pesaje_fin = $7, updated_at = now(), version = version + 1
-						WHERE competition_id = $1 AND id = $2 AND (flight, plataforma, hora_inicio, pesaje_inicio, pesaje_fin) IS DISTINCT FROM ($3, $4, $5, $6, $7)`,
-						in.CID, a.AtletaID, a.Flight, a.Plataforma, a.Inicio, a.PesajeInicio, a.PesajeFin)
+					tag, err := tx.Exec(ctx, `UPDATE atletas SET jornada = $3::date, lote = $4, hora_inicio = $5, pesaje_inicio = $6, pesaje_fin = $7, updated_at = now(), version = version + 1
+						WHERE competition_id = $1 AND id = $2 AND (jornada, lote, hora_inicio, pesaje_inicio, pesaje_fin) IS DISTINCT FROM ($3::date, $4, $5, $6, $7)`,
+						in.CID, a.AtletaID, a.Dia, a.Lote, a.Inicio, a.PesajeInicio, a.PesajeFin)
 					if err != nil {
 						return err
 					}
@@ -105,8 +105,8 @@ func (s *Svc) registerHorarios() {
 						continue
 					}
 					o.Body.Actualizados++
-					if err := hist(ctx, tx, a.AtletaID, "Horario publicado", fmt.Sprintf("v%d · Flight %s · Plataforma %d · %s %s · pesaje %s–%s",
-						b.Version, a.Flight, a.Plataforma, dia(a.Inicio), hm(a.Inicio), hm(a.PesajeInicio), hm(a.PesajeFin))); err != nil {
+					if err := hist(ctx, tx, a.AtletaID, "Horario publicado", fmt.Sprintf("v%d · %s %s · lote %d · pesaje %s–%s",
+						b.Version, dia(a.Inicio), hm(a.Inicio), a.Lote, hm(a.PesajeInicio), hm(a.PesajeFin))); err != nil {
 						return err
 					}
 				}
@@ -125,10 +125,10 @@ func (s *Svc) registerHorarios() {
 						plantilla = "horario-publicado" // «Tu horario»: first publication
 					}
 					if tiene {
-						vars["flight"], vars["plataforma"], vars["dia"], vars["hora"] = a.Flight, fmt.Sprint(a.Plataforma), dia(a.Inicio), hm(a.Inicio)
+						vars["lote"], vars["dia"], vars["hora"] = fmt.Sprint(a.Lote), dia(a.Inicio), hm(a.Inicio)
 						vars["pesaje"] = hm(a.PesajeInicio) + "–" + hm(a.PesajeFin)
 					} else {
-						plantilla, plantillaSeg = "horario-sin-flight", ""
+						plantilla, plantillaSeg = "horario-sin-fecha", ""
 					}
 					if b.AvisarAtletas && r.Email != nil && *r.Email != "" && r.Estado == "confirmado" {
 						vars["enlace"] = s.webURL + "/area-atleta"
@@ -170,7 +170,7 @@ func (s *Svc) registerHorarios() {
 						} else if !ok {
 							continue
 						}
-						v := map[string]string{"atleta": r.nombreCompleto(), "flight": vars["flight"], "dia": vars["dia"], "hora": vars["hora"], "horarios": vars["horarios"],
+						v := map[string]string{"atleta": r.nombreCompleto(), "lote": vars["lote"], "dia": vars["dia"], "hora": vars["hora"], "horarios": vars["horarios"],
 							"baja": s.webURL + "/atletas/" + r.Slug + "?baja=" + s.bajaToken(x.id)}
 						if r.Slug != "" {
 							v["enlace"] = s.webURL + "/atletas/" + r.Slug
@@ -218,8 +218,8 @@ func (s *Svc) validBaja(tok string) (uuid.UUID, bool) {
 	return id, hmac.Equal([]byte(s.bajaToken(id)), []byte(tok))
 }
 
-// avisosSalida emails the confirmed followers of every athlete whose flight starts in about 30 minutes (published
-// time plus the live delay of the flight set at the competition desk). Runs every minute; each published start
+// avisosSalida emails the confirmed followers of every athlete whose date starts in about 30 minutes (published
+// time plus the live delay of the date set at the competition desk). Runs every minute; each published start
 // time is notified once.
 func (s *Svc) avisosSalida(ctx context.Context) {
 	t := time.NewTicker(time.Minute)
@@ -237,9 +237,9 @@ func (s *Svc) avisosSalida(ctx context.Context) {
 }
 
 func (s *Svc) avisarSalidas(ctx context.Context) error {
-	rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.competition_id, a.nombre || ' ' || a.apellidos, a.flight, a.hora_inicio, COALESCE(r.retraso_min, 0), COALESCE(p.slug, '') FROM atletas a
+	rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.competition_id, a.nombre || ' ' || a.apellidos, a.hora_inicio, COALESCE(r.retraso_min, 0), COALESCE(p.slug, '') FROM atletas a
 		LEFT JOIN perfiles p ON p.atleta_id = a.id
-		LEFT JOIN retrasos r ON r.competition_id = a.competition_id AND r.flight = a.flight
+		LEFT JOIN retrasos r ON r.competition_id = a.competition_id AND r.dia = a.jornada
 		WHERE a.estado = 'confirmado' AND a.hora_inicio + make_interval(mins => COALESCE(r.retraso_min, 0)) BETWEEN now() + interval '20 minutes' AND now() + interval '31 minutes'
 		AND NOT EXISTS (SELECT 1 FROM avisos_salida x WHERE x.atleta_id = a.id AND x.hora_inicio = a.hora_inicio)
 		AND EXISTS (SELECT 1 FROM seguimientos f WHERE f.atleta_id = a.id AND f.confirmado_at IS NOT NULL AND f.baja_at IS NULL) LIMIT 200`)
@@ -248,14 +248,14 @@ func (s *Svc) avisarSalidas(ctx context.Context) error {
 	}
 	type sal struct {
 		id, cid              uuid.UUID
-		nombre, flight, slug string
+		nombre, slug string
 		hora                 time.Time
 		retraso              int
 	}
 	var list []sal
 	for rows.Next() {
 		var x sal
-		if err := rows.Scan(&x.id, &x.cid, &x.nombre, &x.flight, &x.hora, &x.retraso, &x.slug); err != nil {
+		if err := rows.Scan(&x.id, &x.cid, &x.nombre, &x.hora, &x.retraso, &x.slug); err != nil {
 			rows.Close()
 			return err
 		}
@@ -288,7 +288,7 @@ func (s *Svc) avisarSalidas(ctx context.Context) error {
 			segs.Close()
 			hora := x.hora.Add(time.Duration(x.retraso) * time.Minute).In(madrid).Format("15:04")
 			for _, g := range ss {
-				v := map[string]string{"atleta": x.nombre, "flight": x.flight, "hora": hora, "horarios": s.webURL + "/horarios", "baja": s.webURL + "/atletas/" + x.slug + "?baja=" + s.bajaToken(g.id)}
+				v := map[string]string{"atleta": x.nombre, "hora": hora, "horarios": s.webURL + "/horarios", "baja": s.webURL + "/atletas/" + x.slug + "?baja=" + s.bajaToken(g.id)}
 				if x.slug != "" {
 					v["enlace"] = s.webURL + "/atletas/" + x.slug
 				}

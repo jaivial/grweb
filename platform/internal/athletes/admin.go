@@ -47,7 +47,7 @@ type ItemLista struct {
 	Sexo           string       `json:"sexo"`
 	Categoria      string       `json:"categoria"`
 	DivisionNombre string       `json:"divisionNombre"`
-	Flight         string       `json:"flight"`
+	Jornada        string       `json:"jornada" doc:"Fecha en la que compite (vacío: sin publicar)"`
 	Prueba         string       `json:"prueba" doc:"Competición: aep2, aep3 o vacío (sin elegir)"`
 	Estado         string       `json:"estado"`
 	OrdenReserva   *int         `json:"ordenReserva,omitempty"`
@@ -70,7 +70,7 @@ type Lista struct {
 	Pestanas   map[string]int `json:"pestanas" doc:"todos · confirmados · reserva · bajas · incidencias"`
 	KPIs       KPIs           `json:"kpis"`
 	Categorias []string       `json:"categorias"`
-	Flights    []string       `json:"flights"`
+	Jornadas   []string       `json:"jornadas" doc:"Fechas con atletas publicados"`
 	Pruebas    map[string]int `json:"pruebas" doc:"Confirmados por competición: aep2 · aep3 · sin"`
 	Importado  *time.Time     `json:"importado,omitempty" doc:"Última importación del acta confirmada"`
 }
@@ -108,7 +108,7 @@ func (s *Svc) registerAdmin() {
 		Pestana   string    `query:"pestana" enum:"todos,confirmados,reserva,bajas,incidencias" default:"todos"`
 		Sexo      string    `query:"sexo" enum:"F,M,"`
 		Categoria string    `query:"categoria"`
-		Flight    string    `query:"flight"`
+		Jornada   string    `query:"jornada" doc:"Fecha (YYYY-MM-DD)"`
 		Perfil    string    `query:"perfil" enum:"incompleto,sin_foto,"`
 		Q         string    `query:"q" maxLength:"80"`
 		Orden     string    `query:"orden" enum:"nombre,categoria,completo,reserva" default:"nombre"`
@@ -128,7 +128,7 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			out := Lista{Pagina: in.Pagina, Por: in.Por, Pestanas: map[string]int{"todos": 0, "confirmados": 0, "reserva": 0, "bajas": 0, "incidencias": 0}, Pruebas: map[string]int{"aep2": 0, "aep3": 0, "sin": 0}, Items: []ItemLista{}}
-			cats, flights := map[string]bool{}, map[string]bool{}
+			cats, jornadas := map[string]bool{}, map[string]bool{}
 			var filtered []row
 			q := fold(in.Q)
 			for _, r := range all {
@@ -171,8 +171,8 @@ func (s *Svc) registerAdmin() {
 				if r.Categoria != "" {
 					cats[r.Sexo+" "+r.Categoria] = true
 				}
-				if r.Flight != "" {
-					flights[r.Flight] = true
+				if r.Jornada != "" {
+					jornadas[r.Jornada] = true
 				}
 				switch in.Pestana {
 				case "confirmados":
@@ -198,7 +198,7 @@ func (s *Svc) registerAdmin() {
 				if in.Categoria != "" && r.Categoria != in.Categoria && r.Sexo+" "+r.Categoria != in.Categoria {
 					continue
 				}
-				if in.Flight != "" && r.Flight != in.Flight {
+				if in.Jornada != "" && r.Jornada != in.Jornada {
 					continue
 				}
 				if in.Perfil == "incompleto" && r.completo() >= 70 || in.Perfil == "sin_foto" && r.FotoURL != "" {
@@ -225,11 +225,11 @@ func (s *Svc) registerAdmin() {
 			for i := from; i < to && i < len(filtered); i++ {
 				r := filtered[i]
 				out.Items = append(out.Items, ItemLista{ID: r.ID, NombreCompleto: r.nombreCompleto(), Licencia: r.Licencia, Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria,
-					DivisionNombre: DivisionNombre(r.Division), Flight: r.Flight, Prueba: r.Prueba, Estado: r.Estado, OrdenReserva: r.OrdenReserva, Completo: r.completo(),
+					DivisionNombre: DivisionNombre(r.Division), Jornada: r.Jornada, Prueba: r.Prueba, Estado: r.Estado, OrdenReserva: r.OrdenReserva, Completo: r.completo(),
 					Imagen: imagenEstado(r, d), FotoURL: r.FotoURL, Seguidores: r.Seguidores, Incidencias: len(r.incidencias(d)), Avisos: r.incidencias(d), Edad: r.edad(d), Pesaje: r.PesajeEstado})
 			}
 			out.Categorias = keys(cats)
-			out.Flights = keys(flights)
+			out.Jornadas = keys(jornadas)
 			return &listOut{Body: out}, nil
 		})
 
@@ -617,14 +617,14 @@ func (s *Svc) registerAdmin() {
 		_, _ = w.Write([]byte("\ufeff")) // Excel-friendly UTF-8
 		cw := csv.NewWriter(w)
 		cw.Comma = ';'
-		head := []string{"Licencia", "Nombre", "Apellidos", "Sexo", "Categoría", "División", "Club", "Estado", "Flight", "Peso", "Perfil %"}
+		head := []string{"Licencia", "Nombre", "Apellidos", "Sexo", "Categoría", "División", "Club", "Estado", "Fecha", "Peso", "Perfil %"}
 		if personal {
 			head = append(head, "Email", "Teléfono")
 		}
 		_ = cw.Write(head)
 		for _, a := range list {
 			// Free-text columns (typed in the AEP list or by athletes) are neutralised against formulas.
-			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Flight, kg(a.PesoCorporal), strconv.Itoa(a.completo())}
+			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Jornada, kg(a.PesoCorporal), strconv.Itoa(a.completo())}
 			if personal {
 				e := ""
 				if a.Email != nil {
@@ -660,7 +660,7 @@ func keys(m map[string]bool) []string {
 	return out
 }
 
-// catOrder sorts "F -63" before "M -53" and by weight inside a sex ("+" classes last); flights sort as text.
+// catOrder sorts "F -63" before "M -53" and by weight inside a sex ("+" classes last); dates sort as text.
 func catOrder(s string) string {
 	sexo, cat, ok := strings.Cut(s, " ")
 	if !ok {

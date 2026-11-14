@@ -40,8 +40,8 @@ type AtletaPub struct {
 	Categoria      string     `json:"categoria"`
 	Division       string     `json:"division"`
 	DivisionNombre string     `json:"divisionNombre"`
-	Flight         string     `json:"flight"`
-	Plataforma     *int       `json:"plataforma,omitempty"`
+	Jornada        string     `json:"jornada" doc:"Fecha en la que compite"`
+	Lote           *int       `json:"lote,omitempty"`
 	HoraInicio     *time.Time `json:"horaInicio,omitempty"`
 	FotoURL        string     `json:"fotoUrl"`
 	FocalX         int16      `json:"focalX"`
@@ -51,7 +51,7 @@ type AtletaPub struct {
 
 func (r row) pub(d time.Time) AtletaPub {
 	a := AtletaPub{Slug: r.Slug, Nombre: r.Nombre, Apellidos: r.Apellidos, Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria, Division: r.Division,
-		DivisionNombre: DivisionNombre(r.Division), Flight: r.Flight, Plataforma: r.Plataforma, HoraInicio: r.HoraInicio, FotoURL: r.fotoPublica(d), FocalX: r.FocalX, FocalY: r.FocalY}
+		DivisionNombre: DivisionNombre(r.Division), Jornada: r.Jornada, Lote: r.Lote, HoraInicio: r.HoraInicio, FotoURL: r.fotoPublica(d), FocalX: r.FocalX, FocalY: r.FocalY}
 	a.Ciudad = r.Ciudad
 	a.Destacado = a.FotoURL != "" && r.MarcaSQ != nil && r.MostrarMarcas
 	return a
@@ -64,8 +64,7 @@ type ListaPub struct {
 		Mujeres     int `json:"mujeres"`
 		Hombres     int `json:"hombres"`
 		Clubs       int `json:"clubs"`
-		Flights     int `json:"flights"`
-		Plataformas int `json:"plataformas"`
+		Jornadas    int `json:"jornadas" doc:"Fechas con atletas"`
 	} `json:"resumen"`
 	Atletas     []AtletaPub `json:"atletas"`
 	Actualizado time.Time   `json:"actualizado"`
@@ -115,7 +114,8 @@ type Fila struct {
 	Club       string     `json:"club"`
 	Sexo       string     `json:"sexo"`
 	Categoria  string     `json:"categoria"`
-	Flight     string     `json:"flight"`
+	Jornada    string     `json:"jornada"`
+	Lote       *int       `json:"lote,omitempty"`
 	PesajeIni  *time.Time `json:"pesajeInicio,omitempty"`
 	PesajeFin  *time.Time `json:"pesajeFin,omitempty"`
 	HoraInicio *time.Time `json:"horaInicio,omitempty"`
@@ -148,7 +148,7 @@ func (s *Svc) registerPublic() {
 				}
 				var o ListaPub
 				o.Atletas = make([]AtletaPub, 0, len(list))
-				clubs, flights, plats := map[string]bool{}, map[string]bool{}, map[int]bool{}
+				clubs, jornadas := map[string]bool{}, map[string]bool{}
 				for _, r := range list {
 					if !r.publico(d) {
 						continue
@@ -162,17 +162,14 @@ func (s *Svc) registerPublic() {
 					if r.Club != "" && !strings.EqualFold(r.Club, "independiente") {
 						clubs[strings.ToLower(r.Club)] = true
 					}
-					if r.Flight != "" {
-						flights[r.Flight] = true
-					}
-					if r.Plataforma != nil {
-						plats[*r.Plataforma] = true
+					if r.Jornada != "" {
+						jornadas[r.Jornada] = true
 					}
 					if r.UpdatedAt.After(o.Actualizado) {
 						o.Actualizado = r.UpdatedAt
 					}
 				}
-				o.Resumen.Total, o.Resumen.Clubs, o.Resumen.Flights, o.Resumen.Plataformas = len(o.Atletas), len(clubs), len(flights), len(plats)
+				o.Resumen.Total, o.Resumen.Clubs, o.Resumen.Jornadas = len(o.Atletas), len(clubs), len(jornadas)
 				sortPub(o.Atletas)
 				return o, nil
 			})
@@ -396,7 +393,7 @@ func sortPub(l []AtletaPub) {
 	})
 }
 
-// participantes groups confirmed athletes by flight (once the schedule is published) or by sex and class.
+// participantes groups confirmed athletes by date (once the schedule is published) or by sex and class.
 func participantes(plazas int, estado string, list []row) Participantes {
 	out := Participantes{Plazas: plazas, Estado: estado, Grupos: []Grupo{}}
 	byKey := map[string]*Grupo{}
@@ -413,8 +410,8 @@ func participantes(plazas int, estado string, list []row) Participantes {
 			out.Hombres++
 		}
 		key, titulo, sub := "c:"+catOrder(r.Sexo+" "+r.Categoria), map[string]string{"F": "Femenino", "M": "Masculino"}[r.Sexo]+" · "+r.Categoria+" kg", ""
-		if r.Flight != "" {
-			key, titulo = "f:"+r.Flight, "Flight "+r.Flight
+		if r.Jornada != "" {
+			key, titulo = "j:"+r.Jornada, tituloJornada(r.Jornada)
 			if r.HoraInicio != nil {
 				sub = "Empieza a las " + r.HoraInicio.In(madrid).Format("15:04")
 			}
@@ -425,13 +422,16 @@ func participantes(plazas int, estado string, list []row) Participantes {
 			byKey[key] = g
 			order = append(order, key)
 		}
-		g.Filas = append(g.Filas, Fila{Slug: r.Slug, Nombre: r.nombreCompleto(), Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria, Flight: r.Flight,
+		g.Filas = append(g.Filas, Fila{Slug: r.Slug, Nombre: r.nombreCompleto(), Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria, Jornada: r.Jornada, Lote: r.Lote,
 			PesajeIni: r.PesajeInicio, PesajeFin: r.PesajeFin, HoraInicio: r.HoraInicio})
 	}
 	sort.Strings(order)
 	for _, k := range order {
 		g := byKey[k]
 		sort.SliceStable(g.Filas, func(i, j int) bool {
+			if a, b := g.Filas[i].Lote, g.Filas[j].Lote; a != nil && b != nil {
+				return *a < *b // published date: lot order
+			}
 			return catOrder(g.Filas[i].Sexo+" "+g.Filas[i].Categoria) < catOrder(g.Filas[j].Sexo+" "+g.Filas[j].Categoria)
 		})
 		if g.Subtitulo == "" {
@@ -442,6 +442,15 @@ func participantes(plazas int, estado string, list []row) Participantes {
 	return out
 }
 
+// tituloJornada: «Sábado 19/12».
+func tituloJornada(f string) string {
+	t, err := time.Parse("2006-01-02", f)
+	if err != nil {
+		return f
+	}
+	return diasSemana[t.Weekday()] + " " + t.Format("2/1")
+}
+
 var madrid = func() *time.Location {
 	l, err := time.LoadLocation("Europe/Madrid")
 	if err != nil {
@@ -450,7 +459,7 @@ var madrid = func() *time.Location {
 	return l
 }()
 
-// AtletaPlan is a confirmed athlete as other services see it (schedule plans flights with it): no contact data,
+// AtletaPlan is a confirmed athlete as other services see it (schedule plans the dates with it): no contact data,
 // and name details for the public pages only when the profile is public.
 type AtletaPlan struct {
 	ID             uuid.UUID `json:"id"`

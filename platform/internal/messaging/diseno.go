@@ -29,7 +29,7 @@ type Bloque struct {
 
 var tiposBloque = map[string]string{
 	"cabecera": "Cabecera", "portada": "Portada", "titulo": "Título", "texto": "Texto", "boton": "Botón", "imagen": "Imagen", "lista": "Lista",
-	"dos_columnas": "Dos columnas", "cuenta_atras": "Cuenta atrás", "horario": "Flight / horario", "separador": "Separador", "espacio": "Espacio",
+	"dos_columnas": "Dos columnas", "cuenta_atras": "Cuenta atrás", "horario": "Horario del día", "separador": "Separador", "espacio": "Espacio",
 }
 
 // validarDiseno checks a design (from the editor or the AI) and normalises it.
@@ -83,7 +83,7 @@ func validarDiseno(d []Bloque) ([]Bloque, error) {
 			}
 		case "horario":
 			if _, err := time.Parse("2006-01-02", b.Fecha); err != nil {
-				return nil, fmt.Errorf("%s (Flight / horario): elige el día", n)
+				return nil, fmt.Errorf("%s (Horario del día): elige el día", n)
 			}
 		case "espacio":
 			b.Alto = max(8, min(64, b.Alto))
@@ -93,9 +93,8 @@ func validarDiseno(d []Bloque) ([]Bloque, error) {
 	return out, nil
 }
 
-// FlightResumen is a published flight shown by the «Flight / horario» block.
-type FlightResumen struct {
-	Codigo string
+// FilaHorario is a row of the «Horario del día» block (weigh-in, start, classes…).
+type FilaHorario struct {
 	Titulo string
 	Hora   string
 }
@@ -106,7 +105,7 @@ type Contexto struct {
 	Asunto   string
 	Pre      string
 	Ahora    time.Time
-	Flights  map[string][]FlightResumen // by day (AAAA-MM-DD)
+	Horario  map[string][]FilaHorario // by day (AAAA-MM-DD)
 	Absoluto func(string) string        // makes /relative links absolute (web of the competition)
 	Vars     map[string]string          // competition variables ({{competicion}}, {{fechas}}, {{sede}}, {{web}}): same for every recipient
 }
@@ -224,16 +223,16 @@ func compilarEmail(d []Bloque, c Contexto) string {
 			}
 			body.WriteString(`<tr><td style="padding:0 32px 20px;text-align:center">` + txt + `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>` + caja(dias, "DÍAS") + caja(horas, "HORAS") + `</tr></table></td></tr>`)
 		case "horario":
-			fl := c.Flights[b.Fecha]
+			fl := c.Horario[b.Fecha]
 			var rows strings.Builder
 			for _, f := range fl {
-				rows.WriteString(`<tr><td style="padding:8px 0;border-bottom:1px solid #eee6e7;font-size:15px;color:#3d3436">Flight ` + html.EscapeString(f.Codigo) + ` · ` + html.EscapeString(f.Titulo) +
+				rows.WriteString(`<tr><td style="padding:8px 0;border-bottom:1px solid #eee6e7;font-size:15px;color:#3d3436">` + html.EscapeString(f.Titulo) +
 					`</td><td style="padding:8px 0;border-bottom:1px solid #eee6e7;text-align:right;font-family:Menlo,Consolas,monospace;font-size:14px;color:#c42b3e">` + html.EscapeString(f.Hora) + `</td></tr>`)
 			}
 			if len(fl) == 0 {
 				rows.WriteString(`<tr><td style="padding:8px 0;font-size:15px;color:#7a7072">Los horarios de este día aún no están publicados.</td></tr>`)
 			}
-			body.WriteString(`<tr><td style="padding:0 32px 16px"><p style="margin:0 0 4px;font-size:12px;letter-spacing:1px;color:#9a8f91">` + strings.ToUpper(diaLargo(b.Fecha)) + ` · FLIGHTS</p>` +
+			body.WriteString(`<tr><td style="padding:0 32px 16px"><p style="margin:0 0 4px;font-size:12px;letter-spacing:1px;color:#9a8f91">` + strings.ToUpper(diaLargo(b.Fecha)) + ` · HORARIO</p>` +
 				`<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` + rows.String() + `</table></td></tr>`)
 		case "separador":
 			body.WriteString(`<tr><td style="padding:8px 32px 24px"><div style="border-top:1px solid #eee6e7"></div></td></tr>`)
@@ -278,8 +277,8 @@ func textoPlano(d []Bloque, c Contexto) string {
 			out = append(out, fmt.Sprintf("Faltan %d días", dias))
 		case "horario":
 			l := []string{strings.ToUpper(diaLargo(b.Fecha))}
-			for _, f := range c.Flights[b.Fecha] {
-				l = append(l, "Flight "+f.Codigo+" · "+f.Titulo+" · "+f.Hora)
+			for _, f := range c.Horario[b.Fecha] {
+				l = append(l, f.Titulo+" · "+f.Hora)
 			}
 			out = append(out, strings.Join(l, "\n"))
 		}
@@ -343,8 +342,8 @@ func derivarWhatsApp(d []Bloque, c Contexto) WhatsApp {
 			parts = append(parts, fmt.Sprintf("%s *%d días y %d horas*", pre, dias, horas))
 		case "horario":
 			l := []string{"*" + strings.ToUpper(diaLargo(b.Fecha)) + "*"}
-			for _, f := range c.Flights[b.Fecha] {
-				l = append(l, "Flight "+f.Codigo+" · "+f.Titulo+" · "+f.Hora)
+			for _, f := range c.Horario[b.Fecha] {
+				l = append(l, f.Titulo+" · "+f.Hora)
 			}
 			parts = append(parts, strings.Join(l, "\n"))
 		case "separador":
