@@ -478,7 +478,7 @@ export class AreaAtletaPage {
     this.error.set('');
     const e = this.email.trim();
     if (!e) return this.error.set('Escribe el email de tu inscripción.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return this.error.set(e.includes('@') ? 'Revisa el email: falta el dominio (p. ej. @gmail.com).' : 'Revisa el email: falta la @.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return this.error.set(!e.includes('@') ? 'Revisa el email: falta la @.' : /@[^\s@]*\.[^\s@]{2,}$/.test(e) ? 'Revisa el email: no parece válido.' : 'Revisa el email: falta el dominio (p. ej. @gmail.com).');
     this.busy.set(true);
     try {
       await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim() }));
@@ -586,7 +586,7 @@ export class AreaAtletaPage {
 
   protected async guardarPesaje(): Promise<void> {
     this.error.set('');
-    if (this.intentosMal()) return;
+    if (this.intentosMal() || this.busy()) return; // UX3-R2-4: sync guard against double tap
     this.busy.set(true);
     const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
     try {
