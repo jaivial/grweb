@@ -293,7 +293,7 @@ func (s *Svc) registerPublic() {
 			}
 			e := strings.ToLower(strings.TrimSpace(in.Body.Email))
 			// Double tap / retry: one confirmation email per (athlete, email) per minute; the repeat is a silent 202.
-			if r2, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "seguir-dup", r.ID, hashToken(e)), 1, time.Minute); !r2.Allowed {
+			if r2, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "seguir-dup", r.ID.String(), hashToken(e)), 1, time.Minute); !r2.Allowed {
 				return nil, nil
 			}
 			t := randomToken()
