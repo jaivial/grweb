@@ -54,15 +54,18 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
       @if (hoja()) {
         <!-- every click inside cancels its default: a wrapping <label> must not forward it to the control (it would reopen) -->
         <div #capa class="fixed inset-0 z-[90] m-0 flex h-dvh max-h-none w-screen max-w-none flex-col justify-end border-0 bg-black/55 p-0" (click)="$event.preventDefault(); cerrar(true)">
-          <div class="flex max-h-[75dvh] flex-col rounded-t-[20px] border-t border-line-strong bg-bg-raised pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.preventDefault(); $event.stopPropagation()">
-            <div class="flex flex-col items-center gap-3 px-5 pt-2 pb-3">
+          <div #panel role="dialog" aria-modal="true" [attr.aria-labelledby]="uid + '-titulo'" (keydown)="trampa($event)"
+            class="flex max-h-[75dvh] flex-col rounded-t-[20px] border-t border-line-strong bg-bg-raised pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.preventDefault(); $event.stopPropagation()">
+            <!-- drag the handle / header down to close (iOS sheet) -->
+            <div class="flex touch-none flex-col items-center gap-3 px-5 pt-2 pb-3" (pointerdown)="arrastre($event)">
               <span class="h-1 w-10 rounded-pill bg-line-strong" aria-hidden="true"></span>
               <div class="flex w-full items-center justify-between gap-3">
-                <span class="text-ui-h5 text-text-primary">{{ titulo() }}</span>
+                <span [id]="uid + '-titulo'" class="text-ui-h5 text-text-primary">{{ titulo() }}</span>
                 <button type="button" class="-mr-2 flex size-11 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar(true)"><gr-icon name="x" [size]="22" /></button>
               </div>
             </div>
-            <ul [id]="uid + '-lista'" role="listbox" [attr.aria-label]="titulo()" class="flex flex-col overflow-y-auto overscroll-contain px-3 pb-6">
+            <ul #listaHoja [id]="uid + '-lista'" role="listbox" tabindex="0" [attr.aria-label]="titulo()" (keydown)="$event.key === 'Tab' || tecla($event)"
+              [attr.aria-activedescendant]="activo() >= 0 ? uid + '-' + activo() : null" class="flex flex-col overflow-y-auto overscroll-contain px-3 pb-6 focus-visible:outline-none">
               @for (o of lista(); track $index; let i = $index) { @if (!o.oculta) {
                 <li [id]="uid + '-' + i" role="option" [attr.aria-selected]="o.valor === valor()" [attr.aria-disabled]="o.deshabilitada || null"
                   class="flex min-h-[52px] shrink-0 cursor-pointer items-center justify-between gap-3 rounded-sm px-3 text-body-l"
@@ -124,6 +127,8 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
   private readonly opcionesEl = viewChild.required<ElementRef<HTMLElement>>('opciones');
   private readonly control = viewChild.required<ElementRef<HTMLButtonElement>>('control');
   private readonly capa = viewChild<ElementRef<HTMLElement>>('capa');
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+  private readonly listaHoja = viewChild<ElementRef<HTMLElement>>('listaHoja');
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private onChange: (v: string) => void = () => undefined;
@@ -204,7 +209,13 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
       if (!capa) return;
       // top layer: no overflow-hidden or transformed ancestor can clip or offset it
       if ('showPopover' in capa) { capa.setAttribute('popover', 'manual'); try { (capa as HTMLElement & { showPopover(): void }).showPopover(); } catch { /* already shown */ } }
-      if (this.hoja()) { document.documentElement.style.overflow = 'hidden'; this.quitar.push(() => (document.documentElement.style.overflow = '')); }
+      if (this.hoja()) {
+        document.documentElement.style.overflow = 'hidden';
+        this.quitar.push(() => (document.documentElement.style.overflow = ''));
+        this.listaHoja()?.nativeElement.focus();
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches)
+          this.panel()?.nativeElement.animate([{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      }
       else this.colocar();
       this.verActivo();
       const fuera = (e: Event) => { if (!this.host.nativeElement.contains(e.target as Node)) this.cerrar(false); };
@@ -236,6 +247,38 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     this.abierto.set(false);
     this.onTouched();
     if (devolverFoco) this.control().nativeElement.focus();
+  }
+
+  /** Sheet = modal dialog: Tab stays inside, Escape closes. */
+  protected trampa(e: KeyboardEvent): void {
+    if (e.key === 'Escape') { e.preventDefault(); return this.cerrar(true); }
+    if (e.key !== 'Tab') return;
+    const f = [...(this.panel()?.nativeElement.querySelectorAll<HTMLElement>('button, [tabindex="0"]') ?? [])];
+    const i = f.indexOf(document.activeElement as HTMLElement), n = f.length;
+    if (!n) return;
+    e.preventDefault();
+    f[(i + (e.shiftKey ? n - 1 : 1)) % n].focus();
+  }
+
+  /** Swipe down from the handle: closes past 80 px or a fast flick (> 0.5 px/ms), otherwise springs back. */
+  protected arrastre(e: PointerEvent): void {
+    const p = this.panel()?.nativeElement;
+    if (!p || (e.target as HTMLElement).closest('button')) return;
+    const y0 = e.clientY, t0 = performance.now();
+    let dy = 0;
+    const mover = (m: PointerEvent) => { dy = Math.max(0, m.clientY - y0); p.style.transform = `translateY(${dy}px)`; };
+    const soltar = () => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      window.removeEventListener('pointercancel', soltar);
+      if (dy > 80 || dy / (performance.now() - t0) > 0.5) return this.cerrar(true);
+      p.style.transition = 'transform 250ms cubic-bezier(.2,.8,.2,1)';
+      p.style.transform = '';
+      setTimeout(() => (p.style.transition = ''), 250);
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+    window.addEventListener('pointercancel', soltar);
   }
 
   private limpiar(): void { for (const q of this.quitar.splice(0)) q(); }
