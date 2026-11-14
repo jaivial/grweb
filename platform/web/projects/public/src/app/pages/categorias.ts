@@ -43,11 +43,12 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
       subtitle="Las 18 categorías de peso corporal y las divisiones por edad con las que se compite en la GRS Cup 2, según la Asociación Española de Powerlifting (AEP).">
       <!-- Figma 46:15 (Jaime 14-nov): a dropdown, not sticky chips that scroll. Each option is its own view (?vista=…), so
            the page is shorter. All views are rendered (SSR / SEO, canonical without query); the inactive ones are hidden. -->
-      <label class="mb-8 flex max-w-sm flex-col gap-2 md:mb-12"><span class="text-label-s text-text-secondary">Sección</span>
-        <gr-select tipo="campo" [ngModel]="vista()" (ngModelChange)="irA($event)">
+      <!-- <label for>, not a wrapping label: wrapping would add the hidden <option> texts to the control's accessible name -->
+      <div class="mb-8 flex max-w-sm flex-col gap-2 md:mb-12"><label for="categorias-vista" class="text-label-s text-text-secondary">Sección</label>
+        <gr-select id="categorias-vista" tipo="campo" [ngModel]="vista()" (ngModelChange)="irA($event)">
           @for (v of vistas; track v.id) { <option [value]="v.id">{{ v.t }}</option> }
         </gr-select>
-      </label>
+      </div>
       <div class="flex flex-col gap-12 md:gap-20">
         <!-- 01 · Calculadora -->
         <section id="calculadora" class="flex-col gap-5 md:gap-7" [class.flex]="vista() === 'calculadora'" [class.hidden]="vista() !== 'calculadora'">
