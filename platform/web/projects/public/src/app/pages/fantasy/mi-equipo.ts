@@ -37,7 +37,8 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
 
       @if (store.cargando()) {
         <div class="grid gap-6 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]" aria-busy="true">
-          <gr-skeleton class="aspect-[358/500] rounded-2xl lg:aspect-[680/760]" />
+          <!-- UX6-R1-9: en móvil, la altura de la tarjeta de estado que suele sustituirlo -->
+          <gr-skeleton class="h-[285px] rounded-2xl lg:h-auto lg:aspect-[680/760]" />
           <gr-skeleton class="hidden h-64 rounded-lg lg:block" />
         </div>
       } @else if (!fan.conSesion()) {

@@ -22,9 +22,10 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="sala()?.nombre ?? 'Sala'" [juego]="true">
-      <gr-fantasy-cabecera [titulo]="sala()?.nombre ?? 'Sala'" [migas]="['Salas', sala()?.nombre ?? 'Sala']" [descripcion]="subtitulo()" />
+      <gr-fantasy-cabecera [titulo]="sala()?.nombre ?? 'Sala'" [migas]="['Salas', sala()?.nombre ?? 'Sala']" [descripcion]="subtitulo()" [reservar]="true" />
       <div class="flex flex-col gap-4 md:gap-6">
-        <gr-juegos-nav juego="fantasy" activa="salas" />
+        <!-- UX6-R1-7: dentro de la sala, en móvil basta la barra de sala y las migas -->
+        <div class="hidden md:block"><gr-juegos-nav juego="fantasy" activa="salas" /></div>
 
         @if (cargando()) {
           <div class="flex flex-col gap-3" aria-busy="true">
@@ -248,7 +249,7 @@ export class SalaPage {
   protected readonly llena = computed(() => (this.sala()?.miembros ?? 0) >= (this.sala()?.plazas ?? 0));
   protected readonly subtitulo = computed(() => {
     const d = this.detalle();
-    if (!d) return '';
+    if (!d) return '\u00a0'; // UX6-R1-9: reserva la línea mientras carga
     const dia = d.jornada?.dia ? ' · día ' + new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(d.jornada.dia)) : '';
     return `${this.esAnfitrion() ? 'Eres el anfitrión' : 'Anfitrión @' + d.sala.anfitrion}${dia} · ${d.sala.miembros}/${d.sala.plazas} jugadores`;
   });

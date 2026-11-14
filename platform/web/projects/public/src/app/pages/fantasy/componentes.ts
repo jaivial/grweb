@@ -119,10 +119,10 @@ export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas =
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
   template: `
-    <nav class="text-body-s text-text-tertiary" aria-label="Migas"><a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
+    <nav class="text-body-s text-text-tertiary" aria-label="Migas"><a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
       <div class="flex min-w-0 flex-col gap-2.5">
-        <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
+        <h1 class="text-display-s data-[reservar]:max-md:min-h-[2lh] md:text-display-m" [attr.data-reservar]="reservar() || null">{{ titulo() }}</h1>
         @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary">{{ descripcion() }}</p> }
       </div>
       <ng-content />
@@ -133,6 +133,8 @@ export class FantasyCabecera {
   readonly titulo = input.required<string>();
   readonly descripcion = input('');
   readonly migas = input<string[]>([]);
+  /** UX6-R1-9: reserva dos líneas al título que llega tarde (nombre de sala). */
+  readonly reservar = input(false);
 }
 
 /**
@@ -145,11 +147,11 @@ export class FantasyCabecera {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-surface p-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4' },
   template: `
-    <p class="flex min-w-0 items-center gap-3">
+    <p class="flex min-w-0 flex-wrap items-center gap-3">
       <gr-icon name="users" [size]="20" class="shrink-0 text-text-secondary" />
-      <span class="flex min-w-0 flex-col gap-0.5">
+      <span class="flex min-w-0 basis-full flex-col gap-0.5 max-lg:order-first lg:basis-auto">
         <span class="text-meta text-text-tertiary">Sala</span>
-        <span class="truncate text-label-s text-text-primary">{{ nombre() }}</span>
+        <span class="text-label-s break-words text-text-primary lg:truncate">{{ nombre() }}</span>
       </span>
       <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-label-xs" [class]="badge().clase">{{ badge().txt }}</span>
       @if (plazas()) { <span class="shrink-0 text-mono-s text-text-secondary tabular-nums">{{ miembros() }}/{{ plazas() }}</span> }
@@ -162,7 +164,7 @@ export class FantasyCabecera {
           [attr.aria-current]="t.v === activa() ? 'page' : null">{{ t.l }}</a>
       }
     </nav>
-    <a href="/fantasy/salas" class="inline-flex h-[30px] shrink-0 items-center gap-2 self-start rounded-pill border border-line-strong px-3 text-label-xs text-text-secondary hover:text-text-primary lg:self-auto">
+    <a href="/fantasy/salas" class="inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-pill lg:min-h-[30px] border border-line-strong px-3 text-label-xs text-text-secondary hover:text-text-primary lg:self-auto">
       Cambiar de sala<gr-icon name="chevron-down" [size]="16" />
     </a>
   `,
