@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"math/rand/v2"
 	"net/http"
@@ -26,6 +27,25 @@ var (
 
 // cierre1012 is an unmasked server close frame: FIN+close, length 2, code 1012 (service restart).
 var cierre1012 = []byte{0x88, 0x02, 0x03, 0xF4}
+
+// errDrenando: a draining gateway opens no new WS (it would be cut within 8 s); the 502 makes the client retry
+// on a live replica right away (ST1-R5-2).
+var errDrenando = errors.New("gateway draining: WS upgrade refused")
+
+// porUpgrade sends WS upgrades through a fast-fail transport and everything else through the normal one.
+type porUpgrade struct{ http, ws http.RoundTripper }
+
+func (p porUpgrade) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Header.Get("Upgrade") == "" {
+		return p.http.RoundTrip(r)
+	}
+	select {
+	case <-wsDrenar:
+		return nil, errDrenando
+	default:
+	}
+	return p.ws.RoundTrip(r)
+}
 
 // wsBack wraps the upstream side of a hijacked WS (res.Body of the 101). It follows the server→client frame
 // boundaries so that, once draining, it can end the stream with a close 1012 between two frames, never inside one.
