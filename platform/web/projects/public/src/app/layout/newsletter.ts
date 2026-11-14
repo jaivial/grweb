@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { GrCheckbox, GrIcon } from '@grcup/ui';
 import { Novedades, mensajeError } from '../core/novedades';
 
-/** «Novedades de la GRStrength Cup» (Figma «Footer» and «Próximamente» pages): email + unticked consent → double opt-in. */
+/** «Novedades de la GRS Cup 2» (Figma «Footer» and «Próximamente» pages): email + unticked consent → double opt-in. */
 @Component({
   selector: 'gr-newsletter',
   imports: [RouterLink, FormsModule, GrCheckbox, GrIcon],
@@ -38,7 +38,7 @@ import { Novedades, mensajeError } from '../core/novedades';
           </div>
           <!-- Figma «Checkbox» (Kind Legal) -->
           <gr-checkbox name="acepta" [(checked)]="acepta" [invalid]="campo() === 'acepta'">
-            <span class="block text-body-xs text-text-secondary">Quiero recibir novedades de GRStrength. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic. <a routerLink="/privacidad" class="text-accent-text underline-offset-2 hover:underline">Política de privacidad</a></span>
+            <span class="block text-body-xs text-text-secondary">Quiero recibir novedades de la GRS Cup 2. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic. <a routerLink="/privacidad" class="text-accent-text underline-offset-2 hover:underline">Política de privacidad</a></span>
           </gr-checkbox>
           @if (error()) { <p [id]="id + '-e'" class="text-body-xs text-accent-text" role="alert">{{ error() }}</p> }
         </form>
@@ -49,7 +49,7 @@ import { Novedades, mensajeError } from '../core/novedades';
 export class Newsletter {
   private readonly api = inject(Novedades);
   private readonly router = inject(Router);
-  readonly titulo = input('Novedades de la GRStrength Cup');
+  readonly titulo = input('Novedades de la GRS Cup 2');
   readonly texto = input('Fechas, horarios, sorteo y próximas competiciones. Un email al mes como mucho.');
   readonly origen = input('');
   /** Narrow columns (sidebars): one column, stacked button. */

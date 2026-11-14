@@ -214,7 +214,7 @@ export class BlogPage {
             <div class="flex min-w-0 flex-col gap-6 md:gap-8">
               <p class="flex items-center gap-3">
                 <span class="flex size-10 items-center justify-center rounded-full bg-accent text-label-s text-white" aria-hidden="true">GR</span>
-                <span class="flex flex-col"><span class="text-label-s">Equipo GRStrength</span><span class="text-body-xs text-text-tertiary">{{ fecha(a.publicadoAt) }} · {{ a.minutos }} min de lectura</span></span>
+                <span class="flex flex-col"><span class="text-label-s">Equipo GRS Cup 2</span><span class="text-body-xs text-text-tertiary">{{ fecha(a.publicadoAt) }} · {{ a.minutos }} min de lectura</span></span>
               </p>
               @if (a.portadaUrl) { <img [src]="a.portadaUrl" alt="" class="aspect-[760/400] w-full rounded-xl object-cover" /> }
               @if (toc().length > 1) {
