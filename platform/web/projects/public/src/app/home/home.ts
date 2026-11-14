@@ -16,7 +16,7 @@ import { JuegosEnVivo } from '../core/juegos';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 import { NoEncontrada } from '../layout/no-encontrada';
-import { Campeonato, fechaCorta, fechasHero } from './campeonato';
+import { Campeonato, fechasHero } from './campeonato';
 import { HeroTrophy } from './hero-trophy';
 import {
   SecAfiliaciones, SecAlta, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecLocalizacion, SecOrganizacion,
@@ -40,9 +40,9 @@ import { SecSorteo } from './sorteo';
     @let c = comp.data();
     <gr-navbar [hidden]="!introDone()" />
     <main>
-      <gr-hero-trophy [meta]="heroMeta()" [fechas]="heroFechas()" [lugar]="heroLugar()" [patrocinadores]="heroPatro()" [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" [hero]="$any(h?.secciones?.['hero']) || {}" (done)="introDone.set($event)" />
+      <gr-hero-trophy [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" [hero]="$any(h?.secciones?.['hero']) || {}" (done)="introDone.set($event)" />
       <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || 'Campeonato de powerlifting'"
-        [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''"
+        [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''" [fechas]="heroFechas()" [lugar]="heroLugar()"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
       @if (enVivo(); as v) {
         <!-- Event day: the broadcast also on the home («Directo › Retransmisión», switch «también en la home») -->
@@ -72,7 +72,7 @@ import { SecSorteo } from './sorteo';
             @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
             @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
             @case ('premios') {
-              <gr-sec-premios [s]="h.secciones[k]" [sinCategorias]="h.orden.includes('categorias')" />
+              <gr-sec-premios [s]="h.secciones[k]" />
               <!-- Figma 05-home-juegos: Porra and Fantasy right after «Premios v2» (hidden when the games service does not answer) -->
               @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
               @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
@@ -86,7 +86,7 @@ import { SecSorteo } from './sorteo';
             }
             @case ('afiliaciones') { <gr-sec-afiliaciones [s]="h.secciones[k]" /> }
             @case ('sorteo') { @if (c?.modulos?.['sorteo']) { <gr-sec-sorteo [s]="h.secciones[k]" /> } }
-            @case ('categorias') { <gr-sec-categorias [s]="h.secciones[k]" /> }
+            @case ('categorias') { @if (!h.orden.includes('premios')) { <gr-sec-categorias [s]="h.secciones[k]" /> } }
             @case ('horarios') { @if (horarios()?.publicado) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } }
             @case ('localizacion') { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> }
             @case ('faq') { @if (h.faqDestacadas.length) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } }
@@ -103,10 +103,8 @@ export class HomePage {
   private readonly seo = inject(Seo);
   protected readonly introDone = signal(false);
   protected readonly cms = signal<HomeCms | null>(null);
-  protected heroMeta = signal('');
   protected readonly heroFechas = signal('');
   protected readonly heroLugar = signal('');
-  protected readonly heroPatro = signal<{ nombre: string; logoUrl: string; url: string }[]>([]);
   protected readonly entradas = signal<Entradas | null>(null);
   protected readonly horarios = signal<Horarios | null>(null);
   protected readonly porra = signal<ResumenPorra | null>(null);
@@ -130,17 +128,14 @@ export class HomePage {
       this.comp.load(), this.cmsApi.home(), opt<Entradas>('/entradas', (v) => this.entradas.set(v)),
       opt<Horarios>('/horarios?resumen=true', (v) => this.horarios.set(v)),
       opt<ResumenPorra>('/juegos/porra/resumen', (v) => this.porra.set(v)), opt<ResumenFantasy>('/juegos/fantasy/resumen', (v) => this.fantasy.set(v)),
-      opt<{ nombre: string; logoUrl: string; url: string }[]>('/patrocinadores?hero=true', (v) => this.heroPatro.set(v.filter((p) => p.logoUrl))),
-    ]).then(([c, h, entradas, horarios, porra, fantasy, patro]) => {
+    ]).then(([c, h, entradas, horarios, porra, fantasy]) => {
       this.porra.set(porra);
       this.fantasy.set(fantasy);
-      this.heroPatro.set((patro ?? []).filter((p) => p.logoUrl));
       this.heroFechas.set(fechasHero(c?.fechaInicio, c?.fechaFin));
       this.heroLugar.set(c?.sede ? [c.sede.ciudad && (c.sede.provincia ? `${c.sede.ciudad} (${c.sede.provincia})` : c.sede.ciudad), c.sede.nombre].filter(Boolean).join(' · ') : '');
       this.cms.set(h);
       this.entradas.set(entradas);
       this.horarios.set(horarios);
-      this.heroMeta.set([fechaCorta(c?.fechaInicio), c?.sede?.ciudad, c?.sede?.provincia].filter(Boolean).join(' · '));
       const nombre = c?.nombre ?? 'GR Strength Cup';
       this.seo.set({
         title: `${nombre} · Campeonato de powerlifting en ${c?.sede?.ciudad ?? 'Almussafes'}`,

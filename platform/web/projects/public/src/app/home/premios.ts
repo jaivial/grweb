@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { GrButton, GrIcon } from '@grcup/ui';
 import type { Seccion } from '../core/cms';
 import { CATEGORIAS_IPF } from '../core/atletas';
 import { ANCHO, GrCabecera, GrTitulo } from './bloques';
 import { MedallaFisica } from './medalla-fisica';
-import { Trofeo3d } from './trofeo-3d';
 import { irA } from './secciones';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
@@ -18,7 +19,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
  */
 @Component({
   selector: 'gr-sec-premios',
-  imports: [GrCabecera, GrTitulo, Trofeo3d, MedallaFisica],
+  imports: [RouterLink, GrButton, GrIcon, GrCabecera, GrTitulo, MedallaFisica],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block overflow-hidden bg-bg-base px-5 pb-18 md:px-8 md:pb-24 xl:px-20 xl:pb-32' },
   styles: `
@@ -41,7 +42,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 
     <div [class]="ancho + ' flex flex-col items-center pt-[220px] lg:pt-[420px]'">
       <div class="flex w-full flex-col items-center gap-7 lg:gap-12">
-        <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
+        <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
         <ul #pista class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
           @for (p of items(); track p.titulo; let i = $index) {
             <li class="relative w-[300px] shrink-0 snap-start max-lg:pt-[100px] lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
@@ -55,7 +56,6 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
                 [class]="(i === 1 ? 'border-accent shadow-glow-deep' : 'border-white/8') + ' ' + giro[i % 3]">
                 <img [src]="p.imagen" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
                 <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_55%,rgb(14_12_13/0.92))] p-5">
-                  <span class="inline-flex h-[22px] w-fit items-center rounded-pill bg-[linear-gradient(120deg,#c42b3e,#6e1420)] px-2.5 text-label-xs">Premio · {{ (i + 1).toString().padStart(2, '0') }}</span>
                   <span class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">{{ p.titulo }}</span>
                 </div>
               </div>
@@ -70,17 +70,18 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 
       <!-- B · podium medals per weight class -->
       <div class="mt-20 flex w-full flex-col items-center lg:mt-[120px]">
-        <div class="relative h-[334px] w-full max-w-[350px] lg:h-[700px] lg:max-w-none" aria-hidden="true">
+        <!-- Figma home R2: title and text first, then the podium medals and the weight classes -->
+        <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('catTitulo') || 'Premio por|*categoría de peso*'"
+          [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
+        <div class="relative mt-8 h-[334px] w-full max-w-[350px] lg:h-[700px] lg:max-w-none" aria-hidden="true">
           <div class="absolute top-4 left-1/2 flex h-[660px] w-max origin-top -translate-x-1/2 scale-50 items-start justify-center gap-[13px] lg:top-10 lg:scale-100 lg:gap-[67px]">
             @for (m of podio; track m.src) {
               <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" [attr.width]="m.w" [attr.height]="m.h" class="colgante h-auto" [style.width.px]="m.w" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
             }
           </div>
-          <div class="pointer-events-none absolute inset-x-[-50vw] -top-3 h-[240px] bg-[radial-gradient(60%_50%_at_50%_30%,#141112_40%,transparent)] lg:h-[400px] lg:-top-[30px]"></div>
+          <div class="pointer-events-none absolute inset-x-[-50vw] -top-3 h-[120px] bg-[linear-gradient(180deg,#141112,transparent)] lg:h-[200px]"></div>
         </div>
-        <div class="relative z-10 -mt-6 flex w-full max-w-[350px] flex-col items-center gap-5 lg:-mt-12 lg:max-w-none lg:gap-10">
-          <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('catEyebrow') || 'Categorías de peso'" [titulo]="t('catTitulo') || 'Premio por *categoría de peso*'"
-            [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
+        <div class="relative z-10 mt-4 flex w-full max-w-[350px] flex-col items-center gap-5 lg:mt-0 lg:max-w-none lg:gap-10">
           <!-- UX1-R1-11: the weight-class grid shows once on the home (in «Categorías» when that section is on) -->
           @if (!sinCategorias()) {
           <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 lg:hidden" role="tablist" aria-label="Sexo">
@@ -99,21 +100,27 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
             }
           </div>
           }
+          <div class="flex w-full max-w-[824px] flex-col items-center gap-3 rounded-lg border border-accent/60 bg-accent/6 p-5 text-center md:flex-row md:gap-6 md:px-7 md:text-left">
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/14 text-accent-text"><gr-icon name="trophy" [size]="20" /></span>
+            <span class="flex flex-1 flex-col gap-1"><span class="text-label-m">Consulta las marcas mínimas</span><span class="text-body-s text-text-tertiary">Para clasificar para otras competiciones AEP (PDF oficial).</span></span>
+            <a grButton variant="glass" routerLink="/marcas-minimas" iconRight="arrow-right" class="w-full md:w-auto">Ver marcas mínimas</a>
+          </div>
         </div>
       </div>
 
       <!-- C · absolute winners (GL Points) -->
       <div class="mt-20 flex w-full flex-col items-center gap-7 lg:mt-[120px] lg:gap-10">
-        <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('absEyebrow') || 'Clasificación absoluta'" [titulo]="t('absTitulo') || 'Ganadores absolutos · *GL Points*'"
+        <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('absEyebrow') || 'Clasificación absoluta'" [titulo]="t('absTitulo') || 'Ganadores absolutos|*GL Points*'"
           [texto]="t('absTexto') || 'Mejor atleta masculino y mejor atleta femenina por puntos GL.'" />
-        <ul class="grid w-full gap-6 md:grid-cols-2">
+        <ul class="grid w-full grid-cols-2 gap-3 md:gap-6">
           @for (a of absolutos; track a.label; let i = $index) {
-            <li class="flex flex-col overflow-hidden rounded-[32px] border border-[#d4af37]/35 bg-[#221d1f] bg-[radial-gradient(70%_60%_at_50%_45%,rgb(212_175_55/0.22),transparent)]">
+            <li class="flex flex-col overflow-hidden rounded-[24px] border md:rounded-[32px] border-[#d4af37]/35 bg-[#221d1f] bg-[radial-gradient(70%_60%_at_50%_45%,rgb(212_175_55/0.22),transparent)]">
               <!-- both start facing the camera (Figma); a small offset so they do not turn in lockstep -->
-              <gr-trofeo-3d class="mx-auto mt-6 h-[260px] w-full max-w-[448px] md:h-[300px] lg:mt-10 lg:h-[400px]" [alt]="a.alt" [fase]="i * -0.25" />
-              <div class="flex flex-col gap-2 p-6 text-center lg:p-10">
-                <span class="text-body-m text-[#d4af37] md:text-body-l">{{ a.titulo }}</span>
-                <span class="font-display text-[36px] leading-[44px] tracking-[0.06em] uppercase md:text-[48px] md:leading-[53px]">{{ a.label }}</span>
+              <!-- Figma home R2: the trophy image (no 3D render) -->
+              <img src="/img/home/trofeo-gl.webp" [alt]="a.alt" class="mx-auto mt-4 h-[130px] w-full object-contain md:h-[300px] lg:mt-10 lg:h-[400px]" loading="lazy" decoding="async" />
+              <div class="flex flex-col gap-1 p-3 text-center md:gap-2 md:p-6 lg:p-10">
+                <span class="text-body-xs text-[#d4af37] md:text-body-l">{{ a.titulo }}</span>
+                <span class="font-display text-[22px] leading-[28px] tracking-[0.06em] uppercase md:text-[48px] md:leading-[53px]">{{ a.label }}</span>
               </div>
             </li>
           }

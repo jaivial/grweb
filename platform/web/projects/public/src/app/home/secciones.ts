@@ -4,11 +4,11 @@ import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
 import { renderMarkdown, type Faq, type Seccion } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
-import { CATEGORIAS_IPF } from '../core/atletas';
+import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
-import type { Horarios } from '../core/horarios';
+import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubFlight } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
-import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, textoTitulo } from './bloques';
+import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -42,44 +42,58 @@ export class SecCifras {
   protected readonly items = computed(() => list<{ valor: string; etiqueta: string }>(this.s(), 'items'));
 }
 
-/** «Section / Alta de atleta» (Figma 74 · SecAlta 171:82712/82732/82752): la tarjeta de alta y los 4 beneficios. */
+/**
+ * «Section / Alta de atleta» (Figma home R2 393:143503 · 387:105287): title, the iPhone with the athlete's story, the six
+ * reasons (2 columns; icon and title stacked and centred) and the CTA. The intro text stays for SEO only (sr-only).
+ */
 @Component({
   selector: 'gr-sec-alta',
   imports: [RouterLink, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-20 md:pt-16 md:pb-32' },
+  host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
   template: `
-    <div class="relative mx-auto flex max-w-[720px] flex-col items-center gap-4 overflow-hidden rounded-2xl border border-line-subtle bg-bg-card px-5 py-8 text-center md:gap-5 md:px-14 md:py-12">
-      <div class="absolute inset-x-0 top-0 h-0.5 bg-[linear-gradient(90deg,transparent,#c42b3e,transparent)]"></div>
-      <span class="inline-flex h-7 items-center rounded-pill border border-line-strong bg-bg-raised px-3 text-label-xs text-text-secondary uppercase">{{ s()?.['eyebrow'] || 'GR Cup 2026 · Alta de atleta' }}</span>
-      <h2 class="text-display-m text-accent-text [text-shadow:0_0_24px_rgb(196_43_62/0.5)] md:text-display-xl">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
-      <p class="text-body-m text-text-secondary md:text-body-l">{{ s()?.['texto'] || 'Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y queda privado hasta que actives su publicación desde el área de atleta.' }}</p>
-      <div class="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-        <a grButton variant="primary" size="l" routerLink="/alta-atleta">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
-        <a grButton variant="outline" size="l" routerLink="/atletas">Ver atletas</a>
+    <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
+      <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
+      <p class="sr-only">{{ s()?.['texto'] || 'Si compites en la GR Cup 2026, crea tu perfil de atleta: foto, club y mejores marcas. Lo revisamos a mano y queda privado hasta que actives su publicación desde el área de atleta.' }}</p>
+      <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+        <!-- Figma «Carrusel iPhone»: one slide (the athlete's story) and the 4-dot indicator -->
+        <div class="flex shrink-0 flex-col items-center gap-4" aria-hidden="true">
+          <div class="relative h-[650px] w-[300px] rounded-[48px] border border-white/20 bg-[#0b0a0a] p-[11px] shadow-[0_30px_80px_rgb(0_0_0/0.6)]">
+            <div class="relative flex size-full flex-col overflow-hidden rounded-[38px] bg-black">
+              <div class="flex h-[50px] shrink-0 items-center justify-between px-7 text-[13px] font-semibold text-white"><span>9:41</span><span class="h-[9px] w-[19px] rounded-[3px] bg-white"></span></div>
+              <span class="absolute top-3 left-1/2 h-6 w-[83px] -translate-x-1/2 rounded-pill bg-black ring-1 ring-white/10"></span>
+              <img src="/img/home/alta-story.webp" alt="" width="278" height="514" class="w-full flex-1 object-cover" loading="lazy" decoding="async" />
+              <span class="absolute bottom-2 left-1/2 h-1 w-[95px] -translate-x-1/2 rounded-pill bg-white/80"></span>
+            </div>
+          </div>
+          <span class="flex items-center gap-2"><span class="h-2 w-6 rounded-pill bg-accent"></span><span class="size-2 rounded-full bg-white/25"></span><span class="size-2 rounded-full bg-white/25"></span><span class="size-2 rounded-full bg-white/25"></span></span>
+        </div>
+        <a grButton variant="primary" size="l" routerLink="/alta-atleta" class="w-full lg:hidden">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
+        <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
+          <h3 class="text-center font-display text-[28px] leading-[1.25] tracking-[0.02em] md:text-[32px]">Por qué darte de alta como atleta</h3>
+          <ul class="grid w-full grid-cols-2 gap-3 md:gap-5">
+            @for (b of beneficios; track b.t) {
+              <li class="flex min-h-[124px] flex-col items-center justify-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-5 text-center md:min-h-[150px]">
+                <span class="flex size-11 items-center justify-center rounded-md bg-accent/16 text-accent-text"><gr-icon [name]="b.i" [size]="20" /></span>
+                <span class="text-[15px] leading-[19px] font-semibold md:text-[14px]">{{ b.t }}</span>
+              </li>
+            }
+          </ul>
+          <a grButton variant="primary" size="l" routerLink="/alta-atleta" class="hidden lg:inline-flex">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
+        </div>
       </div>
-    </div>
-    <div class="mx-auto mt-12 flex max-w-[1100px] flex-col items-center gap-8 md:mt-[72px] md:gap-10">
-      <h3 class="text-center font-display text-[28px] leading-[1.2] tracking-[0.02em] md:text-[36px]">Por qué darte de alta como atleta</h3>
-      <ul class="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
-        @for (b of beneficios; track b.t) {
-          <li class="flex flex-col gap-2 rounded-xl border border-white/8 bg-white/3 p-6">
-            <span class="mb-2 flex size-11 items-center justify-center rounded-md bg-accent/16 text-accent-text"><gr-icon [name]="b.i" [size]="20" /></span>
-            <span class="text-[17px] leading-[21px] font-semibold">{{ b.t }}</span>
-            <span class="text-body-s text-text-tertiary">{{ b.d }}</span>
-          </li>
-        }
-      </ul>
     </div>
   `,
 })
 export class SecAlta {
   readonly s = input<Seccion | undefined>();
-  protected readonly beneficios: { i: GrIconName; t: string; d: string }[] = [
-    { i: 'user', t: 'Área de atleta personalizada', d: 'Tu propia área como atleta en la GR Cup.' },
-    { i: 'activity', t: 'Tus datos en tiempo real', d: 'Consulta tus datos durante la competición, al momento.' },
-    { i: 'trophy', t: 'GRS Fantasy y porra general', d: 'Aparece como atleta en la GRS Fantasy y en la porra general.' },
-    { i: 'bell', t: 'Mejor atención del club', d: 'Canales de información, newsletters y avisos del club.' },
+  protected readonly beneficios: { i: GrIconName; t: string }[] = [
+    { i: 'user', t: 'Área de atleta personalizada' },
+    { i: 'image', t: 'Tu póster de competición' },
+    { i: 'activity', t: 'Tus datos en tiempo real' },
+    { i: 'award', t: 'Perfil público verificado' },
+    { i: 'trophy', t: 'GRS Fantasy y porra general' },
+    { i: 'bell', t: 'Mejor atención del club' },
   ];
 }
 
@@ -94,18 +108,18 @@ export class SecAlta {
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
     <div [class]="glow + ' -top-40 right-[-80px] size-[480px] md:right-[-220px] md:size-[760px] bg-[radial-gradient(closest-side,rgb(110_20_32/0.22),transparent)]!'"></div>
-    <div [class]="ancho + ' flex flex-col items-center gap-10 lg:flex-row lg:gap-[72px]'">
-      <div class="flex w-full flex-col gap-5 lg:max-w-[728px] lg:gap-7">
-        <div class="flex flex-col gap-3 md:gap-4">
-          <gr-eyebrow [texto]="t('eyebrow')" />
-          <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo')" [acento]="t('tituloAcento')" /></h2>
-          <p class="text-body-m text-text-tertiary md:text-body-l">{{ t('texto') }}</p>
-        </div>
+    <!-- Figma home R2: mobile = header · ticket · points · CTAs · social proof; desktop = text column | ticket -->
+    <div [class]="ancho + ' grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-[72px] lg:gap-y-10'">
+      <div class="flex flex-col gap-3 md:gap-4 lg:col-start-1 lg:row-start-1 lg:self-end">
+        <gr-eyebrow [texto]="t('eyebrow')" />
+        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo')" [acento]="t('tituloAcento')" /></h2>
+      </div>
+      <div class="flex w-full flex-col gap-7 lg:col-start-1 lg:row-start-2 lg:self-start">
         <ul class="flex flex-col gap-3">
           @for (p of puntos(); track p.titulo; let i = $index) {
-            <li class="flex gap-3">
+            <li class="flex items-center gap-3">
               <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="icons[i % 3]" [size]="18" /></span>
-              <span class="flex flex-col gap-1"><span class="text-label-m">{{ p.titulo }}</span><span class="text-body-s text-text-tertiary">{{ p.texto }}</span></span>
+              <span class="text-label-m">{{ p.titulo }}</span>
             </li>
           }
         </ul>
@@ -118,22 +132,19 @@ export class SecAlta {
             <span class="flex items-center" aria-hidden="true">
               @for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }
             </span>
-            <span class="flex flex-col gap-1">
-              <span class="text-body-s">{{ num(entradas()!.personas) }} personas ya tienen entrada</span>
-              <span class="flex items-center gap-1 text-body-xs text-text-muted"><gr-icon name="radio" [size]="12" class="text-success" />Actualizado en directo</span>
-            </span>
+            <span class="text-body-s">{{ num(entradas()!.personas) }} personas ya tienen entrada</span>
           </div>
         }
       </div>
-      <div class="flex w-full max-w-[350px] shrink-0 flex-col items-center gap-4 lg:w-[400px] lg:max-w-none">
+      <div class="row-start-2 flex w-full flex-col items-center gap-4 justify-self-center lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:w-[400px]">
         <!-- Example ticket (Figma «Ticket») -->
-        <div class="w-[350px] max-w-full overflow-hidden rounded-xl border border-accent/55 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] shadow-card lg:-rotate-3" aria-hidden="true">
+        <div class="w-full max-w-[400px] overflow-hidden rounded-xl border border-accent/55 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] shadow-card" aria-hidden="true">
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
               <img [src]="logo" alt="" class="h-8 w-auto" />
-              <span class="inline-flex h-6 items-center rounded-pill border border-success/60 bg-success/12 px-2.5 text-label-xs text-success">Entrada gratuita</span>
+              <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">Entrada gratuita</span>
             </div>
-            <p class="text-display-xs">{{ comp()?.nombre || 'GR Strength Cup' }}</p>
+            <p class="text-display-xs">{{ nombreTicket() }}</p>
             <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
               @for (m of metaTicket(); track m.t) { <li class="flex items-center gap-2.5"><gr-icon [name]="m.i" [size]="15" class="text-accent-text" />{{ m.t }}</li> }
             </ul>
@@ -150,7 +161,7 @@ export class SecAlta {
           </div>
         </div>
         @if (aforo(); as a) {
-          <div class="flex w-[350px] max-w-full flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-5">
+          <div class="flex w-full max-w-[400px] flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-5">
             <div class="flex items-center justify-between">
               <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />Aforo · {{ a.s.nombre }}</span>
               <span class="text-mono-s text-text-secondary">{{ a.s.ocupadas }} / {{ a.s.aforo }}</span>
@@ -175,7 +186,13 @@ export class SecEntradas {
   protected readonly num = num;
   protected readonly qr = signal('');
   protected t = (k: string) => str(this.s(), k);
-  protected readonly puntos = computed(() => list<{ titulo: string; texto: string }>(this.s(), 'puntos'));
+  /** Figma home R2: only icon + title per point (the CMS text is not shown). */
+  protected readonly puntos = computed(() => list<{ titulo: string }>(this.s(), 'puntos'));
+  /** «GRS CUP 2 · 2026» (Figma ticket). */
+  protected readonly nombreTicket = computed(() => {
+    const c = this.comp();
+    return c?.fechaInicio ? `GRS Cup 2 · ${c.fechaInicio.slice(0, 4)}` : (c?.nombre || 'GRS Cup 2');
+  });
   /** First session of the event, shown on the example ticket. */
   private readonly primera = computed<SesionPub | null>(() => this.entradas()?.sesiones?.[0] ?? null);
   protected readonly metaTicket = computed(() => {
@@ -231,7 +248,6 @@ export class SecEntradas {
             <img [src]="r.imagen" [attr.srcset]="srcset(r.imagen)" sizes="(min-width: 768px) 520px, 100vw" [alt]="r.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
             <figcaption class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_45%,rgb(14_12_13/0.92))] p-5 md:hidden">
               <span class="text-display-m"><gr-titulo [titulo]="r.titulo" [acento]="r.acento" /></span>
-              @if (r.alt) { <span class="text-body-xs text-text-tertiary">{{ r.alt }}</span> }
             </figcaption>
           </figure>
         </div>
@@ -299,16 +315,14 @@ export class SecOrganizacion {
   host: { class: SECCION + ' bg-bg-base' },
   template: `
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
-      <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
-      <ul class="flex w-full flex-col justify-center gap-4 md:flex-row md:gap-6">
-        @for (c of tarjetas(); track c.titulo) {
-          <li class="relative flex w-full flex-col gap-4 overflow-hidden rounded-lg border border-line-subtle bg-bg-card p-5 md:w-[420px] md:p-7">
+      @if (t('eyebrow')) { <p class="sr-only">{{ sinNumero(t('eyebrow')) }}</p> }
+      <gr-cabecera [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
+      <!-- Figma home R2: the three organisers with their real logos in black and white -->
+      <ul class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+        @for (c of tarjetas; track c.titulo) {
+          <li class="relative flex w-full flex-col gap-4 overflow-hidden rounded-lg border border-line-subtle bg-bg-card p-5 md:items-center md:p-7 md:text-center">
             <span class="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgb(255_255_255/0.25),transparent)]"></span>
-            @if (c.tipo === 'foto') {
-              <img [src]="c.imagen" alt="" class="aspect-[362/180] w-full rounded-md border border-white/8 object-cover" loading="lazy" />
-            } @else {
-              <span class="flex aspect-[362/180] w-full items-center justify-center rounded-md bg-white/3 px-10"><img [src]="c.imagen" [alt]="c.titulo" class="max-h-[110px] w-full object-contain" loading="lazy" /></span>
-            }
+            <span class="flex aspect-[326/180] w-full items-center justify-center px-6"><img [src]="c.logo" [alt]="c.alt" class="max-h-20 w-full max-w-[260px] object-contain grayscale" loading="lazy" decoding="async" /></span>
             <span class="text-display-xs">{{ c.titulo }}</span>
             <span class="text-body-s text-text-tertiary">{{ c.texto }}</span>
           </li>
@@ -331,7 +345,12 @@ export class SecAfiliaciones {
   readonly s = input<Seccion | undefined>();
   protected readonly ancho = ANCHO;
   protected t = (k: string) => str(this.s(), k);
-  protected readonly tarjetas = computed(() => list<{ tipo: string; imagen: string; titulo: string; texto: string }>(this.s(), 'tarjetas'));
+  protected readonly sinNumero = sinNumero;
+  protected readonly tarjetas = [
+    { logo: '/img/home/afil-aep-bn.webp', alt: 'AEP · Asociación Española de Powerlifting', titulo: 'AEP', texto: 'Afiliada a la Asociación Española de Powerlifting, con jueces oficiales.' },
+    { logo: '/img/home/afil-grs-strength-bn.webp', alt: 'GRS Strength', titulo: 'GRS Strength', texto: 'Club organizador: reúne a la comunidad de powerlifting.' },
+    { logo: '/img/home/afil-almussafes-bn.webp', alt: "Ajuntament d'Almussafes", titulo: "Ajuntament d'Almussafes", texto: "Colabora el Ajuntament d'Almussafes, municipio anfitrión." },
+  ];
   protected readonly marcas = computed(() => list<{ nombre: string; logo: string }>(this.s(), 'marcas'));
 }
 
@@ -381,60 +400,140 @@ export class SecCategorias {
   protected kg = (c: string) => c.replace('-', '−') + 'kg';
 }
 
-interface Bloque { sexo: 'M' | 'F'; pesos: string[]; inicio: string; fin: string }
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+const ICONOS: Record<string, GrIconName> = { door: 'door', trophy: 'trophy', gift: 'gift', clock: 'clock', ticket: 'ticket', users: 'users', info: 'info', camera: 'camera' };
+const ESTADO: Record<string, string> = { finalizado: 'Finalizado', en_curso: 'En curso', programado: 'Programado' };
+type Vista = 'todos' | 'detallado' | 'mio';
+interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; icono: GrIconName } }
 
 /**
- * «Section / Horarios»: the published schedule by day — consecutive flights of the same sex merge into one block
- * (categories + time range), as in the Figma table (cards on mobile).
+ * «Section / Horarios v2» (Figma home R2 393:144990 · 211:126138, tabs 393:145943/146508 · 393:143915/144146): day tabs,
+ * sex filter, the three views (Todos · Detallado · ★ Mi horario), search, and the published groups of the day (sex, weight
+ * classes, athletes and weigh-in, state and start time) between the agenda items. The server renders the summary; the
+ * athletes (Detallado, Mi horario, search) load in the browser. Stars are the same favourites as /horarios.
  */
 @Component({
   selector: 'gr-sec-horarios',
-  imports: [RouterLink, GrButton, GrCabecera, GrIcon],
+  imports: [RouterLink, GrButton, GrIcon, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
-    <div class="pointer-events-none absolute top-15 left-1/2 aspect-[2/3] w-full max-w-[560px] -translate-x-1/2 opacity-22">
-      <img [src]="t('imagen') || '/img/home/horarios.webp'" alt="" class="size-full object-cover" loading="lazy" />
-      <div class="absolute inset-0 bg-[radial-gradient(closest-side,transparent_20%,#141112)]"></div>
-    </div>
-    <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
-      <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
-      <div class="flex w-full max-w-[880px] flex-col gap-4">
-        <div class="flex gap-1.5" role="tablist" aria-label="Días">
-          @for (d of dias(); track d.fecha; let i = $index) {
-            <button type="button" role="tab" [attr.aria-selected]="i === diaSel()" (click)="diaSel.set(i)" class="flex flex-col items-center gap-2 px-4 pt-3">
-              <span class="text-display-body" [class.text-text-tertiary]="i !== diaSel()">{{ d.etiqueta }}</span>
-              <span class="h-[3px] w-full rounded-[2px]" [class.bg-accent]="i === diaSel()"></span>
-            </button>
+    <div [class]="glow + ' -top-20 right-[-120px] size-[560px]'"></div>
+    <div [class]="ancho + ' flex flex-col gap-8 md:gap-10'">
+      <div class="flex flex-col gap-3 md:gap-4">
+        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo') || 'Horarios *en directo*'" [acento]="t('tituloAcento')" /></h2>
+        <p class="text-body-m text-text-tertiary md:text-body-l">{{ t('texto') || 'Cuándo compite cada atleta y si va con retraso. Se actualiza solo: no hace falta recargar.' }}</p>
+      </div>
+      <div class="flex flex-col gap-3 md:gap-4">
+        <div class="grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:w-[420px]" role="tablist" aria-label="Vista">
+          @for (v of vistas; track v.k) {
+            <button type="button" role="tab" [attr.aria-selected]="vista() === v.k" (click)="elegir(v.k)" class="h-10 rounded-sm px-1 text-label-s whitespace-nowrap" [class]="vista() === v.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ v.k === 'mio' ? '★ Mi horario (' + misAtletas().length + ')' : v.l }}</button>
           }
         </div>
-        @if (dias()[diaSel()]; as d) {
-          <!-- desktop table -->
-          <div class="hidden overflow-hidden rounded-lg border border-line-subtle bg-[#221d1f]/90 md:block">
-            <div class="grid grid-cols-[140px_1fr_auto] gap-4 px-5 py-4 text-label-xs text-text-muted"><span>Categoría</span><span>Pesos</span><span>Horario</span></div>
-            @for (b of d.bloques; track $index) {
-              <div class="grid grid-cols-[140px_1fr_auto] items-center gap-4 border-t border-line-subtle bg-white/2 px-4 py-4">
-                <span class="text-display-label text-accent-text">{{ b.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                <span class="text-display-body">{{ b.pesos.join(' KG, ') }} KG</span>
-                <span class="text-display-body tabular-nums">{{ b.inicio }} – {{ b.fin }}</span>
-              </div>
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+          <div class="order-first flex gap-1.5 md:order-none" role="tablist" aria-label="Días">
+            @for (d of dias(); track d.fecha; let i = $index) {
+              <button type="button" role="tab" [attr.aria-selected]="i === diaSel()" (click)="diaSel.set(i)" class="relative h-11 shrink-0 px-4 font-display text-[18px] uppercase italic" [class]="i === diaSel() ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'">
+                {{ d.etiqueta }}<span class="absolute inset-x-4 bottom-0 h-[3px] rounded-[2px]" [class]="i === diaSel() ? 'bg-accent' : 'bg-transparent'"></span>
+              </button>
             }
           </div>
-          <!-- mobile cards -->
-          <ul class="flex flex-col gap-4 md:hidden">
-            @for (b of d.bloques; track $index) {
-              <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-[#221d1f]/90 p-4">
-                <span class="flex items-center justify-between">
-                  <span class="inline-flex h-[22px] items-center rounded-pill px-2.5 text-label-xs" [class]="b.sexo === 'F' ? 'bg-warning/14 text-warning' : 'bg-accent/14 text-accent-text'">{{ b.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                  <span class="flex items-center gap-1.5 text-mono-s tabular-nums"><gr-icon name="clock" [size]="14" class="text-text-tertiary" />{{ b.inicio }} – {{ b.fin }}</span>
-                </span>
-                <span class="text-display-body">{{ b.pesos.join(' · ') }} KG</span>
+          <div class="grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:w-[300px]" role="radiogroup" aria-label="Sexo">
+            @for (g of sexos; track g.k) {
+              <button type="button" role="radio" [attr.aria-checked]="sexo() === g.k" (click)="sexo.set(g.k)" class="h-9 rounded-sm text-label-s" [class]="sexo() === g.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ g.l }}</button>
+            }
+          </div>
+          <label class="flex h-12 flex-1 items-center gap-2 rounded-md border border-line-subtle bg-bg-deep px-4 focus-within:border-line-strong">
+            <gr-icon name="search" [size]="18" class="text-text-tertiary" />
+            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" placeholder="¿Cuándo compite…?" aria-label="Buscar atleta o club" [value]="q()" (input)="buscar($any($event.target).value)" />
+          </label>
+        </div>
+      </div>
+
+      @if (vista() === 'mio') {
+        <!-- Figma «Horarios · pestaña Mi horario» -->
+        @if (misAtletas().length) {
+          <section class="flex flex-col gap-4 rounded-xl border border-line-subtle bg-bg-card p-5 md:p-6">
+            <h3 class="flex items-center gap-2 text-ui-h5"><gr-icon name="star" [size]="18" class="fill-current text-accent-text" />Mi horario<span class="ml-auto text-body-xs text-text-muted">{{ misAtletas().length }} {{ misAtletas().length === 1 ? 'atleta' : 'atletas' }}</span></h3>
+            <ul class="flex flex-col">
+              @for (m of misAtletas(); track m.a.slug) {
+                <li class="flex items-center gap-3 border-b border-line-subtle py-3">
+                  <span class="flex size-11 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-s">{{ iniciales(m.a.nombre) }}</span>
+                  <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <a [routerLink]="['/atletas', m.a.slug]" class="truncate text-label-m hover:underline">{{ m.a.nombre }}</a>
+                    <span class="text-body-xs text-text-tertiary">{{ m.a.sexo }} {{ kg(m.a.categoria) }} kg</span>
+                    @if (m.f.estado === 'en_curso') { <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border border-accent/60 bg-accent/12 px-2.5 py-0.5 text-label-xs text-accent-text"><gr-icon name="radio" [size]="12" />En tarima</span> }
+                  </span>
+                  @if (m.f.estado !== 'en_curso') { <span class="text-mono-s tabular-nums">{{ hora(m.f.inicioEstimado || m.f.inicio) }}</span> }
+                  <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white" [attr.aria-label]="'Dejar de seguir a ' + m.a.nombre" (click)="fav.toggle(m.a.slug)"><gr-icon name="star" [size]="18" class="fill-current" /></button>
+                </li>
+              }
+            </ul>
+            <a grButton variant="primary" [href]="icsUrl()" download>Añadir mi horario al calendario</a>
+            <p class="text-body-xs text-text-muted">Archivo .ics con las horas de tus atletas; se actualiza si hay retrasos.</p>
+          </section>
+        } @else {
+          <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-5 py-8 text-center">
+            <gr-icon name="clock" [size]="24" />
+            <p class="text-label-m">Aún no sigues a ningún atleta</p>
+            <p class="text-body-s text-text-tertiary">Marca con ★ a tus atletas en «Todos» o «Detallado» y aquí verás solo sus horas.</p>
+            <button grButton variant="primary" type="button" (click)="elegir('detallado')">Buscar atletas en Detallado</button>
+          </div>
+        }
+      } @else {
+        <ul class="flex flex-col gap-3">
+          @for (r of filas(); track r.t + (r.flight?.id ?? r.item?.titulo)) {
+            @if (r.item; as it) {
+              <li class="flex items-center gap-4 rounded-lg border border-line-subtle px-4 py-3">
+                <span class="text-mono-s text-accent-text tabular-nums">{{ r.t }}</span>
+                <gr-icon [name]="it.icono" [size]="16" class="shrink-0 text-text-tertiary" />
+                <span class="text-body-s text-text-secondary">{{ it.titulo }}</span>
+              </li>
+            } @else if (r.flight; as f) {
+              @let abierto = vista() === 'detallado' || abiertos().includes(f.id);
+              <li class="overflow-hidden rounded-xl border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent/70' : 'border-line-subtle'" [class.opacity-60]="f.estado === 'finalizado'">
+                <button type="button" class="flex w-full items-center gap-4 p-4 text-left md:px-5" [attr.aria-expanded]="abierto" (click)="alternar(f.id)">
+                  <span class="flex min-w-0 flex-1 flex-col gap-1">
+                    <span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
+                    <span class="text-ui-h5">{{ pesos(f) }}</span>
+                    <span class="text-body-xs text-text-tertiary">{{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
+                    @if (f.estado !== 'programado' || vista() === 'todos') {
+                      <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border px-2.5 py-0.5 text-label-xs uppercase" [class]="f.estado === 'en_curso' ? 'border-accent/60 bg-accent/12 text-accent-text' : 'border-line-strong text-text-tertiary'">
+                        @if (f.estado === 'en_curso') { <gr-icon name="radio" [size]="12" /> } @else if (f.estado === 'finalizado') { <gr-icon name="check" [size]="12" /> }{{ estado[f.estado] }}
+                      </span>
+                    }
+                  </span>
+                  <span class="flex items-center gap-2 font-mono text-[26px] font-semibold tabular-nums md:text-[30px]"><gr-icon name="clock" [size]="22" />{{ hora(f.inicioEstimado || f.inicio) }}</span>
+                  <gr-icon [name]="abierto ? 'chevron-up' : 'chevron-down'" [size]="18" class="shrink-0 text-text-tertiary" />
+                </button>
+                @if (abierto) {
+                  @if (f.atletas.length) {
+                    <ul class="border-t border-line-subtle">
+                      @for (a of atletasDe(f); track a.slug) {
+                        <li class="flex items-center gap-3 border-b border-line-subtle px-4 py-2.5 md:px-5">
+                          <span class="w-6 text-mono-s text-text-muted tabular-nums">{{ pad(a.lote) }}</span>
+                          <span class="flex min-w-0 flex-1 flex-col">
+                            <a [routerLink]="['/atletas', a.slug]" class="truncate text-label-s hover:underline" [class.text-accent-text]="fav.has(a.slug)">{{ a.nombre }}</a>
+                            <span class="truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span>
+                          </span>
+                          <span class="text-mono-s text-text-secondary">{{ a.sexo }} {{ kg(a.categoria) }} kg</span>
+                          <button type="button" class="flex size-9 items-center justify-center rounded-full" [class]="fav.has(a.slug) ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="fav.has(a.slug)" [attr.aria-label]="(fav.has(a.slug) ? 'Dejar de seguir a ' : 'Seguir a ') + a.nombre" (click)="fav.toggle(a.slug)"><gr-icon name="star" [size]="16" [class.fill-current]="fav.has(a.slug)" /></button>
+                        </li>
+                      }
+                    </ul>
+                    <a routerLink="/horarios" class="flex items-center gap-1.5 px-4 py-3 text-label-s text-accent-text hover:underline md:px-5">Ver los {{ f.total }} atletas<gr-icon name="arrow-right" [size]="14" /></a>
+                  } @else {
+                    <p class="border-t border-line-subtle px-4 py-3 text-body-s text-text-tertiary md:px-5">{{ completos() ? 'Aún no hay atletas asignados.' : 'Cargando atletas…' }}</p>
+                  }
+                }
               </li>
             }
-          </ul>
-        }
-        <a grButton variant="glass" routerLink="/horarios" iconRight="arrow-right" class="self-center">Ver horario completo</a>
-      </div>
+          } @empty {
+            <li class="rounded-lg border border-line-subtle px-4 py-6 text-center text-body-s text-text-tertiary">No hay coincidencias para «{{ q() }}».</li>
+          }
+        </ul>
+      }
+      <a grButton variant="glass" routerLink="/horarios" iconRight="arrow-right" class="self-center">Ver horario completo</a>
     </div>
   `,
 })
@@ -442,27 +541,83 @@ export class SecHorarios {
   readonly s = input<Seccion | undefined>();
   readonly horarios = input<Horarios | null>(null);
   protected readonly ancho = ANCHO;
+  protected readonly glow = GLOW;
+  protected readonly fav = inject(Favoritos);
+  private readonly api = inject(HorariosPublic);
+  protected readonly hora = hora;
+  protected readonly estado = ESTADO;
+  protected readonly vistas: { k: Vista; l: string }[] = [{ k: 'todos', l: 'Todos' }, { k: 'detallado', l: 'Detallado' }, { k: 'mio', l: 'Mi horario' }];
+  protected readonly sexos = [{ k: 'F' as const, l: 'Femenino' }, { k: 'M' as const, l: 'Masculino' }, { k: '' as const, l: 'Todos' }];
+  protected readonly vista = signal<Vista>('todos');
+  protected readonly sexo = signal<'F' | 'M' | ''>('');
   protected readonly diaSel = signal(0);
+  protected readonly q = signal('');
+  protected readonly abiertos = signal<string[]>([]);
+  /** Full schedule with the athletes (browser only, loaded once when a view needs it). */
+  private readonly completo = signal<Horarios | null>(null);
+  protected readonly completos = computed(() => !!this.completo());
+  private cargando = false;
   protected t = (k: string) => str(this.s(), k);
-  protected readonly dias = computed(() => (this.horarios()?.dias ?? []).map((d) => {
-    const etiqueta = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
-    const fl = [...d.flights].sort((a, b) => a.inicio.localeCompare(b.inicio));
-    const bloques: (Bloque & { finMs: number })[] = [];
-    for (const f of fl) {
-      const sexo = (f.sexo === 'F' ? 'F' : 'M') as 'M' | 'F';
-      const pesos = (f.titulo.match(/[−+-]\s?\d+/g) ?? []).map((p) => p.replace('-', '−').replace(/\s/g, ''));
-      const ultimo = bloques[bloques.length - 1];
-      const ini = new Date(f.inicio).getTime();
-      if (ultimo && ultimo.sexo === sexo && ini - ultimo.finMs <= 60 * 60_000) {
-        ultimo.pesos.push(...pesos.filter((p) => !ultimo.pesos.includes(p)));
-        ultimo.fin = hora(f.fin);
-        ultimo.finMs = new Date(f.fin).getTime();
-      } else {
-        bloques.push({ sexo, pesos, inicio: hora(f.inicio), fin: hora(f.fin), finMs: new Date(f.fin).getTime() });
-      }
-    }
-    return { fecha: d.fecha, etiqueta: etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1), bloques };
-  }).filter((d) => d.bloques.length));
+  private readonly datos = computed(() => this.completo() ?? this.horarios());
+  protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length).map((d) => {
+    const e = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
+    return { fecha: d.fecha, etiqueta: e, dia: d };
+  }));
+  protected readonly misAtletas = computed(() => {
+    const favs = new Set(this.fav.slugs());
+    const out: { a: PubAtleta; f: PubFlight }[] = [];
+    for (const d of this.datos()?.dias ?? []) for (const f of d.flights) for (const a of f.atletas) if (favs.has(a.slug)) out.push({ a, f });
+    return out;
+  });
+  protected readonly icsUrl = computed(() => `${ICS_URL}?atletas=${encodeURIComponent(this.misAtletas().map((m) => m.a.slug).join(','))}`);
+  protected readonly filas = computed<FilaHorario[]>(() => {
+    const d = this.dias()[this.diaSel()]?.dia;
+    if (!d) return [];
+    const q = norm(this.q());
+    let fl = d.flights.filter((f) => !this.sexo() || f.sexo === this.sexo());
+    if (q.length > 1) fl = fl.filter((f) => f.atletas.some((a) => norm(a.nombre + ' ' + a.club).includes(q)));
+    const rows: FilaHorario[] = fl.map((f) => ({ t: hora(f.inicio), flight: f }));
+    if (q.length < 2) rows.push(...d.agenda.map((a) => ({ t: a.hora, item: { titulo: a.titulo, icono: ICONOS[a.icono ?? ''] ?? ('clock' as GrIconName) } })));
+    return rows.sort((a, b) => a.t.localeCompare(b.t));
+  });
+
+  constructor() {
+    // Stars from an earlier visit: the «Mi horario (n)» count needs the athletes
+    afterNextRender(() => { if (this.fav.slugs().length) this.cargar(); });
+  }
+
+  private cargar(): void {
+    if (this.cargando || this.completo()) return;
+    this.cargando = true;
+    void this.api.get().then((h) => { if (h?.publicado) this.completo.set(h); });
+  }
+  protected elegir(v: Vista): void {
+    this.vista.set(v);
+    if (v !== 'todos') this.cargar();
+  }
+  protected alternar(id: string): void {
+    if (this.vista() === 'detallado') return;
+    this.cargar();
+    this.abiertos.update((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+  }
+  protected buscar(v: string): void {
+    this.q.set(v);
+    if (v.trim().length > 1) this.cargar();
+  }
+  /** The athletes of the group in the open card (Figma: five, then «Ver los N atletas»), the searched ones first. */
+  protected atletasDe(f: PubFlight): PubAtleta[] {
+    const q = norm(this.q());
+    const l = q.length > 1 ? f.atletas.filter((a) => norm(a.nombre + ' ' + a.club).includes(q)) : f.atletas;
+    return l.slice(0, 5);
+  }
+  /** «Femenino −47 / −52 kg» → «−47 / −52 kg». */
+  protected pesos(f: PubFlight): string {
+    const p = (f.titulo.match(/[−+-]\s?\d+/g) ?? []).map((x) => x.replace('-', '−').replace(/\s/g, ''));
+    return p.length ? p.join(' / ') + ' kg' : f.titulo;
+  }
+  protected kg = (c: string) => (c || '').replace('-', '−');
+  protected pad = (n: number) => String(n).padStart(2, '0');
+  protected iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
 }
 
 /** «Section / Localización»: exterior photo and three small ones, and the map card with the address and actions. */
@@ -499,9 +654,11 @@ export class SecHorarios {
               <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
             </div>
             <div class="flex flex-col gap-3 p-5 md:p-7">
-              <p class="text-display-xs">{{ c.sede.nombre }}</p>
+              <p class="text-center text-display-xs">{{ t('nombreSede') || "Pabellón Municipal d'Almussafes" }}</p>
+              <!-- Figma home R2: the town hall logo centred under the venue -->
+              <img src="/img/home/logo-almussafes-bn.webp" alt="Ajuntament d'Almussafes" width="114" height="40" class="mx-auto h-10 w-auto" loading="lazy" decoding="async" />
               <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ direccion() }}</p>
-              <div class="flex flex-col gap-2 sm:flex-row">
+              <div class="flex flex-col gap-2">
                 <a grButton variant="primary" [href]="c.sede.mapsUrl" target="_blank" rel="noopener" icon="map-pin">Abrir en Google Maps</a>
                 <button grButton variant="outline" type="button" (click)="copiar()">{{ copiado() ? 'Dirección copiada' : 'Copiar dirección' }}</button>
               </div>
