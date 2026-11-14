@@ -9,7 +9,7 @@ import { GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToa
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, BoToggle, Confirm, Media, errText } from '../../shared/ui';
+import { BoPageHeader, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
 import { BoCheckbox } from '../../shared/kit/controls';
 import { RifaApi, euros, eurosCorto, type RifaConfig, type RifaHistorial, type RifaItem, type RifaItemIn } from './api';
 
@@ -37,7 +37,7 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
  *  create/edit an object with its BunnyCDN photo and (optionally) the winning ticket of each object. */
 @Component({
   selector: 'bo-sorteo',
-  imports: [FormsModule, NgTemplateOutlet, CdkDropList, CdkDrag, CdkDragHandle, BoCheckbox, BoPageHeader, BoToggle, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoTabsMovil, FormsModule, NgTemplateOutlet, CdkDropList, CdkDrag, CdkDragHandle, BoCheckbox, BoPageHeader, BoToggle, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `.cdk-drag-preview{box-shadow:0 12px 32px rgb(0 0 0/.5)}.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:transform .2s ease}@media (prefers-reduced-motion:reduce){.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:none}}`,
   template: `
@@ -72,6 +72,7 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
           </div>
         </section>
       }
+      <bo-tabs-movil label="Rifa">
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Rifa">
         @for (t of tabs; track t.v) {
           @let on = editando() ? t.v === 'config' : tab() === t.v;
@@ -82,6 +83,7 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
           </button>
         }
       </nav>
+      </bo-tabs-movil>
 
       @if (its === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar la rifa"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
       @else if (its === undefined || !c) { <gr-skeleton class="h-96 rounded-lg" /> }

@@ -7,7 +7,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkelet
 import { problemOf } from '../../core/api';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { Confirm, Media, errText } from '../../shared/ui';
+import { Confirm, Media, errText, BoTablaMovil } from '../../shared/ui';
 import {
   CampanasApi, ESTADO, ESTADO_DEST, NOMBRE_TIPO, TIPOS, fecha, hora, n, waHtml,
   type Audiencia, type Bloque, type Campana, type CampanaIn, type CanalBloque, type Destinatarios, type MensajeIA, type Modelo, type Previa, type Segmento, type TipoBloque,
@@ -46,7 +46,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
 /** «Campaña» (Figma page 61): Flujo · Diseño (blocks, layers, properties, AI) · Previsualización (email + WhatsApp) · Ajustes and sending. */
 @Component({
   selector: 'bo-campana',
-  imports: [GrSelect, GrPopover, FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoTablaMovil, GrSelect, GrPopover, FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`.canvas p { margin: 0 } .canvas strong { color: #141011 }`],
   template: `
@@ -325,7 +325,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
             </div>
             @if (dest(); as d) {
               <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-                <table class="w-full min-w-[720px] text-left text-body-s">
+                <table boTablaMovil class="w-full min-w-[720px] text-left text-body-s">
                   <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Destino</th><th class="px-3 py-3">Canal</th><th class="px-3 py-3">Estado</th><th class="px-3 py-3">Enviado</th><th class="px-4 py-3">Detalle</th></tr></thead>
                   <tbody>
                     @for (x of d.items; track $index) {

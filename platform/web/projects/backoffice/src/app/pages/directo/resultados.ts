@@ -5,7 +5,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkelet
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, Confirm, errText } from '../../shared/ui';
+import { BoPageHeader, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import { DirectoApi, MOV, gl, kg, type Fila, type Mov, type ResultadosAdmin } from './api';
 
 const MEDALLA = { oro: { l: 'Oro', c: 'border-[#c9a227]/50 bg-[#c9a227]/15 text-[#e3c25a]' }, plata: { l: 'Plata', c: 'border-[#a9b0b8]/50 bg-[#a9b0b8]/15 text-[#c9d0d8]' }, bronce: { l: 'Bronce', c: 'border-[#b0703e]/50 bg-[#b0703e]/15 text-[#d79a66]' } };
@@ -14,7 +14,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
 /** «Resultados · clasificación» (Figma page 57): rankings by category computed live, absolute by GL points, publication to /resultados and the CSV record. */
 @Component({
   selector: 'bo-resultados',
-  imports: [FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoTablaMovil, BoTabsMovil, FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = res();
@@ -35,6 +35,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
       @else if (r === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (!r.categorias.length) { <gr-empty icon="award" title="Aún no hay clasificaciones">Aparecen cuando se publican los horarios y la mesa empieza a juzgar intentos.</gr-empty> }
       @else {
+        <bo-tabs-movil label="Categoría">
         <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Categorías">
           @for (c of r.categorias; track c.clave) {
             <button type="button" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="sel() === c.clave ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="sel() === c.clave ? 'page' : null" (click)="elegir(c.clave)">
@@ -46,6 +47,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
           <button type="button" class="relative flex h-11 shrink-0 items-center px-3 text-label-s" [class]="sel() === 'absoluta' ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="elegir('absoluta')">Absoluta
             @if (sel() === 'absoluta') { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</button>
         </nav>
+        </bo-tabs-movil>
 
         @if (sel() === 'absoluta') {
           <div class="grid gap-5 lg:grid-cols-2">
@@ -76,7 +78,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
             }
           }
           <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-            <table class="w-full min-w-[860px] text-left text-body-s">
+            <table boTablaMovil class="w-full min-w-[860px] text-left text-body-s">
               <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
                 <tr><th class="px-4 py-3">#</th><th class="px-3 py-3">Atleta</th><th class="px-3 py-3 text-right">Peso</th>@for (m of movs; track m) { <th class="px-3 py-3 text-right">{{ m.toUpperCase() }}</th> }<th class="px-3 py-3 text-right">Total</th><th class="px-3 py-3 text-right">GL</th><th class="px-4 py-3"></th></tr>
               </thead>

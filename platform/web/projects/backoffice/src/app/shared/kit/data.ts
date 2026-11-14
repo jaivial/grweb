@@ -23,10 +23,10 @@ const pill = 'flex size-8 items-center justify-center rounded-sm border text-mon
       }
       <button type="button" class="${pill} border-line-subtle text-text-tertiary hover:bg-bg-hover ${focus}" [disabled]="page() >= pages()" (click)="go(page() + 1)" aria-label="Siguiente"><gr-icon name="chevron-right" [size]="12" /></button>
     </nav>
-    <nav aria-label="Páginas" class="flex items-center justify-between gap-2 md:hidden">
-      <button type="button" class="flex h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-label-m text-text-primary hover:bg-bg-hover disabled:border-line-subtle disabled:text-text-muted ${focus}" [disabled]="page() <= 1 && !loading()" (click)="go(page() - 1)"><gr-icon name="chevron-left" [size]="16" />Anterior</button>
-      @if (loading()) { <gr-icon name="loader" [size]="16" class="text-text-secondary motion-safe:animate-spin" /> } @else { <span class="text-mono-xs text-text-tertiary" aria-live="polite">Página {{ page() }} de {{ pages() }}</span> }
-      <button type="button" class="flex h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-label-m text-text-primary hover:bg-bg-hover disabled:border-line-subtle disabled:text-text-muted ${focus}" [disabled]="page() >= pages() && !loading()" (click)="go(page() + 1)">Siguiente<gr-icon name="chevron-right" [size]="16" /></button>
+    <nav aria-label="Páginas" class="flex min-w-0 items-center justify-between gap-2 md:hidden">
+      <button type="button" class="flex h-11 shrink-0 items-center gap-2 rounded-sm border border-line-strong px-3 text-label-m text-text-primary hover:bg-bg-hover disabled:border-line-subtle disabled:text-text-muted ${focus}" [disabled]="page() <= 1 && !loading()" (click)="go(page() - 1)"><gr-icon name="chevron-left" [size]="16" /><span class="max-[399px]:sr-only">Anterior</span></button>
+      @if (loading()) { <gr-icon name="loader" [size]="16" class="text-text-secondary motion-safe:animate-spin" /> } @else { <span class="min-w-0 truncate text-center text-mono-xs text-text-tertiary" aria-live="polite">Página {{ page() }} de {{ pages() }}</span> }
+      <button type="button" class="flex h-11 shrink-0 items-center gap-2 rounded-sm border border-line-strong px-3 text-label-m text-text-primary hover:bg-bg-hover disabled:border-line-subtle disabled:text-text-muted ${focus}" [disabled]="page() >= pages() && !loading()" (click)="go(page() + 1)"><span class="max-[399px]:sr-only">Siguiente</span><gr-icon name="chevron-right" [size]="16" /></button>
     </nav>
   `,
 })

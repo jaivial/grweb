@@ -9,7 +9,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrI
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import { SolicitudesApi } from '../atletas/solicitudes-api';
 import { HorariosApi, cat, diaCorto, diaLargo, hora, kg, type AgendaItem, type Borrador, type Config, type Diff, type Flight, type FlightAtleta, type VersionInfo } from './api';
 
@@ -34,7 +34,7 @@ const ICONOS: { v: string; label: string }[] = [
 /** «Horarios y flights» (Figma page 56): planner with drag and drop, conflicts, weigh-ins, versions and publishing with notices. */
 @Component({
   selector: 'bo-horarios',
-  imports: [GrSelect, FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle,
+  imports: [BoTabsMovil, BoTablaMovil, GrSelect, FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle,
     GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSkeleton, GrSpinner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
@@ -62,7 +62,7 @@ const ICONOS: { v: string; label: string }[] = [
         <!-- Competition switcher (Figma 219:167365): each competition has its own day, flights and generation. -->
         <div class="-mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
           <span class="text-body-xs text-text-tertiary" id="comp-l">Competición</span>
-          <div class="flex max-w-full gap-1 overflow-x-auto rounded-md border border-line-subtle bg-bg-card p-1 [scrollbar-width:none]" role="radiogroup" aria-labelledby="comp-l">
+          <div class="flex max-w-full flex-wrap gap-1 rounded-md border border-line-subtle bg-bg-card p-1 [scrollbar-width:none]" role="radiogroup" aria-labelledby="comp-l">
             @for (p of pruebas(); track p.v) {
               <button type="button" role="radio" [attr.aria-checked]="prueba() === p.v" (click)="elegirPrueba(p.v)"
                 class="h-9 shrink-0 rounded-sm px-3 text-label-s transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
@@ -97,6 +97,7 @@ const ICONOS: { v: string; label: string }[] = [
         </section>
       } @else {
         <!-- Day / weigh-in / conflicts tabs -->
+        <bo-tabs-movil label="Día">
         <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Días">
           @for (d of dias(); track d.fecha) {
             <button type="button" (click)="vista.set('dia'); dia.set(d.fecha)" [attr.aria-current]="vista() === 'dia' && dia() === d.fecha ? 'page' : null" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s first-letter:uppercase"
@@ -114,6 +115,7 @@ const ICONOS: { v: string; label: string }[] = [
             </button>
           }
         </nav>
+        </bo-tabs-movil>
 
         @switch (vista()) {
           @case ('dia') {
@@ -257,7 +259,7 @@ const ICONOS: { v: string; label: string }[] = [
 
           @case ('pesajes') {
             <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-              <table class="w-full min-w-[640px] text-left text-body-s">
+              <table boTablaMovil class="w-full min-w-[640px] text-left text-body-s">
                 <thead class="text-mono-xs text-text-tertiary"><tr class="border-b border-line-subtle"><th class="px-4 py-3">Flight</th><th class="px-4 py-3">Día</th><th class="px-4 py-3">Pesaje</th><th class="px-4 py-3">Sale a plataforma</th><th class="px-4 py-3">Atletas</th><th class="px-4 py-3"></th></tr></thead>
                 <tbody>
                   @for (f of b.flights; track f.id) {
@@ -316,7 +318,7 @@ const ICONOS: { v: string; label: string }[] = [
             } @else {
               <p class="text-body-s text-text-secondary">{{ d.cambios.length }} {{ d.cambios.length === 1 ? 'cambio' : 'cambios' }} respecto a la versión publicada (v{{ d.desde }}{{ sufijo() }}):</p>
               <div class="mt-3 overflow-x-auto rounded-md border border-line-subtle">
-                <table class="w-full min-w-[480px] text-left text-body-s">
+                <table boTablaMovil class="w-full min-w-[480px] text-left text-body-s">
                   <thead class="text-mono-xs text-text-tertiary"><tr class="border-b border-line-subtle"><th class="px-3 py-2">Atleta</th><th class="px-3 py-2">Antes</th><th class="px-3 py-2">Después</th><th class="px-3 py-2">Aviso</th></tr></thead>
                   <tbody>
                     @for (c of d.cambios; track $index) {

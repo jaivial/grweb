@@ -8,7 +8,7 @@ import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, G
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, TituloMovil, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, Confirm, TituloMovil, errText, BoTabsMovil } from '../../shared/ui';
 
 interface Referidos { activo: boolean; modo: 'basico' | 'acumulativo'; descTipo: 'porcentaje' | 'importe'; descValor: number; recompensa: number; maxUsos: number; acumModo: 'basica' | 'multiplicador'; multiplicador: number }
 interface Config { modo: 'externa' | 'propia'; cuota: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: Referidos; version: number }
@@ -34,7 +34,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
 /** «Inscripción» (Figma page 66): own registration with payment, coupons, referrals and payments. */
 @Component({
   selector: 'bo-inscripcion',
-  imports: [GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
+  imports: [BoTabsMovil, GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-6 pb-24">
@@ -44,6 +44,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
         @if (tab() === 'cupones' && canEdit() && !soloLectura()) { <button actions grButton variant="primary" icon="plus" (click)="editarCupon(null)">Nuevo cupón</button> }
         @if (tab() === 'referidos' && canEdit() && !soloLectura()) { <button actions grButton variant="primary" [loading]="guardando()" (click)="guardarConfig()">Guardar</button> }
       </bo-page-header>
+      <bo-tabs-movil label="Inscripción">
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" role="tablist" aria-label="Inscripción">
         @for (t of tabs; track t.key) {
           <button type="button" role="tab" [attr.aria-selected]="tab() === t.key" (click)="cambiar(t.key); $any($event.currentTarget).scrollIntoView({ block: 'nearest', inline: 'nearest' })" [disabled]="bloqueada(t.key)"
@@ -56,6 +57,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
           </button>
         }
       </nav>
+      </bo-tabs-movil>
       @if (conflicto()) { <gr-alert tone="warning" title="Otra persona ha cambiado la configuración">Recarga para ver sus cambios. <button alertAction grButton size="s" class="mt-2" (click)="cargar()">Recargar</button></gr-alert> }
 
       @let c = cfg();

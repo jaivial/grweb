@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { GrBadge, GrButton, GrIcon, GrKpi, GrSkeleton, GrToasts, GrSelect, type GrIconName } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, TituloMovil, errText } from '../../shared/ui';
+import { BoPageHeader, TituloMovil, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi } from '../atletas/api';
 import { EntradasApi, RESULTADO, fechaCorta, horaSeg, hora, type Bootstrap, type Compacta, type Entrada, type EscaneoIn, type Resultado, type ResumenCheckin } from '../entradas/api';
 
@@ -16,7 +16,7 @@ const corta = (s: string) => s.replace(/^(Lunes|Martes|Miércoles|Jueves|Viernes
 /** «Check-in y taquilla» (Figma 59 · «Taquilla · resumen»): people inside, pace, incidents and the latest scans. */
 @Component({
   selector: 'bo-taquilla',
-  imports: [RouterLink, BoPageHeader, GrBadge, GrButton, GrIcon, GrKpi, GrSkeleton],
+  imports: [BoTabsMovil, RouterLink, BoPageHeader, GrBadge, GrButton, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = data();
@@ -24,6 +24,7 @@ const corta = (s: string) => s.replace(/^(Lunes|Martes|Miércoles|Jueves|Viernes
       <bo-page-header title="Check-in y taquilla" [subtitle]="sub()" [crumbs]="[comps.current()?.nombreCorto || '', 'Hoy', 'Check-in y taquilla']">
         <a actions grButton variant="primary" routerLink="escaner">Abrir escáner</a>
       </bo-page-header>
+      <bo-tabs-movil label="Check-in">
       <nav class="-mt-[18px] flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" role="tablist" aria-label="Check-in">
         @for (t of tabs(); track t.key) {
           @if (t.key === 'pesaje') {
@@ -36,6 +37,7 @@ const corta = (s: string) => s.replace(/^(Lunes|Martes|Miércoles|Jueves|Viernes
           }
         }
       </nav>
+      </bo-tabs-movil>
       @if (r) {
         @if (tab() === 'puerta') {
           <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">

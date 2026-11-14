@@ -27,7 +27,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { DosFactoresUi } from '../../shared/dos-factores';
-import { BoPageHeader, Confirm, errText } from '../../shared/ui';
+import { BoPageHeader, Confirm, errText, BoTablaMovil } from '../../shared/ui';
 import {
   dispositivo,
   ipCorta,
@@ -53,7 +53,7 @@ const th =
 /** «Equipo · ficha» (Figma 63): role in each competition, open sessions by device (close remotely) and recent activity. */
 @Component({
   selector: 'bo-equipo-ficha',
-  imports: [FormsModule, BoPageHeader, GrButton, GrEmpty, GrIcon, GrSelect, GrSkeleton],
+  imports: [BoTablaMovil, FormsModule, BoPageHeader, GrButton, GrEmpty, GrIcon, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
@@ -145,7 +145,7 @@ const th =
                 </p>
               } @else {
                 <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
-                  <table class="w-full min-w-[520px] text-body-s">
+                  <table boTablaMovil class="w-full min-w-[520px] text-body-s">
                     <thead class="border-b border-line-subtle">
                       <tr>
                         <th class="${th}">Dispositivo</th>

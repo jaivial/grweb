@@ -7,7 +7,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkelet
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoCount, BoToggle, Confirm, Media, errText } from '../../shared/ui';
+import { BoCount, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi, CATEGORIAS, DIVISIONES, cat, kg, type Atleta, type Historial, type Marcas } from './api';
 import { ESTADO } from './list';
 
@@ -18,7 +18,7 @@ const PUBLIC_WEB = webPublica();
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({
   selector: 'bo-atleta-ficha',
-  imports: [GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = atleta();
@@ -42,6 +42,7 @@ const PUBLIC_WEB = webPublica();
           </div>
         </header>
 
+        <bo-tabs-movil label="Ficha">
         <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Ficha">
           @for (t of tabs; track t.key) {
             <button type="button" (click)="tab.set(t.key)" [attr.aria-current]="tab() === t.key ? 'page' : null" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s"
@@ -51,6 +52,7 @@ const PUBLIC_WEB = webPublica();
             </button>
           }
         </nav>
+        </bo-tabs-movil>
 
         @if (conflicto()) {
           <gr-alert tone="warning" title="Otra persona ha guardado esta ficha">Tus cambios no se han guardado para no pisar los suyos.
