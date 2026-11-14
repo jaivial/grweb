@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
+
+var _ singleflight.Group
 
 // horarioDia is the first and the last session start of a competition day.
 type horarioDia struct {
@@ -125,22 +128,35 @@ func (s *Svc) horario(ctx context.Context, cid uuid.UUID, dia string) horarioDia
 	if ok && time.Now().Before(e.exp) {
 		return e.h
 	}
+	v, _, _ := s.horSF.Do(k, func() (any, error) { return s.cargarHorario(cid, dia, k, e, ok), nil })
+	return v.(horarioDia)
+}
+
+// cargarHorario calls schedule once (2 s budget, detached from the caller so a cancelled request does not fail
+// the shared call). On error it keeps serving the last good value (or "no schedule") for 5 s: a schedule outage
+// never blocks fantasy requests.
+func (s *Svc) cargarHorario(cid uuid.UUID, dia, k string, prev horEntrada, hayPrev bool) horarioDia {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	var snap *struct {
 		Dias []snapDia `json:"dias"`
 	}
 	h := horarioDia{}
+	ttl := 30 * time.Second
 	if err := s.sched.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/horarios/publicados", nil, &snap); err != nil {
 		s.a.Log.Warn("horario publicado no disponible", "cid", cid, "err", err)
-		return h // not cached: retry on the next request
-	}
-	if snap != nil {
+		if hayPrev {
+			h = prev.h // stale but last known good
+		}
+		ttl = 5 * time.Second
+	} else if snap != nil {
 		h = horarioDeSnapshot(snap.Dias, dia)
 	}
 	s.marcMu.Lock()
 	if s.hor == nil || len(s.hor) > 64 {
 		s.hor = map[string]horEntrada{}
 	}
-	s.hor[k] = horEntrada{h: h, exp: time.Now().Add(30 * time.Second)}
+	s.hor[k] = horEntrada{h: h, exp: time.Now().Add(ttl)}
 	s.marcMu.Unlock()
 	return h
 }
