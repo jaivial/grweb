@@ -136,9 +136,7 @@ export class TaquillaPage {
   private t?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    const router = inject(Router);
     const atletasApi = inject(AtletasApi);
-    if (isPlatformBrowser(inject(PLATFORM_ID)) && window.innerWidth < 768) void router.navigate(['/', this.comps.current()?.slug ?? '', 'checkin', 'escaner'], { replaceUrl: true });
     effect(() => {
       if (this.cid()) untracked(() => void this.cargar());
     });

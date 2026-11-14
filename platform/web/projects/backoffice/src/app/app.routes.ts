@@ -80,6 +80,10 @@ const compGuard: CanActivateChildFn = async (child) => {
   return true;
 };
 
+/** On phones the check-in goes straight to the scanner: the taquilla (KPIs, accesos) is never loaded first. */
+const checkinMovil: CanActivateFn = (route) =>
+  typeof window !== 'undefined' && window.innerWidth < 768 ? inject(Router).createUrlTree(['/', route.parent?.paramMap.get('comp') ?? '', 'checkin', 'escaner']) : true;
+
 export const routes: Routes = [
   { path: 'login', component: LoginPage, canActivate: [guestGuard], title: 'Entrar · Backoffice GR Cup' },
   { path: 'sesion-caducada', component: SessionExpiredPage, title: 'Sesión caducada · Backoffice GR Cup' },
@@ -132,7 +136,7 @@ export const routes: Routes = [
       { path: 'entradas/reservas', loadComponent: () => import('./pages/entradas/entradas').then((m) => m.EntradasPage), data: { tab: 'reservas' }, title: 'Reservas · Backoffice GR Cup' },
       { path: 'entradas/espera', loadComponent: () => import('./pages/entradas/entradas').then((m) => m.EntradasPage), data: { tab: 'espera' }, title: 'Lista de espera · Backoffice GR Cup' },
       { path: 'entradas/ajustes', loadComponent: () => import('./pages/entradas/entradas').then((m) => m.EntradasPage), data: { tab: 'ajustes' }, title: 'Ajustes de entradas · Backoffice GR Cup' },
-      { path: 'checkin', loadComponent: () => import('./pages/checkin/checkin').then((m) => m.TaquillaPage), title: 'Check-in y taquilla · Backoffice GR Cup' },
+      { path: 'checkin', canActivate: [checkinMovil], loadComponent: () => import('./pages/checkin/checkin').then((m) => m.TaquillaPage), title: 'Check-in y taquilla · Backoffice GR Cup' },
       { path: 'checkin/escaner', loadComponent: () => import('./pages/checkin/checkin').then((m) => m.EscanerPage), title: 'Escáner · Backoffice GR Cup' },
       { path: 'directo', loadComponent: () => import('./pages/directo/directo').then((m) => m.DirectoPage), title: 'Directo · Backoffice GR Cup' },
       { path: 'directo/pantalla', loadComponent: () => import('./pages/directo/pantalla').then((m) => m.PantallaPage), title: 'Pantalla del pabellón · Backoffice GR Cup' },
