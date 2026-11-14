@@ -24,9 +24,18 @@ var platformFS embed.FS
 
 // Connect opens a pool and waits (up to 60 s) for the database to accept connections.
 func Connect(ctx context.Context, url string) (*pgxpool.Pool, error) {
+	return ConnectMax(ctx, url, 0)
+}
+
+// ConnectMax is Connect with a fixed pool size (0 keeps the one of the URL): the outbox relay gets its own
+// connection so it never queues behind the requests of a saturated pool (ST2-R1-2).
+func ConnectMax(ctx context.Context, url string, max int32) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {
 		return nil, fmt.Errorf("DATABASE_URL: %w", err)
+	}
+	if max > 0 {
+		cfg.MaxConns, cfg.MinConns = max, 0
 	}
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.MaxConnIdleTime = 5 * time.Minute

@@ -236,7 +236,13 @@ func (a *App) serve(ctx context.Context, s Service) error {
 		a.alEliminar(s.Name)
 	}
 	if a.DB != nil && a.Redis != nil {
-		relay := &events.Relay{DB: a.DB, Redis: a.Redis, Stream: a.Stream(), Log: a.Log}
+		// ST2-R1-2: a dedicated 1-connection pool, the request pool no longer delays the realtime events
+		rdb, err := db.ConnectMax(ctx, a.Cfg.DatabaseURL, 1)
+		if err != nil {
+			return err
+		}
+		defer rdb.Close()
+		relay := &events.Relay{DB: rdb, Redis: a.Redis, Stream: a.Stream(), Log: a.Log}
 		a.Go(relay.Run)
 	}
 

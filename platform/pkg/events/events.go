@@ -136,7 +136,8 @@ func (r *Relay) Run(ctx context.Context) {
 			lastCleanup = time.Now()
 		}
 		if n == 0 {
-			sleep(ctx, 250*time.Millisecond)
+			// ST2-R1-2/6: the idle poll bounds the outbox→stream lag; outbox_pending makes an empty poll ~free
+			sleep(ctx, 40*time.Millisecond)
 		}
 	}
 }
