@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { mascaraFecha } from './fecha-mascara';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -90,26 +91,8 @@ const MAX_MARCA = 600;
           <gr-community nivel="h3" />
         </div>
       } @else {
-        <!-- Contenido útil antes del formulario (Figma 75) -->
-        <section class="flex flex-col gap-7">
-          <div>
-            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
-            <h2 class="mt-3 text-display-m md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
-            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introH2 }}</p>
-          </div>
-          <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
-            @for (b of bloques; track b.t) {
-              <article class="flex flex-col gap-2">
-                <h3 class="text-ui-h5 lg:text-[17px]">{{ b.t }}</h3>
-                <p class="text-body-s text-text-secondary">{{ b.d }}</p>
-              </article>
-            }
-          </div>
-          @if (vista() === 'formulario') { <div><a grButton variant="primary" size="m" href="#formulario">Ir al formulario</a></div> }
-        </section>
-
         <!-- Formulario + resumen (Figma 75) -->
-        <div class="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
+        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
           <div id="formulario" class="scroll-mt-24 outline-none" tabindex="-1">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
@@ -129,10 +112,10 @@ const MAX_MARCA = 600;
 
                     @if (resumen().length) {
                       <!-- Resumen de errores: lleva a cada campo -->
-                      <div #resumenErr tabindex="-1" class="rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
+                      <div #resumenErr tabindex="-1" class="scroll-mt-28 rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
                         <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />Revisa {{ resumen().length === 1 ? 'un campo' : resumen().length + ' campos' }} antes de enviar</p>
                         <ul class="mt-2 flex flex-col gap-1 pl-1 text-body-s text-text-secondary">
-                          @for (e of resumen(); track e.campo) { <li>• <a [href]="'#c-' + e.campo" class="hover:text-text-primary hover:underline">{{ e.label }}: {{ e.msg }}</a></li> }
+                          @for (e of resumen(); track e.campo) { <li>• <a [href]="'#c-' + idCampo(e.campo)" (click)="$event.preventDefault(); enfocar('#c-' + idCampo(e.campo))" class="hover:text-text-primary hover:underline">{{ e.label }}: {{ e.msg }}</a></li> }
                         </ul>
                       </div>
                     }
@@ -148,7 +131,7 @@ const MAX_MARCA = 600;
                             [class]="err()['nombre'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.nombre" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['nombre']" [attr.aria-describedby]="err()['nombre'] ? 'e-nombre' : null" />
-                          @if (err()['nombre']; as e) { <p id="e-nombre" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['nombre']; as e) { <p id="e-nombre" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-apellidos">Apellidos *</label>
@@ -157,7 +140,7 @@ const MAX_MARCA = 600;
                             [class]="err()['apellidos'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.apellidos" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['apellidos']" [attr.aria-describedby]="err()['apellidos'] ? 'e-apellidos' : null" />
-                          @if (err()['apellidos']; as e) { <p id="e-apellidos" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['apellidos']; as e) { <p id="e-apellidos" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
@@ -167,8 +150,8 @@ const MAX_MARCA = 600;
                           [class]="err()['email'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.email" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['email']" [attr.aria-describedby]="err()['email'] ? 'e-email h-email' : 'h-email'" />
-                        <p id="h-email" class="text-body-xs text-text-tertiary">El mismo con el que te inscribiste; así te reconocemos.</p>
-                        @if (err()['email']; as e) { <p id="e-email" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        <p id="h-email" class="text-body-s text-text-tertiary">El mismo con el que te inscribiste; así te reconocemos.</p>
+                        @if (err()['email']; as e) { <p id="e-email" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-telefono">Teléfono móvil</label>
@@ -180,20 +163,20 @@ const MAX_MARCA = 600;
                             [(ngModel)]="d.telefono" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['telefono']" [attr.aria-describedby]="err()['telefono'] ? 'e-telefono h-telefono' : 'h-telefono'" />
                         </span>
-                        <p id="h-telefono" class="text-body-xs text-text-tertiary">Formato internacional (+34 por defecto).{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
-                        @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        <p id="h-telefono" class="text-body-s text-text-tertiary">Formato internacional (+34 por defecto).{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
+                        @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">Sexo *</span>
-                        <div id="c-sexo" class="flex gap-2" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
+                        <div id="c-sexo" class="flex gap-2 scroll-mt-28" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'F'" (click)="d.sexo = 'F'; revalidar()"
-                            class="inline-flex h-10 items-center rounded-pill border px-5 text-label-s transition-colors"
-                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Femenino</button>
+                            class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
+                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Mujer</button>
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'M'" (click)="d.sexo = 'M'; revalidar()"
-                            class="inline-flex h-10 items-center rounded-pill border px-5 text-label-s transition-colors"
-                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Masculino</button>
+                            class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
+                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Hombre</button>
                         </div>
-                        @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-nacimiento">Fecha de nacimiento *</label>
@@ -202,8 +185,8 @@ const MAX_MARCA = 600;
                           [class]="err()['fechaNacimiento'] ? 'border-accent-text' : 'border-line-strong'"
                           [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
                           [attr.aria-invalid]="!!err()['fechaNacimiento']" [attr.aria-describedby]="err()['fechaNacimiento'] ? 'e-nacimiento h-nacimiento' : 'h-nacimiento'" />
-                        <p id="h-nacimiento" class="text-body-xs text-text-tertiary">Formato dd/mm/aaaa. De 14 a 90 años.</p>
-                        @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        <p id="h-nacimiento" class="text-body-s text-text-tertiary">Formato dd/mm/aaaa. De 14 a 90 años.</p>
+                        @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (esMenor()) {
                         <p class="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary">
@@ -217,7 +200,7 @@ const MAX_MARCA = 600;
                           [class]="err()['licencia'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.licencia" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['licencia']" [attr.aria-describedby]="err()['licencia'] ? 'e-licencia' : null" />
-                        @if (err()['licencia']; as e) { <p id="e-licencia" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['licencia']; as e) { <p id="e-licencia" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                     </fieldset>
 
@@ -239,12 +222,12 @@ const MAX_MARCA = 600;
                               </span>
                               <span class="flex min-w-0 flex-1 flex-col">
                                 <span class="text-body-m font-semibold text-text-primary">{{ o.titulo }}</span>
-                                <span class="text-body-xs text-text-tertiary">{{ o.detalle }}</span>
+                                <span class="text-body-s text-text-tertiary">{{ o.detalle }}</span>
                               </span>
                               <span class="shrink-0 rounded-full border px-2.5 py-0.5 text-label-xs" [class]="o.tono">{{ o.chip }}</span>
                             </button>
                           }
-                          @if (err()['prueba']) { <p id="e-prueba" class="text-body-xs text-accent-text">{{ err()['prueba'] }}</p> }
+                          @if (err()['prueba']) { <p id="e-prueba" class="text-body-s text-accent-text">{{ err()['prueba'] }}</p> }
                         </div>
                       }
                       <div class="grid gap-4 sm:grid-cols-2">
@@ -255,7 +238,7 @@ const MAX_MARCA = 600;
                             [class]="err()['club'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.club" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['club']" [attr.aria-describedby]="err()['club'] ? 'e-club' : null" />
-                          @if (err()['club']; as e) { <p id="e-club" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['club']; as e) { <p id="e-club" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-ciudad">Ciudad</label>
@@ -264,7 +247,7 @@ const MAX_MARCA = 600;
                             [class]="err()['ciudad'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.ciudad" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['ciudad']" [attr.aria-describedby]="err()['ciudad'] ? 'e-ciudad' : null" />
-                          @if (err()['ciudad']; as e) { <p id="e-ciudad" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['ciudad']; as e) { <p id="e-ciudad" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
@@ -274,7 +257,7 @@ const MAX_MARCA = 600;
                           [class]="err()['entrenador'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.entrenador" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['entrenador']" [attr.aria-describedby]="err()['entrenador'] ? 'e-entrenador' : null" />
-                        @if (err()['entrenador']; as e) { <p id="e-entrenador" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['entrenador']; as e) { <p id="e-entrenador" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                     </fieldset>
 
@@ -290,26 +273,26 @@ const MAX_MARCA = 600;
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
                           <label class="text-label-s" for="c-frase">Frase de presentación</label>
-                          <span class="text-body-xs text-text-tertiary">{{ d.frase.length }} / {{ maxFrase }}</span>
+                          <span class="text-body-s text-text-tertiary">{{ d.frase.length }} / {{ maxFrase }}</span>
                         </div>
                         <input id="c-frase" name="frase" type="text" maxlength="80" placeholder="Una frase para tu ficha"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['frase'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.frase" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['frase']" [attr.aria-describedby]="err()['frase'] ? 'e-frase' : null" />
-                        @if (err()['frase']; as e) { <p id="e-frase" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['frase']; as e) { <p id="e-frase" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
                           <label class="text-label-s" for="c-bio">Sobre ti</label>
-                          <span class="text-body-xs text-text-tertiary">{{ d.bio.length }} / {{ maxBio }}</span>
+                          <span class="text-body-s text-text-tertiary">{{ d.bio.length }} / {{ maxBio }}</span>
                         </div>
                         <textarea id="c-bio" name="bio" rows="4" maxlength="280" placeholder="Cuéntale a la gente quién eres en dos líneas"
                           class="w-full rounded-[10px] border bg-bg-field px-3.5 py-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['bio'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.bio" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['bio']" [attr.aria-describedby]="err()['bio'] ? 'e-bio' : null"></textarea>
-                        @if (err()['bio']; as e) { <p id="e-bio" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['bio']; as e) { <p id="e-bio" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (!esMenor()) {
                         <div class="flex min-w-0 flex-col gap-2">
@@ -319,29 +302,29 @@ const MAX_MARCA = 600;
                             [class]="err()['instagram'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.instagram" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['instagram']" [attr.aria-describedby]="err()['instagram'] ? 'e-instagram' : null" />
-                          @if (err()['instagram']; as e) { <p id="e-instagram" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['instagram']; as e) { <p id="e-instagram" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                       } @else {
-                        <p class="text-body-xs text-text-tertiary">A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.</p>
+                        <p class="text-body-s text-text-tertiary">A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.</p>
                       }
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
                           <label class="text-label-s" for="c-historial">Historial deportivo</label>
-                          <span class="text-body-xs text-text-tertiary">{{ d.historial.length }} / {{ maxHistorial }}</span>
+                          <span class="text-body-s text-text-tertiary">{{ d.historial.length }} / {{ maxHistorial }}</span>
                         </div>
                         <textarea id="c-historial" name="historial" rows="3" maxlength="300" placeholder="Competiciones, clubes anteriores, marcas…"
                           class="w-full rounded-[10px] border bg-bg-field px-3.5 py-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['historial'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.historial" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['historial']" [attr.aria-describedby]="err()['historial'] ? 'e-historial' : null"></textarea>
-                        @if (err()['historial']; as e) { <p id="e-historial" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['historial']; as e) { <p id="e-historial" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                     </fieldset>
 
                     <!-- Mejores marcas -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
                       <legend class="mb-5 text-display-2xs italic">Mejores marcas</legend>
-                      <p class="-mt-2 text-body-xs text-text-tertiary">Opcionales · en kilogramos · paso 0,5 · máximo 600.</p>
+                      <p class="-mt-2 text-body-s text-text-tertiary">Opcionales · en kilogramos · paso 0,5 · máximo 600.</p>
                       <div class="grid gap-4 sm:grid-cols-3">
                         @for (m of marcasCampos; track m.k) {
                           <div class="flex min-w-0 flex-col gap-2">
@@ -351,7 +334,7 @@ const MAX_MARCA = 600;
                               [class]="err()[m.k] ? 'border-accent-text' : 'border-line-strong'"
                               [(ngModel)]="d[m.k]" (ngModelChange)="revalidar()"
                               [attr.aria-invalid]="!!err()[m.k]" [attr.aria-describedby]="err()[m.k] ? 'e-' + m.k : null" />
-                            @if (err()[m.k]; as e) { <p [id]="'e-' + m.k" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                            @if (err()[m.k]; as e) { <p [id]="'e-' + m.k" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                           </div>
                         }
                       </div>
@@ -362,15 +345,15 @@ const MAX_MARCA = 600;
                     </fieldset>
 
                     <!-- Consentimientos -->
-                    <fieldset class="flex min-w-0 flex-col gap-3">
+                    <fieldset id="c-consentimiento" tabindex="-1" class="flex min-w-0 scroll-mt-28 flex-col gap-3 outline-none">
                       <legend class="mb-5 text-display-2xs italic">Consentimientos</legend>
                       @for (c of casillas(); track c.k) {
                         <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="c.req ? 'text-text-primary' : 'text-text-secondary'">
-                          <span class="relative mt-px flex size-5 shrink-0 items-center justify-center">
+                          <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
                             <input type="checkbox" [name]="'c-' + c.k" [(ngModel)]="acepta[c.k]" (ngModelChange)="revalidar()"
-                              class="peer size-[18px] appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text"
+                              class="peer size-[22px] cursor-pointer appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text"
                               [class]="c.req && err()['consentimiento'] && !acepta[c.k] ? 'border-accent-text' : 'border-line-strong'" />
-                            @if (acepta[c.k]) { <gr-icon name="check" [size]="12" class="pointer-events-none absolute text-white" /> }
+                            @if (acepta[c.k]) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
                           </span>
                           <span>
                             @switch (c.k) {
@@ -383,8 +366,8 @@ const MAX_MARCA = 600;
                           </span>
                         </label>
                       }
-                      @if (err()['consentimiento']; as e) { <p class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
-                      <p class="text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu alta de atleta y, solo si lo marcas, enviarte novedades y avisos · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja desde el área de atleta o cualquier email.</p>
+                      @if (err()['consentimiento']; as e) { <p class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                      <p class="text-body-s text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu alta de atleta y, solo si lo marcas, enviarte novedades y avisos · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja desde el área de atleta o cualquier email.</p>
                     </fieldset>
 
                     <!-- Envío -->
@@ -408,8 +391,9 @@ const MAX_MARCA = 600;
                           <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
                         </div>
                       }
-                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
-                      <p class="text-body-xs text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
+                      <!-- UX2-R1-4: en móvil, CTA fijo abajo (zona del pulgar) mientras el formulario está en vista -->
+                      <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" class="max-md:w-full" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
+                      <p class="text-body-s text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
                   </form>
                 }
@@ -420,6 +404,24 @@ const MAX_MARCA = 600;
           <!-- Resumen y ayuda -->
           <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
         </div>
+
+        <!-- Contenido útil (Figma 75), tras el formulario para que la acción principal se vea al entrar (UX2-R1-2) -->
+        <section class="mt-12 flex flex-col gap-7">
+          <div>
+            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
+            <h2 class="mt-3 text-display-m md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introLarga }}</p>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introH2 }}</p>
+          </div>
+          <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
+            @for (b of bloques; track b.t) {
+              <article class="flex flex-col gap-2">
+                <h3 class="text-ui-h5 lg:text-[17px]">{{ b.t }}</h3>
+                <p class="text-body-s text-text-secondary">{{ b.d }}</p>
+              </article>
+            }
+          </div>
+        </section>
 
         <!-- Preguntas frecuentes -->
         <gr-alta-faq />
@@ -465,34 +467,10 @@ export class AltaAtletaPage {
   /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si es una fecha real. */
   protected fechaTexto = '';
 
-  /**
-   * Máscara dd/mm/aaaa. Los dígitos llenan día (2), mes (2) y año (4); un separador que escribe la
-   * persona («/», «-», «.», espacio) cierra el campo y lo rellena con cero («3/1/1990» → 03/01/1990).
-   * Una ISO pegada o autocompletada (AAAA-MM-DD) se da la vuelta. La ISO se fija cuando la fecha existe.
-   */
+  /** Máscara dd/mm/aaaa (compartida con /inscripcion). */
   protected fechaCambia(el: HTMLInputElement): void {
-    const v = el.value.trim();
-    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v);
-    const fuente = m ? `${m[3]}/${m[2]}/${m[1]}` : v;
-    const f = ['', '', ''];
-    let i = 0;
-    for (const ch of fuente) {
-      if (/\d/.test(ch)) {
-        if (i < 2 && f[i].length === 2) i++;
-        if (f[i].length < (i === 2 ? 4 : 2)) f[i] += ch;
-      } else if (i < 2 && f[i].length) {
-        f[i] = f[i].padStart(2, '0');
-        i++;
-      }
-    }
-    const t = f[0] + (i >= 1 ? '/' + f[1] : '') + (i >= 2 ? '/' + f[2] : '');
-    el.value = this.fechaTexto = t;
-    let iso = '';
-    if (f[0].length === 2 && f[1].length === 2 && f[2].length === 4) {
-      const [dd, mm, aa] = [+f[0], +f[1], +f[2]];
-      const d = new Date(aa, mm - 1, dd);
-      if (d.getFullYear() === aa && d.getMonth() === mm - 1 && d.getDate() === dd) iso = `${f[2]}-${f[1]}-${f[0]}`;
-    }
+    const { texto, iso } = mascaraFecha(el.value);
+    el.value = this.fechaTexto = texto;
     this.d.fechaNacimiento = iso;
     this.revalidar();
   }
@@ -571,14 +549,17 @@ export class AltaAtletaPage {
     { k: 'marcaDL' as const, t: 'Peso muerto (DL)', c: 'DL', n: 'peso muerto' },
   ];
 
-  protected readonly intro =
+  /** Intro corta (≤3 líneas en móvil): el formulario debe verse al entrar (UX2-R1-2). */
+  protected readonly intro = 'Si compites en esta edición, crea tu perfil de atleta: foto, datos de competidor y tus mejores marcas en menos de cinco minutos. No es una inscripción y queda privado hasta que lo publiques.';
+  /** El texto completo va en el bloque de contenido, tras el formulario. */
+  protected readonly introLarga =
     'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil, que queda privado hasta que actives su publicación. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email con el resultado. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
   /** The intro when the alta is closed: it never invites to fill in the form. */
   protected readonly introCerrada =
     'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. El alta de atletas está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.';
   protected readonly cerrada = computed(() => this.vista() === 'cerrada' || this.vista() === 'legal');
   /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
-  protected readonly introHtml = this.intro.replace('dar de alta tu atleta', '<strong class="font-semibold text-text-primary">dar de alta tu atleta</strong>');
+  protected readonly introHtml = this.intro.replace('crea tu perfil de atleta', '<strong class="font-semibold text-text-primary">crea tu perfil de atleta</strong>');
   protected readonly introH2 =
     'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que, cuando actives su publicación, aparece en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
   protected readonly introExitoPrivada =
@@ -833,7 +814,7 @@ export class AltaAtletaPage {
     this.err.set(e);
     if (Object.keys(e).length) {
       // El resumen está arriba del formulario: lleva la vista allí.
-      setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }));
+      this.enfocar('[role=alert][tabindex]');
       return;
     }
     if (!this.altchaPago()) {
@@ -981,7 +962,7 @@ export class AltaAtletaPage {
       }
       this.err.set(e);
       this.error.set('');
-      setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }));
+      this.enfocar('[role=alert][tabindex]');
       return;
     }
     if (xhr.status === 422 && (codigo === 'CONSENTIMIENTO_OBLIGATORIO' || codigo === 'TELEFONO_OBLIGATORIO')) {
@@ -1002,9 +983,21 @@ export class AltaAtletaPage {
     this.enfocar('#aviso-envio');
   }
 
+  /** Id del control de cada campo del resumen (la fecha usa c-nacimiento). */
+  protected idCampo(campo: string): string {
+    return campo === 'fechaNacimiento' ? 'nacimiento' : campo;
+  }
+
   /** Mueve el foco al bloque que acaba de aparecer (el botón que lo tenía puede quedar deshabilitado). */
-  private enfocar(sel: string): void {
-    setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>(sel)?.focus({ preventScroll: false }));
+  protected enfocar(sel: string): void {
+    setTimeout(() => {
+      const el = (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>(sel);
+      if (!el) return;
+      // scroll-behavior:smooth del html anula el scroll del focus: se desplaza a mano y luego se enfoca (UX2-R1-3).
+      const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'center', behavior: quieto ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+    });
   }
 
   /** Cuenta atrás del Retry-After de un 429: el texto se actualiza cada segundo y se desbloquea al llegar a 0. */

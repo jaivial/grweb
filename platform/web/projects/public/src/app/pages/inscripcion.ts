@@ -1,4 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { mascaraFecha } from './fecha-mascara';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -25,10 +26,10 @@ export const eur = (c?: number) => ((c ?? 0) / 100).toLocaleString('es-ES', { st
 const fechaLarga = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '');
 /** «35 €», «26,25 €» (Figma: whole euros without decimals in the event strip). */
 const eurCorto = (c?: number) => ((c ?? 0) / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: (c ?? 0) % 100 ? 2 : 0 });
-/** «M 83» → «M −83 kg»; «F 84+» → «F +84 kg». */
+/** «M 83» → «Hombre · −83 kg»; «F 84+» → «Mujer · +84 kg» (UX2-R1-13). */
 const catTexto = (c: string) => {
   const [sexo, k] = c.split(' ');
-  return k ? `${sexo} ${cat(k)} kg` : c;
+  return k ? `${{ F: 'Mujer', M: 'Hombre' }[sexo] ?? sexo} · ${cat(k)} kg` : c;
 };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Same rule as the server (athletes.NormLicencia + licenciaValida). */
@@ -156,7 +157,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
         }
         @if (resumenErrores().length) {
           <!-- Figma 06 «Errores de validación» -->
-          <div #errores tabindex="-1" class="rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
+          <div #errores tabindex="-1" class="scroll-mt-28 rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
             <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />Revisa {{ resumenErrores().length === 1 ? 'un campo' : resumenErrores().length + ' campos' }} antes de enviar</p>
             <ul class="mt-2 flex flex-col gap-1 pl-1 text-body-s text-text-secondary">@for (e of resumenErrores(); track e) { <li>• {{ e }}</li> }</ul>
           </div>
@@ -173,17 +174,32 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                 <label class="text-label-s" [for]="'i-' + f.k">{{ f.label }}{{ f.req ? ' *' : '' }}</label>
                 @switch (f.k) {
                   @case ('sexo') {
-                    <gr-select [id]="'i-' + f.k" tam="l" name="sexo" [(ngModel)]="d.sexo" (ngModelChange)="d.categoria = ''; revalidar()"><option value="F">Mujer</option><option value="M">Hombre</option></gr-select>
+                    <!-- UX2-R1-6: mismo control que el alta (segmented 48 px), sin valor por defecto -->
+                    <div [id]="'i-' + f.k" tabindex="-1" class="flex gap-2 outline-none" role="radiogroup" aria-label="Sexo" aria-required="true" [attr.aria-invalid]="err()[f.k] ? true : null" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k : null">
+                      @for (o of SEXOS; track o.v) {
+                        <button type="button" role="radio" [attr.aria-checked]="d.sexo === o.v" (click)="d.sexo = o.v; d.categoria = ''; revalidar()"
+                          class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
+                          [class]="d.sexo === o.v ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()[f.k] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">{{ o.l }}</button>
+                      }
+                    </div>
                   }
                   @case ('categoria') {
                     <gr-select [id]="'i-' + f.k" tam="l" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()" [invalido]="!!err()[f.k]" [aria-describedby]="err()[f.k] ? 'e-' + f.k : ''" vacio="Elige primero el sexo"><option value="" hidden>Seleccionar categoría</option>@for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }</gr-select>
+                  }
+                  @case ('fechaNacimiento') {
+                    <!-- UX2-R1-7: mismo campo que el alta (dd/mm/aaaa con máscara), no el date nativo en formato US -->
+                    <input [id]="'i-' + f.k" [class]="CAMPO + ' ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong')" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" placeholder="dd/mm/aaaa"
+                      [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
+                      [attr.aria-invalid]="!!err()[f.k]" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k + ' h-' + f.k : 'h-' + f.k" />
+                    <p [id]="'h-' + f.k" class="text-body-s text-text-tertiary">Formato dd/mm/aaaa.</p>
                   }
                   @default {
                     <input [id]="'i-' + f.k" [class]="CAMPO + ' ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong')" [name]="f.k" [attr.name]="f.k" [type]="f.type || 'text'" [attr.autocomplete]="f.ac" [attr.placeholder]="f.ph" [(ngModel)]="d[f.k]" (ngModelChange)="revalidar()"
                       [attr.aria-invalid]="!!err()[f.k]" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k : null" />
                   }
                 }
-                @if (err()[f.k]; as e) { <p [id]="'e-' + f.k" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                @if (f.k === 'club') { <p class="text-body-s text-text-tertiary">Déjalo vacío si eres independiente.</p> }
+                @if (err()[f.k]; as e) { <p [id]="'e-' + f.k" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
               </div>
             }
           </div>
@@ -196,21 +212,21 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                   <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-cupon">Código de descuento</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.cupon && !precio()!.cupon!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-cupon" name="cupon" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-cupon" name="cupon" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.cupon && !precio()!.cupon!.valido ? true : null" [attr.aria-describedby]="precio()?.cupon ? 'e-cupon' : null" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.cupon?.valido ? quitar('cupon') : calcular()">{{ precio()?.cupon?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
-                    @if (precio()?.cupon; as x) { <p class="flex items-center gap-1.5 text-body-xs" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
+                    @if (precio()?.cupon; as x) { <p id="e-cupon" class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
                   </div>
                 }
                 @if (c.referidos) {
                   <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-ref">¿Te ha invitado alguien?</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.referido && !precio()!.referido!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-ref" name="referido" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-ref" name="referido" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.referido && !precio()!.referido!.valido ? true : null" [attr.aria-describedby]="precio()?.referido ? 'e-ref' : (c.referidoTexto ? 'h-ref' : null)" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.referido?.valido ? quitar('referido') : calcular()">{{ precio()?.referido?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
-                    @if (precio()?.referido; as x) { <p class="flex items-center gap-1.5 text-body-xs" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
-                    @else if (c.referidoTexto) { <p class="text-body-xs text-text-tertiary">Si un amigo ya inscrito te pasó su código, tienes {{ c.referidoTexto.replace(' con el código de un amigo inscrito', '') }}.</p> }
+                    @if (precio()?.referido; as x) { <p id="e-ref" class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
+                    @else if (c.referidoTexto) { <p id="h-ref" class="text-body-s text-text-tertiary">Si un amigo ya inscrito te pasó su código, tienes {{ c.referidoTexto.replace(' con el código de un amigo inscrito', '') }}.</p> }
                   </div>
                 }
               </div>
@@ -229,9 +245,9 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
           <div class="flex flex-col">
             @for (k of checks; track k.k) {
               <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="k.req ? 'text-text-primary' : 'text-text-secondary'">
-                <span class="relative mt-px flex size-5 shrink-0 items-center justify-center">
-                  <input type="checkbox" [name]="k.k" [attr.name]="k.k" [(ngModel)]="acepta[k.k]" (ngModelChange)="revalidar()" class="peer size-[18px] appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" [class]="k.req && err()['terminos'] && !acepta[k.k] ? 'border-accent-text' : 'border-line-strong'" />
-                  @if (acepta[k.k]) { <gr-icon name="check" [size]="12" class="pointer-events-none absolute text-white" /> }
+                <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
+                  <input type="checkbox" [name]="k.k" [attr.name]="k.k" [(ngModel)]="acepta[k.k]" (ngModelChange)="revalidar()" class="peer size-[22px] cursor-pointer appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" [class]="k.req && err()['terminos'] && !acepta[k.k] ? 'border-accent-text' : 'border-line-strong'" />
+                  @if (acepta[k.k]) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
                 </span>
                 <span>
                   @switch (k.k) {
@@ -242,12 +258,13 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                 </span>
               </label>
             }
-            @if (err()['terminos']; as e) { <p class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+            @if (err()['terminos']; as e) { <p class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
           </div>
           @if (error()) { <p class="flex items-start gap-2 rounded-md border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
-          <div class="flex flex-col gap-3">
+          <!-- UX2-R1-4: en móvil, CTA con el total fijo abajo mientras el formulario está en vista -->
+          <div class="flex flex-col gap-3 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
             <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="enviando()">{{ c.estado === 'completa' ? 'Apuntarme a la reserva' : total() === 0 ? 'Confirmar inscripción' : 'Pagar ' + eur(total()) }}</button>
-            <p class="text-center text-body-xs text-text-muted">
+            <p class="text-center text-body-s text-text-muted">
               @if (c.estado === 'completa') { No se cobra nada hasta que haya plaza. }
               @else if (total() === 0) { Sin pago: te inscribimos al confirmar. }
               @else { <gr-icon name="lock" [size]="13" class="mr-1.5 inline-block align-[-2px]" />{{ c.pasarela === 'stripe' ? 'Pago seguro con Stripe' : 'Pago seguro' }}{{ c.pruebas ? ' · ahora en modo pruebas, no se cobra nada' : '' }} }
@@ -272,6 +289,7 @@ export class InscripcionPage {
   protected readonly cat = cat;
   protected readonly fechaLarga = fechaLarga;
   protected readonly CAMPO = CAMPO;
+  protected readonly SEXOS = [{ v: 'F' as const, l: 'Mujer' }, { v: 'M' as const, l: 'Hombre' }];
   protected readonly cfg = signal<ConfigPub | null | undefined>(undefined);
   protected readonly competicion = signal<CompeticionPublica | null>(null);
   protected readonly precio = signal<Precio | null>(null);
@@ -282,7 +300,7 @@ export class InscripcionPage {
   /** Field errors, shown after the first submit and updated while the person fixes them. */
   protected readonly err = signal<Record<string, string>>({});
   private intentado = false;
-  d = { nombre: '', apellidos: '', email: '', telefono: '', sexo: 'M' as 'F' | 'M', categoria: '', fechaNacimiento: '', licencia: '', club: '' };
+  d = { nombre: '', apellidos: '', email: '', telefono: '', sexo: '' as '' | 'F' | 'M', categoria: '', fechaNacimiento: '', licencia: '', club: '' };
   protected cupon = '';
   protected referido = '';
   protected acepta: Record<'terminos' | 'privacidad' | 'imagen', boolean> = { terminos: false, privacidad: false, imagen: false };
@@ -292,10 +310,10 @@ export class InscripcionPage {
     { k: 'apellidos', label: 'Apellidos', req: true, ac: 'family-name', ph: 'Tus apellidos', error: 'Los apellidos son obligatorios', corto: 'son obligatorios' },
     { k: 'email', label: 'Email', req: true, type: 'email', ac: 'email', ph: 'email@ejemplo.com', error: 'Introduce un email válido', corto: 'introduce un email válido' },
     { k: 'telefono', label: 'Teléfono', type: 'tel', ac: 'tel', ph: '+34 600 000 000' },
-    { k: 'sexo', label: 'Sexo', req: true }, { k: 'categoria', label: 'Categoría de peso', req: true, error: 'Selecciona tu categoría', corto: 'selecciona tu categoría' },
-    { k: 'fechaNacimiento', label: 'Fecha de nacimiento', req: true, type: 'date', ac: 'bday', error: 'Indica tu fecha de nacimiento', corto: 'indica tu fecha de nacimiento' },
+    { k: 'sexo', label: 'Sexo', req: true, error: 'Elige una opción', corto: 'elige una opción' }, { k: 'categoria', label: 'Categoría de peso', req: true, error: 'Selecciona tu categoría', corto: 'selecciona tu categoría' },
+    { k: 'fechaNacimiento', label: 'Fecha de nacimiento', req: true, error: 'Indica tu fecha de nacimiento', corto: 'indica tu fecha de nacimiento' },
     { k: 'licencia', label: 'Licencia AEP', req: true, ph: 'VAL-0000', error: 'Indica tu número de licencia AEP', corto: 'indica tu número de licencia' },
-    { k: 'club', label: 'Club', ph: 'Nombre del club (o vacío si eres independiente)' },
+    { k: 'club', label: 'Club', ph: 'Tu club' },
   ];
   protected readonly total = computed(() => this.precio()?.total ?? this.cfg()?.cuota ?? 0);
   protected readonly vista = computed<Vista>(() => {
@@ -382,7 +400,7 @@ export class InscripcionPage {
   }
 
   protected categorias(): string[] {
-    return CATEGORIAS_IPF[this.d.sexo];
+    return this.d.sexo ? CATEGORIAS_IPF[this.d.sexo] : [];
   }
 
   protected async calcular(): Promise<void> {
@@ -428,6 +446,15 @@ export class InscripcionPage {
     void this.calcular();
   }
 
+  /** Lo que se ve en el campo fecha (dd/mm/aaaa); d.fechaNacimiento guarda la ISO solo si la fecha existe. */
+  protected fechaTexto = '';
+  protected fechaCambia(el: HTMLInputElement): void {
+    const { texto, iso } = mascaraFecha(el.value);
+    el.value = this.fechaTexto = texto;
+    this.d.fechaNacimiento = iso;
+    this.revalidar();
+  }
+
   private validar(): Record<string, string> {
     const d = this.d;
     const e: Record<string, string> = {};
@@ -435,6 +462,7 @@ export class InscripcionPage {
     if (!d.nombre.trim()) e['nombre'] = msg('nombre');
     if (!d.apellidos.trim()) e['apellidos'] = msg('apellidos');
     if (!EMAIL.test(d.email.trim())) e['email'] = msg('email');
+    if (!d.sexo) e['sexo'] = msg('sexo');
     if (!d.categoria) e['categoria'] = msg('categoria');
     if (!d.fechaNacimiento) e['fechaNacimiento'] = msg('fechaNacimiento');
     const lic = normLicencia(d.licencia);
@@ -450,7 +478,13 @@ export class InscripcionPage {
 
   private enfocarResumen(): void {
     // the summary sits above the form: take the person there (Figma 06 «Errores de validación»)
-    afterNextRender(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }), { injector: this.injector });
+    afterNextRender(() => {
+      const el = (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]');
+      if (!el) return;
+      // scroll-behavior:smooth del html anula el scroll del focus: se desplaza a mano (UX2-R1-3).
+      el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+    }, { injector: this.injector });
   }
 
   /** Field errors of a 422 (errors[].location body.x, or a code tied to one field); true if any was shown. */
@@ -541,8 +575,11 @@ export class InscripcionPage {
           @if (e.codigoReferido) {
             <section class="flex flex-col gap-3 rounded-[18px] border border-line-subtle bg-bg-card p-6">
               <h2 class="text-label-m">Invita y recupera parte de tu cuota</h2>
-              <p class="text-body-xs text-text-tertiary">{{ e.invitaTexto || 'Tus amigos tienen descuento con tu código y te devolvemos una parte de lo que pagaste por cada uno.' }}</p>
+              <p class="text-body-s text-text-tertiary">{{ e.invitaTexto || 'Tus amigos tienen descuento con tu código y te devolvemos una parte de lo que pagaste por cada uno.' }}</p>
               <div class="flex h-12 items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field pl-3.5"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 truncate text-mono-s">{{ e.codigoReferido }}</span><button type="button" class="h-full px-3.5 text-label-s text-accent-text hover:underline" (click)="copiar(e.codigoReferido!)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
+              <!-- UX2-R1-13: hoja de compartir nativa (si no hay, copia el enlace) -->
+              <button grButton variant="primary" size="l" type="button" [block]="true" (click)="compartir(e.codigoReferido!)"><gr-icon name="share" [size]="18" />Compartir mi código</button>
+              <p class="sr-only" aria-live="polite">{{ copiado() ? 'Enlace copiado' : '' }}</p>
             </section>
           }
           <a grButton variant="outline" size="l" [block]="true" routerLink="/area-atleta">Ir a mi área de atleta</a>
@@ -639,6 +676,15 @@ export class InscripcionEstadoPage {
     void this.poll?.();
   }
 
+  protected async compartir(code: string): Promise<void> {
+    const url = `${location.origin}/inscripcion?ref=${code}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'GR Strength Cup', text: 'Inscríbete con mi código y tienes descuento', url }); } catch { /* cancelado */ }
+      return;
+    }
+    await this.copiar(code);
+  }
+
   protected async copiar(code: string): Promise<void> {
     await navigator.clipboard?.writeText(`${location.origin}/inscripcion?ref=${code}`);
     this.copiado.set(true);
@@ -683,15 +729,15 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
         <section class="flex flex-col gap-4 px-5 pt-[21px] pb-10 md:px-16 md:pt-24 md:pb-16">
           <div class="flex w-full flex-col gap-4 md:max-w-[420px]">
           <h1 class="text-ui-h5">Pagar con tarjeta</h1>
-          <label class="flex flex-col gap-2"><span class="text-label-s">Email</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="email" [(ngModel)]="email" autocomplete="email" /></label>
+          <label class="flex flex-col gap-2"><span class="text-label-s">Email</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="email" type="email" inputmode="email" autocapitalize="off" spellcheck="false" [(ngModel)]="email" autocomplete="email" /></label>
           <label class="flex flex-col gap-2"><span class="text-label-s">Datos de la tarjeta</span>
-            <span class="flex items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field px-3.5 focus-within:border-accent-text"><gr-icon name="credit-card" [size]="16" class="text-text-tertiary" /><input class="h-12 w-0 min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" name="tarjeta" inputmode="numeric" autocomplete="cc-number" placeholder="1234 1234 1234 1234" [(ngModel)]="tarjeta" /><span class="text-label-s text-accent-text">12/34 · 123</span></span></label>
+            <span class="flex items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field px-3.5 focus-within:border-accent-text"><gr-icon name="credit-card" [size]="16" class="text-text-tertiary" /><input class="h-12 w-0 min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" name="tarjeta" inputmode="numeric" autocomplete="cc-number" placeholder="1234 1234 1234 1234" maxlength="23" [attr.aria-invalid]="mensaje() && !tresDS() ? true : null" [attr.aria-describedby]="mensaje() ? 'pago-msg' : null" [ngModel]="tarjeta" (ngModelChange)="tarjeta = agrupar($event)" /><span class="text-label-s text-text-tertiary">12/34 · 123</span></span></label>
           <label class="flex flex-col gap-2"><span class="text-label-s">Nombre en la tarjeta</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="nombre" autocomplete="cc-name" [(ngModel)]="nombre" /></label>
           <div class="flex flex-col gap-1.5 rounded-[10px] bg-bg-raised p-3">
             <p class="text-label-xs text-text-tertiary uppercase">Tarjetas de prueba</p>
-            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between text-left hover:text-accent-text md:py-0.5" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-xs text-text-tertiary">{{ t[1] }}</span></button> }
+            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex min-h-11 w-full items-center justify-between gap-3 text-left hover:text-accent-text" (click)="tarjeta = agrupar(t[0])"><span class="text-mono-s">{{ agrupar(t[0]) }}</span><span class="text-body-s text-text-tertiary">{{ t[1] }}</span></button> }
           </div>
-          @if (mensaje()) { <gr-alert [tone]="tresDS() ? 'info' : 'danger'" [title]="tresDS() ? '3D Secure' : 'Pago no completado'">{{ mensaje() }}</gr-alert> }
+          @if (mensaje()) { <gr-alert id="pago-msg" class="scroll-mt-28" [tone]="tresDS() ? 'info' : 'danger'" [title]="tresDS() ? '3D Secure' : 'Pago no completado'">{{ mensaje() }}</gr-alert> }
           @if (tresDS()) {
             <div class="flex gap-2"><button grButton variant="primary" class="flex-1" [loading]="pagando()" (click)="pagar('ok')">Autenticar</button><button grButton class="flex-1" [disabled]="pagando()" (click)="pagar('fallo')">Fallar autenticación</button></div>
           } @else {
@@ -736,18 +782,30 @@ export class PagoSimuladoPage {
     this.pagando.set(true);
     this.mensaje.set('');
     try {
-      const r = await firstValueFrom(this.http.post<{ estado: string; mensaje?: string; redirect?: string }>(`${this.api}/pagar`, { tarjeta: this.tarjeta, email: this.email, tresDS }));
+      const r = await firstValueFrom(this.http.post<{ estado: string; mensaje?: string; redirect?: string }>(`${this.api}/pagar`, { tarjeta: this.tarjeta.replace(/\s/g, ''), email: this.email, tresDS }));
       if (r.estado === 'pagado' && r.redirect) {
         location.href = r.redirect;
         return;
       }
       this.tresDS.set(r.estado === '3ds');
       this.mensaje.set(r.mensaje ?? 'No se pudo completar el pago.');
+      this.verMensaje();
     } catch (e) {
       this.tresDS.set(false);
       this.mensaje.set((e as { error?: { detail?: string } }).error?.detail ?? 'No se pudo completar el pago.');
+      this.verMensaje();
     } finally {
       this.pagando.set(false);
     }
+  }
+
+  /** «4000000000000002» → «4000 0000 0000 0002» (UX2-R1-12). */
+  protected agrupar(v: string): string {
+    return (v ?? '').replace(/\D/g, '').slice(0, 19).replace(/(\d{4})(?=\d)/g, '$1 ');
+  }
+
+  /** El aviso puede quedar bajo el teclado: se lleva a la vista. */
+  private verMensaje(): void {
+    setTimeout(() => document.getElementById('pago-msg')?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
   }
 }
