@@ -44,6 +44,7 @@ function nombreAlbum(a: Album): string {
     .gr-filtros-out { animation: gr-filtros-out 160ms ease-in forwards; }
     @keyframes gr-filtros-in { from { opacity: 0; transform: translateY(-6px); } }
     @keyframes gr-filtros-out { to { opacity: 0; transform: translateY(-6px); } }
+    @media (prefers-reduced-motion: reduce) { .gr-filtros-in, .gr-filtros-out { animation-duration: 1ms; } }
   `,
   template: `
     <gr-page title="Galería" accent="GRS Cup" eyebrow="Fotos" section="El evento" crumb="Galería" subtitle="Fotos de la competición: tarima, calentamiento, podios y público.">
