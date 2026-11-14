@@ -574,7 +574,7 @@ export class WhatsAppSistemaPage {
     try {
       const r = await this.api.conectar(this.cid(), numero);
       await this.cargarEstado();
-      this.codigo.set(r.codigo ?? null);
+      this.codigo.set(r.codigo ? r.codigo.replace(/[^0-9A-Za-z]/g, '') : null); // evo-weai answers «ABCD-EFGH»; shown as two groups of 4
       if (!r.codigo) this.toasts.info('El servicio no ha devuelto un código', 'Vuelve a intentarlo en unos segundos.');
     } catch (e) {
       this.toasts.error('No se pudo generar el código', this.waError(e, 'No se pudo generar el código. Inténtalo de nuevo.'));
