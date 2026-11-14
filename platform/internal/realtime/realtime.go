@@ -102,6 +102,9 @@ const coalesceEvery = 400 * time.Millisecond
 // they are sent without an id line when they go out after a newer event (see write), so order is never broken.
 // ST3-R4-2: 100 ms meant 10 wakes/writes per client per second at peak, stealing CPU from the HTTP pods (p99
 // 1.2 s); 200 ms halves them and still adds at most 100 ms to a delivery (well under the 400 ms odds tick).
+// ST3-R5-2: a fixed tick still made every event wait for it (SSE p50 +35 ms, p99 447 ms). It is now a leading-edge
+// throttle: an event after a quiet spell goes out at once, and the fan-out never runs more often than this, so
+// the wake budget per client stays the same while delivery only waits when events actually pile up.
 const entregaEvery = 200 * time.Millisecond
 
 // hub fans the stream out to the connected clients of this pod in batches, one every coalesceEvery. Live odds
@@ -115,6 +118,7 @@ type hub struct {
 	pmu   sync.Mutex // guards pend/queue
 	pend  map[string]*msg
 	queue []*msg
+	kick  chan struct{} // cap 1: a non-odds event is queued
 }
 
 // maxPendiente caps what a client may have queued and unsent; past it the client is cut and resumes with
@@ -224,6 +228,10 @@ func (h *hub) offer(m *msg) {
 		return
 	}
 	h.queue = append(h.queue, m)
+	select {
+	case h.kick <- struct{}{}:
+	default:
+	}
 }
 
 // flush publishes the pending batch (the coalesced odds only when odds is set); only the flusher goroutine calls
@@ -276,7 +284,7 @@ type slugEntry struct {
 
 // Service returns the realtime service definition.
 func Service() app.Service {
-	s := &Svc{hub: &hub{subs: map[*sub]struct{}{}, pend: map[string]*msg{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
+	s := &Svc{hub: &hub{subs: map[*sub]struct{}{}, pend: map[string]*msg{}, kick: make(chan struct{}, 1)}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
 	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, MaxConns: -1, Setup: s.setup}
 }
 
@@ -327,19 +335,32 @@ func (s *Svc) contar(ctx context.Context) {
 	}
 }
 
-// flusher fans out the queued events every entregaEvery and the coalesced live odds every coalesceEvery.
+// flusher fans out the queued events as soon as they arrive but at most once every entregaEvery, and the
+// coalesced live odds (with whatever is queued) every coalesceEvery.
 func (s *Svc) flusher(ctx context.Context) {
-	t := time.NewTicker(entregaEvery)
+	t := time.NewTicker(coalesceEvery)
 	defer t.Stop()
-	n := 0
-	cada := int(coalesceEvery / entregaEvery)
+	var last time.Time
+	var hold <-chan time.Time // pending throttled flush
+	flush := func(odds bool) { s.hub.flush(odds); last = time.Now() }
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			n++
-			s.hub.flush(n%cada == 0)
+			flush(true)
+		case <-s.hub.kick:
+			if hold != nil {
+				continue // already scheduled; the queue goes out with it
+			}
+			if d := entregaEvery - time.Since(last); d > 0 {
+				hold = time.After(d)
+				continue
+			}
+			flush(false)
+		case <-hold:
+			hold = nil
+			flush(false)
 		}
 	}
 }

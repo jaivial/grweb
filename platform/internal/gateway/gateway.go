@@ -172,6 +172,10 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	// idling); events are < 1 KB, so SSE get their own transport with 4 KB buffers.
 	sseT := transport.Clone()
 	sseT.WriteBufferSize, sseT.ReadBufferSize = 4<<10, 4<<10
+	// ST3-R5-3: while realtime scaled, SSE dials to a starting/terminating pod hung for tens of seconds (connect
+	// p95 43 s). realtime answers its headers at once, so fail fast (502) and let the client retry another pod.
+	sseT.ResponseHeaderTimeout = 5 * time.Second
+	sseT.DialContext = wsT.DialContext
 	rt := porUpgrade{http: transport, ws: wsT, sse: sseT}
 	for _, svc := range enabled {
 		raw := config.Str("UPSTREAM_"+strings.ToUpper(svc), "http://"+svc+":8080")
