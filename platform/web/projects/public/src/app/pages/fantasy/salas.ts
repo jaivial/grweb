@@ -233,11 +233,13 @@ export class SalasPage {
   });
   protected readonly opcionesFiltro = computed<OpcionSelector[]>(() => {
     const l = this.salas();
+    // con más páginas por cargar los recuentos son mínimos: «30+»
+    const mas = this.lobby()?.hayMas ? '+' : '';
     return [
-      { v: 'todas', l: `Todas · ${l.length}` },
-      { v: 'abiertas', l: `Abiertas · ${l.filter((s) => ABIERTA.has(s.estado)).length}` },
-      { v: 'en_juego', l: `En juego · ${l.filter((s) => s.estado === 'en_juego').length}` },
-      { v: 'cerradas', l: `Cerradas · ${l.filter((s) => CERRADA.has(s.estado)).length}` },
+      { v: 'todas', l: `Todas · ${l.length}${mas}` },
+      { v: 'abiertas', l: `Abiertas · ${l.filter((s) => ABIERTA.has(s.estado)).length}${mas}` },
+      { v: 'en_juego', l: `En juego · ${l.filter((s) => s.estado === 'en_juego').length}${mas}` },
+      { v: 'cerradas', l: `Cerradas · ${l.filter((s) => CERRADA.has(s.estado)).length}${mas}` },
     ];
   });
   /** Las salas con una solicitud mía que tiene algo que contar (pendiente, aceptada, rechazada…). */
