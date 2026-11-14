@@ -8,6 +8,7 @@ import { problemOf } from '../../core/api';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { Confirm, Media, errText, BoTablaMovil } from '../../shared/ui';
+import { BoDatePicker } from '../../shared/kit';
 import {
   CampanasApi, ESTADO, ESTADO_DEST, NOMBRE_TIPO, TIPOS, fecha, hora, n, waHtml,
   type Audiencia, type Bloque, type Campana, type CampanaIn, type CanalBloque, type Destinatarios, type MensajeIA, type Modelo, type Previa, type Segmento, type TipoBloque,
@@ -46,7 +47,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
 /** «Campaña» (Figma page 61): Flujo · Diseño (blocks, layers, properties, AI) · Previsualización (email + WhatsApp) · Ajustes and sending. */
 @Component({
   selector: 'bo-campana',
-  imports: [BoTablaMovil, GrSelect, GrPopover, FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoDatePicker, BoTablaMovil, GrSelect, GrPopover, FormsModule, NgTemplateOutlet, RouterLink, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`.canvas p { margin: 0 } .canvas strong { color: #141011 }`],
   template: `
@@ -251,7 +252,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                       <gr-field label="Derecha"><textarea grInput rows="3" [ngModel]="b.texto2" (ngModelChange)="editar(b.id, { texto2: $event })"></textarea></gr-field>
                     }
                     @case ('cuenta_atras') {
-                      <gr-field label="Hasta (hora de Madrid)"><input grInput type="datetime-local" [ngModel]="b.fecha" (ngModelChange)="editar(b.id, { fecha: $event })" /></gr-field>
+                      <gr-field label="Hasta (hora de Madrid)"><bo-date-picker tipo="datetime" [ngModel]="b.fecha" (ngModelChange)="editar(b.id, { fecha: $event })" /></gr-field>
                       <gr-field label="Texto encima"><input grInput [ngModel]="b.texto" (ngModelChange)="editar(b.id, { texto: $event })" /></gr-field>
                     }
                     @case ('horario') { <gr-field label="Día"><gr-select [ngModel]="b.fecha" (ngModelChange)="editar(b.id, { fecha: $event })">@for (d of dias(); track d) { <option [value]="d">{{ diaLargo(d) }}</option> }</gr-select></gr-field> }
@@ -400,7 +401,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
             @else { Se enviará a {{ n(destinos()) }} destinos ({{ n(aud()?.email) }} por email{{ f().canales.includes('whatsapp') ? ' · ' + n(aud()?.whatsapp) + ' por WhatsApp' : '' }}). Cada mensaje lleva su enlace de baja. }
           </p>
           <label class="mt-4 flex items-center gap-2 text-body-s"><input type="checkbox" class="size-4 accent-[#c42b3e]" [(ngModel)]="programar" />Programar el envío</label>
-          @if (programar) { <gr-field label="Fecha y hora (Madrid)" class="mt-2"><input grInput type="datetime-local" [(ngModel)]="programadaAt" /></gr-field> }
+          @if (programar) { <gr-field label="Fecha y hora (Madrid)" class="mt-2"><bo-date-picker tipo="datetime" [(ngModel)]="programadaAt" /></gr-field> }
           <div class="mt-6 flex justify-end gap-2">
             <button grButton variant="ghost" (click)="envio.set(null)">Cancelar</button>
             <button grButton variant="primary" [loading]="enviando()" (click)="enviar(e.soloEmail)">{{ programar ? 'Programar' : e.soloEmail ? 'Enviar email ahora' : 'Enviar ahora' }}</button>

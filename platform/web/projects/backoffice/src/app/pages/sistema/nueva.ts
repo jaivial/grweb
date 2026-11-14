@@ -5,6 +5,7 @@ import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSelect, GrSkeleton, GrTo
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { BoPageHeader, BoToggle, errText } from '../../shared/ui';
+import { BoDatePicker } from '../../shared/kit';
 import { MODULOS, SistemaApi, fecha, type CompSistema } from './api';
 
 const COPIAR = [
@@ -20,7 +21,7 @@ const PASOS = ['Datos', 'Clonar contenidos', 'Módulos', 'Equipo'];
 /** «Sistema · nueva edición» (Figma 64 · 96:43224): new competition, optionally cloning the structure of another one (never personal data). */
 @Component({
   selector: 'bo-sistema-nueva',
-  imports: [FormsModule, BoPageHeader, BoToggle, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSelect, GrSkeleton],
+  imports: [BoDatePicker, FormsModule, BoPageHeader, BoToggle, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-8 pb-24">
@@ -51,8 +52,8 @@ const PASOS = ['Datos', 'Clonar contenidos', 'Módulos', 'Equipo'];
                 </gr-field>
                 <gr-field label="Nombre" class="sm:col-span-2" [error]="tocado && nombre.trim().length < 2 ? 'Mínimo 2 caracteres' : null"><input grInput [(ngModel)]="nombre" (ngModelChange)="autoSlug()" maxlength="120" placeholder="GR Strength Cup 2027" /></gr-field>
                 <gr-field label="Identificador (URL)" class="sm:col-span-2" [error]="tocado && !slugOk() ? 'Minúsculas, números y guiones (2–41)' : null" [hint]="'backoffice/' + (slug || '…') + '/inicio'"><input grInput [(ngModel)]="slug" (ngModelChange)="slugManual = true" maxlength="41" class="font-mono" /></gr-field>
-                <gr-field label="Primer día"><input grInput type="date" [(ngModel)]="fechaInicio" /></gr-field>
-                <gr-field label="Último día" [error]="fechaFin && fechaInicio && fechaFin < fechaInicio ? 'Antes del primer día' : null"><input grInput type="date" [(ngModel)]="fechaFin" [min]="fechaInicio" /></gr-field>
+                <gr-field label="Primer día"><bo-date-picker tipo="date" [(ngModel)]="fechaInicio" /></gr-field>
+                <gr-field label="Último día" [error]="fechaFin && fechaInicio && fechaFin < fechaInicio ? 'Antes del primer día' : null"><bo-date-picker tipo="date" [(ngModel)]="fechaFin" [min]="fechaInicio" /></gr-field>
               </div>
             </section>
           }

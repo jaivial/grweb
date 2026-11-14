@@ -6,7 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
-import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
+import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar, BoDatePicker } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import {
   ContactosApi, ESTADO_EMAIL, ESTADO_WA, FINALIDAD, TIPO_SUP, fecha, fechaLarga, iniciales,
@@ -31,7 +31,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Contactos» (Figma page 61): list with KPIs and filters, segments and unsubscribes/suppressions. */
 @Component({
   selector: 'bo-contactos',
-  imports: [BoTablaMovil, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [BoDatePicker, BoTablaMovil, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -133,8 +133,8 @@ function descargar(blob: Blob, nombre: string): void {
                     </gr-select>
                     @switch (c.campo) {
                       @case ('relacion') { <gr-select aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()"><option value="" hidden>Elige…</option>@for (r of relaciones; track r.v) { <option [value]="r.v">{{ r.label }}</option> }</gr-select> }
-                      @case ('creado') { <input grInput type="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
-                      @case ('actividad') { <input grInput type="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
+                      @case ('creado') { <bo-date-picker tipo="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
+                      @case ('actividad') { <bo-date-picker tipo="date" aria-label="Valor" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
                       @default { <input grInput aria-label="Valor" [placeholder]="c.campo === 'origen' ? 'ig_story, ig_reel' : 'etiqueta'" [(ngModel)]="c.valor" (ngModelChange)="contar()" /> }
                     }
                     <button type="button" class="flex size-11 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Quitar condición" (click)="e.condiciones.splice($index, 1); contar()"><gr-icon name="trash" [size]="16" /></button>

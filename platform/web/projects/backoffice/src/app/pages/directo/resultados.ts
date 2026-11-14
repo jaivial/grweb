@@ -1,11 +1,12 @@
 import { FormsModule } from '@angular/forms';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
+import { BoDatePicker } from '../../shared/kit';
 import { DirectoApi, MOV, gl, kg, type Fila, type Mov, type ResultadosAdmin } from './api';
 
 const MEDALLA = { oro: { l: 'Oro', c: 'border-[#c9a227]/50 bg-[#c9a227]/15 text-[#e3c25a]' }, plata: { l: 'Plata', c: 'border-[#a9b0b8]/50 bg-[#a9b0b8]/15 text-[#c9d0d8]' }, bronce: { l: 'Bronce', c: 'border-[#b0703e]/50 bg-[#b0703e]/15 text-[#d79a66]' } };
@@ -14,7 +15,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
 /** «Resultados · clasificación» (Figma page 57): rankings by category computed live, absolute by GL points, publication to /resultados and the CSV record. */
 @Component({
   selector: 'bo-resultados',
-  imports: [BoTablaMovil, BoTabsMovil, FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoDatePicker, BoTablaMovil, BoTabsMovil, FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = res();
@@ -117,7 +118,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
         <form class="w-full max-w-sm rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" aria-label="Programar publicación" (click)="$event.stopPropagation()" (ngSubmit)="guardarProg(p.at)">
           <h2 class="text-ui-h5">Programar publicación</h2>
           <p class="mt-1 text-body-s text-text-secondary">A esa hora se publican todas las categorías en /resultados y se avisa a los seguidores de las terminadas.</p>
-          <gr-field label="Fecha y hora" for="p-at" class="mt-4" [error]="progErr()"><input grInput id="p-at" type="datetime-local" name="at" [(ngModel)]="p.at" required /></gr-field>
+          <gr-field label="Fecha y hora" for="p-at" class="mt-4" [error]="progErr()"><bo-date-picker tipo="datetime" id="p-at" [(ngModel)]="p.at" /></gr-field>
           <div class="mt-6 flex justify-end gap-2">
             @if (res()?.programado) { <button type="button" grButton variant="ghost" class="mr-auto" (click)="guardarProg('')">Quitar</button> }
             <button type="button" grButton variant="ghost" (click)="prog.set(null)">Cancelar</button>
