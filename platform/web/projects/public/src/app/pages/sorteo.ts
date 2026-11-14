@@ -92,10 +92,10 @@ export class SorteoTitulo {
               <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>Rifa presencial{{ cuando() ? ' · sorteo el ' + cuando() : '' }}</p>
               <h1 class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-m lg:text-display-l">Rifa solidaria GR Cup</h1>
               <p class="text-body-m text-text-tertiary lg:text-body-l">{{ r.textoInfo || 'Los boletos se compran solo en efectivo en el stand de la rifa, en el recinto, durante el evento. No hay venta online.' }} Mira los objetos que se rifan.</p>
-              <div class="flex flex-col gap-2 text-[14px] leading-[1.2] text-text-secondary">
+              <div class="flex flex-col gap-2 text-body-m text-text-secondary">
                 <p class="font-semibold">Dónde y cuándo comprar boletos</p>
                 @if (r.lugar) { <p>{{ r.lugar }}</p> }
-                <p>{{ r.horario ? r.horario + ' · ' : '' }}{{ euros(r.precioBoletoEfectivoCents) }} el boleto</p>
+                @if (r.horario) { <p>{{ r.horario }}</p> }
               </div>
               <div class="flex w-full flex-col gap-3 lg:w-auto lg:flex-row">
                 <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="." fragment="objetos">Ver objetos de la rifa</a>
@@ -107,19 +107,14 @@ export class SorteoTitulo {
 
         <!-- Cómo funciona la rifa -->
         <section id="normas" class="flex scroll-mt-20 flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 md:py-26">
-          <gr-sorteo-titulo titulo="Cómo funciona la rifa" texto="Rifa solidaria y presencial: los boletos se compran en efectivo en el recinto el día del evento. No hay venta online." />
-          <div class="grid w-full max-w-[1104px] gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
+          <gr-sorteo-titulo titulo="Cómo funciona la rifa" />
+          <div class="grid w-full max-w-[1104px] gap-4 md:grid-cols-3 md:gap-5">
             @for (n of normas(); track n.t) {
               <div class="grain flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <span class="flex size-10 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="n.i" [size]="20" /></span>
-                <h3 class="text-ui-h5">{{ n.t }}</h3><p class="min-w-0 text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ n.d }}</p>
+                <h3 class="text-ui-h5">{{ n.t }}</h3><p class="min-w-0 text-body-m text-text-tertiary [overflow-wrap:anywhere]">{{ n.d }}</p>
               </div>
             }
-          </div>
-          <div class="flex w-full max-w-[420px] flex-col items-center gap-2 rounded-md border border-accent/40 bg-accent/8 p-6 text-center">
-            <p class="text-body-s text-text-tertiary">Precio del boleto</p>
-            <p class="text-ui-h2 text-accent-text">{{ euros(r.precioBoletoEfectivoCents) }} el boleto</p>
-            <p class="text-body-xs text-text-tertiary">En efectivo en el recinto · sin venta online</p>
           </div>
         </section>
 
@@ -181,11 +176,8 @@ export class SorteoPage {
     const precio = euros(r.precioBoletoEfectivoCents);
     const lugar = r.lugar ? r.lugar.charAt(0).toLowerCase() + r.lugar.slice(1).replace(' · ', ', en el ') : 'stand de la rifa';
     return [
-      { t: `${precio} el boleto`, d: 'Precio en efectivo fijado por la organización. Se paga en el stand de la rifa.', i: 'ticket' },
-      { t: 'Solo en el recinto', d: `Los boletos se venden en el ${lugar}. No se venden por la web.`, i: 'infinity' },
-      { t: 'Solo efectivo', d: 'Paga en efectivo al momento y guarda tu boleto de papel: es tu resguardo para reclamar el premio.', i: 'user' },
-      { t: 'Horario de venta', d: r.horario ? `${r.horario}, mientras dure la competición.` : 'Mientras dure la competición.', i: 'shield' },
-      { t: 'Sorteo presencial', d: `El sorteo se hace en directo en el recinto${this.cuando() ? ' el ' + this.cuando() : ''}, tras la entrega de premios. Cada objeto se sortea por separado.`, i: 'shuffle' },
+      { t: 'Compra tu boleto', d: `${precio} el boleto, solo en efectivo en el ${lugar}. Guarda el boleto de papel: es tu resguardo.`, i: 'ticket' },
+      { t: 'Sorteo presencial', d: `En directo en el recinto${this.cuando() ? ' el ' + this.cuando() : ''}, tras la entrega de premios. Cada objeto se sortea por separado.`, i: 'shuffle' },
       { t: 'Ganadores', d: 'Publicamos aquí el boleto ganador de cada objeto. Recogida en el stand de la rifa con el boleto.', i: 'globe' },
     ];
   });
