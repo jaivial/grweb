@@ -317,7 +317,8 @@ func (s *Svc) registerResumen() {
 			if err != nil {
 				return nil, err
 			}
-			v, err := s.resum.get("porra:"+c.ID.String(), ttlPedido(in.CacheControl), func() (any, error) {
+			// ST3-R6-2: stale-while-revalidate, a request never waits for the rebuild at each expiry
+			v, err := s.resum.getSWR("porra:"+c.ID.String(), ttlPedido(in.CacheControl), ttlResumen, func() (any, error) {
 				return s.cargarResumenPorra(context.WithoutCancel(ctx), c.ID)
 			})
 			if err != nil {
@@ -337,7 +338,7 @@ func (s *Svc) registerResumen() {
 			if err != nil {
 				return nil, err
 			}
-			v, err := s.resum.get("fantasy:"+c.ID.String(), ttlPedido(in.CacheControl), func() (any, error) {
+			v, err := s.resum.getSWR("fantasy:"+c.ID.String(), ttlPedido(in.CacheControl), ttlResumen, func() (any, error) {
 				return s.cargarResumenFantasy(context.WithoutCancel(ctx), c.ID)
 			})
 			if err != nil {
