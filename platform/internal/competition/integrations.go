@@ -70,7 +70,7 @@ func (s *Svc) listIntegraciones(ctx context.Context, cid uuid.UUID) ([]integraci
 	}
 	rows.Close()
 	out := []integracion{}
-	for _, t := range []string{"smtp", "stripe", "whatsapp", "bunny", "aep"} {
+	for _, t := range []string{"gmail", "smtp", "stripe", "whatsapp", "bunny", "aep"} {
 		i, ok := have[t]
 		if !ok {
 			i = integracion{Tipo: t, Config: map[string]string{}, Estado: "sin_configurar"}

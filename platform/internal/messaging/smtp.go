@@ -26,10 +26,16 @@ import (
 // smtpCfg is the SMTP server of a competition («Sistema e integraciones» · smtp) or of the platform (env).
 type smtpCfg struct {
 	Host, Port, User, Pass, TLS, From, FromName string
-	Propio                                      bool // from the competition's integration (not the platform's)
+	Propio                                      bool   // from the competition's integration (not the platform's)
+	Gmail                                       string // refresh token of the competition's Gmail (Google OAuth): send with the Gmail API
 }
 
-func (c smtpCfg) servidor() string { return c.Host + ":" + c.Port }
+func (c smtpCfg) servidor() string {
+	if c.Gmail != "" {
+		return "Gmail API (" + c.From + ")"
+	}
+	return c.Host + ":" + c.Port
+}
 
 func plataformaSMTP() smtpCfg {
 	return smtpCfg{Host: config.Str("SMTP_HOST", "localhost"), Port: config.Str("SMTP_PORT", "1025"), User: config.Str("SMTP_USER", ""), Pass: config.Str("SMTP_PASSWORD", ""),
@@ -52,7 +58,9 @@ func (s *Svc) smtpDe(ctx context.Context, cid uuid.UUID) smtpCfg {
 		Config  map[string]string `json:"config"`
 		Secreto string            `json:"secreto"`
 	}
-	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/integraciones/smtp", nil, &out); err == nil && out.Config["host"] != "" {
+	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/integraciones/gmail", nil, &out); err == nil && out.Secreto != "" && out.Config["remitente"] != "" {
+		cfg = smtpCfg{From: out.Config["remitente"], FromName: plataformaSMTP().FromName, Gmail: out.Secreto, Propio: true}
+	} else if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/integraciones/smtp", nil, &out); err == nil && out.Config["host"] != "" {
 		c := out.Config
 		cfg = smtpCfg{Host: c["host"], Port: c["puerto"], User: c["usuario"], Pass: out.Secreto, TLS: c["tls"], From: c["remitente"], FromName: c["nombreRemitente"], Propio: true}
 		if cfg.Port == "" {
@@ -106,6 +114,9 @@ func (a insecurePlain) Next(_ []byte, more bool) ([]byte, error) {
 // enviarSMTP delivers one email. Port 465 uses implicit TLS; otherwise STARTTLS when offered (unless tls=no, e.g.
 // Mailpit in QA). Returns the Message-ID.
 func enviarSMTP(ctx context.Context, c smtpCfg, to string, r Render, cabeceras map[string]string) (string, error) {
+	if c.Gmail != "" {
+		return enviarGmail(ctx, c, to, r, cabeceras)
+	}
 	d := net.Dialer{Timeout: 10 * time.Second}
 	var conn net.Conn
 	var err error

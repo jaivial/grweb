@@ -72,6 +72,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerPublic()
 	s.registerAdmin()
 	s.registerIntegrations()
+	s.registerGmail()
 	s.registerDominio()
 	s.registerInternal()
 	s.registerSistema()
