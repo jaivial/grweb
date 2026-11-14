@@ -97,6 +97,11 @@ func (m *msg) adminFrame() []byte {
 // grew to seconds; 400 ms cuts the odds fan-out another 1.6× and adds at most 150 ms to a single delivery.
 const coalesceEvery = 400 * time.Millisecond
 
+// entregaEvery is how often every other event (signings, rooms, bets…) is fanned out (ST3-R3-4: waiting for the
+// odds tick put up to 400 ms on every delivery and its tail grew past 1.6 s at peak). Odds keep coalesceEvery;
+// they are sent without an id line when they go out after a newer event (see write), so order is never broken.
+const entregaEvery = 100 * time.Millisecond
+
 // hub fans the stream out to the connected clients of this pod in batches, one every coalesceEvery. Live odds
 // (porra.mercado of an open market) are coalesced per market (latest wins); every other event is queued as is.
 // Each batch is sorted by stream id, so clients always get ids in increasing order (Last-Event-ID resume replays
@@ -219,18 +224,21 @@ func (h *hub) offer(m *msg) {
 	h.queue = append(h.queue, m)
 }
 
-// flush publishes the pending batch; only the flusher goroutine calls it, so batches go out in order.
-func (h *hub) flush() {
+// flush publishes the pending batch (the coalesced odds only when odds is set); only the flusher goroutine calls
+// it, so batches go out in order.
+func (h *hub) flush(odds bool) {
 	h.pmu.Lock()
-	if len(h.pend) == 0 && len(h.queue) == 0 {
+	if len(h.queue) == 0 && (!odds || len(h.pend) == 0) {
 		h.pmu.Unlock()
 		return
 	}
 	ms := h.queue
 	h.queue = nil
-	for k, m := range h.pend {
-		ms = append(ms, m)
-		delete(h.pend, k)
+	if odds {
+		for k, m := range h.pend {
+			ms = append(ms, m)
+			delete(h.pend, k)
+		}
 	}
 	h.pmu.Unlock()
 	sort.Slice(ms, func(i, j int) bool { return after(ms[j].id, ms[i].id) })
@@ -317,16 +325,19 @@ func (s *Svc) contar(ctx context.Context) {
 	}
 }
 
-// flusher fans out the coalesced live odds every coalesceEvery.
+// flusher fans out the queued events every entregaEvery and the coalesced live odds every coalesceEvery.
 func (s *Svc) flusher(ctx context.Context) {
-	t := time.NewTicker(coalesceEvery)
+	t := time.NewTicker(entregaEvery)
 	defer t.Stop()
+	n := 0
+	cada := int(coalesceEvery / entregaEvery)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			s.hub.flush()
+			n++
+			s.hub.flush(n%cada == 0)
 		}
 	}
 }
@@ -509,11 +520,18 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 	// write appends one event to buf; the caller writes and flushes buf once per wake (one syscall, ST2-R7-2)
 	var buf []byte
 	write := func(m *msg) bool {
-		if lastSent != "" && !after(m.id, lastSent) {
+		late := lastSent != "" && !after(m.id, lastSent)
+		if late && m.key == "" {
 			return true
 		}
 		frame, ok := filter(m)
 		if !ok {
+			return true
+		}
+		if late {
+			// coalesced odds held for their tick while newer events went out: latest-wins state, sent without its
+			// id so Last-Event-ID never moves back (a resume replays from the newest id, odds included)
+			buf = append(buf, frame[len("id: ")+len(m.id)+1:]...)
 			return true
 		}
 		buf = append(buf, frame...)
