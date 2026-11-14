@@ -15,6 +15,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
@@ -680,9 +681,14 @@ type reportarOut struct {
 	Body reportarBody
 }
 
-// reportar flags a message for the moderation queue (public; limited per IP).
+// reportar flags a message for the moderation queue: fan session required, one report per fan and message,
+// limited per fan and per IP. A message still in the stream (persistence lag) is persisted here with its report.
 func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error) {
 	cid, err := s.comps.ID(ctx, in.Slug)
+	if err != nil {
+		return nil, err
+	}
+	f, err := s.fanDe(ctx, tokenFanDe(sesionFan{Session: in.Session, Header: in.Header}), cid)
 	if err != nil {
 		return nil, err
 	}
@@ -696,6 +702,9 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 	if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "reportes", ip), 20, time.Hour); err == nil && !r.Allowed {
 		return nil, problem.TooMany("Has reportado demasiado. Inténtalo más tarde.")
 	}
+	if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "reportes", "fan", f.ID.String()), 20, time.Hour); err == nil && !r.Allowed {
+		return nil, problem.TooMany("Has reportado demasiado. Inténtalo más tarde.")
+	}
 	// the id of the stream is only unique inside a room: with the day of the message the report goes to that
 	// jornada; without it, to the most recent day with that id (fallback)
 	cond := `id = $1 AND competition_id = $2`
@@ -706,19 +715,51 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 	} else {
 		cond += ` AND dia = (SELECT dia FROM mensajes WHERE id = $1 AND competition_id = $2 ORDER BY dia DESC LIMIT 1)`
 	}
-	tag, err := s.a.DB.Exec(ctx, `UPDATE mensajes SET reportes = reportes + 1 WHERE `+cond, args...)
-	if err != nil {
-		return nil, problem.Internal()
-	}
-	if tag.RowsAffected() == 0 {
-		// it may still be in the stream (persistence lag): nothing to count yet
-		return nil, problem.NotFound("Mensaje no encontrado.")
+	// one report per fan and message (SET NX): a repeated report answers the current count without adding
+	dk := s.a.Keys.Of("chat", "rep", cid.String(), in.Dia, in.ID, f.ID.String())
+	if nuevo, err := s.a.Redis.SetNX(ctx, dk, 1, 48*time.Hour).Result(); err == nil && !nuevo {
+		var n int
+		if err := s.a.DB.QueryRow(ctx, `SELECT reportes FROM mensajes WHERE `+cond, args...).Scan(&n); err != nil {
+			return nil, problem.NotFound("Mensaje no encontrado.")
+		}
+		return &reportarOut{Body: reportarBody{Reportes: n}}, nil
 	}
 	var n int
-	if err := s.a.DB.QueryRow(ctx, `SELECT reportes FROM mensajes WHERE `+cond, args...).Scan(&n); err != nil {
+	err = s.a.DB.QueryRow(ctx, `UPDATE mensajes SET reportes = reportes + 1 WHERE `+cond+` RETURNING reportes`, args...).Scan(&n)
+	if errors.Is(err, pgx.ErrNoRows) {
+		n, err = s.reportarDelStream(ctx, cid, in.Dia, in.ID)
+	}
+	if err != nil {
+		s.a.Redis.Del(ctx, dk) // not counted: the fan may report again
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, problem.NotFound("Mensaje no encontrado.")
+		}
 		return nil, problem.Internal()
 	}
 	return &reportarOut{Body: reportarBody{Reportes: n}}, nil
+}
+
+// reportarDelStream persists a message that is still only in the room stream together with its first report;
+// the persister's later INSERT … DO NOTHING keeps the row. pgx.ErrNoRows when the stream does not have it.
+func (s *Svc) reportarDelStream(ctx context.Context, cid uuid.UUID, dia, id string) (int, error) {
+	if dia == "" {
+		dia = hoy()
+	}
+	ms, err := s.a.Redis.XRange(ctx, s.streamDe(cid.String(), dia), id, id).Result()
+	if err != nil || len(ms) == 0 {
+		return 0, pgx.ErrNoRows
+	}
+	var it item
+	raw, _ := ms[0].Values["d"].(string)
+	if json.Unmarshal([]byte(raw), &it) != nil || it.T != "msg" {
+		return 0, pgx.ErrNoRows
+	}
+	var n int
+	err = s.a.DB.QueryRow(ctx, `INSERT INTO mensajes (id, competition_id, dia, fan_id, alias, tipo, texto, created_at, reportes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8/1000.0), 1)
+		ON CONFLICT (competition_id, dia, id) DO UPDATE SET reportes = mensajes.reportes + 1 RETURNING reportes`,
+		id, cid, dia, it.FanID, it.Alias, it.T, it.Texto, tsDeID(id)).Scan(&n)
+	return n, err
 }
 
 type estadoIn struct {

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -71,20 +72,38 @@ func UserAgentFrom(ctx context.Context) string { s, _ := ctx.Value(agentKey).(st
 // RequestLineFrom returns «METHOD /path» of the request (path redacted like the access log).
 func RequestLineFrom(ctx context.Context) string { s, _ := ctx.Value(requestKey).(string); return s }
 
+// TrustCFHeader enables CF-Connecting-IP (only when the edge really is a Cloudflare proxy; env TRUST_CF_CONNECTING_IP).
+var TrustCFHeader = os.Getenv("TRUST_CF_CONNECTING_IP") == "true"
+
+// trusted reports a proxy hop of our own network (host nginx, pods, loopback). Tailnet/CGNAT clients are not trusted.
+func trusted(s string) bool {
+	ip := net.ParseIP(strings.TrimSpace(s))
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate())
+}
+
+// clientIP only believes forwarding headers that arrive through a trusted proxy: from any other peer the
+// socket address wins. X-Forwarded-For is read right to left, skipping our own hops, so a client-written
+// first hop is never taken (nginx overwrites it anyway).
 func clientIP(r *http.Request) string {
-	// behind the Cloudflare tunnel the first X-Forwarded-For hop is the tunnel, not the visitor
-	if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" {
-		return cf
-	}
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	if xr := r.Header.Get("X-Real-Ip"); xr != "" {
-		return xr
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if !trusted(host) {
+		return host
+	}
+	if TrustCFHeader {
+		if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); net.ParseIP(cf) != nil {
+			return cf
+		}
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		hops := strings.Split(xff, ",")
+		for i := len(hops) - 1; i >= 0; i-- {
+			if h := strings.TrimSpace(hops[i]); net.ParseIP(h) != nil && (!trusted(h) || i == 0) {
+				return h
+			}
+		}
 	}
 	return host
 }

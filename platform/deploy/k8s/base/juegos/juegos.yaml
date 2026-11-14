@@ -81,7 +81,7 @@ spec:
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
           resources:
-            requests: { cpu: 30m, memory: 64Mi }
+            requests: { cpu: 150m, memory: 64Mi } # ST1 QA r1: up to 336m per pod at 80 bets/s
             limits: { cpu: 500m, memory: 256Mi }
 ---
 apiVersion: v1
@@ -101,7 +101,7 @@ metadata:
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: juegos }
   minReplicas: 2
-  maxReplicas: 4
+  maxReplicas: 6
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }

@@ -7,6 +7,15 @@ resources:
   - ../../base
 # Fixed ClusterIPs that the host nginx proxies to (no NodePorts: kraken has no firewall).
 patches:
+  # ST1-R1-2: authorised load tests send X-GrCup-Carga: <LOADTEST_SECRET> and skip the per-IP bucket (QA only;
+  # create it with: kubectl -n grcup-qa create secret generic grcup-carga --from-literal=LOADTEST_SECRET=$(openssl rand -hex 32)).
+  - target: { kind: Deployment, name: gateway }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: LOADTEST_SECRET
+          valueFrom: { secretKeyRef: { name: grcup-carga, key: LOADTEST_SECRET, optional: true } }
   - target: { kind: Service, name: gateway }
     patch: |-
       - op: add
