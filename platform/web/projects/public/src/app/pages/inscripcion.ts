@@ -26,10 +26,10 @@ export const eur = (c?: number) => ((c ?? 0) / 100).toLocaleString('es-ES', { st
 const fechaLarga = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '');
 /** «35 €», «26,25 €» (Figma: whole euros without decimals in the event strip). */
 const eurCorto = (c?: number) => ((c ?? 0) / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: (c ?? 0) % 100 ? 2 : 0 });
-/** «M 83» → «M −83 kg»; «F 84+» → «F +84 kg». */
+/** «M 83» → «Hombre · −83 kg»; «F 84+» → «Mujer · +84 kg» (UX2-R1-13). */
 const catTexto = (c: string) => {
   const [sexo, k] = c.split(' ');
-  return k ? `${sexo} ${cat(k)} kg` : c;
+  return k ? `${{ F: 'Mujer', M: 'Hombre' }[sexo] ?? sexo} · ${cat(k)} kg` : c;
 };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Same rule as the server (athletes.NormLicencia + licenciaValida). */
@@ -577,6 +577,9 @@ export class InscripcionPage {
               <h2 class="text-label-m">Invita y recupera parte de tu cuota</h2>
               <p class="text-body-s text-text-tertiary">{{ e.invitaTexto || 'Tus amigos tienen descuento con tu código y te devolvemos una parte de lo que pagaste por cada uno.' }}</p>
               <div class="flex h-12 items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field pl-3.5"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 truncate text-mono-s">{{ e.codigoReferido }}</span><button type="button" class="h-full px-3.5 text-label-s text-accent-text hover:underline" (click)="copiar(e.codigoReferido!)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
+              <!-- UX2-R1-13: hoja de compartir nativa (si no hay, copia el enlace) -->
+              <button grButton variant="primary" size="l" type="button" [block]="true" (click)="compartir(e.codigoReferido!)"><gr-icon name="share" [size]="18" />Compartir mi código</button>
+              <p class="sr-only" aria-live="polite">{{ copiado() ? 'Enlace copiado' : '' }}</p>
             </section>
           }
           <a grButton variant="outline" size="l" [block]="true" routerLink="/area-atleta">Ir a mi área de atleta</a>
@@ -671,6 +674,15 @@ export class InscripcionEstadoPage {
     clearTimeout(this.timer);
     this.esperando.set(false);
     void this.poll?.();
+  }
+
+  protected async compartir(code: string): Promise<void> {
+    const url = `${location.origin}/inscripcion?ref=${code}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'GR Strength Cup', text: 'Inscríbete con mi código y tienes descuento', url }); } catch { /* cancelado */ }
+      return;
+    }
+    await this.copiar(code);
   }
 
   protected async copiar(code: string): Promise<void> {
