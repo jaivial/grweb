@@ -1,12 +1,10 @@
-import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrToasts, type GrTone } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrIconButton, GrKpi, GrToasts, type GrTone } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, Confirm, errText } from '../../../shared/ui';
-import { SoCard, SoFecha, SoPuesto, SoSkelFilas, SoSkelKpis, compacto, diaCorto, num } from '../ui';
+import { SoCard, SoPuesto, SoSkelFilas, SoSkelKpis, compacto, diaCorto, num } from '../ui';
 import { JuegosApi, type Clasificaciones, type EstadoJornada, type Jornada, type Mercado } from './api';
 
 const ESTADOS: Record<EstadoJornada, { l: string; tone: GrTone }> = {
@@ -32,9 +30,8 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
  */
 @Component({
   selector: 'bo-juegos',
-  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, SoCard, SoFecha, SoPuesto, SoSkelFilas, SoSkelKpis],
+  imports: [RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrIconButton, GrKpi, SoCard, SoPuesto, SoSkelFilas, SoSkelKpis],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown.escape)': 'nuevaJornada.set(false)' },
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
       <bo-page-header [title]="titulo()" [badge]="badge()" [badgeTone]="badgeTone()"
@@ -75,10 +72,10 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
           <!-- ===== Jornadas ===== -->
           <so-card titulo="Jornadas" [ayuda]="jornadas().length + ' jornadas · ' + (comps.current()?.nombreCorto ?? '')" class="self-start">
-            <button cardActions grButton size="s" icon="plus" [disabled]="!puede()" (click)="nuevaJornada.set(true)">Nueva</button>
+            <a cardActions [routerLink]="['/', comps.current()?.slug, 'horarios']" class="inline-flex items-center gap-1 text-label-s text-accent-text hover:underline">Fechas en Horarios <gr-icon name="arrow-right" [size]="14" /></a>
             @if (!jornadas().length) {
-              <gr-empty icon="calendar" title="No hay jornadas" text="Crea la primera jornada para abrir la porra y el fantasy.">
-                <button grButton variant="primary" icon="plus" [disabled]="!puede()" (click)="nuevaJornada.set(true)">Nueva jornada</button>
+              <gr-empty icon="calendar" title="No hay jornadas" text="Cada fecha de Horarios crea su jornada (mismas reglas de porra y fantasy). Añade las fechas en Horarios.">
+                <a grButton variant="primary" icon="calendar" [routerLink]="['/', comps.current()?.slug, 'horarios']">Ir a Horarios</a>
               </gr-empty>
             } @else {
               <ul class="flex flex-col gap-2">
@@ -195,30 +192,6 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
       }
     </div>
 
-    <!-- ===== Nueva jornada ===== -->
-    @if (nuevaJornada()) {
-      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="nuevaJornada.set(false)">
-        <form class="w-full max-w-md rounded-t-xl border border-line-strong bg-bg-card shadow-card sm:rounded-lg" role="dialog" aria-modal="true" aria-labelledby="nj-titulo"
-          cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()" (ngSubmit)="crearJornada()">
-          <header class="flex items-center gap-3 border-b border-line-subtle px-5 py-4">
-            <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent-deep/50 text-accent-text"><gr-icon name="calendar-plus" [size]="20" /></span>
-            <div class="min-w-0 flex-1">
-              <h2 id="nj-titulo" class="text-ui-h5">Nueva jornada</h2>
-              <p class="text-body-xs text-text-tertiary">Porra, fantasy, chat y banners se separan por jornada (§2)</p>
-            </div>
-            <button type="button" grIconButton icon="x" label="Cerrar" (click)="nuevaJornada.set(false)"></button>
-          </header>
-          <div class="grid grid-cols-1 gap-4 px-5 py-5 sm:grid-cols-2">
-            <gr-field label="Nombre"><input grInput name="nombre" [(ngModel)]="nombreJornada" maxlength="40" placeholder="AEP-3" required /></gr-field>
-            <gr-field label="Día"><so-fecha label="Día de la jornada" formato="num" [bloque]="true" [value]="diaJornada" (changed)="diaJornada = $event" /></gr-field>
-          </div>
-          <footer class="flex justify-end gap-2 border-t border-line-subtle px-5 py-4">
-            <button type="button" grButton variant="ghost" (click)="nuevaJornada.set(false)">Cancelar</button>
-            <button type="submit" grButton variant="primary" [loading]="ocupado()" [disabled]="!nombreJornada.trim() || !diaJornada">Crear jornada</button>
-          </footer>
-        </form>
-      </div>
-    }
   `,
 })
 export class JuegosPage {
@@ -235,9 +208,6 @@ export class JuegosPage {
   protected readonly cargando = signal(true);
   protected readonly ocupado = signal(false);
   protected readonly error = signal('');
-  protected readonly nuevaJornada = signal(false);
-  protected nombreJornada = '';
-  protected diaJornada = new Date().toISOString().slice(0, 10);
 
   protected readonly est = (e: EstadoJornada) => ESTADOS[e];
   protected readonly mer = (m: Mercado) => MERCADO[m.estado];
@@ -477,24 +447,6 @@ export class JuegosPage {
       await this.cargarJornada(j.id);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo sincronizar.'));
-    } finally {
-      this.ocupado.set(false);
-    }
-  }
-
-  protected async crearJornada(): Promise<void> {
-    const cid = this.cid();
-    if (!cid || !this.nombreJornada.trim() || !this.diaJornada) return;
-    this.ocupado.set(true);
-    try {
-      const r = await this.api.crearJornada(cid, this.diaJornada, this.nombreJornada.trim());
-      this.nuevaJornada.set(false);
-      this.nombreJornada = '';
-      this.toasts.success('Jornada creada');
-      this.seleccionada.set(r.id);
-      await this.cargar();
-    } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo crear la jornada.'));
     } finally {
       this.ocupado.set(false);
     }

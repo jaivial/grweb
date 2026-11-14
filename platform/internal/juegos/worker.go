@@ -22,6 +22,7 @@ import (
 var tiposWorker = []string{
 	"chat.hito", "donacion.confirmada", "donacion.reembolsada",
 	"directo.intento", "directo.veredicto", "directo.correccion", "resultados.publicados",
+	"horarios.generados", "horarios.publicados", "horarios.dias",
 }
 
 // comandoWorker runs the consumer loop; no public API, only health probes on HTTP_ADDR.
@@ -74,6 +75,8 @@ func (s *Svc) manejarEvento(sucias *sucias) events.Handler {
 			return s.recompensaDonacion(ctx, cid, e.Data)
 		case "donacion.reembolsada":
 			return s.reembolsoDonacion(ctx, cid, e.Data)
+		case "horarios.generados", "horarios.publicados", "horarios.dias":
+			return s.reconciliarJornadas(ctx, cid) // a new or removed date: its jornada follows at once
 		default: // directo.intento | directo.veredicto | directo.correccion | resultados.publicados
 			sucias.marcar(cid)
 			return nil
@@ -198,6 +201,7 @@ func (s *Svc) reconciler(ctx context.Context) {
 			return
 		case <-t.C:
 		}
+		s.reconciliarTodas(ctx) // jornadas = schedule dates (also covers missed horarios.* events)
 		rows, err := s.a.DB.Query(ctx, selJornada+` FROM jornadas
 			WHERE estado IN ('abierta','en_juego') AND dia = (now() AT TIME ZONE 'Europe/Madrid')::date`)
 		if err != nil {
