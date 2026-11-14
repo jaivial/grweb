@@ -32,7 +32,7 @@ const variants: Record<GrButtonVariant, string> = {
 /* Heights: S 32 · M 40 (44 on touch/mobile, Figma v7 «Button M 44») · L 48; padding X S 12 · M 20 · L 24. */
 const sizes: Record<GrButtonSize, string> = {
   s: 'h-8 px-3 text-label-s',
-  m: 'h-11 px-5 text-label-s md:h-10',
+  m: 'h-11 px-5 text-label-s md:pointer-fine:h-10',
   l: 'h-12 px-6 text-label-m',
 };
 
@@ -137,7 +137,7 @@ export class GrIconButton {
           'relative inline-flex shrink-0 items-center justify-center rounded-sm transition-[background,box-shadow,color] duration-150',
           'focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgb(196_43_62/0.6)] disabled:pointer-events-none disabled:opacity-40',
           iconKinds[this.kind()],
-          this.size() === 'l' ? 'size-12' : this.size() === 'm' ? 'size-11' : 'size-11 md:size-10',
+          this.size() === 'l' ? 'size-12' : this.size() === 'm' ? 'size-11' : 'size-11 md:pointer-fine:size-10',
         ].join(' '),
   );
 }

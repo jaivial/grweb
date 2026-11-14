@@ -102,12 +102,12 @@ const UI = {
               </button>
             } @else {
               <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
-              <a [routerLink]="ruta(l.href)" [fragment]="frag(l.href)" class="group inline-flex flex-col items-center gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
+              <a [routerLink]="ruta(l.href)" [fragment]="frag(l.href)" class="group inline-flex flex-col items-center justify-end gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
       </ul>
-      <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
+      <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm pointer-coarse:h-11 border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
       <a grButton variant="primary" routerLink="/entradas" class="relative ml-auto max-[359px]:hidden @max-[18rem]:hidden md:ml-0" [class.max-md:hidden]="barraCta.visible()">{{ ui().cta }}</a>
       <span class="ml-auto md:hidden min-[360px]:hidden" aria-hidden="true"></span>
       @if (barraCta.visible()) { <span class="ml-auto md:hidden min-[360px]:inline" aria-hidden="true"></span> }
@@ -327,7 +327,7 @@ export class Overlays {
           <!-- Tablet/desktop: open column. Mobile: accordion. -->
           <nav class="hidden md:block" [attr.aria-label]="col.titulo">
             <p class="text-label-xs text-text-muted">{{ col.titulo }}</p>
-            <ul class="mt-4 flex flex-col md:gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="flex min-h-11 items-center hover:text-text-primary md:min-h-0">{{ l.label }}</a></li> }</ul>
+            <ul class="mt-4 flex flex-col md:pointer-fine:gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="flex min-h-11 items-center hover:text-text-primary md:pointer-fine:min-h-0">{{ l.label }}</a></li> }</ul>
           </nav>
           <details class="group border-b border-line-subtle md:hidden">
             <summary class="flex h-15 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform group-open:rotate-180" /></summary>
@@ -354,7 +354,7 @@ export class Overlays {
       <!-- Figma «Bottom CTA bar / Entrada» (mobile, also over the end of the footer: room below it) and «Back to top» -->
       <div class="h-20 md:hidden" aria-hidden="true"></div>
       <!-- UX1-R1-3: compact (~72 px) and out of the way while an inline «Reserva tu entrada» CTA is on screen -->
-      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] transition-[opacity,translate] duration-200 md:hidden" [class.translate-y-full]="ctaEnVista()" [class.opacity-0]="ctaEnVista()" [attr.inert]="ctaEnVista() || null">
+      <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] transition-[opacity,translate] duration-200 md:hidden [@media(max-height:500px)]:hidden" [class.translate-y-full]="ctaEnVista()" [class.opacity-0]="ctaEnVista()" [attr.inert]="ctaEnVista() || null">
         <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Reserva en 1 minuto · aforo limitado</span></span>
         <a routerLink="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
@@ -390,9 +390,9 @@ export class Footer {
   protected readonly fab = signal(false);
   private readonly barraCta = inject(BarraCta);
   private readonly url = signal('');
-  /** Mobile CTA bar (Figma Mobile, every public page): on the home only once the trophy intro is over; not on flows with their own bottom action. */
+  /** Mobile CTA bar (Figma Mobile, every public page; UX7-R1-7: not on the event-day lookup pages): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
-    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en|en-directo|porra|fantasy)(\/|$|\?)/.test(this.url()));
+    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en|en-directo|porra|fantasy|horarios|atletas|resultados)(\/|$|\?)/.test(this.url()));
   protected readonly tabsPorra = computed(() => /^\/porra(\/|$)/.test(this.seo.path()));
   protected readonly columnas = [
     { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },

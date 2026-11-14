@@ -17,7 +17,7 @@ let fieldSeq = 0;
       'focus:outline-none disabled:opacity-50',
     // Fixed height for inputs and selects; textareas grow with their rows.
     '[class.h-11]': '!area && grSize() === "m"',
-    '[class.md:h-10]': '!area && grSize() === "m"',
+    '[class.md:pointer-fine:h-10]': '!area && grSize() === "m"',
     '[class.h-12]': '!area && grSize() === "l"',
     '[class.text-body-s]': 'grSize() === "m"',
     // iOS zooms on focus below 16 px (UX3-R1-2)

@@ -155,11 +155,11 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-50 ';
     const borde = this.invalido() ? 'border-accent-text ' : this.abierto() ? 'border-accent-text ' : '';
     if (this.tipo() === 'filtro') {
-      const alto = this.tam() === 'l' ? 'h-11 ' : 'h-11 md:h-10 ';
+      const alto = this.tam() === 'l' ? 'h-11 ' : 'h-11 md:pointer-fine:h-10 ';
       return base + alto + 'px-3.5 text-label-s ' + (borde || (this.activa() ? 'border-accent ' : 'border-line-strong hover:border-text-muted ')) +
         (this.activa() ? 'bg-accent/10 text-text-primary' : 'bg-bg-field text-text-secondary');
     }
-    const alto = this.tam() === 'l' ? 'h-12 px-3.5 text-body-m ' : 'h-11 px-3 text-body-s md:h-10 ';
+    const alto = this.tam() === 'l' ? 'h-12 px-3.5 text-body-m ' : 'h-11 px-3 text-body-s md:pointer-fine:h-10 ';
     return base + alto + 'bg-bg-field text-text-primary focus-visible:border-accent-text ' + (borde || 'border-line-strong hover:border-text-muted');
   });
 
