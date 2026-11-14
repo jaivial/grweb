@@ -417,15 +417,21 @@ export class MarketCard {
   imports: [RouterLink, FormsModule, GrButton, GrIcon, GrSelect, AvisoJuegos],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents', '(document:keydown.escape)': 'cerrar.emit()' },
+  // UX5-R1-3: entrada como sheet iOS (300 ms) con fundido del velo; sin movimiento con reduced motion
+  styles: `.gr-velo{animation:gr-velo .2s ease-out both}@keyframes gr-velo{from{opacity:0}}@media (max-width:767px){.gr-sheet{animation:gr-hoja .3s cubic-bezier(.32,.72,0,1) backwards}}@media (prefers-reduced-motion:reduce){.gr-sheet{animation:gr-velo .15s ease-out backwards}}`,
   template: `
     <div class="fixed inset-0 z-50 flex items-end justify-center md:items-center md:justify-end md:p-6" role="dialog" aria-modal="true" aria-labelledby="boleto-titulo">
-      <button type="button" class="absolute inset-0 bg-black/70 backdrop-blur-[2px]" aria-label="Cerrar el boleto" (click)="cerrar.emit()"></button>
-      <div class="relative flex max-h-[94dvh] w-full flex-col overflow-y-auto rounded-t-2xl border border-line-strong bg-bg-raised shadow-card md:max-h-[calc(100dvh-48px)] md:max-w-[420px] md:rounded-2xl">
-        <span class="mx-auto mt-2 block h-1 w-11 shrink-0 rounded-pill bg-line-strong md:hidden" aria-hidden="true"></span>
+      <button type="button" class="gr-velo absolute inset-0 bg-black/70 backdrop-blur-[2px]" aria-label="Cerrar el boleto" (click)="cerrar.emit()"></button>
+      <div class="gr-sheet relative flex max-h-[94dvh] w-full flex-col overflow-y-auto rounded-t-2xl border border-line-strong bg-bg-raised shadow-card md:max-h-[calc(100dvh-48px)] md:max-w-[420px] md:rounded-2xl"
+        [style.transform]="arrastre() ? 'translateY(' + arrastre() + 'px)' : null" [class.transition-transform]="!arrastrando()" [class.duration-200]="!arrastrando()">
+        <!-- asa + cabecera: arrastrar hacia abajo cierra (umbral 30 % del alto o gesto rápido) -->
+        <div class="touch-none md:touch-auto" (pointerdown)="tomar($event)" (pointermove)="mover($event)" (pointerup)="soltar($event)" (pointercancel)="soltar($event)">
+        <span class="flex h-5 items-center justify-center md:hidden" aria-hidden="true"><span class="block h-1 w-11 rounded-pill bg-line-strong"></span></span>
         <header class="flex items-center justify-between gap-3 border-b border-accent/60 bg-accent-deep/55 px-5 py-3.5 md:py-4">
           <h2 id="boleto-titulo" class="text-display-xs">Boleto de apuesta</h2>
           <button type="button" class="-m-2 flex size-11 items-center justify-center rounded-sm text-text-secondary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="20" /></button>
         </header>
+        </div>
         <div class="flex flex-col gap-4 p-5">
           <div class="flex flex-col gap-1">
             <p class="text-mono-xs text-text-tertiary">Mercado {{ jornada() }}</p>
@@ -437,7 +443,7 @@ export class MarketCard {
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-label-s">{{ e.nombre }}</span>
                 <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
-                @if (opciones().length > 1 && !exito()) { <button type="button" class="text-body-xs text-info underline-offset-4 hover:underline" (click)="elegir.emit('')">Cambiar de atleta</button> }
+                @if (opciones().length > 1) { <button type="button" class="-my-3 inline-flex min-h-11 items-center pr-4 text-body-xs text-info underline-offset-4 hover:underline" [class.invisible]="exito()" [attr.tabindex]="exito() ? -1 : null" (click)="elegir.emit('')">Cambiar de atleta</button> }
               </span>
               <span class="shrink-0 font-mono text-[20px] font-bold tabular-nums" [class]="cuotaSel() > 0 ? 'text-accent-text' : 'text-text-muted'">{{ cuotaTxt() }}</span>
             </p>
@@ -513,6 +519,29 @@ export class BoletoApuesta {
   readonly confirmar = output<{ atletaId: string; importe: number }>();
   /** El usuario ha elegido otro atleta del mercado. */
   readonly elegir = output<string>();
+
+  /** Arrastre del sheet (px hacia abajo) para cerrarlo con el gesto. */
+  protected readonly arrastre = signal(0);
+  protected readonly arrastrando = signal(false);
+  private inicio = { y: 0, t: 0 };
+  protected tomar(e: PointerEvent): void {
+    if (window.matchMedia('(min-width: 768px)').matches || (e.target as HTMLElement).closest('button')) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    this.inicio = { y: e.clientY, t: e.timeStamp };
+    this.arrastrando.set(true);
+  }
+  protected mover(e: PointerEvent): void {
+    if (this.arrastrando()) this.arrastre.set(Math.max(0, e.clientY - this.inicio.y));
+  }
+  protected soltar(e: PointerEvent): void {
+    if (!this.arrastrando()) return;
+    this.arrastrando.set(false);
+    const dy = this.arrastre();
+    const alto = (e.currentTarget as HTMLElement).parentElement?.offsetHeight ?? 1;
+    const rapido = dy > 20 && dy / Math.max(1, e.timeStamp - this.inicio.t) > 0.5;
+    this.arrastre.set(0);
+    if (dy > alto * 0.3 || rapido) this.cerrar.emit();
+  }
 
   protected readonly importe = signal(5000);
   protected readonly texto = signal('5.000');
