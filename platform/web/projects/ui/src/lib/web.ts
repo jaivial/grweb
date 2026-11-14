@@ -99,7 +99,8 @@ export class GrStepNumber {}
   template: `
     <label class="flex cursor-pointer gap-3 text-body-s text-text-primary has-disabled:cursor-not-allowed has-disabled:opacity-40"
       [class]="kind() === 'instagram' ? 'items-center rounded-sm border border-line-strong bg-bg-field p-3' : 'items-start'">
-      <span class="relative flex size-5 shrink-0 items-center justify-center" [class.mt-0.5]="kind() === 'legal'">
+      <!-- UX1-R1-8: 44×44 hit area around the 20 px box (the whole label is clickable too) -->
+      <span class="relative flex size-5 shrink-0 items-center justify-center before:absolute before:-inset-3 before:content-['']" [class.mt-0.5]="kind() === 'legal'">
         <input type="checkbox" class="peer size-5 appearance-none rounded-2xs border bg-bg-base transition-colors checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text"
           [class]="invalid() ? 'border-accent' : 'border-line-strong'" [checked]="checked()" [disabled]="disabled()" [attr.name]="name()" [attr.aria-invalid]="invalid() || null"
           (change)="checked.set($any($event.target).checked)" />
