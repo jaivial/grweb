@@ -74,7 +74,9 @@ func (m *msg) adminFrame() []byte {
 // per bet × N spectators saturated the pods; the client only needs the latest pot/odds of each market).
 // ST2-R4-1/R4-2: 100 ms meant ~80 events/s per client with many open markets (12 000/s at 150 SSE) and the
 // gateways ran out of memory; 250 ms cuts the fan-out 2.5× and still keeps delivery well under 1 s.
-const coalesceEvery = 250 * time.Millisecond
+// ST2-R8-2: at 500 spectators the per-client volume (~15 events/s) still outran slow readers and their backlog
+// grew to seconds; 400 ms cuts the odds fan-out another 1.6× and adds at most 150 ms to a single delivery.
+const coalesceEvery = 400 * time.Millisecond
 
 // hub fans the stream out to the connected clients of this pod in batches, one every coalesceEvery. Live odds
 // (porra.mercado of an open market) are coalesced per market (latest wins); every other event is queued as is.
