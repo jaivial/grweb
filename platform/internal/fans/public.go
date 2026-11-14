@@ -46,7 +46,7 @@ type Yo struct {
 	Insignia string    `json:"insignia,omitempty" doc:"«Atleta» o vacío (público)"`
 	Email    string    `json:"email" doc:"Email de la propia sesión (rellena formularios)"`
 	// Next is only set by the redemption of a magic link that was asked for with a destination.
-	Next     string    `json:"next,omitempty" doc:"Ruta interna a la que volver tras entrar (p. ej. /fantasy/unirse/CODIGO)"`
+	Next string `json:"next,omitempty" doc:"Ruta interna a la que volver tras entrar (p. ej. /fantasy/unirse/CODIGO)"`
 	// RequiereContrasena is only set by a redemption: the web asks for the password (PUT /fans/yo/contrasena).
 	RequiereContrasena bool `json:"requiereContrasena,omitempty" doc:"Tras canjear: falta fijar la contraseña"`
 }
