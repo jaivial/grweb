@@ -103,7 +103,7 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 	}
 	apostado := map[botesKey]int64{}
 	nApuestas := map[botesKey]int{}
-	rows, err = s.a.DB.Query(ctx, `SELECT mercado_id, atleta_id, sum(importe), count(*) FROM apuestas WHERE jornada_id = $1 GROUP BY mercado_id, atleta_id`, j.ID)
+	rows, err = s.a.DB.Query(ctx, `SELECT mercado_id, atleta_id, apostado, n FROM botes WHERE jornada_id = $1`, j.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +435,7 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 
 // encolarCuotasTx enqueues porra.mercado with the current pot and odds of an open market.
 func encolarCuotasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, m mercadoRow) error {
-	rows, err := tx.Query(ctx, `SELECT atleta_id, sum(importe) FROM apuestas WHERE mercado_id = $1 GROUP BY atleta_id`, m.ID)
+	rows, err := tx.Query(ctx, `SELECT atleta_id, apostado FROM botes WHERE mercado_id = $1`, m.ID)
 	if err != nil {
 		return err
 	}
