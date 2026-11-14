@@ -180,6 +180,10 @@ export class JuegosNav {
       </span>
       <span class="font-mono text-[1rem] font-bold tabular-nums">{{ monedas(valor()) }}</span>
       <span class="text-mono-xs text-text-secondary">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
+    } @else if (!fan.cargada()) {
+      <!-- UX5-R1-6: sesión sin resolver (SSR / primera carga): esqueleto del saldo, nunca «Entrar» -->
+      <span class="size-8 shrink-0 animate-pulse rounded-full bg-bg-field motion-reduce:animate-none" aria-hidden="true"></span>
+      <span class="h-4 w-[5.5rem] animate-pulse rounded-xs bg-bg-field motion-reduce:animate-none" aria-hidden="true"></span><span class="sr-only">Cargando saldo</span>
     } @else {
       <button type="button" class="-my-1 -mr-3.5 -ml-1 flex h-10 items-center gap-2 rounded-pill pr-4 pl-1 text-label-s text-accent-text" (click)="entrar()">
         <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><gr-icon name="user-plus" [size]="15" /></span>Entrar para jugar
