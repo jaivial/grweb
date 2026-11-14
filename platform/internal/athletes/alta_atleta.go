@@ -80,7 +80,7 @@ var legalDeCasilla = map[string]string{
 // the hash proves the exact words the athlete ticked. Changing the text means a new version.
 const versionNovedades = "alta-novedades-2026-11"
 
-const textoNovedades = "Quiero recibir novedades de la GR Cup por email. Puedo darme de baja en 1 clic desde cualquier email."
+const textoNovedades = "Quiero recibir novedades de la GRS Cup por email. Puedo darme de baja en 1 clic desde cualquier email."
 
 var hashNovedades = func() string {
 	h := sha256.Sum256([]byte(textoNovedades))
