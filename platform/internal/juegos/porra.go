@@ -250,6 +250,9 @@ func cerrarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, 
 		if mc.Estado != "abierto" || !cerrarMercado(m, mc) {
 			continue
 		}
+		if _, err := tx.Exec(ctx, `SELECT 1 FROM mercados WHERE id = $1 FOR UPDATE`, mc.ID); err != nil { // ST2-R1-8
+			return err
+		}
 		if _, err := tx.Exec(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = clock_timestamp(), version = version + 1, updated_at = now() WHERE id = $1 AND estado = 'abierto'`, mc.ID); err != nil {
 			return err
 		}
@@ -262,9 +265,43 @@ func cerrarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, 
 	return nil
 }
 
+// cerrarMercadosJornadaTx closes every open market of a jornada being closed (ST2-R1-5: no open market in a
+// closed jornada). The caller holds the jornada FOR UPDATE, so no bet is in flight.
+func cerrarMercadosJornadaTx(ctx context.Context, tx pgx.Tx, cid, jid uuid.UUID) error {
+	rows, err := tx.Query(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = clock_timestamp(), version = version + 1, updated_at = now()
+		WHERE jornada_id = $1 AND estado = 'abierto' RETURNING id`, jid)
+	if err != nil {
+		return err
+	}
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := events.Enqueue(ctx, tx, events.New(ctx, "porra.mercado", map[string]any{"mercadoId": id.String(), "estado": "cerrado"},
+			events.Competition(cid.String()), events.Audience(events.Public))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // cerrarMercadoATx closes a market by hand (staff), whatever the scoreboard says: no more bets. Only an open market
 // can be closed (409 otherwise).
 func cerrarMercadoATx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, mc mercadoRow) error {
+	// ST2-R1-8: wait for the bets holding the market FOR SHARE before taking the clock: cerrado_en > their created_at
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM mercados WHERE id = $1 FOR UPDATE`, mc.ID); err != nil {
+		return err
+	}
 	tag, err := tx.Exec(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = clock_timestamp(), version = version + 1, updated_at = now() WHERE id = $1 AND estado = 'abierto'`, mc.ID)
 	if err != nil {
 		return err
@@ -333,8 +370,14 @@ func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 // The market row is read FOR SHARE: the bet and the close/liquidation of the market are serialized (a bet can
 // never slip into a market that is being closed or settled, contract §6.2).
 func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, mercadoID, atletaID uuid.UUID, importe int64) (uuid.UUID, error) {
+	// ST2-R1-5: the jornada is re-read FOR SHARE inside the transaction (it was read before it): its close
+	// (PATCH, FOR UPDATE) waits for the bets in flight and no bet gets in after it.
+	j, err := scanJornada(tx.QueryRow(ctx, selJornada+` FROM jornadas WHERE id = $1 FOR SHARE`, j.ID))
+	if err != nil {
+		return uuid.Nil, err
+	}
 	var m mercadoRow
-	err := tx.QueryRow(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND jornada_id = $2 FOR SHARE`, mercadoID, j.ID).
+	err = tx.QueryRow(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND jornada_id = $2 FOR SHARE`, mercadoID, j.ID).
 		Scan(&m.ID, &m.Tipo, &m.Sexo, &m.Categoria, &m.Movimiento, &m.Estado, &m.Opciones)
 	if db.IsNoRows(err) {
 		return uuid.Nil, problem.NotFound("Ese mercado no existe.")
@@ -363,6 +406,20 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	}
 	if !valido {
 		return uuid.Nil, problem.Unprocessable("ATLETA_NO_EN_MERCADO", "Ese atleta no participa en este mercado.")
+	}
+	// ST2-R1-4: double tap. The fan's bets are serialized and the same bet repeated within 3 s is the same bet:
+	// it answers the first one (idempotent 200), with no second charge.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "apuesta-fan:"+j.ID.String()+":"+fanID.String()); err != nil {
+		return uuid.Nil, err
+	}
+	var previa uuid.UUID
+	err = tx.QueryRow(ctx, `SELECT id FROM apuestas WHERE jornada_id = $1 AND fan_id = $2 AND created_at > clock_timestamp() - interval '3 seconds'
+		AND mercado_id = $3 AND atleta_id = $4 AND importe = $5 ORDER BY created_at DESC LIMIT 1`, j.ID, fanID, mercadoID, atletaID, importe).Scan(&previa)
+	if err == nil {
+		return previa, nil
+	}
+	if !db.IsNoRows(err) {
+		return uuid.Nil, err
 	}
 	aid := newID()
 	if err := gastarTx(ctx, tx, j, fanID, Porra, importe, "apuesta", "apuesta:"+aid.String(), alias); err != nil {
