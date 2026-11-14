@@ -5,6 +5,7 @@ package juegos
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -234,17 +235,19 @@ func (s *Svc) registerPublic() {
 
 	// ---- porra ----
 	type mercadosOut struct {
-		ETag         string `header:"ETag"`
-		CacheControl string `header:"Cache-Control"`
-		Body struct {
-			Jornada  *jornadaOut    `json:"jornada,omitempty"`
-			Mercados []mercadoVista `json:"mercados"`
-		}
+		ETag            string `header:"ETag"`
+		CacheControl    string `header:"Cache-Control"`
+		ContentType     string `header:"Content-Type"`
+		ContentEncoding string `header:"Content-Encoding"`
+		Vary            string `header:"Vary"`
+		// Body is the pre-serialized JSON {jornada, mercados} (ST1-R4-1), gzipped when the client accepts it.
+		Body []byte
 	}
 	type mercadosIn struct {
-		Slug        string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		JornadaID   uuid.UUID `query:"jornada"`
-		IfNoneMatch string    `header:"If-None-Match" maxLength:"256"`
+		Slug           string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID      uuid.UUID `query:"jornada"`
+		IfNoneMatch    string    `header:"If-None-Match" maxLength:"256"`
+		AcceptEncoding string    `header:"Accept-Encoding" maxLength:"256"`
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-porra-mercados", Method: http.MethodGet, Path: base + "/porra/mercados",
 		Summary: "Mercados de la porra con bote y cuotas en vivo", Tags: tagJuegos},
@@ -257,16 +260,17 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			ms, etag, err := s.mercadosVistaCache(ctx, c.ID, j)
+			cuerpo, gz, etag, err := s.mercadosVistaCache(ctx, c.ID, j)
 			if err != nil {
 				return nil, err
 			}
 			if etag != "" && in.IfNoneMatch == etag {
 				return nil, huma.Status304NotModified()
 			}
-			o := &mercadosOut{ETag: etag, CacheControl: "no-cache"}
-			o.Body.Jornada = ptr(j.out())
-			o.Body.Mercados = ms
+			o := &mercadosOut{ETag: etag, CacheControl: "no-cache", ContentType: "application/json", Vary: "Accept-Encoding", Body: cuerpo}
+			if strings.Contains(in.AcceptEncoding, "gzip") {
+				o.ContentEncoding, o.Body = "gzip", gz
+			}
 			return o, nil
 		})
 
