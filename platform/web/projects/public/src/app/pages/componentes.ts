@@ -229,7 +229,7 @@ class Cs {
                   <gr-cs id="cs-rifa" [w]="sets['rifa'].w" [h]="sets['rifa'].h">
                     <gr-raffle-item class="absolute w-80" [style.left.px]="sets['rifa'].v[0][1]" [style.top.px]="sets['rifa'].v[0][2]" nombre="Cinturón SBD 13 mm" descripcion="Cinturón de palanca homologado IPF, talla a elegir."
                       imagen="/img/componentes/rifa-cinturon.webp" [unidades]="1" valor="120 €" donante="SBD España" />
-                    <gr-raffle-item class="absolute w-80" [style.left.px]="sets['rifa'].v[1][1]" [style.top.px]="sets['rifa'].v[1][2]" nombre="Lote de suplementos" descripcion="Proteína, creatina y shaker. Sin foto todavía: se muestra este marcador."
+                    <gr-raffle-item class="absolute w-80" [style.left.px]="sets['rifa'].v[1][1]" [style.top.px]="sets['rifa'].v[1][2]" nombre="Lote de suplementos" descripcion="Proteína, creatina y shaker."
                       [unidades]="3" valor="60 €" donante="Nutri Sport" />
                   </gr-cs>
                   <gr-raffle-item class="w-80" nombre="Cinturón SBD 13 mm" descripcion="Cinturón de palanca homologado IPF, talla a elegir." imagen="/img/componentes/rifa-cinturon.webp" [unidades]="1" valor="120 €" donante="SBD España" ganador="0457" />

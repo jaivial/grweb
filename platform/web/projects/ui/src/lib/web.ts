@@ -222,18 +222,19 @@ export class GrCountdown {
 }
 
 /**
- * Figma «Tarjeta item rifa» (antes «Product card»): photo 200 (or the «?» placeholder), name, description, units and
+ * Figma «Tarjeta item rifa» (antes «Product card»): photo 200 (or the gift placeholder), name, description, units and
  * the optional estimated value, donor and winner (props Valor / Donante / Ganador).
  */
 @Component({
   selector: 'gr-raffle-item',
+  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex min-w-0 flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card [overflow-wrap:anywhere]' },
   template: `
     @if (imagen()) {
       <img [src]="imagen()" [alt]="nombre()" loading="lazy" class="h-[200px] w-full shrink-0 border-b border-white/8 object-cover" />
     } @else {
-      <span class="grain-acento flex h-[200px] shrink-0 items-center justify-center bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] font-display text-[72px] leading-none text-accent-text" aria-hidden="true">?</span>
+      <span class="grain-acento flex h-[200px] shrink-0 items-center justify-center bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] text-accent-text" aria-hidden="true"><gr-icon name="gift" [size]="48" /></span>
     }
     <div class="flex flex-col items-start gap-2 p-5">
       <h3 class="min-w-0 text-ui-h5 [overflow-wrap:anywhere]">{{ nombre() }}</h3>
