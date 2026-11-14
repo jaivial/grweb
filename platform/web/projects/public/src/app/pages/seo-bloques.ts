@@ -60,7 +60,7 @@ export class GrHechos {
   template: `
     <nav class="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none]" aria-label="Secciones">
       @for (s of anclas(); track s.id) {
-        <a routerLink="." [fragment]="s.id" [attr.aria-current]="activa() === s.id ? 'location' : null" [class]="'flex h-9 shrink-0 items-center rounded-full border px-4 text-label-s ' + (activa() === s.id ? 'border-accent bg-accent text-white' : 'border-line-strong text-text-secondary')">{{ s.t }}</a>
+        <a routerLink="." [fragment]="s.id" [attr.aria-current]="activa() === s.id ? 'location' : null" [class]="'flex h-11 md:h-9 shrink-0 items-center rounded-full border px-4 text-label-s ' + (activa() === s.id ? 'border-accent bg-accent text-white' : 'border-line-strong text-text-secondary')">{{ s.t }}</a>
       }
     </nav>
   `,
