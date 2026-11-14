@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon, GrRaffleItem, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi } from '../core/competition';
+import type { Horarios } from '../core/horarios';
 import { Seo } from '../core/seo';
 import { GrCinturon } from '../home/sorteo';
 import { Footer, Navbar } from '../layout/layout';
@@ -23,10 +24,12 @@ const BASE = `/api/competiciones/${COMPETITION_SLUG}/rifa`;
 const BELT = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000085.webp';
 const euros = (c: number) => (c % 100 ? (c / 100).toLocaleString('es-ES', { minimumFractionDigits: 2 }) : String(c / 100)) + ' €';
 /** «19 dic a las 21:00». */
-const diaHora = (iso: string) => {
-  const d = new Date(iso);
-  const dia = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(d).replace('.', '');
-  const hora = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(d);
+const diaHora = (iso: string, utc = true) => {
+  // schedule times are already local (Madrid): format them without shifting the zone
+  const d = utc ? new Date(iso) : new Date(iso + 'Z');
+  const tz = utc ? 'Europe/Madrid' : 'UTC';
+  const dia = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: tz }).format(d).replace('.', '');
+  const hora = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: tz }).format(d);
   return `${dia} a las ${hora}`;
 };
 
@@ -86,7 +89,7 @@ export class SorteoTitulo {
               <span class="absolute bottom-0 left-3 inline-flex h-7 items-center gap-1.5 rounded-pill border border-line-strong bg-bg-base px-3 text-label-xs text-text-secondary lg:bottom-6 lg:left-6"><gr-icon name="ticket" [size]="14" class="text-accent-text" />Boletos solo en el recinto</span>
             </div>
             <div class="relative flex w-full min-w-0 flex-col items-center gap-4 text-center [overflow-wrap:anywhere] lg:flex-1 lg:items-start lg:gap-5 lg:text-left">
-              <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>Rifa presencial{{ r.fechaSorteo ? ' · sorteo el ' + diaHora(r.fechaSorteo) : '' }}</p>
+              <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>Rifa presencial{{ cuando() ? ' · sorteo el ' + cuando() : '' }}</p>
               <h1 class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-m lg:text-display-l">Rifa solidaria GR Cup</h1>
               <p class="text-body-m text-text-tertiary lg:text-body-l">{{ r.textoInfo || 'Los boletos se compran solo en efectivo en el stand de la rifa, en el recinto, durante el evento. No hay venta online.' }} Mira los objetos que se rifan.</p>
               <div class="flex flex-col gap-2 text-[14px] leading-[1.2] text-text-secondary">
@@ -161,7 +164,16 @@ export class SorteoPage {
   protected readonly items = signal<Item[] | undefined>(undefined);
   protected readonly noPublicada = signal(false);
   protected readonly euros = euros;
-  protected readonly diaHora = diaHora;
+  /** UX8-R1-10: one source for the draw time — the published schedule (same as /entradas), else the raffle config. */
+  private readonly horarios = signal<Horarios | null>(null);
+  protected readonly cuando = computed(() => {
+    for (const d of this.horarios()?.dias ?? []) {
+      const a = d.agenda.find((x) => /sorteo/i.test(x.titulo)) ?? d.agenda.find((x) => x.icono === 'trophy');
+      if (a) return diaHora(`${a.dia || d.fecha}T${a.hora}`, false);
+    }
+    const f = this.rifa()?.fechaSorteo;
+    return f ? diaHora(f) : '';
+  });
   protected readonly belt = BELT;
   protected readonly normas = computed<{ t: string; d: string; i: GrIconName }[]>(() => {
     const r = this.rifa();
@@ -173,7 +185,7 @@ export class SorteoPage {
       { t: 'Solo en el recinto', d: `Los boletos se venden en el ${lugar}. No se venden por la web.`, i: 'infinity' },
       { t: 'Solo efectivo', d: 'Paga en efectivo al momento y guarda tu boleto de papel: es tu resguardo para reclamar el premio.', i: 'user' },
       { t: 'Horario de venta', d: r.horario ? `${r.horario}, mientras dure la competición.` : 'Mientras dure la competición.', i: 'shield' },
-      { t: 'Sorteo presencial', d: `El sorteo se hace en directo en el recinto${r.fechaSorteo ? ' el ' + diaHora(r.fechaSorteo) : ''}, tras la entrega de premios. Cada objeto se sortea por separado.`, i: 'shuffle' },
+      { t: 'Sorteo presencial', d: `El sorteo se hace en directo en el recinto${this.cuando() ? ' el ' + this.cuando() : ''}, tras la entrega de premios. Cada objeto se sortea por separado.`, i: 'shuffle' },
       { t: 'Ganadores', d: 'Publicamos aquí el boleto ganador de cada objeto. Recogida en el stand de la rifa con el boleto.', i: 'globe' },
     ];
   });
@@ -183,7 +195,10 @@ export class SorteoPage {
     const cms = inject(Cms);
     void inject(PendingTasks).run(async () => {
       try {
+        const h = firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios?resumen=true`)).catch(() => null);
         const [r, it] = await Promise.all([firstValueFrom(this.http.get<Rifa>(BASE)), firstValueFrom(this.http.get<{ items: Item[] }>(`${BASE}/items`))]);
+        const hh = await h;
+        this.horarios.set(hh?.publicado ? hh : null);
         this.rifa.set(r);
         this.items.set(it.items);
       } catch (e) {
