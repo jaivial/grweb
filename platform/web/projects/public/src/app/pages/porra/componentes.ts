@@ -125,13 +125,14 @@ export class GrSelector {
   selector: 'gr-juegos-nav',
   imports: [RouterLink, AvisoJuegos, GrSelector],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4' },
+  host: { class: 'flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4' },
   template: `
-    @if (juego() === 'fantasy') { <gr-selector class="md:hidden" etiqueta="GRS Fantasy" [opciones]="opciones()" [valor]="activa()" /> }
-    <nav class="w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [class]="juego() === 'fantasy' ? 'hidden gap-1 md:flex' : 'flex'" [attr.aria-label]="juego() === 'porra' ? 'Porra' : 'GRS Fantasy'">
+    <!-- UX6-R1-11: fantasy (6 pestañas) usa el selector hasta lg; el aviso va en su fila hasta lg -->
+    @if (juego() === 'fantasy') { <gr-selector class="lg:hidden" etiqueta="GRS Fantasy" [opciones]="opciones()" [valor]="activa()" /> }
+    <nav class="w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [class]="juego() === 'fantasy' ? 'hidden gap-1 lg:flex' : 'flex'" [attr.aria-label]="juego() === 'porra' ? 'Porra' : 'GRS Fantasy'">
       @for (t of tabs(); track t.href) {
         <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none md:pointer-coarse:h-11"
-          [class]="(juego() === 'fantasy' ? 'md:w-[120px] md:px-0 ' : 'md:px-4 ') + (t.id === activa() ? 'border border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border border-transparent text-text-tertiary hover:text-text-primary')"
+          [class]="(juego() === 'fantasy' ? 'lg:w-[120px] lg:px-0 ' : 'md:px-4 ') + (t.id === activa() ? 'border border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border border-transparent text-text-tertiary hover:text-text-primary')"
           [attr.aria-current]="t.id === activa() ? 'page' : null">
           <span class="truncate sm:hidden">{{ t.corto }}</span><span class="hidden truncate sm:inline">{{ t.label }}</span>
         </a>
