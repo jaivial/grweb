@@ -51,9 +51,11 @@ export function mapaDe(s: Sitio): string {
             <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               @for (s of b.sitios; track s.nombre) {
                 <li class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
+                  @if (s.imagen) {
                   <div class="aspect-video bg-bg-elevated">
-                    @if (s.imagen) { <img [src]="s.imagen" [alt]="s.nombre" class="size-full object-cover" loading="lazy" /> }
+                    <img [src]="s.imagen" [alt]="s.nombre" class="size-full object-cover" loading="lazy" />
                   </div>
+                  }
                   <div class="flex flex-1 flex-col gap-2 p-5">
                     <div class="flex items-center gap-2">
                       <gr-icon [name]="b.icono" [size]="18" class="shrink-0 text-accent-text" />

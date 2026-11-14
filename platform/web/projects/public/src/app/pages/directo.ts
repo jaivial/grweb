@@ -841,9 +841,9 @@ export class EdicionPage {
   /**
    * Optical weight per logo inside the common box (object-contain). Measured on the trimmed files: compact marks fill the
    * box height and look heavier, so they shrink; long wordmarks (Valkyria 5.3:1, GRStrength 8:1, Coaching 9:1) stay at 1.
-   * AEP 2.4:1 → 0.9 · A7 1.8:1 → 0.8 · CF Isabel Atlas 1.8:1 → 0.85 · Gym Mediterrani 1.2:1 → 0.75 · PHED 3.4:1 → 0.95 · Maniak 3.7:1 → 1.
+   * AEP 2.4:1 → 0.9 · A7 1.8:1 → 0.8 · CF Isabel Atlas 1.8:1 → 0.85 · Gym Mediterrani 1.2:1 → 1 (QA: 0.75 quedaba diminuto) · PHED 3.4:1 → 0.95 · Maniak 3.7:1 → 1.
    */
-  private static readonly ESCALA_LOGO: [RegExp, number][] = [[/\baep\b/i, 0.9], [/^a7\b/i, 0.8], [/isabel|\bcfi\b/i, 0.85], [/mediterrani/i, 0.75], [/phed/i, 0.95]];
+  private static readonly ESCALA_LOGO: [RegExp, number][] = [[/\baep\b/i, 0.9], [/^a7\b/i, 0.8], [/isabel|\bcfi\b/i, 0.85], [/phed/i, 0.95]];
   protected escalaLogo(p: Patrocinador): string | null {
     const e = EdicionPage.ESCALA_LOGO.find(([r]) => r.test(p.nombre))?.[1];
     return e ? `scale(${e})` : null;
