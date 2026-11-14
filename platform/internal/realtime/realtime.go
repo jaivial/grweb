@@ -124,12 +124,29 @@ func (c *sub) push(ms []*msg) {
 	}
 	if c.n > maxPendiente {
 		c.dead = true
+	} else if len(c.queue) > 2*maxPendiente {
+		c.compact() // a client blocked in Write keeps getting replaced odds: drop the holes so memory stays bounded
 	}
 	c.mu.Unlock()
 	select {
 	case c.wake <- struct{}{}:
 	default:
 	}
+}
+
+// compact removes the replaced entries and rebuilds the index (caller holds mu).
+func (c *sub) compact() {
+	q := c.queue[:0]
+	for _, m := range c.queue {
+		if m != nil {
+			if m.key != "" {
+				c.idx[m.key] = len(q)
+			}
+			q = append(q, m)
+		}
+	}
+	clear(c.queue[len(q):])
+	c.queue = q
 }
 
 // take returns what is pending (in id order) and whether the client was cut.
