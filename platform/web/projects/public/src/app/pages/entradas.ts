@@ -68,22 +68,48 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
       </div>
       <div class="relative flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
         @if (e === 'anulada') {
-          <span class="flex size-42 flex-col items-center justify-center gap-2 rounded-lg border border-line-strong text-text-muted"><gr-icon name="x" [size]="32" /><span class="text-label-s">QR desactivado</span></span>
+          <span class="flex size-42 flex-col items-center justify-center gap-2 rounded-lg border max-[430px]:size-52 border-line-strong text-text-muted"><gr-icon name="x" [size]="32" /><span class="text-label-s">QR desactivado</span></span>
         } @else if (img()) {
-          <img [src]="img()" alt="Código QR de la entrada" width="168" height="168" class="size-42 rounded-sm bg-white p-2" [class.opacity-22]="e === 'usada'" />
-        } @else { <span class="size-42 rounded-sm bg-white/10"></span> }
+          <img [src]="img()" alt="Código QR de la entrada" width="208" height="208" class="size-42 rounded-sm bg-white p-2 max-[430px]:size-52 max-[430px]:p-4" [class.opacity-22]="e === 'usada'" />
+        } @else { <span class="size-42 rounded-sm bg-white/10 max-[430px]:size-52"></span> }
         @if (e === 'usada') {
-          <span class="absolute top-[57px] flex translate-x-1 -rotate-8 flex-col items-center gap-1 rounded-md border-2 border-success px-5 py-2 text-success" aria-hidden="true">
+          <span class="absolute top-[57px] flex max-[430px]:top-[77px] translate-x-1 -rotate-8 flex-col items-center gap-1 rounded-md border-2 border-success px-5 py-2 text-success" aria-hidden="true">
             <span class="text-display-s">Validada</span>@if (validadaEn()) { <span class="text-mono-s">{{ validadaEn() }}</span> }
           </span>
         }
-        <p class="text-mono-s" [class]="e === 'anulada' ? 'text-text-muted' : 'text-text-primary'">{{ codigo() }}</p>
+        <p class="font-mono text-[17px] leading-6 font-semibold tracking-[.08em]" [class]="e === 'anulada' ? 'text-text-muted' : 'text-text-primary'">{{ codigo() }}</p>
+        @if (puertaBtn() && e === 'reservada' && img()) {
+          <button type="button" class="inline-flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:bg-white/5" (click)="abrirPuerta()"><gr-icon name="maximize" [size]="16" />Mostrar en puerta</button>
+        }
         <p class="text-body-xs text-text-tertiary">{{ e === 'usada' ? 'Validada' + (validadaEn() ? ' a las ' + validadaEn().slice(-5) : '') + ' · ¡que lo disfrutes!' : e === 'anulada' ? 'Has liberado tu plaza. ¡Gracias por avisar!' : 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)' }}</p>
       </div>
     </article>
+    @if (puerta()) {
+      <!-- UX8-R1-9: full-screen QR for the door (white, max contrast) -->
+      <div class="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-white px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-black" role="dialog" aria-modal="true" aria-label="Entrada para la puerta" (keydown.escape)="cerrarPuerta()">
+        <button #cerrarP type="button" class="absolute top-[max(12px,env(safe-area-inset-top))] right-3 flex size-11 items-center justify-center rounded-full bg-black/8" aria-label="Cerrar" (click)="cerrarPuerta()"><gr-icon name="x" [size]="22" /></button>
+        <img [src]="img()" alt="Código QR de la entrada" class="aspect-square w-[min(82vw,60vh,420px)]" />
+        <p class="font-mono text-[22px] font-semibold tracking-[.08em]">{{ codigo() }}</p>
+        <p class="text-center text-body-m text-black/60">{{ titular() }}</p>
+      </div>
+    }
   `,
 })
 export class TicketCard {
+  /** «Mostrar en puerta» button (real tickets only, not the hero example). */
+  readonly puertaBtn = input(false);
+  protected readonly puerta = signal(false);
+  private readonly cerrarP = viewChild<ElementRef<HTMLElement>>('cerrarP');
+  private volverA: HTMLElement | null = null;
+  protected abrirPuerta(): void {
+    this.volverA = document.activeElement as HTMLElement | null;
+    this.puerta.set(true);
+    setTimeout(() => this.cerrarP()?.nativeElement.focus());
+  }
+  protected cerrarPuerta(): void {
+    this.puerta.set(false);
+    this.volverA?.focus();
+  }
   readonly evento = input('GRStrength Cup 2026');
   readonly linea1 = input('');
   readonly linea2 = input('');
@@ -110,7 +136,7 @@ export class TicketCard {
     const browser = isPlatformBrowser(inject(PLATFORM_ID));
     effect(() => {
       const v = this.qr();
-      if (v && browser) void qrDataURL(v, 336).then((u) => this.img.set(u));
+      if (v && browser) void qrDataURL(v, 640).then((u) => this.img.set(u));
     });
   }
 }
@@ -623,7 +649,7 @@ export class EntradasPage {
               <p class="text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p>
             </div>
             }
-            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
+            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [puertaBtn]="true" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
             @if (m.estado !== 'anulada') {
             <div class="grid w-full grid-cols-2 gap-2 xl:w-[342px]">
               <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />Al calendario</a>
@@ -792,7 +818,7 @@ export class OfertaPage {
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
+          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [puertaBtn]="true" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-ui-h5">¿Cambia algo?</h2>
