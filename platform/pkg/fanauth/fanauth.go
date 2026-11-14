@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -124,15 +125,49 @@ func (v *Verifier) Verify(ctx context.Context, tok string) (Fan, error) {
 		return Fan{}, err
 	}
 	if v.Redis != nil {
-		cur, err := v.Redis.Get(ctx, VerKey(v.Keys, f.ID)).Result()
-		if err == nil {
-			if n, perr := strconv.ParseInt(cur, 10, 64); perr == nil && n > f.Ver {
-				return Fan{}, ErrRevoked
+		// ST2-R8-1/R8-3: the revocation version is memoized 1 s per pod (one Redis round trip less on every
+		// bet, wallet and ranking read under load); a revocation still takes effect within 1 s.
+		var n int64 = -1
+		if e, ok := verLocal.Load(f.ID); ok && time.Now().Before(e.(verEntrada).exp) {
+			n = e.(verEntrada).ver
+		} else {
+			cur, err := v.Redis.Get(ctx, VerKey(v.Keys, f.ID)).Result()
+			if err == nil {
+				if x, perr := strconv.ParseInt(cur, 10, 64); perr == nil {
+					n = x
+				}
 			}
+			if err == nil || errors.Is(err, redis.Nil) {
+				verLocal.Store(f.ID, verEntrada{ver: n, exp: time.Now().Add(time.Second)})
+			}
+		}
+		if n > f.Ver {
+			return Fan{}, ErrRevoked
 		}
 		// redis.Nil or a Redis error: accept (fail open on availability, the token is still signed and unexpired).
 	}
 	return f, nil
+}
+
+type verEntrada struct {
+	ver int64
+	exp time.Time
+}
+
+// verLocal: fan id → last session version seen (-1 = none); expired entries are swept every minute.
+var verLocal sync.Map
+
+func init() {
+	go func() {
+		for range time.Tick(time.Minute) {
+			verLocal.Range(func(k, e any) bool {
+				if time.Now().After(e.(verEntrada).exp) {
+					verLocal.Delete(k)
+				}
+				return true
+			})
+		}
+	}()
 }
 
 // FromRequest reads the cookie (or, for non-browser clients such as the load test, the
