@@ -592,7 +592,7 @@ export class ResultadosIndexPage {
           <div role="region" aria-roledescription="carrusel" aria-label="Podios por categoría" (scroll)="podioScroll($event)" class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
             @for (c of r.categorias; track c.clave) {
               <section [attr.aria-label]="c.titulo" class="w-[86%] shrink-0 snap-center rounded-xl border border-line-subtle bg-bg-card p-5 md:w-auto">
-                <header class="flex items-baseline justify-between"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} {{ c.atletas === 1 ? 'atleta' : 'atletas' }}</span></header>
+                <header class="flex flex-wrap items-baseline justify-between gap-x-2"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} {{ c.atletas === 1 ? 'atleta' : 'atletas' }}</span></header>
                 <!-- only the steps with an athlete (no empty «3» in a category of two) -->
                 <div class="mt-4 grid items-end gap-2 max-[260px]:!grid-cols-1" [style.grid-template-columns]="'repeat(' + podio(c).length + ', minmax(0, 1fr))'">
                   @for (p of podio(c); track p.pos) {
