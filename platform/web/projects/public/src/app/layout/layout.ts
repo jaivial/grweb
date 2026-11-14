@@ -108,7 +108,7 @@ const UI = {
         }
       </ul>
       <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm pointer-coarse:h-11 border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
-      @if (!activo('/entradas')) {
+      @if (!activo('/entradas') && !activo('/mi-entrada')) {
       <a grButton variant="primary" routerLink="/entradas" class="relative ml-auto min-h-11 max-[359px]:hidden @max-[18rem]:hidden md:ml-0" [class.max-md:hidden]="barraCta.visible()">{{ ui().cta }}</a>
       } @else { <span class="ml-auto md:hidden" aria-hidden="true"></span> }
       <span class="ml-auto md:hidden min-[360px]:hidden" aria-hidden="true"></span>
@@ -394,7 +394,7 @@ export class Footer {
   private readonly url = signal('');
   /** Mobile CTA bar (Figma Mobile, every public page; UX7-R1-7: not on the event-day lookup pages): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
-    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en|en-directo|porra|fantasy|horarios|atletas|resultados|mi-entrada|sorteo\/confirmacion)(\/|$|\?)/.test(this.url()));
+    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en|en-directo|porra|fantasy|horarios|atletas|resultados|mi-entrada|sorteo\/confirmacion)(\/|$|\?|#)/.test(this.url()));
   protected readonly tabsPorra = computed(() => /^\/porra(\/|$)/.test(this.seo.path()));
   protected readonly columnas = [
     { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
