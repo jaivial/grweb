@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -341,10 +341,10 @@ function catSort(a: string, b: string): number {
           <div class="flex flex-col gap-6">
             <section class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
               <!-- Without photo, mobile keeps the Figma ≈300 px card instead of a 4:5 block of initials (U10-R2-4). -->
-              <div class="relative bg-[linear-gradient(160deg,#3a0f17,#171213)]" [class]="a.fotoUrl ? 'aspect-[4/5]' : 'min-h-[300px] lg:aspect-[4/5]'">
+              <div class="relative bg-[linear-gradient(160deg,#3a0f17,#171213)]" [class]="a.fotoUrl ? 'aspect-[4/5]' : 'min-h-[184px] lg:aspect-[4/5]'">
                 @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombre + ' ' + a.apellidos" class="size-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" fetchpriority="high" /> }
-                @else { <span class="absolute inset-x-0 top-0 bottom-1/3 flex items-center justify-center font-display text-[64px] text-white/85 italic lg:inset-0 lg:text-[96px]">{{ ini(a) }}</span> }
-                <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5 pt-16"><p class="font-display text-[40px] leading-[0.95] uppercase italic">{{ a.nombre }} {{ a.apellidos }}</p></div>
+                @else { <span class="absolute top-5 left-5 flex size-[72px] items-center justify-center rounded-full border border-white/15 bg-white/5 font-display text-[32px] text-white/85 italic lg:inset-0 lg:size-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:text-[96px]" aria-hidden="true">{{ ini(a) }}</span> }
+                <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5" [class]="a.fotoUrl ? 'pt-16' : 'pt-3 lg:pt-16'"><p class="font-display leading-[0.95] uppercase italic" [class]="a.fotoUrl ? 'text-[40px]' : 'text-[32px] lg:text-[40px]'">{{ a.nombre }} {{ a.apellidos }}</p></div>
               </div>
               <div class="p-5">
                 <p class="flex flex-wrap gap-1.5">
@@ -353,6 +353,9 @@ function catSort(a: string, b: string): number {
                   <span class="inline-flex h-7 items-center gap-1 rounded-pill border border-line-strong px-2.5 text-mono-xs uppercase"><gr-icon name="clock" [size]="12" />{{ a.flight ? 'Flight ' + a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Horario por publicar' }}</span>
                 </p>
                 <p class="mt-3 flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</p>
+                @if (a.horaInicio) {
+                  <p class="mt-4 flex items-center gap-2 rounded-md border border-accent/40 bg-accent-deep/30 px-3 py-2.5 text-label-m"><gr-icon name="clock" [size]="16" class="shrink-0 text-accent-text" />Compite {{ diaTxt() ? diaTxt() + ' ' : '' }}{{ hora(a.horaInicio) }}{{ a.plataforma ? ' · Plataforma ' + a.plataforma : '' }}</p>
+                }
                 <div class="mt-4 flex gap-2">
                   <button type="button" (click)="fav.seguir(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
                     [class]="fav.slugs().includes(a.slug) ? 'border-accent bg-accent-deep/40 text-accent-text' : 'border-line-strong'">
@@ -374,11 +377,15 @@ function catSort(a: string, b: string): number {
                   <form class="mt-4 flex flex-col gap-3" (ngSubmit)="avisar(a)" novalidate>
                     <div class="flex gap-2">
                       <label class="relative min-w-0 flex-1"><span class="sr-only">Tu email</span><gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-                        <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s focus:border-accent-text focus:outline-none" /></label>
+                        <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" #avisoEmail
+                          [attr.aria-invalid]="avisoCampo() === 'email' || null" [attr.aria-describedby]="avisoCampo() === 'email' ? 'aviso-error' : null"
+                          class="h-11 w-full rounded-md border bg-bg-field pr-3 pl-9 text-body-m focus:border-accent-text focus:outline-none md:text-body-s" [class]="avisoCampo() === 'email' ? 'border-error' : 'border-line-strong'" /></label>
                       <button grButton variant="primary" type="submit" [loading]="enviando()">Avisarme</button>
                     </div>
-                    <label class="flex min-h-11 items-start gap-3 text-body-xs text-text-secondary"><input type="checkbox" name="acepta" [(ngModel)]="acepta" class="mt-0.5 size-5 accent-[#C42B3E]" />Acepto recibir este aviso. <a routerLink="/privacidad" class="text-accent-text underline">Privacidad</a></label>
-                    @if (avisoError()) { <p class="text-body-xs text-accent-text" role="alert">{{ avisoError() }}</p> }
+                    @if (avisoError() && avisoCampo() === 'email') { <p id="aviso-error" class="-mt-1 text-body-xs text-error" role="alert">{{ avisoError() }}</p> }
+                    <label class="flex min-h-11 items-start gap-3 text-body-xs text-text-secondary"><input type="checkbox" name="acepta" [(ngModel)]="acepta" #avisoAcepta
+                      [attr.aria-invalid]="avisoCampo() === 'acepta' || null" [attr.aria-describedby]="avisoCampo() === 'acepta' ? 'aviso-error' : null" class="size-6 shrink-0 accent-[#C42B3E]" />Acepto recibir este aviso. <a routerLink="/privacidad" class="text-accent-text underline">Privacidad</a></label>
+                    @if (avisoError() && avisoCampo() !== 'email') { <p id="aviso-error" class="text-body-xs text-error" role="alert">{{ avisoError() }}</p> }
                   </form>
                 }
               </section>
@@ -481,6 +488,10 @@ export class AtletaPage {
   protected readonly enviando = signal(false);
   protected readonly avisoEnviado = signal(false);
   protected readonly avisoError = signal('');
+  /** field the aviso error belongs to: marks it invalid and gets the focus back */
+  protected readonly avisoCampo = signal<'' | 'email' | 'acepta'>('');
+  private readonly avisoEmail = viewChild<ElementRef<HTMLInputElement>>('avisoEmail');
+  private readonly avisoAcepta = viewChild<ElementRef<HTMLInputElement>>('avisoAcepta');
   protected readonly avisoConfirmado = signal('');
   protected readonly baja = signal<'' | 'ok' | 'error'>('');
 
@@ -547,8 +558,15 @@ export class AtletaPage {
 
   protected async avisar(a: FichaPub): Promise<void> {
     this.avisoError.set('');
-    if (!this.email.includes('@')) return this.avisoError.set('Escribe un email válido.');
-    if (!this.acepta) return this.avisoError.set('Marca la casilla para recibir el aviso.');
+    this.avisoCampo.set('');
+    const mal = (campo: 'email' | 'acepta', msg: string) => {
+      this.avisoCampo.set(campo);
+      this.avisoError.set(msg);
+      (campo === 'email' ? this.avisoEmail() : this.avisoAcepta())?.nativeElement.focus();
+    };
+    this.email = this.email.trim();
+    if (this.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) return mal('email', 'Escribe un email válido.');
+    if (!this.acepta) return mal('acepta', 'Marca la casilla para recibir el aviso.');
     // Seguir needs the fan (or athlete) session: without it, the login modal opens and brings the person back here.
     if (!(await this.fan.cargar())) return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email });
     this.enviando.set(true);
