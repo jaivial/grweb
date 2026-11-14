@@ -93,9 +93,10 @@ type resumenFantasy struct {
 
 // memo is a tiny in-process cache with singleflight: concurrent misses of one key run the loader once.
 type memo struct {
-	mu sync.Mutex
-	m  map[string]memoItem
-	sf singleflight.Group
+	mu  sync.Mutex
+	m   map[string]memoItem
+	sf  singleflight.Group
+	ref map[string]bool // keys being refreshed in the background (getSWR): one goroutine per key
 }
 
 type memoItem struct {
@@ -110,6 +111,40 @@ func (c *memo) get(key string, ttl time.Duration, load func() (any, error)) (any
 		return it.v, nil
 	}
 	c.mu.Unlock()
+	return c.cargar(key, load)
+}
+
+// getSWR is get with stale-while-revalidate (ST3-R3-2): past ttl, and up to maxStale, the previous value is served
+// at once while ONE background load (singleflight) rebuilds it; nobody waits for the rebuild unless there is no
+// value or it is older than maxStale. load must not depend on the caller's context.
+func (c *memo) getSWR(key string, ttl, maxStale time.Duration, load func() (any, error)) (any, error) {
+	c.mu.Lock()
+	it, ok := c.m[key]
+	if ok && time.Since(it.at) < ttl {
+		c.mu.Unlock()
+		return it.v, nil
+	}
+	if ok && time.Since(it.at) < maxStale {
+		if !c.ref[key] {
+			if c.ref == nil {
+				c.ref = map[string]bool{}
+			}
+			c.ref[key] = true
+			go func() {
+				_, _ = c.cargar(key, load) // a failed refresh keeps the stale value until maxStale
+				c.mu.Lock()
+				delete(c.ref, key)
+				c.mu.Unlock()
+			}()
+		}
+		c.mu.Unlock()
+		return it.v, nil
+	}
+	c.mu.Unlock()
+	return c.cargar(key, load)
+}
+
+func (c *memo) cargar(key string, load func() (any, error)) (any, error) {
 	v, err, _ := c.sf.Do(key, func() (any, error) {
 		v, err := load()
 		if err != nil {

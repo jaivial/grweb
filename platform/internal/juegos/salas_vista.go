@@ -270,7 +270,7 @@ func (s *Svc) lobbyPublico(ctx context.Context, cid uuid.UUID, j jornada, buscar
 		}
 		return v.([]salaClasificada), nil
 	}
-	v, err := s.lobbyMemo.get("lobby:"+j.ID.String(), ttlLobby, load)
+	v, err := s.lobbyMemo.getSWR("lobby:"+j.ID.String(), ttlLobby, 10*ttlLobby, load)
 	if err != nil {
 		return nil, err
 	}
