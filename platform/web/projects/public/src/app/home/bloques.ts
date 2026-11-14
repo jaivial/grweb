@@ -35,7 +35,7 @@ export const textoTitulo = (titulo: string, acento = '') => trozosTitulo(titulo,
   host: { class: 'block [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]' },
   template: `
     @for (l of lineas(); track $index) {
-      <span [class.block]="lineas().length > 1">@for (t of l; track $index) {<span [class.text-accent-text]="t.acento">{{ t.t }}</span>}</span>
+      <span [class.block]="lineas().length > 1">@for (t of l; track $index) {<span [class]="t.acento ? acento_ : ''">{{ t.t }}</span>}</span>
     }
   `,
 })
@@ -43,6 +43,8 @@ export class GrTitulo {
   readonly titulo = input('');
   readonly acento = input('');
   protected readonly lineas = computed(() => trozosTitulo(this.titulo(), this.acento()));
+  /** Jaime 14-nov: the red part uses the «Reservar» button red with its grain, and never breaks in the middle (it drops to its own line). */
+  protected readonly acento_ = 'inline-block bg-accent-grain bg-clip-text text-transparent [text-shadow:none]';
 }
 
 /**

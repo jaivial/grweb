@@ -19,7 +19,7 @@ import { NoEncontrada } from '../layout/no-encontrada';
 import { Campeonato, fechasHero } from './campeonato';
 import { HeroTrophy } from './hero-trophy';
 import {
-  SecAfiliaciones, SecAlta, SecAtletas, SecCategorias, SecCifras, SecEntradas, SecFaq, SecHorarios, SecLocalizacion, SecOrganizacion,
+  SecAfiliaciones, SecAlta, SecAtletas, SecCategorias, SecEntradas, SecFaq, SecHorarios, SecLocalizacion, SecOrganizacion,
 } from './secciones';
 import { SecPremios } from './premios';
 import { SecFantasy, SecPorra, type ResumenFantasy, type ResumenPorra } from './juegos';
@@ -32,7 +32,7 @@ import { SecSorteo } from './sorteo';
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, HeroTrophy, Campeonato, SecCifras, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, HeroTrophy, Campeonato, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -65,7 +65,6 @@ import { SecSorteo } from './sorteo';
         <!-- Sections in the order and visibility published from the backoffice («Web · home»). -->
         @for (k of h.orden; track k) {
           @switch (k) {
-            @case ('cifras') { <gr-sec-cifras [s]="h.secciones[k]" /> }
             @case ('alta-atleta') { <gr-sec-alta [s]="h.secciones[k]" /> }
             @case ('inscripciones') { @if (!h.orden.includes('alta-atleta')) { <gr-sec-alta [s]="h.secciones[k]" /> } }
             @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" /> } }

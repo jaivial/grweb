@@ -46,7 +46,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
       </ul>
       <div class="flex flex-col items-center gap-3 md:gap-4">
         <!-- The hero already says «Campeonato de powerlifting»: it stays as the red eyebrow; the h2 shows the level -->
-        <p class="font-display text-[20px] leading-[1.25] tracking-[0.04em] text-accent-text uppercase md:text-[24px]">{{ titulo() }}</p>
+        <p class="font-display text-[20px] leading-[1.25] tracking-[0.04em] uppercase md:text-[24px]"><span class="bg-accent-grain bg-clip-text text-transparent">{{ titulo() }}</span></p>
         <h2 class="max-w-[1024px] font-display text-[32px] leading-[1.25] tracking-[0.06em] md:text-[48px]">
           @if (nivel()) { <span class="sr-only">{{ titulo() }}: </span>{{ nivel() }} } @else { {{ titulo() }} }
         </h2>
