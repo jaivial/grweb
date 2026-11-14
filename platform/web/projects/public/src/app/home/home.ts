@@ -72,7 +72,7 @@ import { SecSorteo } from './sorteo';
             @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
             @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
             @case ('premios') {
-              <gr-sec-premios [s]="h.secciones[k]" [sinCategorias]="h.orden.includes('categorias')" />
+              <gr-sec-premios [s]="h.secciones[k]" />
               <!-- Figma 05-home-juegos: Porra and Fantasy right after «Premios v2» (hidden when the games service does not answer) -->
               @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
               @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
@@ -86,7 +86,7 @@ import { SecSorteo } from './sorteo';
             }
             @case ('afiliaciones') { <gr-sec-afiliaciones [s]="h.secciones[k]" /> }
             @case ('sorteo') { @if (c?.modulos?.['sorteo']) { <gr-sec-sorteo [s]="h.secciones[k]" /> } }
-            @case ('categorias') { <gr-sec-categorias [s]="h.secciones[k]" /> }
+            @case ('categorias') { @if (!h.orden.includes('premios')) { <gr-sec-categorias [s]="h.secciones[k]" /> } }
             @case ('horarios') { @if (horarios()?.publicado) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } }
             @case ('localizacion') { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> }
             @case ('faq') { @if (h.faqDestacadas.length) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } }

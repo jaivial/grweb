@@ -4,9 +4,9 @@ import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
 import { renderMarkdown, type Faq, type Seccion } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
-import { CATEGORIAS_IPF } from '../core/atletas';
+import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
-import type { Horarios } from '../core/horarios';
+import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubFlight } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 
@@ -400,60 +400,140 @@ export class SecCategorias {
   protected kg = (c: string) => c.replace('-', '−') + 'kg';
 }
 
-interface Bloque { sexo: 'M' | 'F'; pesos: string[]; inicio: string; fin: string }
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+const ICONOS: Record<string, GrIconName> = { door: 'door', trophy: 'trophy', gift: 'gift', clock: 'clock', ticket: 'ticket', users: 'users', info: 'info', camera: 'camera' };
+const ESTADO: Record<string, string> = { finalizado: 'Finalizado', en_curso: 'En curso', programado: 'Programado' };
+type Vista = 'todos' | 'detallado' | 'mio';
+interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; icono: GrIconName } }
 
 /**
- * «Section / Horarios»: the published schedule by day — consecutive flights of the same sex merge into one block
- * (categories + time range), as in the Figma table (cards on mobile).
+ * «Section / Horarios v2» (Figma home R2 393:144990 · 211:126138, tabs 393:145943/146508 · 393:143915/144146): day tabs,
+ * sex filter, the three views (Todos · Detallado · ★ Mi horario), search, and the published groups of the day (sex, weight
+ * classes, athletes and weigh-in, state and start time) between the agenda items. The server renders the summary; the
+ * athletes (Detallado, Mi horario, search) load in the browser. Stars are the same favourites as /horarios.
  */
 @Component({
   selector: 'gr-sec-horarios',
-  imports: [RouterLink, GrButton, GrCabecera, GrIcon],
+  imports: [RouterLink, GrButton, GrIcon, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
-    <div class="pointer-events-none absolute top-15 left-1/2 aspect-[2/3] w-full max-w-[560px] -translate-x-1/2 opacity-22">
-      <img [src]="t('imagen') || '/img/home/horarios.webp'" alt="" class="size-full object-cover" loading="lazy" />
-      <div class="absolute inset-0 bg-[radial-gradient(closest-side,transparent_20%,#141112)]"></div>
-    </div>
-    <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
-      <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
-      <div class="flex w-full max-w-[880px] flex-col gap-4">
-        <div class="flex gap-1.5" role="tablist" aria-label="Días">
-          @for (d of dias(); track d.fecha; let i = $index) {
-            <button type="button" role="tab" [attr.aria-selected]="i === diaSel()" (click)="diaSel.set(i)" class="flex flex-col items-center gap-2 px-4 pt-3">
-              <span class="text-display-body" [class.text-text-tertiary]="i !== diaSel()">{{ d.etiqueta }}</span>
-              <span class="h-[3px] w-full rounded-[2px]" [class.bg-accent]="i === diaSel()"></span>
-            </button>
+    <div [class]="glow + ' -top-20 right-[-120px] size-[560px]'"></div>
+    <div [class]="ancho + ' flex flex-col gap-8 md:gap-10'">
+      <div class="flex flex-col gap-3 md:gap-4">
+        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo') || 'Horarios *en directo*'" [acento]="t('tituloAcento')" /></h2>
+        <p class="text-body-m text-text-tertiary md:text-body-l">{{ t('texto') || 'Cuándo compite cada atleta y si va con retraso. Se actualiza solo: no hace falta recargar.' }}</p>
+      </div>
+      <div class="flex flex-col gap-3 md:gap-4">
+        <div class="grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:w-[420px]" role="tablist" aria-label="Vista">
+          @for (v of vistas; track v.k) {
+            <button type="button" role="tab" [attr.aria-selected]="vista() === v.k" (click)="elegir(v.k)" class="h-10 rounded-sm px-1 text-label-s whitespace-nowrap" [class]="vista() === v.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ v.k === 'mio' ? '★ Mi horario (' + misAtletas().length + ')' : v.l }}</button>
           }
         </div>
-        @if (dias()[diaSel()]; as d) {
-          <!-- desktop table -->
-          <div class="hidden overflow-hidden rounded-lg border border-line-subtle bg-[#221d1f]/90 md:block">
-            <div class="grid grid-cols-[140px_1fr_auto] gap-4 px-5 py-4 text-label-xs text-text-muted"><span>Categoría</span><span>Pesos</span><span>Horario</span></div>
-            @for (b of d.bloques; track $index) {
-              <div class="grid grid-cols-[140px_1fr_auto] items-center gap-4 border-t border-line-subtle bg-white/2 px-4 py-4">
-                <span class="text-display-label text-accent-text">{{ b.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                <span class="text-display-body">{{ b.pesos.join(' KG, ') }} KG</span>
-                <span class="text-display-body tabular-nums">{{ b.inicio }} – {{ b.fin }}</span>
-              </div>
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+          <div class="order-first flex gap-1.5 md:order-none" role="tablist" aria-label="Días">
+            @for (d of dias(); track d.fecha; let i = $index) {
+              <button type="button" role="tab" [attr.aria-selected]="i === diaSel()" (click)="diaSel.set(i)" class="relative h-11 shrink-0 px-4 font-display text-[18px] uppercase italic" [class]="i === diaSel() ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'">
+                {{ d.etiqueta }}<span class="absolute inset-x-4 bottom-0 h-[3px] rounded-[2px]" [class]="i === diaSel() ? 'bg-accent' : 'bg-transparent'"></span>
+              </button>
             }
           </div>
-          <!-- mobile cards -->
-          <ul class="flex flex-col gap-4 md:hidden">
-            @for (b of d.bloques; track $index) {
-              <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-[#221d1f]/90 p-4">
-                <span class="flex items-center justify-between">
-                  <span class="inline-flex h-[22px] items-center rounded-pill px-2.5 text-label-xs" [class]="b.sexo === 'F' ? 'bg-warning/14 text-warning' : 'bg-accent/14 text-accent-text'">{{ b.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                  <span class="flex items-center gap-1.5 text-mono-s tabular-nums"><gr-icon name="clock" [size]="14" class="text-text-tertiary" />{{ b.inicio }} – {{ b.fin }}</span>
-                </span>
-                <span class="text-display-body">{{ b.pesos.join(' · ') }} KG</span>
+          <div class="grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:w-[300px]" role="radiogroup" aria-label="Sexo">
+            @for (g of sexos; track g.k) {
+              <button type="button" role="radio" [attr.aria-checked]="sexo() === g.k" (click)="sexo.set(g.k)" class="h-9 rounded-sm text-label-s" [class]="sexo() === g.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ g.l }}</button>
+            }
+          </div>
+          <label class="flex h-12 flex-1 items-center gap-2 rounded-md border border-line-subtle bg-bg-deep px-4 focus-within:border-line-strong">
+            <gr-icon name="search" [size]="18" class="text-text-tertiary" />
+            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" placeholder="¿Cuándo compite…?" aria-label="Buscar atleta o club" [value]="q()" (input)="buscar($any($event.target).value)" />
+          </label>
+        </div>
+      </div>
+
+      @if (vista() === 'mio') {
+        <!-- Figma «Horarios · pestaña Mi horario» -->
+        @if (misAtletas().length) {
+          <section class="flex flex-col gap-4 rounded-xl border border-line-subtle bg-bg-card p-5 md:p-6">
+            <h3 class="flex items-center gap-2 text-ui-h5"><gr-icon name="star" [size]="18" class="fill-current text-accent-text" />Mi horario<span class="ml-auto text-body-xs text-text-muted">{{ misAtletas().length }} {{ misAtletas().length === 1 ? 'atleta' : 'atletas' }}</span></h3>
+            <ul class="flex flex-col">
+              @for (m of misAtletas(); track m.a.slug) {
+                <li class="flex items-center gap-3 border-b border-line-subtle py-3">
+                  <span class="flex size-11 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-s">{{ iniciales(m.a.nombre) }}</span>
+                  <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <a [routerLink]="['/atletas', m.a.slug]" class="truncate text-label-m hover:underline">{{ m.a.nombre }}</a>
+                    <span class="text-body-xs text-text-tertiary">{{ m.a.sexo }} {{ kg(m.a.categoria) }} kg</span>
+                    @if (m.f.estado === 'en_curso') { <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border border-accent/60 bg-accent/12 px-2.5 py-0.5 text-label-xs text-accent-text"><gr-icon name="radio" [size]="12" />En tarima</span> }
+                  </span>
+                  @if (m.f.estado !== 'en_curso') { <span class="text-mono-s tabular-nums">{{ hora(m.f.inicioEstimado || m.f.inicio) }}</span> }
+                  <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white" [attr.aria-label]="'Dejar de seguir a ' + m.a.nombre" (click)="fav.toggle(m.a.slug)"><gr-icon name="star" [size]="18" class="fill-current" /></button>
+                </li>
+              }
+            </ul>
+            <a grButton variant="primary" [href]="icsUrl()" download>Añadir mi horario al calendario</a>
+            <p class="text-body-xs text-text-muted">Archivo .ics con las horas de tus atletas; se actualiza si hay retrasos.</p>
+          </section>
+        } @else {
+          <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-5 py-8 text-center">
+            <gr-icon name="clock" [size]="24" />
+            <p class="text-label-m">Aún no sigues a ningún atleta</p>
+            <p class="text-body-s text-text-tertiary">Marca con ★ a tus atletas en «Todos» o «Detallado» y aquí verás solo sus horas.</p>
+            <button grButton variant="primary" type="button" (click)="elegir('detallado')">Buscar atletas en Detallado</button>
+          </div>
+        }
+      } @else {
+        <ul class="flex flex-col gap-3">
+          @for (r of filas(); track r.t + (r.flight?.id ?? r.item?.titulo)) {
+            @if (r.item; as it) {
+              <li class="flex items-center gap-4 rounded-lg border border-line-subtle px-4 py-3">
+                <span class="text-mono-s text-accent-text tabular-nums">{{ r.t }}</span>
+                <gr-icon [name]="it.icono" [size]="16" class="shrink-0 text-text-tertiary" />
+                <span class="text-body-s text-text-secondary">{{ it.titulo }}</span>
+              </li>
+            } @else if (r.flight; as f) {
+              @let abierto = vista() === 'detallado' || abiertos().includes(f.id);
+              <li class="overflow-hidden rounded-xl border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent/70' : 'border-line-subtle'" [class.opacity-60]="f.estado === 'finalizado'">
+                <button type="button" class="flex w-full items-center gap-4 p-4 text-left md:px-5" [attr.aria-expanded]="abierto" (click)="alternar(f.id)">
+                  <span class="flex min-w-0 flex-1 flex-col gap-1">
+                    <span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
+                    <span class="text-ui-h5">{{ pesos(f) }}</span>
+                    <span class="text-body-xs text-text-tertiary">{{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
+                    @if (f.estado !== 'programado' || vista() === 'todos') {
+                      <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border px-2.5 py-0.5 text-label-xs uppercase" [class]="f.estado === 'en_curso' ? 'border-accent/60 bg-accent/12 text-accent-text' : 'border-line-strong text-text-tertiary'">
+                        @if (f.estado === 'en_curso') { <gr-icon name="radio" [size]="12" /> } @else if (f.estado === 'finalizado') { <gr-icon name="check" [size]="12" /> }{{ estado[f.estado] }}
+                      </span>
+                    }
+                  </span>
+                  <span class="flex items-center gap-2 font-mono text-[26px] font-semibold tabular-nums md:text-[30px]"><gr-icon name="clock" [size]="22" />{{ hora(f.inicioEstimado || f.inicio) }}</span>
+                  <gr-icon [name]="abierto ? 'chevron-up' : 'chevron-down'" [size]="18" class="shrink-0 text-text-tertiary" />
+                </button>
+                @if (abierto) {
+                  @if (f.atletas.length) {
+                    <ul class="border-t border-line-subtle">
+                      @for (a of atletasDe(f); track a.slug) {
+                        <li class="flex items-center gap-3 border-b border-line-subtle px-4 py-2.5 md:px-5">
+                          <span class="w-6 text-mono-s text-text-muted tabular-nums">{{ pad(a.lote) }}</span>
+                          <span class="flex min-w-0 flex-1 flex-col">
+                            <a [routerLink]="['/atletas', a.slug]" class="truncate text-label-s hover:underline" [class.text-accent-text]="fav.has(a.slug)">{{ a.nombre }}</a>
+                            <span class="truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span>
+                          </span>
+                          <span class="text-mono-s text-text-secondary">{{ a.sexo }} {{ kg(a.categoria) }} kg</span>
+                          <button type="button" class="flex size-9 items-center justify-center rounded-full" [class]="fav.has(a.slug) ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="fav.has(a.slug)" [attr.aria-label]="(fav.has(a.slug) ? 'Dejar de seguir a ' : 'Seguir a ') + a.nombre" (click)="fav.toggle(a.slug)"><gr-icon name="star" [size]="16" [class.fill-current]="fav.has(a.slug)" /></button>
+                        </li>
+                      }
+                    </ul>
+                    <a routerLink="/horarios" class="flex items-center gap-1.5 px-4 py-3 text-label-s text-accent-text hover:underline md:px-5">Ver los {{ f.total }} atletas<gr-icon name="arrow-right" [size]="14" /></a>
+                  } @else {
+                    <p class="border-t border-line-subtle px-4 py-3 text-body-s text-text-tertiary md:px-5">{{ completos() ? 'Aún no hay atletas asignados.' : 'Cargando atletas…' }}</p>
+                  }
+                }
               </li>
             }
-          </ul>
-        }
-        <a grButton variant="glass" routerLink="/horarios" iconRight="arrow-right" class="self-center">Ver horario completo</a>
-      </div>
+          } @empty {
+            <li class="rounded-lg border border-line-subtle px-4 py-6 text-center text-body-s text-text-tertiary">No hay coincidencias para «{{ q() }}».</li>
+          }
+        </ul>
+      }
+      <a grButton variant="glass" routerLink="/horarios" iconRight="arrow-right" class="self-center">Ver horario completo</a>
     </div>
   `,
 })
@@ -461,27 +541,83 @@ export class SecHorarios {
   readonly s = input<Seccion | undefined>();
   readonly horarios = input<Horarios | null>(null);
   protected readonly ancho = ANCHO;
+  protected readonly glow = GLOW;
+  protected readonly fav = inject(Favoritos);
+  private readonly api = inject(HorariosPublic);
+  protected readonly hora = hora;
+  protected readonly estado = ESTADO;
+  protected readonly vistas: { k: Vista; l: string }[] = [{ k: 'todos', l: 'Todos' }, { k: 'detallado', l: 'Detallado' }, { k: 'mio', l: 'Mi horario' }];
+  protected readonly sexos = [{ k: 'F' as const, l: 'Femenino' }, { k: 'M' as const, l: 'Masculino' }, { k: '' as const, l: 'Todos' }];
+  protected readonly vista = signal<Vista>('todos');
+  protected readonly sexo = signal<'F' | 'M' | ''>('');
   protected readonly diaSel = signal(0);
+  protected readonly q = signal('');
+  protected readonly abiertos = signal<string[]>([]);
+  /** Full schedule with the athletes (browser only, loaded once when a view needs it). */
+  private readonly completo = signal<Horarios | null>(null);
+  protected readonly completos = computed(() => !!this.completo());
+  private cargando = false;
   protected t = (k: string) => str(this.s(), k);
-  protected readonly dias = computed(() => (this.horarios()?.dias ?? []).map((d) => {
-    const etiqueta = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
-    const fl = [...d.flights].sort((a, b) => a.inicio.localeCompare(b.inicio));
-    const bloques: (Bloque & { finMs: number })[] = [];
-    for (const f of fl) {
-      const sexo = (f.sexo === 'F' ? 'F' : 'M') as 'M' | 'F';
-      const pesos = (f.titulo.match(/[−+-]\s?\d+/g) ?? []).map((p) => p.replace('-', '−').replace(/\s/g, ''));
-      const ultimo = bloques[bloques.length - 1];
-      const ini = new Date(f.inicio).getTime();
-      if (ultimo && ultimo.sexo === sexo && ini - ultimo.finMs <= 60 * 60_000) {
-        ultimo.pesos.push(...pesos.filter((p) => !ultimo.pesos.includes(p)));
-        ultimo.fin = hora(f.fin);
-        ultimo.finMs = new Date(f.fin).getTime();
-      } else {
-        bloques.push({ sexo, pesos, inicio: hora(f.inicio), fin: hora(f.fin), finMs: new Date(f.fin).getTime() });
-      }
-    }
-    return { fecha: d.fecha, etiqueta: etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1), bloques };
-  }).filter((d) => d.bloques.length));
+  private readonly datos = computed(() => this.completo() ?? this.horarios());
+  protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length).map((d) => {
+    const e = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
+    return { fecha: d.fecha, etiqueta: e, dia: d };
+  }));
+  protected readonly misAtletas = computed(() => {
+    const favs = new Set(this.fav.slugs());
+    const out: { a: PubAtleta; f: PubFlight }[] = [];
+    for (const d of this.datos()?.dias ?? []) for (const f of d.flights) for (const a of f.atletas) if (favs.has(a.slug)) out.push({ a, f });
+    return out;
+  });
+  protected readonly icsUrl = computed(() => `${ICS_URL}?atletas=${encodeURIComponent(this.misAtletas().map((m) => m.a.slug).join(','))}`);
+  protected readonly filas = computed<FilaHorario[]>(() => {
+    const d = this.dias()[this.diaSel()]?.dia;
+    if (!d) return [];
+    const q = norm(this.q());
+    let fl = d.flights.filter((f) => !this.sexo() || f.sexo === this.sexo());
+    if (q.length > 1) fl = fl.filter((f) => f.atletas.some((a) => norm(a.nombre + ' ' + a.club).includes(q)));
+    const rows: FilaHorario[] = fl.map((f) => ({ t: hora(f.inicio), flight: f }));
+    if (q.length < 2) rows.push(...d.agenda.map((a) => ({ t: a.hora, item: { titulo: a.titulo, icono: ICONOS[a.icono ?? ''] ?? ('clock' as GrIconName) } })));
+    return rows.sort((a, b) => a.t.localeCompare(b.t));
+  });
+
+  constructor() {
+    // Stars from an earlier visit: the «Mi horario (n)» count needs the athletes
+    afterNextRender(() => { if (this.fav.slugs().length) this.cargar(); });
+  }
+
+  private cargar(): void {
+    if (this.cargando || this.completo()) return;
+    this.cargando = true;
+    void this.api.get().then((h) => { if (h?.publicado) this.completo.set(h); });
+  }
+  protected elegir(v: Vista): void {
+    this.vista.set(v);
+    if (v !== 'todos') this.cargar();
+  }
+  protected alternar(id: string): void {
+    if (this.vista() === 'detallado') return;
+    this.cargar();
+    this.abiertos.update((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+  }
+  protected buscar(v: string): void {
+    this.q.set(v);
+    if (v.trim().length > 1) this.cargar();
+  }
+  /** The athletes of the group in the open card (Figma: five, then «Ver los N atletas»), the searched ones first. */
+  protected atletasDe(f: PubFlight): PubAtleta[] {
+    const q = norm(this.q());
+    const l = q.length > 1 ? f.atletas.filter((a) => norm(a.nombre + ' ' + a.club).includes(q)) : f.atletas;
+    return l.slice(0, 5);
+  }
+  /** «Femenino −47 / −52 kg» → «−47 / −52 kg». */
+  protected pesos(f: PubFlight): string {
+    const p = (f.titulo.match(/[−+-]\s?\d+/g) ?? []).map((x) => x.replace('-', '−').replace(/\s/g, ''));
+    return p.length ? p.join(' / ') + ' kg' : f.titulo;
+  }
+  protected kg = (c: string) => (c || '').replace('-', '−');
+  protected pad = (n: number) => String(n).padStart(2, '0');
+  protected iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
 }
 
 /** «Section / Localización»: exterior photo and three small ones, and the map card with the address and actions. */
@@ -518,9 +654,11 @@ export class SecHorarios {
               <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
             </div>
             <div class="flex flex-col gap-3 p-5 md:p-7">
-              <p class="text-display-xs">{{ c.sede.nombre }}</p>
+              <p class="text-center text-display-xs">{{ t('nombreSede') || "Pabellón Municipal d'Almussafes" }}</p>
+              <!-- Figma home R2: the town hall logo centred under the venue -->
+              <img src="/img/home/logo-almussafes-bn.webp" alt="Ajuntament d'Almussafes" width="114" height="40" class="mx-auto h-10 w-auto" loading="lazy" decoding="async" />
               <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ direccion() }}</p>
-              <div class="flex flex-col gap-2 sm:flex-row">
+              <div class="flex flex-col gap-2">
                 <a grButton variant="primary" [href]="c.sede.mapsUrl" target="_blank" rel="noopener" icon="map-pin">Abrir en Google Maps</a>
                 <button grButton variant="outline" type="button" (click)="copiar()">{{ copiado() ? 'Dirección copiada' : 'Copiar dirección' }}</button>
               </div>
