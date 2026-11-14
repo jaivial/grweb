@@ -63,7 +63,7 @@ spec:
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
           resources:
-            requests: { cpu: 50m, memory: 48Mi }
+            requests: { cpu: 150m, memory: 48Mi } # ST1 QA r1: ~200m per pod at 190 req/s
             limits: { cpu: "1", memory: 384Mi }
 ---
 apiVersion: v1
@@ -83,7 +83,7 @@ metadata:
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: gateway }
   minReplicas: 2
-  maxReplicas: 6
+  maxReplicas: 8
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }

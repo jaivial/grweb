@@ -15,7 +15,7 @@ metadata:
   name: grcup-quota
 spec:
   hard:
-    requests.cpu: "5"
+    requests.cpu: "7" # ST1 QA r1: real requests of chat/gateway/juegos → ~6.2 CPU with every HPA at max (node: 16)
     requests.memory: 8Gi
     # Sized for every HPA at its maximum (services 500m each, gateway and web 1 CPU) plus the extra pod of a
     # rolling update — including the five services and the worker of «directo social» (paso 17). Limits are
