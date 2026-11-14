@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -143,7 +144,7 @@ func bodyLimit(r *http.Request) int64 { return bodylimit.Of(match(r.URL.Path), r
 
 func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.a = a
-	a.Go(drenarWS) // proxied WS are hijacked: srv.Shutdown ignores them, so close them with 1012 (ST1-R3-2)
+	a.Go(drenarWS)                 // proxied WS are hijacked: srv.Shutdown ignores them, so close them with 1012 (ST1-R3-2)
 	httpx.DrainTooLarge = 12 << 20 // = nginx client_max_body_size: a 413 reaches the client, not nginx's 502
 	g.cors = config.List("CORS_ORIGINS")
 	g.ipLimit = int64(config.Int("RATE_LIMIT_IP_MIN", 600))
@@ -161,6 +162,12 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	// Bodies are streamed (never buffered): fixed 32 KB copy buffers from a shared pool.
 	transport := &http.Transport{MaxIdleConnsPerHost: 64, IdleConnTimeout: 90 * time.Second, ResponseHeaderTimeout: 60 * time.Second,
 		WriteBufferSize: 32 << 10, ReadBufferSize: 32 << 10}
+	// ST1-R5-2: an upgrade answers 101 at once; one stuck on a terminating upstream hung until the client's 30 s
+	// timeout. Own transport with short dial/header deadlines so it fails fast (502) and the client retries.
+	wsT := transport.Clone()
+	wsT.ResponseHeaderTimeout = 5 * time.Second
+	wsT.DialContext = (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext
+	rt := porUpgrade{http: transport, ws: wsT}
 	for _, svc := range enabled {
 		raw := config.Str("UPSTREAM_"+strings.ToUpper(svc), "http://"+svc+":8080")
 		u, err := url.Parse(raw)
@@ -168,7 +175,7 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 			return err
 		}
 		g.upstream[svc] = u
-		g.proxies[svc] = g.newProxy(svc, u, transport)
+		g.proxies[svc] = g.newProxy(svc, u, rt)
 	}
 	if u, ok := g.upstream["identity"]; ok {
 		g.identity = svcclient.New(u.String(), "gateway", "identity", a.Cfg.InternalToken)
