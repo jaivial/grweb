@@ -221,7 +221,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
 
       <div class="relative mx-auto mt-12 grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-16 px-5 pb-18 md:mt-20 md:px-8 md:pb-24 lg:grid-cols-[minmax(0,616px)_minmax(0,520px)] lg:justify-between lg:gap-10 xl:px-0">
         <!-- the form: right column (sticky) on desktop, right after the hero on phones -->
-        <aside id="reservar" #reservarEl class="scroll-mt-24 lg:col-start-2 lg:row-start-1">
+        <aside id="reservar" #reservarEl class="scroll-mt-24 md:mx-auto md:w-full md:max-w-[560px] lg:col-start-2 lg:row-start-1 lg:max-w-none">
           <div class="lg:sticky lg:top-28">
             @if (d === undefined) { <gr-skeleton class="h-[640px] rounded-2xl" /> }
             @else if (d === null && fallo.limitado()) { <gr-alert tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert> }
