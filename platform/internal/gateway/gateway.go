@@ -203,6 +203,11 @@ func (g *gw) newProxy(svc string, target *url.URL, t http.RoundTripper) *httputi
 		},
 		ModifyResponse: func(res *http.Response) error {
 			envolverWS(res)
+			// ST1-R7-1: Server-Timing shows the time spent inside the platform (gateway + service, up to the
+			// response headers), so latency targets can be checked without the Cloudflare tunnel/ingress floor.
+			if t0, ok := res.Request.Context().Value(inicioKey{}).(time.Time); ok {
+				res.Header.Add("Server-Timing", "gw;dur="+strconv.FormatFloat(float64(time.Since(t0).Microseconds())/1000, 'f', 1, 64))
+			}
 			// The gateway's RequestID middleware already set X-Request-Id (same id, forwarded upstream): avoid a duplicate header.
 			res.Header.Del("X-Request-Id")
 			// Every 429 tells the client when to retry, also the per-endpoint limits of the services.
@@ -228,6 +233,7 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 	if g.applyCORS(w, r) {
 		return
 	}
+	r = r.WithContext(context.WithValue(r.Context(), inicioKey{}, time.Now()))
 	ctx := r.Context()
 	bucket, limit := "gw", g.ipLimit
 	if r.Method == http.MethodGet && len(g.ssrSecret) > 0 && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-GrCup-SSR")), g.ssrSecret) == 1 {
@@ -310,6 +316,9 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	proxy.ServeHTTP(w, r)
 }
+
+// inicioKey holds the time the gateway received the request (Server-Timing).
+type inicioKey struct{}
 
 // publicSSE is the only stream route registered by realtime for anonymous clients (slug charset only, so encoded
 // or odd paths fall back to the normal bucket).
