@@ -21,6 +21,7 @@ export const DESTINO_INTERNO = /^\/fantasy(\/[A-Za-z0-9_-]+)*$/;
 export interface AccesoIn {
   email: string;
   tipo: 'atleta' | 'publico';
+  /** Empty for a link to create or change the password of an existing account. */
   alias: string;
   aceptaNormas: boolean;
   /** Web path to return to after the email link (validated by the API). */
@@ -98,12 +99,28 @@ export class FanSession {
     await firstValueFrom(this.http.post(`${this.base}/acceso`, { ...i, next: i.next ?? this.volverA() ?? undefined }));
   }
 
-  /** Redeems the token of the email link (page /acceso?acceso=…); sets the cookie and the session. */
-  async canjear(token: string): Promise<Fan & { next?: string }> {
-    const f = await firstValueFrom(this.http.post<Fan & { next?: string }>(`${this.base}/canjear`, { token }));
+  /** Signs in with email and password; sets the cookie and the session. Throws HttpErrorResponse (CREDENCIALES_INVALIDAS, 429). */
+  async entrar(email: string, password: string): Promise<Fan> {
+    const f = await firstValueFrom(this.http.post<Fan>(`${this.base}/entrar`, { email, password }));
     this.yo.set(f);
     this.cargada.set(true);
     this.pendiente = Promise.resolve(f);
+    return f;
+  }
+
+  /** Redeems the token of the email link (page /acceso?acceso=…); sets the cookie and the session. */
+  async canjear(token: string): Promise<Fan & { next?: string; requiereContrasena?: boolean }> {
+    const f = await firstValueFrom(this.http.post<Fan & { next?: string; requiereContrasena?: boolean }>(`${this.base}/canjear`, { token }));
+    this.yo.set(f);
+    this.cargada.set(true);
+    this.pendiente = Promise.resolve(f);
+    return f;
+  }
+
+  /** Sets the password after redeeming a link (account without one, or a reset). Re-issues the session. */
+  async fijarContrasena(password: string): Promise<Fan> {
+    const f = await firstValueFrom(this.http.put<Fan>(`${this.base}/yo/contrasena`, { password }));
+    this.yo.set(f);
     return f;
   }
 

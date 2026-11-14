@@ -20,6 +20,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
+	"github.com/jaivial/grweb/platform/pkg/passhash"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
 )
@@ -45,7 +46,9 @@ type Yo struct {
 	Insignia string    `json:"insignia,omitempty" doc:"«Atleta» o vacío (público)"`
 	Email    string    `json:"email" doc:"Email de la propia sesión (rellena formularios)"`
 	// Next is only set by the redemption of a magic link that was asked for with a destination.
-	Next     string    `json:"next,omitempty" doc:"Ruta interna a la que volver tras entrar (p. ej. /fantasy/unirse/CODIGO)"`
+	Next string `json:"next,omitempty" doc:"Ruta interna a la que volver tras entrar (p. ej. /fantasy/unirse/CODIGO)"`
+	// RequiereContrasena is only set by a redemption: the web asks for the password (PUT /fans/yo/contrasena).
+	RequiereContrasena bool `json:"requiereContrasena,omitempty" doc:"Tras canjear: falta fijar la contraseña"`
 }
 
 // sesionOut is a response that (re)issues the session cookie.
@@ -110,7 +113,7 @@ func (s *Svc) registerPublic() {
 		Body struct {
 			Email        string `json:"email" format:"email" maxLength:"254"`
 			Tipo         string `json:"tipo" enum:"atleta,publico"`
-			Alias        string `json:"alias" minLength:"3" maxLength:"20" doc:"Nombre público en el chat y las clasificaciones"`
+			Alias        string `json:"alias,omitempty" maxLength:"20" doc:"Nombre público en el chat y las clasificaciones (obligatorio al crear la cuenta; vacío = enlace para crear o cambiar la contraseña)"`
 			AceptaNormas bool   `json:"aceptaNormas" doc:"Debe ser true: normas de participación del directo"`
 			Next         string `json:"next,omitempty" maxLength:"200" doc:"Ruta de la web a la que volver tras entrar (p. ej. /inscripcion?ref=…)"`
 		}
@@ -122,11 +125,11 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			if !in.Body.AceptaNormas {
+			if in.Body.Alias != "" && !in.Body.AceptaNormas { // creating the account; a password reset has no alias
 				return nil, problem.Unprocessable("NORMAS_REQUERIDAS", "Debes aceptar las normas de participación para entrar al directo.")
 			}
 			alias := validarAlias(in.Body.Alias)
-			if alias == "" {
+			if alias == "" && in.Body.Alias != "" {
 				return nil, problem.Unprocessable("ALIAS_NO_VALIDO", "El alias debe tener entre 3 y 20 letras, números, espacios o _ . - , sin palabras prohibidas.")
 			}
 			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
@@ -154,6 +157,9 @@ func (s *Svc) registerPublic() {
 			}
 			link := s.webURL + "/acceso?acceso=" + tok
 			plantilla := "fans-acceso"
+			if alias == "" {
+				plantilla = "fans-acceso-contrasena"
+			}
 			if next := nextValido(in.Body.Next); next != "" {
 				link += "&next=" + url.QueryEscape(next)
 				switch {
@@ -197,6 +203,56 @@ func (s *Svc) registerPublic() {
 		Summary: "Canjear el token del enlace (misma operación que el GET, para la web)", Tags: tagFans},
 		func(ctx context.Context, in *canjeBodyIn) (*sesionOut, error) {
 			return s.canjear(ctx, in.Slug, in.Body.Token)
+		})
+
+	// ---- entrar con email y contraseña ----
+	type entrarIn struct {
+		SlugIn
+		Body struct {
+			Email    string `json:"email" format:"email" maxLength:"254"`
+			Password string `json:"password" minLength:"1" maxLength:"128"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "fans-entrar", Method: http.MethodPost, Path: base + "/entrar",
+		Summary: "Entrar con email y contraseña (error genérico: no dice si el email existe)", Tags: tagFans},
+		func(ctx context.Context, in *entrarIn) (*sesionOut, error) {
+			cid, err := s.comps.ID(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			// Same bounds as the team login (identity): 30 per IP / 10 min, 8 per email / 15 min.
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "fans", "entrar-ip", httpx.ClientIPFrom(ctx)), 30, 10*time.Minute); !r.Allowed {
+				return nil, demasiados(r, "Demasiados intentos desde tu red")
+			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "fans", "entrar-email", emailHash(email)[:16]), 8, 15*time.Minute); !r.Allowed {
+				return nil, demasiados(r, "Demasiados intentos con este email")
+			}
+			var id uuid.UUID
+			hash := ""
+			err = s.a.DB.QueryRow(ctx, `SELECT id, password_hash FROM fans WHERE competition_id = $1 AND email_hash = $2`, cid, emailHash(email)).Scan(&id, &hash)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return nil, err
+			}
+			if hash == "" { // unknown email or an older account without password: same work, same answer
+				passhash.Check(passhash.Dummy, in.Body.Password)
+				return nil, credencialesInvalidas()
+			}
+			if !passhash.Check(hash, in.Body.Password) {
+				return nil, credencialesInvalidas()
+			}
+			row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, id))
+			if err != nil {
+				return nil, err
+			}
+			if row.BaneadoHasta != nil && row.BaneadoHasta.After(time.Now()) {
+				return nil, baneado(*row.BaneadoHasta)
+			}
+			t, err := s.firmar(row)
+			if err != nil {
+				return nil, err
+			}
+			return &sesionOut{SetCookie: []http.Cookie{*s.cookie(t, int(fanauth.TTL.Seconds()))}, Body: s.yoDe(row)}, nil
 		})
 
 	// ---- yo ----
@@ -293,6 +349,48 @@ func (s *Svc) registerPublic() {
 			return &sesionOut{SetCookie: []http.Cookie{*s.cookie(tok, int(fanauth.TTL.Seconds()))}, Body: s.yoDe(row)}, nil
 		})
 
+	// ---- fijar la contraseña (tras canjear un enlace) ----
+	type claveIn struct {
+		SesionIn
+		SlugIn
+		Body struct {
+			Password string `json:"password" minLength:"8" maxLength:"128"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "fans-yo-contrasena", Method: http.MethodPut, Path: base + "/yo/contrasena",
+		Summary: "Fijar mi contraseña: si la cuenta no tiene, o en los 30 min tras canjear un enlace de «he olvidado mi contraseña»", Tags: tagFans},
+		func(ctx context.Context, in *claveIn) (*sesionOut, error) {
+			cid, err := s.comps.ID(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.sesion(ctx, cid, in.Session, in.Header)
+			if err != nil {
+				return nil, err
+			}
+			tag, err := s.a.DB.Exec(ctx, `UPDATE fans SET password_hash = $3, password_reset_hasta = NULL, updated_at = now()
+				WHERE id = $1 AND competition_id = $2 AND (password_hash = '' OR password_reset_hasta > now())`, f.ID, cid, passhash.Hash(in.Body.Password))
+			if err != nil {
+				return nil, err
+			}
+			if tag.RowsAffected() == 0 {
+				return nil, problem.Forbidden("Tu cuenta ya tiene contraseña. Para cambiarla pide un enlace con «¿Has olvidado tu contraseña?».")
+			}
+			row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, f.ID))
+			if err != nil {
+				return nil, err
+			}
+			// Every other session dies with the old password; this one is re-issued.
+			if row.Version, err = s.bumpVersion(ctx, row.ID); err != nil {
+				return nil, err
+			}
+			tok, err := s.firmar(row)
+			if err != nil {
+				return nil, err
+			}
+			return &sesionOut{SetCookie: []http.Cookie{*s.cookie(tok, int(fanauth.TTL.Seconds()))}, Body: s.yoDe(row)}, nil
+		})
+
 	// ---- salir ----
 	type salirIn struct {
 		SesionIn
@@ -359,6 +457,9 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	}
 	row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE competition_id = $1 AND email_hash = $2`, cid, acc.EmailHash))
 	if errors.Is(err, pgx.ErrNoRows) {
+		if acc.Alias == "" { // link to reset the password of an account that does not exist
+			return nil, problem.Unprocessable("CUENTA_NO_ENCONTRADA", "No hay ninguna cuenta con ese email. Crea una cuenta desde «Crear cuenta».")
+		}
 		if row, err = s.crearFan(ctx, cid, acc); err != nil {
 			return nil, err
 		}
@@ -367,6 +468,18 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	}
 	if row.BaneadoHasta != nil && row.BaneadoHasta.After(time.Now()) {
 		return nil, baneado(*row.BaneadoHasta)
+	}
+	// One redemption burns every other pending link of the email (an older one cannot be replayed later).
+	if _, err := s.a.DB.Exec(ctx, `UPDATE accesos SET usado_at = now() WHERE competition_id = $1 AND email_hash = $2 AND usado_at IS NULL`, cid, acc.EmailHash); err != nil {
+		return nil, err
+	}
+	// The link proved the email. The password is chosen AFTER it (PUT /fans/yo/contrasena), never with the
+	// request: whoever asks for a link for someone else's email cannot plant a password. A reset link (no alias)
+	// opens a 30-minute window to replace an existing password.
+	var sinClave bool
+	if err := s.a.DB.QueryRow(ctx, `UPDATE fans SET password_reset_hasta = CASE WHEN $3 THEN now() + interval '30 minutes' ELSE password_reset_hasta END
+		WHERE id = $1 AND competition_id = $2 RETURNING password_hash = ''`, row.ID, cid, acc.Alias == "").Scan(&sinClave); err != nil {
+		return nil, err
 	}
 	// Insignia de atleta: re-check on every redemption (covers late registration uploads and links
 	// requested as público that turned out to belong to an athlete).
@@ -387,6 +500,7 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	}
 	yo := s.yoDe(row)
 	yo.Next = nextValido(next) // validated again on the way out
+	yo.RequiereContrasena = sinClave || acc.Alias == ""
 	return &sesionOut{SetCookie: []http.Cookie{*s.cookie(t, int(fanauth.TTL.Seconds()))}, Body: yo}, nil
 }
 

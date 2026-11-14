@@ -67,7 +67,8 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
 /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
 const GRUPOS_MOVIL: { titulo: string; items: NavLink[] }[] = [
   { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
-  { titulo: 'El evento', items: [{ label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
+  { titulo: 'El evento', items: [{ label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
+  { titulo: 'Juegos y atletas', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }, { label: 'Tu perfil de atleta', href: '/area-atleta' }] },
   { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Blog', href: '/blog' }] },
 ];
 
