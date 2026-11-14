@@ -123,7 +123,8 @@ func (r *Relay) Run(ctx context.Context) {
 	if r.MaxLen == 0 {
 		r.MaxLen = 200_000
 	}
-	lastCleanup := time.Time{}
+	// ST2-R1-6: the weekly purge (a scan of the whole outbox) no longer stalls publishing: it runs on its own
+	go r.limpiar(ctx)
 	for ctx.Err() == nil {
 		n, err := r.publishBatch(ctx)
 		if err != nil && ctx.Err() == nil {
@@ -131,14 +132,23 @@ func (r *Relay) Run(ctx context.Context) {
 			sleep(ctx, 2*time.Second)
 			continue
 		}
-		if time.Since(lastCleanup) > time.Hour {
-			_, _ = r.DB.Exec(ctx, `DELETE FROM outbox WHERE published_at < now() - interval '7 days'`)
-			lastCleanup = time.Now()
-		}
 		if n == 0 {
 			// ST2-R1-2/6: the idle poll bounds the outbox→stream lag; outbox_pending makes an empty poll ~free
 			sleep(ctx, 40*time.Millisecond)
 		}
+	}
+}
+
+// limpiar purges published rows older than 7 days every hour, in small batches (short locks, no long scan holds).
+func (r *Relay) limpiar(ctx context.Context) {
+	for ctx.Err() == nil {
+		for ctx.Err() == nil {
+			tag, err := r.DB.Exec(ctx, `DELETE FROM outbox WHERE id IN (SELECT id FROM outbox WHERE published_at < now() - interval '7 days' LIMIT 5000)`)
+			if err != nil || tag.RowsAffected() < 5000 {
+				break
+			}
+		}
+		sleep(ctx, time.Hour)
 	}
 }
 
@@ -148,7 +158,7 @@ func (r *Relay) publishBatch(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
-	rows, err := tx.Query(ctx, `SELECT id, payload FROM outbox WHERE published_at IS NULL ORDER BY id LIMIT 200 FOR UPDATE SKIP LOCKED`)
+	rows, err := tx.Query(ctx, `SELECT id, payload, created_at FROM outbox WHERE published_at IS NULL ORDER BY id LIMIT 200 FOR UPDATE SKIP LOCKED`)
 	if err != nil {
 		return 0, err
 	}
@@ -157,17 +167,26 @@ func (r *Relay) publishBatch(ctx context.Context) (int, error) {
 		payload []byte
 	}
 	var batch []row
+	var oldest time.Time
 	for rows.Next() {
 		var x row
-		if err := rows.Scan(&x.id, &x.payload); err != nil {
+		var at time.Time
+		if err := rows.Scan(&x.id, &x.payload, &at); err != nil {
 			rows.Close()
 			return 0, err
+		}
+		if oldest.IsZero() || at.Before(oldest) {
+			oldest = at
 		}
 		batch = append(batch, x)
 	}
 	rows.Close()
 	if len(batch) == 0 {
 		return 0, tx.Commit(ctx)
+	}
+	// ST2-R1-6: trace the outbox→stream lag (created_at is the transaction start of the change)
+	if lag := time.Since(oldest); lag > time.Second {
+		r.Log.Warn("outbox relay lag", "lag_ms", lag.Milliseconds(), "lote", len(batch))
 	}
 	pipe := r.Redis.Pipeline()
 	for _, x := range batch {
