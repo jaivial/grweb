@@ -95,6 +95,8 @@ export class PanelSocial {
   protected readonly donar = signal(false);
   protected readonly jornadas = signal<Jornada[]>([]);
   protected readonly jornadasCargadas = signal(false);
+  /** Still on the first connection attempt (or its first 8 s). */
+  private readonly primera = signal(true);
 
   protected readonly pestanas: { v: Pestana; l: string }[] = [
     { v: 'chat', l: 'Chat' },
@@ -128,7 +130,8 @@ export class PanelSocial {
     if (this.chat.fase() === 'finalizado') return 'Directo finalizado';
     if (this.chat.estado() === 'conectado') return 'En directo';
     if (this.chat.estado() === 'reconectando') return 'Reconectando…';
-    return 'Sin conexión';
+    // UX4-R1-9: the first attempt is not an outage
+    return this.primera() ? 'Conectando…' : 'Sin conexión';
   });
   protected readonly puntoClase = computed(() => {
     if (this.chat.cerrado()) return 'bg-text-muted';
@@ -172,6 +175,8 @@ export class PanelSocial {
       if (!n) return;
       untracked(() => void this.don.cargarRanking(this.chat.dia()));
     });
+    effect(() => { if (this.chat.estado() !== 'sin-conexion') untracked(() => this.primera.set(false)); });
+    if (this.browser) { const t = setTimeout(() => this.primera.set(false), 8000); inject(DestroyRef).onDestroy(() => clearTimeout(t)); }
     inject(DestroyRef).onDestroy(() => this.chat.desconectar());
   }
 
