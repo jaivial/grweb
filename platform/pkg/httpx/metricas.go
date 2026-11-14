@@ -32,10 +32,24 @@ func NewMetrics() *Metrics { return &Metrics{rutas: map[string]*serie{}, inicio:
 
 type metricWriter struct {
 	http.ResponseWriter
-	code int
+	code  int
+	t0    time.Time
+	hecho bool
 }
 
-func (w *metricWriter) WriteHeader(c int)           { w.code = c; w.ResponseWriter.WriteHeader(c) }
+// ST3-R7-1: Server-Timing tells the time spent inside the service (handler + database) apart from the network,
+// gateway and tunnel in front of it, so a load test can measure the p95 of the service itself.
+func (w *metricWriter) cabecera() {
+	if !w.hecho {
+		w.hecho = true
+		w.Header().Add("Server-Timing", fmt.Sprintf("app;dur=%.1f", float64(time.Since(w.t0).Microseconds())/1000))
+	}
+}
+func (w *metricWriter) WriteHeader(c int) { w.cabecera(); w.code = c; w.ResponseWriter.WriteHeader(c) }
+func (w *metricWriter) Write(b []byte) (int, error) {
+	w.cabecera()
+	return w.ResponseWriter.Write(b)
+}
 func (w *metricWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // Middleware records every request except the probes and /metrics itself. SSE streams are recorded when they end.
@@ -46,8 +60,8 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		sw := &metricWriter{ResponseWriter: w, code: http.StatusOK}
 		t0 := time.Now()
+		sw := &metricWriter{ResponseWriter: w, code: http.StatusOK, t0: t0}
 		next.ServeHTTP(sw, r)
 		ruta := r.Pattern // set by http.ServeMux (huma registers its operations there)
 		if ruta == "" {

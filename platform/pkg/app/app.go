@@ -342,6 +342,13 @@ func (a *App) readyz(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "postgres: "+err.Error(), http.StatusServiceUnavailable)
 			return
 		}
+		// ST3-R7-1/R7-2: a pod scaled out mid-burst took traffic while its warm floor of connections was still
+		// opening in the background, so its first requests paid TCP + auth (p95 swings of ~450 ms). It is ready
+		// once that floor is open.
+		if st := a.DB.Stat(); st.TotalConns() < a.DB.Config().MinConns {
+			http.Error(w, "postgres: calentando el pool", http.StatusServiceUnavailable)
+			return
+		}
 	}
 	if a.Redis != nil {
 		if err := a.Redis.Ping(ctx).Err(); err != nil {

@@ -227,8 +227,12 @@ type salaClasificada struct {
 // (singleflight), so 1000 spectators cost one classification per second instead of one per request (ST3-R2-1).
 const ttlLobby = time.Second
 
-// lobbyPublico lists the public live rooms of a jornada (newest first, 200 at most) already classified, without
-// any fan's view. The unfiltered list is cached ttlLobby; a search goes to the database.
+// maxLobby is the largest page of the lobby (the maximum of ?limite).
+const maxLobby = 200
+
+// lobbyPublico lists the public live rooms of a jornada (newest first, maxLobby+1 at most: ST3-R7-3, the extra
+// one tells lobby there are more even at the largest page) already classified, without any fan's view. The
+// unfiltered list is cached ttlLobby; a search goes to the database.
 func (s *Svc) lobbyPublico(ctx context.Context, cid uuid.UUID, j jornada, buscar string) ([]salaClasificada, error) {
 	load := func() (any, error) {
 		// shared by every waiter of the singleflight: a cancelled first request must not fail the others
@@ -236,7 +240,7 @@ func (s *Svc) lobbyPublico(ctx context.Context, cid uuid.UUID, j jornada, buscar
 		defer cancel()
 		rows, err := s.a.DB.Query(ctx, selSala+` WHERE s.jornada_id = $1 AND s.estado IN ('abierta', 'en_juego') AND s.publica
 			AND ($2 = '' OR position($2 in s.nombre_norm) > 0)
-			ORDER BY s.created_at DESC LIMIT 200`, j.ID, buscar)
+			ORDER BY s.created_at DESC LIMIT $3`, j.ID, buscar, maxLobby+1)
 		if err != nil {
 			return nil, err
 		}
