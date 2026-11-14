@@ -776,7 +776,7 @@ export class LeaderboardRow {
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
       <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
     </nav>
-    <div class="flex items-start justify-between gap-4 md:gap-8">
+    <div class="flex items-start justify-between gap-3 md:gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">
         <!-- UX5-R3-2: en móvil un título corto de una línea (large title HIG) -->
         <h1 class="text-display-s md:text-display-m">@if (tituloMovil(); as t) { <span class="block truncate whitespace-nowrap md:hidden">{{ t }}</span><span class="hidden md:inline">{{ titulo() }}</span> } @else { {{ titulo() }} }</h1>
