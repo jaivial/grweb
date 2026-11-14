@@ -13,7 +13,10 @@ import (
 
 // drenajeWS: on SIGTERM each proxied WS gets a 1012 close at a random moment of this window (ST1-R3-2), like
 // chat does, so a scale-down of the gateway never cuts the room with 1006 nor reconnects everyone at once.
-const drenajeWS = 2 * time.Second
+// ST1-R4-2: 8 s, not 2 s: the upstream keeps delivering while the window runs (unlike a draining chat pod, whose
+// room reader has stopped, so chat keeps its 2 s), and 1000 WS over 2 s were 500 reconnects/s (p99 661 ms);
+// over 8 s they are 125/s. preStop 5 s + 8 s + 1 s margin stays well inside terminationGracePeriodSeconds 30.
+const drenajeWS = 8 * time.Second
 
 var (
 	wsActivos atomic.Int64
@@ -52,8 +55,10 @@ func (b *wsBack) Read(p []byte) (int, error) {
 		default:
 		}
 	}
-	if b.resto > 0 && uint64(len(p)) > b.resto {
-		p = p[:b.resto] // stop at the frame end so the drain check runs at a boundary
+	if b.resto > 0 && uint64(len(p)) > b.resto && b.drenando() {
+		// Only while draining stop at the frame end so the 1012 lands at a boundary; in steady state a read
+		// takes whole batches of frames (ST1-R4-3: no extra syscall per frame on the hot path).
+		p = p[:b.resto]
 	}
 	n, err := b.ReadWriteCloser.Read(p)
 	b.seguir(p[:n])
@@ -66,6 +71,16 @@ func (b *wsBack) Read(p []byte) (int, error) {
 		}
 	}
 	return n, err
+}
+
+// drenando reports whether the drain of this WS has started.
+func (b *wsBack) drenando() bool {
+	select {
+	case <-b.drenado:
+		return true
+	default:
+		return false
+	}
 }
 
 // seguir advances the frame parser over bytes already forwarded.
