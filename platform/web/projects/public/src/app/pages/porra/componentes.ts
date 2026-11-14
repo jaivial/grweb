@@ -40,10 +40,10 @@ export const MEDALLA = {
   selector: 'gr-aviso-juegos',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex items-start gap-2 text-body-xs text-text-tertiary', role: 'note' },
+  host: { class: 'flex items-start gap-2 text-body-s text-text-tertiary', role: 'note' },
   template: `
     <gr-icon name="shield" [size]="14" class="mt-px shrink-0 text-text-tertiary" />
-    <span><b class="text-label-xs font-medium text-text-secondary">Juego sin dinero real</b>
+    <span><b class="text-label-s font-medium text-text-secondary">Juego sin dinero real</b>
       <span class="ml-1">· {{ corto() ? 'sin valor económico' : 'las monedas no se compran ni se canjean por dinero' }}</span></span>
   `,
 })
