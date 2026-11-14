@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Donaciones, type DonantesRanking } from '../../core/donaciones';
 import { diaDeHoy, etiquetaDia } from '../../core/chat';
-import { HorariosPublic } from '../../core/horarios';
+import type { Horarios } from '../../core/horarios';
 import { COMPETITION_SLUG } from '../../core/competition';
 import { Juegos, type Jornada, type Premio } from '../../core/juegos';
 import { MEDALLA } from './ui';
@@ -144,7 +144,6 @@ export class DonantesView {
   /** Donations are on (until the config says otherwise). */
   protected readonly activo = computed(() => this.don.config()?.activo !== false);
 
-  private readonly horarios = inject(HorariosPublic);
   private readonly juegos = inject(Juegos);
   /** Day of the panel (fallback when the schedule has no days). */
   readonly diaSala = input<string>('');
@@ -184,7 +183,11 @@ export class DonantesView {
 
   constructor() {
     if (!this.don.config()) void this.don.cargarConfig();
-    void this.horarios.get().then((h) => this.dias.set([...new Set((h?.dias ?? []).map((d) => d.fecha.slice(0, 10)))].sort()));
+    // straight GET (not HorariosPublic): a schedule failure must not turn the page into a 503, the tab just has no sub-tabs
+    firstValueFrom(this.http.get<Horarios>(`/api/competiciones/${COMPETITION_SLUG}/horarios`)).then(
+      (h) => this.dias.set([...new Set((h?.dias ?? []).map((d) => d.fecha.slice(0, 10)))].sort()),
+      () => this.dias.set([]),
+    );
     void this.juegos.jornadas().then((l) => this.jornadas.set(l), () => this.jornadas.set([]));
     effect(() => {
       const dia = this.diaSel();
