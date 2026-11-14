@@ -20,10 +20,8 @@ export const DESTINO_INTERNO = /^\/fantasy(\/[A-Za-z0-9_-]+)*$/;
 
 export interface AccesoIn {
   email: string;
-  /** Password of the account: set when the email link is redeemed (also resets it). */
-  password: string;
   tipo: 'atleta' | 'publico';
-  /** Empty to reset the password of an existing account. */
+  /** Empty for a link to create or change the password of an existing account. */
   alias: string;
   aceptaNormas: boolean;
   /** Web path to return to after the email link (validated by the API). */
@@ -111,11 +109,18 @@ export class FanSession {
   }
 
   /** Redeems the token of the email link (page /acceso?acceso=…); sets the cookie and the session. */
-  async canjear(token: string): Promise<Fan & { next?: string }> {
-    const f = await firstValueFrom(this.http.post<Fan & { next?: string }>(`${this.base}/canjear`, { token }));
+  async canjear(token: string): Promise<Fan & { next?: string; requiereContrasena?: boolean }> {
+    const f = await firstValueFrom(this.http.post<Fan & { next?: string; requiereContrasena?: boolean }>(`${this.base}/canjear`, { token }));
     this.yo.set(f);
     this.cargada.set(true);
     this.pendiente = Promise.resolve(f);
+    return f;
+  }
+
+  /** Sets the password after redeeming a link (account without one, or a reset). Re-issues the session. */
+  async fijarContrasena(password: string): Promise<Fan> {
+    const f = await firstValueFrom(this.http.put<Fan>(`${this.base}/yo/contrasena`, { password }));
+    this.yo.set(f);
     return f;
   }
 

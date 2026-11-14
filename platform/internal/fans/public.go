@@ -47,6 +47,8 @@ type Yo struct {
 	Email    string    `json:"email" doc:"Email de la propia sesión (rellena formularios)"`
 	// Next is only set by the redemption of a magic link that was asked for with a destination.
 	Next     string    `json:"next,omitempty" doc:"Ruta interna a la que volver tras entrar (p. ej. /fantasy/unirse/CODIGO)"`
+	// RequiereContrasena is only set by a redemption: the web asks for the password (PUT /fans/yo/contrasena).
+	RequiereContrasena bool `json:"requiereContrasena,omitempty" doc:"Tras canjear: falta fijar la contraseña"`
 }
 
 // sesionOut is a response that (re)issues the session cookie.
@@ -110,9 +112,8 @@ func (s *Svc) registerPublic() {
 		SlugIn
 		Body struct {
 			Email        string `json:"email" format:"email" maxLength:"254"`
-			Password     string `json:"password" minLength:"8" maxLength:"128" doc:"Contraseña de la cuenta: se fija al canjear el enlace (verifica el email); también sirve para restablecerla"`
 			Tipo         string `json:"tipo" enum:"atleta,publico"`
-			Alias        string `json:"alias,omitempty" maxLength:"20" doc:"Nombre público en el chat y las clasificaciones (obligatorio al crear la cuenta; vacío para restablecer la contraseña)"`
+			Alias        string `json:"alias,omitempty" maxLength:"20" doc:"Nombre público en el chat y las clasificaciones (obligatorio al crear la cuenta; vacío = enlace para crear o cambiar la contraseña)"`
 			AceptaNormas bool   `json:"aceptaNormas" doc:"Debe ser true: normas de participación del directo"`
 			Next         string `json:"next,omitempty" maxLength:"200" doc:"Ruta de la web a la que volver tras entrar (p. ej. /inscripcion?ref=…)"`
 		}
@@ -149,13 +150,16 @@ func (s *Svc) registerPublic() {
 				}
 			}
 			tok := randomToken()
-			if err := s.a.DB.QueryRow(ctx, `INSERT INTO accesos (id, competition_id, token_hash, fan_email, email_hash, tipo, alias, ip, next, password_hash, expires_at)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now() + interval '30 minutes') RETURNING created_at`,
-				newID(), cid, hashToken(tok), email, emailHash(email), in.Body.Tipo, alias, ipAnon(httpx.ClientIPFrom(ctx)), nextValido(in.Body.Next), passhash.Hash(in.Body.Password)).Scan(new(time.Time)); err != nil {
+			if err := s.a.DB.QueryRow(ctx, `INSERT INTO accesos (id, competition_id, token_hash, fan_email, email_hash, tipo, alias, ip, next, expires_at)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, now() + interval '30 minutes') RETURNING created_at`,
+				newID(), cid, hashToken(tok), email, emailHash(email), in.Body.Tipo, alias, ipAnon(httpx.ClientIPFrom(ctx)), nextValido(in.Body.Next)).Scan(new(time.Time)); err != nil {
 				return nil, err
 			}
 			link := s.webURL + "/acceso?acceso=" + tok
 			plantilla := "fans-acceso"
+			if alias == "" {
+				plantilla = "fans-acceso-contrasena"
+			}
 			if next := nextValido(in.Body.Next); next != "" {
 				link += "&next=" + url.QueryEscape(next)
 				switch {
@@ -345,6 +349,48 @@ func (s *Svc) registerPublic() {
 			return &sesionOut{SetCookie: []http.Cookie{*s.cookie(tok, int(fanauth.TTL.Seconds()))}, Body: s.yoDe(row)}, nil
 		})
 
+	// ---- fijar la contraseña (tras canjear un enlace) ----
+	type claveIn struct {
+		SesionIn
+		SlugIn
+		Body struct {
+			Password string `json:"password" minLength:"8" maxLength:"128"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "fans-yo-contrasena", Method: http.MethodPut, Path: base + "/yo/contrasena",
+		Summary: "Fijar mi contraseña: si la cuenta no tiene, o en los 30 min tras canjear un enlace de «he olvidado mi contraseña»", Tags: tagFans},
+		func(ctx context.Context, in *claveIn) (*sesionOut, error) {
+			cid, err := s.comps.ID(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.sesion(ctx, cid, in.Session, in.Header)
+			if err != nil {
+				return nil, err
+			}
+			tag, err := s.a.DB.Exec(ctx, `UPDATE fans SET password_hash = $3, password_reset_hasta = NULL, updated_at = now()
+				WHERE id = $1 AND competition_id = $2 AND (password_hash = '' OR password_reset_hasta > now())`, f.ID, cid, passhash.Hash(in.Body.Password))
+			if err != nil {
+				return nil, err
+			}
+			if tag.RowsAffected() == 0 {
+				return nil, problem.Forbidden("Tu cuenta ya tiene contraseña. Para cambiarla pide un enlace con «¿Has olvidado tu contraseña?».")
+			}
+			row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, f.ID))
+			if err != nil {
+				return nil, err
+			}
+			// Every other session dies with the old password; this one is re-issued.
+			if row.Version, err = s.bumpVersion(ctx, row.ID); err != nil {
+				return nil, err
+			}
+			tok, err := s.firmar(row)
+			if err != nil {
+				return nil, err
+			}
+			return &sesionOut{SetCookie: []http.Cookie{*s.cookie(tok, int(fanauth.TTL.Seconds()))}, Body: s.yoDe(row)}, nil
+		})
+
 	// ---- salir ----
 	type salirIn struct {
 		SesionIn
@@ -396,15 +442,14 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 		return nil, err
 	}
 	var acc struct {
-		Email        string
-		EmailHash    string
-		Tipo         string
-		Alias        string
-		PasswordHash string
+		Email     string
+		EmailHash string
+		Tipo      string
+		Alias     string
 	}
 	var next string
 	err = s.a.DB.QueryRow(ctx, `UPDATE accesos SET usado_at = now() WHERE token_hash = $1 AND usado_at IS NULL AND expires_at > now()
-		RETURNING fan_email::text, email_hash, tipo, alias::text, next, password_hash`, hashToken(tok)).Scan(&acc.Email, &acc.EmailHash, &acc.Tipo, &acc.Alias, &next, &acc.PasswordHash)
+		RETURNING fan_email::text, email_hash, tipo, alias::text, next`, hashToken(tok)).Scan(&acc.Email, &acc.EmailHash, &acc.Tipo, &acc.Alias, &next)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, problem.Unauthorized("ENLACE_INVALIDO", "El enlace ha caducado o ya se usó. Pide otro desde el directo.")
 	} else if err != nil {
@@ -424,15 +469,17 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	if row.BaneadoHasta != nil && row.BaneadoHasta.After(time.Now()) {
 		return nil, baneado(*row.BaneadoHasta)
 	}
-	// The link proved the email: its password becomes the account's (first one, or a reset), and every older
-	// session dies with the old password.
-	if acc.PasswordHash != "" {
-		if _, err := s.a.DB.Exec(ctx, `UPDATE fans SET password_hash = $3, updated_at = now() WHERE id = $1 AND competition_id = $2`, row.ID, cid, acc.PasswordHash); err != nil {
-			return nil, err
-		}
-		if row.Version, err = s.bumpVersion(ctx, row.ID); err != nil {
-			return nil, err
-		}
+	// One redemption burns every other pending link of the email (an older one cannot be replayed later).
+	if _, err := s.a.DB.Exec(ctx, `UPDATE accesos SET usado_at = now() WHERE competition_id = $1 AND email_hash = $2 AND usado_at IS NULL`, cid, acc.EmailHash); err != nil {
+		return nil, err
+	}
+	// The link proved the email. The password is chosen AFTER it (PUT /fans/yo/contrasena), never with the
+	// request: whoever asks for a link for someone else's email cannot plant a password. A reset link (no alias)
+	// opens a 30-minute window to replace an existing password.
+	var sinClave bool
+	if err := s.a.DB.QueryRow(ctx, `UPDATE fans SET password_reset_hasta = CASE WHEN $3 THEN now() + interval '30 minutes' ELSE password_reset_hasta END
+		WHERE id = $1 AND competition_id = $2 RETURNING password_hash = ''`, row.ID, cid, acc.Alias == "").Scan(&sinClave); err != nil {
+		return nil, err
 	}
 	// Insignia de atleta: re-check on every redemption (covers late registration uploads and links
 	// requested as público that turned out to belong to an athlete).
@@ -453,17 +500,17 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	}
 	yo := s.yoDe(row)
 	yo.Next = nextValido(next) // validated again on the way out
+	yo.RequiereContrasena = sinClave || acc.Alias == ""
 	return &sesionOut{SetCookie: []http.Cookie{*s.cookie(t, int(fanauth.TTL.Seconds()))}, Body: yo}, nil
 }
 
 // crearFan inserts the account of a first redemption; a concurrent redemption with the same alias (or the
 // same email) falls back to the unique constraints of the table.
 func (s *Svc) crearFan(ctx context.Context, cid uuid.UUID, acc struct {
-	Email        string
-	EmailHash    string
-	Tipo         string
-	Alias        string
-	PasswordHash string
+	Email     string
+	EmailHash string
+	Tipo      string
+	Alias     string
 }) (fanRow, error) {
 	id := newID()
 	_, err := s.a.DB.Exec(ctx, `INSERT INTO fans (id, competition_id, email, email_hash, tipo, alias) VALUES ($1,$2,$3,$4,$5,$6)`,

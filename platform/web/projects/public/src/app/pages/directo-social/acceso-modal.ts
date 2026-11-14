@@ -9,8 +9,8 @@ type Estado = 'formulario' | 'enviado' | 'atleta';
 type Modo = 'entrar' | 'crear' | 'recuperar';
 
 /**
- * Modal global de acceso (Figma 70): «Entrar» con email y contraseña, o «Crear cuenta» (atleta o público, alias, email y
- * contraseña), que manda un enlace para verificar el email; al canjearlo queda fijada la contraseña. El título depende
+ * Modal global de acceso (Figma 70): «Entrar» con email y contraseña, o «Crear cuenta» (atleta o público, alias y email),
+ * que manda un enlace para verificar el email; tras abrirlo, /acceso pide la contraseña. El título depende
  * del motivo con que se abre (porra, fantasy, chat, donar…).
  * Se monta una sola vez (en el layout) y se abre cuando `FanSession.accesoAbierto()` es true.
  */
@@ -124,19 +124,18 @@ type Modo = 'entrar' | 'crear' | 'recuperar';
                 <span class="text-label-s text-text-primary">{{ modo() === 'crear' && tipo() === 'atleta' ? 'Email con el que te inscribiste en la AEP *' : 'Email *' }}</span>
                 <input grInput grSize="l" type="email" autocomplete="email" class="mt-1.5" placeholder="email@ejemplo.com" aria-label="Email" [invalid]="!!error()" [ngModel]="email()" (ngModelChange)="email.set($event)" />
                 @if (error(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
-                @else if (modo() !== 'entrar') { <span class="mt-1.5 block text-body-xs text-text-tertiary">Te enviaremos un enlace para verificar tu email.</span> }
+                @else if (modo() !== 'entrar') { <span class="mt-1.5 block text-body-xs text-text-tertiary">Te enviamos un enlace para verificar tu email; al abrirlo eliges tu contraseña.</span> }
               </label>
 
+              @if (modo() === 'entrar') {
               <label class="mt-4 block">
-                <span class="text-label-s text-text-primary">{{ modo() === 'recuperar' ? 'Nueva contraseña *' : 'Contraseña *' }}</span>
+                <span class="text-label-s text-text-primary">Contraseña *</span>
                 <span class="relative mt-1.5 block">
-                  <input grInput grSize="l" [type]="verClave() ? 'text' : 'password'" [attr.autocomplete]="modo() === 'entrar' ? 'current-password' : 'new-password'" class="pr-24" placeholder="••••••••" aria-label="Contraseña" [invalid]="!!errorClave()" [ngModel]="clave()" (ngModelChange)="clave.set($event)" (keydown.enter)="enviar()" />
+                  <input grInput grSize="l" [type]="verClave() ? 'text' : 'password'" autocomplete="current-password" class="pr-24" placeholder="••••••••" aria-label="Contraseña" [invalid]="!!errorClave()" [ngModel]="clave()" (ngModelChange)="clave.set($event)" (keydown.enter)="enviar()" />
                   <button type="button" class="absolute inset-y-0 right-1 my-auto flex h-9 items-center gap-1.5 rounded-sm px-2.5 text-body-xs text-text-secondary hover:text-text-primary" [attr.aria-pressed]="verClave()" (click)="verClave.set(!verClave())"><gr-icon name="eye" [size]="14" />{{ verClave() ? 'Ocultar' : 'Mostrar' }}</button>
                 </span>
                 @if (errorClave(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
-                @else if (modo() !== 'entrar') { <span class="mt-1.5 block text-body-xs text-text-tertiary">Mínimo 8 caracteres. Queda guardada cifrada al abrir el enlace.</span> }
               </label>
-              @if (modo() === 'entrar') {
                 <button type="button" class="mt-2 min-h-11 text-body-s text-accent-text underline-offset-4 hover:underline" (click)="cambiarModo('recuperar')">¿Has olvidado tu contraseña?</button>
               }
 
@@ -206,16 +205,16 @@ export class AccesoModal {
       : this.seguir() ? ['Pulsa el enlace del email', 'Vuelves a la ficha y le sigues sin repetir nada'] : this.formulario() ? ['Pulsa el enlace del email', 'Vuelves al formulario y lo envías'] : ['Pulsa «Entrar al directo»', this.fan.destino() ? 'Vuelves a la sala con tu alias' : 'Vuelves al chat con tu alias'])]);
 
   protected readonly titulo = computed(() => (this.estado() === 'enviado' ? 'Revisa tu correo' : this.estado() === 'atleta' ? 'Entrar como atleta' : this.modo() === 'recuperar' ? 'Crea o cambia tu contraseña'
-    : this.textos[this.fan.motivoAcceso() ?? '']?.[0] ?? this.inscripcion() ? 'Entra para inscribirte' : this.entradas() ? 'Entra para reservar' : this.seguir() ? 'Entra para seguir al atleta' : this.formulario() ? 'Entra para enviar la solicitud' : 'Entrar al directo'));
+    : this.textos[this.fan.motivoAcceso() ?? '']?.[0] ?? (this.inscripcion() ? 'Entra para inscribirte' : this.entradas() ? 'Entra para reservar' : this.seguir() ? 'Entra para seguir al atleta' : this.formulario() ? 'Entra para enviar la solicitud' : 'Entrar al directo')));
   protected readonly subtitulo = computed(() => {
-    if (this.estado() === 'enviado') return this.modo() === 'recuperar' ? 'Abre el enlace para guardar tu nueva contraseña.' : 'Abre el enlace para verificar tu email y activar tu cuenta.';
-    if (this.modo() === 'recuperar') return 'Te enviamos un enlace a tu email: al abrirlo queda guardada la contraseña nueva. Sirve también para cuentas antiguas sin contraseña.';
+    if (this.estado() === 'enviado') return this.modo() === 'recuperar' ? 'Abre el enlace y elige tu contraseña nueva.' : 'Abre el enlace para verificar tu email y elegir tu contraseña.';
+    if (this.modo() === 'recuperar') return 'Te enviamos un enlace a tu email: al abrirlo eliges la contraseña nueva. Sirve también para cuentas antiguas sin contraseña.';
     if (this.estado() === 'atleta') return 'Comprobamos tu email contra la inscripción de la AEP.';
     return this.inscripcion() ? 'Necesitas tu cuenta de GR Strength Cup para inscribirte. Vuelves al formulario con lo que ya has rellenado.' : this.entradas() ? 'Tu entrada va asociada a tu cuenta de GR Strength Cup. Vuelves a la reserva con lo que ya has rellenado.'
       : this.formulario() ? 'La solicitud va asociada a tu cuenta de GR Strength Cup. Vuelves al formulario para enviarla.'
       : this.seguir() ? 'Sigue a tus atletas con tu cuenta de GR Strength Cup: te avisamos por email antes de que compitan.' : this.textos[this.fan.motivoAcceso() ?? '']?.[1] ?? 'Chatea, dona y juega con tu cuenta de directo.';
   });
-  protected readonly puedeEnviar = computed(() => this.email().includes('@') && (this.modo() === 'entrar' ? this.clave().length > 0 : this.clave().length >= 8)
+  protected readonly puedeEnviar = computed(() => this.email().includes('@') && (this.modo() !== 'entrar' || this.clave().length > 0)
     && (this.modo() !== 'crear' || (this.alias().trim().length >= 3 && this.alias().trim().length <= 20 && this.normas())));
 
   constructor() {
@@ -264,7 +263,7 @@ export class AccesoModal {
       this.errorAlias.set(crear && (a < 3 || a > 20) ? 'El alias debe tener entre 3 y 20 caracteres.' : null);
       this.error.set(this.email().includes('@') ? null : 'Escribe un email válido.');
       const c = this.clave().length;
-      this.errorClave.set(c === 0 ? 'Escribe tu contraseña.' : this.modo() !== 'entrar' && c < 8 ? 'La contraseña debe tener al menos 8 caracteres.' : null);
+      this.errorClave.set(this.modo() === 'entrar' && c === 0 ? 'Escribe tu contraseña.' : null);
       this.errorNormas.set(crear && !this.normas());
       return;
     }
@@ -278,11 +277,13 @@ export class AccesoModal {
         await this.fan.entrar(this.email().trim(), this.clave());
         const volverA = this.fan.volverA();
         this.cerrar();
+        // Porra, fantasy and «mis apuestas» load their data once: re-enter the page so they load it with the session.
         if (volverA && volverA !== this.router.url) await this.router.navigateByUrl(volverA);
+        else location.reload();
         return;
       }
       const crear = this.modo() === 'crear';
-      await this.fan.pedirAcceso({ email: this.email().trim(), password: this.clave(), tipo: crear ? this.tipo() : 'publico', alias: crear ? this.alias().trim() : '',
+      await this.fan.pedirAcceso({ email: this.email().trim(), tipo: crear ? this.tipo() : 'publico', alias: crear ? this.alias().trim() : '',
         aceptaNormas: crear && this.normas(), next: this.fan.volverA() ?? undefined });
       this.estado.set('enviado');
     } catch (e) {
