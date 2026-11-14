@@ -90,26 +90,8 @@ const MAX_MARCA = 600;
           <gr-community nivel="h3" />
         </div>
       } @else {
-        <!-- Contenido útil antes del formulario (Figma 75) -->
-        <section class="flex flex-col gap-7">
-          <div>
-            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
-            <h2 class="mt-3 text-display-m md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
-            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introH2 }}</p>
-          </div>
-          <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
-            @for (b of bloques; track b.t) {
-              <article class="flex flex-col gap-2">
-                <h3 class="text-ui-h5 lg:text-[17px]">{{ b.t }}</h3>
-                <p class="text-body-s text-text-secondary">{{ b.d }}</p>
-              </article>
-            }
-          </div>
-          @if (vista() === 'formulario') { <div><a grButton variant="primary" size="m" href="#formulario">Ir al formulario</a></div> }
-        </section>
-
         <!-- Formulario + resumen (Figma 75) -->
-        <div class="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
+        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
           <div id="formulario" class="scroll-mt-24 outline-none" tabindex="-1">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
@@ -129,10 +111,10 @@ const MAX_MARCA = 600;
 
                     @if (resumen().length) {
                       <!-- Resumen de errores: lleva a cada campo -->
-                      <div #resumenErr tabindex="-1" class="rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
+                      <div #resumenErr tabindex="-1" class="scroll-mt-28 rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
                         <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />Revisa {{ resumen().length === 1 ? 'un campo' : resumen().length + ' campos' }} antes de enviar</p>
                         <ul class="mt-2 flex flex-col gap-1 pl-1 text-body-s text-text-secondary">
-                          @for (e of resumen(); track e.campo) { <li>• <a [href]="'#c-' + e.campo" class="hover:text-text-primary hover:underline">{{ e.label }}: {{ e.msg }}</a></li> }
+                          @for (e of resumen(); track e.campo) { <li>• <a [href]="'#c-' + e.campo" (click)="$event.preventDefault(); enfocar('#c-' + e.campo)" class="hover:text-text-primary hover:underline">{{ e.label }}: {{ e.msg }}</a></li> }
                         </ul>
                       </div>
                     }
@@ -421,6 +403,24 @@ const MAX_MARCA = 600;
           <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
         </div>
 
+        <!-- Contenido útil (Figma 75), tras el formulario para que la acción principal se vea al entrar (UX2-R1-2) -->
+        <section class="mt-12 flex flex-col gap-7">
+          <div>
+            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
+            <h2 class="mt-3 text-display-m md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introLarga }}</p>
+            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introH2 }}</p>
+          </div>
+          <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
+            @for (b of bloques; track b.t) {
+              <article class="flex flex-col gap-2">
+                <h3 class="text-ui-h5 lg:text-[17px]">{{ b.t }}</h3>
+                <p class="text-body-s text-text-secondary">{{ b.d }}</p>
+              </article>
+            }
+          </div>
+        </section>
+
         <!-- Preguntas frecuentes -->
         <gr-alta-faq />
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
@@ -571,14 +571,17 @@ export class AltaAtletaPage {
     { k: 'marcaDL' as const, t: 'Peso muerto (DL)', c: 'DL', n: 'peso muerto' },
   ];
 
-  protected readonly intro =
+  /** Intro corta (≤3 líneas en móvil): el formulario debe verse al entrar (UX2-R1-2). */
+  protected readonly intro = 'Si compites en esta edición, crea tu perfil de atleta: foto, datos de competidor y tus mejores marcas en menos de cinco minutos. No es una inscripción y queda privado hasta que lo publiques.';
+  /** El texto completo va en el bloque de contenido, tras el formulario. */
+  protected readonly introLarga =
     'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil, que queda privado hasta que actives su publicación. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email con el resultado. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
   /** The intro when the alta is closed: it never invites to fill in the form. */
   protected readonly introCerrada =
     'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. El alta de atletas está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.';
   protected readonly cerrada = computed(() => this.vista() === 'cerrada' || this.vista() === 'legal');
   /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
-  protected readonly introHtml = this.intro.replace('dar de alta tu atleta', '<strong class="font-semibold text-text-primary">dar de alta tu atleta</strong>');
+  protected readonly introHtml = this.intro.replace('crea tu perfil de atleta', '<strong class="font-semibold text-text-primary">crea tu perfil de atleta</strong>');
   protected readonly introH2 =
     'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que, cuando actives su publicación, aparece en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
   protected readonly introExitoPrivada =
@@ -833,7 +836,7 @@ export class AltaAtletaPage {
     this.err.set(e);
     if (Object.keys(e).length) {
       // El resumen está arriba del formulario: lleva la vista allí.
-      setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }));
+      this.enfocar('[role=alert][tabindex]');
       return;
     }
     if (!this.altchaPago()) {
@@ -981,7 +984,7 @@ export class AltaAtletaPage {
       }
       this.err.set(e);
       this.error.set('');
-      setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }));
+      this.enfocar('[role=alert][tabindex]');
       return;
     }
     if (xhr.status === 422 && (codigo === 'CONSENTIMIENTO_OBLIGATORIO' || codigo === 'TELEFONO_OBLIGATORIO')) {
@@ -1003,8 +1006,15 @@ export class AltaAtletaPage {
   }
 
   /** Mueve el foco al bloque que acaba de aparecer (el botón que lo tenía puede quedar deshabilitado). */
-  private enfocar(sel: string): void {
-    setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>(sel)?.focus({ preventScroll: false }));
+  protected enfocar(sel: string): void {
+    setTimeout(() => {
+      const el = (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>(sel);
+      if (!el) return;
+      // scroll-behavior:smooth del html anula el scroll del focus: se desplaza a mano y luego se enfoca (UX2-R1-3).
+      const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'center', behavior: quieto ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+    });
   }
 
   /** Cuenta atrás del Retry-After de un 429: el texto se actualiza cada segundo y se desbloquea al llegar a 0. */

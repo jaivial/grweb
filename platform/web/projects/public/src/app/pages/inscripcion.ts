@@ -156,7 +156,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
         }
         @if (resumenErrores().length) {
           <!-- Figma 06 «Errores de validación» -->
-          <div #errores tabindex="-1" class="rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
+          <div #errores tabindex="-1" class="scroll-mt-28 rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
             <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />Revisa {{ resumenErrores().length === 1 ? 'un campo' : resumenErrores().length + ' campos' }} antes de enviar</p>
             <ul class="mt-2 flex flex-col gap-1 pl-1 text-body-s text-text-secondary">@for (e of resumenErrores(); track e) { <li>• {{ e }}</li> }</ul>
           </div>
@@ -450,7 +450,13 @@ export class InscripcionPage {
 
   private enfocarResumen(): void {
     // the summary sits above the form: take the person there (Figma 06 «Errores de validación»)
-    afterNextRender(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]')?.focus({ preventScroll: false }), { injector: this.injector });
+    afterNextRender(() => {
+      const el = (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[role=alert][tabindex]');
+      if (!el) return;
+      // scroll-behavior:smooth del html anula el scroll del focus: se desplaza a mano (UX2-R1-3).
+      el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+    }, { injector: this.injector });
   }
 
   /** Field errors of a 422 (errors[].location body.x, or a code tied to one field); true if any was shown. */
