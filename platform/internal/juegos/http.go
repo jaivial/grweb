@@ -250,7 +250,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			ms, err := s.mercadosVista(ctx, c.ID, j)
+			ms, err := s.mercadosVistaCache(ctx, c.ID, j)
 			if err != nil {
 				return nil, err
 			}
