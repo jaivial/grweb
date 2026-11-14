@@ -119,20 +119,21 @@ func TestPlazasSala(t *testing.T) {
 // first session starts the rooms.
 func TestHorario(t *testing.T) {
 	base := time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC)
-	snap := []snapDia{{Fecha: "2026-11-14", Flights: []struct {
-		Inicio time.Time `json:"inicio"`
-	}{{Inicio: base.Add(3 * time.Hour)}, {Inicio: base}, {Inicio: base.Add(8 * time.Hour)}}}, {Fecha: "2026-11-15"}}
+	uno := []struct {
+		ID uuid.UUID `json:"id"`
+	}{{ID: uuid.Must(uuid.NewV7())}}
+	snap := []snapDia{{Fecha: "2026-11-14", Inicio: base, Atletas: uno}, {Fecha: "2026-11-15"}}
 	h := horarioDeSnapshot(snap, "2026-11-14")
-	if !h.OK || !h.Inicio.Equal(base) || !h.UltimaSesion.Equal(base.Add(8*time.Hour)) {
+	if !h.OK || !h.Inicio.Equal(base) || !h.UltimaSesion.Equal(base) {
 		t.Fatalf("horario = %+v", h)
 	}
-	if c := h.clausulazo(base.Add(8*time.Hour - time.Second)); !c.Abierto || c.Cierre == nil || c.problema() != nil {
+	if c := h.clausulazo(base.Add(-time.Second)); !c.Abierto || c.Cierre == nil || c.problema() != nil {
 		t.Fatalf("un segundo antes de la última sesión debía estar abierto: %+v", c)
 	}
-	if c := h.clausulazo(base.Add(8 * time.Hour)); c.Abierto || c.Motivo != "ultima_sesion" || codigoDe(t, c.problema()) != "CLAUSULAZO_CERRADO" {
+	if c := h.clausulazo(base); c.Abierto || c.Motivo != "ultima_sesion" || codigoDe(t, c.problema()) != "CLAUSULAZO_CERRADO" {
 		t.Fatalf("al empezar la última sesión debía cerrarse: %+v", c)
 	}
-	for _, dia := range []string{"2026-11-15", "2026-11-16"} { // a day without flights, a day that is not in the schedule
+	for _, dia := range []string{"2026-11-15", "2026-11-16"} { // a day without athletes, a day that is not in the schedule
 		if c := horarioDeSnapshot(snap, dia).clausulazo(base); c.Abierto || c.Motivo != "sin_horario" || c.Cierre != nil {
 			t.Fatalf("sin horario (%s) debía estar bloqueado: %+v", dia, c)
 		}
