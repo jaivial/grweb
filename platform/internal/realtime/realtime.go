@@ -492,6 +492,7 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 		return err == nil && rc.Flush() == nil
 	}
 	control := func(event, motivo string) bool {
+		_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		_, err := fmt.Fprintf(w, "event: %s\ndata: {\"motivo\":%q}\n\n", event, motivo)
 		return err == nil && rc.Flush() == nil
 	}
@@ -549,6 +550,7 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 				return
 			}
 		case <-ping.C:
+			_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil || rc.Flush() != nil {
 				return
 			}
