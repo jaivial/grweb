@@ -49,7 +49,9 @@ type atletaMercado struct {
 func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, salaID, fanID uuid.UUID) ([]atletaMercado, error) {
 	m, err := s.marcador(ctx, cid, j.Dia)
 	if err != nil {
-		return nil, err
+		// live down and no last good scoreboard: the market still lists clauses and owners, without grades or
+		// photos (ST3-R2-2), instead of failing the page.
+		m = &Marcador{}
 	}
 	cfg, err := configJuegos(ctx, s.a.DB, cid)
 	if err != nil {

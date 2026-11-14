@@ -120,14 +120,26 @@ func (s *Svc) cargarPlan(ctx context.Context, cid uuid.UUID) (*plan, error) {
 	key := "plan:" + cid.String()
 	var p plan
 	if !s.cache.Get(ctx, key, &p) {
+		// 2 s budget per upstream (not the 10 s of the svcclient); on error the last good plan (kept 24 h under
+		// planok:) is served and retried after 5 s, so a schedule outage does not take live down (ST3-R2-2).
+		uctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
 		var sn *snapshot
-		if err := s.schedule.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/horarios/publicados", nil, &sn); err != nil {
+		var ats []atleta
+		if err := s.schedule.Do(uctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/horarios/publicados", nil, &sn); err != nil {
 			s.a.Log.Warn("horarios publicados", "err", err)
+			if s.planViejo(ctx, cid, key, &p) {
+				p.index()
+				return &p, nil
+			}
 			return nil, problem.New(http.StatusServiceUnavailable, "HORARIOS_NO_DISPONIBLES", "No se pudieron leer los horarios publicados. Reintenta en unos segundos.")
 		}
-		var ats []atleta
-		if err := s.athletes.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/atletas", nil, &ats); err != nil {
+		if err := s.athletes.Do(uctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/atletas", nil, &ats); err != nil {
 			s.a.Log.Warn("atletas", "err", err)
+			if s.planViejo(ctx, cid, key, &p) {
+				p.index()
+				return &p, nil
+			}
 			return nil, problem.New(http.StatusServiceUnavailable, "ATLETAS_NO_DISPONIBLES", "No se pudieron leer los atletas. Reintenta en unos segundos.")
 		}
 		p = plan{Atletas: map[uuid.UUID]*atleta{}}
@@ -144,9 +156,19 @@ func (s *Svc) cargarPlan(ctx context.Context, cid uuid.UUID) (*plan, error) {
 			p.Atletas[ats[i].ID] = &ats[i]
 		}
 		s.cache.Set(ctx, key, p, 15*time.Second)
+		s.cache.Set(ctx, "planok:"+cid.String(), p, 24*time.Hour)
 	}
 	p.index()
 	return &p, nil
+}
+
+// planViejo loads the last good plan and caches it 5 s under key (the next retry of the upstreams).
+func (s *Svc) planViejo(ctx context.Context, cid uuid.UUID, key string, p *plan) bool {
+	if !s.cache.Get(ctx, "planok:"+cid.String(), p) {
+		return false
+	}
+	s.cache.Set(ctx, key, *p, 5*time.Second)
+	return true
 }
 
 // ---- attempts ----
