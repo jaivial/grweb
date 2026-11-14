@@ -344,7 +344,7 @@ function catSort(a: string, b: string): number {
               <div class="relative bg-[linear-gradient(160deg,#3a0f17,#171213)]" [class]="a.fotoUrl ? 'aspect-[4/5]' : 'min-h-[184px] lg:aspect-[4/5]'">
                 @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombre + ' ' + a.apellidos" class="size-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" fetchpriority="high" /> }
                 @else { <span class="absolute top-5 left-5 flex size-[72px] items-center justify-center rounded-full border border-white/15 bg-white/5 font-display text-[32px] text-white/85 italic lg:inset-0 lg:size-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:text-[96px]" aria-hidden="true">{{ ini(a) }}</span> }
-                <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5" [class]="a.fotoUrl ? 'pt-16' : 'pt-3 lg:pt-16'"><p class="font-display leading-[0.95] uppercase italic" [class]="a.fotoUrl ? 'text-[40px]' : 'text-[32px] lg:text-[40px]'">{{ a.nombre }} {{ a.apellidos }}</p></div>
+                <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5" [class]="a.fotoUrl ? 'pt-16' : 'pt-[108px] max-lg:relative lg:pt-16'"><p class="font-display leading-[0.95] uppercase italic" [class]="a.fotoUrl ? 'text-[40px]' : 'text-[32px] lg:text-[40px]'">{{ a.nombre }} {{ a.apellidos }}</p></div>
               </div>
               <div class="p-5">
                 <p class="flex flex-wrap gap-1.5">
