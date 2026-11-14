@@ -80,7 +80,7 @@ const PUFFS = [
       <div class="gr-intro absolute inset-x-0 top-[84px] flex flex-col items-center px-5 text-center transition-opacity duration-700 md:top-[78px] motion-reduce:transition-none" [style.opacity]="texto()">
         <img src="/img/home/aep-hero.webp" alt="AEP · Asociación Española de Powerlifting" width="108" height="40" class="h-8 w-auto select-none md:h-10" draggable="false" />
         <img [src]="logo" alt="GR Strength Cup 2026" class="mt-[57px] h-[clamp(80px,30vw,125px)] w-auto select-none md:mt-[63px] md:h-[198px]" draggable="false" fetchpriority="high" />
-        @if (hero().eyebrow) { <p class="mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
+        @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
         <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-[65px]'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
         @if (hero().fecha || fechas() || lugar()) {
           <p class="mt-[66px] flex flex-col items-center gap-1 md:mt-[63px]">
@@ -93,10 +93,10 @@ const PUFFS = [
           </p>
         }
         @if (hero().ctaTexto && hero().ctaDestino) {
-          <a grButton variant="primary" size="l" class="pointer-events-auto mt-8" [routerLink]="hero().ctaDestino">{{ hero().ctaTexto }}</a>
+          <a grButton variant="primary" size="l" class="gr-intro-extra pointer-events-auto mt-8" [routerLink]="hero().ctaDestino">{{ hero().ctaTexto }}</a>
         }
         @if (patrocinadores().length) {
-          <ul class="mt-16 flex flex-wrap items-center justify-center gap-2 md:mt-[63px] md:gap-4" aria-label="Organizan y colaboran">
+          <ul class="gr-intro-patros mt-16 flex flex-wrap items-center justify-center gap-2 md:mt-[63px] md:gap-4" aria-label="Organizan y colaboran">
             @for (p of patrocinadores(); track p.nombre) {
               <li class="flex h-11 w-[104px] items-center justify-center p-1.5 md:h-14 md:w-[176px]">
                 @if (!p.logoUrl) { <span class="text-label-s text-text-secondary">{{ p.nombre }}</span> }
@@ -138,10 +138,20 @@ const PUFFS = [
       mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
       mask-composite: intersect;
     }
-    /* UX1-R1-7: short viewports (zoom 200 %, landscape): compact intro, no «Desliza», so «Saltar intro» never sits on the title */
-    @media (max-height: 560px) {
+    /* UX1-R1-7 / R2-2: short viewports (iPhone SE, zoom 200 %, landscape): compact intro so «Saltar intro» never sits on the text */
+    @media (max-width: 767px) and (max-height: 700px) {
       .gr-intro { top: 72px; }
+      .gr-intro > * + * { margin-top: 3dvh !important; }
+      .gr-intro > img:nth-child(2) { height: min(30vw, 18dvh, 125px); }
+      /* the sponsors also run in the marquee below; here they would sit under «Saltar intro» */
+      .gr-intro-patros { display: none; }
+    }
+    @media (max-height: 560px) {
+      .gr-intro { top: 64px; }
       .gr-intro > * + * { margin-top: 12px !important; }
+      .gr-intro > img:nth-child(2) { height: min(30vw, 14dvh, 125px); }
+      /* zoom 200 % / landscape: only logo, title and date fit above «Saltar intro»; the booking CTA stays in the navbar and the bottom bar */
+      .gr-intro-extra { display: none; }
       .gr-desliza { display: none; }
     }
     .gr-precarga { animation: gr-precarga-fuera 0.5s ease 4s forwards; }
