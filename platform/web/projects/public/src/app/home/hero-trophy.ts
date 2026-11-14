@@ -41,7 +41,8 @@ const PUFFS = [
   selector: 'gr-hero-trophy',
   imports: [GrIcon, GrButton, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'relative block', '[style.height]': 'reduced() ? "100dvh" : "500vh"' },
+  // UX1-R1-1/6: 200vh on phones (500vh from md), one screen with reduced motion - in CSS, so it holds from the SSR paint
+  host: { class: 'relative block' },
   template: `
     <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base">
       <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later -->
@@ -111,7 +112,7 @@ const PUFFS = [
           Desliza<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"
-          class="absolute bottom-8 left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
+          class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
           Saltar intro<gr-icon name="arrow-down" [size]="16" />
         </button>
         <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
@@ -128,6 +129,9 @@ const PUFFS = [
     </div>
   `,
   styles: [`
+    :host { height: 200vh; }
+    @media (min-width: 768px) { :host { height: 500vh; } }
+    @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
     /* Figma «Fundido · arriba/abajo/izquierda/derecha»: 20 % at the top and bottom, 24 % at the sides */
     .gr-trofeo-fundido {
       -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);

@@ -80,7 +80,8 @@ const UI = {
   selector: 'gr-navbar',
   imports: [RouterLink, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'fixed inset-x-0 top-0 z-40 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.opacity-0]': 'hidden()', '[class.-translate-y-4]': 'hidden()', '[class.pointer-events-none]': 'hidden()', '[attr.aria-hidden]': 'hidden() || null' },
+  // UX1-R1-1: on phones the navbar stays visible during the intro (hidden only from md). UX1-R1-5: above the bottom bar and FAB while the menu is open.
+  host: { class: 'fixed inset-x-0 top-0 px-5 pt-3 transition-[opacity,transform] duration-300 md:px-8 md:pt-4 xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.z-40]': '!open()', '[class.z-[60]]': 'open()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null' },
   template: `
     <nav class="relative mx-auto flex h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 backdrop-blur-[10px] md:h-[72px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
@@ -171,6 +172,8 @@ const UI = {
 export class Navbar {
   readonly hidden = input(false);
   readonly lang = input<Lang>('es');
+  /** md+ viewport: only there does `hidden` apply (UX1-R1-1). */
+  protected readonly ancho = signal(false);
   protected readonly open = signal(false);
   protected readonly mega = signal(false);
   private readonly el = inject(ElementRef<HTMLElement>);
@@ -215,6 +218,11 @@ export class Navbar {
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       // the menu is a modal: no page scroll behind it, and it closes on navigation
       // focus goes into the menu when it opens (to «close») and back to the hamburger when it closes; Esc closes it
+      const mq = window.matchMedia('(min-width: 768px)');
+      const onMq = () => this.ancho.set(mq.matches);
+      onMq();
+      mq.addEventListener('change', onMq);
+      inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', onMq));
       let estaba = false;
       effect(() => {
         const abierto = this.open();
