@@ -115,14 +115,13 @@ const PUFFS = [
           class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
           Saltar intro<gr-icon name="arrow-down" [size]="16" />
         </button>
-        <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
+        <!-- «Hero preload»: download progress until the first video seek completes -->
         @if (precarga()) {
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
-          <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
+          <!-- UX1-R1-9: a 2 px bar on top - the SSR intro (logo, title, CTA) stays readable while the video loads -->
+          <div class="gr-precarga pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 bg-white/8 transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
             role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
-            <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" [class.invisible]="precargaFuera()" />
-            <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface" [class.invisible]="precargaFuera()"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
-            <p class="text-body-s text-text-tertiary" [class.invisible]="precargaFuera()">@if (progresoIndeterminado()) { Cargando vídeo… } @else { {{ criticoPct() }} % }</p>
+            <div class="h-full bg-[linear-gradient(90deg,#6e1420,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div>
           </div>
         }
       }
