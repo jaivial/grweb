@@ -15,7 +15,6 @@ import { GrAltcha } from './alta-atleta-altcha';
 import { AltaFoto, type FotoAlta } from './alta-atleta-foto';
 import { AltaExito } from './alta-atleta-exito';
 import { AltaAviso } from './alta-atleta-aviso';
-import { AltaAyuda } from './alta-atleta-ayuda';
 import { AltaFaq, FAQS } from './alta-atleta-faq';
 
 /** Configuración del alta (CONTRATOS §1): módulo, textos legales, reto antibots y token de tiempo. */
@@ -55,27 +54,25 @@ const MAX_NOMBRE = 60;
 const MAX_APELLIDOS = 60;
 const MAX_BIO = 280;
 const MAX_FRASE = 80;
-const MAX_HISTORIAL = 300;
 const RE_INSTAGRAM = /^@?[A-Za-z0-9._]{1,30}$/;
 const MAX_CAMPO = 80;
-const MAX_LICENCIA = 20;
 const MAX_MARCA = 600;
 
 /**
  * /alta-atleta (Figma 75): la página pública del alta de atleta con revisión humana.
  * Formulario completo (datos, foto, perfil, marcas, consentimientos y envío), estados de error y
- * de éxito en la misma ruta, y el bloque de ayuda con el total de las marcas en vivo.
+ * de éxito en la misma ruta, y las preguntas rápidas (FAQPage).
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaAyuda, AltaFaq],
+  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
       [title]="exito() ? 'Solicitud recibida' : 'Alta de atleta de'"
       [accent]="exito() ? '' : 'powerlifting'"
-      [suffix]="exito() ? '' : 'para la GR Cup'"
-      [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GR Cup 2026'"
+      [suffix]="exito() ? '' : 'para la GRS Cup'"
+      [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GRS Cup 2026'"
       section="Atletas"
       crumb="Alta de atleta"
       [subtitle]="exito() ? introExitoPrivada : cerrada() ? introCerrada : intro"
@@ -91,8 +88,8 @@ const MAX_MARCA = 600;
           <gr-community nivel="h3" />
         </div>
       } @else {
-        <!-- Formulario + resumen (Figma 75) -->
-        <div class="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
+        <!-- Formulario centrado (Figma 171:89503: 760 px, sin columna de resumen) -->
+        <div class="mx-auto w-full max-w-[760px]">
           <div id="formulario" class="min-w-0 scroll-mt-24 outline-none" tabindex="-1">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
@@ -107,7 +104,7 @@ const MAX_MARCA = 600;
                   <form class="relative flex min-w-0 flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
                     <div>
                       <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">Solicitud de alta</h2>
-                      <p class="mt-1.5 text-body-s text-text-tertiary">Los campos marcados con * son obligatorios. El resto, opcional.</p>
+                      <p class="mt-1.5 text-[12px] leading-4 text-text-tertiary">Los campos marcados con * son obligatorios, el resto opcional.</p>
                     </div>
 
                     @if (resumen().length) {
@@ -144,7 +141,7 @@ const MAX_MARCA = 600;
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
-                        <label class="text-label-s" for="c-email">Email de tu inscripción en la AEP *</label>
+                        <label class="text-label-s" for="c-email">Email de tu inscripción *</label>
                         <input id="c-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="tu@email.com"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['email'] ? 'border-accent-text' : 'border-line-strong'"
@@ -156,15 +153,15 @@ const MAX_MARCA = 600;
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-telefono">Teléfono móvil</label>
                         <span class="flex h-12 w-full items-center overflow-hidden rounded-[10px] border bg-bg-field focus-within:border-accent-text"
-                          [class]="err()['telefono'] ? 'border-accent-text' : 'border-line-strong'">
+                          [class]="err()['telefono'] || telAviso() ? 'border-accent-text' : 'border-line-strong'">
                           <span class="flex h-full shrink-0 items-center border-r border-line-subtle px-3.5 text-body-m text-text-secondary">+34</span>
-                          <input id="c-telefono" name="telefono" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="600 000 000"
+                          <input id="c-telefono" name="telefono" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="9" placeholder="600 000 000"
                             class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m placeholder:text-text-muted focus:outline-none"
-                            [(ngModel)]="d.telefono" (ngModelChange)="revalidar()"
-                            [attr.aria-invalid]="!!err()['telefono']" [attr.aria-describedby]="err()['telefono'] ? 'e-telefono h-telefono' : 'h-telefono'" />
+                            [value]="d.telefono" (input)="telCambia($any($event.target))" (blur)="telRevisar()"
+                            [attr.aria-invalid]="!!(err()['telefono'] || telAviso())" [attr.aria-describedby]="err()['telefono'] || telAviso() ? 'e-telefono h-telefono' : 'h-telefono'" />
                         </span>
-                        <p id="h-telefono" class="text-body-s text-text-tertiary">Formato internacional (+34 por defecto).{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
-                        @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        <p id="h-telefono" class="text-body-s text-text-tertiary">Móvil español de 9 dígitos.{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
+                        @if (err()['telefono'] || telAviso(); as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-s text-accent-text" aria-live="polite"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">Sexo *</span>
@@ -193,15 +190,6 @@ const MAX_MARCA = 600;
                           <gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Como has nacido antes de los 18, necesitaremos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email antes de publicar tu ficha.
                         </p>
                       }
-                      <div class="flex min-w-0 flex-col gap-2">
-                        <label class="text-label-s" for="c-licencia">Licencia AEP</label>
-                        <input id="c-licencia" name="licencia" type="text" maxlength="40" placeholder="E-12345"
-                          class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
-                          [class]="err()['licencia'] ? 'border-accent-text' : 'border-line-strong'"
-                          [(ngModel)]="d.licencia" (ngModelChange)="revalidar()"
-                          [attr.aria-invalid]="!!err()['licencia']" [attr.aria-describedby]="err()['licencia'] ? 'e-licencia' : null" />
-                        @if (err()['licencia']; as e) { <p id="e-licencia" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
-                      </div>
                     </fieldset>
 
                     <!-- Competición -->
@@ -213,7 +201,7 @@ const MAX_MARCA = 600;
                           @for (o of opcionesPrueba(); track o.codigo) {
                             <button type="button" role="radio" [attr.aria-checked]="d.prueba === o.codigo" (click)="d.prueba = o.codigo; revalidar()"
                               [disabled]="o.completa" [attr.aria-disabled]="o.completa || null" [attr.data-prueba]="o.codigo"
-                              [attr.aria-label]="o.titulo + '. ' + o.detalle + '. ' + o.chip" [attr.tabindex]="o.codigo === pruebaFoco() ? 0 : -1"
+                              [attr.aria-label]="o.titulo + '. ' + o.detalle" [attr.tabindex]="o.codigo === pruebaFoco() ? 0 : -1"
                               class="flex w-full items-center gap-4 rounded-[10px] border px-4 py-3.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                               [class]="d.prueba === o.codigo ? 'border-accent-text bg-accent-deep/30' : o.completa ? 'border-line-subtle bg-bg-card' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
                               <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2"
@@ -224,7 +212,6 @@ const MAX_MARCA = 600;
                                 <span class="text-body-m font-semibold text-text-primary">{{ o.titulo }}</span>
                                 <span class="text-body-s text-text-tertiary">{{ o.detalle }}</span>
                               </span>
-                              <span class="shrink-0 rounded-full border px-2.5 py-0.5 text-label-xs" [class]="o.tono">{{ o.chip }}</span>
                             </button>
                           }
                           @if (err()['prueba']) { <p id="e-prueba" class="text-body-s text-accent-text">{{ err()['prueba'] }}</p> }
@@ -232,8 +219,8 @@ const MAX_MARCA = 600;
                       }
                       <div class="grid gap-4 sm:grid-cols-2">
                         <div class="flex min-w-0 flex-col gap-2">
-                          <label class="text-label-s" for="c-club">Club (o «independiente»)</label>
-                          <input id="c-club" name="club" type="text" maxlength="80" placeholder="Tu club"
+                          <label class="text-label-s" for="c-club">Club</label>
+                          <input id="c-club" name="club" type="text" maxlength="80" placeholder="Escribe tu club"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['club'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.club" (ngModelChange)="revalidar()"
@@ -251,8 +238,8 @@ const MAX_MARCA = 600;
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
-                        <label class="text-label-s" for="c-entrenador">Entrenador/a</label>
-                        <input id="c-entrenador" name="entrenador" type="text" maxlength="80" placeholder="Opcional"
+                        <label class="text-label-s" for="c-entrenador">Entrenador/a (opcional)</label>
+                        <input id="c-entrenador" name="entrenador" type="text" maxlength="80" placeholder="Tu entrenador/a"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['entrenador'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.entrenador" (ngModelChange)="revalidar()"
@@ -272,7 +259,7 @@ const MAX_MARCA = 600;
                       <legend class="mb-5 text-display-2xs italic">Tu perfil</legend>
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
-                          <label class="text-label-s" for="c-frase">Frase de presentación</label>
+                          <label class="text-label-s" for="c-frase">Frase de presentación (opcional)</label>
                           <span class="text-body-s text-text-tertiary">{{ d.frase.length }} / {{ maxFrase }}</span>
                         </div>
                         <input id="c-frase" name="frase" type="text" maxlength="80" placeholder="Una frase para tu ficha"
@@ -284,7 +271,7 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
-                          <label class="text-label-s" for="c-bio">Sobre ti</label>
+                          <label class="text-label-s" for="c-bio">Sobre ti (opcional)</label>
                           <span class="text-body-s text-text-tertiary">{{ d.bio.length }} / {{ maxBio }}</span>
                         </div>
                         <textarea id="c-bio" name="bio" rows="4" maxlength="280" placeholder="Cuéntale a la gente quién eres en dos líneas"
@@ -296,7 +283,7 @@ const MAX_MARCA = 600;
                       </div>
                       @if (!esMenor()) {
                         <div class="flex min-w-0 flex-col gap-2">
-                          <label class="text-label-s" for="c-instagram">Instagram</label>
+                          <label class="text-label-s" for="c-instagram">Instagram (opcional)</label>
                           <input id="c-instagram" name="instagram" type="text" maxlength="31" placeholder="@tuusuario"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['instagram'] ? 'border-accent-text' : 'border-line-strong'"
@@ -307,29 +294,17 @@ const MAX_MARCA = 600;
                       } @else {
                         <p class="text-body-s text-text-tertiary">A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.</p>
                       }
-                      <div class="flex min-w-0 flex-col gap-2">
-                        <div class="flex items-baseline justify-between gap-3">
-                          <label class="text-label-s" for="c-historial">Historial deportivo</label>
-                          <span class="text-body-s text-text-tertiary">{{ d.historial.length }} / {{ maxHistorial }}</span>
-                        </div>
-                        <textarea id="c-historial" name="historial" rows="3" maxlength="300" placeholder="Competiciones, clubes anteriores, marcas…"
-                          class="w-full rounded-[10px] border bg-bg-field px-3.5 py-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
-                          [class]="err()['historial'] ? 'border-accent-text' : 'border-line-strong'"
-                          [(ngModel)]="d.historial" (ngModelChange)="revalidar()"
-                          [attr.aria-invalid]="!!err()['historial']" [attr.aria-describedby]="err()['historial'] ? 'e-historial' : null"></textarea>
-                        @if (err()['historial']; as e) { <p id="e-historial" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
-                      </div>
                     </fieldset>
 
                     <!-- Mejores marcas -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
                       <legend class="mb-5 text-display-2xs italic">Mejores marcas</legend>
-                      <p class="-mt-2 text-body-s text-text-tertiary">Opcionales · en kilogramos · paso 0,5 · máximo 600.</p>
+                      <p class="-mt-2 text-body-s text-text-tertiary">Opcionales.</p>
                       <div class="grid gap-4 sm:grid-cols-3">
                         @for (m of marcasCampos; track m.k) {
                           <div class="flex min-w-0 flex-col gap-2">
                             <label class="text-label-s" [for]="'c-' + m.k">{{ m.t }}</label>
-                            <input [id]="'c-' + m.k" [name]="m.k" type="number" inputmode="decimal" step="0.5" min="0" [max]="maxMarca" placeholder="—"
+                            <input [id]="'c-' + m.k" [name]="m.k" type="number" inputmode="decimal" step="0.5" min="0" [max]="maxMarca" placeholder="kg"
                               class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                               [class]="err()[m.k] ? 'border-accent-text' : 'border-line-strong'"
                               [(ngModel)]="d[m.k]" (ngModelChange)="revalidar()"
@@ -359,7 +334,7 @@ const MAX_MARCA = 600;
                             @switch (c.k) {
                               @case ('terminos') { Acepto los <a href="/terminos" target="_blank" rel="noopener" class="text-accent-text hover:underline">términos de uso</a> y el <a href="/reglamento" target="_blank" rel="noopener" class="text-accent-text hover:underline">reglamento</a>. * }
                               @case ('privacidad') { He leído la <a href="/privacidad" target="_blank" rel="noopener" class="text-accent-text hover:underline">política de privacidad</a> y acepto el tratamiento de mis datos para gestionar mi alta. * }
-                              @case ('imagen') { Autorizo publicar mi nombre, datos deportivos y foto en la web, la pantalla y el directo de la GR Cup (ver <a href="/consentimiento-datos" target="_blank" rel="noopener" class="text-accent-text hover:underline">consentimiento de imagen</a>). }
+                              @case ('imagen') { Autorizo publicar mi nombre, datos deportivos y foto en la web, la pantalla y el directo de la GRS Cup (ver <a href="/consentimiento-datos" target="_blank" rel="noopener" class="text-accent-text hover:underline">consentimiento de imagen</a>). }
                               @case ('novedades') { {{ cfg()?.textoNovedades }} }
                               @case ('whatsapp') { Quiero recibir avisos de mi alta y de la competición por WhatsApp (ver <a href="/texto-whatsapp" target="_blank" rel="noopener" class="text-accent-text hover:underline">texto de WhatsApp</a>). }
                             }
@@ -400,28 +375,7 @@ const MAX_MARCA = 600;
               }
             }
           </div>
-
-          <!-- Resumen y ayuda -->
-          <gr-alta-ayuda [contacto]="contacto()" [marcas]="marcasAyuda()" [total]="total()" [abierta]="vista() === 'formulario'" [imagen]="legal('consentimiento')" [whatsapp]="legal('whatsapp')" />
         </div>
-
-        <!-- Contenido útil (Figma 75), tras el formulario para que la acción principal se vea al entrar (UX2-R1-2) -->
-        <section class="mt-12 flex flex-col gap-7">
-          <div>
-            <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>El alta de atleta</p>
-            <h2 class="mt-3 text-display-m md:text-[38px] md:leading-[1.1] md:tracking-[0.02em]">Crea tu perfil de atleta de <span class="text-accent">powerlifting</span></h2>
-            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introLarga }}</p>
-            <p class="mt-4 max-w-[800px] text-body-m text-text-secondary max-md:text-[16px] max-md:leading-[24.6px]">{{ introH2 }}</p>
-          </div>
-          <div class="grid gap-6 lg:grid-cols-3 lg:gap-6">
-            @for (b of bloques; track b.t) {
-              <article class="flex flex-col gap-2">
-                <h3 class="text-ui-h5 lg:text-[17px]">{{ b.t }}</h3>
-                <p class="text-body-s text-text-secondary">{{ b.d }}</p>
-              </article>
-            }
-          </div>
-        </section>
 
         <!-- Preguntas frecuentes -->
         <gr-alta-faq />
@@ -475,25 +429,19 @@ export class AltaAtletaPage {
     this.revalidar();
   }
 
-  /** Las tarjetas de «¿En qué competición compites?» con su chip (disponible, últimas plazas, completa). */
-  protected opcionesPrueba(): { codigo: string; titulo: string; detalle: string; chip: string; tono: string; completa: boolean }[] {
+  /** Las tarjetas de «¿En qué competición compites?» (Figma 219:169366: sin chips ni contador; completa = deshabilitada). */
+  protected opcionesPrueba(): { codigo: string; titulo: string; detalle: string; completa: boolean }[] {
     const c = this.cfg();
     const dia = (iso?: string) => iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
-    const verde = 'border-success/40 bg-success/10 text-success';
-    const out = (c?.pruebas ?? []).map((p) => {
-      const libre = p.plazas > 0 ? p.plazas - p.ocupadas : Infinity;
-      const [chip, tono] = libre <= 0 ? ['Completa', 'border-line-strong text-text-tertiary']
-        : c?.completa ? ['Solo inscritos AEP', 'border-line-strong text-text-tertiary']
-        : libre <= Math.max(5, Math.ceil(p.plazas * 0.1)) ? ['Últimas plazas', 'border-accent-text/40 bg-accent-deep/20 text-accent-text'] : ['Disponible', verde];
+    return (c?.pruebas ?? []).map((p) => {
+      const completa = p.plazas > 0 && p.plazas - p.ocupadas <= 0;
       const fecha = dia(p.fecha);
+      const nivel = p.nivel ? p.nivel.charAt(0).toUpperCase() + p.nivel.slice(1) : '';
       return {
-        codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, chip, tono, completa: libre <= 0,
-        detalle: [p.plazas > 0 ? `${Math.min(p.ocupadas, p.plazas)} de ${p.plazas} ${p.plazas === 1 ? 'plaza' : 'plazas'}` : '', p.nivel].filter(Boolean).join(' · '),
+        codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, completa,
+        detalle: completa ? 'Completa · sin plazas' : nivel,
       };
     });
-    const lim = c?.limiteEleccion ? `, hasta el ${dia(c.limiteEleccion).replace(/^\S+ /, '')} a las 12:00` : '';
-    out.push({ codigo: '', titulo: 'Aún no lo sé', detalle: `La eliges luego en tu área de atleta${lim}`, chip: 'Opcional', tono: verde, completa: false });
-    return out;
   }
 
   /** La opción que entra en el recorrido del teclado (radiogroup: un solo tab stop). */
@@ -531,15 +479,9 @@ export class AltaAtletaPage {
 
   protected readonly maxFrase = MAX_FRASE;
   protected readonly maxBio = MAX_BIO;
-  protected readonly maxHistorial = MAX_HISTORIAL;
   protected readonly maxMarca = MAX_MARCA;
-  protected readonly bloques = [
-    { t: 'Qué datos pedimos en el registro de atletas', d: 'El formulario pide solo lo que una ficha de competidor necesita: nombre y apellidos, email (el mismo con el que te inscribiste en la AEP, sirve para reconocerte), club o «independiente», ciudad, sexo y fecha de nacimiento, tus mejores marcas de sentadilla, press de banca y peso muerto, y una foto tuya. La imagen se estandariza para la web: se publica en blanco y negro, recortada y comprimida para que todas las fichas sean uniformes y carguen rápido. Si no tienes marcas homologadas todavía, puedes dejarlas vacías y completarlas después desde el área de atleta. Nada de este formulario es un pago ni una inscripción: la cuota y la licencia de la AEP se gestionaron al inscribirte. Los campos marcados con * son obligatorios; el resto puedes dejarlos para más tarde.' },
-    { t: 'Darse de alta como atleta AEP: revisión paso a paso', d: 'Cada alta entra como una solicitud que revisa el equipo de la GR Cup antes de publicarse: envías el formulario, recibes un email de confirmación en tu correo, el equipo aprueba (o pide una corrección) y tu ficha queda privada: no aparece en /atletas hasta que actives su publicación. La revisión existe porque el alta es pública y alguien que no compite podría registrarse de broma; comprobamos que tu email consta en la lista de inscritos de la AEP y que los datos de categoría y división cuadran. Si algo no encaja, te escribimos para corregirlo antes de publicar. Cuando tu perfil está aprobado, entras en el área de atleta, donde después podrás editar tu foto, tus marcas y tu frase de presentación.' },
-    { t: 'Privacidad: quién ve los datos de tu perfil', d: 'Tu perfil público muestra solo lo deportivo: nombre, club, ciudad, categoría, marcas y foto. Tu email y tu teléfono (si los facilitas para avisos de pesaje) nunca se publican: sirven para que la organización te confirme el alta y te avise de horarios. Al enviar el formulario marcas las casillas de términos de uso, cesión de datos de imagen y política de comunicaciones; guardamos la prueba de cada consentimiento con fecha y versión del texto, como exige el RGPD. Puedes pedir la baja o la corrección de tu ficha en cualquier momento desde el área de atleta o escribiendo al email de contacto; la foto se retira de la web y del CDN cuando pides la baja. La política completa está en la página de privacidad enlazada al pie del formulario.' },
-  ];
   protected readonly relacionados: RelatedLink[] = [
-    { titulo: 'Atletas', texto: 'La plantilla de la GR Cup', ruta: '/atletas' },
+    { titulo: 'Atletas', texto: 'La plantilla de la GRS Cup', ruta: '/atletas' },
     { titulo: 'Área de atleta', texto: 'Edita tu ficha y tus marcas', ruta: '/area-atleta' },
     { titulo: 'Reglamento', texto: 'Las normas de la competición', ruta: '/reglamento' },
   ];
@@ -551,17 +493,12 @@ export class AltaAtletaPage {
 
   /** Intro corta (≤3 líneas en móvil): el formulario debe verse al entrar (UX2-R1-2). */
   protected readonly intro = 'Si compites en esta edición, crea tu perfil de atleta: foto, datos de competidor y tus mejores marcas en menos de cinco minutos. No es una inscripción y queda privado hasta que lo publiques.';
-  /** El texto completo va en el bloque de contenido, tras el formulario. */
-  protected readonly introLarga =
-    'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. Si compites en esta edición, este es el paso que falta: dar de alta tu atleta para crear tu perfil, que queda privado hasta que actives su publicación. Las plazas de la competición ya están completas y la inscripción la gestionó la AEP, así que el alta no es una inscripción: es la forma de que tu nombre, tu club y tus marcas aparezcan bien en la web, en el marcador y en directo. El formulario toma menos de cinco minutos: foto, datos de competidor y tus mejores marcas. El equipo revisa cada solicitud a mano y te avisamos por email con el resultado. Si ya tienes tu cuenta, entra directamente en el área de atleta.';
   /** The intro when the alta is closed: it never invites to fill in the form. */
   protected readonly introCerrada =
-    'La GR Strength Cup reúne en Almussafes (Valencia) a los atletas de powerlifting seleccionados mediante la AEP. El alta de atletas está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.';
+    'El alta de atletas de la GRS Cup está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.';
   protected readonly cerrada = computed(() => this.vista() === 'cerrada' || this.vista() === 'legal');
   /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
   protected readonly introHtml = this.intro.replace('crea tu perfil de atleta', '<strong class="font-semibold text-text-primary">crea tu perfil de atleta</strong>');
-  protected readonly introH2 =
-    'Tu perfil es la cara pública de tu participación: una ficha con tu foto, tu categoría y tus marcas que, cuando actives su publicación, aparece en /atletas y se proyecta en la pantalla del pabellón. Completarla tiene ventajas directas: los espectadores te encuentran por nombre o club y te siguen para crear su horario personalizado; el streaming y el marcador en directo muestran tus datos completos en cada intento; y entras en la porra y el fantasy de la GR Cup, donde el público pronostica totales y podios con tu ficha como referencia. Sin perfil, apareces solo con el mínimo de la lista AEP y tu flight; con perfil, la competición se cuenta contigo dentro. El alta es gratuita y se hace una sola vez: después podrás editar tu perfil desde el área de atleta.';
   protected readonly introExitoPrivada =
     'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email con el resultado. Al aprobarla tu ficha quedará privada: podrás activar su publicación desde el área de atleta.';
 
@@ -610,11 +547,6 @@ export class AltaAtletaPage {
     return (v === null || v === undefined ? '' : String(v)).trim();
   }
 
-  /** Las marcas para la columna de ayuda. */
-  protected marcasAyuda() {
-    return this.marcasCampos.map((m) => ({ ...m, v: this.marca(m.k) }));
-  }
-
   /** Total de las marcas en vivo (null si no hay ninguna). */
   protected total(): string | null {
     let suma = 0;
@@ -649,11 +581,9 @@ export class AltaAtletaPage {
     add('frase', 'Frase');
     add('bio', 'Sobre ti');
     add('instagram', 'Instagram');
-    add('historial', 'Historial');
     add('club', 'Club');
     add('ciudad', 'Ciudad');
     add('entrenador', 'Entrenador');
-    add('licencia', 'Licencia');
     add('marcaSQ', 'Sentadilla');
     add('marcaBP', 'Press de banca');
     add('marcaDL', 'Peso muerto');
@@ -675,10 +605,10 @@ export class AltaAtletaPage {
       this.vista.set(!c ? 'error' : !abierta ? (c.motivoCierre === 'legal' ? 'legal' : 'cerrada') : 'formulario');
       const o = mapa?.paginas.find((p) => p.ruta === '/alta-atleta');
       this.seo.set({
-        title: o?.title || 'Alta de atleta de powerlifting | GR Strength Cup',
-        description: o?.description || 'Date de alta como atleta de la GR Strength Cup: crea tu perfil, sube tu foto y tus marcas AEP y compite con tu ficha lista para el pesaje.',
+        title: o?.title || 'Alta de atleta de powerlifting | GRS Cup',
+        description: o?.description || 'Date de alta como atleta de la GRS Cup: crea tu perfil, sube tu foto y tus mejores marcas y compite con tu ficha lista para el pesaje.',
         path: '/alta-atleta',
-        jsonLd: this.jsonLd(o?.title || 'Alta de atleta de powerlifting | GR Strength Cup', o?.description || 'Date de alta como atleta de la GR Strength Cup: crea tu perfil, sube tu foto y tus marcas AEP y compite con tu ficha lista para el pesaje.'),
+        jsonLd: this.jsonLd(o?.title || 'Alta de atleta de powerlifting | GRS Cup', o?.description || 'Date de alta como atleta de la GRS Cup: crea tu perfil, sube tu foto y tus mejores marcas y compite con tu ficha lista para el pesaje.'),
       });
     });
     if (this.browser) this.restaurarBorrador();
@@ -752,6 +682,22 @@ export class AltaAtletaPage {
     this.foto = f;
   }
 
+  /** Teléfono: solo dígitos (máx. 9); el aviso de longitud sale al salir del campo o tras 800 ms sin escribir. */
+  protected readonly telAviso = signal('');
+  private telTimer: ReturnType<typeof setTimeout> | undefined;
+  protected telCambia(el: HTMLInputElement): void {
+    el.value = this.d.telefono = el.value.replace(/\D/g, '').slice(0, 9);
+    this.telAviso.set('');
+    clearTimeout(this.telTimer);
+    if (this.d.telefono) this.telTimer = setTimeout(() => this.telRevisar(), 800);
+    this.revalidar();
+  }
+  protected telRevisar(): void {
+    clearTimeout(this.telTimer);
+    const n = this.d.telefono.length;
+    this.telAviso.set(n > 0 && n < 9 ? TEL_CORTO : '');
+  }
+
   /** Revalida los campos (solo después del primer envío). */
   protected revalidar(): void {
     this.guardarBorrador();
@@ -772,7 +718,7 @@ export class AltaAtletaPage {
     if (!mail) e['email'] = 'Es obligatorio.';
     else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = 'Introduce un email válido.';
     if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = 'Si pides avisos por WhatsApp, necesitas tu teléfono.';
-    else if (d.telefono.trim() && !TEL.test(d.telefono.replace(/[\s().-]/g, ''))) e['telefono'] = 'Escribe un móvil válido.';
+    else if (d.telefono.trim() && !/^\d{9}$/.test(d.telefono.trim())) e['telefono'] = TEL_CORTO;
     if (!d.sexo) e['sexo'] = 'Elige una opción.';
     if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? 'Escribe el año con 4 cifras (dd/mm/aaaa).' : 'Elige una fecha válida.';
     else {
@@ -786,14 +732,13 @@ export class AltaAtletaPage {
         if (edad < 14 || edad > 90) e['fechaNacimiento'] = 'Esa fecha no parece correcta (debe estar entre los 14 y los 90 años).';
       }
     }
-    if (d.licencia.trim().length > MAX_LICENCIA) e['licencia'] = 'Es demasiado larga.';
     if (d.club.trim().length > MAX_CAMPO) e['club'] = 'Es demasiado largo.';
     if (d.ciudad.trim().length > MAX_CAMPO) e['ciudad'] = 'Es demasiado larga.';
     if (d.entrenador.trim().length > MAX_CAMPO) e['entrenador'] = 'Es demasiado largo.';
     if (d.frase.length > MAX_FRASE) e['frase'] = 'Es demasiado larga (80 caracteres como máximo).';
     if (d.bio.length > MAX_BIO) e['bio'] = 'Es demasiado largo (280 caracteres como máximo).';
     if (!this.esMenor() && d.instagram.trim() && !RE_INSTAGRAM.test(d.instagram.trim())) e['instagram'] = 'Solo letras, números, puntos y guiones bajos (30 como máximo).';
-    if (d.historial.length > MAX_HISTORIAL) e['historial'] = 'Es demasiado largo (300 caracteres como máximo).';
+    if (this.cfg()?.pruebas?.length && !d.prueba) e['prueba'] = 'Elige una competición.';
     for (const m of this.marcasCampos) {
       const v = this.texto(m.k);
       if (!v) continue;
@@ -835,7 +780,7 @@ export class AltaAtletaPage {
       telefono: this.telefono(),
       sexo: this.d.sexo,
       fechaNacimiento: this.d.fechaNacimiento,
-      licencia: this.d.licencia.trim(),
+      licencia: '',
       prueba: this.d.prueba,
       club: this.d.club.trim(),
       ciudad: this.d.ciudad.trim(),
@@ -843,7 +788,7 @@ export class AltaAtletaPage {
       frase: this.d.frase.trim(),
       bio: this.d.bio.trim(),
       instagram: this.esMenor() ? '' : this.d.instagram.trim(),
-      historial: this.d.historial.trim(),
+      historial: '',
       marcaSQ: this.numero('marcaSQ'),
       marcaBP: this.numero('marcaBP'),
       marcaDL: this.numero('marcaDL'),
@@ -1027,14 +972,10 @@ export class AltaAtletaPage {
     return m === 1 ? '1 minuto' : m + ' minutos';
   }
 
-  /** Teléfono en formato internacional (+34 por defecto). */
+  /** Teléfono con el prefijo +34 (el campo solo admite 9 dígitos). */
   private telefono(): string {
-    const t = this.d.telefono.trim();
-    if (!t) return '';
-    if (t.startsWith('+')) return t.replace(/[\s().-]/g, '');
-    const digitos = t.replace(/[^\d]/g, '');
-    if (!digitos) return '';
-    return '+34' + digitos;
+    const digitos = this.d.telefono.replace(/\D/g, '');
+    return digitos ? '+34' + digitos : '';
   }
 
   /** Una marca como número (o null si está vacía). */
@@ -1076,6 +1017,7 @@ export class AltaAtletaPage {
       if (!raw) return;
       const b = JSON.parse(raw) as { d?: Partial<DatosAlta>; acepta?: Partial<Aceptos> };
       if (b.d) Object.assign(this.d, b.d);
+      this.d.telefono = String(this.d.telefono ?? '').replace(/\D/g, '').slice(-9);
       this.fechaTexto = this.d.fechaNacimiento.split('-').reverse().join('/');
       if (b.acepta) Object.assign(this.acepta, b.acepta);
     } catch {
@@ -1085,8 +1027,8 @@ export class AltaAtletaPage {
 }
 
 /** Nombre de la competición (para el JSON-LD). */
-/** Móvil: '+' opcional y de 9 a 15 dígitos (sin espacios, guiones, paréntesis ni puntos). */
-const TEL = /^\+?\d{9,15}$/;
+/** Aviso de longitud del móvil (+34: 9 dígitos). */
+const TEL_CORTO = 'Introduce al menos 9 dígitos.';
 
 /** Hay al menos una letra visible tras quitar los invisibles (control, Cf, relleno Hangul, U+2800). */
 function tieneLetra(v: string): boolean {
@@ -1094,5 +1036,5 @@ function tieneLetra(v: string): boolean {
 }
 
 function competicionNombre(c: { nombre?: string } | null): string {
-  return c?.nombre || 'GR Strength Cup 2026';
+  return c?.nombre || 'GRS Cup 2026';
 }

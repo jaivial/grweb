@@ -678,7 +678,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		if matchID == nil {
 			if err := s.hayPlaza(ctx, tx, c.ID); err != nil {
 				if pe := (*problem.Error)(nil); errors.As(err, &pe) && pe.Code == "INSCRIPCION_COMPLETA" {
-					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email o licencia no constan en la lista de inscritos de la AEP. Revisa que sean los de tu inscripción o escríbenos.")
+					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email no consta en la lista de inscritos. Revisa que sea el de tu inscripción o escríbenos.")
 				}
 				return err
 			}
@@ -974,7 +974,7 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Nombre = strings.TrimSpace(sinControl(d.Nombre))
 	d.Apellidos = strings.TrimSpace(sinControl(d.Apellidos))
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
-	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" && !telValido.MatchString(tel) {
+	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" && (!telValido.MatchString(tel) || !tel34Valido(tel)) {
 		d.telInvalido = true
 		d.Telefono = ""
 	} else {
@@ -1674,6 +1674,20 @@ func matchTexto(m string) string {
 // normTel normalises a phone number to E.164 (+34 by default for Spanish numbers).
 // telValido: optional '+' and 9 to 15 digits, once spaces, hyphens, parentheses and dots are removed.
 var telValido = regexp.MustCompile(`^\+?[0-9]{9,15}$`)
+
+// tel34Valido: a Spanish number (+34, 0034 or no prefix) has exactly 9 digits.
+func tel34Valido(tel string) bool {
+	switch {
+	case strings.HasPrefix(tel, "+34"):
+		return len(tel) == 12
+	case strings.HasPrefix(tel, "+"):
+		return true
+	case strings.HasPrefix(tel, "0034"):
+		return len(tel) == 13
+	default:
+		return len(tel) == 9 || (strings.HasPrefix(tel, "34") && len(tel) == 11)
+	}
+}
 
 // tieneLetra reports whether v has at least one visible letter: the Hangul fillers (U+3164, U+FFA0,
 // U+115F, U+1160) are category Lo but render blank, like U+2800 and the Cf format characters.

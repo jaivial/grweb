@@ -3,9 +3,15 @@ import { GrIcon } from '@grcup/ui';
 
 /** Preguntas frecuentes del alta (también van al JSON-LD FAQPage). */
 export const FAQS = [
-  { q: '¿Cuánto tarda la revisión de mi alta?', a: 'El equipo revisa cada solicitud a mano; te avisamos por email cuando tu ficha esté aprobada. Al aprobarla queda privada: no aparece en /atletas hasta que actives su publicación.' },
-  { q: '¿Puedo editar mi perfil después de darlo de alta?', a: 'Sí. Después podrás editar tu perfil desde el área de atleta.' },
-  { q: '¿Tiene coste darse de alta como atleta?', a: 'No. El alta es gratuita; la inscripción y la licencia las gestiona la AEP.' },
+  { q: '¿Cuánto tarda la revisión de mi alta?', a: 'El equipo revisa cada solicitud a mano; te avisamos por email cuando tu ficha esté publicada.' },
+  { q: '¿Puedo editar mi perfil después de darlo de alta?', a: 'Sí. Cuando tu alta esté aprobada podrás editar foto, marcas y presentación desde el área de atleta.' },
+  { q: '¿Tiene coste darse de alta como atleta?', a: 'No. El alta es gratuita y se hace una sola vez.' },
+  { q: '¿El alta es una inscripción en la competición?', a: 'No. Tu plaza ya está gestionada; el alta solo crea tu ficha pública de atleta en la web.' },
+  { q: '¿Qué necesito para darme de alta?', a: 'El email con el que te inscribiste, tus datos de competidor y, si quieres, una foto y tus mejores marcas. Son menos de cinco minutos.' },
+  { q: '¿Para qué sirve mi ficha de atleta?', a: 'Te muestra en /atletas, en el marcador y en el directo, y permite que el público te siga y cree su horario.' },
+  { q: '¿Cómo se publica mi foto?', a: 'En blanco y negro, recortada a 4:5 y comprimida, para que todas las fichas sean uniformes.' },
+  { q: '¿Quién ve mis datos?', a: 'Solo se publica lo deportivo (nombre, club, ciudad, categoría, marcas y foto). Tu email y tu teléfono nunca se muestran.' },
+  { q: '¿Dónde leo los textos legales o resuelvo dudas?', a: 'Los términos, la privacidad y el consentimiento de imagen están enlazados en el formulario. Para cualquier duda, escribe a contacto@grstrength.com.' },
 ];
 
 /** Figma 75: «Preguntas rápidas». */
@@ -16,9 +22,8 @@ export const FAQS = [
   template: `
     <section class="mt-18 flex flex-col gap-6 md:mt-24">
       <div>
-        <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent"></span>Preguntas rápidas</p>
-        <h2 class="mt-3 text-display-s md:text-display-m">Tu ficha de atleta en la competición de powerlifting de <span class="text-accent-text">Valencia</span></h2>
-        <p class="mt-4 max-w-[900px] text-body-m text-text-tertiary md:text-body-l">{{ introH22 }}</p>
+        <p class="sr-only">Preguntas rápidas</p>
+        <h2 class="text-display-s md:text-display-m">Tu ficha de atleta en la competición de powerlifting de <span class="text-accent-text">Valencia</span></h2>
       </div>
       <ul class="flex flex-col gap-3">
         @for (f of faqs; track f.q; let i = $index) {
@@ -37,6 +42,4 @@ export const FAQS = [
 export class AltaFaq {
   protected readonly faqs = FAQS;
   protected readonly abierta = signal(0);
-  protected readonly introH22 =
-    'La GR Strength Cup se celebra en el pabellón municipal de Almussafes, a 20 km de Valencia, con jueces oficiales de la AEP. Tu ficha de atleta trabaja durante toda la jornada: alimenta el seguimiento de los espectadores (cada seguidor genera su horario con tus intentos), aparece en el directo con tus datos y marcas cuando estás en plataforma, y es la referencia de la porra y el fantasy, donde el público pronostica tus totales. Rellena el formulario de alta antes del pesaje: así tu ficha está completa cuando se publiquen los flights y nadie te busque en vano.';
 }
