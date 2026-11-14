@@ -91,7 +91,7 @@ export class Community {
   `,
   template: `
     @let l = land();
-    <gr-page separacion="mt-[132px] block md:mt-[180px]" [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="t('intro', 'texto')" section="Visita" crumb="Público">
+    <gr-page [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="txt(t('intro', 'texto'))" section="Visita" crumb="Público">
       <!-- Figma 46:23: the page tabs are one dropdown (not sticky); each view has its own ?vista= -->
       <div class="mb-8 flex flex-col gap-2 md:mb-12 md:max-w-80">
         <label class="text-label-s text-text-secondary" for="publico-vista">Sección</label>
