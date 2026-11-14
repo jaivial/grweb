@@ -279,21 +279,25 @@ func (s *Svc) lobbyPublico(ctx context.Context, cid uuid.UUID, j jornada, buscar
 
 // lobby lists the live rooms of a jornada: the public ones (shared, up to 1 s old) plus the fan's own room, always
 // fresh (a fan plays in one room per jornada), optionally filtered by name.
-func (s *Svc) lobby(ctx context.Context, cid uuid.UUID, j jornada, fanID uuid.UUID, buscar string) ([]salaVista, error) {
+// ST3-R6-3: at most limite rooms travel (the fan's own room always does); hayMas tells there are more.
+func (s *Svc) lobby(ctx context.Context, cid uuid.UUID, j jornada, fanID uuid.UUID, buscar string, limite int) (out []salaVista, miaID uuid.UUID, hayMas bool, err error) {
 	buscar = normalizarNombre(buscar)
 	pub, err := s.lobbyPublico(ctx, cid, j, buscar)
 	if err != nil {
-		return nil, err
+		return nil, uuid.Nil, false, err
 	}
 	mia, err := miSala(ctx, s.a.DB, j.ID, fanID)
 	if err != nil {
-		return nil, err
+		return nil, uuid.Nil, false, err
+	}
+	if mia != nil {
+		miaID = mia.ID
 	}
 	var propia []filaSala
 	if mia != nil && (mia.Estado == "abierta" || mia.Estado == "en_juego") && (buscar == "" || strings.Contains(normalizarNombre(mia.Nombre), buscar)) {
 		clas, err := s.clasificarSalas(ctx, s.a.DB, cid, j, []*salaRow{mia}, fanID)
 		if err != nil {
-			return nil, err
+			return nil, uuid.Nil, false, err
 		}
 		propia = clas[mia.ID]
 	} else {
@@ -301,13 +305,10 @@ func (s *Svc) lobby(ctx context.Context, cid uuid.UUID, j jornada, fanID uuid.UU
 	}
 	solicitudes, err := misSolicitudes(ctx, s.a.DB, j.ID, fanID)
 	if err != nil {
-		return nil, err
+		return nil, uuid.Nil, false, err
 	}
-	out := make([]salaVista, 0, len(pub)+1)
-	miaID := uuid.Nil
-	if mia != nil {
-		miaID = mia.ID
-	}
+	out = make([]salaVista, 0, min(len(pub), limite)+1)
+	n := 0 // public rooms listed (the fan's own one does not count)
 	for _, c := range pub {
 		if c.sl.ID == miaID {
 			continue // shown fresh, with the fan's view
@@ -316,12 +317,17 @@ func (s *Svc) lobby(ctx context.Context, cid uuid.UUID, j jornada, fanID uuid.UU
 			out = append(out, vistaDe(mia, propia, true, solicitudes[mia.ID]))
 			mia = nil
 		}
+		if n == limite {
+			hayMas = true
+			break
+		}
+		n++
 		out = append(out, vistaDe(c.sl, c.filas, false, solicitudes[c.sl.ID]))
 	}
 	if mia != nil {
 		out = append(out, vistaDe(mia, propia, true, solicitudes[mia.ID]))
 	}
-	return out, nil
+	return out, miaID, hayMas, nil
 }
 
 // lobbyAdmin lists every room of a jornada for the staff (any state, private ones too).

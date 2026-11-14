@@ -22,6 +22,9 @@ import (
 
 const ttlResumen = 10 * time.Second
 
+// maxStaleResumen bounds the stale-while-revalidate of the home summaries (ST3-R6-2) and the sweep of old keys.
+const maxStaleResumen = 3 * ttlResumen
+
 // ttlFresco is the max age accepted when the home asks with Cache-Control: no-cache (after a public SSE change):
 // the new bet shows within ~1-2 s while the load stays bounded to one query per second, competition and pod.
 const ttlFresco = time.Second
@@ -156,7 +159,7 @@ func (c *memo) cargar(key string, load func() (any, error)) (any, error) {
 		}
 		now := time.Now()
 		for k, it := range c.m { // few keys (two per competition): sweep the expired ones on write
-			if now.Sub(it.at) >= ttlResumen {
+			if now.Sub(it.at) >= maxStaleResumen {
 				delete(c.m, k)
 			}
 		}
@@ -317,7 +320,8 @@ func (s *Svc) registerResumen() {
 			if err != nil {
 				return nil, err
 			}
-			v, err := s.resum.get("porra:"+c.ID.String(), ttlPedido(in.CacheControl), func() (any, error) {
+			// ST3-R6-2: stale-while-revalidate, a request never waits for the rebuild at each expiry
+			v, err := s.resum.getSWR("porra:"+c.ID.String(), ttlPedido(in.CacheControl), maxStaleResumen, func() (any, error) {
 				return s.cargarResumenPorra(context.WithoutCancel(ctx), c.ID)
 			})
 			if err != nil {
@@ -337,7 +341,7 @@ func (s *Svc) registerResumen() {
 			if err != nil {
 				return nil, err
 			}
-			v, err := s.resum.get("fantasy:"+c.ID.String(), ttlPedido(in.CacheControl), func() (any, error) {
+			v, err := s.resum.getSWR("fantasy:"+c.ID.String(), ttlPedido(in.CacheControl), maxStaleResumen, func() (any, error) {
 				return s.cargarResumenFantasy(context.WithoutCancel(ctx), c.ID)
 			})
 			if err != nil {

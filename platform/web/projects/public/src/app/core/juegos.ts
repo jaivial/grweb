@@ -190,6 +190,8 @@ export interface Clausulazo {
 export interface Lobby {
   jornada?: Jornada;
   salas: SalaVista[];
+  /** ST3-R6-3: hay más salas públicas que las pedidas con `limite`. */
+  hayMas?: boolean;
   miSala?: string;
   atletas: number;
   plazasMax: number;
@@ -531,8 +533,8 @@ export class Juegos {
   }
 
   // ---- salas ----
-  salas(q?: string, jornadaId?: string): Promise<Lobby> {
-    return this.getFresco(`${this.base}/fantasy/salas${this.qs({ q, jornada: jornadaId })}`);
+  salas(q?: string, jornadaId?: string, limite?: number): Promise<Lobby> {
+    return this.getFresco(`${this.base}/fantasy/salas${this.qs({ q, jornada: jornadaId, limite: limite ? String(limite) : undefined })}`);
   }
   crearSala(nombre: string, publica: boolean, jornadaId?: string): Promise<{ salaId: string }> {
     return this.post(`${this.base}/fantasy/salas`, { nombre, publica, jornada: jornadaId || undefined });

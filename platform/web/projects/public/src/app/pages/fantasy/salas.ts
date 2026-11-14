@@ -20,6 +20,8 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado } from './salas-ui';
 
 type Filtro = 'todas' | 'abiertas' | 'en_juego' | 'cerradas';
 const FAVORITAS = 'grcup.fantasy.salas.favoritas';
+/** ST3-R6-3: salas públicas por página del lobby (el backend limita a 200). */
+const PAGINA_SALAS = 30;
 const ABIERTA = new Set(['esperando', 'lista', 'llena']);
 const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
 
@@ -176,6 +178,9 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
             </ul>
           </div>
         }
+        @if (!cargando() && !errorCarga() && lobby()?.hayMas) {
+          <button type="button" grButton variant="outline" class="self-center" [loading]="cargandoMas()" (click)="verMas()">Ver más salas</button>
+        }
       </div>
     </gr-page>
 
@@ -200,6 +205,9 @@ export class SalasPage {
   protected readonly error = signal<{ titulo: string; texto: string } | null>(null);
   protected readonly maximo = signal(false);
   protected readonly q = signal('');
+  /** ST3-R6-3: salas públicas pedidas; «Ver más salas» suma otra página. */
+  protected readonly limite = signal(PAGINA_SALAS);
+  protected readonly cargandoMas = signal(false);
   protected readonly filtro = signal<Filtro>('todas');
   protected readonly operando = signal<string | null>(null);
   protected readonly crear = signal(false);
@@ -225,11 +233,13 @@ export class SalasPage {
   });
   protected readonly opcionesFiltro = computed<OpcionSelector[]>(() => {
     const l = this.salas();
+    // con más páginas por cargar los recuentos son mínimos: «30+»
+    const mas = this.lobby()?.hayMas ? '+' : '';
     return [
-      { v: 'todas', l: `Todas · ${l.length}` },
-      { v: 'abiertas', l: `Abiertas · ${l.filter((s) => ABIERTA.has(s.estado)).length}` },
-      { v: 'en_juego', l: `En juego · ${l.filter((s) => s.estado === 'en_juego').length}` },
-      { v: 'cerradas', l: `Cerradas · ${l.filter((s) => CERRADA.has(s.estado)).length}` },
+      { v: 'todas', l: `Todas · ${l.length}${mas}` },
+      { v: 'abiertas', l: `Abiertas · ${l.filter((s) => ABIERTA.has(s.estado)).length}${mas}` },
+      { v: 'en_juego', l: `En juego · ${l.filter((s) => s.estado === 'en_juego').length}${mas}` },
+      { v: 'cerradas', l: `Cerradas · ${l.filter((s) => CERRADA.has(s.estado)).length}${mas}` },
     ];
   });
   /** Las salas con una solicitud mía que tiene algo que contar (pendiente, aceptada, rechazada…). */
@@ -282,7 +292,7 @@ export class SalasPage {
   /** Recarga sin esqueleto. Sin jornada activa (404) el lobby queda vacío, no en error. */
   private async recargar(): Promise<void> {
     try {
-      this.lobby.set(await this.juegos.salas(this.q().trim() || undefined, this.estado.jornadaActual()));
+      this.lobby.set(await this.juegos.salas(this.q().trim() || undefined, this.estado.jornadaActual(), this.limite()));
       this.errorCarga.set(false);
     } catch (e) {
       if (codigoError(e) === 'HTTP_404' || /NOT_FOUND|SIN_JORNADA/.test(codigoError(e))) this.lobby.set({ salas: [], atletas: 0, plazasMax: 0, puedeCrear: false, empezada: false, solicitudesMax: 3, solicitudesPendientes: 0 });
@@ -292,8 +302,15 @@ export class SalasPage {
 
   protected buscar(q: string): void {
     this.q.set(q);
+    this.limite.set(PAGINA_SALAS);
     clearTimeout(this.esperaBusqueda);
     this.esperaBusqueda = setTimeout(() => void this.recargar(), 300);
+  }
+  protected async verMas(): Promise<void> {
+    this.limite.update((n) => Math.min(n + PAGINA_SALAS, 200));
+    this.cargandoMas.set(true);
+    await this.recargar();
+    this.cargandoMas.set(false);
   }
   protected badge(s: SalaVista) {
     return badgeSala(s.estado === 'lista' ? 'abierta' : s.estado, s.miembros, s.plazas);

@@ -575,18 +575,24 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.Body.Jornada)
+			// ST3-R6-1: cached jornada (bloquearAtletaTx re-checks its state under the room lock); config and room
+			// load in parallel, so the request makes one round trip before the transaction instead of three.
+			j, err := s.jornadaPublicaCache(ctx, c.ID, in.Body.Jornada)
 			if err != nil {
 				return nil, err
 			}
 			if !j.jugable() {
 				return nil, problem.Conflict("JORNADA_NO_JUGABLE", "La jornada no está abierta para jugar.")
 			}
-			cfg, err := configJuegos(ctx, s.a.DB, c.ID)
-			if err != nil {
-				return nil, err
-			}
+			var cfg *Config
+			var errCfg error
+			hecho := make(chan struct{})
+			go func() { cfg, errCfg = configJuegos(ctx, s.a.DB, c.ID); close(hecho) }()
 			sl, err := miSala(ctx, s.a.DB, j.ID, f.ID)
+			<-hecho
+			if errCfg != nil {
+				return nil, errCfg
+			}
 			if err != nil {
 				return nil, err
 			}
