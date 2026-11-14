@@ -20,7 +20,10 @@ export const DESTINO_INTERNO = /^\/fantasy(\/[A-Za-z0-9_-]+)*$/;
 
 export interface AccesoIn {
   email: string;
+  /** Password of the account: set when the email link is redeemed (also resets it). */
+  password: string;
   tipo: 'atleta' | 'publico';
+  /** Empty to reset the password of an existing account. */
   alias: string;
   aceptaNormas: boolean;
   /** Web path to return to after the email link (validated by the API). */
@@ -96,6 +99,15 @@ export class FanSession {
   /** Asks for the magic link (always 202 when accepted). Throws HttpErrorResponse with `code` on errors. */
   async pedirAcceso(i: AccesoIn): Promise<void> {
     await firstValueFrom(this.http.post(`${this.base}/acceso`, { ...i, next: i.next ?? this.volverA() ?? undefined }));
+  }
+
+  /** Signs in with email and password; sets the cookie and the session. Throws HttpErrorResponse (CREDENCIALES_INVALIDAS, 429). */
+  async entrar(email: string, password: string): Promise<Fan> {
+    const f = await firstValueFrom(this.http.post<Fan>(`${this.base}/entrar`, { email, password }));
+    this.yo.set(f);
+    this.cargada.set(true);
+    this.pendiente = Promise.resolve(f);
+    return f;
   }
 
   /** Redeems the token of the email link (page /acceso?acceso=…); sets the cookie and the session. */

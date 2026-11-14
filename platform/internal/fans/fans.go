@@ -154,6 +154,11 @@ func aliasOcupado() *problem.Error {
 	return problem.Conflict("ALIAS_OCUPADO", "Ese alias ya está en uso en esta competición. Elige otro.")
 }
 
+// credencialesInvalidas is the same answer for an unknown email, an account without password and a wrong one.
+func credencialesInvalidas() *problem.Error {
+	return problem.Unauthorized("CREDENCIALES_INVALIDAS", "Email o contraseña incorrectos. Si tu cuenta es anterior y aún no tiene contraseña, créala con «¿Has olvidado tu contraseña?».")
+}
+
 var madrid = func() *time.Location {
 	l, err := time.LoadLocation("Europe/Madrid")
 	if err != nil {

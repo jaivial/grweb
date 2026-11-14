@@ -67,7 +67,7 @@ resolver_cid() {
 # crear_fan EMAIL ALIAS JAR → pide el acceso, saca el enlace del log y canjea el token (cookie en el jar).
 crear_fan() {
   local email="$1" alias="$2" jar="$3" enlace tok code
-  code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"$email\",\"tipo\":\"publico\",\"alias\":\"$alias\",\"aceptaNormas\":true}")
+  code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"$email\",\"tipo\":\"publico\",\"alias\":\"$alias\",\"password\":\"e2e-clave-123\",\"aceptaNormas\":true}")
   [ "$code" = 202 ] || { nota "no pude pedir el acceso de $alias (HTTP $code)"; return 1; }
   enlace="$(docker logs grcup-dev-fans-1 --since 3m 2>/dev/null \
     | jq -Rr 'fromjson? | select(.msg=="enlace mágico de fan (dev)") | select(.alias=="'"$alias"'") | .enlace' | tail -1)"
@@ -168,7 +168,7 @@ for k in $(docker compose -f deploy/dev/compose.yml exec -T redis redis-cli -a d
   docker compose -f deploy/dev/compose.yml exec -T redis redis-cli -a dev-redis --no-auth-warning DEL "$k" >/dev/null 2>&1
 done
 ALIAS_PUB="e2e_pub_$STAMP"
-code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"e2e-$STAMP@ejemplo.test\",\"tipo\":\"publico\",\"alias\":\"$ALIAS_PUB\",\"aceptaNormas\":true}")
+code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"e2e-$STAMP@ejemplo.test\",\"tipo\":\"publico\",\"alias\":\"$ALIAS_PUB\",\"password\":\"e2e-clave-123\",\"aceptaNormas\":true}")
 if [ "$code" != 202 ]; then fallo "POST fans/acceso público (HTTP $code): $(head -c 200 "$TMP/resp")"; else ok "acceso pedido (202)"; fi
 ENLACE="$(docker logs grcup-dev-fans-1 --since 3m 2>/dev/null | jq -Rr 'fromjson? | select(.msg=="enlace mágico de fan (dev)") | select(.alias=="'"$ALIAS_PUB"'") | .enlace' | tail -1)"
 TOK="${ENLACE##*acceso=}"
@@ -188,7 +188,7 @@ IDX=$(( N % ${#LISTA[@]} ))
 ATLETA_EMAIL="${LISTA[$IDX]}"
 nota "email del atleta: $ATLETA_EMAIL"
 ALIAS_ATE="e2e_ate_$STAMP"
-code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"$ATLETA_EMAIL\",\"tipo\":\"atleta\",\"alias\":\"$ALIAS_ATE\",\"aceptaNormas\":true}")
+code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"$ATLETA_EMAIL\",\"tipo\":\"atleta\",\"alias\":\"$ALIAS_ATE\",\"password\":\"e2e-clave-123\",\"aceptaNormas\":true}")
 if [ "$code" != 202 ]; then fallo "POST fans/acceso atleta (HTTP $code): $(head -c 200 "$TMP/resp")"; else ok "acceso de atleta pedido (202)"; fi
 ENLACE="$(docker logs grcup-dev-fans-1 --since 3m 2>/dev/null | jq -Rr 'fromjson? | select(.msg=="enlace mágico de fan (dev)") | select(.alias=="'"$ALIAS_ATE"'") | .enlace' | tail -1)"
 TOK="${ENLACE##*acceso=}"
@@ -197,7 +197,7 @@ if [ -z "$TOK" ] || [ "$TOK" = "$ENLACE" ]; then fallo "no hay enlace de atleta 
   code2=$(api GET "$GW/api/competiciones/$SLUG/fans/yo" "" -b "$JAR_ATE")
   if [ "$code" != 200 ] || [ "$code2" != 200 ] || [ "$(jq -r '.atletaId // empty' "$TMP/resp")" = "" ]; then fallo "canje/yo de atleta (canje $code, yo $code2): $(head -c 200 "$TMP/resp")"; else ok "atleta canjeado: insignia=$(jq -r .insignia "$TMP/resp") atletaId=$(jq -r .atletaId "$TMP/resp" | head -c 8)…"; fi
 fi
-code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"$ATLETA_EMAIL_MAL\",\"tipo\":\"atleta\",\"alias\":\"e2e_mal_$STAMP\",\"aceptaNormas\":true}")
+code=$(api POST "$GW/api/competiciones/$SLUG/fans/acceso" "{\"email\":\"$ATLETA_EMAIL_MAL\",\"tipo\":\"atleta\",\"alias\":\"e2e_mal_$STAMP\",\"password\":\"e2e-clave-123\",\"aceptaNormas\":true}")
 if [ "$code" = 422 ] && grep -q ATLETA_NO_ENCONTRADO "$TMP/resp"; then ok "email inexistente → 422 ATLETA_NO_ENCONTRADO"; else fallo "email inexistente: esperaba 422 ATLETA_NO_ENCONTRADO y llegó $code"; fi
 fi
 
