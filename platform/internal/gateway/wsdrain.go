@@ -33,10 +33,13 @@ var cierre1012 = []byte{0x88, 0x02, 0x03, 0xF4}
 var errDrenando = errors.New("gateway draining: WS upgrade refused")
 
 // porUpgrade sends WS upgrades through a fast-fail transport and everything else through the normal one.
-type porUpgrade struct{ http, ws http.RoundTripper }
+type porUpgrade struct{ http, ws, sse http.RoundTripper }
 
 func (p porUpgrade) RoundTrip(r *http.Request) (*http.Response, error) {
 	if r.Header.Get("Upgrade") == "" {
+		if p.sse != nil && esSSE(r) {
+			return p.sse.RoundTrip(r)
+		}
 		return p.http.RoundTrip(r)
 	}
 	select {
