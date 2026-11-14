@@ -45,12 +45,22 @@ func (s *Svc) waIntegracion(ctx context.Context, cid uuid.UUID) (map[string]stri
 		Secreto string            `json:"secreto"`
 	}
 	err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/integraciones/whatsapp", nil, &out)
-	if err == nil {
+	if err == nil && out.Config["url"] != "" && out.Secreto != "" {
 		return out.Config, out.Secreto
 	}
 	var p *problem.Error
-	if !errors.As(err, &p) || p.Status != http.StatusNotFound {
+	if err != nil && (!errors.As(err, &p) || p.Status != http.StatusNotFound) {
 		s.a.Log.Warn("integración whatsapp no disponible", "err", err)
+	}
+	// Platform-managed evo-weai: the organiser only links the number; URL and key come from the deployment.
+	if u, k := config.Str("EVO_WEAI_URL", ""), config.Str("EVO_WEAI_API_KEY", ""); u != "" && k != "" {
+		cfg := map[string]string{"proveedor": "evo-weai", "url": u}
+		for key, v := range out.Config {
+			if key == "instancia" || key == "numero" {
+				cfg[key] = v
+			}
+		}
+		return cfg, k
 	}
 	return nil, ""
 }
