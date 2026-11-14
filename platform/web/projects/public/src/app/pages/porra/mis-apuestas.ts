@@ -24,11 +24,10 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Mis apuestas" [juego]="true">
-      <gr-porra-cabecera [titulo]="'Mis apuestas ' + jornadaTxt()" crumb="Mis apuestas" activa="apuestas" [descMovil]="true"
+      <gr-porra-cabecera [titulo]="'Mis apuestas ' + jornadaTxt()" tituloMovil="Mis apuestas" [asideMovil]="true" crumb="Mis apuestas" activa="apuestas"
         descripcion="Tu boleto de la jornada: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.">
         <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" />
       </gr-porra-cabecera>
-      <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" />
 
       @if (!fan.conSesion()) {
         <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
