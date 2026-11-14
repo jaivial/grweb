@@ -5,7 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoDrawer, BoPageHeader, BoToggle, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import { ESTADO_MSG, EmailsApi, hace, hora, type AutoItem, type Autos, type Mensaje, type PlantillaItem, type Resumen, type Salida, type WAPlantilla } from './api';
 import { WhatsAppMeta } from './whatsapp-meta';
 
@@ -18,7 +18,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
 /** «Emails y avisos» (Figma page 62): templates, WhatsApp templates, outbox with retries and the SMTP state, automations. */
 @Component({
   selector: 'bo-emails',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, WhatsAppMeta],
+  imports: [BoTablaMovil, BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, WhatsAppMeta],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -32,6 +32,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
           </ng-container>
         }
       </bo-page-header>
+      <bo-tabs-movil label="Sección">
       <nav #tabsNav class="-mt-1 flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Emails y avisos">
         @for (t of tabs; track t.v) {
           <a [routerLink]="ruta(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-m whitespace-nowrap focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
@@ -41,6 +42,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
           </a>
         }
       </nav>
+      </bo-tabs-movil>
 
       @if (caido) {
         <section class="flex items-start gap-3 rounded-lg border border-accent/50 bg-accent-deep/25 p-4" role="alert">
@@ -211,7 +213,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
             </ul>
             <section class="rounded-lg border border-line-subtle bg-bg-card max-md:hidden">
               <div class="overflow-x-auto">
-              <table class="w-full min-w-[960px] text-left text-body-m">
+              <table boTablaMovil class="w-full min-w-[960px] text-left text-body-m">
                 <thead class="border-b border-line-subtle text-label-xs text-text-tertiary uppercase"><tr><th class="px-4 py-3 font-medium">Automatización</th><th class="px-3 py-3 font-medium">Canales</th><th class="px-3 py-3 font-medium">Cuándo</th><th class="px-3 py-3 font-medium">Público</th><th class="px-3 py-3 font-medium">Próxima</th><th class="px-3 py-3 font-medium">Estado</th><th class="w-12"></th></tr></thead>
                 <tbody>
                   @for (x of a.items; track x.clave) {

@@ -1,6 +1,6 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, Injectable, computed, inject, input, model, output, signal } from '@angular/core';
+import { AfterContentChecked, AfterViewChecked, ChangeDetectionStrategy, Component, Directive, ElementRef, Injectable, computed, inject, input, model, output, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs/operators';
@@ -124,6 +124,62 @@ export class BoTabs {
   });
   protected ir(path: string): void {
     void this.router.navigate([path], { relativeTo: this.route });
+  }
+}
+
+/**
+ * Wraps an existing tab bar (router links or buttons) so that on phones it becomes a selector with the bottom sheet of
+ * `gr-select` — no horizontal scroll, every tab reachable. Desktop shows the wrapped bar as is.
+ * `<bo-tabs-movil label="Ficha"><nav>…<a routerLink …>…</nav></bo-tabs-movil>`. The active tab is the one with
+ * aria-current="page", aria-selected="true" or aria-pressed="true"; picking an option clicks that tab.
+ */
+@Component({
+  selector: 'bo-tabs-movil',
+  imports: [GrSelect],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block min-w-0' },
+  template: `
+    <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="activa()" (valorChange)="elegir($event)">
+      @for (o of opciones(); track $index) { <option [value]="'' + $index" [disabled]="o.off">{{ o.texto }}</option> }
+    </gr-select>
+    <div #cont class="max-md:hidden"><ng-content /></div>
+  `,
+})
+export class BoTabsMovil implements AfterContentChecked {
+  readonly label = input('Sección');
+  private readonly cont = viewChild.required<ElementRef<HTMLElement>>('cont');
+  protected readonly opciones = signal<{ texto: string; off: boolean }[]>([]);
+  protected readonly activa = signal('');
+  private items: HTMLElement[] = [];
+  private firma = '';
+  ngAfterContentChecked(): void { queueMicrotask(() => this.leer()); }
+  private leer(): void {
+    const raiz = this.cont()?.nativeElement;
+    if (!raiz) return;
+    const sel = 'nav > a, nav > button, [role=tablist] > a, [role=tablist] > button, [role=tab], [role=radiogroup] > button';
+    this.items = [...new Set(raiz.querySelectorAll<HTMLElement>(sel))];
+    const ops = this.items.map((e) => ({ texto: (e.textContent || '').replace(/\s+/g, ' ').trim(), off: e.hasAttribute('disabled') || e.getAttribute('aria-disabled') === 'true' }));
+    const i = this.items.findIndex((e) => e.getAttribute('aria-current') === 'page' || e.getAttribute('aria-selected') === 'true' || e.getAttribute('aria-pressed') === 'true' || e.getAttribute('aria-checked') === 'true');
+    const firma = JSON.stringify(ops) + i;
+    if (firma === this.firma) return;
+    this.firma = firma;
+    this.opciones.set(ops);
+    this.activa.set(i >= 0 ? String(i) : '');
+  }
+  protected elegir(v: string): void { this.items[+v]?.click(); queueMicrotask(() => this.leer()); }
+}
+
+/** Phones: the table reads as cards (see styles.css). Copies each column header into its cells' `data-label`. */
+@Directive({ selector: 'table[boTablaMovil]', host: { botablamovil: '' } })
+export class BoTablaMovil implements AfterViewChecked {
+  private readonly el = inject<ElementRef<HTMLTableElement>>(ElementRef).nativeElement;
+  ngAfterViewChecked(): void {
+    const ths = [...this.el.querySelectorAll('thead th')].map((t) => (t.textContent || '').replace(/\s+/g, ' ').trim());
+    if (!ths.length) return;
+    for (const tr of this.el.querySelectorAll('tbody tr')) [...tr.children].forEach((td, i) => {
+      const l = ths[i] ?? '';
+      if (td.getAttribute('data-label') !== l) td.setAttribute('data-label', l);
+    });
   }
 }
 

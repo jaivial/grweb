@@ -11,7 +11,7 @@ import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { Realtime } from '../core/realtime';
-import { BoPageHeader, BoToggle, Media, errText } from '../shared/ui';
+import { BoPageHeader, BoToggle, Media, errText, BoTabsMovil } from '../shared/ui';
 
 interface Sede { nombre: string; direccion: string; cp: string; ciudad: string; provincia: string; lat?: number | null; lng?: number | null; mapsUrl: string }
 interface Evento { descripcion: string; nivel: string; organizador: string; emailContacto: string; telefono: string; puertas: string; fin?: string; fechaPorConfirmar?: boolean; aforoPabellon: number; instagram: string; web: string }
@@ -38,7 +38,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
   selector: 'bo-evento',
-  imports: [A11yModule, RouterLink, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoTabsMovil, A11yModule, RouterLink, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -46,6 +46,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
       <bo-page-header title="Evento y módulos" subtitle="Lo que ve el público en la home, /como-llegar y los emails" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Evento y módulos']">
         <ng-container actions><a grButton icon="external-link" [href]="web" target="_blank" rel="noopener">Ver en la web</a></ng-container>
       </bo-page-header>
+      <bo-tabs-movil label="Sección">
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Evento">
         @for (t of tabs; track t.v) {
           <button type="button" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="ir(t.v)">
@@ -53,6 +54,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
             @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</button>
         }
       </nav>
+      </bo-tabs-movil>
       @if (editores().length) {
         <p class="flex w-fit items-center gap-2 rounded-pill border border-info/40 bg-info/10 py-1 pr-3 pl-1 text-label-s text-info" role="status">
           <span class="flex size-6 items-center justify-center rounded-pill bg-accent-deep text-mono-xs text-white">{{ iniciales(editores()[0].nombre) }}</span>

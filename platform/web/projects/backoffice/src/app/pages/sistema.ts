@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrErrorState, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts, type GrTone } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
-import { BoDrawer, BoPageHeader, BoTabs, Confirm, errText, type BoTab } from '../shared/ui';
+import { BoDrawer, BoPageHeader, BoTabs, Confirm, errText, type BoTab, BoTablaMovil } from '../shared/ui';
 import { WhatsAppApi, type EstadoWaInfo } from './sistema/whatsapp-api';
 import { ESTADO_COMP, ESTADO_INT, INTEG, MODULOS, SistemaApi, fecha, fechaDMA, hace, type CompSistema, type Exportacion, type Integracion, type Salud, type Webhooks } from './sistema/api';
 
@@ -18,7 +18,7 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
 /** «Sistema e integraciones» (Figma 64): competitions, integrations, health and the danger zone (email and new edition are sub-pages). */
 @Component({
   selector: 'bo-sistema',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoTabs, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrErrorState, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton],
+  imports: [BoTablaMovil, FormsModule, RouterLink, BoPageHeader, BoTabs, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrErrorState, GrField, GrIcon, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
@@ -101,7 +101,7 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
               <section class="min-w-0 rounded-lg border border-line-subtle bg-bg-card p-6">
                 <h2 class="text-[20px] leading-6 font-semibold">Trabajos en segundo plano</h2>
                 <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
-                  <table class="w-full min-w-[460px] text-left text-body-s">
+                  <table boTablaMovil class="w-full min-w-[460px] text-left text-body-s">
                     <thead class="text-label-xs text-text-tertiary uppercase"><tr class="border-b border-line-subtle"><th class="px-4 py-3 font-medium">Worker</th><th class="px-4 py-3 font-medium">Último ciclo</th><th class="px-4 py-3 font-medium">Estado</th></tr></thead>
                     <tbody>
                       @for (g of s.grupos; track g.nombre) {
@@ -118,7 +118,7 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
                   <gr-select class="w-56" tipo="filtro" aria-label="Proveedor" [(ngModel)]="whProv" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos los proveedores</option><option value="stripe">Stripe</option><option value="whatsapp">WhatsApp</option></gr-select>
                   <gr-select class="w-44" tipo="filtro" aria-label="Estado" [(ngModel)]="whEstado" (ngModelChange)="whPagina = 1; cargarWebhooks()"><option value="">Todos los estados</option><option value="error">Con error</option><option value="procesado">Procesados</option></gr-select></div>
                 <div class="mt-4 overflow-x-auto rounded-md border border-line-subtle">
-                  <table class="w-full min-w-[420px] text-left text-body-s">
+                  <table boTablaMovil class="w-full min-w-[420px] text-left text-body-s">
                     <thead class="text-label-xs text-text-tertiary uppercase"><tr class="border-b border-line-subtle"><th class="px-4 py-3 font-medium">Evento</th><th class="px-4 py-3 font-medium">Respuesta</th></tr></thead>
                     <tbody>
                       @if (webhooks(); as w) {

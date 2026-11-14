@@ -8,7 +8,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { BoJudgeLights } from '../../shared/kit';
 import { Realtime } from '../../core/realtime';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText, BoTablaMovil } from '../../shared/ui';
 import { DirectoApi, MOV, MOV_CORTO, ORD, cat, ini, kg, veredicto, type EstadoIn, type FilaMesa, type IntentoMesa, type Mesa, type Mov } from './api';
 
 interface Pendiente { n: number; id: string; votos?: string; renuncia?: boolean; nombre: string; at: number }
@@ -24,7 +24,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
  *  On a phone it opens the speaker view («Móvil · locutor»). Decisions made without network are kept on the device and sent in order. */
 @Component({
   selector: 'bo-directo',
-  imports: [GrSelect, FormsModule, RouterLink, BoJudgeLights, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoTablaMovil, GrSelect, FormsModule, RouterLink, BoJudgeLights, BoPageHeader, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let m = mesa();
@@ -117,7 +117,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
           <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" [class.max-md:hidden]="vista() === 'locutor'">
             <!-- Flight table -->
             <section class="min-w-0 overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-              <table class="w-full min-w-[560px] text-left text-body-s">
+              <table boTablaMovil class="w-full min-w-[560px] text-left text-body-s">
                 <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
                   <tr><th class="px-3 py-3">Lote</th><th class="px-3 py-3">Atleta</th>@for (i of [1, 2, 3]; track i) { <th class="px-2 py-3 text-center">{{ ORD[i] }}</th> }<th class="px-3 py-3 text-right">Mejor</th></tr>
                 </thead>

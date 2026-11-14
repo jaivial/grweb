@@ -7,7 +7,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { problemOf } from '../../core/api';
-import { BoPageHeader, BoToggle } from '../../shared/ui';
+import { BoPageHeader, BoToggle, BoTabsMovil } from '../../shared/ui';
 import { WhatsAppApi, type EstadoWa, type EstadoWaInfo, type TelefonoAviso } from './whatsapp-api';
 
 type Tab = 'vinculacion' | 'avisos';
@@ -19,7 +19,7 @@ type Dialogo = 'desconectar' | null;
  */
 @Component({
   selector: 'bo-whatsapp-sistema',
-  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSelect, GrSkeleton],
+  imports: [BoTabsMovil, A11yModule, FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
@@ -35,6 +35,7 @@ type Dialogo = 'desconectar' | null;
         }
       </bo-page-header>
 
+      <bo-tabs-movil label="WhatsApp">
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" [class.mt-12]="!puede()" aria-label="WhatsApp">
           @for (t of tabs; track t.k) {
             <button type="button" (click)="irTab(t.k)" [attr.aria-current]="tab() === t.k ? 'page' : null"
@@ -44,6 +45,7 @@ type Dialogo = 'desconectar' | null;
             </button>
           }
       </nav>
+      </bo-tabs-movil>
 
       @if (!puede()) {
         <section class="rounded-lg border border-line-subtle bg-bg-card p-6">

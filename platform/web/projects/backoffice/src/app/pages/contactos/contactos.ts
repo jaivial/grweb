@@ -7,7 +7,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, G
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
-import { BoDrawer, BoPageHeader, Confirm, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import {
   ContactosApi, ESTADO_EMAIL, ESTADO_WA, FINALIDAD, TIPO_SUP, fecha, fechaLarga, iniciales,
   type Condicion, type ContactoItem, type Ficha, type Filtros, type Lista, type Recuento, type Segmento, type Supresion, type Supresiones,
@@ -31,7 +31,7 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Contactos» (Figma page 61): list with KPIs and filters, segments and unsubscribes/suppressions. */
 @Component({
   selector: 'bo-contactos',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [BoTablaMovil, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -46,6 +46,7 @@ function descargar(blob: Blob, nombre: string): void {
         @if (tab() === 'segmentos' && canSeg()) { <button actions grButton variant="primary" icon="plus" (click)="nuevoSeg()">Nuevo segmento</button> }
         @if (tab() === 'bajas' && canExport()) { <button actions grButton icon="plus" (click)="bajaOpen.set(true)">Añadir baja</button> }
       </bo-page-header>
+      <bo-tabs-movil label="Contactos">
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Contactos">
         @for (t of tabs; track t.v) {
           <a [routerLink]="rutaTab(t.ruta)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
@@ -54,6 +55,7 @@ function descargar(blob: Blob, nombre: string): void {
           </a>
         }
       </nav>
+      </bo-tabs-movil>
 
       @switch (tab()) {
         @case ('contactos') {
@@ -152,7 +154,7 @@ function descargar(blob: Blob, nombre: string): void {
             </section>
           }
           <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-            <table class="w-full min-w-[560px] text-left text-body-s">
+            <table boTablaMovil class="w-full min-w-[560px] text-left text-body-s">
               <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Segmento</th><th class="px-3 py-3 text-right">Email</th><th class="px-3 py-3 text-right">WhatsApp</th><th class="px-3 py-3">Último uso</th><th class="w-36 px-3 py-3"></th></tr></thead>
               <tbody>
                 @for (s of segmentos() ?? []; track s.id) {
@@ -178,7 +180,7 @@ function descargar(blob: Blob, nombre: string): void {
           </div>
           <gr-alert tone="info" title="Pidieron no recibir más campañas: no se les envía por ningún canal">La baja se registra desde el enlace del email, el botón «Darme de baja» del WhatsApp o a petición (RGPD). Las confirmaciones de entrada y los avisos operativos sí se siguen enviando, salvo a direcciones que rebotan.</gr-alert>
           <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-            <table class="w-full min-w-[720px] text-left text-body-s">
+            <table boTablaMovil class="w-full min-w-[720px] text-left text-body-s">
               <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Contacto</th><th class="px-3 py-3">Canal</th><th class="px-3 py-3">Tipo</th><th class="px-3 py-3">Motivo</th><th class="px-3 py-3">Fecha</th><th class="w-16"></th></tr></thead>
               <tbody>
                 @for (x of sp?.items ?? []; track x.id) {

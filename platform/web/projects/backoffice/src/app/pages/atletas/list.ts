@@ -9,7 +9,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
-import { BoPageHeader, BoToggle, errText } from '../../shared/ui';
+import { BoPageHeader, BoToggle, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi, cat, type ItemLista, type Lista } from './api';
 
 type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias';
@@ -29,7 +29,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -61,6 +61,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
           </div>
         </div>
       } @else {
+        <bo-tabs-movil label="Estado">
         <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Estado">
           @for (t of tabs; track t.key) {
             <button type="button" (click)="cambiarPestana(t.key)" [attr.aria-current]="pestana() === t.key ? 'page' : null"
@@ -75,6 +76,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
             @if (canWeigh()) { <a grButton variant="ghost" size="s" icon="scale" routerLink="pesaje">Pesaje</a> }
           </span>
         </nav>
+        </bo-tabs-movil>
 
         @if (pestana() === 'incidencias') {
           <div class="flex flex-col gap-3">

@@ -31,7 +31,7 @@ import { problemOf } from '../../core/api';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, Confirm, errText } from '../../shared/ui';
+import { BoPageHeader, Confirm, errText, BoTablaMovil } from '../../shared/ui';
 import {
   PERMISOS,
   PERMISOS_DIA,
@@ -57,7 +57,7 @@ const menuItem =
 /** «Equipo y permisos» (Figma 63): members with role, competitions, 2FA and last access; the permissions matrix; invitations. */
 @Component({
   selector: 'bo-equipo',
-  imports: [
+  imports: [BoTablaMovil, 
     A11yModule,
     NgTemplateOutlet,
     FormsModule,
@@ -380,7 +380,7 @@ const menuItem =
               }
             </div>
             <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-              <table class="w-full text-body-s md:min-w-[860px]">
+              <table boTablaMovil class="w-full text-body-s md:min-w-[860px]">
                 <thead class="border-b border-line-subtle bg-bg-raised/40">
                   <tr class="h-12">
                     <th class="${th} w-[38%] pl-4">Permiso</th>
@@ -515,7 +515,7 @@ const menuItem =
               >
             } @else {
               <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-                <table class="w-full min-w-[680px] text-body-s">
+                <table boTablaMovil class="w-full min-w-[680px] text-body-s">
                   <thead class="border-b border-line-subtle">
                     <tr>
                       <th class="${th}">Email</th>

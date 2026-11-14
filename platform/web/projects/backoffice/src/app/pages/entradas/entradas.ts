@@ -9,7 +9,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { urlSort } from '../../shared/url-sort';
 import { BO_ROW, BoMenu, type BoMenuItem, BoCapacityMeter, BoCheckbox, BoModalForm, BoSessionCard, type BoSesion, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
-import { BoDrawer, BoPageHeader, BoTabs, BoToggle, type BoTab, Confirm, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoTabs, BoToggle, type BoTab, Confirm, errText, BoTablaMovil } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
   ESTADO_ENTRADA, ESTADO_SESION, EntradasApi, RESULTADO, aLocal, deLocal, diaHora, diaMes, fechaCorta, hora,
@@ -31,7 +31,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [NgTemplateOutlet, BoMenu, GrSelect, GrAvatar, GrIconButton, BoModalForm, BoSessionCard, FormsModule, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoTabs, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [BoTablaMovil, NgTemplateOutlet, BoMenu, GrSelect, GrAvatar, GrIconButton, BoModalForm, BoSessionCard, FormsModule, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoTabs, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'menu.set(null)' },
   template: `
@@ -135,7 +135,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
           @let w = espera();
           <div class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-              <table class="w-full min-w-[560px] text-left text-body-s">
+              <table boTablaMovil class="w-full min-w-[560px] text-left text-body-s">
                 <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="w-10 px-3 py-3">#</th><th class="px-3 py-3">Persona</th><th class="px-3 py-3">Sesión</th><th class="px-3 py-3 text-center">Pers.</th><th class="px-3 py-3">Estado</th><th class="w-40"></th></tr></thead>
                 <tbody>
                   @for (x of visibles(); track x.id) {

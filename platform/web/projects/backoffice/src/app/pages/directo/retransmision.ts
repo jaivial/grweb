@@ -7,7 +7,7 @@ import { GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToa
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { webPublica } from '../../core/web';
-import { BoPageHeader, BoToggle, errText } from '../../shared/ui';
+import { BoPageHeader, BoToggle, errText, BoTabsMovil } from '../../shared/ui';
 import { DirectoApi, type Mesa } from './api';
 
 const FASE: Record<string, { l: string; d: string }> = {
@@ -19,7 +19,7 @@ const FASE: Record<string, { l: string; d: string }> = {
 /** «Directo · Retransmisión» (Figma page 57): the YouTube broadcast of /en-directo, its replay and whether the page shows it. */
 @Component({
   selector: 'bo-retransmision',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let m = mesa();
@@ -30,12 +30,14 @@ const FASE: Record<string, { l: string; d: string }> = {
           @if (puede() && m) { <button grButton variant="primary" [loading]="guardando()" [disabled]="!valida()" (click)="guardar()">Guardar</button> }
         </ng-container>
       </bo-page-header>
+      <bo-tabs-movil label="Directo">
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Directo">
         @for (t of tabs; track t.l) {
           <a [routerLink]="['/', comps.current()?.slug].concat(t.ruta)" class="relative flex h-11 shrink-0 items-center px-3 text-label-s" [attr.aria-current]="t.actual ? 'page' : null"
             [class]="t.actual ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'">{{ t.l }}@if (t.actual) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</a>
         }
       </nav>
+      </bo-tabs-movil>
       @if (m === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar el directo"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
       @else if (m === undefined) { <gr-skeleton class="h-[480px] rounded-lg" /> }
       @else {

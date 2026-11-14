@@ -27,7 +27,7 @@ const PASOS = ['Datos', 'Clonar contenidos', 'Módulos', 'Equipo'];
       <bo-page-header title="Nueva competición" [crumbs]="['Sistema', 'Sistema e integraciones', 'Nueva']" />
       @if (!root()) { <gr-alert tone="info" icon="lock" title="Solo Root">Solo la cuenta Root de la plataforma puede crear competiciones.</gr-alert> }
       @else {
-        <ol class="flex items-center gap-3 overflow-x-auto [scrollbar-width:none]" aria-label="Pasos">
+        <ol class="flex flex-wrap items-center gap-3" aria-label="Pasos">
           @for (p of pasos; track p; let i = $index; let last = $last) {
             <li class="flex shrink-0 items-center gap-3" [class.flex-1]="!last" [attr.aria-current]="i === paso() ? 'step' : null">
               <span class="flex size-7 shrink-0 items-center justify-center rounded-full text-mono-xs"

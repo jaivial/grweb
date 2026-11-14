@@ -194,7 +194,8 @@ export class BoDatePicker implements ControlValueAccessor {
       if (this.hoja()) this.quitar.push(abrirHoja(capa, panel));
       else this.colocar();
       // scroll the time columns to the chosen value
-      panel.querySelectorAll<HTMLElement>('[data-sel]').forEach((b) => b.scrollIntoView({ block: 'center' }));
+      // only the column scrolls (scrollIntoView would also move the sheet and the page)
+      panel.querySelectorAll<HTMLElement>('[data-sel]').forEach((b) => { const col = b.parentElement!; col.scrollTop = b.offsetTop - col.offsetTop - col.clientHeight / 2 + b.offsetHeight / 2; });
       (panel.querySelector<HTMLElement>('[aria-pressed="true"]') ?? panel.querySelector<HTMLElement>('button'))?.focus({ preventScroll: true });
       const fuera = (e: Event) => { if (!this.host.contains(e.target as Node) && !capa.contains(e.target as Node)) this.cerrar(false); };
       const recolocar = () => this.colocar();

@@ -11,6 +11,7 @@ import { Competitions } from '../core/competitions';
 import { Realtime } from '../core/realtime';
 import type { Actividad, Checklist, Competicion, Dashboard, Integracion } from '../core/api';
 import { EntradasApi, type Resumen, type ResumenCheckin, type Sesion } from './entradas/api';
+import { BoTablaMovil } from '../shared/ui';
 
 const ESTADO: Record<Competicion['estado'], { label: string; tone: GrTone }> = {
   borrador: { label: 'Borrador', tone: 'neutral' },
@@ -57,7 +58,7 @@ const KPI_CSV: Record<string, string> = {
 
 @Component({
   selector: 'bo-inicio',
-  imports: [RouterLink, GrBadge, GrButton, GrCard, GrKpi, GrIcon, GrIconTile, GrAlert, GrEmpty, GrSkeleton, GrSegmented],
+  imports: [RouterLink, BoTablaMovil, GrBadge, GrButton, GrCard, GrKpi, GrIcon, GrIconTile, GrAlert, GrEmpty, GrSkeleton, GrSegmented],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './inicio.html',
 })

@@ -18,7 +18,7 @@ import { DirectoApi, type Mesa, type Pantalla } from './api';
           @if (url()) { <a grButton icon="external-link" [href]="url()" target="_blank" rel="noopener">Abrir en ventana</a> }
         </ng-container>
       </bo-page-header>
-      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div class="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section #marco class="relative aspect-video overflow-hidden rounded-lg border border-line-subtle bg-black" aria-label="Vista previa de la pantalla">
           @if (src(); as s) {
             <iframe [src]="s" title="Pantalla del pabellón" class="absolute top-0 left-0 h-[1080px] w-[1920px] origin-top-left border-0" [style.transform]="'scale(' + escala() + ')'" tabindex="-1"></iframe>

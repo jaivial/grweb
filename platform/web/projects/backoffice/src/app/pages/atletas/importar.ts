@@ -27,7 +27,7 @@ const RESULTADO: Record<FilaDiff['accion'] | 'baja', { label: string; tone: GrTo
         <a actions grButton variant="ghost" routerLink="..">{{ paso() === 4 && imp?.estado === 'confirmada' ? 'Volver a atletas' : 'Cancelar' }}</a>
       </bo-page-header>
 
-      <ol class="flex items-center gap-2 overflow-x-auto [scrollbar-width:none]" aria-label="Pasos">
+      <ol class="flex flex-wrap items-center gap-2" aria-label="Pasos">
         @for (p of pasos; track p.n; let last = $last) {
           <li class="flex shrink-0 items-center gap-2" [attr.aria-current]="paso() === p.n ? 'step' : null">
             <span class="flex size-7 items-center justify-center rounded-full text-label-xs" [class]="paso() > p.n ? 'bg-accent text-white' : paso() === p.n ? 'border-2 border-accent text-accent-text' : 'border border-line-strong text-text-tertiary'">
