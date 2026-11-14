@@ -358,7 +358,7 @@ export class SecAfiliaciones {
           <div class="w-full flex-col gap-4 rounded-xl border border-line-subtle bg-[#221d1f]/85 px-4 py-5 md:flex md:w-auto md:flex-1 md:p-6 lg:w-[400px] lg:flex-none lg:p-7" [class.flex]="sel() === g.k" [class.hidden]="sel() !== g.k">
             <div class="hidden items-center justify-between md:flex"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted">{{ cats[g.k].length }} categorías</span></div>
             <ul class="grid grid-cols-2 gap-2 lg:grid-cols-3">
-              @for (c of cats[g.k]; track c; let last = $last) { <li class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body" [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''">{{ kg(c) }}</li> }
+              @for (c of cats[g.k]; track c; let last = $last) { <li [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''"><a routerLink="/categorias-de-peso" class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body transition-transform duration-[120ms] hover:border-line-strong active:scale-[.97] motion-reduce:transition-none" [attr.aria-label]="kg(c) + ' · ver categorías de peso'">{{ kg(c) }}</a></li> }
             </ul>
           </div>
         }

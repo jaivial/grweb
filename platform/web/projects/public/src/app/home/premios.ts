@@ -81,6 +81,8 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
         <div class="relative z-10 -mt-6 flex w-full max-w-[350px] flex-col items-center gap-5 lg:-mt-12 lg:max-w-none lg:gap-10">
           <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('catEyebrow') || 'Categorías de peso'" [titulo]="t('catTitulo') || 'Premio por *categoría de peso*'"
             [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
+          <!-- UX1-R1-11: the weight-class grid shows once on the home (in «Categorías» when that section is on) -->
+          @if (!sinCategorias()) {
           <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 lg:hidden" role="tablist" aria-label="Sexo">
             @for (g of generos; track g.k) {
               <button type="button" role="tab" [attr.aria-selected]="sel() === g.k" (click)="sel.set(g.k)" class="h-11 rounded-sm text-label-m" [class]="sel() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-secondary'">{{ g.l }}</button>
@@ -96,6 +98,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
               </div>
             }
           </div>
+          }
         </div>
       </div>
 
@@ -121,6 +124,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 })
 export class SecPremios {
   readonly s = input<Seccion | undefined>();
+  readonly sinCategorias = input(false);
   protected readonly ancho = ANCHO;
   /** Figma: −4° · 0 · +4° (with their vertical offsets inside the 340 × 480 holders). */
   protected readonly giro = ['lg:-rotate-4 lg:-translate-y-2.5', 'lg:translate-y-0', 'lg:rotate-4 lg:translate-y-2.5'];
