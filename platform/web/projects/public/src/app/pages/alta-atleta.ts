@@ -92,8 +92,8 @@ const MAX_MARCA = 600;
         </div>
       } @else {
         <!-- Formulario + resumen (Figma 75) -->
-        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
-          <div id="formulario" class="scroll-mt-24 outline-none" tabindex="-1">
+        <div class="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
+          <div id="formulario" class="min-w-0 scroll-mt-24 outline-none" tabindex="-1">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
               @case ('legal') { <gr-alta-aviso tipo="legal" [contacto]="contacto()" /> }
@@ -104,7 +104,7 @@ const MAX_MARCA = 600;
                 } @else if (aviso() === 'aprobada') {
                   <gr-alta-aviso tipo="aprobada" [contacto]="contacto()" />
                 } @else {
-                  <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
+                  <form class="relative flex min-w-0 flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
                     <div>
                       <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">Solicitud de alta</h2>
                       <p class="mt-1.5 text-body-s text-text-tertiary">Los campos marcados con * son obligatorios. El resto, opcional.</p>
