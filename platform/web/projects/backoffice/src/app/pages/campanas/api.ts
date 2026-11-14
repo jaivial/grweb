@@ -30,7 +30,7 @@ export interface Revision { id: string; autor: 'usuario' | 'ia'; por: string; mo
 export interface Segmento { id: string; nombre: string; recuento: { total: number; email: number; whatsapp: number } }
 export interface Modelo { id: string; nombre: string; recomendado: boolean }
 export interface MensajeIA { rol: 'usuario' | 'asistente'; texto: string }
-export interface RespuestaIA { respuesta: string; diseno: Bloque[]; modelo: string; ms: number }
+export interface RespuestaIA { respuesta: string; campana: CampanaIn; cambios: string[]; modelo: string; ms: number }
 export interface CampanaIn {
   nombre: string; asunto: string; preheader?: string; canales: ('email' | 'whatsapp')[]; diseno: Bloque[]; segmentoId?: string; emailPorMin: number; waPorMin: number; autor?: 'usuario' | 'ia'; modelo?: string; nota?: string;
 }
@@ -82,8 +82,9 @@ export class CampanasApi {
   segmentos(cid: string): Promise<Segmento[]> { return firstValueFrom(this.http.get<Segmento[]>(`/api/admin/competiciones/${cid}/segmentos`)); }
   whatsapp(cid: string): Promise<WAEstado> { return firstValueFrom(this.http.get<WAEstado>(`/api/admin/competiciones/${cid}/whatsapp`)); }
   modelos(cid: string): Promise<Modelo[]> { return firstValueFrom(this.http.get<Modelo[]>(`/api/admin/competiciones/${cid}/ia/modelos`)); }
-  ia(cid: string, b: { instruccion: string; diseno: Bloque[]; seleccion?: string; historial: MensajeIA[]; campana: string }): Promise<RespuestaIA> {
-    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/diseno`, b));
+  /** The assistant edits the whole draft with tools (data, channels, audience, pace, blocks); nothing is saved. */
+  ia(cid: string, b: { instruccion: string; campana: CampanaIn; seleccion?: string; historial: MensajeIA[]; segmentos: { id: string; nombre: string }[] }): Promise<RespuestaIA> {
+    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/campana`, b));
   }
 }
 
