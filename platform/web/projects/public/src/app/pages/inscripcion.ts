@@ -212,21 +212,21 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                   <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-cupon">Código de descuento</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.cupon && !precio()!.cupon!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-cupon" name="cupon" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-cupon" name="cupon" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.cupon && !precio()!.cupon!.valido ? true : null" [attr.aria-describedby]="precio()?.cupon ? 'e-cupon' : null" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.cupon?.valido ? quitar('cupon') : calcular()">{{ precio()?.cupon?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
-                    @if (precio()?.cupon; as x) { <p class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
+                    @if (precio()?.cupon; as x) { <p id="e-cupon" class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
                   </div>
                 }
                 @if (c.referidos) {
                   <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-ref">¿Te ha invitado alguien?</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.referido && !precio()!.referido!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-ref" name="referido" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-ref" name="referido" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.referido && !precio()!.referido!.valido ? true : null" [attr.aria-describedby]="precio()?.referido ? 'e-ref' : (c.referidoTexto ? 'h-ref' : null)" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.referido?.valido ? quitar('referido') : calcular()">{{ precio()?.referido?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
-                    @if (precio()?.referido; as x) { <p class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
-                    @else if (c.referidoTexto) { <p class="text-body-s text-text-tertiary">Si un amigo ya inscrito te pasó su código, tienes {{ c.referidoTexto.replace(' con el código de un amigo inscrito', '') }}.</p> }
+                    @if (precio()?.referido; as x) { <p id="e-ref" class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
+                    @else if (c.referidoTexto) { <p id="h-ref" class="text-body-s text-text-tertiary">Si un amigo ya inscrito te pasó su código, tienes {{ c.referidoTexto.replace(' con el código de un amigo inscrito', '') }}.</p> }
                   </div>
                 }
               </div>
@@ -717,15 +717,15 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
         <section class="flex flex-col gap-4 px-5 pt-[21px] pb-10 md:px-16 md:pt-24 md:pb-16">
           <div class="flex w-full flex-col gap-4 md:max-w-[420px]">
           <h1 class="text-ui-h5">Pagar con tarjeta</h1>
-          <label class="flex flex-col gap-2"><span class="text-label-s">Email</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="email" [(ngModel)]="email" autocomplete="email" /></label>
+          <label class="flex flex-col gap-2"><span class="text-label-s">Email</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="email" type="email" inputmode="email" autocapitalize="off" spellcheck="false" [(ngModel)]="email" autocomplete="email" /></label>
           <label class="flex flex-col gap-2"><span class="text-label-s">Datos de la tarjeta</span>
-            <span class="flex items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field px-3.5 focus-within:border-accent-text"><gr-icon name="credit-card" [size]="16" class="text-text-tertiary" /><input class="h-12 w-0 min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" name="tarjeta" inputmode="numeric" autocomplete="cc-number" placeholder="1234 1234 1234 1234" [(ngModel)]="tarjeta" /><span class="text-label-s text-accent-text">12/34 · 123</span></span></label>
+            <span class="flex items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field px-3.5 focus-within:border-accent-text"><gr-icon name="credit-card" [size]="16" class="text-text-tertiary" /><input class="h-12 w-0 min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" name="tarjeta" inputmode="numeric" autocomplete="cc-number" placeholder="1234 1234 1234 1234" maxlength="23" [attr.aria-invalid]="mensaje() && !tresDS() ? true : null" [attr.aria-describedby]="mensaje() ? 'pago-msg' : null" [ngModel]="tarjeta" (ngModelChange)="tarjeta = agrupar($event)" /><span class="text-label-s text-text-tertiary">12/34 · 123</span></span></label>
           <label class="flex flex-col gap-2"><span class="text-label-s">Nombre en la tarjeta</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="nombre" autocomplete="cc-name" [(ngModel)]="nombre" /></label>
           <div class="flex flex-col gap-1.5 rounded-[10px] bg-bg-raised p-3">
             <p class="text-label-xs text-text-tertiary uppercase">Tarjetas de prueba</p>
-            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between text-left hover:text-accent-text md:py-0.5" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-s text-text-tertiary">{{ t[1] }}</span></button> }
+            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex min-h-11 w-full items-center justify-between gap-3 text-left hover:text-accent-text" (click)="tarjeta = agrupar(t[0])"><span class="text-mono-s">{{ agrupar(t[0]) }}</span><span class="text-body-s text-text-tertiary">{{ t[1] }}</span></button> }
           </div>
-          @if (mensaje()) { <gr-alert [tone]="tresDS() ? 'info' : 'danger'" [title]="tresDS() ? '3D Secure' : 'Pago no completado'">{{ mensaje() }}</gr-alert> }
+          @if (mensaje()) { <gr-alert id="pago-msg" class="scroll-mt-28" [tone]="tresDS() ? 'info' : 'danger'" [title]="tresDS() ? '3D Secure' : 'Pago no completado'">{{ mensaje() }}</gr-alert> }
           @if (tresDS()) {
             <div class="flex gap-2"><button grButton variant="primary" class="flex-1" [loading]="pagando()" (click)="pagar('ok')">Autenticar</button><button grButton class="flex-1" [disabled]="pagando()" (click)="pagar('fallo')">Fallar autenticación</button></div>
           } @else {
@@ -770,18 +770,30 @@ export class PagoSimuladoPage {
     this.pagando.set(true);
     this.mensaje.set('');
     try {
-      const r = await firstValueFrom(this.http.post<{ estado: string; mensaje?: string; redirect?: string }>(`${this.api}/pagar`, { tarjeta: this.tarjeta, email: this.email, tresDS }));
+      const r = await firstValueFrom(this.http.post<{ estado: string; mensaje?: string; redirect?: string }>(`${this.api}/pagar`, { tarjeta: this.tarjeta.replace(/\s/g, ''), email: this.email, tresDS }));
       if (r.estado === 'pagado' && r.redirect) {
         location.href = r.redirect;
         return;
       }
       this.tresDS.set(r.estado === '3ds');
       this.mensaje.set(r.mensaje ?? 'No se pudo completar el pago.');
+      this.verMensaje();
     } catch (e) {
       this.tresDS.set(false);
       this.mensaje.set((e as { error?: { detail?: string } }).error?.detail ?? 'No se pudo completar el pago.');
+      this.verMensaje();
     } finally {
       this.pagando.set(false);
     }
+  }
+
+  /** «4000000000000002» → «4000 0000 0000 0002» (UX2-R1-12). */
+  protected agrupar(v: string): string {
+    return (v ?? '').replace(/\D/g, '').slice(0, 19).replace(/(\d{4})(?=\d)/g, '$1 ');
+  }
+
+  /** El aviso puede quedar bajo el teclado: se lleva a la vista. */
+  private verMensaje(): void {
+    setTimeout(() => document.getElementById('pago-msg')?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
   }
 }
