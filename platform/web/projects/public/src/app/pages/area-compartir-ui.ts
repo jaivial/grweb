@@ -55,12 +55,12 @@ export class StoryMovil {
   selector: 'gr-story-recorte',
   imports: [GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `dialog::backdrop{background:rgb(0 0 0/.7)} input[type=range]{accent-color:#c4283a}`,
+  styles: `dialog::backdrop{background:rgb(0 0 0/.7)} input[type=range]{accent-color:#c4283a;height:44px} @media (max-width:639px){dialog[open]{animation:gr-hoja .3s cubic-bezier(.32,.72,0,1)}} @media (prefers-reduced-motion:reduce){dialog[open]{animation:none}}`,
   template: `
-    <dialog #dlg class="m-auto w-full max-w-[610px] rounded-lg border border-line-subtle bg-bg-card p-5 text-text-primary shadow-2xl max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none"
+    <dialog #dlg class="m-auto w-full max-w-[610px] rounded-lg border border-line-subtle bg-bg-card p-5 text-text-primary shadow-2xl max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none max-sm:pt-[max(20px,env(safe-area-inset-top))] max-sm:pb-[max(20px,env(safe-area-inset-bottom))]"
       aria-labelledby="recorte-titulo" (cancel)="$event.preventDefault(); cancelar.emit()" (keydown)="tecla($event)">
       <div class="flex items-center justify-between"><h2 id="recorte-titulo" class="text-[18px] font-semibold">Recorta tu foto</h2>
-        <button type="button" class="rounded-xs p-1 text-text-tertiary hover:text-text-primary" aria-label="Cancelar" (click)="cancelar.emit()"><gr-icon name="x" [size]="20" /></button></div>
+        <button type="button" class="-mr-2 flex size-11 items-center justify-center rounded-xs text-text-tertiary hover:text-text-primary" aria-label="Cancelar" (click)="cancelar.emit()"><gr-icon name="x" [size]="20" /></button></div>
       <p class="mt-3 text-body-s text-text-secondary">Arrastra la foto para encuadrarla y usa el zoom. Lo que queda dentro del marco 9:16 es lo que verás en la vista previa y lo que usaremos en la imagen final.</p>
       <div #stage class="relative mt-4 h-[300px] touch-none overflow-hidden rounded-md bg-black select-none sm:h-[476px] max-sm:h-[60dvh]" tabindex="0"
         aria-label="Foto: arrastra o usa las flechas para moverla, + y − para el zoom"
@@ -76,14 +76,14 @@ export class StoryMovil {
         }
       </div>
       <div class="mt-4 flex items-center gap-3">
-        <button type="button" class="rounded-xs p-1" aria-label="Menos zoom" (click)="zoomA(zoom() - 0.1)"><gr-icon name="minus" [size]="18" /></button>
+        <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-xs" aria-label="Menos zoom" (click)="zoomA(zoom() - 0.1)"><gr-icon name="minus" [size]="18" /></button>
         <input type="range" class="flex-1" min="1" max="4" step="0.1" [value]="zoom()" aria-label="Zoom" (input)="zoomA(+$any($event.target).value)" />
-        <button type="button" class="rounded-xs p-1" aria-label="Más zoom" (click)="zoomA(zoom() + 0.1)"><gr-icon name="plus" [size]="18" /></button>
+        <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-xs" aria-label="Más zoom" (click)="zoomA(zoom() + 0.1)"><gr-icon name="plus" [size]="18" /></button>
         <span class="w-10 text-label-s" aria-live="polite">{{ zoomTxt() }}</span>
       </div>
-      <div class="mt-1 flex justify-between px-8 text-[11px] text-text-tertiary"><span>1× · cubre el marco</span><span>4× · máximo</span></div>
-      <div class="mt-5 flex items-center gap-3">
-        <button type="button" class="mr-auto text-label-s text-accent-text hover:underline" (click)="iniciar({ focalX: 50, focalY: 35, zoom: 1 })">Restablecer</button>
+      <div class="mt-1 flex justify-between px-14 text-[11px] text-text-tertiary"><span>1× · cubre el marco</span><span>4× · máximo</span></div>
+      <div class="mt-5 flex flex-wrap items-center gap-3">
+        <button type="button" class="mr-auto h-11 min-w-11 text-label-s text-accent-text hover:underline" (click)="iniciar({ focalX: 50, focalY: 35, zoom: 1 })">Restablecer</button>
         <button grButton type="button" (click)="cancelar.emit()">Cancelar</button>
         <button grButton variant="primary" type="button" (click)="aplicarRecorte()">Aplicar recorte</button>
       </div>

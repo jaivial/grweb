@@ -27,19 +27,19 @@ const ZOOM = 'gr-story-zoom';
   imports: [RouterLink, FormsModule, Navbar, Footer, GrAlert, GrButton, GrIcon, GrSkeleton, StoryMovil, StoryRecorte],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `.seg{display:flex;gap:4px;border-radius:8px;border:1px solid var(--color-line-subtle);background:var(--color-bg-field);padding:4px}
-    .seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;border-radius:6px;font-size:14px;font-weight:600;color:var(--color-text-tertiary);transition:color .15s,background .15s}
+    .seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:4px 8px;white-space:normal;text-align:center;line-height:1.2;border-radius:6px;font-size:14px;font-weight:600;color:var(--color-text-tertiary);transition:color .15s,background .15s}
     .seg button:hover:not(:disabled){color:var(--color-text-secondary)} .seg button:disabled{opacity:.45;cursor:not-allowed}
     .seg button:focus-visible{outline:none;box-shadow:0 0 0 2px rgb(230 96 107/.9)}
     .seg button[aria-checked=true]{color:#fff;background:linear-gradient(180deg,#c4283a,#8c1422)}
     .card{border-radius:12px;border:1px solid var(--color-line-subtle);background:var(--color-bg-card);padding:20px}
     .card h2{font-size:18px;font-weight:600;line-height:1.3} .card h2 span{margin-right:8px;font-family:var(--font-mono,monospace);font-size:11px;color:var(--color-accent-text)}
-    .ayuda{margin-top:12px;font-size:12px;line-height:1.5;color:var(--color-text-muted)}
+    .ayuda{margin-top:12px;font-size:13px;line-height:1.5;color:var(--color-text-tertiary)}
     .ajedrez{background:repeating-conic-gradient(#3a3a3e 0 25%,#2a2a2e 0 50%) 0 0/12px 12px}
     @media (prefers-reduced-motion:reduce){.seg button{transition:none}}`,
   template: `
     <gr-navbar />
     <main class="relative mx-auto max-w-[1440px] px-5 pt-28 pb-18 md:px-8 md:pt-36 xl:px-[120px]">
-      <nav class="text-body-s text-text-tertiary" aria-label="Migas"><a routerLink="/area-atleta" class="hover:text-text-primary">Área de atleta</a> › <span class="text-text-primary">Comparte tu cuenta atrás</span></nav>
+      <nav class="text-body-s text-text-tertiary" aria-label="Migas"><a routerLink="/area-atleta" class="-my-3 inline-flex h-11 items-center hover:text-text-primary">Área de atleta</a> › <span class="text-text-primary">Comparte tu cuenta atrás</span></nav>
       <h1 class="mt-2 text-display-m md:text-display-l">Comparte tu cuenta atrás</h1>
       <p class="mt-3 max-w-xl text-[14px] leading-relaxed text-text-secondary md:text-body-l">Crea tu story para Instagram con tu foto en blanco y negro y los datos de tu inscripción. Se genera en 1080 × 1920 px.</p>
       <div class="sr-only" aria-live="polite">{{ anuncio() }}</div>
@@ -49,7 +49,7 @@ const ZOOM = 'gr-story-zoom';
           <gr-alert class="mt-8 block max-w-xl" tone="danger" [title]="errorTitulo()">{{ errorTexto() }} @if (!espera()) { <button class="underline" (click)="cargar()">Reintentar</button> }</gr-alert>
         }
         @default {
-          <div class="mt-8 flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[minmax(0,640px)_1fr] lg:items-start">
+          <div class="mt-8 flex flex-col-reverse gap-6 md:grid md:grid-cols-2 md:items-start lg:grid-cols-[minmax(0,640px)_1fr]">
             <div class="flex flex-col gap-4">
               @if (vista() === 'acceso') {
                 <section class="card">
@@ -104,7 +104,7 @@ const ZOOM = 'gr-story-zoom';
                       <div class="min-w-0">
                         <p class="truncate text-label-s">{{ fichero() }}</p>
                         <p class="text-[12px] text-text-tertiary">Recorte 9:16 · zoom {{ zoomTxt() }} · blanco y negro</p>
-                        <div class="mt-2 flex gap-2"><button grButton type="button" [disabled]="!foto()" (click)="recortando.set(true)">Recortar</button><button grButton type="button" (click)="input.click()">Cambiar</button></div>
+                        <div class="mt-2 flex flex-wrap gap-2"><button grButton type="button" [disabled]="!foto()" (click)="recortando.set(true)">Recortar</button><button grButton type="button" (click)="input.click()">Cambiar</button></div>
                       </div>
                     </div>
                   } @else {
@@ -150,18 +150,18 @@ const ZOOM = 'gr-story-zoom';
                 <section class="card">
                   <h2><span>05</span>Tus datos de inscripción</h2>
                   <dl class="mt-2">@for (f of filas(); track f[0]) { <div class="flex justify-between gap-4 border-t border-line-subtle py-3 text-body-s"><dt class="text-text-tertiary">{{ f[0] }}</dt><dd class="text-right font-semibold">{{ f[1] }}</dd></div> }</dl>
-                  <a routerLink="/area-atleta" [queryParams]="{ vista: 'perfil' }" class="text-[12px] text-accent-text hover:underline">Salen de tu inscripción y no se pueden editar aquí. ¿Algo no cuadra? Edita tu perfil →</a>
+                  <a routerLink="/area-atleta" [queryParams]="{ vista: 'perfil' }" class="text-[13px] text-accent-text hover:underline">Salen de tu inscripción y no se pueden editar aquí. ¿Algo no cuadra? Edita tu perfil →</a>
                 </section>
               }
             </div>
-            <div class="flex flex-col gap-3 lg:sticky lg:top-28">
-              <div class="card px-6! py-8!">
-                <p class="flex items-center justify-center gap-2 font-mono text-[11px] tracking-[0.12em] whitespace-nowrap text-text-tertiary uppercase"><gr-icon name="eye" [size]="14" />{{ vista() === 'listo' ? (formato() === 'sticker' ? 'Ejemplo: tu foto + sticker en Instagram' : 'Vista previa · así se verá en tu story') : 'Así quedará tu story' }}</p>
+            <div class="flex flex-col gap-3 md:sticky md:top-28">
+              <div class="card px-4! py-8! sm:px-6!">
+                <p class="flex flex-wrap items-center justify-center gap-2 text-center font-mono text-[11px] tracking-[0.12em] text-text-tertiary uppercase"><gr-icon name="eye" [size]="14" />{{ vista() === 'listo' ? (formato() === 'sticker' ? 'Ejemplo: tu foto + sticker en Instagram' : 'Vista previa · así se verá en tu story') : 'Así quedará tu story' }}</p>
                 <div class="mt-5 flex items-end justify-center gap-4">
                   @if (vista() === 'listo') {
                     @if (formato() === 'sticker') {
                       <gr-story-movil [src]="url()" [alt]="alt()" [fondo]="fotoSrc() || '/img/edicion-2025/foto-1.webp'" />
-                      <div class="hidden flex-col items-center gap-2 sm:flex"><img [src]="url()" alt="" class="ajedrez aspect-[9/16] w-[118px] rounded-xs" /><span class="text-[11px] font-semibold tracking-[0.06em] text-text-tertiary">PNG TRANSPARENTE</span></div>
+                      <div class="hidden flex-col items-center gap-2 sm:flex md:hidden xl:flex"><img [src]="url()" alt="" class="ajedrez aspect-[9/16] w-[118px] rounded-xs" /><span class="text-[11px] font-semibold tracking-[0.06em] text-text-tertiary">PNG TRANSPARENTE</span></div>
                     } @else {
                       <gr-story-movil [src]="url()" [alt]="alt()" [hueco]="!foto()" />
                     }
@@ -175,12 +175,14 @@ const ZOOM = 'gr-story-zoom';
                 @if (fallo()) {
                   <gr-alert tone="danger" title="">{{ fallo() }} <button class="underline" (click)="reintentar()">Reintentar</button></gr-alert>
                 }
-                <button grButton variant="outline" size="l" [block]="true" icon="instagram" [loading]="busy()" [disabled]="!listo()" (click)="compartir()">{{ formato() === 'sticker' ? 'Compartir sticker en Instagram' : 'Compartir en Instagram' }}</button>
-                <div class="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
-                  <button grButton variant="outline" size="l" [disabled]="!listo()" (click)="descargar()">{{ formato() === 'sticker' ? 'Descargar PNG' : 'Descargar imagen' }}</button>
-                  <a grButton size="l" iconRight="arrow-right" href="https://instagram.com/grstrengthclub" target="_blank" rel="noopener" class="whitespace-nowrap">Síguenos en Instagram</a>
+                <!-- UX3-R1-5: primary CTA fixed in the thumb zone on mobile, with a 9:16 thumbnail -->
+                <div class="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:flex max-md:items-center max-md:gap-3 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
+                  @if (url()) { <img [src]="url()" alt="" class="aspect-[9/16] w-10 shrink-0 rounded-xs object-cover md:hidden" [class.ajedrez]="formato() === 'sticker'" /> }
+                  <button grButton variant="primary" size="l" [block]="true" icon="instagram" class="min-w-0 flex-1" [loading]="busy()" [disabled]="!listo()" (click)="compartir()">{{ formato() === 'sticker' ? 'Compartir sticker' : 'Compartir en Instagram' }}</button>
                 </div>
-                <p class="text-center text-[12px] text-text-muted">{{ ayudaBotones() }}</p>
+                <button grButton variant="secondary" size="l" [block]="true" [disabled]="!listo()" (click)="descargar()">{{ formato() === 'sticker' ? 'Descargar PNG' : 'Descargar imagen' }}</button>
+                <a grButton variant="link" iconRight="arrow-right" href="https://instagram.com/grstrengthclub" target="_blank" rel="noopener" class="h-11! self-center">Síguenos en Instagram</a>
+                <p class="text-center text-[13px] text-text-tertiary">{{ ayudaBotones() }}</p>
               }
             </div>
           </div>
@@ -191,6 +193,7 @@ const ZOOM = 'gr-story-zoom';
       }
     </main>
     <gr-footer />
+    @if (vista() === 'listo') { <div class="h-[calc(76px+env(safe-area-inset-bottom))] md:hidden" aria-hidden="true"></div> }
   `,
 })
 export class AreaCompartirPage {
@@ -434,8 +437,10 @@ export class AreaCompartirPage {
     a.download = this.nombreFichero();
     a.click();
     this.registrar('descarga');
-    this.toasts.success('Imagen descargada: ' + a.download);
-    if (sinShare && !this.qr()) {
+    // one feedback channel (toast); the QR hand-off only makes sense on a computer (UX3-R1-13)
+    const movil = matchMedia('(pointer: coarse)').matches;
+    this.toasts.success(movil ? 'Imagen guardada. Ábrela en Instagram › Historia.' : 'Imagen descargada: ' + a.download);
+    if (sinShare && !movil && !this.qr()) {
       const mod = await import('qrcode');
       const QR = (mod as unknown as { default?: typeof mod }).default ?? mod;
       this.qr.set(await QR.toDataURL(location.origin + '/area-atleta/compartir', { margin: 1, width: 176, errorCorrectionLevel: 'M' }));

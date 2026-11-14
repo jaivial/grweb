@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -356,6 +357,11 @@ func (s *Svc) registerArea() {
 				return nil, problem.Conflict("PESAJE_HECHO", "Ya te han pesado: cualquier cambio se hace en la mesa.")
 			}
 			b := in.Body
+			for _, v := range []*float64{b.Intentos.SQ, b.Intentos.BP, b.Intentos.DL} {
+				if v != nil && (*v < 0 || *v > 600 || math.Mod(*v, 2.5) != 0) {
+					return nil, problem.Unprocessable("INTENTO_INVALIDO", "Los intentos van entre 0 y 600 kg, en múltiplos de 2,5.")
+				}
+			}
 			rackBP := ""
 			if b.RackBP != nil {
 				rackBP = fmt.Sprint(*b.RackBP)
