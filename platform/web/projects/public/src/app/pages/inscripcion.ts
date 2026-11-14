@@ -199,7 +199,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                   }
                 }
                 @if (f.k === 'club') { <p class="text-body-s text-text-tertiary">Déjalo vacío si eres independiente.</p> }
-                @if (err()[f.k]; as e) { <p [id]="'e-' + f.k" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                @if (err()[f.k]; as e) { <p [id]="'e-' + f.k" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
               </div>
             }
           </div>
@@ -215,7 +215,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                       <input id="i-cupon" name="cupon" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.cupon?.valido ? quitar('cupon') : calcular()">{{ precio()?.cupon?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
-                    @if (precio()?.cupon; as x) { <p class="flex items-center gap-1.5 text-body-xs" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
+                    @if (precio()?.cupon; as x) { <p class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
                   </div>
                 }
                 @if (c.referidos) {
@@ -225,8 +225,8 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                       <input id="i-ref" name="referido" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.referido?.valido ? quitar('referido') : calcular()">{{ precio()?.referido?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
-                    @if (precio()?.referido; as x) { <p class="flex items-center gap-1.5 text-body-xs" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
-                    @else if (c.referidoTexto) { <p class="text-body-xs text-text-tertiary">Si un amigo ya inscrito te pasó su código, tienes {{ c.referidoTexto.replace(' con el código de un amigo inscrito', '') }}.</p> }
+                    @if (precio()?.referido; as x) { <p class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
+                    @else if (c.referidoTexto) { <p class="text-body-s text-text-tertiary">Si un amigo ya inscrito te pasó su código, tienes {{ c.referidoTexto.replace(' con el código de un amigo inscrito', '') }}.</p> }
                   </div>
                 }
               </div>
@@ -258,13 +258,13 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                 </span>
               </label>
             }
-            @if (err()['terminos']; as e) { <p class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+            @if (err()['terminos']; as e) { <p class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
           </div>
           @if (error()) { <p class="flex items-start gap-2 rounded-md border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
           <!-- UX2-R1-4: en móvil, CTA con el total fijo abajo mientras el formulario está en vista -->
           <div class="flex flex-col gap-3 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
             <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="enviando()">{{ c.estado === 'completa' ? 'Apuntarme a la reserva' : total() === 0 ? 'Confirmar inscripción' : 'Pagar ' + eur(total()) }}</button>
-            <p class="text-center text-body-xs text-text-muted">
+            <p class="text-center text-body-s text-text-muted">
               @if (c.estado === 'completa') { No se cobra nada hasta que haya plaza. }
               @else if (total() === 0) { Sin pago: te inscribimos al confirmar. }
               @else { <gr-icon name="lock" [size]="13" class="mr-1.5 inline-block align-[-2px]" />{{ c.pasarela === 'stripe' ? 'Pago seguro con Stripe' : 'Pago seguro' }}{{ c.pruebas ? ' · ahora en modo pruebas, no se cobra nada' : '' }} }
@@ -575,7 +575,7 @@ export class InscripcionPage {
           @if (e.codigoReferido) {
             <section class="flex flex-col gap-3 rounded-[18px] border border-line-subtle bg-bg-card p-6">
               <h2 class="text-label-m">Invita y recupera parte de tu cuota</h2>
-              <p class="text-body-xs text-text-tertiary">{{ e.invitaTexto || 'Tus amigos tienen descuento con tu código y te devolvemos una parte de lo que pagaste por cada uno.' }}</p>
+              <p class="text-body-s text-text-tertiary">{{ e.invitaTexto || 'Tus amigos tienen descuento con tu código y te devolvemos una parte de lo que pagaste por cada uno.' }}</p>
               <div class="flex h-12 items-center gap-2.5 rounded-[10px] border border-line-strong bg-bg-field pl-3.5"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 truncate text-mono-s">{{ e.codigoReferido }}</span><button type="button" class="h-full px-3.5 text-label-s text-accent-text hover:underline" (click)="copiar(e.codigoReferido!)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
             </section>
           }
@@ -723,7 +723,7 @@ interface SesionSim { id: string; descripcion: string; importe: number; email: s
           <label class="flex flex-col gap-2"><span class="text-label-s">Nombre en la tarjeta</span><input class="h-12 rounded-[10px] border border-line-strong bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none" name="nombre" autocomplete="cc-name" [(ngModel)]="nombre" /></label>
           <div class="flex flex-col gap-1.5 rounded-[10px] bg-bg-raised p-3">
             <p class="text-label-xs text-text-tertiary uppercase">Tarjetas de prueba</p>
-            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between text-left hover:text-accent-text md:py-0.5" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-xs text-text-tertiary">{{ t[1] }}</span></button> }
+            @for (t of s.tarjetas; track t[0]) { <button type="button" class="flex w-full justify-between text-left hover:text-accent-text md:py-0.5" (click)="tarjeta = t[0]"><span class="text-mono-s">{{ t[0] }}</span><span class="text-body-s text-text-tertiary">{{ t[1] }}</span></button> }
           </div>
           @if (mensaje()) { <gr-alert [tone]="tresDS() ? 'info' : 'danger'" [title]="tresDS() ? '3D Secure' : 'Pago no completado'">{{ mensaje() }}</gr-alert> }
           @if (tresDS()) {

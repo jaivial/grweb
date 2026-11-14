@@ -38,11 +38,11 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
           <span class="flex size-10 items-center justify-center rounded-md bg-accent/14 text-accent-text"><gr-icon name="arrow-up" [size]="18" /></span>
           @if (arrastrando()) {
             <span class="text-label-m">Suelta la foto aquí</span>
-            <span class="text-body-xs text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
+            <span class="text-body-s text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
           } @else {
             <span class="text-label-m">Arrastra tu foto o pulsa para elegirla</span>
-            <span class="text-body-xs text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
-            <span class="max-w-[420px] text-body-xs text-text-muted">Opcional pero recomendada. La publicamos en blanco y negro, recortada a 4:5 para que todas las fichas sean uniformes.</span>
+            <span class="text-body-s text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
+            <span class="max-w-[420px] text-body-s text-text-muted">Opcional pero recomendada. La publicamos en blanco y negro, recortada a 4:5 para que todas las fichas sean uniformes.</span>
           }
         </label>
       }
@@ -72,11 +72,11 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
           </div>
           @if (subiendo() || procesando()) {
             <div class="mt-2 flex flex-col gap-2 rounded-md border border-line-subtle bg-bg-surface p-3">
-              <p class="flex items-center gap-2 text-body-xs text-text-secondary">
+              <p class="flex items-center gap-2 text-body-s text-text-secondary">
                 <gr-icon name="loader" [size]="14" [spin]="true" class="text-accent-text" />{{ procesando() ? 'Estamos preparando tu foto…' : 'Subiendo la foto…' }}
               </p>
               <div class="h-1.5 overflow-hidden rounded-pill bg-line-strong"><div class="h-full rounded-pill bg-accent transition-[width] duration-200" [style.width.%]="progreso()"></div></div>
-              <p class="text-body-xs text-text-muted">Ajustamos el contraste, el blanco y negro y el encuadre 4:5.</p>
+              <p class="text-body-s text-text-muted">Ajustamos el contraste, el blanco y negro y el encuadre 4:5.</p>
             </div>
           }
         </div>

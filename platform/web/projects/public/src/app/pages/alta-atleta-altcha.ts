@@ -29,9 +29,9 @@ import { AltchaConfig, AltchaEstado, payloadBase64, resolverReto } from '../core
           </button>
           <span class="text-label-m" [class]="estado() === 'fallo' ? 'text-accent-text' : 'text-text-primary'">No soy un robot</span>
         }
-        <span class="ml-auto text-body-xs text-text-tertiary">Protegido por ALTCHA</span>
+        <span class="ml-auto text-body-s text-text-tertiary">Protegido por ALTCHA</span>
       </div>
-      <p class="text-body-xs text-text-tertiary" aria-live="polite">
+      <p class="text-body-s text-text-tertiary" aria-live="polite">
         @switch (estado()) {
           @case ('verificado') { Verificado. }
           @case ('fallo') { No hemos podido verificar que no eres un robot. Vuelve a pulsarlo para reintentar.

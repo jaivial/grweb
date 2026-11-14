@@ -79,7 +79,7 @@ export type TipoAviso = 'cerrada' | 'legal' | 'error' | 'duplicado' | 'aprobada'
           <button grButton variant="primary" size="l" type="button" (click)="reintentar.emit()">Reintentar</button>
           <button type="button" class="self-center text-label-s text-text-secondary hover:text-text-primary" (click)="cancelar.emit()">Cancelar</button>
         </div>
-        <p class="text-body-xs text-text-muted">Guardamos un borrador en este dispositivo. La foto no se guarda: si la vuelves a elegir, sube el archivo de nuevo.</p>
+        <p class="text-body-s text-text-muted">Guardamos un borrador en este dispositivo. La foto no se guarda: si la vuelves a elegir, sube el archivo de nuevo.</p>
       </section>
     }
   `,

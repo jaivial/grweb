@@ -131,7 +131,7 @@ const MAX_MARCA = 600;
                             [class]="err()['nombre'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.nombre" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['nombre']" [attr.aria-describedby]="err()['nombre'] ? 'e-nombre' : null" />
-                          @if (err()['nombre']; as e) { <p id="e-nombre" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['nombre']; as e) { <p id="e-nombre" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-apellidos">Apellidos *</label>
@@ -140,7 +140,7 @@ const MAX_MARCA = 600;
                             [class]="err()['apellidos'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.apellidos" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['apellidos']" [attr.aria-describedby]="err()['apellidos'] ? 'e-apellidos' : null" />
-                          @if (err()['apellidos']; as e) { <p id="e-apellidos" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['apellidos']; as e) { <p id="e-apellidos" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
@@ -150,8 +150,8 @@ const MAX_MARCA = 600;
                           [class]="err()['email'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.email" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['email']" [attr.aria-describedby]="err()['email'] ? 'e-email h-email' : 'h-email'" />
-                        <p id="h-email" class="text-body-xs text-text-tertiary">El mismo con el que te inscribiste; así te reconocemos.</p>
-                        @if (err()['email']; as e) { <p id="e-email" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        <p id="h-email" class="text-body-s text-text-tertiary">El mismo con el que te inscribiste; así te reconocemos.</p>
+                        @if (err()['email']; as e) { <p id="e-email" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-telefono">Teléfono móvil</label>
@@ -163,8 +163,8 @@ const MAX_MARCA = 600;
                             [(ngModel)]="d.telefono" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['telefono']" [attr.aria-describedby]="err()['telefono'] ? 'e-telefono h-telefono' : 'h-telefono'" />
                         </span>
-                        <p id="h-telefono" class="text-body-xs text-text-tertiary">Formato internacional (+34 por defecto).{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
-                        @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        <p id="h-telefono" class="text-body-s text-text-tertiary">Formato internacional (+34 por defecto).{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
+                        @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">Sexo *</span>
@@ -176,7 +176,7 @@ const MAX_MARCA = 600;
                             class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
                             [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Hombre</button>
                         </div>
-                        @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-nacimiento">Fecha de nacimiento *</label>
@@ -185,8 +185,8 @@ const MAX_MARCA = 600;
                           [class]="err()['fechaNacimiento'] ? 'border-accent-text' : 'border-line-strong'"
                           [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
                           [attr.aria-invalid]="!!err()['fechaNacimiento']" [attr.aria-describedby]="err()['fechaNacimiento'] ? 'e-nacimiento h-nacimiento' : 'h-nacimiento'" />
-                        <p id="h-nacimiento" class="text-body-xs text-text-tertiary">Formato dd/mm/aaaa. De 14 a 90 años.</p>
-                        @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        <p id="h-nacimiento" class="text-body-s text-text-tertiary">Formato dd/mm/aaaa. De 14 a 90 años.</p>
+                        @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (esMenor()) {
                         <p class="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary">
@@ -200,7 +200,7 @@ const MAX_MARCA = 600;
                           [class]="err()['licencia'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.licencia" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['licencia']" [attr.aria-describedby]="err()['licencia'] ? 'e-licencia' : null" />
-                        @if (err()['licencia']; as e) { <p id="e-licencia" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['licencia']; as e) { <p id="e-licencia" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                     </fieldset>
 
@@ -222,12 +222,12 @@ const MAX_MARCA = 600;
                               </span>
                               <span class="flex min-w-0 flex-1 flex-col">
                                 <span class="text-body-m font-semibold text-text-primary">{{ o.titulo }}</span>
-                                <span class="text-body-xs text-text-tertiary">{{ o.detalle }}</span>
+                                <span class="text-body-s text-text-tertiary">{{ o.detalle }}</span>
                               </span>
                               <span class="shrink-0 rounded-full border px-2.5 py-0.5 text-label-xs" [class]="o.tono">{{ o.chip }}</span>
                             </button>
                           }
-                          @if (err()['prueba']) { <p id="e-prueba" class="text-body-xs text-accent-text">{{ err()['prueba'] }}</p> }
+                          @if (err()['prueba']) { <p id="e-prueba" class="text-body-s text-accent-text">{{ err()['prueba'] }}</p> }
                         </div>
                       }
                       <div class="grid gap-4 sm:grid-cols-2">
@@ -238,7 +238,7 @@ const MAX_MARCA = 600;
                             [class]="err()['club'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.club" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['club']" [attr.aria-describedby]="err()['club'] ? 'e-club' : null" />
-                          @if (err()['club']; as e) { <p id="e-club" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['club']; as e) { <p id="e-club" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-ciudad">Ciudad</label>
@@ -247,7 +247,7 @@ const MAX_MARCA = 600;
                             [class]="err()['ciudad'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.ciudad" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['ciudad']" [attr.aria-describedby]="err()['ciudad'] ? 'e-ciudad' : null" />
-                          @if (err()['ciudad']; as e) { <p id="e-ciudad" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['ciudad']; as e) { <p id="e-ciudad" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
@@ -257,7 +257,7 @@ const MAX_MARCA = 600;
                           [class]="err()['entrenador'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.entrenador" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['entrenador']" [attr.aria-describedby]="err()['entrenador'] ? 'e-entrenador' : null" />
-                        @if (err()['entrenador']; as e) { <p id="e-entrenador" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['entrenador']; as e) { <p id="e-entrenador" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                     </fieldset>
 
@@ -273,26 +273,26 @@ const MAX_MARCA = 600;
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
                           <label class="text-label-s" for="c-frase">Frase de presentación</label>
-                          <span class="text-body-xs text-text-tertiary">{{ d.frase.length }} / {{ maxFrase }}</span>
+                          <span class="text-body-s text-text-tertiary">{{ d.frase.length }} / {{ maxFrase }}</span>
                         </div>
                         <input id="c-frase" name="frase" type="text" maxlength="80" placeholder="Una frase para tu ficha"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['frase'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.frase" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['frase']" [attr.aria-describedby]="err()['frase'] ? 'e-frase' : null" />
-                        @if (err()['frase']; as e) { <p id="e-frase" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['frase']; as e) { <p id="e-frase" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
                           <label class="text-label-s" for="c-bio">Sobre ti</label>
-                          <span class="text-body-xs text-text-tertiary">{{ d.bio.length }} / {{ maxBio }}</span>
+                          <span class="text-body-s text-text-tertiary">{{ d.bio.length }} / {{ maxBio }}</span>
                         </div>
                         <textarea id="c-bio" name="bio" rows="4" maxlength="280" placeholder="Cuéntale a la gente quién eres en dos líneas"
                           class="w-full rounded-[10px] border bg-bg-field px-3.5 py-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['bio'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.bio" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['bio']" [attr.aria-describedby]="err()['bio'] ? 'e-bio' : null"></textarea>
-                        @if (err()['bio']; as e) { <p id="e-bio" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['bio']; as e) { <p id="e-bio" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (!esMenor()) {
                         <div class="flex min-w-0 flex-col gap-2">
@@ -302,29 +302,29 @@ const MAX_MARCA = 600;
                             [class]="err()['instagram'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.instagram" (ngModelChange)="revalidar()"
                             [attr.aria-invalid]="!!err()['instagram']" [attr.aria-describedby]="err()['instagram'] ? 'e-instagram' : null" />
-                          @if (err()['instagram']; as e) { <p id="e-instagram" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                          @if (err()['instagram']; as e) { <p id="e-instagram" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                       } @else {
-                        <p class="text-body-xs text-text-tertiary">A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.</p>
+                        <p class="text-body-s text-text-tertiary">A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.</p>
                       }
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
                           <label class="text-label-s" for="c-historial">Historial deportivo</label>
-                          <span class="text-body-xs text-text-tertiary">{{ d.historial.length }} / {{ maxHistorial }}</span>
+                          <span class="text-body-s text-text-tertiary">{{ d.historial.length }} / {{ maxHistorial }}</span>
                         </div>
                         <textarea id="c-historial" name="historial" rows="3" maxlength="300" placeholder="Competiciones, clubes anteriores, marcas…"
                           class="w-full rounded-[10px] border bg-bg-field px-3.5 py-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['historial'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.historial" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['historial']" [attr.aria-describedby]="err()['historial'] ? 'e-historial' : null"></textarea>
-                        @if (err()['historial']; as e) { <p id="e-historial" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['historial']; as e) { <p id="e-historial" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                     </fieldset>
 
                     <!-- Mejores marcas -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
                       <legend class="mb-5 text-display-2xs italic">Mejores marcas</legend>
-                      <p class="-mt-2 text-body-xs text-text-tertiary">Opcionales · en kilogramos · paso 0,5 · máximo 600.</p>
+                      <p class="-mt-2 text-body-s text-text-tertiary">Opcionales · en kilogramos · paso 0,5 · máximo 600.</p>
                       <div class="grid gap-4 sm:grid-cols-3">
                         @for (m of marcasCampos; track m.k) {
                           <div class="flex min-w-0 flex-col gap-2">
@@ -334,7 +334,7 @@ const MAX_MARCA = 600;
                               [class]="err()[m.k] ? 'border-accent-text' : 'border-line-strong'"
                               [(ngModel)]="d[m.k]" (ngModelChange)="revalidar()"
                               [attr.aria-invalid]="!!err()[m.k]" [attr.aria-describedby]="err()[m.k] ? 'e-' + m.k : null" />
-                            @if (err()[m.k]; as e) { <p [id]="'e-' + m.k" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                            @if (err()[m.k]; as e) { <p [id]="'e-' + m.k" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                           </div>
                         }
                       </div>
@@ -366,8 +366,8 @@ const MAX_MARCA = 600;
                           </span>
                         </label>
                       }
-                      @if (err()['consentimiento']; as e) { <p class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
-                      <p class="text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu alta de atleta y, solo si lo marcas, enviarte novedades y avisos · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja desde el área de atleta o cualquier email.</p>
+                      @if (err()['consentimiento']; as e) { <p class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                      <p class="text-body-s text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu alta de atleta y, solo si lo marcas, enviarte novedades y avisos · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja desde el área de atleta o cualquier email.</p>
                     </fieldset>
 
                     <!-- Envío -->
@@ -393,7 +393,7 @@ const MAX_MARCA = 600;
                       }
                       <!-- UX2-R1-4: en móvil, CTA fijo abajo (zona del pulgar) mientras el formulario está en vista -->
                       <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" class="max-md:w-full" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
-                      <p class="text-body-xs text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
+                      <p class="text-body-s text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
                   </form>
                 }
