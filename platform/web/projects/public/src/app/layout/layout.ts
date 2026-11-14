@@ -50,7 +50,7 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
   ] },
   { titulo: 'El evento', items: [
     { label: 'Atletas', desc: 'Perfiles y su horario', href: '/atletas' },
-    { label: 'Horarios', desc: 'Flights y plataforma, en directo', href: '/horarios' },
+    { label: 'Horarios', desc: 'Horarios y tarima, en directo', href: '/horarios' },
     { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
     { label: 'Sorteo', desc: 'Rifa presencial en efectivo', href: '/sorteo' },
     { label: 'Galería', desc: 'Fotos de la competición', href: '/galeria' },
@@ -310,7 +310,7 @@ export class Overlays {
           </ul>
         </nav>
       </div>
-      <p class="border-t border-line-subtle px-5 py-5 text-center text-body-xs text-text-muted">© {{ year }} GR Strength · All rights reserved</p>
+      <p class="border-t border-line-subtle px-5 py-5 text-center text-body-xs text-text-muted">© {{ year }} GRS Cup 2 · GR Strength · All rights reserved</p>
     } @else {
     <!-- Figma «Footer»: mobile 48/20/32 with 28 between blocks, desktop 72/80/32 with 48 -->
     <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-8 md:gap-12 md:px-8 md:pt-[72px] xl:px-[120px]">
@@ -347,7 +347,7 @@ export class Overlays {
         </ul>
       }
       <div class="flex flex-col items-center gap-1 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:gap-3 md:text-left">
-        <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a routerLink="/cookies" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">Cookies</a></p>
+        <p>© {{ year }} GRS Cup 2 · GRStrength. Todos los derechos reservados. · <a routerLink="/cookies" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">Cookies</a></p>
         @if (stripe()) { <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p> }
       </div>
     </div>
@@ -400,7 +400,7 @@ export class Footer {
   protected readonly columnas = [
     { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
     { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
-    { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
+    { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
     { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },
   ];
   constructor() {

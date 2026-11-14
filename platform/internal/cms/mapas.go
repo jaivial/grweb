@@ -143,43 +143,47 @@ func (s *Svc) registerMapas() {
 			URL string `json:"url"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "mapas-imagen", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/mapas/imagen", Summary: "Subir la imagen de un mapa de accesos al CDN (JPG, PNG o WebP, máx. 10 MB)",
-		Tags: []string{"Web y contenidos"}, Security: bearer, DefaultStatus: http.StatusCreated, MaxBodyBytes: maxUpload, BodyReadTimeout: time.Minute},
-		func(ctx context.Context, in *upIn) (*upOut, error) {
-			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
-				return nil, err
-			}
-			files := in.RawBody.File["file"]
-			if len(files) != 1 {
-				return nil, problem.Unprocessable("ARCHIVO_OBLIGATORIO", "Adjunta una imagen en el campo «file».")
-			}
-			if files[0].Size > maxMapa {
-				return nil, problem.Unprocessable("ARCHIVO_GRANDE", "La imagen supera los 10 MB.")
-			}
-			f, err := files[0].Open()
-			if err != nil {
-				return nil, err
-			}
-			defer f.Close()
-			data, err := io.ReadAll(f)
-			if err != nil {
-				return nil, err
-			}
-			tipo, ext, err := tipoMapa(data)
-			if err != nil {
-				return nil, err
-			}
-			st, _ := s.almacenMapas(ctx, in.CID)
-			key := "mapas/" + newID().String() + ext
-			url, err := st.Put(ctx, key, tipo, data)
-			if err != nil {
-				s.a.Log.Error("no se ha podido publicar el mapa de accesos", "err", err, "key", key)
-				return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido subir la imagen. Inténtalo en unos minutos.")
-			}
-			out := &upOut{}
-			out.Body.URL = url
-			return out, nil
-		})
+	// The same upload publishes the sponsor banners (patrocinio): web.editar is also the permission of the banners.
+	for _, d := range []struct{ id, carpeta, que string }{{"mapas-imagen", "mapas", "un mapa de accesos"}, {"patrocinio-imagen", "patrocinio", "un banner de patrocinio"}} {
+		carpeta := d.carpeta
+		huma.Register(api, huma.Operation{OperationID: d.id, Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/" + carpeta + "/imagen", Summary: "Subir la imagen de " + d.que + " al CDN (JPG, PNG o WebP, máx. 10 MB)",
+			Tags: []string{"Web y contenidos"}, Security: bearer, DefaultStatus: http.StatusCreated, MaxBodyBytes: maxUpload, BodyReadTimeout: time.Minute},
+			func(ctx context.Context, in *upIn) (*upOut, error) {
+				if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+					return nil, err
+				}
+				files := in.RawBody.File["file"]
+				if len(files) != 1 {
+					return nil, problem.Unprocessable("ARCHIVO_OBLIGATORIO", "Adjunta una imagen en el campo «file».")
+				}
+				if files[0].Size > maxMapa {
+					return nil, problem.Unprocessable("ARCHIVO_GRANDE", "La imagen supera los 10 MB.")
+				}
+				f, err := files[0].Open()
+				if err != nil {
+					return nil, err
+				}
+				defer f.Close()
+				data, err := io.ReadAll(f)
+				if err != nil {
+					return nil, err
+				}
+				tipo, ext, err := tipoMapa(data)
+				if err != nil {
+					return nil, err
+				}
+				st, _ := s.almacenMapas(ctx, in.CID)
+				key := carpeta + "/" + newID().String() + ext
+				url, err := st.Put(ctx, key, tipo, data)
+				if err != nil {
+					s.a.Log.Error("no se ha podido publicar el mapa de accesos", "err", err, "key", key)
+					return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido subir la imagen. Inténtalo en unos minutos.")
+				}
+				out := &upOut{}
+				out.Body.URL = url
+				return out, nil
+			})
+	}
 
 	// The maps kept in the volume of the service (QA without Bunny): immutable files, a new upload gets a new name.
 	s.a.Mux.HandleFunc("GET /api/medios/mapas/{nombre}", func(w http.ResponseWriter, r *http.Request) {

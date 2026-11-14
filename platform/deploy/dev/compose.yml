@@ -244,6 +244,27 @@ services:
     environment:
       <<: *env
       DATABASE_URL: postgres://grcup_messaging:dev_messaging@postgres:5432/grcup_messaging?sslmode=disable
+      # WhatsApp managed by the platform: the BO only links the number (QR or pairing code).
+      EVO_WEAI_URL: http://evo-weai:8080
+      EVO_WEAI_API_KEY: dev-weai-api-key-change-me
+
+  # Contacts, segments and suppressions (audience of the campaigns).
+  crm:
+    <<: *svc
+    build: { context: ../.., args: { SVC: crm, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_crm:dev_crm@postgres:5432/grcup_crm?sslmode=disable
+
+  # Campaign assistant (MiniMax). The key comes from the shell (`set -a; . <(grep ^MINIMAX_ ~/.env)`); without it the
+  # editor shows the assistant as not configured.
+  ai:
+    <<: *svc
+    build: { context: ../.., args: { SVC: ai, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      MINIMAX_API_KEY: ${MINIMAX_TOKEN_PLAN_API_KEY:-}
+      MINIMAX_BASE_URL: ${MINIMAX_TOKEN_PLAN_BASE_URL:-https://api.minimax.io/anthropic}
 
   # Réplica del chat con puerto publicado para la prueba de carga (cmd/carga-chat sin pasar por el gateway).
   chat-load:
@@ -263,21 +284,21 @@ services:
     build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
-      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos,athletes,schedule,live,cms,messaging
+      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos,athletes,schedule,live,cms,messaging,crm,ai
       CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
     ports:
       - "127.0.0.1:18300:8080"
 
   # WhatsApp (evo-weai). The image comes from its own repository (the release, not the sources):
-  #   docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.14 \
-  #     --secret id=evo_weai_gh_token,env=EVO_WEAI_GH_TOKEN -t grcup/evo-weai:v0.2.14 ~/evo-weai
+  #   docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.15 \
+  #     --secret id=evo_weai_gh_token,env=EVO_WEAI_GH_TOKEN -t grcup/evo-weai:v0.2.15 ~/evo-weai
   evo-weai:
-    image: grcup/evo-weai:v0.2.14
+    image: grcup/evo-weai:v0.2.15
     restart: unless-stopped
     mem_limit: 256m
     environment:
       WEAI_API_KEY: dev-weai-api-key-change-me
-      WEAI_DATA_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      WEAI_DATA_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       WEAI_HOST: 0.0.0.0
       WEAI_PORT: "8080"
       WEAI_DATABASE_PATH: /data/weai.db
@@ -286,7 +307,7 @@ services:
     volumes:
       - weai-data:/data
     ports:
-      - "127.0.0.1:18080:8080"
+      - "127.0.0.1:18380:8080"
     healthcheck:
       test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET / HTTP/1.0\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q '200'"]
       interval: 30s
