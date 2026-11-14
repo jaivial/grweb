@@ -59,7 +59,7 @@ const boSizes: Record<GrButtonSize, string> = { s: 'h-8 px-3', m: 'h-11 px-5 md:
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': 'classes()', '[attr.aria-busy]': 'loading() || null', '[attr.disabled]': 'isButton && (loading() || disabled()) ? "" : null', '[attr.aria-disabled]': '!isButton && disabled() ? "true" : null' },
   template: `
-    <span class="inline-flex items-center gap-2" [class.opacity-0]="loading()">
+    <span class="inline-flex min-w-0 max-w-full items-center gap-2" [class.opacity-0]="loading()">
       @if (icon() ?? (variant() === 'instagram' ? 'instagram' : null); as i) { <gr-icon [name]="i" [size]="iconSize()" /> }
       <ng-content />
       @if (iconRight(); as i) { <gr-icon [name]="i" [size]="iconSize()" /> }
