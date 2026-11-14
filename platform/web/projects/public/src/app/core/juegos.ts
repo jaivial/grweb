@@ -880,6 +880,7 @@ export class JuegosEnVivo {
   private readonly foco = computed(() => ({ jornada: this.jornadaFoco(), sala: this.salaVista() || this.salaFoco() }));
   private abierto = '';
   private ultimoId = '';
+  private cierre: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     // cambiar de ámbito reabre el stream desde el último evento recibido (sin perder ninguno)
@@ -891,8 +892,12 @@ export class JuegosEnVivo {
     });
   }
 
-  /** Fija la jornada y, si se pasa, mi sala (las ponen el FantasyStore y el lobby). */
+  /**
+   * Fija la jornada y, si se pasa, mi sala (las ponen el FantasyStore y el lobby). Sin jornada (una vista que aún
+   * no ha cargado) se conserva el último foco: no se reabre el stream sin filtro (ST3-R2-4).
+   */
   enfocar(jornadaId: string, salaId?: string): void {
+    if (!jornadaId) return;
     this.jornadaFoco.set(jornadaId);
     if (salaId !== undefined) this.salaFoco.set(salaId);
   }
@@ -930,6 +935,7 @@ export class JuegosEnVivo {
   conectar(): void {
     if (!this.browser) return;
     this.usos++;
+    clearTimeout(this.cierre);
     if (this.es) return;
     this.abrir();
   }
@@ -966,17 +972,24 @@ export class JuegosEnVivo {
     es.addEventListener('juegos.clasificacion', (e) => this.clasificacion(e));
   }
 
-  /** Cierra la suscripción cuando la última página que la usa se destruye. */
+  /**
+   * Cierra la suscripción cuando la última página que la usa se destruye. El cierre espera un momento: al cambiar
+   * de pestaña la página nueva la vuelve a usar y el stream sigue abierto (ST3-R2-4).
+   */
   desconectar(): void {
     if (!this.browser) return;
     this.usos = Math.max(0, this.usos - 1);
     if (this.usos > 0) return;
-    this.es?.close();
-    this.es = null;
-    this.abierto = '';
-    this.ultimoId = '';
-    this.conectado.set(false);
-    this.caida.set(false);
+    clearTimeout(this.cierre);
+    this.cierre = setTimeout(() => {
+      if (this.usos > 0) return;
+      this.es?.close();
+      this.es = null;
+      this.abierto = '';
+      this.ultimoId = '';
+      this.conectado.set(false);
+      this.caida.set(false);
+    }, 1000);
   }
 
   /** Registra un valor de cláusula (para la serie y la flecha). */
