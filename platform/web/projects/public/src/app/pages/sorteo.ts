@@ -8,7 +8,6 @@ import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi } from '../core/competition';
 import type { Horarios } from '../core/horarios';
 import { Seo } from '../core/seo';
-import { GrCinturon } from '../home/sorteo';
 import { Footer, Navbar } from '../layout/layout';
 import { applySeo } from './content';
 
@@ -21,7 +20,6 @@ interface Item {
 }
 
 const BASE = `/api/competiciones/${COMPETITION_SLUG}/rifa`;
-const BELT = 'https://jaimedigitalstudio.b-cdn.net/grcup/frames/belt_output_webp/frame_000085.webp';
 const euros = (c: number) => (c % 100 ? (c / 100).toLocaleString('es-ES', { minimumFractionDigits: 2 }) : String(c / 100)) + ' €';
 /** «19 dic a las 21:00». */
 const diaHora = (iso: string, utc = true) => {
@@ -55,11 +53,11 @@ export class SorteoTitulo {
 
 /**
  * /sorteo (Figma 07 «Rifa · escaparate», D-RIFA): the raffle is only at the venue and in cash. Hero with the ticket
- * price, place and hours (BO 60), how it works, and the objects raffled (managed in the backoffice) or the empty state.
+ * price, place and hours (BO 60), how it works, and the objects raffled  or the empty state.
  */
 @Component({
   selector: 'gr-sorteo',
-  imports: [RouterLink, Navbar, Footer, GrButton, GrIcon, GrRaffleItem, GrSkeleton, GrCinturon, SorteoTitulo],
+  imports: [RouterLink, Navbar, Footer, GrButton, GrIcon, GrRaffleItem, GrSkeleton, SorteoTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = rifa();
@@ -80,22 +78,14 @@ export class SorteoTitulo {
           <div class="h-[90px] md:hidden"></div>
           <div class="grain-acento relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 pt-5 pb-7 md:gap-5 md:rounded-3xl md:border md:border-accent/35 md:px-8 md:py-8 lg:flex-row lg:gap-14 lg:py-14 lg:pr-14 lg:pl-16">
             <div class="pointer-events-none absolute -top-30 right-[-80px] size-[520px] rounded-full bg-[radial-gradient(closest-side,rgb(196_43_62/0.25),transparent)]" aria-hidden="true"></div>
-            <div class="relative h-[290px] w-full shrink-0 md:h-[360px] lg:h-[440px] lg:w-[520px]">
-              <div class="pointer-events-none absolute top-1/2 left-1/2 aspect-square w-[min(90%,468px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(196_43_62/0.35),transparent)]" aria-hidden="true"></div>
-              <gr-cinturon class="absolute inset-x-[4%] inset-y-[9%] overflow-hidden rounded-2xl mix-blend-lighten [mask-image:radial-gradient(closest-side,#000_62%,transparent)]" [src]="belt" alt="Cinturón SBD" [prioridad]="true" />
-              <span class="gr-flotar absolute top-1 right-3 flex size-24 flex-col items-center justify-center rounded-full bg-[linear-gradient(135deg,#c42b3e,#6e1420)] shadow-[0_8px_32px_rgb(196_43_62/0.5)] md:right-[22px] lg:top-2 lg:size-[148px]">
-                <span class="text-display-m leading-none lg:text-display-l">{{ euros(r.precioBoletoEfectivoCents) }}</span><span class="text-label-xs">en efectivo</span>
-              </span>
-              <span class="absolute bottom-0 left-3 inline-flex h-7 items-center gap-1.5 rounded-pill border border-line-strong bg-bg-base px-3 text-label-xs text-text-secondary lg:bottom-6 lg:left-6"><gr-icon name="ticket" [size]="14" class="text-accent-text" />Boletos solo en el recinto</span>
-            </div>
-            <div class="relative flex w-full min-w-0 flex-col items-center gap-4 text-center [overflow-wrap:anywhere] lg:flex-1 lg:items-start lg:gap-5 lg:text-left">
+            <div class="relative flex w-full min-w-0 flex-col items-center gap-4 text-center [overflow-wrap:anywhere] lg:max-w-[720px] lg:items-start lg:gap-5 lg:text-left">
               <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>Rifa presencial{{ cuando() ? ' · sorteo el ' + cuando() : '' }}</p>
-              <h1 class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-m lg:text-display-l">Rifa solidaria GR Cup</h1>
-              <p class="text-body-m text-text-tertiary lg:text-body-l">{{ r.textoInfo || 'Los boletos se compran solo en efectivo en el stand de la rifa, en el recinto, durante el evento. No hay venta online.' }} Mira los objetos que se rifan.</p>
+              <h1 class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-m lg:text-display-l">Rifa solidaria GRS Cup</h1>
+              <p class="text-body-m text-text-tertiary lg:text-body-l">{{ r.textoInfo || 'Boletos solo en efectivo en el stand de la rifa, en el recinto, durante el evento.' }}</p>
               <div class="flex flex-col gap-2 text-body-m text-text-secondary">
                 <p class="font-semibold">Dónde y cuándo comprar boletos</p>
                 @if (r.lugar) { <p>{{ r.lugar }}</p> }
-                @if (r.horario) { <p>{{ r.horario }}</p> }
+                <p>{{ r.horario ? r.horario + ' · ' : '' }}Boleto · {{ euros(r.precioBoletoEfectivoCents) }}</p>
               </div>
               <div class="flex w-full flex-col gap-3 lg:w-auto lg:flex-row">
                 <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="." fragment="objetos">Ver objetos de la rifa</a>
@@ -108,11 +98,11 @@ export class SorteoTitulo {
         <!-- Cómo funciona la rifa -->
         <section id="normas" class="flex scroll-mt-20 flex-col items-center gap-6 px-5 py-16 md:gap-10 md:px-20 md:py-26">
           <gr-sorteo-titulo titulo="Cómo funciona la rifa" />
-          <div class="grid w-full max-w-[1104px] gap-4 md:grid-cols-3 md:gap-5">
+          <div class="grid w-full max-w-[1104px] grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
             @for (n of normas(); track n.t) {
-              <div class="grain flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6">
-                <span class="flex size-10 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="n.i" [size]="20" /></span>
-                <h3 class="text-ui-h5">{{ n.t }}</h3><p class="min-w-0 text-body-m text-text-tertiary [overflow-wrap:anywhere]">{{ n.d }}</p>
+              <div class="grain flex min-w-0 items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-6 motion-safe:animate-[gr-hoja-in_240ms_ease-out_both]" [style.animation-delay.ms]="$index * 40">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="n.i" [size]="20" /></span>
+                <h3 class="min-w-0 text-ui-h5 [overflow-wrap:anywhere]">{{ n.t }}</h3>
               </div>
             }
           </div>
@@ -121,7 +111,7 @@ export class SorteoTitulo {
         <!-- Objetos que se rifan (escaparate gestionado en el BO) -->
         <section id="objetos" class="flex scroll-mt-20 flex-col items-center gap-10 px-5 pb-16 md:px-20 md:pb-26">
           <div class="flex w-full max-w-[880px] flex-col items-center gap-4 text-center">
-            <p class="text-label-xs text-text-tertiary">Escaparate</p>
+            <p class="sr-only">Escaparate</p>
             <h2 class="text-display-s [text-shadow:0_4px_24px_rgb(0_0_0/0.6)] md:text-display-l">Objetos que se rifan</h2>
             <p class="text-body-m text-[#d1d6db]">Cada objeto se sortea por separado entre los boletos vendidos en el recinto. Gracias a los patrocinadores que los donan.</p>
           </div>
@@ -131,7 +121,7 @@ export class SorteoTitulo {
           } @else if (it.length) {
             <ul class="flex w-full max-w-[1104px] flex-wrap justify-center gap-4 md:gap-5" aria-label="Objetos que se rifan">
               @for (i of it; track i.id) {
-                <li class="flex w-full sm:w-[calc(50%-10px)] lg:w-[354px]">
+                <li class="flex w-full sm:w-[calc(50%-10px)] lg:w-[354px] motion-safe:animate-[gr-hoja-in_240ms_ease-out_both]" [style.animation-delay.ms]="$index * 40">
                   <gr-raffle-item class="w-full transition-[border-color,translate] duration-200 hover:-translate-y-0.5 hover:border-accent/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                     [nombre]="i.nombre" [descripcion]="i.descripcion" [imagen]="i.imagenUrl" [unidades]="i.unidades"
                     [valor]="i.valorEstimadoCents ? euros(i.valorEstimadoCents) : null" [donante]="i.donante" [ganador]="i.ganador?.boleto ?? null" />
@@ -140,10 +130,10 @@ export class SorteoTitulo {
             </ul>
           } @else {
             <!-- Figma «estado vacío» -->
-            <div class="flex w-full max-w-[360px] flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-8 text-center">
-              <span class="flex size-12 items-center justify-center rounded-full bg-accent/16 text-accent-text"><gr-icon name="ticket" [size]="22" /></span>
+            <div class="flex w-full max-w-[360px] flex-col items-center gap-3 rounded-lg motion-safe:animate-[gr-hoja-in_240ms_ease-out_both] border border-line-subtle bg-bg-card px-6 py-8 text-center">
+              <span class="flex size-12 items-center justify-center rounded-full bg-accent/16 text-accent-text"><gr-icon name="gift" [size]="22" /></span>
               <h3 class="mt-1 text-display-xs">Aún no hay objetos<br />en la rifa</h3>
-              <p class="text-body-s text-text-tertiary">Pronto anunciaremos los objetos que se rifan. Los boletos se venden en efectivo en el recinto el día del evento.</p>
+              <p class="text-body-s text-text-tertiary">Pronto anunciaremos los objetos. Boleto · {{ euros(r.precioBoletoEfectivoCents) }} en efectivo en el stand de la rifa, en el recinto.</p>
             </div>
           }
         </section>
@@ -169,16 +159,16 @@ export class SorteoPage {
     const f = this.rifa()?.fechaSorteo;
     return f ? diaHora(f) : '';
   });
-  protected readonly belt = BELT;
-  protected readonly normas = computed<{ t: string; d: string; i: GrIconName }[]>(() => {
+  protected readonly normas = computed<{ t: string; i: GrIconName }[]>(() => {
     const r = this.rifa();
     if (!r) return [];
-    const precio = euros(r.precioBoletoEfectivoCents);
-    const lugar = r.lugar ? r.lugar.charAt(0).toLowerCase() + r.lugar.slice(1).replace(' · ', ', en el ') : 'stand de la rifa';
     return [
-      { t: 'Compra tu boleto', d: `${precio} el boleto, solo en efectivo en el ${lugar}. Guarda el boleto de papel: es tu resguardo.`, i: 'ticket' },
-      { t: 'Sorteo presencial', d: `En directo en el recinto${this.cuando() ? ' el ' + this.cuando() : ''}, tras la entrega de premios. Cada objeto se sortea por separado.`, i: 'shuffle' },
-      { t: 'Ganadores', d: 'Publicamos aquí el boleto ganador de cada objeto. Recogida en el stand de la rifa con el boleto.', i: 'globe' },
+      { t: `Boleto · ${euros(r.precioBoletoEfectivoCents)}`, i: 'ticket' },
+      { t: 'Solo en el recinto', i: 'map-pin' },
+      { t: 'Solo efectivo', i: 'info' },
+      { t: 'Horario de venta', i: 'clock' },
+      { t: 'Sorteo presencial', i: 'shuffle' },
+      { t: 'Ganadores', i: 'trophy' },
     ];
   });
 
@@ -199,8 +189,8 @@ export class SorteoPage {
         else this.fallo.marcar(e);
       }
       const r = this.rifa();
-      await applySeo(cms, seo, '/sorteo', 'Rifa solidaria · GR Strength Cup',
-        r ? `Rifa presencial: boletos a ${euros(r.precioBoletoEfectivoCents)} en efectivo en el recinto. Mira los objetos que se rifan.` : 'Rifa presencial de la GR Strength Cup.');
+      await applySeo(cms, seo, '/sorteo', 'Rifa solidaria · GRS Cup',
+        r ? `Rifa presencial: boletos a ${euros(r.precioBoletoEfectivoCents)} en efectivo en el recinto. Mira los objetos que se rifan.` : 'Rifa presencial de la GRS Cup.');
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
