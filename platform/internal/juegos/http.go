@@ -234,27 +234,37 @@ func (s *Svc) registerPublic() {
 
 	// ---- porra ----
 	type mercadosOut struct {
+		ETag         string `header:"ETag"`
+		CacheControl string `header:"Cache-Control"`
 		Body struct {
 			Jornada  *jornadaOut    `json:"jornada,omitempty"`
 			Mercados []mercadoVista `json:"mercados"`
 		}
 	}
+	type mercadosIn struct {
+		Slug        string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		JornadaID   uuid.UUID `query:"jornada"`
+		IfNoneMatch string    `header:"If-None-Match" maxLength:"256"`
+	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-porra-mercados", Method: http.MethodGet, Path: base + "/porra/mercados",
 		Summary: "Mercados de la porra con bote y cuotas en vivo", Tags: tagJuegos},
-		func(ctx context.Context, in *jornadaIn) (*mercadosOut, error) {
+		func(ctx context.Context, in *mercadosIn) (*mercadosOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaPublicaCache(ctx, c.ID, in.JornadaID)
 			if err != nil {
 				return nil, err
 			}
-			ms, err := s.mercadosVistaCache(ctx, c.ID, j)
+			ms, etag, err := s.mercadosVistaCache(ctx, c.ID, j)
 			if err != nil {
 				return nil, err
 			}
-			o := &mercadosOut{}
+			if etag != "" && in.IfNoneMatch == etag {
+				return nil, huma.Status304NotModified()
+			}
+			o := &mercadosOut{ETag: etag, CacheControl: "no-cache"}
 			o.Body.Jornada = ptr(j.out())
 			o.Body.Mercados = ms
 			return o, nil

@@ -143,6 +143,7 @@ func bodyLimit(r *http.Request) int64 { return bodylimit.Of(match(r.URL.Path), r
 
 func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.a = a
+	a.Go(drenarWS) // proxied WS are hijacked: srv.Shutdown ignores them, so close them with 1012 (ST1-R3-2)
 	httpx.DrainTooLarge = 12 << 20 // = nginx client_max_body_size: a 413 reaches the client, not nginx's 502
 	g.cors = config.List("CORS_ORIGINS")
 	g.ipLimit = int64(config.Int("RATE_LIMIT_IP_MIN", 600))
@@ -194,6 +195,7 @@ func (g *gw) newProxy(svc string, target *url.URL, t http.RoundTripper) *httputi
 			pr.Out.Host = target.Host
 		},
 		ModifyResponse: func(res *http.Response) error {
+			envolverWS(res)
 			// The gateway's RequestID middleware already set X-Request-Id (same id, forwarded upstream): avoid a duplicate header.
 			res.Header.Del("X-Request-Id")
 			// Every 429 tells the client when to retry, also the per-endpoint limits of the services.
