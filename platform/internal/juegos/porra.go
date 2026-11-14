@@ -250,7 +250,7 @@ func cerrarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, 
 		if mc.Estado != "abierto" || !cerrarMercado(m, mc) {
 			continue
 		}
-		if _, err := tx.Exec(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = now(), version = version + 1, updated_at = now() WHERE id = $1 AND estado = 'abierto'`, mc.ID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = clock_timestamp(), version = version + 1, updated_at = now() WHERE id = $1 AND estado = 'abierto'`, mc.ID); err != nil {
 			return err
 		}
 		if err := events.Enqueue(ctx, tx, events.New(ctx, "porra.mercado",
@@ -265,7 +265,7 @@ func cerrarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, 
 // cerrarMercadoATx closes a market by hand (staff), whatever the scoreboard says: no more bets. Only an open market
 // can be closed (409 otherwise).
 func cerrarMercadoATx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, mc mercadoRow) error {
-	tag, err := tx.Exec(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = now(), version = version + 1, updated_at = now() WHERE id = $1 AND estado = 'abierto'`, mc.ID)
+	tag, err := tx.Exec(ctx, `UPDATE mercados SET estado = 'cerrado', cerrado_en = clock_timestamp(), version = version + 1, updated_at = now() WHERE id = $1 AND estado = 'abierto'`, mc.ID)
 	if err != nil {
 		return err
 	}
@@ -368,7 +368,7 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	if err := gastarTx(ctx, tx, j, fanID, Porra, importe, "apuesta", "apuesta:"+aid.String(), alias); err != nil {
 		return uuid.Nil, err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO apuestas (id, competition_id, jornada_id, mercado_id, fan_id, atleta_id, importe) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+	if _, err := tx.Exec(ctx, `INSERT INTO apuestas (id, competition_id, jornada_id, mercado_id, fan_id, atleta_id, importe, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7, clock_timestamp())`,
 		aid, cid, j.ID, mercadoID, fanID, atletaID, importe); err != nil {
 		return uuid.Nil, err
 	}

@@ -112,8 +112,9 @@ type gw struct {
 	ipLimit  int64
 	// SSR renders of the public web send ssrSecret (cluster Secret, never sent by browsers): their GETs use a
 	// separate, larger per-visitor bucket, because one page view costs ~6 API calls on the server.
-	ssrSecret []byte
-	ssrLimit  int64
+	ssrSecret   []byte
+	cargaSecret []byte
+	ssrLimit    int64
 	// Public SSE (/api/competiciones/{slug}/stream) does not spend the request bucket: a whole venue can share one
 	// IP (NAT of the wifi). It has its own cap of open connections per IP instead.
 	sseLimit int64
@@ -146,6 +147,7 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	g.cors = config.List("CORS_ORIGINS")
 	g.ipLimit = int64(config.Int("RATE_LIMIT_IP_MIN", 600))
 	g.ssrSecret = []byte(config.Str("SSR_SECRET", ""))
+	g.cargaSecret = []byte(config.Str("LOADTEST_SECRET", "")) // only set in the qa overlay (authorised load tests)
 	g.ssrLimit = int64(config.Int("RATE_LIMIT_SSR_IP_MIN", 3000))
 	g.sseLimit = int64(config.Int("SSE_CONN_IP_MAX", 2000))
 	g.subidas = make(chan struct{}, max(config.Int("UPLOADS_MAX", 32), 1))
@@ -223,21 +225,28 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 		bucket, limit = "gw-ssr", g.ssrLimit
 	}
 	r.Header.Del("X-GrCup-SSR")
-	if esSSE(r) {
+	carga := len(g.cargaSecret) >= 32 && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-GrCup-Carga")), g.cargaSecret) == 1
+	r.Header.Del("X-GrCup-Carga")
+	if carga {
+		// authorised load test (QA only): no per-IP bucket, so a single machine can load the backend
+	} else if esSSE(r) || esWS(r) {
 		// Real SSE opens skip the request bucket but still pay a per-IP opening rate (own bucket, as high as the
-		// open-connection cap), so open/close loops or bogus slugs cannot reach the upstream unlimited.
+		// open-connection cap), so open/close loops or bogus slugs cannot reach the upstream unlimited. WebSocket
+		// opens pay the same rate: a venue behind one NAT opens far more sockets than 600/min.
 		if res, err := ratelimit.Allow(ctx, g.a.Redis, g.a.Keys.Of("rl", "gw-sse", httpx.ClientIPFrom(ctx)), g.sseLimit, time.Minute); err == nil && !res.Allowed {
 			w.Header().Set("Retry-After", strconv.Itoa(int(res.RetryAfter.Seconds())+1))
 			problem.Write(w, problem.TooMany("Demasiadas conexiones en directo desde tu red. Espera un momento."))
 			return
 		}
-		release, ok := g.abrirSSE(ctx)
-		if !ok {
-			w.Header().Set("Retry-After", "5")
-			problem.Write(w, problem.TooMany("Demasiadas conexiones en directo desde tu red. Espera un momento."))
-			return
+		if esSSE(r) {
+			release, ok := g.abrirSSE(ctx)
+			if !ok {
+				w.Header().Set("Retry-After", "5")
+				problem.Write(w, problem.TooMany("Demasiadas conexiones en directo desde tu red. Espera un momento."))
+				return
+			}
+			defer release()
 		}
-		defer release()
 	} else if res, err := ratelimit.Allow(ctx, g.a.Redis, g.a.Keys.Of("rl", bucket, httpx.ClientIPFrom(ctx)), limit, time.Minute); err == nil && !res.Allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(int(res.RetryAfter.Seconds())+1))
 		problem.Write(w, problem.TooMany("Demasiadas peticiones desde tu red. Espera un momento."))
@@ -310,6 +319,12 @@ func (bufPool) Put(b []byte) { buffers.Put(&b) }
 func esSSE(r *http.Request) bool {
 	return r.Method == http.MethodGet && r.URL.RawPath == "" && publicSSE.MatchString(r.URL.Path) &&
 		strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/event-stream")
+}
+
+// esWS reports a WebSocket upgrade (the chat room): a connection opening, like SSE, not a request burst.
+func esWS(r *http.Request) bool {
+	return r.Method == http.MethodGet && strings.EqualFold(r.Header.Get("Upgrade"), "websocket") &&
+		strings.HasSuffix(r.URL.Path, "/ws")
 }
 
 // abrirSSE counts one open public SSE connection of the client IP (Redis, shared by every gateway replica).
