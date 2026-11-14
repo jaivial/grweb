@@ -1,6 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
@@ -12,23 +13,20 @@ import { GrCallout, GrChipsAncla, GrHechos } from './seo-bloques';
 const NIVELES = [
   { t: 'AEP-1', tipo: 'Nacional', d: 'Máximo nivel. Requiere marca mínima en los 12 meses previos. Se homologan récords.' },
   { t: 'AEP-2', tipo: 'Regional', d: 'Tu total es clasificatorio para un AEP-1 o el Clasificatorio Nacional. Sin récords.', nuestro: true },
-  { t: 'AEP-3', tipo: 'Iniciación', d: 'Para levantadores noveles. Sin récords.' },
+  { t: 'AEP-3', tipo: 'Iniciación', d: 'Para levantadores noveles. Sin récords. La GRS Cup es una competición AEP-3.', nuestro: true, badge: 'GRS Cup' },
   { t: 'Clasificatorio', tipo: 'Nacional', d: 'Plaza para Copa o Absoluto si vienes de AEP-2 o AEP-3. Sin récords.' },
 ];
-const LUCES = [{ l: ['b', 'b', 'b'], t: 'Válido' }, { l: ['b', 'b', 'r'], t: 'Válido (2 de 3)' }, { l: ['b', 'r', 'r'], t: 'Nulo' }];
+const LUCES = [{ l: ['b', 'b', 'b'], t: 'Válido' }, { l: ['b', 'b', 'r'], t: 'Válido (2 de 3)' }, { l: ['b', 'r', 'r'], t: 'Nulo (2 de 3)' }, { l: ['r', 'r', 'r'], t: 'Nulo' }];
 const MOVIMIENTOS = [
   { t: 'Sentadilla', foto: '/img/home/premio-sentadilla.webp', voces: ['«Squat»', '«Rack»'], reglas: [
-    'Desciende hasta que la parte superior de la pierna, en la articulación de la cadera, quede por debajo de la parte superior de la rodilla.',
-    'Sube hasta bloquear las rodillas sin doble rebote ni movimiento descendente de la barra.',
-    'Espera la orden «Rack» para devolver la barra.'] },
+    'Baja hasta que la cadera quede por debajo de la rodilla.',
+    'Sube hasta bloquear las rodillas, sin rebotes, y espera «Rack».'] },
   { t: 'Press de banca', foto: '/img/home/premio-banca.webp', voces: ['«Start»', '«Press»', '«Rack»'], reglas: [
-    'Baja la barra al pecho y mantenla inmóvil hasta la orden «Press».',
-    'Cabeza, hombros y glúteos en contacto con el banco; pies en el suelo.',
-    'Extiende los brazos por completo y espera «Rack».'] },
+    'Barra al pecho, inmóvil hasta la orden «Press».',
+    'Glúteos en el banco y pies en el suelo; bloquea y espera «Rack».'] },
   { t: 'Peso muerto', foto: '/img/home/premio-muerto.webp', voces: ['«Down»'], reglas: [
-    'Termina erguido con las rodillas bloqueadas y los hombros hacia atrás.',
-    'No apoyes la barra en los muslos para ayudarte a subirla.',
-    'Baja la barra controlada tras la orden «Down», sin soltarla.'] },
+    'Termina erguido: rodillas bloqueadas y hombros atrás.',
+    'Sin apoyar la barra en los muslos; bájala controlada tras «Down».'] },
 ];
 
 /** /reglamento (Figma page 23): summary, AEP levels, attempts and judges, the three lifts and the raw equipment. */
@@ -52,14 +50,14 @@ const MOVIMIENTOS = [
           </ol>
         </nav>
         <article class="flex min-w-0 flex-col gap-12 md:gap-14">
-          <gr-hechos id="resumen" class="scroll-mt-36 md:scroll-mt-28" [items]="resumen" />
+          <gr-hechos id="resumen" class="scroll-mt-36 md:scroll-mt-28" [items]="resumen" [iconos]="iconosResumen" />
 
           <section id="niveles" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
             <gr-cabecera eyebrow="Niveles AEP" titulo="AEP-1, AEP-2 *y AEP-3*" [centro]="false" tam="m" />
             <div class="grid gap-3 sm:grid-cols-2">
               @for (n of niveles; track n.t) {
                 <div class="flex flex-col gap-2 rounded-lg border bg-bg-card px-4 py-5" [class]="n.nuestro ? 'border-accent' : 'border-line-subtle'">
-                  <p class="flex items-baseline gap-2"><span class="text-display-2xs" [class.text-accent-text]="n.nuestro">{{ n.t }}</span><span class="text-label-xs text-text-muted uppercase">{{ n.tipo }}</span>@if (n.nuestro) { <span class="ml-auto text-label-xs text-accent-text">GR Strength Cup</span> }</p>
+                  <p class="flex items-baseline gap-2"><span class="text-display-2xs" [class.text-accent-text]="n.nuestro">{{ n.t }}</span><span class="text-label-xs text-text-muted uppercase">{{ n.tipo }}</span>@if (n.badge) { <span class="ml-auto self-center rounded-full bg-[linear-gradient(90deg,#c42b3e,#6e2020)] px-2.5 py-0.5 text-[11px] font-semibold text-white">{{ n.badge }}</span> }</p>
                   <p class="text-body-s text-text-tertiary">{{ n.d }}</p>
                 </div>
               }
@@ -68,8 +66,8 @@ const MOVIMIENTOS = [
 
           <section id="intentos" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
             <gr-cabecera eyebrow="Intentos y jueces" titulo="Tres intentos, *tres jueces*" [centro]="false" tam="m" />
-            <p class="text-body-m text-text-secondary md:text-body-l">Cada atleta hace 3 intentos por movimiento. Cada nuevo intento debe ser de al menos 2,5 kg más que el anterior y no se puede bajar el peso. Cuenta el mejor intento válido de cada movimiento.</p>
-            <ul class="grid gap-3 sm:grid-cols-3">
+            <p class="text-body-m text-text-secondary md:text-body-l">Cada atleta hace 3 intentos por movimiento. El siguiente puede repetir peso o subir (mínimo +2,5 kg), nunca bajar. Cuenta el mejor intento válido.</p>
+            <ul class="grid gap-3 sm:grid-cols-2">
               @for (x of luces; track x.t) {
                 <li class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-3 py-4">
                   <span class="flex gap-1.5" aria-hidden="true">@for (c of x.l; track $index) { <span class="size-5 rounded-full" [class]="c === 'b' ? 'bg-white' : 'bg-accent'"></span> }</span>
@@ -131,6 +129,7 @@ export class ReglamentoPage {
     'Total = suma de los tres mejores intentos válidos.',
     'Un intento es válido con al menos 2 de las 3 luces blancas.',
   ];
+  protected readonly iconosResumen: GrIconName[] = ['dumbbell', 'refresh', 'trophy', 'eye'];
   protected readonly permitido = ['Maillot de competición y camiseta', 'Cinturón', 'Muñequeras', 'Rodilleras de neopreno', 'Calcetines altos en peso muerto', 'Calzado deportivo'];
   protected readonly prohibido = ['Vendas de rodilla', 'Camisetas de press y monos equipados', 'Material no homologado por la IPF'];
   protected readonly relacionados: RelatedLink[] = [
@@ -142,11 +141,11 @@ export class ReglamentoPage {
   constructor() {
     const cms = inject(Cms);
     const seo = inject(Seo);
-    void inject(PendingTasks).run(() => applySeo(cms, seo, '/reglamento', 'Reglamento de powerlifting · GR Strength Cup',
+    void inject(PendingTasks).run(() => applySeo(cms, seo, '/reglamento', 'Reglamento de powerlifting · GRS Cup',
       'Cómo funciona una competición AEP: niveles AEP-1, AEP-2 y AEP-3, intentos y jueces, ejecución de sentadilla, press de banca y peso muerto, y equipamiento raw.', undefined,
       // Figma 20: Article schema.
       { jsonLd: { '@context': 'https://schema.org', '@type': 'Article', headline: 'Reglamento de powerlifting 2026', inLanguage: 'es',
-        publisher: { '@type': 'Organization', name: 'GR Strength Cup' } } }));
+        publisher: { '@type': 'Organization', name: 'GRS Cup' } } }));
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       // the contents card follows the section on screen (the first one in the band below the navbar)
       const vistos = new Set<string>();
