@@ -49,7 +49,7 @@ const ZOOM = 'gr-story-zoom';
           <gr-alert class="mt-8 block max-w-xl" tone="danger" [title]="errorTitulo()">{{ errorTexto() }} @if (!espera()) { <button class="underline" (click)="cargar()">Reintentar</button> }</gr-alert>
         }
         @default {
-          <div class="mt-8 flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[minmax(0,640px)_1fr] lg:items-start">
+          <div class="mt-8 flex flex-col-reverse gap-6 md:grid md:grid-cols-2 md:items-start lg:grid-cols-[minmax(0,640px)_1fr]">
             <div class="flex flex-col gap-4">
               @if (vista() === 'acceso') {
                 <section class="card">
@@ -154,7 +154,7 @@ const ZOOM = 'gr-story-zoom';
                 </section>
               }
             </div>
-            <div class="flex flex-col gap-3 lg:sticky lg:top-28">
+            <div class="flex flex-col gap-3 md:sticky md:top-28">
               <div class="card px-6! py-8!">
                 <p class="flex items-center justify-center gap-2 font-mono text-[11px] tracking-[0.12em] whitespace-nowrap text-text-tertiary uppercase"><gr-icon name="eye" [size]="14" />{{ vista() === 'listo' ? (formato() === 'sticker' ? 'Ejemplo: tu foto + sticker en Instagram' : 'Vista previa · así se verá en tu story') : 'Así quedará tu story' }}</p>
                 <div class="mt-5 flex items-end justify-center gap-4">
@@ -175,12 +175,14 @@ const ZOOM = 'gr-story-zoom';
                 @if (fallo()) {
                   <gr-alert tone="danger" title="">{{ fallo() }} <button class="underline" (click)="reintentar()">Reintentar</button></gr-alert>
                 }
-                <button grButton variant="outline" size="l" [block]="true" icon="instagram" [loading]="busy()" [disabled]="!listo()" (click)="compartir()">{{ formato() === 'sticker' ? 'Compartir sticker en Instagram' : 'Compartir en Instagram' }}</button>
-                <div class="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
-                  <button grButton variant="outline" size="l" [disabled]="!listo()" (click)="descargar()">{{ formato() === 'sticker' ? 'Descargar PNG' : 'Descargar imagen' }}</button>
-                  <a grButton size="l" iconRight="arrow-right" href="https://instagram.com/grstrengthclub" target="_blank" rel="noopener" class="whitespace-nowrap">Síguenos en Instagram</a>
+                <!-- UX3-R1-5: primary CTA fixed in the thumb zone on mobile, with a 9:16 thumbnail -->
+                <div class="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:flex max-md:items-center max-md:gap-3 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
+                  @if (url()) { <img [src]="url()" alt="" class="aspect-[9/16] w-10 shrink-0 rounded-xs object-cover md:hidden" [class.ajedrez]="formato() === 'sticker'" /> }
+                  <button grButton variant="primary" size="l" [block]="true" icon="instagram" class="min-w-0 flex-1" [loading]="busy()" [disabled]="!listo()" (click)="compartir()">{{ formato() === 'sticker' ? 'Compartir sticker' : 'Compartir en Instagram' }}</button>
                 </div>
-                <p class="text-center text-[12px] text-text-muted">{{ ayudaBotones() }}</p>
+                <button grButton variant="secondary" size="l" [block]="true" [disabled]="!listo()" (click)="descargar()">{{ formato() === 'sticker' ? 'Descargar PNG' : 'Descargar imagen' }}</button>
+                <a grButton variant="link" iconRight="arrow-right" href="https://instagram.com/grstrengthclub" target="_blank" rel="noopener" class="h-11! self-center">Síguenos en Instagram</a>
+                <p class="text-center text-[13px] text-text-tertiary">{{ ayudaBotones() }}</p>
               }
             </div>
           </div>
@@ -191,6 +193,7 @@ const ZOOM = 'gr-story-zoom';
       }
     </main>
     <gr-footer />
+    @if (vista() === 'listo') { <div class="h-[calc(76px+env(safe-area-inset-bottom))] md:hidden" aria-hidden="true"></div> }
   `,
 })
 export class AreaCompartirPage {
