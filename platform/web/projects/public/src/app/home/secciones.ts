@@ -62,7 +62,7 @@ export class SecCifras {
             <div class="relative flex size-full flex-col overflow-hidden rounded-[38px] bg-black">
               <div class="flex h-[50px] shrink-0 items-center justify-between px-7 text-[13px] font-semibold text-white"><span>9:41</span><span class="h-[9px] w-[19px] rounded-[3px] bg-white"></span></div>
               <span class="absolute top-3 left-1/2 h-6 w-[83px] -translate-x-1/2 rounded-pill bg-black ring-1 ring-white/10"></span>
-              <img src="/img/home/alta-story.webp" alt="" width="278" height="514" class="w-full flex-1 object-cover" loading="lazy" decoding="async" />
+              <img src="/img/home/alta-story.webp" alt="" width="278" height="514" class="min-h-0 w-full flex-1 scale-[1.08] object-cover" loading="lazy" decoding="async" />
               <span class="absolute bottom-2 left-1/2 h-1 w-[95px] -translate-x-1/2 rounded-pill bg-white/80"></span>
             </div>
           </div>
@@ -421,29 +421,30 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
     <div [class]="glow + ' -top-20 right-[-120px] size-[560px]'"></div>
     <div [class]="ancho + ' flex flex-col gap-8 md:gap-10'">
       <div class="flex flex-col gap-3 md:gap-4">
-        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo') || 'Horarios *en directo*'" [acento]="t('tituloAcento')" /></h2>
+        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo') || 'Horarios'" [acento]="t('tituloAcento') || (t('titulo').includes('*') ? '' : 'en directo')" /></h2>
         <p class="text-body-m text-text-tertiary md:text-body-l">{{ t('texto') || 'Cuándo compite cada atleta y si va con retraso. Se actualiza solo: no hace falta recargar.' }}</p>
       </div>
       <div class="flex flex-col gap-3 md:gap-4">
-        <div class="grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:w-[420px]" role="tablist" aria-label="Vista">
+        <!-- mobile (Figma 211:126138): days · sex · views · search; desktop: views on top, then days · sex · search -->
+        <div class="order-3 grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:order-none md:w-[420px]" role="tablist" aria-label="Vista">
           @for (v of vistas; track v.k) {
             <button type="button" role="tab" [attr.aria-selected]="vista() === v.k" (click)="elegir(v.k)" class="h-10 rounded-sm px-1 text-label-s whitespace-nowrap" [class]="vista() === v.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ v.k === 'mio' ? '★ Mi horario (' + misAtletas().length + ')' : v.l }}</button>
           }
         </div>
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-          <div class="order-first flex gap-1.5 md:order-none" role="tablist" aria-label="Días">
+        <div class="contents md:flex md:flex-row md:items-center md:gap-4">
+          <div class="order-1 flex gap-1.5 md:order-none" role="tablist" aria-label="Días">
             @for (d of dias(); track d.fecha; let i = $index) {
               <button type="button" role="tab" [attr.aria-selected]="i === diaSel()" (click)="diaSel.set(i)" class="relative h-11 shrink-0 px-4 font-display text-[18px] uppercase italic" [class]="i === diaSel() ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'">
                 {{ d.etiqueta }}<span class="absolute inset-x-4 bottom-0 h-[3px] rounded-[2px]" [class]="i === diaSel() ? 'bg-accent' : 'bg-transparent'"></span>
               </button>
             }
           </div>
-          <div class="grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:w-[300px]" role="radiogroup" aria-label="Sexo">
+          <div class="order-2 grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:order-none md:w-[300px]" role="radiogroup" aria-label="Sexo">
             @for (g of sexos; track g.k) {
               <button type="button" role="radio" [attr.aria-checked]="sexo() === g.k" (click)="sexo.set(g.k)" class="h-9 rounded-sm text-label-s" [class]="sexo() === g.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ g.l }}</button>
             }
           </div>
-          <label class="flex h-12 flex-1 items-center gap-2 rounded-md border border-line-subtle bg-bg-deep px-4 focus-within:border-line-strong">
+          <label class="order-4 flex h-12 flex-1 items-center gap-2 md:order-none rounded-md border border-line-subtle bg-bg-deep px-4 focus-within:border-line-strong">
             <gr-icon name="search" [size]="18" class="text-text-tertiary" />
             <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" placeholder="¿Cuándo compite…?" aria-label="Buscar atleta o club" [value]="q()" (input)="buscar($any($event.target).value)" />
           </label>
