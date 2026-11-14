@@ -494,7 +494,7 @@ export class MarketCard {
           <div class="grid">
             <div class="flex flex-col gap-2 [grid-area:1/1]" [class.invisible]="!exito()" >
               <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
-                <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() || '&nbsp;' }}</span>
+                <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() || '00a0' }}</span>
               </p>
               <a grButton variant="secondary" size="l" [block]="true" routerLink="/porra/mis-apuestas" iconRight="arrow-right" [attr.tabindex]="exito() ? null : -1">Ver mis apuestas</a>
             </div>
