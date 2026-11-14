@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,23 +33,47 @@ import (
 type msg struct {
 	id string
 	ev events.Event
+	// the public/admin JSON is encoded once per event, not once per subscriber (ST2-R2-1)
+	pubOnce, admOnce sync.Once
+	pub, adm         []byte
 }
 
-// hub fans the stream out to the connected clients of this pod.
+func (m *msg) publicJSON() []byte {
+	m.pubOnce.Do(func() { m.pub, _ = json.Marshal(publicView(m.ev)) })
+	return m.pub
+}
+
+func (m *msg) adminJSON() []byte {
+	if m.ev.Actor == nil {
+		return m.publicJSON() // same view
+	}
+	m.admOnce.Do(func() { m.adm, _ = json.Marshal(adminView(m.ev)) })
+	return m.adm
+}
+
+// coalesceEvery is how often the live odds of an open market are fanned out at most (ST2-R2-1: one porra.mercado
+// per bet × N spectators saturated the pods; the client only needs the latest pot/odds of each market).
+const coalesceEvery = 250 * time.Millisecond
+
+// hub fans the stream out to the connected clients of this pod. Live odds (porra.mercado of an open market) are
+// coalesced per market (latest wins) and flushed every coalesceEvery; any other event flushes the pending ones
+// first, so clients always get stream ids in increasing order (Last-Event-ID resume replays the skipped ones).
 type hub struct {
 	mu   sync.RWMutex
-	subs map[chan msg]struct{}
+	subs map[chan *msg]struct{}
+	pmu  sync.Mutex // serialises offer/flush so the ids stay ordered
+	pend map[string]*msg
 }
 
-func (h *hub) add() chan msg {
-	ch := make(chan msg, 256)
+func (h *hub) add() chan *msg {
+	ch := make(chan *msg, 1024)
 	h.mu.Lock()
 	h.subs[ch] = struct{}{}
 	h.mu.Unlock()
 	return ch
 }
 
-func (h *hub) remove(ch chan msg) {
+func (h *hub) remove(ch chan *msg) {
 	h.mu.Lock()
 	if _, ok := h.subs[ch]; ok {
 		delete(h.subs, ch)
@@ -57,9 +82,56 @@ func (h *hub) remove(ch chan msg) {
 	h.mu.Unlock()
 }
 
-func (h *hub) publish(m msg) {
+// coalesceKey is the market of a live-odds event ("" = not coalescible).
+func coalesceKey(e events.Event) string {
+	if e.Type != "porra.mercado" {
+		return ""
+	}
+	var d struct {
+		MercadoID string `json:"mercadoId"`
+		Estado    string `json:"estado"`
+	}
+	if json.Unmarshal(e.Data, &d) != nil || d.Estado != "abierto" || d.MercadoID == "" {
+		return ""
+	}
+	return e.CompetitionID + "/" + d.MercadoID
+}
+
+func (h *hub) offer(m *msg) {
+	h.pmu.Lock()
+	defer h.pmu.Unlock()
+	if k := coalesceKey(m.ev); k != "" {
+		h.pend[k] = m
+		return
+	}
+	h.flushLocked()
+	h.publish(m)
+}
+
+func (h *hub) flush() {
+	h.pmu.Lock()
+	h.flushLocked()
+	h.pmu.Unlock()
+}
+
+func (h *hub) flushLocked() {
+	if len(h.pend) == 0 {
+		return
+	}
+	ms := make([]*msg, 0, len(h.pend))
+	for k, m := range h.pend {
+		ms = append(ms, m)
+		delete(h.pend, k)
+	}
+	sort.Slice(ms, func(i, j int) bool { return after(ms[j].id, ms[i].id) })
+	for _, m := range ms {
+		h.publish(m)
+	}
+}
+
+func (h *hub) publish(m *msg) {
 	h.mu.RLock()
-	var slow []chan msg
+	var slow []chan *msg
 	for ch := range h.subs {
 		select {
 		case ch <- m:
@@ -94,7 +166,7 @@ type slugEntry struct {
 
 // Service returns the realtime service definition.
 func Service() app.Service {
-	s := &Svc{hub: &hub{subs: map[chan msg]struct{}{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
+	s := &Svc{hub: &hub{subs: map[chan *msg]struct{}{}, pend: map[string]*msg{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
 	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, MaxConns: -1, Setup: s.setup}
 }
 
@@ -104,6 +176,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "realtime", "competition", a.Cfg.InternalToken)
 	s.pod, _ = os.Hostname()
 	a.Go(s.reader)
+	a.Go(s.flusher)
 	a.Go(s.contar)
 	a.Mux.HandleFunc("GET /api/competiciones/{slug}/stream", s.public)
 	a.Mux.HandleFunc("GET /api/admin/competiciones/{cid}/stream", s.admin)
@@ -144,6 +217,20 @@ func (s *Svc) contar(ctx context.Context) {
 	}
 }
 
+// flusher fans out the coalesced live odds every coalesceEvery.
+func (s *Svc) flusher(ctx context.Context) {
+	t := time.NewTicker(coalesceEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			s.hub.flush()
+		}
+	}
+}
+
 // reader tails the stream (XREAD from the newest entry) and publishes to the hub.
 func (s *Svc) reader(ctx context.Context) {
 	last := "$"
@@ -161,7 +248,7 @@ func (s *Svc) reader(ctx context.Context) {
 			for _, m := range st.Messages {
 				last = m.ID
 				if e, ok := decode(m); ok {
-					s.hub.publish(msg{id: m.ID, ev: e})
+					s.hub.offer(&msg{id: m.ID, ev: e})
 				}
 			}
 		}
@@ -213,11 +300,11 @@ func (s *Svc) public(w http.ResponseWriter, r *http.Request) {
 		s.pubMu.Unlock()
 	}()
 	// Public connections are recycled every 30 min so they spread over the pods after scaling.
-	s.stream(w, r, time.Now().Add(30*time.Minute), "reconectar", func(e events.Event) (any, bool) {
-		if e.CompetitionID != cid || e.Audience != events.Public {
+	s.stream(w, r, time.Now().Add(30*time.Minute), "reconectar", func(m *msg) ([]byte, bool) {
+		if m.ev.CompetitionID != cid || m.ev.Audience != events.Public {
 			return nil, false
 		}
-		return publicView(e), true
+		return m.publicJSON(), true
 	})
 }
 
@@ -238,16 +325,17 @@ func (s *Svc) admin(w http.ResponseWriter, r *http.Request) {
 	if deadline.IsZero() || deadline.After(time.Now().Add(time.Hour)) {
 		deadline = time.Now().Add(time.Hour)
 	}
-	s.stream(w, r, deadline, "reautenticar", func(e events.Event) (any, bool) {
+	s.stream(w, r, deadline, "reautenticar", func(m *msg) ([]byte, bool) {
+		e := m.ev
 		if e.CompetitionID != cid {
 			return nil, false
 		}
 		switch e.Audience {
 		case events.Public:
-			return adminView(e), true
+			return m.adminJSON(), true
 		case events.Admin:
 			if e.Permission == "" || p.Can(cid, e.Permission) {
-				return adminView(e), true
+				return m.adminJSON(), true
 			}
 		}
 		return nil, false
@@ -280,7 +368,7 @@ const maxReplay = 1000
 
 // stream writes SSE: replay since Last-Event-ID (max 1000, else `resync`), then live events, with a heartbeat
 // every 15 s, until the deadline (then it sends `endEvent` and closes so the client reconnects).
-func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time, endEvent string, filter func(events.Event) (any, bool)) {
+func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time, endEvent string, filter func(*msg) ([]byte, bool)) {
 	if s.conns.Load() >= s.max {
 		writeErr(w, problem.New(http.StatusServiceUnavailable, "SERVICIO_SATURADO", "Demasiadas conexiones en tiempo real. Reintenta en unos segundos."))
 		return
@@ -300,20 +388,20 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 	ch := s.hub.add()
 	defer s.hub.remove(ch)
 	lastSent := ""
-	send := func(id string, e events.Event) bool {
-		if lastSent != "" && !after(id, lastSent) {
+	// write buffers one event; the caller flushes once per batch (one syscall for a burst, ST2-R2-1)
+	write := func(m *msg) bool {
+		if lastSent != "" && !after(m.id, lastSent) {
 			return true
 		}
-		v, ok := filter(e)
+		data, ok := filter(m)
 		if !ok {
 			return true
 		}
-		data, _ := json.Marshal(v)
-		if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", id, e.Type, data); err != nil {
+		if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", m.id, m.ev.Type, data); err != nil {
 			return false
 		}
-		lastSent = id
-		return rc.Flush() == nil
+		lastSent = m.id
+		return true
 	}
 	control := func(event, motivo string) bool {
 		_, err := fmt.Fprintf(w, "event: %s\ndata: {\"motivo\":%q}\n\n", event, motivo)
@@ -335,10 +423,13 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 				if m.ID == from {
 					continue
 				}
-				if e, ok := decode(m); ok && !send(m.ID, e) {
+				if e, ok := decode(m); ok && !write(&msg{id: m.ID, ev: e}) {
 					return
 				}
 				lastSent = m.ID
+			}
+			if rc.Flush() != nil {
+				return
 			}
 			if truncated && !control("resync", "demasiados_eventos") {
 				return
@@ -360,7 +451,15 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 			if !ok {
 				return // too slow: the client reconnects and resumes
 			}
-			if !send(m.id, m.ev) {
+			if !write(m) {
+				return
+			}
+			for n := len(ch); n > 0; n-- { // drain what is already queued before flushing
+				if m, ok = <-ch; !ok || !write(m) {
+					return
+				}
+			}
+			if rc.Flush() != nil {
 				return
 			}
 		case <-ping.C:
