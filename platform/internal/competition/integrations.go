@@ -588,11 +588,11 @@ func firstLine(s string) string {
 // comoLlegarEjemplo is the example «Cómo llegar» of a new competition (Figma 11), every item «por confirmar».
 func comoLlegarEjemplo() []ComoLlegar {
 	return []ComoLlegar{
-		{Tipo: "coche", Titulo: "En coche", Detalle: "Unos 20 km al sur de Valencia por la V-31 dirección Silla. Datos de ejemplo.", Nota: "≈ 25 min desde Valencia", Estado: "por_confirmar"},
-		{Tipo: "tren", Titulo: "En tren", Detalle: "Cercanías C-2, estación Benifaió-Almussafes. Datos de ejemplo.", Nota: "Comprueba horarios en Renfe", Estado: "por_confirmar"},
-		{Tipo: "avion", Titulo: "En avión", Detalle: "Aeropuerto de Valencia (Manises), a unos 35 km. Datos de ejemplo.", Nota: "≈ 35 min en coche", Estado: "por_confirmar"},
-		{Tipo: "bus", Titulo: "En autobús", Detalle: "Líneas interurbanas desde Valencia. Datos de ejemplo.", Nota: "Horarios por confirmar", Estado: "por_confirmar"},
-		{Tipo: "parking", Titulo: "Aparcamiento", Detalle: "Plazas en las calles del entorno del pabellón. Pendiente de confirmar con el Ayuntamiento si habrá zona reservada. Datos de ejemplo.", Estado: "por_confirmar"},
+		{Tipo: "coche", Titulo: "En coche", Detalle: "Unos 20 km al sur de Valencia por la V-31 dirección Silla.", Nota: "≈ 25 min desde Valencia", Estado: "por_confirmar"},
+		{Tipo: "tren", Titulo: "En tren", Detalle: "Cercanías C-2, estación Benifaió-Almussafes.", Nota: "Comprueba horarios en Renfe", Estado: "por_confirmar"},
+		{Tipo: "avion", Titulo: "En avión", Detalle: "Aeropuerto de Valencia (Manises), a unos 35 km.", Nota: "≈ 35 min en coche", Estado: "por_confirmar"},
+		{Tipo: "bus", Titulo: "En autobús", Detalle: "Líneas interurbanas desde Valencia.", Nota: "Horarios por confirmar", Estado: "por_confirmar"},
+		{Tipo: "parking", Titulo: "Aparcamiento", Detalle: "Plazas en las calles del entorno del pabellón. Pendiente de confirmar con el Ayuntamiento si habrá zona reservada.", Estado: "por_confirmar"},
 		{Tipo: "accesibilidad", Titulo: "Accesibilidad", Detalle: "Confirmaremos accesos adaptados, aseos y zona reservada en grada para personas con movilidad reducida.", Estado: "por_confirmar"},
 	}
 }

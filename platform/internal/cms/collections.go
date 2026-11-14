@@ -210,6 +210,8 @@ type foto struct {
 	FocalY int    `json:"focalY" minimum:"0" maximum:"100" default:"50"`
 	// Filter of /galeria: plataforma · calentamiento · podio · ambiente (empty: only «Todas» and the album).
 	Etiqueta string `json:"etiqueta,omitempty" maxLength:"20"`
+	// Oculta keeps the photo in the album but out of the public web (Jaime 14-nov: desactivar sin borrar).
+	Oculta bool `json:"oculta,omitempty"`
 }
 
 // etiquetasFoto are the /galeria filters a photo can have.

@@ -77,17 +77,25 @@ func tipoMapa(data []byte) (tipo, ext string, err error) {
 // almacenMapas returns where the access maps live and the base of their public URLs: Bunny (the «bunny»
 // integration of the competition) or, without credentials (QA), the media volume of this service.
 func (s *Svc) almacenMapas(ctx context.Context, cid uuid.UUID) (storage.Storage, string) {
+	if b, ok := s.bunnyDe(ctx, cid); ok {
+		return b, b.CDNURL
+	}
+	base := s.webURL + "/api/medios/mapas"
+	return storage.Local{Dir: filepath.Join(s.mediaDir, "mapas"), BaseURL: base}, base
+}
+
+// bunnyDe returns the Bunny zone of the competition («bunny» integration) when it has zone, CDN URL and key.
+func (s *Svc) bunnyDe(ctx context.Context, cid uuid.UUID) (storage.Bunny, bool) {
 	var out struct {
 		Config  map[string]string `json:"config"`
 		Secreto string            `json:"secreto"`
 	}
 	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/integraciones/bunny", nil, &out); err == nil {
 		if zona, cdn := out.Config["zona"], out.Config["cdnUrl"]; zona != "" && cdn != "" && out.Secreto != "" {
-			return storage.Bunny{Zona: zona, Clave: out.Secreto, CDNURL: cdn, Region: out.Config["region"]}, cdn
+			return storage.Bunny{Zona: zona, Clave: out.Secreto, CDNURL: cdn, Region: out.Config["region"]}, true
 		}
 	}
-	base := s.webURL + "/api/medios/mapas"
-	return storage.Local{Dir: filepath.Join(s.mediaDir, "mapas"), BaseURL: base}, base
+	return storage.Bunny{}, false
 }
 
 // borrarMapa removes the file of a deleted map. Only the keys of this flow («mapas/…») are touched: a URL

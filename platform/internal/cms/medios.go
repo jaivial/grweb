@@ -170,6 +170,7 @@ func (s *Svc) registerMedios() {
 			if err != nil {
 				return nil, err
 			}
+			s.borrarCDN(ctx, in.CID, s.path(in.CID, in.ID, tipo))
 			_ = os.Remove(s.path(in.CID, in.ID, tipo))
 			borrarVariantes(s.path(in.CID, in.ID, tipo))
 			return nil, nil
@@ -183,9 +184,15 @@ func (s *Svc) registerMedios() {
 			return
 		}
 		var cid uuid.UUID
-		var tipo, nombre string
-		if err := s.a.DB.QueryRow(r.Context(), `SELECT competition_id, tipo, nombre FROM medios WHERE id = $1`, id).Scan(&cid, &tipo, &nombre); err != nil {
+		var tipo, nombre, cdn string
+		if err := s.a.DB.QueryRow(r.Context(), `SELECT competition_id, tipo, nombre, cdn_url FROM medios WHERE id = $1`, id).Scan(&cid, &tipo, &nombre, &cdn); err != nil {
 			http.NotFound(w, r)
+			return
+		}
+		// R121: the original is served from Bunny CDN when the copy exists; resized variants stay local.
+		if cdn != "" && r.URL.Query().Get("w") == "" && tipo != "application/pdf" {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			http.Redirect(w, r, cdn, http.StatusFound)
 			return
 		}
 		ruta := s.path(cid, id, tipo)
@@ -297,5 +304,43 @@ func (s *Svc) upload(ctx context.Context, cid uuid.UUID, form *multipart.Form) (
 		_ = os.Remove(dst)
 		return medio{}, err
 	}
+	s.copiaCDN(ctx, cid, id, dst, tipo)
 	return *m.withURL(), nil
+}
+
+// cdnKey is the Bunny key of a media file: «medios/<competition>/<file>».
+func cdnKey(cid uuid.UUID, ruta string) string {
+	return "medios/" + cid.String() + "/" + filepath.Base(ruta)
+}
+
+// copiaCDN uploads the new media file to the Bunny zone of the competition (R121, Jaime 14-nov: photos of the gallery and
+// of the 2025 edition on Bunny CDN). Without the «bunny» integration (QA) the file only lives in the volume. A failed
+// upload is logged and the local file keeps serving: the library never loses an upload because of the CDN.
+func (s *Svc) copiaCDN(ctx context.Context, cid, id uuid.UUID, ruta, tipo string) {
+	b, ok := s.bunnyDe(ctx, cid)
+	if !ok {
+		return
+	}
+	data, err := os.ReadFile(ruta)
+	if err != nil {
+		s.a.Log.Warn("medio: leer para Bunny", "id", id, "err", err)
+		return
+	}
+	url, err := b.Put(ctx, cdnKey(cid, ruta), tipo, data)
+	if err != nil {
+		s.a.Log.Warn("medio: subida a Bunny", "id", id, "err", err)
+		return
+	}
+	if _, err := s.a.DB.Exec(ctx, `UPDATE medios SET cdn_url = $3 WHERE competition_id = $1 AND id = $2`, cid, id, url); err != nil {
+		s.a.Log.Warn("medio: guardar URL de Bunny", "id", id, "err", err)
+	}
+}
+
+// borrarCDN removes the Bunny copy of a deleted media file (no-op without the integration).
+func (s *Svc) borrarCDN(ctx context.Context, cid uuid.UUID, ruta string) {
+	if b, ok := s.bunnyDe(ctx, cid); ok {
+		if err := b.Delete(ctx, cdnKey(cid, ruta)); err != nil {
+			s.a.Log.Warn("medio: borrar en Bunny", "ruta", filepath.Base(ruta), "err", err)
+		}
+	}
 }
