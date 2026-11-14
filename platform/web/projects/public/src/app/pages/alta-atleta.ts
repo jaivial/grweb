@@ -390,7 +390,8 @@ const MAX_MARCA = 600;
                           <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
                         </div>
                       }
-                      <div><button grButton variant="primary" size="l" type="submit" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
+                      <!-- UX2-R1-4: en móvil, CTA fijo abajo (zona del pulgar) mientras el formulario está en vista -->
+                      <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" class="max-md:w-full" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
                       <p class="text-body-xs text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
                   </form>

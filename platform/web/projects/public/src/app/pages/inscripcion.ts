@@ -245,7 +245,8 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
             @if (err()['terminos']; as e) { <p class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
           </div>
           @if (error()) { <p class="flex items-start gap-2 rounded-md border border-accent bg-accent/8 p-4 text-body-s" role="alert"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-accent-text" />{{ error() }}</p> }
-          <div class="flex flex-col gap-3">
+          <!-- UX2-R1-4: en móvil, CTA con el total fijo abajo mientras el formulario está en vista -->
+          <div class="flex flex-col gap-3 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
             <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="enviando()">{{ c.estado === 'completa' ? 'Apuntarme a la reserva' : total() === 0 ? 'Confirmar inscripción' : 'Pagar ' + eur(total()) }}</button>
             <p class="text-center text-body-xs text-text-muted">
               @if (c.estado === 'completa') { No se cobra nada hasta que haya plaza. }
