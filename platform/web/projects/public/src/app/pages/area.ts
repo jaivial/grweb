@@ -83,7 +83,7 @@ const api = '/api/area-atleta';
               <h1 class="mt-6 text-display-m">Revisa tu email</h1>
               <p class="mt-3 text-body-l text-text-secondary">Si {{ email }} está inscrito, te llegará un enlace de acceso. Caduca en 30 minutos.</p>
               <button grButton class="mt-6" [disabled]="espera() > 0" [loading]="busy()" (click)="pedir()">{{ espera() > 0 ? 'Reenviar en 0:' + espera().toString().padStart(2, '0') : 'Reenviar el enlace' }}</button>
-              <button grButton type="button" variant="primary" class="mt-3" (click)="abrirCorreo()">Abrir app de correo</button>
+              <button grButton type="button" variant="secondary" class="mt-3" (click)="abrirCorreo()">Abrir app de correo</button>
               <button type="button" class="mt-3 h-11 text-label-m text-accent-text" (click)="vista.set('acceso')">Usar otro email</button>
             </div>
           }
@@ -96,10 +96,11 @@ const api = '/api/area-atleta';
                   @else { <span class="flex size-full items-center justify-center text-label-l">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
                 </span>
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <h1 class="truncate text-display-xs md:text-display-m">Hola, {{ p.atleta.nombre }}</h1>
+                  <h1 class="line-clamp-2 break-words text-display-xs outline-none md:text-display-m" tabindex="-1">Hola, {{ p.atleta.nombre }}</h1>
                   <p class="text-body-m text-text-tertiary"><span class="md:hidden">{{ p.competicion.nombre }} · {{ p.atleta.club || 'Independiente' }}</span><span class="hidden md:inline">Área de atleta · {{ p.competicion.nombre }}</span></p>
                 </div>
                 <a [routerLink]="['/atletas', p.atleta.perfil.slug]" class="hidden h-11 shrink-0 items-center gap-2 rounded-sm border border-white/12 bg-white/5 px-5 text-label-m hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-accent md:inline-flex">Ver mi perfil público<gr-icon name="arrow-right" [size]="16" /></a>
+                <button type="button" class="hidden h-11 shrink-0 items-center gap-2 rounded-sm px-4 text-label-m text-text-tertiary hover:bg-white/5 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent md:inline-flex" (click)="salir()"><gr-icon name="log-out" [size]="18" />Cerrar sesión</button>
                 <button type="button" class="flex size-11 shrink-0 items-center justify-center text-text-tertiary hover:text-text-primary md:hidden" aria-label="Cerrar sesión" (click)="salir()"><gr-icon name="log-out" [size]="20" /></button>
               </header>
               @for (a of p.avisos; track a) { <gr-alert class="mt-6" tone="info" title="Importante">{{ a }}</gr-alert> }
