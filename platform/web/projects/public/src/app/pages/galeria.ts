@@ -85,7 +85,7 @@ function nombreAlbum(a: Album): string {
               <p class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">No hay fotos con estos filtros. <button type="button" class="text-accent-text underline" (click)="limpiar()">Ver todas</button></p>
             }
           </div>
-          <gr-callout tono="dato" titulo="Comparte">¿Tienes fotos de la competición? Etiqueta a <a [href]="instagram()" target="_blank" rel="noopener" class="text-text-primary underline">@grstrengthclub</a> con #GRStrengthCup y las añadiremos a la galería.</gr-callout>
+          <gr-callout tono="dato" titulo="Comparte">¿Tienes fotos de la competición? Etiqueta a <a [href]="instagram()" target="_blank" rel="noopener" class="-my-3 inline-flex min-h-11 items-center text-text-primary underline">@grstrengthclub</a> con #GRStrengthCup y las añadiremos a la galería.</gr-callout>
         } @else {
           <p class="rounded-lg border border-line-subtle bg-bg-card p-6 text-body-m text-text-secondary">Pronto publicaremos las fotos de la competición.</p>
         }

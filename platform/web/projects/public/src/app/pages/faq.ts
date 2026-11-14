@@ -30,7 +30,7 @@ import { Community, Related, type RelatedLink } from './landings';
           <label class="relative block">
             <span class="sr-only">Buscar una pregunta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-            <input type="search" placeholder="Busca una pregunta…" [value]="q()" (input)="q.set($any($event.target).value)"
+            <input type="search" enterkeyhint="search" placeholder="Busca una pregunta…" [value]="q()" (input)="q.set($any($event.target).value)"
               class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
           <ul class="-mt-2 flex flex-wrap gap-2 lg:hidden" aria-label="Temas">
