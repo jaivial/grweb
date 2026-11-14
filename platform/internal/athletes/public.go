@@ -292,6 +292,10 @@ func (s *Svc) registerPublic() {
 				return nil, problem.Conflict("NO_SE_PUEDE_SEGUIR", "Este atleta no recibe seguidores.")
 			}
 			e := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			// Double tap / retry: one confirmation email per (athlete, email) per minute; the repeat is a silent 202.
+			if r2, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "seguir-dup", r.ID, hashToken(e)), 1, time.Minute); !r2.Allowed {
+				return nil, nil
+			}
 			t := randomToken()
 			v, _ := s.legalVigente(ctx, c.ID, "privacidad")
 			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {

@@ -557,6 +557,7 @@ export class AtletaPage {
   }
 
   protected async avisar(a: FichaPub): Promise<void> {
+    if (this.enviando()) return; // double tap: one request
     this.avisoError.set('');
     this.avisoCampo.set('');
     const mal = (campo: 'email' | 'acepta', msg: string) => {
@@ -568,9 +569,9 @@ export class AtletaPage {
     if (this.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) return mal('email', 'Escribe un email válido.');
     if (!this.acepta) return mal('acepta', 'Marca la casilla para recibir el aviso.');
     // Seguir needs the fan (or athlete) session: without it, the login modal opens and brings the person back here.
-    if (!(await this.fan.cargar())) return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email });
     this.enviando.set(true);
     try {
+      if (!(await this.fan.cargar())) return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email });
       await this.api.seguir(a.slug, this.email);
       this.avisoEnviado.set(true);
     } catch (e) {
