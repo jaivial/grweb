@@ -240,7 +240,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   </p>
                 </div>
                 @if (errores().length) {
-                  <div class="flex flex-col gap-1.5 rounded-md border border-accent/60 bg-accent/8 p-4" role="alert" tabindex="-1" #resumenErr>
+                  <div class="flex scroll-mt-24 flex-col gap-1.5 rounded-md border border-accent/60 bg-accent/8 p-4" role="alert" tabindex="-1" #resumenErr>
                     <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />{{ errores().length === 1 ? 'Revisa 1 campo' : 'Revisa ' + errores().length + ' campos' }}</p>
                     @for (e of errores(); track e) { <p class="pl-[26px] text-body-s text-text-secondary">{{ e }}</p> }
                   </div>
@@ -248,11 +248,13 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                 <fieldset class="flex flex-col gap-4">
                   <legend class="mb-4 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">1</span>Tus datos</legend>
                   <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="flex flex-col gap-1.5 text-label-s">Nombre *<input [class]="campo(err('nombre'))" [(ngModel)]="f.nombre" name="nombre" autocomplete="given-name" placeholder="Tu nombre" [attr.aria-invalid]="err('nombre')" /></label>
-                    <label class="flex flex-col gap-1.5 text-label-s">Apellidos *<input [class]="campo(err('apellidos'))" [(ngModel)]="f.apellidos" name="apellidos" autocomplete="family-name" placeholder="Tus apellidos" [attr.aria-invalid]="err('apellidos')" /></label>
+                    <label class="flex flex-col gap-1.5 text-label-s">Nombre *<input [class]="campo(err('nombre'))" [(ngModel)]="f.nombre" name="nombre" autocomplete="given-name" placeholder="Tu nombre" [attr.aria-invalid]="err('nombre')" [attr.aria-describedby]="err('nombre') ? 'err-nombre' : null" />
+                      @if (err('nombre')) { <span id="err-nombre" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Escribe tu nombre</span> }</label>
+                    <label class="flex flex-col gap-1.5 text-label-s">Apellidos *<input [class]="campo(err('apellidos'))" [(ngModel)]="f.apellidos" name="apellidos" autocomplete="family-name" placeholder="Tus apellidos" [attr.aria-invalid]="err('apellidos')" [attr.aria-describedby]="err('apellidos') ? 'err-apellidos' : null" />
+                      @if (err('apellidos')) { <span id="err-apellidos" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Escribe tus apellidos</span> }</label>
                   </div>
-                  <label class="flex flex-col gap-1.5 text-label-s">Email *<input type="email" [class]="campo(err('email'))" [(ngModel)]="f.email" name="email" autocomplete="email" placeholder="email@ejemplo.com" [attr.aria-invalid]="err('email')" />
-                    @if (err('email')) { <span class="flex items-center gap-1.5 text-body-xs font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Introduce un email válido</span> }</label>
+                  <label class="flex flex-col gap-1.5 text-label-s">Email *<input type="email" [class]="campo(err('email'))" [(ngModel)]="f.email" name="email" autocomplete="email" placeholder="email@ejemplo.com" [attr.aria-invalid]="err('email')" [attr.aria-describedby]="err('email') ? 'err-email' : null" />
+                    @if (err('email')) { <span id="err-email" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Introduce un email válido</span> }</label>
                   <div class="grid gap-4 sm:grid-cols-2">
                     <label class="flex flex-col gap-1.5 text-label-s">Teléfono (opcional)
                       <span class="flex h-12 items-center overflow-hidden rounded-sm border border-line-strong bg-bg-field focus-within:border-accent-text"><span class="flex h-full items-center border-r border-line-subtle px-3 text-body-m font-normal text-text-secondary">+34</span>
@@ -514,7 +516,12 @@ export class EntradasPage {
     if (!this.f.privacidad) { e.push('Acepta la política de privacidad para reservar.'); c.push('privacidad'); }
     this.errores.set(e);
     this.campos.set(c);
-    if (e.length) setTimeout(() => this.reservarEl()?.nativeElement.querySelector<HTMLElement>('[role=alert]')?.focus());
+    if (e.length) setTimeout(() => {
+      const a = this.reservarEl()?.nativeElement.querySelector<HTMLElement>('[role=alert]');
+      if (!a) return;
+      a.focus({ preventScroll: true });
+      a.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    });
     return e.length === 0;
   }
   protected async reservar(): Promise<void> {
