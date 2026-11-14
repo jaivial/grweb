@@ -22,7 +22,7 @@ type mercadosEntrada struct {
 	cuerpo      []byte // ST1-R4-1: response body serialized once per refresh, not per request
 	gz          []byte // the same body gzipped (87 KB → a few KB on the wire)
 	etag        string // weak validator of cuerpo (ST1-R3-1: a 304 skips the body)
-	refrescando bool // a background refresh is running (singleflight per jornada and pod)
+	refrescando bool   // a background refresh is running (singleflight per jornada and pod)
 }
 
 var mercadosCache sync.Map // jornada id → *mercadosEntrada
