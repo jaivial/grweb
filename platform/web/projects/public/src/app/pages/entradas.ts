@@ -68,22 +68,48 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
       </div>
       <div class="relative flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
         @if (e === 'anulada') {
-          <span class="flex size-42 flex-col items-center justify-center gap-2 rounded-lg border border-line-strong text-text-muted"><gr-icon name="x" [size]="32" /><span class="text-label-s">QR desactivado</span></span>
+          <span class="flex size-42 flex-col items-center justify-center gap-2 rounded-lg border max-[430px]:size-52 border-line-strong text-text-muted"><gr-icon name="x" [size]="32" /><span class="text-label-s">QR desactivado</span></span>
         } @else if (img()) {
-          <img [src]="img()" alt="Código QR de la entrada" width="168" height="168" class="size-42 rounded-sm bg-white p-2" [class.opacity-22]="e === 'usada'" />
-        } @else { <span class="size-42 rounded-sm bg-white/10"></span> }
+          <img [src]="img()" alt="Código QR de la entrada" width="208" height="208" class="size-42 rounded-sm bg-white p-2 max-[430px]:size-52 max-[430px]:p-4" [class.opacity-22]="e === 'usada'" />
+        } @else { <span class="size-42 rounded-sm bg-white/10 max-[430px]:size-52"></span> }
         @if (e === 'usada') {
-          <span class="absolute top-[57px] flex translate-x-1 -rotate-8 flex-col items-center gap-1 rounded-md border-2 border-success px-5 py-2 text-success" aria-hidden="true">
+          <span class="absolute top-[57px] flex max-[430px]:top-[77px] translate-x-1 -rotate-8 flex-col items-center gap-1 rounded-md border-2 border-success px-5 py-2 text-success" aria-hidden="true">
             <span class="text-display-s">Validada</span>@if (validadaEn()) { <span class="text-mono-s">{{ validadaEn() }}</span> }
           </span>
         }
-        <p class="text-mono-s" [class]="e === 'anulada' ? 'text-text-muted' : 'text-text-primary'">{{ codigo() }}</p>
+        <p class="font-mono text-[17px] leading-6 font-semibold tracking-[.08em]" [class]="e === 'anulada' ? 'text-text-muted' : 'text-text-primary'">{{ codigo() }}</p>
+        @if (puertaBtn() && e === 'reservada' && img()) {
+          <button type="button" class="inline-flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-label-s hover:bg-white/5" (click)="abrirPuerta()"><gr-icon name="maximize" [size]="16" />Mostrar en puerta</button>
+        }
         <p class="text-body-xs text-text-tertiary">{{ e === 'usada' ? 'Validada' + (validadaEn() ? ' a las ' + validadaEn().slice(-5) : '') + ' · ¡que lo disfrutes!' : e === 'anulada' ? 'Has liberado tu plaza. ¡Gracias por avisar!' : 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)' }}</p>
       </div>
     </article>
+    @if (puerta()) {
+      <!-- UX8-R1-9: full-screen QR for the door (white, max contrast) -->
+      <div class="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-white px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-black" role="dialog" aria-modal="true" aria-label="Entrada para la puerta" (keydown.escape)="cerrarPuerta()" (keydown.tab)="$event.preventDefault()">
+        <button #cerrarP type="button" class="absolute top-[max(12px,env(safe-area-inset-top))] right-3 flex size-11 items-center justify-center rounded-full bg-black/8" aria-label="Cerrar" (click)="cerrarPuerta()"><gr-icon name="x" [size]="22" /></button>
+        <img [src]="img()" alt="Código QR de la entrada" class="aspect-square w-[min(82vw,60vh,420px)]" />
+        <p class="font-mono text-[22px] font-semibold tracking-[.08em]">{{ codigo() }}</p>
+        <p class="text-center text-body-m text-black/60">{{ titular() }}</p>
+      </div>
+    }
   `,
 })
 export class TicketCard {
+  /** «Mostrar en puerta» button (real tickets only, not the hero example). */
+  readonly puertaBtn = input(false);
+  protected readonly puerta = signal(false);
+  private readonly cerrarP = viewChild<ElementRef<HTMLElement>>('cerrarP');
+  private volverA: HTMLElement | null = null;
+  protected abrirPuerta(): void {
+    this.volverA = document.activeElement as HTMLElement | null;
+    this.puerta.set(true);
+    setTimeout(() => this.cerrarP()?.nativeElement.focus());
+  }
+  protected cerrarPuerta(): void {
+    this.puerta.set(false);
+    this.volverA?.focus();
+  }
   readonly evento = input('GRStrength Cup 2026');
   readonly linea1 = input('');
   readonly linea2 = input('');
@@ -110,10 +136,15 @@ export class TicketCard {
     const browser = isPlatformBrowser(inject(PLATFORM_ID));
     effect(() => {
       const v = this.qr();
-      if (v && browser) void qrDataURL(v, 336).then((u) => this.img.set(u));
+      if (v && browser) void qrDataURL(v, 640).then((u) => this.img.set(u));
     });
   }
 }
+
+/** Ticket line 1 without repeating the weekday (UX8-R1-7): «sáb 19 dic · Tarde». */
+const lineaTicket = (inicio: string, nombre: string) =>
+  new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inicio)).replace(/[,.]/g, '') +
+  ' · ' + nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
 
 const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
   `${m.nombre} ${m.apellidos}`.trim() + (m.personas > 1 ? ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}` : '');
@@ -145,14 +176,17 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
     <gr-navbar />
     <main class="relative overflow-x-clip">
       <!-- Figma «Hero campaña»: the crowd photo, a dark veil and the red glow; 920 px on desktop -->
-      <section class="relative flex overflow-hidden lg:min-h-[920px] lg:items-center">
+      <!-- UX8-R1-13: only the background layers are clipped; the text reflows at 200 % text size -->
+      <section class="relative flex lg:min-h-[920px] lg:items-center">
+        <div class="absolute inset-0 overflow-hidden" aria-hidden="true">
         <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover grayscale-[60%]" fetchpriority="high" />
         <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(14_12_13/0.72),rgb(14_12_13/0.8)_60%,var(--color-bg-base))]" aria-hidden="true"></div>
         <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.5),transparent)]" aria-hidden="true"></div>
+        </div>
         <div class="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 pt-[104px] pb-12 md:px-8 md:pt-40 md:pb-20 lg:grid-cols-[minmax(0,700px)_350px] lg:justify-between lg:pt-24 lg:pb-16 xl:px-0">
-          <div class="flex flex-col items-start gap-4 md:gap-5">
-            <p class="inline-flex h-7 items-center rounded-full border px-3 text-label-xs uppercase" [class]="todasAgotadas() ? 'border-line-strong bg-white/5 text-text-secondary' : 'border-success/50 bg-success/10 text-success'">{{ todasAgotadas() ? 'Entradas agotadas' : 'Entrada gratuita · aforo limitado' }}</p>
-            <h1 class="text-display-m md:text-display-hero">
+          <div class="flex min-w-0 flex-col items-start gap-4 [overflow-wrap:anywhere] md:gap-5">
+            <p class="inline-flex min-h-7 items-center rounded-full border px-3 text-label-xs uppercase" [class]="todasAgotadas() ? 'border-line-strong bg-white/5 text-text-secondary' : 'border-success/50 bg-success/10 text-success'">{{ todasAgotadas() ? 'Entradas agotadas' : 'Entrada gratuita · aforo limitado' }}</p>
+            <h1 class="text-display-m hyphens-auto max-md:text-[clamp(2.25rem,9vw,4.5rem)] md:text-display-hero" lang="es">
               @if (todasAgotadas()) { Hasta aquí <span class="text-accent-text">el aforo</span> } @else { Vive la GRStrength Cup <span class="text-accent-text">en directo</span> }
             </h1>
             <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">{{ todasAgotadas()
@@ -190,7 +224,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
 
       <div class="relative mx-auto mt-12 grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-16 px-5 pb-18 md:mt-20 md:px-8 md:pb-24 lg:grid-cols-[minmax(0,616px)_minmax(0,520px)] lg:justify-between lg:gap-10 xl:px-0">
         <!-- the form: right column (sticky) on desktop, right after the hero on phones -->
-        <aside id="reservar" #reservarEl class="scroll-mt-24 lg:col-start-2 lg:row-start-1">
+        <aside id="reservar" #reservarEl class="scroll-mt-24 md:mx-auto md:w-full md:max-w-[560px] lg:col-start-2 lg:row-start-1 lg:max-w-none">
           <div class="lg:sticky lg:top-28">
             @if (d === undefined) { <gr-skeleton class="h-[640px] rounded-2xl" /> }
             @else if (d === null && fallo.limitado()) { <gr-alert tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert> }
@@ -240,7 +274,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   </p>
                 </div>
                 @if (errores().length) {
-                  <div class="flex flex-col gap-1.5 rounded-md border border-accent/60 bg-accent/8 p-4" role="alert" tabindex="-1" #resumenErr>
+                  <div class="flex scroll-mt-24 flex-col gap-1.5 rounded-md border border-accent/60 bg-accent/8 p-4" role="alert" tabindex="-1" #resumenErr>
                     <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />{{ errores().length === 1 ? 'Revisa 1 campo' : 'Revisa ' + errores().length + ' campos' }}</p>
                     @for (e of errores(); track e) { <p class="pl-[26px] text-body-s text-text-secondary">{{ e }}</p> }
                   </div>
@@ -248,11 +282,13 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                 <fieldset class="flex flex-col gap-4">
                   <legend class="mb-4 flex items-center gap-2.5 text-label-m"><span class="flex size-6 items-center justify-center rounded-full bg-accent/20 text-label-xs text-accent-text">1</span>Tus datos</legend>
                   <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="flex flex-col gap-1.5 text-label-s">Nombre *<input [class]="campo(err('nombre'))" [(ngModel)]="f.nombre" name="nombre" autocomplete="given-name" placeholder="Tu nombre" [attr.aria-invalid]="err('nombre')" /></label>
-                    <label class="flex flex-col gap-1.5 text-label-s">Apellidos *<input [class]="campo(err('apellidos'))" [(ngModel)]="f.apellidos" name="apellidos" autocomplete="family-name" placeholder="Tus apellidos" [attr.aria-invalid]="err('apellidos')" /></label>
+                    <label class="flex flex-col gap-1.5 text-label-s">Nombre *<input [class]="campo(err('nombre'))" [(ngModel)]="f.nombre" name="nombre" autocomplete="given-name" placeholder="Tu nombre" [attr.aria-invalid]="err('nombre')" [attr.aria-describedby]="err('nombre') ? 'err-nombre' : null" />
+                      @if (err('nombre')) { <span id="err-nombre" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Escribe tu nombre</span> }</label>
+                    <label class="flex flex-col gap-1.5 text-label-s">Apellidos *<input [class]="campo(err('apellidos'))" [(ngModel)]="f.apellidos" name="apellidos" autocomplete="family-name" placeholder="Tus apellidos" [attr.aria-invalid]="err('apellidos')" [attr.aria-describedby]="err('apellidos') ? 'err-apellidos' : null" />
+                      @if (err('apellidos')) { <span id="err-apellidos" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Escribe tus apellidos</span> }</label>
                   </div>
-                  <label class="flex flex-col gap-1.5 text-label-s">Email *<input type="email" [class]="campo(err('email'))" [(ngModel)]="f.email" name="email" autocomplete="email" placeholder="email@ejemplo.com" [attr.aria-invalid]="err('email')" />
-                    @if (err('email')) { <span class="flex items-center gap-1.5 text-body-xs font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Introduce un email válido</span> }</label>
+                  <label class="flex flex-col gap-1.5 text-label-s">Email *<input type="email" [class]="campo(err('email'))" [(ngModel)]="f.email" name="email" autocomplete="email" placeholder="email@ejemplo.com" [attr.aria-invalid]="err('email')" [attr.aria-describedby]="err('email') ? 'err-email' : null" />
+                    @if (err('email')) { <span id="err-email" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />Introduce un email válido</span> }</label>
                   <div class="grid gap-4 sm:grid-cols-2">
                     <label class="flex flex-col gap-1.5 text-label-s">Teléfono (opcional)
                       <span class="flex h-12 items-center overflow-hidden rounded-sm border border-line-strong bg-bg-field focus-within:border-accent-text"><span class="flex h-full items-center border-r border-line-subtle px-3 text-body-m font-normal text-text-secondary">+34</span>
@@ -274,7 +310,11 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
                 </div>
-                <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">Reservar entrada gratis</button>
+                <!-- UX8-R1-3: sticky CTA (phones) while the real submit button is off screen -->
+                <div class="sticky bottom-0 z-10 -mx-5 border-t border-line-subtle bg-bg-base/95 px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-[10px] transition-opacity duration-200 ease-[cubic-bezier(.2,.8,.2,1)] md:hidden" [class.opacity-0]="enviarVisible()" [class.pointer-events-none]="enviarVisible()" [attr.inert]="enviarVisible() || null">
+                  <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">Reservar · {{ f.personas }} {{ f.personas === 1 ? 'persona' : 'personas' }}@if (sesSel(); as s) { · {{ s.nombre }} }</button>
+                </div>
+                <button #enviarBtn grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">Reservar entrada gratis</button>
                 <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Solo usamos tus datos para tu entrada. Sin spam.</p>
               </form>
             }
@@ -378,6 +418,8 @@ export class EntradasPage {
   protected readonly comp = inject(Competition);
   protected readonly fallo = inject(FalloApi);
   private readonly reservarEl = viewChild<ElementRef<HTMLElement>>('reservarEl');
+  private readonly enviarBtn = viewChild('enviarBtn', { read: ElementRef<HTMLElement> });
+  protected readonly enviarVisible = signal(true);
   protected readonly hora = hora;
   protected readonly estado = ESTADO;
   protected readonly euros = euros;
@@ -414,13 +456,15 @@ export class EntradasPage {
   protected readonly sesHero = computed(() => this.sesSel() ?? this.abiertas()[0] ?? this.data()?.sesiones[0]);
   protected readonly ejemplo = computed(() => {
     const x = this.sesHero();
-    return x ? { l1: dia(x.inicio) + ' · ' + x.nombre, l2: 'Puertas ' + hora(x.puertas) + ' · hasta las ' + hora(x.fin) } : { l1: 'Sábado · sesión de mañana', l2: 'Puertas 8:30 · hasta las 14:00' };
+    return x ? { l1: lineaTicket(x.inicio, x.nombre), l2: 'Puertas ' + hora(x.puertas) + ' · hasta las ' + hora(x.fin) } : { l1: 'Sábado · sesión de mañana', l2: 'Puertas 8:30 · hasta las 14:00' };
   });
   protected readonly maxPersonas = computed(() => Math.min(this.sesSel()?.maxPorReserva ?? 6, Math.max(1, this.sesSel()?.estado === 'agotada' ? 6 : (this.sesSel()?.libres ?? 6))));
   protected readonly ciudad = computed(() => this.comp.data()?.sede?.ciudad || 'Almussafes');
   protected readonly fechas = computed(() => {
     const c = this.comp.data();
-    const t = c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
+    // UX8-R1-7: with sessions, only the days that have tickets (the hero must not promise a day without them)
+    const dias = [...new Set((this.data()?.sesiones ?? []).map((s) => diaLargo(s.inicio)))];
+    const t = dias.length ? dias.join(' y ') : c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
     return t.charAt(0).toUpperCase() + t.slice(1);
   });
   /** «Puertas 8:30 · premios y sorteo 21:30» from the published schedule (else the first session's doors). */
@@ -467,6 +511,13 @@ export class EntradasPage {
       await applySeo(cms, seo, '/entradas', 'Entradas gratis · GR Strength Cup', 'Reserva gratis tu entrada para la GR Strength Cup en Almussafes: elige sesión, recibe tu QR por email y entra sin colas.');
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      effect((onCleanup) => {
+        const b = this.enviarBtn()?.nativeElement as HTMLElement | undefined;
+        if (!b) return this.enviarVisible.set(true);
+        const o = new IntersectionObserver(([e]) => this.enviarVisible.set(e.isIntersecting));
+        o.observe(b);
+        onCleanup(() => o.disconnect());
+      });
       const destroy = inject(DestroyRef);
       const cd = inject(ChangeDetectorRef);
       afterNextRender(() => {
@@ -514,7 +565,12 @@ export class EntradasPage {
     if (!this.f.privacidad) { e.push('Acepta la política de privacidad para reservar.'); c.push('privacidad'); }
     this.errores.set(e);
     this.campos.set(c);
-    if (e.length) setTimeout(() => this.reservarEl()?.nativeElement.querySelector<HTMLElement>('[role=alert]')?.focus());
+    if (e.length) setTimeout(() => {
+      const a = this.reservarEl()?.nativeElement.querySelector<HTMLElement>('[role=alert]');
+      if (!a) return;
+      a.focus({ preventScroll: true });
+      a.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    });
     return e.length === 0;
   }
   protected async reservar(): Promise<void> {
@@ -596,7 +652,7 @@ export class EntradasPage {
               <p class="text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p>
             </div>
             }
-            <gr-ticket class="w-full xl:w-[342px]" [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
+            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [puertaBtn]="true" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
             @if (m.estado !== 'anulada') {
             <div class="grid w-full grid-cols-2 gap-2 xl:w-[342px]">
               <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />Al calendario</a>
@@ -618,7 +674,7 @@ export class EntradasPage {
             @if (m.estado !== 'anulada') {
             <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-label-m">Invita a tu gente</h2><p class="text-body-xs text-text-tertiary">Comparte tu enlace: sabremos cuántas entradas trae tu invitación.</p>
-              <div class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 py-3 text-body-s [overflow-wrap:anywhere]">{{ corto(m.compartir) }}</span><button type="button" class="text-label-s text-accent-text hover:underline" (click)="copiar(m.compartir)">{{ copiado() ? 'Copiado' : 'Copiar' }}</button></div>
+              <div class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 py-3 text-body-s [overflow-wrap:anywhere]">{{ corto(m.compartir) }}</span><button type="button" class="-mr-3 inline-flex min-h-11 shrink-0 items-center px-3 text-label-s text-accent-text hover:underline" (click)="copiar(m.compartir)"><span aria-live="polite">{{ copiado() ? 'Copiado' : 'Copiar' }}</span></button></div>
               <div class="flex flex-wrap gap-2 text-label-s">
                 <a [href]="'https://twitter.com/intent/tweet?url=' + enc(m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />X</a>
                 <a [href]="'https://www.facebook.com/sharer/sharer.php?u=' + enc(m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />Facebook</a>
@@ -626,7 +682,7 @@ export class EntradasPage {
                 <button type="button" [class]="chip" (click)="copiar(m.compartir)"><gr-icon name="external-link" [size]="16" />Copiar enlace</button>
               </div>
             </section>
-            <a [href]="'/mi-entrada?t=' + token" class="text-center text-label-s text-accent-text hover:underline xl:hidden">Gestionar mi entrada →</a>
+            <a grButton variant="outline" size="l" [href]="'/mi-entrada?t=' + token" iconRight="arrow-right" class="w-full xl:hidden">Gestionar mi entrada</a>
             }
           </div>
         </div>
@@ -639,6 +695,7 @@ export class ConfirmacionPage {
   protected readonly hora = hora;
   protected readonly dia = dia;
   protected readonly tit = titular;
+  protected readonly linea = lineaTicket;
   protected readonly chip = 'flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent';
   protected readonly mia = signal<MiEntrada | null | undefined>(undefined);
   protected readonly copiado = signal(false);
@@ -742,6 +799,9 @@ export class OfertaPage {
   selector: 'gr-mi-entrada',
   imports: [RouterLink, Page, FormsModule, GrButton, GrIcon, GrSkeleton, TicketCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `.gr-sheet { animation: gr-sheet-in 280ms cubic-bezier(.32,.72,0,1); }
+    @keyframes gr-sheet-in { from { transform: translateY(100%); } }
+    @media (min-width: 40rem) { @keyframes gr-sheet-in { from { opacity: 0; transform: scale(.96); } } }`,
   template: `
     <gr-page title="Mi entrada" crumb="Mi entrada" [migasMovil]="false" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
       <div class="mx-auto flex max-w-[350px] flex-col gap-6 max-md:-mt-[27px] md:max-w-[480px]">
@@ -761,7 +821,7 @@ export class OfertaPage {
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="dia(m.sesion.inicio) + ' · ' + m.sesion.nombre" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
+          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [puertaBtn]="true" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-ui-h5">¿Cambia algo?</h2>
@@ -776,19 +836,20 @@ export class OfertaPage {
               <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white disabled:opacity-50" [disabled]="reenviando()" (click)="reenviar()"><gr-icon name="send" [size]="18" /><span class="flex-1">Reenviar la entrada por email</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li>
               <li><a routerLink="/rifa" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="ticket" [size]="18" /><span class="flex-1">Rifa presencial: ver objetos</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
               <li><a [href]="ics()" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="calendar" [size]="18" /><span class="flex-1">Añadir al calendario (.ics)</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
-              @if (m.puedeCambiar) { <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m text-accent-text" (click)="anularOpen.set(true)"><gr-icon name="x" [size]="18" /><span class="flex-1">Anular entrada y liberar la plaza</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li> }
+              @if (m.puedeCambiar) { <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m text-accent-text" (click)="abrirAnular($event)"><gr-icon name="x" [size]="18" /><span class="flex-1">Anular entrada y liberar la plaza</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li> }
             </ul>
           }
         }
       </div>
     </gr-page>
     @if (anularOpen() && mia(); as m) {
-      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 sm:items-center sm:px-4" (click)="anularOpen.set(false)">
-        <div class="mx-5 mb-[82px] w-full max-w-[350px] rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card sm:mb-0" role="alertdialog" aria-modal="true" aria-label="Anular tu entrada" (click)="$event.stopPropagation()">
-          <div class="flex items-start justify-between gap-3"><h2 class="text-ui-h3">¿Anular tu entrada?</h2><button type="button" class="flex size-8 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="anularOpen.set(false)"><gr-icon name="x" [size]="18" /></button></div>
-          <p class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la sesión del {{ sesionLarga(m.sesion.nombre) }} para la lista de espera.</p>
-          <div class="mt-5 flex justify-end gap-2"><button grButton variant="outline" size="m" type="button" (click)="anularOpen.set(false)">Volver</button>
-            <button grButton variant="primary" size="m" type="button" (click)="anular()">Sí, anular</button></div>
+      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 sm:items-center sm:px-4" (click)="cerrarAnular()" (keydown.escape)="cerrarAnular()" (keydown.tab)="atrapar($event)">
+        <div #sheet class="gr-sheet w-full rounded-t-2xl border border-b-0 border-line-strong bg-bg-raised px-6 pt-2 pb-[max(24px,env(safe-area-inset-bottom))] shadow-card sm:max-w-[400px] sm:rounded-xl sm:border-b sm:p-7" role="alertdialog" aria-modal="true" aria-labelledby="anular-t" aria-describedby="anular-d" (click)="$event.stopPropagation()">
+          <span class="mx-auto mb-3 block h-[5px] w-9 rounded-full bg-white/25 sm:hidden" aria-hidden="true"></span>
+          <div class="flex items-start justify-between gap-3"><h2 id="anular-t" class="text-ui-h3">¿Anular tu entrada?</h2><button type="button" class="-mt-1.5 -mr-3 flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="cerrarAnular()"><gr-icon name="x" [size]="18" /></button></div>
+          <p id="anular-d" class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la sesión del {{ sesionLarga(m.sesion.nombre) }} para la lista de espera.</p>
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end sm:gap-2"><button #volverBtn grButton variant="outline" size="l" type="button" class="w-full sm:w-auto" (click)="cerrarAnular()">Volver</button>
+            <button grButton variant="primary" size="l" type="button" class="w-full sm:w-auto" (click)="anular()">Sí, anular</button></div>
         </div>
       </div>
     }
@@ -800,6 +861,7 @@ export class MiEntradaPage {
   protected readonly validada = validada;
   protected readonly dia = dia;
   protected readonly tit = titular;
+  protected readonly linea = lineaTicket;
   protected readonly max = Math.max;
   protected readonly min = Math.min;
   /** «Sábado mañana» → «sábado por la mañana». */
@@ -811,6 +873,26 @@ export class MiEntradaPage {
   protected readonly ocupado = signal(false);
   protected readonly msg = signal('');
   protected readonly anularOpen = signal(false);
+  private readonly sheet = viewChild<ElementRef<HTMLElement>>('sheet');
+  private readonly volverBtn = viewChild('volverBtn', { read: ElementRef<HTMLElement> });
+  private origen: HTMLElement | null = null;
+  protected abrirAnular(ev: Event): void {
+    this.origen = ev.currentTarget as HTMLElement;
+    this.anularOpen.set(true);
+    setTimeout(() => (this.volverBtn()?.nativeElement as HTMLElement | undefined)?.focus());
+  }
+  protected cerrarAnular(): void {
+    this.anularOpen.set(false);
+    this.origen?.focus();
+  }
+  /** Focus trap: Tab cycles inside the sheet. */
+  protected atrapar(ev: Event): void {
+    const f = this.sheet()?.nativeElement.querySelectorAll<HTMLElement>('button');
+    if (!f?.length) return;
+    const k = ev as KeyboardEvent, a = f[0], z = f[f.length - 1];
+    if (k.shiftKey && document.activeElement === a) { k.preventDefault(); z.focus(); }
+    else if (!k.shiftKey && document.activeElement === z) { k.preventDefault(); a.focus(); }
+  }
   protected readonly pedido = signal(false);
   protected readonly reenviando = signal(false);
   protected readonly token: string;
