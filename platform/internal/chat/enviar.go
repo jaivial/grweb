@@ -64,7 +64,26 @@ func (s *Svc) enviar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 	if res := filtrar(texto, cfg); !res.OK {
 		return item{}, problem.Unprocessable(res.Code, res.Detalle)
 	}
-	if silenciado, err := s.a.Redis.Exists(ctx, s.a.Keys.Of("chat", "mudo", cid.String(), f.ID.String())).Result(); err == nil && silenciado > 0 {
+	// mudo + deduplicación por el cid del cliente (reintento de red o doble clic, SET NX EX 60) en una sola ida.
+	// The dedup goes before the rate limit: a retry of an accepted message is «duplicado», never 429.
+	dedupKey := s.a.Keys.Of("chat", "dedup", cid.String(), dia, msgCID)
+	pipe := s.a.Redis.Pipeline()
+	mudo := pipe.Exists(ctx, s.a.Keys.Of("chat", "mudo", cid.String(), f.ID.String()))
+	var dedup *redis.BoolCmd
+	if msgCID != "" {
+		dedup = pipe.SetNX(ctx, dedupKey, 1, dedupTTL)
+	}
+	_, _ = pipe.Exec(ctx)
+	liberar := func() {
+		if dedup != nil && dedup.Val() {
+			s.a.Redis.Del(ctx, dedupKey) // rejected before publishing: the client may retry the same cid
+		}
+	}
+	if dedup != nil && dedup.Err() == nil && !dedup.Val() {
+		return item{}, errDuplicado
+	}
+	if mudo.Err() == nil && mudo.Val() > 0 {
+		liberar()
 		return item{}, errSilenciado
 	}
 
@@ -72,19 +91,13 @@ func (s *Svc) enviar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 	espera, err := cubeta.Run(ctx, s.a.Redis, []string{s.a.Keys.Of("chat", "rate", cid.String(), f.ID.String())},
 		time.Now().UnixMilli(), ratePorMs, rateCapacidad, rateCoste, rateTTL.Milliseconds()).Int64Slice()
 	if err == nil && len(espera) == 2 && espera[0] == 0 {
+		liberar()
 		return item{}, problem.TooMany("Vas muy rápido. Espera unos segundos.")
 	}
 	if cfg.ModoLentoSeg > 0 {
 		if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "lento", cid.String(), f.ID.String()), 1, time.Duration(cfg.ModoLentoSeg)*time.Second); err == nil && !r.Allowed {
+			liberar()
 			return item{}, problem.TooMany("Modo lento activo: espera antes de escribir otra vez.")
-		}
-	}
-
-	// deduplicación por el cid del cliente (reintento de red o doble clic): SET NX EX 60
-	if msgCID != "" {
-		ok, err := s.a.Redis.SetNX(ctx, s.a.Keys.Of("chat", "dedup", cid.String(), dia, msgCID), 1, dedupTTL).Result()
-		if err == nil && !ok {
-			return item{}, errDuplicado
 		}
 	}
 
@@ -100,6 +113,7 @@ func (s *Svc) enviar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 		Values: map[string]any{"d": string(b)},
 	}).Result()
 	if err != nil {
+		liberar()
 		return item{}, problem.New(503, "CHAT_NO_DISPONIBLE", "No se pudo publicar el mensaje. Inténtalo de nuevo.")
 	}
 	it.ID = res
@@ -118,18 +132,19 @@ func (s *Svc) contar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 	}
 	prevKey := s.a.Keys.Of("chat", "prev", cid.String(), dia, f.ID.String())
 	norm := normalizar(it.Texto)
-	if old, err := s.a.Redis.Get(ctx, prevKey).Result(); err == nil && old == norm {
+	// SET … GET: one round trip stores this message and returns the previous one
+	if old, err := s.a.Redis.SetArgs(ctx, prevKey, norm, redis.SetArgs{Get: true, TTL: prevTTL}).Result(); err == nil && old == norm {
 		return // repeated message of the same fan: not counted
 	}
-	s.a.Redis.Set(ctx, prevKey, norm, prevTTL)
 
 	cntKey := s.a.Keys.Of("chat", "cnt", cid.String(), dia, f.ID.String())
-	n, err := s.a.Redis.Incr(ctx, cntKey).Result()
+	pc := s.a.Redis.Pipeline()
+	incr := pc.Incr(ctx, cntKey)
+	pc.ExpireNX(ctx, cntKey, 26*time.Hour) // a little more than a day (the room of tomorrow is another one)
+	_, _ = pc.Exec(ctx)
+	n, err := incr.Result()
 	if err != nil {
 		return // Redis down: the message was published, only the counter is lost
-	}
-	if n == 1 {
-		s.a.Redis.Expire(ctx, cntKey, 26*time.Hour) // a little more than a day (the room of tomorrow is another one)
 	}
 	if n%5 != 0 || n/5 > int64(cfg.MaxHitos) {
 		return

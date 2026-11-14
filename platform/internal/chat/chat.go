@@ -147,10 +147,19 @@ const streamsActivosTTL = 48 * time.Hour
 // anotarStream records the room stream in the shared registry (ZSET scored by last write), so every pod's
 // persister reads it even when no pod has a viewer connected to that room.
 func (s *Svc) anotarStream(ctx context.Context, nombre string) {
+	// the registry keeps 48 h: one ZADD per room and pod per minute is enough (not one per message)
+	ahora := time.Now()
+	if v, ok := anotados.Load(nombre); ok && ahora.Sub(v.(time.Time)) < time.Minute {
+		return
+	}
+	anotados.Store(nombre, ahora)
 	if err := s.a.Redis.ZAdd(ctx, s.a.Keys.Of("chat", "streams"), redis.Z{Score: float64(time.Now().UnixMilli()), Member: nombre}).Err(); err != nil {
+		anotados.Delete(nombre)
 		s.a.Log.Warn("chat registro de streams", "stream", nombre, "err", err)
 	}
 }
+
+var anotados sync.Map // stream → last ZADD of this pod
 
 // streamsActivos merges the rooms this pod has open with the shared registry of rooms written in the last 48 h.
 func (s *Svc) streamsActivos(ctx context.Context) []string {
