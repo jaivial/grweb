@@ -556,11 +556,11 @@ export class ResultadosIndexPage {
         <!-- Filters -->
         <!-- Figma 25 mobile: section tabs under the header -->
         <nav aria-label="Secciones" class="-mx-5 mb-6 flex gap-2 overflow-x-auto border-y border-line-subtle px-5 py-3 [scrollbar-width:none] md:hidden">
-          @for (t of tabs(); track t.id) { <a [href]="'#' + t.id" (click)="ir($event, t.id)" class="inline-flex h-10 shrink-0 items-center rounded-full border px-4 text-label-s focus-visible:outline-2 focus-visible:outline-accent" [class]="tab() === t.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ t.l }}</a> }
+          @for (t of tabs(); track t.id) { <a [href]="'#' + t.id" (click)="ir($event, t.id)" class="inline-flex h-11 shrink-0 items-center rounded-full border px-4 text-label-s focus-visible:outline-2 focus-visible:outline-accent" [class]="tab() === t.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ t.l }}</a> }
         </nav>
         <div class="flex flex-wrap items-center gap-2">
           <label class="relative min-w-0 flex-1 basis-56 md:max-w-xs"><span class="sr-only">Buscar atleta o club</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-            <input class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-s md:h-10" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
+            <input type="search" enterkeyhint="search" autocomplete="off" (keydown.enter)="$any($event.target).blur()" class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-m md:text-body-s" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
           <button type="button" class="relative flex size-11 items-center justify-center rounded-md border border-line-strong md:hidden" aria-label="Filtros" aria-controls="filtros-resultados" [attr.aria-expanded]="filtros()" (click)="filtros.set(!filtros())"><gr-icon name="sliders" [size]="18" />
             @if ((cat() ? 1 : 0) + (orden() !== 'puesto' ? 1 : 0); as n) { <span class="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-label-xs text-white">{{ n }}</span> }</button>
           <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
@@ -589,15 +589,15 @@ export class ResultadosIndexPage {
 
           }
           <gr-cabecera id="podios" [class]="conGL ? 'mt-14 scroll-mt-28' : 'mt-12 scroll-mt-28'" eyebrow="Podios" titulo="Podio por *categoría*" [centro]="false" tam="m" />
-          <div class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
+          <div role="region" aria-roledescription="carrusel" aria-label="Podios por categoría" (scroll)="podioScroll($event)" class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
             @for (c of r.categorias; track c.clave) {
-              <section class="w-[86%] shrink-0 snap-center rounded-xl border border-line-subtle bg-bg-card p-5 md:w-auto">
+              <section [attr.aria-label]="c.titulo" class="w-[86%] shrink-0 snap-center rounded-xl border border-line-subtle bg-bg-card p-5 md:w-auto">
                 <header class="flex items-baseline justify-between"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} {{ c.atletas === 1 ? 'atleta' : 'atletas' }}</span></header>
                 <!-- only the steps with an athlete (no empty «3» in a category of two) -->
-                <div class="mt-4 grid items-end gap-2" [style.grid-template-columns]="'repeat(' + podio(c).length + ', minmax(0, 1fr))'">
+                <div class="mt-4 grid items-end gap-2 max-[260px]:!grid-cols-1" [style.grid-template-columns]="'repeat(' + podio(c).length + ', minmax(0, 1fr))'">
                   @for (p of podio(c); track p.pos) {
                     <div class="flex flex-col items-center gap-1 text-center">
-                      <p class="w-full text-label-s [overflow-wrap:anywhere]">{{ p.f.nombre }}</p><p class="text-mono-xs text-text-tertiary">{{ kg(p.f.total) }} kg</p>
+                      <p class="w-full text-label-s hyphens-auto [overflow-wrap:break-word]" lang="es">{{ p.f.nombre }}</p><p class="text-mono-xs text-text-tertiary">{{ kg(p.f.total) }} kg</p>
                       <div class="flex w-full items-center justify-center rounded-t-md border font-display text-[34px] italic" [style.height.px]="[0, 124, 96, 76][p.pos]"
                         [class]="p.pos === 1 ? 'border-accent/60 bg-accent-deep/60 text-[#e3c25a]' : p.pos === 2 ? 'border-line-strong bg-bg-raised' : 'border-[#b0703e]/50 bg-[#b0703e]/15 text-[#d79a66]'">{{ p.pos }}</div>
                     </div>
@@ -606,7 +606,12 @@ export class ResultadosIndexPage {
               </section>
             }
           </div>
-          @if (r.categorias.length > 1) { <p class="mt-3 text-body-xs text-text-muted md:hidden">Desliza para ver las {{ r.categorias.length }} categorías →</p> }
+          @if (r.categorias.length > 1) {
+            <div class="mt-3 flex items-center justify-between gap-3 md:hidden">
+              <p class="text-body-xs text-text-tertiary">Desliza para ver las {{ r.categorias.length }} categorías →</p>
+              <p class="shrink-0 text-mono-s text-text-secondary tabular-nums" aria-live="polite"><span class="sr-only">Categoría </span>{{ podioIdx() + 1 }}/{{ r.categorias.length }}</p>
+            </div>
+          }
         }
 
         <gr-cabecera id="clasificacion" class="mt-14 scroll-mt-28" eyebrow="Clasificación" [titulo]="cat() ? tituloCat().replace(/(\S+ kg)$/, '*$1*') : 'Clasificación *completa*'" [centro]="false" tam="m" />
@@ -646,6 +651,12 @@ export class ResultadosEdicionPage {
   protected readonly sexo = signal<'' | 'F' | 'M'>('');
   /** Mobile: the «Filtros» panel (category and order). */
   protected readonly filtros = signal(false);
+  /** podium carousel position (mobile scroll-snap) */
+  protected readonly podioIdx = signal(0);
+  protected podioScroll(e: Event): void {
+    const el = e.target as HTMLElement, w = (el.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
+    if (w) this.podioIdx.set(Math.min(el.children.length - 1, Math.round(el.scrollLeft / (w + 12))));
+  }
   protected readonly cat = signal('');
   protected readonly orden = signal<'puesto' | 'total' | 'gl'>('puesto');
   protected readonly copiado = signal(false);

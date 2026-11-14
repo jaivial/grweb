@@ -75,13 +75,13 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
             }
           </nav>
           <div class="grid grid-cols-2 rounded-md border border-line-subtle bg-bg-surface p-1 md:inline-flex" role="radiogroup" aria-label="Vista">
-            <button type="button" role="radio" [attr.aria-checked]="!mio()" (click)="mio.set(false)" class="h-9 rounded-sm px-2 text-label-s md:px-4" [class]="!mio() ? 'bg-accent text-white' : 'text-text-secondary'">Todos los flights</button>
-            <button type="button" role="radio" [attr.aria-checked]="mio()" (click)="mio.set(true); q.set('')" class="h-9 rounded-sm px-2 text-label-s md:px-4" [class]="mio() ? 'bg-accent text-white' : 'text-text-secondary'">Mi horario ({{ misAtletas().length }})</button>
+            <button type="button" role="radio" [attr.aria-checked]="!mio()" (click)="mio.set(false)" class="h-11 rounded-sm px-2 text-label-s md:px-4" [class]="!mio() ? 'bg-accent text-white' : 'text-text-secondary'">Todos los flights</button>
+            <button type="button" role="radio" [attr.aria-checked]="mio()" (click)="mio.set(true); q.set('')" class="h-11 rounded-sm px-2 text-label-s md:px-4" [class]="mio() ? 'bg-accent text-white' : 'text-text-secondary'">Mi horario ({{ misAtletas().length }})</button>
           </div>
           <label class="relative min-w-0 md:w-72" [class.max-lg:hidden]="mio()">
             <span class="sr-only">Buscar atleta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-            <input type="search" placeholder="¿Cuándo compite…?" [ngModel]="q()" (ngModelChange)="q.set($event)"
+            <input type="search" enterkeyhint="search" autocomplete="off" (keydown.enter)="$any($event.target).blur()" placeholder="¿Cuándo compite…?" [ngModel]="q()" (ngModelChange)="q.set($event)"
               class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
         </div>
@@ -103,22 +103,22 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
                 @let fin = f.estado === 'finalizado';
                 <article [id]="'flight-' + f.codigo" class="relative overflow-hidden rounded-lg border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent' : 'border-line-subtle'">
                   <!-- Figma «Flight block»: one row on desktop; time + pill on top and the title below on mobile -->
-                  <button type="button" class="grid w-full grid-cols-[minmax(0,1fr)_auto_18px] items-center gap-x-2.5 gap-y-2 p-4 text-left md:grid-cols-[72px_minmax(0,1fr)_auto_18px] md:gap-x-4 md:p-5" (click)="toggle(f.id)" [attr.aria-expanded]="abierto">
-                    <span class="flex items-end gap-2 md:flex-col md:items-start md:gap-1">
-                      <span class="text-ui-h3 leading-none tabular-nums" [class.text-text-muted]="fin">{{ hora(f.inicioEstimado) }}</span>
-                      @if (f.retrasoMin) { <span class="text-mono-s text-text-muted line-through">{{ hora(f.inicio) }}</span> } @else { <span class="text-mono-s text-text-muted">Plat. {{ f.plataforma }}</span> }
+                  <button type="button" class="@container grid w-full grid-cols-[minmax(0,1fr)_auto_18px] items-center gap-x-2.5 gap-y-2 p-4 text-left md:grid-cols-[72px_minmax(0,1fr)_auto_18px] md:gap-x-4 md:p-5" (click)="toggle(f.id)" [attr.aria-expanded]="abierto" [attr.aria-controls]="'panel-' + f.codigo">
+                    <span class="flex flex-wrap items-end gap-2 md:flex-col md:items-start md:gap-1">
+                      <span class="text-ui-h3 leading-none tabular-nums" [class.text-text-muted]="fin">@if (f.retrasoMin) {<span class="sr-only">Nuevo inicio </span>}{{ hora(f.inicioEstimado) }}</span>
+                      @if (f.retrasoMin) { <del class="text-mono-s text-text-muted"><span class="sr-only">, previsto </span>{{ hora(f.inicio) }}<span class="sr-only">, {{ f.retrasoMin }} minutos de retraso. </span></del> } @else { <span class="text-mono-s text-text-muted"><span class="sr-only">, </span>Plat. {{ f.plataforma }}<span class="sr-only">. </span></span> }
                     </span>
                     <span class="col-span-3 row-start-2 flex min-w-0 flex-col gap-1 md:col-span-1 md:row-start-auto">
-                      <span class="text-label-m" [class.text-text-secondary]="fin">Flight {{ f.codigo }} · {{ f.titulo }}</span>
+                      <span class="text-label-m" [class.text-text-secondary]="fin">Flight {{ f.codigo }} · {{ f.titulo }}<span class="sr-only">. </span></span>
                       <span class="text-body-xs text-text-tertiary">Plataforma {{ f.plataforma }} · {{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
                     </span>
                     <!-- Figma «Badge» -->
                     @switch (f.estado) {
-                      @case ('en_curso') { <gr-status tone="directo" icon="radio">En curso</gr-status> }
-                      @case ('finalizado') { <gr-status tone="finalizado" icon="check">Finalizado</gr-status> }
+                      @case ('en_curso') { <gr-status class="justify-self-start @max-[320px]:col-span-2 @max-[320px]:row-start-3" tone="directo" icon="radio">En curso</gr-status> }
+                      @case ('finalizado') { <gr-status class="justify-self-start @max-[320px]:col-span-2 @max-[320px]:row-start-3" tone="finalizado" icon="check">Finalizado</gr-status> }
                       @default {
-                        @if (f.retrasoMin) { <gr-status tone="proximamente" icon="clock">+{{ f.retrasoMin }} min</gr-status> }
-                        @else { <gr-status tone="agotado">Programado</gr-status> }
+                        @if (f.retrasoMin) { <gr-status class="justify-self-start @max-[320px]:col-span-2 @max-[320px]:row-start-3" tone="proximamente" icon="clock">+{{ f.retrasoMin }} min</gr-status> }
+                        @else { <gr-status class="justify-self-start @max-[320px]:col-span-2 @max-[320px]:row-start-3" tone="agotado">Programado</gr-status> }
                       }
                     }
                     <gr-icon name="chevron-down" [size]="18" class="text-text-tertiary transition-transform" [class.rotate-180]="abierto" />
@@ -132,15 +132,15 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
                       <!-- Figma «Ahora»: the attempt on the platform right now (live) -->
                       <p class="flex items-start gap-2 bg-accent/8 px-4 py-3 text-body-s md:px-5" aria-live="polite"><gr-icon name="activity" [size]="16" class="mt-0.5 shrink-0 text-accent-text" />{{ t }}</p>
                     }
-                    <ul class="border-t border-line-subtle px-4 pb-1 md:px-5">
+                    <ul [id]="'panel-' + f.codigo" class="border-t border-line-subtle px-4 pb-1 md:px-5">
                       @for (a of lista.slice(0, todos().has(f.id) ? 99 : 6); track a.slug) {
-                        <li class="flex min-h-[55px] items-center gap-3 border-b border-line-subtle last:border-0">
+                        <li class="flex min-h-[55px] flex-wrap items-center gap-x-3 border-b border-line-subtle last:border-0">
                           <span class="w-6 shrink-0 text-mono-s text-text-muted">{{ a.lote.toString().padStart(2, '0') }}</span>
-                          <a [href]="'/atletas/' + a.slug" class="flex min-w-0 flex-1 flex-col gap-1 py-2">
-                            <span class="truncate text-label-s" [class.text-accent-text]="fav.slugs().includes(a.slug)">{{ a.nombre }}</span>
-                            <span class="truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.divisionNombre }}</span>
+                          <a [href]="'/atletas/' + a.slug" class="flex min-w-[8ch] flex-1 basis-0 flex-col gap-1 py-2">
+                            <span class="line-clamp-2 text-label-m md:text-label-s" [class.text-accent-text]="fav.slugs().includes(a.slug)">{{ a.nombre }}</span>
+                            <span class="line-clamp-2 text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.divisionNombre }}</span>
                           </a>
-                          <span class="shrink-0 text-mono-s text-text-secondary">{{ a.sexo }} {{ cat(a.categoria) }} kg</span>
+                          <span class="shrink-0 text-mono-s text-text-secondary" [class.max-md:hidden]="unaCat(lista)">{{ a.sexo }} {{ cat(a.categoria) }} kg</span>
                           <gr-fav class="-mr-3" [slug]="a.slug" [nombre]="a.nombre" [plano]="true" />
                         </li>
                       }
@@ -385,6 +385,9 @@ export class HorariosPage {
   protected verTodos(id: string): void {
     this.todos.set(new Set(this.todos()).add(id));
   }
+  /** one category in the flight → the weight column repeats the title (hidden on mobile) */
+  protected unaCat(l: PubAtleta[]): boolean { return new Set(l.map((a) => a.sexo + a.categoria)).size < 2; }
+
   protected atletasDe(f: PubFlight): PubAtleta[] {
     const q = norm(this.q());
     if (this.mio()) {
