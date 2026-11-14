@@ -129,7 +129,10 @@ func (s *Svc) ordenJornada(ctx context.Context, j jornada, m Moneda) *orden {
 		return o
 	}
 	v, _, _ := rankingVuelo.Do("orden:"+key, func() (any, error) {
-		rows, err := s.a.DB.Query(ctx, `SELECT saldo, updated_at FROM saldos WHERE jornada_id = $1 AND moneda = $2
+		// shared load: a caller that hangs up must not fail the others waiting on the flight
+		qctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		rows, err := s.a.DB.Query(qctx, `SELECT saldo, updated_at FROM saldos WHERE jornada_id = $1 AND moneda = $2
 			ORDER BY saldo DESC, updated_at ASC`, j.ID, m)
 		if err != nil {
 			return o, err
