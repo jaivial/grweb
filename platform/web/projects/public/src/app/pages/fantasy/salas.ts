@@ -22,6 +22,7 @@ type Filtro = 'todas' | 'abiertas' | 'en_juego' | 'cerradas';
 const FAVORITAS = 'grcup.fantasy.salas.favoritas';
 /** ST3-R6-3: salas públicas por página del lobby (el backend limita a 200). */
 const PAGINA_SALAS = 30;
+const TOPE_SALAS = 200;
 const ABIERTA = new Set(['esperando', 'lista', 'llena']);
 const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
 
@@ -179,7 +180,12 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
           </div>
         }
         @if (!cargando() && !errorCarga() && lobby()?.hayMas) {
-          <button type="button" grButton variant="outline" class="self-center" [loading]="cargandoMas()" (click)="verMas()">Ver más salas</button>
+          @if (limite() < tope) {
+            <button type="button" grButton variant="outline" class="self-center" [loading]="cargandoMas()" (click)="verMas()">Ver más salas</button>
+          } @else {
+            <!-- ST3-R8-3: at the 200 cap more clicks repeat the same request; ask to filter instead. -->
+            <p class="self-center text-sm text-muted-foreground">Mostrando las primeras {{ tope }} salas. Busca o filtra para encontrar otras.</p>
+          }
         }
       </div>
     </gr-page>
@@ -207,6 +213,7 @@ export class SalasPage {
   protected readonly q = signal('');
   /** ST3-R6-3: salas públicas pedidas; «Ver más salas» suma otra página. */
   protected readonly limite = signal(PAGINA_SALAS);
+  protected readonly tope = TOPE_SALAS;
   protected readonly cargandoMas = signal(false);
   protected readonly filtro = signal<Filtro>('todas');
   protected readonly operando = signal<string | null>(null);
@@ -307,7 +314,7 @@ export class SalasPage {
     this.esperaBusqueda = setTimeout(() => void this.recargar(), 300);
   }
   protected async verMas(): Promise<void> {
-    this.limite.update((n) => Math.min(n + PAGINA_SALAS, 200));
+    this.limite.update((n) => Math.min(n + PAGINA_SALAS, TOPE_SALAS));
     this.cargandoMas.set(true);
     await this.recargar();
     this.cargandoMas.set(false);
