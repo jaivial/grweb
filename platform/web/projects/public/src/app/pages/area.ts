@@ -151,6 +151,13 @@ const api = '/api/area-atleta';
                     <p class="text-body-s text-text-tertiary">Con foto y mejores marcas, tu perfil sale destacado en /atletas y en la pantalla del pabellón.</p>
                     <button grButton variant="primary" [block]="true" (click)="abrir('perfil')">Completar perfil</button>
                   </section>
+                  @if (p.atleta.estado === 'confirmado') {
+                    <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
+                      <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="instagram" [size]="18" /></span><h2 class="text-[18px] font-semibold leading-tight">Comparte tu cuenta atrás</h2></div>
+                      <p class="text-[15px] leading-normal text-text-tertiary">Crea tu story para Instagram con tu foto y los datos de tu inscripción.</p>
+                      <a grButton [block]="true" routerLink="/area-atleta/compartir">Crear mi story</a>
+                    </section>
+                  }
                   @if (p.referido; as r) {
                     <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                       <div class="flex items-center gap-3"><span class="flex size-10 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="trophy" [size]="18" /></span>
