@@ -678,7 +678,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		if matchID == nil {
 			if err := s.hayPlaza(ctx, tx, c.ID); err != nil {
 				if pe := (*problem.Error)(nil); errors.As(err, &pe) && pe.Code == "INSCRIPCION_COMPLETA" {
-					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email o licencia no constan en la lista de inscritos de la AEP. Revisa que sean los de tu inscripción o escríbenos.")
+					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email no consta en la lista de inscritos. Revisa que sea el de tu inscripción o escríbenos.")
 				}
 				return err
 			}
@@ -1685,7 +1685,7 @@ func tel34Valido(tel string) bool {
 	case strings.HasPrefix(tel, "0034"):
 		return len(tel) == 13
 	default:
-		return len(tel) == 9 || !strings.HasPrefix(tel, "34") || len(tel) == 11
+		return len(tel) == 9 || (strings.HasPrefix(tel, "34") && len(tel) == 11)
 	}
 }
 
