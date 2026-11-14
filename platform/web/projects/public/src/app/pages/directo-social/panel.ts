@@ -24,7 +24,9 @@ type Pestana = 'chat' | 'donantes' | 'porra';
   styles: `
     @keyframes gr-latido { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
     .gr-latido { animation: gr-latido 2s ease-out infinite; }
-    @media (prefers-reduced-motion: reduce) { .gr-latido { animation: none; display: none; } }
+    @keyframes gr-tab { from { opacity: 0; } to { opacity: 1; } }
+    .gr-tab { animation: gr-tab 200ms ease-out both; }
+    @media (prefers-reduced-motion: reduce) { .gr-latido { animation: none; display: none; } .gr-tab { animation: none; } }
   `,
   template: `
     <section class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card bg-[linear-gradient(180deg,rgb(110_20_32/0.42),transparent_220px)] lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat del directo">
@@ -47,7 +49,7 @@ type Pestana = 'chat' | 'donantes' | 'porra';
 
       <nav class="grid shrink-0 grid-cols-3 border-b border-line-subtle px-2" role="tablist" aria-label="Secciones del directo">
         @for (t of pestanas; track t.v) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.v" class="relative h-11 text-label-s transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="tab.set(t.v)">
+          <button type="button" role="tab" [id]="'tab-' + t.v" aria-controls="panel-directo" [attr.aria-selected]="tab() === t.v" class="relative h-11 text-label-s transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="tab.set(t.v)">
             {{ t.l }}
             @if (tab() === t.v) { <span class="absolute bottom-0 left-1/2 h-0.5 w-14 -translate-x-1/2 rounded-t-2xs bg-accent shadow-[0_0_8px_rgb(196_43_62/0.6)]"></span> }
           </button>
@@ -70,13 +72,16 @@ type Pestana = 'chat' | 'donantes' | 'porra';
         </div>
       </div>
 
-      <div class="flex min-h-0 flex-1 flex-col">
-        @switch (tab()) {
+      <!-- UX4-R1-11: one tabpanel, same height for the three tabs (no jump), a short fade on change -->
+      @for (t of [tab()]; track t) {
+      <div id="panel-directo" role="tabpanel" [attr.aria-labelledby]="'tab-' + t" class="gr-tab flex min-h-[600px] flex-1 flex-col lg:min-h-0">
+        @switch (t) {
           @case ('chat') { <gr-chat-view (donar)="donar.set(true)" /> }
           @case ('donantes') { <gr-donantes-view [diaSala]="chat.dia()" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> }
           @case ('porra') { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> }
         }
       </div>
+      }
     </section>
     <gr-donar-modal [(abierto)]="donar" (verRanking)="tab.set('donantes')" />
   `,
