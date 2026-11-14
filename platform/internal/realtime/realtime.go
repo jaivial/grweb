@@ -31,8 +31,9 @@ import (
 )
 
 type msg struct {
-	id string
-	ev events.Event
+	id  string
+	ev  events.Event
+	key string // coalescing key ("" = never coalesced), computed once in offer
 	// the public/admin SSE frame is built once per event, not once per subscriber (ST2-R2-1, ST2-R5-1)
 	pubOnce, admOnce sync.Once
 	pub, adm         []byte
@@ -82,26 +83,76 @@ const coalesceEvery = 250 * time.Millisecond
 // every subscriber ~100×/s at 100 bets/s; one batch per tick = one wake, one write and one flush per client.
 type hub struct {
 	mu    sync.RWMutex
-	subs  map[chan []*msg]struct{}
+	subs  map[*sub]struct{}
 	pmu   sync.Mutex // guards pend/queue
 	pend  map[string]*msg
 	queue []*msg
 }
 
-func (h *hub) add() chan []*msg {
-	ch := make(chan []*msg, 256) // ~1 min of batches
-	h.mu.Lock()
-	h.subs[ch] = struct{}{}
-	h.mu.Unlock()
-	return ch
+// maxPendiente caps what a client may have queued and unsent; past it the client is cut and resumes with
+// Last-Event-ID (ST2-R7-2: a 256-batch channel let a slow client drift up to ~1 min behind).
+const maxPendiente = 2048
+
+// sub is the mailbox of one client. ST2-R7-2: batches no longer pile up per tick; a client that is behind gets
+// everything pending in one write, with live odds still coalesced per market (latest wins), so its delay stays
+// at one tick plus one write instead of growing with the backlog.
+type sub struct {
+	mu    sync.Mutex
+	queue []*msg         // increasing ids; nil = replaced by a newer odds event of the same market
+	idx   map[string]int // coalescing key → position in queue
+	n     int            // non-nil entries
+	dead  bool
+	wake  chan struct{} // cap 1
 }
 
-func (h *hub) remove(ch chan []*msg) {
-	h.mu.Lock()
-	if _, ok := h.subs[ch]; ok {
-		delete(h.subs, ch)
-		close(ch)
+func (c *sub) push(ms []*msg) {
+	c.mu.Lock()
+	if c.dead {
+		c.mu.Unlock()
+		return
 	}
+	for _, m := range ms {
+		if m.key != "" {
+			if i, ok := c.idx[m.key]; ok {
+				c.queue[i] = nil
+				c.n--
+			}
+			c.idx[m.key] = len(c.queue)
+		}
+		c.queue = append(c.queue, m)
+		c.n++
+	}
+	if c.n > maxPendiente {
+		c.dead = true
+	}
+	c.mu.Unlock()
+	select {
+	case c.wake <- struct{}{}:
+	default:
+	}
+}
+
+// take returns what is pending (in id order) and whether the client was cut.
+func (c *sub) take() ([]*msg, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	q := c.queue
+	c.queue, c.n = nil, 0
+	clear(c.idx)
+	return q, c.dead
+}
+
+func (h *hub) add() *sub {
+	c := &sub{idx: map[string]int{}, wake: make(chan struct{}, 1)}
+	h.mu.Lock()
+	h.subs[c] = struct{}{}
+	h.mu.Unlock()
+	return c
+}
+
+func (h *hub) remove(c *sub) {
+	h.mu.Lock()
+	delete(h.subs, c)
 	h.mu.Unlock()
 }
 
@@ -123,8 +174,8 @@ func coalesceKey(e events.Event) string {
 func (h *hub) offer(m *msg) {
 	h.pmu.Lock()
 	defer h.pmu.Unlock()
-	if k := coalesceKey(m.ev); k != "" {
-		h.pend[k] = m
+	if m.key = coalesceKey(m.ev); m.key != "" {
+		h.pend[m.key] = m
 		return
 	}
 	h.queue = append(h.queue, m)
@@ -150,18 +201,10 @@ func (h *hub) flush() {
 
 func (h *hub) publish(ms []*msg) {
 	h.mu.RLock()
-	var slow []chan []*msg
-	for ch := range h.subs {
-		select {
-		case ch <- ms:
-		default:
-			slow = append(slow, ch) // the client will reconnect with Last-Event-ID
-		}
+	for c := range h.subs {
+		c.push(ms)
 	}
 	h.mu.RUnlock()
-	for _, ch := range slow {
-		h.remove(ch)
-	}
 }
 
 type Svc struct {
@@ -185,7 +228,7 @@ type slugEntry struct {
 
 // Service returns the realtime service definition.
 func Service() app.Service {
-	s := &Svc{hub: &hub{subs: map[chan []*msg]struct{}{}, pend: map[string]*msg{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
+	s := &Svc{hub: &hub{subs: map[*sub]struct{}{}, pend: map[string]*msg{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
 	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, MaxConns: -1, Setup: s.setup}
 }
 
@@ -404,10 +447,11 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 	_ = rc.Flush()
 
 	// Subscribe before replaying so nothing published meanwhile is lost; duplicates are skipped by id.
-	ch := s.hub.add()
-	defer s.hub.remove(ch)
+	c := s.hub.add()
+	defer s.hub.remove(c)
 	lastSent := ""
-	// write buffers one event; the caller flushes once per batch (one syscall for a burst, ST2-R2-1)
+	// write appends one event to buf; the caller writes and flushes buf once per wake (one syscall, ST2-R7-2)
+	var buf []byte
 	write := func(m *msg) bool {
 		if lastSent != "" && !after(m.id, lastSent) {
 			return true
@@ -416,11 +460,17 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 		if !ok {
 			return true
 		}
-		if _, err := w.Write(frame); err != nil {
-			return false
-		}
+		buf = append(buf, frame...)
 		lastSent = m.id
 		return true
+	}
+	send := func() bool {
+		if len(buf) == 0 {
+			return true
+		}
+		_, err := w.Write(buf)
+		buf = buf[:0]
+		return err == nil && rc.Flush() == nil
 	}
 	control := func(event, motivo string) bool {
 		_, err := fmt.Fprintf(w, "event: %s\ndata: {\"motivo\":%q}\n\n", event, motivo)
@@ -447,7 +497,7 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 				}
 				lastSent = m.ID
 			}
-			if rc.Flush() != nil {
+			if !send() || rc.Flush() != nil {
 				return
 			}
 			if truncated && !control("resync", "demasiados_eventos") {
@@ -466,24 +516,17 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 		case <-end.C:
 			control(endEvent, "fin_de_conexion")
 			return
-		case b, ok := <-ch:
-			if !ok {
-				return // too slow: the client reconnects and resumes
+		case <-c.wake:
+			ms, dead := c.take()
+			if dead {
+				return // too far behind: the client reconnects and resumes with Last-Event-ID
 			}
-			for n := len(ch); ; n-- { // this batch plus what is already queued, then one flush
-				for _, m := range b {
-					if !write(m) {
-						return
-					}
-				}
-				if n == 0 {
-					break
-				}
-				if b, ok = <-ch; !ok {
-					return
+			for _, m := range ms {
+				if m != nil {
+					write(m)
 				}
 			}
-			if rc.Flush() != nil {
+			if !send() {
 				return
 			}
 		case <-ping.C:
