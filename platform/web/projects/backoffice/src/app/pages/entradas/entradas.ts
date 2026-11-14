@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { fmtNumber, type GrTone, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
@@ -9,7 +9,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { urlSort } from '../../shared/url-sort';
 import { BO_ROW, BoMenu, type BoMenuItem, BoCapacityMeter, BoCheckbox, BoModalForm, BoSessionCard, type BoSesion, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
-import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoTabs, BoToggle, type BoTab, Confirm, errText } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
   ESTADO_ENTRADA, ESTADO_SESION, EntradasApi, RESULTADO, aLocal, deLocal, diaHora, diaMes, fechaCorta, hora,
@@ -31,7 +31,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [NgTemplateOutlet, BoMenu, GrSelect, GrAvatar, GrIconButton, BoModalForm, BoSessionCard, FormsModule, RouterLink, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [NgTemplateOutlet, BoMenu, GrSelect, GrAvatar, GrIconButton, BoModalForm, BoSessionCard, FormsModule, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoTabs, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'menu.set(null)' },
   template: `
@@ -46,14 +46,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
           </ng-container>
         }
       </bo-page-header>
-      <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none] max-md:[mask-image:linear-gradient(to_right,#000_85%,transparent)]" aria-label="Entradas">
-        @for (t of tabs; track t.v) {
-          <a [routerLink]="ruta(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
-            {{ t.label }}@if (t.v !== 'ajustes' && r?.pestanas; as p) { <span class="rounded-2xs px-1.5 text-mono-xs" [class]="tab() === t.v ? 'bg-accent-deep/50 text-accent-text' : 'bg-bg-raised'">{{ n(p[t.v]) }}</span> }
-            @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
-          </a>
-        }
-      </nav>
+      <bo-tabs [tabs]="tabsNav()" />
       @for (x of sobreventas(); track x.id) {
         <gr-alert tone="danger" [title]="x.nombre + ': ' + n(x.ocupadas) + ' reservas para ' + n(x.aforo) + ' plazas'">Sube el aforo, mueve reservas a otra sesión (con aviso) o mantenlo y vigila la puerta.</gr-alert>
       }
@@ -367,6 +360,11 @@ export class EntradasPage {
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
   }
+  /** Pestañas de la página con su contador; «Sesiones» es la ruta base, activa solo en exacto. */
+  protected readonly tabsNav = computed<BoTab[]>(() => {
+    const p = this.resumen()?.pestanas as Record<string, number> | undefined;
+    return this.tabs.map((t) => ({ label: t.label, path: this.ruta(t.v).join('/').replace(/^\/\//, '/'), exact: t.v === 'sesiones', count: t.v !== 'ajustes' && p ? p[t.v] : null }));
+  });
   protected ruta(t: Tab): string[] {
     return ['/', this.comps.current()?.slug ?? '', 'entradas', ...(t === 'sesiones' ? [] : [t])];
   }

@@ -43,6 +43,8 @@ export interface BoTab {
   label: string;
   path: string;
   count?: number | null;
+  /** Active only on this exact path (a tab whose path is the prefix of the others). */
+  exact?: boolean;
 }
 
 /** Router tabs with optional counters (Figma «BO / Tab»). Scrolls horizontally on mobile. */
@@ -54,7 +56,7 @@ export interface BoTab {
   template: `
     <nav class="flex min-w-max gap-1" aria-label="Secciones">
       @for (t of tabs(); track t.path) {
-        <a [routerLink]="t.path" routerLinkActive #a="routerLinkActive" [routerLinkActiveOptions]="{ exact: false }" [attr.aria-current]="a.isActive ? 'page' : null"
+        <a [routerLink]="t.path" routerLinkActive #a="routerLinkActive" [routerLinkActiveOptions]="{ exact: !!t.exact }" [attr.aria-current]="a.isActive ? 'page' : null"
           class="relative flex h-11 items-center gap-2 px-3 text-label-s whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
           [class]="a.isActive ? 'rounded-t-sm text-text-primary' : 'rounded-sm text-text-tertiary hover:bg-bg-raised'">
           {{ t.label }}
