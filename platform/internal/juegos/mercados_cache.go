@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +28,22 @@ type mercadosEntrada struct {
 
 var mercadosCache sync.Map // jornada id → *mercadosEntrada
 
+// etagCoincide applies weak comparison to an If-None-Match list (ST1-R6-1): proxies may strip W/ or the
+// gzip layer may append "-gzip", and a miss there re-downloads the whole body on every bet.
+func etagCoincide(inm, etag string) bool {
+	if inm == "" {
+		return false
+	}
+	base := strings.TrimPrefix(etag, "W/")
+	for _, t := range strings.Split(inm, ",") {
+		t = strings.TrimPrefix(strings.TrimSpace(t), "W/")
+		if t == "*" || t == base || strings.Replace(t, "-gzip\"", "\"", 1) == base {
+			return true
+		}
+	}
+	return false
+}
+
 // serializarMercados builds body, gzip and ETag once per refresh (at most 1/s and pod), not per request.
 func serializarMercados(j *jornada, ms []mercadoVista) (cuerpo, gz []byte, etag string, err error) {
 	jo := j.out()
@@ -38,7 +55,8 @@ func serializarMercados(j *jornada, ms []mercadoVista) (cuerpo, gz []byte, etag 
 		return nil, nil, "", err
 	}
 	var buf bytes.Buffer
-	w, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	// ST1-R6-1: compressed at most 1/s and pod, so max compression is free CPU-wise and trims every response.
+	w, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
 	_, _ = w.Write(cuerpo)
 	_ = w.Close()
 	h := sha256.Sum256(cuerpo)
