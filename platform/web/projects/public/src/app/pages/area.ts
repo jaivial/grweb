@@ -104,16 +104,24 @@ const api = '/api/area-atleta';
                 <button type="button" class="flex size-11 shrink-0 items-center justify-center text-text-tertiary hover:text-text-primary md:hidden" aria-label="Cerrar sesión" (click)="salir()"><gr-icon name="log-out" [size]="20" /></button>
               </header>
               @for (a of p.avisos; track a) { <gr-alert class="mt-6" tone="info" title="Importante">{{ a }}</gr-alert> }
+              @if (p.prueba && !p.prueba.elegida && !p.prueba.cerrada) {
+                <div class="mt-6 flex flex-wrap items-center gap-3 rounded-md border border-warning/50 bg-warning/10 p-4" role="status">
+                  <gr-icon name="clock" [size]="20" class="shrink-0 text-warning" />
+                  <p class="min-w-0 flex-1 text-body-s text-text-primary"><span class="block text-label-m">Te falta elegir competición</span>Sin ella no tienes flight ni hora de salida.</p>
+                  <button grButton type="button" variant="primary" class="max-sm:w-full" (click)="irEleccion()">Elegir ahora</button>
+                </div>
+              }
               <div class="mt-6 grid grid-cols-[minmax(0,1fr)] items-start gap-6 md:mt-7 md:grid-cols-2 lg:grid-cols-[432fr_360fr_360fr]">
                 <div class="flex flex-col gap-6">
+                  @if (p.prueba; as pr) { @if (!pr.elegida && !pr.cerrada) { <ng-container *ngTemplateOutlet="eleccionTpl; context: { $implicit: pr }" /> } }
                   <section class="flex flex-col gap-3 rounded-lg border border-accent/40 bg-bg-card p-6">
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
                       <h2 class="mr-auto text-ui-h5 md:mr-0">Tu competición</h2>
-                      <p class="inline-flex h-6 items-center gap-1.5 rounded-pill border px-2.5 text-[12px] font-medium uppercase tracking-wide" [class]="p.atleta.estado === 'confirmado' ? 'border-success/40 bg-success/12 text-success' : 'border-info/40 bg-info/10 text-info'">
+                      <p class="inline-flex min-h-6 max-w-full items-center gap-1.5 rounded-pill border px-2.5 py-0.5 text-[12px] font-medium uppercase tracking-wide" [class]="p.atleta.estado === 'confirmado' ? 'border-success/40 bg-success/12 text-success' : 'border-info/40 bg-info/10 text-info'">
                         <gr-icon [name]="p.atleta.estado === 'confirmado' ? 'check' : 'clock'" [size]="12" />{{ p.atleta.estado === 'confirmado' ? (p.atleta.origen === 'propia' ? 'Inscripción confirmada' : 'Inscripción AEP confirmada') : 'En la reserva' }}</p>
                     </div>
                     <dl class="grid grid-cols-2 gap-2">
-                      @for (d of datos(); track d.k; let i = $index) { <div class="flex flex-col gap-1 rounded-md bg-white/4 p-3" [class.col-span-2]="i === 0"><dt class="text-label-xs uppercase tracking-wide text-text-muted">{{ d.k }}</dt><dd class="text-[16px] font-semibold">{{ d.v }}</dd>@if (i === 0 && p.prueba && !p.prueba.cerrada && p.prueba.elegida) { <button type="button" class="-mb-1 self-start text-[13px] font-semibold text-accent-text hover:underline" (click)="verEleccion.set(!verEleccion())">Cambiar</button> }</div> }
+                      @for (d of datos(); track d.k; let i = $index) { <div class="flex min-w-0 flex-col gap-1 rounded-md bg-white/4 p-3" [class.col-span-2]="i === 0"><dt class="text-label-xs uppercase tracking-wide text-text-tertiary">{{ d.k }}</dt><dd class="break-words text-[16px] font-semibold" [class.text-warning]="i === 0 && p.prueba && !p.prueba.elegida">{{ d.v }}</dd>@if (i === 0 && p.prueba && !p.prueba.cerrada && p.prueba.elegida) { <button type="button" class="-my-3 -ml-2 inline-flex h-11 min-w-11 items-center self-start px-2 text-[14px] font-semibold text-accent-text hover:underline" aria-controls="pr-sec" [attr.aria-expanded]="verEleccion()" (click)="toggleEleccion()">Cambiar</button> }</div> }
                     </dl>
                     @if (qr()) {
                       <div class="flex items-center gap-3 border-t border-line-subtle pt-3">
@@ -122,7 +130,7 @@ const api = '/api/area-atleta';
                       </div>
                     }
                   </section>
-                  @if (p.prueba; as pr) { @if (!pr.elegida || pr.cambioOrg || verEleccion() || errorPrueba()) { <ng-container *ngTemplateOutlet="eleccionTpl; context: { $implicit: pr }" /> } }
+                  @if (p.prueba; as pr) { @if ((pr.elegida || pr.cerrada) && (!pr.elegida || pr.cambioOrg || verEleccion() || errorPrueba())) { <ng-container *ngTemplateOutlet="eleccionTpl; context: { $implicit: pr }" /> } }
                 </div>
                 <div class="flex flex-col gap-4">
                   <section class="rounded-lg border border-line-subtle bg-bg-card px-5 py-4">
@@ -249,14 +257,11 @@ const api = '/api/area-atleta';
           <button grButton variant="primary" size="l" [block]="true" [loading]="busy()" [disabled]="intentosMal()" (click)="guardarPesaje()">Guardar para el pesaje</button>
         </ng-template>
         <ng-template #eleccionTpl let-pr>
-          <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6" aria-labelledby="pr-tit">
+          <section id="pr-sec" class="flex scroll-mt-24 flex-col gap-3 rounded-lg border bg-bg-card p-6 motion-safe:animate-[gr-abrir_250ms_cubic-bezier(.2,.8,.2,1)]" [class]="!pr.elegida && !pr.cerrada ? 'border-warning/50' : 'border-line-subtle'" aria-labelledby="pr-tit">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <h2 id="pr-tit" class="text-ui-h5">{{ tituloPrueba(pr) }}</h2>
-              <span class="inline-flex h-6 items-center gap-1.5 rounded-pill border border-success/40 bg-success/12 px-2.5 text-[12px] font-medium uppercase tracking-wide text-success">@if (pr.elegida && !pr.cerrada && !pr.cambioOrg) { <gr-icon name="check" [size]="12" /> }{{ badgePrueba(pr) }}</span>
+              <h2 id="pr-tit" class="text-ui-h5 outline-none" tabindex="-1">{{ tituloPrueba(pr) }}</h2>
+              <span class="inline-flex h-6 items-center gap-1.5 rounded-pill border px-2.5 text-[12px] font-medium uppercase tracking-wide" [class]="pr.elegida && !errorPrueba() ? 'border-success/40 bg-success/12 text-success' : 'border-warning/40 bg-warning/12 text-warning'">@if (pr.elegida && !pr.cerrada && !pr.cambioOrg) { <gr-icon name="check" [size]="12" /> }{{ badgePrueba(pr) }}</span>
             </div>
-            @if (!pr.elegida && !pr.cerrada) {
-              <p class="flex items-start gap-3 rounded-md border border-warning/50 bg-warning/10 p-4 text-body-s text-text-primary"><gr-icon name="clock" [size]="20" class="shrink-0 text-warning" />Aún no has elegido competición. Sin ella no tienes flight ni hora de salida.</p>
-            }
             @if (pr.cambioOrg) {
               <p class="flex items-start gap-3 rounded-md border border-info/50 bg-info/10 p-4 text-body-s text-text-primary"><gr-icon name="info" [size]="20" class="shrink-0 text-info" />La organización te ha cambiado a {{ nombrePrueba(pr.elegida) }} el {{ diaCorto(pr.cambioOrg) }}. Tu flight sale al publicar los horarios.</p>
             }
@@ -335,6 +340,19 @@ export class AreaAtletaPage {
   protected readonly verEleccion = signal(false);
   protected readonly guardandoPrueba = signal(false);
   protected readonly errorPrueba = signal('');
+  protected toggleEleccion(): void {
+    this.verEleccion.update((v) => !v);
+    if (this.verEleccion()) this.irEleccion();
+  }
+  /** Brings the competition picker into view and focuses its title (UX3-R1-7, UX3-R1-10). */
+  protected irEleccion(): void {
+    if (!this.browser) return;
+    afterNextRender(() => {
+      const s = document.getElementById('pr-sec');
+      s?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      document.getElementById('pr-tit')?.focus({ preventScroll: true });
+    }, { injector: this.injector });
+  }
   private textoPrueba(): string {
     const pr = this.panel()?.prueba;
     const o = pr?.opciones.find((x) => x.codigo === pr.elegida);
