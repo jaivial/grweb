@@ -96,7 +96,8 @@ func (s *Svc) mercadosVistaCache(ctx context.Context, cid uuid.UUID, j *jornada)
 	v, _ := mercadosCache.LoadOrStore(j.ID, &mercadosEntrada{})
 	e := v.(*mercadosEntrada)
 	e.mu.Lock()
-	if !e.exp.IsZero() {
+	// ST2-R1-7: stale-while-revalidate only within 2 × TTL; an older entry (idle jornada) is recomputed inline
+	if !e.exp.IsZero() && time.Now().Before(e.exp.Add(mercadosTTL)) {
 		cuerpo, gz, etag = e.cuerpo, e.gz, e.etag
 		if !e.refrescando && !time.Now().Before(e.exp) {
 			e.refrescando = true
