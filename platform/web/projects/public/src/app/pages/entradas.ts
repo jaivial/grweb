@@ -791,7 +791,7 @@ export class OfertaPage {
     </gr-page>
     @if (anularOpen() && mia(); as m) {
       <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 sm:items-center sm:px-4" (click)="anularOpen.set(false)">
-        <div class="mx-5 mb-[82px] w-full max-w-[350px] rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card sm:mb-0" role="alertdialog" aria-modal="true" aria-label="Anular tu entrada" (click)="$event.stopPropagation()">
+        <div class="mx-5 w-full max-w-[350px] rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card" role="alertdialog" aria-modal="true" aria-label="Anular tu entrada" (click)="$event.stopPropagation()">
           <div class="flex items-start justify-between gap-3"><h2 class="text-ui-h3">¿Anular tu entrada?</h2><button type="button" class="flex size-8 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="anularOpen.set(false)"><gr-icon name="x" [size]="18" /></button></div>
           <p class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la sesión del {{ sesionLarga(m.sesion.nombre) }} para la lista de espera.</p>
           <div class="mt-5 flex justify-end gap-2"><button grButton variant="outline" size="m" type="button" (click)="anularOpen.set(false)">Volver</button>
