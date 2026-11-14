@@ -597,7 +597,8 @@ func (s *Svc) registerPublic() {
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				switch op {
 				case "comprar":
-					err = s.comprarTx(ctx, tx, c.ID, *j, cfg, sl.ID, f.ID, f.Alias, in.Body.AtletaID)
+					// ST3-R5-1: the spend returns the balance, no extra read
+					return s.comprarSaldoTx(ctx, tx, c.ID, *j, cfg, sl.ID, f.ID, f.Alias, in.Body.AtletaID, &o.Body.Saldo)
 				case "vender":
 					err = s.venderTx(ctx, tx, c.ID, *j, cfg, sl.ID, f.ID, f.Alias, in.Body.AtletaID)
 				default:
@@ -613,7 +614,8 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o.Body.OK = true
-			s.eventoClasificacion(ctx, c.ID, j.ID)
+			// throttled podium event: off the request path (ST3-R5-1)
+			go s.eventoClasificacion(context.WithoutCancel(ctx), c.ID, j.ID)
 			return o, nil
 		}
 	}

@@ -159,6 +159,12 @@ func asignarDuenoTx(ctx context.Context, tx pgx.Tx, salaID, atletaID uuid.UUID, 
 // comprarTx signs a free athlete of the room for his current value there: wallet spend, ownership, +3 % demand of
 // the room, history and events, all in one transaction. The athlete row lock avoids two buyers for the same athlete.
 func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, salaID, fanID uuid.UUID, alias string, atletaID uuid.UUID) error {
+	var saldo int64
+	return s.comprarSaldoTx(ctx, tx, cid, j, cfg, salaID, fanID, alias, atletaID, &saldo)
+}
+
+// comprarSaldoTx is comprarTx that also returns the wallet balance after the spend (no extra read).
+func (s *Svc) comprarSaldoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, salaID, fanID uuid.UUID, alias string, atletaID uuid.UUID, saldo *int64) error {
 	a, err := bloquearAtletaTx(ctx, tx, j, salaID, fanID, atletaID)
 	if err != nil {
 		return err
@@ -173,34 +179,19 @@ func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 		return problem.Conflict("ATLETA_PROTEGIDO", "El atleta está protegido un rato después de su último fichaje.")
 	}
 	// The buyer's wallet row serializes his own signings: two concurrent purchases of different athletes cannot
-	// both see room in the lineup. ST3-R4-1: open + lock + count go in one round trip (the count runs after the
-	// lock is granted, so it sees the lineup committed by any purchase that held it).
+	// both see room in the lineup. ST3-R5-1: open + lock + spend + every write go in ONE round trip. In READ
+	// COMMITTED each statement of the batch takes a fresh snapshot, so the lineup count inside the spend runs after
+	// the lock is granted and sees what any purchase that held it committed. A refused spend (0 rows) still runs the
+	// rest of the batch, but the error rolls the whole transaction back, so nothing of it is committed.
+	fid := newID()
 	b := &pgx.Batch{}
 	queueAltaCartera(b, j, fanID, Fantasy)
 	b.Queue(`SELECT fan_id FROM saldos WHERE jornada_id = $1 AND moneda = 'fantasy' AND fan_id = $2 FOR UPDATE`, j.ID, fanID)
-	b.Queue(`SELECT count(*) FROM sala_atletas WHERE sala_id = $1 AND dueno_fan_id = $2`, salaID, fanID)
-	var n int
-	if err := enviarBatch(ctx, tx, b, func(br pgx.BatchResults) error {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-		return br.QueryRow().Scan(&n)
-	}); err != nil {
-		return err
-	}
-	if n >= cfg.PlantillaMax {
-		return problem.Conflict("PLANTILLA_LLENA", "Tu alineación está completa ("+itoa(cfg.PlantillaMax)+" atletas). Vende alguien antes.")
-	}
-	// Every write of the signing in one more round trip. A failed spend (0 rows) still runs the rest of the batch,
-	// but the error rolls the whole transaction back, so nothing of it is committed.
-	fid := newID()
-	b = &pgx.Batch{}
 	b.Queue(`UPDATE saldos SET saldo = saldo - $1, version = version + 1, updated_at = now(),
 		alias = CASE WHEN $4 <> '' THEN $4 ELSE alias END
-		WHERE jornada_id = $2 AND fan_id = $3 AND moneda = 'fantasy' AND saldo >= $1`, a.Clausula, j.ID, fanID, alias)
+		WHERE jornada_id = $2 AND fan_id = $3 AND moneda = 'fantasy' AND saldo >= $1
+		AND (SELECT count(*) FROM sala_atletas WHERE sala_id = $5 AND dueno_fan_id = $3) < $6 RETURNING saldo`,
+		a.Clausula, j.ID, fanID, alias, salaID, cfg.PlantillaMax)
 	b.Queue(`INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,'fantasy',$4,'compra',$5)`,
 		newID(), j.ID, fanID, -a.Clausula, "compra:"+fid.String())
 	b.Queue(`UPDATE sala_atletas SET dueno_fan_id = $3, dueno_alias = $4, protegido_hasta = now() + make_interval(mins => $5),
@@ -211,13 +202,17 @@ func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	if err := events.QueueBatch(b, nuevoEventoFichaje(ctx, cid, j.ID, salaID, a.Publica, atletaID, "compra", "", alias, a.Clausula)); err != nil {
 		return err
 	}
-	return enviarBatch(ctx, tx, b, func(br pgx.BatchResults) error {
-		tag, err := br.Exec()
-		if err != nil {
-			return err
+	sinSaldo := false
+	if err := enviarBatch(ctx, tx, b, func(br pgx.BatchResults) error {
+		for i := 0; i < 2; i++ {
+			if _, err := br.Exec(); err != nil {
+				return err
+			}
 		}
-		if tag.RowsAffected() == 0 {
-			return problem.Conflict("SALDO_INSUFICIENTE", "No tienes monedas suficientes en la cartera.")
+		if err := br.QueryRow().Scan(saldo); db.IsNoRows(err) {
+			sinSaldo = true
+		} else if err != nil {
+			return err
 		}
 		for i := 0; i < 4; i++ {
 			if _, err := br.Exec(); err != nil {
@@ -225,7 +220,19 @@ func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 			}
 		}
 		return nil
-	})
+	}); err != nil || !sinSaldo {
+		return err
+	}
+	// refused spend (error path only): tell a full lineup from a short wallet (the batch already set this athlete's
+	// owner, uncommitted, so it is left out of the count)
+	var n int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM sala_atletas WHERE sala_id = $1 AND dueno_fan_id = $2 AND atleta_id <> $3`,
+		salaID, fanID, atletaID).Scan(&n); err != nil {
+		return err
+	} else if n >= cfg.PlantillaMax {
+		return problem.Conflict("PLANTILLA_LLENA", "Tu alineación está completa ("+itoa(cfg.PlantillaMax)+" atletas). Vende alguien antes.")
+	}
+	return problem.Conflict("SALDO_INSUFICIENTE", "No tienes monedas suficientes en la cartera.")
 }
 
 // enviarBatch sends b and reads its results with read; the batch is always closed (its error wins when read did

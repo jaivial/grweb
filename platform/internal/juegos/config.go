@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/jaivial/grweb/platform/pkg/db"
 )
 
 // querier is satisfied by *pgxpool.Pool and pgx.Tx, so the same helpers serve HTTP and worker paths.
@@ -100,7 +102,11 @@ func scanConfig(r pgx.Row) (*Config, error) {
 }
 
 // configJuegos reads (creating with defaults if needed) the configuration of a competition.
+// ST3-R5-1: read first; the insert (a write on one shared row per competition) only runs the first time.
 func configJuegos(ctx context.Context, q querier, cid uuid.UUID) (*Config, error) {
+	if c, err := scanConfig(q.QueryRow(ctx, selConfig, cid)); !db.IsNoRows(err) {
+		return c, err
+	}
 	if _, err := q.Exec(ctx, `INSERT INTO config_juegos (competition_id) VALUES ($1) ON CONFLICT DO NOTHING`, cid); err != nil {
 		return nil, err
 	}
